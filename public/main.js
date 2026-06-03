@@ -6797,7 +6797,7 @@ async function createExternalMemory() {
     showToast("Ошибка создания воспоминания", "error");
   } finally {
     createExternalMemoryBtn.disabled = false;
-    createExternalMemoryBtn.textContent = "Создать воспоминание";
+    createExternalMemoryBtn.textContent = "+ Элемент";
   }
 }
 
