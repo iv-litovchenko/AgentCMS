@@ -261,7 +261,7 @@ const VAULT_FOLDER_DEFAULT = "_Vault";
 const SERVICE_FOLDER_DEFAULT = "_System";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
-const SERVICE_SECTION_HINT = "служебное";
+const SERVICE_SECTION_HINT = "служебные компоненты";
 const SERVICE_SECTION_TITLE = `${SERVICE_SECTION_LABEL} (${SERVICE_SECTION_HINT})`;
 let agentsCache = [];
 let agentsRegistryDraft = [];
@@ -7324,9 +7324,14 @@ function createOverviewThumbWrap(preview, title, nodePath = activePath) {
   return thumbWrap;
 }
 
-async function refreshOverviewThumbInPlace() {
+async function refreshNodeCoverThumbInPlace() {
   const thumbWrap = nodeOverviewContentNode?.querySelector(".node-overview-thumb-wrap");
-  if (!thumbWrap || activeContentMode !== NODE_OVERVIEW_MODE) return;
+  if (
+    !thumbWrap ||
+    (activeContentMode !== NODE_OVERVIEW_MODE && activeContentMode !== NODE_NAVIGATION_MODE)
+  ) {
+    return;
+  }
   const preview = await fetchNodeOverviewPreview();
   const title = thumbWrap.dataset.overviewTitle || "Превью";
   populateOverviewThumbWrap(thumbWrap, preview, title, activePath);
@@ -7334,6 +7339,28 @@ async function refreshOverviewThumbInPlace() {
     "aria-label",
     preview?.imageUrl ? "Редактировать превью" : "Загрузить превью"
   );
+}
+
+function createNavigationHero(preview, title, nodePath = activePath) {
+  const hero = document.createElement("div");
+  hero.className = "node-navigation-hero";
+
+  const thumbWrap = createOverviewThumbWrap(preview, title, nodePath);
+
+  const head = document.createElement("div");
+  head.className = "node-navigation-hero-head";
+
+  const titleNode = document.createElement("h2");
+  titleNode.className = "node-navigation-hero-title";
+  titleNode.textContent = title;
+
+  const pathNode = document.createElement("p");
+  pathNode.className = "node-navigation-hero-path";
+  pathNode.textContent = getLabelFromPath(nodePath) || activeLabel || "—";
+
+  head.append(titleNode, pathNode);
+  hero.append(thumbWrap, head);
+  return hero;
 }
 
 async function fetchTodoForOverview(nodePath = activePath) {
@@ -7440,10 +7467,13 @@ function renderOverviewTodoBlock(todoData, nodePath = activePath) {
     body.classList.add("node-overview-todo-body--empty");
     body.textContent = "Файл TODO ещё не создан. Нажмите «Редактировать», чтобы добавить пункты.";
   } else {
-    const pre = document.createElement("pre");
-    pre.className = "node-overview-todo-content";
-    pre.textContent = content.length > 1600 ? `${content.slice(0, 1600).trim()}…` : content;
-    body.appendChild(pre);
+    const previewLimit = 1600;
+    const previewSource =
+      content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
+    const preview = document.createElement("div");
+    preview.className = "node-overview-todo-content file-content-preview";
+    setMarkdownPreviewHtml(preview, previewSource, { nodePath });
+    body.appendChild(preview);
   }
 
   const path = document.createElement("span");
@@ -8089,6 +8119,65 @@ const NAVIGATION_MEDIA_GROUP_ICONS = {
   Folders: "📁"
 };
 
+const NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT = 12;
+
+function createNavigationMediaImageThumb(item, nodePath) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-navigation-media-thumb";
+  btn.title = item.path || item.name || "";
+
+  const img = document.createElement("img");
+  img.alt = item.name || "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+  img.addEventListener("error", () => {
+    btn.classList.add("node-navigation-media-thumb--error");
+    img.remove();
+    const fallback = document.createElement("span");
+    fallback.className = "node-navigation-media-thumb-fallback";
+    fallback.textContent = "🖼";
+    btn.appendChild(fallback);
+  });
+  btn.appendChild(img);
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openNavigationPanelMode("media");
+  });
+  return btn;
+}
+
+function appendNavigationMediaImageStrip(parent, items, nodePath) {
+  const images = items.filter((item) => !item.isFolder);
+  if (!images.length) return;
+
+  const strip = document.createElement("div");
+  strip.className = "node-navigation-media-thumbs";
+  strip.setAttribute("role", "list");
+  strip.setAttribute("aria-label", "Превью изображений");
+
+  const visible = images.slice(0, NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT);
+  for (const item of visible) {
+    strip.appendChild(createNavigationMediaImageThumb(item, nodePath));
+  }
+
+  if (images.length > NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT) {
+    const moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "node-navigation-media-thumbs-more";
+    moreBtn.textContent = `+${images.length - NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT}`;
+    moreBtn.title = "Открыть все изображения";
+    moreBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openNavigationPanelMode("media");
+    });
+    strip.appendChild(moreBtn);
+  }
+
+  parent.appendChild(strip);
+}
+
 function renderNavigationMediaPart(mediaData) {
   const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
   const groupOrder = ["Images", "Videos", "Audio", "Documents", "Archives", "Other", "Folders"];
@@ -8106,6 +8195,7 @@ function renderNavigationMediaPart(mediaData) {
 
   const root = document.createElement("div");
   root.className = "node-navigation-media-groups";
+  const nodePath = getResolvedNodePath(activePath);
 
   for (const [groupName, items] of entries) {
     const group = document.createElement("section");
@@ -8113,14 +8203,22 @@ function renderNavigationMediaPart(mediaData) {
 
     const label = document.createElement("div");
     label.className = "node-navigation-media-group-label";
-    label.textContent = `${NAVIGATION_MEDIA_GROUP_ICONS[groupName] || "📎"} ${NAVIGATION_MEDIA_GROUP_LABELS[groupName] || groupName}`;
-
-    const list = document.createElement("ul");
-    list.className = "nav-book-toc-list nav-book-toc-list--media";
-
     const sortedItems = [...items].sort((a, b) =>
       compareNavigationPathsNatural(a.path || a.name || "", b.path || b.name || "")
     );
+    const fileItems = sortedItems.filter((item) => !item.isFolder);
+    label.textContent = `${NAVIGATION_MEDIA_GROUP_ICONS[groupName] || "📎"} ${NAVIGATION_MEDIA_GROUP_LABELS[groupName] || groupName}${fileItems.length ? ` · ${fileItems.length}` : ""}`;
+
+    group.appendChild(label);
+
+    if (groupName === "Images" && fileItems.length) {
+      appendNavigationMediaImageStrip(group, sortedItems, nodePath);
+      root.appendChild(group);
+      continue;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "nav-book-toc-list nav-book-toc-list--media";
 
     for (const item of sortedItems) {
       const entry = document.createElement("li");
@@ -8149,7 +8247,7 @@ function renderNavigationMediaPart(mediaData) {
       list.appendChild(entry);
     }
 
-    group.append(label, list);
+    group.appendChild(list);
     root.appendChild(group);
   }
 
@@ -8233,11 +8331,12 @@ function renderNavigationTodoPart(todoData) {
   if (!content) {
     wrap.appendChild(createNavigationEmptyPlaceholder());
   } else {
-    const pre = document.createElement("pre");
-    pre.className = "node-navigation-todo-content";
-    pre.textContent =
+    const previewSource =
       content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
-    wrap.appendChild(pre);
+    const preview = document.createElement("div");
+    preview.className = "node-navigation-todo-content file-content-preview";
+    setMarkdownPreviewHtml(preview, previewSource, { nodePath: getResolvedNodePath(activePath) });
+    wrap.appendChild(preview);
 
     if (content.length > previewLimit) {
       const note = document.createElement("p");
@@ -8262,29 +8361,48 @@ async function renderNodeNavigation() {
   nodeOverviewContentNode.replaceChildren();
   if (isStale()) return;
 
+  if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
+    await loadPropertiesForActivePath();
+    if (isStale()) return;
+  }
+
   const nodePath = getResolvedNodePath(activePath);
   const childEntries = getNavigationSubsectionEntries();
   const isArea = isAreaNodePath(nodePath);
+  const entries = propsFormEntries.length
+    ? propsFormEntries
+    : parsePropsYaml(propsInputNode.value || "");
+  const heroTitle = getOverviewTitleFromProps(entries);
 
   const emptyInternal = { exists: false, content: "", path: null };
   const emptyExternal = { exists: false, files: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
-  const [internalData, externalData, tabularData, mediaData, todoData] = await Promise.all(
+  const [internalData, externalData, tabularData, mediaData, todoData, preview] = await Promise.all(
     isArea
-      ? [emptyInternal, emptyExternal, emptyTabular, fetchMediaOverview(nodePath), fetchTodoForOverview(nodePath)]
+      ? [
+          emptyInternal,
+          emptyExternal,
+          emptyTabular,
+          fetchMediaOverview(nodePath),
+          fetchTodoForOverview(nodePath),
+          fetchNodeOverviewPreview()
+        ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
           fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchMediaOverview(nodePath),
-          fetchTodoForOverview(nodePath)
+          fetchTodoForOverview(nodePath),
+          fetchNodeOverviewPreview()
         ]
   );
   if (isStale()) return;
 
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
+
+  hub.appendChild(createNavigationHero(preview, heroTitle, nodePath));
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
   if (manifestPanel) hub.appendChild(manifestPanel);
@@ -9013,8 +9131,8 @@ async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
       });
     }
     if (menuViewMode === "cards") await refreshMenu();
-    if (activeContentMode === NODE_OVERVIEW_MODE) {
-      await refreshOverviewThumbInPlace();
+    if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
+      await refreshNodeCoverThumbInPlace();
     }
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -9042,8 +9160,8 @@ async function removePreviewImage() {
       syncAgentPreview({ hasPreview: false, previewUrl: null });
     }
     if (menuViewMode === "cards") await refreshMenu();
-    if (activeContentMode === NODE_OVERVIEW_MODE) {
-      await refreshOverviewThumbInPlace();
+    if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
+      await refreshNodeCoverThumbInPlace();
     }
   } catch (error) {
     showToast(`Ошибка удаления: ${error.message}`, "error");
@@ -9955,6 +10073,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   }
 
   parentEl.insertBefore(section, parentEl.firstChild);
+  refreshMenuSortDecorations(agentId);
 }
 
 function appendMenuSearchEmptyState(target = getMenuQueryRoot()) {
@@ -10309,7 +10428,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       folderButton.dataset.path = normalizeMenuNodePath(node.indexPath);
       applyNodeColorVars(folderButton, node.color, { isFolder: true });
       const folderSortKey = getMenuTreeFolderSortKey(node);
-      const folderDisplayLabel = getLabelFromPath(node.indexPath);
+      const folderBaseLabel = getLabelFromPath(node.indexPath) || getAgentTreeTitle(agentId);
+      const folderDisplayLabel = isAgentRootTreeNode(depth, sectionFolderPath)
+        ? `Root: ${folderBaseLabel}`
+        : folderBaseLabel;
       setMenuLabelWithMarkers(
         folderButton,
         formatMenuTreeSortLabel(folderSortKey, parentMenuNode, folderDisplayLabel),
@@ -10478,7 +10600,7 @@ function applyMenuSortRow(row, kind, options = {}) {
 }
 
 function decorateMenuSortRows(root = getMenuQueryRoot()) {
-  if (!canSortMenu()) return;
+  if (!canSortMenu() || !root) return;
   root.querySelectorAll(".tree-children[data-sort-folder]").forEach((container) => {
     container.querySelectorAll(":scope > .menu-section > .menu-folder-row").forEach((row) => {
       applyMenuSortRow(row, "folder");
@@ -10490,6 +10612,11 @@ function decorateMenuSortRows(root = getMenuQueryRoot()) {
       applyMenuSortRow(row, "item");
     });
   });
+}
+
+function refreshMenuSortDecorations(agentId = activeAgentId) {
+  const pane = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  decorateMenuSortRows(pane);
 }
 
 function getMenuSortContainer(row) {
@@ -12708,7 +12835,6 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
       const newSection = wrapper.firstElementChild;
       if (!newSection) return false;
       oldSection.replaceWith(newSection);
-      decorateMenuSortRows(host);
       const childrenContainer = getWorkspacesTreeChildren(agentId);
       if (childrenContainer) {
         if (menu.serviceTree) {
@@ -12716,6 +12842,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
         }
         renderSystemFiles(systemFilesCache);
       }
+      refreshMenuSortDecorations(agentId);
       return true;
     }
 
@@ -12726,7 +12853,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
     oldSection.replaceWith(newSection);
-    decorateMenuSortRows(oldSection.parentElement);
+    refreshMenuSortDecorations(agentId);
     return true;
   } catch (error) {
     console.warn("patchMenuTreeAtFolder failed", folderPath, error);
@@ -12797,6 +12924,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
   } else if (agentId === activeAgentId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
+    refreshMenuSortDecorations(agentId);
     if (isAgentWorkspaceCanvasVisible()) {
       applyAgentWorkspaceCanvasUi();
     }
