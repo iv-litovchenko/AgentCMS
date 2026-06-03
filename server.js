@@ -49,7 +49,8 @@ const {
   STORAGE_SLOT_LAYER_FOLDERS,
   normalizeStorageSubfolderName,
   getStorageSubfolderForMode,
-  listStorageSubfolderNameCandidates
+  listStorageSubfolderNameCandidates,
+  isAllowedStorageSubfolderName
 } = require("./manifest-paths");
 
 const execFileAsync = promisify(execFile);
@@ -5122,7 +5123,7 @@ async function handleApiForAgent(req, res, url) {
     if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const safeFolderName = String(folderName).trim();
-    if (!/^_[A-Za-z0-9-]+$/.test(safeFolderName)) {
+    if (!isAllowedStorageSubfolderName(safeFolderName)) {
       return sendJson(res, 400, { error: "Invalid folder name" });
     }
 

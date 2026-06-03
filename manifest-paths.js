@@ -82,6 +82,13 @@ function listStorageSubfolderNameCandidates(folderName) {
   return [...new Set(candidates)];
 }
 
+function isAllowedStorageSubfolderName(name) {
+  const raw = String(name || "").trim();
+  if (!raw || /[\\/]/.test(raw) || raw === "." || raw === "..") return false;
+  const canonical = normalizeStorageSubfolderName(raw);
+  return STORAGE_SLOT_LAYER_FOLDERS.includes(canonical);
+}
+
 const MANIFEST_MD_RE = /\.(node|x)\.md$/i;
 const TOPIC_MANIFEST_RE = /\.(node|x)\.md$/i;
 
@@ -457,6 +464,7 @@ module.exports = {
   normalizeStorageSubfolderName,
   getStorageSubfolderForMode,
   listStorageSubfolderNameCandidates,
+  isAllowedStorageSubfolderName,
   getLegacyLowercaseBundleRel,
   MANIFEST_MD_RE,
   TOPIC_MANIFEST_RE,

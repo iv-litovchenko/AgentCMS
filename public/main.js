@@ -13849,9 +13849,13 @@ function hideHomeView() {
   homePaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
+  agentMap3PaneNode?.classList.add("hidden");
   agentSchemaPaneNode?.classList.add("hidden");
   agentVaultPaneNode?.classList.add("hidden");
   agentGraphPaneNode?.classList.add("hidden");
+  agentTablePaneNode?.classList.add("hidden");
+  agentStoragePaneNode?.classList.add("hidden");
+  agentTimelinePaneNode?.classList.add("hidden");
   syncAppHomeButton();
 }
 
