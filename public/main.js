@@ -7063,11 +7063,20 @@ async function createExternalSection() {
   }
 }
 
-function setSaveButtonsState(disabled, text = "💾") {
+const SAVE_BUTTON_LABEL_DEFAULT = "Сохранить";
+
+function setWorkspaceToolbarButtonLabel(btn, label) {
+  if (!btn) return;
+  const labelNode = btn.querySelector(".workspace-toolbar-btn-label");
+  if (labelNode) labelNode.textContent = label;
+  else btn.textContent = label;
+}
+
+function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
   for (const btn of [saveContentBtn, saveSystemFileBtn]) {
     if (!btn) continue;
     btn.disabled = disabled;
-    btn.textContent = text;
+    setWorkspaceToolbarButtonLabel(btn, label);
   }
 }
 

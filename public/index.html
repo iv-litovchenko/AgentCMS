@@ -88,57 +88,63 @@
       </header>
 
       <aside class="sidebar">
-        <div class="sidebar-agent-bar">
-          <div class="sidebar-agent-controls">
-            <div id="agent-select-wrap" class="agent-select-wrap">
-              <select id="agent-select" class="agent-select" aria-label="Агент"></select>
-            </div>
-            <button
-              id="agents-picker-btn"
-              class="agents-picker-btn"
-              type="button"
-              title="Сетка агентов — вкл/выкл и переключение"
-              aria-label="Сетка агентов"
-              aria-expanded="false"
-              aria-controls="agents-picker-popover"
-            >
-              ≡
-            </button>
-            <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
-          </div>
-          <div
-            id="agents-picker-popover"
-            class="agents-picker-popover hidden"
-            role="dialog"
-            aria-label="Выбор агента"
-          >
-            <div class="agents-picker-popover-head">
-              <div>
-                <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
-                <p class="agents-picker-popover-hint" id="agents-picker-popover-hint">
-                  ● вкл в реестре · ○ выкл · синяя рамка — текущий агент
-                </p>
+        <section class="sidebar-slab sidebar-slab-agent" aria-label="Агент">
+          <div class="sidebar-agent-select-block">
+            <div class="sidebar-agent-bar">
+              <div class="sidebar-agent-controls">
+              <div id="agent-select-wrap" class="agent-select-wrap">
+                <select id="agent-select" class="agent-select" aria-label="Агент"></select>
               </div>
               <button
-                id="agents-picker-popover-close"
-                class="agents-picker-popover-close"
+                id="agents-picker-btn"
+                class="agents-picker-btn"
                 type="button"
-                aria-label="Закрыть"
+                title="Сетка агентов — вкл/выкл и переключение"
+                aria-label="Сетка агентов"
+                aria-expanded="false"
+                aria-controls="agents-picker-popover"
               >
-                ×
+                ≡
               </button>
+              <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
             </div>
-            <div id="agents-picker-stage" class="agents-picker-stage"></div>
-          </div>
-          <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
-            <div class="agent-preview-frame">
-              <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
-              <span class="agent-preview-shine" aria-hidden="true"></span>
+            <div
+              id="agents-picker-popover"
+              class="agents-picker-popover hidden"
+              role="dialog"
+              aria-label="Выбор агента"
+            >
+              <div class="agents-picker-popover-head">
+                <div>
+                  <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
+                  <p class="agents-picker-popover-hint" id="agents-picker-popover-hint">
+                    ● вкл в реестре · ○ выкл · синяя рамка — текущий агент
+                  </p>
+                </div>
+                <button
+                  id="agents-picker-popover-close"
+                  class="agents-picker-popover-close"
+                  type="button"
+                  aria-label="Закрыть"
+                >
+                  ×
+                </button>
+              </div>
+              <div id="agents-picker-stage" class="agents-picker-stage"></div>
+            </div>
+            <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
+              <div class="agent-preview-frame">
+                <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+                <span class="agent-preview-shine" aria-hidden="true"></span>
+              </div>
+            </div>
             </div>
           </div>
-        </div>
-        <div class="agent-view-wrap">
-          <div class="agent-view-toggle" role="tablist" aria-label="Вид workspace агента">
+        </section>
+
+        <section class="sidebar-slab sidebar-slab-views" aria-label="Вид workspace">
+          <div class="agent-view-wrap">
+            <div class="agent-view-toggle" role="tablist" aria-label="Вид workspace агента">
             <button
               id="agent-view-dashboard-btn"
               class="agent-view-btn active"
@@ -212,11 +218,24 @@
               Граф
             </button>
           </div>
-        </div>
-        <div class="menu-view-wrap">
-          <div class="menu-view-toggle" role="tablist" aria-label="Режим отображения меню">
+          </div>
+        </section>
+
+        <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
+          <div class="menu-view-wrap">
+            <div class="menu-view-toggle" role="tablist" aria-label="Режим отображения меню">
             <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
-              <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
+              <span class="menu-view-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 4v16" />
+                  <path d="M6 8H4a2 2 0 0 1 2-2h2" />
+                  <path d="M20 8h-2a2 2 0 0 0-2 2h2" />
+                  <path d="M6 14H4a2 2 0 0 1 2-2h2" />
+                  <path d="M20 14h-2a2 2 0 0 0-2 2h2" />
+                  <path d="M6 20H4a2 2 0 0 1 2-2h2" />
+                  <path d="M20 20h-2a2 2 0 0 0-2 2h2" />
+                </svg>
+              </span>
             </button>
             <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
               <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
@@ -290,35 +309,41 @@
               </div>
             </div>
           </div>
-        </div>
-        <div id="menu-pinned-banner" class="menu-pinned-banner hidden" role="status" aria-live="polite">
-          <span class="menu-pinned-banner-label">Закреплено:</span>
-          <span id="menu-pinned-banner-path" class="menu-pinned-banner-path"></span>
-          <button id="menu-pinned-banner-unpin" class="menu-pinned-banner-unpin" type="button" title="Открепить ветку">
-            ×
-          </button>
-        </div>
-        <div class="menu-search-wrap">
-          <input
-            id="menu-search-input"
-            class="menu-search-input"
-            type="text"
-            placeholder="Поиск по дереву..."
-            autocomplete="off"
-          />
-        </div>
-        <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
-          <label class="menu-cards-filter" for="menu-cards-preview-only">
-            <input id="menu-cards-preview-only" type="checkbox" />
-            <span>Только с превью</span>
-          </label>
-        </div>
-        <nav id="menu" class="menu">
-          <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
-            <span class="menu-loading-spinner" aria-hidden="true"></span>
-            <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
           </div>
-        </nav>
+        </section>
+
+        <section class="sidebar-slab sidebar-slab-menu" aria-label="Дерево нод">
+          <div class="sidebar-menu-before-tree">
+            <div id="menu-pinned-banner" class="menu-pinned-banner hidden" role="status" aria-live="polite">
+              <span class="menu-pinned-banner-label">Закреплено:</span>
+              <span id="menu-pinned-banner-path" class="menu-pinned-banner-path"></span>
+              <button id="menu-pinned-banner-unpin" class="menu-pinned-banner-unpin" type="button" title="Открепить ветку">
+                ×
+              </button>
+            </div>
+            <div class="menu-search-wrap">
+              <input
+                id="menu-search-input"
+                class="menu-search-input"
+                type="text"
+                placeholder="Поиск по дереву..."
+                autocomplete="off"
+              />
+            </div>
+            <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
+              <label class="menu-cards-filter" for="menu-cards-preview-only">
+                <input id="menu-cards-preview-only" type="checkbox" />
+                <span>Только с превью</span>
+              </label>
+            </div>
+          </div>
+          <nav id="menu" class="menu">
+            <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
+              <span class="menu-loading-spinner" aria-hidden="true"></span>
+              <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
+            </div>
+          </nav>
+        </section>
       </aside>
 
       <div class="sidebar-resize-bar" aria-label="Ширина меню">
@@ -657,27 +682,74 @@
                 <button id="external-memory-back-btn" class="external-memory-back-btn hidden" type="button">← К списку</button>
                 <button id="tabular-source-btn" class="tabular-source-btn hidden" type="button">Исходник CSV</button>
                 <button id="tabular-table-back-btn" class="tabular-table-back-btn hidden" type="button">← К таблице</button>
-                <div id="editor-view-toggle" class="editor-view-toggle" role="tablist" aria-label="Режим отображения редактора">
-                  <button id="editor-view-preview-btn" class="editor-view-btn" type="button" data-view-mode="preview">
-                    Preview
-                  </button>
-                  <button id="editor-view-wysiwyg-btn" class="editor-view-btn" type="button" data-view-mode="wysiwyg">
-                    Edit
-                  </button>
-                  <button id="editor-view-source-btn" class="editor-view-btn active" type="button" data-view-mode="source">
-                    Source
+                <div class="editor-view-cluster" role="group" aria-label="Режим редактора">
+                  <div id="editor-view-toggle" class="editor-view-toggle" role="tablist" aria-label="Режим отображения редактора">
+                    <button
+                      id="editor-view-preview-btn"
+                      class="editor-view-btn"
+                      type="button"
+                      data-view-mode="preview"
+                      data-tooltip="Просмотр"
+                      aria-label="Просмотр"
+                    >
+                      <span class="editor-view-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </span>
+                    </button>
+                    <button
+                      id="editor-view-wysiwyg-btn"
+                      class="editor-view-btn"
+                      type="button"
+                      data-view-mode="wysiwyg"
+                      data-tooltip="Редактор"
+                      aria-label="Редактор"
+                    >
+                      <span class="editor-view-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </span>
+                    </button>
+                    <button
+                      id="editor-view-source-btn"
+                      class="editor-view-btn active"
+                      type="button"
+                      data-view-mode="source"
+                      data-tooltip="Исходный код"
+                      aria-label="Исходный код"
+                    >
+                      <span class="editor-view-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="16 18 22 12 16 6" />
+                          <polyline points="8 6 2 12 8 18" />
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                  <button
+                    id="editor-line-numbers-btn"
+                    class="editor-line-numbers-btn"
+                    type="button"
+                    data-tooltip="Нумерация строк"
+                    aria-label="Нумерация строк"
+                    aria-pressed="false"
+                  >
+                    <span class="editor-view-btn-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 6h11" />
+                        <path d="M10 12h11" />
+                        <path d="M10 18h11" />
+                        <path d="M4 6h1" />
+                        <path d="M4 12h1" />
+                        <path d="M4 18h1" />
+                      </svg>
+                    </span>
                   </button>
                 </div>
-                <button
-                  id="editor-line-numbers-btn"
-                  class="editor-view-btn editor-line-numbers-btn"
-                  type="button"
-                  title="Нумерация строк"
-                  aria-label="Нумерация строк"
-                  aria-pressed="false"
-                >
-                  #
-                </button>
                 <button id="create-external-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
                   + Раздел
                 </button>
@@ -712,17 +784,53 @@
                 >
                   📤
                 </button>
-                <button id="save-content-btn" class="save-btn" type="button" title="Сохранить" aria-label="Сохранить">Сохранить</button>
+                <button
+                  id="save-content-btn"
+                  class="save-btn workspace-toolbar-labeled-btn"
+                  type="button"
+                  title="Сохранить"
+                  aria-label="Сохранить"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                  </span>
+                  <span class="workspace-toolbar-btn-label">Сохранить</span>
+                </button>
                 <button
                   id="node-workspace-close-btn"
-                  class="node-workspace-close-btn hidden"
+                  class="node-workspace-close-btn workspace-toolbar-labeled-btn hidden"
                   type="button"
                   title="Закрыть — вернуться к навигации"
                   aria-label="Закрыть"
                 >
-                  Закрыть
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </span>
+                  <span class="workspace-toolbar-btn-label">Закрыть</span>
                 </button>
-                <button id="save-system-file-btn" class="save-btn save-system-btn hidden" type="button" title="Сохранить" aria-label="Сохранить">Сохранить</button>
+                <button
+                  id="save-system-file-btn"
+                  class="save-btn save-system-btn workspace-toolbar-labeled-btn hidden"
+                  type="button"
+                  title="Сохранить"
+                  aria-label="Сохранить"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                  </span>
+                  <span class="workspace-toolbar-btn-label">Сохранить</span>
+                </button>
               </div>
             </div>
           </section>
