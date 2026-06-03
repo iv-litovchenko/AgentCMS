@@ -246,6 +246,10 @@ const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
 const VAULT_FOLDER_DEFAULT = "_Vault";
 const SERVICE_FOLDER_DEFAULT = "_System";
+/** Универсальный заголовок служебной секции в дереве (не имя агента). */
+const SERVICE_SECTION_LABEL = "Assistant.Ai";
+const SERVICE_SECTION_HINT = "служебное";
+const SERVICE_SECTION_TITLE = `${SERVICE_SECTION_LABEL} (${SERVICE_SECTION_HINT})`;
 let agentsCache = [];
 let agentsRegistryDraft = [];
 let agentsRegistryPathValidateTimer = null;
@@ -9363,7 +9367,7 @@ function menuSearchHasResults(menu) {
   if (!queryLower) return true;
   const baseTree = { title: getAgentTreeTitle(), ...menu };
   if (filterMenuTree(baseTree, queryLower)) return true;
-  if (menu.serviceTree && filterMenuTree({ title: "Служебное", ...menu.serviceTree }, queryLower)) {
+  if (menu.serviceTree && filterMenuTree({ title: SERVICE_SECTION_TITLE, ...menu.serviceTree }, queryLower)) {
     return true;
   }
   const entries = [
@@ -9392,7 +9396,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let treeToRender = serviceTree;
   if (queryLower) {
-    treeToRender = filterMenuTree({ title: "Служебное", ...serviceTree }, queryLower);
+    treeToRender = filterMenuTree({ title: SERVICE_SECTION_TITLE, ...serviceTree }, queryLower);
     if (!treeToRender) return;
   }
 
@@ -9410,7 +9414,13 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
 
   const title = document.createElement("h3");
   title.className = "menu-service-title";
-  title.textContent = "🔧 Служебное";
+  const titleMain = document.createElement("span");
+  titleMain.className = "menu-service-title-main";
+  titleMain.textContent = `${SERVICE_SECTION_LABEL} `;
+  const titleHint = document.createElement("span");
+  titleHint.className = "menu-service-title-hint";
+  titleHint.textContent = `(${SERVICE_SECTION_HINT})`;
+  title.append(titleMain, titleHint);
   title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "";
   if (hasContent) {
     title.addEventListener("click", toggleServiceTreeCollapsed);

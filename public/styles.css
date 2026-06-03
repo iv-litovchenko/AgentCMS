@@ -165,6 +165,16 @@ body.app-booting {
   transform-origin: 0 50%;
 }
 
+.app-splash-tagline {
+  margin: 10px 0 0;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #6b7280;
+  letter-spacing: 0.01em;
+}
+
 .app-splash-brand {
   display: flex;
   align-items: center;
@@ -187,23 +197,24 @@ body.app-booting {
 }
 
 .app-splash-version {
-  margin: 0;
+  margin: 6px 0 0;
   width: 100%;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #64748b;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #94a3b8;
 }
 
 .app-splash-version .app-project-version {
-  font-weight: 600;
-  color: #475569;
+  font-weight: 500;
+  color: #a8b4c4;
   font-variant-numeric: tabular-nums;
 }
 
 .app-splash-track {
   width: 132px;
   height: 3px;
-  margin: 8px auto 0;
+  margin: 10px auto 0;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.22);
   overflow: hidden;
@@ -3060,6 +3071,11 @@ body.app-booting {
   color: #92400e;
   cursor: pointer;
   user-select: none;
+}
+
+.menu-service-title-hint {
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .menu-service-body {

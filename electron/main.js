@@ -102,7 +102,7 @@ function getMainWindow() {
 
 async function revealFolderFromDesktop({ relPath, agentId }) {
   if (!serverInfo?.url) throw new Error("Сервер ещё не запущен");
-  if (!relPath) throw new Error("Не выбрана нода");
+  if (!relPath) throw new Error("Не выбран элемент");
 
   const url = new URL("/api/reveal/folder", serverInfo.url);
   url.searchParams.set("agent", String(agentId || "").trim());

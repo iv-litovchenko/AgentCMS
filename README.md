@@ -1,6 +1,6 @@
 # Agent CMS
 
-File-based CMS для LLM-агентов без базы данных. Ноды на диске (`_.node.md`), память, медиа, системные файлы (`AGENTS.md`).
+File-based CMS для LLM-агентов без базы данных. Контент на диске: области (`_.x.md`), темы (`*.x.md`), память, медиа, системные файлы (`AGENTS.md`).
 
 ## Быстрый старт
 
@@ -30,7 +30,7 @@ cd mcp-server && npm install
 
 - Пользовательская: `public/_storage/user-docs.md` (кнопка **DOC** в UI)
 - Примеры UI: `documentation/examples/`
-- Типы свойств ноды: `documentation/examples/6/`
+- Типы свойств темы: `documentation/examples/6/`
 
 ## Пакеты
 

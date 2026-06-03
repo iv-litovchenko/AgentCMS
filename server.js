@@ -1393,7 +1393,7 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
   if (!manifestBasename) {
     await fs.writeFile(
       path.join(serviceAbsolute, AREA_MANIFEST_FILE),
-      "# Служебное\n\nОбщая медиатека и служебные ноды агента.\n",
+      "# Служебное\n\nОбщая медиатека и служебные темы агента.\n",
       "utf-8"
     );
   }
