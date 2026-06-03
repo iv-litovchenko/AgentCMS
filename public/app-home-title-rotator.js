@@ -5,6 +5,7 @@
     { text: "My Graph ORM", holdMs: 9000 },
     { text: "Agent CMS", holdMs: 9000 },
     { text: "My Planet", holdMs: 6500 },
+    { text: "My Radar", holdMs: 6500 },
     { text: "My World", holdMs: 6500 },
     { text: "My Compas", holdMs: 6500 },
     { text: "My Atlas", holdMs: 6500 },

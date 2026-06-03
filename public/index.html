@@ -93,10 +93,48 @@
             <div id="agent-select-wrap" class="agent-select-wrap">
               <select id="agent-select" class="agent-select" aria-label="Агент"></select>
             </div>
+            <button
+              id="agents-picker-btn"
+              class="agents-picker-btn"
+              type="button"
+              title="Сетка агентов — вкл/выкл и переключение"
+              aria-label="Сетка агентов"
+              aria-expanded="false"
+              aria-controls="agents-picker-popover"
+            >
+              ≡
+            </button>
             <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
           </div>
-          <div id="agent-preview-wrap" class="agent-preview-wrap hidden" title="Превью агента">
-            <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+          <div
+            id="agents-picker-popover"
+            class="agents-picker-popover hidden"
+            role="dialog"
+            aria-label="Выбор агента"
+          >
+            <div class="agents-picker-popover-head">
+              <div>
+                <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
+                <p class="agents-picker-popover-hint" id="agents-picker-popover-hint">
+                  ● вкл в реестре · ○ выкл · синяя рамка — текущий агент
+                </p>
+              </div>
+              <button
+                id="agents-picker-popover-close"
+                class="agents-picker-popover-close"
+                type="button"
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+            <div id="agents-picker-stage" class="agents-picker-stage"></div>
+          </div>
+          <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
+            <div class="agent-preview-frame">
+              <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+              <span class="agent-preview-shine" aria-hidden="true"></span>
+            </div>
           </div>
         </div>
         <div class="agent-view-wrap">
@@ -207,6 +245,16 @@
           >
             <span class="menu-collapse-all-icon" aria-hidden="true">⊟</span>
           </button>
+          <button
+            id="menu-pin-branch-btn"
+            class="menu-pin-branch-btn"
+            type="button"
+            aria-label="Закрепить текущую ветку"
+            title="Закрепить ветку (остальные свернуть)"
+            aria-pressed="false"
+          >
+            📍
+          </button>
           <div id="menu-settings-wrap" class="menu-settings-wrap">
             <button
               id="menu-settings-btn"
@@ -228,8 +276,27 @@
                 <input id="menu-tree-pad-sort-indexes" type="checkbox" />
                 <span>Добавлять ведущие нули к названиям (при сортировке)</span>
               </label>
+              <div class="menu-settings-pin-block">
+                <p class="menu-settings-pin-title">Закрепление ветки</p>
+                <p id="menu-pinned-status" class="menu-settings-pin-status">Ветка не закреплена</p>
+                <div class="menu-settings-pin-actions">
+                  <button id="menu-pin-current-btn" class="menu-settings-pin-action" type="button">
+                    Закрепить текущую
+                  </button>
+                  <button id="menu-unpin-branch-btn" class="menu-settings-pin-action" type="button" hidden>
+                    Открепить
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+        <div id="menu-pinned-banner" class="menu-pinned-banner hidden" role="status" aria-live="polite">
+          <span class="menu-pinned-banner-label">Закреплено:</span>
+          <span id="menu-pinned-banner-path" class="menu-pinned-banner-path"></span>
+          <button id="menu-pinned-banner-unpin" class="menu-pinned-banner-unpin" type="button" title="Открепить ветку">
+            ×
+          </button>
         </div>
         <div class="menu-search-wrap">
           <input
@@ -980,6 +1047,6 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/main.js?v=0.4.42"></script>
-    <script src="/app-home-title-rotator.js?v=8"></script>
+    <script src="/app-home-title-rotator.js?v=9"></script>
   </body>
   </html>

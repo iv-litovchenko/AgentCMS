@@ -21,6 +21,13 @@ const menuViewBookmarksBtn = document.getElementById("menu-view-bookmarks-btn");
 const menuViewCardsBtn = document.getElementById("menu-view-cards-btn");
 const menuRefreshBtn = document.getElementById("menu-refresh-btn");
 const menuCollapseAllBtn = document.getElementById("menu-collapse-all-btn");
+const menuPinBranchBtn = document.getElementById("menu-pin-branch-btn");
+const menuPinnedBannerNode = document.getElementById("menu-pinned-banner");
+const menuPinnedBannerPathNode = document.getElementById("menu-pinned-banner-path");
+const menuPinnedBannerUnpinBtn = document.getElementById("menu-pinned-banner-unpin");
+const menuPinCurrentBtn = document.getElementById("menu-pin-current-btn");
+const menuUnpinBranchBtn = document.getElementById("menu-unpin-branch-btn");
+const menuPinnedStatusNode = document.getElementById("menu-pinned-status");
 const menuSettingsBtn = document.getElementById("menu-settings-btn");
 const menuSettingsPopoverNode = document.getElementById("menu-settings-popover");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
@@ -152,6 +159,10 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const agentSelectNode = document.getElementById("agent-select");
 const agentsManageBtn = document.getElementById("agents-manage-btn");
+const agentsPickerBtn = document.getElementById("agents-picker-btn");
+const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
+const agentsPickerPopoverCloseBtn = document.getElementById("agents-picker-popover-close");
+const agentsPickerStageNode = document.getElementById("agents-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
 const appHomeLink = document.getElementById("app-home-link");
@@ -535,18 +546,27 @@ function syncAgentPreview(previewMeta = null) {
 
   if (hasPreview && previewUrl) {
     agentPreviewWrapNode.classList.remove("hidden");
+    agentPreviewWrapNode.classList.remove("is-revealed");
     agentPreviewThumbNode.onerror = () => {
       agentPreviewWrapNode.classList.add("hidden");
+      agentPreviewWrapNode.classList.remove("is-revealed");
       agentPreviewThumbNode.removeAttribute("src");
     };
     agentPreviewThumbNode.onload = () => {
       agentPreviewThumbNode.onerror = null;
+      agentPreviewWrapNode.classList.add("is-revealed");
     };
-    agentPreviewThumbNode.src = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    const nextSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    if (agentPreviewThumbNode.getAttribute("src") !== nextSrc) {
+      agentPreviewThumbNode.src = nextSrc;
+    } else if (agentPreviewThumbNode.complete) {
+      agentPreviewWrapNode.classList.add("is-revealed");
+    }
     return;
   }
 
   agentPreviewWrapNode.classList.add("hidden");
+  agentPreviewWrapNode.classList.remove("is-revealed");
   agentPreviewThumbNode.removeAttribute("src");
 }
 
@@ -610,6 +630,181 @@ function getSelectableAgents() {
   return agentsCache.filter((agent) => agent.active !== false);
 }
 
+let agentsPickerIsOpen = false;
+
+function getAgentPickerInitials(agent) {
+  const name = String(agent?.name || agent?.id || "?").trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function isAgentRegistryActive(agent) {
+  return agent?.active !== false;
+}
+
+function getAgentsForPickerGrid() {
+  return [...agentsCache].sort((a, b) => {
+    const aOn = isAgentRegistryActive(a) ? 1 : 0;
+    const bOn = isAgentRegistryActive(b) ? 1 : 0;
+    if (aOn !== bOn) return bOn - aOn;
+    return String(a.name || a.id).localeCompare(String(b.name || b.id), "ru");
+  });
+}
+
+function createAgentPickerAgentButton(agent, avatarSize = 42) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  const registryActive = isAgentRegistryActive(agent);
+  const isCurrent = agent.id === activeAgentId;
+  btn.className = "agents-picker-agent-btn";
+  if (isCurrent) btn.classList.add("is-active");
+  if (!registryActive) btn.classList.add("is-registry-off");
+
+  const statusLabel = registryActive ? "вкл" : "выкл";
+  const titleParts = [agent.name || agent.id, registryActive ? "активен в реестре" : "выключен в реестре"];
+  if (isCurrent) titleParts.push("текущий");
+  btn.title = titleParts.join(" · ");
+  btn.setAttribute(
+    "aria-label",
+    `${agent.name || agent.id}, ${registryActive ? "активен" : "неактивен"}${isCurrent ? ", текущий" : ""}`
+  );
+  btn.style.setProperty("--picker-avatar-size", `${avatarSize}px`);
+
+  const previewUrl = getRegistryAgentPreviewUrl(agent);
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.className = "agents-picker-avatar";
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      img.replaceWith(createAgentPickerFallback(agent, avatarSize));
+    };
+    img.src = previewUrl;
+    btn.appendChild(img);
+  } else {
+    btn.appendChild(createAgentPickerFallback(agent, avatarSize));
+  }
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "agents-picker-name";
+  nameNode.textContent = agent.name || agent.id;
+  btn.appendChild(nameNode);
+
+  const statusNode = document.createElement("span");
+  statusNode.className = `agents-picker-registry-status ${
+    registryActive ? "agents-picker-registry-status--on" : "agents-picker-registry-status--off"
+  }`;
+  statusNode.textContent = `${registryActive ? "●" : "○"} ${statusLabel}`;
+  btn.appendChild(statusNode);
+
+  if (agent.default) {
+    const badge = document.createElement("span");
+    badge.className = "agents-picker-default-badge";
+    badge.title = "Агент по умолчанию";
+    badge.setAttribute("aria-hidden", "true");
+    btn.appendChild(badge);
+  }
+
+  btn.addEventListener("click", () => {
+    if (!registryActive) {
+      showToast("Агент выключен — включите в реестре (⚙)", "error");
+      return;
+    }
+    selectAgentOption(agent.id);
+    closeAgentsPickerPopover();
+  });
+
+  return btn;
+}
+
+function createAgentPickerFallback(agent, avatarSize) {
+  const fallback = document.createElement("span");
+  fallback.className = "agents-picker-avatar-fallback";
+  fallback.style.setProperty("--picker-avatar-size", `${avatarSize}px`);
+  fallback.textContent = getAgentPickerInitials(agent);
+  return fallback;
+}
+
+function renderAgentsPickerGrid() {
+  if (!agentsPickerStageNode) return;
+
+  agentsPickerStageNode.className = "agents-picker-stage agents-picker-stage--grid";
+  agentsPickerStageNode.replaceChildren();
+
+  const agents = getAgentsForPickerGrid();
+  if (agents.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "agents-picker-empty";
+    empty.textContent = "Нет агентов в реестре";
+    agentsPickerStageNode.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "agents-picker-grid";
+  for (const agent of agents) {
+    grid.appendChild(createAgentPickerAgentButton(agent));
+  }
+  agentsPickerStageNode.appendChild(grid);
+}
+
+function syncAgentsPickerButtonState() {
+  if (!agentsPickerBtn) return;
+  agentsPickerBtn.classList.toggle("is-active", agentsPickerIsOpen);
+  agentsPickerBtn.setAttribute("aria-expanded", agentsPickerIsOpen ? "true" : "false");
+}
+
+function resetAgentsPickerPopoverPosition() {
+  if (!agentsPickerPopoverNode) return;
+  for (const prop of ["top", "left", "width", "maxHeight"]) {
+    agentsPickerPopoverNode.style.removeProperty(prop);
+  }
+}
+
+function positionAgentsPickerPopover() {
+  const popover = agentsPickerPopoverNode;
+  const anchor = document.querySelector(".sidebar-agent-controls");
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(300, Math.max(Math.round(rect.width), 240));
+  const left = Math.max(12, Math.round(rect.left));
+  const top = Math.round(rect.bottom + 6);
+  const maxHeight = Math.max(160, window.innerHeight - top - 12);
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+}
+
+function closeAgentsPickerPopover() {
+  agentsPickerPopoverNode?.classList.add("hidden");
+  agentsPickerIsOpen = false;
+  syncAgentsPickerButtonState();
+  resetAgentsPickerPopoverPosition();
+}
+
+function openAgentsPickerPopover() {
+  if (!agentsPickerPopoverNode) return;
+  if (agentsPickerIsOpen) {
+    closeAgentsPickerPopover();
+    return;
+  }
+  closeMenuSettingsPopover();
+  agentsPickerIsOpen = true;
+  renderAgentsPickerGrid();
+  agentsPickerPopoverNode.classList.remove("hidden");
+  syncAgentsPickerButtonState();
+  positionAgentsPickerPopover();
+}
+
+function refreshAgentsPickerIfOpen() {
+  if (!agentsPickerIsOpen) return;
+  renderAgentsPickerGrid();
+}
+
 function getActiveAgentLabel() {
   return getActiveAgentMeta()?.name || "";
 }
@@ -648,6 +843,7 @@ function renderAgentSelect() {
       : agents[0].id;
   agentSelectNode.value = nextValue;
   syncAgentPreview();
+  refreshAgentsPickerIfOpen();
 }
 
 function selectAgentOption(agentId) {
@@ -720,8 +916,11 @@ function setMenuLoading(isLoading, message = "Загрузка...") {
   menuNode?.classList.toggle("is-loading", isLoading);
   if (agentSelectNode) agentSelectNode.disabled = isLoading;
   if (agentsManageBtn) agentsManageBtn.disabled = isLoading;
+  if (agentsPickerBtn) agentsPickerBtn.disabled = isLoading;
+  if (isLoading) closeAgentsPickerPopover();
   if (menuRefreshBtn) menuRefreshBtn.disabled = isLoading;
   if (menuCollapseAllBtn) menuCollapseAllBtn.disabled = isLoading;
+  if (menuPinBranchBtn) menuPinBranchBtn.disabled = isLoading;
   if (menuSettingsBtn) menuSettingsBtn.disabled = isLoading;
 }
 
@@ -1809,6 +2008,7 @@ const NODE_CONFIG_HEADER = "# Agent CMS — конфигурация\n";
 const NODE_CONFIG_DEFAULT_LANDING_KEY = "default_landing_mode";
 const CARDS_PREVIEW_ONLY_STORAGE_KEY = "agentcms.cardsPreviewOnly.v1";
 const MENU_TREE_SETTINGS_STORAGE_KEY = "agentcms.menuTreeSettings.v1";
+const PINNED_MENU_FOLDER_STORAGE_KEY = "agentcms.pinnedMenuFolder.v1";
 const AGENT_GRAPH_SETTINGS_STORAGE_KEY = "agentcms.agentGraphSettings.v1";
 const SIDEBAR_WIDTH_STORAGE_KEY = "agentcms.sidebarWidth.v1";
 const SIDEBAR_WIDTH_DEFAULT = 280;
@@ -1818,6 +2018,7 @@ const SIDEBAR_WIDTH_STEP = 20;
 const OVERVIEW_ACCORDION_STORAGE_KEY = "agentcms.overviewAccordions.v1";
 const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children"]);
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
+const pinnedMenuFolderByAgent = loadPinnedMenuFoldersByAgent();
 const bookmarkedPaths = loadBookmarks();
 const menuTreeSettingsByAgent = loadMenuTreeSettingsByAgent();
 const agentGraphSettingsByAgent = loadAgentGraphSettingsByAgent();
@@ -2111,6 +2312,233 @@ function saveCollapsedFoldersByAgent() {
   } catch {
     // Ignore storage write issues (private mode, quota, etc.)
   }
+}
+
+function loadPinnedMenuFoldersByAgent() {
+  const byAgent = {};
+  try {
+    const raw = readStorageItem(PINNED_MENU_FOLDER_STORAGE_KEY);
+    if (!raw) return byAgent;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return byAgent;
+    for (const [agentId, folderPath] of Object.entries(parsed)) {
+      if (typeof folderPath !== "string" || !folderPath.trim()) continue;
+      byAgent[agentId] = normalizeFolderPath(folderPath);
+    }
+  } catch {
+    return byAgent;
+  }
+  return byAgent;
+}
+
+function savePinnedMenuFoldersByAgent() {
+  try {
+    const payload = {};
+    for (const [agentId, folderPath] of Object.entries(pinnedMenuFolderByAgent)) {
+      if (!folderPath) continue;
+      payload[agentId] = folderPath;
+    }
+    localStorage.setItem(PINNED_MENU_FOLDER_STORAGE_KEY, JSON.stringify(payload));
+    const maxAge = 60 * 60 * 24 * 400;
+    document.cookie = `agentcms_pinned_branch=${encodeURIComponent(JSON.stringify(payload))}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  } catch {
+    // Ignore storage write issues
+  }
+}
+
+function getPinnedMenuFolder(agentId = activeAgentId) {
+  return pinnedMenuFolderByAgent[agentId] || null;
+}
+
+function setPinnedMenuFolder(folderPath, agentId = activeAgentId) {
+  const normalized = folderPath ? normalizeFolderPath(folderPath) : null;
+  if (normalized) pinnedMenuFolderByAgent[agentId] = normalized;
+  else delete pinnedMenuFolderByAgent[agentId];
+  savePinnedMenuFoldersByAgent();
+}
+
+function isFolderInPinnedBranch(folderPath, pinnedPath) {
+  const folder = normalizeFolderPath(folderPath || ".");
+  const pinned = normalizeFolderPath(pinnedPath || ".");
+  if (pinned === ".") return true;
+  // Корень агента всегда развёрнут — иначе вся закреплённая ветка скрыта.
+  if (folder === ".") return true;
+  if (folder === pinned) return true;
+  if (folder.startsWith(`${pinned}/`)) return true;
+  if (pinned.startsWith(`${folder}/`)) return true;
+  return false;
+}
+
+function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
+  const collapsed = getAgentCollapsedFolders(agentId);
+  const normalized = normalizeFolderPath(folderPath || ".");
+  collapsed.delete(".");
+  if (normalized === ".") return;
+  const parts = normalized.split("/").filter(Boolean);
+  let acc = "";
+  for (const part of parts) {
+    acc = acc ? `${acc}/${part}` : part;
+    collapsed.delete(acc);
+  }
+}
+
+function getActiveMenuFolderPath(agentId = activeAgentId) {
+  if (!activePath || agentId !== activeAgentId) return null;
+  const normalized = normalizeMenuNodePath(activePath);
+  if (isNodeManifestPath(normalized)) {
+    return normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
+  }
+  const parts = normalized.split("/").filter(Boolean);
+  parts.pop();
+  return normalizeFolderPath(parts.join("/") || ".");
+}
+
+function formatPinnedBranchLabel(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeFolderPath(folderPath || ".");
+  if (normalized === ".") return getAgentTreeTitle(agentId);
+  return formatCreateParentLabel(normalized);
+}
+
+function applyPinnedBranchCollapse(agentId = activeAgentId) {
+  const pinned = getPinnedMenuFolder(agentId);
+  if (!pinned || menuSearchQuery.trim()) return;
+
+  const collapsed = getAgentCollapsedFolders(agentId);
+  const folderPaths = getMenuTreeFolderPaths(agentId);
+  const paths = new Set([".", ...folderPaths]);
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const pinInService =
+    serviceFolder &&
+    (pinned === serviceFolder || pinned.startsWith(`${serviceFolder}/`));
+
+  expandPinnedFolderPathChain(pinned, agentId);
+
+  for (const path of paths) {
+    if (isFolderInPinnedBranch(path, pinned)) {
+      collapsed.delete(path);
+    } else {
+      collapsed.add(path);
+    }
+  }
+
+  for (const path of Array.from(collapsed)) {
+    if (isFolderInPinnedBranch(path, pinned)) {
+      collapsed.delete(path);
+    }
+  }
+
+  if (serviceFolder) {
+    localStorage.setItem("agentcms.serviceTree.collapsed.v1", pinInService ? "0" : "1");
+  }
+
+  saveCollapsedFoldersByAgent();
+}
+
+function pinMenuBranch(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeFolderPath(folderPath || ".");
+  setPinnedMenuFolder(normalized, agentId);
+  applyPinnedBranchCollapse(agentId);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (menu) {
+    renderMenu(menu, agentId);
+    if (agentId === activeAgentId) updateActiveButton();
+  }
+  syncMenuPinBranchUi(agentId);
+  if (agentId === activeAgentId) scrollPinnedFolderIntoView(agentId);
+  showToast(`Ветка «${formatPinnedBranchLabel(normalized, agentId)}» закреплена`, "success");
+}
+
+function unpinMenuBranch(agentId = activeAgentId) {
+  if (!getPinnedMenuFolder(agentId)) return;
+  setPinnedMenuFolder(null, agentId);
+  syncMenuPinBranchUi(agentId);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (menu && agentId === activeAgentId) {
+    renderMenu(menu, agentId);
+    updateActiveButton();
+  }
+  showToast("Ветка откреплена", "success");
+}
+
+function togglePinMenuBranch(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeFolderPath(folderPath || ".");
+  if (getPinnedMenuFolder(agentId) === normalized) unpinMenuBranch(agentId);
+  else pinMenuBranch(normalized, agentId);
+}
+
+function scrollPinnedFolderIntoView(agentId = activeAgentId) {
+  const pinned = getPinnedMenuFolder(agentId);
+  if (!pinned || !menuNode) return;
+  requestAnimationFrame(() => {
+    const selector = `.menu-section[data-menu-folder="${CSS.escape(pinned)}"]`;
+    const section = menuNode.querySelector(selector);
+    section?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+}
+
+function syncMenuPinBranchUi(agentId = activeAgentId) {
+  const pinned = getPinnedMenuFolder(agentId);
+  const canPin =
+    agentId === activeAgentId &&
+    menuViewMode === "tree" &&
+    !menuSearchQuery.trim() &&
+    Boolean(currentMenuData);
+  const activeFolder = getActiveMenuFolderPath(agentId);
+  const pinnedLabel = pinned ? formatPinnedBranchLabel(pinned, agentId) : "";
+
+  if (menuPinBranchBtn) {
+    menuPinBranchBtn.disabled = !canPin;
+    menuPinBranchBtn.setAttribute("aria-pressed", pinned ? "true" : "false");
+    menuPinBranchBtn.classList.toggle("is-active", Boolean(pinned));
+    menuPinBranchBtn.textContent = pinned ? "📌" : "📍";
+    menuPinBranchBtn.title = pinned
+      ? `Открепить: ${pinnedLabel}`
+      : activeFolder
+        ? `Закрепить ветку «${formatPinnedBranchLabel(activeFolder, agentId)}»`
+        : "Закрепить ветку (откройте тему в дереве)";
+  }
+
+  if (menuPinnedBannerNode) {
+    menuPinnedBannerNode.classList.toggle("hidden", !pinned || agentId !== activeAgentId);
+  }
+  if (menuPinnedBannerPathNode) {
+    menuPinnedBannerPathNode.textContent = pinnedLabel;
+  }
+
+  if (menuPinnedStatusNode) {
+    menuPinnedStatusNode.textContent = pinned
+      ? `Закреплено: ${pinnedLabel}`
+      : "Ветка не закреплена";
+  }
+  if (menuPinCurrentBtn) {
+    menuPinCurrentBtn.disabled = !canPin || !activeFolder;
+  }
+  if (menuUnpinBranchBtn) {
+    menuUnpinBranchBtn.hidden = !pinned;
+  }
+
+  if (menuNode) {
+    menuNode.classList.toggle("menu-has-pinned-branch", Boolean(pinned && agentId === activeAgentId));
+  }
+}
+
+function createMenuPinBranchButton(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeFolderPath(folderPath || ".");
+  const pinned = getPinnedMenuFolder(agentId);
+  const isPinned = pinned === normalized;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-pin-branch-btn";
+  if (isPinned) btn.classList.add("is-active");
+  btn.textContent = isPinned ? "📌" : "📍";
+  btn.title = isPinned ? "Открепить ветку" : "Закрепить ветку";
+  btn.setAttribute("aria-label", isPinned ? "Открепить ветку" : "Закрепить ветку");
+  btn.setAttribute("aria-pressed", isPinned ? "true" : "false");
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    togglePinMenuBranch(normalized, agentId);
+  });
+  return btn;
 }
 
 function loadBookmarks() {
@@ -2521,6 +2949,7 @@ function toggleMenuSettingsPopover() {
   const willOpen = menuSettingsPopoverNode.classList.contains("hidden");
   if (willOpen) {
     applyMenuTreeSettingsUi();
+    syncMenuPinBranchUi();
     menuSettingsPopoverNode.classList.remove("hidden");
     menuSettingsBtn.setAttribute("aria-expanded", "true");
     positionMenuSettingsPopover();
@@ -9849,6 +10278,16 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
   const sectionNode = createSectionNode(node.title, depth);
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
   sectionNode.dataset.menuFolder = sectionFolderPath || ".";
+  const pinnedPath = searchActive ? null : getPinnedMenuFolder(agentId);
+  if (pinnedPath) {
+    const onBranch = isFolderInPinnedBranch(sectionFolderPath, pinnedPath);
+    sectionNode.classList.toggle("is-on-pinned-branch", onBranch);
+    sectionNode.classList.toggle(
+      "is-pinned-folder",
+      normalizeFolderPath(sectionFolderPath) === normalizeFolderPath(pinnedPath)
+    );
+    sectionNode.classList.toggle("is-off-pinned-branch", !onBranch);
+  }
   const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath, agentId);
   const visibleChildren = getVisibleMenuChildren(node);
 
@@ -9891,6 +10330,9 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       });
 
       folderRow.appendChild(folderButton);
+      if (!searchActive && menuViewMode === "tree") {
+        folderRow.appendChild(createMenuPinBranchButton(sectionFolderPath, agentId));
+      }
       folderRow.appendChild(addBtn);
       folderRow.appendChild(createNodeSettingsButton(node.indexPath));
       folderRow.appendChild(createBookmarkButton(node.indexPath));
@@ -10193,6 +10635,10 @@ function renderMenu(menu, agentId = activeAgentId) {
     applyMenuCardsFilterUi();
   }
 
+  if (menuViewMode === "tree" && !menuSearchQuery.trim() && getPinnedMenuFolder(agentId)) {
+    applyPinnedBranchCollapse(agentId);
+  }
+
   target.innerHTML = "";
   if (menuViewMode === "flat") {
     renderFlatMenu(menu, target, agentId);
@@ -10218,6 +10664,7 @@ function renderMenu(menu, agentId = activeAgentId) {
       previewUrl: menu.previewUrl
     });
     syncMenuCollapseAllButton();
+    syncMenuPinBranchUi(agentId);
     if (activeContentMode === NODE_NAVIGATION_MODE) {
       void renderNodeNavigation();
     }
@@ -10318,6 +10765,7 @@ function updateActiveButton() {
     const name = card.dataset.systemFile || "";
     card.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
   }
+  syncMenuPinBranchUi();
 }
 
 async function selectSystemFile(name) {
@@ -12604,7 +13052,31 @@ agentSelectNode?.addEventListener("change", () => {
   });
 });
 
-agentsManageBtn?.addEventListener("click", openAgentsRegistryModal);
+agentsManageBtn?.addEventListener("click", () => {
+  closeAgentsPickerPopover();
+  openAgentsRegistryModal();
+});
+agentsPickerBtn?.addEventListener("click", () => openAgentsPickerPopover());
+agentsPickerPopoverCloseBtn?.addEventListener("click", closeAgentsPickerPopover);
+document.addEventListener("click", (event) => {
+  if (!agentsPickerIsOpen || !agentsPickerPopoverNode) return;
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (agentsPickerPopoverNode.contains(target) || target.closest("#agents-picker-btn")) {
+    return;
+  }
+  closeAgentsPickerPopover();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeAgentsPickerPopover();
+});
+window.addEventListener(
+  "resize",
+  () => {
+    if (agentsPickerIsOpen) positionAgentsPickerPopover();
+  },
+  { passive: true }
+);
 
 function createApiDocsEndpointNode(endpoint) {
   const node = document.createElement("article");
@@ -13180,6 +13652,34 @@ menuRefreshBtn?.addEventListener("click", () => {
 });
 menuCollapseAllBtn?.addEventListener("click", () => {
   toggleCollapseAllMenuTreeBranches();
+});
+
+menuPinBranchBtn?.addEventListener("click", () => {
+  const folder = getActiveMenuFolderPath();
+  if (!folder) {
+    showToast("Откройте тему или область в дереве, чтобы закрепить ветку", "error");
+    return;
+  }
+  togglePinMenuBranch(folder);
+});
+
+menuPinCurrentBtn?.addEventListener("click", () => {
+  const folder = getActiveMenuFolderPath();
+  if (!folder) {
+    showToast("Откройте тему или область в дереве", "error");
+    return;
+  }
+  pinMenuBranch(folder);
+  closeMenuSettingsPopover();
+});
+
+menuUnpinBranchBtn?.addEventListener("click", () => {
+  unpinMenuBranch();
+  closeMenuSettingsPopover();
+});
+
+menuPinnedBannerUnpinBtn?.addEventListener("click", () => {
+  unpinMenuBranch();
 });
 
 menuSettingsBtn?.addEventListener("click", (event) => {
