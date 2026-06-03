@@ -775,7 +775,7 @@
         </div>
         <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
         <div class="create-node-actions" id="create-node-actions">
-          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Регистрация области (_.x.md) в этой папке">Регистрация области</button>
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_.x.md)">Подхватить (область)</button>
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
           <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.x.md)">Файл (тема)</button>
         </div>
@@ -805,7 +805,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и vault-папка сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/_/Preview.*</code>.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_Vault</code>) сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/{имя workspace}/Preview.*</code>.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -836,7 +836,7 @@
               <span>Некорректный путь</span>
             </li>
           </ul>
-          <p class="agents-registry-vault-footnote">* Скрыта в дереве, содержимое у корня.</p>
+          <p class="agents-registry-vault-footnote">* <code>_Vault</code> скрыта в дереве, содержимое показывается у корня.</p>
         </div>
       </div>
     </div>
@@ -844,7 +844,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.x.md</code> и <code>_Storage/_</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.x.md</code> и <code>_Storage/{имя папки}/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -967,7 +967,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.37"></script>
+    <script src="/main.js?v=0.4.42"></script>
     <script src="/app-home-title-rotator.js?v=8"></script>
   </body>
   </html>

@@ -33,7 +33,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn.agent.json, _.x.md, _Storage/_).",
+          description: "Создать файлы агента в указанной папке workspace (awn.agent.json, _.x.md, _Storage/{имя папки}/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -51,7 +51,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из _Storage/_/Preview.* по пути workspace.",
+          description: "Превью агента из _Storage/{имя workspace}/Preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -60,7 +60,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/_Storage/_/Preview.*.",
+          description: "Загрузить аватар агента в workspace/_Storage/{имя workspace}/Preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -69,7 +69,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из _Storage/_/Preview.*.",
+          description: "Удалить аватар агента из _Storage/{имя workspace}/Preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -78,7 +78,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из _Storage/_/Preview.* (после регистрации).",
+          description: "Превью агента из _Storage/{имя workspace}/Preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"

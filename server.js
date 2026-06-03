@@ -102,6 +102,18 @@ function initProjectRoot(root, options = {}) {
 
 initProjectRoot(__dirname, { appRoot: __dirname });
 
+function getStoragePathOptions() {
+  return { workspaceFolderName: path.basename(getAgentRoot()) };
+}
+
+function namedStorageBundleDirRel(relPath) {
+  return getNamedStorageBundleDirRel(relPath, getStoragePathOptions());
+}
+
+function namedStorageBundleRel(relPath, bundleFileName) {
+  return getNamedStorageBundleRel(relPath, bundleFileName, getStoragePathOptions());
+}
+
 const {
   getAgentRoot,
   resolveAgent,
@@ -309,19 +321,19 @@ async function migratePartLegacySidecarFile(relNodePath, canonicalRelFn, legacyE
 function toContentFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.content.md`;
-  return getNamedStorageBundleRel(relNodePath, BUNDLE_CONTENT_FILE);
+  return namedStorageBundleRel(relNodePath, BUNDLE_CONTENT_FILE);
 }
 
 function toTabularFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.content.csv`;
-  return getNamedStorageBundleRel(relNodePath, BUNDLE_TABULAR_FILE);
+  return namedStorageBundleRel(relNodePath, BUNDLE_TABULAR_FILE);
 }
 
 function toNodeConfigFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.config.yml`;
-  return getNamedStorageBundleRel(relNodePath, BUNDLE_CONFIG_FILE);
+  return namedStorageBundleRel(relNodePath, BUNDLE_CONFIG_FILE);
 }
 
 function toLegacyNodeConfigFilePath(relNodePath) {
@@ -374,7 +386,7 @@ function extractDefaultLandingModeFromNodeConfig(content) {
 function toTodoFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.todo.md`;
-  return getNamedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
+  return namedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
 }
 
 function getLegacyManifestSidecarRelPaths(relNodePath, xSuffix, nodeSuffix) {
@@ -386,7 +398,7 @@ function getLegacyManifestSidecarRelPaths(relNodePath, xSuffix, nodeSuffix) {
 }
 
 async function migrateLegacySidecarFileToBundle(relNodePath, bundleFileName, legacyRelPaths) {
-  const canonicalRel = getNamedStorageBundleRel(relNodePath, bundleFileName);
+  const canonicalRel = namedStorageBundleRel(relNodePath, bundleFileName);
   const canonicalAbsolute = normalizeWorkspacePath(canonicalRel);
   if (!canonicalAbsolute) return canonicalRel;
 
@@ -397,9 +409,12 @@ async function migrateLegacySidecarFileToBundle(relNodePath, bundleFileName, leg
     if (!error || error.code !== "ENOENT") throw error;
   }
 
+  const manifestAbsolute = normalizeWorkspacePath(relNodePath);
+
   for (const legacyRel of legacyRelPaths) {
     const legacyAbsolute = normalizeWorkspacePath(legacyRel);
     if (!legacyAbsolute || legacyAbsolute === canonicalAbsolute) continue;
+    if (manifestAbsolute && legacyAbsolute === manifestAbsolute) continue;
     try {
       const content = await fs.readFile(legacyAbsolute);
       await fs.mkdir(path.dirname(canonicalAbsolute), { recursive: true });
@@ -877,7 +892,11 @@ function toLegacyFlatPropsFilePath(relNodePath) {
 }
 
 function toLegacyContentFilePath(relNodePath) {
-  return String(relNodePath).replace(/\.node\.md$/i, ".content.md");
+  const normalized = String(relNodePath || "").replace(/\\/g, "/");
+  if (MANIFEST_MD_RE.test(path.posix.basename(normalized))) {
+    return manifestRelToXSidecar(normalized, ".content.md");
+  }
+  return normalized.replace(/\.node\.md$/i, ".content.md");
 }
 
 function toConfigurationFilePath(relNodePath) {
@@ -931,7 +950,7 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, (rel) => {
       const partBase = resolvePartFolderSidecarBaseRel(rel);
       if (partBase) return `${partBase}.preview`;
-      return `${getNamedStorageBundleDirRel(rel)}/${PREVIEW_FILE_BASENAME}`;
+      return `${namedStorageBundleDirRel(rel)}/${PREVIEW_FILE_BASENAME}`;
     });
   }
   if (mode === "configs") {
@@ -1389,8 +1408,18 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
   return serviceAbsolute;
 }
 
+async function ensureVaultFolderScaffold(agentRootAbsolute) {
+  const vaultFolder = getAgentVaultFolder();
+  if (!vaultFolder) return null;
+
+  const vaultAbsolute = path.join(agentRootAbsolute, vaultFolder);
+  await fs.mkdir(vaultAbsolute, { recursive: true });
+  return vaultAbsolute;
+}
+
 async function buildAgentMenu(agentRootAbsolute) {
   await ensureWorkspaceRootIndex(agentRootAbsolute);
+  await ensureVaultFolderScaffold(agentRootAbsolute);
   const menu = await listNodeMdFiles(agentRootAbsolute);
   const serviceFolder = getAgentServiceFolder();
   let serviceTree = null;
@@ -1463,10 +1492,24 @@ async function resolveExistingParentDirectoryRelPath(parentPathRaw) {
   const candidates = [normalized];
   const vaultFolder = getAgentVaultFolder();
 
-  if (vaultFolder && normalized !== "." && normalized !== "") {
+  if (vaultFolder) {
     const vaultLower = vaultFolder.toLowerCase();
     const normalizedLower = normalized.toLowerCase();
-    if (normalizedLower !== vaultLower && !normalizedLower.startsWith(`${vaultLower}/`)) {
+    const targetsVault =
+      normalized === "." ||
+      normalized === "" ||
+      normalizedLower === vaultLower ||
+      normalizedLower.startsWith(`${vaultLower}/`);
+    const needsVaultPrefix =
+      normalized !== "." &&
+      normalized !== "" &&
+      normalizedLower !== vaultLower &&
+      !normalizedLower.startsWith(`${vaultLower}/`);
+
+    if (targetsVault || needsVaultPrefix) {
+      await ensureVaultFolderScaffold(getAgentRoot());
+    }
+    if (needsVaultPrefix) {
       candidates.push(`${vaultFolder}/${normalized}`);
     }
   }
@@ -1753,7 +1796,7 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
 function getNodePreviewSidecarBaseRel(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.preview`;
-  return `${getNamedStorageBundleDirRel(relNodePath)}/${PREVIEW_FILE_BASENAME}`;
+  return `${namedStorageBundleDirRel(relNodePath)}/${PREVIEW_FILE_BASENAME}`;
 }
 
 function getNodePreviewDirAbsolute(nodeAbsolute) {
@@ -1761,7 +1804,7 @@ function getNodePreviewDirAbsolute(nodeAbsolute) {
   if (parsePartFolderManifestRel(rel)) {
     return path.dirname(String(nodeAbsolute || ""));
   }
-  const bundleDirAbsolute = normalizeWorkspacePath(getNamedStorageBundleDirRel(rel));
+  const bundleDirAbsolute = normalizeWorkspacePath(namedStorageBundleDirRel(rel));
   return bundleDirAbsolute || path.dirname(String(nodeAbsolute || ""));
 }
 
@@ -2601,7 +2644,7 @@ async function classifySearchResult(relPath) {
   const dir = path.dirname(normalized);
   const dirAbsolute = dir && dir !== "." ? normalizeWorkspacePath(dir) : getAgentRoot();
 
-  const bundleHit = resolveManifestRelFromStorageBundlePath(normalized);
+  const bundleHit = resolveManifestRelFromStorageBundlePath(normalized, getStoragePathOptions());
   if (bundleHit) {
     for (const manifestCandidate of bundleHit.manifestCandidates) {
       const manifestAbsolute = normalizeWorkspacePath(manifestCandidate);
@@ -4608,6 +4651,15 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: "Name is required" });
       }
 
+      const vaultFolder = getAgentVaultFolder();
+      if (
+        vaultFolder &&
+        (parentRelPath === vaultFolder ||
+          parentRelPath.toLowerCase().startsWith(`${vaultFolder.toLowerCase()}/`))
+      ) {
+        await ensureVaultFolderScaffold(getAgentRoot());
+      }
+
       const parentAbsolute =
         parentPathResolved === "." || parentPathResolved === ""
           ? getAgentRoot()
@@ -4828,7 +4880,7 @@ async function handleApi(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as _Storage/_/Preview.{jpg|png|gif}"
+          details: `Allowed formats: JPG, PNG, GIF → saved as _Storage/${path.basename(absolute)}/Preview.{jpg|png|gif}`
         });
       }
 

@@ -2,7 +2,7 @@
  * Конвенции манифестов workspace:
  * - Область (area): _.x.md (legacy: _.node.md)
  * - Тема (topic): *.x.md (legacy: *.node.md)
- * - Связанные файлы: _Storage/{ключ}/Content.md, … (ключ = имя папки для области, stem файла для темы)
+ * - Связанные файлы: _Storage/{ключ}/Content.md, … (ключ = имя папки области или stem темы; только под корнем workspace)
  */
 const path = require("path");
 
@@ -72,44 +72,84 @@ function getManifestContainerDirRel(relPath) {
 }
 
 /**
- * Ключ каталога в _Storage:
- * - область (_.x.md): имя папки-контейнера (корень → "_")
- * - тема (*.x.md): stem файла манифеста (Goals из Goals.x.md)
+ * Ключ каталога в _Storage (плоско от корня workspace):
+ * - область (_.x.md): имя папки-контейнера; в корне workspace — имя папки workspace
+ * - тема (*.x.md): stem файла (Goals из Goals.x.md)
  */
-function getManifestStorageKey(relPath) {
+function getManifestStorageKey(relPath, options = {}) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = path.basename(normalized);
   if (isAreaManifestFileName(base)) {
     const containerDir = getManifestContainerDirRel(normalized);
-    if (!containerDir) return "_";
+    if (!containerDir) {
+      const workspaceKey = String(options.workspaceFolderName || "").trim();
+      return workspaceKey || "_";
+    }
     return path.posix.basename(containerDir);
   }
   return stripTopicManifestSuffix(base);
 }
 
-function getNamedStorageBundleDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
-  const key = getManifestStorageKey(relPath);
-  const parts = [containerDir, STORAGE_FOLDER_NAME, key].filter(Boolean);
-  return parts.join("/");
+function getNamedStorageBundleDirRel(relPath, options = {}) {
+  const key = getManifestStorageKey(relPath, options);
+  return `${STORAGE_FOLDER_NAME}/${key}`;
 }
 
-function getNamedStorageBundleRel(relPath, bundleFileName) {
-  const dir = getNamedStorageBundleDirRel(relPath);
-  return dir ? `${dir}/${bundleFileName}` : `${STORAGE_FOLDER_NAME}/${bundleFileName}`;
+function getNamedStorageBundleRel(relPath, bundleFileName, options = {}) {
+  const dir = getNamedStorageBundleDirRel(relPath, options);
+  return `${dir}/${bundleFileName}`;
 }
 
 function getLegacyLowercaseBundleRel(relPath, bundleFileName) {
   return getNamedStorageBundleRel(relPath, String(bundleFileName || "").toLowerCase());
 }
 
-function resolveManifestRelFromStorageBundlePath(normalized) {
+function resolveBundleFileMode(fileNameLower) {
+  if (fileNameLower === BUNDLE_CONTENT_FILE.toLowerCase()) return "internal";
+  if (fileNameLower === BUNDLE_TABULAR_FILE.toLowerCase()) return "tabular";
+  if (fileNameLower === BUNDLE_CONFIG_FILE.toLowerCase() || fileNameLower === "config.yaml") {
+    return "configs";
+  }
+  if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
+  if (fileNameLower.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) return "node-preview";
+  return null;
+}
+
+function buildManifestCandidatesForStorageKey(key, options = {}) {
+  const manifestCandidates = [];
+  const workspaceKey = String(options.workspaceFolderName || "").trim();
+  manifestCandidates.push(`${key}.x.md`);
+  manifestCandidates.push(`${key}/_.x.md`);
+  manifestCandidates.push(`${key}.node.md`);
+  manifestCandidates.push(`${key}/_.node.md`);
+  if (workspaceKey && key === workspaceKey) {
+    manifestCandidates.push("_.x.md");
+    manifestCandidates.push("_.node.md");
+  }
+  return manifestCandidates;
+}
+
+function resolveManifestRelFromStorageBundlePath(normalized, options = {}) {
   const rel = String(normalized || "").replace(/\\/g, "/");
-  const match = rel.match(/^(.*)\/_Storage\/([^/]+)\/([^/]+)$/i);
-  if (!match) return null;
-  const containerPrefix = match[1] ? match[1].replace(/\/$/, "") : "";
-  const key = match[2];
-  const file = match[3].toLowerCase();
+
+  const flatMatch = rel.match(/^_Storage\/([^/]+)\/([^/]+)$/i);
+  if (flatMatch) {
+    const key = flatMatch[1];
+    const mode = resolveBundleFileMode(flatMatch[2].toLowerCase());
+    if (!mode) return null;
+    return {
+      manifestCandidates: buildManifestCandidatesForStorageKey(key, options),
+      mode,
+      bundlePath: rel
+    };
+  }
+
+  const nestedMatch = rel.match(/^(.*)\/_Storage\/([^/]+)\/([^/]+)$/i);
+  if (!nestedMatch) return null;
+  const containerPrefix = nestedMatch[1] ? nestedMatch[1].replace(/\/$/, "") : "";
+  const key = nestedMatch[2];
+  const mode = resolveBundleFileMode(nestedMatch[3].toLowerCase());
+  if (!mode) return null;
 
   const manifestCandidates = [];
   if (key === "_") {
@@ -118,15 +158,10 @@ function resolveManifestRelFromStorageBundlePath(normalized) {
     manifestCandidates.push(
       containerPrefix ? `${containerPrefix}/${key}.x.md` : `${key}.x.md`
     );
+    manifestCandidates.push(
+      containerPrefix ? `${containerPrefix}/${key}/_.x.md` : `${key}/_.x.md`
+    );
   }
-
-  let mode = null;
-  if (file === BUNDLE_CONTENT_FILE.toLowerCase()) mode = "internal";
-  else if (file === BUNDLE_TABULAR_FILE.toLowerCase()) mode = "tabular";
-  else if (file === BUNDLE_CONFIG_FILE.toLowerCase() || file === "config.yaml") mode = "configs";
-  else if (file === BUNDLE_TODO_FILE.toLowerCase()) mode = "todo";
-  else if (file.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) mode = "node-preview";
-  else return null;
 
   return { manifestCandidates, mode, bundlePath: rel };
 }

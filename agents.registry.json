@@ -30,6 +30,18 @@
       "path": "workspaces/test3",
       "environment": "local",
       "active": true
+    },
+    {
+      "id": "test4",
+      "path": "workspaces/test4",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test5",
+      "path": "workspaces/test5",
+      "environment": "local",
+      "active": true
     }
   ]
 }

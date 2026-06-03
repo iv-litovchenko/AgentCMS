@@ -373,8 +373,7 @@ function getAgentMeta(agentId = activeAgentId) {
 function getActiveAgentVaultFolder(agentId = activeAgentId) {
   const agent = getAgentMeta(agentId);
   if (!agent || agent.vaultFolder === null) return null;
-  const configured = String(agent.vaultFolder || "").trim();
-  return configured || VAULT_FOLDER_DEFAULT;
+  return VAULT_FOLDER_DEFAULT;
 }
 
 function getActiveAgentServiceFolder(agentId = activeAgentId) {
@@ -758,7 +757,7 @@ function openAgentsRegistryModal() {
     environment: normalizeAgentEnvironmentDraft(agent.environment),
     name: agent.name || agent.id,
     comment: agent.comment || "",
-    vaultFolder: agent.vaultFolder === null ? null : agent.vaultFolder || VAULT_FOLDER_DEFAULT,
+    vaultFolder: agent.vaultFolder === null ? null : VAULT_FOLDER_DEFAULT,
     serviceFolder: agent.serviceFolder === null ? null : agent.serviceFolder || SERVICE_FOLDER_DEFAULT,
     default: Boolean(agent.default),
     active: agent.active !== false,
@@ -920,7 +919,7 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].name = manifest.name || agentsRegistryDraft[index].name;
   agentsRegistryDraft[index].comment = manifest.comment || "";
   agentsRegistryDraft[index].vaultFolder =
-    manifest.vaultFolder === null ? null : manifest.vaultFolder || VAULT_FOLDER_DEFAULT;
+    manifest.vaultFolder === null || manifest.vaultFolder === false ? null : VAULT_FOLDER_DEFAULT;
   if (manifest.id) agentsRegistryDraft[index].id = manifest.id;
 }
 
@@ -1051,8 +1050,6 @@ function syncRegistryRowMetaFromDraft() {
     if (!row) return;
     const nameNode = row.querySelector("[data-agent-name]");
     const commentNode = row.querySelector("[data-agent-comment]");
-    const vaultNode = row.querySelector("[data-agent-vault]");
-    const vaultDisabledNode = row.querySelector("[data-agent-vault-disabled]");
     const pathNode = row.querySelector("[data-agent-path]");
     if (nameNode && nameNode.value !== (agent.name || "")) {
       nameNode.value = agent.name || "";
@@ -1060,15 +1057,13 @@ function syncRegistryRowMetaFromDraft() {
     if (commentNode && commentNode.value !== (agent.comment || "")) {
       commentNode.value = agent.comment || "";
     }
-    if (vaultNode && vaultDisabledNode) {
-      const vaultDisabled = agent.vaultFolder === null;
-      vaultDisabledNode.checked = vaultDisabled;
-      vaultNode.disabled = vaultDisabled || !agent.manifestFound;
-      const vaultValue =
-        agent.vaultFolder === null ? VAULT_FOLDER_DEFAULT : agent.vaultFolder || VAULT_FOLDER_DEFAULT;
-      if (vaultNode.value !== vaultValue) {
-        vaultNode.value = vaultValue;
-      }
+    const vaultUseNode = row.querySelector("[data-agent-vault-use]");
+    const vaultNameNode = row.querySelector("[data-agent-vault-name]");
+    if (vaultUseNode) {
+      const vaultEnabled = agent.vaultFolder !== null;
+      vaultUseNode.checked = vaultEnabled;
+      vaultUseNode.disabled = !agent.manifestFound;
+      if (vaultNameNode) vaultNameNode.hidden = !vaultEnabled;
     }
     if (pathNode && pathNode.value !== (agent.path || "")) {
       pathNode.value = agent.path || "";
@@ -1328,44 +1323,31 @@ function renderAgentsRegistryList() {
     const vaultControls = document.createElement("div");
     vaultControls.className = "agents-registry-vault-controls";
 
-    const vaultInput = document.createElement("input");
-    vaultInput.type = "text";
-    vaultInput.className = "agents-registry-vault-input";
-    vaultInput.dataset.agentVault = "1";
-    vaultInput.placeholder = VAULT_FOLDER_DEFAULT;
-    vaultInput.spellcheck = false;
-    vaultInput.autocomplete = "off";
-    vaultInput.value =
-      agent.vaultFolder === null ? VAULT_FOLDER_DEFAULT : agent.vaultFolder || VAULT_FOLDER_DEFAULT;
-    vaultInput.disabled = agent.vaultFolder === null || !agent.manifestFound;
-    vaultInput.title = "Имя скрытой папки-контейнера в workspace";
-    vaultInput.addEventListener("input", () => {
-      if (agentsRegistryDraft[index].vaultFolder === null) return;
-      const trimmed = vaultInput.value.trim();
-      agentsRegistryDraft[index].vaultFolder = trimmed || VAULT_FOLDER_DEFAULT;
+    const vaultUseLabel = document.createElement("label");
+    vaultUseLabel.className = "agents-registry-vault-use";
+    const vaultUseInput = document.createElement("input");
+    vaultUseInput.type = "checkbox";
+    vaultUseInput.dataset.agentVaultUse = "1";
+    vaultUseInput.checked = agent.vaultFolder !== null;
+    vaultUseInput.disabled = !agent.manifestFound;
+    vaultUseInput.title = `Использовать скрытую папку ${VAULT_FOLDER_DEFAULT} в workspace`;
+    const vaultUseText = document.createElement("span");
+    vaultUseText.textContent = "Использовать папку";
+    vaultUseLabel.append(vaultUseInput, vaultUseText);
+
+    const vaultNameNode = document.createElement("span");
+    vaultNameNode.className = "agents-registry-vault-name";
+    vaultNameNode.dataset.agentVaultName = "1";
+    vaultNameNode.textContent = VAULT_FOLDER_DEFAULT;
+    vaultNameNode.title = "Имя папки фиксировано";
+    vaultNameNode.hidden = agent.vaultFolder === null;
+
+    vaultUseInput.addEventListener("change", () => {
+      agentsRegistryDraft[index].vaultFolder = vaultUseInput.checked ? VAULT_FOLDER_DEFAULT : null;
+      vaultNameNode.hidden = !vaultUseInput.checked;
     });
 
-    const vaultDisabledLabel = document.createElement("label");
-    vaultDisabledLabel.className = "agents-registry-vault-disabled";
-    const vaultDisabledInput = document.createElement("input");
-    vaultDisabledInput.type = "checkbox";
-    vaultDisabledInput.dataset.agentVaultDisabled = "1";
-    vaultDisabledInput.checked = agent.vaultFolder === null;
-    vaultDisabledInput.disabled = !agent.manifestFound;
-    vaultDisabledInput.addEventListener("change", () => {
-      if (vaultDisabledInput.checked) {
-        agentsRegistryDraft[index].vaultFolder = null;
-        vaultInput.disabled = true;
-        return;
-      }
-      agentsRegistryDraft[index].vaultFolder = vaultInput.value.trim() || VAULT_FOLDER_DEFAULT;
-      vaultInput.disabled = !agent.manifestFound;
-    });
-    const vaultDisabledText = document.createElement("span");
-    vaultDisabledText.textContent = "Показывать как обычную папку";
-    vaultDisabledLabel.append(vaultDisabledInput, vaultDisabledText);
-
-    vaultControls.append(vaultInput, vaultDisabledLabel);
+    vaultControls.append(vaultUseLabel, vaultNameNode);
 
     const vaultHintText = "Скрыта в дереве, содержимое у корня.";
 
@@ -1376,7 +1358,7 @@ function renderAgentsRegistryList() {
     vaultLabelRow.className = "agents-registry-vault-label-row";
     const vaultLabel = document.createElement("span");
     vaultLabel.className = "agents-registry-field-label";
-    vaultLabel.textContent = "Vault-папка";
+    vaultLabel.textContent = "Vault";
     const vaultHintMark = document.createElement("span");
     vaultHintMark.className = "agents-registry-vault-hint-mark";
     vaultHintMark.textContent = "*";
@@ -1508,7 +1490,9 @@ function applyDiscoverAgentToDraft(discovered) {
     name: discovered.name,
     comment: discovered.comment || "",
     vaultFolder:
-      discovered.vaultFolder === null ? null : discovered.vaultFolder || VAULT_FOLDER_DEFAULT,
+      discovered.vaultFolder === null || discovered.vaultFolder === false
+        ? null
+        : VAULT_FOLDER_DEFAULT,
     manifestFound: true,
     hasPreview: Boolean(discovered.hasPreview),
     previewUrl: null,
@@ -1614,7 +1598,7 @@ async function saveAgentsRegistryDraft() {
           active: active !== false,
           name: name ?? "",
           comment: comment ?? "",
-          vaultFolder: vaultFolder === null ? null : vaultFolder || VAULT_FOLDER_DEFAULT
+          vaultFolder: vaultFolder === null ? null : VAULT_FOLDER_DEFAULT
         }))
       })
     });
@@ -3285,11 +3269,77 @@ function syncCreateNodeVaultOptionUi() {
   applyCreateNodeTargetPath();
 }
 
+const SERVICE_CATALOG_FOLDER = "Catalog";
+const SERVICE_CATALOG_PRESET_FILES = {
+  categories: "Categories",
+  tags: "Tags",
+  schemas: "Schemas"
+};
 const SERVICE_CATALOG_PRESET_LABELS = {
   categories: "Категории",
   tags: "Теги",
   schemas: "Схемы"
 };
+
+function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
+  if (!agentId) return null;
+  return menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+}
+
+function getCatalogPresetManifestCandidates(serviceFolder, preset) {
+  const fileName = SERVICE_CATALOG_PRESET_FILES[preset];
+  if (!serviceFolder || !fileName) return [];
+  const stems = [fileName, String(preset || "").trim()];
+  const folders = [SERVICE_CATALOG_FOLDER, ""];
+  const suffixes = [".x.md", ".node.md"];
+  const paths = [];
+  for (const folder of folders) {
+    for (const stem of stems) {
+      if (!stem) continue;
+      for (const suffix of suffixes) {
+        const rel = folder ? `${folder}/${stem}${suffix}` : `${stem}${suffix}`;
+        paths.push(`${serviceFolder}/${rel}`.replace(/\/+/g, "/"));
+      }
+    }
+  }
+  return paths;
+}
+
+function isCatalogPresetPresent(agentId, preset) {
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  if (!serviceFolder) return false;
+  const menu = getCreateModalMenuData(agentId);
+  if (!menu?.serviceTree) return false;
+  const paths = new Set(
+    collectFlatMenuEntries({ title: "", ...menu.serviceTree }).map((entry) =>
+      String(entry.path || "").replace(/\\/g, "/").toLowerCase()
+    )
+  );
+  return getCatalogPresetManifestCandidates(serviceFolder, preset).some((candidate) =>
+    paths.has(candidate.toLowerCase())
+  );
+}
+
+function syncCreateNodeCatalogButtonsUi() {
+  if (!createNodeCatalogActionsNode) return;
+  const agentId = getCreateModalAgentId();
+  const buttons = createNodeCatalogActionsNode.querySelectorAll("[data-catalog-preset]");
+  for (const button of buttons) {
+    const preset = button.getAttribute("data-catalog-preset");
+    if (!preset) continue;
+    const exists = isCatalogPresetPresent(agentId, preset);
+    const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
+    button.disabled = exists;
+    button.setAttribute("aria-disabled", exists ? "true" : "false");
+    if (exists) {
+      button.title = `Справочник «${label}» уже создан`;
+    } else if (preset === "tags") {
+      button.title = "Список #tag, как в Obsidian";
+    } else {
+      button.removeAttribute("title");
+    }
+  }
+}
 
 function isServiceRootCreateParent(parentPath) {
   const serviceFolder = getActiveAgentServiceFolder(getCreateModalAgentId());
@@ -3320,6 +3370,7 @@ function syncCreateNodeActionsUi() {
   if (createNameInputNode) {
     createNameInputNode.placeholder = inServiceTree ? "Например: statuses" : "Например: Плавание";
   }
+  syncCreateNodeCatalogButtonsUi();
 }
 
 function applyCreateNodeTargetPath() {
@@ -3635,28 +3686,33 @@ function getManifestContainerDirRel(relPath) {
   return normalized.slice(0, slash);
 }
 
+function getWorkspaceFolderStorageKey() {
+  const agent = getActiveAgentMeta();
+  const agentPath = String(agent?.path || "").trim();
+  if (!agentPath) return "";
+  const parts = agentPath.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts[parts.length - 1] || "";
+}
+
 function getManifestStorageKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
   if (isAreaManifestFileName(base)) {
     const containerDir = getManifestContainerDirRel(normalized);
-    if (!containerDir) return "_";
+    if (!containerDir) return getWorkspaceFolderStorageKey() || "_";
     return containerDir.slice(containerDir.lastIndexOf("/") + 1);
   }
   return base.replace(MANIFEST_MD_RE, "");
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName) {
-  const containerDir = getManifestContainerDirRel(relPath);
   const key = getManifestStorageKey(relPath);
-  const parts = [containerDir, STORAGE_FOLDER_NAME, key].filter(Boolean);
-  return `${parts.join("/")}/${bundleFileName}`;
+  return `${STORAGE_FOLDER_NAME}/${key}/${bundleFileName}`;
 }
 
 function getNamedStorageBundleDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
   const key = getManifestStorageKey(relPath);
-  return [containerDir, STORAGE_FOLDER_NAME, key].filter(Boolean).join("/");
+  return `${STORAGE_FOLDER_NAME}/${key}`;
 }
 
 function resolveNodeSidecarRelPath(nodePath, kind) {
@@ -8804,7 +8860,7 @@ function getLabelFromPath(filePath) {
   if (isNodeManifestFileName(fileName)) {
     return parts[parts.length - 2] || getAgentTreeTitle();
   }
-  return fileName.replace(/\.node\.md$/, "");
+  return fileName.replace(MANIFEST_MD_RE, "");
 }
 
 function getNodeDisplayPath(nodePath) {
@@ -8836,13 +8892,20 @@ function getNodeDisplayPath(nodePath) {
     return stripAgentContentPrefixFromRelPath(folderPath || getAgentTreeTitle());
   }
 
-  return stripAgentContentPrefixFromRelPath(normalized.replace(/\.node\.md$/i, ""));
+  if (isTopicManifestPath(normalized)) {
+    const folderPath = getFolderPathFromManifest(normalized);
+    const label = getLabelFromPath(normalized);
+    const displayFolder = stripAgentContentPrefixFromRelPath(folderPath || "");
+    return displayFolder ? `${displayFolder}/${label}` : label;
+  }
+
+  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
 }
 
 function normalizeBreadcrumbPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
   if (!normalized) return "";
-  if (isNodeManifestPath(normalized) || isPartNodePath(normalized)) {
+  if (isNodeManifestPath(normalized) || isTopicManifestPath(normalized) || isPartNodePath(normalized)) {
     return getNodeDisplayPath(normalized);
   }
   return stripNodeManifestFromPath(normalized);
@@ -10962,7 +11025,7 @@ function buildAgentMapZoneData(menu) {
   const memory = [
     {
       label: "Однофайловая",
-      sub: `_Storage/_/${BUNDLE_CONTENT_FILE}`,
+      sub: `${getNamedStorageBundleRel(rootPath || AREA_MANIFEST_FILE, BUNDLE_CONTENT_FILE)}`,
       mode: "internal",
       path: rootPath,
       action: "memory"
@@ -10976,7 +11039,7 @@ function buildAgentMapZoneData(menu) {
     },
     {
       label: "Табличная",
-      sub: `_Storage/_/${BUNDLE_TABULAR_FILE}`,
+      sub: `${getNamedStorageBundleRel(rootPath || AREA_MANIFEST_FILE, BUNDLE_TABULAR_FILE)}`,
       mode: "tabular",
       path: rootPath,
       action: "memory"
@@ -11978,6 +12041,13 @@ async function refreshMenu(options = {}) {
       applyAgentWorkspaceCanvasUi();
     }
   }
+  if (
+    createModalAgentId === agentId &&
+    createNodeModalNode &&
+    !createNodeModalNode.classList.contains("hidden")
+  ) {
+    syncCreateNodeCatalogButtonsUi();
+  }
   return menu;
 }
 
@@ -12688,9 +12758,15 @@ createFolderBtn.addEventListener("click", () => createNode("folder"));
 createFileBtn.addEventListener("click", () => createNode("file"));
 createNodeCatalogActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-catalog-preset]");
-  if (!button) return;
+  if (!button || button.disabled) return;
   const preset = button.getAttribute("data-catalog-preset");
   if (!preset) return;
+  if (isCatalogPresetPresent(getCreateModalAgentId(), preset)) {
+    const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
+    showToast(`Справочник «${label}» уже создан`, "error");
+    syncCreateNodeCatalogButtonsUi();
+    return;
+  }
   void createNode("catalog", { preset });
 });
 createNodeVaultOptionNode?.addEventListener("change", applyCreateNodeTargetPath);

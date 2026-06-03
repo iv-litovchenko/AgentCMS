@@ -8635,33 +8635,13 @@ body.app-booting {
 
 .agents-registry-vault-controls {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   min-width: 0;
 }
 
-.agents-registry-vault-input {
-  flex: 0 0 96px;
-  width: 96px;
-  min-width: 0;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 6px 7px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.25;
-}
-
-.agents-registry-vault-input:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  background: #f8fafc;
-}
-
-.agents-registry-vault-disabled {
+.agents-registry-vault-use {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -8676,11 +8656,30 @@ body.app-booting {
   white-space: nowrap;
 }
 
-.agents-registry-vault-disabled input {
+.agents-registry-vault-use input {
   width: 14px;
   height: 14px;
   margin: 0;
   flex-shrink: 0;
+}
+
+.agents-registry-vault-name {
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.25;
+  flex-shrink: 0;
+}
+
+.agents-registry-vault-name[hidden] {
+  display: none;
 }
 
 .agents-registry-path-dot[data-state="manifest"],
@@ -9255,6 +9254,16 @@ body.app-booting {
 
 .create-node-catalog-btn {
   font-size: 13px;
+}
+
+.create-node-catalog-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-node-catalog-btn:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg);
 }
 
 .create-node-actions.create-node-actions--service {
