@@ -44,6 +44,7 @@ const {
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SLOT_LAYER_FOLDERS,
@@ -285,6 +286,27 @@ function normalizeWorkspacePath(inputPath) {
   return absolute;
 }
 
+/** Манифест *.x.md из прямого пути или sidecar/bundle (TODO, content, …). */
+function resolveNodeManifestRelForScopedApi(relPath) {
+  const normalized = String(relPath || "").trim().replace(/\\/g, "/");
+  if (!normalized) return null;
+
+  const directAbsolute = normalizeWorkspacePath(normalized);
+  if (directAbsolute && isManifestMdAbsolute(directAbsolute)) {
+    return normalized;
+  }
+
+  const inferred = inferManifestRelFromSidecar(normalized);
+  if (inferred) {
+    const inferredAbsolute = normalizeWorkspacePath(inferred);
+    if (inferredAbsolute && isManifestMdAbsolute(inferredAbsolute)) {
+      return inferred;
+    }
+  }
+
+  return null;
+}
+
 function toNodeFileName(rawName) {
   return toTopicFileName(rawName);
 }
@@ -412,6 +434,63 @@ function toTodoFilePath(relNodePath) {
   return namedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
 }
 
+function toTodoSidecarRelPath(relNodePath) {
+  if (resolvePartFolderSidecarBaseRel(relNodePath)) return null;
+  return manifestRelToXSidecar(relNodePath, ".todo.md");
+}
+
+async function removeTodoLegacyDuplicates(relNodePath, keepBundleAbsolute, keepSidecarAbsolute = null) {
+  await removePartFolderLegacySidecarRel(relNodePath, ".node.todo.md");
+  const nodeSidecarAbsolute = normalizeWorkspacePath(
+    legacyManifestRelToNodeSidecar(relNodePath, ".todo.md")
+  );
+  if (
+    nodeSidecarAbsolute &&
+    nodeSidecarAbsolute !== keepBundleAbsolute &&
+    nodeSidecarAbsolute !== keepSidecarAbsolute
+  ) {
+    await removeIfExists(nodeSidecarAbsolute);
+  }
+  const lowercaseBundleAbsolute = normalizeWorkspacePath(
+    getLegacyLowercaseBundleRel(relNodePath, BUNDLE_TODO_FILE)
+  );
+  if (lowercaseBundleAbsolute && lowercaseBundleAbsolute !== keepBundleAbsolute) {
+    await removeIfExists(lowercaseBundleAbsolute);
+  }
+  for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relNodePath)) {
+    if (
+      legacyAbsolute &&
+      legacyAbsolute !== keepBundleAbsolute &&
+      legacyAbsolute !== keepSidecarAbsolute
+    ) {
+      await removeIfExists(legacyAbsolute);
+    }
+  }
+}
+
+/** Канон: _Storage/{_ или тема}/Todo.md; дублирует в *.x.todo.md (кроме _Parts). */
+async function writeTodoFiles(relNodePath, content) {
+  const bundleRelPath = toTodoFilePath(relNodePath);
+  const bundleAbsolute = normalizeWorkspacePath(bundleRelPath);
+  if (!bundleAbsolute) throw new Error("Invalid TODO path");
+
+  await fs.mkdir(path.dirname(bundleAbsolute), { recursive: true });
+  await fs.writeFile(bundleAbsolute, content, "utf-8");
+
+  const sidecarRelPath = toTodoSidecarRelPath(relNodePath);
+  let sidecarAbsolute = null;
+  if (sidecarRelPath) {
+    sidecarAbsolute = normalizeWorkspacePath(sidecarRelPath);
+    if (sidecarAbsolute) {
+      await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
+      await fs.writeFile(sidecarAbsolute, content, "utf-8");
+    }
+  }
+
+  await removeTodoLegacyDuplicates(relNodePath, bundleAbsolute, sidecarAbsolute);
+  return bundleRelPath;
+}
+
 function getLegacyManifestSidecarRelPaths(relNodePath, xSuffix, nodeSuffix) {
   if (resolvePartFolderSidecarBaseRel(relNodePath)) return [];
   const paths = [];
@@ -484,20 +563,7 @@ function getTodoLegacyAbsoluteCandidates(relNodePath) {
 }
 
 async function migrateTodoLegacyToCanonical(relNodePath, content) {
-  const todoRelPath = toTodoFilePath(relNodePath);
-  const todoAbsolute = normalizeWorkspacePath(todoRelPath);
-  if (!todoAbsolute) return todoRelPath;
-
-  await fs.mkdir(path.dirname(todoAbsolute), { recursive: true });
-  await fs.writeFile(todoAbsolute, content, "utf-8");
-
-  for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relNodePath)) {
-    if (legacyAbsolute !== todoAbsolute) {
-      await removeIfExists(legacyAbsolute);
-    }
-  }
-
-  return todoRelPath;
+  return writeTodoFiles(relNodePath, content);
 }
 
 function getYamlScalar(frontmatter, key) {
@@ -613,44 +679,59 @@ async function readTodoContent(relPath) {
     return { path: todoRelPath, content, exists: true };
   } catch (error) {
     if (!error || error.code !== "ENOENT") throw error;
-    await migrateLegacySidecarFileToBundle(
-      relPath,
-      BUNDLE_TODO_FILE,
-      [
-        ...getLegacyManifestSidecarRelPaths(relPath, ".todo.md", ".todo.md"),
-        getLegacyLowercaseBundleRel(relPath, BUNDLE_TODO_FILE)
-      ]
-    );
-    try {
-      const content = await fs.readFile(todoAbsolute, "utf-8");
-      return { path: todoRelPath, content, exists: true };
-    } catch (retryError) {
-      if (!retryError || retryError.code !== "ENOENT") throw retryError;
-    }
-    for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relPath)) {
-      try {
-        const legacyContent = await fs.readFile(legacyAbsolute, "utf-8");
-        const migratedPath = await migrateTodoLegacyToCanonical(relPath, legacyContent);
-        return { path: migratedPath, content: legacyContent, exists: true };
-      } catch (legacyError) {
-        if (!legacyError || legacyError.code !== "ENOENT") throw legacyError;
-      }
-    }
-    const partLegacyAbsolute = normalizeWorkspacePath(
-      toPartFolderManifestSidecarRel(relPath, ".node.todo.md") || ""
-    );
-    if (partLegacyAbsolute && partLegacyAbsolute !== todoAbsolute) {
-      try {
-        const legacyContent = await fs.readFile(partLegacyAbsolute, "utf-8");
-        const migratedPath = await migrateTodoLegacyToCanonical(relPath, legacyContent);
-        await removeIfExists(partLegacyAbsolute);
-        return { path: migratedPath, content: legacyContent, exists: true };
-      } catch (legacyError) {
-        if (!legacyError || legacyError.code !== "ENOENT") throw legacyError;
-      }
-    }
-    return { path: todoRelPath, content: "", exists: false };
   }
+
+  const legacySources = [];
+  const sidecarAbsolute = normalizeWorkspacePath(toTodoSidecarRelPath(relPath) || "");
+  if (sidecarAbsolute && sidecarAbsolute !== todoAbsolute) legacySources.push(sidecarAbsolute);
+
+  const lowercaseBundleAbsolute = normalizeWorkspacePath(
+    getLegacyLowercaseBundleRel(relPath, BUNDLE_TODO_FILE)
+  );
+  if (lowercaseBundleAbsolute && !legacySources.includes(lowercaseBundleAbsolute)) {
+    legacySources.push(lowercaseBundleAbsolute);
+  }
+
+  for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relPath)) {
+    if (legacyAbsolute && legacyAbsolute !== todoAbsolute && !legacySources.includes(legacyAbsolute)) {
+      legacySources.push(legacyAbsolute);
+    }
+  }
+
+  const partLegacyAbsolute = normalizeWorkspacePath(
+    toPartFolderManifestSidecarRel(relPath, ".node.todo.md") || ""
+  );
+  if (
+    partLegacyAbsolute &&
+    partLegacyAbsolute !== todoAbsolute &&
+    !legacySources.includes(partLegacyAbsolute)
+  ) {
+    legacySources.push(partLegacyAbsolute);
+  }
+
+  const nodeSidecarAbsolute = normalizeWorkspacePath(
+    legacyManifestRelToNodeSidecar(relPath, ".todo.md")
+  );
+  if (
+    nodeSidecarAbsolute &&
+    nodeSidecarAbsolute !== todoAbsolute &&
+    nodeSidecarAbsolute !== sidecarAbsolute &&
+    !legacySources.includes(nodeSidecarAbsolute)
+  ) {
+    legacySources.push(nodeSidecarAbsolute);
+  }
+
+  for (const legacyAbsolute of legacySources) {
+    try {
+      const legacyContent = await fs.readFile(legacyAbsolute, "utf-8");
+      const migratedPath = await writeTodoFiles(relPath, legacyContent);
+      return { path: migratedPath, content: legacyContent, exists: true };
+    } catch (legacyError) {
+      if (!legacyError || legacyError.code !== "ENOENT") throw legacyError;
+    }
+  }
+
+  return { path: todoRelPath, content: "", exists: false };
 }
 
 async function readTabularMemoryContent(relPath) {
@@ -1020,6 +1101,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, toTodoFilePath);
   }
   if (mode === "scripts") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_SCRIPTS);
+  }
+  if (mode === "artefacts") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_ARTEFACTS);
   }
   return nodeAbsolute;
@@ -2053,7 +2137,7 @@ async function buildAgentTimeline(limit = 150) {
       { fileKind: "content", fileLabel: BUNDLE_CONTENT_FILE, rel: `${slotDirRel}/${BUNDLE_CONTENT_FILE}` },
       { fileKind: "tabular", fileLabel: BUNDLE_TABULAR_FILE, rel: `${slotDirRel}/${BUNDLE_TABULAR_FILE}` },
       { fileKind: "config", fileLabel: BUNDLE_CONFIG_FILE, rel: `${slotDirRel}/${BUNDLE_CONFIG_FILE}` },
-      { fileKind: "todo", fileLabel: BUNDLE_TODO_FILE, rel: `${slotDirRel}/${BUNDLE_TODO_FILE}` },
+      { fileKind: "todo", fileLabel: path.posix.basename(toTodoFilePath(manifestPath)), rel: toTodoFilePath(manifestPath) },
       { fileKind: "env", fileLabel: ".env", rel: `${slotDirRel}/.env` }
     ];
 
@@ -3297,6 +3381,9 @@ async function classifySearchResult(relPath) {
   const storageScripts = await classifyStoragePathForMode(normalized, "scripts", "Скрипты");
   if (storageScripts) return storageScripts;
 
+  const storageArtefacts = await classifyStoragePathForMode(normalized, "artefacts", "Артефакты");
+  if (storageArtefacts) return storageArtefacts;
+
   const storageInbox = await classifyStoragePathForMode(normalized, "inbox", "Входящие");
   if (storageInbox) return storageInbox;
 
@@ -3327,6 +3414,7 @@ async function classifySearchResult(relPath) {
 
   for (const spec of [
     { mode: "scripts", source: "Скрипты" },
+    { mode: "artefacts", source: "Артефакты" },
     { mode: "inbox", source: "Входящие" },
     { mode: "media", source: "Медиа" },
     { mode: "references", source: "Источники" }
@@ -4668,12 +4756,16 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
-    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+    if (!manifestRel) {
+      return sendJson(res, 400, {
+        error: "Invalid file path",
+        details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, _Storage/…/Todo.md)"
+      });
+    }
 
     try {
-      const todo = await readTodoContent(relPath);
+      const todo = await readTodoContent(manifestRel);
       return sendJson(res, 200, todo);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read TODO", details: String(error.message || error) });
@@ -4688,23 +4780,15 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
-
-      const todoRelPath = toTodoFilePath(relPath);
-      const todoAbsolute = normalizeWorkspacePath(todoRelPath);
-      if (!todoAbsolute) return sendJson(res, 400, { error: "Invalid TODO path" });
-
-      await fs.mkdir(path.dirname(todoAbsolute), { recursive: true });
-      await fs.writeFile(todoAbsolute, content, "utf-8");
-
-      await removePartFolderLegacySidecarRel(relPath, ".node.todo.md");
-      for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relPath)) {
-        if (legacyAbsolute !== todoAbsolute) {
-          await removeIfExists(legacyAbsolute);
-        }
+      const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+      if (!manifestRel) {
+        return sendJson(res, 400, {
+          error: "Invalid file path",
+          details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, _Storage/…/Todo.md)"
+        });
       }
+
+      const todoRelPath = await writeTodoFiles(manifestRel, content);
 
       return sendJson(res, 200, { path: todoRelPath, content, exists: true });
     } catch (error) {

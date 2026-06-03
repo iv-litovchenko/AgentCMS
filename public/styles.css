@@ -5517,6 +5517,10 @@ body.app-booting {
   background: #faf5ff;
 }
 
+.doc-slab-path.is-node-artefacts {
+  background: #fffbeb;
+}
+
 .doc-slab-path.is-node-overview {
   background: #f0fdf4;
 }
@@ -5529,6 +5533,7 @@ body.app-booting {
 .breadcrumb.node-settings-crumb-prefix,
 .breadcrumb.node-memory-crumb-prefix,
 .breadcrumb.node-references-crumb-prefix,
+.breadcrumb.node-artefacts-crumb-prefix,
 .breadcrumb.node-inbox-crumb-prefix,
 .breadcrumb.node-overview-crumb-prefix {
   font-weight: 700;
@@ -6516,6 +6521,10 @@ body.app-booting {
 
 .doc-slab-path.is-node-references .workspace-path-crumbs-block {
   border-bottom-color: #e9d5ff;
+}
+
+.doc-slab-path.is-node-artefacts .workspace-path-crumbs-block {
+  border-bottom-color: #fde68a;
 }
 
 .doc-slab-path.is-node-overview .workspace-path-crumbs-block {
@@ -9633,6 +9642,125 @@ body.app-booting {
   background: #f8fafc;
 }
 
+.media-list-view-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: min(320px, 40vh);
+}
+
+.media-bulk-upload-host {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+  flex-shrink: 0;
+}
+
+.media-bulk-upload-zone {
+  width: min(520px, 100%);
+  min-height: 152px;
+  padding: 20px 24px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.media-bulk-upload-zone:hover,
+.media-bulk-upload-zone:focus-visible {
+  border-color: var(--accent);
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+.media-bulk-upload-zone.is-dragover {
+  border-color: var(--accent);
+  background: #dbeafe;
+}
+
+.media-bulk-upload-zone.is-uploading {
+  cursor: wait;
+  border-style: solid;
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.media-bulk-upload-idle.hidden,
+.media-bulk-upload-progress.hidden {
+  display: none;
+}
+
+.media-bulk-upload-icon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.media-bulk-upload-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.media-bulk-upload-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 28em;
+}
+
+.media-bulk-upload-progress {
+  width: 100%;
+  max-width: 320px;
+}
+
+.media-bulk-upload-progress-percent {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.media-bulk-upload-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.media-bulk-upload-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  transition: width 0.2s ease;
+}
+
+.media-bulk-upload-progress-label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.media-list-view-body {
+  flex: 1;
+  min-height: 0;
+}
+
 .media-images-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
@@ -10474,6 +10602,70 @@ body.app-booting {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+}
+
+.create-memory-card {
+  width: min(440px, 92vw);
+}
+
+.create-memory-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.create-memory-names-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.create-memory-name-row {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-memory-name-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+.create-memory-name-row .popover-input {
+  width: 100%;
+}
+
+.create-memory-after-fieldset {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.create-memory-after-fieldset .popover-label {
+  margin-bottom: 8px;
+}
+
+.create-memory-after-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-muted, #475569);
+  cursor: pointer;
+  user-select: none;
+}
+
+.create-memory-after-option input {
+  margin: 2px 0 0;
+  flex-shrink: 0;
 }
 
 .agents-registry-card {

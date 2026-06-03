@@ -646,9 +646,10 @@
                   >
                     <option value="navigation">Навигация</option>
                     <option value="settings">Настройки</option>
-                    <option value="memory">Память</option>
                     <option value="inbox">Входящие</option>
                     <option value="references">Источники</option>
+                    <option value="artefacts">Артефакты</option>
+                    <option value="memory">Память</option>
                     <option value="overview">Обзор</option>
                   </select>
                 </div>
@@ -787,7 +788,7 @@
                   <option value="archives">Архивы</option>
                   <option value="other">Прочее</option>
                 </select>
-                <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.zip,.md,.txt" hidden />
+                <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.zip,.md,.txt" multiple hidden />
                 <button
                   id="media-upload-btn"
                   class="media-upload-btn hidden"
@@ -1009,6 +1010,63 @@
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-section-ok-btn" class="external-create-section-btn" type="button">Создать</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="create-memory-modal" class="modal-overlay hidden">
+      <div class="modal-card create-memory-card">
+        <div class="modal-message">Создать элементы</div>
+        <p class="create-memory-hint">До 5 элементов за раз. Пустые строки пропускаются.</p>
+        <div id="create-memory-names-list" class="create-memory-names-list" role="group" aria-label="Названия элементов">
+          <label class="create-memory-name-row">
+            <span class="create-memory-name-index">1</span>
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Название элемента" autocomplete="off" />
+          </label>
+          <label class="create-memory-name-row">
+            <span class="create-memory-name-index">2</span>
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+          </label>
+          <label class="create-memory-name-row">
+            <span class="create-memory-name-index">3</span>
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+          </label>
+          <label class="create-memory-name-row">
+            <span class="create-memory-name-index">4</span>
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+          </label>
+          <label class="create-memory-name-row">
+            <span class="create-memory-name-index">5</span>
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+          </label>
+        </div>
+        <fieldset id="create-memory-after-fieldset" class="create-memory-after-fieldset">
+          <legend class="popover-label">После создания</legend>
+          <label class="create-memory-after-option">
+            <input
+              id="create-memory-after-list"
+              class="create-memory-after-radio"
+              type="radio"
+              name="create-memory-after"
+              value="list"
+            />
+            <span>Остаться в списке</span>
+          </label>
+          <label class="create-memory-after-option">
+            <input
+              id="create-memory-after-edit"
+              class="create-memory-after-radio"
+              type="radio"
+              name="create-memory-after"
+              value="edit"
+              checked
+            />
+            <span>Перейти к редактированию</span>
+          </label>
+        </fieldset>
+        <div class="modal-actions">
+          <button id="create-memory-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="create-memory-ok-btn" class="external-create-section-btn" type="button">Создать</button>
         </div>
       </div>
     </div>

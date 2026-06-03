@@ -113,6 +113,18 @@ const createSectionModalNode = document.getElementById("create-section-modal");
 const createSectionNameInputNode = document.getElementById("create-section-name-input");
 const createSectionCancelBtn = document.getElementById("create-section-cancel-btn");
 const createSectionOkBtn = document.getElementById("create-section-ok-btn");
+const CREATE_MEMORY_MAX_COUNT = 5;
+const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
+const createMemoryModalNode = document.getElementById("create-memory-modal");
+const createMemoryNamesListNode = document.getElementById("create-memory-names-list");
+const createMemoryNameInputNodes = createMemoryNamesListNode
+  ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-name-input")]
+  : [];
+const createMemoryAfterListRadio = document.getElementById("create-memory-after-list");
+const createMemoryAfterEditRadio = document.getElementById("create-memory-after-edit");
+const createMemoryAfterRadios = [createMemoryAfterListRadio, createMemoryAfterEditRadio].filter(Boolean);
+const createMemoryCancelBtn = document.getElementById("create-memory-cancel-btn");
+const createMemoryOkBtn = document.getElementById("create-memory-ok-btn");
 const editorViewPreviewBtn = document.getElementById("editor-view-preview-btn");
 const editorViewWysiwygBtn = document.getElementById("editor-view-wysiwyg-btn");
 const editorViewSourceBtn = document.getElementById("editor-view-source-btn");
@@ -319,6 +331,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "configs",
   "env",
   "scripts",
+  "artefacts",
   "inbox",
   "references",
   "node-preview",
@@ -708,8 +721,30 @@ function getResolvedNodePath(nodePath = activePath) {
   return resolveNodeManifestPathFromMenu(nodePath);
 }
 
+function resolveManifestPathForNodeApi(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return normalized;
+  if (isNodeMdPath(normalized)) return normalized;
+  if (/\.x\.todo\.md$/i.test(normalized)) {
+    return normalized.replace(/\.x\.todo\.md$/i, ".x.md");
+  }
+  if (/\.node\.todo\.md$/i.test(normalized)) {
+    return normalized.replace(/\.node\.todo\.md$/i, ".x.md");
+  }
+  const bundleMatch = normalized.match(/^(.*)\/_Storage\/([^/]+)\/(?:Todo|todo)\.md$/i);
+  if (bundleMatch) {
+    const prefix = bundleMatch[1];
+    const key = bundleMatch[2];
+    if (key === "_") {
+      return prefix ? `${prefix}/_.x.md` : AREA_MANIFEST_FILE;
+    }
+    return prefix ? `${prefix}/${key}.x.md` : `${key}.x.md`;
+  }
+  return normalized;
+}
+
 function getActiveNodeApiPath() {
-  return getResolvedNodePath(activePath);
+  return resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
 }
 
 function isFullWorkspaceRelPath(relPath) {
@@ -2176,6 +2211,7 @@ const NODE_VIEW_SURFACE = {
   references: "browser",
   media: "browser",
   scripts: "browser",
+  artefacts: "browser",
   "node-preview": "asset",
   graph: "canvas"
 };
@@ -2249,6 +2285,7 @@ const NODE_SETTINGS_MODE_IDS = new Set(["description", "configs", "scripts", "en
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
+  "artefacts",
   "external",
   "internal",
   "tabular",
@@ -2266,12 +2303,13 @@ const NODE_MEMORY_SUB_MODE_IDS = new Set([
   "media"
 ]);
 const NODE_SETTINGS_CLOSE_MODES = new Set(["description", "todo"]);
-const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular"]);
+const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "media"]);
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
 const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
+const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
 const nodeConfigCacheByPath = new Map();
@@ -2282,6 +2320,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
   if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
+  if (mode === "artefacts") return NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return NODE_WORKSPACE_DOMAIN_MEMORY;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
@@ -2297,6 +2336,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
     domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
+    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
   );
 }
@@ -2356,6 +2396,7 @@ const modeContentCache = {
   tabular: "",
   inbox: "",
   references: "",
+  artefacts: "",
   media: "",
   configs: "",
   env: "",
@@ -2813,7 +2854,7 @@ function removeLegacyNodeDefaultViewFromStorage(storageKey) {
 function isValidNodeDefaultLandingMode(mode) {
   if (!mode || mode === "graph") return false;
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE) return true;
-  if (mode === "inbox" || mode === "references") return true;
+  if (mode === "inbox" || mode === "references" || mode === "artefacts") return true;
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return true;
   return false;
@@ -2978,6 +3019,7 @@ function getContentModeLabel(mode) {
   }
   if (mode === "inbox") return "Входящие";
   if (mode === "references") return "Источники";
+  if (mode === "artefacts") return "Артефакты";
   return mode;
 }
 
@@ -2989,12 +3031,17 @@ function getNodeDefaultLandingDomainLabel(mode) {
     [NODE_WORKSPACE_DOMAIN_MEMORY]: "Память",
     [NODE_WORKSPACE_DOMAIN_INBOX]: "Входящие",
     [NODE_WORKSPACE_DOMAIN_REFERENCES]: "Источники",
+    [NODE_WORKSPACE_DOMAIN_ARTEFACTS]: "Артефакты",
     [NODE_WORKSPACE_DOMAIN_NAVIGATION]: "Навигация"
   };
   const domainLabel = domainLabels[domain] || domain;
   const modeLabel = getContentModeLabel(mode);
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
-  if (domain === NODE_WORKSPACE_DOMAIN_INBOX || domain === NODE_WORKSPACE_DOMAIN_REFERENCES) {
+  if (
+    domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
+    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS
+  ) {
     return domainLabel;
   }
   if (modeLabel && modeLabel !== domainLabel) {
@@ -3430,6 +3477,12 @@ function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("references");
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS) {
+    nodeMemoryViewActive = true;
+    nodeSettingsViewActive = false;
+    setContentMode("artefacts");
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -3443,14 +3496,16 @@ function applyNodeWorkspaceViewUi() {
   const settingsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
   const referencesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_REFERENCES;
+  const artefactsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const inboxDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_INBOX;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
-  nodeMemoryViewActive = memoryDomain || referencesDomain || inboxDomain;
+  nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
@@ -4321,6 +4376,7 @@ function isCurrentModeReadOnly() {
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
     activeContentMode === "references" ||
+    activeContentMode === "artefacts" ||
     (activeContentMode === "media" && !mediaSidecarEditing) ||
     activeContentMode === "scripts" ||
     activeContentMode === NODE_OVERVIEW_MODE ||
@@ -4453,6 +4509,7 @@ const STORAGE_SUBFOLDER_CONTENT = "Content";
 const STORAGE_SUBFOLDER_INBOX = "Inbox";
 const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
 const STORAGE_SUBFOLDER_ASSETS = "Assets";
+const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "Preview";
 
@@ -4461,7 +4518,8 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   inbox: STORAGE_SUBFOLDER_INBOX,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_ASSETS,
-  scripts: STORAGE_SUBFOLDER_ARTEFACTS
+  scripts: STORAGE_SUBFOLDER_SCRIPTS,
+  artefacts: STORAGE_SUBFOLDER_ARTEFACTS
 };
 
 function getStorageSubfolderForMode(mode) {
@@ -4489,6 +4547,7 @@ const AGENT_STORAGE_LAYER_ORDER = [
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_PREVIEW
 ];
@@ -4502,6 +4561,19 @@ let agentTimelineRequestId = 0;
 let agentTableSearchQuery = "";
 let agentTableSortKey = "displayPath";
 let agentTableSortDir = "asc";
+
+function manifestRelToXSidecar(relPath, sidecarSuffix) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const dot = sidecarSuffix.startsWith(".") ? sidecarSuffix : `.${sidecarSuffix}`;
+  return normalized.replace(MANIFEST_MD_RE, `.x${dot}`);
+}
+
+function toTodoSidecarRelPath(nodePath) {
+  const resolved = String(getResolvedNodePath(nodePath) || "");
+  const partBase = resolvePartFolderSidecarBaseRel(resolved);
+  if (partBase) return `${partBase}.todo.md`;
+  return manifestRelToXSidecar(resolved, ".todo.md");
+}
 
 function resolveNodeSidecarRelPath(nodePath, kind) {
   const resolved = String(getResolvedNodePath(nodePath) || "");
@@ -4594,6 +4666,8 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
     }
     case "scripts":
       return getNodeStorageSubfolderPath(activePath, "scripts");
+    case "artefacts":
+      return getNodeStorageSubfolderPath(activePath, "artefacts");
     case "node-preview": {
       const base = getPreviewBreadcrumbPath(activePath);
       return previewFile ? `${base}/${previewFile}` : base;
@@ -4625,7 +4699,8 @@ function getListViewTitleByMode() {
   if (activeContentMode === "inbox") return `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
   if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
   if (activeContentMode === "media") return `Медиа и документы (${STORAGE_SUBFOLDER_ASSETS})`;
-  if (activeContentMode === "scripts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
+  if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
+  if (activeContentMode === "artefacts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
   return "Список файлов";
 }
 
@@ -5812,6 +5887,200 @@ async function uploadMediaFileFromPicker(file) {
   }
 }
 
+let mediaBulkUploadState = { active: false, done: 0, total: 0, failed: 0, label: "" };
+
+function mountMediaListViewLayout(root) {
+  const wrap = document.createElement("div");
+  wrap.className = "media-list-view-wrap";
+
+  const uploadHost = document.createElement("div");
+  uploadHost.className = "media-bulk-upload-host";
+  wrap.appendChild(uploadHost);
+  mountMediaBulkUploadZone(uploadHost);
+
+  const body = document.createElement("div");
+  body.className = "media-list-view-body";
+  wrap.appendChild(body);
+
+  root.appendChild(wrap);
+  return body;
+}
+
+function updateMediaBulkUploadProgressUI() {
+  const zone = listViewContentNode.querySelector(".media-bulk-upload-zone");
+  if (zone) syncMediaBulkUploadZoneUi(zone);
+}
+
+function syncMediaBulkUploadZoneUi(zone) {
+  const idle = zone.querySelector(".media-bulk-upload-idle");
+  const progress = zone.querySelector(".media-bulk-upload-progress");
+  const fill = zone.querySelector(".media-bulk-upload-progress-fill");
+  const label = zone.querySelector(".media-bulk-upload-progress-label");
+  const percent = zone.querySelector(".media-bulk-upload-progress-percent");
+
+  const { active, done, total, label: statusLabel } = mediaBulkUploadState;
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+
+  zone.classList.toggle("is-uploading", active);
+  zone.classList.toggle("is-dragover", false);
+  idle?.classList.toggle("hidden", active);
+  progress?.classList.toggle("hidden", !active);
+  if (fill) fill.style.width = `${pct}%`;
+  if (percent) percent.textContent = `${pct}%`;
+  if (label) {
+    label.textContent =
+      statusLabel || (active ? `Загружено ${done} из ${total}` : "");
+  }
+}
+
+function mountMediaBulkUploadZone(host) {
+  host.innerHTML = "";
+
+  const zone = document.createElement("div");
+  zone.className = "media-bulk-upload-zone";
+  zone.tabIndex = 0;
+  zone.setAttribute("role", "button");
+  zone.setAttribute("aria-label", "Массовая загрузка файлов в Assets");
+
+  const idle = document.createElement("div");
+  idle.className = "media-bulk-upload-idle";
+  const icon = document.createElement("div");
+  icon.className = "media-bulk-upload-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "📤";
+  const title = document.createElement("p");
+  title.className = "media-bulk-upload-title";
+  title.textContent = "Перетащите файлы сюда";
+  const hint = document.createElement("p");
+  hint.className = "media-bulk-upload-hint";
+  hint.textContent = "или нажмите для выбора · можно несколько файлов";
+  idle.append(icon, title, hint);
+
+  const progress = document.createElement("div");
+  progress.className = "media-bulk-upload-progress hidden";
+  const percent = document.createElement("div");
+  percent.className = "media-bulk-upload-progress-percent";
+  percent.textContent = "0%";
+  const track = document.createElement("div");
+  track.className = "media-bulk-upload-progress-track";
+  track.setAttribute("aria-hidden", "true");
+  const fill = document.createElement("div");
+  fill.className = "media-bulk-upload-progress-fill";
+  track.appendChild(fill);
+  const progressLabel = document.createElement("p");
+  progressLabel.className = "media-bulk-upload-progress-label";
+  progressLabel.textContent = "Загрузка…";
+  progress.append(percent, track, progressLabel);
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.hidden = true;
+  input.className = "media-bulk-upload-input";
+  if (mediaUploadInputNode?.accept) input.accept = mediaUploadInputNode.accept;
+
+  zone.append(idle, progress);
+  host.append(zone, input);
+
+  wireMediaBulkUploadZone(zone, input);
+  syncMediaBulkUploadZoneUi(zone);
+}
+
+function wireMediaBulkUploadZone(zone, input) {
+  const pickFiles = () => {
+    if (mediaBulkUploadState.active) return;
+    input.click();
+  };
+
+  zone.addEventListener("click", () => {
+    if (mediaBulkUploadState.active) return;
+    pickFiles();
+  });
+
+  zone.addEventListener("keydown", (event) => {
+    if (mediaBulkUploadState.active) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pickFiles();
+    }
+  });
+
+  input.addEventListener("change", () => {
+    const files = input.files ? [...input.files] : [];
+    input.value = "";
+    if (files.length) void uploadMediaFilesBulk(files);
+  });
+
+  zone.addEventListener("dragover", (event) => {
+    if (mediaBulkUploadState.active) return;
+    event.preventDefault();
+    zone.classList.add("is-dragover");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("is-dragover");
+  });
+
+  zone.addEventListener("drop", (event) => {
+    if (mediaBulkUploadState.active) return;
+    event.preventDefault();
+    zone.classList.remove("is-dragover");
+    const files = event.dataTransfer?.files ? [...event.dataTransfer.files] : [];
+    if (files.length) void uploadMediaFilesBulk(files);
+  });
+}
+
+async function uploadMediaFilesBulk(files) {
+  const list = [...files].filter((file) => file instanceof File);
+  if (!list.length) return;
+  if (!activePath) {
+    showToast("Сначала откройте тему", "error");
+    return;
+  }
+
+  mediaBulkUploadState = {
+    active: true,
+    done: 0,
+    total: list.length,
+    failed: 0,
+    label: "Подготовка…"
+  };
+  updateMediaBulkUploadProgressUI();
+
+  let succeeded = 0;
+  for (let i = 0; i < list.length; i += 1) {
+    const file = list[i];
+    mediaBulkUploadState.label = `${file.name} · ${i + 1} из ${list.length}`;
+    updateMediaBulkUploadProgressUI();
+    try {
+      await uploadMediaAttachment(file);
+      succeeded += 1;
+    } catch (error) {
+      mediaBulkUploadState.failed += 1;
+      showToast(`${file.name}: ${error.message}`, "error");
+    }
+    mediaBulkUploadState.done = i + 1;
+    updateMediaBulkUploadProgressUI();
+  }
+
+  mediaBulkUploadState.active = false;
+  mediaBulkUploadState.label = "";
+  updateMediaBulkUploadProgressUI();
+  await refreshMediaListIfVisible();
+
+  if (succeeded > 0) {
+    const failed = mediaBulkUploadState.failed;
+    showToast(
+      failed
+        ? `Загружено ${succeeded} из ${list.length} (${failed} с ошибкой)`
+        : `Загружено файлов: ${succeeded}`,
+      failed ? "info" : "success"
+    );
+  } else if (mediaBulkUploadState.failed > 0) {
+    showToast("Не удалось загрузить файлы", "error");
+  }
+}
+
 function getMediaSidecarPath(mediaFilePath) {
   const normalized = String(mediaFilePath || "").replace(/\\/g, "/");
   if (!normalized || normalized.endsWith("/")) return null;
@@ -5881,7 +6150,8 @@ function renderMediaEmpty(container, message = "Файлы не найдены")
 const STORAGE_FOLDER_LABELS = {
   inbox: STORAGE_SUBFOLDER_INBOX,
   references: STORAGE_SUBFOLDER_REFERENCES,
-  scripts: STORAGE_SUBFOLDER_ARTEFACTS,
+  scripts: STORAGE_SUBFOLDER_SCRIPTS,
+  artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
   media: STORAGE_SUBFOLDER_ASSETS,
   external: STORAGE_SUBFOLDER_CONTENT
 };
@@ -5897,7 +6167,7 @@ function getStorageFolderEmptyMessage(mode = activeContentMode) {
 }
 
 function isFlatStorageListMode(mode = activeContentMode) {
-  return mode === "inbox" || mode === "references" || mode === "scripts";
+  return mode === "inbox" || mode === "references" || mode === "scripts" || mode === "artefacts";
 }
 
 function isFlatStorageListSourceToggleMode(mode = activeContentMode) {
@@ -6206,16 +6476,21 @@ function renderListViewContent() {
     return;
   }
 
+  let listTarget = listViewContentNode;
+  if (activeContentMode === "media" && !isMediaSidecarEditing()) {
+    listTarget = mountMediaListViewLayout(listViewContentNode);
+  }
+
   if (activeContentMode === "media" && !isMediaSidecarEditing()) {
     if (!mediaAssetsExists) {
-      renderListEmptyMessage(listViewContentNode, getStorageFolderMissingMessage("media"));
+      renderListEmptyMessage(listTarget, getStorageFolderMissingMessage("media"));
       return;
     }
     if (mediaViewMode !== "all") {
       if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
         syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
       }
-      renderMediaFilteredView(listViewContentNode);
+      renderMediaFilteredView(listTarget);
       return;
     }
   }
@@ -6271,7 +6546,7 @@ function renderListViewContent() {
       } else {
         empty.textContent = "Список пуст";
       }
-      listViewContentNode.appendChild(empty);
+      listTarget.appendChild(empty);
       return;
     }
   }
@@ -6533,7 +6808,7 @@ function renderListViewContent() {
     }
 
     sectionNode.appendChild(listNode);
-    listViewContentNode.appendChild(sectionNode);
+    listTarget.appendChild(sectionNode);
   }
 }
 
@@ -7070,34 +7345,99 @@ async function openExternalFile(filePath) {
   }
 }
 
+function resetCreateMemoryNameInputs() {
+  for (const input of createMemoryNameInputNodes) input.value = "";
+}
+
+function getCreateMemoryTitles() {
+  return createMemoryNameInputNodes
+    .map((input) => input.value.trim())
+    .filter(Boolean)
+    .slice(0, CREATE_MEMORY_MAX_COUNT);
+}
+
+function setCreateMemoryModalBusy(busy) {
+  createMemoryOkBtn.disabled = busy;
+  createMemoryCancelBtn.disabled = busy;
+  for (const input of createMemoryNameInputNodes) input.disabled = busy;
+}
+
+function openCreateMemoryModal() {
+  if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
+  resetCreateMemoryNameInputs();
+  setCreateMemoryModalBusy(false);
+  createMemoryOkBtn.textContent = "Создать";
+  createMemoryModalNode.classList.remove("hidden");
+  createMemoryNameInputNodes[0]?.focus();
+}
+
+function closeCreateMemoryModal() {
+  createMemoryModalNode.classList.add("hidden");
+  resetCreateMemoryNameInputs();
+  setCreateMemoryModalBusy(false);
+  createMemoryOkBtn.textContent = "Создать";
+}
+
+async function createExternalMemoryFile(title) {
+  const response = await fetch(buildApiUrl("/api/external/file/create"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: activePath, title })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  return response.json();
+}
+
 async function createExternalMemory() {
   if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
+  const titles = getCreateMemoryTitles();
+  if (!titles.length) {
+    showToast("Введите хотя бы одно название", "error");
+    return;
+  }
 
-  createExternalMemoryBtn.disabled = true;
-  createExternalMemoryBtn.textContent = "Создаю...";
+  setCreateMemoryModalBusy(true);
+  let created = 0;
+  let lastFile = null;
 
   try {
-    const response = await fetch(buildApiUrl("/api/external/file/create"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: activePath, title: "Воспоминание" })
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const reason = errorData.error || `Request failed with ${response.status}`;
-      const details = errorData.details ? `: ${errorData.details}` : "";
-      throw new Error(`${reason}${details}`);
+    for (let index = 0; index < titles.length; index += 1) {
+      const title = titles[index];
+      createMemoryOkBtn.textContent =
+        titles.length === 1 ? "Создаю..." : `Создаю ${index + 1} из ${titles.length}...`;
+      try {
+        const data = await createExternalMemoryFile(title);
+        created += 1;
+        lastFile = data.file;
+      } catch {
+        // continue with remaining titles
+      }
     }
 
-    const data = await response.json();
-    await loadContentByMode();
-    await openExternalFile(data.file);
-    showToast("Воспоминание создано", "success");
-  } catch (error) {
-    showToast("Ошибка создания воспоминания", "error");
+    if (created > 0) {
+      closeCreateMemoryModal();
+      await loadContentByMode();
+      if (lastFile) await openExternalFile(lastFile);
+    }
+
+    if (created === titles.length) {
+      showToast(
+        created === 1 ? "Элемент создан" : `Создано элементов: ${created}`,
+        "success"
+      );
+    } else if (created > 0) {
+      showToast(`Создано ${created} из ${titles.length}`, "error");
+    } else {
+      showToast("Ошибка создания элементов", "error");
+    }
   } finally {
-    createExternalMemoryBtn.disabled = false;
-    createExternalMemoryBtn.textContent = "+ Элемент";
+    setCreateMemoryModalBusy(false);
+    createMemoryOkBtn.textContent = "Создать";
   }
 }
 
@@ -7675,9 +8015,10 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 }
 
 async function fetchTodoForOverview(nodePath = activePath) {
-  if (!nodePath) return null;
+  const apiPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!apiPath) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/todo", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/todo", { path: apiPath }));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -9178,6 +9519,7 @@ function applyModeUi() {
     showTabularControls ||
     activeContentMode === "inbox" ||
     activeContentMode === "references" ||
+    activeContentMode === "artefacts" ||
     activeContentMode === "scripts" ||
     previewMode;
   const hideDocActions =
@@ -11406,6 +11748,7 @@ async function selectFile(label, filePath) {
     modeContentCache.external = "";
     modeContentCache.inbox = "";
     modeContentCache.references = "";
+    modeContentCache.artefacts = "";
     modeContentCache.media = "";
     modeContentCache.configs = "";
     modeContentCache.env = "";
@@ -11648,10 +11991,30 @@ async function loadContentByMode() {
     return;
   }
 
-  if (activeContentMode === "scripts") {
+  if (activeContentMode === "artefacts") {
     try {
       const response = await fetch(
         buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_ARTEFACTS })
+      );
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      applyFlatStorageFolderLoadState("artefacts", data);
+      applyModeUi();
+      renderListViewContent();
+      renderPreviewFromEditor();
+    } catch (error) {
+      fileContentInputNode.value = `Ошибка чтения артефактов: ${error.message}`;
+      renderListViewContent();
+      fileContentInputNode.readOnly = true;
+    }
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
+  if (activeContentMode === "scripts") {
+    try {
+      const response = await fetch(
+        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_SCRIPTS })
       );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
@@ -11696,11 +12059,12 @@ async function saveContent() {
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
   }
-  const content = isExternalFileEditing()
+  const rawContent = isExternalFileEditing()
     ? buildExternalFileContent()
     : activeContentMode === "description"
       ? buildNodeManifestContent()
       : getEditorContentValue();
+  const content = typeof rawContent === "string" ? rawContent : String(rawContent ?? "");
 
   if (activeSystemFile) {
     setSaveButtonsState(true, "Сохраняю...");
@@ -11923,7 +12287,12 @@ async function saveContent() {
       showToast("CSV сохранён", "success");
       return;
     }
-    if (activeContentMode === "todo") modeContentCache.todo = data.content || "";
+    if (activeContentMode === "todo") {
+      modeContentCache.todo = data.content || "";
+      showToast("TODO сохранён", "success");
+      refreshEditorViewContent();
+      return;
+    }
     if (activeContentMode === "configs") {
       modeContentCache.configs = data.content || "";
       setCachedNodeConfig(activePath, {
@@ -13866,6 +14235,7 @@ function clearEditorState(message = "") {
   modeContentCache.external = "";
   modeContentCache.inbox = "";
   modeContentCache.references = "";
+  modeContentCache.artefacts = "";
   modeContentCache.media = "";
   modeContentCache.configs = "";
   modeContentCache.env = "";
@@ -15195,8 +15565,13 @@ mediaUploadBtnNode?.addEventListener("click", () => {
 });
 
 mediaUploadInputNode?.addEventListener("change", () => {
-  const file = mediaUploadInputNode.files?.[0];
-  if (file) void uploadMediaFileFromPicker(file);
+  const files = mediaUploadInputNode.files ? [...mediaUploadInputNode.files] : [];
+  if (!files.length) return;
+  if (files.length === 1) {
+    void uploadMediaFileFromPicker(files[0]);
+  } else {
+    void uploadMediaFilesBulk(files);
+  }
 });
 
 mediaSidecarBackBtn?.addEventListener("click", () => closeMediaSidecarEditor());
@@ -15213,8 +15588,15 @@ workspaceRefreshBtn?.addEventListener("click", () => {
 workspaceRevealFolderBtn?.addEventListener("click", () => {
   void revealNodeFolderInExplorer();
 });
-createExternalMemoryBtn.addEventListener("click", createExternalMemory);
+createExternalMemoryBtn.addEventListener("click", openCreateMemoryModal);
 createExternalSectionBtn.addEventListener("click", openCreateSectionModal);
+createMemoryCancelBtn.addEventListener("click", closeCreateMemoryModal);
+createMemoryOkBtn.addEventListener("click", createExternalMemory);
+createMemoryNamesListNode?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  void createExternalMemory();
+});
 createSectionCancelBtn.addEventListener("click", closeCreateSectionModal);
 createSectionOkBtn.addEventListener("click", createExternalSection);
 createSectionNameInputNode.addEventListener("keydown", (event) => {
