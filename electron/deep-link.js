@@ -12,7 +12,14 @@ function parseDeepLink(rawUrl) {
     if (action !== "open") return null;
 
     const agentId = parsed.searchParams.get("agent");
-    return { action: "open", agentId: agentId ? String(agentId).trim() : null };
+    const displayPath = String(parsed.searchParams.get("path") || "").trim();
+    const view = String(parsed.searchParams.get("view") || "").trim();
+    return {
+      action: "open",
+      agentId: agentId ? String(agentId).trim() : null,
+      displayPath: displayPath || null,
+      view: view || null
+    };
   } catch {
     return null;
   }
@@ -26,7 +33,17 @@ function findDeepLinkInArgv(argv = []) {
 function buildAppUrl(serverUrl, deepLink) {
   if (!deepLink?.agentId) return serverUrl;
   const url = new URL(serverUrl);
-  url.searchParams.set("agent", deepLink.agentId);
+  const agentSegment = encodeURIComponent(deepLink.agentId);
+  let pathname = `/a/${agentSegment}`;
+  const displayPath = String(deepLink.displayPath || "").trim();
+  if (displayPath) {
+    const segments = displayPath.split("/").filter(Boolean).map((part) => encodeURIComponent(part));
+    if (segments.length) pathname += `/${segments.join("/")}`;
+  }
+  const view = String(deepLink.view || "").trim();
+  if (view) pathname += `/v/${encodeURIComponent(view)}`;
+  url.pathname = pathname;
+  url.search = "";
   return url.toString();
 }
 

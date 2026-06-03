@@ -514,12 +514,23 @@
         <main class="content doc-stack">
           <section id="workspace-path-header" class="doc-slab doc-slab-path">
             <div class="workspace-path-crumbs-block">
-              <nav id="file-path" class="breadcrumbs" aria-label="Путь">
-                <div id="title-fixed-value" class="title-fixed-value breadcrumb-service-title hidden" aria-live="polite">
-                  <span id="title-fixed-text" class="title-fixed-text"></span>
-                  <span class="title-fixed-lock" aria-hidden="true" title="Имя нельзя менять">🔒</span>
-                </div>
-              </nav>
+              <div class="workspace-path-crumbs-row">
+                <nav id="file-path" class="breadcrumbs" aria-label="Путь">
+                  <div id="title-fixed-value" class="title-fixed-value breadcrumb-service-title hidden" aria-live="polite">
+                    <span id="title-fixed-text" class="title-fixed-text"></span>
+                    <span class="title-fixed-lock" aria-hidden="true" title="Имя нельзя менять">🔒</span>
+                  </div>
+                </nav>
+                <button
+                  id="workspace-share-link-btn"
+                  class="workspace-share-link-btn"
+                  type="button"
+                  title="Скопировать ссылку на эту страницу"
+                  aria-label="Копировать ссылку"
+                >
+                  Копировать ссылку
+                </button>
+              </div>
             </div>
             <div id="workspace-path-toolbar" class="workspace-path-toolbar-block">
               <div id="node-workspace-nav-controls" class="node-workspace-nav-controls hidden">
@@ -884,7 +895,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_Vault</code>) сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/{имя workspace}/Preview.*</code>.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_Vault</code>) сохраняются в <code>agentcms.json</code>; аватар — в <code>_Storage/Preview.*</code>.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -895,7 +906,7 @@
         <div class="agents-registry-footer">
           <div class="agents-registry-footer-actions">
             <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать агента</button>
-            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти awn.agent.json</button>
+            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти agentcms.json</button>
           </div>
           <div class="modal-actions">
             <button id="agents-registry-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -904,7 +915,7 @@
           <ul class="agents-registry-status-legend" aria-label="Статусы workspace">
             <li>
               <span class="agents-registry-legend-dot" data-state="manifest" aria-hidden="true"></span>
-              <span>awn.agent.json найден</span>
+              <span>agentcms.json найден</span>
             </li>
             <li>
               <span class="agents-registry-legend-dot" data-state="missing" aria-hidden="true"></span>
@@ -923,7 +934,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.x.md</code> и <code>_Storage/{имя папки}/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>agentcms.json</code>, <code>_.x.md</code> и <code>_Storage/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -939,7 +950,7 @@
       <div class="modal-card agents-registry-discover-card">
         <div class="agents-registry-discover-header">
           <div>
-            <div class="modal-message">Найти awn.agent.json</div>
+            <div class="modal-message">Найти agentcms.json</div>
             <p class="agents-registry-discover-subtitle">Сканирование Desktop, домашней папки и проекта</p>
           </div>
           <button id="agents-registry-discover-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>

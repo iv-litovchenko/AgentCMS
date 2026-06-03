@@ -24,7 +24,7 @@ module.exports = {
           method: "PUT",
           path: "/api/agents/registry",
           agentScope: false,
-          description: "Сохранить реестр агентов и поля awn.agent.json (name, comment).",
+          description: "Сохранить реестр агентов и поля agentcms.json (name, comment).",
           query: [],
           body: "{ agents: [{ id?, path, environment?, default?, active?, name?, comment? }] }",
           response: "{ agents[], defaultAgentId }"
@@ -33,7 +33,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn.agent.json, _.x.md, _Storage/{имя папки}/).",
+          description: "Создать файлы агента в указанной папке workspace (agentcms.json, _.x.md, _Storage/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -42,7 +42,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
-          description: "Найти workspace с awn.agent.json (Desktop, HOME, проект).",
+          description: "Найти workspace с agentcms.json (Desktop, HOME, проект).",
           query: [],
           body: "{ roots?: string[], maxDepth?: number }",
           response: "{ agents: [{ path, name, comment, id, hasPreview, previewRel }] }"
@@ -51,7 +51,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из _Storage/{имя workspace}/Preview.* по пути workspace.",
+          description: "Превью агента из _Storage/Preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -60,7 +60,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/_Storage/{имя workspace}/Preview.*.",
+          description: "Загрузить аватар агента в workspace/_Storage/Preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -69,7 +69,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из _Storage/{имя workspace}/Preview.*.",
+          description: "Удалить аватар агента из workspace/_Storage/Preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -78,7 +78,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из _Storage/{имя workspace}/Preview.* (после регистрации).",
+          description: "Превью агента из _Storage/Preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"
@@ -461,8 +461,16 @@ module.exports = {
         },
         {
           method: "GET",
+          path: "/api/node/meta",
+          description: "Даты и размер манифеста, папки ноды и _.props.yaml (для панели «Навигация»).",
+          query: ["path"],
+          body: null,
+          response: "{ path, manifest: { size, createdAt, updatedAt }, folder?, props? }"
+        },
+        {
+          method: "GET",
           path: "/api/preview",
-          description: "Мета превью темы (_Storage/{ключ}/Preview.*; legacy: _Storage/_Preview, sidecar *.x.preview.*).",
+          description: "Мета превью темы ({папка}/_Storage/Preview.*; legacy: _Storage/{ключ}/, _Storage/_Preview, sidecar).",
           query: ["path"],
           body: null,
           response: "{ exists, file, imageUrl }"

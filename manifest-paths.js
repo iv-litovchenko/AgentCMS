@@ -2,7 +2,7 @@
  * Конвенции манифестов workspace:
  * - Область (area): _.x.md (legacy: _.node.md)
  * - Тема (topic): *.x.md (legacy: *.node.md)
- * - Связанные файлы: _Storage/{ключ}/Content.md, … (ключ = имя папки области или stem темы; только под корнем workspace)
+ * - Связанные файлы: {папка ноды}/_Storage/Content.md, … (локальный _Storage у каждой темы/области)
  */
 const path = require("path");
 
@@ -90,9 +90,22 @@ function getManifestStorageKey(relPath, options = {}) {
   return stripTopicManifestSuffix(base);
 }
 
-function getNamedStorageBundleDirRel(relPath, options = {}) {
+/** Локальный каталог _Storage рядом с манифестом (канон). */
+function getNodeLocalStorageDirRel(relPath, options = {}) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const containerDir = getManifestContainerDirRel(normalized);
+  if (!containerDir) return STORAGE_FOLDER_NAME;
+  return `${containerDir}/${STORAGE_FOLDER_NAME}`;
+}
+
+/** @deprecated Плоский _Storage/{ключ} — только для разбора legacy-путей. */
+function getFlatLegacyNamedStorageDirRel(relPath, options = {}) {
   const key = getManifestStorageKey(relPath, options);
   return `${STORAGE_FOLDER_NAME}/${key}`;
+}
+
+function getNamedStorageBundleDirRel(relPath, options = {}) {
+  return getNodeLocalStorageDirRel(relPath, options);
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName, options = {}) {
@@ -129,6 +142,23 @@ function buildManifestCandidatesForStorageKey(key, options = {}) {
   return manifestCandidates;
 }
 
+function buildManifestCandidatesForContainerDir(containerPrefix) {
+  const manifestCandidates = [];
+  const prefix = String(containerPrefix || "").replace(/\/$/, "").trim();
+  if (!prefix) {
+    manifestCandidates.push("_.x.md");
+    manifestCandidates.push("_.node.md");
+    return manifestCandidates;
+  }
+  for (const name of AREA_MANIFEST_CANDIDATES) {
+    manifestCandidates.push(`${prefix}/${name}`);
+  }
+  const folderBase = prefix.slice(prefix.lastIndexOf("/") + 1);
+  manifestCandidates.push(`${prefix}/${folderBase}.x.md`);
+  manifestCandidates.push(`${prefix}/${folderBase}.node.md`);
+  return manifestCandidates;
+}
+
 function resolveManifestRelFromStorageBundlePath(normalized, options = {}) {
   const rel = String(normalized || "").replace(/\\/g, "/");
 
@@ -139,6 +169,20 @@ function resolveManifestRelFromStorageBundlePath(normalized, options = {}) {
     if (!mode) return null;
     return {
       manifestCandidates: buildManifestCandidatesForStorageKey(key, options),
+      mode,
+      bundlePath: rel
+    };
+  }
+
+  const localMatch = rel.match(/^(.*)\/_Storage\/([^/]+)$/i);
+  if (localMatch) {
+    const containerPrefix = localMatch[1] ? localMatch[1].replace(/\/$/, "") : "";
+    const mode = resolveBundleFileMode(localMatch[2].toLowerCase());
+    if (!mode) {
+      return null;
+    }
+    return {
+      manifestCandidates: buildManifestCandidatesForContainerDir(containerPrefix),
       mode,
       bundlePath: rel
     };
@@ -306,8 +350,12 @@ module.exports = {
   stripTopicManifestSuffix,
   getManifestContainerDirRel,
   getManifestStorageKey,
+  getNodeLocalStorageDirRel,
+  getFlatLegacyNamedStorageDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  buildManifestCandidatesForStorageKey,
+  buildManifestCandidatesForContainerDir,
   resolveManifestRelFromStorageBundlePath,
   toTopicFileName,
   topicManifestCandidates,

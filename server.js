@@ -153,8 +153,8 @@ const SYSTEM_FILE_NAMES = [
   "docker-compose.yml",
   ".env",
   ".gitignore",
-  "awn.dependencies.json",
-  "awn.registry.json"
+  "agentcms.deps.json",
+  "awn.dependencies.json"
 ];
 
 function isAllowedSystemFileName(name) {
@@ -1678,7 +1678,7 @@ async function revealFolderInSystemFileManager(absoluteDir) {
 }
 
 function getNodeBaseName(nodeAbsoluteOrRel) {
-  return path.basename(String(nodeAbsoluteOrRel)).replace(/\.node\.md$/i, "");
+  return path.basename(String(nodeAbsoluteOrRel)).replace(MANIFEST_MD_RE, "");
 }
 
 function getNodeStorageRootAbsolute(nodeAbsolute) {
@@ -2529,6 +2529,21 @@ async function serveStatic(reqPath, res) {
     });
     res.end(content);
   } catch {
+    const ext = path.extname(safePath).toLowerCase();
+    if (!ext || ext === ".html") {
+      try {
+        const indexPath = path.join(getPublicDir(), "index.html");
+        const content = await fs.readFile(indexPath);
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store"
+        });
+        res.end(content);
+        return;
+      } catch {
+        // fall through to 404
+      }
+    }
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Not found");
   }
@@ -4358,7 +4373,7 @@ async function handleApiForAgent(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as _Storage/{ключ}/Preview.{jpg|png|gif}"
+          details: "Allowed formats: JPG, PNG, GIF → saved as {папка ноды}/_Storage/Preview.{jpg|png|gif}"
         });
       }
 
@@ -4982,7 +4997,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет awn.agent.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет agentcms.json` });
       }
 
       const data = payload?.data;
@@ -4994,7 +5009,7 @@ async function handleApi(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: `Allowed formats: JPG, PNG, GIF → saved as _Storage/${path.basename(absolute)}/Preview.{jpg|png|gif}`
+          details: "Allowed formats: JPG, PNG, GIF → saved as _Storage/Preview.{jpg|png|gif}"
         });
       }
 
@@ -5038,7 +5053,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет awn.agent.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет agentcms.json` });
       }
 
       clearAgentWorkspacePreviewImagesSync(absolute);
@@ -5190,7 +5205,7 @@ async function stopServer() {
 if (require.main === module) {
   startServer({ root: __dirname, tryNextPort: false })
     .then((info) => {
-      console.log(`YAML Agent CMS running at ${info.url}`);
+      console.log(`Agent CMS running at ${info.url}`);
     })
     .catch((error) => {
       console.error(error);
