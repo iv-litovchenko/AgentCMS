@@ -1384,6 +1384,9 @@ body.app-booting {
 }
 
 .home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   max-width: 640px;
 }
 
@@ -1397,7 +1400,7 @@ body.app-booting {
 }
 
 .home-title {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -1488,8 +1491,7 @@ body.app-booting {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin-top: -8px;
+  margin: 12px 0 18px;
 }
 
 .home-mascot {
@@ -1641,19 +1643,29 @@ body.app-booting {
 
 .home-mascot-slogan {
   list-style: none;
-  margin: 0;
+  margin: 0 0 16px;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
 }
 
 .home-mascot-slogan li {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.2;
   color: #334155;
   letter-spacing: 0.01em;
+  padding: 7px 14px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
 }
 
 .home-mascot-slogan li:nth-child(2) {
@@ -4716,6 +4728,34 @@ body.app-booting {
   gap: 4px;
   min-width: 0;
   padding: 0;
+}
+
+.node-navigation-hero-meta {
+  flex: 0 1 220px;
+  margin: 0 0 0 auto;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-content: start;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.node-navigation-hero-meta-label {
+  margin: 0;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.node-navigation-hero-meta-value {
+  margin: 0;
+  color: #334155;
+  word-break: break-word;
 }
 
 .node-navigation-hero-title {
@@ -9157,6 +9197,26 @@ body.app-booting {
   font-size: 13px;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.components-ideas-title-templates {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.components-ideas-title-templates-heading {
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #475569;
+}
+
+.components-ideas-content .components-ideas-title-templates .node-navigation-title-template:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .api-docs-header {

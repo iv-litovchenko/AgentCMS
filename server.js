@@ -821,6 +821,37 @@ function getLegacyPropsAbsoluteCandidates(nodeRelPath) {
     .filter(Boolean);
 }
 
+async function statNodeFileMeta(absolutePath) {
+  if (!absolutePath) return null;
+  try {
+    const stat = await fs.stat(absolutePath);
+    if (!stat.isFile()) return null;
+    return {
+      size: stat.size,
+      createdAt: stat.birthtime ? stat.birthtime.toISOString() : null,
+      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function statNodeDirMeta(absolutePath) {
+  if (!absolutePath) return null;
+  try {
+    const stat = await fs.stat(absolutePath);
+    if (!stat.isDirectory()) return null;
+    return {
+      createdAt: stat.birthtime ? stat.birthtime.toISOString() : null,
+      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 async function readLegacyPropsContent(nodeRelPath) {
   for (const propsAbsolute of getLegacyPropsAbsoluteCandidates(nodeRelPath)) {
     try {
@@ -4201,6 +4232,68 @@ async function handleApiForAgent(req, res, url) {
         error: "Failed to reveal folder",
         details: String(error.message || error)
       });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/node/meta") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    try {
+      const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
+      const manifestAbsolute = normalizeWorkspacePath(canonicalRelPath);
+      if (!manifestAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!isManifestMdAbsolute(manifestAbsolute)) {
+        return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      }
+
+      const manifest = await statNodeFileMeta(manifestAbsolute);
+      if (!manifest) return sendJson(res, 404, { error: "File not found" });
+
+      manifest.path = canonicalRelPath.replace(/\\/g, "/");
+
+      const containerDir = getNodeContainerDir(manifestAbsolute);
+      const folder = await statNodeDirMeta(containerDir);
+      let props = null;
+      for (const propsAbsolute of getLegacyPropsAbsoluteCandidates(canonicalRelPath)) {
+        const entry = await statNodeFileMeta(propsAbsolute);
+        if (entry) {
+          props = {
+            ...entry,
+            path: path.relative(getAgentRoot(), propsAbsolute).replace(/\\/g, "/")
+          };
+          break;
+        }
+      }
+      if (!props && containerDir) {
+        const baseName = path.basename(canonicalRelPath);
+        const propsNames = [];
+        if (/^_.*\.x\.md$/i.test(baseName) || /^_.*\.node\.md$/i.test(baseName)) {
+          propsNames.push("_.props.yaml");
+        } else {
+          propsNames.push(baseName.replace(/\.x\.md$/i, ".props.yaml").replace(/\.node\.md$/i, ".props.yaml"));
+        }
+        for (const name of propsNames) {
+          const propsAbsolute = path.join(containerDir, name);
+          const entry = await statNodeFileMeta(propsAbsolute);
+          if (entry) {
+            props = {
+              ...entry,
+              path: path.relative(getAgentRoot(), propsAbsolute).replace(/\\/g, "/")
+            };
+            break;
+          }
+        }
+      }
+
+      return sendJson(res, 200, {
+        path: canonicalRelPath.replace(/\\/g, "/"),
+        manifest,
+        folder,
+        props
+      });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to read node meta", details: String(error.message || error) });
     }
   }
 

@@ -7341,7 +7341,7 @@ async function refreshNodeCoverThumbInPlace() {
   );
 }
 
-function createNavigationHero(preview, title, nodePath = activePath) {
+function createNavigationHero(preview, title, nodePath = activePath, options = {}) {
   const hero = document.createElement("div");
   hero.className = "node-navigation-hero";
 
@@ -7359,7 +7359,10 @@ function createNavigationHero(preview, title, nodePath = activePath) {
   pathNode.textContent = getLabelFromPath(nodePath) || activeLabel || "—";
 
   head.append(titleNode, pathNode);
+
+  const metaPanel = buildNavigationHeroMetaPanel(options.meta, options.propEntries);
   hero.append(thumbWrap, head);
+  if (metaPanel) hero.appendChild(metaPanel);
   return hero;
 }
 
@@ -7728,6 +7731,81 @@ async function fetchNodeOverviewPreview() {
   } catch {
     return null;
   }
+}
+
+function formatNodeMetaDateTime(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch {
+    return "—";
+  }
+}
+
+async function fetchNodeNavigationMeta(nodePath = activePath) {
+  if (!nodePath) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/node/meta", { path: nodePath }));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function appendNavigationHeroMetaRow(panel, label, value) {
+  const text = String(value ?? "").trim();
+  if (!text) return;
+  const dt = document.createElement("dt");
+  dt.className = "node-navigation-hero-meta-label";
+  dt.textContent = label;
+  const dd = document.createElement("dd");
+  dd.className = "node-navigation-hero-meta-value";
+  dd.textContent = text;
+  panel.append(dt, dd);
+}
+
+function buildNavigationHeroMetaPanel(meta, propEntries = []) {
+  const rows = [];
+  if (meta?.manifest?.createdAt) {
+    rows.push(["Создан", formatNodeMetaDateTime(meta.manifest.createdAt)]);
+  }
+  if (meta?.manifest?.updatedAt) {
+    rows.push(["Изменён", formatNodeMetaDateTime(meta.manifest.updatedAt)]);
+  }
+  if (meta?.manifest?.size != null) {
+    rows.push(["Манифест", formatFileSize(meta.manifest.size)]);
+  }
+  if (meta?.folder?.updatedAt) {
+    rows.push(["Папка", formatNodeMetaDateTime(meta.folder.updatedAt)]);
+  }
+  if (meta?.props?.updatedAt) {
+    rows.push(["Свойства", formatNodeMetaDateTime(meta.props.updatedAt)]);
+  }
+
+  const propType = getPropsEntryValueByKey(propEntries, "AWN-TYPE");
+  const propStatus = getPropsEntryValueByKey(propEntries, "AWN-STATUS");
+  const propCategory = getPropsEntryValueByKey(propEntries, "AWN-CATEGORY");
+  const propUpdated = getPropsEntryValueByKey(propEntries, "AWN-UPDATED");
+  if (propType) rows.push(["Тип", propType]);
+  if (propStatus) rows.push(["Статус", propStatus]);
+  if (propCategory) rows.push(["Категория", propCategory]);
+  if (propUpdated) rows.push(["AWN-UPDATED", propUpdated]);
+
+  if (!rows.length) return null;
+
+  const panel = document.createElement("dl");
+  panel.className = "node-navigation-hero-meta";
+  for (const [label, value] of rows) {
+    appendNavigationHeroMetaRow(panel, label, value);
+  }
+  return panel;
 }
 
 function createNavigationSubsectionsBlock(bodyNode) {
@@ -8378,7 +8456,8 @@ async function renderNodeNavigation() {
   const emptyExternal = { exists: false, files: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
-  const [internalData, externalData, tabularData, mediaData, todoData, preview] = await Promise.all(
+  const [internalData, externalData, tabularData, mediaData, todoData, preview, nodeMeta] =
+    await Promise.all(
     isArea
       ? [
           emptyInternal,
@@ -8386,7 +8465,8 @@ async function renderNodeNavigation() {
           emptyTabular,
           fetchMediaOverview(nodePath),
           fetchTodoForOverview(nodePath),
-          fetchNodeOverviewPreview()
+          fetchNodeOverviewPreview(),
+          fetchNodeNavigationMeta(nodePath)
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
@@ -8394,7 +8474,8 @@ async function renderNodeNavigation() {
           fetchTabularMemoryForNavigation(nodePath),
           fetchMediaOverview(nodePath),
           fetchTodoForOverview(nodePath),
-          fetchNodeOverviewPreview()
+          fetchNodeOverviewPreview(),
+          fetchNodeNavigationMeta(nodePath)
         ]
   );
   if (isStale()) return;
@@ -8402,7 +8483,9 @@ async function renderNodeNavigation() {
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
 
-  hub.appendChild(createNavigationHero(preview, heroTitle, nodePath));
+  hub.appendChild(
+    createNavigationHero(preview, heroTitle, nodePath, { meta: nodeMeta, propEntries: entries })
+  );
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
   if (manifestPanel) hub.appendChild(manifestPanel);
@@ -8433,9 +8516,6 @@ async function renderNodeNavigation() {
   if (panelsWrap.children.length) {
     hub.appendChild(panelsWrap);
   }
-
-  hub.appendChild(renderNavigationTitleVariant3Template());
-  hub.appendChild(renderNavigationTitleVariant2Template());
 
   if (isStale()) return;
   if (!hub.children.length) {
@@ -13428,6 +13508,25 @@ function closeMdShowcaseModal() {
   mdShowcaseModalNode?.classList.add("hidden");
 }
 
+function appendComponentsIdeasTitleTemplates(container) {
+  if (!container) return;
+  container.querySelector(".components-ideas-title-templates")?.remove();
+
+  const wrap = document.createElement("div");
+  wrap.className = "components-ideas-title-templates";
+
+  const heading = document.createElement("h3");
+  heading.className = "components-ideas-title-templates-heading";
+  heading.textContent = "Варианты заголовков секций";
+
+  wrap.append(
+    heading,
+    renderNavigationTitleVariant3Template(),
+    renderNavigationTitleVariant2Template()
+  );
+  container.appendChild(wrap);
+}
+
 function appendComponentsIdeasGallery(container, images) {
   if (!container) return;
   container.querySelector(".components-ideas-gallery")?.remove();
@@ -13472,6 +13571,7 @@ async function openComponentsIdeasModal() {
     const imagesPayload = await imagesResponse.json();
     const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
     appendComponentsIdeasGallery(componentsIdeasContentNode, images);
+    appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
 
     componentsIdeasModalNode.classList.remove("hidden");
   } catch (error) {
