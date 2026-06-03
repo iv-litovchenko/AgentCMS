@@ -1389,7 +1389,10 @@ function createAgentWorkspace(options = {}) {
   const folderName = path.basename(workspaceAbsolute);
   const name = String(options.name || "").trim() || folderName.replace(/\.agent$/i, "") || folderName;
   fs.mkdirSync(path.join(workspaceAbsolute, "_Storage"), { recursive: true });
-  fs.mkdirSync(path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_Storage", "_Assets"), { recursive: true });
+  fs.mkdirSync(
+    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_Storage", "Assets"),
+    { recursive: true }
+  );
 
   const id = slugifyAgentId(options.id || name, 0);
   writeAgentManifestSync(workspaceAbsolute, { id, name });

@@ -32,13 +32,22 @@ const menuSettingsBtn = document.getElementById("menu-settings-btn");
 const menuSettingsPopoverNode = document.getElementById("menu-settings-popover");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
 const menuTreePadSortIndexesNode = document.getElementById("menu-tree-pad-sort-indexes");
-const agentViewDashboardBtn = document.getElementById("agent-view-dashboard-btn");
-const agentViewMapBtn = document.getElementById("agent-view-map-btn");
-const agentViewMap2Btn = document.getElementById("agent-view-map2-btn");
-const agentViewRegistryBtn = document.getElementById("agent-view-registry-btn");
-const agentViewSchemaBtn = document.getElementById("agent-view-schema-btn");
-const agentViewVaultBtn = document.getElementById("agent-view-vault-btn");
-const agentViewGraphBtn = document.getElementById("agent-view-graph-btn");
+const agentViewSelect = document.getElementById("agent-view-select");
+const agentMap3PaneNode = document.getElementById("agent-map3-pane");
+const agentMap3StatsNode = document.getElementById("agent-map3-stats");
+const agentMap3ViewportNode = document.getElementById("agent-map3-viewport");
+const agentMap3BoardNode = document.getElementById("agent-map3-board");
+const agentPreviewPlaceholderNode = document.getElementById("agent-preview-placeholder");
+const agentTablePaneNode = document.getElementById("agent-table-pane");
+const agentTableContentNode = document.getElementById("agent-table-content");
+const agentTableStatsNode = document.getElementById("agent-table-stats");
+const agentTableSearchNode = document.getElementById("agent-table-search");
+const agentStoragePaneNode = document.getElementById("agent-storage-pane");
+const agentStorageContentNode = document.getElementById("agent-storage-content");
+const agentStorageStatsNode = document.getElementById("agent-storage-stats");
+const agentTimelinePaneNode = document.getElementById("agent-timeline-pane");
+const agentTimelineContentNode = document.getElementById("agent-timeline-content");
+const agentTimelineStatsNode = document.getElementById("agent-timeline-stats");
 const agentDashboardStatsNode = document.getElementById("agent-dashboard-stats");
 const agentMapPaneNode = document.getElementById("agent-map-pane");
 const agentMapStageNode = document.getElementById("agent-map-stage");
@@ -4360,8 +4369,11 @@ function getNodeStoragePrefix(nodePath) {
   return folder ? `${folder}/_Storage` : "_Storage";
 }
 
-function getNodeStorageSubfolderPath(nodePath, subfolder) {
-  return `${getNodeStoragePrefix(nodePath)}/${subfolder}`;
+function getNodeStorageSubfolderPath(nodePath, subfolderOrMode) {
+  const folder =
+    getStorageSubfolderForMode(subfolderOrMode) || String(subfolderOrMode || "").trim();
+  const slotDir = getNamedStorageSlotDirRel(nodePath);
+  return slotDir ? `${slotDir}/${folder}` : `${getNodeStoragePrefix(nodePath)}/${folder}`;
 }
 
 function getEnvBreadcrumbPath(nodePath) {
@@ -4411,24 +4423,85 @@ function getWorkspaceFolderStorageKey() {
 function getManifestStorageKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
-  if (isAreaManifestFileName(base)) {
-    const containerDir = getManifestContainerDirRel(normalized);
-    if (!containerDir) return getWorkspaceFolderStorageKey() || "_";
-    return containerDir.slice(containerDir.lastIndexOf("/") + 1);
-  }
+  if (isAreaManifestFileName(base)) return "_";
   return base.replace(MANIFEST_MD_RE, "");
 }
 
-function getNamedStorageBundleDirRel(relPath) {
+function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
-  const containerDir = getManifestContainerDirRel(normalized);
-  if (!containerDir) return STORAGE_FOLDER_NAME;
-  return `${containerDir}/${STORAGE_FOLDER_NAME}`;
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (isAreaManifestFileName(base)) return "_";
+  return base.replace(MANIFEST_MD_RE, "");
+}
+
+function getNamedStorageSlotDirRel(relPath) {
+  const containerDir = getManifestContainerDirRel(relPath);
+  const slotKey = getManifestNamedSlotKey(relPath);
+  if (!containerDir) return `${STORAGE_FOLDER_NAME}/${slotKey}`;
+  return `${containerDir}/${STORAGE_FOLDER_NAME}/${slotKey}`;
+}
+
+function getNamedStorageBundleDirRel(relPath) {
+  return getNamedStorageSlotDirRel(relPath);
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName) {
   return `${getNamedStorageBundleDirRel(relPath)}/${bundleFileName}`;
 }
+
+const STORAGE_SUBFOLDER_CONTENT = "Content";
+const STORAGE_SUBFOLDER_INBOX = "Inbox";
+const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
+const STORAGE_SUBFOLDER_ASSETS = "Assets";
+const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
+const STORAGE_SUBFOLDER_PREVIEW = "Preview";
+
+const STORAGE_SUBFOLDER_BY_MODE = {
+  external: STORAGE_SUBFOLDER_CONTENT,
+  inbox: STORAGE_SUBFOLDER_INBOX,
+  references: STORAGE_SUBFOLDER_REFERENCES,
+  media: STORAGE_SUBFOLDER_ASSETS,
+  scripts: STORAGE_SUBFOLDER_ARTEFACTS
+};
+
+function getStorageSubfolderForMode(mode) {
+  return STORAGE_SUBFOLDER_BY_MODE[String(mode || "").trim()] || null;
+}
+
+const AGENT_MAP3_LAYER_KEYS = [
+  { key: BUNDLE_CONTENT_FILE, label: "Память" },
+  { key: BUNDLE_CONFIG_FILE, label: "Конфиг" },
+  { key: STORAGE_SUBFOLDER_ASSETS, label: "Файлы" },
+  { key: STORAGE_SUBFOLDER_CONTENT, label: "Контент" }
+];
+
+let agentMap3RequestId = 0;
+
+const AGENT_STORAGE_LAYER_ORDER = [
+  BUNDLE_CONTENT_FILE,
+  BUNDLE_TABULAR_FILE,
+  BUNDLE_CONFIG_FILE,
+  BUNDLE_TODO_FILE,
+  ".env",
+  `${PREVIEW_FILE_BASENAME}.png`,
+  `${PREVIEW_FILE_BASENAME}.jpg`,
+  STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_PREVIEW
+];
+
+let agentStorageLayoutCache = null;
+let agentStorageLayoutRequestId = 0;
+let agentWorkspaceTableCache = null;
+let agentTimelineCache = null;
+let agentTableRequestId = 0;
+let agentTimelineRequestId = 0;
+let agentTableSearchQuery = "";
+let agentTableSortKey = "displayPath";
+let agentTableSortDir = "asc";
 
 function resolveNodeSidecarRelPath(nodePath, kind) {
   const resolved = String(getResolvedNodePath(nodePath) || "");
@@ -4508,19 +4581,19 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
     case "tabular":
       return getTabularBreadcrumbPath(activePath);
     case "external": {
-      const base = getNodeStorageSubfolderPath(activePath, "_Content");
+      const base = getNodeStorageSubfolderPath(activePath, "external");
       return externalFile ? `${base}/${externalFile}` : base;
     }
     case "inbox":
-      return getNodeStorageSubfolderPath(activePath, "_Inbox");
+      return getNodeStorageSubfolderPath(activePath, "inbox");
     case "references":
-      return getNodeStorageSubfolderPath(activePath, "_Referenses");
+      return getNodeStorageSubfolderPath(activePath, "references");
     case "media": {
-      const base = getNodeStorageSubfolderPath(activePath, "_Assets");
+      const base = getNodeStorageSubfolderPath(activePath, "media");
       return mediaFile ? `${base}/${mediaFile}` : base;
     }
     case "scripts":
-      return getNodeStorageSubfolderPath(activePath, "_Scripts");
+      return getNodeStorageSubfolderPath(activePath, "scripts");
     case "node-preview": {
       const base = getPreviewBreadcrumbPath(activePath);
       return previewFile ? `${base}/${previewFile}` : base;
@@ -4545,14 +4618,14 @@ function getListViewTitleByMode() {
   if (activeContentMode === "graph") {
     return `Пространство: ${activeLabel || getLabelFromPath(activePath) || "тема"}`;
   }
-  if (activeContentMode === "external") return "Многофайловая (_Content)";
+  if (activeContentMode === "external") return `Многофайловая (${STORAGE_SUBFOLDER_CONTENT})`;
   if (activeContentMode === "tabular") {
     return isTabularSourceEditing() ? "Табличная — исходник CSV" : "Табличная (CSV)";
   }
-  if (activeContentMode === "inbox") return "Входящие (_Inbox)";
-  if (activeContentMode === "references") return "Источники (_Referenses)";
-  if (activeContentMode === "media") return "Медиа и документы (_Assets)";
-  if (activeContentMode === "scripts") return "Скрипты (_Scripts)";
+  if (activeContentMode === "inbox") return `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
+  if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
+  if (activeContentMode === "media") return `Медиа и документы (${STORAGE_SUBFOLDER_ASSETS})`;
+  if (activeContentMode === "scripts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
   return "Список файлов";
 }
 
@@ -5126,7 +5199,9 @@ function attachObsidianGraphViewport(wrap, svg, viewport, sim, nodeElements, lin
 }
 
 function buildGraphDataFromExternalFiles(items) {
-  const nodes = [{ id: "root", label: "_Content", filePath: null, type: "folder", depth: 0 }];
+  const nodes = [
+    { id: "root", label: STORAGE_SUBFOLDER_CONTENT, filePath: null, type: "folder", depth: 0 }
+  ];
   const edges = [];
   const folderIds = new Set(["root"]);
   const fileIdsByParent = new Map();
@@ -5460,7 +5535,7 @@ function renderNodeGraphView() {
 function renderExternalGraphCanvas(container, items) {
   const graph = buildGraphDataFromExternalFiles(items);
   renderGraphCanvas(container, graph, {
-    ariaLabel: "Граф файлов _Content",
+    ariaLabel: `Граф файлов ${STORAGE_SUBFOLDER_CONTENT}`,
     isNodeActive: (node) => Boolean(node.filePath && node.filePath === activeExternalFilePath),
     isNodeClickable: (node) => Boolean(node.filePath),
     onNodeClick: (node) => openExternalFile(node.filePath)
@@ -5481,10 +5556,26 @@ function buildMediaAssetUrl(filePath, nodePath = activePath) {
   return buildApiUrl("/api/media/file", { path: getResolvedNodePath(nodePath), file: filePath });
 }
 
+function stripAssetsPathPrefix(relPath) {
+  let rel = String(relPath || "").replace(/\\/g, "/");
+  const prefixes = [
+    `_Storage/${STORAGE_SUBFOLDER_ASSETS}/`,
+    `_Storage/_Assets/`,
+    `${STORAGE_SUBFOLDER_ASSETS}/`,
+    "_Assets/"
+  ];
+  for (const prefix of prefixes) {
+    if (rel.startsWith(prefix)) return rel.slice(prefix.length);
+    const lower = prefix.toLowerCase();
+    if (rel.toLowerCase().startsWith(lower)) return rel.slice(prefix.length);
+  }
+  return rel;
+}
+
 function buildMarkdownAttachmentRef(relativeAssetsPath) {
   const normalized = String(relativeAssetsPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
-  return `_Assets/${normalized}`;
+  return `${STORAGE_SUBFOLDER_ASSETS}/${normalized}`;
 }
 
 function resolveMarkdownAssetSrc(src, nodePath) {
@@ -5500,11 +5591,7 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   if (serviceFolder && relFile.toLowerCase().startsWith(servicePrefix.toLowerCase())) {
     const tail = relFile.slice(servicePrefix.length);
     let serviceAsset = tail;
-    if (serviceAsset.startsWith("_Storage/_Assets/")) {
-      serviceAsset = serviceAsset.slice("_Storage/_Assets/".length);
-    } else if (serviceAsset.toLowerCase().startsWith("_assets/")) {
-      serviceAsset = serviceAsset.slice("_Assets/".length);
-    }
+    serviceAsset = stripAssetsPathPrefix(serviceAsset);
     if (!serviceAsset.includes("..")) {
       const serviceManifest = getServiceRootManifestPath();
       if (serviceManifest) {
@@ -5518,11 +5605,7 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   const resolvedNodePath = getResolvedNodePath(nodePath || activePath);
   if (!resolvedNodePath) return raw;
 
-  if (relFile.startsWith("_Storage/_Assets/")) {
-    relFile = relFile.slice("_Storage/_Assets/".length);
-  } else if (relFile.toLowerCase().startsWith("_assets/")) {
-    relFile = relFile.slice("_Assets/".length);
-  }
+  relFile = stripAssetsPathPrefix(relFile);
   if (relFile.includes("..")) return raw;
 
   return appendAgentToApiUrl(
@@ -5709,7 +5792,7 @@ async function insertUploadedAttachmentIntoEditor(file) {
     const markdown = buildMarkdownImageSnippet(relativeFile, getAttachmentAltText(file.name));
     insertTextAtEditorCursor(markdown);
 
-    showToast("Изображение сохранено в _Assets", "success");
+    showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -5720,7 +5803,7 @@ async function uploadMediaFileFromPicker(file) {
   if (!file || !activePath) return;
   try {
     await uploadMediaAttachment(file);
-    showToast("Файл сохранён в _Assets", "success");
+    showToast(`Файл сохранён в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -5796,10 +5879,11 @@ function renderMediaEmpty(container, message = "Файлы не найдены")
 }
 
 const STORAGE_FOLDER_LABELS = {
-  inbox: "_Inbox",
-  references: "_Referenses",
-  scripts: "_Scripts",
-  media: "_Assets"
+  inbox: STORAGE_SUBFOLDER_INBOX,
+  references: STORAGE_SUBFOLDER_REFERENCES,
+  scripts: STORAGE_SUBFOLDER_ARTEFACTS,
+  media: STORAGE_SUBFOLDER_ASSETS,
+  external: STORAGE_SUBFOLDER_CONTENT
 };
 
 function getStorageFolderMissingMessage(mode = activeContentMode) {
@@ -6982,7 +7066,7 @@ async function openExternalFile(filePath) {
     const data = await response.json();
     enableExternalFileEditor(data.file, data.content || "");
   } catch (error) {
-    showToast("Ошибка открытия файла _Content", "error");
+    showToast(`Ошибка открытия файла ${STORAGE_SUBFOLDER_CONTENT}`, "error");
   }
 }
 
@@ -7609,7 +7693,7 @@ function getOverviewMemoryStoragePath(nodePath, driverId, summary) {
     case "internal":
       return getInternalMemoryBreadcrumbPath(resolvedPath);
     case "external":
-      return getNodeStorageSubfolderPath(resolvedPath, "_Content");
+      return getNodeStorageSubfolderPath(resolvedPath, "external");
     case "tabular":
       return getTabularBreadcrumbPath(resolvedPath);
     default:
@@ -7818,7 +7902,7 @@ const MEDIA_OVERVIEW_GROUP_ICONS = {
 function renderOverviewMediaLink(mediaData, nodePath = activePath) {
   const exists = Boolean(mediaData?.exists);
   const fileCount = Number(mediaData?.files) || 0;
-  const storagePath = getNodeStorageSubfolderPath(nodePath, "_Assets");
+  const storagePath = getNodeStorageSubfolderPath(nodePath, "media");
 
   const link = document.createElement("button");
   link.type = "button";
@@ -9691,7 +9775,7 @@ function initWysiwygEditor() {
         if (!relativeFile) throw new Error("Upload response missing file path");
         callback(buildMediaAssetUrl(relativeFile), getAttachmentAltText(normalizedFile.name || file.name));
         syncSourceFromWysiwygEditor();
-        showToast("Изображение сохранено в _Assets", "success");
+        showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
         void refreshMediaListIfVisible();
       })
       .catch((error) => {
@@ -11106,6 +11190,7 @@ function renderMenu(menu, agentId = activeAgentId) {
   menuCacheByAgent.set(agentId, menu);
   if (agentId === activeAgentId) {
     currentMenuData = menu;
+    invalidateAgentStorageLayoutCache();
     activateMenuAgentPane(agentId);
   }
 
@@ -11438,7 +11523,9 @@ async function loadContentByMode() {
 
   if (activeContentMode === "inbox") {
     try {
-      const response = await fetch(buildApiUrl("/api/folder/view", { path: activePath, folder: "_Inbox" }));
+      const response = await fetch(
+        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_INBOX })
+      );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       applyFlatStorageFolderLoadState("inbox", data);
@@ -11456,7 +11543,9 @@ async function loadContentByMode() {
 
   if (activeContentMode === "references") {
     try {
-      const response = await fetch(buildApiUrl("/api/folder/view", { path: activePath, folder: "_Referenses" }));
+      const response = await fetch(
+        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_REFERENCES })
+      );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       applyFlatStorageFolderLoadState("references", data);
@@ -11561,7 +11650,9 @@ async function loadContentByMode() {
 
   if (activeContentMode === "scripts") {
     try {
-      const response = await fetch(buildApiUrl("/api/folder/view", { path: activePath, folder: "_Scripts" }));
+      const response = await fetch(
+        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_ARTEFACTS })
+      );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       applyFlatStorageFolderLoadState("scripts", data);
@@ -11707,7 +11798,7 @@ async function saveContent() {
         const errorData = await renameResponse.json().catch(() => ({}));
         const reason = errorData.error || `Request failed with ${renameResponse.status}`;
         const details = errorData.details ? `: ${errorData.details}` : "";
-        throw new Error(`Ошибка переименования файла _Content: ${reason}${details}`);
+        throw new Error(`Ошибка переименования файла ${STORAGE_SUBFOLDER_CONTENT}: ${reason}${details}`);
       }
       const renameData = await renameResponse.json();
       activeExternalFilePath = renameData.file;
@@ -11849,7 +11940,7 @@ async function saveContent() {
     if (activeContentMode === "env") modeContentCache.env = data.content || "";
     if (activeContentMode === "external" && activeExternalFilePath) {
       applyExternalFileContentUi(data.content || "");
-      showToast("Файл _Content сохранен", "success");
+      showToast(`Файл ${STORAGE_SUBFOLDER_CONTENT} сохранен`, "success");
       return;
     }
     fileContentInputNode.value = data.content;
@@ -11921,9 +12012,13 @@ function loadAgentWorkspaceView() {
       saved === "dashboard" ||
       saved === "map" ||
       saved === "map2" ||
+      saved === "map3" ||
       saved === "schema" ||
       saved === "vault" ||
-      saved === "graph"
+      saved === "graph" ||
+      saved === "storage" ||
+      saved === "table" ||
+      saved === "timeline"
     ) {
       return saved;
     }
@@ -11942,20 +12037,10 @@ function saveAgentWorkspaceView(view) {
 }
 
 function syncAgentWorkspaceViewButtons() {
-  for (const btn of [
-    agentViewDashboardBtn,
-    agentViewMapBtn,
-    agentViewMap2Btn,
-    agentViewRegistryBtn,
-    agentViewSchemaBtn,
-    agentViewVaultBtn,
-    agentViewGraphBtn
-  ]) {
-    if (!btn) continue;
-    const view = btn.dataset.agentView;
-    const active = view === agentWorkspaceView;
-    btn.classList.toggle("active", active);
-    btn.setAttribute("aria-selected", active ? "true" : "false");
+  if (!agentViewSelect) return;
+  const option = agentViewSelect.querySelector(`option[value="${agentWorkspaceView}"]`);
+  if (option && !option.disabled) {
+    agentViewSelect.value = agentWorkspaceView;
   }
 }
 
@@ -11969,9 +12054,13 @@ function applyAgentWorkspaceCanvasUi() {
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
+  agentMap3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map3");
   agentSchemaPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "schema");
   agentVaultPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "vault");
   agentGraphPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "graph");
+  agentTablePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "table");
+  agentStoragePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "storage");
+  agentTimelinePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "timeline");
 
   if (!showCanvas) return;
 
@@ -11981,12 +12070,20 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentMapView();
   } else if (agentWorkspaceView === "map2") {
     renderAgentMap2View();
+  } else if (agentWorkspaceView === "map3") {
+    void renderAgentMap3View();
   } else if (agentWorkspaceView === "schema") {
     renderAgentSchemaView();
   } else if (agentWorkspaceView === "vault") {
     renderAgentVaultView();
   } else if (agentWorkspaceView === "graph") {
     renderAgentGraphView();
+  } else if (agentWorkspaceView === "storage") {
+    void renderAgentStorageView();
+  } else if (agentWorkspaceView === "table") {
+    void renderAgentTableView();
+  } else if (agentWorkspaceView === "timeline") {
+    void renderAgentTimelineView();
   }
 }
 
@@ -11995,9 +12092,13 @@ function setAgentWorkspaceView(view) {
     view !== "dashboard" &&
     view !== "map" &&
     view !== "map2" &&
+    view !== "map3" &&
     view !== "schema" &&
     view !== "vault" &&
-    view !== "graph"
+    view !== "graph" &&
+    view !== "storage" &&
+    view !== "table" &&
+    view !== "timeline"
   ) {
     return;
   }
@@ -12066,7 +12167,7 @@ function buildAgentMapZoneData(menu) {
     },
     {
       label: "Многофайловая",
-      sub: "_Content/",
+      sub: `${STORAGE_SUBFOLDER_CONTENT}/`,
       mode: "external",
       path: rootPath,
       action: "memory"
@@ -12573,6 +12674,173 @@ function bindAgentMap2LinksObserver(onRefresh) {
   agentMap2LinksResizeObserver.observe(agentMap2CanvasNode);
 }
 
+function countAgentMap3SlotLayers(slot) {
+  if (!slot?.layers) return 0;
+  return AGENT_MAP3_LAYER_KEYS.reduce((sum, spec) => sum + (slot.layers[spec.key]?.exists ? 1 : 0), 0);
+}
+
+function createAgentMap3LayerDots(slot) {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-map3-layer-dots";
+  wrap.setAttribute("aria-label", "Слои _Storage");
+
+  for (const spec of AGENT_MAP3_LAYER_KEYS) {
+    const dot = document.createElement("span");
+    dot.className = "agent-map3-layer-dot";
+    dot.title = spec.label;
+    if (slot.layers?.[spec.key]?.exists) dot.classList.add("is-on");
+    wrap.appendChild(dot);
+  }
+
+  return wrap;
+}
+
+function createAgentMap3SlotNode(slot) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `agent-map3-slot${slot.kind === "area" ? " is-area" : " is-topic"}${slot.exists ? "" : " is-empty"}`;
+  btn.dataset.manifestPath = slot.manifestPath || "";
+
+  const kind = document.createElement("span");
+  kind.className = "agent-map3-slot-kind";
+  kind.textContent = slot.kind === "area" ? "Область" : "Тема";
+
+  const title = document.createElement("span");
+  title.className = "agent-map3-slot-title";
+  title.textContent = slot.label || slot.slotKey;
+
+  const path = document.createElement("span");
+  path.className = "agent-map3-slot-path";
+  path.textContent = slot.slotKey === "_" ? "_/" : `${slot.slotKey}/`;
+
+  const meta = document.createElement("span");
+  meta.className = "agent-map3-slot-meta";
+  const layerCount = countAgentMap3SlotLayers(slot);
+  meta.textContent = slot.exists ? `${layerCount}/${AGENT_MAP3_LAYER_KEYS.length} слоёв` : "слот не создан";
+
+  btn.append(kind, title, path, createAgentMap3LayerDots(slot), meta);
+  btn.addEventListener("click", () => {
+    if (slot.manifestPath) openNodeFromMenu(slot.label || slot.slotKey, slot.manifestPath);
+  });
+  return btn;
+}
+
+function createAgentMap3ContainerLane(containerData) {
+  const lane = document.createElement("section");
+  lane.className = "agent-map3-lane";
+
+  const head = document.createElement("header");
+  head.className = "agent-map3-lane-head";
+  const title = document.createElement("h3");
+  title.className = "agent-map3-lane-title";
+  title.textContent = containerData.containerDir || getActiveAgentLabel() || "Корень workspace";
+  const storagePath = document.createElement("span");
+  storagePath.className = "agent-map3-lane-storage";
+  storagePath.textContent = containerData.storageRoot;
+  head.append(title, storagePath);
+  lane.appendChild(head);
+
+  if (containerData.rootHasContent) {
+    const warn = document.createElement("p");
+    warn.className = "agent-map3-lane-warn";
+    warn.textContent = "В корне _Storage есть файлы вне слотов (legacy) — см. вид «Хранилище».";
+    lane.appendChild(warn);
+  }
+
+  const track = document.createElement("div");
+  track.className = "agent-map3-track";
+
+  const areaSlot = (containerData.slots || []).find((slot) => slot.kind === "area");
+  const topicSlots = (containerData.slots || []).filter((slot) => slot.kind === "topic");
+
+  if (areaSlot) {
+    const hub = document.createElement("div");
+    hub.className = "agent-map3-hub";
+    hub.appendChild(createAgentMap3SlotNode(areaSlot));
+    track.appendChild(hub);
+  }
+
+  if (topicSlots.length) {
+    const topics = document.createElement("div");
+    topics.className = "agent-map3-topics";
+    topics.setAttribute("role", "list");
+    for (const slot of topicSlots) {
+      const item = document.createElement("div");
+      item.className = "agent-map3-topic-wrap";
+      item.setAttribute("role", "listitem");
+      item.appendChild(createAgentMap3SlotNode(slot));
+      topics.appendChild(item);
+    }
+    track.appendChild(topics);
+  } else if (!areaSlot) {
+    const empty = document.createElement("p");
+    empty.className = "agent-map3-lane-empty";
+    empty.textContent = "Нет манифестов в этом контейнере";
+    track.appendChild(empty);
+  }
+
+  if (areaSlot && topicSlots.length) {
+    track.classList.add("has-topics");
+  }
+
+  lane.appendChild(track);
+
+  if (containerData.orphanSlots?.length) {
+    const orphans = document.createElement("div");
+    orphans.className = "agent-map3-orphans";
+    orphans.innerHTML =
+      "Слоты без манифеста: " +
+      containerData.orphanSlots.map((name) => `<code>${escapeHtml(name)}</code>`).join(" · ");
+    lane.appendChild(orphans);
+  }
+
+  return lane;
+}
+
+function renderAgentMap3Stats(layout) {
+  if (!agentMap3StatsNode) return;
+  const slotCount = (layout.containers || []).reduce((sum, c) => sum + (c.slots?.length || 0), 0);
+  const filledSlots = (layout.containers || []).reduce(
+    (sum, c) => sum + (c.slots || []).filter((s) => s.exists && countAgentMap3SlotLayers(s) > 0).length,
+    0
+  );
+
+  agentMap3StatsNode.innerHTML = `
+    <span class="agent-map3-stat"><strong>${layout.containers?.length || 0}</strong> контейнеров</span>
+    <span class="agent-map3-stat"><strong>${slotCount}</strong> слотов</span>
+    <span class="agent-map3-stat agent-map3-stat--ok"><strong>${filledSlots}</strong> с данными</span>
+  `;
+}
+
+async function renderAgentMap3View() {
+  if (!agentMap3BoardNode) return;
+
+  const requestId = ++agentMap3RequestId;
+  agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">Загрузка карты _Storage…</div>`;
+  if (agentMap3StatsNode) agentMap3StatsNode.innerHTML = "";
+
+  try {
+    const layout = await fetchAgentStorageLayout();
+    if (requestId !== agentMap3RequestId) return;
+
+    agentMap3BoardNode.innerHTML = "";
+    renderAgentMap3Stats(layout);
+
+    if (!layout.containers?.length) {
+      agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">В workspace пока нет манифестов для карты _Storage</div>`;
+      return;
+    }
+
+    for (const container of layout.containers) {
+      agentMap3BoardNode.appendChild(createAgentMap3ContainerLane(container));
+    }
+  } catch {
+    if (requestId !== agentMap3RequestId) return;
+    agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">Не удалось построить карту. Запустите сервер и обновите страницу.</div>`;
+    if (agentMap3StatsNode) agentMap3StatsNode.innerHTML = "";
+  }
+}
+
 function renderAgentMap2View() {
   if (!agentMap2CanvasNode || !agentMap2NodesNode) return;
 
@@ -12641,7 +12909,7 @@ function renderAgentDashboardView() {
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
     const agentLabel = agent?.name || getActiveAgentLabel() || "агента";
-    homeHintNode.textContent = `Агент «${agentLabel}» — выберите тему в дереве или откройте Схему / Каталог / Граф`;
+    homeHintNode.textContent = `Агент «${agentLabel}» — выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Таблицу / Хранилище / Ленту`;
   }
 }
 
@@ -12735,7 +13003,8 @@ function renderAgentSchemaView() {
   agentSchemaContentNode.appendChild(tree);
 }
 
-const AGENT_HOME_HINT_DEFAULT = "Выберите тему в дереве или откройте Схему / Каталог / Граф";
+const AGENT_HOME_HINT_DEFAULT =
+  "Выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Таблицу / Хранилище / Ленту";
 
 function inferVaultCategoryFromEntry(entry) {
   if (entry?.category) return String(entry.category).trim();
@@ -12907,6 +13176,609 @@ function buildGraphDataFromAgentMenu(menu) {
   }
 
   return { nodes, edges };
+}
+
+async function fetchAgentStorageLayout(force = false) {
+  if (!force && agentStorageLayoutCache) return agentStorageLayoutCache;
+  const response = await fetch(buildApiUrl("/api/agent/storage-layout"));
+  if (!response.ok) throw new Error(`storage-layout:${response.status}`);
+  const data = await response.json();
+  agentStorageLayoutCache = data;
+  return data;
+}
+
+function invalidateAgentStorageLayoutCache() {
+  agentStorageLayoutCache = null;
+  agentWorkspaceTableCache = null;
+  agentTimelineCache = null;
+}
+
+async function fetchAgentWorkspaceTable(force = false) {
+  if (!force && agentWorkspaceTableCache) return agentWorkspaceTableCache;
+  const response = await fetch(buildApiUrl("/api/agent/workspace-table"));
+  if (!response.ok) throw new Error(`workspace-table:${response.status}`);
+  const data = await response.json();
+  agentWorkspaceTableCache = data;
+  return data;
+}
+
+async function fetchAgentTimeline(force = false) {
+  if (!force && agentTimelineCache) return agentTimelineCache;
+  const response = await fetch(buildApiUrl("/api/agent/timeline", { limit: 150 }));
+  if (!response.ok) throw new Error(`timeline:${response.status}`);
+  const data = await response.json();
+  agentTimelineCache = data;
+  return data;
+}
+
+const AGENT_TABLE_SORT_KEYS = new Set([
+  "displayPath",
+  "label",
+  "kind",
+  "layerPresent",
+  "slotDir",
+  "manifestUpdatedAt"
+]);
+
+function agentTableRowMatchesQuery(row, query) {
+  if (!query) return true;
+  const haystack = [
+    row.label,
+    row.displayPath,
+    row.slotKey,
+    row.slotDir,
+    row.category,
+    ...(Array.isArray(row.tags) ? row.tags : [])
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
+}
+
+function sortAgentTableRows(rows) {
+  const key = AGENT_TABLE_SORT_KEYS.has(agentTableSortKey) ? agentTableSortKey : "displayPath";
+  const dir = agentTableSortDir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    if (key === "layerPresent") {
+      return (a.layerPresent - b.layerPresent) * dir || a.displayPath.localeCompare(b.displayPath, "ru");
+    }
+    if (key === "manifestUpdatedAt") {
+      const aTime = a.manifestUpdatedAt ? Date.parse(a.manifestUpdatedAt) : 0;
+      const bTime = b.manifestUpdatedAt ? Date.parse(b.manifestUpdatedAt) : 0;
+      return (aTime - bTime) * dir || a.displayPath.localeCompare(b.displayPath, "ru");
+    }
+    const aVal = String(a[key] ?? "");
+    const bVal = String(b[key] ?? "");
+    if (key === "kind") {
+      if (aVal !== bVal) return (aVal === "area" ? -1 : 1) * dir;
+      return a.displayPath.localeCompare(b.displayPath, "ru");
+    }
+    return aVal.localeCompare(bVal, "ru") * dir;
+  });
+}
+
+function formatAgentTableKind(kind) {
+  return kind === "area" ? "Область" : "Тема";
+}
+
+function formatAgentTimelineFileKind(fileKind) {
+  const labels = {
+    manifest: "Манифест",
+    content: "Content",
+    tabular: "Tabular",
+    config: "Config",
+    todo: "Todo",
+    env: ".env",
+    preview: "Превью",
+    media: "Медиа"
+  };
+  return labels[fileKind] || fileKind;
+}
+
+function getTimelineDayKey(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function groupTimelineEventsByDay(events) {
+  const groups = new Map();
+  for (const event of events) {
+    const dayKey = getTimelineDayKey(event.updatedAt);
+    if (!groups.has(dayKey)) groups.set(dayKey, []);
+    groups.get(dayKey).push(event);
+  }
+  return groups;
+}
+
+function createAgentStorageLayerChip(layerName, layerMeta) {
+  const chip = document.createElement("span");
+  chip.className = "agent-storage-layer";
+  if (layerMeta?.exists) chip.classList.add("is-present");
+
+  const label = document.createElement("span");
+  label.textContent = layerName;
+  chip.appendChild(label);
+
+  if (layerMeta?.kind === "folder" && layerMeta.exists && layerMeta.entryCount > 0) {
+    const count = document.createElement("span");
+    count.className = "agent-storage-layer-count";
+    count.textContent = String(layerMeta.entryCount);
+    chip.appendChild(count);
+  }
+
+  return chip;
+}
+
+function appendAgentStorageSlotLayers(container, layers) {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-storage-layers";
+  const seen = new Set();
+
+  for (const layerName of AGENT_STORAGE_LAYER_ORDER) {
+    const meta = layers?.[layerName];
+    if (!meta) continue;
+    seen.add(layerName);
+    wrap.appendChild(createAgentStorageLayerChip(layerName, meta));
+  }
+
+  for (const [layerName, meta] of Object.entries(layers || {})) {
+    if (seen.has(layerName) || layerName === "__looseFiles") continue;
+    wrap.appendChild(createAgentStorageLayerChip(layerName, meta));
+  }
+
+  container.appendChild(wrap);
+}
+
+function buildAgentStorageContainerSection(containerData) {
+  const section = document.createElement("section");
+  section.className = "agent-storage-container";
+
+  const head = document.createElement("div");
+  head.className = "agent-storage-container-head";
+  const title = document.createElement("h3");
+  title.className = "agent-storage-container-title";
+  title.textContent = containerData.containerDir
+    ? containerData.containerDir
+    : getActiveAgentLabel() || "Корень workspace";
+  const path = document.createElement("span");
+  path.className = "agent-storage-container-path";
+  path.textContent = containerData.storageRoot;
+  head.append(title, path);
+  section.appendChild(head);
+
+  if (containerData.rootHasContent) {
+    const note = document.createElement("p");
+    note.className = "agent-storage-root-note";
+    note.innerHTML =
+      "В корне <code>" +
+      escapeHtml(containerData.storageRoot) +
+      "</code> есть файлы вне слотов — legacy/канон. Рекомендуется перенос в <code>_Storage/&lt;ключ&gt;/</code>.";
+    section.appendChild(note);
+  }
+
+  const list = document.createElement("div");
+  list.className = "agent-storage-slot-list";
+
+  for (const slot of containerData.slots || []) {
+    const row = document.createElement("article");
+    row.className = "agent-storage-slot";
+
+    const slotHead = document.createElement("div");
+    slotHead.className = "agent-storage-slot-head";
+
+    const kind = document.createElement("span");
+    kind.className = `agent-storage-slot-kind${slot.kind === "area" ? " is-area" : ""}`;
+    kind.textContent = slot.kind === "area" ? "Область" : "Тема";
+
+    const slotTitle = document.createElement("h4");
+    slotTitle.className = "agent-storage-slot-title";
+    slotTitle.textContent = slot.label || slot.slotKey;
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "agent-storage-slot-open";
+    openBtn.textContent = "Открыть";
+    openBtn.addEventListener("click", () => {
+      if (slot.manifestPath) openNodeFromMenu(slot.label || slot.slotKey, slot.manifestPath);
+    });
+
+    slotHead.append(kind, slotTitle, openBtn);
+    row.appendChild(slotHead);
+
+    const slotPath = document.createElement("div");
+    slotPath.className = "agent-storage-slot-path";
+    slotPath.textContent = slot.slotDir;
+    row.appendChild(slotPath);
+
+    if (!slot.exists) {
+      const missing = document.createElement("p");
+      missing.className = "agent-storage-slot-missing";
+      missing.textContent = "Слот ещё не создан на диске — слои появятся после первого сохранения.";
+      row.appendChild(missing);
+    }
+
+    appendAgentStorageSlotLayers(row, slot.layers);
+    list.appendChild(row);
+  }
+
+  section.appendChild(list);
+
+  if (containerData.orphanSlots?.length) {
+    const orphans = document.createElement("div");
+    orphans.className = "agent-storage-orphans";
+    orphans.innerHTML =
+      "Слоты без манифеста: " +
+      containerData.orphanSlots.map((name) => `<code>${escapeHtml(name)}</code>`).join(", ");
+    section.appendChild(orphans);
+  }
+
+  return section;
+}
+
+async function renderAgentStorageView() {
+  if (!agentStorageContentNode) return;
+
+  const requestId = ++agentStorageLayoutRequestId;
+  agentStorageContentNode.innerHTML = "";
+  renderListEmptyMessage(agentStorageContentNode, "Загрузка раскладки _Storage…");
+
+  try {
+    const layout = await fetchAgentStorageLayout();
+    if (requestId !== agentStorageLayoutRequestId) return;
+
+    agentStorageContentNode.innerHTML = "";
+
+    if (agentStorageStatsNode) {
+      const slotCount = (layout.containers || []).reduce(
+        (sum, container) => sum + (container.slots?.length || 0),
+        0
+      );
+      agentStorageStatsNode.innerHTML = `
+        <span class="agent-storage-stat"><strong>${layout.manifestCount || 0}</strong> манифестов</span>
+        <span class="agent-storage-stat"><strong>${layout.containers?.length || 0}</strong> контейнеров</span>
+        <span class="agent-storage-stat"><strong>${slotCount}</strong> слотов</span>
+      `;
+    }
+
+    if (!layout.containers?.length) {
+      renderListEmptyMessage(agentStorageContentNode, "В workspace пока нет манифестов для раскладки _Storage");
+      return;
+    }
+
+    for (const container of layout.containers) {
+      agentStorageContentNode.appendChild(buildAgentStorageContainerSection(container));
+    }
+  } catch {
+    if (requestId !== agentStorageLayoutRequestId) return;
+    agentStorageContentNode.innerHTML = "";
+    renderListEmptyMessage(
+      agentStorageContentNode,
+      "Не удалось загрузить раскладку _Storage. Проверьте, что сервер запущен."
+    );
+    if (agentStorageStatsNode) agentStorageStatsNode.innerHTML = "";
+  }
+}
+
+async function renderAgentTableView() {
+  if (!agentTableContentNode) return;
+
+  if (agentTableSearchNode && agentTableSearchNode.value !== agentTableSearchQuery) {
+    agentTableSearchNode.value = agentTableSearchQuery;
+  }
+
+  const requestId = ++agentTableRequestId;
+  agentTableContentNode.innerHTML = "";
+  renderListEmptyMessage(agentTableContentNode, "Загрузка таблицы…");
+
+  try {
+    const data = await fetchAgentWorkspaceTable();
+    if (requestId !== agentTableRequestId) return;
+
+    const query = agentTableSearchQuery.trim().toLowerCase();
+    const allRows = Array.isArray(data.rows) ? data.rows : [];
+    const filtered = allRows.filter((row) => agentTableRowMatchesQuery(row, query));
+    const rows = sortAgentTableRows(filtered);
+
+    if (agentTableStatsNode) {
+      agentTableStatsNode.innerHTML = `
+        <span class="agent-table-stat"><strong>${rows.length}</strong> / ${allRows.length}</span>
+        <span class="agent-table-stat"><strong>${data.manifestCount || allRows.length}</strong> манифестов</span>
+      `;
+    }
+
+    agentTableContentNode.innerHTML = "";
+    if (!allRows.length) {
+      renderListEmptyMessage(agentTableContentNode, "В workspace пока нет манифестов для таблицы");
+      return;
+    }
+    if (!rows.length) {
+      renderListEmptyMessage(agentTableContentNode, "Ничего не найдено. Измените поиск.");
+      return;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-table-wrap";
+
+    const table = document.createElement("table");
+    table.className = "agent-table";
+    table.setAttribute("aria-label", "Таблица манифестов workspace");
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    const columns = [
+      { key: "label", label: "Тема" },
+      { key: "displayPath", label: "Путь" },
+      { key: "kind", label: "Тип" },
+      { key: "slotDir", label: "Слот _Storage" },
+      { key: "layerPresent", label: "Слои" },
+      { key: null, label: "Превью" },
+      { key: null, label: "Категория" },
+      { key: null, label: "Теги" },
+      { key: "manifestUpdatedAt", label: "Манифест" }
+    ];
+
+    for (const col of columns) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      if (col.key && AGENT_TABLE_SORT_KEYS.has(col.key)) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "agent-table-sort";
+        const active = agentTableSortKey === col.key;
+        const arrow = active ? (agentTableSortDir === "desc" ? " ↓" : " ↑") : "";
+        btn.textContent = `${col.label}${arrow}`;
+        btn.addEventListener("click", () => {
+          if (agentTableSortKey === col.key) {
+            agentTableSortDir = agentTableSortDir === "asc" ? "desc" : "asc";
+          } else {
+            agentTableSortKey = col.key;
+            agentTableSortDir = col.key === "manifestUpdatedAt" ? "desc" : "asc";
+          }
+          void renderAgentTableView();
+        });
+        th.appendChild(btn);
+      } else {
+        th.textContent = col.label;
+      }
+      headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "agent-table-row";
+      tr.tabIndex = 0;
+      tr.setAttribute("role", "button");
+      tr.title = "Открыть тему";
+
+      const openRow = () => openNodeFromMenu(row.label || getLabelFromPath(row.manifestPath), row.manifestPath);
+      tr.addEventListener("click", openRow);
+      tr.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openRow();
+        }
+      });
+
+      const titleCell = document.createElement("td");
+      titleCell.className = "agent-table-cell agent-table-cell--title";
+      const titleInner = document.createElement("div");
+      titleInner.className = "agent-table-title-inner";
+      if (row.hasPreview && row.previewUrl) {
+        const thumb = document.createElement("img");
+        thumb.className = "agent-table-thumb";
+        thumb.src = row.previewUrl;
+        thumb.alt = "";
+        thumb.loading = "lazy";
+        titleInner.appendChild(thumb);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "agent-table-thumb agent-table-thumb--empty";
+        placeholder.textContent = row.kind === "area" ? "◎" : "◇";
+        titleInner.appendChild(placeholder);
+      }
+      const titleText = document.createElement("span");
+      titleText.className = "agent-table-label";
+      if (row.color) titleText.style.color = row.color;
+      titleText.textContent = row.label || getLabelFromPath(row.manifestPath);
+      titleInner.appendChild(titleText);
+      titleCell.appendChild(titleInner);
+      tr.appendChild(titleCell);
+
+      const pathCell = document.createElement("td");
+      pathCell.className = "agent-table-cell agent-table-cell--path";
+      pathCell.textContent = row.displayPath || "—";
+      tr.appendChild(pathCell);
+
+      const kindCell = document.createElement("td");
+      kindCell.className = "agent-table-cell";
+      const kindBadge = document.createElement("span");
+      kindBadge.className = `agent-table-kind${row.kind === "area" ? " is-area" : ""}`;
+      kindBadge.textContent = formatAgentTableKind(row.kind);
+      kindCell.appendChild(kindBadge);
+      tr.appendChild(kindCell);
+
+      const slotCell = document.createElement("td");
+      slotCell.className = "agent-table-cell agent-table-cell--mono";
+      const slotCode = document.createElement("code");
+      slotCode.textContent = row.slotDir || "—";
+      if (!row.slotExists) slotCode.classList.add("is-missing");
+      slotCell.appendChild(slotCode);
+      tr.appendChild(slotCell);
+
+      const layersCell = document.createElement("td");
+      layersCell.className = "agent-table-cell agent-table-cell--num";
+      layersCell.textContent = String(row.layerPresent ?? 0);
+      tr.appendChild(layersCell);
+
+      const previewCell = document.createElement("td");
+      previewCell.className = "agent-table-cell";
+      previewCell.textContent = row.hasPreview ? "Да" : "—";
+      tr.appendChild(previewCell);
+
+      const categoryCell = document.createElement("td");
+      categoryCell.className = "agent-table-cell";
+      categoryCell.textContent = row.category || "—";
+      tr.appendChild(categoryCell);
+
+      const tagsCell = document.createElement("td");
+      tagsCell.className = "agent-table-cell agent-table-cell--tags";
+      const tags = Array.isArray(row.tags) ? row.tags : [];
+      if (tags.length) {
+        for (const tag of tags.slice(0, 4)) {
+          const chip = document.createElement("span");
+          chip.className = "agent-table-tag";
+          chip.textContent = tag;
+          tagsCell.appendChild(chip);
+        }
+        if (tags.length > 4) {
+          const more = document.createElement("span");
+          more.className = "agent-table-tag agent-table-tag--more";
+          more.textContent = `+${tags.length - 4}`;
+          tagsCell.appendChild(more);
+        }
+      } else {
+        tagsCell.textContent = "—";
+      }
+      tr.appendChild(tagsCell);
+
+      const updatedCell = document.createElement("td");
+      updatedCell.className = "agent-table-cell agent-table-cell--date";
+      updatedCell.textContent = formatNodeMetaDateTime(row.manifestUpdatedAt);
+      tr.appendChild(updatedCell);
+
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    agentTableContentNode.appendChild(wrap);
+  } catch {
+    if (requestId !== agentTableRequestId) return;
+    agentTableContentNode.innerHTML = "";
+    renderListEmptyMessage(
+      agentTableContentNode,
+      "Не удалось загрузить таблицу. Проверьте, что сервер запущен."
+    );
+    if (agentTableStatsNode) agentTableStatsNode.innerHTML = "";
+  }
+}
+
+async function renderAgentTimelineView() {
+  if (!agentTimelineContentNode) return;
+
+  const requestId = ++agentTimelineRequestId;
+  agentTimelineContentNode.innerHTML = "";
+  renderListEmptyMessage(agentTimelineContentNode, "Загрузка ленты…");
+
+  try {
+    const data = await fetchAgentTimeline();
+    if (requestId !== agentTimelineRequestId) return;
+
+    const events = Array.isArray(data.events) ? data.events : [];
+    if (agentTimelineStatsNode) {
+      const shown = events.length;
+      const total = data.totalMatched ?? shown;
+      agentTimelineStatsNode.innerHTML = `
+        <span class="agent-timeline-stat"><strong>${shown}</strong> событий</span>
+        <span class="agent-timeline-stat">всего <strong>${total}</strong></span>
+      `;
+    }
+
+    agentTimelineContentNode.innerHTML = "";
+    if (!events.length) {
+      renderListEmptyMessage(
+        agentTimelineContentNode,
+        "Пока нет отслеживаемых изменений в манифестах и слотах _Storage"
+      );
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "agent-timeline-list";
+
+    for (const [dayKey, dayEvents] of groupTimelineEventsByDay(events)) {
+      const section = document.createElement("section");
+      section.className = "agent-timeline-day";
+
+      const dayHead = document.createElement("h3");
+      dayHead.className = "agent-timeline-day-title";
+      dayHead.textContent = dayKey;
+      section.appendChild(dayHead);
+
+      const dayList = document.createElement("div");
+      dayList.className = "agent-timeline-day-events";
+
+      for (const event of dayEvents) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "agent-timeline-item";
+
+        const time = document.createElement("time");
+        time.className = "agent-timeline-time";
+        time.dateTime = event.updatedAt || "";
+        time.textContent = formatNodeMetaDateTime(event.updatedAt);
+        item.appendChild(time);
+
+        const body = document.createElement("div");
+        body.className = "agent-timeline-body";
+
+        const top = document.createElement("div");
+        top.className = "agent-timeline-top";
+        const kindBadge = document.createElement("span");
+        kindBadge.className = `agent-timeline-file-kind is-${event.fileKind || "other"}`;
+        kindBadge.textContent = formatAgentTimelineFileKind(event.fileKind);
+        top.appendChild(kindBadge);
+
+        const fileLabel = document.createElement("span");
+        fileLabel.className = "agent-timeline-file-label";
+        fileLabel.textContent = event.fileLabel || "Файл";
+        top.appendChild(fileLabel);
+        body.appendChild(top);
+
+        const title = document.createElement("span");
+        title.className = "agent-timeline-node";
+        title.textContent = event.displayPath || event.label || event.manifestPath;
+        body.appendChild(title);
+
+        const path = document.createElement("code");
+        path.className = "agent-timeline-path";
+        path.textContent = event.relPath || "";
+        body.appendChild(path);
+
+        item.appendChild(body);
+        item.addEventListener("click", () => {
+          openNodeFromMenu(event.label || getLabelFromPath(event.manifestPath), event.manifestPath);
+        });
+
+        dayList.appendChild(item);
+      }
+
+      section.appendChild(dayList);
+      list.appendChild(section);
+    }
+
+    agentTimelineContentNode.appendChild(list);
+  } catch {
+    if (requestId !== agentTimelineRequestId) return;
+    agentTimelineContentNode.innerHTML = "";
+    renderListEmptyMessage(
+      agentTimelineContentNode,
+      "Не удалось загрузить ленту. Проверьте, что сервер запущен."
+    );
+    if (agentTimelineStatsNode) agentTimelineStatsNode.innerHTML = "";
+  }
 }
 
 function renderAgentGraphView() {
@@ -14038,17 +14910,28 @@ appHomeLink?.addEventListener("click", (event) => {
   showHomeView();
 });
 
-agentViewDashboardBtn?.addEventListener("click", () => setAgentWorkspaceView("dashboard"));
-agentViewMapBtn?.addEventListener("click", () => setAgentWorkspaceView("map"));
-agentViewMap2Btn?.addEventListener("click", () => setAgentWorkspaceView("map2"));
-agentViewSchemaBtn?.addEventListener("click", () => setAgentWorkspaceView("schema"));
-agentViewVaultBtn?.addEventListener("click", () => setAgentWorkspaceView("vault"));
-agentViewGraphBtn?.addEventListener("click", () => setAgentWorkspaceView("graph"));
+agentViewSelect?.addEventListener("change", () => {
+  const view = String(agentViewSelect.value || "").trim();
+  if (!view) return;
+  const option = agentViewSelect.selectedOptions[0];
+  if (option?.disabled) {
+    syncAgentWorkspaceViewButtons();
+    return;
+  }
+  setAgentWorkspaceView(view);
+});
 
 agentVaultSearchNode?.addEventListener("input", () => {
   agentVaultSearchQuery = agentVaultSearchNode.value;
   if (agentWorkspaceView === "vault") {
     renderAgentVaultView();
+  }
+});
+
+agentTableSearchNode?.addEventListener("input", () => {
+  agentTableSearchQuery = agentTableSearchNode.value;
+  if (agentWorkspaceView === "table") {
+    void renderAgentTableView();
   }
 });
 

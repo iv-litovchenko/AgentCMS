@@ -62,8 +62,8 @@ Workspace → Space «Коллекции» → Topic «Фильмы» → Elemen
 |-----------|-------------------|
 | Workspace | папка агента |
 | Space + Topic | папка + `_.node.md` (слито) |
-| Element | `_Storage/_Content/*.md`, CSV, inbox-файлы |
-| Resources | `_Storage/_Assets`, `_Inbox`, `_Preview` … |
+| Element | `_Storage/Content/*.md`, CSV, inbox-файлы |
+| Resources | `_Storage/Assets`, `Inbox`, `Preview` … |
 | Relations | граф, `[[wiki]]` |
 | Thread | *планируется* |
 

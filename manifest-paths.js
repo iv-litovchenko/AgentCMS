@@ -19,6 +19,69 @@ const PREVIEW_FILE_BASENAME = "Preview";
 const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_BASENAME}${ext}`);
 
+/** Каталоги внутри слота _Storage/{ключ}/ (без префикса _). */
+const STORAGE_SUBFOLDER_CONTENT = "Content";
+const STORAGE_SUBFOLDER_INBOX = "Inbox";
+const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
+const STORAGE_SUBFOLDER_ASSETS = "Assets";
+const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
+const STORAGE_SUBFOLDER_PREVIEW = "Preview";
+
+const STORAGE_SLOT_LAYER_FOLDERS = [
+  STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_PREVIEW
+];
+
+/** Legacy-имена каталогов (с префиксом _) для чтения старых workspace. */
+const STORAGE_SUBFOLDER_LEGACY_BY_CANONICAL = {
+  [STORAGE_SUBFOLDER_CONTENT]: "_Content",
+  [STORAGE_SUBFOLDER_INBOX]: "_Inbox",
+  [STORAGE_SUBFOLDER_REFERENCES]: "_Referenses",
+  [STORAGE_SUBFOLDER_ASSETS]: "_Assets",
+  [STORAGE_SUBFOLDER_ARTEFACTS]: "_Scripts",
+  [STORAGE_SUBFOLDER_PREVIEW]: "_Preview"
+};
+
+/** Режим редактора → каноническое имя каталога. */
+const STORAGE_SUBFOLDER_BY_MODE = {
+  external: STORAGE_SUBFOLDER_CONTENT,
+  inbox: STORAGE_SUBFOLDER_INBOX,
+  references: STORAGE_SUBFOLDER_REFERENCES,
+  media: STORAGE_SUBFOLDER_ASSETS,
+  scripts: STORAGE_SUBFOLDER_ARTEFACTS
+};
+
+function normalizeStorageSubfolderName(name) {
+  const raw = String(name || "").trim();
+  if (!raw) return "";
+  for (const canonical of STORAGE_SLOT_LAYER_FOLDERS) {
+    if (raw === canonical || raw.toLowerCase() === canonical.toLowerCase()) return canonical;
+  }
+  for (const [canonical, legacy] of Object.entries(STORAGE_SUBFOLDER_LEGACY_BY_CANONICAL)) {
+    if (raw === legacy || raw.toLowerCase() === legacy.toLowerCase()) return canonical;
+  }
+  return raw;
+}
+
+function getStorageSubfolderForMode(mode) {
+  return STORAGE_SUBFOLDER_BY_MODE[String(mode || "").trim()] || null;
+}
+
+function listStorageSubfolderNameCandidates(folderName) {
+  const canonical = normalizeStorageSubfolderName(folderName);
+  if (!canonical) return [];
+  const legacy = STORAGE_SUBFOLDER_LEGACY_BY_CANONICAL[canonical];
+  const candidates = [canonical];
+  if (legacy && legacy.toLowerCase() !== canonical.toLowerCase()) {
+    candidates.push(legacy);
+  }
+  return [...new Set(candidates)];
+}
+
 const MANIFEST_MD_RE = /\.(node|x)\.md$/i;
 const TOPIC_MANIFEST_RE = /\.(node|x)\.md$/i;
 
@@ -73,20 +136,13 @@ function getManifestContainerDirRel(relPath) {
 
 /**
  * Ключ каталога в _Storage (плоско от корня workspace):
- * - область (_.x.md): имя папки-контейнера; в корне workspace — имя папки workspace
+ * - область (_.x.md): «_»
  * - тема (*.x.md): stem файла (Goals из Goals.x.md)
  */
-function getManifestStorageKey(relPath, options = {}) {
+function getManifestStorageKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = path.basename(normalized);
-  if (isAreaManifestFileName(base)) {
-    const containerDir = getManifestContainerDirRel(normalized);
-    if (!containerDir) {
-      const workspaceKey = String(options.workspaceFolderName || "").trim();
-      return workspaceKey || "_";
-    }
-    return path.posix.basename(containerDir);
-  }
+  if (isAreaManifestFileName(base)) return "_";
   return stripTopicManifestSuffix(base);
 }
 
@@ -104,8 +160,60 @@ function getFlatLegacyNamedStorageDirRel(relPath, options = {}) {
   return `${STORAGE_FOLDER_NAME}/${key}`;
 }
 
+/**
+ * Ключ слота в {container}/_Storage/{ключ}/:
+ * - область (_.x.md): «_» (Иван/_.x.md → Иван/_Storage/_/)
+ * - тема (*.x.md): stem файла (Кристина.x.md → «Кристина»)
+ */
+function getManifestNamedSlotKey(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  if (isAreaManifestFileName(base)) return "_";
+  return stripTopicManifestSuffix(base);
+}
+
+/** Каталог _Storage/{ключ}/ рядом с манифестом (канон для Content.md, Preview.*, _Assets/…). */
+function getNamedStorageSlotDirRel(relPath, options = {}) {
+  const containerDir = getManifestContainerDirRel(relPath);
+  const slotKey = getManifestNamedSlotKey(relPath, options);
+  if (!containerDir) return `${STORAGE_FOLDER_NAME}/${slotKey}`;
+  return `${containerDir}/${STORAGE_FOLDER_NAME}/${slotKey}`;
+}
+
 function getNamedStorageBundleDirRel(relPath, options = {}) {
-  return getNodeLocalStorageDirRel(relPath, options);
+  return getNamedStorageSlotDirRel(relPath, options);
+}
+
+/** Кандидаты каталогов слота при чтении (новый канон + legacy). */
+function listManifestStorageSlotDirRelCandidates(relPath, options = {}) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const containerDir = getManifestContainerDirRel(normalized);
+  const base = path.posix.basename(normalized);
+  const candidates = [];
+
+  candidates.push(getNamedStorageSlotDirRel(normalized, options));
+
+  if (containerDir) {
+    if (isAreaManifestFileName(base)) {
+      const folderKey = path.posix.basename(containerDir);
+      if (folderKey && folderKey !== "_") {
+        candidates.push(`${containerDir}/${STORAGE_FOLDER_NAME}/${folderKey}`);
+      }
+    } else {
+      const stem = stripTopicManifestSuffix(base);
+      if (stem) candidates.push(`${containerDir}/${STORAGE_FOLDER_NAME}/${stem}`);
+    }
+    candidates.push(`${containerDir}/${STORAGE_FOLDER_NAME}`);
+  } else {
+    const workspaceKey = String(options.workspaceFolderName || "").trim();
+    if (workspaceKey && workspaceKey !== "_") {
+      candidates.push(`${STORAGE_FOLDER_NAME}/${workspaceKey}`);
+    }
+    candidates.push(`${STORAGE_FOLDER_NAME}/_`);
+    candidates.push(STORAGE_FOLDER_NAME);
+  }
+
+  return [...new Set(candidates.filter(Boolean))];
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName, options = {}) {
@@ -337,6 +445,18 @@ module.exports = {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,
+  STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_PREVIEW,
+  STORAGE_SLOT_LAYER_FOLDERS,
+  STORAGE_SUBFOLDER_LEGACY_BY_CANONICAL,
+  STORAGE_SUBFOLDER_BY_MODE,
+  normalizeStorageSubfolderName,
+  getStorageSubfolderForMode,
+  listStorageSubfolderNameCandidates,
   getLegacyLowercaseBundleRel,
   MANIFEST_MD_RE,
   TOPIC_MANIFEST_RE,
@@ -354,6 +474,9 @@ module.exports = {
   getFlatLegacyNamedStorageDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  getManifestNamedSlotKey,
+  getNamedStorageSlotDirRel,
+  listManifestStorageSlotDirRelCandidates,
   buildManifestCandidatesForStorageKey,
   buildManifestCandidatesForContainerDir,
   resolveManifestRelFromStorageBundlePath,

@@ -5,7 +5,7 @@ module.exports = {
   notes: [
     "MCP-сервер — обёртка над HTTP API Agent CMS. Перед запуском поднимите CMS: npm start (по умолчанию http://localhost:3000).",
     "Переменные: AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (id агента для ?agent=). Старые YAMLCMS_* тоже поддерживаются.",
-    "path — путь к _.x.md ноды; file — путь к .md внутри _Content или файлу в _Assets.",
+    "path — путь к _.x.md ноды; file — путь к .md внутри Content или файлу в Assets.",
     "Установка: cd mcp-server && npm install. Запуск вручную: node mcp-server/index.js (stdio)."
   ],
   cursorConfig: {
@@ -119,19 +119,19 @@ module.exports = {
         },
         {
           name: "list_external_memory",
-          description: "Список .md в _Content (многофайловая память).",
+          description: "Список .md в Content (многофайловая память).",
           parameters: "path",
           http: "GET /api/external/files"
         },
         {
           name: "read_external_memory",
-          description: "Прочитать заметку из _Content.",
+          description: "Прочитать заметку из Content.",
           parameters: "path, file",
           http: "GET /api/external/file"
         },
         {
           name: "write_external_memory",
-          description: "Сохранить .md в _Content.",
+          description: "Сохранить .md в Content.",
           parameters: "path, file, content",
           http: "POST /api/external/file"
         },
@@ -149,7 +149,7 @@ module.exports = {
       tools: [
         {
           name: "list_media",
-          description: "Файлы _Assets (группы по типу).",
+          description: "Файлы Assets (группы по типу).",
           parameters: "path",
           http: "GET /api/media"
         },
@@ -209,7 +209,7 @@ module.exports = {
         },
         {
           name: "list_folder",
-          description: "Содержимое _Inbox, _Scripts и др.",
+          description: "Содержимое Inbox, Artefacts и др.",
           parameters: "path, folder",
           http: "GET /api/folder/view"
         }

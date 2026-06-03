@@ -90,134 +90,78 @@
       <aside class="sidebar">
         <section class="sidebar-slab sidebar-slab-agent" aria-label="Агент">
           <div class="sidebar-agent-select-block">
-            <div class="sidebar-agent-bar">
-              <div class="sidebar-agent-controls">
-              <div id="agent-select-wrap" class="agent-select-wrap">
-                <select id="agent-select" class="agent-select" aria-label="Агент"></select>
-              </div>
-              <button
-                id="agents-picker-btn"
-                class="agents-picker-btn"
-                type="button"
-                title="Сетка агентов — вкл/выкл и переключение"
-                aria-label="Сетка агентов"
-                aria-expanded="false"
-                aria-controls="agents-picker-popover"
-              >
-                ≡
-              </button>
-              <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
-            </div>
-            <div
-              id="agents-picker-popover"
-              class="agents-picker-popover hidden"
-              role="dialog"
-              aria-label="Выбор агента"
-            >
-              <div class="agents-picker-popover-head">
-                <div>
-                  <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
-                  <p class="agents-picker-popover-hint" id="agents-picker-popover-hint">
-                    ● вкл в реестре · ○ выкл · синяя рамка — текущий агент
-                  </p>
+            <div class="sidebar-agent-toolbar">
+              <div class="sidebar-agent-row sidebar-agent-row--agent">
+                <div class="sidebar-agent-controls">
+                  <div id="agent-select-wrap" class="agent-select-wrap">
+                    <select id="agent-select" class="agent-select" aria-label="Агент"></select>
+                  </div>
+                  <button
+                    id="agents-picker-btn"
+                    class="agents-picker-btn"
+                    type="button"
+                    title="Сетка агентов — вкл/выкл и переключение"
+                    aria-label="Сетка агентов"
+                    aria-expanded="false"
+                    aria-controls="agents-picker-popover"
+                  >
+                    ≡
+                  </button>
+                  <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
                 </div>
-                <button
-                  id="agents-picker-popover-close"
-                  class="agents-picker-popover-close"
-                  type="button"
-                  aria-label="Закрыть"
-                >
-                  ×
-                </button>
               </div>
-              <div id="agents-picker-stage" class="agents-picker-stage"></div>
-            </div>
-            <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
-              <div class="agent-preview-frame">
-                <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
-                <span class="agent-preview-shine" aria-hidden="true"></span>
+              <div class="sidebar-agent-row sidebar-agent-row--view">
+                <div id="agent-view-select-wrap" class="agent-view-select-wrap">
+                  <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
+                    <option value="dashboard" selected>Дашборд</option>
+                    <option value="map">Карта</option>
+                    <option value="map2">Карта 2</option>
+                    <option value="map3">Карта 3</option>
+                    <option value="registry" disabled>Реестр (скоро)</option>
+                    <option value="schema">Схема</option>
+                    <option value="vault">Каталог</option>
+                    <option value="graph">Граф</option>
+                    <option value="table">Таблица</option>
+                    <option value="storage">Хранилище</option>
+                    <option value="timeline">Лента</option>
+                  </select>
+                </div>
+              </div>
+              <div
+                id="agents-picker-popover"
+                class="agents-picker-popover hidden"
+                role="dialog"
+                aria-label="Выбор агента"
+              >
+                <div class="agents-picker-popover-head">
+                  <div>
+                    <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
+                    <p class="agents-picker-popover-hint" id="agents-picker-popover-hint">
+                      ● вкл в реестре · ○ выкл · синяя рамка — текущий агент
+                    </p>
+                  </div>
+                  <button
+                    id="agents-picker-popover-close"
+                    class="agents-picker-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div id="agents-picker-stage" class="agents-picker-stage"></div>
               </div>
             </div>
+            <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
+            <div class="sidebar-agent-avatar-block">
+              <div id="agent-preview-placeholder" class="agent-preview-placeholder" aria-hidden="true">🤖</div>
+              <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
+                <div class="agent-preview-frame">
+                  <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+                  <span class="agent-preview-shine" aria-hidden="true"></span>
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
-
-        <section class="sidebar-slab sidebar-slab-views" aria-label="Вид workspace">
-          <div class="agent-view-wrap">
-            <div class="agent-view-toggle" role="tablist" aria-label="Вид workspace агента">
-            <button
-              id="agent-view-dashboard-btn"
-              class="agent-view-btn active"
-              type="button"
-              role="tab"
-              aria-selected="true"
-              data-agent-view="dashboard"
-            >
-              Дашборд
-            </button>
-            <button
-              id="agent-view-map-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="map"
-            >
-              Карта
-            </button>
-            <button
-              id="agent-view-map2-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="map2"
-            >
-              Карта 2
-            </button>
-            <button
-              id="agent-view-registry-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="registry"
-              disabled
-              title="Скоро"
-            >
-              Реестр
-            </button>
-            <button
-              id="agent-view-schema-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="schema"
-            >
-              Схема
-            </button>
-            <button
-              id="agent-view-vault-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="vault"
-            >
-              Каталог
-            </button>
-            <button
-              id="agent-view-graph-btn"
-              class="agent-view-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-agent-view="graph"
-            >
-              Граф
-            </button>
-          </div>
           </div>
         </section>
 
@@ -426,7 +370,7 @@
             </article>
           </div>
           <div id="agent-dashboard-stats" class="agent-dashboard-stats" aria-live="polite"></div>
-          <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте Схему / Каталог / Граф</p>
+          <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Хранилище</p>
         </div>
       </main>
 
@@ -471,6 +415,23 @@
               <div id="agent-map2-nodes" class="agent-map2-nodes"></div>
             </div>
           </div>
+        </div>
+      </main>
+
+      <main id="agent-map3-pane" class="agent-canvas-pane agent-map3-pane hidden" aria-label="Карта _Storage">
+        <div class="agent-map3-head">
+          <div class="agent-map3-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Карта _Storage</h2>
+            <p class="agent-map3-lead">
+              Контейнеры на диске: у области слот <code>_</code>, у каждой темы — свой слот в общем
+              <code>_Storage/</code>. Цветные точки — заполненные слои (память, конфиг, файлы).
+            </p>
+          </div>
+          <div id="agent-map3-stats" class="agent-map3-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-map3-viewport" class="agent-map3-viewport">
+          <div id="agent-map3-board" class="agent-map3-board"></div>
         </div>
       </main>
 
@@ -532,6 +493,58 @@
           </label>
         </div>
         <div id="agent-graph-content" class="agent-graph-content"></div>
+      </main>
+
+      <main id="agent-table-pane" class="agent-canvas-pane agent-table-pane hidden" aria-label="Таблица workspace">
+        <div class="agent-canvas-head agent-table-head">
+          <div class="agent-table-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Таблица</h2>
+            <p class="agent-canvas-lead">
+              Плоский список манифестов: путь, слот <code>_Storage</code>, слои памяти, превью и метаданные.
+            </p>
+          </div>
+          <div id="agent-table-stats" class="agent-table-stats" aria-live="polite"></div>
+        </div>
+        <div class="agent-table-toolbar">
+          <input
+            id="agent-table-search"
+            class="agent-table-search"
+            type="search"
+            placeholder="Поиск по названию, пути, слоту, тегам…"
+            autocomplete="off"
+            aria-label="Поиск в таблице workspace"
+          />
+        </div>
+        <div id="agent-table-content" class="agent-table-content"></div>
+      </main>
+
+      <main id="agent-storage-pane" class="agent-canvas-pane agent-storage-pane hidden" aria-label="Хранилище workspace">
+        <div class="agent-canvas-head agent-storage-head">
+          <div class="agent-storage-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Хранилище</h2>
+            <p class="agent-canvas-lead">
+              Слоты <code>_Storage/&lt;имя&gt;/</code> в папке манифеста: область «Иван» → <code>Иван/_Storage/_/</code>, тема → <code>…/Кристина/</code>.
+            </p>
+          </div>
+          <div id="agent-storage-stats" class="agent-storage-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-storage-content" class="agent-storage-content"></div>
+      </main>
+
+      <main id="agent-timeline-pane" class="agent-canvas-pane agent-timeline-pane hidden" aria-label="Лента workspace">
+        <div class="agent-canvas-head agent-timeline-head">
+          <div class="agent-timeline-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Лента</h2>
+            <p class="agent-canvas-lead">
+              Недавние изменения манифестов, Content/Config и файлов в слотах <code>_Storage</code>.
+            </p>
+          </div>
+          <div id="agent-timeline-stats" class="agent-timeline-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-timeline-content" class="agent-timeline-content"></div>
       </main>
 
       <section class="workspace-pane">
@@ -779,8 +792,8 @@
                   id="media-upload-btn"
                   class="media-upload-btn hidden"
                   type="button"
-                  title="Загрузить файл в _Assets"
-                  aria-label="Загрузить файл в _Assets"
+                  title="Загрузить файл в Assets"
+                  aria-label="Загрузить файл в Assets"
                 >
                   📤
                 </button>
