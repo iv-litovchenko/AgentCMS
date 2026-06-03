@@ -2558,13 +2558,14 @@ function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   if (node.indexPath || (node.items?.length > 0)) return true;
   return getOrderedMenuChildren(node).some((child) => {
     if (child.kind === "item") return true;
-    if (child.kind === "folder") return shouldShowMenuTreeFolder(child.entry, agentId);
+    if (child.kind === "folder") return child.entry && shouldShowMenuTreeFolder(child.entry, agentId);
     return true;
   });
 }
 
 function getVisibleMenuChildren(node, agentId = activeAgentId) {
   return getOrderedMenuChildren(node).filter((child) => {
+    if (!child?.entry) return false;
     if (child.kind === "folder") return shouldShowMenuTreeFolder(child.entry, agentId);
     return true;
   });
@@ -3463,7 +3464,7 @@ function closeCreateNodeModal() {
   createModalBaseParentPath = ".";
   createModalAgentId = null;
   createModalEmptyFolder = false;
-  createNameInputNode.value = "";
+  if (createNameInputNode) createNameInputNode.value = "";
   createNodeVaultOptionWrapNode?.classList.add("hidden");
   if (createNodeVaultOptionNode) createNodeVaultOptionNode.checked = true;
   syncCreateNodeActionsUi();
@@ -3477,12 +3478,14 @@ function openCreateNodeModal(parentPath, options = {}) {
   syncCreateNodeVaultOptionUi();
   syncCreateNodeActionsUi();
   createNodeModalNode?.classList.remove("hidden");
-  if (createModalEmptyFolder && createModalBaseParentPath !== ".") {
-    createNameInputNode.value = formatCreateParentLabel(createModalBaseParentPath);
-  } else {
-    createNameInputNode.value = "";
+  if (createNameInputNode) {
+    if (createModalEmptyFolder && createModalBaseParentPath !== ".") {
+      createNameInputNode.value = formatCreateParentLabel(createModalBaseParentPath);
+    } else {
+      createNameInputNode.value = "";
+    }
+    createNameInputNode.focus();
   }
-  createNameInputNode.focus();
 }
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
@@ -9172,11 +9175,16 @@ function compareMenuPathsNatural(aPath, bPath) {
 }
 
 function getOrderedMenuChildren(node) {
-  const sections = node.sections || [];
-  const items = node.items || [];
+  if (!node) return [];
+  const sections = (node.sections || []).filter(Boolean);
+  const items = (node.items || []).filter(Boolean);
   const order = Array.isArray(node.menuOrder) ? node.menuOrder : null;
-  const sectionMap = new Map(sections.map((entry) => [entry.title, entry]));
-  const itemMap = new Map(items.map((entry) => [entry.label, entry]));
+  const sectionMap = new Map(
+    sections.filter((entry) => entry.title).map((entry) => [entry.title, entry])
+  );
+  const itemMap = new Map(
+    items.filter((entry) => entry.label).map((entry) => [entry.label, entry])
+  );
   const orderedFolders = [];
   const orderedItems = [];
   const usedSections = new Set();
@@ -9185,21 +9193,27 @@ function getOrderedMenuChildren(node) {
   if (order?.length) {
     for (const name of order) {
       if (sectionMap.has(name) && !usedSections.has(name)) {
-        orderedFolders.push({ kind: "folder", entry: sectionMap.get(name) });
-        usedSections.add(name);
+        const entry = sectionMap.get(name);
+        if (entry) {
+          orderedFolders.push({ kind: "folder", entry });
+          usedSections.add(name);
+        }
       } else if (itemMap.has(name) && !usedItems.has(name)) {
-        orderedItems.push({ kind: "item", entry: itemMap.get(name) });
-        usedItems.add(name);
+        const entry = itemMap.get(name);
+        if (entry) {
+          orderedItems.push({ kind: "item", entry });
+          usedItems.add(name);
+        }
       }
     }
   }
 
   const remainingSections = sections
-    .filter((entry) => !usedSections.has(entry.title))
-    .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+    .filter((entry) => entry.title && !usedSections.has(entry.title))
+    .sort((a, b) => String(a.title).localeCompare(String(b.title), "ru"));
   const remainingItems = items
-    .filter((entry) => !usedItems.has(entry.label))
-    .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    .filter((entry) => entry.label && !usedItems.has(entry.label))
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"));
 
   // Области (папки) всегда выше тем (файлов), даже если в awn-sort.json порядок смешан.
   return [
@@ -9830,6 +9844,7 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
 }
 
 function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeAgentId) {
+  if (!node || !parentEl) return;
   const searchActive = menuSearchQuery.trim().length > 0;
   const sectionNode = createSectionNode(node.title, depth);
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
@@ -11005,7 +11020,7 @@ function syncAgentWorkspaceViewButtons() {
 }
 
 function isAgentWorkspaceCanvasVisible() {
-  return appRootNode.classList.contains("home-view");
+  return Boolean(appRootNode?.classList.contains("home-view"));
 }
 
 function applyAgentWorkspaceCanvasUi() {
@@ -12114,7 +12129,7 @@ function getMenuTreeHost(agentId = activeAgentId) {
 }
 
 function findMenuSectionByFolderPath(folderPath, agentId = activeAgentId) {
-  const target = normalizeFolderPath(folderPath || ".");
+  const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   const host = getMenuTreeHost(agentId);
   if (!host) return null;
   for (const section of host.querySelectorAll(".menu-section[data-menu-folder]")) {
@@ -12126,6 +12141,7 @@ function findMenuSectionByFolderPath(folderPath, agentId = activeAgentId) {
 }
 
 function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".", depth = 0) {
+  if (!node) return null;
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
   const target = normalizeFolderPath(folderPath || ".");
   const current = normalizeFolderPath(sectionFolderPath || ".");
@@ -12143,7 +12159,7 @@ function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...menu };
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  const normalized = normalizeFolderPath(folderPath || ".");
+  const normalized = normalizeMenuPatchFolderPath(folderPath || ".", agentId);
 
   if (normalized === ".") {
     const filtered = filterMenuTree(baseTree, queryLower, agentId);
@@ -12184,18 +12200,27 @@ function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId
   if (changed) saveCollapsedFoldersByAgent();
 }
 
+function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
+  const stripped = stripVaultPrefixFromRelPath(String(folderPath || "").replace(/\\/g, "/").trim());
+  return normalizeFolderPath(stripped || ".");
+}
+
 function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
   if (type === "catalog" || type === "service-doc") {
     return getActiveAgentServiceFolder(agentId) || ".";
   }
   const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
-  if (type === "manifest") return manifestFolder;
-  if (type === "folder") {
+  let parentFolder = ".";
+  if (type === "manifest") {
+    parentFolder = manifestFolder;
+  } else if (type === "folder") {
     const parts = manifestFolder.split("/").filter(Boolean);
     parts.pop();
-    return parts.length ? parts.join("/") : ".";
+    parentFolder = parts.length ? parts.join("/") : ".";
+  } else {
+    parentFolder = manifestFolder;
   }
-  return manifestFolder;
+  return normalizeMenuPatchFolderPath(parentFolder, agentId);
 }
 
 function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
@@ -12218,35 +12243,47 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
 
-  const branch = getMenuBranchForFolder(menu, folderPath, agentId);
-  if (!branch) return false;
+  try {
+    const branch = getMenuBranchForFolder(menu, folderPath, agentId);
+    if (!branch?.node) return false;
 
-  const host = getMenuTreeHost(agentId);
-  if (!host) return false;
+    const host = getMenuTreeHost(agentId);
+    if (!host) return false;
 
-  const normalized = normalizeFolderPath(folderPath || ".");
-  const wrapper = document.createElement("div");
+    const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+    const wrapper = document.createElement("div");
 
-  if (normalized === ".") {
-    const oldSection = host.querySelector(":scope > .menu-section");
-    if (!oldSection) return false;
-    renderTree(branch.node, wrapper, 0, ".", null, agentId);
+    if (normalized === ".") {
+      const oldSection = host.querySelector(":scope > .menu-section");
+      if (!oldSection) return false;
+      renderTree(branch.node, wrapper, 0, ".", null, agentId);
+      const newSection = wrapper.firstElementChild;
+      if (!newSection) return false;
+      oldSection.replaceWith(newSection);
+      decorateMenuSortRows(host);
+      const childrenContainer = getWorkspacesTreeChildren(agentId);
+      if (childrenContainer) {
+        if (menu.serviceTree) {
+          renderServiceSection(menu.serviceTree, childrenContainer, agentId);
+        }
+        renderSystemFiles(systemFilesCache);
+      }
+      return true;
+    }
+
+    const oldSection = findMenuSectionByFolderPath(normalized, agentId);
+    if (!oldSection || !oldSection.parentElement) return false;
+
+    renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, null, agentId);
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
     oldSection.replaceWith(newSection);
-    decorateMenuSortRows(host);
+    decorateMenuSortRows(oldSection.parentElement);
     return true;
+  } catch (error) {
+    console.warn("patchMenuTreeAtFolder failed", folderPath, error);
+    return false;
   }
-
-  const oldSection = findMenuSectionByFolderPath(normalized, agentId);
-  if (!oldSection || !oldSection.parentElement) return false;
-
-  renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, null, agentId);
-  const newSection = wrapper.firstElementChild;
-  if (!newSection) return false;
-  oldSection.replaceWith(newSection);
-  decorateMenuSortRows(oldSection.parentElement);
-  return true;
 }
 
 function patchServiceMenuAfterCreate(agentId = activeAgentId) {
@@ -12281,22 +12318,30 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
   await fetchMenuData(agentId);
 
   let patched = false;
-  if (canIncrementalMenuPatch()) {
-    withPreservedMenuScroll(() => {
-      if (type === "catalog" || type === "service-doc") {
-        patched = patchServiceMenuAfterCreate(agentId);
-      } else {
-        const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
-        expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
-        patched = patchMenuTreeAtFolder(parentFolder, agentId);
-        if (patched && type === "manifest") {
-          const adoptFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath));
-          if (adoptFolder && normalizeFolderPath(adoptFolder) !== normalizeFolderPath(parentFolder)) {
-            patchMenuTreeAtFolder(adoptFolder, agentId);
+  try {
+    if (canIncrementalMenuPatch()) {
+      withPreservedMenuScroll(() => {
+        if (type === "catalog" || type === "service-doc") {
+          patched = patchServiceMenuAfterCreate(agentId);
+        } else {
+          const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
+          expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
+          patched = patchMenuTreeAtFolder(parentFolder, agentId);
+          if (patched && type === "manifest") {
+            const adoptFolder = normalizeMenuPatchFolderPath(
+              getFolderPathFromManifest(normalizeMenuNodePath(createdPath)),
+              agentId
+            );
+            if (adoptFolder && adoptFolder !== parentFolder) {
+              patchMenuTreeAtFolder(adoptFolder, agentId);
+            }
           }
         }
-      }
-    });
+      });
+    }
+  } catch (error) {
+    console.warn("applyMenuUpdateAfterCreate patch failed", error);
+    patched = false;
   }
 
   if (!patched) {
@@ -12384,7 +12429,7 @@ async function createNode(type, options = {}) {
     type = "manifest";
   }
 
-  const name = createNameInputNode.value.trim();
+  const name = createNameInputNode?.value?.trim() ?? "";
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
   if (!name && type !== "manifest" && type !== "catalog" && type !== "service-doc") {
     showToast("Введите название папки", "error");
@@ -13053,8 +13098,8 @@ nodeWorkspaceCloseBtn?.addEventListener("click", returnToNodeNavigation);
 confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
 confirmOkBtn.addEventListener("click", () => closeConfirm(true));
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));
-createFolderBtn.addEventListener("click", () => createNode("folder"));
-createFileBtn.addEventListener("click", () => createNode("file"));
+createFolderBtn?.addEventListener("click", () => createNode("folder"));
+createFileBtn?.addEventListener("click", () => createNode("file"));
 createNodeCatalogActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-catalog-preset]");
   if (!button || button.disabled) return;
