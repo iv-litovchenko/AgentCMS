@@ -5,7 +5,7 @@ module.exports = {
   notes: [
     "MCP-сервер — обёртка над HTTP API Agent CMS. Перед запуском поднимите CMS: npm start (по умолчанию http://localhost:3000).",
     "Переменные: AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (id агента для ?agent=). Старые YAMLCMS_* тоже поддерживаются.",
-    "path — путь к _.node.md ноды; file — путь к .md внутри _Content или файлу в _Assets.",
+    "path — путь к _.x.md ноды; file — путь к .md внутри _Content или файлу в _Assets.",
     "Установка: cd mcp-server && npm install. Запуск вручную: node mcp-server/index.js (stdio)."
   ],
   cursorConfig: {
@@ -47,7 +47,7 @@ module.exports = {
       tools: [
         {
           name: "get_menu",
-          description: "Дерево нод workspace (_.node.md).",
+          description: "Дерево нод workspace (_.x.md).",
           parameters: "—",
           http: "GET /api/menu"
         },
@@ -65,25 +65,25 @@ module.exports = {
       tools: [
         {
           name: "read_node_description",
-          description: "Прочитать _.node.md (описание, инструкции).",
+          description: "Прочитать _.x.md (описание, инструкции).",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
           name: "write_node_description",
-          description: "Сохранить _.node.md.",
+          description: "Сохранить _.x.md.",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
         {
           name: "read_node_properties",
-          description: "Прочитать frontmatter из _.node.md.",
+          description: "Прочитать frontmatter из _.x.md.",
           parameters: "path",
           http: "GET /api/file/properties"
         },
         {
           name: "write_node_properties",
-          description: "Сохранить frontmatter в _.node.md.",
+          description: "Сохранить frontmatter в _.x.md.",
           parameters: "path, content",
           http: "POST /api/file/properties"
         },
@@ -107,7 +107,7 @@ module.exports = {
       tools: [
         {
           name: "read_internal_memory",
-          description: "Однофайловая память (_.node.content.md).",
+          description: "Однофайловая память (_.x.content.md).",
           parameters: "path",
           http: "GET /api/memory/internal"
         },
@@ -173,13 +173,13 @@ module.exports = {
       tools: [
         {
           name: "read_todo",
-          description: "TODO ноды (`*.node.todo.md`).",
+          description: "TODO ноды (`*.x.todo.md`).",
           parameters: "path",
           http: "GET /api/todo"
         },
         {
           name: "write_todo",
-          description: "Сохранить TODO в `*.node.todo.md`.",
+          description: "Сохранить TODO в `*.x.todo.md`.",
           parameters: "path, content",
           http: "POST /api/todo"
         },

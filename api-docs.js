@@ -4,7 +4,7 @@ module.exports = {
   notes: [
     "JSON-ответы, кодировка UTF-8.",
     "Эндпоинты ниже (кроме /api/agents и /api/docs) выполняются в контексте агента: ?agent=<id> или default agent.",
-    "path — путь к _.node.md относительно workspace агента."
+    "path — путь к _.x.md относительно workspace агента."
   ],
   groups: [
     {
@@ -33,7 +33,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn.agent.json, _.node.md, _Storage/_Preview).",
+          description: "Создать файлы агента в указанной папке workspace (awn.agent.json, _.x.md, _Storage/_).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -51,7 +51,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из _Storage/_Preview по пути workspace.",
+          description: "Превью агента из _Storage/_/Preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -60,7 +60,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/_Storage/_Preview.",
+          description: "Загрузить аватар агента в workspace/_Storage/_/Preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -69,7 +69,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из _Storage/_Preview.",
+          description: "Удалить аватар агента из _Storage/_/Preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -78,7 +78,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из _Storage/_Preview (после регистрации).",
+          description: "Превью агента из _Storage/_/Preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"
@@ -110,7 +110,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/menu",
-          description: "Дерево нод workspace (_.node.md).",
+          description: "Дерево нод workspace (_.x.md).",
           query: [],
           body: null,
           response: "{ title, sections?, items?, indexPath?, hasGit?, hasObsidian?, hasGitSelf?, hasObsidianSelf?, ... } — hasGit/hasObsidian true только если .git / .obsidian есть в каталоге этой папки (без наследования)"
@@ -165,12 +165,12 @@ module.exports = {
     },
     {
       id: "node",
-      title: "Нода (.node.md)",
+      title: "Тема / область (*.x.md)",
       endpoints: [
         {
           method: "GET",
           path: "/api/file",
-          description: "Содержимое _.node.md (описание).",
+          description: "Содержимое _.x.md (описание).",
           query: ["path"],
           body: null,
           response: "{ path, content }"
@@ -178,7 +178,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/content",
-          description: "Сохранить содержимое _.node.md.",
+          description: "Сохранить содержимое _.x.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -194,7 +194,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _.node.md (между ---).",
+          description: "YAML frontmatter из _.x.md (между ---).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -202,7 +202,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _.node.md.",
+          description: "Сохранить YAML frontmatter в _.x.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -210,7 +210,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/node-config",
-          description: "Конфигурация ноды (*.node.config.yml).",
+          description: "Конфигурация ноды (*.x.config.yml).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -218,7 +218,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/node-config",
-          description: "Сохранить *.node.config.yml (пустой content удаляет файл).",
+          description: "Сохранить *.x.config.yml (пустой content удаляет файл).",
           query: [],
           body: "{ path, content }",
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -234,7 +234,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/node/create",
-          description: "Создать _.node.md в текущей папке, подпапку-ноду или part в _Parts.",
+          description: "Создать _.x.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
           body: "{ parentPath?: \".\", type: \"manifest\"|\"folder\"|\"file\", name }",
           response: "{ createdPath, type }"
@@ -245,12 +245,12 @@ module.exports = {
       id: "memory",
       title: "Память",
       description:
-        "Три драйвера: internal — Однофайловая (_.node.content.md), external — Многофайловая (_Content/), tabular — Табличная (_.node.content.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
+        "Три драйвера: internal — Однофайловая (_.x.content.md), external — Многофайловая (_Content/), tabular — Табличная (_.x.content.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
       endpoints: [
         {
           method: "GET",
           path: "/api/memory/internal",
-          description: "Однофайловая память — один файл _.node.content.md.",
+          description: "Однофайловая память — один файл _.x.content.md.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, migratedFrom? }"
@@ -274,7 +274,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/memory/tabular",
-          description: "Табличная память — _.node.content.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
+          description: "Табличная память — _.x.content.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, columns[], rows[][], rowCount }"
@@ -384,7 +384,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/todo",
-          description: "TODO ноды (`*.node.todo.md`).",
+          description: "TODO ноды (`*.x.todo.md`).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -392,7 +392,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/todo",
-          description: "Сохранить TODO в `*.node.todo.md`.",
+          description: "Сохранить TODO в `*.x.todo.md`.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content, exists: true }"
@@ -462,7 +462,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/preview",
-          description: "Мета превью ноды (*.node.preview.{jpg|png|gif} рядом с .node.md; legacy: _Storage/_Preview/preview.*).",
+          description: "Мета превью темы (_Storage/{ключ}/Preview.*; legacy: _Storage/_Preview, sidecar *.x.preview.*).",
           query: ["path"],
           body: null,
           response: "{ exists, file, imageUrl }"

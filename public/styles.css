@@ -186,14 +186,18 @@ body.app-booting {
   color: #1e293b;
 }
 
-.app-splash-subtitle {
+.app-splash-version {
   margin: 0;
   width: 100%;
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  line-height: 1.4;
   color: #64748b;
+}
+
+.app-splash-version .app-project-version {
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-splash-track {
@@ -1882,18 +1886,6 @@ body.app-booting {
   }
 }
 
-.app-home-version {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  color: #64748b;
-  letter-spacing: 0.02em;
-  padding: 3px 6px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
-}
-
 .app-header-tools {
   display: flex;
   align-items: center;
@@ -2242,6 +2234,20 @@ body.app-booting {
 .app-footer-quote {
   font-style: italic;
   color: #475569;
+}
+
+.app-footer-version {
+  margin: 10px 0 0;
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+
+.app-footer-version .app-project-version {
+  font-weight: 600;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
 }
 
 .sidebar {
@@ -4453,7 +4459,7 @@ body.app-booting {
 }
 
 .doc-slab-path .breadcrumbs.is-empty::before {
-  content: "Выберите ноду";
+  content: "Выберите тему";
   display: block;
   width: 100%;
   font-size: 11px;
@@ -4953,7 +4959,7 @@ body.app-booting {
 }
 
 .breadcrumbs.is-empty::before {
-  content: "Выберите ноду";
+  content: "Выберите тему";
   color: var(--muted);
   font-size: 12px;
 }

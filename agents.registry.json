@@ -12,6 +12,24 @@
       "environment": "local",
       "active": true,
       "default": true
+    },
+    {
+      "id": "test",
+      "path": "workspaces/test",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test2",
+      "path": "workspaces/test2",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test3",
+      "path": "workspaces/test3",
+      "environment": "local",
+      "active": true
     }
   ]
 }

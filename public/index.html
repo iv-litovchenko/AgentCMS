@@ -29,7 +29,7 @@
           <span class="app-splash-icon" aria-hidden="true">🏠</span>
           <span class="app-splash-title">Agent CMS</span>
         </div>
-        <p class="app-splash-subtitle">*.node.md</p>
+        <p class="app-splash-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
         <div class="app-splash-track" aria-hidden="true">
           <div class="app-splash-track-bar"></div>
         </div>
@@ -43,11 +43,9 @@
               <a id="app-home-link" class="app-home-link" href="/" title="Главная" aria-label="Главная — Agent CMS">
                 <span class="app-home-icon" aria-hidden="true">🏠</span>
                 <span class="app-home-title" id="app-home-title">Agent CMS</span>
-                <span class="app-home-version">0.0.1</span>
               </a>
             </h1>
           </div>
-          <span class="app-header-subtitle">*.node.md</span>
         </div>
         <div class="app-header-tools">
           <div class="content-search-wrap">
@@ -223,7 +221,7 @@
               <p class="menu-settings-popover-title">Настройки дерева</p>
               <label class="menu-settings-option" for="menu-tree-show-empty-folders">
                 <input id="menu-tree-show-empty-folders" type="checkbox" />
-                <span>Отображать папки без нод</span>
+                <span>Отображать папки без тем</span>
               </label>
               <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
                 <input id="menu-tree-pad-sort-indexes" type="checkbox" />
@@ -280,10 +278,10 @@
         <div class="home-pane-bg" aria-hidden="true"></div>
         <div class="home-pane-inner">
           <div class="home-hero">
-            <p class="home-eyebrow">Workspaces / *.node.md</p>
+            <p class="home-eyebrow">Workspaces / *.x.md</p>
             <h2 class="home-title">Agent CMS</h2>
             <p class="home-lead">
-              Система управления контекстом для LLM на базе нод. Каждая нода — отдельный контекст,
+              Система управления контекстом для LLM. Каждая тема — отдельный контекст,
               память накапливается заметка за заметкой.
             </p>
             <p class="home-quote">«Файл — это не папка, а намерение.»</p>
@@ -292,7 +290,7 @@
             <article class="home-card">
               <span class="home-card-icon">⚙️</span>
               <h3 class="home-card-title">Настройки</h3>
-              <p class="home-card-text">Описание, конфигурации, скрипты и окружение ноды.</p>
+              <p class="home-card-text">Описание, конфигурации, скрипты и окружение темы.</p>
             </article>
             <article class="home-card">
               <span class="home-card-icon">🧠</span>
@@ -302,11 +300,11 @@
             <article class="home-card">
               <span class="home-card-icon">📎</span>
               <h3 class="home-card-title">Файлы</h3>
-              <p class="home-card-text">Медиа, документы и превью ноды.</p>
+              <p class="home-card-text">Медиа, документы и превью.</p>
             </article>
           </div>
           <div id="agent-dashboard-stats" class="agent-dashboard-stats" aria-live="polite"></div>
-          <p id="home-hint" class="home-hint">Выберите ноду в дереве или откройте Схему / Каталог / Граф</p>
+          <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте Схему / Каталог / Граф</p>
           <div class="home-mascot-block" aria-hidden="true">
             <div class="home-mascot">
               <div class="home-mascot-glow"></div>
@@ -355,9 +353,9 @@
         <div class="agent-map2-head">
           <div class="agent-map2-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Схема нод</h2>
+            <h2 class="agent-canvas-title">Схема</h2>
             <p class="agent-map2-lead">
-              Жёсткие связи — физическая структура папок на диске. Мягкие — ссылки между нодами через поля (появятся позже).
+              Жёсткие связи — физическая структура папок на диске. Мягкие — ссылки между темами через поля (появятся позже).
             </p>
           </div>
           <div id="agent-map2-stats" class="agent-map2-stats" aria-live="polite"></div>
@@ -366,11 +364,11 @@
           <aside class="agent-map2-legend" aria-label="Типы связей">
             <div class="agent-map2-legend-item">
               <span class="agent-map2-legend-line agent-map2-legend-line--hard" aria-hidden="true"></span>
-              <span>Жёсткая — папка содержит ноду</span>
+              <span>Жёсткая — папка содержит тему</span>
             </div>
             <div class="agent-map2-legend-item">
               <span class="agent-map2-legend-line agent-map2-legend-line--soft" aria-hidden="true"></span>
-              <span>Мягкая — поле ссылается на ноду</span>
+              <span>Мягкая — поле ссылается на тему</span>
             </div>
             <div class="agent-map2-legend-note">Мягкие связи пока не заданы в данных агента.</div>
           </aside>
@@ -386,8 +384,8 @@
       <main id="agent-schema-pane" class="agent-canvas-pane agent-schema-pane hidden" aria-label="Схема workspace">
         <div class="agent-canvas-head">
           <p class="agent-canvas-eyebrow">Workspace</p>
-          <h2 class="agent-canvas-title">Схема нод</h2>
-          <p class="agent-canvas-lead">Иерархия папок и манифестов <code>*.node.md</code> текущего агента.</p>
+          <h2 class="agent-canvas-title">Схема</h2>
+          <p class="agent-canvas-lead">Иерархия папок и манифестов <code>*.x.md</code> текущего агента.</p>
         </div>
         <div id="agent-schema-content" class="agent-schema-content"></div>
       </main>
@@ -397,8 +395,8 @@
           <header class="agent-vault-head">
             <div class="agent-vault-head-copy">
               <p class="agent-canvas-eyebrow">Workspace</p>
-              <h2 class="agent-vault-title">Каталог нод</h2>
-              <p class="agent-vault-sub">Все папки и ноды с превью — поиск по названию, фильтры по категориям и тегам (скоро)</p>
+              <h2 class="agent-vault-title">Каталог</h2>
+              <p class="agent-vault-sub">Все папки и темы с превью — поиск по названию, фильтры по категориям и тегам (скоро)</p>
             </div>
             <div id="agent-vault-stats" class="agent-vault-stats" aria-live="polite"></div>
           </header>
@@ -433,11 +431,11 @@
         <div class="agent-canvas-head agent-canvas-head--compact agent-graph-head">
           <div class="agent-graph-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Граф нод</h2>
+            <h2 class="agent-canvas-title">Граф</h2>
           </div>
           <label class="agent-graph-setting" for="agent-graph-show-previews">
             <input id="agent-graph-show-previews" type="checkbox" checked />
-            <span>Превью на нодах</span>
+            <span>Превью на темах</span>
           </label>
         </div>
         <div id="agent-graph-content" class="agent-graph-content"></div>
@@ -461,8 +459,8 @@
                   id="node-default-landing-btn"
                   class="node-default-landing-btn"
                   type="button"
-                  title="Сделать текущий раздел стартовым при открытии ноды"
-                  aria-label="Стартовая страница ноды"
+                  title="Сделать текущий раздел стартовым при открытии"
+                  aria-label="Стартовая страница"
                   aria-pressed="false"
                 >
                   <svg
@@ -484,14 +482,14 @@
                   <select
                     id="node-workspace-domain-select"
                     class="node-workspace-domain-select"
-                    aria-label="Раздел ноды"
+                    aria-label="Раздел"
                   >
                     <option value="navigation">Навигация</option>
                     <option value="settings">Настройки</option>
                     <option value="memory">Память</option>
                     <option value="inbox">Входящие</option>
                     <option value="references">Источники</option>
-                    <option value="overview">Обзор ноды</option>
+                    <option value="overview">Обзор</option>
                   </select>
                 </div>
                 <div id="node-navigation-path-controls" class="node-navigation-path-controls hidden">
@@ -507,9 +505,9 @@
                   <select
                     id="node-settings-mode-select"
                     class="node-settings-mode-select"
-                    aria-label="Настройки ноды"
+                    aria-label="Настройки"
                   >
-                    <option value="description">Назначение ноды</option>
+                    <option value="description">Назначение</option>
                     <option value="configs">Конфигурации</option>
                     <option value="scripts">Скрипты</option>
                     <option value="env">.env</option>
@@ -521,7 +519,7 @@
                   <select
                     id="node-memory-mode-select"
                     class="node-memory-mode-select"
-                    aria-label="Память ноды"
+                    aria-label="Память"
                   >
                     <option value="external" data-memory-driver="external">Многофайловая</option>
                     <option value="internal" data-memory-driver="internal">Однофайловая</option>
@@ -661,10 +659,10 @@
             </div>
           </section>
 
-          <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению ноды">
+          <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
             <p class="doc-slab-hint-title">Описание, инструкции, правила</p>
             <p class="doc-slab-hint-text">
-              Основной текст ноды для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
+              Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
             </p>
           </section>
 
@@ -695,10 +693,10 @@
                     <div id="preview-upload-placeholder" class="preview-upload-placeholder">
                       <span class="preview-upload-icon" aria-hidden="true">🖼</span>
                       <p class="preview-upload-title">Загрузите изображение</p>
-                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как *.node.preview.* рядом с нодой</p>
+                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как <code>_Storage/…/Preview.*</code> в bundle темы</p>
                       <button id="preview-paste-btn" type="button" class="preview-action-btn preview-action-paste">Вставить из буфера</button>
                     </div>
-                    <img id="preview-image" class="preview-image hidden" alt="Превью ноды" />
+                    <img id="preview-image" class="preview-image hidden" alt="Превью" />
                   </div>
                   <div id="preview-upload-actions" class="preview-upload-actions hidden">
                     <button id="preview-paste-actions-btn" class="preview-action-btn preview-action-paste" type="button">Вставить из буфера</button>
@@ -716,7 +714,7 @@
                 </div>
                 <div id="list-view-content" class="list-view-content"></div>
               </section>
-              <section id="node-overview-block" class="node-overview hidden" aria-label="Обзор ноды">
+              <section id="node-overview-block" class="node-overview hidden" aria-label="Обзор">
                 <div id="node-overview-content" class="node-overview-content"></div>
               </section>
             </div>
@@ -727,11 +725,11 @@
 
       <footer class="app-footer">
         <div class="app-footer-top">
-          <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM на базе нод.</span>
-          <span class="app-footer-rule">Одна нода = 1 задача = 1 объект = 1 таблица</span>
+          <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
+          <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
         </div>
         <p class="app-footer-text">
-          Нода — граница смысла: один контекст, одно намерение, одна ответственность.
+          Тема — граница смысла: один контекст, одно намерение, одна ответственность.
           Не смешивай задачи в одном файле — разводи их по дереву.
           Память накапливается заметка за заметкой, а система остаётся прозрачной.
           <span class="app-footer-quote">«Файл — это не папка, а намерение.»</span>
@@ -745,13 +743,14 @@
           Проблема большого контекста: загрузил книгу на 1000 страниц — неизвестно, что LLM посчитает важным, а что нет.
           Без правильных вопросов и без человека не обойтись.
         </p>
+        <p class="app-footer-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
       </footer>
     </div>
 
     <div id="create-node-modal" class="modal-overlay hidden">
       <div class="modal-card create-node-card">
         <div class="create-node-header">
-          <div class="modal-message" id="create-node-modal-title">Создать ноду</div>
+          <div class="modal-message" id="create-node-modal-title">Создать тему</div>
           <button id="create-node-cancel-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
         <label class="popover-label" for="create-name-input">Название</label>
@@ -764,7 +763,7 @@
         />
         <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
           <input id="create-node-vault-option" type="checkbox" checked />
-          <span id="create-node-vault-option-label">Создать в _vault</span>
+          <span id="create-node-vault-option-label">Создать в _Vault</span>
         </label>
         <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
           <div class="popover-label">Справочники</div>
@@ -776,9 +775,9 @@
         </div>
         <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
         <div class="create-node-actions" id="create-node-actions">
-          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Создать _.node.md в этой папке">_.node.md</button>
-          <button id="create-folder-btn" class="create-node-action-btn" type="button">Папка</button>
-          <button id="create-file-btn" class="create-node-action-btn" type="button">Part</button>
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Регистрация области (_.x.md) в этой папке">Регистрация области</button>
+          <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
+          <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.x.md)">Файл (тема)</button>
         </div>
       </div>
     </div>
@@ -806,7 +805,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и vault-папка сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/_Preview/preview.*</code>.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и vault-папка сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/_/Preview.*</code>.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -845,7 +844,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.node.md</code> и <code>_Storage/_Preview</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.x.md</code> и <code>_Storage/_</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -968,7 +967,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.25"></script>
+    <script src="/main.js?v=0.4.37"></script>
     <script src="/app-home-title-rotator.js?v=8"></script>
   </body>
   </html>

@@ -235,10 +235,17 @@ function readStorageItem(key) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const NODE_MANIFEST_FILE = "_.node.md";
-const LEGACY_NODE_MANIFEST_FILES = ["_Self.node.md", "00_MAIN.node.md", "README.node.md"];
-const VAULT_FOLDER_DEFAULT = "_vault";
-const SERVICE_FOLDER_DEFAULT = "_system";
+const AREA_MANIFEST_FILE = "_.x.md";
+const LEGACY_AREA_MANIFEST_ALIASES = ["_.node.md", "_Self.node.md", "00_MAIN.node.md", "README.node.md"];
+const MANIFEST_MD_RE = /\.(node|x)\.md$/i;
+const STORAGE_FOLDER_NAME = "_Storage";
+const BUNDLE_CONTENT_FILE = "Content.md";
+const BUNDLE_TABULAR_FILE = "Content.csv";
+const BUNDLE_CONFIG_FILE = "Config.yml";
+const BUNDLE_TODO_FILE = "Todo.md";
+const PREVIEW_FILE_BASENAME = "Preview";
+const VAULT_FOLDER_DEFAULT = "_Vault";
+const SERVICE_FOLDER_DEFAULT = "_System";
 let agentsCache = [];
 let agentsRegistryDraft = [];
 let agentsRegistryPathValidateTimer = null;
@@ -326,17 +333,26 @@ async function loadAgents() {
   renderAgentSelect();
 }
 
+function isAreaManifestFileName(fileName) {
+  return fileName === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(fileName);
+}
+
 function isNodeManifestFileName(fileName) {
-  return fileName === NODE_MANIFEST_FILE || LEGACY_NODE_MANIFEST_FILES.includes(fileName);
+  return isAreaManifestFileName(fileName);
 }
 
 function isNodeManifestPath(nodePath) {
   const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
-  return isNodeManifestFileName(fileName);
+  return isAreaManifestFileName(fileName);
+}
+
+function isTopicManifestPath(nodePath) {
+  const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
+  return MANIFEST_MD_RE.test(fileName) && !isAreaManifestFileName(fileName);
 }
 
 function isNodeMdPath(nodePath) {
-  return /\.node\.md$/i.test(String(nodePath || "").replace(/\\/g, "/"));
+  return isTopicManifestPath(nodePath) || isNodeManifestPath(nodePath);
 }
 
 function getFolderPathFromManifest(nodePath) {
@@ -350,18 +366,26 @@ function getFolderPathFromManifest(nodePath) {
   return parts.join("/");
 }
 
-function getActiveAgentVaultFolder() {
-  const agent = getActiveAgentMeta();
+function getAgentMeta(agentId = activeAgentId) {
+  return agentsCache.find((agent) => agent.id === agentId) || null;
+}
+
+function getActiveAgentVaultFolder(agentId = activeAgentId) {
+  const agent = getAgentMeta(agentId);
   if (!agent || agent.vaultFolder === null) return null;
   const configured = String(agent.vaultFolder || "").trim();
   return configured || VAULT_FOLDER_DEFAULT;
 }
 
-function getActiveAgentServiceFolder() {
-  const agent = getActiveAgentMeta();
+function getActiveAgentServiceFolder(agentId = activeAgentId) {
+  const agent = getAgentMeta(agentId);
   if (!agent || agent.serviceFolder === null) return null;
   const configured = String(agent.serviceFolder || "").trim();
   return configured || SERVICE_FOLDER_DEFAULT;
+}
+
+function getCreateModalAgentId() {
+  return createModalAgentId || activeAgentId;
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
@@ -390,7 +414,7 @@ function stripAgentContentPrefixFromRelPath(relPath) {
 
 function getServiceRootManifestPath() {
   const serviceFolder = getActiveAgentServiceFolder();
-  return serviceFolder ? `${serviceFolder}/${NODE_MANIFEST_FILE}` : null;
+  return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
 function isServiceNodePath(nodePath) {
@@ -403,8 +427,8 @@ function isServiceNodePath(nodePath) {
 function isFilePartNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   const base = normalized.split("/").pop() || "";
-  if (!/\.node\.md$/i.test(base)) return false;
-  return !isNodeManifestFileName(base);
+  if (!MANIFEST_MD_RE.test(base)) return false;
+  return !isAreaManifestFileName(base);
 }
 
 function isPartNodePath(nodePath) {
@@ -462,7 +486,7 @@ function normalizeCreateParentPath(parentPath) {
   const raw = String(parentPath || ".").trim().replace(/\\/g, "/");
   if (!raw || raw === ".") return ".";
   const base = raw.split("/").filter(Boolean).pop() || "";
-  if (isNodeManifestFileName(base) || base.endsWith(".node.md")) {
+  if (isAreaManifestFileName(base) || MANIFEST_MD_RE.test(base)) {
     const folder = getFolderPathFromManifest(raw);
     return folder || ".";
   }
@@ -479,7 +503,7 @@ function normalizeCreateParentPath(parentPath) {
 
 function isAgentRootIndexPath(nodePath) {
   return (
-    nodePath === NODE_MANIFEST_FILE || LEGACY_NODE_MANIFEST_FILES.includes(nodePath)
+    nodePath === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(nodePath)
   );
 }
 
@@ -637,10 +661,12 @@ async function switchActiveAgent(nextAgentId) {
   setMenuLoading(true);
   try {
     saveCollapsedFoldersByAgent();
+    closeCreateNodeModal();
     activeAgentId = nextAgentId;
     migrateAgentCollapsedFolderKeys(activeAgentId);
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
     syncAgentToUrl(activeAgentId);
+    activateMenuAgentPane(activeAgentId);
     activePath = null;
     activeLabel = null;
     activeSystemFile = null;
@@ -1226,7 +1252,7 @@ function renderAgentsRegistryList() {
 
     const commentField = document.createElement("label");
     commentField.className = "agents-registry-field agents-registry-comment-field";
-    commentField.innerHTML = "<span>Содержание</span>";
+    commentField.innerHTML = "<span>Описание</span>";
     commentField.appendChild(commentInput);
 
     const environmentField = document.createElement("label");
@@ -1655,7 +1681,7 @@ const NODE_SETTINGS_GROUP = {
   title: "Настройки",
   icon: "⚙️",
   modes: [
-    { id: "description", label: "Назначение ноды" },
+    { id: "description", label: "Назначение" },
     { id: "configs", label: "Конфигурации" },
     { id: "scripts", label: "Скрипты" },
     { id: "env", label: ".env" },
@@ -1773,6 +1799,8 @@ let toastTimer = null;
 let pendingConfirmResolve = null;
 let createTargetParentPath = ".";
 let createModalBaseParentPath = ".";
+/** Агент, для которого открыта модалка «Создать» (защита от гонки при переключении). */
+let createModalAgentId = null;
 let createModalEmptyFolder = false;
 let currentMenuData = null;
 let menuSearchQuery = "";
@@ -1787,7 +1815,7 @@ const COLLAPSED_FOLDERS_STORAGE_KEY = "agentcms.collapsedFolders.v2";
 const COLLAPSED_FOLDERS_LEGACY_STORAGE_KEY = "agentcms.collapsedFolders.v1";
 const BOOKMARKS_STORAGE_KEY = "agentcms.bookmarks.v1";
 const NODE_DEFAULT_VIEW_STORAGE_KEY = "agentcms.nodeDefaultView.v1";
-const NODE_CONFIG_HEADER = "# Agent CMS — конфигурация ноды\n";
+const NODE_CONFIG_HEADER = "# Agent CMS — конфигурация\n";
 const NODE_CONFIG_DEFAULT_LANDING_KEY = "default_landing_mode";
 const CARDS_PREVIEW_ONLY_STORAGE_KEY = "agentcms.cardsPreviewOnly.v1";
 const MENU_TREE_SETTINGS_STORAGE_KEY = "agentcms.menuTreeSettings.v1";
@@ -2305,7 +2333,7 @@ async function clearNodeDefaultView(nodePath) {
 }
 
 function getContentModeLabel(mode) {
-  if (mode === NODE_OVERVIEW_MODE) return "Обзор ноды";
+  if (mode === NODE_OVERVIEW_MODE) return "Обзор";
   if (mode === NODE_NAVIGATION_MODE) return "Навигация";
   for (const group of getAllModeGroups()) {
     const match = (group.modes || []).find((item) => item.id === mode);
@@ -2319,7 +2347,7 @@ function getContentModeLabel(mode) {
 function getNodeDefaultLandingDomainLabel(mode) {
   const domain = getNodeWorkspaceDomain(mode);
   const domainLabels = {
-    [NODE_WORKSPACE_DOMAIN_OVERVIEW]: "Обзор ноды",
+    [NODE_WORKSPACE_DOMAIN_OVERVIEW]: "Обзор",
     [NODE_WORKSPACE_DOMAIN_SETTINGS]: "Настройки",
     [NODE_WORKSPACE_DOMAIN_MEMORY]: "Память",
     [NODE_WORKSPACE_DOMAIN_INBOX]: "Входящие",
@@ -2352,11 +2380,11 @@ function syncNodeDefaultLandingBtn() {
   btn.setAttribute("aria-pressed", currentIsSaved ? "true" : "false");
 
   if (currentIsSaved) {
-    btn.title = `Стартовая страница в *.node.config.yml: ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сбросить (открывать обзор).`;
+    btn.title = `Стартовая страница в ${BUNDLE_CONFIG_FILE} (_Storage): ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сбросить (открывать обзор).`;
   } else if (hasCustom) {
     btn.title = `В конфиге: ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сохранить текущий раздел (${getNodeDefaultLandingDomainLabel(currentMode)}).`;
   } else {
-    btn.title = `Закрепить в *.node.config.yml: ${getNodeDefaultLandingDomainLabel(currentMode)}`;
+    btn.title = `Закрепить в ${BUNDLE_CONFIG_FILE} (_Storage): ${getNodeDefaultLandingDomainLabel(currentMode)}`;
   }
 }
 
@@ -2368,13 +2396,13 @@ async function toggleNodeDefaultLanding() {
   try {
     if (saved?.mode === activeContentMode) {
       await clearNodeDefaultView(activePath);
-      showToast("Стартовая страница сброшена — при открытии ноды будет обзор", "info");
+      showToast("Стартовая страница сброшена — при открытии будет обзор", "info");
     } else {
       await setNodeDefaultView(activePath, activeContentMode);
-      showToast(`Стартовая страница сохранена в *.node.config.yml: ${getNodeDefaultLandingDomainLabel(activeContentMode)}`, "success");
+      showToast(`Стартовая страница сохранена в ${BUNDLE_CONFIG_FILE}: ${getNodeDefaultLandingDomainLabel(activeContentMode)}`, "success");
     }
   } catch (error) {
-    showToast(`Не удалось сохранить конфигурацию ноды: ${error.message}`, "error");
+    showToast(`Не удалось сохранить конфигурацию: ${error.message}`, "error");
   }
   syncNodeDefaultLandingBtn();
 }
@@ -2603,6 +2631,15 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
+/** Область (Space): папка с _.x.md — без драйверов памяти. */
+function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
+  return isContainerNodePath(nodePath);
+}
+
+function isMemoryDriverModeBlockedForActivePath(mode) {
+  return isAreaNodePath() && MEMORY_DRIVER_MODES.has(mode);
+}
+
 function isNodeSettingsTargetPath(nodePath) {
   return isNodeMdPath(nodePath);
 }
@@ -2634,7 +2671,11 @@ async function openNodeFromMenu(label, filePath) {
   }
   const defaultView = getNodeDefaultView(filePath);
   if (defaultView?.mode && isValidNodeDefaultLandingMode(defaultView.mode)) {
-    await selectNodeManifest(label, filePath, defaultView.mode);
+    const landingMode =
+      isContainerNodePath(filePath) && MEMORY_DRIVER_MODES.has(defaultView.mode)
+        ? NODE_NAVIGATION_MODE
+        : defaultView.mode;
+    await selectNodeManifest(label, filePath, landingMode);
     return;
   }
   await openNodeNavigation(label, filePath);
@@ -2688,7 +2729,15 @@ function getNavigationSubsectionEntries() {
 
 function syncNodeWorkspaceDomainSelect() {
   if (!nodeWorkspaceDomainSelectNode) return;
-  nodeWorkspaceDomainSelectNode.value = getNodeWorkspaceDomain(activeContentMode);
+  const isArea = isAreaNodePath();
+  const memoryOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="memory"]');
+  if (memoryOption) memoryOption.disabled = isArea;
+  const domain = getNodeWorkspaceDomain(activeContentMode);
+  if (isArea && domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
+    nodeWorkspaceDomainSelectNode.value = NODE_WORKSPACE_DOMAIN_NAVIGATION;
+  } else {
+    nodeWorkspaceDomainSelectNode.value = domain;
+  }
 }
 
 function applyNodeWorkspaceDomainChange(domain) {
@@ -2714,6 +2763,10 @@ function applyNodeWorkspaceDomainChange(domain) {
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
+    if (isAreaNodePath()) {
+      returnToNodeNavigation();
+      return;
+    }
     nodeMemoryViewActive = true;
     nodeSettingsViewActive = false;
     if (NODE_MEMORY_SUB_MODE_IDS.has(activeContentMode)) {
@@ -2763,6 +2816,14 @@ function applyNodeWorkspaceViewUi() {
   nodeSettingsPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !settingsDomain);
   nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !memoryDomain);
   syncNodeWorkspaceDomainSelect();
+  if (
+    isAreaNodePath() &&
+    (getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY ||
+      MEMORY_DRIVER_MODES.has(activeContentMode))
+  ) {
+    returnToNodeNavigation();
+    return;
+  }
   syncNodeDefaultLandingBtn();
   updateBreadcrumbsForActiveMode();
   syncWorkspaceCloseButtonsVisibility();
@@ -2787,8 +2848,8 @@ function createNodeSettingsButton(nodePath) {
   btn.type = "button";
   btn.className = "node-settings-btn";
   btn.textContent = "⚙";
-  btn.title = "Настройки ноды";
-  btn.setAttribute("aria-label", "Настройки ноды");
+  btn.title = "Настройки";
+  btn.setAttribute("aria-label", "Настройки");
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -2798,17 +2859,18 @@ function createNodeSettingsButton(nodePath) {
 }
 
 function createBookmarkButton(nodePath) {
+  const canonicalPath = normalizeMenuNodePath(nodePath);
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "bookmark-btn";
-  btn.dataset.path = nodePath;
-  btn.textContent = isBookmarked(nodePath) ? "★" : "☆";
-  btn.classList.toggle("bookmarked", isBookmarked(nodePath));
-  btn.title = isBookmarked(nodePath) ? "Убрать из закладок" : "Добавить в закладки";
+  btn.dataset.path = canonicalPath;
+  btn.textContent = isBookmarked(canonicalPath) ? "★" : "☆";
+  btn.classList.toggle("bookmarked", isBookmarked(canonicalPath));
+  btn.title = isBookmarked(canonicalPath) ? "Убрать из закладок" : "Добавить в закладки";
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    toggleBookmark(nodePath);
+    toggleBookmark(canonicalPath);
   });
   return btn;
 }
@@ -3200,18 +3262,18 @@ function formatCreateParentLabel(parentPath) {
   return parts[parts.length - 1] || parentPath;
 }
 
-function resolveCreateTargetParentPath(baseParentPath, useVault) {
+function resolveCreateTargetParentPath(baseParentPath, useVault, agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(baseParentPath || ".");
   if (normalized !== ".") return normalized;
   if (useVault) {
-    const vaultFolder = getActiveAgentVaultFolder();
+    const vaultFolder = getActiveAgentVaultFolder(agentId);
     if (vaultFolder) return vaultFolder;
   }
   return ".";
 }
 
 function syncCreateNodeVaultOptionUi() {
-  const vaultFolder = getActiveAgentVaultFolder();
+  const vaultFolder = getActiveAgentVaultFolder(getCreateModalAgentId());
   const showVaultOption = createModalBaseParentPath === "." && Boolean(vaultFolder);
   createNodeVaultOptionWrapNode?.classList.toggle("hidden", !showVaultOption);
   if (createNodeVaultOptionLabelNode && vaultFolder) {
@@ -3230,13 +3292,13 @@ const SERVICE_CATALOG_PRESET_LABELS = {
 };
 
 function isServiceRootCreateParent(parentPath) {
-  const serviceFolder = getActiveAgentServiceFolder();
+  const serviceFolder = getActiveAgentServiceFolder(getCreateModalAgentId());
   if (!serviceFolder) return false;
   return normalizeCreateParentPath(parentPath || ".") === serviceFolder;
 }
 
 function isServiceSubfolderCreateParent(parentPath) {
-  const serviceFolder = getActiveAgentServiceFolder();
+  const serviceFolder = getActiveAgentServiceFolder(getCreateModalAgentId());
   if (!serviceFolder) return false;
   const normalized = normalizeCreateParentPath(parentPath || ".");
   if (!normalized || normalized === serviceFolder) return false;
@@ -3270,7 +3332,7 @@ function updateCreateNodeModalContext(parentPath) {
   const label = formatCreateParentLabel(parentPath);
   if (createNodeModalTitleNode) {
     if (createModalEmptyFolder && createModalBaseParentPath !== ".") {
-      createNodeModalTitleNode.textContent = `Папка «${label}» — без ноды`;
+      createNodeModalTitleNode.textContent = `Папка «${label}» — без темы`;
     } else {
       createNodeModalTitleNode.textContent = `Создать в «${label}»`;
     }
@@ -3281,6 +3343,7 @@ function closeCreateNodeModal() {
   createNodeModalNode?.classList.add("hidden");
   createTargetParentPath = ".";
   createModalBaseParentPath = ".";
+  createModalAgentId = null;
   createModalEmptyFolder = false;
   createNameInputNode.value = "";
   createNodeVaultOptionWrapNode?.classList.add("hidden");
@@ -3289,6 +3352,7 @@ function closeCreateNodeModal() {
 }
 
 function openCreateNodeModal(parentPath, options = {}) {
+  createModalAgentId = options.agentId || activeAgentId;
   createModalBaseParentPath = normalizeCreateParentPath(parentPath || ".");
   createModalEmptyFolder = Boolean(options.emptyFolder);
   syncCreateNodeVaultOptionUi();
@@ -3312,9 +3376,10 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
     collapsedFolders.add(normalizedPath);
   }
   saveCollapsedFoldersByAgent();
-  if (currentMenuData) {
-    renderMenu(currentMenuData);
-    updateActiveButton();
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (menu) {
+    renderMenu(menu, agentId);
+    if (agentId === activeAgentId) updateActiveButton();
   }
 }
 
@@ -3404,8 +3469,11 @@ function setContentMode(mode) {
   const modeDef = group?.modes.find((item) => item.id === mode);
   if (modeDef?.disabled) return;
   if (mode === "graph" && !activePath) {
-    showToast("Выберите ноду в дереве слева", "info");
+    showToast("Выберите тему в дереве слева", "info");
     return;
+  }
+  if (isMemoryDriverModeBlockedForActivePath(mode)) {
+    mode = NODE_NAVIGATION_MODE;
   }
 
   activeContentMode = mode;
@@ -3537,8 +3605,8 @@ function getEnvBreadcrumbPath(nodePath) {
 
 function parsePartFolderManifestRel(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const match = normalized.match(/^(.*\/)?_Parts\/([^/]+)\/([^/]+\.node\.md)$/i);
-  if (!match || !isNodeManifestFileName(match[3])) return null;
+  const match = normalized.match(/^(.*\/)?_Parts\/([^/]+)\/([^/]+\.(?:node|x)\.md)$/i);
+  if (!match || !isAreaManifestFileName(match[3])) return null;
   const prefix = match[1] || "";
   const partName = match[2];
   return {
@@ -3551,7 +3619,44 @@ function parsePartFolderManifestRel(nodePath) {
 function resolvePartFolderSidecarBaseRel(nodePath) {
   const parsed = parsePartFolderManifestRel(nodePath);
   if (!parsed) return null;
-  return `${parsed.dir}/${parsed.partName}.node`;
+  const stem = parsed.manifestName.replace(MANIFEST_MD_RE, "");
+  return `${parsed.dir}/${stem}.x`;
+}
+
+function isAreaManifestFileName(name) {
+  const base = String(name || "");
+  return base === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(base);
+}
+
+function getManifestContainerDirRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const slash = normalized.lastIndexOf("/");
+  if (slash < 0) return "";
+  return normalized.slice(0, slash);
+}
+
+function getManifestStorageKey(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (isAreaManifestFileName(base)) {
+    const containerDir = getManifestContainerDirRel(normalized);
+    if (!containerDir) return "_";
+    return containerDir.slice(containerDir.lastIndexOf("/") + 1);
+  }
+  return base.replace(MANIFEST_MD_RE, "");
+}
+
+function getNamedStorageBundleRel(relPath, bundleFileName) {
+  const containerDir = getManifestContainerDirRel(relPath);
+  const key = getManifestStorageKey(relPath);
+  const parts = [containerDir, STORAGE_FOLDER_NAME, key].filter(Boolean);
+  return `${parts.join("/")}/${bundleFileName}`;
+}
+
+function getNamedStorageBundleDirRel(relPath) {
+  const containerDir = getManifestContainerDirRel(relPath);
+  const key = getManifestStorageKey(relPath);
+  return [containerDir, STORAGE_FOLDER_NAME, key].filter(Boolean).join("/");
 }
 
 function resolveNodeSidecarRelPath(nodePath, kind) {
@@ -3565,14 +3670,16 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
     config: ".config.yml"
   };
   if (partBase) return `${partBase}${suffixByKind[kind]}`;
-  const extByKind = {
-    content: ".node.content.md",
-    tabular: ".node.content.csv",
-    todo: ".node.todo.md",
-    preview: ".node.preview",
-    config: ".node.config.yml"
+  if (kind === "preview") {
+    return `${getNamedStorageBundleDirRel(resolved)}/${PREVIEW_FILE_BASENAME}`;
+  }
+  const bundleByKind = {
+    content: BUNDLE_CONTENT_FILE,
+    tabular: BUNDLE_TABULAR_FILE,
+    todo: BUNDLE_TODO_FILE,
+    config: BUNDLE_CONFIG_FILE
   };
-  return resolved.replace(/\.node\.md$/i, extByKind[kind]);
+  return getNamedStorageBundleRel(resolved, bundleByKind[kind]);
 }
 
 function getTodoBreadcrumbPath(nodePath) {
@@ -3664,7 +3771,7 @@ function updateBreadcrumbsForActiveMode(overrides) {
 
 function getListViewTitleByMode() {
   if (activeContentMode === "graph") {
-    return `Пространство: ${activeLabel || getLabelFromPath(activePath) || "нода"}`;
+    return `Пространство: ${activeLabel || getLabelFromPath(activePath) || "тема"}`;
   }
   if (activeContentMode === "external") return "Многофайловая (_Content)";
   if (activeContentMode === "tabular") {
@@ -4292,7 +4399,7 @@ function buildGraphDataFromExternalFiles(items) {
 }
 
 function buildGraphDataFromNode() {
-  const nodeLabel = activeLabel || getLabelFromPath(activePath) || "Нода";
+  const nodeLabel = activeLabel || getLabelFromPath(activePath) || "Тема";
   const nodes = [{ id: "root", label: nodeLabel, type: "folder", depth: 0 }];
   const edges = [];
 
@@ -4567,7 +4674,7 @@ function renderNodeGraphView() {
   const render = () => {
     const graph = buildGraphDataFromNode();
     renderGraphCanvas(graphViewContentNode, graph, {
-      ariaLabel: "Граф пространства ноды",
+      ariaLabel: "Граф пространства",
       isNodeActive: (node) => Boolean(node.modeId && node.modeId === activeContentMode),
       isNodeClickable: (node) => Boolean(node.modeId && !node.disabled),
       onNodeClick: (node) => {
@@ -4787,7 +4894,7 @@ function insertTextAtEditorCursor(text) {
 async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath() } = {}) {
   if (!file) return null;
   if (!nodePath) {
-    throw new Error("Сначала откройте ноду");
+    throw new Error("Сначала откройте тему");
   }
   const normalizedFile = await normalizeImageAttachmentFile(file);
   const data = await readFileAsBase64(normalizedFile);
@@ -6076,7 +6183,7 @@ function updateYamlPanelLabel() {
     yamlPanelLabelNode.textContent = "Свойства md-файла";
     propsInputNode.placeholder = "title: Заметка\ntags:\n  - пример\nstatus: draft";
   } else {
-    yamlPanelLabelNode.textContent = "Frontmatter ноды";
+    yamlPanelLabelNode.textContent = "Frontmatter";
     propsInputNode.placeholder = "title: Название\ntags:\n  - пример\nstatus: active";
   }
 }
@@ -6389,7 +6496,7 @@ function getRevealFolderLabel() {
   const platform = window.desktopApp?.platform;
   if (platform === "darwin") return "Открыть папку в Finder";
   if (platform === "win32") return "Открыть папку в Проводнике";
-  return "Открыть папку ноды";
+  return "Открыть папку темы";
 }
 
 function createOverviewActionIcon(svgMarkup) {
@@ -6551,7 +6658,7 @@ function openOverviewPreviewFilePicker(thumbWrap) {
 }
 
 async function removeOverviewPreviewInline(thumbWrap) {
-  const confirmed = await askConfirm("Удалить превью ноды?", { okLabel: "Удалить" });
+  const confirmed = await askConfirm("Удалить превью?", { okLabel: "Удалить" });
   if (!confirmed) return;
   overviewPreviewUploadWrap = thumbWrap;
   await removePreviewImage();
@@ -6932,7 +7039,7 @@ function renderOverviewMediaLink(mediaData, nodePath = activePath) {
   const linkDesc = document.createElement("span");
   linkDesc.className = "node-overview-media-link-desc";
   linkDesc.textContent =
-    "Изображения, видео, PDF и sidecar-заметки — всё, что прикреплено к ноде как файлы.";
+    "Изображения, видео, PDF и sidecar-заметки — всё, что прикреплено к теме как файлы.";
 
   const linkPath = document.createElement("span");
   linkPath.className = "node-overview-media-link-path";
@@ -7529,7 +7636,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
     empty.className = "node-navigation-empty-note";
     empty.textContent = "Описание, инструкции, правила отсутствуют";
     wrap.appendChild(empty);
-    return createNavigationMemoryPanel("description", "Назначение ноды", wrap);
+    return createNavigationMemoryPanel("description", "Назначение", wrap);
   }
 
   const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
@@ -7558,7 +7665,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
     wrap.appendChild(actions);
   }
 
-  return createNavigationMemoryPanel("description", "Назначение ноды", wrap);
+  return createNavigationMemoryPanel("description", "Назначение", wrap);
 }
 
 function renderNavigationTodoPart(todoData) {
@@ -7601,14 +7708,23 @@ async function renderNodeNavigation() {
 
   const nodePath = getResolvedNodePath(activePath);
   const childEntries = getNavigationSubsectionEntries();
+  const isArea = isAreaNodePath(nodePath);
 
-  const [internalData, externalData, tabularData, mediaData, todoData] = await Promise.all([
-    fetchInternalMemoryForNavigation(nodePath),
-    fetchExternalFilesForNavigation(nodePath),
-    fetchTabularMemoryForNavigation(nodePath),
-    fetchMediaOverview(nodePath),
-    fetchTodoForOverview(nodePath)
-  ]);
+  const emptyInternal = { exists: false, content: "", path: null };
+  const emptyExternal = { exists: false, files: [] };
+  const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
+
+  const [internalData, externalData, tabularData, mediaData, todoData] = await Promise.all(
+    isArea
+      ? [emptyInternal, emptyExternal, emptyTabular, fetchMediaOverview(nodePath), fetchTodoForOverview(nodePath)]
+      : [
+          fetchInternalMemoryForNavigation(nodePath),
+          fetchExternalFilesForNavigation(nodePath),
+          fetchTabularMemoryForNavigation(nodePath),
+          fetchMediaOverview(nodePath),
+          fetchTodoForOverview(nodePath)
+        ]
+  );
   if (isStale()) return;
 
   const hub = document.createElement("div");
@@ -7623,12 +7739,16 @@ async function renderNodeNavigation() {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
 
-  const panels = [
-    renderNavigationExternalPart(externalData),
-    renderNavigationInternalPart(internalData),
-    renderNavigationTabularPart(tabularData),
-    renderNavigationMediaPart(mediaData)
-  ].filter(Boolean);
+  const panels = (
+    isArea
+      ? [renderNavigationMediaPart(mediaData)]
+      : [
+          renderNavigationExternalPart(externalData),
+          renderNavigationInternalPart(internalData),
+          renderNavigationTabularPart(tabularData),
+          renderNavigationMediaPart(mediaData)
+        ]
+  ).filter(Boolean);
 
   for (const panel of panels) {
     panelsWrap.appendChild(panel);
@@ -7815,16 +7935,20 @@ async function renderNodeOverview() {
     }
   }
 
-  const memorySummary =
-    (await fetchMemorySummary(getResolvedNodePath(activePath))) ?? createEmptyMemorySummary();
-  if (isStale()) return;
-  activeMemorySummary = memorySummary;
-  syncNodeMemoryDriverOptions(memorySummary);
-  const memoryBlock = renderOverviewMemoryBlock(memorySummary, getResolvedNodePath(activePath));
-  if (memoryBlock) {
-    fragment.appendChild(
-      createOverviewAccordionSection("memory", "🧠 Память", memoryBlock, { defaultOpen: true })
-    );
+  if (!isAreaNodePath(activePath)) {
+    const memorySummary =
+      (await fetchMemorySummary(getResolvedNodePath(activePath))) ?? createEmptyMemorySummary();
+    if (isStale()) return;
+    activeMemorySummary = memorySummary;
+    syncNodeMemoryDriverOptions(memorySummary);
+    const memoryBlock = renderOverviewMemoryBlock(memorySummary, getResolvedNodePath(activePath));
+    if (memoryBlock) {
+      fragment.appendChild(
+        createOverviewAccordionSection("memory", "🧠 Память", memoryBlock, { defaultOpen: true })
+      );
+    }
+  } else if (isStale()) {
+    return;
   }
 
   const mediaOverview = await fetchMediaOverview(getResolvedNodePath(activePath));
@@ -8299,7 +8423,7 @@ function isAllowedPreviewFile(file) {
 async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
   if (!activePath || !file) return;
   if (!isAllowedPreviewFile(file)) {
-    showToast("Допустимы только JPG, PNG и GIF (*.node.preview.jpg / .png / .gif)", "error");
+    showToast(`Допустимы только JPG, PNG и GIF (${PREVIEW_FILE_BASENAME}.jpg / .png / .gif в _Storage)`, "error");
     return;
   }
 
@@ -8755,15 +8879,15 @@ function getParentNodeManifestPath(manifestPath) {
     const parentFolderParts = folderPath.split("/").filter(Boolean);
     parentFolderParts.pop();
     const parentFolder = parentFolderParts.join("/");
-    return parentFolder ? `${parentFolder}/${NODE_MANIFEST_FILE}` : NODE_MANIFEST_FILE;
+    return parentFolder ? `${parentFolder}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
   }
 
   const folderPath = getFolderPathFromManifest(resolved);
-  if (!folderPath) return NODE_MANIFEST_FILE;
+  if (!folderPath) return AREA_MANIFEST_FILE;
   const parentFolderParts = folderPath.split("/").filter(Boolean);
   parentFolderParts.pop();
   const parentFolder = parentFolderParts.join("/");
-  return parentFolder ? `${parentFolder}/${NODE_MANIFEST_FILE}` : NODE_MANIFEST_FILE;
+  return parentFolder ? `${parentFolder}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
 }
 
 function getBreadcrumbDisplayParts(filePath = null) {
@@ -8853,43 +8977,8 @@ function renderBreadcrumbs(filePath) {
   titleFixedValueNode?.classList.add("hidden");
 
   const parts = normalizeBreadcrumbPath(filePath).split("/").filter(Boolean);
-  const workspaceDomain = getNodeWorkspaceDomain();
-  const showSettingsCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_SETTINGS;
-  const showMemoryCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
-  const showReferencesCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_REFERENCES;
-  const showInboxCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_INBOX;
-  const showOverviewCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_OVERVIEW;
-  const showNavigationCrumbPrefix = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   clearFilePathNode();
-  filePathNode.classList.toggle(
-    "is-empty",
-    parts.length === 0 &&
-      !showSettingsCrumbPrefix &&
-      !showMemoryCrumbPrefix &&
-      !showReferencesCrumbPrefix &&
-      !showInboxCrumbPrefix &&
-      !showOverviewCrumbPrefix &&
-      !showNavigationCrumbPrefix
-  );
-
-  function appendPrefix(text, className) {
-    appendBreadcrumbCrumb(text, { className });
-    if (parts.length > 0) appendBreadcrumbSeparator();
-  }
-
-  if (showOverviewCrumbPrefix) {
-    appendPrefix("Обзор ноды", "node-overview-crumb-prefix");
-  } else if (showNavigationCrumbPrefix) {
-    appendPrefix("Навигация", "node-navigation-crumb-prefix");
-  } else if (showSettingsCrumbPrefix) {
-    appendPrefix("Настройки ноды", "node-settings-crumb-prefix");
-  } else if (showInboxCrumbPrefix) {
-    appendPrefix("Входящие", "node-inbox-crumb-prefix");
-  } else if (showMemoryCrumbPrefix) {
-    appendPrefix("Память ноды", "node-memory-crumb-prefix");
-  } else if (showReferencesCrumbPrefix) {
-    appendPrefix("Источники ноды", "node-references-crumb-prefix");
-  }
+  filePathNode.classList.toggle("is-empty", parts.length === 0);
 
   parts.forEach((part, index) => {
     const isLast = index === parts.length - 1;
@@ -8957,17 +9046,18 @@ function getOrderedMenuChildren(node) {
   const order = Array.isArray(node.menuOrder) ? node.menuOrder : null;
   const sectionMap = new Map(sections.map((entry) => [entry.title, entry]));
   const itemMap = new Map(items.map((entry) => [entry.label, entry]));
-  const children = [];
+  const orderedFolders = [];
+  const orderedItems = [];
   const usedSections = new Set();
   const usedItems = new Set();
 
   if (order?.length) {
     for (const name of order) {
       if (sectionMap.has(name) && !usedSections.has(name)) {
-        children.push({ kind: "folder", entry: sectionMap.get(name) });
+        orderedFolders.push({ kind: "folder", entry: sectionMap.get(name) });
         usedSections.add(name);
       } else if (itemMap.has(name) && !usedItems.has(name)) {
-        children.push({ kind: "item", entry: itemMap.get(name) });
+        orderedItems.push({ kind: "item", entry: itemMap.get(name) });
         usedItems.add(name);
       }
     }
@@ -8980,22 +9070,25 @@ function getOrderedMenuChildren(node) {
     .filter((entry) => !usedItems.has(entry.label))
     .sort((a, b) => a.label.localeCompare(b.label, "ru"));
 
-  if (!order?.length) {
-    return [
-      ...remainingSections.map((entry) => ({ kind: "folder", entry })),
-      ...remainingItems.map((entry) => ({ kind: "item", entry }))
-    ];
-  }
-
+  // Области (папки) всегда выше тем (файлов), даже если в awn-sort.json порядок смешан.
   return [
-    ...children,
+    ...orderedFolders,
     ...remainingSections.map((entry) => ({ kind: "folder", entry })),
+    ...orderedItems,
     ...remainingItems.map((entry) => ({ kind: "item", entry }))
   ];
 }
 
 function normalizeMenuNodePath(nodePath) {
-  return String(nodePath || "").replace(/\\/g, "/");
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const base = normalized.includes("/")
+    ? normalized.slice(normalized.lastIndexOf("/") + 1)
+    : normalized;
+  if (isAreaManifestFileName(base) && base !== AREA_MANIFEST_FILE) {
+    const dir = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+    return dir ? `${dir}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
+  }
+  return normalized;
 }
 
 function findMenuNodeByPath(node, targetPath) {
@@ -9227,8 +9320,8 @@ function toggleServiceTreeCollapsed() {
   if (currentMenuData) renderMenu(currentMenuData);
 }
 
-function renderServiceSection(serviceTree, parentEl) {
-  const serviceFolder = getActiveAgentServiceFolder();
+function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
 
   parentEl.querySelectorAll(".menu-service-section").forEach((node) => node.remove());
@@ -9268,7 +9361,7 @@ function renderServiceSection(serviceTree, parentEl) {
   addBtn.title = "Создать справочник, папку или part";
   addBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    openCreateNodeModal(serviceFolder);
+    openCreateNodeModal(serviceFolder, { agentId });
   });
   headRow.appendChild(addBtn);
 
@@ -9277,7 +9370,7 @@ function renderServiceSection(serviceTree, parentEl) {
   if (!collapsed) {
     const body = document.createElement("div");
     body.className = "tree-children menu-service-body";
-    renderTree({ title: "", ...treeToRender }, body, 0, serviceFolder);
+    renderTree({ title: "", ...treeToRender }, body, 0, serviceFolder, null, agentId);
     section.appendChild(body);
   }
 
@@ -9453,7 +9546,7 @@ function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = active
   if (entries.length === 0) {
     const emptyNode = document.createElement("div");
     emptyNode.className = "menu-bookmarks-empty";
-    emptyNode.textContent = "Нет закладок. Добавьте ноду через ☆ в дереве.";
+    emptyNode.textContent = "Нет закладок. Добавьте тему через ☆ в дереве.";
     listNode.appendChild(emptyNode);
   }
 
@@ -9508,7 +9601,7 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
   if (entries.length === 0) {
     const emptyNode = document.createElement("div");
     emptyNode.className = "menu-cards-empty";
-    emptyNode.textContent = queryLower ? "Ничего не найдено." : "Нет нод для отображения.";
+    emptyNode.textContent = queryLower ? "Ничего не найдено." : "Нет тем для отображения.";
     listNode.appendChild(emptyNode);
   }
 
@@ -9575,10 +9668,10 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
     const emptyNode = document.createElement("div");
     emptyNode.className = "menu-cards-empty";
     emptyNode.textContent = menuCardsPreviewOnly
-      ? "Нет нод с превью."
+      ? "Нет тем с превью."
       : queryLower
         ? "Ничего не найдено."
-        : "Нет нод для отображения.";
+        : "Нет тем для отображения.";
     gridNode.appendChild(emptyNode);
   }
 
@@ -9599,16 +9692,16 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
   target.appendChild(sectionNode);
 }
 
-function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null) {
+function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeAgentId) {
   const searchActive = menuSearchQuery.trim().length > 0;
   const sectionNode = createSectionNode(node.title, depth);
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
-  const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath);
+  const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath, agentId);
   const visibleChildren = getVisibleMenuChildren(node);
 
   if (node.title) {
     const hasContent = visibleChildren.length > 0;
-    const isCollapsedEffective = searchActive ? false : isFolderCollapsed(sectionFolderPath);
+    const isCollapsedEffective = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
     if (node.indexPath) {
       const folderRow = document.createElement("div");
@@ -9621,7 +9714,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       folderButton.className = isAgentRootTreeNode(depth, sectionFolderPath)
         ? "menu-folder menu-folder-agent-root"
         : "menu-folder";
-      folderButton.dataset.path = node.indexPath;
+      folderButton.dataset.path = normalizeMenuNodePath(node.indexPath);
       applyNodeColorVars(folderButton, node.color, { isFolder: true });
       const folderSortKey = getMenuTreeFolderSortKey(node);
       const folderDisplayLabel = getLabelFromPath(node.indexPath);
@@ -9641,7 +9734,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       addBtn.title = "Создать";
       addBtn.addEventListener("click", (event) => {
         event.stopPropagation();
-        openCreateNodeModal(sectionFolderPath || ".");
+        openCreateNodeModal(sectionFolderPath || ".", { agentId });
       });
 
       folderRow.appendChild(folderButton);
@@ -9674,7 +9767,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         "menu-section-name"
       );
       titleNode.title = isEmptyFolder
-        ? "Папка на диске без нод"
+        ? "Папка на диске без темы"
         : hasContent
           ? (isCollapsedEffective ? "Раскрыть" : "Скрыть")
           : "";
@@ -9690,10 +9783,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         addBtn.type = "button";
         addBtn.className = "add-node-btn add-node-btn--muted";
         addBtn.textContent = "+";
-        addBtn.title = "Создать ноду в папке";
+        addBtn.title = "Создать тему в папке";
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          openCreateNodeModal(sectionFolderPath || ".", { emptyFolder: true });
+          openCreateNodeModal(sectionFolderPath || ".", { emptyFolder: true, agentId });
         });
         sectionRow.appendChild(addBtn);
       }
@@ -9711,7 +9804,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     }
   }
 
-  const isCollapsed = searchActive ? false : isFolderCollapsed(sectionFolderPath);
+  const isCollapsed = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
   if (!isCollapsed && visibleChildren.length > 0) {
     const childrenNode = document.createElement("div");
@@ -9720,7 +9813,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
     for (const child of visibleChildren) {
       if (child.kind === "folder") {
-        renderTree(child.entry, childrenNode, depth + 1, sectionFolderPath, node);
+        renderTree(child.entry, childrenNode, depth + 1, sectionFolderPath, node, agentId);
       } else {
         const item = child.entry;
         const itemRow = document.createElement("div");
@@ -9731,7 +9824,8 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         btn.type = "button";
         btn.className = "menu-item";
         btn.textContent = formatMenuTreeItemLabel(item, node);
-        btn.dataset.path = item.path;
+        const itemPath = normalizeMenuNodePath(item.path);
+        btn.dataset.path = itemPath;
         applyNodeColorVars(btn, item.color);
         btn.addEventListener("click", (event) => {
           const pathFromNode = event.currentTarget?.dataset?.path || "";
@@ -9739,10 +9833,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         });
 
         itemRow.appendChild(btn);
-        if (isNodeSettingsTargetPath(item.path)) {
-          itemRow.appendChild(createNodeSettingsButton(item.path));
+        if (isNodeSettingsTargetPath(itemPath)) {
+          itemRow.appendChild(createNodeSettingsButton(itemPath));
         }
-        itemRow.appendChild(createBookmarkButton(item.path));
+        itemRow.appendChild(createBookmarkButton(itemPath));
         childrenNode.appendChild(itemRow);
       }
     }
@@ -9952,10 +10046,10 @@ function renderMenu(menu, agentId = activeAgentId) {
   } else if (menuSearchQuery.trim() && !menuSearchHasResults(menu)) {
     appendMenuSearchEmptyState(target);
   } else {
-    renderTree(treeToRender, target, 0);
-    const childrenContainer = getWorkspacesTreeChildren();
+    renderTree(treeToRender, target, 0, ".", null, agentId);
+    const childrenContainer = getWorkspacesTreeChildren(agentId);
     if (childrenContainer && menu.serviceTree) {
-      renderServiceSection(menu.serviceTree, childrenContainer);
+      renderServiceSection(menu.serviceTree, childrenContainer, agentId);
     }
     renderSystemFiles(systemFilesCache);
     decorateMenuSortRows(target);
@@ -9973,8 +10067,8 @@ function renderMenu(menu, agentId = activeAgentId) {
   }
 }
 
-function getWorkspacesTreeChildren() {
-  const rootHost = getMenuQueryRoot();
+function getWorkspacesTreeChildren(agentId = activeAgentId) {
+  const rootHost = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   const rootSection = rootHost?.querySelector(".menu-section");
   if (!rootSection) return null;
 
@@ -10328,7 +10422,7 @@ async function loadContentByMode() {
       applyModeUi();
       refreshEditorViewContent();
     } catch (error) {
-      fileContentInputNode.value = `Ошибка чтения *.node.config.yml: ${error.message}`;
+      fileContentInputNode.value = `Ошибка чтения ${BUNDLE_CONFIG_FILE}: ${error.message}`;
       fileContentInputNode.readOnly = true;
     }
     updateBreadcrumbsForActiveMode();
@@ -10651,7 +10745,7 @@ async function saveContent() {
         defaultLandingMode: data.defaultLandingMode || parseNodeConfigContent(data.content || "").defaultLandingMode
       });
       syncNodeDefaultLandingBtn();
-      showToast("*.node.config.yml сохранён", "success");
+      showToast(`${BUNDLE_CONFIG_FILE} сохранён`, "success");
       refreshEditorViewContent();
       return;
     }
@@ -10853,7 +10947,7 @@ function buildAgentMapZoneData(menu) {
   if (rootPath) {
     core.push({
       label: getLabelFromPath(rootPath),
-      sub: "_.node.md",
+      sub: "_.x.md",
       path: rootPath,
       action: "node"
     });
@@ -10868,7 +10962,7 @@ function buildAgentMapZoneData(menu) {
   const memory = [
     {
       label: "Однофайловая",
-      sub: "_.node.content.md",
+      sub: `_Storage/_/${BUNDLE_CONTENT_FILE}`,
       mode: "internal",
       path: rootPath,
       action: "memory"
@@ -10882,7 +10976,7 @@ function buildAgentMapZoneData(menu) {
     },
     {
       label: "Табличная",
-      sub: "_.node.content.csv",
+      sub: `_Storage/_/${BUNDLE_TABULAR_FILE}`,
       mode: "tabular",
       path: rootPath,
       action: "memory"
@@ -11261,7 +11355,7 @@ function createAgentMap2NodeButton(node) {
         ? "Папка"
         : node.kind === "group"
           ? "Группа"
-          : "Нода";
+          : "Тема";
 
   const label = document.createElement("span");
   label.className = "agent-map2-node-label";
@@ -11357,7 +11451,7 @@ function renderAgentMap2Stats(data) {
 
   const nodeStat = document.createElement("span");
   nodeStat.className = "agent-map2-stat";
-  nodeStat.textContent = `Нод: ${data.nodes.length}`;
+  nodeStat.textContent = `Тем: ${data.nodes.length}`;
 
   agentMap2StatsNode.append(hardStat, softStat, nodeStat);
 
@@ -11398,7 +11492,7 @@ function renderAgentMap2View() {
   if (mapData.nodes.length <= 1) {
     agentMap2CanvasNode.style.width = "";
     agentMap2CanvasNode.style.height = "";
-    agentMap2NodesNode.innerHTML = `<div class="agent-map2-empty">В workspace пока нет нод для схемы</div>`;
+    agentMap2NodesNode.innerHTML = `<div class="agent-map2-empty">В workspace пока нет тем для схемы</div>`;
     if (agentMap2LinksNode) agentMap2LinksNode.innerHTML = "";
     renderAgentMap2Stats(mapData);
     return;
@@ -11433,9 +11527,9 @@ function renderAgentDashboardView() {
   agentDashboardStatsNode.innerHTML = "";
 
   const stats = [
-    { value: String(counts.total), label: "Нод в workspace" },
+    { value: String(counts.total), label: "Тем в workspace" },
     { value: String(counts.folders), label: "Контейнеров" },
-    { value: String(counts.leaves), label: "Листовых нод" }
+    { value: String(counts.leaves), label: "Листовых тем" }
   ];
 
   for (const stat of stats) {
@@ -11450,7 +11544,7 @@ function renderAgentDashboardView() {
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
     const agentLabel = agent?.name || getActiveAgentLabel() || "агента";
-    homeHintNode.textContent = `Агент «${agentLabel}» — выберите ноду в дереве или откройте Схему / Каталог / Граф`;
+    homeHintNode.textContent = `Агент «${agentLabel}» — выберите тему в дереве или откройте Схему / Каталог / Граф`;
   }
 }
 
@@ -11523,7 +11617,7 @@ function renderAgentSchemaView() {
 
   const entries = collectFlatMenuEntries({ title: getAgentTreeTitle(), ...currentMenuData });
   if (!entries.length) {
-    renderListEmptyMessage(agentSchemaContentNode, "В workspace пока нет нод");
+    renderListEmptyMessage(agentSchemaContentNode, "В workspace пока нет тем");
     return;
   }
 
@@ -11533,7 +11627,7 @@ function renderAgentSchemaView() {
   agentSchemaContentNode.appendChild(tree);
 }
 
-const AGENT_HOME_HINT_DEFAULT = "Выберите ноду в дереве или откройте Схему / Каталог / Граф";
+const AGENT_HOME_HINT_DEFAULT = "Выберите тему в дереве или откройте Схему / Каталог / Граф";
 
 function inferVaultCategoryFromEntry(entry) {
   if (entry?.category) return String(entry.category).trim();
@@ -11564,7 +11658,7 @@ function createAgentVaultCard(entry) {
 
   const kind = document.createElement("span");
   kind.className = `agent-vault-kind ${entry.isFolder ? "is-folder" : "is-file"}`;
-  kind.textContent = entry.isFolder ? "Папка" : "Нода";
+  kind.textContent = entry.isFolder ? "Папка" : "Тема";
   card.prepend(kind);
 
   const foot = card.querySelector(".menu-card-foot");
@@ -11625,7 +11719,7 @@ function renderAgentVaultView() {
     agentVaultStatsNode.innerHTML = `
       <span class="agent-vault-stat"><strong>${filtered.length}</strong> / ${allEntries.length}</span>
       <span class="agent-vault-stat"><strong>${folders}</strong> папок</span>
-      <span class="agent-vault-stat"><strong>${files}</strong> нод</span>
+      <span class="agent-vault-stat"><strong>${files}</strong> тем</span>
     `;
   }
 
@@ -11634,7 +11728,7 @@ function renderAgentVaultView() {
     if (agentVaultEmptyNode) {
       agentVaultEmptyNode.textContent = allEntries.length
         ? "Ничего не найдено. Измените поиск."
-        : "В workspace пока нет нод";
+        : "В workspace пока нет тем";
     }
     return;
   }
@@ -11719,7 +11813,7 @@ function renderAgentGraphView() {
 
   const graph = buildGraphDataFromAgentMenu(currentMenuData);
   if (graph.nodes.length <= 1) {
-    renderListEmptyMessage(agentGraphContentNode, "В workspace пока нет нод для графа");
+    renderListEmptyMessage(agentGraphContentNode, "В workspace пока нет тем для графа");
     return;
   }
 
@@ -11803,8 +11897,8 @@ function getParentManifestPath(manifestPath) {
   if (!folder) return null;
   const parts = folder.split("/").filter(Boolean);
   parts.pop();
-  if (parts.length === 0) return NODE_MANIFEST_FILE;
-  return `${parts.join("/")}/${NODE_MANIFEST_FILE}`;
+  if (parts.length === 0) return AREA_MANIFEST_FILE;
+  return `${parts.join("/")}/${AREA_MANIFEST_FILE}`;
 }
 
 function findPreferredNodeAfterDelete(menu, deletedPath, menuBeforeDelete = currentMenuData) {
@@ -11914,11 +12008,18 @@ async function refreshMenuAndSelect() {
   if (first) {
     await openNodeFromMenu(first.label, first.path);
   } else {
-    clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .node.md`);
+    clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .x.md`);
   }
 }
 
 async function createNode(type, options = {}) {
+  const agentId = getCreateModalAgentId();
+  if (!agentId || agentId !== activeAgentId) {
+    showToast("Агент изменился — откройте «Создать» снова", "error");
+    closeCreateNodeModal();
+    return;
+  }
+
   const name = createNameInputNode.value.trim();
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
   if (!name && type !== "manifest" && type !== "catalog") {
@@ -11934,10 +12035,10 @@ async function createNode(type, options = {}) {
     };
     if (type === "catalog") {
       payload.preset = options.preset || name;
-      payload.parentPath = getActiveAgentServiceFolder() || createTargetParentPath;
+      payload.parentPath = getActiveAgentServiceFolder(agentId) || createTargetParentPath;
     }
 
-    const response = await fetch(buildApiUrl("/api/node/create"), {
+    const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -11952,16 +12053,16 @@ async function createNode(type, options = {}) {
 
     const data = await response.json();
     closeCreateNodeModal();
-    invalidateMenuAgentCache(activeAgentId);
-    await refreshMenu();
+    invalidateMenuAgentCache(agentId);
+    await refreshMenu({ agentId });
     const createdLabel =
       type === "catalog"
         ? `Справочник «${SERVICE_CATALOG_PRESET_LABELS[data.preset] || data.preset || "catalog"}» создан`
         : type === "manifest"
-          ? "Нода создана в текущей папке"
+          ? "Область создана (_.x.md)"
           : type === "folder"
-            ? "Папка-нода создана"
-            : "Part-нода создана";
+            ? "Папка-область создана"
+            : "Файл (тема) создан";
     if (data.createdPath) {
       try {
         await openNodeFromMenu(getLabelFromPath(data.createdPath), data.createdPath);
@@ -11992,18 +12093,18 @@ function formatCreateNodeErrorMessage(message) {
     return "Нет прав на запись в workspace агента";
   }
   if (/Node manifest already exists/i.test(text)) {
-    return "В этой папке уже есть _.node.md";
+    return "В этой папке уже есть _.x.md";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
-    return "Папка _system ещё не создана — обновите меню (F5) и повторите";
+    return "Папка _System ещё не создана — обновите меню (F5) и повторите";
   }
   if (/Catalog node already exists/i.test(text)) {
     return "Такой справочник уже существует";
   }
-  if (/Folder already exists|Part already exists|already exists/i.test(text)) {
-    return "Папка или part с таким именем уже существует";
+  if (/Folder already exists|Part already exists|Topic already exists|already exists/i.test(text)) {
+    return "Область или тема с таким именем уже существует";
   }
-  if (/Invalid folder name|Invalid part name/i.test(text)) {
+  if (/Invalid folder name|Invalid part name|Invalid topic name/i.test(text)) {
     return "Недопустимое имя";
   }
   return text ? `Ошибка создания: ${text}` : "Ошибка создания папки";
@@ -12020,8 +12121,8 @@ async function deleteNode() {
   const question = isContainerNode
     ? `Удалить папку "${targetLabel}" целиком?`
     : isPartNodePath(targetPath)
-      ? `Удалить part «${targetLabel}» целиком?`
-      : `Удалить файл "${targetLabel}"?`;
+      ? `Удалить тему «${targetLabel}» целиком?`
+      : `Удалить файл «${targetLabel}»?`;
 
   const confirmed = await askConfirm(question);
   if (!confirmed) return;
@@ -12041,7 +12142,7 @@ async function deleteNode() {
     if (next) {
       await openNodeFromMenu(next.label, next.path);
     } else {
-      clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .node.md`);
+      clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .x.md`);
     }
     showToast("Удалено", "success");
   } catch (error) {

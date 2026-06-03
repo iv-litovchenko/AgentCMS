@@ -1,36 +1,53 @@
 const { AsyncLocalStorage } = require("async_hooks");
 const fs = require("fs");
 const path = require("path");
+const {
+  AREA_MANIFEST_CANDIDATES,
+  PREVIEW_FILE_BASENAME,
+  PREVIEW_FILE_EXTENSIONS,
+  PREVIEW_FILE_NAMES,
+  getNamedStorageBundleDirRel
+} = require("./manifest-paths");
+
+const LEGACY_PREVIEW_FOLDER_NAME = "_Preview";
+const legacyPreviewPurgedAgents = new Set();
 
 const agentContext = new AsyncLocalStorage();
 
 const AWN_AGENT_FILE = "awn.agent.json";
-const DEFAULT_VAULT_FOLDER = "_vault";
-const DEFAULT_SERVICE_FOLDER = "_system";
+const DEFAULT_VAULT_FOLDER = "_Vault";
+const LEGACY_VAULT_FOLDER = "_vault";
+const DEFAULT_SERVICE_FOLDER = "_System";
+const LEGACY_SERVICE_FOLDER = "_system";
+/** Общая папка справочников внутри служебного (_System), без префикса _ */
+const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
-    base: "categories",
+    preset: "categories",
+    fileName: "Categories",
     title: "Категории",
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `categories.node.content.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `Categories.x.content.md`.\n",
     content:
       "# Категории\n\n| id | label | color |\n| --- | --- | --- |\n| general | Общее | #64748b |\n| project | Проекты | #2563eb |\n| reference | Справочники | #7c3aed |\n"
   },
   {
-    base: "tags",
+    preset: "tags",
+    fileName: "Tags",
     title: "Теги",
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `tags.node.content.md`.\n\nНоды ссылаются на них через `tags:` в `*.props.yaml` или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `Tags.x.content.md`.\n\nТемы ссылаются на них через `tags:` в `*.props.yaml` или `#tag` в тексте.\n",
     content:
       "# Теги\n\n#project\n#idea\n#reference\n#daily\n#person\n#source\n#todo\n#review\n"
   },
   {
-    base: "schemas",
+    preset: "schemas",
+    fileName: "Schemas",
     title: "Схемы",
     manifest:
-      "# Схемы\n\nОпределения типов и полей для нод workspace. Данные — в `schemas.node.content.md`.\n",
+      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `Schemas.x.content.md`.\n",
     content:
-      "# Схемы\n\n## node.default\n\nБазовые поля ноды: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
+      "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
   }
 ];
 const AGENT_PREVIEW_FILE_NAMES = ["preview.png", "preview.jpg", "preview.jpeg", "preview.gif"];
@@ -106,7 +123,45 @@ function normalizeReservedFolderName(raw, fallback) {
   if (!cleaned || cleaned.startsWith(".")) return null;
   const lower = cleaned.toLowerCase();
   if (lower === "_storage" || lower === "_parts") return null;
+  if (lower === LEGACY_VAULT_FOLDER) return DEFAULT_VAULT_FOLDER;
+  if (lower === LEGACY_SERVICE_FOLDER) return DEFAULT_SERVICE_FOLDER;
   return cleaned;
+}
+
+function migrateWorkspaceReservedFolderSync(workspaceAbsolute, fromName, toName) {
+  if (!workspaceAbsolute || !fromName || !toName || fromName === toName) return;
+  const fromAbsolute = path.join(workspaceAbsolute, fromName);
+  const toAbsolute = path.join(workspaceAbsolute, toName);
+  if (!fs.existsSync(fromAbsolute)) return;
+
+  if (fs.existsSync(toAbsolute)) {
+    if (fromName.toLowerCase() !== toName.toLowerCase()) return;
+    if (fromName === toName) return;
+    const tempAbsolute = path.join(workspaceAbsolute, `${toName}.__awn_rename__`);
+    if (fs.existsSync(tempAbsolute)) return;
+    fs.renameSync(fromAbsolute, tempAbsolute);
+    fs.renameSync(tempAbsolute, toAbsolute);
+    return;
+  }
+
+  fs.renameSync(fromAbsolute, toAbsolute);
+}
+
+function migrateWorkspaceReservedFoldersSync(workspaceAbsolute) {
+  if (!workspaceAbsolute) return;
+  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_VAULT_FOLDER, DEFAULT_VAULT_FOLDER);
+  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_SERVICE_FOLDER, DEFAULT_SERVICE_FOLDER);
+  migrateWorkspaceReservedFolderSync(workspaceAbsolute, "_Catalog", DEFAULT_SERVICE_CATALOG_FOLDER);
+}
+
+function normalizeManifestFolderAliases(raw) {
+  if (!raw || typeof raw !== "object") return raw;
+  const manifest = { ...raw };
+  const vault = String(manifest.vaultFolder ?? "").trim();
+  if (vault.toLowerCase() === LEGACY_VAULT_FOLDER) manifest.vaultFolder = DEFAULT_VAULT_FOLDER;
+  const service = String(manifest.serviceFolder ?? "").trim();
+  if (service.toLowerCase() === LEGACY_SERVICE_FOLDER) manifest.serviceFolder = DEFAULT_SERVICE_FOLDER;
+  return manifest;
 }
 
 function normalizeVaultFolderName(raw) {
@@ -125,6 +180,7 @@ function normalizeServiceFolderName(raw) {
 
 function normalizeAgentManifest(raw, workspaceRootAbsolute) {
   if (!raw || typeof raw !== "object") return null;
+  raw = normalizeManifestFolderAliases(raw);
   const folderName = path.basename(String(workspaceRootAbsolute || ""));
   return {
     id: String(raw.id || "").trim(),
@@ -135,31 +191,228 @@ function normalizeAgentManifest(raw, workspaceRootAbsolute) {
   };
 }
 
-function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
-  const folders = [
-    path.join(workspaceRootAbsolute, "_Storage", "_Preview"),
-    path.join(workspaceRootAbsolute, "_Preview")
-  ];
+/** Bundle корневой области (_.x.md): _Storage/_/Preview.{jpg,png,gif} */
+function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
+  return path.join(workspaceRootAbsolute, "_Storage", "_");
+}
 
-  for (const folder of folders) {
-    for (const name of AGENT_PREVIEW_FILE_NAMES) {
-      const absolute = path.join(folder, name);
+function getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute) {
+  return [
+    path.join(workspaceRootAbsolute, "_Storage", LEGACY_PREVIEW_FOLDER_NAME),
+    path.join(workspaceRootAbsolute, LEGACY_PREVIEW_FOLDER_NAME)
+  ];
+}
+
+function removeEmptyDirectorySync(absolutePath) {
+  try {
+    const entries = fs.readdirSync(absolutePath);
+    if (entries.length === 0) fs.rmdirSync(absolutePath);
+  } catch {
+    // directory may not exist or not be empty
+  }
+}
+
+function resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute) {
+  for (const name of AREA_MANIFEST_CANDIDATES) {
+    const candidate = path.join(containerDirAbsolute, name);
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+function migrateLegacyPreviewDirSync(workspaceRootAbsolute, previewDirAbsolute) {
+  const parent = path.dirname(previewDirAbsolute);
+  const containerDir =
+    path.basename(parent) === "_Storage" ? path.dirname(parent) : parent;
+  const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDir);
+  if (!manifestAbsolute) {
+    removeEmptyDirectorySync(previewDirAbsolute);
+    return;
+  }
+
+  const rel = path.relative(workspaceRootAbsolute, manifestAbsolute).replace(/\\/g, "/");
+  const bundleDir = path.join(workspaceRootAbsolute, ...getNamedStorageBundleDirRel(rel).split("/"));
+  fs.mkdirSync(bundleDir, { recursive: true });
+
+  const legacyNames = [...new Set([...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES])];
+  for (const legacyDir of [previewDirAbsolute]) {
+    for (const name of legacyNames) {
+      const legacyAbsolute = path.join(legacyDir, name);
       try {
-        if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) return absolute;
+        if (!fs.existsSync(legacyAbsolute) || !fs.statSync(legacyAbsolute).isFile()) continue;
       } catch {
-        // try next candidate
+        continue;
+      }
+      const ext = path.extname(name).toLowerCase();
+      const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
+      const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
+      if (legacyAbsolute === targetAbsolute) continue;
+      try {
+        if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
+          fs.unlinkSync(legacyAbsolute);
+          continue;
+        }
+      } catch {
+        // target missing
+      }
+      fs.copyFileSync(legacyAbsolute, targetAbsolute);
+      try {
+        fs.unlinkSync(legacyAbsolute);
+      } catch {
+        // keep legacy if unlink fails
       }
     }
 
     try {
-      const entries = fs.readdirSync(folder, { withFileTypes: true });
+      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isFile() && /^preview\.(jpe?g|png|gif)$/i.test(entry.name)) {
-          return path.join(folder, entry.name);
+        if (!entry.isFile() || !/^preview\.(jpe?g|png|gif)$/i.test(entry.name)) continue;
+        const legacyAbsolute = path.join(legacyDir, entry.name);
+        const ext = path.extname(entry.name).toLowerCase();
+        const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
+        const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
+        if (legacyAbsolute === targetAbsolute) continue;
+        try {
+          if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
+            fs.unlinkSync(legacyAbsolute);
+            continue;
+          }
+        } catch {
+          // target missing
+        }
+        fs.copyFileSync(legacyAbsolute, targetAbsolute);
+        try {
+          fs.unlinkSync(legacyAbsolute);
+        } catch {
+          // keep legacy if unlink fails
         }
       }
     } catch {
       // folder may not exist
+    }
+  }
+
+  removeEmptyDirectorySync(previewDirAbsolute);
+}
+
+function purgeLegacyWorkspacePreviewFoldersSync(workspaceRootAbsolute) {
+  if (!workspaceRootAbsolute) return;
+  const stack = [workspaceRootAbsolute];
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.name === LEGACY_PREVIEW_FOLDER_NAME) {
+        migrateLegacyPreviewDirSync(workspaceRootAbsolute, full);
+        continue;
+      }
+      if (SKIP_SCAN_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
+      stack.push(full);
+    }
+  }
+}
+
+function migrateLegacyAgentWorkspacePreviewToBundleSync(workspaceRootAbsolute) {
+  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
+  for (const name of PREVIEW_FILE_NAMES) {
+    const canonicalAbsolute = path.join(bundleDir, name);
+    try {
+      if (fs.existsSync(canonicalAbsolute) && fs.statSync(canonicalAbsolute).isFile()) {
+        return canonicalAbsolute;
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  fs.mkdirSync(bundleDir, { recursive: true });
+  const legacyNames = [...new Set([...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES])];
+
+  for (const legacyDir of getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute)) {
+    for (const name of legacyNames) {
+      const legacyAbsolute = path.join(legacyDir, name);
+      try {
+        if (!fs.existsSync(legacyAbsolute) || !fs.statSync(legacyAbsolute).isFile()) continue;
+      } catch {
+        continue;
+      }
+      const ext = path.extname(name).toLowerCase();
+      const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
+      const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
+      if (legacyAbsolute === targetAbsolute) return targetAbsolute;
+      try {
+        if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
+          fs.unlinkSync(legacyAbsolute);
+          return targetAbsolute;
+        }
+      } catch {
+        // target missing
+      }
+      fs.copyFileSync(legacyAbsolute, targetAbsolute);
+      try {
+        fs.unlinkSync(legacyAbsolute);
+      } catch {
+        // keep legacy if unlink fails
+      }
+      return targetAbsolute;
+    }
+
+    try {
+      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !/^preview\.(jpe?g|png|gif)$/i.test(entry.name)) continue;
+        const legacyAbsolute = path.join(legacyDir, entry.name);
+        const ext = path.extname(entry.name).toLowerCase();
+        const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
+        const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
+        if (legacyAbsolute === targetAbsolute) return targetAbsolute;
+        try {
+          if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
+            fs.unlinkSync(legacyAbsolute);
+            return targetAbsolute;
+          }
+        } catch {
+          // target missing
+        }
+        fs.copyFileSync(legacyAbsolute, targetAbsolute);
+        try {
+          fs.unlinkSync(legacyAbsolute);
+        } catch {
+          // keep legacy if unlink fails
+        }
+        return targetAbsolute;
+      }
+    } catch {
+      // folder may not exist
+    }
+    removeEmptyDirectorySync(legacyDir);
+  }
+
+  return null;
+}
+
+function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
+  const migrated = migrateLegacyAgentWorkspacePreviewToBundleSync(workspaceRootAbsolute);
+  if (migrated) return migrated;
+
+  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
+  for (const name of PREVIEW_FILE_NAMES) {
+    const absolute = path.join(bundleDir, name);
+    try {
+      if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) return absolute;
+    } catch {
+      // try next
     }
   }
 
@@ -172,10 +425,46 @@ function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
   return null;
 }
 
-function getOrCreateAgentWorkspacePreviewFolderSync(workspaceRootAbsolute) {
-  const folder = path.join(workspaceRootAbsolute, "_Storage", "_Preview");
-  fs.mkdirSync(folder, { recursive: true });
-  return folder;
+function getOrCreateAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute, ext = ".jpg") {
+  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
+  fs.mkdirSync(bundleDir, { recursive: true });
+  const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
+  return path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
+}
+
+function clearAgentWorkspacePreviewImagesSync(workspaceRootAbsolute) {
+  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
+  for (const name of PREVIEW_FILE_NAMES) {
+    try {
+      fs.unlinkSync(path.join(bundleDir, name));
+    } catch {
+      // file may not exist
+    }
+  }
+  for (const legacyDir of getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute)) {
+    for (const name of [...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES]) {
+      try {
+        fs.unlinkSync(path.join(legacyDir, name));
+      } catch {
+        // file may not exist
+      }
+    }
+    try {
+      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && /^preview\.(jpe?g|png|gif)$/i.test(entry.name)) {
+          try {
+            fs.unlinkSync(path.join(legacyDir, entry.name));
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch {
+      // folder may not exist
+    }
+    removeEmptyDirectorySync(legacyDir);
+  }
 }
 
 function readAgentManifestRawSync(workspaceRootAbsolute) {
@@ -200,6 +489,22 @@ function readAgentManifestSync(workspaceRootAbsolute) {
   return normalizeAgentManifest(raw, workspaceRootAbsolute);
 }
 
+function migrateVaultFolderOnDiskSync(workspaceAbsolute, previousName, nextName) {
+  if (!workspaceAbsolute || !nextName) return;
+  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_VAULT_FOLDER, nextName);
+  if (previousName && previousName !== nextName) {
+    migrateWorkspaceReservedFolderSync(workspaceAbsolute, previousName, nextName);
+  }
+}
+
+function migrateServiceFolderOnDiskSync(workspaceAbsolute, previousName, nextName) {
+  if (!workspaceAbsolute || !nextName) return;
+  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_SERVICE_FOLDER, nextName);
+  if (previousName && previousName !== nextName) {
+    migrateWorkspaceReservedFolderSync(workspaceAbsolute, previousName, nextName);
+  }
+}
+
 function updateAgentManifestFields(agentPath, fields = {}) {
   const resolvedPath = assertSafeAgentPath(agentPath);
   const absolute = resolveAgentRootAbsolute(resolvedPath);
@@ -207,6 +512,8 @@ function updateAgentManifestFields(agentPath, fields = {}) {
   if (!raw) {
     throw new Error(`В «${resolvedPath}» нет ${AWN_AGENT_FILE}`);
   }
+
+  const previousManifest = normalizeAgentManifest(raw, absolute);
 
   if (fields.name !== undefined) {
     const trimmed = String(fields.name ?? "").trim();
@@ -227,6 +534,8 @@ function updateAgentManifestFields(agentPath, fields = {}) {
   }
 
   if (fields.vaultFolder !== undefined) {
+    const previousVault = previousManifest?.vaultFolder || null;
+    let nextVault = null;
     if (fields.vaultFolder === null || fields.vaultFolder === false) {
       raw.vaultFolder = false;
       delete raw.vault;
@@ -238,11 +547,17 @@ function updateAgentManifestFields(agentPath, fields = {}) {
       } else {
         raw.vaultFolder = normalized;
         delete raw.vault;
+        nextVault = normalized;
       }
+    }
+    if (nextVault) {
+      migrateVaultFolderOnDiskSync(absolute, previousVault, nextVault);
     }
   }
 
   if (fields.serviceFolder !== undefined) {
+    const previousService = previousManifest?.serviceFolder || null;
+    let nextService = null;
     if (fields.serviceFolder === null || fields.serviceFolder === false) {
       raw.serviceFolder = false;
       delete raw.service;
@@ -254,7 +569,11 @@ function updateAgentManifestFields(agentPath, fields = {}) {
       } else {
         raw.serviceFolder = normalized;
         delete raw.service;
+        nextService = normalized;
       }
+    }
+    if (nextService) {
+      migrateServiceFolderOnDiskSync(absolute, previousService, nextService);
     }
   }
 
@@ -523,6 +842,11 @@ function runWithAgent(agentId, fn) {
   if (!agent) {
     return Promise.reject(new Error(`Unknown agent: ${agentId}`));
   }
+  migrateWorkspaceReservedFoldersSync(agent.rootAbsolute);
+  if (!legacyPreviewPurgedAgents.has(agent.id)) {
+    purgeLegacyWorkspacePreviewFoldersSync(agent.rootAbsolute);
+    legacyPreviewPurgedAgents.add(agent.id);
+  }
   return agentContext.run({ agentId: agent.id, agentRoot: agent.rootAbsolute, agent }, fn);
 }
 
@@ -700,15 +1024,15 @@ function createAgentWorkspace(options = {}) {
 
   const folderName = path.basename(workspaceAbsolute);
   const name = String(options.name || "").trim() || folderName.replace(/\.agent$/i, "") || folderName;
-  fs.mkdirSync(path.join(workspaceAbsolute, "_Storage", "_Preview"), { recursive: true });
+  fs.mkdirSync(path.join(workspaceAbsolute, "_Storage", "_"), { recursive: true });
   fs.mkdirSync(path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_Storage", "_Assets"), { recursive: true });
 
   const id = slugifyAgentId(options.id || name, 0);
   writeAgentManifestSync(workspaceAbsolute, { id, name });
-  fs.writeFileSync(path.join(workspaceAbsolute, "_.node.md"), `# ${name}\n`, "utf-8");
+  fs.writeFileSync(path.join(workspaceAbsolute, "_.x.md"), `# ${name}\n`, "utf-8");
   fs.writeFileSync(
-    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_.node.md"),
-    "# Служебное\n\nОбщая медиатека и служебные ноды агента.\n",
+    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_.x.md"),
+    "# Служебное\n\nОбщая медиатека и служебные темы агента.\n",
     "utf-8"
   );
   fs.writeFileSync(
@@ -732,6 +1056,102 @@ function refreshAgentsFromDisk() {
   loadRegistrySync();
 }
 
+function findCatalogScaffold(presetBase) {
+  const key = String(presetBase || "").trim().toLowerCase();
+  return SYSTEM_REFERENCE_SCAFFOLDS.find((item) => item.preset === key) || null;
+}
+
+function getCatalogRelPaths(scaffold) {
+  const base = path.join(DEFAULT_SERVICE_CATALOG_FOLDER, scaffold.fileName).replace(/\\/g, "/");
+  return {
+    manifest: `${base}.x.md`,
+    props: `${base}.props.yaml`,
+    content: `${base}.x.content.md`
+  };
+}
+
+function renameCatalogSidecarIfExists(fromAbsolute, toAbsolute) {
+  if (!fromAbsolute || !toAbsolute || fromAbsolute === toAbsolute) return;
+  if (!fs.existsSync(fromAbsolute) || fs.existsSync(toAbsolute)) return;
+  fs.mkdirSync(path.dirname(toAbsolute), { recursive: true });
+  fs.renameSync(fromAbsolute, toAbsolute);
+}
+
+function migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, fromStem, scaffold) {
+  const pairs = [
+    [".node.content.md", ".x.content.md"],
+    [".x.content.md", ".x.content.md"],
+    [".content.md", ".x.content.md"],
+    [".props.yaml", ".props.yaml"]
+  ];
+  for (const [fromSuffix, toSuffix] of pairs) {
+    renameCatalogSidecarIfExists(
+      path.join(serviceAbsolute, `${fromStem}${fromSuffix}`),
+      path.join(catalogAbsolute, `${scaffold.fileName}${toSuffix}`)
+    );
+    renameCatalogSidecarIfExists(
+      path.join(catalogAbsolute, `${fromStem}${fromSuffix}`),
+      path.join(catalogAbsolute, `${scaffold.fileName}${toSuffix}`)
+    );
+  }
+}
+
+function migrateServiceCatalogLegacySync(serviceAbsolute) {
+  if (!serviceAbsolute || !fs.existsSync(serviceAbsolute)) return;
+
+  const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
+  const legacyCatalogAbsolute = path.join(serviceAbsolute, "_Catalog");
+  if (
+    fs.existsSync(legacyCatalogAbsolute) &&
+    !fs.existsSync(catalogAbsolute)
+  ) {
+    fs.renameSync(legacyCatalogAbsolute, catalogAbsolute);
+  }
+  fs.mkdirSync(catalogAbsolute, { recursive: true });
+
+  for (const scaffold of SYSTEM_REFERENCE_SCAFFOLDS) {
+    const rel = getCatalogRelPaths(scaffold);
+    const targetManifest = path.join(serviceAbsolute, rel.manifest);
+    if (fs.existsSync(targetManifest)) continue;
+
+    const legacyStems = [
+      scaffold.preset,
+      scaffold.fileName,
+      scaffold.fileName.toLowerCase()
+    ];
+
+    for (const stem of legacyStems) {
+      const legacyCandidates = [
+        path.join(serviceAbsolute, `${stem}.node.md`),
+        path.join(serviceAbsolute, `${stem}.x.md`),
+        path.join(catalogAbsolute, `${stem}.node.md`),
+        path.join(catalogAbsolute, `${stem}.x.md`)
+      ];
+      const legacyManifest = legacyCandidates.find((candidate) => fs.existsSync(candidate));
+      if (!legacyManifest) continue;
+
+      fs.mkdirSync(catalogAbsolute, { recursive: true });
+      const legacyDir = path.dirname(legacyManifest);
+      const legacyStem = path.basename(legacyManifest).replace(/\.(node|x)\.md$/i, "");
+
+      if (legacyManifest !== targetManifest) {
+        renameCatalogSidecarIfExists(legacyManifest, targetManifest);
+      }
+
+      migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, legacyStem, scaffold);
+      if (legacyDir !== serviceAbsolute && legacyDir !== catalogAbsolute) {
+        migrateCatalogSidecarsSync(legacyDir, catalogAbsolute, legacyStem, scaffold);
+      }
+      break;
+    }
+  }
+}
+
+function catalogManifestExistsSync(serviceAbsolute, scaffold) {
+  const rel = getCatalogRelPaths(scaffold);
+  return fs.existsSync(path.join(serviceAbsolute, rel.manifest));
+}
+
 function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
   if (!serviceAbsolute) {
     const error = new Error("Service folder path is required");
@@ -739,16 +1159,20 @@ function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
     throw error;
   }
 
-  const scaffold = SYSTEM_REFERENCE_SCAFFOLDS.find((item) => item.base === presetBase);
+  migrateServiceCatalogLegacySync(serviceAbsolute);
+
+  const scaffold = findCatalogScaffold(presetBase);
   if (!scaffold) {
     const error = new Error("Unknown catalog preset");
     error.code = "EINVAL";
     throw error;
   }
 
-  const manifestPath = path.join(serviceAbsolute, `${scaffold.base}.node.md`);
-  const propsPath = path.join(serviceAbsolute, `${scaffold.base}.props.yaml`);
-  const contentPath = path.join(serviceAbsolute, `${scaffold.base}.node.content.md`);
+  const rel = getCatalogRelPaths(scaffold);
+  const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
+  const manifestPath = path.join(serviceAbsolute, rel.manifest);
+  const propsPath = path.join(serviceAbsolute, rel.props);
+  const contentPath = path.join(serviceAbsolute, rel.content);
 
   if (fs.existsSync(manifestPath)) {
     const error = new Error("Catalog node already exists");
@@ -756,7 +1180,7 @@ function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
     throw error;
   }
 
-  fs.mkdirSync(serviceAbsolute, { recursive: true });
+  fs.mkdirSync(catalogAbsolute, { recursive: true });
 
   fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
   fs.writeFileSync(
@@ -766,13 +1190,19 @@ function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
   );
   fs.writeFileSync(contentPath, scaffold.content, "utf-8");
 
-  return `${scaffold.base}.node.md`;
+  return rel.manifest;
 }
 
 module.exports = {
   DEFAULT_VAULT_FOLDER,
+  LEGACY_VAULT_FOLDER,
   DEFAULT_SERVICE_FOLDER,
+  LEGACY_SERVICE_FOLDER,
+  DEFAULT_SERVICE_CATALOG_FOLDER,
+  migrateWorkspaceReservedFoldersSync,
   SYSTEM_REFERENCE_SCAFFOLDS,
+  migrateServiceCatalogLegacySync,
+  findCatalogScaffold,
   AWN_AGENT_FILE,
   init,
   getAgentRoot,
@@ -794,7 +1224,8 @@ module.exports = {
   resolveAgentRootAbsolute,
   toRegistryPath,
   findAgentWorkspacePreviewAbsoluteSync,
-  getOrCreateAgentWorkspacePreviewFolderSync,
+  getOrCreateAgentWorkspacePreviewAbsoluteSync,
+  clearAgentWorkspacePreviewImagesSync,
   updateAgentManifestFields,
   assertSafeAgentPath,
   refreshAgentsFromDisk,
