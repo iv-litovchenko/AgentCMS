@@ -131,6 +131,8 @@ const createNodeActionsNode = document.getElementById("create-node-actions");
 const createFileBtn = document.getElementById("create-file-btn");
 const createNodeCatalogWrapNode = document.getElementById("create-node-catalog-wrap");
 const createNodeCatalogActionsNode = document.getElementById("create-node-catalog-actions");
+const createNodeServiceDocsWrapNode = document.getElementById("create-node-service-docs-wrap");
+const createNodeServiceDocsActionsNode = document.getElementById("create-node-service-docs-actions");
 const createNodeStructureLabelNode = document.getElementById("create-node-structure-label");
 const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
 const createNodeVaultOptionWrapNode = document.getElementById("create-node-vault-option-wrap");
@@ -3284,6 +3286,22 @@ const SERVICE_CATALOG_PRESET_LABELS = {
   tags: "Теги",
   schemas: "Схемы"
 };
+const SERVICE_DOC_PRESET_FILES = {
+  agent: "Agent",
+  user: "User",
+  users: "Users",
+  "agent-rules": "Agent.Rules",
+  "agent-voice-tts": "Agent.Voice.Tts",
+  "agent-voice-stt": "Agent.Voice.STT"
+};
+const SERVICE_DOC_PRESET_LABELS = {
+  agent: "Агент",
+  user: "Пользователь",
+  users: "Пользователи",
+  "agent-rules": "Правила агента",
+  "agent-voice-tts": "Голос · TTS",
+  "agent-voice-stt": "Голос · STT"
+};
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   if (!agentId) return null;
@@ -3324,6 +3342,28 @@ function isCatalogPresetPresent(agentId, preset) {
   );
 }
 
+function getServiceDocManifestCandidates(serviceFolder, preset) {
+  const fileName = SERVICE_DOC_PRESET_FILES[preset];
+  if (!serviceFolder || !fileName) return [];
+  const suffixes = [".x.md", ".node.md"];
+  return suffixes.map((suffix) => `${serviceFolder}/${fileName}${suffix}`.replace(/\/+/g, "/"));
+}
+
+function isServiceDocPresetPresent(agentId, preset) {
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  if (!serviceFolder) return false;
+  const menu = getCreateModalMenuData(agentId);
+  if (!menu?.serviceTree) return false;
+  const paths = new Set(
+    collectFlatMenuEntries({ title: "", ...menu.serviceTree }).map((entry) =>
+      String(entry.path || "").replace(/\\/g, "/").toLowerCase()
+    )
+  );
+  return getServiceDocManifestCandidates(serviceFolder, preset).some((candidate) =>
+    paths.has(candidate.toLowerCase())
+  );
+}
+
 function syncCreateNodeCatalogButtonsUi() {
   if (!createNodeCatalogActionsNode) return;
   const agentId = getCreateModalAgentId();
@@ -3343,6 +3383,27 @@ function syncCreateNodeCatalogButtonsUi() {
       button.removeAttribute("title");
     }
   }
+}
+
+function syncCreateNodeServiceDocButtonsUi() {
+  if (!createNodeServiceDocsActionsNode) return;
+  const agentId = getCreateModalAgentId();
+  const buttons = createNodeServiceDocsActionsNode.querySelectorAll("[data-service-doc-preset]");
+  for (const button of buttons) {
+    const preset = button.getAttribute("data-service-doc-preset");
+    if (!preset) continue;
+    const exists = isServiceDocPresetPresent(agentId, preset);
+    const label = SERVICE_DOC_PRESET_LABELS[preset] || preset;
+    const fileName = SERVICE_DOC_PRESET_FILES[preset] || preset;
+    button.disabled = exists;
+    button.setAttribute("aria-disabled", exists ? "true" : "false");
+    button.title = exists ? `«${label}» (${fileName}.x.md) уже создан` : `${fileName}.x.md`;
+  }
+}
+
+function syncCreateNodeServicePresetsUi() {
+  syncCreateNodeCatalogButtonsUi();
+  syncCreateNodeServiceDocButtonsUi();
 }
 
 function isServiceRootCreateParent(parentPath) {
@@ -3366,15 +3427,17 @@ function syncCreateNodeActionsUi() {
   const inServiceTree = serviceRoot || serviceSubfolder;
 
   createManifestBtn?.classList.toggle("hidden", !showManifestOption);
+  createFolderBtn?.classList.toggle("hidden", showManifestOption);
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
   createNodeCatalogWrapNode?.classList.toggle("hidden", !serviceRoot);
+  createNodeServiceDocsWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
   createNodeActionsNode?.classList.toggle("create-node-actions--service", inServiceTree);
 
   if (createNameInputNode) {
     createNameInputNode.placeholder = inServiceTree ? "Например: statuses" : "Например: Плавание";
   }
-  syncCreateNodeCatalogButtonsUi();
+  syncCreateNodeServicePresetsUi();
 }
 
 function applyCreateNodeTargetPath() {
@@ -3408,7 +3471,8 @@ function closeCreateNodeModal() {
 
 function openCreateNodeModal(parentPath, options = {}) {
   createModalAgentId = options.agentId || activeAgentId;
-  createModalBaseParentPath = normalizeCreateParentPath(parentPath || ".");
+  const folderPath = String(options.folderPath || parentPath || ".").trim();
+  createModalBaseParentPath = normalizeCreateParentPath(folderPath);
   createModalEmptyFolder = Boolean(options.emptyFolder);
   syncCreateNodeVaultOptionUi();
   syncCreateNodeActionsUi();
@@ -9769,6 +9833,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
   const searchActive = menuSearchQuery.trim().length > 0;
   const sectionNode = createSectionNode(node.title, depth);
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
+  sectionNode.dataset.menuFolder = sectionFolderPath || ".";
   const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath, agentId);
   const visibleChildren = getVisibleMenuChildren(node);
 
@@ -9859,7 +9924,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         addBtn.title = "Создать тему в папке";
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          openCreateNodeModal(sectionFolderPath || ".", { emptyFolder: true, agentId });
+          openCreateNodeModal(sectionFolderPath || ".", {
+            emptyFolder: true,
+            folderPath: node.folderPath || sectionFolderPath,
+            agentId
+          });
         });
         sectionRow.appendChild(addBtn);
       }
@@ -12036,14 +12105,225 @@ function findFirstNode(menu) {
   return first;
 }
 
-async function refreshMenu(options = {}) {
-  const agentId = options.agentId || activeAgentId;
+function canIncrementalMenuPatch() {
+  return menuViewMode === "tree" && !menuSearchQuery.trim();
+}
+
+function getMenuTreeHost(agentId = activeAgentId) {
+  return menuAgentPanes.get(agentId) || menuNode;
+}
+
+function findMenuSectionByFolderPath(folderPath, agentId = activeAgentId) {
+  const target = normalizeFolderPath(folderPath || ".");
+  const host = getMenuTreeHost(agentId);
+  if (!host) return null;
+  for (const section of host.querySelectorAll(".menu-section[data-menu-folder]")) {
+    if (normalizeFolderPath(section.dataset.menuFolder || ".") === target) {
+      return section;
+    }
+  }
+  return null;
+}
+
+function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".", depth = 0) {
+  const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
+  const target = normalizeFolderPath(folderPath || ".");
+  const current = normalizeFolderPath(sectionFolderPath || ".");
+  if (current === target) {
+    return { node, depth, parentSectionPath, sectionFolderPath: current };
+  }
+  for (const child of node.sections || []) {
+    const hit = findMenuTreeNodeByFolderPath(child, folderPath, current, depth + 1);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
+  const agentTitle = getAgentTreeTitle(agentId);
+  const baseTree = { title: agentTitle, ...menu };
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  const normalized = normalizeFolderPath(folderPath || ".");
+
+  if (normalized === ".") {
+    const filtered = filterMenuTree(baseTree, queryLower, agentId);
+    return {
+      node: filtered || baseTree,
+      depth: 0,
+      parentSectionPath: ".",
+      sectionFolderPath: "."
+    };
+  }
+
+  const hit = findMenuTreeNodeByFolderPath(baseTree, normalized, ".", 0);
+  if (!hit) return null;
+  const filtered = filterMenuTree(hit.node, queryLower, agentId);
+  if (!filtered) return null;
+  return { ...hit, node: filtered };
+}
+
+function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeAgentId) {
+  const collapsed = getAgentCollapsedFolders(agentId);
+  let changed = false;
+  const expand = (folderPath) => {
+    const normalized = normalizeFolderPath(folderPath || ".");
+    if (!normalized || normalized === ".") return;
+    if (collapsed.delete(normalized)) changed = true;
+    const parts = normalized.split("/").filter(Boolean);
+    let acc = "";
+    for (const part of parts) {
+      acc = acc ? `${acc}/${part}` : part;
+      if (collapsed.delete(acc)) changed = true;
+    }
+  };
+
+  expand(parentFolder);
+  if (type === "manifest") {
+    expand(getFolderPathFromManifest(normalizeMenuNodePath(createdPath)));
+  }
+  if (changed) saveCollapsedFoldersByAgent();
+}
+
+function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
+  if (type === "catalog" || type === "service-doc") {
+    return getActiveAgentServiceFolder(agentId) || ".";
+  }
+  const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
+  if (type === "manifest") return manifestFolder;
+  if (type === "folder") {
+    const parts = manifestFolder.split("/").filter(Boolean);
+    parts.pop();
+    return parts.length ? parts.join("/") : ".";
+  }
+  return manifestFolder;
+}
+
+function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
+  menuCacheByAgent.set(agentId, menu);
+  if (agentId === activeAgentId) {
+    currentMenuData = menu;
+    sanitizeCollapsedFolderPaths(agentId);
+    const baseTree = { title: getAgentTreeTitle(agentId), ...menu };
+    const allPaths = new Set(
+      collectFlatMenuEntries(baseTree).map((entry) => nodeStorageKey(agentId, entry.path))
+    );
+    pruneBookmarks(allPaths);
+    pruneNodeConfigCache(allPaths);
+    applyMenuCardsFilterUi();
+  }
+}
+
+function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
+  if (!canIncrementalMenuPatch()) return false;
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu) return false;
+
+  const branch = getMenuBranchForFolder(menu, folderPath, agentId);
+  if (!branch) return false;
+
+  const host = getMenuTreeHost(agentId);
+  if (!host) return false;
+
+  const normalized = normalizeFolderPath(folderPath || ".");
+  const wrapper = document.createElement("div");
+
+  if (normalized === ".") {
+    const oldSection = host.querySelector(":scope > .menu-section");
+    if (!oldSection) return false;
+    renderTree(branch.node, wrapper, 0, ".", null, agentId);
+    const newSection = wrapper.firstElementChild;
+    if (!newSection) return false;
+    oldSection.replaceWith(newSection);
+    decorateMenuSortRows(host);
+    return true;
+  }
+
+  const oldSection = findMenuSectionByFolderPath(normalized, agentId);
+  if (!oldSection || !oldSection.parentElement) return false;
+
+  renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, null, agentId);
+  const newSection = wrapper.firstElementChild;
+  if (!newSection) return false;
+  oldSection.replaceWith(newSection);
+  decorateMenuSortRows(oldSection.parentElement);
+  return true;
+}
+
+function patchServiceMenuAfterCreate(agentId = activeAgentId) {
+  if (!canIncrementalMenuPatch()) return false;
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu?.serviceTree) return false;
+  const childrenContainer = getWorkspacesTreeChildren(agentId);
+  if (!childrenContainer) return false;
+  renderServiceSection(menu.serviceTree, childrenContainer, agentId);
+  return true;
+}
+
+function withPreservedMenuScroll(run) {
+  const scrollTop = menuNode?.scrollTop ?? 0;
+  const result = run();
+  if (menuNode) menuNode.scrollTop = scrollTop;
+  return result;
+}
+
+async function fetchMenuData(agentId = activeAgentId) {
   const response = await fetch(buildApiUrl("/api/menu", {}, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
   const menu = await response.json();
+  syncMenuCachesAfterFetch(menu, agentId);
+  return menu;
+}
+
+async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeAgentId }) {
+  await fetchMenuData(agentId);
+
+  let patched = false;
+  if (canIncrementalMenuPatch()) {
+    withPreservedMenuScroll(() => {
+      if (type === "catalog" || type === "service-doc") {
+        patched = patchServiceMenuAfterCreate(agentId);
+      } else {
+        const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
+        expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
+        patched = patchMenuTreeAtFolder(parentFolder, agentId);
+        if (patched && type === "manifest") {
+          const adoptFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath));
+          if (adoptFolder && normalizeFolderPath(adoptFolder) !== normalizeFolderPath(parentFolder)) {
+            patchMenuTreeAtFolder(adoptFolder, agentId);
+          }
+        }
+      }
+    });
+  }
+
+  if (!patched) {
+    renderMenu(menuCacheByAgent.get(agentId), agentId);
+  } else if (agentId === activeAgentId) {
+    updateActiveButton();
+    syncMenuCollapseAllButton();
+    if (isAgentWorkspaceCanvasVisible()) {
+      applyAgentWorkspaceCanvasUi();
+    }
+    if (activeContentMode === NODE_NAVIGATION_MODE) {
+      void renderNodeNavigation();
+    }
+  }
+
+  if (
+    createModalAgentId === agentId &&
+    createNodeModalNode &&
+    !createNodeModalNode.classList.contains("hidden")
+  ) {
+    syncCreateNodeServicePresetsUi();
+  }
+}
+
+async function refreshMenu(options = {}) {
+  const agentId = options.agentId || activeAgentId;
+  const menu = await fetchMenuData(agentId);
   renderMenu(menu, agentId);
   if (agentId === activeAgentId) {
     updateActiveButton();
@@ -12056,7 +12336,7 @@ async function refreshMenu(options = {}) {
     createNodeModalNode &&
     !createNodeModalNode.classList.contains("hidden")
   ) {
-    syncCreateNodeCatalogButtonsUi();
+    syncCreateNodeServicePresetsUi();
   }
   return menu;
 }
@@ -12100,20 +12380,25 @@ async function createNode(type, options = {}) {
     return;
   }
 
+  if (createModalEmptyFolder && type === "folder") {
+    type = "manifest";
+  }
+
   const name = createNameInputNode.value.trim();
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
-  if (!name && type !== "manifest" && type !== "catalog") {
+  if (!name && type !== "manifest" && type !== "catalog" && type !== "service-doc") {
     showToast("Введите название папки", "error");
     return;
   }
 
   try {
+    const adoptDirectoryPath = normalizeCreateParentPath(createModalBaseParentPath);
     const payload = {
-      parentPath: type === "manifest" ? createModalBaseParentPath : createTargetParentPath,
+      parentPath: type === "manifest" ? adoptDirectoryPath : createTargetParentPath,
       type,
-      name: name || folderLabel
+      name: type === "manifest" ? folderLabel : name || folderLabel
     };
-    if (type === "catalog") {
+    if (type === "catalog" || type === "service-doc") {
       payload.preset = options.preset || name;
       payload.parentPath = getActiveAgentServiceFolder(agentId) || createTargetParentPath;
     }
@@ -12133,12 +12418,13 @@ async function createNode(type, options = {}) {
 
     const data = await response.json();
     closeCreateNodeModal();
-    invalidateMenuAgentCache(agentId);
-    await refreshMenu({ agentId });
+    await applyMenuUpdateAfterCreate({ createdPath: data.createdPath, type, agentId });
     const createdLabel =
       type === "catalog"
         ? `Справочник «${SERVICE_CATALOG_PRESET_LABELS[data.preset] || data.preset || "catalog"}» создан`
-        : type === "manifest"
+        : type === "service-doc"
+          ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.x.md)`
+          : type === "manifest"
           ? "Область создана (_.x.md)"
           : type === "folder"
             ? "Папка-область создана"
@@ -12180,6 +12466,9 @@ function formatCreateNodeErrorMessage(message) {
   }
   if (/Catalog node already exists/i.test(text)) {
     return "Такой справочник уже существует";
+  }
+  if (/Service doc already exists/i.test(text)) {
+    return "Этот служебный файл уже создан";
   }
   if (/Folder already exists|Part already exists|Topic already exists|already exists/i.test(text)) {
     return "Область или тема с таким именем уже существует";
@@ -12774,10 +13063,23 @@ createNodeCatalogActionsNode?.addEventListener("click", (event) => {
   if (isCatalogPresetPresent(getCreateModalAgentId(), preset)) {
     const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
     showToast(`Справочник «${label}» уже создан`, "error");
-    syncCreateNodeCatalogButtonsUi();
+    syncCreateNodeServicePresetsUi();
     return;
   }
   void createNode("catalog", { preset });
+});
+createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-service-doc-preset]");
+  if (!button || button.disabled) return;
+  const preset = button.getAttribute("data-service-doc-preset");
+  if (!preset) return;
+  if (isServiceDocPresetPresent(getCreateModalAgentId(), preset)) {
+    const label = SERVICE_DOC_PRESET_LABELS[preset] || preset;
+    showToast(`«${label}» уже создан`, "error");
+    syncCreateNodeServicePresetsUi();
+    return;
+  }
+  void createNode("service-doc", { preset });
 });
 createNodeVaultOptionNode?.addEventListener("change", applyCreateNodeTargetPath);
 createNodeCancelBtn?.addEventListener("click", closeCreateNodeModal);

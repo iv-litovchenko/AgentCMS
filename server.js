@@ -138,6 +138,8 @@ const {
   getAgentVaultFolder,
   getAgentServiceFolder,
   createSystemCatalogNodeSync,
+  createSystemServiceDocSync,
+  findServiceDocScaffold,
   migrateServiceCatalogLegacySync,
   migrateWorkspaceReservedFoldersSync,
   findCatalogScaffold,
@@ -2407,20 +2409,18 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
         continue;
       }
 
-      if (depth <= 1) {
-        folders.push({
-          title: entry.name,
-          folderPath: relativePath,
-          empty: true,
-          hasGit: markers.hasGitSelf,
-          hasObsidian: markers.hasObsidianSelf,
-          ...markers,
-          sections: [],
-          items: [],
-          indexPath: null,
-          menuOrder: await readMenuSortOrder(fullPath)
-        });
-      }
+      folders.push({
+        title: entry.name,
+        folderPath: relativePath,
+        empty: true,
+        hasGit: markers.hasGitSelf,
+        hasObsidian: markers.hasObsidianSelf,
+        ...markers,
+        sections: [],
+        items: [],
+        indexPath: null,
+        menuOrder: await readMenuSortOrder(fullPath)
+      });
       continue;
     }
 
@@ -4606,7 +4606,13 @@ async function handleApiForAgent(req, res, url) {
       const type = String(payload.type || "").trim();
       const name = String(payload.name || "").trim();
 
-      if (type !== "folder" && type !== "file" && type !== "manifest" && type !== "catalog") {
+      if (
+        type !== "folder" &&
+        type !== "file" &&
+        type !== "manifest" &&
+        type !== "catalog" &&
+        type !== "service-doc"
+      ) {
         return sendJson(res, 400, { error: "Invalid type" });
       }
 
@@ -4616,32 +4622,47 @@ async function handleApiForAgent(req, res, url) {
           : "";
       const serviceFolder = getAgentServiceFolder();
 
-      if (type === "catalog") {
+      if (type === "catalog" || type === "service-doc") {
         if (!serviceFolder) {
           return sendJson(res, 400, { error: "Service folder is not configured for this agent" });
         }
         if (parentRelPath !== serviceFolder) {
-          return sendJson(res, 400, { error: "Catalog presets can only be created in the service folder root" });
+          return sendJson(res, 400, {
+            error:
+              type === "catalog"
+                ? "Catalog presets can only be created in the service folder root"
+                : "Service docs can only be created in the service folder root"
+          });
         }
 
         const preset = String(payload.preset || name || "").trim().toLowerCase();
-        const scaffold = findCatalogScaffold(preset);
-        if (!scaffold) return sendJson(res, 400, { error: "Unknown catalog preset" });
+        const scaffold =
+          type === "catalog" ? findCatalogScaffold(preset) : findServiceDocScaffold(preset);
+        if (!scaffold) {
+          return sendJson(res, 400, {
+            error: type === "catalog" ? "Unknown catalog preset" : "Unknown service doc preset"
+          });
+        }
 
         const serviceAbsolute = await ensureServiceFolderScaffold(getAgentRoot());
         if (!serviceAbsolute) return sendJson(res, 400, { error: "Invalid service folder path" });
 
         try {
-          const createdFile = createSystemCatalogNodeSync(serviceAbsolute, preset);
+          const createdFile =
+            type === "catalog"
+              ? createSystemCatalogNodeSync(serviceAbsolute, preset)
+              : createSystemServiceDocSync(serviceAbsolute, preset);
           const createdPath = path.join(serviceFolder, createdFile).replace(/\\/g, "/");
-          return sendJson(res, 200, { createdPath, type: "catalog", preset });
+          return sendJson(res, 200, { createdPath, type, preset });
         } catch (error) {
           const code = error && error.code ? String(error.code) : "";
           if (code === "EEXIST") {
-            return sendJson(res, 409, { error: "Catalog node already exists" });
+            return sendJson(res, 409, {
+              error: type === "catalog" ? "Catalog node already exists" : "Service doc already exists"
+            });
           }
           if (code === "EINVAL") {
-            return sendJson(res, 400, { error: String(error.message || "Invalid catalog preset") });
+            return sendJson(res, 400, { error: String(error.message || "Invalid preset") });
           }
           throw error;
         }

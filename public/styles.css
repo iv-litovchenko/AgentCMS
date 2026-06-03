@@ -9253,8 +9253,33 @@ body.app-booting {
 }
 
 .create-node-catalog-wrap.hidden,
+.create-node-service-docs-wrap.hidden,
 .create-node-structure-label.hidden {
   display: none;
+}
+
+.create-node-service-docs-wrap {
+  margin-top: 12px;
+}
+
+.create-node-service-docs-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.create-node-service-doc-btn {
+  font-size: 13px;
+}
+
+.create-node-service-doc-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-node-service-doc-btn:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg);
 }
 
 .create-node-structure-label {
@@ -9287,7 +9312,8 @@ body.app-booting {
 }
 
 @media (max-width: 520px) {
-  .create-node-catalog-actions {
+  .create-node-catalog-actions,
+  .create-node-service-docs-actions {
     grid-template-columns: 1fr;
   }
 }

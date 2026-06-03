@@ -47,6 +47,7 @@ const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
     preset: "categories",
+    kind: "catalog",
     fileName: "Categories",
     title: "Категории",
     manifest:
@@ -56,6 +57,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
   },
   {
     preset: "tags",
+    kind: "catalog",
     fileName: "Tags",
     title: "Теги",
     manifest:
@@ -65,12 +67,55 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
   },
   {
     preset: "schemas",
+    kind: "catalog",
     fileName: "Schemas",
     title: "Схемы",
     manifest:
       "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `Schemas.x.content.md`.\n",
     content:
       "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
+  },
+  {
+    preset: "agent",
+    kind: "service-doc",
+    fileName: "Agent",
+    title: "Агент",
+    manifest: "# Агент\n\nОписание агента: роль, цели и границы workspace.\n"
+  },
+  {
+    preset: "user",
+    kind: "service-doc",
+    fileName: "User",
+    title: "Пользователь",
+    manifest: "# Пользователь\n\nПрофиль пользователя: предпочтения, контекст и стиль работы.\n"
+  },
+  {
+    preset: "users",
+    kind: "service-doc",
+    fileName: "Users",
+    title: "Пользователи",
+    manifest: "# Пользователи\n\nСписок пользователей и связанных ролей в workspace.\n"
+  },
+  {
+    preset: "agent-rules",
+    kind: "service-doc",
+    fileName: "Agent.Rules",
+    title: "Правила агента",
+    manifest: "# Правила агента\n\nОбщие правила и ограничения для агента в этом workspace.\n"
+  },
+  {
+    preset: "agent-voice-tts",
+    kind: "service-doc",
+    fileName: "Agent.Voice.Tts",
+    title: "Голос · TTS",
+    manifest: "# Голос · TTS\n\nНастройки и инструкции для синтеза речи (text-to-speech).\n"
+  },
+  {
+    preset: "agent-voice-stt",
+    kind: "service-doc",
+    fileName: "Agent.Voice.STT",
+    title: "Голос · STT",
+    manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
   }
 ];
 const AGENT_PREVIEW_FILE_NAMES = ["preview.png", "preview.jpg", "preview.jpeg", "preview.gif"];
@@ -1223,18 +1268,39 @@ function refreshAgentsFromDisk() {
   loadRegistrySync();
 }
 
-function findCatalogScaffold(presetBase) {
+function findSystemReferenceScaffold(presetBase) {
   const key = String(presetBase || "").trim().toLowerCase();
   return SYSTEM_REFERENCE_SCAFFOLDS.find((item) => item.preset === key) || null;
 }
 
-function getCatalogRelPaths(scaffold) {
+function findCatalogScaffold(presetBase) {
+  const scaffold = findSystemReferenceScaffold(presetBase);
+  return scaffold && scaffold.kind === "catalog" ? scaffold : null;
+}
+
+function findServiceDocScaffold(presetBase) {
+  const scaffold = findSystemReferenceScaffold(presetBase);
+  return scaffold && scaffold.kind === "service-doc" ? scaffold : null;
+}
+
+function getSystemReferenceRelPaths(scaffold) {
+  if (scaffold.kind === "service-doc") {
+    return {
+      manifest: `${scaffold.fileName}.x.md`,
+      props: `${scaffold.fileName}.props.yaml`,
+      content: null
+    };
+  }
   const base = path.join(DEFAULT_SERVICE_CATALOG_FOLDER, scaffold.fileName).replace(/\\/g, "/");
   return {
     manifest: `${base}.x.md`,
     props: `${base}.props.yaml`,
     content: `${base}.x.content.md`
   };
+}
+
+function getCatalogRelPaths(scaffold) {
+  return getSystemReferenceRelPaths(scaffold);
 }
 
 function renameCatalogSidecarIfExists(fromAbsolute, toAbsolute) {
@@ -1277,7 +1343,7 @@ function migrateServiceCatalogLegacySync(serviceAbsolute) {
   fs.mkdirSync(catalogAbsolute, { recursive: true });
 
   for (const scaffold of SYSTEM_REFERENCE_SCAFFOLDS) {
-    const rel = getCatalogRelPaths(scaffold);
+    const rel = getSystemReferenceRelPaths(scaffold);
     const targetManifest = path.join(serviceAbsolute, rel.manifest);
     if (fs.existsSync(targetManifest)) continue;
 
@@ -1290,14 +1356,20 @@ function migrateServiceCatalogLegacySync(serviceAbsolute) {
     for (const stem of legacyStems) {
       const legacyCandidates = [
         path.join(serviceAbsolute, `${stem}.node.md`),
-        path.join(serviceAbsolute, `${stem}.x.md`),
-        path.join(catalogAbsolute, `${stem}.node.md`),
-        path.join(catalogAbsolute, `${stem}.x.md`)
+        path.join(serviceAbsolute, `${stem}.x.md`)
       ];
+      if (scaffold.kind === "catalog") {
+        legacyCandidates.push(
+          path.join(catalogAbsolute, `${stem}.node.md`),
+          path.join(catalogAbsolute, `${stem}.x.md`)
+        );
+      }
       const legacyManifest = legacyCandidates.find((candidate) => fs.existsSync(candidate));
       if (!legacyManifest) continue;
 
-      fs.mkdirSync(catalogAbsolute, { recursive: true });
+      if (scaffold.kind === "catalog") {
+        fs.mkdirSync(catalogAbsolute, { recursive: true });
+      }
       const legacyDir = path.dirname(legacyManifest);
       const legacyStem = path.basename(legacyManifest).replace(/\.(node|x)\.md$/i, "");
 
@@ -1305,21 +1377,27 @@ function migrateServiceCatalogLegacySync(serviceAbsolute) {
         renameCatalogSidecarIfExists(legacyManifest, targetManifest);
       }
 
-      migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, legacyStem, scaffold);
-      if (legacyDir !== serviceAbsolute && legacyDir !== catalogAbsolute) {
-        migrateCatalogSidecarsSync(legacyDir, catalogAbsolute, legacyStem, scaffold);
+      if (scaffold.kind === "catalog") {
+        migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, legacyStem, scaffold);
+        if (legacyDir !== serviceAbsolute && legacyDir !== catalogAbsolute) {
+          migrateCatalogSidecarsSync(legacyDir, catalogAbsolute, legacyStem, scaffold);
+        }
       }
       break;
     }
   }
 }
 
-function catalogManifestExistsSync(serviceAbsolute, scaffold) {
-  const rel = getCatalogRelPaths(scaffold);
+function systemReferenceExistsSync(serviceAbsolute, scaffold) {
+  const rel = getSystemReferenceRelPaths(scaffold);
   return fs.existsSync(path.join(serviceAbsolute, rel.manifest));
 }
 
-function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
+function catalogManifestExistsSync(serviceAbsolute, scaffold) {
+  return systemReferenceExistsSync(serviceAbsolute, scaffold);
+}
+
+function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
   if (!serviceAbsolute) {
     const error = new Error("Service folder path is required");
     error.code = "EINVAL";
@@ -1328,36 +1406,64 @@ function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
 
   migrateServiceCatalogLegacySync(serviceAbsolute);
 
+  const scaffold = findSystemReferenceScaffold(presetBase);
+  if (!scaffold) {
+    const error = new Error("Unknown system reference preset");
+    error.code = "EINVAL";
+    throw error;
+  }
+
+  const rel = getSystemReferenceRelPaths(scaffold);
+  const manifestPath = path.join(serviceAbsolute, rel.manifest);
+  const propsPath = path.join(serviceAbsolute, rel.props);
+
+  if (fs.existsSync(manifestPath)) {
+    const error = new Error("System reference already exists");
+    error.code = "EEXIST";
+    throw error;
+  }
+
+  if (scaffold.kind === "catalog") {
+    const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
+    const contentPath = path.join(serviceAbsolute, rel.content);
+    fs.mkdirSync(catalogAbsolute, { recursive: true });
+    fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
+    fs.writeFileSync(
+      propsPath,
+      `title: ${scaffold.title}\ntags: [system, catalog]\nAWN-TYPE: catalog\n`,
+      "utf-8"
+    );
+    fs.writeFileSync(contentPath, scaffold.content, "utf-8");
+    return rel.manifest;
+  }
+
+  fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
+  fs.writeFileSync(
+    propsPath,
+    `title: ${scaffold.title}\ntags: [system, service]\nAWN-TYPE: service-doc\n`,
+    "utf-8"
+  );
+  return rel.manifest;
+}
+
+function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
   const scaffold = findCatalogScaffold(presetBase);
   if (!scaffold) {
     const error = new Error("Unknown catalog preset");
     error.code = "EINVAL";
     throw error;
   }
+  return createSystemReferenceNodeSync(serviceAbsolute, presetBase);
+}
 
-  const rel = getCatalogRelPaths(scaffold);
-  const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
-  const manifestPath = path.join(serviceAbsolute, rel.manifest);
-  const propsPath = path.join(serviceAbsolute, rel.props);
-  const contentPath = path.join(serviceAbsolute, rel.content);
-
-  if (fs.existsSync(manifestPath)) {
-    const error = new Error("Catalog node already exists");
-    error.code = "EEXIST";
+function createSystemServiceDocSync(serviceAbsolute, presetBase) {
+  const scaffold = findServiceDocScaffold(presetBase);
+  if (!scaffold) {
+    const error = new Error("Unknown service doc preset");
+    error.code = "EINVAL";
     throw error;
   }
-
-  fs.mkdirSync(catalogAbsolute, { recursive: true });
-
-  fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
-  fs.writeFileSync(
-    propsPath,
-    `title: ${scaffold.title}\ntags: [system, catalog]\nAWN-TYPE: catalog\n`,
-    "utf-8"
-  );
-  fs.writeFileSync(contentPath, scaffold.content, "utf-8");
-
-  return rel.manifest;
+  return createSystemReferenceNodeSync(serviceAbsolute, presetBase);
 }
 
 module.exports = {
@@ -1370,6 +1476,10 @@ module.exports = {
   SYSTEM_REFERENCE_SCAFFOLDS,
   migrateServiceCatalogLegacySync,
   findCatalogScaffold,
+  findServiceDocScaffold,
+  findSystemReferenceScaffold,
+  createSystemReferenceNodeSync,
+  createSystemServiceDocSync,
   AWN_AGENT_FILE,
   init,
   getAgentRoot,
