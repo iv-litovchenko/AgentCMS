@@ -3323,7 +3323,7 @@ function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
 }
 
 function isMemoryDriverModeBlockedForActivePath(mode) {
-  return isAreaNodePath() && MEMORY_DRIVER_MODES.has(mode);
+  return isAreaNodePath() && (MEMORY_DRIVER_MODES.has(mode) || mode === "media");
 }
 
 function isNodeSettingsTargetPath(nodePath) {
@@ -7356,15 +7356,37 @@ function getCreateMemoryTitles() {
     .slice(0, CREATE_MEMORY_MAX_COUNT);
 }
 
+function shouldOpenCreatedMemoryForEdit() {
+  return createMemoryAfterEditRadio?.checked ?? true;
+}
+
+function syncCreateMemoryAfterRadiosFromStorage() {
+  const saved = localStorage.getItem(CREATE_MEMORY_AFTER_KEY);
+  const gotoEdit = saved !== "list";
+  if (createMemoryAfterEditRadio) createMemoryAfterEditRadio.checked = gotoEdit;
+  if (createMemoryAfterListRadio) createMemoryAfterListRadio.checked = !gotoEdit;
+}
+
+function persistCreateMemoryAfterChoice() {
+  const mode = shouldOpenCreatedMemoryForEdit() ? "edit" : "list";
+  try {
+    localStorage.setItem(CREATE_MEMORY_AFTER_KEY, mode);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 function setCreateMemoryModalBusy(busy) {
   createMemoryOkBtn.disabled = busy;
   createMemoryCancelBtn.disabled = busy;
   for (const input of createMemoryNameInputNodes) input.disabled = busy;
+  for (const radio of createMemoryAfterRadios) radio.disabled = busy;
 }
 
 function openCreateMemoryModal() {
   if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
   resetCreateMemoryNameInputs();
+  syncCreateMemoryAfterRadiosFromStorage();
   setCreateMemoryModalBusy(false);
   createMemoryOkBtn.textContent = "Создать";
   createMemoryModalNode.classList.remove("hidden");
@@ -7420,9 +7442,12 @@ async function createExternalMemory() {
     }
 
     if (created > 0) {
+      persistCreateMemoryAfterChoice();
       closeCreateMemoryModal();
       await loadContentByMode();
-      if (lastFile) await openExternalFile(lastFile);
+      if (lastFile && shouldOpenCreatedMemoryForEdit()) {
+        await openExternalFile(lastFile);
+      }
     }
 
     if (created === titles.length) {
@@ -8589,16 +8614,40 @@ function renderNavigationTitleVariant2Template() {
   return block;
 }
 
-function createNavigationMemoryPanel(modeId, title, contentNode) {
+const NAVIGATION_AREA_DISABLED_MEMORY_PANELS = [
+  { id: "external", title: "Многофайловая память" },
+  { id: "internal", title: "Однофайловая память" },
+  { id: "tabular", title: "Табличная память" },
+  { id: "media", title: "Медиа и документы" }
+];
+
+function createNavigationMemoryPanel(modeId, title, contentNode, options = {}) {
   const card = document.createElement("section");
   card.className = `node-navigation-memory-card node-navigation-memory-card--${modeId}`;
+  if (options.disabled) {
+    card.classList.add("node-navigation-memory-card--disabled");
+    card.setAttribute("aria-disabled", "true");
+  }
 
   const body = document.createElement("div");
   body.className = "node-navigation-memory-body";
   body.appendChild(contentNode);
 
-  card.append(createNavigationSectionHead(title, { viewModeId: modeId }), body);
+  const headOptions = options.disabled
+    ? { demoViewButton: true }
+    : { viewModeId: modeId, externalFile: options.externalFile ?? null };
+  card.append(createNavigationSectionHead(title, headOptions), body);
   return card;
+}
+
+function renderNavigationDisabledMemoryPart(modeId, title) {
+  const body = document.createElement("div");
+  body.className = `node-navigation-${modeId} node-navigation-memory-disabled-body`;
+  const note = document.createElement("p");
+  note.className = "node-navigation-memory-disabled-note";
+  note.textContent = "Доступно только в темах, не в областях";
+  body.append(note, createNavigationEmptyPlaceholder());
+  return createNavigationMemoryPanel(modeId, title, body, { disabled: true });
 }
 
 function compareNavigationPathsNatural(aPath, bPath) {
@@ -9140,14 +9189,12 @@ async function renderNodeNavigation() {
   const emptyExternal = { exists: false, files: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
-  const [internalData, externalData, tabularData, mediaData, todoData, preview, nodeMeta] =
-    await Promise.all(
+  const [internalData, externalData, tabularData, todoData, preview, nodeMeta] = await Promise.all(
     isArea
       ? [
           emptyInternal,
           emptyExternal,
           emptyTabular,
-          fetchMediaOverview(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(),
           fetchNodeNavigationMeta(nodePath)
@@ -9156,12 +9203,12 @@ async function renderNodeNavigation() {
           fetchInternalMemoryForNavigation(nodePath),
           fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
-          fetchMediaOverview(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(),
           fetchNodeNavigationMeta(nodePath)
         ]
   );
+  const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
   if (isStale()) return;
 
   const hub = document.createElement("div");
