@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>10 — Obsidian-style</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">10 · Obsidian-style</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header app-header-min">
+        <h1>Agent CMS</h1>
+      </header>
+      <div class="layout-body layout-obsidian">
+        <aside class="sidebar sidebar-narrow">
+          <input class="tree-search" placeholder="Поиск..." />
+          <div class="tree"></div>
+        </aside>
+        <section class="workspace">
+          <div class="note-header">
+            <div class="note-title">Research Agent</div>
+            <div class="note-tabs mode-panel"></div>
+          </div>
+          <div class="editor-area editor-area-clean">
+            <div class="editor-mock" data-mode-preview></div>
+          </div>
+        </section>
+        <aside class="right-panel right-panel-narrow">
+          <div class="meta-block">
+            <div class="field-label">Активный режим</div>
+            <div class="meta-value" data-active-mode-label></div>
+          </div>
+          <div class="field-label">YAML</div>
+          <textarea class="yaml-mock" rows="8">title: Research Agent</textarea>
+          <button type="button" class="btn btn-primary">Сохранить</button>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

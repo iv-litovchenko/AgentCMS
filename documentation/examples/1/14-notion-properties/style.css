@@ -1,0 +1,9 @@
+.layout-notion { display: grid; grid-template-columns: 240px 1fr 280px; }
+.props-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.props-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.prop-row { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; cursor: pointer; background: var(--panel); text-align: left; }
+.prop-row.active { border-color: #93c5fd; background: #eff6ff; }
+.prop-icon { font-size: 16px; text-align: center; }
+.prop-label { font-size: 12px; line-height: 1.3; }
+.prop-row:disabled { opacity: .45; cursor: not-allowed; }
+.editor-mock { flex: 1; min-height: 400px; }

@@ -1,0 +1,3 @@
+/* 18-meta-sidebar */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.meta-layout { flex-direction: row !important; padding: 0 !important; } .meta-col { width: 140px; flex-shrink: 0; padding: 14px 12px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; } .meta-main { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; } .meta-type { margin: 0; font-size: 13px; font-weight: 700; }

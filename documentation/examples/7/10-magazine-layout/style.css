@@ -1,0 +1,3 @@
+/* 10-magazine-layout */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.mag-10 .mag-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; margin-bottom: 16px; } .mag-10 .ov-preview-large { min-height: 220px; }

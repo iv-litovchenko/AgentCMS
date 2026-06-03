@@ -1,0 +1,7 @@
+/* 15-bottom-bar */
+
+      @media (min-width: 1px) {
+        .bottom-nav { display: flex; }
+        .shell-body { padding-bottom: 52px; }
+        .mode-rail { display: none; }
+      }

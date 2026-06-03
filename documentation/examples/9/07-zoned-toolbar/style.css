@@ -1,0 +1,6 @@
+/* 07-zoned-toolbar */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.path-header--zones { gap: 0; padding: 0; }
+.path-header--zones .zone { display: flex; align-items: center; gap: 8px; padding: 9px 12px; min-width: 0; }
+.path-header--zones .zone-crumbs { flex: 1; overflow: hidden; }
+.path-header--zones .zone-crumbs .breadcrumbs { flex: 1; }

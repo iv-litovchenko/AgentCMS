@@ -1,0 +1,2 @@
+/* 02-horizontal-row */
+.row-3 { grid-template-columns: repeat(3, 1fr); } .row-3 .mem-card { min-height: 200px; }

@@ -1,0 +1,9 @@
+.layout-split { display: grid; grid-template-columns: 240px 1fr 220px; }
+.split-workspace { display: grid; grid-template-rows: 1fr 6px 200px; min-height: 0; }
+.split-top { padding: 12px 16px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.split-top .editor-mock { flex: 1; min-height: 120px; }
+.split-handle { background: var(--border); cursor: row-resize; }
+.split-bottom { border-top: 1px solid var(--border); background: #fafcff; padding: 8px 12px; overflow: auto; }
+.split-bottom-title { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+.split-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.split-modes .pill { width: auto; }

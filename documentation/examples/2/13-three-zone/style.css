@@ -1,0 +1,9 @@
+/* 13-three-zone */
+.workspace { display: flex; flex-direction: column; }
+
+      .three-zone { display: grid; grid-template-columns: 200px 1fr 140px; flex: 1; min-height: 0; }
+      .zone-yaml { padding: 12px; border-right: 1px solid var(--border); background: #fbfdff; overflow: auto; }
+      .zone-editor { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+      .zone-actions { padding: 12px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; background: var(--panel-soft); }
+      .btn.full { width: 100%; }
+      .zone-actions .view-toggle { flex-direction: column; }

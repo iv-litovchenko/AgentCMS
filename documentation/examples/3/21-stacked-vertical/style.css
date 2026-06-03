@@ -1,0 +1,13 @@
+/* 21-stacked-vertical */
+
+      .shell-body { display: flex; flex-direction: column; overflow: auto; height: auto; min-height: calc(100vh - 48px); }
+      .sidebar, .mode-rail, .mode-flyout, .workspace, .right-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      .mode-rail { flex-direction: row; justify-content: space-around; padding: 8px; }
+      .mode-flyout { flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+      .flyout-title { display: none; }
+      .mode-switch { width: auto; border-left: none; border-radius: 999px; border: 1px solid var(--border); padding: 6px 12px; }
+      .workspace { flex: 1; min-height: 360px; }
+
+      .workspace { padding: 12px 16px; gap: 12px; }
+      .title-row { display: flex; gap: 8px; margin-bottom: 8px; }
+      .editor-block { display: flex; flex-direction: column; gap: 8px; min-height: 200px; }

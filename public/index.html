@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS (No DB)</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.22" />
+    <link rel="stylesheet" href="/vendor/toastui-editor.css" />
+  </head>
+  <body class="app-booting">
+    <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
+      <div class="app-splash-bg" aria-hidden="true"></div>
+      <div class="app-splash-inner">
+        <div class="app-splash-graphic" aria-hidden="true">
+          <div class="app-splash-node app-splash-node--root">
+            <span class="app-splash-node-core"></span>
+          </div>
+          <div class="app-splash-branch app-splash-branch--left"></div>
+          <div class="app-splash-branch app-splash-branch--right"></div>
+          <div class="app-splash-node app-splash-node--child app-splash-node--left">
+            <span class="app-splash-node-core"></span>
+          </div>
+          <div class="app-splash-node app-splash-node--child app-splash-node--right">
+            <span class="app-splash-node-core"></span>
+          </div>
+        </div>
+        <div class="app-splash-brand">
+          <span class="app-splash-icon" aria-hidden="true">🏠</span>
+          <span class="app-splash-title">Agent CMS</span>
+        </div>
+        <p class="app-splash-subtitle">*.node.md</p>
+        <div class="app-splash-track" aria-hidden="true">
+          <div class="app-splash-track-bar"></div>
+        </div>
+      </div>
+    </div>
+    <div id="app-root" class="app">
+      <header class="app-header">
+        <div class="app-header-brand">
+          <div class="app-brand-mark">
+            <h1 class="app-home-heading">
+              <a id="app-home-link" class="app-home-link" href="/" title="Главная" aria-label="Главная — Agent CMS">
+                <span class="app-home-icon" aria-hidden="true">🏠</span>
+                <span class="app-home-title" id="app-home-title">Agent CMS</span>
+                <span class="app-home-version">0.0.1</span>
+              </a>
+            </h1>
+          </div>
+          <span class="app-header-subtitle">*.node.md</span>
+        </div>
+        <div class="app-header-tools">
+          <div class="content-search-wrap">
+            <div class="content-search-bar">
+              <select id="content-search-scope" class="content-search-scope" aria-label="Область поиска">
+                <option value="filename">В названии файла</option>
+                <option value="content" selected>В содержимом</option>
+                <option value="tags" disabled>В тэгах</option>
+              </select>
+              <input
+                id="content-search-input"
+                class="content-search-input"
+                type="search"
+                placeholder="Поиск в описании..."
+                autocomplete="off"
+                aria-label="Поиск по содержимому"
+                aria-controls="content-search-results"
+                aria-expanded="false"
+              />
+            </div>
+            <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
+          </div>
+          <div class="header-tool-buttons">
+            <button id="api-docs-btn" class="header-tool-btn" type="button" title="Документация HTTP API">API</button>
+            <button id="mcp-docs-btn" class="header-tool-btn" type="button" title="Документация MCP-сервера">MCP</button>
+            <button id="user-docs-btn" class="header-tool-btn" type="button" title="Документация Agent CMS">DOC</button>
+            <button id="best-practices-btn" class="header-tool-btn" type="button" title="Best Practices по организации агента">BP</button>
+            <button id="md-showcase-btn" class="header-tool-btn" type="button" title="Пример Markdown preview">MD</button>
+            <button
+              id="components-ideas-btn"
+              class="header-tool-btn header-tool-btn--idea"
+              type="button"
+              title="Идеи и компоненты системы (My Graph ORM)"
+            >
+              💡
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <aside class="sidebar">
+        <div class="sidebar-agent-bar">
+          <div class="sidebar-agent-controls">
+            <div id="agent-select-wrap" class="agent-select-wrap">
+              <select id="agent-select" class="agent-select" aria-label="Агент"></select>
+            </div>
+            <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
+          </div>
+          <div id="agent-preview-wrap" class="agent-preview-wrap hidden" title="Превью агента">
+            <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+          </div>
+        </div>
+        <div class="agent-view-wrap">
+          <div class="agent-view-toggle" role="tablist" aria-label="Вид workspace агента">
+            <button
+              id="agent-view-dashboard-btn"
+              class="agent-view-btn active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-agent-view="dashboard"
+            >
+              Дашборд
+            </button>
+            <button
+              id="agent-view-map-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="map"
+            >
+              Карта
+            </button>
+            <button
+              id="agent-view-map2-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="map2"
+            >
+              Карта 2
+            </button>
+            <button
+              id="agent-view-registry-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="registry"
+              disabled
+              title="Скоро"
+            >
+              Реестр
+            </button>
+            <button
+              id="agent-view-schema-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="schema"
+            >
+              Схема
+            </button>
+            <button
+              id="agent-view-vault-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="vault"
+            >
+              Каталог
+            </button>
+            <button
+              id="agent-view-graph-btn"
+              class="agent-view-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-agent-view="graph"
+            >
+              Граф
+            </button>
+          </div>
+        </div>
+        <div class="menu-view-wrap">
+          <div class="menu-view-toggle" role="tablist" aria-label="Режим отображения меню">
+            <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
+              <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
+            </button>
+            <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
+              <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
+            </button>
+            <button id="menu-view-cards-btn" class="menu-view-btn" type="button" data-menu-view="cards" data-tooltip="Карточки" aria-label="Карточки">
+              <span class="menu-view-btn-icon" aria-hidden="true">🗂️</span>
+            </button>
+            <button id="menu-view-bookmarks-btn" class="menu-view-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
+              <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
+            </button>
+          </div>
+          <button
+            id="menu-refresh-btn"
+            class="menu-refresh-btn"
+            type="button"
+            aria-label="Обновить дерево"
+          >
+            🔄
+          </button>
+          <button
+            id="menu-collapse-all-btn"
+            class="menu-collapse-all-btn"
+            type="button"
+            aria-label="Свернуть все ветки"
+            title="Свернуть все ветки"
+          >
+            <span class="menu-collapse-all-icon" aria-hidden="true">⊟</span>
+          </button>
+          <div id="menu-settings-wrap" class="menu-settings-wrap">
+            <button
+              id="menu-settings-btn"
+              class="menu-settings-btn"
+              type="button"
+              aria-label="Настройки дерева"
+              aria-expanded="false"
+              aria-controls="menu-settings-popover"
+            >
+              ⚙
+            </button>
+            <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
+              <p class="menu-settings-popover-title">Настройки дерева</p>
+              <label class="menu-settings-option" for="menu-tree-show-empty-folders">
+                <input id="menu-tree-show-empty-folders" type="checkbox" />
+                <span>Отображать папки без нод</span>
+              </label>
+              <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
+                <input id="menu-tree-pad-sort-indexes" type="checkbox" />
+                <span>Добавлять ведущие нули к названиям (при сортировке)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="menu-search-wrap">
+          <input
+            id="menu-search-input"
+            class="menu-search-input"
+            type="text"
+            placeholder="Поиск по дереву..."
+            autocomplete="off"
+          />
+        </div>
+        <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
+          <label class="menu-cards-filter" for="menu-cards-preview-only">
+            <input id="menu-cards-preview-only" type="checkbox" />
+            <span>Только с превью</span>
+          </label>
+        </div>
+        <nav id="menu" class="menu">
+          <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
+            <span class="menu-loading-spinner" aria-hidden="true"></span>
+            <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
+          </div>
+        </nav>
+      </aside>
+
+      <div class="sidebar-resize-bar" aria-label="Ширина меню">
+        <button
+          id="sidebar-width-decrease-btn"
+          class="sidebar-resize-btn"
+          type="button"
+          title="Уменьшить меню"
+          aria-label="Уменьшить меню"
+        >
+          ◀
+        </button>
+        <button
+          id="sidebar-width-increase-btn"
+          class="sidebar-resize-btn"
+          type="button"
+          title="Увеличить меню"
+          aria-label="Увеличить меню"
+        >
+          ▶
+        </button>
+      </div>
+
+      <main id="home-pane" class="home-pane agent-canvas-pane hidden" aria-label="Дашборд агента">
+        <div class="home-pane-bg" aria-hidden="true"></div>
+        <div class="home-pane-inner">
+          <div class="home-hero">
+            <p class="home-eyebrow">Workspaces / *.node.md</p>
+            <h2 class="home-title">Agent CMS</h2>
+            <p class="home-lead">
+              Система управления контекстом для LLM на базе нод. Каждая нода — отдельный контекст,
+              память накапливается заметка за заметкой.
+            </p>
+            <p class="home-quote">«Файл — это не папка, а намерение.»</p>
+          </div>
+          <div class="home-cards">
+            <article class="home-card">
+              <span class="home-card-icon">⚙️</span>
+              <h3 class="home-card-title">Настройки</h3>
+              <p class="home-card-text">Описание, конфигурации, скрипты и окружение ноды.</p>
+            </article>
+            <article class="home-card">
+              <span class="home-card-icon">🧠</span>
+              <h3 class="home-card-title">Память</h3>
+              <p class="home-card-text">Внутренняя и внешняя память, TODO и источники.</p>
+            </article>
+            <article class="home-card">
+              <span class="home-card-icon">📎</span>
+              <h3 class="home-card-title">Файлы</h3>
+              <p class="home-card-text">Медиа, документы и превью ноды.</p>
+            </article>
+          </div>
+          <div id="agent-dashboard-stats" class="agent-dashboard-stats" aria-live="polite"></div>
+          <p id="home-hint" class="home-hint">Выберите ноду в дереве или откройте Схему / Каталог / Граф</p>
+          <div class="home-mascot-block" aria-hidden="true">
+            <div class="home-mascot">
+              <div class="home-mascot-glow"></div>
+              <div class="home-mascot-shell">
+                <div class="home-mascot-antenna"></div>
+                <div class="home-mascot-screen">
+                  <div class="home-mascot-face">
+                    <span class="home-mascot-eye home-mascot-eye--left"></span>
+                    <span class="home-mascot-eye home-mascot-eye--right"></span>
+                    <span class="home-mascot-smile"></span>
+                  </div>
+                </div>
+                <div class="home-mascot-body">
+                  <div class="home-mascot-arm home-mascot-arm--left"></div>
+                  <div class="home-mascot-torso"></div>
+                  <div class="home-mascot-arm home-mascot-arm--right"></div>
+                </div>
+                <div class="home-mascot-feet">
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+            <ul class="home-mascot-slogan" aria-label="Лозунг">
+              <li>обучаем агента</li>
+              <li>обучаемся сами</li>
+              <li>вместе растём</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+
+      <main id="agent-map-pane" class="agent-canvas-pane agent-map-pane hidden" aria-label="Карта агента">
+        <div id="agent-map-stage" class="agent-map-stage">
+          <svg id="agent-map-links" class="agent-map-links" aria-hidden="true"></svg>
+          <div id="agent-map-zones" class="agent-map-zones"></div>
+          <div id="agent-map-hub" class="agent-map-hub" aria-hidden="true">
+            <div class="agent-map-hub-avatar" id="agent-map-hub-avatar">🤖</div>
+            <div class="agent-map-hub-title" id="agent-map-hub-title">Agent</div>
+            <div class="agent-map-hub-sub" id="agent-map-hub-sub">workspace</div>
+          </div>
+        </div>
+      </main>
+
+      <main id="agent-map2-pane" class="agent-canvas-pane agent-map2-pane hidden" aria-label="Схема workspace">
+        <div class="agent-map2-head">
+          <div class="agent-map2-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Схема нод</h2>
+            <p class="agent-map2-lead">
+              Жёсткие связи — физическая структура папок на диске. Мягкие — ссылки между нодами через поля (появятся позже).
+            </p>
+          </div>
+          <div id="agent-map2-stats" class="agent-map2-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-map2-board" class="agent-map2-board">
+          <aside class="agent-map2-legend" aria-label="Типы связей">
+            <div class="agent-map2-legend-item">
+              <span class="agent-map2-legend-line agent-map2-legend-line--hard" aria-hidden="true"></span>
+              <span>Жёсткая — папка содержит ноду</span>
+            </div>
+            <div class="agent-map2-legend-item">
+              <span class="agent-map2-legend-line agent-map2-legend-line--soft" aria-hidden="true"></span>
+              <span>Мягкая — поле ссылается на ноду</span>
+            </div>
+            <div class="agent-map2-legend-note">Мягкие связи пока не заданы в данных агента.</div>
+          </aside>
+          <div id="agent-map2-viewport" class="agent-map2-viewport">
+            <div id="agent-map2-canvas" class="agent-map2-canvas">
+              <svg id="agent-map2-links" class="agent-map2-links" aria-hidden="true"></svg>
+              <div id="agent-map2-nodes" class="agent-map2-nodes"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <main id="agent-schema-pane" class="agent-canvas-pane agent-schema-pane hidden" aria-label="Схема workspace">
+        <div class="agent-canvas-head">
+          <p class="agent-canvas-eyebrow">Workspace</p>
+          <h2 class="agent-canvas-title">Схема нод</h2>
+          <p class="agent-canvas-lead">Иерархия папок и манифестов <code>*.node.md</code> текущего агента.</p>
+        </div>
+        <div id="agent-schema-content" class="agent-schema-content"></div>
+      </main>
+
+      <main id="agent-vault-pane" class="agent-canvas-pane agent-vault-pane hidden" aria-label="Каталог workspace">
+        <div class="agent-vault-wrap">
+          <header class="agent-vault-head">
+            <div class="agent-vault-head-copy">
+              <p class="agent-canvas-eyebrow">Workspace</p>
+              <h2 class="agent-vault-title">Каталог нод</h2>
+              <p class="agent-vault-sub">Все папки и ноды с превью — поиск по названию, фильтры по категориям и тегам (скоро)</p>
+            </div>
+            <div id="agent-vault-stats" class="agent-vault-stats" aria-live="polite"></div>
+          </header>
+
+          <div class="agent-vault-toolbar">
+            <div class="agent-vault-search-wrap">
+              <input
+                id="agent-vault-search"
+                class="agent-vault-search"
+                type="search"
+                placeholder="Поиск по названию или пути..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="agent-vault-filters">
+              <select id="agent-vault-category-select" class="agent-vault-select" disabled title="Скоро" aria-label="Категории">
+                <option>Все категории</option>
+              </select>
+              <select id="agent-vault-tag-select" class="agent-vault-select" disabled title="Скоро" aria-label="Теги">
+                <option>Все теги</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="agent-vault-grid" class="agent-vault-grid"></div>
+          <div id="agent-vault-empty" class="agent-vault-empty hidden">Ничего не найдено. Измените поиск.</div>
+        </div>
+      </main>
+
+      <main id="agent-graph-pane" class="agent-canvas-pane agent-graph-pane hidden" aria-label="Граф workspace">
+        <div class="agent-canvas-head agent-canvas-head--compact agent-graph-head">
+          <div class="agent-graph-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Граф нод</h2>
+          </div>
+          <label class="agent-graph-setting" for="agent-graph-show-previews">
+            <input id="agent-graph-show-previews" type="checkbox" checked />
+            <span>Превью на нодах</span>
+          </label>
+        </div>
+        <div id="agent-graph-content" class="agent-graph-content"></div>
+      </main>
+
+      <section class="workspace-pane">
+        <div class="workspace-body">
+        <main class="content doc-stack">
+          <section id="workspace-path-header" class="doc-slab doc-slab-path">
+            <div class="workspace-path-crumbs-block">
+              <nav id="file-path" class="breadcrumbs" aria-label="Путь">
+                <div id="title-fixed-value" class="title-fixed-value breadcrumb-service-title hidden" aria-live="polite">
+                  <span id="title-fixed-text" class="title-fixed-text"></span>
+                  <span class="title-fixed-lock" aria-hidden="true" title="Имя нельзя менять">🔒</span>
+                </div>
+              </nav>
+            </div>
+            <div id="workspace-path-toolbar" class="workspace-path-toolbar-block">
+              <div id="node-workspace-nav-controls" class="node-workspace-nav-controls hidden">
+                <button
+                  id="node-default-landing-btn"
+                  class="node-default-landing-btn"
+                  type="button"
+                  title="Сделать текущий раздел стартовым при открытии ноды"
+                  aria-label="Стартовая страница ноды"
+                  aria-pressed="false"
+                >
+                  <svg
+                    class="node-default-landing-icon"
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="node-default-landing-pin-head"
+                      d="M12 2.75a3.25 3.25 0 0 1 3.25 3.25c0 2.43-3.25 5.5-3.25 5.5S8.75 8.43 8.75 6a3.25 3.25 0 0 1 3.25-3.25Z"
+                    />
+                    <path class="node-default-landing-pin-stem" d="M12 11.5v9" />
+                  </svg>
+                </button>
+                <div id="node-workspace-domain-controls" class="node-workspace-domain-controls">
+                  <select
+                    id="node-workspace-domain-select"
+                    class="node-workspace-domain-select"
+                    aria-label="Раздел ноды"
+                  >
+                    <option value="navigation">Навигация</option>
+                    <option value="settings">Настройки</option>
+                    <option value="memory">Память</option>
+                    <option value="inbox">Входящие</option>
+                    <option value="references">Источники</option>
+                    <option value="overview">Обзор ноды</option>
+                  </select>
+                </div>
+                <div id="node-navigation-path-controls" class="node-navigation-path-controls hidden">
+                  <select
+                    id="node-navigation-subsection-select"
+                    class="node-navigation-subsection-select"
+                    aria-label="Все доступные элементы"
+                  >
+                    <option value="subsections">Все доступные элементы</option>
+                  </select>
+                </div>
+                <div id="node-settings-path-controls" class="node-settings-path-controls hidden">
+                  <select
+                    id="node-settings-mode-select"
+                    class="node-settings-mode-select"
+                    aria-label="Настройки ноды"
+                  >
+                    <option value="description">Назначение ноды</option>
+                    <option value="configs">Конфигурации</option>
+                    <option value="scripts">Скрипты</option>
+                    <option value="env">.env</option>
+                    <option value="todo">TODO</option>
+                    <option value="node-preview">Превью</option>
+                  </select>
+                </div>
+                <div id="node-memory-path-controls" class="node-memory-path-controls hidden">
+                  <select
+                    id="node-memory-mode-select"
+                    class="node-memory-mode-select"
+                    aria-label="Память ноды"
+                  >
+                    <option value="external" data-memory-driver="external">Многофайловая</option>
+                    <option value="internal" data-memory-driver="internal">Однофайловая</option>
+                    <option value="tabular" data-memory-driver="tabular">Табличная</option>
+                    <option value="external-db" disabled>Реляционная БД</option>
+                    <option value="volume" disabled>Рассуждения (volume)</option>
+                    <option value="media">Медиа и документы</option>
+                  </select>
+                </div>
+              </div>
+              <div id="doc-actions" class="doc-actions breadcrumb-actions">
+                <button id="media-sidecar-back-btn" class="media-sidecar-back-btn hidden" type="button">← К списку</button>
+                <button id="external-memory-back-btn" class="external-memory-back-btn hidden" type="button">← К списку</button>
+                <button id="tabular-source-btn" class="tabular-source-btn hidden" type="button">Исходник CSV</button>
+                <button id="tabular-table-back-btn" class="tabular-table-back-btn hidden" type="button">← К таблице</button>
+                <div id="editor-view-toggle" class="editor-view-toggle" role="tablist" aria-label="Режим отображения редактора">
+                  <button id="editor-view-preview-btn" class="editor-view-btn" type="button" data-view-mode="preview">
+                    Preview
+                  </button>
+                  <button id="editor-view-wysiwyg-btn" class="editor-view-btn" type="button" data-view-mode="wysiwyg">
+                    Edit
+                  </button>
+                  <button id="editor-view-source-btn" class="editor-view-btn active" type="button" data-view-mode="source">
+                    Source
+                  </button>
+                </div>
+                <button
+                  id="editor-line-numbers-btn"
+                  class="editor-view-btn editor-line-numbers-btn"
+                  type="button"
+                  title="Нумерация строк"
+                  aria-label="Нумерация строк"
+                  aria-pressed="false"
+                >
+                  #
+                </button>
+                <button id="create-external-memory-btn" class="save-btn external-create-btn hidden" type="button">
+                  Создать воспоминание
+                </button>
+                <button id="create-external-section-btn" class="external-create-section-btn hidden" type="button">
+                  Создать раздел
+                </button>
+                <select id="external-view-select" class="external-view-select hidden" aria-label="Вид отображения внешней памяти">
+                  <option value="table">Таблица</option>
+                  <option value="list">Список</option>
+                  <option value="cards">Карточки</option>
+                  <option value="calendar">Календарь</option>
+                  <option value="index">Index</option>
+                  <option value="moc">Moc</option>
+                  <option value="graph">Граф</option>
+                </select>
+                <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
+                  <option value="all">Весь список</option>
+                  <option value="images">Изображения</option>
+                  <option value="audio">Аудио</option>
+                  <option value="video">Видео</option>
+                  <option value="documents">Документы</option>
+                  <option value="archives">Архивы</option>
+                  <option value="other">Прочее</option>
+                </select>
+                <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.zip,.md,.txt" hidden />
+                <button
+                  id="media-upload-btn"
+                  class="media-upload-btn hidden"
+                  type="button"
+                  title="Загрузить файл в _Assets"
+                  aria-label="Загрузить файл в _Assets"
+                >
+                  📤
+                </button>
+                <button id="save-content-btn" class="save-btn" type="button" title="Сохранить" aria-label="Сохранить">💾</button>
+                <button
+                  id="node-workspace-close-btn"
+                  class="node-workspace-close-btn hidden"
+                  type="button"
+                  title="Закрыть — вернуться к навигации"
+                  aria-label="Закрыть"
+                >
+                  ✕
+                </button>
+                <button id="save-system-file-btn" class="save-btn save-system-btn hidden" type="button" title="Сохранить" aria-label="Сохранить">💾</button>
+                <button
+                  id="workspace-refresh-btn"
+                  class="workspace-refresh-btn hidden"
+                  type="button"
+                  title="Обновить данные с диска"
+                  aria-label="Обновить данные с диска"
+                >
+                  <svg class="workspace-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                      stroke="currentColor"
+                      stroke-width="2.25"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  id="workspace-reveal-folder-btn"
+                  class="workspace-reveal-folder-btn hidden"
+                  type="button"
+                  title="Открыть папку в Finder"
+                  aria-label="Открыть папку в Finder"
+                >
+                  <svg class="workspace-reveal-folder-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M4 7.25C4 6.01 5.01 5 6.25 5H9.5l1.25 1.75h7.5c1.24 0 2.25 1.01 2.25 2.25v7.75c0 1.24-1.01 2.25-2.25 2.25H6.25C5.01 19 4 17.99 4 16.75V7.25z"
+                      fill="#5AC8FA"
+                    />
+                    <path
+                      d="M5 6.25C5 5.56 5.56 5 6.25 5H9.5l1.25 1.75H5V6.25z"
+                      fill="#007AFF"
+                    />
+                    <path
+                      d="M4 8.75h16"
+                      stroke="#007AFF"
+                      stroke-width="0.75"
+                      opacity="0.35"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section id="title-editor-block" class="doc-slab doc-slab-title">
+            <div class="title-row">
+              <input
+                id="title-input"
+                class="title-input"
+                type="text"
+                placeholder="Название"
+                aria-label="Название"
+              />
+              <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
+            </div>
+          </section>
+
+          <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению ноды">
+            <p class="doc-slab-hint-title">Описание, инструкции, правила</p>
+            <p class="doc-slab-hint-text">
+              Основной текст ноды для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
+            </p>
+          </section>
+
+          <section id="yaml-form-panel" class="doc-slab doc-slab-props hidden">
+            <h2 id="yaml-panel-label" class="doc-slab-label">Свойства md-файла</h2>
+            <div id="props-form-fields" class="props-form-fields"></div>
+            <div class="props-form-actions">
+              <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
+              <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
+            </div>
+            <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
+          </section>
+
+          <section class="doc-slab doc-slab-content">
+            <div class="doc-slab-main">
+              <div class="editor-surface">
+                <div id="editor-code-wrap" class="editor-code-wrap">
+                  <pre id="editor-line-numbers" class="editor-line-numbers" aria-hidden="true">1</pre>
+                  <textarea id="file-content-input" class="file-content-input" spellcheck="false" wrap="off"></textarea>
+                </div>
+                <div id="editor-wysiwyg-wrap" class="editor-wysiwyg-wrap hidden"></div>
+                <div id="file-content-preview" class="file-content-preview hidden"></div>
+              </div>
+              <section id="preview-upload-block" class="preview-upload hidden">
+                <div class="preview-upload-card">
+                  <div id="preview-upload-zone" class="preview-upload-zone" tabindex="0" role="button" aria-label="Загрузить изображение превью">
+                    <input id="preview-file-input" type="file" accept=".jpg,.jpeg,.png,.gif,image/jpeg,image/png,image/gif" hidden />
+                    <div id="preview-upload-placeholder" class="preview-upload-placeholder">
+                      <span class="preview-upload-icon" aria-hidden="true">🖼</span>
+                      <p class="preview-upload-title">Загрузите изображение</p>
+                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как *.node.preview.* рядом с нодой</p>
+                      <button id="preview-paste-btn" type="button" class="preview-action-btn preview-action-paste">Вставить из буфера</button>
+                    </div>
+                    <img id="preview-image" class="preview-image hidden" alt="Превью ноды" />
+                  </div>
+                  <div id="preview-upload-actions" class="preview-upload-actions hidden">
+                    <button id="preview-paste-actions-btn" class="preview-action-btn preview-action-paste" type="button">Вставить из буфера</button>
+                    <button id="preview-replace-btn" class="preview-action-btn preview-action-replace" type="button">Заменить</button>
+                    <button id="preview-remove-btn" class="preview-action-btn preview-action-remove" type="button">Удалить</button>
+                  </div>
+                </div>
+              </section>
+              <section id="graph-view-block" class="graph-view hidden">
+                <div id="graph-view-content" class="graph-view-content"></div>
+              </section>
+              <section id="list-view-block" class="list-view hidden">
+                <div class="list-view-head">
+                  <div id="list-view-title" class="list-view-title">Список файлов</div>
+                </div>
+                <div id="list-view-content" class="list-view-content"></div>
+              </section>
+              <section id="node-overview-block" class="node-overview hidden" aria-label="Обзор ноды">
+                <div id="node-overview-content" class="node-overview-content"></div>
+              </section>
+            </div>
+          </section>
+        </main>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <div class="app-footer-top">
+          <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM на базе нод.</span>
+          <span class="app-footer-rule">Одна нода = 1 задача = 1 объект = 1 таблица</span>
+        </div>
+        <p class="app-footer-text">
+          Нода — граница смысла: один контекст, одно намерение, одна ответственность.
+          Не смешивай задачи в одном файле — разводи их по дереву.
+          Память накапливается заметка за заметкой, а система остаётся прозрачной.
+          <span class="app-footer-quote">«Файл — это не папка, а намерение.»</span>
+        </p>
+        <p class="app-footer-concept">
+          Мышление алгоритмами и структурами данных:
+          класс = форма, новый тип в системе (пример: цифра),
+          объект = экземпляр в «реальном мире» (пример: единица «1»).
+        </p>
+        <p class="app-footer-concept">
+          Проблема большого контекста: загрузил книгу на 1000 страниц — неизвестно, что LLM посчитает важным, а что нет.
+          Без правильных вопросов и без человека не обойтись.
+        </p>
+      </footer>
+    </div>
+
+    <div id="create-node-modal" class="modal-overlay hidden">
+      <div class="modal-card create-node-card">
+        <div class="create-node-header">
+          <div class="modal-message" id="create-node-modal-title">Создать ноду</div>
+          <button id="create-node-cancel-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <label class="popover-label" for="create-name-input">Название</label>
+        <input
+          id="create-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Например: Плавание"
+          autocomplete="off"
+        />
+        <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
+          <input id="create-node-vault-option" type="checkbox" checked />
+          <span id="create-node-vault-option-label">Создать в _vault</span>
+        </label>
+        <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
+          <div class="popover-label">Справочники</div>
+          <div id="create-node-catalog-actions" class="create-node-catalog-actions">
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="categories">Категории</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="tags" title="Список #tag, как в Obsidian">Теги</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="schemas">Схемы</button>
+          </div>
+        </div>
+        <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
+        <div class="create-node-actions" id="create-node-actions">
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Создать _.node.md в этой папке">_.node.md</button>
+          <button id="create-folder-btn" class="create-node-action-btn" type="button">Папка</button>
+          <button id="create-file-btn" class="create-node-action-btn" type="button">Part</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="create-section-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-message">Создать раздел</div>
+        <label class="popover-label" for="create-section-name-input">Название раздела</label>
+        <input
+          id="create-section-name-input"
+          class="popover-input"
+          type="text"
+          placeholder="Например: TODO"
+          autocomplete="off"
+        />
+        <div class="modal-actions">
+          <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="create-section-ok-btn" class="external-create-section-btn" type="button">Создать</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="agents-registry-modal" class="modal-overlay hidden">
+      <div class="modal-card agents-registry-card">
+        <div class="modal-message">Агенты</div>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и vault-папка сохраняются в <code>awn.agent.json</code>; аватар — в <code>_Storage/_Preview/preview.*</code>.</p>
+        <div class="agents-registry-toolbar">
+          <span class="agents-registry-toolbar-label">Сортировка:</span>
+          <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
+          <button type="button" class="agents-registry-sort-btn" data-sort="path">Workspace</button>
+          <button type="button" class="agents-registry-sort-btn" data-sort="environment">Среда</button>
+        </div>
+        <div id="agents-registry-list" class="agents-registry-list"></div>
+        <div class="agents-registry-footer">
+          <div class="agents-registry-footer-actions">
+            <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать агента</button>
+            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти awn.agent.json</button>
+          </div>
+          <div class="modal-actions">
+            <button id="agents-registry-cancel-btn" class="save-btn" type="button">Отмена</button>
+            <button id="agents-registry-save-btn" class="external-create-section-btn" type="button">Сохранить</button>
+          </div>
+          <ul class="agents-registry-status-legend" aria-label="Статусы workspace">
+            <li>
+              <span class="agents-registry-legend-dot" data-state="manifest" aria-hidden="true"></span>
+              <span>awn.agent.json найден</span>
+            </li>
+            <li>
+              <span class="agents-registry-legend-dot" data-state="missing" aria-hidden="true"></span>
+              <span>Нет манифеста или папки</span>
+            </li>
+            <li>
+              <span class="agents-registry-legend-dot" data-state="invalid" aria-hidden="true"></span>
+              <span>Некорректный путь</span>
+            </li>
+          </ul>
+          <p class="agents-registry-vault-footnote">* Скрыта в дереве, содержимое у корня.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="agents-registry-create-modal" class="modal-overlay hidden">
+      <div class="modal-card agents-registry-create-card">
+        <div class="modal-message">Создать агента</div>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn.agent.json</code>, <code>_.node.md</code> и <code>_Storage/_Preview</code>. Название агента берётся из имени папки.</p>
+        <label class="agents-registry-field agents-registry-create-path-field">
+          <span>Workspace</span>
+          <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
+        </label>
+        <div class="modal-actions">
+          <button id="agents-registry-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="agents-registry-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="agents-registry-discover-modal" class="modal-overlay hidden">
+      <div class="modal-card agents-registry-discover-card">
+        <div class="agents-registry-discover-header">
+          <div>
+            <div class="modal-message">Найти awn.agent.json</div>
+            <p class="agents-registry-discover-subtitle">Сканирование Desktop, домашней папки и проекта</p>
+          </div>
+          <button id="agents-registry-discover-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="agents-registry-discover-toolbar">
+          <button id="agents-registry-discover-scan-btn" class="agents-registry-sort-btn" type="button">Сканировать снова</button>
+        </div>
+        <div id="agents-registry-discover-list" class="agents-registry-discover-list"></div>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div id="confirm-message" class="modal-message">Вы уверены?</div>
+        <div class="modal-actions">
+          <button id="confirm-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="confirm-ok-btn" class="danger-btn" type="button">Удалить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="md-showcase-modal" class="modal-overlay hidden">
+      <div class="modal-card md-showcase-card">
+        <div class="md-showcase-header">
+          <div>
+            <div class="modal-message" id="md-showcase-title">Markdown</div>
+            <p id="md-showcase-subtitle" class="md-showcase-subtitle">markdown-it · preview элементов</p>
+          </div>
+          <button id="md-showcase-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="md-showcase-content" class="md-showcase-content file-content-preview"></div>
+      </div>
+    </div>
+
+    <div id="components-ideas-modal" class="modal-overlay hidden">
+      <div class="modal-card md-showcase-card">
+        <div class="md-showcase-header">
+          <div>
+            <div class="modal-message" id="components-ideas-title">Идеи · компоненты</div>
+            <p id="components-ideas-subtitle" class="md-showcase-subtitle">My Graph ORM · черновик онтологии</p>
+          </div>
+          <button id="components-ideas-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="components-ideas-content" class="md-showcase-content file-content-preview"></div>
+      </div>
+    </div>
+
+    <div id="user-docs-modal" class="modal-overlay hidden">
+      <div class="modal-card md-showcase-card">
+        <div class="md-showcase-header">
+          <div>
+            <div class="modal-message" id="user-docs-title">Документация</div>
+            <p id="user-docs-subtitle" class="md-showcase-subtitle">Agent CMS · руководство пользователя</p>
+          </div>
+          <button id="user-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="user-docs-content" class="md-showcase-content file-content-preview"></div>
+      </div>
+    </div>
+
+    <div id="best-practices-modal" class="modal-overlay hidden">
+      <div class="modal-card md-showcase-card">
+        <div class="md-showcase-header">
+          <div>
+            <div class="modal-message" id="best-practices-title">Best Practices</div>
+            <p id="best-practices-subtitle" class="md-showcase-subtitle">Организация workspace агента</p>
+          </div>
+          <button id="best-practices-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="best-practices-content" class="md-showcase-content file-content-preview"></div>
+      </div>
+    </div>
+
+    <div id="api-docs-modal" class="modal-overlay hidden">
+      <div class="modal-card api-docs-card">
+        <div class="api-docs-header">
+          <div>
+            <div class="modal-message" id="api-docs-title">HTTP API</div>
+            <p id="api-docs-subtitle" class="api-docs-subtitle"></p>
+          </div>
+          <button id="api-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="api-docs-notes" class="api-docs-notes"></div>
+        <div id="api-docs-content" class="api-docs-content"></div>
+      </div>
+    </div>
+
+    <div id="mcp-docs-modal" class="modal-overlay hidden">
+      <div class="modal-card api-docs-card mcp-docs-card">
+        <div class="api-docs-header">
+          <div>
+            <div class="modal-message" id="mcp-docs-title">MCP Server</div>
+            <p id="mcp-docs-subtitle" class="api-docs-subtitle"></p>
+          </div>
+          <button id="mcp-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="mcp-docs-notes" class="api-docs-notes mcp-docs-notes"></div>
+        <pre id="mcp-docs-config" class="mcp-docs-config hidden" aria-label="Пример конфигурации Cursor"></pre>
+        <div id="mcp-docs-content" class="api-docs-content"></div>
+      </div>
+    </div>
+
+    <script src="/vendor/markdown-it.min.js"></script>
+    <script src="/markdown-github-alerts.js"></script>
+    <script src="/vendor/mermaid.min.js"></script>
+    <script src="/vendor/toastui-editor-all.min.js"></script>
+    <script src="/main.js?v=0.4.25"></script>
+    <script src="/app-home-title-rotator.js?v=8"></script>
+  </body>
+  </html>

@@ -1,0 +1,7 @@
+.layout-pop { display: grid; grid-template-columns: 260px 1fr 240px; }
+.title-row { position: relative; display: flex; gap: 8px; padding: 16px 16px 0; align-items: center; }
+.title-row .title-input { flex: 1; }
+.mode-pop-btn { white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.mode-popover { position: absolute; top: calc(100% + 6px); right: 16px; width: 280px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,.12); padding: 8px; z-index: 30; max-height: 360px; overflow: auto; }
+.mode-popover.hidden { display: none; }
+.editor-mock { flex: 1; min-height: 380px; }

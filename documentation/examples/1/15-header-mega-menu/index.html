@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>15 — Mega-menu в шапке</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">15 · Mega-menu</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header header-mega">
+        <h1>Agent CMS</h1>
+        <div class="mega-wrap">
+          <button type="button" class="btn mega-trigger" data-mega-trigger>Режим: <span data-active-mode-label></span> ▾</button>
+          <div class="mega-menu hidden" data-mega-menu>
+            <div class="mega-grid mode-panel"></div>
+          </div>
+        </div>
+      </header>
+      <div class="layout-body layout-mega">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace"><div class="editor-mock" data-mode-preview></div></section>
+        <aside class="right-panel"><button type="button" class="btn btn-primary">Сохранить</button></aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

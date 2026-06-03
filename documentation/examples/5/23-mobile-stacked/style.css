@@ -1,0 +1,3 @@
+/* 23-mobile-stacked */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.action-stack { display: flex; flex-direction: column; gap: 6px; } .action-stack .btn { width: 100%; } .stack-title { flex-direction: column; align-items: stretch; }

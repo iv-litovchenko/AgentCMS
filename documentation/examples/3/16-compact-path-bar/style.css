@@ -1,0 +1,8 @@
+/* 16-compact-path-bar */
+
+
+      .ws-header { display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .path-select { margin-left: auto; max-width: 280px; font-size: 12px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); color: var(--muted); }
+      .title-row { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .form-props { margin: 12px 16px 0; }
+      .editor-block { flex: 1; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }

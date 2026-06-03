@@ -1,0 +1,3 @@
+/* 21-crumb-embedded-actions */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.crumb-action { font-size: 11px; padding: 4px 8px; margin-left: 4px; }

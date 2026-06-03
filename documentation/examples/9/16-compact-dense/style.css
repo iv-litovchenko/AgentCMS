@@ -1,0 +1,6 @@
+/* 16-compact-dense */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.path-header--compact { padding: 5px 12px; gap: 6px; }
+.path-header--compact .breadcrumbs { font-size: 10px; }
+.path-header--compact .btn, .path-header--compact .view-toggle button { height: 24px; font-size: 10px; }
+.path-header--compact .domain-select { padding: 3px 24px 3px 8px; font-size: 10px; }

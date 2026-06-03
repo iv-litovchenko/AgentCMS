@@ -1,0 +1,8 @@
+/* 07-labeled-dividers */
+.nav-document--labeled .nav-doc-part { position: relative; padding-top: 1.5em; }
+.nav-document--labeled .nav-doc-part:first-child { padding-top: 0; border-top: 0; margin-top: 0; }
+.nav-part-label {
+  display: block; margin-bottom: 10px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.nav-document--labeled .nav-doc-part > .nav-doc-part { border: 0; margin: 0; padding: 0; }

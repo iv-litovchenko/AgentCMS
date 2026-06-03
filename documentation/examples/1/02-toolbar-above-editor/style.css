@@ -1,0 +1,28 @@
+.layout-toolbar {
+  display: grid;
+  grid-template-columns: 280px 1fr 290px;
+}
+
+.editor-toolbar {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #fafcff;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.toolbar-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-block { display: flex; flex-direction: column; flex: 1; gap: 8px; }
+.editor-block .editor-mock { flex: 1; }

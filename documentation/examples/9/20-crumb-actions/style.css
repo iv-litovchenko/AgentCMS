@@ -1,0 +1,5 @@
+/* 20-crumb-actions */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.breadcrumbs--actions { flex: 0; }
+.breadcrumb-action { color: var(--accent) !important; cursor: pointer; font-weight: 600; }
+.breadcrumb-action--danger { color: var(--danger) !important; }

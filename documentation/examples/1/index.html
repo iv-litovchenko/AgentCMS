@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — варианты макета</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #fff;
+        --border: #d7deeb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #3b82f6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 32px 24px 48px;
+      }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 28px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .card h2 { margin: 0; font-size: 16px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef3ff;
+        color: #1e3a8a;
+        width: fit-content;
+      }
+      a.demo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      a.demo:hover { background: #2563eb; }
+      .current {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      }
+      .current .tag { background: #dbeafe; }
+    </style>
+  </head>
+  <body>
+    <h1>Варианты макета «Управление нодой»</h1>
+    <p class="lead">
+      20 интерактивных прототипов. В каждом — упрощённое дерево, редактор и переключение режимов.
+      Текущий макет: дерево слева → узкая колонка режимов → контент → панель справа.
+    </p>
+    <p class="lead" style="margin-top:-12px;font-size:13px;">
+      <strong>Как открыть:</strong> из папки <code>Examples</code> запустите
+      <code>python3 -m http.server 8765</code> и откройте <code>http://localhost:8765</code>
+      (нужен локальный сервер из‑за ES‑модулей).
+    </p>
+
+    <h2 style="font-size:18px;margin:28px 0 12px;">Серия 1 — базовые варианты</h2>
+    <div class="grid">
+      <article class="card current">
+        <span class="tag">Сейчас</span>
+        <h2>Базовый (как в приложении)</h2>
+        <p>Отдельная узкая колонка между деревом и контентом. Много вертикального места, но 4 колонки сжимают редактор.</p>
+        <a class="demo" href="./00-current/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>Вкладки под шапкой</h2>
+        <p>Режимы — горизонтальные табы на всю ширину под Agent CMS. Контент получает +220px.</p>
+        <a class="demo" href="./01-top-tabs/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>Панель над редактором</h2>
+        <p>Группы и режимы — pills прямо над полем «Содержимое». Близко к контексту редактирования.</p>
+        <a class="demo" href="./02-toolbar-above-editor/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>Icon rail</h2>
+        <p>Узкая полоска иконок (как VS Code). При наведении — всплывающая подпись и flyout с режимами группы.</p>
+        <a class="demo" href="./03-icon-rail/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Режимы справа</h2>
+        <p>«Управление нодой» переезжает в правую панель над Save/YAML. Две колонки слева: дерево + редактор.</p>
+        <a class="demo" href="./04-right-sidebar/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Dropdown в «Пути»</h2>
+        <p>Компактный селектор режима в строке breadcrumbs. Максимум места редактору, минимум UI.</p>
+        <a class="demo" href="./05-dropdown-in-path/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Двухуровневая шапка</h2>
+        <p>В шапке — группы (Основное, Память…), под ней — второй ряд с конкретными режимами.</p>
+        <a class="demo" href="./06-two-row-header/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Аккордеон в дереве</h2>
+        <p>Режимы встроены в левую колонку под деревом как сворачиваемые секции.</p>
+        <a class="demo" href="./07-accordion-in-tree/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Нижняя панель</h2>
+        <p>Режимы в выдвижной нижней панели (как терминал в IDE). Редактор на всю высоту.</p>
+        <a class="demo" href="./08-bottom-panel/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Плавающая карточка</h2>
+        <p>Компактная карточка режимов в левом верхнем углу редактора, сворачивается в кнопку.</p>
+        <a class="demo" href="./09-floating-card/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Obsidian-style</h2>
+        <p>Дерево | редактор с табами в заголовке файла | узкая панель свойств. Без лишней колонки слева.</p>
+        <a class="demo" href="./10-obsidian-style/index.html">Открыть</a>
+      </article>
+    </div>
+
+    <h2 style="font-size:18px;margin:28px 0 12px;">Серия 2 — альтернативные паттерны</h2>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">11</span>
+        <h2>Command palette (⌘K)</h2>
+        <p>Режимы скрыты. Поиск и выбор через модальное окно — как в VS Code / Notion.</p>
+        <a class="demo" href="./11-command-palette/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">12</span>
+        <h2>Вкладки в левой колонке</h2>
+        <p>«Дерево» и «Режимы» — две вкладки в одной колонке. Без второй колонки по центру.</p>
+        <a class="demo" href="./12-left-column-tabs/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">13</span>
+        <h2>Вертикальные табы у редактора</h2>
+        <p>Узкая колонка режимов прижата к левому краю редактора, не отдельная панель.</p>
+        <a class="demo" href="./13-vertical-editor-tabs/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">14</span>
+        <h2>Notion properties</h2>
+        <p>Режимы как строки свойств с иконками в правой панели. YAML рядом.</p>
+        <a class="demo" href="./14-notion-properties/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Mega-menu в шапке</h2>
+        <p>Кнопка «Режим ▾» в header → выпадающая сетка 4 групп.</p>
+        <a class="demo" href="./15-header-mega-menu/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">16</span>
+        <h2>Slide-over drawer</h2>
+        <p>Кнопка ☰ открывает выезжающую панель режимов поверх контента.</p>
+        <a class="demo" href="./16-slide-over-drawer/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">17</span>
+        <h2>Плитки-сетка</h2>
+        <p>Режимы как карточки-плитки над редактором. Наглядно, но занимает высоту.</p>
+        <a class="demo" href="./17-mode-tiles-grid/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">18</span>
+        <h2>Popover у названия</h2>
+        <p>Dropdown рядом с полем «Название» — режим привязан к заголовку ноды.</p>
+        <a class="demo" href="./18-title-popover/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">19</span>
+        <h2>Split view</h2>
+        <p>Редактор сверху, панель режимов снизу с перетаскиваемым разделителем.</p>
+        <a class="demo" href="./19-split-editor/index.html">Открыть</a>
+      </article>
+
+      <article class="card">
+        <span class="tag">20</span>
+        <h2>Header chips</h2>
+        <p>Компактные чипы групп в шапке, ниже — pills только активной группы.</p>
+        <a class="demo" href="./20-header-chips/index.html">Открыть</a>
+      </article>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+/* 05-props-right-column */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) var(--rail-w) var(--flyout-w) 1fr 220px var(--right-w); }
+      .props-col { grid-column: 5; border-left: 1px solid var(--border); background: var(--panel-soft); padding: 12px; overflow: auto; }
+      .right-panel { grid-column: 6; }
+      .workspace .form-props { display: none; }
+
+      .ws-header { padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .editor-block { flex: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .editor-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+      .props-col .form-props { border: none; background: transparent; padding: 0; }

@@ -1,0 +1,16 @@
+/* 25-production-blend */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 1fr var(--right-w); grid-template-rows: auto auto 1fr; }
+      .sidebar { grid-row: 1 / 4; }
+      .doc-top { grid-column: 2; grid-row: 1; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .doc-title-row { grid-column: 2; grid-row: 2; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .doc-main { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: var(--rail-w) var(--flyout-w) 1fr; min-height: 0; }
+      .right-panel { grid-row: 1 / 4; grid-column: 3; }
+      .mode-rail { grid-column: 1; }
+      .mode-flyout { grid-column: 2; }
+      .workspace { grid-column: 3; }
+
+      .doc-title-row .title-row { display: flex; gap: 8px; align-items: center; }
+      .form-props { margin: 12px 16px 0; }
+      .editor-block { flex: 1; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .editor-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }

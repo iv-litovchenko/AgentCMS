@@ -1,0 +1,202 @@
+# Схема свойств ноды (frontmatter _.node.md)
+# Версия черновика — согласуется с parsePropsYaml / stringifyPropsYaml в public/main.js
+#
+# Каждое поле в definitions описывает один ключ в YAML frontmatter.
+# UI CMS строит контрол по полю `type` и валидирует по `constraints`.
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://agentcms.local/schemas/node-props/v1
+title: NodeProperties
+description: Свойства ноды в блоке --- frontmatter --- файла _.node.md
+
+type: object
+additionalProperties: false
+
+definitions:
+  # --- Скаляры (поддерживаются сейчас) ---
+
+  StringField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: string }
+      key: { type: string, pattern: "^[a-z][a-z0-9_]*$" }
+      title: { type: string }
+      description: { type: string }
+      default: { type: string }
+      constraints:
+        type: object
+        properties:
+          minLength: { type: integer, minimum: 0 }
+          maxLength: { type: integer }
+          pattern: { type: string }
+      ui:
+        type: object
+        properties:
+          widget: { enum: [input, textarea, slug] }
+          placeholder: { type: string }
+
+  TextField:
+    allOf:
+      - $ref: "#/definitions/StringField"
+      - properties:
+          type: { const: text }
+          ui:
+            properties:
+              widget: { const: textarea }
+              rows: { type: integer, minimum: 2, maximum: 24 }
+
+  NumberField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { enum: [integer, number] }
+      key: { type: string }
+      title: { type: string }
+      default: { type: number }
+      constraints:
+        type: object
+        properties:
+          minimum: { type: number }
+          maximum: { type: number }
+          step: { type: number }
+      ui:
+        properties:
+          widget: { enum: [number, slider, stepper] }
+
+  BooleanField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: boolean }
+      key: { type: string }
+      title: { type: string }
+      default: { type: boolean }
+      ui:
+        properties:
+          widget: { enum: [checkbox, toggle] }
+
+  NullField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: "null" }
+      key: { type: string }
+      title: { type: string }
+      description: { type: string }
+      ui:
+        properties:
+          widget: { enum: [nullable-input, clear-button] }
+
+  ArrayField:
+    type: object
+    required: [type, key, items]
+    properties:
+      type: { const: array }
+      key: { type: string }
+      title: { type: string }
+      items:
+        type: object
+        properties:
+          type: { enum: [string, number] }
+      ui:
+        properties:
+          widget: { enum: [tags, list, comma-separated] }
+          allowInline: { type: boolean, default: true }
+
+  EnumField:
+    type: object
+    required: [type, key, enum]
+    properties:
+      type: { const: enum }
+      key: { type: string }
+      title: { type: string }
+      enum: { type: array, minItems: 1, items: { type: string } }
+      default: { type: string }
+      ui:
+        properties:
+          widget: { enum: [select, segmented, radio] }
+
+  # --- Строки с форматом (сейчас хранятся как string, валидируются по схеме) ---
+
+  DateField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: date }
+      key: { type: string }
+      format: { const: date }
+      constraints:
+        properties:
+          format: { const: "YYYY-MM-DD" }
+
+  DateTimeField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: datetime }
+      key: { type: string }
+      format: { const: date-time }
+
+  UrlField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: url }
+      key: { type: string }
+      ui:
+        properties:
+          widget: { const: url }
+
+  ColorField:
+    type: object
+    required: [type, key]
+    properties:
+      type: { const: color }
+      key: { type: string }
+      constraints:
+        properties:
+          pattern: { const: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$" }
+      ui:
+        properties:
+          widget: { enum: [color, text] }
+
+  # --- Планируется ---
+
+  ObjectField:
+    type: object
+    required: [type, key, properties]
+    properties:
+      type: { const: object }
+      key: { type: string }
+      properties:
+        type: object
+        additionalProperties:
+          oneOf:
+            - $ref: "#/definitions/StringField"
+            - $ref: "#/definitions/NumberField"
+            - $ref: "#/definitions/BooleanField"
+      ui:
+        properties:
+          widget: { enum: [nested-form, yaml-block] }
+
+# Пример набора полей для демо-ноды «Дальнобойщики-2»
+examples:
+  node_dalnoboy:
+    title: Дальнобойщики-2
+    slug: dalnoboyshchiki-2
+    summary: |
+      Нода про маршруты и логистику для агента-координатора.
+    status: active
+    priority: 10
+    published: true
+    parent: null
+    tags:
+      - логистика
+      - маршрут
+      - demo
+    aliases: [truckers, routes]
+    due_date: "2026-06-01"
+    scheduled_at: "2026-05-26T14:30:00+03:00"
+    homepage: "https://example.com/nodes/dalnoboy"
+    accent_color: "#2563eb"

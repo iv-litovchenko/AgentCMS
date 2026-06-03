@@ -1,0 +1,4 @@
+/* 15-glass-sticky */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.path-header--glass { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); background: rgba(255,255,255,0.82) !important; }
+.preview-body { min-height: 120vh; }

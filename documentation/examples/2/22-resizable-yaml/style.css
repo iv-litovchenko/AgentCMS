@@ -1,0 +1,10 @@
+/* 22-resizable-yaml */
+.workspace { display: flex; flex-direction: column; }
+
+      .rz-head { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
+      .rz-split { display: flex; flex: 1; min-height: 0; }
+      .rz-editor { flex: 1; min-width: 200px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+      .rz-handle { width: 6px; cursor: col-resize; background: var(--border); flex-shrink: 0; }
+      .rz-handle:hover { background: var(--accent); }
+      .rz-yaml { width: 260px; flex-shrink: 0; padding: 12px; border-left: 1px solid var(--border); background: var(--panel-soft); display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+      .rz-yaml .yaml-textarea { flex: 1; min-height: 200px; }

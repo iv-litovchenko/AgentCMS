@@ -1,0 +1,4 @@
+/* 17-clickable-card */
+.mem-click { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; border: none; font: inherit; text-align: left; width: 100%; color: inherit; }
+.mem-click:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.mem-click .mem-open { display: none; }

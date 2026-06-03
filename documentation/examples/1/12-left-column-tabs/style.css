@@ -1,0 +1,5 @@
+.layout-left-tabs { display: grid; grid-template-columns: 300px 1fr 240px; }
+.left-tabs { display: flex; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.left-tab { flex: 1; border: 0; background: transparent; padding: 7px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.left-tab.active { background: #dbeafe; color: #1e3a8a; font-weight: 600; }
+.editor-mock { flex: 1; min-height: 360px; }

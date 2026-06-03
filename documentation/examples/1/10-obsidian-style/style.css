@@ -1,0 +1,70 @@
+.app-header-min { padding: 10px 16px; }
+
+.layout-obsidian {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+}
+
+.sidebar-narrow,
+.right-panel-narrow { padding: 10px; }
+
+.note-header {
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.note-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.note-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 0;
+}
+
+.tab-btn {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 0;
+}
+
+.tab-btn:hover:not(:disabled) { color: var(--text); background: transparent; }
+
+.tab-btn.active {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
+  font-weight: 600;
+  background: transparent;
+}
+
+.tab-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.editor-area-clean { padding-top: 12px; }
+
+.meta-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.meta-value { font-size: 13px; font-weight: 600; }
+
+.editor-mock {
+  flex: 1;
+  min-height: 400px;
+  border: 0;
+  background: transparent;
+  padding-left: 4px;
+}

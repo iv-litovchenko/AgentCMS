@@ -1,0 +1,4 @@
+/* 25-compare-columns */
+.mem-compare-stage { max-width: 960px; }
+.mem-compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mem-compare .mem-card { min-height: 260px; }

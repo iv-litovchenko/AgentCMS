@@ -1,0 +1,41 @@
+.layout-shell { grid-template-rows: auto 1fr; }
+
+.header-stack {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.header-stack .app-header { border-bottom: 1px solid var(--border); }
+
+.group-row,
+.mode-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  overflow-x: auto;
+}
+
+.group-row { border-bottom: 1px solid var(--border); background: #fafcff; }
+
+.group-tab {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.group-tab.active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.layout-two-row {
+  display: grid;
+  grid-template-columns: 280px 1fr 260px;
+}
+
+.editor-mock { flex: 1; min-height: 340px; }

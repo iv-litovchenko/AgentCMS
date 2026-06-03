@@ -1,0 +1,3 @@
+/* 17-two-column-modes */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.two-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .two-modes .ov-memory { margin-bottom: 8px; }

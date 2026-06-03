@@ -1,0 +1,7 @@
+/* 11-accordion-parts */
+.nav-acc-stack { display: flex; flex-direction: column; gap: 8px; }
+.nav-acc { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.nav-acc summary { padding: 12px 14px; font-weight: 600; font-size: 13px; cursor: pointer; list-style: none; }
+.nav-acc summary::-webkit-details-marker { display: none; }
+.nav-acc-body { padding: 0 14px 14px; }
+.nav-acc-body .nav-doc-part { border: 0; margin: 0; padding: 0; }

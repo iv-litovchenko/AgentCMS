@@ -1,0 +1,14 @@
+/* 25-improved-current */
+.workspace { display: flex; flex-direction: column; }
+
+      .current-v2 { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+      .cv2-header { display: flex; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+      .cv2-left { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; }
+      .cv2-title { display: flex; align-items: center; gap: 6px; }
+      .cv2-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .cv2-body { display: grid; grid-template-columns: 1fr 260px; flex: 1; min-height: 0; }
+      .cv2-editor { padding: 14px 16px; overflow: auto; display: flex; flex-direction: column; }
+      .cv2-editor .editor-textarea { flex: 1; min-height: 300px; }
+      .cv2-yaml { border-left: 1px solid var(--border); padding: 14px 12px; background: var(--panel-soft); display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+      .cv2-yaml .yaml-textarea { flex: 1; min-height: 180px; }
+      .btn.full { width: 100%; margin-top: auto; }

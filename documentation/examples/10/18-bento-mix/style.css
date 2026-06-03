@@ -1,0 +1,15 @@
+/* 18-bento-mix */
+.nav-hub--bento { max-width: 920px; }
+.nav-bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.nav-bento-subs { grid-column: span 6; }
+.nav-bento-subs .nav-block-title { display: none; }
+.nav-bento-preview { grid-column: span 4; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.nav-bento-table { grid-column: span 2; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-soft); font-size: 12px; }
+.nav-bento-ext { grid-column: span 3; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.nav-bento-media { grid-column: span 3; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.nav-bento .nav-doc-part, .nav-bento .nav-block { border: 0; margin: 0; padding: 0; }
+.nav-bento .nav-doc-part + .nav-doc-part { border: 0; margin: 0; padding: 0; }
+@media (max-width: 720px) {
+  .nav-bento { grid-template-columns: 1fr; }
+  .nav-bento-preview, .nav-bento-table, .nav-bento-ext, .nav-bento-media { grid-column: span 1; }
+}

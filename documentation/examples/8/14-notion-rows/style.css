@@ -1,0 +1,7 @@
+/* 14-notion-rows */
+.mem-notion { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.mem-nrow { display: grid; grid-template-columns: 140px 1fr 24px; gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--border); background: var(--panel); text-align: left; font: inherit; cursor: pointer; align-items: center; }
+.mem-nrow:last-child { border-bottom: 0; }
+.mem-nrow:hover { background: var(--accent-soft); }
+.mem-nprop { font-weight: 600; font-size: 13px; }
+.mem-nval { font-size: 12px; color: var(--muted); }

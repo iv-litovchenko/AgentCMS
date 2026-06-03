@@ -1,0 +1,4 @@
+/* 23-sticky-path */
+.nav-path-header { position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 0 var(--border); }
+.nav-hub--scroll { min-height: 140vh; }
+.nav-spacer { height: 40vh; }

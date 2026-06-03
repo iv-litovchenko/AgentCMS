@@ -1,0 +1,3 @@
+/* 13-duplicate-save */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.warn-dup { font-size: 11px; color: #b45309; background: var(--warn-soft); padding: 6px 10px; border-radius: 6px; } .toolbar-row { display: flex; gap: 8px; align-items: center; }

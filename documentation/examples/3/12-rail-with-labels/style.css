@@ -1,0 +1,11 @@
+/* 12-rail-with-labels */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 92px var(--flyout-w) 1fr var(--right-w); }
+      .mode-rail { align-items: stretch; padding: 8px 6px; }
+      .rail-btn { width: auto; height: auto; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 16px; padding: 4px; }
+      .rail-btn::after { content: attr(title); font-size: 9px; color: var(--muted); line-height: 1.1; max-width: 72px; text-align: center; }
+
+      .ws-header, .title-row { padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; }
+      .form-props { margin: 12px 16px 0; }
+      .editor-block { flex: 1; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }

@@ -1,0 +1,10 @@
+/* 08-numbered-flow */
+.nav-document--numbered { counter-reset: navpart; }
+.nav-document--numbered > .nav-doc-part { position: relative; padding-left: 36px; }
+.nav-document--numbered > .nav-doc-part::before {
+  counter-increment: navpart; content: counter(navpart);
+  position: absolute; left: 0; top: 1.35em; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--nav-soft); color: var(--nav-prefix);
+  font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.nav-document--numbered > .nav-doc-part:first-child::before { top: 0; }

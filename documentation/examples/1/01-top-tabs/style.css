@@ -1,0 +1,24 @@
+.layout-shell { grid-template-rows: auto auto 1fr; }
+
+.top-tabs {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.top-tabs-inner {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  min-width: max-content;
+}
+
+.top-tabs .pill { flex-shrink: 0; }
+
+.layout-top-tabs {
+  display: grid;
+  grid-template-columns: 280px 1fr 290px;
+}
+
+.editor-block { display: flex; flex-direction: column; flex: 1; gap: 8px; }
+.editor-block .editor-mock { flex: 1; }

@@ -1,0 +1,5 @@
+/* 04-sidebar-domains */
+
+      .shell-body { grid-template-columns: 260px 1fr; }
+      .mode-rail, .mode-flyout { display: none; }
+      .workspace { grid-column: 2; }

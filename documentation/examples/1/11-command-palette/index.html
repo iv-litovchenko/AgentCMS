@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>11 — Command palette</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">11 · Command palette</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header header-with-action">
+        <div><h1>Agent CMS</h1><span>Workspaces/*.node.md</span></div>
+        <button type="button" class="btn" data-open-palette>⌘K Режим…</button>
+      </header>
+      <div class="layout-body layout-cmd">
+        <aside class="sidebar"><input class="tree-search" placeholder="Поиск..." /><div class="tree"></div></aside>
+        <section class="workspace">
+          <div class="path-bar">Путь: <strong>Workspaces / Agents / Research Agent.node.md</strong></div>
+          <div class="editor-area">
+            <div class="active-chip">Режим: <span data-active-mode-label></span></div>
+            <div class="editor-mock" data-mode-preview></div>
+          </div>
+        </section>
+        <aside class="right-panel"><button type="button" class="btn btn-primary">Сохранить</button><textarea class="yaml-mock" rows="5">title: Research Agent</textarea></aside>
+      </div>
+      <div class="palette-overlay hidden" data-palette>
+        <div class="palette">
+          <input type="text" class="palette-input" placeholder="Поиск режима…" data-palette-search />
+          <div class="palette-list mode-panel"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

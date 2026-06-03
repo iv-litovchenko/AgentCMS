@@ -1,0 +1,40 @@
+.layout-accordion {
+  display: grid;
+  grid-template-columns: 320px 1fr 260px;
+}
+
+.sidebar-combined { display: flex; flex-direction: column; }
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 0;
+}
+
+.sidebar-modes-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.accordion details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #fafcff;
+}
+
+.accordion summary {
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.accordion summary::-webkit-details-marker { display: none; }
+
+.accordion .acc-body { padding: 0 6px 8px; }
+
+.editor-mock { flex: 1; min-height: 360px; }

@@ -1,0 +1,29 @@
+{
+  "sections": [
+    {
+      "title": "Agents",
+      "items": [
+        { "label": "Support Agent", "path": "agents/support-agent.yaml" },
+        { "label": "Editor Agent", "path": "agents/editor-agent.yaml" }
+      ]
+    },
+    {
+      "title": "Knowledge",
+      "items": [
+        { "label": "Product Guide", "path": "knowledge/product-guide.md" }
+      ]
+    },
+    {
+      "title": "Workflows",
+      "items": [
+        { "label": "Publish Flow", "path": "workflows/publish-flow.yaml" }
+      ]
+    },
+    {
+      "title": "Settings",
+      "items": [
+        { "label": "Global Settings", "path": "settings/global.yaml" }
+      ]
+    }
+  ]
+}

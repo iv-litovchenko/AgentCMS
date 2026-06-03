@@ -1,0 +1,14 @@
+.header-with-action { justify-content: space-between; align-items: center; }
+.header-with-action > div { display: flex; align-items: baseline; gap: 12px; }
+.layout-cmd { display: grid; grid-template-columns: 280px 1fr 260px; }
+.active-chip { font-size: 12px; color: var(--muted); padding: 6px 10px; background: #eef3ff; border-radius: 8px; width: fit-content; }
+.palette-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.35); display: grid; place-items: start center; padding-top: 12vh; z-index: 200; }
+.palette-overlay.hidden { display: none; }
+.palette { width: min(560px, 92vw); background: var(--panel); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 24px 48px rgba(15,23,42,.18); overflow: hidden; }
+.palette-input { width: 100%; border: 0; border-bottom: 1px solid var(--border); padding: 14px 16px; font-size: 15px; }
+.palette-list { max-height: 360px; overflow: auto; padding: 8px; }
+.palette-item { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.palette-item small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.palette-item:hover, .palette-item.active { background: #dbeafe; }
+.palette-item.hidden-by-search { display: none; }
+.editor-mock { flex: 1; min-height: 360px; }

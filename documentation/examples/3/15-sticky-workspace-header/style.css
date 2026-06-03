@@ -1,0 +1,9 @@
+/* 15-sticky-workspace-header */
+
+
+      .sticky-zone { position: sticky; top: 0; z-index: 5; background: var(--bg); }
+      .ws-header, .title-row { padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; }
+      .form-props { margin: 0; border-radius: 0; border-left: none; border-right: none; }
+      .scroll-editor { flex: 1; overflow: auto; padding: 12px 16px 16px; min-height: 0; }
+      .editor-block { min-height: 420px; display: flex; flex-direction: column; gap: 8px; }

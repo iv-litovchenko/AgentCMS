@@ -1,0 +1,10 @@
+/* 24-inline-toc */
+.nav-ext-inline { display: flex; flex-direction: column; gap: 12px; }
+.nav-ext-inline-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nav-ext-inline-label { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 72px; }
+.nav-ext-inline-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.nav-ext-pill {
+  padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--panel-soft); font-size: 12px; color: var(--accent); text-decoration: none;
+}
+.nav-ext-pill:hover { background: var(--accent-soft); }

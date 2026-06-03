@@ -1,0 +1,7 @@
+/* 19-notion-blocks */
+.nav-document--notion > .nav-doc-part {
+  margin: 0; padding: 12px 10px; border: 0; border-radius: 6px;
+  transition: background 0.12s;
+}
+.nav-document--notion > .nav-doc-part:hover { background: rgba(15, 23, 42, 0.03); }
+.nav-document--notion > .nav-doc-part + .nav-doc-part { margin-top: 2px; padding-top: 12px; }

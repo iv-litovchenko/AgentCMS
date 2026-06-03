@@ -1,0 +1,14 @@
+/* 02-compact-chips-path */
+.workspace { display: flex; flex-direction: column; }
+
+      .doc-wrap { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto; flex: 1; }
+      .chip-path { display: flex; flex-wrap: wrap; gap: 6px; }
+      .path-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+      .path-chip:last-child { color: var(--text); font-weight: 600; border-color: #93c5fd; background: var(--accent-soft); }
+      .hero-title { display: flex; align-items: center; gap: 8px; }
+      .doc-title-input.hero { font-size: 22px; border: none; background: transparent; padding: 0; }
+      .doc-title-input.hero:focus { outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
+      .toolbar-row { display: flex; align-items: center; gap: 10px; }
+      .spacer { flex: 1; }
+      .editor-textarea.tall { min-height: 280px; }
+      .yaml-details summary { cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }

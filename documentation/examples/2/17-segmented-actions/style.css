@@ -1,0 +1,11 @@
+/* 17-segmented-actions */
+.workspace { display: flex; flex-direction: column; }
+
+      .seg-doc { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+      .seg-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+      .segmented button { border: none; border-right: 1px solid var(--border); background: var(--panel); padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+      .segmented button:last-child { border-right: none; }
+      .segmented button.primary { background: var(--accent-soft); color: var(--accent); }
+      .split { display: grid; grid-template-columns: 1fr 250px; gap: 12px; flex: 1; min-height: 280px; }
+      .yaml-pane { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel-soft); display: flex; flex-direction: column; gap: 6px; }

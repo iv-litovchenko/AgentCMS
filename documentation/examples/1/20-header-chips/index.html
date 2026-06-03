@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>20 — Compact header chips</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">20 · Header chips</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="header-chips">
+        <div class="app-header app-header-inline"><h1>Agent CMS</h1></div>
+        <div class="chip-row" data-group-row></div>
+        <div class="chip-row sub chip-modes mode-panel"></div>
+      </header>
+      <div class="layout-body layout-chips">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace"><div class="editor-mock" data-mode-preview></div></section>
+        <aside class="right-panel"><div data-active-mode-label></div><button type="button" class="btn btn-primary">Сохранить</button></aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

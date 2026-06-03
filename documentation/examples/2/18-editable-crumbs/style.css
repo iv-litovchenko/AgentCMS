@@ -1,0 +1,10 @@
+/* 18-editable-crumbs */
+.workspace { display: flex; flex-direction: column; }
+
+      .edit-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--border); font-size: 13px; }
+      .edit-crumbs input { border: 1px solid var(--accent); border-radius: 6px; padding: 4px 8px; font-weight: 600; width: 180px; }
+      .ec-actions { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+      .ec-actions .view-toggle { margin-right: auto; }
+      .workspace { padding-bottom: 16px; overflow: auto; }
+      .workspace .editor-textarea { margin: 0 16px; width: calc(100% - 32px); }
+      .workspace details { margin: 12px 16px 0; }

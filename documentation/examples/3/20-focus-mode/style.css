@@ -1,0 +1,18 @@
+/* 20-focus-mode */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 1fr var(--right-w); transition: 0.2s; }
+      .mode-rail, .mode-flyout { position: absolute; opacity: 0; pointer-events: none; transition: 0.2s; }
+      .shell-body:hover { grid-template-columns: var(--sidebar-w) var(--rail-w) var(--flyout-w) 1fr var(--right-w); }
+      .shell-body:hover .mode-rail { position: static; opacity: 1; pointer-events: auto; grid-column: 2; }
+      .shell-body:hover .mode-flyout { position: static; opacity: 1; pointer-events: auto; grid-column: 3; }
+      .shell-body:hover .workspace { grid-column: 4; }
+      .shell-body:hover .right-panel { grid-column: 5; }
+      .workspace { grid-column: 2; }
+
+      .focus-doc { flex: 1; padding: 24px 32px; display: flex; flex-direction: column; gap: 12px; position: relative; min-height: 0; }
+      .title-row { display: flex; gap: 8px; }
+      .doc-title-input { font-size: 20px; border: none; background: transparent; }
+      .editor-block { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .editor-textarea { border: none; background: transparent; min-height: 300px; }
+      .props-fab { position: absolute; top: 16px; right: 16px; }
+      .focus-props { position: absolute; top: 52px; right: 16px; width: 300px; z-index: 10; box-shadow: var(--shadow); }

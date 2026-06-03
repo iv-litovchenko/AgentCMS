@@ -1,0 +1,10 @@
+/* 17-notion-flow */
+.shell-body { grid-template-columns: var(--sidebar-w) var(--rail-w) var(--flyout-w) 1fr; } .right-panel { display: none; }
+
+      .path-muted { margin: 0; padding: 16px 20px 0; font-size: 12px; }
+      .path-muted .breadcrumbs { font-size: 11px; }
+      .doc-title-input.notion { margin: 8px 20px 0; font-size: 28px; border: none; background: transparent; padding: 0; }
+      .doc-title-input.notion:focus { outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
+      .form-props { margin: 16px 20px 0; background: transparent; }
+      .editor-block { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .bottom-actions { padding: 12px 20px 16px; display: flex; gap: 8px; }

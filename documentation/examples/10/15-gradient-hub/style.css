@@ -1,0 +1,6 @@
+/* 15-gradient-hub */
+.nav-hub--gradient {
+  background: linear-gradient(180deg, #f0fdf4 0%, transparent 120px);
+  border-radius: 16px; padding-top: 24px;
+}
+.nav-hub--gradient .nav-sub-card { border-width: 0; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }

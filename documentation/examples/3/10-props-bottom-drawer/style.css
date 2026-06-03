@@ -1,0 +1,8 @@
+/* 10-props-bottom-drawer */
+
+
+      .ws-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .editor-block { flex: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .props-drawer { border-top: 1px solid var(--border); background: var(--panel); padding: 12px 16px; max-height: 240px; overflow: auto; }
+      .props-drawer .form-props { margin: 0; }

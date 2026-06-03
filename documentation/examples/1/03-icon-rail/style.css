@@ -1,0 +1,47 @@
+.layout-rail {
+  display: grid;
+  grid-template-columns: 260px 52px 200px 1fr 260px;
+}
+
+.icon-rail {
+  background: #eef2ff;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+}
+
+.rail-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.rail-btn:hover,
+.rail-btn.active {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+.rail-flyout {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 12px 10px;
+  overflow: auto;
+}
+
+.rail-flyout.hidden { display: none; }
+
+.flyout-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.editor-mock { flex: 1; min-height: 320px; }

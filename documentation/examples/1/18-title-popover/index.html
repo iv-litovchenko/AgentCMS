@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>18 — Popover у названия</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">18 · Popover</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header"><h1>Agent CMS</h1></header>
+      <div class="layout-body layout-pop">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace">
+          <div class="title-row">
+            <input class="title-input" value="Research Agent" readonly />
+            <button type="button" class="btn mode-pop-btn" data-pop-toggle>▾ <span data-active-mode-label></span></button>
+            <div class="mode-popover hidden mode-panel" data-popover></div>
+          </div>
+          <div class="editor-area"><div class="editor-mock" data-mode-preview></div></div>
+        </section>
+        <aside class="right-panel"><button type="button" class="btn btn-primary">Сохранить</button></aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

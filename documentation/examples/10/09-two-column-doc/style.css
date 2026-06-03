@@ -1,0 +1,4 @@
+/* 09-two-column-doc */
+.nav-doc-columns { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; }
+.nav-doc-col--side .nav-doc-part + .nav-doc-part { margin-top: 1em; padding-top: 1em; border-top: 1px solid #e8edf2; }
+@media (max-width: 720px) { .nav-doc-columns { grid-template-columns: 1fr; } }

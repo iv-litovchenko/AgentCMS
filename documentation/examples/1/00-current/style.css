@@ -1,0 +1,14 @@
+.layout-current {
+  display: grid;
+  grid-template-columns: 280px 220px 1fr 290px;
+}
+
+.mode-sidebar h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.editor-block { display: flex; flex-direction: column; flex: 1; gap: 8px; }
+.editor-block .editor-mock { flex: 1; }

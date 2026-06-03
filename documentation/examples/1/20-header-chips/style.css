@@ -1,0 +1,10 @@
+.layout-shell { grid-template-rows: auto 1fr; }
+.header-chips { border-bottom: 1px solid var(--border); background: var(--panel); }
+.app-header-inline { border-bottom: 0; padding-bottom: 0; }
+.chip-row { display: flex; gap: 6px; padding: 0 16px 10px; flex-wrap: wrap; }
+.chip-row.sub { padding-top: 0; border-top: 1px dashed var(--border); margin-top: -2px; padding-bottom: 12px; }
+.group-chip, .chip-modes .pill { font-size: 12px; }
+.group-chip { border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; background: var(--panel); cursor: pointer; color: var(--muted); }
+.group-chip.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+.layout-chips { display: grid; grid-template-columns: 260px 1fr 220px; }
+.editor-mock { min-height: 420px; margin: 16px; flex: 1; }

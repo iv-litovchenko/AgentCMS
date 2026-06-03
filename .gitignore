@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build / packaging
+dist/
+out/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.snap
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE / editors
+.idea/
+.vscode/
+
+# Cache & temp
+.cache/
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,6 @@
+/* 10-sidebar-toc */
+.nav-layout-sidebar { display: grid; grid-template-columns: 200px 1fr; gap: 28px; align-items: start; }
+.nav-sidebar-toc { position: sticky; top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-soft); font-size: 12px; }
+.nav-sidebar-toc .nav-ext-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.nav-sidebar-toc .nav-doc-part { border: 0; margin: 0; padding: 0; }
+@media (max-width: 720px) { .nav-layout-sidebar { grid-template-columns: 1fr; } .nav-sidebar-toc { position: static; } }

@@ -1,0 +1,11 @@
+/* 19-fullbleed-overlay */
+.workspace { display: flex; flex-direction: column; }
+
+      .fullbleed { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; }
+      .overlay-top { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(15,23,42,0.85); color: #e2e8f0; font-size: 12px; }
+      .overlay-path { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .icon-btn { border: none; background: rgba(255,255,255,0.1); color: inherit; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
+      .icon-btn.save { width: auto; padding: 0 12px; font-weight: 700; background: var(--accent); }
+      .editor-textarea.fullbleed-editor { flex: 1; border: none; border-radius: 0; min-height: 300px; }
+      .yaml-fab { position: absolute; bottom: 16px; left: 16px; border: none; background: var(--panel); border-radius: 999px; padding: 8px 14px; box-shadow: var(--shadow); cursor: pointer; font-weight: 600; }
+      .yaml-overlay { position: absolute; bottom: 56px; left: 16px; width: 320px; padding: 10px; background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); }

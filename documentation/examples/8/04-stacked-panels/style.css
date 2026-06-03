@@ -1,0 +1,8 @@
+/* 04-stacked-panels */
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.stack .mem-card { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.stack .mem-card-head { flex: 1; min-width: 180px; }
+.stack .mem-card--internal { border-left: 4px solid #3b82f6; }
+.stack .mem-card--external { border-left: 4px solid #f59e0b; }
+.stack .mem-card--tabular { border-left: 4px solid #22c55e; }
+.stack .mem-open { margin-top: 0; }

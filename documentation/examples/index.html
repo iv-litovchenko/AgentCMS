@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS — все примеры UI</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #fff;
+        --border: #d7deeb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 32px 24px 48px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .lead {
+        color: var(--muted);
+        max-width: 720px;
+        line-height: 1.55;
+        margin: 0 0 24px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+        flex: 1;
+      }
+      a.demo {
+        display: inline-flex;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        width: fit-content;
+      }
+      a.demo:hover {
+        background: #1d4ed8;
+      }
+      code {
+        font-size: 12px;
+        background: #eef2ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Примеры UI (examples)</h1>
+    <p class="lead">
+      Общий сервер: <code>cd documentation/examples && python3 -m http.server 8790</code> →
+      <a href="http://localhost:8790/">http://localhost:8790/</a>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <h2>1 — макет shell</h2>
+        <p>Варианты общего макета, rail, sidebar, header.</p>
+        <a class="demo" href="./1/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>2 — редактор</h2>
+        <p>Центральная зона: крошки, YAML, сохранение.</p>
+        <a class="demo" href="./2/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>3 — свойства / rail</h2>
+        <p>Расположение props, flyout, вкладки режимов.</p>
+        <a class="demo" href="./3/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>4 — домены ноды</h2>
+        <p>Навигация, память, вложения, rail (VISION).</p>
+        <a class="demo" href="./4/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>5 — workspace chrome</h2>
+        <p>Шапка ноды, save, hero, mobile.</p>
+        <a class="demo" href="./5/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>6 — типы полей</h2>
+        <p>Схема свойств ноды (string, enum, object…).</p>
+        <a class="demo" href="./6/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>7 — обзор ноды</h2>
+        <p>Overview, память, навигация (VISION).</p>
+        <a class="demo" href="./7/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>8 — драйверы памяти</h2>
+        <p>Карточки internal / external / tabular.</p>
+        <a class="demo" href="./8/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>9 — path / service bar</h2>
+        <p>Крошки, селекты, mode rail.</p>
+        <a class="demo" href="./9/">Каталог →</a>
+      </article>
+      <article class="card">
+        <h2>10 — навигация ноды</h2>
+        <p>Подразделы, TOC, document flow.</p>
+        <a class="demo" href="./10/">Каталог →</a>
+      </article>
+    </div>
+  </body>
+</html>

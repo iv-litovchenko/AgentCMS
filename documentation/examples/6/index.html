@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example6 — типы свойств ноды</title>
+    <style>
+      :root { --bg: #f0f4f8; --panel: #fff; --border: #dbe3ef; --text: #1e293b; --muted: #64748b; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 820px; line-height: 1.55; margin: 0 0 8px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 20px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; font-family: ui-monospace, monospace; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f5f3ff; color: #5b21b6; width: fit-content; }
+      .card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+      .meta { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
+      .meta--now { background: #ecfdf5; color: #059669; }
+      .meta--planned { background: #f5f3ff; color: #7c3aed; }
+      .meta--kind { background: #eff6ff; color: #2563eb; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 4px; }
+      .focus-card { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+      .links { margin-top: 16px; font-size: 13px; }
+      .links a { color: var(--accent); }
+      code { font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Example6 — типы свойств ноды</h1>
+    <p class="lead">
+      Поля frontmatter <code>_.node.md</code>, описанные через YAML-схему
+      (<a href="./node-props.schema.yaml">node-props.schema.yaml</a>).
+      В каждом примере: фрагмент схемы, YAML и макет контрола формы.
+    </p>
+    <p class="lead" style="font-size:13px;">
+      <code>node generate.mjs</code> ·
+      <code>python3 -m http.server 8768</code> →
+      <a href="http://localhost:8768">localhost:8768</a>
+    </p>
+    <p class="links">
+      <a href="./SCHEMA.md">SCHEMA.md</a> ·
+      <a href="./15-catalog/index.html">Каталог всех виджетов</a> ·
+      <a href="./14-full-node/index.html">Полный frontmatter</a>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>string</h2>
+        <p>Короткая строка: title, slug, имя. В CMS — однострочный input.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./01-string/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>text (multiline)</h2>
+        <p>Длинный текст: summary с literal block | в YAML. В форме — textarea.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./02-text/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">03</span>
+        <h2>integer / number</h2>
+        <p>Число без кавычек: priority, weight. Парсер распознаёт integer и float.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">number</span>
+        </div>
+        <a class="demo" href="./03-number/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>boolean</h2>
+        <p>true / false без кавычек. В форме — checkbox или toggle.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">bool</span>
+        </div>
+        <a class="demo" href="./04-boolean/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>null</h2>
+        <p>Пустое значение: null или ~. Для опциональных ссылок на родителя.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">null</span>
+        </div>
+        <a class="demo" href="./05-null/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>array (block)</h2>
+        <p>Список через дефисы — предпочтительный формат для tags.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">array</span>
+        </div>
+        <a class="demo" href="./06-array-block/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>array (inline)</h2>
+        <p>Короткий список в одну строку: [a, b]. Парсер main.js поддерживает.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">array</span>
+        </div>
+        <a class="demo" href="./07-array-inline/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>enum</h2>
+        <p>Ограниченный набор строк: status. В YAML — обычная строка, валидация по enum в схеме.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./08-enum/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>date</h2>
+        <p>Дата ISO YYYY-MM-DD. Хранится как string, проверяется по format.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./09-date/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>datetime</h2>
+        <p>Дата-время с таймзоной. В YAML — строка в кавычках.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./10-datetime/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">11</span>
+        <h2>url</h2>
+        <p>Ссылка https://. Валидация URI, в storage — string.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./11-url/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">12</span>
+        <h2>color</h2>
+        <p>HEX-цвет для UI ноды в дереве/карточках.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">string</span>
+        </div>
+        <a class="demo" href="./12-color/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">13</span>
+        <h2>object (nested)</h2>
+        <p>Вложенный объект — планируется. Пока только raw YAML или подформа.</p>
+        <div class="card-meta">
+          <span class="meta meta--planned">план</span>
+          <span class="meta meta--kind">object</span>
+        </div>
+        <a class="demo" href="./13-object/index.html">Открыть</a>
+      </article>
+      <article class="card focus-card">
+        <span class="tag">14</span>
+        <h2>Полный frontmatter ноды</h2>
+        <p>Все типы в одном _.node.md — эталон для агента и тестов.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">mixed</span>
+        </div>
+        <a class="demo" href="./14-full-node/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Каталог виджетов</h2>
+        <p>Все контролы на одной странице — для сравнения плотности и выравнивания.</p>
+        <div class="card-meta">
+          <span class="meta meta--now">в CMS</span>
+          <span class="meta meta--kind">mixed</span>
+        </div>
+        <a class="demo" href="./15-catalog/index.html">Открыть</a>
+      </article></div>
+  </body>
+</html>

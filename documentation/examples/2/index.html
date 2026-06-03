@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example2 — центральная часть редактора</title>
+    <style>
+      :root { --bg: #f5f7fb; --panel: #fff; --border: #d7deeb; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 760px; line-height: 1.55; margin: 0 0 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #eff6ff; color: #1e40af; width: fit-content; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; }
+      a.demo:hover { background: #1d4ed8; }
+      .focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+      .card.stale { border-color: #fecaca; background: #fffafa; opacity: 0.92; }
+      .card.stale h2 { color: #991b1b; }
+      .tag-stale {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: #b91c1c;
+        font-weight: 600;
+        width: fit-content;
+      }
+      .card-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <h1>Example2 — центральная часть редактора</h1>
+    <p class="lead">
+      25 интерактивных прототипов: хлебные крошки, YAML-свойства md-файла, кнопки «Сохранить / Назад / Закрыть»,
+      улучшения центральной зоны. Контекст — редактирование файла из _Content.
+    </p>
+    <p class="lead" style="font-size:13px;margin-top:-8px;">
+      Запуск: <code>cd Example2 && python3 -m http.server 8766</code> →
+      <a href="http://localhost:8766">http://localhost:8766</a>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">01</span>
+        <h2>Sticky doc bar</h2>
+        <p>Липкая шапка документа: крошки слева, «Назад / Сохранить / Закрыть» справа. Редактор на всю ширину.</p>
+        <a class="demo" href="./01-sticky-doc-bar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Two-row header</h2>
+        <p>Два ряда: крошки + закрыть; название + сохранить. YAML справа в колонке.</p>
+        <a class="demo" href="./04-two-row-header/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Editor | YAML tabs</h2>
+        <p>Вкладки «Содержимое» и «YAML» в центре — без правой панели.</p>
+        <a class="demo" href="./07-center-tabs/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">10</span>
+        <h2>Unified toolbar</h2>
+        <p>Одна панель: ← | крошки | Edit/Preview | YAML | Save.</p>
+        <a class="demo" href="./10-unified-toolbar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">14</span>
+        <h2>Frontmatter block</h2>
+        <p>YAML как первый блок в потоке редактора (как в Obsidian).</p>
+        <a class="demo" href="./14-frontmatter-block/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">15</span>
+        <h2>Form properties</h2>
+        <p>YAML заменён формой полей + кнопка «Показать код».</p>
+        <a class="demo" href="./15-form-properties/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">17</span>
+        <h2>Segmented actions</h2>
+        <p>Кнопки «Назад | Сохранить | Закрыть» — сегментированная группа.</p>
+        <a class="demo" href="./17-segmented-actions/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">19</span>
+        <h2>Fullbleed overlay</h2>
+        <p>Редактор edge-to-edge, controls — полупрозрачный overlay сверху.</p>
+        <a class="demo" href="./19-fullbleed-overlay/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">20</span>
+        <h2>Dirty indicator</h2>
+        <p>Кнопка «Сохранить» показывает несохранённые изменения (●).</p>
+        <a class="demo" href="./20-dirty-save/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">21</span>
+        <h2>Back as first crumb</h2>
+        <p>Первый элемент крошек — «← Назад к списку».</p>
+        <a class="demo" href="./21-back-as-crumb/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">22</span>
+        <h2>Resizable YAML</h2>
+        <p>YAML-панель справа с перетаскиваемым разделителем.</p>
+        <a class="demo" href="./22-resizable-yaml/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <span class="tag">23</span>
+        <h2>VS Code bar</h2>
+        <p>Командная строка в стиле VS Code: путь файла + статус сохранения.</p>
+        <a class="demo" href="./23-vscode-bar/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">02</span><span class="tag-stale">не актуально</span></div>
+        <h2>Path chips</h2>
+        <p>Крошки как компактные чипы с иконкой папки. YAML под редактором в свёрнутой секции.</p>
+        <a class="demo" href="./02-compact-chips-path/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">03</span><span class="tag-stale">не актуально</span></div>
+        <h2>Floating actions</h2>
+        <p>Минимальный верх — только путь текстом. Кнопки «Сохранить» и «Закрыть» плавают внизу справа.</p>
+        <a class="demo" href="./03-floating-actions/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">05</span><span class="tag-stale">не актуально</span></div>
+        <h2>Notion-style</h2>
+        <p>Крупный заголовок как в Notion, путь — мелкий подзаголовок. Свойства — таблица полей.</p>
+        <a class="demo" href="./05-notion-header/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">06</span><span class="tag-stale">не актуально</span></div>
+        <h2>YAML bottom drawer</h2>
+        <p>YAML выезжает снизу по кнопке. Центр — только редактор и крошки.</p>
+        <a class="demo" href="./06-yaml-bottom-drawer/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">08</span><span class="tag-stale">не актуально</span></div>
+        <h2>YAML accordion top</h2>
+        <p>YAML-аккордеон над редактором. Крошки в одной строке с кнопками.</p>
+        <a class="demo" href="./08-yaml-accordion/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">09</span><span class="tag-stale">не актуально</span></div>
+        <h2>Compact path dropdown</h2>
+        <p>Длинный путь сворачивается в dropdown «…/_Content/файл».</p>
+        <a class="demo" href="./09-path-dropdown/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">11</span><span class="tag-stale">не актуально</span></div>
+        <h2>Card document</h2>
+        <p>Документ в «карточке» с тенью. Крошки снаружи карточки.</p>
+        <a class="demo" href="./11-card-document/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">12</span><span class="tag-stale">не актуально</span></div>
+        <h2>Focus mode</h2>
+        <p>Chrome появляется при наведении. Максимум места редактору.</p>
+        <a class="demo" href="./12-focus-mode/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">13</span><span class="tag-stale">не актуально</span></div>
+        <h2>Three zones</h2>
+        <p>YAML слева узкой колонкой, редактор центр, actions sticky справа.</p>
+        <a class="demo" href="./13-three-zone/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">16</span><span class="tag-stale">не актуально</span></div>
+        <h2>Glass header</h2>
+        <p>Полупрозрачная шапка поверх редактора. Крошки + actions в glass bar.</p>
+        <a class="demo" href="./16-glass-header/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">18</span><span class="tag-stale">не актуально</span></div>
+        <h2>Editable crumbs</h2>
+        <p>Последний сегмент пути = редактируемое имя файла (без расширения).</p>
+        <a class="demo" href="./18-editable-crumbs/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">24</span><span class="tag-stale">не актуально</span></div>
+        <h2>Stacked layout</h2>
+        <p>Вертикальный stack: крошки → actions → yaml → editor (удобно на узких экранах).</p>
+        <a class="demo" href="./24-stacked-mobile/index.html">Открыть</a>
+      </article>
+      <article class="card stale">
+        <div class="card-tags"><span class="tag">25</span><span class="tag-stale">не актуально</span></div>
+        <h2>Improved current</h2>
+        <p>Эволюция текущего макета: path-area убран, всё в одной шапке документа + YAML справа.</p>
+        <a class="demo" href="./25-improved-current/index.html">Открыть</a>
+      </article></div>
+  </body>
+</html>

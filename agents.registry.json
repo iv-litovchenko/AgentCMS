@@ -1,0 +1,17 @@
+{
+  "agents": [
+    {
+      "id": "myagent",
+      "path": "/Users/macbook/Desktop/MyAgent",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "medcenteragent",
+      "path": "/Users/macbook/Desktop/MedCenterAgent",
+      "environment": "local",
+      "active": true,
+      "default": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+/* 25-recommended-blend */
+.nav-document--panel {
+  padding: 20px 22px 24px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--panel); box-shadow: var(--shadow);
+}
+.nav-document--blend .nav-doc-part + .nav-doc-part { border-top-color: #eef2f7; }
+.nav-table-card { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-soft); margin-top: 1.25em; }
+.nav-table-card-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; }
+.nav-table-card .nav-doc-part { border: 0; margin: 0; padding: 0; }

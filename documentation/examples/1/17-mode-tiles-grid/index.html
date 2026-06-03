@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>17 — Плитки-сетка</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">17 · Плитки</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header"><h1>Agent CMS</h1></header>
+      <div class="layout-body layout-tiles">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace">
+          <div class="path-bar">Research Agent</div>
+          <div class="tiles-bar mode-panel"></div>
+          <div class="editor-area"><div class="editor-mock" data-mode-preview></div></div>
+        </section>
+        <aside class="right-panel"><div class="field-label">Активно</div><div data-active-mode-label></div></aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

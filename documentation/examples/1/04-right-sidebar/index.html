@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>04 — Режимы справа</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">04 · Режимы справа</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header">
+        <h1>Agent CMS</h1>
+        <span>Workspaces/*.node.md</span>
+      </header>
+      <div class="layout-body layout-right-modes">
+        <aside class="sidebar">
+          <input class="tree-search" placeholder="Поиск по дереву..." />
+          <div class="tree"></div>
+        </aside>
+        <section class="workspace">
+          <div class="path-bar">Путь: <strong>Workspaces / Agents / Research Agent.node.md</strong></div>
+          <div class="editor-area">
+            <input class="title-input" value="Research Agent" readonly />
+            <div class="field-label">Содержимое · <span data-active-mode-label></span></div>
+            <div class="editor-mock" data-mode-preview></div>
+          </div>
+        </section>
+        <aside class="right-panel">
+          <div class="right-section">
+            <div class="field-label">Управление нодой</div>
+            <div class="mode-panel"></div>
+          </div>
+          <div class="right-section actions">
+            <button type="button" class="btn">Обсидиан</button>
+            <button type="button" class="btn btn-primary">Сохранить</button>
+            <button type="button" class="btn btn-danger">Удалить</button>
+          </div>
+          <div class="right-section">
+            <div class="field-label">YAML-свойства</div>
+            <textarea class="yaml-mock" rows="5">title: Research Agent</textarea>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

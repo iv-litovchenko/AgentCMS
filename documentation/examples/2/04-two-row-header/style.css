@@ -1,0 +1,11 @@
+/* 04-two-row-header */
+.workspace { display: flex; flex-direction: column; }
+
+      .header-a, .header-b { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .header-b .title-row { flex: 1; display: flex; gap: 6px; align-items: center; }
+      .split-body { display: grid; grid-template-columns: 1fr 240px; flex: 1; min-height: 0; }
+      .editor-col, .yaml-col { padding: 14px 16px; overflow: auto; }
+      .yaml-col { border-left: 1px solid var(--border); background: var(--panel-soft); display: flex; flex-direction: column; gap: 8px; }
+      .yaml-textarea.tall { flex: 1; min-height: 200px; }
+      .subhead { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+      .btn.full { width: 100%; margin-top: auto; }

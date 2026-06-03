@@ -1,0 +1,12 @@
+id: editor-agent
+name: Editor Agent
+model: gpt-5.3-codex
+role: Редактирует и нормализует контент
+prompt: |
+  Проверяй стиль, структуру и факты. Не меняй смысл.
+tools:
+  - markdown_editor
+  - spellcheck
+limits:
+  maxTokens: 3000
+  timeoutMs: 25000

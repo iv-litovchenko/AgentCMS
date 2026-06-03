@@ -1,0 +1,3 @@
+/* 01-sticky-actions-bar */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.sticky-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }

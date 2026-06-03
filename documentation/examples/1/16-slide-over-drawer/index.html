@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>16 — Slide-over drawer</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">16 · Slide-over</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header">
+        <button type="button" class="btn drawer-open" data-drawer-open>☰ Режимы</button>
+        <h1>Agent CMS</h1>
+      </header>
+      <div class="layout-body layout-drawer">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace"><div class="field-label"><span data-active-mode-label></span></div><div class="editor-mock" data-mode-preview></div></section>
+        <aside class="right-panel"><button type="button" class="btn btn-primary">Сохранить</button></aside>
+      </div>
+      <div class="drawer-overlay hidden" data-drawer-overlay></div>
+      <aside class="drawer hidden" data-drawer>
+        <div class="drawer-head"><strong>Управление нодой</strong><button type="button" class="btn" data-drawer-close>✕</button></div>
+        <div class="mode-panel"></div>
+      </aside>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

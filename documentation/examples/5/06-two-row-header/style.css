@@ -1,0 +1,2 @@
+/* 06-two-row-header */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }

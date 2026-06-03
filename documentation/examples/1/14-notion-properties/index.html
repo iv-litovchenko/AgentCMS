@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>14 — Notion properties</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">14 · Notion properties</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header"><h1>Agent CMS</h1></header>
+      <div class="layout-body layout-notion">
+        <aside class="sidebar"><div class="tree"></div></aside>
+        <section class="workspace">
+          <div class="path-bar">Research Agent</div>
+          <div class="editor-area"><div class="editor-mock" data-mode-preview></div></div>
+        </section>
+        <aside class="right-panel props-panel">
+          <div class="props-title">Свойства ноды</div>
+          <div class="props-list mode-panel"></div>
+          <div class="field-label">YAML</div>
+          <textarea class="yaml-mock" rows="4">title: Research Agent</textarea>
+          <button type="button" class="btn btn-primary">Сохранить</button>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

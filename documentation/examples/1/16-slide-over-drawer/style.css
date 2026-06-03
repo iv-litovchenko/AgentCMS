@@ -1,0 +1,9 @@
+.app-header { gap: 12px; align-items: center; }
+.drawer-open { font-size: 13px; }
+.layout-drawer { display: grid; grid-template-columns: 260px 1fr 240px; }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 80; }
+.drawer-overlay.hidden { display: none; }
+.drawer { position: fixed; top: 0; left: 0; width: 320px; height: 100vh; background: var(--panel); border-right: 1px solid var(--border); z-index: 90; padding: 16px; overflow: auto; transform: translateX(0); transition: transform .2s ease; box-shadow: 8px 0 24px rgba(15,23,42,.12); }
+.drawer.hidden { transform: translateX(-105%); pointer-events: none; }
+.drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.editor-mock { flex: 1; min-height: 400px; margin: 16px; }

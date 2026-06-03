@@ -1,0 +1,5 @@
+/* 25-recommended-blend */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 52px 200px 1fr; }
+      .ws-context { background: #f8fafc; }
+      .preview-panel { border-top: 3px solid var(--accent); }

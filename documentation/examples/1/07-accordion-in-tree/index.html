@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>07 — Аккордеон в дереве</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">07 · Аккордеон в дереве</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header">
+        <h1>Agent CMS</h1>
+        <span>Workspaces/*.node.md</span>
+      </header>
+      <div class="layout-body layout-accordion">
+        <aside class="sidebar sidebar-combined">
+          <input class="tree-search" placeholder="Поиск..." />
+          <div class="tree"></div>
+          <div class="sidebar-divider"></div>
+          <div class="sidebar-modes-title">Управление нодой</div>
+          <div class="accordion mode-panel"></div>
+        </aside>
+        <section class="workspace">
+          <div class="path-bar">Путь: <strong>Workspaces / Agents / Research Agent.node.md</strong></div>
+          <div class="editor-area">
+            <div class="field-label">Содержимое · <span data-active-mode-label></span></div>
+            <div class="editor-mock" data-mode-preview></div>
+          </div>
+        </section>
+        <aside class="right-panel">
+          <button type="button" class="btn btn-primary">Сохранить</button>
+          <textarea class="yaml-mock" rows="5">title: Research Agent</textarea>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "id": "my-agent",
+  "name": "My Agent",
+  "comment": "Краткая заметка об агенте",
+  "description": "Можно использовать вместо comment"
+}

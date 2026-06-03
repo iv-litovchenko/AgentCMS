@@ -1,0 +1,6 @@
+/* 13-status-bar */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 1fr; grid-template-rows: 1fr 28px; }
+      .mode-rail, .mode-flyout { display: none; }
+      .workspace { grid-row: 1; }
+      .status-domains { grid-column: 1 / -1; grid-row: 2; }

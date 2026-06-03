@@ -1,0 +1,214 @@
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --panel-soft: #eef3ff;
+  --border: #d7deeb;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --accent: #3b82f6;
+  --danger: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.demo-back {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.demo-back:hover { background: var(--panel-soft); }
+
+.demo-badge {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.app-header h1 { margin: 0; font-size: 18px; }
+.app-header span { color: var(--muted); font-size: 13px; }
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 14px;
+  overflow: auto;
+}
+
+.tree-search {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.tree-item {
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: default;
+}
+
+.tree-item.file.active {
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.tree-children { margin-left: 14px; border-left: 1px dashed var(--border); padding-left: 8px; }
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.path-bar {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.path-bar strong { color: var(--text); }
+
+.editor-area {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+.title-input,
+.editor-mock,
+.yaml-mock {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.editor-mock {
+  flex: 1;
+  min-height: 180px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.right-panel {
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-danger { color: var(--danger); border-color: #fecaca; background: #fff5f5; }
+
+.mode-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.mode-btn:hover:not(:disabled) { background: var(--panel-soft); }
+.mode-btn.active { background: #dbeafe; color: #1e3a8a; font-weight: 600; }
+.mode-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.mode-group-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 10px 0 6px;
+  font-weight: 700;
+}
+
+.mode-group-title:first-child { margin-top: 0; }
+
+.pill {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pill.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; font-weight: 600; }
+.pill:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.layout-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.layout-body {
+  min-height: 0;
+  overflow: hidden;
+}

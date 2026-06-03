@@ -1,0 +1,6 @@
+/* 06-split-panel */
+.nav-document--panel {
+  padding: 20px 22px 24px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--panel); box-shadow: var(--shadow);
+}
+.nav-document--panel .nav-doc-part + .nav-doc-part { border-top-color: #eef2f7; }

@@ -1,0 +1,4 @@
+/* 04-mode-segments */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.mode-rail--inline { display: inline-flex; flex-wrap: nowrap; gap: 4px; padding: 0; border: 0; background: transparent; margin-left: 8px; }
+.mode-rail--inline button { padding: 2px 8px; font-size: 10px; }

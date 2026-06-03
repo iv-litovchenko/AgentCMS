@@ -1,0 +1,18 @@
+/* 03-rail-in-sidebar */
+
+      .shell-body { grid-template-columns: 280px 1fr var(--right-w); }
+      .sidebar { display: flex; flex-direction: column; gap: 0; padding: 0; }
+      .sidebar-tree { padding: 12px; border-bottom: 1px solid var(--border); }
+      .sidebar-modes { padding: 8px; display: grid; gap: 4px; }
+      .sidebar-mode { text-align: left; border: none; background: transparent; padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+      .sidebar-mode.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+      .mode-rail { display: none; }
+      .mode-flyout { grid-column: 1; }
+      .workspace { grid-column: 2; }
+
+      .ws-header { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .form-props { margin: 12px 16px 0; }
+      .editor-block { flex: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .editor-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+      .inline-actions { display: flex; gap: 8px; }

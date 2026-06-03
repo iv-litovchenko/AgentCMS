@@ -1,0 +1,6 @@
+/* 16-dual-column-nav */
+
+      .shell-body { grid-template-columns: var(--sidebar-w) 220px 1fr; }
+      .mode-rail { display: none; }
+      .mode-flyout { display: none; }
+      .nav-dual { grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; }

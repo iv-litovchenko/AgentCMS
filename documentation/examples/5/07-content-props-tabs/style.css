@@ -1,0 +1,3 @@
+/* 07-content-props-tabs */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.tab-bar { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 8px; } .tab { border: none; background: none; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; border-radius: 6px; } .tab.active { background: var(--accent-soft); color: #1e40af; }

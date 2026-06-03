@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>01 — Вкладки под шапкой</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">01 · Вкладки под шапкой</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header">
+        <h1>Agent CMS</h1>
+        <span>Workspaces/*.node.md</span>
+      </header>
+      <nav class="top-tabs" aria-label="Управление нодой">
+        <div class="top-tabs-inner mode-panel"></div>
+      </nav>
+      <div class="layout-body layout-top-tabs">
+        <aside class="sidebar">
+          <input class="tree-search" placeholder="Поиск по дереву..." />
+          <div class="tree"></div>
+        </aside>
+        <section class="workspace">
+          <div class="path-bar">Путь: <strong>Workspaces / Agents / Research Agent.node.md</strong></div>
+          <div class="editor-area">
+            <div>
+              <div class="field-label">Название</div>
+              <input class="title-input" value="Research Agent" readonly />
+            </div>
+            <div class="editor-block">
+              <div class="field-label">Содержимое · <span data-active-mode-label></span></div>
+              <div class="editor-mock" data-mode-preview></div>
+            </div>
+          </div>
+        </section>
+        <aside class="right-panel">
+          <button type="button" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-danger">Удалить</button>
+          <div class="field-label">YAML-свойства</div>
+          <textarea class="yaml-mock" rows="6">title: Research Agent</textarea>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

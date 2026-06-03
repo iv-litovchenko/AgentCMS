@@ -1,0 +1,11 @@
+/* 15-form-properties */
+.workspace { display: flex; flex-direction: column; }
+
+      .form-doc { padding: 16px; flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+      .form-top { display: flex; align-items: center; gap: 10px; }
+      .form-top .doc-title-input { flex: 1; }
+      .form-btns { display: flex; gap: 8px; }
+      .form-props { display: grid; gap: 10px; padding: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+      .form-props h3 { margin: 0; font-size: 14px; }
+      .form-props label { display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+      .form-props input, .form-props select { padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; }

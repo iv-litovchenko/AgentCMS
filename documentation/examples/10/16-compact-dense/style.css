@@ -1,0 +1,5 @@
+/* 16-compact-dense */
+.nav-hub--dense { gap: 16px; }
+.nav-hub--dense .nav-block-title { margin-bottom: 8px; font-size: 11px; }
+.nav-hub--dense .nav-document { font-size: 13px; line-height: 1.5; }
+.nav-hub--dense .nav-doc-part + .nav-doc-part { margin-top: 1em; padding-top: 1em; }

@@ -1,0 +1,3 @@
+/* 10-notion-hero-menu */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.hero-row { display: flex; align-items: flex-start; gap: 12px; } .hero-title { flex: 1; font-size: 22px; } .hero-title .title-fixed { font-size: 22px; } .hero-title .doc-title-input { font-size: 22px; max-width: none; }

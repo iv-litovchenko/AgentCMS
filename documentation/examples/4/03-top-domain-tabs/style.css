@@ -1,0 +1,7 @@
+/* 03-top-domain-tabs */
+
+      .shell { grid-template-rows: 48px auto auto 1fr; }
+      .domain-tabs-bar { grid-column: 1 / -1; display: flex; gap: 4px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+      .shell-body { grid-row: 4; grid-template-columns: var(--sidebar-w) 1fr; height: auto; }
+      .mode-rail, .mode-flyout { display: none; }
+      .workspace { grid-column: 2; }

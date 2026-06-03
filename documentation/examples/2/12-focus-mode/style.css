@@ -1,0 +1,14 @@
+/* 12-focus-mode */
+.workspace { display: flex; flex-direction: column; }
+
+      .focus-wrap { flex: 1; padding: 32px 48px; display: flex; flex-direction: column; gap: 16px; position: relative; overflow: auto; }
+      .focus-chrome { position: absolute; top: 8px; left: 16px; right: 16px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); opacity: 0; transform: translateY(-6px); transition: 0.2s; box-shadow: var(--shadow); z-index: 5; }
+      .focus-wrap:hover .focus-chrome { opacity: 1; transform: translateY(0); }
+      .btn.sm { padding: 5px 10px; font-size: 12px; }
+      .focus-chrome .breadcrumbs { flex: 1; }
+      .focus-title { margin: 40px 0 0; font-size: 28px; font-weight: 700; }
+      .editor-textarea.focus { border: none; background: transparent; min-height: 320px; font-size: 15px; line-height: 1.7; flex: 1; }
+      .focus-yaml { display: flex; gap: 10px; align-items: flex-start; opacity: 0.5; transition: 0.2s; }
+      .focus-wrap:hover .focus-yaml { opacity: 1; }
+      .focus-yaml span { font-size: 11px; font-weight: 700; color: var(--muted); padding-top: 8px; }
+      .yaml-textarea.mini { min-height: 80px; flex: 1; }

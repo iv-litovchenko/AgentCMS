@@ -1,0 +1,6 @@
+/* 24-zoned-labels */
+
+      .zone-tag { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 4px; }
+      .sidebar::before { content: "A · Дерево"; display: block; font-size: 9px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+      .mode-rail::before { content: "B"; }
+      .mode-flyout::before { content: "C · Подрежимы"; display: block; font-size: 9px; font-weight: 700; color: var(--muted); padding: 6px 10px; }

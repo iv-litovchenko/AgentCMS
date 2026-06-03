@@ -1,0 +1,3 @@
+/* 06-sticky-meta-sidebar */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.layout-06 .meta-layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; } .layout-06 .meta-side { position: sticky; top: 8px; } .layout-06 .ov-meta.flat { grid-template-columns: 1fr; margin-bottom: 12px; }

@@ -1,0 +1,4 @@
+/* 11-column-dividers */
+.mem-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
+.mem-cols .mem-card { border-radius: 0; border: 0; border-right: 1px solid var(--border); background: transparent; box-shadow: none; }
+.mem-cols .mem-card:last-child { border-right: 0; }

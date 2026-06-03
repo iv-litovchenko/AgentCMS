@@ -1,0 +1,8 @@
+/* 20-dirty-save */
+.workspace { display: flex; flex-direction: column; }
+
+      .dirty-doc { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: auto; }
+      .title-actions { display: flex; align-items: center; gap: 10px; }
+      .title-actions .doc-title-input { flex: 1; }
+      .dirty-btn .dot { color: var(--warn); margin-right: 4px; }
+      .dirty-btn.saved .dot { color: var(--success); }

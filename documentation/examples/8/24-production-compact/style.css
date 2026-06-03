@@ -1,0 +1,4 @@
+/* 24-production-compact */
+.mem-list--compact .mem-row { padding: 10px 12px; border-radius: 8px; }
+.mem-list--compact .mem-excerpt, .mem-list--compact .mem-recent-inline { display: none; }
+.mem-list--compact .mem-row:hover .mem-excerpt { display: block; font-size: 11px; margin-top: 4px; }

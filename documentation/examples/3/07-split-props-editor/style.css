@@ -1,0 +1,10 @@
+/* 07-split-props-editor */
+
+
+      .ws-header { display: flex; justify-content: space-between; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .title-row { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+      .split-main { flex: 1; display: grid; grid-template-columns: 34% 1fr; gap: 12px; padding: 12px 16px 16px; min-height: 0; }
+      .form-props { margin: 0; align-self: start; }
+      .editor-block { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+      .editor-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+      .inline-actions { display: flex; gap: 8px; }

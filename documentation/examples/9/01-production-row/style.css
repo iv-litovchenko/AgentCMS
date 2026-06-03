@@ -1,0 +1,2 @@
+/* 01-production-row */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }

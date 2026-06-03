@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>08 — Нижняя панель</title>
+    <link rel="stylesheet" href="../shared-base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <span class="demo-badge">08 · Нижняя панель</span>
+    <a class="demo-back" href="../index.html">← Все варианты</a>
+    <div class="layout-shell" id="app">
+      <header class="app-header">
+        <h1>Agent CMS</h1>
+        <span>Workspaces/*.node.md</span>
+      </header>
+      <div class="layout-body layout-bottom">
+        <aside class="sidebar">
+          <input class="tree-search" placeholder="Поиск..." />
+          <div class="tree"></div>
+        </aside>
+        <div class="center-stack">
+          <section class="workspace">
+            <div class="path-bar path-with-toggle">
+              <span>Путь: <strong>Workspaces / Agents / Research Agent.node.md</strong></span>
+              <button type="button" class="btn" data-bottom-toggle>Режимы ▴</button>
+            </div>
+            <div class="editor-area">
+              <div class="field-label">Содержимое · <span data-active-mode-label></span></div>
+              <div class="editor-mock" data-mode-preview></div>
+            </div>
+          </section>
+          <section class="bottom-panel" data-bottom-panel>
+            <div class="bottom-panel-head">Управление нодой</div>
+            <div class="bottom-scroll mode-panel"></div>
+          </section>
+        </div>
+        <aside class="right-panel">
+          <button type="button" class="btn btn-primary">Сохранить</button>
+          <textarea class="yaml-mock" rows="5">title: Research Agent</textarea>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

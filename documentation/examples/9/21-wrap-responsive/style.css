@@ -1,0 +1,5 @@
+/* 21-wrap-responsive */
+.workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.path-header--wrap { flex-wrap: wrap; }
+.path-header--wrap .breadcrumbs { flex: 1 1 200px; flex-wrap: wrap; }
+.path-header--wrap .path-actions { margin-left: auto; }

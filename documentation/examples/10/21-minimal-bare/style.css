@@ -1,0 +1,5 @@
+/* 21-minimal-bare */
+.nav-sub-grid--bare { margin-bottom: 8px; }
+.nav-sub-grid--bare .nav-sub-card { border-radius: 8px; box-shadow: none; }
+.nav-sub-grid--bare .nav-sub-cover { height: 72px; font-size: 28px; }
+.nav-document--bare > .nav-doc-part + .nav-doc-part { border-top-color: #f1f5f9; margin-top: 1em; padding-top: 1em; }
