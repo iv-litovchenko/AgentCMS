@@ -72,6 +72,7 @@ const fileContentPreviewNode = document.getElementById("file-content-preview");
 const titleEditorBlockNode = document.getElementById("title-editor-block");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
+const editorViewClusterNode = document.querySelector(".editor-view-cluster");
 const editorViewToggleNode = document.getElementById("editor-view-toggle");
 const docActionsNode = document.getElementById("doc-actions");
 const workspacePathToolbarNode = document.getElementById("workspace-path-toolbar");
@@ -9122,9 +9123,15 @@ function applyModeUi() {
     overviewLikeMode ||
     graphMode ||
     (hideContentEditor && !graphMode && !listViewWithSourceToggle);
-  editorViewToggleNode?.classList.toggle("hidden", hideEditorViewToggle);
   const showTabularSourceEditor = activeContentMode === "tabular" && isTabularSourceEditing();
+  const hideEditorViewCluster = hideEditorViewToggle && !showTabularSourceEditor;
+  editorViewClusterNode?.classList.toggle("hidden", hideEditorViewCluster);
+  editorViewToggleNode?.classList.toggle("hidden", hideEditorViewToggle);
   editorLineNumbersBtn?.classList.toggle("hidden", hideEditorViewToggle && !showTabularSourceEditor);
+  editorViewClusterNode?.classList.toggle(
+    "is-line-numbers-only",
+    hideEditorViewToggle && showTabularSourceEditor
+  );
   editorSurfaceNode?.classList.toggle("hidden", previewMode || graphMode || overviewLikeMode || showListView);
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
   graphViewBlockNode?.classList.toggle("hidden", !graphMode);
