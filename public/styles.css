@@ -1654,26 +1654,43 @@ body.app-booting {
   max-width: 100%;
 }
 
-.home-mascot-slogan li {
+.home-mascot-slogan .home-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
   color: #334155;
   letter-spacing: 0.01em;
-  padding: 7px 14px;
+  padding: 6px 12px 6px 10px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   white-space: nowrap;
 }
 
-.home-mascot-slogan li:nth-child(2) {
+.home-hero-tag-hash {
+  font-weight: 800;
+  color: #6366f1;
+  letter-spacing: 0;
+}
+
+.home-mascot-slogan .home-hero-tag:nth-child(2) {
   color: #4338ca;
 }
 
-.home-mascot-slogan li:nth-child(3) {
+.home-mascot-slogan .home-hero-tag:nth-child(2) .home-hero-tag-hash {
+  color: #4f46e5;
+}
+
+.home-mascot-slogan .home-hero-tag:nth-child(3) {
   color: #0369a1;
+}
+
+.home-mascot-slogan .home-hero-tag:nth-child(3) .home-hero-tag-hash {
+  color: #0284c7;
 }
 
 @keyframes home-mascot-hop {
