@@ -39,6 +39,7 @@
       "api-docs.js",
       "mcp-docs.js",
       "mcp-server/**/*",
+      "acms.agents.json",
       "agents.registry.json",
       "Workspaces/**/*",
       "package.json"

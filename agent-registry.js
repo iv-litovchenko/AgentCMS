@@ -38,35 +38,91 @@ const LEGACY_NODE_STORAGE_SUBDIRS = new Set([
 
 const agentContext = new AsyncLocalStorage();
 
-const AGENTCMS_MANIFEST_FILE = "agentcms.json";
+/** Agent CMS — канонические имена файлов платформы и workspace. */
+const ACMS_MAIN_FILE = "acms.main.json";
+const ACMS_MAP_FILE = "acms.map.json";
+const ACMS_AGENTS_REGISTRY_FILE = "acms.agents.json";
+const ACMS_DEPENDENCIES_FILE = "acms.dependencies.json";
+const ACMS_DEPS_FILE = "acms.deps.json";
+
+const LEGACY_WORKSPACE_MANIFEST_FILES = ["acms.workspace.json", "agentcms.json", "awn.agent.json"];
+const LEGACY_AGENTS_REGISTRY_FILES = ["agents.registry.json"];
+const LEGACY_DEPS_FILES = ["agentcms.deps.json", "awn.dependencies.json"];
+
+/** @deprecated use ACMS_MAIN_FILE */
+const ACMS_WORKSPACE_FILE = ACMS_MAIN_FILE;
+/** @deprecated use ACMS_MAIN_FILE */
+const AGENTCMS_MANIFEST_FILE = ACMS_MAIN_FILE;
 const LEGACY_AWN_AGENT_FILE = "awn.agent.json";
-/** @deprecated use AGENTCMS_MANIFEST_FILE */
-const AWN_AGENT_FILE = AGENTCMS_MANIFEST_FILE;
+/** @deprecated use LEGACY_AWN_AGENT_FILE */
+const AWN_AGENT_FILE = LEGACY_AWN_AGENT_FILE;
 
 function resolveAgentManifestAbsoluteSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return null;
-  const canonical = path.join(workspaceRootAbsolute, AGENTCMS_MANIFEST_FILE);
-  const legacy = path.join(workspaceRootAbsolute, LEGACY_AWN_AGENT_FILE);
+  migrateLegacyAgentManifestSync(workspaceRootAbsolute);
+  const canonical = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
   if (fs.existsSync(canonical)) return canonical;
-  if (fs.existsSync(legacy)) return legacy;
+  for (const name of LEGACY_WORKSPACE_MANIFEST_FILES) {
+    const legacy = path.join(workspaceRootAbsolute, name);
+    if (fs.existsSync(legacy)) return legacy;
+  }
   return null;
 }
 
 function migrateLegacyAgentManifestSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return;
-  const canonical = path.join(workspaceRootAbsolute, AGENTCMS_MANIFEST_FILE);
-  const legacy = path.join(workspaceRootAbsolute, LEGACY_AWN_AGENT_FILE);
-  if (fs.existsSync(canonical) || !fs.existsSync(legacy)) return;
-  try {
-    fs.renameSync(legacy, canonical);
-  } catch {
+  const canonical = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
+  if (fs.existsSync(canonical)) return;
+  for (const name of LEGACY_WORKSPACE_MANIFEST_FILES) {
+    const legacy = path.join(workspaceRootAbsolute, name);
+    if (!fs.existsSync(legacy)) continue;
     try {
-      fs.copyFileSync(legacy, canonical);
-      fs.unlinkSync(legacy);
+      fs.renameSync(legacy, canonical);
     } catch {
-      // keep legacy if migration fails
+      try {
+        fs.copyFileSync(legacy, canonical);
+        fs.unlinkSync(legacy);
+      } catch {
+        // keep legacy if migration fails
+      }
     }
+    return;
   }
+}
+
+function getAgentsRegistryPathSync() {
+  migrateAgentsRegistrySync();
+  return path.join(projectRoot, ACMS_AGENTS_REGISTRY_FILE);
+}
+
+function migrateAgentsRegistrySync() {
+  if (!projectRoot) return;
+  const canonical = path.join(projectRoot, ACMS_AGENTS_REGISTRY_FILE);
+  if (fs.existsSync(canonical)) return;
+  for (const name of LEGACY_AGENTS_REGISTRY_FILES) {
+    const legacy = path.join(projectRoot, name);
+    if (!fs.existsSync(legacy)) continue;
+    try {
+      fs.renameSync(legacy, canonical);
+    } catch {
+      try {
+        fs.copyFileSync(legacy, canonical);
+        fs.unlinkSync(legacy);
+      } catch {
+        // keep legacy if migration fails
+      }
+    }
+    return;
+  }
+}
+
+function isAcmsDepsFileName(fileName) {
+  const base = String(fileName || "").trim().toLowerCase();
+  return (
+    base === ACMS_DEPENDENCIES_FILE.toLowerCase() ||
+    base === ACMS_DEPS_FILE.toLowerCase() ||
+    LEGACY_DEPS_FILES.some((legacy) => base === legacy.toLowerCase())
+  );
 }
 const DEFAULT_VAULT_FOLDER = "_Vault";
 const LEGACY_VAULT_FOLDER = "_vault";
@@ -782,7 +838,7 @@ function readAgentManifestRawSync(workspaceRootAbsolute) {
 
 function writeAgentManifestSync(workspaceRootAbsolute, raw) {
   migrateLegacyAgentManifestSync(workspaceRootAbsolute);
-  const manifestPath = path.join(workspaceRootAbsolute, AGENTCMS_MANIFEST_FILE);
+  const manifestPath = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
   fs.writeFileSync(manifestPath, `${JSON.stringify(raw, null, 2)}\n`, "utf-8");
 }
 
@@ -813,7 +869,7 @@ function updateAgentManifestFields(agentPath, fields = {}) {
   const absolute = resolveAgentRootAbsolute(resolvedPath);
   const raw = readAgentManifestRawSync(absolute);
   if (!raw) {
-    throw new Error(`В «${resolvedPath}» нет ${AGENTCMS_MANIFEST_FILE}`);
+    throw new Error(`В «${resolvedPath}» нет ${ACMS_MAIN_FILE}`);
   }
 
   const previousManifest = normalizeAgentManifest(raw, absolute);
@@ -955,7 +1011,7 @@ function normalizeAgentEntry(entry) {
 }
 
 function loadRegistrySync() {
-  const registryPath = path.join(projectRoot, "agents.registry.json");
+  const registryPath = getAgentsRegistryPathSync();
   if (!fs.existsSync(registryPath)) {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
     agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true })];
@@ -976,6 +1032,7 @@ function loadRegistrySync() {
 
 function init(rootDir) {
   projectRoot = rootDir;
+  migrateAgentsRegistrySync();
   loadRegistrySync();
 }
 
@@ -1121,7 +1178,7 @@ function saveAgentsRegistry(rawAgents) {
     if (firstActive) firstActive.default = true;
   }
 
-  const registryPath = path.join(projectRoot, "agents.registry.json");
+  const registryPath = getAgentsRegistryPathSync();
   const payload = {
     agents: normalized.map(({ id, path: agentPath, environment, active, default: isDefault }) => {
       const item = { id, path: agentPath, environment, active: normalizeAgentActive(active) };
@@ -1326,7 +1383,7 @@ function createAgentWorkspace(options = {}) {
   }
 
   if (readAgentManifestRawSync(workspaceAbsolute)) {
-    throw new Error(`В «${resolvedPath}» уже есть ${AGENTCMS_MANIFEST_FILE}`);
+    throw new Error(`В «${resolvedPath}» уже есть ${ACMS_MAIN_FILE}`);
   }
 
   const folderName = path.basename(workspaceAbsolute);
@@ -1575,6 +1632,13 @@ module.exports = {
   findSystemReferenceScaffold,
   createSystemReferenceNodeSync,
   createSystemServiceDocSync,
+  ACMS_MAIN_FILE,
+  ACMS_MAP_FILE,
+  ACMS_WORKSPACE_FILE,
+  ACMS_AGENTS_REGISTRY_FILE,
+  ACMS_DEPENDENCIES_FILE,
+  ACMS_DEPS_FILE,
+  isAcmsDepsFileName,
   AGENTCMS_MANIFEST_FILE,
   LEGACY_AWN_AGENT_FILE,
   AWN_AGENT_FILE,

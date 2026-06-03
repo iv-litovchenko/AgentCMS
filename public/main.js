@@ -1260,15 +1260,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `agentcms.json найден:\n${result.absolute}` : "agentcms.json найден";
+    node.title = result.absolute ? `acms.main.json найден:\n${result.absolute}` : "acms.main.json найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет agentcms.json:\n${result.absolute}`
-      : "Папка есть, но нет agentcms.json";
+      ? `Папка есть, но нет acms.main.json:\n${result.absolute}`
+      : "Папка есть, но нет acms.main.json";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -1619,7 +1619,7 @@ function renderAgentsRegistryList() {
     nameInput.type = "text";
     nameInput.className = "agents-registry-name-input";
     nameInput.dataset.agentName = "1";
-    nameInput.placeholder = "Сохраняется в agentcms.json";
+    nameInput.placeholder = "Сохраняется в acms.main.json";
     nameInput.value = agent.name || "";
     nameInput.addEventListener("input", () => {
       agentsRegistryDraft[index].name = nameInput.value;
@@ -1634,7 +1634,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус agentcms.json");
+    pathStatusNode.setAttribute("aria-label", "Статус acms.main.json");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -1652,7 +1652,7 @@ function renderAgentsRegistryList() {
     commentInput.className = "agents-registry-comment-input";
     commentInput.dataset.agentComment = "1";
     commentInput.rows = 1;
-    commentInput.placeholder = "Сохраняется в agentcms.json";
+    commentInput.placeholder = "Сохраняется в acms.main.json";
     commentInput.value = agent.comment || "";
     commentInput.addEventListener("input", () => {
       agentsRegistryDraft[index].comment = commentInput.value;
@@ -1924,7 +1924,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование agentcms.json…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование acms.main.json…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -1943,7 +1943,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">agentcms.json не найден</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">acms.main.json не найден</div>`;
     return;
   }
 
@@ -11203,6 +11203,9 @@ async function loadSystemFiles() {
       { name: "docker-compose.yml", exists: false, empty: true },
       { name: ".env", exists: false, empty: true },
       { name: ".gitignore", exists: false, empty: true },
+      { name: "acms.dependencies.json", exists: false, empty: true },
+      { name: "acms.deps.json", exists: false, empty: true },
+      { name: "acms.map.json", exists: false, empty: true },
       { name: "agentcms.deps.json", exists: false, empty: true },
       { name: "awn.dependencies.json", exists: false, empty: true }
     ];

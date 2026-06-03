@@ -35,7 +35,7 @@ module.exports = {
       tools: [
         {
           name: "list_agents",
-          description: "Список агентов из agents.registry.json.",
+          description: "Список агентов из acms.agents.json.",
           parameters: "—",
           http: "GET /api/agents"
         }

@@ -133,12 +133,12 @@ async function openWorkspaceDialog() {
   if (result.canceled || !result.filePaths[0]) return;
 
   const selectedRoot = path.resolve(result.filePaths[0]);
-  const registryPath = path.join(selectedRoot, "agents.registry.json");
+  const registryPath = path.join(selectedRoot, "acms.agents.json");
   if (!fs.existsSync(registryPath)) {
     const response = dialog.showMessageBoxSync(mainWindow || undefined, {
       type: "warning",
       title: "Workspace",
-      message: "В выбранной папке нет agents.registry.json",
+      message: "В выбранной папке нет acms.agents.json",
       detail: "Agent CMS может использовать эту папку как корень проекта, но список агентов нужно будет настроить вручную.",
       buttons: ["Использовать", "Отмена"],
       defaultId: 0,

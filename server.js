@@ -143,7 +143,8 @@ const {
   migrateServiceCatalogLegacySync,
   migrateWorkspaceReservedFoldersSync,
   findCatalogScaffold,
-  SYSTEM_REFERENCE_SCAFFOLDS
+  SYSTEM_REFERENCE_SCAFFOLDS,
+  isAcmsDepsFileName
 } = agentRegistry;
 
 const SYSTEM_FILE_NAMES = [
@@ -153,12 +154,17 @@ const SYSTEM_FILE_NAMES = [
   "docker-compose.yml",
   ".env",
   ".gitignore",
+  "acms.dependencies.json",
+  "acms.deps.json",
+  "acms.map.json",
   "agentcms.deps.json",
   "awn.dependencies.json"
 ];
 
 function isAllowedSystemFileName(name) {
-  return SYSTEM_FILE_NAMES.includes(String(name || ""));
+  const base = String(name || "");
+  if (SYSTEM_FILE_NAMES.includes(base)) return true;
+  return isAcmsDepsFileName(base);
 }
 
 function resolveSystemFileAbsolute(name) {
@@ -4997,7 +5003,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет agentcms.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет acms.main.json` });
       }
 
       const data = payload?.data;
@@ -5053,7 +5059,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет agentcms.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет acms.main.json` });
       }
 
       clearAgentWorkspacePreviewImagesSync(absolute);

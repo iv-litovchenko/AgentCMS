@@ -1,0 +1,47 @@
+{
+  "agents": [
+    {
+      "id": "myagent",
+      "path": "/Users/macbook/Desktop/MyAgent",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "medcenteragent",
+      "path": "/Users/macbook/Desktop/MedCenterAgent",
+      "environment": "local",
+      "active": true,
+      "default": true
+    },
+    {
+      "id": "test",
+      "path": "workspaces/test",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test2",
+      "path": "workspaces/test2",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test3",
+      "path": "workspaces/test3",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test4",
+      "path": "workspaces/test4",
+      "environment": "local",
+      "active": true
+    },
+    {
+      "id": "test5",
+      "path": "workspaces/test5",
+      "environment": "local",
+      "active": true
+    }
+  ]
+}

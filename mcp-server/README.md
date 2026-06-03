@@ -19,7 +19,7 @@ npm install
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `AGENT_CMS_BASE_URL` | `http://localhost:3000` | Базовый URL CMS |
-| `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `agents.registry.json` |
+| `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `acms.agents.json` |
 
 Устаревшие `YAMLCMS_*` по-прежнему читаются для совместимости.
 
