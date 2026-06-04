@@ -48,6 +48,12 @@ const agentStorageStatsNode = document.getElementById("agent-storage-stats");
 const agentTimelinePaneNode = document.getElementById("agent-timeline-pane");
 const agentTimelineContentNode = document.getElementById("agent-timeline-content");
 const agentTimelineStatsNode = document.getElementById("agent-timeline-stats");
+const agentTimelineAxisPaneNode = document.getElementById("agent-timeline-axis-pane");
+const agentTimelineAxisContentNode = document.getElementById("agent-timeline-axis-content");
+const agentTimelineAxisStatsNode = document.getElementById("agent-timeline-axis-stats");
+const agentTimelineHorizontalPaneNode = document.getElementById("agent-timeline-horizontal-pane");
+const agentTimelineHorizontalContentNode = document.getElementById("agent-timeline-horizontal-content");
+const agentTimelineHorizontalStatsNode = document.getElementById("agent-timeline-horizontal-stats");
 const agentDashboardStatsNode = document.getElementById("agent-dashboard-stats");
 const agentMapPaneNode = document.getElementById("agent-map-pane");
 const agentMapStageNode = document.getElementById("agent-map-stage");
@@ -220,7 +226,13 @@ const userDocsBtn = document.getElementById("user-docs-btn");
 const userDocsModalNode = document.getElementById("user-docs-modal");
 const userDocsCloseBtn = document.getElementById("user-docs-close-btn");
 const userDocsContentNode = document.getElementById("user-docs-content");
-let userDocsCache = null;
+const userDocsVersionSelectNode = document.getElementById("user-docs-version-select");
+const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
+const DEFAULT_DOC_VERSION = "0.0.1";
+const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
+const userDocsCacheByVersion = Object.create(null);
+let userDocsVersion = DEFAULT_DOC_VERSION;
+let docsMetaCache = null;
 const bestPracticesBtn = document.getElementById("best-practices-btn");
 const bestPracticesModalNode = document.getElementById("best-practices-modal");
 const bestPracticesCloseBtn = document.getElementById("best-practices-close-btn");
@@ -233,7 +245,9 @@ const apiDocsContentNode = document.getElementById("api-docs-content");
 const apiDocsNotesNode = document.getElementById("api-docs-notes");
 const apiDocsTitleNode = document.getElementById("api-docs-title");
 const apiDocsSubtitleNode = document.getElementById("api-docs-subtitle");
-let apiDocsCache = null;
+const apiDocsVersionSelectNode = document.getElementById("api-docs-version-select");
+const apiDocsCacheByVersion = Object.create(null);
+let apiDocsVersion = DEFAULT_DOC_VERSION;
 const mcpDocsBtn = document.getElementById("mcp-docs-btn");
 const mcpDocsModalNode = document.getElementById("mcp-docs-modal");
 const mcpDocsCloseBtn = document.getElementById("mcp-docs-close-btn");
@@ -242,7 +256,9 @@ const mcpDocsNotesNode = document.getElementById("mcp-docs-notes");
 const mcpDocsConfigNode = document.getElementById("mcp-docs-config");
 const mcpDocsTitleNode = document.getElementById("mcp-docs-title");
 const mcpDocsSubtitleNode = document.getElementById("mcp-docs-subtitle");
-let mcpDocsCache = null;
+const mcpDocsVersionSelectNode = document.getElementById("mcp-docs-version-select");
+const mcpDocsCacheByVersion = Object.create(null);
+let mcpDocsVersion = DEFAULT_DOC_VERSION;
 
 const STORAGE_LEGACY_PREFIX = "yamlcms.";
 const STORAGE_PREFIX = "agentcms.";
@@ -4639,6 +4655,8 @@ let agentWorkspaceTableCache = null;
 let agentTimelineCache = null;
 let agentTableRequestId = 0;
 let agentTimelineRequestId = 0;
+let agentTimelineAxisRequestId = 0;
+let agentTimelineHorizontalRequestId = 0;
 let agentTableSearchQuery = "";
 let agentTableSortKey = "displayPath";
 let agentTableSortDir = "asc";
@@ -13017,7 +13035,9 @@ function loadAgentWorkspaceView() {
       saved === "graph" ||
       saved === "storage" ||
       saved === "table" ||
-      saved === "timeline"
+      saved === "timeline" ||
+      saved === "timeline-axis" ||
+      saved === "timeline-horizontal"
     ) {
       return saved;
     }
@@ -13060,6 +13080,11 @@ function applyAgentWorkspaceCanvasUi() {
   agentTablePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "table");
   agentStoragePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "storage");
   agentTimelinePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "timeline");
+  agentTimelineAxisPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "timeline-axis");
+  agentTimelineHorizontalPaneNode?.classList.toggle(
+    "hidden",
+    !showCanvas || agentWorkspaceView !== "timeline-horizontal"
+  );
 
   if (!showCanvas) return;
 
@@ -13083,6 +13108,10 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentTableView();
   } else if (agentWorkspaceView === "timeline") {
     void renderAgentTimelineView();
+  } else if (agentWorkspaceView === "timeline-axis") {
+    void renderAgentTimelineAxisView();
+  } else if (agentWorkspaceView === "timeline-horizontal") {
+    void renderAgentTimelineHorizontalView();
   }
 }
 
@@ -13097,7 +13126,9 @@ function setAgentWorkspaceView(view) {
     view !== "graph" &&
     view !== "storage" &&
     view !== "table" &&
-    view !== "timeline"
+    view !== "timeline" &&
+    view !== "timeline-axis" &&
+    view !== "timeline-horizontal"
   ) {
     return;
   }
@@ -14298,6 +14329,95 @@ function groupTimelineEventsByDay(events) {
   return groups;
 }
 
+function computeTimelineAxisRange(events) {
+  const times = events.map((event) => Date.parse(event.updatedAt)).filter(Number.isFinite);
+  if (!times.length) {
+    const now = Date.now();
+    return { min: now - 86400000, max: now };
+  }
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  const span = Math.max(max - min, 60000);
+  const pad = Math.max(span * 0.06, 300000);
+  return { min: min - pad, max: max + pad };
+}
+
+function getTimelineAxisPositionPercent(updatedAt, range) {
+  const t = Date.parse(updatedAt);
+  if (!Number.isFinite(t) || range.max <= range.min) return 50;
+  return Math.min(100, Math.max(0, ((t - range.min) / (range.max - range.min)) * 100));
+}
+
+function buildTimelineAxisTicks(range, count = 7) {
+  const ticks = [];
+  const span = range.max - range.min;
+  if (span <= 0) {
+    return [{ percent: 0, label: formatNodeMetaDateTime(new Date(range.min).toISOString()) }];
+  }
+  for (let i = 0; i < count; i += 1) {
+    const ratio = count === 1 ? 0 : i / (count - 1);
+    const at = range.min + span * ratio;
+    ticks.push({
+      percent: ratio * 100,
+      label: formatNodeMetaDateTime(new Date(at).toISOString())
+    });
+  }
+  return ticks;
+}
+
+function assignTimelineAxisLanes(events, range) {
+  const sorted = [...events].sort(
+    (a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt)
+  );
+  const laneEnds = [];
+  const withLane = [];
+  for (const event of sorted) {
+    const pos = getTimelineAxisPositionPercent(event.updatedAt, range);
+    let lane = 0;
+    while (lane < laneEnds.length && pos - laneEnds[lane] < 4.5) lane += 1;
+    laneEnds[lane] = pos;
+    withLane.push({ event, pos, lane });
+  }
+  return withLane;
+}
+
+function sortTimelineEventsChronological(events) {
+  return [...events].sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt));
+}
+
+function createTimelineHorizontalCard(event) {
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "agent-timeline-h-card";
+  item.title = `${formatNodeMetaDateTime(event.updatedAt)} — ${event.displayPath || event.label}`;
+
+  const time = document.createElement("time");
+  time.className = "agent-timeline-h-time";
+  time.dateTime = event.updatedAt || "";
+  time.textContent = formatNodeMetaDateTime(event.updatedAt);
+  item.appendChild(time);
+
+  const kind = document.createElement("span");
+  kind.className = `agent-timeline-h-kind is-${event.fileKind || "other"}`;
+  kind.textContent = formatAgentTimelineFileKind(event.fileKind);
+  item.appendChild(kind);
+
+  const fileLabel = document.createElement("span");
+  fileLabel.className = "agent-timeline-h-file";
+  fileLabel.textContent = event.fileLabel || "Файл";
+  item.appendChild(fileLabel);
+
+  const title = document.createElement("span");
+  title.className = "agent-timeline-h-title";
+  title.textContent = event.displayPath || event.label || "—";
+  item.appendChild(title);
+
+  item.addEventListener("click", () => {
+    openNodeFromMenu(event.label || getLabelFromPath(event.manifestPath), event.manifestPath);
+  });
+  return item;
+}
+
 function createAgentStorageLayerChip(layerName, layerMeta) {
   const chip = document.createElement("span");
   chip.className = "agent-storage-layer";
@@ -14780,6 +14900,222 @@ async function renderAgentTimelineView() {
   }
 }
 
+async function renderAgentTimelineAxisView() {
+  if (!agentTimelineAxisContentNode) return;
+
+  const requestId = ++agentTimelineAxisRequestId;
+  agentTimelineAxisContentNode.innerHTML = "";
+  renderListEmptyMessage(agentTimelineAxisContentNode, "Загрузка timeline…");
+
+  try {
+    const data = await fetchAgentTimeline();
+    if (requestId !== agentTimelineAxisRequestId) return;
+
+    const events = Array.isArray(data.events) ? data.events : [];
+    if (agentTimelineAxisStatsNode) {
+      const shown = events.length;
+      const total = data.totalMatched ?? shown;
+      agentTimelineAxisStatsNode.innerHTML = `
+        <span class="agent-timeline-axis-stat"><strong>${shown}</strong> на оси</span>
+        <span class="agent-timeline-axis-stat">всего <strong>${total}</strong></span>
+      `;
+    }
+
+    agentTimelineAxisContentNode.innerHTML = "";
+    if (!events.length) {
+      renderListEmptyMessage(agentTimelineAxisContentNode, "Нет событий для оси времени");
+      return;
+    }
+
+    const range = computeTimelineAxisRange(events);
+    const board = document.createElement("div");
+    board.className = "agent-timeline-axis-board";
+
+    const ruler = document.createElement("div");
+    ruler.className = "agent-timeline-axis-ruler";
+    ruler.setAttribute("aria-hidden", "true");
+    for (const tick of buildTimelineAxisTicks(range)) {
+      const mark = document.createElement("span");
+      mark.className = "agent-timeline-axis-tick";
+      mark.style.left = `${tick.percent}%`;
+      const label = document.createElement("span");
+      label.className = "agent-timeline-axis-tick-label";
+      label.textContent = tick.label;
+      mark.appendChild(label);
+      ruler.appendChild(mark);
+    }
+    board.appendChild(ruler);
+
+    const trackWrap = document.createElement("div");
+    trackWrap.className = "agent-timeline-axis-track-wrap";
+
+    const spine = document.createElement("div");
+    spine.className = "agent-timeline-axis-spine";
+    spine.setAttribute("aria-hidden", "true");
+    trackWrap.appendChild(spine);
+
+    const markers = document.createElement("div");
+    markers.className = "agent-timeline-axis-markers";
+
+    const placed = assignTimelineAxisLanes(events, range);
+    const laneCount = placed.reduce((max, item) => Math.max(max, item.lane + 1), 1);
+    markers.style.minHeight = `${Math.max(120, laneCount * 52 + 24)}px`;
+
+    for (const { event, pos, lane } of placed) {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "agent-timeline-axis-marker";
+      marker.style.left = `${pos}%`;
+      marker.style.top = `${12 + lane * 52}px`;
+      marker.title = `${formatNodeMetaDateTime(event.updatedAt)} — ${event.displayPath || event.label}`;
+
+      const dot = document.createElement("span");
+      dot.className = `agent-timeline-axis-dot is-${event.fileKind || "other"}`;
+      dot.setAttribute("aria-hidden", "true");
+      marker.appendChild(dot);
+
+      const card = document.createElement("span");
+      card.className = "agent-timeline-axis-card";
+      const kind = document.createElement("span");
+      kind.className = `agent-timeline-axis-kind is-${event.fileKind || "other"}`;
+      kind.textContent = formatAgentTimelineFileKind(event.fileKind);
+      card.appendChild(kind);
+      const title = document.createElement("span");
+      title.className = "agent-timeline-axis-title";
+      title.textContent = event.displayPath || event.label || "—";
+      card.appendChild(title);
+      const when = document.createElement("time");
+      when.className = "agent-timeline-axis-when";
+      when.dateTime = event.updatedAt || "";
+      when.textContent = formatNodeMetaDateTime(event.updatedAt);
+      card.appendChild(when);
+      marker.appendChild(card);
+
+      marker.addEventListener("click", () => {
+        openNodeFromMenu(event.label || getLabelFromPath(event.manifestPath), event.manifestPath);
+      });
+      markers.appendChild(marker);
+    }
+
+    trackWrap.appendChild(markers);
+    board.appendChild(trackWrap);
+
+    const hint = document.createElement("p");
+    hint.className = "agent-timeline-axis-hint";
+    hint.textContent =
+      "Слева — раньше, справа — позже. Прокрутите по горизонтали. Клик по маркеру — открыть тему.";
+    board.appendChild(hint);
+
+    agentTimelineAxisContentNode.appendChild(board);
+  } catch {
+    if (requestId !== agentTimelineAxisRequestId) return;
+    agentTimelineAxisContentNode.innerHTML = "";
+    renderListEmptyMessage(
+      agentTimelineAxisContentNode,
+      "Не удалось загрузить timeline. Проверьте, что сервер запущен."
+    );
+    if (agentTimelineAxisStatsNode) agentTimelineAxisStatsNode.innerHTML = "";
+  }
+}
+
+async function renderAgentTimelineHorizontalView() {
+  if (!agentTimelineHorizontalContentNode) return;
+
+  const requestId = ++agentTimelineHorizontalRequestId;
+  agentTimelineHorizontalContentNode.innerHTML = "";
+  renderListEmptyMessage(agentTimelineHorizontalContentNode, "Загрузка ленты…");
+
+  try {
+    const data = await fetchAgentTimeline();
+    if (requestId !== agentTimelineHorizontalRequestId) return;
+
+    const events = Array.isArray(data.events) ? data.events : [];
+    if (agentTimelineHorizontalStatsNode) {
+      const shown = events.length;
+      const total = data.totalMatched ?? shown;
+      agentTimelineHorizontalStatsNode.innerHTML = `
+        <span class="agent-timeline-h-stat"><strong>${shown}</strong> событий</span>
+        <span class="agent-timeline-h-stat">всего <strong>${total}</strong></span>
+      `;
+    }
+
+    agentTimelineHorizontalContentNode.innerHTML = "";
+    if (!events.length) {
+      renderListEmptyMessage(agentTimelineHorizontalContentNode, "Нет событий для горизонтальной ленты");
+      return;
+    }
+
+    const sorted = sortTimelineEventsChronological(events);
+    const range = computeTimelineAxisRange(sorted);
+    const board = document.createElement("div");
+    board.className = "agent-timeline-h-board";
+
+    const rulerWrap = document.createElement("div");
+    rulerWrap.className = "agent-timeline-h-ruler-wrap";
+    const ruler = document.createElement("div");
+    ruler.className = "agent-timeline-h-ruler";
+    ruler.setAttribute("aria-hidden", "true");
+    for (const tick of buildTimelineAxisTicks(range, 8)) {
+      const mark = document.createElement("span");
+      mark.className = "agent-timeline-h-tick";
+      mark.style.left = `${tick.percent}%`;
+      const label = document.createElement("span");
+      label.className = "agent-timeline-h-tick-label";
+      label.textContent = tick.label;
+      mark.appendChild(label);
+      ruler.appendChild(mark);
+    }
+    rulerWrap.appendChild(ruler);
+    board.appendChild(rulerWrap);
+
+    const scroller = document.createElement("div");
+    scroller.className = "agent-timeline-h-scroller";
+
+    const strip = document.createElement("div");
+    strip.className = "agent-timeline-h-strip";
+    strip.setAttribute("role", "list");
+
+    const line = document.createElement("div");
+    line.className = "agent-timeline-h-line";
+    line.setAttribute("aria-hidden", "true");
+    strip.appendChild(line);
+
+    for (const [index, event] of sorted.entries()) {
+      const cell = document.createElement("div");
+      cell.className = "agent-timeline-h-cell";
+      cell.setAttribute("role", "listitem");
+
+      if (index > 0) {
+        const connector = document.createElement("span");
+        connector.className = "agent-timeline-h-connector";
+        connector.setAttribute("aria-hidden", "true");
+        cell.appendChild(connector);
+      }
+
+      cell.appendChild(createTimelineHorizontalCard(event));
+      strip.appendChild(cell);
+    }
+
+    scroller.appendChild(strip);
+    board.appendChild(scroller);
+
+    const hint = document.createElement("p");
+    hint.className = "agent-timeline-h-hint";
+    hint.textContent = "← раньше · позже → — прокрутите ленту. Клик по карточке открывает тему.";
+    board.appendChild(hint);
+
+    agentTimelineHorizontalContentNode.appendChild(board);
+  } catch {
+    if (requestId !== agentTimelineHorizontalRequestId) return;
+    agentTimelineHorizontalContentNode.innerHTML = "";
+    renderListEmptyMessage(
+      agentTimelineHorizontalContentNode,
+      "Не удалось загрузить timeline. Проверьте, что сервер запущен."
+    );
+    if (agentTimelineHorizontalStatsNode) agentTimelineHorizontalStatsNode.innerHTML = "";
+  }
+}
+
 function renderAgentGraphView() {
   if (!agentGraphContentNode) return;
   agentGraphContentNode.innerHTML = "";
@@ -14855,6 +15191,8 @@ function hideHomeView() {
   agentTablePaneNode?.classList.add("hidden");
   agentStoragePaneNode?.classList.add("hidden");
   agentTimelinePaneNode?.classList.add("hidden");
+  agentTimelineAxisPaneNode?.classList.add("hidden");
+  agentTimelineHorizontalPaneNode?.classList.add("hidden");
   syncAppHomeButton();
 }
 
@@ -15534,10 +15872,77 @@ function createApiDocsEndpointNode(endpoint) {
   return node;
 }
 
+function getSelectedDocVersion(selectNode, fallback = DEFAULT_DOC_VERSION) {
+  const value = String(selectNode?.value || fallback).trim();
+  return value === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+}
+
+function readStoredDocVersion() {
+  try {
+    const stored = localStorage.getItem(DOC_VERSION_STORAGE_KEY);
+    return stored === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  } catch {
+    return DEFAULT_DOC_VERSION;
+  }
+}
+
+function storeDocVersion(version) {
+  try {
+    localStorage.setItem(DOC_VERSION_STORAGE_KEY, version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function fetchDocsMeta() {
+  if (docsMetaCache) return docsMetaCache;
+  const response = await fetch("/api/docs-meta");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  docsMetaCache = await response.json();
+  return docsMetaCache;
+}
+
+function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION) {
+  if (!selectNode) return;
+  const version = selectedVersion === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  const meta = docsMetaCache;
+  if (meta?.versions?.length) {
+    selectNode.replaceChildren();
+    for (const item of meta.versions) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label;
+      if (item.id === version) option.selected = true;
+      selectNode.appendChild(option);
+    }
+    return;
+  }
+  selectNode.value = version;
+}
+
+function syncAllDocVersionSelects(version = readStoredDocVersion()) {
+  fillDocVersionSelect(apiDocsVersionSelectNode, version);
+  fillDocVersionSelect(mcpDocsVersionSelectNode, version);
+  fillDocVersionSelect(userDocsVersionSelectNode, version);
+}
+
+async function fetchApiDocs(version, force = false) {
+  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  if (force) delete apiDocsCacheByVersion[v];
+  if (!apiDocsCacheByVersion[v]) {
+    const response = await fetch(`/api/docs?version=${encodeURIComponent(v)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    apiDocsCacheByVersion[v] = await response.json();
+  }
+  return apiDocsCacheByVersion[v];
+}
+
 function renderApiDocsModal(data) {
   if (apiDocsTitleNode) apiDocsTitleNode.textContent = data.title || "HTTP API";
   if (apiDocsSubtitleNode) {
-    apiDocsSubtitleNode.textContent = `${data.baseUrl || "/api"} · ${(data.groups || []).length} разделов`;
+    const ver = data.version || apiDocsVersion;
+    const label = data.versionLabel ? ` · ${data.versionLabel}` : "";
+    apiDocsSubtitleNode.textContent = `${data.baseUrl || "/api"} · v${ver}${label} · ${(data.groups || []).length} разделов`;
   }
   if (apiDocsNotesNode) {
     apiDocsNotesNode.innerHTML = (data.notes || []).map((note) => `<p>${escapeHtml(note)}</p>`).join("");
@@ -15561,12 +15966,10 @@ function renderApiDocsModal(data) {
 async function openApiDocsModal() {
   if (!apiDocsModalNode) return;
   try {
-    if (!apiDocsCache) {
-      const response = await fetch("/api/docs");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      apiDocsCache = await response.json();
-    }
-    renderApiDocsModal(apiDocsCache);
+    await fetchDocsMeta();
+    apiDocsVersion = readStoredDocVersion();
+    syncAllDocVersionSelects(apiDocsVersion);
+    renderApiDocsModal(await fetchApiDocs(apiDocsVersion));
     apiDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить API docs: ${error.message}`, "error");
@@ -15624,7 +16027,9 @@ function createMcpDocsToolNode(tool) {
 function renderMcpDocsModal(data) {
   if (mcpDocsTitleNode) mcpDocsTitleNode.textContent = data.title || "MCP Server";
   if (mcpDocsSubtitleNode) {
-    const parts = [data.subtitle, data.packagePath].filter(Boolean);
+    const ver = data.version || mcpDocsVersion;
+    const label = data.versionLabel ? ` · ${data.versionLabel}` : "";
+    const parts = [`v${ver}${label}`, data.subtitle, data.packagePath].filter(Boolean);
     mcpDocsSubtitleNode.textContent = parts.join(" · ");
   }
   if (mcpDocsNotesNode) {
@@ -15655,15 +16060,24 @@ function renderMcpDocsModal(data) {
   }
 }
 
+async function fetchMcpDocs(version, force = false) {
+  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  if (force) delete mcpDocsCacheByVersion[v];
+  if (!mcpDocsCacheByVersion[v]) {
+    const response = await fetch(`/api/mcp-docs?version=${encodeURIComponent(v)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    mcpDocsCacheByVersion[v] = await response.json();
+  }
+  return mcpDocsCacheByVersion[v];
+}
+
 async function openMcpDocsModal() {
   if (!mcpDocsModalNode) return;
   try {
-    if (!mcpDocsCache) {
-      const response = await fetch("/api/mcp-docs");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      mcpDocsCache = await response.json();
-    }
-    renderMcpDocsModal(mcpDocsCache);
+    await fetchDocsMeta();
+    mcpDocsVersion = readStoredDocVersion();
+    syncAllDocVersionSelects(mcpDocsVersion);
+    renderMcpDocsModal(await fetchMcpDocs(mcpDocsVersion));
     mcpDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");
@@ -15768,15 +16182,43 @@ function closeComponentsIdeasModal() {
   componentsIdeasModalNode?.classList.add("hidden");
 }
 
+async function fetchUserDocs(version, force = false) {
+  const v = version === "0.0.0" ? "0.0.0" : DEFAULT_DOC_VERSION;
+  if (force) delete userDocsCacheByVersion[v];
+  if (!userDocsCacheByVersion[v]) {
+    const response = await fetch(`/api/user-docs?version=${encodeURIComponent(v)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    userDocsCacheByVersion[v] = await response.text();
+  }
+  return userDocsCacheByVersion[v];
+}
+
+function syncUserDocsSubtitle(version) {
+  if (!userDocsSubtitleNode) return;
+  const item = docsMetaCache?.versions?.find((entry) => entry.id === version);
+  userDocsSubtitleNode.textContent = item
+    ? `Agent CMS · ${item.label}`
+    : version === "0.0.0"
+      ? "Agent CMS · Предыдущая (0.0.0)"
+      : "Agent CMS · Актуальная (0.0.1)";
+}
+
+async function applyDocVersionChange(version) {
+  storeDocVersion(version);
+  syncAllDocVersionSelects(version);
+  apiDocsVersion = version;
+  mcpDocsVersion = version;
+  userDocsVersion = version;
+}
+
 async function openUserDocsModal() {
   if (!userDocsModalNode || !userDocsContentNode) return;
   try {
-    if (!userDocsCache) {
-      const response = await fetch("/_storage/user-docs.md");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      userDocsCache = await response.text();
-    }
-    setMarkdownPreviewHtml(userDocsContentNode, userDocsCache);
+    await fetchDocsMeta();
+    userDocsVersion = readStoredDocVersion();
+    syncAllDocVersionSelects(userDocsVersion);
+    syncUserDocsSubtitle(userDocsVersion);
+    setMarkdownPreviewHtml(userDocsContentNode, await fetchUserDocs(userDocsVersion));
     userDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
@@ -15825,6 +16267,18 @@ componentsIdeasModalNode?.addEventListener("click", (event) => {
 userDocsBtn?.addEventListener("click", () => {
   void openUserDocsModal();
 });
+userDocsVersionSelectNode?.addEventListener("change", () => {
+  void (async () => {
+    try {
+      const version = getSelectedDocVersion(userDocsVersionSelectNode);
+      await applyDocVersionChange(version);
+      syncUserDocsSubtitle(version);
+      setMarkdownPreviewHtml(userDocsContentNode, await fetchUserDocs(version, true));
+    } catch (error) {
+      showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
+    }
+  })();
+});
 userDocsCloseBtn?.addEventListener("click", closeUserDocsModal);
 userDocsModalNode?.addEventListener("click", (event) => {
   if (event.target === userDocsModalNode) closeUserDocsModal();
@@ -15841,6 +16295,17 @@ bestPracticesModalNode?.addEventListener("click", (event) => {
 apiDocsBtn?.addEventListener("click", () => {
   void openApiDocsModal();
 });
+apiDocsVersionSelectNode?.addEventListener("change", () => {
+  void (async () => {
+    try {
+      const version = getSelectedDocVersion(apiDocsVersionSelectNode);
+      await applyDocVersionChange(version);
+      renderApiDocsModal(await fetchApiDocs(version, true));
+    } catch (error) {
+      showToast(`Не удалось загрузить API docs: ${error.message}`, "error");
+    }
+  })();
+});
 apiDocsCloseBtn?.addEventListener("click", closeApiDocsModal);
 apiDocsModalNode?.addEventListener("click", (event) => {
   if (event.target === apiDocsModalNode) closeApiDocsModal();
@@ -15848,6 +16313,17 @@ apiDocsModalNode?.addEventListener("click", (event) => {
 
 mcpDocsBtn?.addEventListener("click", () => {
   void openMcpDocsModal();
+});
+mcpDocsVersionSelectNode?.addEventListener("change", () => {
+  void (async () => {
+    try {
+      const version = getSelectedDocVersion(mcpDocsVersionSelectNode);
+      await applyDocVersionChange(version);
+      renderMcpDocsModal(await fetchMcpDocs(version, true));
+    } catch (error) {
+      showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");
+    }
+  })();
 });
 mcpDocsCloseBtn?.addEventListener("click", closeMcpDocsModal);
 mcpDocsModalNode?.addEventListener("click", (event) => {
@@ -16201,6 +16677,9 @@ document.addEventListener("click", (event) => {
   applyMindmapLayout(layoutBtn.dataset.mindmapLayout || "horizontal");
 });
 syncMindmapLayoutUi();
+void fetchDocsMeta()
+  .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
+  .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
   mediaViewMode = mediaViewSelectNode?.value || "all";
   if (activeContentMode === "media") renderListViewContent();

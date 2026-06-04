@@ -124,6 +124,8 @@
                     <option value="table">Таблица</option>
                     <option value="storage">Хранилище</option>
                     <option value="timeline">Лента</option>
+                    <option value="timeline-axis">Timeline</option>
+                    <option value="timeline-horizontal">Timeline →</option>
                   </select>
                 </div>
               </div>
@@ -555,12 +557,49 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Лента</h2>
             <p class="agent-canvas-lead">
-              Недавние изменения манифестов, Content/Config и файлов в слотах <code>_Storage</code>.
+              Лента по дням: недавние изменения манифестов, Content/Config и слотов <code>_Storage</code>.
+              Для оси «когда» — <strong>Timeline</strong> или горизонтальная лента <strong>Timeline →</strong>.
             </p>
           </div>
           <div id="agent-timeline-stats" class="agent-timeline-stats" aria-live="polite"></div>
         </div>
         <div id="agent-timeline-content" class="agent-timeline-content"></div>
+      </main>
+
+      <main
+        id="agent-timeline-axis-pane"
+        class="agent-canvas-pane agent-timeline-axis-pane hidden"
+        aria-label="Timeline workspace"
+      >
+        <div class="agent-canvas-head agent-timeline-axis-head">
+          <div class="agent-timeline-axis-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Timeline</h2>
+            <p class="agent-canvas-lead">
+              Ось времени: когда что менялось в манифестах и слотах <code>_Storage</code>. Слева — раньше, справа — позже.
+            </p>
+          </div>
+          <div id="agent-timeline-axis-stats" class="agent-timeline-axis-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-timeline-axis-content" class="agent-timeline-axis-content"></div>
+      </main>
+
+      <main
+        id="agent-timeline-horizontal-pane"
+        class="agent-canvas-pane agent-timeline-horizontal-pane hidden"
+        aria-label="Timeline горизонтальный"
+      >
+        <div class="agent-canvas-head agent-timeline-horizontal-head">
+          <div class="agent-timeline-horizontal-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Timeline →</h2>
+            <p class="agent-canvas-lead">
+              Горизонтальная лента: события слева направо по времени. Прокрутка вбок — вся хронология workspace.
+            </p>
+          </div>
+          <div id="agent-timeline-horizontal-stats" class="agent-timeline-horizontal-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-timeline-horizontal-content" class="agent-timeline-horizontal-content"></div>
       </main>
 
       <section class="workspace-pane">
@@ -882,7 +921,7 @@
           </section>
 
           <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
-            <p class="doc-slab-hint-title">Описание, инструкции, правила</p>
+            <p class="doc-slab-hint-title">Описание, инструкции, правила, документация</p>
             <p class="doc-slab-hint-text">
               Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
               Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент,
@@ -1224,14 +1263,20 @@
       </div>
     </div>
 
-    <div id="user-docs-modal" class="modal-overlay hidden">
+        <div id="user-docs-modal" class="modal-overlay hidden">
       <div class="modal-card md-showcase-card">
-        <div class="md-showcase-header">
+        <div class="md-showcase-header docs-modal-header">
           <div>
             <div class="modal-message" id="user-docs-title">Документация</div>
             <p id="user-docs-subtitle" class="md-showcase-subtitle">Agent CMS · руководство пользователя</p>
           </div>
-          <button id="user-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          <div class="docs-modal-toolbar">
+            <select id="user-docs-version-select" class="docs-version-select" aria-label="Версия документации">
+              <option value="0.0.1" selected>Актуальная (0.0.1)</option>
+              <option value="0.0.0">Предыдущая (0.0.0)</option>
+            </select>
+            <button id="user-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          </div>
         </div>
         <div id="user-docs-content" class="md-showcase-content file-content-preview"></div>
       </div>
@@ -1252,12 +1297,18 @@
 
     <div id="api-docs-modal" class="modal-overlay hidden">
       <div class="modal-card api-docs-card">
-        <div class="api-docs-header">
+        <div class="api-docs-header docs-modal-header">
           <div>
             <div class="modal-message" id="api-docs-title">HTTP API</div>
             <p id="api-docs-subtitle" class="api-docs-subtitle"></p>
           </div>
-          <button id="api-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          <div class="docs-modal-toolbar">
+            <select id="api-docs-version-select" class="docs-version-select" aria-label="Версия документации">
+              <option value="0.0.1" selected>Актуальная (0.0.1)</option>
+              <option value="0.0.0">Предыдущая (0.0.0)</option>
+            </select>
+            <button id="api-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          </div>
         </div>
         <div id="api-docs-notes" class="api-docs-notes"></div>
         <div id="api-docs-content" class="api-docs-content"></div>
@@ -1266,12 +1317,18 @@
 
     <div id="mcp-docs-modal" class="modal-overlay hidden">
       <div class="modal-card api-docs-card mcp-docs-card">
-        <div class="api-docs-header">
+        <div class="api-docs-header docs-modal-header">
           <div>
             <div class="modal-message" id="mcp-docs-title">MCP Server</div>
             <p id="mcp-docs-subtitle" class="api-docs-subtitle"></p>
           </div>
-          <button id="mcp-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          <div class="docs-modal-toolbar">
+            <select id="mcp-docs-version-select" class="docs-version-select" aria-label="Версия документации">
+              <option value="0.0.1" selected>Актуальная (0.0.1)</option>
+              <option value="0.0.0">Предыдущая (0.0.0)</option>
+            </select>
+            <button id="mcp-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          </div>
         </div>
         <div id="mcp-docs-notes" class="api-docs-notes mcp-docs-notes"></div>
         <pre id="mcp-docs-config" class="mcp-docs-config hidden" aria-label="Пример конфигурации Cursor"></pre>

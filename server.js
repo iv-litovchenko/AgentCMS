@@ -4,6 +4,7 @@ const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./agent-registry");
+const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const {
@@ -5508,12 +5509,36 @@ async function handleApiForAgent(req, res, url) {
 }
 
 async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/docs-meta") {
+    return sendJson(res, 200, docsRegistry.getDocsMeta());
+  }
+
   if (req.method === "GET" && url.pathname === "/api/docs") {
-    return sendJson(res, 200, apiDocs);
+    const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
+    return sendJson(res, 200, docsRegistry.getApiDocs(version));
   }
 
   if (req.method === "GET" && url.pathname === "/api/mcp-docs") {
-    return sendJson(res, 200, mcpDocs);
+    const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
+    return sendJson(res, 200, docsRegistry.getMcpDocs(version));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/user-docs") {
+    try {
+      const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
+      const markdown = await docsRegistry.getUserDocsMarkdown(version);
+      res.writeHead(200, {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      res.end(markdown);
+      return;
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load user docs",
+        details: String(error?.message || error)
+      });
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/public/images") {
