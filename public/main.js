@@ -2312,6 +2312,25 @@ const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
 const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
+const AREA_BLOCKED_CONTENT_MODES = new Set([
+  "internal",
+  "external",
+  "tabular",
+  "media",
+  "inbox",
+  "references",
+  "artefacts"
+]);
+
+const AREA_BLOCKED_WORKSPACE_DOMAINS = new Set([
+  NODE_WORKSPACE_DOMAIN_MEMORY,
+  NODE_WORKSPACE_DOMAIN_INBOX,
+  NODE_WORKSPACE_DOMAIN_REFERENCES,
+  NODE_WORKSPACE_DOMAIN_ARTEFACTS
+]);
+
+const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "inbox", "references", "artefacts"];
+
 const nodeConfigCacheByPath = new Map();
 
 function getNodeWorkspaceDomain(mode = activeContentMode) {
@@ -2851,8 +2870,9 @@ function removeLegacyNodeDefaultViewFromStorage(storageKey) {
   }
 }
 
-function isValidNodeDefaultLandingMode(mode) {
+function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (!mode || mode === "graph") return false;
+  if (isAreaContentModeBlocked(mode, nodePath ?? getResolvedNodePath(activePath))) return false;
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE) return true;
   if (mode === "inbox" || mode === "references" || mode === "artefacts") return true;
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
@@ -3028,10 +3048,10 @@ function getNodeDefaultLandingDomainLabel(mode) {
   const domainLabels = {
     [NODE_WORKSPACE_DOMAIN_OVERVIEW]: "Обзор",
     [NODE_WORKSPACE_DOMAIN_SETTINGS]: "Настройки",
-    [NODE_WORKSPACE_DOMAIN_MEMORY]: "Память",
-    [NODE_WORKSPACE_DOMAIN_INBOX]: "Входящие",
-    [NODE_WORKSPACE_DOMAIN_REFERENCES]: "Источники",
-    [NODE_WORKSPACE_DOMAIN_ARTEFACTS]: "Артефакты",
+    [NODE_WORKSPACE_DOMAIN_MEMORY]: "🧠 Память",
+    [NODE_WORKSPACE_DOMAIN_INBOX]: "📥 Входящие",
+    [NODE_WORKSPACE_DOMAIN_REFERENCES]: "📚 Источники",
+    [NODE_WORKSPACE_DOMAIN_ARTEFACTS]: "✨ Артефакты",
     [NODE_WORKSPACE_DOMAIN_NAVIGATION]: "Навигация"
   };
   const domainLabel = domainLabels[domain] || domain;
@@ -3322,8 +3342,12 @@ function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
 
+function isAreaContentModeBlocked(mode, nodePath = getResolvedNodePath(activePath)) {
+  return isAreaNodePath(nodePath) && AREA_BLOCKED_CONTENT_MODES.has(mode);
+}
+
 function isMemoryDriverModeBlockedForActivePath(mode) {
-  return isAreaNodePath() && (MEMORY_DRIVER_MODES.has(mode) || mode === "media");
+  return isAreaContentModeBlocked(mode);
 }
 
 function isNodeSettingsTargetPath(nodePath) {
@@ -3356,9 +3380,9 @@ async function openNodeFromMenu(label, filePath, options = {}) {
     // ignore config read errors — fallback to navigation
   }
   const defaultView = getNodeDefaultView(filePath);
-  if (defaultView?.mode && isValidNodeDefaultLandingMode(defaultView.mode)) {
+  if (defaultView?.mode && isValidNodeDefaultLandingMode(defaultView.mode, filePath)) {
     const landingMode =
-      isContainerNodePath(filePath) && MEMORY_DRIVER_MODES.has(defaultView.mode)
+      isContainerNodePath(filePath) && isAreaContentModeBlocked(defaultView.mode, filePath)
         ? NODE_NAVIGATION_MODE
         : defaultView.mode;
     await selectNodeManifest(label, filePath, landingMode);
@@ -3375,6 +3399,10 @@ async function openNodeMemory(label, filePath) {
 }
 
 async function openNodeMemoryWorkspace(label, filePath) {
+  if (isAreaNodePath(filePath)) {
+    await openNodeNavigation(label, filePath);
+    return;
+  }
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = true;
   const mode = await pickDefaultMemoryMode(filePath);
@@ -3419,10 +3447,12 @@ function getNavigationSubsectionEntries() {
 function syncNodeWorkspaceDomainSelect() {
   if (!nodeWorkspaceDomainSelectNode) return;
   const isArea = isAreaNodePath();
-  const memoryOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="memory"]');
-  if (memoryOption) memoryOption.disabled = isArea;
+  for (const value of AREA_WORKSPACE_DOMAIN_SELECT_VALUES) {
+    const option = nodeWorkspaceDomainSelectNode.querySelector(`option[value="${value}"]`);
+    if (option) option.disabled = isArea;
+  }
   const domain = getNodeWorkspaceDomain(activeContentMode);
-  if (isArea && domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
+  if (isArea && AREA_BLOCKED_WORKSPACE_DOMAINS.has(domain)) {
     nodeWorkspaceDomainSelectNode.value = NODE_WORKSPACE_DOMAIN_NAVIGATION;
   } else {
     nodeWorkspaceDomainSelectNode.value = domain;
@@ -3445,6 +3475,10 @@ function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("description");
     return;
   }
+  if (isAreaNodePath() && AREA_BLOCKED_WORKSPACE_DOMAINS.has(domain)) {
+    returnToNodeNavigation();
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_INBOX) {
     nodeMemoryViewActive = true;
     nodeSettingsViewActive = false;
@@ -3452,10 +3486,6 @@ function applyNodeWorkspaceDomainChange(domain) {
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
-    if (isAreaNodePath()) {
-      returnToNodeNavigation();
-      return;
-    }
     nodeMemoryViewActive = true;
     nodeSettingsViewActive = false;
     if (NODE_MEMORY_SUB_MODE_IDS.has(activeContentMode)) {
@@ -3515,8 +3545,8 @@ function applyNodeWorkspaceViewUi() {
   syncNodeWorkspaceDomainSelect();
   if (
     isAreaNodePath() &&
-    (getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY ||
-      MEMORY_DRIVER_MODES.has(activeContentMode))
+    (AREA_BLOCKED_WORKSPACE_DOMAINS.has(getNodeWorkspaceDomain()) ||
+      isAreaContentModeBlocked(activeContentMode))
   ) {
     returnToNodeNavigation();
     return;
@@ -7696,6 +7726,7 @@ async function pickDefaultMemoryMode(nodePath = activePath) {
 }
 
 function openMemoryModeFromOverview(modeId, externalFile = null) {
+  if (isAreaContentModeBlocked(modeId)) return;
   nodeMemoryViewActive = true;
   nodeSettingsViewActive = false;
   syncNodeMemoryModeSelect();
@@ -8614,40 +8645,16 @@ function renderNavigationTitleVariant2Template() {
   return block;
 }
 
-const NAVIGATION_AREA_DISABLED_MEMORY_PANELS = [
-  { id: "external", title: "Многофайловая память" },
-  { id: "internal", title: "Однофайловая память" },
-  { id: "tabular", title: "Табличная память" },
-  { id: "media", title: "Медиа и документы" }
-];
-
-function createNavigationMemoryPanel(modeId, title, contentNode, options = {}) {
+function createNavigationMemoryPanel(modeId, title, contentNode) {
   const card = document.createElement("section");
   card.className = `node-navigation-memory-card node-navigation-memory-card--${modeId}`;
-  if (options.disabled) {
-    card.classList.add("node-navigation-memory-card--disabled");
-    card.setAttribute("aria-disabled", "true");
-  }
 
   const body = document.createElement("div");
   body.className = "node-navigation-memory-body";
   body.appendChild(contentNode);
 
-  const headOptions = options.disabled
-    ? { demoViewButton: true }
-    : { viewModeId: modeId, externalFile: options.externalFile ?? null };
-  card.append(createNavigationSectionHead(title, headOptions), body);
+  card.append(createNavigationSectionHead(title, { viewModeId: modeId }), body);
   return card;
-}
-
-function renderNavigationDisabledMemoryPart(modeId, title) {
-  const body = document.createElement("div");
-  body.className = `node-navigation-${modeId} node-navigation-memory-disabled-body`;
-  const note = document.createElement("p");
-  note.className = "node-navigation-memory-disabled-note";
-  note.textContent = "Доступно только в темах, не в областях";
-  body.append(note, createNavigationEmptyPlaceholder());
-  return createNavigationMemoryPanel(modeId, title, body, { disabled: true });
 }
 
 function compareNavigationPathsNatural(aPath, bPath) {
@@ -9227,19 +9234,16 @@ async function renderNodeNavigation() {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
 
-  const panels = (
-    isArea
-      ? [renderNavigationMediaPart(mediaData)]
-      : [
-          renderNavigationExternalPart(externalData),
-          renderNavigationInternalPart(internalData),
-          renderNavigationTabularPart(tabularData),
-          renderNavigationMediaPart(mediaData)
-        ]
-  ).filter(Boolean);
-
-  for (const panel of panels) {
-    panelsWrap.appendChild(panel);
+  if (!isArea) {
+    const panels = [
+      renderNavigationExternalPart(externalData),
+      renderNavigationInternalPart(internalData),
+      renderNavigationTabularPart(tabularData),
+      renderNavigationMediaPart(mediaData)
+    ].filter(Boolean);
+    for (const panel of panels) {
+      panelsWrap.appendChild(panel);
+    }
   }
 
   panelsWrap.appendChild(renderNavigationTodoPart(todoData));
@@ -9436,13 +9440,15 @@ async function renderNodeOverview() {
     return;
   }
 
-  const mediaOverview = await fetchMediaOverview(getResolvedNodePath(activePath));
+  const isOverviewArea = isAreaNodePath(activePath);
+  const mediaOverview = isOverviewArea ? null : await fetchMediaOverview(getResolvedNodePath(activePath));
   if (isStale()) return;
 
   const sectionsWrap = document.createElement("div");
   sectionsWrap.className = "node-overview-sections";
   for (const group of getOverviewModeGroups()) {
     if (group.id === "memory") continue;
+    if (isOverviewArea && group.id === "files") continue;
 
     const modes = (group.modes || []).filter((mode) => !mode.disabled && mode.id !== NODE_OVERVIEW_MODE);
     if (!modes.length) continue;
@@ -9462,7 +9468,9 @@ async function renderNodeOverview() {
       }
       if (group.id === "main" && (mode.id === "todo" || mode.id === "description")) continue;
       if (mode.id === "media") {
-        links.appendChild(renderOverviewMediaLink(mediaOverview, getResolvedNodePath(activePath)));
+        if (!isOverviewArea) {
+          links.appendChild(renderOverviewMediaLink(mediaOverview, getResolvedNodePath(activePath)));
+        }
         continue;
       }
       const btn = document.createElement("button");
@@ -9477,6 +9485,7 @@ async function renderNodeOverview() {
       label.textContent = mode.label;
       btn.append(icon, label);
       btn.addEventListener("click", () => {
+        if (isOverviewArea && AREA_BLOCKED_CONTENT_MODES.has(mode.id)) return;
         if (group.id === "memory" && MEMORY_DRIVER_MODES.has(mode.id)) {
           openMemoryModeFromOverview(mode.id);
           return;
