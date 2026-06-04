@@ -789,10 +789,35 @@ function updateAgentPreviewCache(previewMeta) {
   };
 }
 
+function getAgentPreviewInitials(agent) {
+  const raw = String(agent?.name || agent?.id || "").trim();
+  if (!raw) return "—";
+  const parts = raw.split(/[\s._-]+/).filter((part) => /[\p{L}\p{N}]/u.test(part));
+  if (parts.length >= 2) {
+    const first = parts[0].match(/[\p{L}\p{N}]/u)?.[0] || "";
+    const second = parts[1].match(/[\p{L}\p{N}]/u)?.[0] || "";
+    const pair = (first + second).toUpperCase();
+    if (pair) return pair;
+  }
+  const letters = [...raw.matchAll(/[\p{L}\p{N}]/gu)].map((match) => match[0]);
+  if (letters.length >= 2) return letters.slice(0, 2).join("").toUpperCase();
+  return letters[0]?.toUpperCase() || "?";
+}
+
+function syncAgentPreviewPlaceholder() {
+  if (!agentPreviewPlaceholderNode) return;
+  const agent = getActiveAgentMeta();
+  const initialsNode = agentPreviewPlaceholderNode.querySelector(".agent-preview-empty-initials");
+  const label = String(agent?.name || agent?.id || "агент").trim();
+  if (initialsNode) initialsNode.textContent = getAgentPreviewInitials(agent);
+  agentPreviewPlaceholderNode.title = label ? `Превью не задано — ${label}` : "Превью агента не задано";
+}
+
 function syncAgentPreview(previewMeta = null) {
   if (!agentPreviewThumbNode || !agentPreviewWrapNode) return;
 
   const agent = getActiveAgentMeta();
+  syncAgentPreviewPlaceholder();
   const hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
   const previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
 

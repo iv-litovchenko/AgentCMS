@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.22" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.23" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -155,27 +155,20 @@
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
             <div class="sidebar-agent-avatar-block">
               <div id="agent-preview-placeholder" class="agent-preview-placeholder" aria-hidden="true">
-                <div class="agent-preview-mascot" title="Превью агента не задано">
-                  <div class="agent-preview-mascot-glow"></div>
-                  <div class="agent-preview-mascot-shell">
-                    <div class="agent-preview-mascot-antenna"></div>
-                    <div class="agent-preview-mascot-screen">
-                      <div class="agent-preview-mascot-face">
-                        <span class="agent-preview-mascot-eye agent-preview-mascot-eye--left"></span>
-                        <span class="agent-preview-mascot-eye agent-preview-mascot-eye--right"></span>
-                        <span class="agent-preview-mascot-smile"></span>
-                      </div>
-                    </div>
-                    <div class="agent-preview-mascot-body">
-                      <span class="agent-preview-mascot-arm agent-preview-mascot-arm--left"></span>
-                      <span class="agent-preview-mascot-torso"></span>
-                      <span class="agent-preview-mascot-arm agent-preview-mascot-arm--right"></span>
-                    </div>
-                    <div class="agent-preview-mascot-feet">
-                      <span></span>
-                      <span></span>
-                    </div>
+                <div class="agent-preview-empty" title="Превью агента не задано">
+                  <div class="agent-preview-empty-graph" aria-hidden="true">
+                    <span class="agent-preview-empty-branch agent-preview-empty-branch--left"></span>
+                    <span class="agent-preview-empty-branch agent-preview-empty-branch--right"></span>
+                    <span class="agent-preview-empty-node agent-preview-empty-node--root"></span>
+                    <span class="agent-preview-empty-node agent-preview-empty-node--leaf agent-preview-empty-node--left"></span>
+                    <span class="agent-preview-empty-node agent-preview-empty-node--leaf agent-preview-empty-node--right"></span>
                   </div>
+                  <div class="agent-preview-empty-frame">
+                    <span class="agent-preview-empty-scan" aria-hidden="true"></span>
+                    <span class="agent-preview-empty-silhouette" aria-hidden="true"></span>
+                    <span class="agent-preview-empty-initials" aria-hidden="true">—</span>
+                  </div>
+                  <p class="agent-preview-empty-caption">Нет превью</p>
                 </div>
               </div>
               <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">

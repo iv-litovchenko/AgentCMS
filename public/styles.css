@@ -3580,20 +3580,41 @@ body.app-booting {
   }
 }
 
-@keyframes agent-preview-mascot-screen-glow {
+@keyframes agent-preview-empty-node-pulse {
   0%,
   100% {
+    transform: scale(1);
     box-shadow:
-      inset 0 -3px 0 rgba(59, 130, 246, 0.1),
-      0 4px 0 #334155,
-      0 6px 10px rgba(59, 130, 246, 0.1);
+      0 0 0 2px rgba(255, 255, 255, 0.9),
+      0 4px 10px rgba(59, 130, 246, 0.2);
   }
 
   50% {
+    transform: scale(1.08);
     box-shadow:
-      inset 0 0 12px rgba(96, 165, 250, 0.35),
-      0 4px 0 #334155,
-      0 6px 16px rgba(59, 130, 246, 0.22);
+      0 0 0 2px rgba(255, 255, 255, 0.95),
+      0 6px 14px rgba(99, 102, 241, 0.32);
+  }
+}
+
+@keyframes agent-preview-empty-scan-sweep {
+  0%,
+  100% {
+    top: -40%;
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.55;
+  }
+
+  50% {
+    top: 108%;
+    opacity: 0.45;
+  }
+
+  65% {
+    opacity: 0;
   }
 }
 
@@ -3604,12 +3625,9 @@ body.app-booting {
   .sidebar-agent-avatar-block .agent-preview-wrap:not(.hidden),
   .sidebar-agent-avatar-block .agent-preview-frame::after,
   .agent-preview-placeholder,
-  .agent-preview-mascot-shell,
-  .agent-preview-mascot-glow,
-  .agent-preview-mascot-antenna::after,
-  .agent-preview-mascot-arm--left,
-  .agent-preview-mascot-arm--right,
-  .agent-preview-mascot-screen {
+  .agent-preview-empty-node,
+  .agent-preview-empty-scan,
+  .agent-preview-empty-silhouette::after {
     animation: none;
   }
 
@@ -3971,152 +3989,154 @@ body.app-booting {
   overflow: hidden;
 }
 
-/* Мини-маскот агента (как на дашборде), когда нет JPG превью */
-.agent-preview-mascot {
-  position: relative;
-  width: 72px;
-  height: 86px;
-  margin: 6px auto 2px;
-}
-
-.agent-preview-mascot-glow {
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  width: 56px;
-  height: 14px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: radial-gradient(ellipse, rgba(99, 102, 241, 0.22), transparent 70%);
-  animation: home-mascot-glow 2s ease-in-out infinite;
-}
-
-.agent-preview-mascot-shell {
-  position: relative;
-  z-index: 1;
+/* Заглушка превью: портрет с инициалами + мини-граф (без маскота с дашборда) */
+.agent-preview-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: home-mascot-hop 2.2s ease-in-out infinite;
-}
-
-.agent-preview-mascot-antenna {
-  width: 3px;
-  height: 8px;
-  margin-bottom: -1px;
-  border-radius: 999px;
-  background: #64748b;
-}
-
-.agent-preview-mascot-antenna::after {
-  content: "";
-  display: block;
-  width: 7px;
-  height: 7px;
-  margin: -1px 0 0 -2px;
-  border-radius: 999px;
-  background: linear-gradient(145deg, #fde047, #facc15);
-  box-shadow: 0 0 8px rgba(250, 204, 21, 0.45);
-  animation: home-mascot-pulse 1.4s ease-in-out infinite;
-}
-
-.agent-preview-mascot-screen {
-  width: 50px;
-  height: 38px;
-  padding: 6px 5px 5px;
-  border: 2px solid #475569;
-  border-radius: 12px 12px 10px 10px;
-  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
-  box-shadow:
-    inset 0 -3px 0 rgba(59, 130, 246, 0.1),
-    0 4px 0 #334155,
-    0 6px 12px rgba(59, 130, 246, 0.12);
-  animation: agent-preview-mascot-screen-glow 2.8s ease-in-out infinite;
-}
-
-.agent-preview-mascot-face {
-  position: relative;
+  gap: 6px;
   width: 100%;
-  height: 100%;
+  padding: 8px 10px 6px;
+  box-sizing: border-box;
 }
 
-.agent-preview-mascot-eye {
+.agent-preview-empty-graph {
+  position: relative;
+  width: 88px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.agent-preview-empty-branch {
   position: absolute;
-  top: 6px;
-  width: 5px;
-  height: 7px;
-  border-radius: 2px;
-  background: #0f172a;
-  animation: home-mascot-blink 4.2s ease-in-out infinite;
-}
-
-.agent-preview-mascot-eye--left {
-  left: 10px;
-}
-
-.agent-preview-mascot-eye--right {
-  right: 10px;
-}
-
-.agent-preview-mascot-smile {
-  position: absolute;
+  top: 10px;
   left: 50%;
-  bottom: 5px;
-  width: 12px;
-  height: 6px;
-  transform: translateX(-50%);
-  border: 2px solid #0f172a;
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-}
-
-.agent-preview-mascot-body {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 3px;
-  margin-top: 5px;
-}
-
-.agent-preview-mascot-torso {
-  width: 22px;
-  height: 18px;
-  border: 2px solid #334155;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #6366f1, #4f46e5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.agent-preview-mascot-arm {
-  width: 8px;
+  width: 2px;
   height: 14px;
-  margin-top: 3px;
-  border: 2px solid #334155;
-  border-radius: 3px;
-  background: #facc15;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.55), rgba(59, 130, 246, 0.2));
   transform-origin: top center;
 }
 
-.agent-preview-mascot-arm--left {
-  animation: home-mascot-wave-left 1.8s ease-in-out infinite;
+.agent-preview-empty-branch--left {
+  transform: translateX(-50%) rotate(-32deg);
 }
 
-.agent-preview-mascot-arm--right {
-  animation: home-mascot-wave-right 1.8s ease-in-out infinite;
+.agent-preview-empty-branch--right {
+  transform: translateX(-50%) rotate(32deg);
 }
 
-.agent-preview-mascot-feet {
-  display: flex;
-  gap: 6px;
-  margin-top: 1px;
+.agent-preview-empty-node {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #60a5fa, #6366f1);
+  animation: agent-preview-empty-node-pulse 2.6s ease-in-out infinite;
 }
 
-.agent-preview-mascot-feet span {
+.agent-preview-empty-node--root {
+  top: 0;
+  left: 50%;
   width: 12px;
-  height: 7px;
-  border: 2px solid #334155;
-  border-radius: 3px 3px 5px 5px;
-  background: #fde047;
+  height: 12px;
+  transform: translateX(-50%);
+}
+
+.agent-preview-empty-node--leaf {
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  animation-duration: 2.2s;
+}
+
+.agent-preview-empty-node--left {
+  left: 50%;
+  transform: translateX(calc(-50% - 26px));
+  animation-delay: 0.35s;
+}
+
+.agent-preview-empty-node--right {
+  left: 50%;
+  transform: translateX(calc(-50% + 26px));
+  animation-delay: 0.7s;
+}
+
+.agent-preview-empty-frame {
+  position: relative;
+  width: 100%;
+  height: 96px;
+  border-radius: 7px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 18%, rgba(99, 102, 241, 0.35), transparent 62%),
+    linear-gradient(165deg, #1e293b 0%, #0f172a 55%, #020617 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(148, 163, 184, 0.18),
+    0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.agent-preview-empty-silhouette {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 72%;
+  height: 58%;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 42% 42%;
+  background: radial-gradient(ellipse 70% 80% at 50% 30%, rgba(148, 163, 184, 0.22), rgba(15, 23, 42, 0.05) 70%);
+  pointer-events: none;
+}
+
+.agent-preview-empty-silhouette::after {
+  content: "";
+  position: absolute;
+  top: -42%;
+  left: 50%;
+  width: 38%;
+  height: 38%;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle at 40% 35%, rgba(226, 232, 240, 0.14), transparent 68%);
+  animation: agent-preview-empty-node-pulse 4s ease-in-out infinite;
+}
+
+.agent-preview-empty-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.92);
+  text-shadow: 0 2px 12px rgba(59, 130, 246, 0.45);
+  user-select: none;
+}
+
+.agent-preview-empty-scan {
+  position: absolute;
+  left: -8%;
+  width: 116%;
+  height: 28%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(96, 165, 250, 0.12) 35%,
+    rgba(191, 219, 254, 0.28) 50%,
+    rgba(96, 165, 250, 0.12) 65%,
+    transparent
+  );
+  pointer-events: none;
+  animation: agent-preview-empty-scan-sweep 5.5s ease-in-out infinite;
+}
+
+.agent-preview-empty-caption {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .sidebar-agent-avatar-block:has(.agent-preview-wrap:not(.hidden)) .agent-preview-placeholder {
