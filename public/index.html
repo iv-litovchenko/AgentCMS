@@ -154,7 +154,30 @@
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
             <div class="sidebar-agent-avatar-block">
-              <div id="agent-preview-placeholder" class="agent-preview-placeholder" aria-hidden="true">🤖</div>
+              <div id="agent-preview-placeholder" class="agent-preview-placeholder" aria-hidden="true">
+                <div class="agent-preview-mascot" title="Превью агента не задано">
+                  <div class="agent-preview-mascot-glow"></div>
+                  <div class="agent-preview-mascot-shell">
+                    <div class="agent-preview-mascot-antenna"></div>
+                    <div class="agent-preview-mascot-screen">
+                      <div class="agent-preview-mascot-face">
+                        <span class="agent-preview-mascot-eye agent-preview-mascot-eye--left"></span>
+                        <span class="agent-preview-mascot-eye agent-preview-mascot-eye--right"></span>
+                        <span class="agent-preview-mascot-smile"></span>
+                      </div>
+                    </div>
+                    <div class="agent-preview-mascot-body">
+                      <span class="agent-preview-mascot-arm agent-preview-mascot-arm--left"></span>
+                      <span class="agent-preview-mascot-torso"></span>
+                      <span class="agent-preview-mascot-arm agent-preview-mascot-arm--right"></span>
+                    </div>
+                    <div class="agent-preview-mascot-feet">
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
                 <div class="agent-preview-frame">
                   <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
@@ -660,6 +683,7 @@
                     aria-label="Все доступные элементы"
                   >
                     <option value="subsections">Все доступные элементы</option>
+                    <option value="mindmap">🗺 Карта тем</option>
                   </select>
                 </div>
                 <div id="node-settings-path-controls" class="node-settings-path-controls hidden">
@@ -777,6 +801,8 @@
                   <option value="calendar">Календарь</option>
                   <option value="index">Index</option>
                   <option value="moc">Moc</option>
+                  <option value="mindmap">Карта</option>
+                  <option value="cheatsheet">Шпаргалка</option>
                   <option value="graph">Граф</option>
                 </select>
                 <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
@@ -911,6 +937,9 @@
                 </div>
               </section>
               <section id="graph-view-block" class="graph-view hidden">
+                <p id="mindmap-view-hint" class="mindmap-view-hint hidden">
+                  Карта подразделов из дерева <code>*.x.md</code>. Клик по теме — открыть; «−»/«+» — свернуть ветку. Перетаскивание — панорама.
+                </p>
                 <div id="graph-view-content" class="graph-view-content"></div>
               </section>
               <section id="list-view-block" class="list-view hidden">

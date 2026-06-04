@@ -98,6 +98,8 @@ const previewPasteBtn = document.getElementById("preview-paste-btn");
 const previewPasteActionsBtn = document.getElementById("preview-paste-actions-btn");
 const graphViewBlockNode = document.getElementById("graph-view-block");
 const graphViewContentNode = document.getElementById("graph-view-content");
+const mindmapViewHintNode = document.getElementById("mindmap-view-hint");
+const nodeNavigationSubsectionSelectNode = document.getElementById("node-navigation-subsection-select");
 const editorSurfaceNode = document.querySelector(".editor-surface");
 const listViewTitleNode = document.getElementById("list-view-title");
 const listViewContentNode = document.getElementById("list-view-content");
@@ -335,7 +337,8 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "inbox",
   "references",
   "node-preview",
-  "graph"
+  "graph",
+  "mindmap"
 ]);
 
 let appRouteSyncSuspended = 0;
@@ -2103,6 +2106,7 @@ const NAVIGATION_GROUP = {
   title: "Навигация",
   icon: "🧭",
   modes: [
+    { id: "mindmap", label: "Карта тем" },
     { id: "graph", label: "Граф", disabled: true },
     { id: "moc", label: "Карта (moc)", disabled: true },
     { id: "index", label: "Индекс", disabled: true }
@@ -2195,6 +2199,7 @@ function getOverviewModeGroups() {
 
 const NODE_OVERVIEW_MODE = "overview";
 const NODE_NAVIGATION_MODE = "navigation";
+const NODE_MINDMAP_MODE = "mindmap";
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
 const NODE_VIEW_SURFACE = {
@@ -2213,7 +2218,8 @@ const NODE_VIEW_SURFACE = {
   scripts: "browser",
   artefacts: "browser",
   "node-preview": "asset",
-  graph: "canvas"
+  graph: "canvas",
+  mindmap: "canvas"
 };
 
 function getNodeViewSurface(mode = activeContentMode) {
@@ -2335,7 +2341,7 @@ const nodeConfigCacheByPath = new Map();
 
 function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_OVERVIEW_MODE) return NODE_WORKSPACE_DOMAIN_OVERVIEW;
-  if (mode === NODE_NAVIGATION_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
+  if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
   if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
@@ -2873,7 +2879,7 @@ function removeLegacyNodeDefaultViewFromStorage(storageKey) {
 function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (!mode || mode === "graph") return false;
   if (isAreaContentModeBlocked(mode, nodePath ?? getResolvedNodePath(activePath))) return false;
-  if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE) return true;
+  if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return true;
   if (mode === "inbox" || mode === "references" || mode === "artefacts") return true;
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return true;
@@ -3033,6 +3039,7 @@ async function clearNodeDefaultView(nodePath) {
 function getContentModeLabel(mode) {
   if (mode === NODE_OVERVIEW_MODE) return "Обзор";
   if (mode === NODE_NAVIGATION_MODE) return "Навигация";
+  if (mode === NODE_MINDMAP_MODE) return "Карта тем";
   for (const group of getAllModeGroups()) {
     const match = (group.modes || []).find((item) => item.id === mode);
     if (match) return match.label;
@@ -3379,15 +3386,20 @@ async function openNodeFromMenu(label, filePath, options = {}) {
   } catch {
     // ignore config read errors — fallback to navigation
   }
-  const defaultView = getNodeDefaultView(filePath);
-  if (defaultView?.mode && isValidNodeDefaultLandingMode(defaultView.mode, filePath)) {
-    const landingMode =
-      isContainerNodePath(filePath) && isAreaContentModeBlocked(defaultView.mode, filePath)
-        ? NODE_NAVIGATION_MODE
-        : defaultView.mode;
-    await selectNodeManifest(label, filePath, landingMode);
+  const forcedMode = options.contentMode;
+  if (forcedMode && isValidNodeDefaultLandingMode(forcedMode, filePath)) {
+    await selectNodeManifest(label, filePath, forcedMode);
   } else {
-    await openNodeNavigation(label, filePath);
+    const defaultView = getNodeDefaultView(filePath);
+    if (defaultView?.mode && isValidNodeDefaultLandingMode(defaultView.mode, filePath)) {
+      const landingMode =
+        isContainerNodePath(filePath) && isAreaContentModeBlocked(defaultView.mode, filePath)
+          ? NODE_NAVIGATION_MODE
+          : defaultView.mode;
+      await selectNodeManifest(label, filePath, landingMode);
+    } else {
+      await openNodeNavigation(label, filePath);
+    }
   }
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
@@ -3432,6 +3444,11 @@ function syncNodeMemoryModeSelect() {
   if (NODE_MEMORY_SUB_MODE_IDS.has(activeContentMode)) {
     nodeMemoryModeSelectNode.value = activeContentMode;
   }
+}
+
+function syncNodeNavigationSubsectionSelect() {
+  if (!nodeNavigationSubsectionSelectNode) return;
+  nodeNavigationSubsectionSelectNode.value = isMindmapModeActive() ? NODE_MINDMAP_MODE : "subsections";
 }
 
 function getNavigationSubsectionEntries() {
@@ -3540,6 +3557,7 @@ function applyNodeWorkspaceViewUi() {
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
   nodeNavigationPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !navigationDomain);
+  syncNodeNavigationSubsectionSelect();
   nodeSettingsPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !settingsDomain);
   nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !memoryDomain);
   syncNodeWorkspaceDomainSelect();
@@ -4321,6 +4339,14 @@ function isGraphModeActive() {
   return activeContentMode === "graph" && Boolean(activePath) && !activeSystemFile;
 }
 
+function isMindmapModeActive() {
+  return activeContentMode === NODE_MINDMAP_MODE && Boolean(activePath) && !activeSystemFile;
+}
+
+function isNodeCanvasViewMode() {
+  return isGraphModeActive() || isMindmapModeActive();
+}
+
 function setContentMode(mode) {
   if (mode === "graph") return;
   const group = findModeGroup(mode);
@@ -4676,6 +4702,7 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
   switch (activeContentMode) {
     case NODE_OVERVIEW_MODE:
     case NODE_NAVIGATION_MODE:
+    case NODE_MINDMAP_MODE:
     case "description":
       return getNodeDisplayPath(activePath);
     case "internal":
@@ -4721,6 +4748,9 @@ function updateBreadcrumbsForActiveMode(overrides) {
 function getListViewTitleByMode() {
   if (activeContentMode === "graph") {
     return `Пространство: ${activeLabel || getLabelFromPath(activePath) || "тема"}`;
+  }
+  if (activeContentMode === NODE_MINDMAP_MODE) {
+    return `Карта тем: ${activeLabel || getLabelFromPath(activePath) || "нода"}`;
   }
   if (activeContentMode === "external") return `Многофайловая (${STORAGE_SUBFOLDER_CONTENT})`;
   if (activeContentMode === "tabular") {
@@ -5635,6 +5665,356 @@ function renderNodeGraphView() {
     });
   };
   requestAnimationFrame(render);
+}
+
+const mindmapCollapsedIds = new Set();
+const externalMindmapCollapsedIds = new Set();
+const MINDMAP_LAYOUT_LEVEL_GAP = 210;
+const MINDMAP_LAYOUT_ROW_GAP = 42;
+const MINDMAP_MAX_DEPTH = 6;
+function getMindmapNodeKind(entry, depth) {
+  if (depth === 0 && isAreaNodePath(entry.path)) return "root";
+  if (entry.isFolder) return "topic";
+  return "leaf";
+}
+
+function countMindmapVisibleLeaves(node, collapsedIds) {
+  if (collapsedIds.has(node.id)) return 1;
+  if (!node.children?.length) return 1;
+  return node.children.reduce((sum, child) => sum + countMindmapVisibleLeaves(child, collapsedIds), 0);
+}
+
+function layoutMindmapTree(node, depth, yStart, collapsedIds) {
+  const rows = countMindmapVisibleLeaves(node, collapsedIds);
+  const yCenter = yStart + (rows * MINDMAP_LAYOUT_ROW_GAP) / 2 - MINDMAP_LAYOUT_ROW_GAP / 2;
+  const x = 72 + depth * MINDMAP_LAYOUT_LEVEL_GAP;
+  const positioned = [{ node, x, y: yCenter, depth }];
+
+  if (!collapsedIds.has(node.id) && node.children?.length) {
+    let cursor = yStart;
+    for (const child of node.children) {
+      const childRows = countMindmapVisibleLeaves(child, collapsedIds);
+      positioned.push(...layoutMindmapTree(child, depth + 1, cursor, collapsedIds));
+      cursor += childRows * MINDMAP_LAYOUT_ROW_GAP;
+    }
+  }
+  return positioned;
+}
+
+function collectMindmapEdges(node, parent, collapsedIds) {
+  const edges = [];
+  if (parent && !collapsedIds.has(parent.id)) {
+    edges.push({ from: parent.id, to: node.id });
+  }
+  if (!collapsedIds.has(node.id) && node.children?.length) {
+    for (const child of node.children) edges.push(...collectMindmapEdges(child, node, collapsedIds));
+  }
+  return edges;
+}
+
+function renderMindmapTreeCanvas(container, tree, options = {}) {
+  const {
+    collapsedIds,
+    activeTarget = null,
+    onNodeClick = null,
+    onRerender = null
+  } = options;
+  if (!container || !tree) return;
+
+  container.replaceChildren();
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-mindmap-wrap";
+
+  const viewport = document.createElement("div");
+  viewport.className = "node-mindmap-viewport";
+
+  const canvas = document.createElement("div");
+  canvas.className = "node-mindmap-canvas";
+
+  const linksSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  linksSvg.setAttribute("class", "node-mindmap-links");
+  linksSvg.setAttribute("aria-hidden", "true");
+
+  const items = layoutMindmapTree(tree, 0, 0, collapsedIds);
+  const posById = new Map();
+  let maxY = 0;
+  let maxX = 0;
+
+  for (const { node, x, y } of items) {
+    maxY = Math.max(maxY, y);
+    maxX = Math.max(maxX, x);
+    posById.set(node.id, { x, y });
+
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = `node-mindmap-node node-mindmap-node--${node.kind}`;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.title = node.targetPath || node.label;
+
+    const isActive = activeTarget && node.targetPath && activeTarget === node.targetPath;
+    if (isActive) el.classList.add("is-active");
+
+    if (node.children?.length) {
+      const toggle = document.createElement("span");
+      toggle.className = "node-mindmap-toggle";
+      toggle.setAttribute("aria-hidden", "true");
+      toggle.textContent = collapsedIds.has(node.id) ? "+" : "−";
+      toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (collapsedIds.has(node.id)) collapsedIds.delete(node.id);
+        else collapsedIds.add(node.id);
+        onRerender?.();
+      });
+      el.appendChild(toggle);
+    }
+
+    const label = document.createElement("span");
+    label.className = "node-mindmap-label";
+    label.textContent = node.label;
+    el.appendChild(label);
+
+    if (node.targetPath && !isActive && onNodeClick) {
+      el.addEventListener("click", () => onNodeClick(node));
+    }
+
+    canvas.appendChild(el);
+  }
+
+  canvas.style.minHeight = `${maxY + 100}px`;
+  canvas.style.minWidth = `${maxX + 180}px`;
+
+  for (const { from, to } of collectMindmapEdges(tree, null, collapsedIds)) {
+    const a = posById.get(from);
+    const b = posById.get(to);
+    if (!a || !b) continue;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const mx = (a.x + b.x) / 2;
+    path.setAttribute(
+      "d",
+      `M ${a.x + 48} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - 48} ${b.y}`
+    );
+    path.setAttribute("class", "node-mindmap-link");
+    linksSvg.appendChild(path);
+  }
+
+  canvas.insertBefore(linksSvg, canvas.firstChild);
+  viewport.appendChild(canvas);
+  wrap.appendChild(viewport);
+  container.appendChild(wrap);
+
+  let panning = false;
+  let startX = 0;
+  let startY = 0;
+  let scrollLeft = 0;
+  let scrollTop = 0;
+  const endPan = () => {
+    panning = false;
+  };
+  viewport.addEventListener("mousedown", (event) => {
+    if (event.target.closest(".node-mindmap-node")) return;
+    panning = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    scrollLeft = viewport.scrollLeft;
+    scrollTop = viewport.scrollTop;
+  });
+  viewport.addEventListener("mousemove", (event) => {
+    if (!panning) return;
+    viewport.scrollLeft = scrollLeft - (event.clientX - startX);
+    viewport.scrollTop = scrollTop - (event.clientY - startY);
+  });
+  viewport.addEventListener("mouseup", endPan);
+  viewport.addEventListener("mouseleave", endPan);
+}
+
+function buildMindmapNodeFromEntry(entry, menuRoot, depth) {
+  const id = normalizeMenuNodePath(entry.path);
+  const node = {
+    id,
+    label: entry.label || getLabelFromPath(entry.path),
+    kind: getMindmapNodeKind(entry, depth),
+    targetPath: entry.path,
+    children: []
+  };
+  if (depth >= MINDMAP_MAX_DEPTH || !entry.isFolder) return node;
+
+  const menuNode = findOverviewChildrenSourceNode(menuRoot, entry.path);
+  if (!menuNode) return node;
+
+  for (const child of collectDirectChildNodeEntries(menuNode)) {
+    if (normalizeMenuNodePath(child.path) === id) continue;
+    node.children.push(buildMindmapNodeFromEntry(child, menuRoot, depth + 1));
+  }
+  return node;
+}
+
+function buildMindmapTreeForActiveNode() {
+  if (!activePath || !currentMenuData) return null;
+  const baseTree = { title: getAgentTreeTitle(), ...currentMenuData };
+  const rootEntry = {
+    path: activePath,
+    label: activeLabel || getLabelFromPath(activePath),
+    isFolder: isContainerNodePath(activePath)
+  };
+  return buildMindmapNodeFromEntry(rootEntry, baseTree, 0);
+}
+
+function buildExternalMindmapTreeFromItems(mdItems, rootLabel = STORAGE_SUBFOLDER_CONTENT) {
+  const root = {
+    id: "external-root",
+    label: rootLabel,
+    kind: "root",
+    targetPath: null,
+    children: []
+  };
+  const folderNodes = new Map([["", root]]);
+
+  for (const item of mdItems) {
+    const segments = String(item.path || "").split("/").filter(Boolean);
+    if (!segments.length) continue;
+    segments.pop();
+    let parent = root;
+    let built = "";
+    for (const segment of segments) {
+      built = built ? `${built}/${segment}` : segment;
+      if (!folderNodes.has(built)) {
+        const folderNode = {
+          id: `folder:${built}`,
+          label: segment,
+          kind: "topic",
+          targetPath: null,
+          children: []
+        };
+        folderNodes.set(built, folderNode);
+        parent.children.push(folderNode);
+      }
+      parent = folderNodes.get(built);
+    }
+    parent.children.push({
+      id: `file:${item.path}`,
+      label: item.title,
+      kind: "leaf",
+      targetPath: item.path,
+      children: []
+    });
+  }
+  return root;
+}
+
+function renderExternalMindmapCanvas(container, mdItems) {
+  const rootLabel = activeLabel || getLabelFromPath(activePath) || STORAGE_SUBFOLDER_CONTENT;
+  const tree = buildExternalMindmapTreeFromItems(mdItems, rootLabel);
+  const rerender = () => renderExternalMindmapCanvas(container, mdItems);
+  renderMindmapTreeCanvas(container, tree, {
+    collapsedIds: externalMindmapCollapsedIds,
+    activeTarget: activeExternalFilePath,
+    onNodeClick: (node) => openExternalFile(node.targetPath),
+    onRerender: rerender
+  });
+}
+
+function buildExternalCheatsheetMeta(pathValue, index) {
+  const fileName = pathValue.split("/").pop() || pathValue;
+  const pathParts = pathValue.split("/").filter(Boolean);
+  const tags = index % 2 === 0 ? "agent, note" : "task, draft";
+  const parent = pathParts.length > 1 ? pathParts[pathParts.length - 2] : "—";
+  const baseDay = (index % 26) + 1;
+  return {
+    title: fileName.replace(/\.md$/i, ""),
+    created: `2026-05-${String(baseDay).padStart(2, "0")}`,
+    updated: `2026-06-${String(((baseDay + 5) % 28) + 1).padStart(2, "0")}`,
+    done: index % 3 === 0,
+    tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+    parent
+  };
+}
+
+function renderExternalCheatsheetView(container, mdItems) {
+  container.replaceChildren();
+
+  const sheet = document.createElement("div");
+  sheet.className = "external-cheatsheet";
+
+  const intro = document.createElement("p");
+  intro.className = "external-cheatsheet-intro";
+  intro.textContent =
+    "Шпаргалка (cheat sheet): сжатый обзор элементов — заголовок, метки, путь. Клик открывает файл.";
+  sheet.appendChild(intro);
+
+  const grid = document.createElement("div");
+  grid.className = "external-cheatsheet-grid";
+
+  for (const [index, item] of mdItems.entries()) {
+    const meta = buildExternalCheatsheetMeta(item.path, index);
+    const card = document.createElement("article");
+    card.className = "external-cheatsheet-card";
+    if (item.path === activeExternalFilePath) card.classList.add("is-active");
+
+    const head = document.createElement("header");
+    head.className = "external-cheatsheet-card-head";
+    const title = document.createElement("h3");
+    title.className = "external-cheatsheet-card-title";
+    title.textContent = meta.title;
+    head.appendChild(title);
+    if (meta.done) {
+      const badge = document.createElement("span");
+      badge.className = "external-cheatsheet-badge";
+      badge.textContent = "✓";
+      head.appendChild(badge);
+    }
+    card.appendChild(head);
+
+    const facts = document.createElement("ul");
+    facts.className = "external-cheatsheet-facts";
+    for (const fact of [
+      `Папка: ${meta.parent}`,
+      `Создан: ${item.createdAt?.slice(0, 10) || meta.created}`,
+      `Обновлён: ${item.updatedAt?.slice(0, 10) || meta.updated}`,
+      ...meta.tags.map((tag) => `#${tag}`)
+    ]) {
+      const li = document.createElement("li");
+      li.textContent = fact;
+      facts.appendChild(li);
+    }
+    card.appendChild(facts);
+
+    const path = document.createElement("div");
+    path.className = "external-cheatsheet-path";
+    path.textContent = item.path;
+    path.title = item.path;
+    card.appendChild(path);
+
+    card.addEventListener("click", () => openExternalFile(item.path));
+    grid.appendChild(card);
+  }
+
+  sheet.appendChild(grid);
+  container.appendChild(sheet);
+}
+
+function renderNodeMindmapView() {
+  if (!graphViewContentNode) return;
+
+  const tree = buildMindmapTreeForActiveNode();
+  if (!tree) {
+    graphViewContentNode.replaceChildren();
+    renderListEmptyMessage(graphViewContentNode, "Дерево тем ещё не загружено");
+    return;
+  }
+
+  const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  renderMindmapTreeCanvas(graphViewContentNode, tree, {
+    collapsedIds: mindmapCollapsedIds,
+    activeTarget: activeResolved,
+    onNodeClick: (node) => {
+      void openNodeFromMenu(getLabelFromPath(node.targetPath), node.targetPath, {
+        contentMode: NODE_MINDMAP_MODE
+      });
+    },
+    onRerender: renderNodeMindmapView
+  });
 }
 
 function renderExternalGraphCanvas(container, items) {
@@ -6775,6 +7155,16 @@ function renderListViewContent() {
       }
 
       listViewContentNode.appendChild(grid);
+      return;
+    }
+
+    if (externalViewMode === "mindmap") {
+      renderExternalMindmapCanvas(listViewContentNode, mdItems);
+      return;
+    }
+
+    if (externalViewMode === "cheatsheet") {
+      renderExternalCheatsheetView(listViewContentNode, mdItems);
       return;
     }
 
@@ -9544,6 +9934,8 @@ function applyModeUi() {
 
   const listTemplate = isCurrentModeListTemplate();
   const graphMode = isGraphModeActive();
+  const mindmapMode = isMindmapModeActive();
+  const canvasMode = isNodeCanvasViewMode();
   const listViewWithSourceToggle = isListViewWithSourceToggleMode();
   const showListView = listTemplate && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
@@ -9568,7 +9960,7 @@ function applyModeUi() {
   const showTabularControls = activeContentMode === "tabular" && !isTabularSourceEditing();
   const showWorkspaceRefresh = isWorkspaceRefreshAvailable();
   const hideSaveDeleteInToolbar =
-    graphMode ||
+    canvasMode ||
     overviewLikeMode ||
     showExternalControls ||
     showMediaControls ||
@@ -9603,8 +9995,8 @@ function applyModeUi() {
     (listTemplate && !listViewWithSourceToggle) ||
     previewMode ||
     overviewLikeMode ||
-    graphMode ||
-    (hideContentEditor && !graphMode && !listViewWithSourceToggle);
+    canvasMode ||
+    (hideContentEditor && !canvasMode && !listViewWithSourceToggle);
   const showTabularSourceEditor = activeContentMode === "tabular" && isTabularSourceEditing();
   const hideEditorViewCluster = hideEditorViewToggle && !showTabularSourceEditor;
   editorViewClusterNode?.classList.toggle("hidden", hideEditorViewCluster);
@@ -9614,16 +10006,18 @@ function applyModeUi() {
     "is-line-numbers-only",
     hideEditorViewToggle && showTabularSourceEditor
   );
-  editorSurfaceNode?.classList.toggle("hidden", previewMode || graphMode || overviewLikeMode || showListView);
+  editorSurfaceNode?.classList.toggle("hidden", previewMode || canvasMode || overviewLikeMode || showListView);
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
-  graphViewBlockNode?.classList.toggle("hidden", !graphMode);
+  graphViewBlockNode?.classList.toggle("hidden", !canvasMode);
+  graphViewBlockNode?.classList.toggle("is-mindmap", mindmapMode);
+  mindmapViewHintNode?.classList.toggle("hidden", !mindmapMode);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode);
   const containerOverview =
     overviewMode && isContainerNodePath(getResolvedNodePath(activePath));
   applyNodeWorkspaceViewUi();
   nodeOverviewBlockNode?.classList.toggle("is-container-node", containerOverview);
-  if (!graphMode && graphViewContentNode) {
+  if (!canvasMode && graphViewContentNode) {
     graphViewContentNode.innerHTML = "";
   }
   listViewBlockNode.classList.toggle("hidden", !showListView);
@@ -9665,6 +10059,8 @@ function applyModeUi() {
   syncWorkspaceRevealFolderButton();
   if (graphMode) {
     renderNodeGraphView();
+  } else if (mindmapMode) {
+    renderNodeMindmapView();
   } else if (overviewMode) {
     void renderNodeOverview();
     return;
@@ -11845,6 +12241,13 @@ async function loadContentByMode() {
   }
 
   if (activeContentMode === NODE_NAVIGATION_MODE) {
+    fileContentInputNode.value = "";
+    applyModeUi();
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
+  if (activeContentMode === NODE_MINDMAP_MODE) {
     fileContentInputNode.value = "";
     applyModeUi();
     updateBreadcrumbsForActiveMode();
@@ -15482,6 +15885,16 @@ nodeMemoryModeSelectNode?.addEventListener("change", () => {
   const mode = nodeMemoryModeSelectNode.value;
   if (isNodeMemorySelectMode(mode)) {
     setContentMode(mode);
+  }
+});
+nodeNavigationSubsectionSelectNode?.addEventListener("change", () => {
+  const value = nodeNavigationSubsectionSelectNode.value;
+  if (value === NODE_MINDMAP_MODE) {
+    setContentMode(NODE_MINDMAP_MODE);
+    return;
+  }
+  if (activeContentMode === NODE_MINDMAP_MODE) {
+    setContentMode(NODE_NAVIGATION_MODE);
   }
 });
 createNameInputNode?.addEventListener("keydown", (event) => {

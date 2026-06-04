@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Пример: карта знаний (mind map)</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #e8ecf1;
+        color: #1e293b;
+      }
+      header {
+        padding: 12px 16px;
+        background: #fff;
+        border-bottom: 1px solid #cbd5e1;
+        font-size: 14px;
+      }
+      header strong { font-weight: 600; }
+      .hint {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #64748b;
+      }
+      .viewport {
+        height: calc(100vh - 72px);
+        overflow: auto;
+        cursor: grab;
+      }
+      .viewport:active { cursor: grabbing; }
+      .canvas {
+        position: relative;
+        min-width: 900px;
+        min-height: 520px;
+        padding: 40px;
+      }
+      svg.links {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .link {
+        fill: none;
+        stroke: #94a3b8;
+        stroke-width: 1.5;
+      }
+      .node {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        transform: translate(-50%, -50%);
+        user-select: none;
+      }
+      .node--root { background: #fbcfe8; }
+      .node--topic { background: #bfdbfe; }
+      .node--group { background: #fed7aa; }
+      .node--leaf { background: #f1f5f9; font-weight: 400; }
+      .toggle {
+        width: 18px;
+        height: 18px;
+        border: 1px solid #94a3b8;
+        border-radius: 50%;
+        background: #fff;
+        font-size: 12px;
+        line-height: 16px;
+        text-align: center;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .toggle:hover { background: #f8fafc; }
+      .collapsed > .toggle::after { content: "+"; }
+      .expanded > .toggle::after { content: "−"; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Как устроены такие карты</strong>
+      <div class="hint">
+        Данные — дерево JSON → узлы (div) + связи (SVG). Панорама — scroll/drag. Сворачивание — скрыть ветку и пересчитать layout.
+        В проде часто берут <a href="https://reactflow.dev/">React Flow</a> или D3 tree layout.
+      </div>
+    </header>
+    <div class="viewport" id="viewport">
+      <div class="canvas" id="canvas">
+        <svg class="links" id="links"></svg>
+      </div>
+    </div>
+    <script>
+      /** Дерево тем — так же хранят курсы, Obsidian, Notion и т.п. */
+      const tree = {
+        id: "root",
+        label: "Основы",
+        kind: "root",
+        children: [
+          {
+            id: "llm",
+            label: "LLM",
+            kind: "topic",
+            children: [
+              { id: "glm", label: "GLM 4.7", kind: "leaf" },
+              { id: "ds", label: "DeepSeek", kind: "leaf" },
+              { id: "qwen", label: "QWEN3", kind: "leaf" }
+            ]
+          },
+          {
+            id: "ctx",
+            label: "Контекст",
+            kind: "topic",
+            children: [
+              {
+                id: "ctx-win",
+                label: "Контекстное окно",
+                kind: "group",
+                children: [
+                  { id: "ce", label: "Context Engineering", kind: "group", children: [
+                    { id: "spec", label: "spec.md", kind: "leaf" },
+                    { id: "plan", label: "plan.md", kind: "leaf" }
+                  ]}
+                ]
+              }
+            ]
+          },
+          {
+            id: "prompt",
+            label: "Промпт-инженерия",
+            kind: "topic",
+            children: [
+              { id: "how", label: "Как составлять промпты", kind: "leaf" }
+            ]
+          }
+        ]
+      };
+
+      const collapsed = new Set();
+      const LEVEL_GAP_X = 200;
+      const ROW_GAP_Y = 44;
+
+      function countVisibleLeaves(node) {
+        if (collapsed.has(node.id)) return 1;
+        if (!node.children?.length) return 1;
+        return node.children.reduce((sum, ch) => sum + countVisibleLeaves(ch), 0);
+      }
+
+      function layout(node, depth, yStart) {
+        const rows = countVisibleLeaves(node);
+        const yCenter = yStart + (rows * ROW_GAP_Y) / 2 - ROW_GAP_Y / 2;
+        const x = 80 + depth * LEVEL_GAP_X;
+        const positioned = [{ node, x, y: yCenter, depth }];
+
+        if (!collapsed.has(node.id) && node.children?.length) {
+          let cursor = yStart;
+          for (const child of node.children) {
+            const childRows = countVisibleLeaves(child);
+            positioned.push(...layout(child, depth + 1, cursor));
+            cursor += childRows * ROW_GAP_Y;
+          }
+        }
+        return positioned;
+      }
+
+      function flattenEdges(node, depth, parent) {
+        const edges = [];
+        if (parent && !collapsed.has(parent.id)) {
+          edges.push({ from: parent.id, to: node.id });
+        }
+        if (!collapsed.has(node.id) && node.children) {
+          for (const ch of node.children) edges.push(...flattenEdges(ch, depth + 1, node));
+        }
+        return edges;
+      }
+
+      function collectEdges(node, parent) {
+        return flattenEdges(node, 0, parent);
+      }
+
+      const canvas = document.getElementById("canvas");
+      const linksSvg = document.getElementById("links");
+      const nodeEls = new Map();
+
+      function render() {
+        document.querySelectorAll(".node").forEach((el) => el.remove());
+        nodeEls.clear();
+
+        const items = layout(tree, 0, 0);
+        const posById = new Map();
+        let maxY = 0;
+        let maxX = 0;
+
+        for (const { node, x, y } of items) {
+          maxY = Math.max(maxY, y);
+          maxX = Math.max(maxX, x);
+          posById.set(node.id, { x, y });
+
+          const el = document.createElement("div");
+          el.className = `node node--${node.kind}${node.children?.length ? " expanded" : ""}`;
+          el.style.left = `${x}px`;
+          el.style.top = `${y}px`;
+          el.dataset.id = node.id;
+
+          if (node.children?.length) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "toggle";
+            btn.title = collapsed.has(node.id) ? "Развернуть" : "Свернуть";
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              if (collapsed.has(node.id)) collapsed.delete(node.id);
+              else collapsed.add(node.id);
+              render();
+            });
+            el.appendChild(btn);
+            el.classList.toggle("collapsed", collapsed.has(node.id));
+            el.classList.toggle("expanded", !collapsed.has(node.id));
+          }
+
+          const label = document.createElement("span");
+          label.textContent = node.label;
+          el.appendChild(label);
+          canvas.appendChild(el);
+          nodeEls.set(node.id, el);
+        }
+
+        canvas.style.minHeight = `${maxY + 120}px`;
+        canvas.style.minWidth = `${maxX + 200}px`;
+
+        linksSvg.innerHTML = "";
+        for (const { from, to } of collectEdges(tree, null)) {
+          const a = posById.get(from);
+          const b = posById.get(to);
+          if (!a || !b) continue;
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          const mx = (a.x + b.x) / 2;
+          path.setAttribute(
+            "d",
+            `M ${a.x + 40} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - 40} ${b.y}`
+          );
+          path.setAttribute("class", "link");
+          linksSvg.appendChild(path);
+        }
+      }
+
+      render();
+
+      // Панорама перетаскиванием (как на скриншоте: scroll / drag pan)
+      const viewport = document.getElementById("viewport");
+      let panning = false;
+      let startX = 0;
+      let startY = 0;
+      let scrollLeft = 0;
+      let scrollTop = 0;
+      viewport.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".toggle")) return;
+        panning = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        scrollLeft = viewport.scrollLeft;
+        scrollTop = viewport.scrollTop;
+      });
+      window.addEventListener("mouseup", () => { panning = false; });
+      window.addEventListener("mousemove", (e) => {
+        if (!panning) return;
+        viewport.scrollLeft = scrollLeft - (e.clientX - startX);
+        viewport.scrollTop = scrollTop - (e.clientY - startY);
+      });
+    </script>
+  </body>
+</html>
