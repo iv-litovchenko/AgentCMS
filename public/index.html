@@ -125,7 +125,7 @@
                     <option value="storage">Хранилище</option>
                     <option value="timeline">Лента</option>
                     <option value="timeline-axis">Timeline</option>
-                    <option value="timeline-horizontal">Timeline →</option>
+                    <option value="timeline-vertical">Timeline ↓</option>
                   </select>
                 </div>
               </div>
@@ -558,7 +558,7 @@
             <h2 class="agent-canvas-title">Лента</h2>
             <p class="agent-canvas-lead">
               Лента по дням: недавние изменения манифестов, Content/Config и слотов <code>_Storage</code>.
-              Для оси «когда» — <strong>Timeline</strong> или горизонтальная лента <strong>Timeline →</strong>.
+              Для оси «когда» — <strong>Timeline</strong> или вертикальная лента <strong>Timeline ↓</strong>.
             </p>
           </div>
           <div id="agent-timeline-stats" class="agent-timeline-stats" aria-live="polite"></div>
@@ -585,21 +585,21 @@
       </main>
 
       <main
-        id="agent-timeline-horizontal-pane"
-        class="agent-canvas-pane agent-timeline-horizontal-pane hidden"
-        aria-label="Timeline горизонтальный"
+        id="agent-timeline-vertical-pane"
+        class="agent-canvas-pane agent-timeline-vertical-pane hidden"
+        aria-label="Timeline вертикальный"
       >
-        <div class="agent-canvas-head agent-timeline-horizontal-head">
-          <div class="agent-timeline-horizontal-head-copy">
+        <div class="agent-canvas-head agent-timeline-vertical-head">
+          <div class="agent-timeline-vertical-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Timeline →</h2>
+            <h2 class="agent-canvas-title">Timeline ↓</h2>
             <p class="agent-canvas-lead">
-              Горизонтальная лента: события слева направо по времени. Прокрутка вбок — вся хронология workspace.
+              Вертикальная ось: сверху раньше, снизу позже. События вдоль линии времени — прокрутка вниз.
             </p>
           </div>
-          <div id="agent-timeline-horizontal-stats" class="agent-timeline-horizontal-stats" aria-live="polite"></div>
+          <div id="agent-timeline-vertical-stats" class="agent-timeline-vertical-stats" aria-live="polite"></div>
         </div>
-        <div id="agent-timeline-horizontal-content" class="agent-timeline-horizontal-content"></div>
+        <div id="agent-timeline-vertical-content" class="agent-timeline-vertical-content"></div>
       </main>
 
       <section class="workspace-pane">

@@ -51,9 +51,9 @@ const agentTimelineStatsNode = document.getElementById("agent-timeline-stats");
 const agentTimelineAxisPaneNode = document.getElementById("agent-timeline-axis-pane");
 const agentTimelineAxisContentNode = document.getElementById("agent-timeline-axis-content");
 const agentTimelineAxisStatsNode = document.getElementById("agent-timeline-axis-stats");
-const agentTimelineHorizontalPaneNode = document.getElementById("agent-timeline-horizontal-pane");
-const agentTimelineHorizontalContentNode = document.getElementById("agent-timeline-horizontal-content");
-const agentTimelineHorizontalStatsNode = document.getElementById("agent-timeline-horizontal-stats");
+const agentTimelineVerticalPaneNode = document.getElementById("agent-timeline-vertical-pane");
+const agentTimelineVerticalContentNode = document.getElementById("agent-timeline-vertical-content");
+const agentTimelineVerticalStatsNode = document.getElementById("agent-timeline-vertical-stats");
 const agentDashboardStatsNode = document.getElementById("agent-dashboard-stats");
 const agentMapPaneNode = document.getElementById("agent-map-pane");
 const agentMapStageNode = document.getElementById("agent-map-stage");
@@ -4656,7 +4656,7 @@ let agentTimelineCache = null;
 let agentTableRequestId = 0;
 let agentTimelineRequestId = 0;
 let agentTimelineAxisRequestId = 0;
-let agentTimelineHorizontalRequestId = 0;
+let agentTimelineVerticalRequestId = 0;
 let agentTableSearchQuery = "";
 let agentTableSortKey = "displayPath";
 let agentTableSortDir = "asc";
@@ -13037,9 +13037,10 @@ function loadAgentWorkspaceView() {
       saved === "table" ||
       saved === "timeline" ||
       saved === "timeline-axis" ||
+      saved === "timeline-vertical" ||
       saved === "timeline-horizontal"
     ) {
-      return saved;
+      return saved === "timeline-horizontal" ? "timeline-vertical" : saved;
     }
   } catch {
     // ignore
@@ -13081,9 +13082,9 @@ function applyAgentWorkspaceCanvasUi() {
   agentStoragePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "storage");
   agentTimelinePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "timeline");
   agentTimelineAxisPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "timeline-axis");
-  agentTimelineHorizontalPaneNode?.classList.toggle(
+  agentTimelineVerticalPaneNode?.classList.toggle(
     "hidden",
-    !showCanvas || agentWorkspaceView !== "timeline-horizontal"
+    !showCanvas || agentWorkspaceView !== "timeline-vertical"
   );
 
   if (!showCanvas) return;
@@ -13110,8 +13111,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentTimelineView();
   } else if (agentWorkspaceView === "timeline-axis") {
     void renderAgentTimelineAxisView();
-  } else if (agentWorkspaceView === "timeline-horizontal") {
-    void renderAgentTimelineHorizontalView();
+  } else if (agentWorkspaceView === "timeline-vertical") {
+    void renderAgentTimelineVerticalView();
   }
 }
 
@@ -13128,7 +13129,7 @@ function setAgentWorkspaceView(view) {
     view !== "table" &&
     view !== "timeline" &&
     view !== "timeline-axis" &&
-    view !== "timeline-horizontal"
+    view !== "timeline-vertical"
   ) {
     return;
   }
@@ -14385,37 +14386,51 @@ function sortTimelineEventsChronological(events) {
   return [...events].sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt));
 }
 
-function createTimelineHorizontalCard(event) {
-  const item = document.createElement("button");
-  item.type = "button";
-  item.className = "agent-timeline-h-card";
-  item.title = `${formatNodeMetaDateTime(event.updatedAt)} — ${event.displayPath || event.label}`;
+function createTimelineVerticalRow(event) {
+  const row = document.createElement("article");
+  row.className = "agent-timeline-v-row";
+  row.setAttribute("role", "listitem");
 
   const time = document.createElement("time");
-  time.className = "agent-timeline-h-time";
+  time.className = "agent-timeline-v-time";
   time.dateTime = event.updatedAt || "";
   time.textContent = formatNodeMetaDateTime(event.updatedAt);
-  item.appendChild(time);
+  row.appendChild(time);
+
+  const axis = document.createElement("div");
+  axis.className = "agent-timeline-v-axis";
+  const dot = document.createElement("span");
+  dot.className = `agent-timeline-v-dot is-${event.fileKind || "other"}`;
+  dot.setAttribute("aria-hidden", "true");
+  axis.appendChild(dot);
+  row.appendChild(axis);
+
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "agent-timeline-v-card";
+  card.title = `${formatNodeMetaDateTime(event.updatedAt)} — ${event.displayPath || event.label}`;
 
   const kind = document.createElement("span");
-  kind.className = `agent-timeline-h-kind is-${event.fileKind || "other"}`;
+  kind.className = `agent-timeline-v-kind is-${event.fileKind || "other"}`;
   kind.textContent = formatAgentTimelineFileKind(event.fileKind);
-  item.appendChild(kind);
+  card.appendChild(kind);
 
   const fileLabel = document.createElement("span");
-  fileLabel.className = "agent-timeline-h-file";
+  fileLabel.className = "agent-timeline-v-file";
   fileLabel.textContent = event.fileLabel || "Файл";
-  item.appendChild(fileLabel);
+  card.appendChild(fileLabel);
 
   const title = document.createElement("span");
-  title.className = "agent-timeline-h-title";
+  title.className = "agent-timeline-v-title";
   title.textContent = event.displayPath || event.label || "—";
-  item.appendChild(title);
+  card.appendChild(title);
 
-  item.addEventListener("click", () => {
+  card.addEventListener("click", () => {
     openNodeFromMenu(event.label || getLabelFromPath(event.manifestPath), event.manifestPath);
   });
-  return item;
+  row.appendChild(card);
+
+  return row;
 }
 
 function createAgentStorageLayerChip(layerName, layerMeta) {
@@ -15018,101 +15033,79 @@ async function renderAgentTimelineAxisView() {
   }
 }
 
-async function renderAgentTimelineHorizontalView() {
-  if (!agentTimelineHorizontalContentNode) return;
+async function renderAgentTimelineVerticalView() {
+  if (!agentTimelineVerticalContentNode) return;
 
-  const requestId = ++agentTimelineHorizontalRequestId;
-  agentTimelineHorizontalContentNode.innerHTML = "";
-  renderListEmptyMessage(agentTimelineHorizontalContentNode, "Загрузка ленты…");
+  const requestId = ++agentTimelineVerticalRequestId;
+  agentTimelineVerticalContentNode.innerHTML = "";
+  renderListEmptyMessage(agentTimelineVerticalContentNode, "Загрузка timeline…");
 
   try {
     const data = await fetchAgentTimeline();
-    if (requestId !== agentTimelineHorizontalRequestId) return;
+    if (requestId !== agentTimelineVerticalRequestId) return;
 
     const events = Array.isArray(data.events) ? data.events : [];
-    if (agentTimelineHorizontalStatsNode) {
+    if (agentTimelineVerticalStatsNode) {
       const shown = events.length;
       const total = data.totalMatched ?? shown;
-      agentTimelineHorizontalStatsNode.innerHTML = `
-        <span class="agent-timeline-h-stat"><strong>${shown}</strong> событий</span>
-        <span class="agent-timeline-h-stat">всего <strong>${total}</strong></span>
+      agentTimelineVerticalStatsNode.innerHTML = `
+        <span class="agent-timeline-v-stat"><strong>${shown}</strong> событий</span>
+        <span class="agent-timeline-v-stat">всего <strong>${total}</strong></span>
       `;
     }
 
-    agentTimelineHorizontalContentNode.innerHTML = "";
+    agentTimelineVerticalContentNode.innerHTML = "";
     if (!events.length) {
-      renderListEmptyMessage(agentTimelineHorizontalContentNode, "Нет событий для горизонтальной ленты");
+      renderListEmptyMessage(agentTimelineVerticalContentNode, "Нет событий для вертикальной оси");
       return;
     }
 
     const sorted = sortTimelineEventsChronological(events);
-    const range = computeTimelineAxisRange(sorted);
     const board = document.createElement("div");
-    board.className = "agent-timeline-h-board";
+    board.className = "agent-timeline-v-board";
 
-    const rulerWrap = document.createElement("div");
-    rulerWrap.className = "agent-timeline-h-ruler-wrap";
-    const ruler = document.createElement("div");
-    ruler.className = "agent-timeline-h-ruler";
-    ruler.setAttribute("aria-hidden", "true");
-    for (const tick of buildTimelineAxisTicks(range, 8)) {
-      const mark = document.createElement("span");
-      mark.className = "agent-timeline-h-tick";
-      mark.style.left = `${tick.percent}%`;
-      const label = document.createElement("span");
-      label.className = "agent-timeline-h-tick-label";
-      label.textContent = tick.label;
-      mark.appendChild(label);
-      ruler.appendChild(mark);
-    }
-    rulerWrap.appendChild(ruler);
-    board.appendChild(rulerWrap);
+    const track = document.createElement("div");
+    track.className = "agent-timeline-v-track";
+    track.setAttribute("role", "list");
 
-    const scroller = document.createElement("div");
-    scroller.className = "agent-timeline-h-scroller";
+    const spine = document.createElement("div");
+    spine.className = "agent-timeline-v-spine";
+    spine.setAttribute("aria-hidden", "true");
+    track.appendChild(spine);
 
-    const strip = document.createElement("div");
-    strip.className = "agent-timeline-h-strip";
-    strip.setAttribute("role", "list");
+    const list = document.createElement("div");
+    list.className = "agent-timeline-v-list";
 
-    const line = document.createElement("div");
-    line.className = "agent-timeline-h-line";
-    line.setAttribute("aria-hidden", "true");
-    strip.appendChild(line);
-
-    for (const [index, event] of sorted.entries()) {
-      const cell = document.createElement("div");
-      cell.className = "agent-timeline-h-cell";
-      cell.setAttribute("role", "listitem");
-
-      if (index > 0) {
-        const connector = document.createElement("span");
-        connector.className = "agent-timeline-h-connector";
-        connector.setAttribute("aria-hidden", "true");
-        cell.appendChild(connector);
+    let lastDayKey = "";
+    for (const event of sorted) {
+      const dayKey = getTimelineDayKey(event.updatedAt);
+      if (dayKey !== lastDayKey) {
+        lastDayKey = dayKey;
+        const dayHead = document.createElement("h3");
+        dayHead.className = "agent-timeline-v-day";
+        dayHead.textContent = dayKey;
+        list.appendChild(dayHead);
       }
-
-      cell.appendChild(createTimelineHorizontalCard(event));
-      strip.appendChild(cell);
+      list.appendChild(createTimelineVerticalRow(event));
     }
 
-    scroller.appendChild(strip);
-    board.appendChild(scroller);
+    track.appendChild(list);
+    board.appendChild(track);
 
     const hint = document.createElement("p");
-    hint.className = "agent-timeline-h-hint";
-    hint.textContent = "← раньше · позже → — прокрутите ленту. Клик по карточке открывает тему.";
+    hint.className = "agent-timeline-v-hint";
+    hint.textContent = "↑ раньше · ↓ позже — прокрутите вниз. Клик по карточке открывает тему.";
     board.appendChild(hint);
 
-    agentTimelineHorizontalContentNode.appendChild(board);
+    agentTimelineVerticalContentNode.appendChild(board);
   } catch {
-    if (requestId !== agentTimelineHorizontalRequestId) return;
-    agentTimelineHorizontalContentNode.innerHTML = "";
+    if (requestId !== agentTimelineVerticalRequestId) return;
+    agentTimelineVerticalContentNode.innerHTML = "";
     renderListEmptyMessage(
-      agentTimelineHorizontalContentNode,
+      agentTimelineVerticalContentNode,
       "Не удалось загрузить timeline. Проверьте, что сервер запущен."
     );
-    if (agentTimelineHorizontalStatsNode) agentTimelineHorizontalStatsNode.innerHTML = "";
+    if (agentTimelineVerticalStatsNode) agentTimelineVerticalStatsNode.innerHTML = "";
   }
 }
 
@@ -15192,7 +15185,7 @@ function hideHomeView() {
   agentStoragePaneNode?.classList.add("hidden");
   agentTimelinePaneNode?.classList.add("hidden");
   agentTimelineAxisPaneNode?.classList.add("hidden");
-  agentTimelineHorizontalPaneNode?.classList.add("hidden");
+  agentTimelineVerticalPaneNode?.classList.add("hidden");
   syncAppHomeButton();
 }
 
