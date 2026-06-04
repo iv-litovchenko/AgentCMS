@@ -156,23 +156,12 @@
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
             <div class="sidebar-agent-avatar-block">
-              <div id="agent-preview-placeholder" class="agent-preview-placeholder" aria-hidden="true">
-                <div class="agent-preview-empty" title="Превью агента не задано">
-                  <div class="agent-preview-empty-graph" aria-hidden="true">
-                    <span class="agent-preview-empty-branch agent-preview-empty-branch--left"></span>
-                    <span class="agent-preview-empty-branch agent-preview-empty-branch--right"></span>
-                    <span class="agent-preview-empty-node agent-preview-empty-node--root"></span>
-                    <span class="agent-preview-empty-node agent-preview-empty-node--leaf agent-preview-empty-node--left"></span>
-                    <span class="agent-preview-empty-node agent-preview-empty-node--leaf agent-preview-empty-node--right"></span>
-                  </div>
-                  <div class="agent-preview-empty-frame">
-                    <span class="agent-preview-empty-scan" aria-hidden="true"></span>
-                    <span class="agent-preview-empty-silhouette" aria-hidden="true"></span>
-                    <span class="agent-preview-empty-initials" aria-hidden="true">—</span>
-                  </div>
-                  <p class="agent-preview-empty-caption">Нет превью</p>
-                </div>
-              </div>
+              <div
+                id="agent-preview-placeholder"
+                class="agent-preview-placeholder"
+                title="Превью не задано"
+                aria-hidden="true"
+              ></div>
               <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
                 <div class="agent-preview-frame">
                   <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
@@ -187,17 +176,7 @@
           <div class="menu-view-wrap">
             <div class="menu-view-toggle" role="tablist" aria-label="Режим отображения меню">
             <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
-              <span class="menu-view-btn-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 4v16" />
-                  <path d="M6 8H4a2 2 0 0 1 2-2h2" />
-                  <path d="M20 8h-2a2 2 0 0 0-2 2h2" />
-                  <path d="M6 14H4a2 2 0 0 1 2-2h2" />
-                  <path d="M20 14h-2a2 2 0 0 0-2 2h2" />
-                  <path d="M6 20H4a2 2 0 0 1 2-2h2" />
-                  <path d="M20 20h-2a2 2 0 0 0-2 2h2" />
-                </svg>
-              </span>
+              <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
             </button>
             <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
               <span class="menu-view-btn-icon" aria-hidden="true">📋</span>

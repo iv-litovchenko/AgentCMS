@@ -86,3 +86,4 @@ Workspace → Space «Коллекции» → Topic «Фильмы» → Elemen
 
 - [ ] **Где ещё остались упоминания термина «нода»** — UI, API/docs, MCP, user-docs, код (`node`, `NODE_*`), комментарии; сверить с целевой онтологией (Topic / Element / Component).
 - [ ] **Какие миграции ещё остались** — `_.node.md` → `_.x.md`, слоты `_Storage`, legacy preview/paths, named-slots-v2, данные в `_Storage/_/` после старых миграций; зафиксировать чеклист и порядок.
+- [ ] **ЧПУ (URL) и имена на диске** — сейчас сегменты ссылки = кириллические папки (`encodeURIComponent` → `%D0%...`). Имеет ли смысл slug латиницей в путях + `title`/`slug` в frontmatter `_.node.md`; роутинг и меню по slug, миграция старых путей и deep link’ов.
