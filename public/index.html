@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.23" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.26" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -930,9 +930,30 @@
                 </div>
               </section>
               <section id="graph-view-block" class="graph-view hidden">
-                <p id="mindmap-view-hint" class="mindmap-view-hint hidden">
-                  Карта подразделов из дерева <code>*.x.md</code>. Клик по теме — открыть; «−»/«+» — свернуть ветку. Перетаскивание — панорама.
-                </p>
+                <div id="mindmap-view-bar" class="mindmap-view-bar hidden">
+                  <p id="mindmap-view-hint" class="mindmap-view-hint">
+                    Карта подразделов из <code>*.x.md</code> (до 6 уровней). <strong>Клик</strong> — открыть;
+                    <strong>«−»/«+»</strong> — свернуть ветку; <strong>перетаскивание</strong> или <strong>колёсико</strong> — панорама.
+                  </p>
+                  <div class="mindmap-layout-toggle" role="group" aria-label="Раскладка карты">
+                    <button
+                      type="button"
+                      class="mindmap-layout-btn"
+                      data-mindmap-layout="horizontal"
+                      title="Горизонтально — корень слева"
+                    >
+                      →
+                    </button>
+                    <button
+                      type="button"
+                      class="mindmap-layout-btn"
+                      data-mindmap-layout="vertical"
+                      title="Вертикально — корень сверху"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
                 <div id="graph-view-content" class="graph-view-content"></div>
               </section>
               <section id="list-view-block" class="list-view hidden">

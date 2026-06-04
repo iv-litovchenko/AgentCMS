@@ -98,7 +98,7 @@ const previewPasteBtn = document.getElementById("preview-paste-btn");
 const previewPasteActionsBtn = document.getElementById("preview-paste-actions-btn");
 const graphViewBlockNode = document.getElementById("graph-view-block");
 const graphViewContentNode = document.getElementById("graph-view-content");
-const mindmapViewHintNode = document.getElementById("mindmap-view-hint");
+const mindmapViewBarNode = document.getElementById("mindmap-view-bar");
 const nodeNavigationSubsectionSelectNode = document.getElementById("node-navigation-subsection-select");
 const editorSurfaceNode = document.querySelector(".editor-surface");
 const listViewTitleNode = document.getElementById("list-view-title");
@@ -5697,6 +5697,91 @@ const externalMindmapCollapsedIds = new Set();
 const MINDMAP_LAYOUT_LEVEL_GAP = 210;
 const MINDMAP_LAYOUT_ROW_GAP = 42;
 const MINDMAP_MAX_DEPTH = 6;
+const MINDMAP_CANVAS_PAD = { top: 52, right: 300, bottom: 80, left: 168 };
+const MINDMAP_CANVAS_PAD_VERTICAL = { top: 80, right: 320, bottom: 100, left: 120 };
+const MINDMAP_NODE_LINK_HALF = 72;
+const MINDMAP_LAYOUT_STORAGE_KEY = "yamlcms.mindmapLayoutDirection";
+
+function readMindmapLayoutDirection() {
+  try {
+    const stored = localStorage.getItem(MINDMAP_LAYOUT_STORAGE_KEY);
+    return stored === "vertical" ? "vertical" : "horizontal";
+  } catch {
+    return "horizontal";
+  }
+}
+
+let mindmapLayoutDirection = readMindmapLayoutDirection();
+
+function getMindmapLayoutDirection() {
+  return mindmapLayoutDirection === "vertical" ? "vertical" : "horizontal";
+}
+
+function setMindmapLayoutDirection(value) {
+  mindmapLayoutDirection = value === "vertical" ? "vertical" : "horizontal";
+  try {
+    localStorage.setItem(MINDMAP_LAYOUT_STORAGE_KEY, mindmapLayoutDirection);
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function syncMindmapLayoutUi(root = document) {
+  const direction = getMindmapLayoutDirection();
+  for (const btn of root.querySelectorAll(".mindmap-layout-btn[data-mindmap-layout]")) {
+    const active = btn.dataset.mindmapLayout === direction;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function applyMindmapLayout(direction) {
+  setMindmapLayoutDirection(direction);
+  syncMindmapLayoutUi();
+  if (isMindmapModeActive()) renderNodeMindmapView();
+  if (activeContentMode === "external" && externalViewMode === "mindmap") renderListViewContent();
+}
+
+function createMindmapLayoutBarElement() {
+  const bar = document.createElement("div");
+  bar.className = "mindmap-view-bar mindmap-view-bar--embedded";
+
+  const toggle = document.createElement("div");
+  toggle.className = "mindmap-layout-toggle";
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "Раскладка карты");
+
+  for (const { layout, label, title } of [
+    { layout: "horizontal", label: "→", title: "Горизонтально — корень слева" },
+    { layout: "vertical", label: "↓", title: "Вертикально — корень сверху" }
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mindmap-layout-btn";
+    btn.dataset.mindmapLayout = layout;
+    btn.title = title;
+    btn.textContent = label;
+    btn.addEventListener("click", () => applyMindmapLayout(layout));
+    toggle.appendChild(btn);
+  }
+
+  bar.appendChild(toggle);
+  syncMindmapLayoutUi(bar);
+  return bar;
+}
+
+function getMindmapCanvasPad(direction) {
+  return direction === "vertical" ? MINDMAP_CANVAS_PAD_VERTICAL : MINDMAP_CANVAS_PAD;
+}
+
+function buildMindmapLinkPath(a, b, direction) {
+  if (direction === "vertical") {
+    const my = (a.y + b.y) / 2;
+    return `M ${a.x} ${a.y + MINDMAP_NODE_LINK_HALF} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y - MINDMAP_NODE_LINK_HALF}`;
+  }
+  const mx = (a.x + b.x) / 2;
+  return `M ${a.x + MINDMAP_NODE_LINK_HALF} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - MINDMAP_NODE_LINK_HALF} ${b.y}`;
+}
 function getMindmapNodeKind(entry, depth) {
   if (depth === 0 && isAreaNodePath(entry.path)) return "root";
   if (entry.isFolder) return "topic";
@@ -5709,7 +5794,7 @@ function countMindmapVisibleLeaves(node, collapsedIds) {
   return node.children.reduce((sum, child) => sum + countMindmapVisibleLeaves(child, collapsedIds), 0);
 }
 
-function layoutMindmapTree(node, depth, yStart, collapsedIds) {
+function layoutMindmapTreeHorizontal(node, depth, yStart, collapsedIds) {
   const rows = countMindmapVisibleLeaves(node, collapsedIds);
   const yCenter = yStart + (rows * MINDMAP_LAYOUT_ROW_GAP) / 2 - MINDMAP_LAYOUT_ROW_GAP / 2;
   const x = 72 + depth * MINDMAP_LAYOUT_LEVEL_GAP;
@@ -5719,11 +5804,35 @@ function layoutMindmapTree(node, depth, yStart, collapsedIds) {
     let cursor = yStart;
     for (const child of node.children) {
       const childRows = countMindmapVisibleLeaves(child, collapsedIds);
-      positioned.push(...layoutMindmapTree(child, depth + 1, cursor, collapsedIds));
+      positioned.push(...layoutMindmapTreeHorizontal(child, depth + 1, cursor, collapsedIds));
       cursor += childRows * MINDMAP_LAYOUT_ROW_GAP;
     }
   }
   return positioned;
+}
+
+function layoutMindmapTreeVertical(node, depth, xStart, collapsedIds) {
+  const cols = countMindmapVisibleLeaves(node, collapsedIds);
+  const xCenter = xStart + (cols * MINDMAP_LAYOUT_ROW_GAP) / 2 - MINDMAP_LAYOUT_ROW_GAP / 2;
+  const y = 72 + depth * MINDMAP_LAYOUT_LEVEL_GAP;
+  const positioned = [{ node, x: xCenter, y, depth }];
+
+  if (!collapsedIds.has(node.id) && node.children?.length) {
+    let cursor = xStart;
+    for (const child of node.children) {
+      const childCols = countMindmapVisibleLeaves(child, collapsedIds);
+      positioned.push(...layoutMindmapTreeVertical(child, depth + 1, cursor, collapsedIds));
+      cursor += childCols * MINDMAP_LAYOUT_ROW_GAP;
+    }
+  }
+  return positioned;
+}
+
+function layoutMindmapTree(node, depth, start, collapsedIds, direction = "horizontal") {
+  if (direction === "vertical") {
+    return layoutMindmapTreeVertical(node, depth, start, collapsedIds);
+  }
+  return layoutMindmapTreeHorizontal(node, depth, start, collapsedIds);
 }
 
 function collectMindmapEdges(node, parent, collapsedIds) {
@@ -5742,14 +5851,18 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
     collapsedIds,
     activeTarget = null,
     onNodeClick = null,
-    onRerender = null
+    onRerender = null,
+    layoutDirection = getMindmapLayoutDirection()
   } = options;
   if (!container || !tree) return;
+
+  const direction = layoutDirection === "vertical" ? "vertical" : "horizontal";
+  const canvasPad = getMindmapCanvasPad(direction);
 
   container.replaceChildren();
 
   const wrap = document.createElement("div");
-  wrap.className = "node-mindmap-wrap";
+  wrap.className = `node-mindmap-wrap node-mindmap-wrap--${direction}`;
 
   const viewport = document.createElement("div");
   viewport.className = "node-mindmap-viewport";
@@ -5761,21 +5874,23 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   linksSvg.setAttribute("class", "node-mindmap-links");
   linksSvg.setAttribute("aria-hidden", "true");
 
-  const items = layoutMindmapTree(tree, 0, 0, collapsedIds);
+  const items = layoutMindmapTree(tree, 0, 0, collapsedIds, direction);
   const posById = new Map();
   let maxY = 0;
   let maxX = 0;
 
   for (const { node, x, y } of items) {
-    maxY = Math.max(maxY, y);
-    maxX = Math.max(maxX, x);
-    posById.set(node.id, { x, y });
+    const px = x + canvasPad.left;
+    const py = y + canvasPad.top;
+    maxY = Math.max(maxY, py);
+    maxX = Math.max(maxX, px);
+    posById.set(node.id, { x: px, y: py });
 
     const el = document.createElement("button");
     el.type = "button";
     el.className = `node-mindmap-node node-mindmap-node--${node.kind}`;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+    el.style.left = `${px}px`;
+    el.style.top = `${py}px`;
     el.title = node.targetPath || node.label;
 
     const isActive = activeTarget && node.targetPath && activeTarget === node.targetPath;
@@ -5807,19 +5922,22 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
     canvas.appendChild(el);
   }
 
-  canvas.style.minHeight = `${maxY + 100}px`;
-  canvas.style.minWidth = `${maxX + 180}px`;
+  const canvasWidth = maxX + canvasPad.right;
+  const canvasHeight = maxY + canvasPad.bottom;
+  canvas.style.width = `${canvasWidth}px`;
+  canvas.style.height = `${canvasHeight}px`;
+  canvas.style.minWidth = `${canvasWidth}px`;
+  canvas.style.minHeight = `${canvasHeight}px`;
+  linksSvg.setAttribute("width", String(canvasWidth));
+  linksSvg.setAttribute("height", String(canvasHeight));
+  linksSvg.setAttribute("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`);
 
   for (const { from, to } of collectMindmapEdges(tree, null, collapsedIds)) {
     const a = posById.get(from);
     const b = posById.get(to);
     if (!a || !b) continue;
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const mx = (a.x + b.x) / 2;
-    path.setAttribute(
-      "d",
-      `M ${a.x + 48} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - 48} ${b.y}`
-    );
+    path.setAttribute("d", buildMindmapLinkPath(a, b, direction));
     path.setAttribute("class", "node-mindmap-link");
     linksSvg.appendChild(path);
   }
@@ -5852,6 +5970,20 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   });
   viewport.addEventListener("mouseup", endPan);
   viewport.addEventListener("mouseleave", endPan);
+
+  requestAnimationFrame(() => {
+    const activeEl = canvas.querySelector(".node-mindmap-node.is-active");
+    const targetEl = activeEl || canvas.querySelector(".node-mindmap-node");
+    if (!targetEl) return;
+    const vr = viewport.getBoundingClientRect();
+    const tr = targetEl.getBoundingClientRect();
+    const nextLeft =
+      viewport.scrollLeft + (tr.left + tr.width / 2 - vr.left - vr.width / 2);
+    const nextTop =
+      viewport.scrollTop + (tr.top + tr.height / 2 - vr.top - vr.height / 2);
+    viewport.scrollLeft = Math.max(0, nextLeft);
+    viewport.scrollTop = Math.max(0, nextTop);
+  });
 }
 
 function buildMindmapNodeFromEntry(entry, menuRoot, depth) {
@@ -5932,7 +6064,17 @@ function renderExternalMindmapCanvas(container, mdItems) {
   const rootLabel = activeLabel || getLabelFromPath(activePath) || STORAGE_SUBFOLDER_CONTENT;
   const tree = buildExternalMindmapTreeFromItems(mdItems, rootLabel);
   const rerender = () => renderExternalMindmapCanvas(container, mdItems);
-  renderMindmapTreeCanvas(container, tree, {
+
+  container.replaceChildren();
+  const shell = document.createElement("div");
+  shell.className = "external-mindmap-shell";
+  shell.appendChild(createMindmapLayoutBarElement());
+  const mapHost = document.createElement("div");
+  mapHost.className = "external-mindmap-host";
+  shell.appendChild(mapHost);
+  container.appendChild(shell);
+
+  renderMindmapTreeCanvas(mapHost, tree, {
     collapsedIds: externalMindmapCollapsedIds,
     activeTarget: activeExternalFilePath,
     onNodeClick: (node) => openExternalFile(node.targetPath),
@@ -9984,6 +10126,8 @@ function applyModeUi() {
   const showMediaControls = activeContentMode === "media" && !mediaSidecarEditing;
   const showTabularControls = activeContentMode === "tabular" && !isTabularSourceEditing();
   const showWorkspaceRefresh = isWorkspaceRefreshAvailable();
+  const showMindmapLayout =
+    mindmapMode || (showExternalControls && externalViewMode === "mindmap");
   const hideSaveDeleteInToolbar =
     canvasMode ||
     overviewLikeMode ||
@@ -10006,7 +10150,8 @@ function applyModeUi() {
       !showTabularControls &&
       !mediaSidecarEditing &&
       !externalEditing &&
-      !showWorkspaceRefresh);
+      !showWorkspaceRefresh &&
+      !showMindmapLayout);
   const hideToolbar = hideDocActions;
   const showYamlPanel = activeContentMode === "description" || externalEditing;
   titleEditorBlockNode.classList.toggle("hidden", (!titleVisible && !mediaSidecarEditing) || previewMode || overviewLikeMode);
@@ -10035,7 +10180,8 @@ function applyModeUi() {
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
   graphViewBlockNode?.classList.toggle("hidden", !canvasMode);
   graphViewBlockNode?.classList.toggle("is-mindmap", mindmapMode);
-  mindmapViewHintNode?.classList.toggle("hidden", !mindmapMode);
+  mindmapViewBarNode?.classList.toggle("hidden", !mindmapMode);
+  if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode);
   const containerOverview =
@@ -16049,6 +16195,12 @@ externalViewSelectNode?.addEventListener("change", () => {
   externalViewMode = externalViewSelectNode?.value || "table";
   if (activeContentMode === "external") renderListViewContent();
 });
+document.addEventListener("click", (event) => {
+  const layoutBtn = event.target.closest(".mindmap-layout-btn[data-mindmap-layout]");
+  if (!layoutBtn || layoutBtn.closest(".mindmap-view-bar--embedded")) return;
+  applyMindmapLayout(layoutBtn.dataset.mindmapLayout || "horizontal");
+});
+syncMindmapLayoutUi();
 mediaViewSelectNode?.addEventListener("change", () => {
   mediaViewMode = mediaViewSelectNode?.value || "all";
   if (activeContentMode === "media") renderListViewContent();
