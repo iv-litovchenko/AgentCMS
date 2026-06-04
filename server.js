@@ -158,7 +158,6 @@ const {
   createSystemServiceDocSync,
   findServiceDocScaffold,
   migrateServiceCatalogLegacySync,
-  migrateWorkspaceReservedFoldersSync,
   findCatalogScaffold,
   SYSTEM_REFERENCE_SCAFFOLDS,
   isAcmsDepsFileName

@@ -307,13 +307,6 @@ function migrateWorkspaceReservedFolderSync(workspaceAbsolute, fromName, toName)
   fs.renameSync(fromAbsolute, toAbsolute);
 }
 
-function migrateWorkspaceReservedFoldersSync(workspaceAbsolute) {
-  if (!workspaceAbsolute) return;
-  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_VAULT_FOLDER, DEFAULT_VAULT_FOLDER);
-  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_SERVICE_FOLDER, DEFAULT_SERVICE_FOLDER);
-  migrateWorkspaceReservedFolderSync(workspaceAbsolute, "_Catalog", DEFAULT_SERVICE_CATALOG_FOLDER);
-}
-
 function normalizeManifestFolderAliases(raw) {
   if (!raw || typeof raw !== "object") return raw;
   const manifest = { ...raw };
@@ -1305,7 +1298,6 @@ function runWithAgent(agentId, fn) {
   if (!agent) {
     return Promise.reject(new Error(`Unknown agent: ${agentId}`));
   }
-  migrateWorkspaceReservedFoldersSync(agent.rootAbsolute);
   migrateLegacyAgentManifestSync(agent.rootAbsolute);
   const storageMigrationKey = `${agent.id}:${STORAGE_LAYOUT_MIGRATION_ID}`;
   if (!legacyStorageLayoutMigratedAgents.has(storageMigrationKey)) {
@@ -1731,7 +1723,6 @@ module.exports = {
   DEFAULT_SERVICE_FOLDER,
   LEGACY_SERVICE_FOLDER,
   DEFAULT_SERVICE_CATALOG_FOLDER,
-  migrateWorkspaceReservedFoldersSync,
   SYSTEM_REFERENCE_SCAFFOLDS,
   migrateServiceCatalogLegacySync,
   findCatalogScaffold,

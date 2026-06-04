@@ -42,6 +42,12 @@
       "path": "workspaces/test5",
       "environment": "local",
       "active": true
+    },
+    {
+      "id": "mosconstagent",
+      "path": "/Users/macbook/Desktop/MosconstAgent",
+      "environment": "local",
+      "active": true
     }
   ]
 }
