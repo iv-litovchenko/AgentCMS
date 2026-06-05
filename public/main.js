@@ -140,8 +140,6 @@ const editorWysiwygWrapNode = document.getElementById("editor-wysiwyg-wrap");
 const editorLineNumbersBtn = document.getElementById("editor-line-numbers-btn");
 const editorCodeWrapNode = document.getElementById("editor-code-wrap");
 const editorLineNumbersNode = document.getElementById("editor-line-numbers");
-const mediaSidecarBackBtn = document.getElementById("media-sidecar-back-btn");
-const externalMemoryBackBtn = document.getElementById("external-memory-back-btn");
 const tabularSourceBtn = document.getElementById("tabular-source-btn");
 const tabularTableBackBtn = document.getElementById("tabular-table-back-btn");
 const titleInputNode = document.getElementById("title-input");
@@ -2344,6 +2342,17 @@ const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
 const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
+const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
+const NODE_WORKSPACE_DOMAIN_SPECS = [
+  { value: "navigation", label: "Навигация" },
+  { value: "settings", label: "Настройки" },
+  { value: "inbox", label: "Входящие", branch: true },
+  { value: "references", label: "Источники", branch: true },
+  { value: "artefacts", label: "Артефакты", branch: true },
+  { value: "memory", label: "Память", branch: true },
+  { value: "overview", label: "Обзор" }
+];
+
 const AREA_BLOCKED_CONTENT_MODES = new Set([
   "internal",
   "external",
@@ -3078,16 +3087,7 @@ function getContentModeLabel(mode) {
 
 function getNodeDefaultLandingDomainLabel(mode) {
   const domain = getNodeWorkspaceDomain(mode);
-  const domainLabels = {
-    [NODE_WORKSPACE_DOMAIN_OVERVIEW]: "Обзор",
-    [NODE_WORKSPACE_DOMAIN_SETTINGS]: "Настройки",
-    [NODE_WORKSPACE_DOMAIN_MEMORY]: "🧠 Память",
-    [NODE_WORKSPACE_DOMAIN_INBOX]: "📥 Входящие",
-    [NODE_WORKSPACE_DOMAIN_REFERENCES]: "📚 Источники",
-    [NODE_WORKSPACE_DOMAIN_ARTEFACTS]: "✨ Артефакты",
-    [NODE_WORKSPACE_DOMAIN_NAVIGATION]: "Навигация"
-  };
-  const domainLabel = domainLabels[domain] || domain;
+  const domainLabel = getWorkspaceDomainLabelById(domain);
   const modeLabel = getContentModeLabel(mode);
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
   if (
@@ -3487,6 +3487,28 @@ function getNavigationSubsectionEntries() {
   );
 }
 
+function getWorkspaceDomainDisplayLabel(label, branch = false) {
+  return branch ? `${NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX}${label}` : label;
+}
+
+function getWorkspaceDomainLabelById(domain) {
+  const spec = NODE_WORKSPACE_DOMAIN_SPECS.find((item) => item.value === domain);
+  if (!spec) return domain;
+  return getWorkspaceDomainDisplayLabel(spec.label, spec.branch);
+}
+
+function initNodeWorkspaceDomainSelect() {
+  if (!nodeWorkspaceDomainSelectNode) return;
+  nodeWorkspaceDomainSelectNode.replaceChildren(
+    ...NODE_WORKSPACE_DOMAIN_SPECS.map(({ value, label, branch }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = getWorkspaceDomainDisplayLabel(label, branch);
+      return option;
+    })
+  );
+}
+
 function syncNodeWorkspaceDomainSelect() {
   if (!nodeWorkspaceDomainSelectNode) return;
   const isArea = isAreaNodePath();
@@ -3605,13 +3627,41 @@ function returnToNodeNavigation() {
   setContentMode(NODE_NAVIGATION_MODE);
 }
 
+function handleWorkspaceCloseClick() {
+  if (isMediaSidecarEditing()) {
+    closeMediaSidecarEditor();
+    return;
+  }
+  if (isExternalFileEditing()) {
+    closeExternalFileEditor();
+    return;
+  }
+  returnToNodeNavigation();
+}
+
 function syncWorkspaceCloseButtonsVisibility() {
   const settingsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY;
+  const mediaSidecarEditing = isMediaSidecarEditing();
+  const externalEditing = isExternalFileEditing();
   const showClose =
+    mediaSidecarEditing ||
+    externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memoryDomain && NODE_MEMORY_CLOSE_MODES.has(activeContentMode));
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
+
+  const backToList = mediaSidecarEditing || externalEditing;
+  const labelNode = nodeWorkspaceCloseBtn?.querySelector(".workspace-toolbar-btn-label");
+  if (labelNode) {
+    labelNode.textContent = backToList ? "К списку" : "Закрыть";
+  }
+  if (nodeWorkspaceCloseBtn) {
+    nodeWorkspaceCloseBtn.title = backToList
+      ? "Вернуться к списку"
+      : "Закрыть — вернуться к навигации";
+    nodeWorkspaceCloseBtn.setAttribute("aria-label", backToList ? "К списку" : "Закрыть");
+  }
 }
 
 function createNodeSettingsButton(nodePath) {
@@ -8625,6 +8675,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 
   head.append(titleNode, pathNode);
 
+  const slotStrip = renderNodeSlotStrip(options.slotStatuses);
+  if (slotStrip) head.appendChild(slotStrip);
+
   const metaPanel = buildNavigationHeroMetaPanel(options.meta, nodePath);
   hero.append(thumbWrap, head, metaPanel);
   return hero;
@@ -9070,6 +9123,99 @@ function pickLatestIso(...values) {
     if (!latest || new Date(value) > new Date(latest)) latest = value;
   }
   return latest;
+}
+
+function getNodeDescriptionHasContent(raw = "") {
+  const { body } = splitFrontmatter(raw);
+  return Boolean(stripAwnDescCallouts(body).trim());
+}
+
+function buildNodeSlotStatuses({
+  isArea = false,
+  descriptionRaw = "",
+  internalData = null,
+  externalData = null,
+  tabularData = null,
+  mediaData = null,
+  todoData = null,
+  memorySummary = null
+} = {}) {
+  const drivers = memorySummary?.drivers || {};
+  const hasDescription = getNodeDescriptionHasContent(descriptionRaw);
+  const hasInternal =
+    Boolean(String(internalData?.content || "").trim()) ||
+    Boolean(drivers.internal?.exists && Number(drivers.internal.charCount) > 0);
+  const externalFiles = externalData?.files || [];
+  const hasExternal =
+    externalFiles.length > 0 ||
+    Boolean(drivers.external?.exists && Number(drivers.external.count) > 0);
+  const tabularRows = Math.max(
+    Number(tabularData?.rowCount) || 0,
+    Number(drivers.tabular?.rowCount) || 0
+  );
+  const hasTabular = tabularRows > 0;
+  const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
+  const hasTodo = Boolean(String(todoData?.content || "").trim());
+
+  const memorySlots = [
+    { id: "internal", label: "Однофайловая", filled: hasInternal, modeId: "internal" },
+    { id: "external", label: "Многофайловая", filled: hasExternal, modeId: "external" },
+    { id: "tabular", label: "Табличная", filled: hasTabular, modeId: "tabular" },
+    { id: "media", label: "Медиа", filled: hasMedia, modeId: "media" }
+  ];
+
+  return [
+    { id: "description", label: "Назначение", filled: hasDescription, modeId: "description" },
+    ...(isArea ? [] : memorySlots),
+    { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
+  ];
+}
+
+function renderNodeSlotStrip(slotStatuses = []) {
+  if (!slotStatuses.length) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-slot-strip";
+  wrap.setAttribute("aria-label", "Заполненность слотов хранилища");
+
+  const list = document.createElement("ul");
+  list.className = "node-slot-strip-list";
+
+  for (const slot of slotStatuses) {
+    const item = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `node-slot-chip${slot.filled ? " is-filled" : " is-empty"}`;
+    btn.title = slot.filled ? `${slot.label}: есть данные` : `${slot.label}: пусто`;
+
+    const lamp = document.createElement("span");
+    lamp.className = "node-slot-lamp";
+    lamp.setAttribute("aria-hidden", "true");
+
+    const label = document.createElement("span");
+    label.className = "node-slot-label";
+    label.textContent = slot.label;
+
+    btn.append(lamp, label);
+    btn.addEventListener("click", () => {
+      if (slot.modeId === "description") {
+        openDescriptionFromOverview();
+        return;
+      }
+      if (slot.modeId === "todo") {
+        openTodoFromOverview();
+        return;
+      }
+      if (isAreaContentModeBlocked(slot.modeId)) return;
+      openMemoryModeFromOverview(slot.modeId);
+    });
+
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  wrap.appendChild(list);
+  return wrap;
 }
 
 function appendNavigationHeroMetaRow(panel, label, value) {
@@ -9778,11 +9924,25 @@ async function renderNodeNavigation() {
   const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
   if (isStale()) return;
 
+  const slotStatuses = buildNodeSlotStatuses({
+    isArea,
+    descriptionRaw: modeContentCache.description || "",
+    internalData,
+    externalData,
+    tabularData,
+    mediaData,
+    todoData
+  });
+
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
 
   hub.appendChild(
-    createNavigationHero(preview, heroTitle, nodePath, { meta: nodeMeta, propEntries: entries })
+    createNavigationHero(preview, heroTitle, nodePath, {
+      meta: nodeMeta,
+      propEntries: entries,
+      slotStatuses
+    })
   );
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
@@ -9844,8 +10004,23 @@ async function renderNodeOverview() {
   const desc = getOverviewDescription(manifestRaw, entries);
   const typeLabel = getPropsEntryValueByKey(entries, "AWN-TYPE");
   const excerpt = getOverviewMarkdownBeforeDivider(manifestRaw);
-  const preview = await fetchNodeOverviewPreview();
+  const isOverviewArea = isAreaNodePath(activePath);
+  const nodePathResolved = getResolvedNodePath(activePath);
+  const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots] = await Promise.all([
+    fetchNodeOverviewPreview(),
+    isOverviewArea ? null : fetchMemorySummary(nodePathResolved),
+    isOverviewArea ? null : fetchMediaOverview(nodePathResolved),
+    fetchTodoForOverview(nodePathResolved)
+  ]);
   if (isStale()) return;
+
+  const slotStatuses = buildNodeSlotStatuses({
+    isArea: isOverviewArea,
+    descriptionRaw: manifestRaw,
+    memorySummary: memorySummaryForSlots,
+    mediaData: mediaOverviewForSlots,
+    todoData: todoDataForSlots
+  });
 
   const fragment = document.createDocumentFragment();
 
@@ -9898,6 +10073,9 @@ async function renderNodeOverview() {
     descNode.textContent = desc;
     head.appendChild(descNode);
   }
+
+  const slotStrip = renderNodeSlotStrip(slotStatuses);
+  if (slotStrip) head.appendChild(slotStrip);
 
   hero.append(thumbWrap, head);
   fragment.appendChild(hero);
@@ -9984,13 +10162,13 @@ async function renderNodeOverview() {
     }
   }
 
-  if (!isAreaNodePath(activePath)) {
+  if (!isOverviewArea) {
     const memorySummary =
-      (await fetchMemorySummary(getResolvedNodePath(activePath))) ?? createEmptyMemorySummary();
+      memorySummaryForSlots ?? (await fetchMemorySummary(nodePathResolved)) ?? createEmptyMemorySummary();
     if (isStale()) return;
     activeMemorySummary = memorySummary;
     syncNodeMemoryDriverOptions(memorySummary);
-    const memoryBlock = renderOverviewMemoryBlock(memorySummary, getResolvedNodePath(activePath));
+    const memoryBlock = renderOverviewMemoryBlock(memorySummary, nodePathResolved);
     if (memoryBlock) {
       fragment.appendChild(
         createOverviewAccordionSection("memory", "🧠 Память", memoryBlock, { defaultOpen: true })
@@ -10000,8 +10178,7 @@ async function renderNodeOverview() {
     return;
   }
 
-  const isOverviewArea = isAreaNodePath(activePath);
-  const mediaOverview = isOverviewArea ? null : await fetchMediaOverview(getResolvedNodePath(activePath));
+  const mediaOverview = isOverviewArea ? null : mediaOverviewForSlots ?? (await fetchMediaOverview(nodePathResolved));
   if (isStale()) return;
 
   const sectionsWrap = document.createElement("div");
@@ -10079,7 +10256,7 @@ async function renderNodeOverview() {
     fragment.appendChild(sectionsWrap);
   }
 
-  const todoData = await fetchTodoForOverview(getResolvedNodePath(activePath));
+  const todoData = todoDataForSlots ?? (await fetchTodoForOverview(nodePathResolved));
   if (isStale()) return;
   const todoBlock = renderOverviewTodoBlock(todoData, getResolvedNodePath(activePath));
   const todoHasContent = Boolean(String(todoData?.content || "").trim());
@@ -10225,8 +10402,6 @@ function applyModeUi() {
     if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
   }
   syncWorkspaceCloseButtonsVisibility();
-  mediaSidecarBackBtn?.classList.toggle("hidden", !mediaSidecarEditing);
-  externalMemoryBackBtn?.classList.toggle("hidden", !externalEditing);
   tabularSourceBtn?.classList.toggle("hidden", !showTabularControls);
   tabularTableBackBtn?.classList.toggle("hidden", !showTabularSourceEditor);
   workspaceRefreshBtn?.classList.toggle("hidden", !showWorkspaceRefresh);
@@ -16460,7 +16635,7 @@ document.addEventListener("keydown", (event) => {
     }
   }
 });
-nodeWorkspaceCloseBtn?.addEventListener("click", returnToNodeNavigation);
+nodeWorkspaceCloseBtn?.addEventListener("click", handleWorkspaceCloseClick);
 confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
 confirmOkBtn.addEventListener("click", () => closeConfirm(true));
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));
@@ -16677,8 +16852,6 @@ mediaUploadInputNode?.addEventListener("change", () => {
   }
 });
 
-mediaSidecarBackBtn?.addEventListener("click", () => closeMediaSidecarEditor());
-externalMemoryBackBtn?.addEventListener("click", () => closeExternalFileEditor());
 tabularSourceBtn?.addEventListener("click", () => {
   setEditorViewMode("source");
   refreshEditorViewContent();
@@ -16784,3 +16957,5 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
     contentSearchInputNode.blur();
   }
 });
+
+initNodeWorkspaceDomainSelect();

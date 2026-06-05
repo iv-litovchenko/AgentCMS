@@ -29,10 +29,6 @@
     display.className = "app-home-title-display";
     display.setAttribute("aria-live", "polite");
 
-    const maxLen = TITLES.reduce((max, item) => Math.max(max, item.text.length), 0);
-    host.style.display = "inline-block";
-    host.style.minWidth = `${maxLen + 0.5}ch`;
-    host.style.verticalAlign = "bottom";
     host.replaceChildren(display);
 
     let index = 0;

@@ -84,6 +84,10 @@ Workspace → Space «Коллекции» → Topic «Фильмы» → Elemen
 
 ## Todo
 
+- [ ] **Варианты визуальных Markdown-редакторов** (оценить для режима WYSIWYG / Edit):
+  - [Vditor](https://github.com/Vanessa219/vditor) — WYSIWYG, instant rendering (Typora-like), split view; MIT
+  - [Cherry Markdown](https://tencent.github.io/cherry-markdown/examples/index.html) — [демо](https://tencent.github.io/cherry-markdown/examples/index.html), [репозиторий](https://github.com/Tencent/cherry-markdown)
+  - Сейчас в проекте: **Toast UI Editor** (`@toast-ui/editor`) — WYSIWYG временно отключён в UI
 - [ ] **Где ещё остались упоминания термина «нода»** — UI, API/docs, MCP, user-docs, код (`node`, `NODE_*`), комментарии; сверить с целевой онтологией (Topic / Element / Component).
 - [ ] **Какие миграции ещё остались** — `_.node.md` → `_.x.md`, слоты `_Storage`, legacy preview/paths, named-slots-v2, данные в `_Storage/_/` после старых миграций; зафиксировать чеклист и порядок.
 - [ ] **ЧПУ (URL) и имена на диске** — сейчас сегменты ссылки = кириллические папки (`encodeURIComponent` → `%D0%...`). Имеет ли смысл slug латиницей в путях + `title`/`slug` в frontmatter `_.node.md`; роутинг и меню по slug, миграция старых путей и deep link’ов.
