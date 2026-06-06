@@ -317,7 +317,6 @@ function readStorageItem(key) {
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const AREA_MANIFEST_FILE = "README.x.md";
-const TOPIC_PREFIX = "t.";
 const SLOT_STORAGE_PREFIX = "_s.";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
@@ -620,7 +619,6 @@ async function loadAgents() {
 
 function stripTopicPrefix(name) {
   let raw = String(name || "").trim();
-  if (raw.startsWith(TOPIC_PREFIX)) raw = raw.slice(TOPIC_PREFIX.length);
   if (raw.toLowerCase().endsWith(".md")) raw = raw.slice(0, -3);
   return raw.trim();
 }
@@ -642,10 +640,6 @@ function isExcludedMenuTopicMd(fileName) {
   if (lower.endsWith(".sidecar.md")) return true;
   if (MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
   return false;
-}
-
-function isAreaFolderName(name) {
-  return /^t\.[^/\\]+$/i.test(String(name || "").trim());
 }
 
 function isNodeManifestFileName(fileName) {

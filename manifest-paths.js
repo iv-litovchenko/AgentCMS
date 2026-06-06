@@ -7,8 +7,6 @@
  */
 const path = require("path");
 
-/** @deprecated префикс t. больше не используется; оставлен для stripTopicPrefix при чтении старых имён */
-const TOPIC_PREFIX = "t.";
 const STORAGE_PREFIX = "_s.";
 const AREA_README_FILE = "README.x.md";
 /** Заголовок служебной области; файл: {serviceFolder}/README.x.md */
@@ -78,7 +76,6 @@ function cleanManifestName(rawName) {
 
 function stripTopicPrefix(name) {
   let raw = String(name || "").trim();
-  if (raw.startsWith(TOPIC_PREFIX)) raw = raw.slice(TOPIC_PREFIX.length);
   if (raw.toLowerCase().endsWith(".md")) raw = raw.slice(0, -3);
   return raw.trim();
 }
@@ -100,11 +97,6 @@ function toStorageFolderName(rawName) {
 function isStorageFolderName(name) {
   const raw = String(name || "");
   return raw.startsWith(STORAGE_PREFIX) && raw.length > STORAGE_PREFIX.length;
-}
-
-function isAreaFolderName(name) {
-  const raw = String(name || "").trim();
-  return /^t\.[^/\\]+$/i.test(raw);
 }
 
 function isExcludedMenuTopicMdFileName(name) {
@@ -182,21 +174,6 @@ function isManifestMdRelPath(relPath) {
 function getServiceAreaManifestRel(serviceFolderRel) {
   const prefix = String(serviceFolderRel || "").replace(/\\/g, "/").replace(/\/$/, "");
   return prefix && prefix !== "." ? `${prefix}/${AREA_README_FILE}` : AREA_README_FILE;
-}
-
-function getLegacyServiceAreaManifestRel(serviceFolderRel) {
-  const prefix = String(serviceFolderRel || "").replace(/\\/g, "/").replace(/\/$/, "");
-  const legacyFolder = `t.${SERVICE_AREA_NAME}`;
-  const legacyManifest = "t.README.md";
-  return prefix && prefix !== "."
-    ? `${prefix}/${legacyFolder}/${legacyManifest}`
-    : `${legacyFolder}/${legacyManifest}`;
-}
-
-function getLegacyRootAreaManifestRel(workspaceKey) {
-  const folder = toAreaFolderName(workspaceKey);
-  if (!folder) return null;
-  return `${folder}/${AREA_README_FILE}`;
 }
 
 function joinAreaManifestRel(parentDir, areaName) {
@@ -293,8 +270,6 @@ function buildManifestCandidatesForStorageKey(key, options = {}) {
       manifestCandidates.push(`${workspaceKey}/${AREA_README_FILE}`);
       manifestCandidates.push(AREA_README_FILE);
     }
-    const legacyRoot = getLegacyRootAreaManifestRel(workspaceKey);
-    if (legacyRoot) manifestCandidates.push(legacyRoot);
   }
   return [...new Set(manifestCandidates.filter((candidate) => isManifestMdRelPath(candidate)))];
 }
@@ -463,13 +438,11 @@ function resolvePartFolderSidecarBaseRel() {
 }
 
 module.exports = {
-  TOPIC_PREFIX,
   STORAGE_PREFIX,
   AREA_README_FILE,
   AREA_MANIFEST_FILE,
   SERVICE_AREA_NAME,
   getServiceAreaManifestRel,
-  getLegacyServiceAreaManifestRel,
   AREA_MANIFEST_CANDIDATES,
   TOPIC_MANIFEST_RE,
   BUNDLE_CONTENT_FILE,
@@ -503,7 +476,6 @@ module.exports = {
   toTopicFileName,
   toStorageFolderName,
   isStorageFolderName,
-  isAreaFolderName,
   isExcludedMenuTopicMdFileName,
   getStorageFolderRegexAlternation,
   expandStorageFolderRelCandidates,
@@ -518,7 +490,6 @@ module.exports = {
   isTopicManifestRelPath,
   isAreaManifestRelPath,
   isManifestMdRelPath,
-  getLegacyRootAreaManifestRel,
   joinAreaManifestRel,
   getManifestContainerDirRel,
   getManifestNamedSlotKey,

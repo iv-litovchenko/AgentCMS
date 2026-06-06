@@ -15,7 +15,6 @@ const {
   getManifestNamedSlotKey,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
-  getLegacyRootAreaManifestRel,
   getNamedStorageSlotDirRel,
   joinAreaManifestRel,
   getServiceAreaManifestRel,
@@ -268,13 +267,6 @@ function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
 
 /** Превью корневой области: workspace/_s.{имя_манифеста}/Preview.* */
 function resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute) {
-  const directAbsolute = path.join(workspaceRootAbsolute, AREA_MANIFEST_FILE);
-  if (fs.existsSync(directAbsolute)) return AREA_MANIFEST_FILE;
-  const legacyRel = getLegacyRootAreaManifestRel(getWorkspaceStorageKeySync(workspaceRootAbsolute));
-  if (legacyRel) {
-    const legacyAbsolute = path.join(workspaceRootAbsolute, ...legacyRel.split("/"));
-    if (fs.existsSync(legacyAbsolute)) return legacyRel;
-  }
   return AREA_MANIFEST_FILE;
 }
 
