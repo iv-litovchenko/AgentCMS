@@ -3,33 +3,46 @@
 
 awn.registry.json (навигатор по всем элементам системы категориям топикам)
 
-awn-meta/    # Глобальные данные (пока не понятно зачем это нужно)
-awn-system/ (или такое название)
 
 будет общая пака  _storage для всех медиа (она будет улетать на гугл диск)
 awn-storage/<id>/assets/
+awn-storage/<id>/assets/preview (превью категории или топика)
 awn-storage/<id>/media/
-awn-storage/<id>/scripts/inbox (входящие)
+awn-storage/<id>/inbox (входящие)
+awn-storage/<id>/inbox/referenses (источинки)
+awn-storage/<id>/artefacts
 
 awn-topics -  будет папка где у нас храняться в основном md файлы
 awn-topics/<id> / наверное имеет смысл ID делать как то так <topic-20260606-003/>
+awn-topics/<id>/scripts
 awn-topics/<id>/content/elements
-awn-topics/<id>/x.md (стартовый файл-инструкция типа альтернативыне навазния manifest.md, node.md, slot.md, index.md, main.md, _.md)
+awn-topics/<id>/x.md  # манифест + назначение (стартовый файл-инструкция типа альтернативыне навазния manifest.md, node.md, slot.md, index.md, main.md, _.md - не знаю как лучше назвать)
 awn-topics/<id>/content.md
 awn-topics/<id>/content.csv
 awn-topics/<id>/config.yml
 awn-topics/<id>/todo.md
-awn-topics/id.increment.txt -> счетчик id
+awn-topics/<id>/volume.md (последнее о чем общалис с ИИ в топике на чем остановились - альтернативное названпе trhead.md)
+awn-topics/<id>/.env
 
 // Описание типов (набора полей - cхемы)
+awn-types/core.mixin.base.yml (базовый набор свойств для всех типов)
 awn-types/core.space.yml (category)
 awn-types/core.topic.yml
 awn-types/core.element.yml (элемент топика в папке content)
 awn-types/core.sidecar.yml (описание media элемента (файла), метаданные рядом с файлом)
-awn-types/core.sys.assistant.ai.yml
+awn-types/core.sys.assistant.ai.yml (Это служебный раздел)
 awn-types/core.sys.agent.yml 
+awn-types/core.sys.agent.voice.tts.yml 
+awn-types/core.sys.agent.voice.stt.yml 
+awn-types/core.sys.agent.rules.yml 
 awn-types/core.sys.user.yml 
+awn-types/core.sys.users.yml 
 awn-types/core.sys.tags.yml 
+awn-types/core.sys.categories.yml  (пока отложим)
+
+awn-types/core.catalog.*.yml      # схемы справочников (не понятно зачем это надо)
+awn-types/core.capabilities.yml   # какие домены у space/topic/sys      # схемы справочников (не понятно зачем это надо)
+
 
 здесь описываем типы
 (есть топик типа область (категория)
@@ -62,3 +75,25 @@ awn-created: 2026-06-06T16:00:00
 awn-description: Фото ноутбука
 awn-tags: [техника, покупка]
 
+
+Системные файлы корня агента
+awn-meta/  # Глобальные данные (пока не понятно зачем это нужно)
+  
+  awn.main.json          # id агента, имя, comment
+  awn.deps.json         зависимости устанавливаеме в Linux, Windows, Mac
+  id.increment.txt        # или здесь, не в awn-topics
+  awn.map-registry.json         # плоский индекс + parent_id + drivers + links
+
+
+В дереве почечается (макреры)
+.git в папке ноды репозиторий в теме
+.obsidian/ vault
+
+
+Системные файлы корня агента
+AGENTS.md, 
+README.md, 
+TODO.md, 
+docker-compose.yml
+.env, 
+.gitignore
