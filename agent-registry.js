@@ -78,7 +78,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Categories",
     title: "Категории",
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `s.Categories/Content.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `_s.Categories/Content.md`.\n",
     content:
       "# Категории\n\n| id | label | color |\n| --- | --- | --- |\n| general | Общее | #64748b |\n| project | Проекты | #2563eb |\n| reference | Справочники | #7c3aed |\n"
   },
@@ -88,7 +88,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Tags",
     title: "Теги",
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter темы (`.md`) или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `_s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter темы (`.md`) или `#tag` в тексте.\n",
     content:
       "# Теги\n\n#project\n#idea\n#reference\n#daily\n#person\n#source\n#todo\n#review\n"
   },
@@ -98,7 +98,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Schemas",
     title: "Схемы",
     manifest:
-      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `s.Schemas/Content.md`.\n",
+      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `_s.Schemas/Content.md`.\n",
     content:
       "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
   },
@@ -266,7 +266,7 @@ function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
   return path.basename(String(workspaceRootAbsolute || "").replace(/[\\/]+$/, ""));
 }
 
-/** Превью корневой области: workspace/s.{имя_манифеста}/Preview.* */
+/** Превью корневой области: workspace/_s.{имя_манифеста}/Preview.* */
 function resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute) {
   const directAbsolute = path.join(workspaceRootAbsolute, AREA_MANIFEST_FILE);
   if (fs.existsSync(directAbsolute)) return AREA_MANIFEST_FILE;

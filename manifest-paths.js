@@ -3,13 +3,13 @@
  * - Корень workspace: README.x.md (без папки с именем агента)
  * - Область: {Name}/README.x.md
  * - Тема: {Name}.md
- * - Слот данных: s.{имя_манифеста_без_.md}/ в той же папке, что и *.md (Content.md, Todo.md, …)
+ * - Слот данных: _s.{имя_манифеста_без_.md}/ в той же папке, что и *.md (Content.md, Todo.md, …)
  */
 const path = require("path");
 
 /** @deprecated префикс t. больше не используется; оставлен для stripTopicPrefix при чтении старых имён */
 const TOPIC_PREFIX = "t.";
-const STORAGE_PREFIX = "s.";
+const STORAGE_PREFIX = "_s.";
 const AREA_README_FILE = "README.x.md";
 /** Заголовок служебной области; файл: {serviceFolder}/README.x.md */
 const SERVICE_AREA_NAME = "Служебное";
@@ -381,7 +381,7 @@ function stripTopicManifestSuffix(fileName) {
 }
 
 /** @deprecated */
-const STORAGE_FOLDER_NAME = "s";
+const STORAGE_FOLDER_NAME = "_s";
 /** @deprecated */
 const LEGACY_STORAGE_FOLDER_NAME = "_Storage";
 /** @deprecated */

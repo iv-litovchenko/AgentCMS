@@ -158,7 +158,9 @@ const saveSystemFileBtn = document.getElementById("save-system-file-btn");
 const yamlPanelNode = document.getElementById("yaml-form-panel");
 
 function removeYamlPanelLabel() {
-  yamlPanelNode?.querySelector("#yaml-panel-label, > .doc-slab-label")?.remove();
+  if (!yamlPanelNode) return;
+  yamlPanelNode.querySelector("#yaml-panel-label")?.remove();
+  yamlPanelNode.querySelector(":scope > .doc-slab-label")?.remove();
 }
 
 removeYamlPanelLabel();
@@ -316,12 +318,12 @@ const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const AREA_MANIFEST_FILE = "README.x.md";
 const TOPIC_PREFIX = "t.";
-const SLOT_STORAGE_PREFIX = "s.";
+const SLOT_STORAGE_PREFIX = "_s.";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
 const MENU_EXCLUDED_TOPIC_MD = new Set(["readme.x.md", "agents.md", "readme.md", "todo.md"]);
-const STORAGE_FOLDER_NAME = "s";
-const STORAGE_FOLDER_REGEX = "s\\.[^/]+";
+const STORAGE_FOLDER_NAME = "_s";
+const STORAGE_FOLDER_REGEX = "_s\\.[^/]+";
 const BUNDLE_CONTENT_FILE = "Content.md";
 const BUNDLE_TABULAR_FILE = "Content.csv";
 const BUNDLE_CONFIG_FILE = "Config.yml";
@@ -2280,7 +2282,7 @@ const MODE_GROUPS = [
     icon: "📎",
     modes: [
       { id: "media", label: "Медиа и документы" },
-      { id: "temp", label: "/Temp (временные файлы)" }
+      { id: "temp", label: "Временные файлы" }
     ]
   }
 ];
@@ -5037,7 +5039,7 @@ function getListViewTitleByMode() {
   if (activeContentMode === "media") return `Медиа и документы (${STORAGE_SUBFOLDER_ASSETS})`;
   if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
   if (activeContentMode === "artefacts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
-  if (activeContentMode === "temp") return `/Temp (временные файлы)`;
+  if (activeContentMode === "temp") return "Временные файлы";
   return "Список файлов";
 }
 
@@ -11130,6 +11132,7 @@ function applyModeUi() {
       showMediaControls ||
       showTabularControls ||
       activeContentMode === "scripts" ||
+      activeContentMode === "temp" ||
       activeContentMode === "inbox" ||
       activeContentMode === "references"
   );
@@ -17133,6 +17136,19 @@ async function deleteNode() {
 
 async function init() {
   const splashStartedAt = Date.now();
+  const finishSplash = () => {
+    const elapsed = Date.now() - splashStartedAt;
+    const wait = Math.max(0, APP_SPLASH_MIN_MS - elapsed);
+    window.setTimeout(hideAppSplash, wait);
+  };
+  const splashFailsafe = window.setTimeout(() => {
+    finishSplash();
+    if (document.body.classList.contains("app-booting")) {
+      showHomeView("Загрузка заняла слишком много времени. Проверьте сервер и обновите страницу.");
+      setMenuLoading(false);
+    }
+  }, 20000);
+
   try {
     if (location.hash === "#graph") {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
@@ -17140,6 +17156,9 @@ async function init() {
     await loadAgents();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
+    finishSplash();
+    showHomeView();
+    setMenuLoading(true, "Загрузка дерева…");
     await loadSystemFiles();
     await refreshMenu();
 
@@ -17155,11 +17174,11 @@ async function init() {
     }
     syncAppRouteToUrl({ replace: true });
   } catch (error) {
+    finishSplash();
     showHomeView(`Ошибка загрузки: ${error.message}`);
   } finally {
-    const elapsed = Date.now() - splashStartedAt;
-    const wait = Math.max(0, APP_SPLASH_MIN_MS - elapsed);
-    window.setTimeout(hideAppSplash, wait);
+    window.clearTimeout(splashFailsafe);
+    setMenuLoading(false);
   }
 }
 
