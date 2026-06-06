@@ -1,3 +1,11 @@
+---
+awn-create: ""
+awn-update: ""
+awn-description: ""
+awn-version: ""
+awn-sort: ""
+---
+
 # XSS
 
 **Cross-Site Scripting** — внедрение JS через вывод пользовательских данных.

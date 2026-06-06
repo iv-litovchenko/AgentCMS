@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.31" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.40" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -918,38 +918,33 @@
             </div>
           </section>
 
-          <section id="title-editor-block" class="doc-slab doc-slab-title">
-            <div class="title-row">
-              <input
-                id="title-input"
-                class="title-input"
-                type="text"
-                placeholder="Название"
-                aria-label="Название"
-              />
-              <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
-            </div>
-          </section>
+          <section id="doc-body-grid" class="doc-body-grid">
+            <div class="doc-body-main">
+              <div class="doc-head-block">
+                <section id="title-editor-block" class="doc-slab doc-slab-title">
+                  <div class="title-row">
+                    <input
+                      id="title-input"
+                      class="title-input"
+                      type="text"
+                      placeholder="Название"
+                      aria-label="Название"
+                    />
+                    <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
+                  </div>
+                </section>
 
-          <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
-            <p class="doc-slab-hint-title">Описание, инструкции, правила, документация</p>
-            <p class="doc-slab-hint-text">
-              Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
-              Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент,
-              ниже — полный текст (кнопка «Читать все»).
-            </p>
-          </section>
+                <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
+                  <p class="doc-slab-hint-title">Описание, инструкции, правила, документация</p>
+                  <p class="doc-slab-hint-text">
+                    Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
+                    Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент,
+                    ниже — полный текст (кнопка «Читать все»).
+                  </p>
+                </section>
+              </div>
 
-          <section id="yaml-form-panel" class="doc-slab doc-slab-props hidden">
-            <div id="props-form-fields" class="props-form-fields"></div>
-            <div class="props-form-actions">
-              <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
-              <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
-            </div>
-            <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
-          </section>
-
-          <section class="doc-slab doc-slab-content">
+              <section class="doc-slab doc-slab-content">
             <div class="doc-slab-main">
               <div
                 id="content-loading"
@@ -1062,6 +1057,64 @@
                 <div id="node-overview-content" class="node-overview-content"></div>
               </section>
             </div>
+              </section>
+            </div>
+
+            <aside id="yaml-form-panel" class="doc-props-aside doc-slab doc-slab-props hidden" aria-label="Боковая панель документа">
+              <div class="doc-aside-toolbar">
+                <div class="doc-aside-tabs" role="tablist" aria-label="Панель документа">
+                  <button
+                    type="button"
+                    id="doc-aside-tab-props"
+                    class="doc-aside-tab active"
+                    role="tab"
+                    aria-selected="true"
+                    data-doc-aside-tab="props"
+                  >
+                    Свойства
+                  </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-outline"
+                    class="doc-aside-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="outline"
+                  >
+                    Оглавление
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  id="doc-aside-collapse-btn"
+                  class="doc-aside-collapse-btn"
+                  aria-label="Свернуть панель"
+                  title="Свернуть"
+                >
+                  ›
+                </button>
+              </div>
+              <div id="doc-aside-panel-props" class="doc-aside-panel" role="tabpanel">
+                <div id="props-form-fields" class="props-form-fields"></div>
+                <div class="props-form-actions">
+                  <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
+                  <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
+                </div>
+                <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
+              </div>
+              <div id="doc-aside-panel-outline" class="doc-aside-panel hidden" role="tabpanel" aria-label="Оглавление">
+                <div id="doc-outline-content" class="doc-outline-content"></div>
+              </div>
+            </aside>
+            <button
+              type="button"
+              id="doc-aside-expand-btn"
+              class="doc-aside-expand-btn hidden"
+              aria-label="Показать боковую панель"
+              title="Свойства / оглавление"
+            >
+              ‹
+            </button>
           </section>
         </main>
         </div>
@@ -1128,7 +1181,7 @@
           />
           <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
             <input id="create-node-vault-option" type="checkbox" checked />
-            <span id="create-node-vault-option-label">Создать в _vault</span>
+            <span id="create-node-vault-option-label">Создать в _awn-vault</span>
           </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
@@ -1220,7 +1273,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_vault</code>) сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_awn-vault</code>) сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -1251,7 +1304,7 @@
               <span>Некорректный путь</span>
             </li>
           </ul>
-          <p class="agents-registry-vault-footnote">* <code>_vault</code> скрыта в дереве, содержимое показывается у корня.</p>
+          <p class="agents-registry-vault-footnote">* <code>_awn-vault</code> скрыта в дереве, содержимое показывается у корня.</p>
         </div>
       </div>
     </div>
@@ -1259,7 +1312,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>_system/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>_awn-system/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -1406,7 +1459,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.61"></script>
+    <script src="/main.js?v=0.4.88"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>

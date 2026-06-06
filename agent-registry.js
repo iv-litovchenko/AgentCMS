@@ -57,8 +57,8 @@ function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
-const DEFAULT_VAULT_FOLDER = "_vault";
-const DEFAULT_SERVICE_FOLDER = "_system";
+const DEFAULT_VAULT_FOLDER = "_awn-vault";
+const DEFAULT_SERVICE_FOLDER = "_awn-system";
 
 function isVaultFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
@@ -68,7 +68,7 @@ function isServiceFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_SERVICE_FOLDER.toLowerCase();
 }
 
-/** Общая папка справочников внутри _system */
+/** Общая папка справочников внутри _awn-system */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {

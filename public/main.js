@@ -87,6 +87,7 @@ const workspacePathHeaderNode = document.getElementById("workspace-path-header")
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
 const titleEditorBlockNode = document.getElementById("title-editor-block");
+const docBodyGridNode = document.getElementById("doc-body-grid");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
 const editorViewClusterNode = document.querySelector(".editor-view-cluster");
@@ -169,6 +170,13 @@ const propsFormFieldsNode = document.getElementById("props-form-fields");
 const propsYamlToggleBtn = document.getElementById("props-yaml-toggle");
 const propsAddFieldBtn = document.getElementById("props-add-field-btn");
 const propsInputNode = document.getElementById("props-input");
+const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
+const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
+const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
+const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
+const docOutlineContentNode = document.getElementById("doc-outline-content");
+const docAsideCollapseBtn = document.getElementById("doc-aside-collapse-btn");
+const docAsideExpandBtn = document.getElementById("doc-aside-expand-btn");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
 const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
 const workspaceRevealFolderBtn = document.getElementById("workspace-reveal-folder-btn");
@@ -263,7 +271,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     fetchPath: "/_storage/drafts/draft-3.md",
-    subtitle: "AWN registry · _system · layout",
+    subtitle: "AWN registry · _awn-system · layout",
     withExtras: false
   }
 ];
@@ -321,7 +329,7 @@ const AREA_MANIFEST_FILE = "README.x.md";
 const SLOT_STORAGE_PREFIX = "_s.";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["readme.x.md", "agents.md", "readme.md", "todo.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["readme.x.md", "agents.md", "todo.md"]);
 const STORAGE_FOLDER_NAME = "_s";
 const STORAGE_FOLDER_REGEX = "_s\\.[^/]+";
 const BUNDLE_CONTENT_FILE = "Content.md";
@@ -329,8 +337,8 @@ const BUNDLE_TABULAR_FILE = "Content.csv";
 const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
-const VAULT_FOLDER_DEFAULT = "_vault";
-const SERVICE_FOLDER_DEFAULT = "_system";
+const VAULT_FOLDER_DEFAULT = "_awn-vault";
+const SERVICE_FOLDER_DEFAULT = "_awn-system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
@@ -634,12 +642,13 @@ function isAreaManifestFileName(fileName) {
   return String(fileName || "").toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
 }
 
-function isExcludedMenuTopicMd(fileName) {
+function isExcludedMenuTopicMd(fileName, options = {}) {
   const base = String(fileName || "");
   const lower = base.toLowerCase();
   if (isAreaManifestFileName(base)) return true;
   if (lower.endsWith(".sidecar.md")) return true;
   if (MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
+  if (lower === "readme.md" && options.isAgentRoot) return true;
   return false;
 }
 
@@ -652,9 +661,9 @@ function isNodeManifestPath(nodePath) {
   return isAreaManifestFileName(fileName);
 }
 
-function isTopicManifestFileName(fileName) {
+function isTopicManifestFileName(fileName, options = {}) {
   const base = String(fileName || "");
-  return TOPIC_MANIFEST_RE.test(base) && !isExcludedMenuTopicMd(base);
+  return TOPIC_MANIFEST_RE.test(base) && !isExcludedMenuTopicMd(base, options);
 }
 
 function isTopicManifestPath(nodePath) {
@@ -1284,10 +1293,16 @@ function setMenuLoading(isLoading, message = "Загрузка...") {
   if (agentsManageBtn) agentsManageBtn.disabled = isLoading;
   if (agentsPickerBtn) agentsPickerBtn.disabled = isLoading;
   if (isLoading) closeAgentsPickerPopover();
-  if (menuRefreshBtn) menuRefreshBtn.disabled = isLoading;
+  syncMenuRefreshButtonState();
   if (menuCollapseAllBtn) menuCollapseAllBtn.disabled = isLoading;
   if (menuPinBranchBtn) menuPinBranchBtn.disabled = isLoading;
   if (menuSettingsBtn) menuSettingsBtn.disabled = isLoading;
+}
+
+function syncMenuRefreshButtonState() {
+  if (!menuRefreshBtn) return;
+  const menuBusy = Boolean(menuLoadingNode && !menuLoadingNode.classList.contains("hidden"));
+  menuRefreshBtn.disabled = menuBusy || menuRefreshInFlight;
 }
 
 function ensureMenuAgentPane(agentId = activeAgentId) {
@@ -2367,6 +2382,7 @@ let createModalAdoptFolder = false;
 let currentMenuData = null;
 let menuSearchQuery = "";
 let menuViewMode = "tree";
+let menuRefreshInFlight = false;
 let agentWorkspaceView = loadAgentWorkspaceView();
 let agentVaultSearchQuery = "";
 let agentMapLinksResizeObserver = null;
@@ -2530,6 +2546,8 @@ let sourceEditorViewportResizeBound = false;
 const EDITOR_LINE_NUMBERS_STORAGE_KEY = "agentcms.editorLineNumbers";
 let editorLineNumbersEnabled = readStorageItem(EDITOR_LINE_NUMBERS_STORAGE_KEY) === "1";
 const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
+const DOC_ASIDE_COLLAPSED_STORAGE_KEY = "agentcms.docAside.collapsed.v1";
+const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
 const _savedEditorViewMode = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
 let editorViewMode = (_savedEditorViewMode === "preview" || _savedEditorViewMode === "source") ? _savedEditorViewMode : "source";
 let externalViewMode = "table";
@@ -3343,6 +3361,32 @@ function getMenuTreeFolderSortKey(node) {
   return node.title || (node.indexPath ? getLabelFromPath(node.indexPath) : "");
 }
 
+function markMenuSectionSortRow(sectionNode, node) {
+  if (!sectionNode || !node) return;
+  const folderRow = sectionNode.querySelector(":scope > .menu-folder-row");
+  if (folderRow) {
+    folderRow.dataset.sortName = getMenuTreeFolderSortKey(node);
+  }
+  const sectionRow = sectionNode.querySelector(":scope > .menu-section-row");
+  if (sectionRow) {
+    sectionRow.dataset.sortName = node.title || "";
+  }
+}
+
+function prepareMenuSectionForSortContainer(sectionNode, node) {
+  if (!sectionNode || !node) return;
+  markMenuSectionSortRow(sectionNode, node);
+  const sectionRow = sectionNode.querySelector(":scope > .menu-section-row");
+  if (!sectionRow || sectionRow.querySelector(".menu-row-action-spacer")) return;
+  const actionSpacerCount = shouldOfferAreaAdopt(node) ? 2 : 3;
+  for (let i = 0; i < actionSpacerCount; i += 1) {
+    const spacer = document.createElement("span");
+    spacer.className = "menu-row-action-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    sectionRow.appendChild(spacer);
+  }
+}
+
 function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   if (!node) return false;
   if (getMenuTreeSettings(agentId).showEmptyFolders) return true;
@@ -3822,14 +3866,31 @@ function createObsidianMarkerSvg() {
   return svg;
 }
 
+function createAgentMarkerIcon() {
+  const icon = document.createElement("span");
+  icon.className = "menu-marker-emoji menu-marker-emoji-agent";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "🤖";
+  return icon;
+}
+
 function createFolderMarkers(source) {
   const hasGit = Boolean(source?.hasGitSelf ?? source?.hasGit);
   const hasObsidian = Boolean(source?.hasObsidianSelf ?? source?.hasObsidian);
-  if (!hasGit && !hasObsidian) return null;
+  const hasAgent = Boolean(source?.hasAgentSelf ?? source?.hasAgent);
+  if (!hasAgent && !hasGit && !hasObsidian) return null;
 
   const wrap = document.createElement("span");
   wrap.className = "menu-folder-markers";
 
+  if (hasAgent) {
+    const agent = document.createElement("span");
+    agent.className = "menu-marker menu-marker-agent";
+    agent.title = "AWN-агент (awn-agent.json в этой папке)";
+    agent.setAttribute("aria-label", "Agent");
+    agent.appendChild(createAgentMarkerIcon());
+    wrap.appendChild(agent);
+  }
   if (hasGit) {
     const git = document.createElement("span");
     git.className = "menu-marker menu-marker-git";
@@ -4191,6 +4252,12 @@ function resolveCreateTargetParentPath(baseParentPath, useVault, agentId = getCr
   if (normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`)) {
     return normalized;
   }
+  if (isInsideGitRepoVaultPath(normalized, agentId)) return normalized;
+
+  if (isGitRepoMenuFolder(normalized, agentId)) {
+    return normalized === "." ? vaultFolder : `${normalized}/${vaultFolder}`;
+  }
+
   if (normalized === ".") return vaultFolder;
   return `${vaultFolder}/${normalized}`;
 }
@@ -4222,9 +4289,44 @@ function resolveCreateModalParentPath(parentPath, options = {}) {
   return normalizeCreateParentPath(raw);
 }
 
+function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId()) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return null;
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  if (normalized === ".") {
+    return { hasGitSelf: Boolean(menu.hasGitSelf) };
+  }
+  const hit = findMenuTreeNodeByFolderPath({ title: getAgentTreeTitle(agentId), ...menu }, normalized, ".", 0);
+  return hit?.node || null;
+}
+
+function isGitRepoMenuFolder(folderPath, agentId = getCreateModalAgentId()) {
+  return Boolean(getMenuTreeNodeByFolderPath(folderPath, agentId)?.hasGitSelf);
+}
+
+function isInsideGitRepoVaultPath(folderPath, agentId = getCreateModalAgentId()) {
+  const vaultFolder = getActiveAgentVaultFolder(agentId);
+  if (!vaultFolder) return false;
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  const parts = normalized.split("/").filter(Boolean);
+  for (let len = parts.length; len >= 0; len -= 1) {
+    const prefix = len === 0 ? "." : parts.slice(0, len).join("/");
+    if (!isGitRepoMenuFolder(prefix, agentId)) continue;
+    const rest = len === 0 ? normalized : parts.slice(len).join("/");
+    if (!rest) return false;
+    if (rest === vaultFolder || rest.startsWith(`${vaultFolder}/`)) return true;
+    return true;
+  }
+  return false;
+}
+
 function syncCreateNodeVaultOptionUi() {
   const vaultFolder = getActiveAgentVaultFolder(getCreateModalAgentId());
-  const showVaultOption = createModalBaseParentPath === "." && Boolean(vaultFolder);
+  const agentId = getCreateModalAgentId();
+  const isAgentRoot = createModalBaseParentPath === ".";
+  const isGitRepo = isGitRepoMenuFolder(createModalBaseParentPath, agentId);
+  const inGitVault = isInsideGitRepoVaultPath(createModalBaseParentPath, agentId);
+  const showVaultOption = (isAgentRoot || isGitRepo) && Boolean(vaultFolder) && !inGitVault;
   createNodeVaultOptionWrapNode?.classList.toggle("hidden", !showVaultOption);
   createNodeVaultOptionWrapNode?.classList.toggle("is-disabled", showVaultOption);
   if (createNodeVaultOptionLabelNode && vaultFolder) {
@@ -8487,16 +8589,253 @@ function syncYamlFromPropsForm() {
   propsInputNode.value = stringifyPropsYaml(mergePropsFormEntries());
 }
 
+function isPropsFormReadOnly() {
+  return editorViewMode === "preview";
+}
+
+function isDocAsideCollapsed() {
+  return readStorageItem(DOC_ASIDE_COLLAPSED_STORAGE_KEY) === "1";
+}
+
+function setDocAsideCollapsed(collapsed) {
+  localStorage.setItem(DOC_ASIDE_COLLAPSED_STORAGE_KEY, collapsed ? "1" : "0");
+  const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
+  docBodyGridNode?.classList.toggle("has-props-aside", asideEnabled && !collapsed);
+  syncDocAsideUi({ propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden") });
+}
+
+function getDocAsideTab() {
+  const saved = readStorageItem(DOC_ASIDE_TAB_STORAGE_KEY);
+  return saved === "outline" ? "outline" : "props";
+}
+
+function setDocAsideTab(tab) {
+  const next = tab === "outline" ? "outline" : "props";
+  localStorage.setItem(DOC_ASIDE_TAB_STORAGE_KEY, next);
+  syncDocAsideUi({ propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden") });
+}
+
+function slugifyHeadingText(text) {
+  const base = String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return base || "section";
+}
+
+function parseMarkdownHeadings(markdown) {
+  const lines = String(markdown || "").split(/\r?\n/);
+  const headings = [];
+  const slugCounts = new Map();
+  let inFence = false;
+  let fenceChar = "";
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const fenceMatch = line.match(/^(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const ch = fenceMatch[1][0];
+      if (!inFence) {
+        inFence = true;
+        fenceChar = ch;
+      } else if (ch === fenceChar) {
+        inFence = false;
+      }
+      continue;
+    }
+    if (inFence) continue;
+
+    const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (!match) continue;
+
+    const level = match[1].length;
+    const text = match[2]
+      .replace(/!\[[^\]]*]\([^)]+\)/g, "")
+      .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*|__|\*|_|~~/g, "")
+      .trim();
+    if (!text) continue;
+
+    const baseSlug = slugifyHeadingText(text);
+    const seen = slugCounts.get(baseSlug) || 0;
+    slugCounts.set(baseSlug, seen + 1);
+    const slug = seen ? `${baseSlug}-${seen + 1}` : baseSlug;
+
+    headings.push({
+      level,
+      text,
+      line: i + 1,
+      slug,
+      index: headings.length
+    });
+  }
+
+  return headings;
+}
+
+function getDocOutlineMarkdownSource() {
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    return normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
+  }
+  return fileContentInputNode?.value || "";
+}
+
+function scrollEditorToLine(lineIndexZeroBased) {
+  const ta = fileContentInputNode;
+  if (!ta || lineIndexZeroBased < 0) return;
+  const lines = ta.value.split("\n");
+  let pos = 0;
+  for (let i = 0; i < lineIndexZeroBased && i < lines.length; i += 1) {
+    pos += lines[i].length + 1;
+  }
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(pos, pos);
+  const styles = getComputedStyle(ta);
+  const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
+  ta.scrollTop = Math.max(0, lineIndexZeroBased * lineHeight - ta.clientHeight / 3);
+  syncEditorLineNumbersScroll();
+}
+
+function scrollToDocHeading(heading) {
+  if (!heading) return;
+  if (editorViewMode === "preview") {
+    const target =
+      fileContentPreviewNode?.querySelector(`#${CSS.escape(heading.slug)}`) ||
+      fileContentPreviewNode?.querySelectorAll("h1,h2,h3,h4,h5,h6")?.[heading.index];
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (editorViewMode === "source") {
+    scrollEditorToLine(heading.line - 1);
+    return;
+  }
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    scrollEditorToLine(heading.line - 1);
+  }
+}
+
+function renderDocOutline() {
+  if (!docOutlineContentNode) return;
+  const headings = parseMarkdownHeadings(getDocOutlineMarkdownSource());
+  docOutlineContentNode.innerHTML = "";
+
+  if (!headings.length) {
+    const empty = document.createElement("p");
+    empty.className = "doc-outline-empty";
+    empty.textContent = "Заголовков H1–H6 пока нет";
+    docOutlineContentNode.appendChild(empty);
+    return;
+  }
+
+  const nav = document.createElement("nav");
+  nav.className = "doc-outline-nav";
+  nav.setAttribute("aria-label", "Оглавление документа");
+  const list = document.createElement("ul");
+  list.className = "doc-outline-list";
+
+  for (const heading of headings) {
+    const item = document.createElement("li");
+    item.className = `doc-outline-item doc-outline-h${heading.level}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "doc-outline-link";
+    btn.title = `${heading.text} (H${heading.level})`;
+    btn.dataset.level = String(heading.level);
+    btn.textContent = heading.text;
+    btn.addEventListener("click", () => scrollToDocHeading(heading));
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  nav.appendChild(list);
+  docOutlineContentNode.appendChild(nav);
+}
+
+function syncDocAsideUi({ propsPanelAvailable = true } = {}) {
+  const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
+  const collapsed = isDocAsideCollapsed();
+  const tab = getDocAsideTab();
+  const propsAvailable = Boolean(propsPanelAvailable);
+  const effectiveTab = !propsAvailable && tab === "props" ? "outline" : tab;
+
+  docAsideTabPropsBtn?.classList.toggle("hidden", !propsAvailable);
+  docAsideTabPropsBtn?.classList.toggle("active", effectiveTab === "props");
+  docAsideTabPropsBtn?.setAttribute("aria-selected", effectiveTab === "props" ? "true" : "false");
+  docAsideTabOutlineBtn?.classList.toggle("active", effectiveTab === "outline");
+  docAsideTabOutlineBtn?.setAttribute("aria-selected", effectiveTab === "outline" ? "true" : "false");
+
+  docAsidePanelPropsNode?.classList.toggle("hidden", effectiveTab !== "props");
+  docAsidePanelOutlineNode?.classList.toggle("hidden", effectiveTab !== "outline");
+
+  yamlPanelNode?.classList.toggle("is-collapsed", collapsed);
+  docAsideExpandBtn?.classList.toggle("hidden", !asideEnabled || !collapsed);
+
+  if (effectiveTab === "outline") {
+    renderDocOutline();
+  } else if (!collapsed && asideEnabled) {
+    applyPropsFormViewMode();
+  }
+}
+
+function applyPropsFormViewMode() {
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return;
+  const readOnly = isPropsFormReadOnly();
+  if (readOnly) {
+    if (propsRawYamlVisible) {
+      absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+      propsRawYamlVisible = false;
+      propsInputNode.classList.add("hidden");
+      if (propsYamlToggleBtn) propsYamlToggleBtn.textContent = "Показать YAML";
+    } else if (propsFormFieldsNode?.querySelector('input[data-field="value"]')) {
+      readPropsFormIntoEntries();
+    }
+  }
+  yamlPanelNode.classList.toggle("is-props-preview", readOnly);
+  propsInputNode.readOnly = readOnly;
+  renderPropsForm();
+}
+
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
   propsFormFieldsNode.innerHTML = "";
+  const readOnly = isPropsFormReadOnly();
+  propsFormFieldsNode.classList.toggle("is-readonly", readOnly);
 
   if (!propsFormEntries.length) {
     const empty = document.createElement("p");
     empty.className = "props-form-empty";
-    empty.textContent = "Свойств пока нет — добавьте поле или откройте YAML.";
+    empty.textContent = readOnly
+      ? "Свойств пока нет."
+      : "Свойств пока нет — добавьте поле или откройте YAML.";
     propsFormFieldsNode.appendChild(empty);
+    return;
+  }
+
+  if (readOnly) {
+    const dl = document.createElement("dl");
+    dl.className = "props-preview-dl";
+
+    for (let index = 0; index < propsFormEntries.length; index += 1) {
+      const entry = propsFormEntries[index];
+      const dt = document.createElement("dt");
+      dt.className = "props-preview-key";
+      dt.textContent = entry.key || "—";
+      if (entry.key) dt.title = entry.key;
+
+      const displayValue = getPropsEntryDisplayValue(entry);
+      const dd = document.createElement("dd");
+      dd.className = "props-preview-value";
+      dd.textContent = displayValue.trim() ? displayValue : "—";
+      dd.classList.toggle("is-empty", !displayValue.trim());
+
+      dl.append(dt, dd);
+    }
+    propsFormFieldsNode.appendChild(dl);
     return;
   }
 
@@ -8518,11 +8857,12 @@ function renderPropsForm() {
       keyNode.dataset.field = "key";
     }
 
+    const displayValue = getPropsEntryDisplayValue(entry);
     const valueNode = document.createElement("input");
     valueNode.className = "props-form-value";
     valueNode.type = "text";
     valueNode.dataset.field = "value";
-    valueNode.value = getPropsEntryDisplayValue(entry);
+    valueNode.value = displayValue;
     valueNode.placeholder = entry.kind === "array" ? "значение1, значение2" : "значение";
 
     row.appendChild(keyNode);
@@ -8569,6 +8909,7 @@ function readPropsFormIntoEntries() {
 }
 
 function togglePropsRawYaml() {
+  if (isPropsFormReadOnly()) return;
   if (propsRawYamlVisible) {
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
     propsRawYamlVisible = false;
@@ -10032,6 +10373,83 @@ function appendNavigationHeroMetaRow(panel, label, value) {
   panel.append(dt, dd);
 }
 
+function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false };
+
+  const baseTree = { title: getAgentTreeTitle(agentId), ...menu };
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  const folderRel = normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
+  const section = findMenuSectionByFolderPath(baseTree, folderRel);
+  const source = section || findMenuNodeByPath(baseTree, normalized);
+
+  return {
+    hasGit: Boolean(source?.hasGitSelf ?? source?.hasGit),
+    hasObsidian: Boolean(source?.hasObsidianSelf ?? source?.hasObsidian),
+    hasAgent: Boolean(source?.hasAgentSelf ?? source?.hasAgent)
+  };
+}
+
+function createNavigationHeroMarkerSlot({ id, caption, active, createSvg, titleActive, titleInactive }) {
+  const slot = document.createElement("span");
+  slot.className = `node-slot-chip node-navigation-marker-slot node-navigation-marker-slot--${id}${
+    active ? " is-active" : " is-inactive"
+  }`;
+  slot.title = active
+    ? titleActive || `${caption}: есть в этой папке`
+    : titleInactive || `${caption}: нет в этой папке`;
+  slot.setAttribute("role", "img");
+  slot.setAttribute("aria-label", `${caption}: ${active ? "есть" : "нет"}`);
+
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-marker-slot-icon menu-marker";
+  icon.setAttribute("aria-hidden", "true");
+  icon.appendChild(createSvg());
+
+  const text = document.createElement("span");
+  text.className = "node-slot-label";
+  text.textContent = caption;
+
+  slot.append(icon, text);
+  return slot;
+}
+
+function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
+  const markers = getFolderWorkspaceMarkersForNode(nodePath);
+
+  const dd = document.createElement("dd");
+  dd.className = "node-navigation-hero-meta-value node-navigation-hero-meta-markers";
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hero-marker-slots";
+  wrap.setAttribute("aria-label", "Agent, Git и Obsidian в папке области");
+  wrap.append(
+    createNavigationHeroMarkerSlot({
+      id: "agent",
+      caption: "Agent",
+      active: markers.hasAgent,
+      createSvg: createAgentMarkerIcon,
+      titleActive: "awn-agent.json: есть в этой папке",
+      titleInactive: "awn-agent.json: нет в этой папке"
+    }),
+    createNavigationHeroMarkerSlot({
+      id: "git",
+      caption: "Git",
+      active: markers.hasGit,
+      createSvg: createGitMarkerSvg
+    }),
+    createNavigationHeroMarkerSlot({
+      id: "obsidian",
+      caption: "Obsidian",
+      active: markers.hasObsidian,
+      createSvg: createObsidianMarkerSvg
+    })
+  );
+
+  dd.appendChild(wrap);
+  panel.appendChild(dd);
+}
+
 function buildNavigationHeroMetaPanel(meta, nodePath = activePath) {
   recordNodeLastViewed(nodePath);
 
@@ -10054,6 +10472,7 @@ function buildNavigationHeroMetaPanel(meta, nodePath = activePath) {
   for (const [label, value] of rows) {
     appendNavigationHeroMetaRow(panel, label, value);
   }
+  appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath);
   return panel;
 }
 
@@ -11145,10 +11564,19 @@ function applyModeUi() {
   const hideToolbar = hideDocActions;
   const showYamlPanel =
     activeContentMode === "description" || externalEditing || mediaSidecarEditing;
-  titleEditorBlockNode.classList.toggle("hidden", (!titleVisible && !mediaSidecarEditing) || previewMode || overviewLikeMode);
+  const showDocAside =
+    !previewMode && !overviewMode && (showYamlPanel || activeContentMode === "internal");
+  const titleBlockVisible =
+    (titleVisible || mediaSidecarEditing) && !previewMode && !overviewLikeMode;
+  titleEditorBlockNode.classList.toggle("hidden", !titleBlockVisible);
   nodeDescriptionHintNode?.classList.toggle(
     "hidden",
     activeContentMode !== "description" || previewMode || overviewLikeMode || activeSystemFile
+  );
+  document.querySelector(".doc-head-block")?.classList.toggle(
+    "hidden",
+    titleEditorBlockNode?.classList.contains("hidden") &&
+      nodeDescriptionHintNode?.classList.contains("hidden")
   );
   const hideEditorViewToggle =
     forceEditOnly ||
@@ -11200,7 +11628,10 @@ function applyModeUi() {
   );
   saveContentBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar);
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
-  yamlPanelNode.classList.toggle("hidden", !showYamlPanel || previewMode || overviewMode);
+  yamlPanelNode.classList.toggle("hidden", !showDocAside);
+  const propsAsideVisible = showDocAside && !isDocAsideCollapsed();
+  docBodyGridNode?.classList.toggle("has-props-aside", propsAsideVisible);
+  syncDocAsideUi({ propsPanelAvailable: showYamlPanel });
   removeYamlPanelLabel();
   syncPropsInputPlaceholder();
   externalViewSelectNode?.classList.toggle("hidden", !showExternalControls);
@@ -11340,6 +11771,27 @@ function getMarkdownIt() {
     return defaultImage(tokens, idx, options, env, self);
   };
 
+  const defaultHeadingOpen =
+    markdownItInstance.renderer.rules.heading_open ||
+    function renderHeadingOpen(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+
+  markdownItInstance.renderer.rules.heading_open = function renderHeadingWithId(tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const inline = tokens[idx + 1];
+    const text = inline?.content || "";
+    if (token.tag && /^h[1-6]$/.test(token.tag)) {
+      if (!env.headingSlugCounts) env.headingSlugCounts = new Map();
+      const baseSlug = slugifyHeadingText(text);
+      const seen = env.headingSlugCounts.get(baseSlug) || 0;
+      env.headingSlugCounts.set(baseSlug, seen + 1);
+      const slug = seen ? `${baseSlug}-${seen + 1}` : baseSlug;
+      token.attrSet("id", slug);
+    }
+    return defaultHeadingOpen(tokens, idx, options, env, self);
+  };
+
   return markdownItInstance;
 }
 
@@ -11352,7 +11804,10 @@ function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   }
 
   try {
-    return md.render(source, { nodePath: nodePath || getActiveNodeApiPath() });
+    return md.render(source, {
+      nodePath: nodePath || getActiveNodeApiPath(),
+      headingSlugCounts: new Map()
+    });
   } catch (error) {
     return `<pre>${escapeHtml(source)}</pre>`;
   }
@@ -11399,6 +11854,9 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
 
 function renderPreviewFromEditor() {
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value);
+  if (getDocAsideTab() === "outline" && !isDocAsideCollapsed()) {
+    renderDocOutline();
+  }
 }
 
 function refreshEditorViewContent() {
@@ -11848,8 +12306,11 @@ function applyEditorViewMode() {
       destroyWysiwygEditor();
     }
     renderPreviewFromEditor();
+    applyPropsFormViewMode();
     return;
   }
+
+  applyPropsFormViewMode();
 
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
@@ -12372,8 +12833,10 @@ function collectFlatMenuEntries(node, acc = []) {
       isFolder: true,
       hasGit: Boolean(node.hasGitSelf ?? node.hasGit),
       hasObsidian: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
+      hasAgent: Boolean(node.hasAgentSelf ?? node.hasAgent),
       hasGitSelf: Boolean(node.hasGitSelf ?? node.hasGit),
-      hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian)
+      hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
+      hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent)
     });
   }
 
@@ -12952,9 +13415,6 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       folderRow.appendChild(addBtn);
       folderRow.appendChild(createNodeSettingsButton(node.indexPath));
       folderRow.appendChild(createBookmarkButton(node.indexPath));
-      if (parentEl.classList.contains("tree-children")) {
-        folderRow.dataset.sortName = node.title || getLabelFromPath(node.indexPath);
-      }
       sectionNode.appendChild(folderRow);
     } else {
       const sectionRow = document.createElement("div");
@@ -13011,16 +13471,6 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         });
         sectionRow.appendChild(addBtn);
       }
-      if (parentEl.classList.contains("tree-children")) {
-        sectionRow.dataset.sortName = node.title;
-        const actionSpacerCount = canAdoptArea ? 2 : 3;
-        for (let i = 0; i < actionSpacerCount; i += 1) {
-          const spacer = document.createElement("span");
-          spacer.className = "menu-row-action-spacer";
-          spacer.setAttribute("aria-hidden", "true");
-          sectionRow.appendChild(spacer);
-        }
-      }
       sectionNode.appendChild(sectionRow);
     }
   }
@@ -13063,6 +13513,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     }
 
     sectionNode.appendChild(childrenNode);
+  }
+
+  if (parentEl.classList.contains("tree-children")) {
+    prepareMenuSectionForSortContainer(sectionNode, node);
   }
 
   parentEl.appendChild(sectionNode);
@@ -15296,13 +15750,31 @@ function renderAgentVaultView() {
   }
 }
 
+function getServiceGraphRelativePath(entry) {
+  const rawDisplay = entry?.displayPath || (entry?.path ? getNodeDisplayPath(entry.path) : "");
+  const stripped = stripServicePrefixFromRelPath(rawDisplay);
+  if (stripped) return stripped.replace(/\\/g, "/").trim();
+  return stripServicePrefixFromRelPath(entry?.path || "").replace(/\\/g, "/").trim();
+}
+
 function buildGraphDataFromAgentMenu(menu) {
   const baseTree = { title: getAgentTreeTitle(), ...menu };
-  const flatEntries = collectFlatMenuEntries(baseTree);
+  const workspaceEntries = collectFlatMenuEntries(baseTree);
+  const serviceEntries = menu?.serviceTree
+    ? collectFlatMenuEntries({ title: "", ...menu.serviceTree })
+    : [];
+
   const previewByDisplayPath = new Map();
-  for (const entry of flatEntries) {
+  for (const entry of workspaceEntries) {
     if (!entry.hasPreview || !entry.previewUrl) continue;
     const displayPath = entry.displayPath || getNodeDisplayPath(entry.path);
+    if (!displayPath) continue;
+    previewByDisplayPath.set(displayPath, entry.previewUrl);
+  }
+  for (const entry of serviceEntries) {
+    if (!entry.hasPreview || !entry.previewUrl) continue;
+    const displayPath = getServiceGraphRelativePath(entry);
+    if (!displayPath) continue;
     previewByDisplayPath.set(displayPath, entry.previewUrl);
   }
 
@@ -15320,55 +15792,99 @@ function buildGraphDataFromAgentMenu(menu) {
   const edges = [];
   const folderIds = new Map([["", rootId]]);
   const nodeIds = new Set([rootId]);
+  const skipNormalizedPaths = new Set();
+  if (baseTree.indexPath) {
+    skipNormalizedPaths.add(normalizeMenuNodePath(baseTree.indexPath));
+  }
+
+  let serviceRootId = null;
+  if (menu?.serviceTree && getActiveAgentServiceFolder()) {
+    serviceRootId = "service-root";
+    const serviceManifestPath = menu.serviceTree.indexPath || getServiceRootManifestPath();
+    if (serviceManifestPath) {
+      skipNormalizedPaths.add(normalizeMenuNodePath(serviceManifestPath));
+    }
+    nodes.push({
+      id: serviceRootId,
+      label: SERVICE_SECTION_LABEL,
+      type: "folder",
+      depth: 1,
+      nodePath: serviceManifestPath || null,
+      previewUrl: menu.serviceTree.hasPreview ? menu.serviceTree.previewUrl || null : null
+    });
+    edges.push({ from: rootId, to: serviceRootId });
+    folderIds.set("service/", serviceRootId);
+    nodeIds.add(serviceRootId);
+  }
 
   // Области (README.x.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
-  for (const entry of flatEntries) {
+  for (const entry of workspaceEntries) {
     if (!entry.isFolder || !entry.path) continue;
+    if (skipNormalizedPaths.has(normalizeMenuNodePath(entry.path))) continue;
     const displayPath = String(entry.displayPath || entry.label || getLabelFromPath(entry.path))
       .replace(/\\/g, "/")
       .trim();
     if (!displayPath) continue;
     folderIds.set(displayPath, `node:${normalizeMenuNodePath(entry.path)}`);
   }
+  for (const entry of serviceEntries) {
+    if (!entry.isFolder || !entry.path) continue;
+    const rel = getServiceGraphRelativePath(entry);
+    if (!rel) continue;
+    folderIds.set(`service/${rel}`, `node:${normalizeMenuNodePath(entry.path)}`);
+  }
 
-  for (const entry of flatEntries) {
-    const displayPath = entry.displayPath || entry.label || getLabelFromPath(entry.path);
-    const parts = String(displayPath).split("/").filter(Boolean);
-    let parentId = rootId;
-    let built = "";
+  const appendGraphMenuEntries = (entries, { parentRootId, serviceScope }) => {
+    for (const entry of entries) {
+      const normPath = entry.path ? normalizeMenuNodePath(entry.path) : null;
+      if (normPath && skipNormalizedPaths.has(normPath)) continue;
 
-    for (let i = 0; i < parts.length - 1; i += 1) {
-      built = built ? `${built}/${parts[i]}` : parts[i];
-      if (!folderIds.has(built)) {
-        const folderId = `folder:${built}`;
-        nodes.push({
-          id: folderId,
-          label: parts[i],
-          type: "folder",
-          depth: i + 1,
-          nodePath: null,
-          previewUrl: previewByDisplayPath.get(built) || null
-        });
-        edges.push({ from: parentId, to: folderId });
-        folderIds.set(built, folderId);
-        nodeIds.add(folderId);
+      const displayPath = serviceScope
+        ? getServiceGraphRelativePath(entry)
+        : String(entry.displayPath || entry.label || getLabelFromPath(entry.path)).replace(/\\/g, "/").trim();
+      const parts = String(displayPath).split("/").filter(Boolean);
+      let parentId = parentRootId;
+
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        const built = serviceScope
+          ? `service/${parts.slice(0, i + 1).join("/")}`
+          : parts.slice(0, i + 1).join("/");
+        if (!folderIds.has(built)) {
+          const folderId = `folder:${built}`;
+          nodes.push({
+            id: folderId,
+            label: parts[i],
+            type: "folder",
+            depth: (serviceScope ? 1 : 0) + i + 1,
+            nodePath: null,
+            previewUrl: previewByDisplayPath.get(parts.slice(0, i + 1).join("/")) || null
+          });
+          edges.push({ from: parentId, to: folderId });
+          folderIds.set(built, folderId);
+          nodeIds.add(folderId);
+        }
+        parentId = folderIds.get(built);
       }
-      parentId = folderIds.get(built);
-    }
 
-    const nodeId = `node:${normalizeMenuNodePath(entry.path)}`;
-    if (!nodeIds.has(nodeId)) {
-      nodes.push({
-        id: nodeId,
-        label: parts[parts.length - 1] || entry.label,
-        type: entry.isFolder ? "folder" : "file",
-        depth: Math.max(parts.length, 1),
-        nodePath: entry.path,
-        previewUrl: entry.previewUrl || null
-      });
-      nodeIds.add(nodeId);
+      const nodeId = `node:${normalizeMenuNodePath(entry.path)}`;
+      if (!nodeIds.has(nodeId)) {
+        nodes.push({
+          id: nodeId,
+          label: parts[parts.length - 1] || entry.label,
+          type: entry.isFolder ? "folder" : "file",
+          depth: Math.max((serviceScope ? 1 : 0) + parts.length, serviceScope ? 2 : 1),
+          nodePath: entry.path,
+          previewUrl: entry.previewUrl || null
+        });
+        nodeIds.add(nodeId);
+      }
+      edges.push({ from: parentId, to: nodeId });
     }
-    edges.push({ from: parentId, to: nodeId });
+  };
+
+  appendGraphMenuEntries(workspaceEntries, { parentRootId: rootId, serviceScope: false });
+  if (serviceRootId) {
+    appendGraphMenuEntries(serviceEntries, { parentRootId: serviceRootId, serviceScope: true });
   }
 
   return { nodes, edges };
@@ -16785,6 +17301,9 @@ function renderMenuTreeChildInto(
     const wrapper = document.createElement("div");
     renderTree(child.entry, wrapper, depth, parentSectionPath, parentMenuNode, agentId);
     const section = wrapper.firstElementChild;
+    if (parentEl.classList.contains("tree-children")) {
+      prepareMenuSectionForSortContainer(section, child.entry);
+    }
     insertMenuTreeRenderedChild(parentEl, section, insertBefore);
     return section;
   }
@@ -16914,6 +17433,9 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
+    if (oldSection.parentElement?.classList.contains("tree-children")) {
+      prepareMenuSectionForSortContainer(newSection, branch.node);
+    }
     oldSection.replaceWith(newSection);
     refreshMenuSortDecorations(agentId);
     return true;
@@ -17031,24 +17553,30 @@ async function refreshMenu(options = {}) {
   return menu;
 }
 
-let menuRefreshInFlight = false;
-
 async function refreshMenuTree() {
   if (menuRefreshInFlight) return;
+  if (!activeAgentId) {
+    showToast("Агент не выбран", "error");
+    return;
+  }
+
   menuRefreshInFlight = true;
   menuRefreshBtn?.classList.add("is-spinning");
-  menuRefreshBtn?.setAttribute("disabled", "disabled");
+  syncMenuRefreshButtonState();
+
   try {
+    invalidateMenuAgentCache(activeAgentId);
+    await loadSystemFiles();
     await refreshMenu({ agentId: activeAgentId });
+    syncMenuCollapseAllButton();
+    syncMenuPinBranchUi(activeAgentId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(`Ошибка обновления дерева: ${message}`, "error");
   } finally {
     menuRefreshInFlight = false;
     menuRefreshBtn?.classList.remove("is-spinning");
-    if (!menuLoadingNode || menuLoadingNode.classList.contains("hidden")) {
-      menuRefreshBtn?.removeAttribute("disabled");
-    }
+    syncMenuRefreshButtonState();
   }
 }
 
@@ -17981,6 +18509,8 @@ fileContentInputNode.addEventListener("input", () => {
   syncEditorLineNumbers();
   if (editorViewMode === "preview") {
     renderPreviewFromEditor();
+  } else if (getDocAsideTab() === "outline" && !isDocAsideCollapsed()) {
+    renderDocOutline();
   }
   applySourceEditorAutoHeightUi();
   syncSaveButtonLamp();
@@ -17998,10 +18528,16 @@ editorViewWysiwygBtn?.addEventListener("click", () => setEditorViewMode("wysiwyg
 editorViewSourceBtn?.addEventListener("click", () => setEditorViewMode("source"));
 applyEditorViewMode();
 
+docAsideTabPropsBtn?.addEventListener("click", () => setDocAsideTab("props"));
+docAsideTabOutlineBtn?.addEventListener("click", () => setDocAsideTab("outline"));
+docAsideCollapseBtn?.addEventListener("click", () => setDocAsideCollapsed(true));
+docAsideExpandBtn?.addEventListener("click", () => setDocAsideCollapsed(false));
+
 saveContentBtn.addEventListener("click", saveContent);
 saveSystemFileBtn?.addEventListener("click", saveContent);
 propsYamlToggleBtn?.addEventListener("click", togglePropsRawYaml);
 propsAddFieldBtn?.addEventListener("click", () => {
+  if (isPropsFormReadOnly()) return;
   readPropsFormIntoEntries();
   propsFormEntries.push({ key: "", kind: "string", value: "" });
   syncYamlFromPropsForm();
@@ -18117,9 +18653,9 @@ menuCardsPreviewOnlyNode?.addEventListener("change", () => {
     updateActiveButton();
   }
 });
-menuViewTreeBtn.addEventListener("click", () => setMenuViewMode("tree"));
-menuViewFlatBtn.addEventListener("click", () => setMenuViewMode("flat"));
-menuViewBookmarksBtn.addEventListener("click", () => setMenuViewMode("bookmarks"));
+menuViewTreeBtn?.addEventListener("click", () => setMenuViewMode("tree"));
+menuViewFlatBtn?.addEventListener("click", () => setMenuViewMode("flat"));
+menuViewBookmarksBtn?.addEventListener("click", () => setMenuViewMode("bookmarks"));
 menuViewCardsBtn?.addEventListener("click", () => setMenuViewMode("cards"));
 menuRefreshBtn?.addEventListener("click", () => {
   void refreshMenuTree();

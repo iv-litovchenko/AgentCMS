@@ -29,7 +29,6 @@ const AREA_MANIFEST_CANDIDATES = [AREA_README_FILE];
 const WORKSPACE_MENU_EXCLUDED_TOPIC_MD = new Set([
   "readme.x.md",
   "agents.md",
-  "readme.md",
   "todo.md"
 ]);
 
@@ -99,12 +98,14 @@ function isStorageFolderName(name) {
   return raw.startsWith(STORAGE_PREFIX) && raw.length > STORAGE_PREFIX.length;
 }
 
-function isExcludedMenuTopicMdFileName(name) {
+function isExcludedMenuTopicMdFileName(name, options = {}) {
   const base = String(name || "");
   const lower = base.toLowerCase();
   if (isAreaManifestFileName(base)) return true;
   if (lower.endsWith(".sidecar.md")) return true;
   if (WORKSPACE_MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
+  // Legacy README.md at agent workspace root is hidden; README.x.md is the area manifest.
+  if (lower === "readme.md" && options.isAgentRoot) return true;
   return false;
 }
 
@@ -152,10 +153,10 @@ function isAreaManifestFileName(name) {
   return String(name || "").toLowerCase() === AREA_README_FILE.toLowerCase();
 }
 
-function isTopicManifestFileName(name) {
+function isTopicManifestFileName(name, options = {}) {
   const base = String(name || "");
   if (!TOPIC_MANIFEST_RE.test(base)) return false;
-  if (isExcludedMenuTopicMdFileName(base)) return false;
+  if (isExcludedMenuTopicMdFileName(base, options)) return false;
   return true;
 }
 
