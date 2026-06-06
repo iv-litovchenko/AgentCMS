@@ -81,6 +81,7 @@ const agentGraphContentNode = document.getElementById("agent-graph-content");
 const agentGraphShowPreviewsNode = document.getElementById("agent-graph-show-previews");
 const filePathNode = document.getElementById("file-path");
 const workspaceShareLinkBtn = document.getElementById("workspace-share-link-btn");
+const workspaceGdriveSyncBtn = document.getElementById("workspace-gdrive-sync-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
@@ -111,6 +112,11 @@ const listViewTitleNode = document.getElementById("list-view-title");
 const listViewContentNode = document.getElementById("list-view-content");
 const nodeOverviewBlockNode = document.getElementById("node-overview-block");
 const nodeOverviewContentNode = document.getElementById("node-overview-content");
+const docSlabMainNode = document.querySelector(".doc-slab-main");
+const workspaceBodyNode = document.querySelector(".workspace-body");
+const workspacePaneNode = document.querySelector(".workspace-pane");
+const contentLoadingNode = document.getElementById("content-loading");
+const contentLoadingTextNode = document.getElementById("content-loading-text");
 const externalViewSelectNode = document.getElementById("external-view-select");
 const mediaViewSelectNode = document.getElementById("media-view-select");
 const mediaUploadInputNode = document.getElementById("media-upload-input");
@@ -170,6 +176,7 @@ const createNodeCatalogActionsNode = document.getElementById("create-node-catalo
 const createNodeServiceDocsWrapNode = document.getElementById("create-node-service-docs-wrap");
 const createNodeServiceDocsActionsNode = document.getElementById("create-node-service-docs-actions");
 const createNodeStructureLabelNode = document.getElementById("create-node-structure-label");
+const createNodeDividerNode = document.getElementById("create-node-divider");
 const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
 const createNodeVaultOptionWrapNode = document.getElementById("create-node-vault-option-wrap");
 const createNodeVaultOptionNode = document.getElementById("create-node-vault-option");
@@ -247,7 +254,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     fetchPath: "/_storage/drafts/draft-3.md",
-    subtitle: "AWN registry · acms.System · layout",
+    subtitle: "AWN registry · _system · layout",
     withExtras: false
   }
 ];
@@ -291,26 +298,7 @@ const mcpDocsVersionSelectNode = document.getElementById("mcp-docs-version-selec
 const mcpDocsCacheByVersion = Object.create(null);
 let mcpDocsVersion = DEFAULT_DOC_VERSION;
 
-const STORAGE_LEGACY_PREFIX = "yamlcms.";
-const STORAGE_PREFIX = "agentcms.";
-
-function migrateLegacyStorageKey(key) {
-  if (!key.startsWith(STORAGE_PREFIX)) return;
-  const legacyKey = STORAGE_LEGACY_PREFIX + key.slice(STORAGE_PREFIX.length);
-  try {
-    if (localStorage.getItem(key) !== null) return;
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy !== null) {
-      localStorage.setItem(key, legacy);
-      localStorage.removeItem(legacyKey);
-    }
-  } catch {
-    // ignore quota / private mode
-  }
-}
-
 function readStorageItem(key) {
-  migrateLegacyStorageKey(key);
   try {
     return localStorage.getItem(key);
   } catch {
@@ -320,11 +308,12 @@ function readStorageItem(key) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "t.README.md";
+const AREA_MANIFEST_FILE = "README.x.md";
 const TOPIC_PREFIX = "t.";
 const SLOT_STORAGE_PREFIX = "s.";
-const TOPIC_MANIFEST_RE = /^t\.[^/]+\.md$/i;
+const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
+const MENU_EXCLUDED_TOPIC_MD = new Set(["readme.x.md", "agents.md", "readme.md", "todo.md"]);
 const STORAGE_FOLDER_NAME = "s";
 const STORAGE_FOLDER_REGEX = "s\\.[^/]+";
 const BUNDLE_CONTENT_FILE = "Content.md";
@@ -332,9 +321,10 @@ const BUNDLE_TABULAR_FILE = "Content.csv";
 const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
-const VAULT_FOLDER_DEFAULT = "acms.Vault";
-const SERVICE_FOLDER_DEFAULT = "acms.System";
+const VAULT_FOLDER_DEFAULT = "_vault";
+const SERVICE_FOLDER_DEFAULT = "_system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
+const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
 const SERVICE_SECTION_HINT = "служебные компоненты";
 const SERVICE_SECTION_TITLE = `${SERVICE_SECTION_LABEL} (${SERVICE_SECTION_HINT})`;
@@ -491,20 +481,6 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   updateWorkspaceShareLinkButton();
 }
 
-function migrateLegacyAgentQueryToPath() {
-  const url = new URL(location.href);
-  const legacyAgent = url.searchParams.get("agent");
-  if (!legacyAgent) return;
-  if (parseAppRoute(url.pathname).type !== "legacy" && parseAppRoute(url.pathname).type !== "root") {
-    url.searchParams.delete("agent");
-    history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-    return;
-  }
-  url.pathname = `/a/${encodeURIComponent(legacyAgent)}`;
-  url.searchParams.delete("agent");
-  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
 function updateWorkspaceShareLinkButton() {
   if (!workspaceShareLinkBtn) return;
   const hasAgent = Boolean(activeAgentId && agentsCache.some((agent) => agent.id === activeAgentId));
@@ -625,7 +601,6 @@ async function loadAgents() {
     activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
   }
-  migrateLegacyAgentQueryToPath();
   const deferRouteSync = parseAppRoute(location.pathname).type === "node";
   if (!deferRouteSync) {
     syncAppRouteToUrl({ replace: true });
@@ -651,9 +626,17 @@ function isAreaManifestFileName(fileName) {
   return String(fileName || "").toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
 }
 
+function isExcludedMenuTopicMd(fileName) {
+  const base = String(fileName || "");
+  const lower = base.toLowerCase();
+  if (isAreaManifestFileName(base)) return true;
+  if (lower.endsWith(".sidecar.md")) return true;
+  if (MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
+  return false;
+}
+
 function isAreaFolderName(name) {
-  const raw = String(name || "");
-  return raw.startsWith(TOPIC_PREFIX) && raw.length > TOPIC_PREFIX.length;
+  return /^t\.[^/\\]+$/i.test(String(name || "").trim());
 }
 
 function isNodeManifestFileName(fileName) {
@@ -661,16 +644,13 @@ function isNodeManifestFileName(fileName) {
 }
 
 function isNodeManifestPath(nodePath) {
-  const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const fileName = normalized.split("/").filter(Boolean).pop() || "";
-  if (!isAreaManifestFileName(fileName)) return false;
-  const parent = normalized.split("/").filter(Boolean).slice(-2, -1)[0] || "";
-  return isAreaFolderName(parent);
+  const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
+  return isAreaManifestFileName(fileName);
 }
 
 function isTopicManifestPath(nodePath) {
   const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
-  return TOPIC_MANIFEST_RE.test(fileName) && !isAreaManifestFileName(fileName);
+  return TOPIC_MANIFEST_RE.test(fileName) && !isExcludedMenuTopicMd(fileName);
 }
 
 function isNodeMdPath(nodePath) {
@@ -748,7 +728,7 @@ function stripAgentContentPrefixFromRelPath(relPath) {
 
 function getServiceRootManifestPath() {
   const serviceFolder = getActiveAgentServiceFolder();
-  return serviceFolder ? `${serviceFolder}/t.Служебное/${AREA_MANIFEST_FILE}` : null;
+  return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
 function isServiceNodePath(nodePath) {
@@ -764,7 +744,7 @@ function isFilePartNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   const base = normalized.split("/").pop() || "";
   if (!MANIFEST_MD_RE.test(base)) return false;
-  return !isAreaManifestFileName(base);
+  return !isExcludedMenuTopicMd(base);
 }
 
 function isPartNodePath(nodePath) {
@@ -815,17 +795,20 @@ function resolveManifestPathForNodeApi(nodePath) {
   if (!normalized) return normalized;
   if (isNodeMdPath(normalized)) return normalized;
   if (/\.x\.todo\.md$/i.test(normalized)) {
-    return normalized.replace(/\.x\.todo\.md$/i, ".x.md");
+    return normalized.replace(/\.x\.todo\.md$/i, ".md");
   }
   if (/\.node\.todo\.md$/i.test(normalized)) {
-    return normalized.replace(/\.node\.todo\.md$/i, ".x.md");
+    return normalized.replace(/\.node\.todo\.md$/i, ".md");
+  }
+  if (/\.todo\.md$/i.test(normalized) && !/\/todo\.md$/i.test(normalized)) {
+    return normalized.replace(/\.todo\.md$/i, ".md");
   }
   const bundleMatch = normalized.match(new RegExp(`^(.*)/${STORAGE_FOLDER_REGEX}/Todo\\.md$`, "i"));
   if (bundleMatch) {
     const prefix = bundleMatch[1];
     const parts = normalized.split("/").filter(Boolean);
     const key = stripStoragePrefix(parts[parts.length - 2] || "");
-    const topicRel = `${TOPIC_PREFIX}${key}.md`;
+    const topicRel = `${key}.md`;
     return prefix ? `${prefix}/${topicRel}` : topicRel;
   }
   return normalized;
@@ -834,6 +817,17 @@ function resolveManifestPathForNodeApi(nodePath) {
 function getActiveNodeApiPath() {
   return resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
 }
+
+function getOverviewNodeApiPath(nodePath = activePath) {
+  return resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+}
+
+const NODE_OVERVIEW_SLOT_MEMORY_SPECS = [
+  { id: "external", label: "Многофайловая", modeId: "external" },
+  { id: "internal", label: "Однофайловая", modeId: "internal" },
+  { id: "tabular", label: "Табличная", modeId: "tabular" },
+  { id: "media", label: "Медиа", modeId: "media" }
+];
 
 function isFullWorkspaceRelPath(relPath) {
   return String(relPath || "").includes("/");
@@ -858,12 +852,20 @@ function normalizeCreateParentPath(parentPath) {
 }
 
 function isAgentRootIndexPath(nodePath) {
-  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
   if (!isNodeManifestPath(normalized)) return false;
-  const folderPath = getFolderPathFromManifest(normalized);
-  const stripped = stripAgentContentPrefixFromRelPath(folderPath || "");
-  const parts = stripped.split("/").filter(Boolean);
-  return parts.length === 1 && isAreaFolderName(parts[0]);
+  if (isServiceNodePath(normalized)) return false;
+  const serviceRoot = getServiceRootManifestPath();
+  if (serviceRoot && normalized === normalizeMenuNodePath(serviceRoot)) return false;
+  const rootIndex = currentMenuData?.indexPath;
+  if (rootIndex) {
+    return normalized === normalizeMenuNodePath(rootIndex);
+  }
+  const agentName = getActiveAgentMeta()?.name || getAgentTreeTitle();
+  const rootFolder = agentName;
+  const folderPath = stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(normalized) || "");
+  if (normalized === AREA_MANIFEST_FILE) return true;
+  return folderPath === rootFolder;
 }
 
 function updateAgentPreviewCache(previewMeta) {
@@ -898,8 +900,15 @@ function syncAgentPreview(previewMeta = null) {
   }
 
   if (hasPreview && previewUrl) {
+    const nextSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    const currentSrc = agentPreviewThumbNode.getAttribute("src") || "";
+    const srcChanged = currentSrc !== nextSrc;
+    const alreadyLoaded = !srcChanged && agentPreviewThumbNode.complete;
+
     agentPreviewWrapNode.classList.remove("hidden");
-    agentPreviewWrapNode.classList.remove("is-revealed");
+    if (srcChanged) {
+      agentPreviewWrapNode.classList.remove("is-revealed");
+    }
     agentPreviewThumbNode.onerror = () => {
       agentPreviewWrapNode.classList.add("hidden");
       agentPreviewWrapNode.classList.remove("is-revealed");
@@ -909,10 +918,9 @@ function syncAgentPreview(previewMeta = null) {
       agentPreviewThumbNode.onerror = null;
       agentPreviewWrapNode.classList.add("is-revealed");
     };
-    const nextSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
-    if (agentPreviewThumbNode.getAttribute("src") !== nextSrc) {
+    if (srcChanged) {
       agentPreviewThumbNode.src = nextSrc;
-    } else if (agentPreviewThumbNode.complete) {
+    } else if (alreadyLoaded && !agentPreviewWrapNode.classList.contains("is-revealed")) {
       agentPreviewWrapNode.classList.add("is-revealed");
     }
     return;
@@ -1217,7 +1225,6 @@ async function switchActiveAgent(nextAgentId) {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
     activeAgentId = nextAgentId;
-    migrateAgentCollapsedFolderKeys(activeAgentId);
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
     syncAppRouteToUrl({ replace: true });
     activateMenuAgentPane(activeAgentId);
@@ -1405,15 +1412,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `acms.main.json найден:\n${result.absolute}` : "acms.main.json найден";
+    node.title = result.absolute ? `awn-agent.json найден:\n${result.absolute}` : "awn-agent.json найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет acms.main.json:\n${result.absolute}`
-      : "Папка есть, но нет acms.main.json";
+      ? `Папка есть, но нет awn-agent.json:\n${result.absolute}`
+      : "Папка есть, но нет awn-agent.json";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -1764,7 +1771,7 @@ function renderAgentsRegistryList() {
     nameInput.type = "text";
     nameInput.className = "agents-registry-name-input";
     nameInput.dataset.agentName = "1";
-    nameInput.placeholder = "Сохраняется в acms.main.json";
+    nameInput.placeholder = "Сохраняется в awn-agent.json";
     nameInput.value = agent.name || "";
     nameInput.addEventListener("input", () => {
       agentsRegistryDraft[index].name = nameInput.value;
@@ -1779,7 +1786,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус acms.main.json");
+    pathStatusNode.setAttribute("aria-label", "Статус awn-agent.json");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -1797,7 +1804,7 @@ function renderAgentsRegistryList() {
     commentInput.className = "agents-registry-comment-input";
     commentInput.dataset.agentComment = "1";
     commentInput.rows = 1;
-    commentInput.placeholder = "Сохраняется в acms.main.json";
+    commentInput.placeholder = "Сохраняется в awn-agent.json";
     commentInput.value = agent.comment || "";
     commentInput.addEventListener("input", () => {
       agentsRegistryDraft[index].comment = commentInput.value;
@@ -2069,7 +2076,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование acms.main.json…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование awn-agent.json…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -2088,7 +2095,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">acms.main.json не найден</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">awn-agent.json не найден</div>`;
     return;
   }
 
@@ -2168,7 +2175,6 @@ async function saveAgentsRegistryDraft() {
 
     const data = await response.json();
     await loadAgents();
-    migrateAllAgentCollapsedFolderKeys();
     const previousAgentId = activeAgentId;
     if (!agentsCache.some((agent) => agent.id === activeAgentId) || !getSelectableAgents().some((agent) => agent.id === activeAgentId)) {
       activeAgentId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
@@ -2249,11 +2255,11 @@ const MODE_GROUPS = [
     title: "Память",
     icon: "🧠",
     modes: [
-      { id: "inbox", label: "Входящие" },
-      { id: "repository", label: "Репозиторий", disabled: true },
       { id: "external", label: "Многофайловая" },
       { id: "internal", label: "Однофайловая" },
       { id: "tabular", label: "Табличная" },
+      { id: "inbox", label: "Входящие" },
+      { id: "repository", label: "Репозиторий", disabled: true },
       { id: "external-db", label: "Реляционная БД", disabled: true },
       { id: "references", label: "Источники" },
       { id: "volume", label: "Рассуждения (volume)", disabled: true }
@@ -2349,6 +2355,7 @@ let createModalBaseParentPath = ".";
 /** Агент, для которого открыта модалка «Создать» (защита от гонки при переключении). */
 let createModalAgentId = null;
 let createModalEmptyFolder = false;
+let createModalAdoptFolder = false;
 let currentMenuData = null;
 let menuSearchQuery = "";
 let menuViewMode = "tree";
@@ -2359,7 +2366,6 @@ let agentMap2LinksResizeObserver = null;
 const menuCacheByAgent = new Map();
 const menuAgentPanes = new Map();
 const COLLAPSED_FOLDERS_STORAGE_KEY = "agentcms.collapsedFolders.v2";
-const COLLAPSED_FOLDERS_LEGACY_STORAGE_KEY = "agentcms.collapsedFolders.v1";
 const BOOKMARKS_STORAGE_KEY = "agentcms.bookmarks.v1";
 const NODE_DEFAULT_VIEW_STORAGE_KEY = "agentcms.nodeDefaultView.v1";
 const NODE_CONFIG_HEADER = "# Agent CMS — конфигурация\n";
@@ -2508,6 +2514,8 @@ let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
 let wysiwygEditorResizeObserver = null;
+let sourceEditorResizeObserver = null;
+let sourceEditorViewportResizeBound = false;
 const EDITOR_LINE_NUMBERS_STORAGE_KEY = "agentcms.editorLineNumbers";
 let editorLineNumbersEnabled = readStorageItem(EDITOR_LINE_NUMBERS_STORAGE_KEY) === "1";
 const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
@@ -2602,35 +2610,6 @@ function resolveSectionFolderPath(node, parentSectionPath = "", depth = 0) {
   return normalizeFolderPath(getSectionFolderPath(node, parentSectionPath));
 }
 
-function migrateAgentCollapsedFolderKeys(agentId = activeAgentId) {
-  const set = getAgentCollapsedFolders(agentId);
-  const agentName = String(agentsCache.find((agent) => agent.id === agentId)?.name || "").trim();
-  if (!agentName || set.size === 0) return;
-
-  let changed = false;
-  for (const path of Array.from(set)) {
-    if (path === agentName) {
-      set.delete(path);
-      set.add(".");
-      changed = true;
-      continue;
-    }
-    const prefix = `${agentName}/`;
-    if (path.startsWith(prefix)) {
-      set.delete(path);
-      set.add(normalizeFolderPath(path.slice(prefix.length)));
-      changed = true;
-    }
-  }
-  if (changed) saveCollapsedFoldersByAgent();
-}
-
-function migrateAllAgentCollapsedFolderKeys() {
-  for (const agent of agentsCache) {
-    migrateAgentCollapsedFolderKeys(agent.id);
-  }
-}
-
 function getAgentCollapsedFolders(agentId = activeAgentId) {
   const id = agentId || activeAgentId || "main";
   if (!collapsedFoldersByAgent[id]) {
@@ -2672,27 +2651,7 @@ function loadCollapsedFoldersByAgent() {
       }
     }
   } catch {
-    // fall through to legacy migration
-  }
-
-  try {
-    const rawLegacy =
-      readStorageItem(COLLAPSED_FOLDERS_LEGACY_STORAGE_KEY) ||
-      localStorage.getItem("yamlcms.collapsedFolders.v1");
-    if (!rawLegacy) return byAgent;
-    const parsed = JSON.parse(rawLegacy);
-    if (!Array.isArray(parsed)) return byAgent;
-    for (const item of parsed) {
-      if (typeof item !== "string" || !item.length) continue;
-      if (item.includes(":")) {
-        const separatorIndex = item.indexOf(":");
-        addPath(item.slice(0, separatorIndex), item.slice(separatorIndex + 1));
-      } else {
-        addPath("main", item);
-      }
-    }
-  } catch {
-    return byAgent;
+    // ignore malformed storage
   }
 
   return byAgent;
@@ -2766,6 +2725,20 @@ function isFolderInPinnedBranch(folderPath, pinnedPath) {
   return false;
 }
 
+function getPinnedMenuFolderForTree(agentId = activeAgentId) {
+  if (menuSearchQuery.trim()) return null;
+  return getPinnedMenuFolder(agentId);
+}
+
+function isMenuItemInPinnedBranch(itemPath, pinnedPath) {
+  const pinned = normalizeFolderPath(pinnedPath || ".");
+  if (pinned === ".") return true;
+  const normalizedPath = normalizeMenuNodePath(itemPath);
+  const folder = normalizeFolderPath(getFolderPathFromManifest(normalizedPath) || ".");
+  if (folder === pinned || folder.startsWith(`${pinned}/`)) return true;
+  return false;
+}
+
 function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   const normalized = normalizeFolderPath(folderPath || ".");
@@ -2804,9 +2777,7 @@ function applyPinnedBranchCollapse(agentId = activeAgentId) {
   const folderPaths = getMenuTreeFolderPaths(agentId);
   const paths = new Set([".", ...folderPaths]);
   const serviceFolder = getActiveAgentServiceFolder(agentId);
-  const pinInService =
-    serviceFolder &&
-    (pinned === serviceFolder || pinned.startsWith(`${serviceFolder}/`));
+  const pinInService = serviceFolder && isPinnedInsideServiceFolder(agentId);
 
   expandPinnedFolderPathChain(pinned, agentId);
 
@@ -2837,7 +2808,7 @@ function pinMenuBranch(folderPath, agentId = activeAgentId) {
   applyPinnedBranchCollapse(agentId);
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   if (menu) {
-    renderMenu(menu, agentId);
+    renderMenu(menu, agentId, { menuOnly: true });
     if (agentId === activeAgentId) updateActiveButton();
   }
   syncMenuPinBranchUi(agentId);
@@ -2851,7 +2822,7 @@ function unpinMenuBranch(agentId = activeAgentId) {
   syncMenuPinBranchUi(agentId);
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   if (menu && agentId === activeAgentId) {
-    renderMenu(menu, agentId);
+    renderMenu(menu, agentId, { menuOnly: true });
     updateActiveButton();
   }
   showToast("Ветка откреплена", "success");
@@ -3073,22 +3044,6 @@ async function loadNodeConfig(nodePath, options = {}) {
         ? data.defaultLandingMode
         : null) || parsed.defaultLandingMode
   };
-
-  if (agentId === activeAgentId && !payload.defaultLandingMode) {
-    const legacyKey = nodeStorageKey(agentId, nodePath);
-    const legacyViews = readLegacyNodeDefaultViewsFromStorage();
-    const legacy = legacyViews.get(legacyKey);
-    if (legacy?.mode && isValidNodeDefaultLandingMode(legacy.mode)) {
-      try {
-        const migrated = await saveNodeConfigDefaultLanding(nodePath, legacy.mode, { agentId, skipMigration: true });
-        removeLegacyNodeDefaultViewFromStorage(legacyKey);
-        setCachedNodeConfig(nodePath, migrated, agentId);
-        return migrated;
-      } catch {
-        payload.defaultLandingMode = legacy.mode;
-      }
-    }
-  }
 
   setCachedNodeConfig(nodePath, payload, agentId);
   return payload;
@@ -3388,10 +3343,21 @@ function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   });
 }
 
-function getVisibleMenuChildren(node, agentId = activeAgentId) {
+function getVisibleMenuChildren(node, agentId = activeAgentId, parentSectionPath = ".", depth = 0) {
+  const pinnedPath = getPinnedMenuFolderForTree(agentId);
   return getOrderedMenuChildren(node).filter((child) => {
     if (!child?.entry) return false;
-    if (child.kind === "folder") return shouldShowMenuTreeFolder(child.entry, agentId);
+    if (child.kind === "folder") {
+      if (!shouldShowMenuTreeFolder(child.entry, agentId)) return false;
+      if (pinnedPath) {
+        const childFolderPath = resolveSectionFolderPath(child.entry, parentSectionPath, depth + 1);
+        return isFolderInPinnedBranch(childFolderPath, pinnedPath);
+      }
+      return true;
+    }
+    if (pinnedPath) {
+      return isMenuItemInPinnedBranch(child.entry.path, pinnedPath);
+    }
     return true;
   });
 }
@@ -3425,7 +3391,7 @@ function toggleBookmark(nodePath) {
   }
   saveBookmarks();
   if (menuViewMode === "bookmarks" && currentMenuData) {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   } else {
     updateBookmarkButtonStates();
@@ -3447,7 +3413,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка t.{Name}/t.README.md — без драйверов памяти. */
+/** Область (Space): папка {Name}/README.x.md — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
@@ -3465,8 +3431,13 @@ function isNodeSettingsTargetPath(nodePath) {
 }
 
 async function selectNodeManifest(label, filePath, contentMode) {
+  if (contentMode) {
+    applyContentModeState(contentMode);
+  }
   await selectFile(label, filePath);
-  if (contentMode) setContentMode(contentMode);
+  if (contentMode) {
+    syncAppRouteToUrl({ replace: true });
+  }
 }
 
 async function openNodeOverview(label, filePath) {
@@ -3956,8 +3927,42 @@ function createFolderToggleButton(hasContent, isCollapsed, onToggle) {
   return toggleBtn;
 }
 
+function isAsyncOverviewRenderMode(mode = activeContentMode) {
+  return mode === NODE_NAVIGATION_MODE || mode === NODE_OVERVIEW_MODE;
+}
+
+function contentLoadingVariantForMode(mode = activeContentMode) {
+  if (isAsyncOverviewRenderMode(mode)) return "navigation";
+  if (
+    mode === "description" ||
+    mode === "internal" ||
+    mode === "configs" ||
+    mode === "env" ||
+    mode === "scripts" ||
+    mode === "todo"
+  ) {
+    return "editor";
+  }
+  return "default";
+}
+
+function showContentLoading() {
+  // Центральный оверлей загрузки отключён — контент обновляется без анимации.
+}
+
+function hideContentLoading() {
+  if (!contentLoadingNode) return;
+  contentLoadingNode.classList.add("hidden");
+  contentLoadingNode.setAttribute("aria-busy", "false");
+  docSlabMainNode?.classList.remove("is-content-loading");
+}
+
 function setLoading(message) {
-  fileContentInputNode.value = message;
+  showContentLoading({
+    variant: contentLoadingVariantForMode(),
+    message: message || "Загрузка…"
+  });
+  fileContentInputNode.value = "";
   refreshEditorViewContent();
 }
 
@@ -4164,23 +4169,65 @@ function formatCreateParentLabel(parentPath) {
 
 function resolveCreateTargetParentPath(baseParentPath, useVault, agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(baseParentPath || ".");
-  if (normalized !== ".") return normalized;
-  if (useVault) {
-    const vaultFolder = getActiveAgentVaultFolder(agentId);
-    if (vaultFolder) return vaultFolder;
+  if (isServiceNodePath(normalized)) return normalized;
+
+  const vaultFolder = getActiveAgentVaultFolder(agentId);
+  if (!useVault || !vaultFolder) return normalized;
+
+  const vaultLower = vaultFolder.toLowerCase();
+  const normalizedLower = normalized.toLowerCase();
+  if (normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`)) {
+    return normalized;
   }
-  return ".";
+  if (normalized === ".") return vaultFolder;
+  return `${vaultFolder}/${normalized}`;
+}
+
+function isMenuRenderInServiceTree(parentEl) {
+  return Boolean(parentEl?.closest?.(".menu-service-section"));
+}
+
+function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
+  const raw = String(folderPath || "").replace(/\\/g, "/").trim();
+  if (!raw || raw === ".") return ".";
+  if (isServiceNodePath(raw)) return raw;
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  if (!serviceFolder) return raw;
+  return `${serviceFolder}/${raw}`.replace(/\/+/g, "/");
+}
+
+function shouldOfferAreaAdopt(node) {
+  if (!node || node.indexPath) return false;
+  return Boolean(String(node.folderPath || "").trim());
+}
+
+function resolveCreateModalParentPath(parentPath, options = {}) {
+  const agentId = options.agentId || getCreateModalAgentId();
+  const raw = String(options.folderPath || parentPath || ".").trim();
+  if (options.inServiceTree || isMenuRenderInServiceTree(options.menuParentEl)) {
+    return normalizeCreateParentPath(resolveServiceTreeFolderPath(raw, agentId));
+  }
+  return normalizeCreateParentPath(raw);
 }
 
 function syncCreateNodeVaultOptionUi() {
   const vaultFolder = getActiveAgentVaultFolder(getCreateModalAgentId());
   const showVaultOption = createModalBaseParentPath === "." && Boolean(vaultFolder);
   createNodeVaultOptionWrapNode?.classList.toggle("hidden", !showVaultOption);
+  createNodeVaultOptionWrapNode?.classList.toggle("is-disabled", showVaultOption);
   if (createNodeVaultOptionLabelNode && vaultFolder) {
     createNodeVaultOptionLabelNode.textContent = `Создать в папке ${vaultFolder}`;
   }
-  if (showVaultOption && createNodeVaultOptionNode) {
-    createNodeVaultOptionNode.checked = true;
+  if (createNodeVaultOptionNode) {
+    if (showVaultOption) {
+      createNodeVaultOptionNode.checked = true;
+      createNodeVaultOptionNode.disabled = true;
+    } else {
+      createNodeVaultOptionNode.disabled = false;
+      if (isServiceNodePath(createModalBaseParentPath)) {
+        createNodeVaultOptionNode.checked = false;
+      }
+    }
   }
   applyCreateNodeTargetPath();
 }
@@ -4218,20 +4265,55 @@ function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   return menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
 }
 
+function collectServicePathLookupVariants(agentId, relPath) {
+  const raw = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!raw) return [];
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const variants = new Set([raw.toLowerCase()]);
+  if (!serviceFolder) return [...variants];
+
+  const stripped = stripServicePrefixFromRelPath(raw);
+  variants.add(stripped.toLowerCase());
+  if (stripped) {
+    variants.add(`${serviceFolder}/${stripped}`.replace(/\/+/g, "/").toLowerCase());
+  }
+  if (!raw.toLowerCase().startsWith(`${serviceFolder.toLowerCase()}/`)) {
+    variants.add(`${serviceFolder}/${raw}`.replace(/\/+/g, "/").toLowerCase());
+  }
+  return [...variants];
+}
+
+function buildServiceMenuPathsSet(agentId, menu) {
+  const paths = new Set();
+  if (!menu?.serviceTree) return paths;
+  for (const entry of collectFlatMenuEntries({ title: "", ...menu.serviceTree })) {
+    for (const variant of collectServicePathLookupVariants(agentId, entry.path)) {
+      paths.add(variant);
+    }
+  }
+  return paths;
+}
+
+function isServiceManifestCandidatePresent(agentId, candidatePaths) {
+  const menu = getCreateModalMenuData(agentId);
+  if (!menu?.serviceTree) return false;
+  const paths = buildServiceMenuPathsSet(agentId, menu);
+  return candidatePaths.some((candidate) =>
+    collectServicePathLookupVariants(agentId, candidate).some((variant) => paths.has(variant))
+  );
+}
+
 function getCatalogPresetManifestCandidates(serviceFolder, preset) {
   const fileName = SERVICE_CATALOG_PRESET_FILES[preset];
   if (!serviceFolder || !fileName) return [];
   const stems = [fileName, String(preset || "").trim()];
   const folders = [SERVICE_CATALOG_FOLDER, ""];
-  const suffixes = [".x.md", ".node.md"];
   const paths = [];
   for (const folder of folders) {
     for (const stem of stems) {
       if (!stem) continue;
-      for (const suffix of suffixes) {
-        const rel = folder ? `${folder}/${stem}${suffix}` : `${stem}${suffix}`;
-        paths.push(`${serviceFolder}/${rel}`.replace(/\/+/g, "/"));
-      }
+      const rel = folder ? `${folder}/${stem}.md` : `${stem}.md`;
+      paths.push(`${serviceFolder}/${rel}`.replace(/\/+/g, "/"));
     }
   }
   return paths;
@@ -4240,37 +4322,24 @@ function getCatalogPresetManifestCandidates(serviceFolder, preset) {
 function isCatalogPresetPresent(agentId, preset) {
   const serviceFolder = getActiveAgentServiceFolder(agentId);
   if (!serviceFolder) return false;
-  const menu = getCreateModalMenuData(agentId);
-  if (!menu?.serviceTree) return false;
-  const paths = new Set(
-    collectFlatMenuEntries({ title: "", ...menu.serviceTree }).map((entry) =>
-      String(entry.path || "").replace(/\\/g, "/").toLowerCase()
-    )
-  );
-  return getCatalogPresetManifestCandidates(serviceFolder, preset).some((candidate) =>
-    paths.has(candidate.toLowerCase())
+  return isServiceManifestCandidatePresent(
+    agentId,
+    getCatalogPresetManifestCandidates(serviceFolder, preset)
   );
 }
 
 function getServiceDocManifestCandidates(serviceFolder, preset) {
   const fileName = SERVICE_DOC_PRESET_FILES[preset];
   if (!serviceFolder || !fileName) return [];
-  const suffixes = [".x.md", ".node.md"];
-  return suffixes.map((suffix) => `${serviceFolder}/${fileName}${suffix}`.replace(/\/+/g, "/"));
+  return [`${serviceFolder}/${fileName}.md`.replace(/\/+/g, "/")];
 }
 
 function isServiceDocPresetPresent(agentId, preset) {
   const serviceFolder = getActiveAgentServiceFolder(agentId);
   if (!serviceFolder) return false;
-  const menu = getCreateModalMenuData(agentId);
-  if (!menu?.serviceTree) return false;
-  const paths = new Set(
-    collectFlatMenuEntries({ title: "", ...menu.serviceTree }).map((entry) =>
-      String(entry.path || "").replace(/\\/g, "/").toLowerCase()
-    )
-  );
-  return getServiceDocManifestCandidates(serviceFolder, preset).some((candidate) =>
-    paths.has(candidate.toLowerCase())
+  return isServiceManifestCandidatePresent(
+    agentId,
+    getServiceDocManifestCandidates(serviceFolder, preset)
   );
 }
 
@@ -4307,7 +4376,7 @@ function syncCreateNodeServiceDocButtonsUi() {
     const fileName = SERVICE_DOC_PRESET_FILES[preset] || preset;
     button.disabled = exists;
     button.setAttribute("aria-disabled", exists ? "true" : "false");
-    button.title = exists ? `«${label}» (t.${fileName}.md) уже создан` : `t.${fileName}.md`;
+    button.title = exists ? `«${label}» (${fileName}.md) уже создан` : `${fileName}.md`;
   }
 }
 
@@ -4331,7 +4400,7 @@ function isServiceSubfolderCreateParent(parentPath) {
 }
 
 function syncCreateNodeActionsUi() {
-  const showManifestOption = createModalEmptyFolder && createModalBaseParentPath !== ".";
+  const showManifestOption = createModalAdoptFolder && createModalBaseParentPath !== ".";
   const serviceRoot = isServiceRootCreateParent(createModalBaseParentPath);
   const serviceSubfolder = isServiceSubfolderCreateParent(createModalBaseParentPath);
   const inServiceTree = serviceRoot || serviceSubfolder;
@@ -4341,6 +4410,7 @@ function syncCreateNodeActionsUi() {
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
   createNodeCatalogWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeServiceDocsWrapNode?.classList.toggle("hidden", !serviceRoot);
+  createNodeDividerNode?.classList.toggle("hidden", !serviceRoot);
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
   createNodeActionsNode?.classList.toggle("create-node-actions--service", inServiceTree);
 
@@ -4351,7 +4421,8 @@ function syncCreateNodeActionsUi() {
 }
 
 function applyCreateNodeTargetPath() {
-  const useVault = Boolean(createNodeVaultOptionNode?.checked);
+  const useVault =
+    Boolean(createNodeVaultOptionNode?.checked) && !isServiceNodePath(createModalBaseParentPath);
   createTargetParentPath = resolveCreateTargetParentPath(createModalBaseParentPath, useVault);
   updateCreateNodeModalContext(createTargetParentPath);
 }
@@ -4359,8 +4430,8 @@ function applyCreateNodeTargetPath() {
 function updateCreateNodeModalContext(parentPath) {
   const label = formatCreateParentLabel(parentPath);
   if (createNodeModalTitleNode) {
-    if (createModalEmptyFolder && createModalBaseParentPath !== ".") {
-      createNodeModalTitleNode.textContent = `Папка «${label}» — без темы`;
+    if (createModalAdoptFolder && createModalBaseParentPath !== ".") {
+      createNodeModalTitleNode.textContent = `Папка «${label}» — без области`;
     } else {
       createNodeModalTitleNode.textContent = `Создать в «${label}»`;
     }
@@ -4373,22 +4444,27 @@ function closeCreateNodeModal() {
   createModalBaseParentPath = ".";
   createModalAgentId = null;
   createModalEmptyFolder = false;
+  createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
   createNodeVaultOptionWrapNode?.classList.add("hidden");
-  if (createNodeVaultOptionNode) createNodeVaultOptionNode.checked = true;
+  createNodeVaultOptionWrapNode?.classList.remove("is-disabled");
+  if (createNodeVaultOptionNode) {
+    createNodeVaultOptionNode.checked = true;
+    createNodeVaultOptionNode.disabled = false;
+  }
   syncCreateNodeActionsUi();
 }
 
 function openCreateNodeModal(parentPath, options = {}) {
   createModalAgentId = options.agentId || activeAgentId;
-  const folderPath = String(options.folderPath || parentPath || ".").trim();
-  createModalBaseParentPath = normalizeCreateParentPath(folderPath);
+  createModalBaseParentPath = resolveCreateModalParentPath(parentPath, options);
   createModalEmptyFolder = Boolean(options.emptyFolder);
+  createModalAdoptFolder = Boolean(options.adoptFolder ?? options.emptyFolder);
   syncCreateNodeVaultOptionUi();
   syncCreateNodeActionsUi();
   createNodeModalNode?.classList.remove("hidden");
   if (createNameInputNode) {
-    if (createModalEmptyFolder && createModalBaseParentPath !== ".") {
+    if (createModalAdoptFolder && createModalBaseParentPath !== ".") {
       createNameInputNode.value = formatCreateParentLabel(createModalBaseParentPath);
     } else {
       createNameInputNode.value = "";
@@ -4408,9 +4484,15 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   }
   saveCollapsedFoldersByAgent();
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  if (menu) {
-    renderMenu(menu, agentId);
-    if (agentId === activeAgentId) updateActiveButton();
+  const patched = menu
+    ? withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId))
+    : false;
+  if (!patched && menu) {
+    withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
+  }
+  if (agentId === activeAgentId) {
+    updateActiveButton();
+    syncMenuCollapseAllButton();
   }
 }
 
@@ -4458,7 +4540,10 @@ function expandAllMenuTreeBranches(agentId = activeAgentId) {
   getAgentCollapsedFolders(agentId).clear();
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", "0");
   saveCollapsedFoldersByAgent();
-  renderMenu(currentMenuData, agentId);
+  const patched = withPreservedMenuScroll(() => refreshAllFolderCollapsedPatches(agentId));
+  if (!patched) {
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
+  }
   updateActiveButton();
   syncMenuCollapseAllButton();
 }
@@ -4473,7 +4558,10 @@ function collapseAllMenuTreeBranches(agentId = activeAgentId) {
   }
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", "1");
   saveCollapsedFoldersByAgent();
-  renderMenu(currentMenuData, agentId);
+  const patched = withPreservedMenuScroll(() => refreshAllFolderCollapsedPatches(agentId));
+  if (!patched) {
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
+  }
   updateActiveButton();
   syncMenuCollapseAllButton();
 }
@@ -4502,14 +4590,14 @@ function isNodeCanvasViewMode() {
   return isGraphModeActive() || isMindmapModeActive();
 }
 
-function setContentMode(mode) {
-  if (mode === "graph") return;
+function applyContentModeState(mode) {
+  if (mode === "graph") return false;
   const group = findModeGroup(mode);
   const modeDef = group?.modes.find((item) => item.id === mode);
-  if (modeDef?.disabled) return;
+  if (modeDef?.disabled) return false;
   if (mode === "graph" && !activePath) {
     showToast("Выберите тему в дереве слева", "info");
-    return;
+    return false;
   }
   if (isMemoryDriverModeBlockedForActivePath(mode)) {
     mode = NODE_NAVIGATION_MODE;
@@ -4541,6 +4629,11 @@ function setContentMode(mode) {
   syncNodeSettingsModeSelect();
   syncNodeMemoryModeSelect();
   applyNodeWorkspaceViewUi();
+  return true;
+}
+
+function setContentMode(mode) {
+  if (!applyContentModeState(mode)) return;
   syncAppRouteToUrl({ replace: true });
   void applyContentModeChange();
 }
@@ -4638,8 +4731,9 @@ function getNodeStoragePrefix(nodePath) {
 function getNodeStorageSubfolderPath(nodePath, subfolderOrMode) {
   const folder =
     getStorageSubfolderForMode(subfolderOrMode) || String(subfolderOrMode || "").trim();
-  const slotDir = getNamedStorageSlotDirRel(nodePath);
-  return slotDir ? `${slotDir}/${folder}` : `${getNodeStoragePrefix(nodePath)}/${folder}`;
+  const resolvedPath = getResolvedNodePath(nodePath);
+  const slotDir = getNamedStorageSlotDirRel(resolvedPath);
+  return slotDir ? `${slotDir}/${folder}` : `${getNodeStoragePrefix(resolvedPath)}/${folder}`;
 }
 
 function getEnvBreadcrumbPath(nodePath) {
@@ -4689,9 +4783,12 @@ function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
   if (isAreaManifestFileName(base)) {
-    return stripTopicPrefix(normalized.slice(0, normalized.lastIndexOf("/")).split("/").pop() || "");
+    return stripTopicPrefix(base);
   }
-  return stripTopicPrefix(base);
+  if (MANIFEST_MD_RE.test(base) && !isExcludedMenuTopicMd(base)) {
+    return stripTopicPrefix(base);
+  }
+  return "";
 }
 
 function getNamedStorageSlotDirRel(relPath) {
@@ -4772,7 +4869,10 @@ let agentTableSortDir = "asc";
 function manifestRelToXSidecar(relPath, sidecarSuffix) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const dot = sidecarSuffix.startsWith(".") ? sidecarSuffix : `.${sidecarSuffix}`;
-  return normalized.replace(MANIFEST_MD_RE, `.x${dot}`);
+  if (isAreaManifestFileName(normalized.split("/").pop() || "") || isTopicManifestPath(normalized)) {
+    return normalized.replace(/\.md$/i, `${dot}.md`);
+  }
+  return normalized;
 }
 
 function toTodoSidecarRelPath(nodePath) {
@@ -6137,7 +6237,7 @@ function buildMindmapTreeForActiveNode() {
   if (!activePath || !currentMenuData) return null;
   const baseTree = { title: getAgentTreeTitle(), ...currentMenuData };
   const rootEntry = {
-    path: activePath,
+    path: getActiveNodeApiPath(),
     label: activeLabel || getLabelFromPath(activePath),
     isFolder: isContainerNodePath(activePath)
   };
@@ -6535,7 +6635,7 @@ async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath() }
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      path: getResolvedNodePath(nodePath),
+      path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
       data,
       fileName: normalizedFile.name || buildPastedAttachmentFileName(normalizedFile),
       mimeType: normalizedFile.type
@@ -8030,7 +8130,7 @@ function getMediaSidecarFileName(filePath = activeMediaSidecarSourcePath) {
 async function refreshMediaCache() {
   if (!activePath || activeContentMode !== "media") return;
   try {
-    const response = await fetch(buildApiUrl("/api/media", { path: activePath }));
+    const response = await fetch(buildApiUrl("/api/media", { path: getActiveNodeApiPath() }));
     if (!response.ok) return;
     const data = await response.json();
     mediaAssetsExists = Boolean(data.exists);
@@ -8064,7 +8164,7 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
 
   if (reloadFromServer) {
     try {
-      const response = await fetch(buildApiUrl("/api/external/files", { path: activePath }));
+      const response = await fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() }));
       if (response.ok) {
         const data = await response.json();
         externalFilesCache = Array.isArray(data.files) ? data.files : [];
@@ -8101,7 +8201,7 @@ async function openMediaSidecar(mediaFilePath) {
   if (!activePath || activeContentMode !== "media" || !mediaFilePath) return;
   try {
     const response = await fetch(
-      buildApiUrl("/api/media/sidecar", { path: activePath, file: mediaFilePath })
+      buildApiUrl("/api/media/sidecar", { path: getActiveNodeApiPath(), file: mediaFilePath })
     );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -8454,7 +8554,7 @@ async function openExternalFile(filePath) {
   if (!activePath) return;
   try {
     const response = await fetch(
-      buildApiUrl("/api/external/file", { path: activePath, file: filePath })
+      buildApiUrl("/api/external/file", { path: getActiveNodeApiPath(), file: filePath })
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
@@ -8523,7 +8623,7 @@ async function createExternalMemoryFile(title) {
   const response = await fetch(buildApiUrl("/api/external/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: activePath, title })
+    body: JSON.stringify({ path: getActiveNodeApiPath(), title })
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -8612,7 +8712,7 @@ async function createExternalSection() {
     const response = await fetch(buildApiUrl("/api/external/section/create"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: activePath, title })
+      body: JSON.stringify({ path: getActiveNodeApiPath(), title })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -8716,6 +8816,8 @@ function commitEditorSaveBaseline() {
 function applySystemFileUi() {
   appRootNode.classList.add("system-file-view");
   workspacePathHeaderNode?.classList.add("is-service-file");
+  nodeOverviewBlockNode?.classList.add("hidden");
+  nodeOverviewBlockNode?.classList.remove("is-node-navigation", "is-container-node");
   titleEditorBlockNode.classList.add("hidden");
   setTitleLockedDisplay(activeSystemFile || "");
   editorViewToggleNode?.classList.remove("hidden");
@@ -8729,7 +8831,9 @@ function applySystemFileUi() {
   previewUploadBlockNode?.classList.add("hidden");
   graphViewBlockNode?.classList.add("hidden");
   editorSurfaceNode?.classList.remove("hidden");
+  editorCodeWrapNode?.classList.remove("hidden");
   workspacePathToolbarNode?.classList.remove("hidden");
+  workspaceGdriveSyncBtn?.classList.add("hidden");
   nodeWorkspaceNavControlsNode?.classList.add("hidden");
   nodeSettingsPathControlsNode?.classList.add("hidden");
   nodeMemoryPathControlsNode?.classList.add("hidden");
@@ -8748,6 +8852,7 @@ function applySystemFileUi() {
 function clearSystemFileViewUi() {
   appRootNode.classList.remove("system-file-view");
   workspacePathHeaderNode?.classList.remove("is-service-file");
+  workspaceGdriveSyncBtn?.classList.remove("hidden");
   if (!isMediaSidecarEditing()) {
     resetTitleInputState();
   }
@@ -8834,9 +8939,10 @@ function getOverviewMarkdownBeforeDivider(rawManifest = "") {
 const MEMORY_DRIVER_MODES = new Set(["internal", "external", "tabular"]);
 
 async function fetchMemorySummary(nodePath = activePath) {
-  if (!nodePath) return null;
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/memory/summary", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/memory/summary", { path: apiPath }));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -9204,6 +9310,11 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   const hero = document.createElement("div");
   hero.className = "node-navigation-hero";
 
+  const metaPanel = buildNavigationHeroMetaPanel(options.meta, nodePath);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-hero-body";
+
   const thumbWrap = createOverviewThumbWrap(preview, title, nodePath);
 
   const head = document.createElement("div");
@@ -9218,17 +9329,13 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   pathNode.textContent = getLabelFromPath(nodePath) || activeLabel || "—";
 
   head.append(titleNode, pathNode);
-
-  const slotStrip = renderNodeSlotStrip(options.slotStatuses);
-  if (slotStrip) head.appendChild(slotStrip);
-
-  const metaPanel = buildNavigationHeroMetaPanel(options.meta, nodePath);
-  hero.append(thumbWrap, head, metaPanel);
+  body.append(thumbWrap, head);
+  hero.append(body, metaPanel);
   return hero;
 }
 
 async function fetchTodoForOverview(nodePath = activePath) {
-  const apiPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  const apiPath = getOverviewNodeApiPath(nodePath);
   if (!apiPath) return null;
   try {
     const response = await fetch(buildApiUrl("/api/todo", { path: apiPath }));
@@ -9433,9 +9540,10 @@ function renderOverviewMemoryBlock(summary, nodePath = activePath) {
 }
 
 async function fetchMediaOverview(nodePath = activePath) {
-  if (!nodePath) return null;
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/media", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/media", { path: apiPath }));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -9701,16 +9809,22 @@ function buildNodeSlotStatuses({
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
-  const memorySlots = [
-    { id: "internal", label: "Однофайловая", filled: hasInternal, modeId: "internal" },
-    { id: "external", label: "Многофайловая", filled: hasExternal, modeId: "external" },
-    { id: "tabular", label: "Табличная", filled: hasTabular, modeId: "tabular" },
-    { id: "media", label: "Медиа", filled: hasMedia, modeId: "media" }
-  ];
+  const filledById = {
+    external: hasExternal,
+    internal: hasInternal,
+    tabular: hasTabular,
+    media: hasMedia
+  };
+  const memorySlots = isArea
+    ? []
+    : NODE_OVERVIEW_SLOT_MEMORY_SPECS.map((spec) => ({
+        ...spec,
+        filled: Boolean(filledById[spec.id])
+      }));
 
   return [
     { id: "description", label: "Назначение", filled: hasDescription, modeId: "description" },
-    ...(isArea ? [] : memorySlots),
+    ...memorySlots,
     { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
   ];
 }
@@ -9748,6 +9862,10 @@ function renderNodeSlotStrip(slotStatuses = []) {
       }
       if (slot.modeId === "todo") {
         openTodoFromOverview();
+        return;
+      }
+      if (slot.modeId === "media") {
+        openNavigationPanelMode("media");
         return;
       }
       if (isAreaContentModeBlocked(slot.modeId)) return;
@@ -9920,9 +10038,10 @@ function compareNavigationPathsNatural(aPath, bPath) {
 }
 
 async function fetchExternalFilesForNavigation(nodePath) {
-  if (!nodePath) return { exists: false, files: [] };
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return { exists: false, files: [] };
   try {
-    const response = await fetch(buildApiUrl("/api/external/files", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/external/files", { path: apiPath }));
     if (!response.ok) return { exists: false, files: [] };
     const data = await response.json();
     return {
@@ -9935,9 +10054,10 @@ async function fetchExternalFilesForNavigation(nodePath) {
 }
 
 async function fetchInternalMemoryForNavigation(nodePath) {
-  if (!nodePath) return { exists: false, content: "", path: null };
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return { exists: false, content: "", path: null };
   try {
-    const response = await fetch(buildApiUrl("/api/memory/internal", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/memory/internal", { path: apiPath }));
     if (!response.ok) return { exists: false, content: "", path: null };
     const data = await response.json();
     return {
@@ -9951,9 +10071,10 @@ async function fetchInternalMemoryForNavigation(nodePath) {
 }
 
 async function fetchTabularMemoryForNavigation(nodePath) {
-  if (!nodePath) return { exists: false, columns: [], rows: [], rowCount: 0, path: null };
+  const apiPath = getOverviewNodeApiPath(nodePath);
+  if (!apiPath) return { exists: false, columns: [], rows: [], rowCount: 0, path: null };
   try {
-    const response = await fetch(buildApiUrl("/api/memory/tabular", { path: nodePath }));
+    const response = await fetch(buildApiUrl("/api/memory/tabular", { path: apiPath }));
     if (!response.ok) return { exists: false, columns: [], rows: [], rowCount: 0, path: null };
     const data = await response.json();
     return {
@@ -10426,7 +10547,6 @@ async function renderNodeNavigation() {
     activeContentMode !== NODE_NAVIGATION_MODE ||
     !nodeOverviewContentNode;
 
-  nodeOverviewContentNode.replaceChildren();
   if (isStale()) return;
 
   if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
@@ -10484,10 +10604,12 @@ async function renderNodeNavigation() {
   hub.appendChild(
     createNavigationHero(preview, heroTitle, nodePath, {
       meta: nodeMeta,
-      propEntries: entries,
-      slotStatuses
+      propEntries: entries
     })
   );
+
+  const slotStrip = renderNodeSlotStrip(slotStatuses);
+  if (slotStrip) hub.appendChild(slotStrip);
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
   if (manifestPanel) hub.appendChild(manifestPanel);
@@ -10523,7 +10645,7 @@ async function renderNodeNavigation() {
     empty.textContent = "Нет данных для отображения";
     hub.appendChild(empty);
   }
-  nodeOverviewContentNode.appendChild(hub);
+  nodeOverviewContentNode.replaceChildren(hub);
 }
 
 async function renderNodeOverview() {
@@ -10817,8 +10939,10 @@ function applyModeUi() {
     return;
   }
   if (activeSystemFile) {
+    nodeOverviewRenderSeq += 1;
     applySystemFileUi();
     updateBreadcrumbsForActiveMode();
+    syncWorkspaceRevealFolderButton();
     return;
   }
   clearSystemFileViewUi();
@@ -11142,6 +11266,7 @@ function refreshEditorViewContent() {
     return;
   }
   syncEditorLineNumbers();
+  applySourceEditorAutoHeightUi();
 }
 
 function appendCacheBuster(url) {
@@ -11306,7 +11431,6 @@ function syncEditorLineNumbers() {
 
 function syncEditorLineNumbersScroll() {
   if (!editorLineNumbersEnabled || !editorLineNumbersNode) return;
-  if (appRootNode?.classList.contains("editor-autoheight")) return;
   editorLineNumbersNode.scrollTop = fileContentInputNode.scrollTop;
 }
 
@@ -11316,41 +11440,63 @@ function toggleEditorLineNumbers() {
   applyEditorLineNumbersUi();
 }
 
-function shouldAutoSizeSourceEditor() {
-  return editorViewMode === "source";
+function shouldUseEditorAutoHeight() {
+  return editorViewMode === "wysiwyg" && isWysiwygEditorEnabled();
 }
 
-function shouldUseEditorAutoHeight() {
-  if (editorViewMode === "source") return true;
-  return editorViewMode === "wysiwyg" && isWysiwygEditorEnabled();
+function getEditorFillMinHeightPx() {
+  const surface = editorSurfaceNode || editorCodeWrapNode;
+  if (!surface) return 280;
+
+  const surfaceRect = surface.getBoundingClientRect();
+  const paddingBottom = 16;
+  const available = Math.floor(window.innerHeight - surfaceRect.top - paddingBottom);
+  if (!Number.isFinite(available) || available < 120) return 280;
+  return available;
+}
+
+function syncEditorFillMinHeightCssVar() {
+  const host = editorSurfaceNode || docSlabMainNode;
+  if (!host) return;
+  host.style.setProperty("--editor-fill-min-height", `${getEditorFillMinHeightPx()}px`);
+}
+
+function ensureSourceEditorResizeObserver() {
+  if (typeof ResizeObserver === "undefined") return;
+  const target = workspacePaneNode || workspaceBodyNode || docSlabMainNode;
+  if (!target) return;
+  sourceEditorResizeObserver?.disconnect();
+  sourceEditorResizeObserver = new ResizeObserver(() => {
+    if (!shouldUseEditorAutoHeight()) return;
+    syncEditorFillMinHeightCssVar();
+  });
+  sourceEditorResizeObserver.observe(target);
+  if (!sourceEditorViewportResizeBound) {
+    window.addEventListener("resize", handleSourceEditorViewportResize);
+    sourceEditorViewportResizeBound = true;
+  }
+}
+
+function handleSourceEditorViewportResize() {
+  if (!shouldUseEditorAutoHeight()) return;
+  syncEditorFillMinHeightCssVar();
 }
 
 function applyEditorAutoHeightUi() {
   if (!appRootNode) return;
   appRootNode.classList.toggle("editor-autoheight", shouldUseEditorAutoHeight());
+  syncEditorFillMinHeightCssVar();
 }
 
 function applySourceEditorAutoHeightUi() {
-  if (!appRootNode) return;
-  const enabled = shouldAutoSizeSourceEditor();
-  if (!enabled) {
-    fileContentInputNode.style.height = "";
-    if (editorLineNumbersNode) editorLineNumbersNode.style.height = "";
-    return;
+  if (!fileContentInputNode) return;
+  fileContentInputNode.style.height = "";
+  fileContentInputNode.style.minHeight = "";
+  if (editorLineNumbersNode) {
+    editorLineNumbersNode.style.height = "";
+    editorLineNumbersNode.style.minHeight = "";
   }
-  // Defer to allow layout settle (mode switch, font load, etc.).
-  requestAnimationFrame(() => {
-    try {
-      fileContentInputNode.style.height = "auto";
-      const next = Math.max(24, fileContentInputNode.scrollHeight || 0);
-      fileContentInputNode.style.height = `${next}px`;
-      if (editorLineNumbersEnabled && editorLineNumbersNode) {
-        editorLineNumbersNode.style.height = `${next}px`;
-      }
-    } catch {
-      // ignore sizing errors
-    }
-  });
+  if (editorCodeWrapNode) editorCodeWrapNode.style.minHeight = "";
 }
 
 function isWysiwygEditorEnabled() {
@@ -11483,6 +11629,7 @@ function initWysiwygEditor() {
   });
 
   syncSaveButtonLamp();
+  requestAnimationFrame(() => syncEditorFillMinHeightCssVar());
 }
 
 function getEditorContentValue() {
@@ -11559,6 +11706,7 @@ function applyEditorViewMode() {
   }
 
   if (isWysiwyg) {
+    syncEditorFillMinHeightCssVar();
     initWysiwygEditor();
     return;
   }
@@ -12151,14 +12299,49 @@ function isServiceTreeCollapsed() {
 
 function toggleServiceTreeCollapsed() {
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", isServiceTreeCollapsed() ? "0" : "1");
-  if (currentMenuData) renderMenu(currentMenuData);
+  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+}
+
+function isPinnedInsideServiceFolder(agentId = activeAgentId) {
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const pinnedPath = getPinnedMenuFolderForTree(agentId);
+  if (!serviceFolder || !pinnedPath) return false;
+  const service = normalizeFolderPath(serviceFolder);
+  const pinned = normalizeFolderPath(pinnedPath);
+  if (pinned === ".") return false;
+  return pinned === service || pinned.startsWith(`${service}/`);
+}
+
+function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
+  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  if (!serviceFolder) return false;
+  if (menuSearchQuery.trim()) return true;
+  const pinnedPath = getPinnedMenuFolderForTree(agentId);
+  if (!pinnedPath) return true;
+  return isPinnedInsideServiceFolder(agentId);
+}
+
+function clearMenuServiceSection(parentEl) {
+  parentEl?.querySelectorAll(".menu-service-section").forEach((node) => node.remove());
+}
+
+function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId) {
+  const parentNode = { title: "", ...serviceTree };
+  const visibleChildren = getVisibleMenuChildren(parentNode, agentId, ".", 0);
+  for (const child of visibleChildren) {
+    renderMenuTreeChildInto(child, body, 1, ".", parentNode, agentId);
+  }
 }
 
 function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   const serviceFolder = getActiveAgentServiceFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
+  if (!shouldShowServiceSectionInMenu(agentId)) {
+    clearMenuServiceSection(parentEl);
+    return;
+  }
 
-  parentEl.querySelectorAll(".menu-service-section").forEach((node) => node.remove());
+  clearMenuServiceSection(parentEl);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let treeToRender = serviceTree;
@@ -12188,11 +12371,24 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   titleHint.className = "menu-service-title-hint";
   titleHint.textContent = `(${SERVICE_SECTION_HINT})`;
   title.append(titleMain, titleHint);
-  title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "";
-  if (hasContent) {
-    title.addEventListener("click", toggleServiceTreeCollapsed);
+  const serviceManifestPath = treeToRender.indexPath || getServiceRootManifestPath();
+  if (serviceManifestPath) {
+    title.classList.add("menu-service-title--linked");
+    title.title = "Открыть область служебных компонентов";
+    titleMain.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openNodeFromMenu(SERVICE_AREA_NAME, serviceManifestPath);
+    });
+  } else {
+    title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "";
+    if (hasContent) {
+      title.addEventListener("click", toggleServiceTreeCollapsed);
+    }
   }
   headRow.appendChild(title);
+  if (serviceManifestPath && isNodeSettingsTargetPath(serviceManifestPath)) {
+    headRow.appendChild(createNodeSettingsButton(serviceManifestPath));
+  }
 
   const addBtn = document.createElement("button");
   addBtn.type = "button";
@@ -12210,7 +12406,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   if (!collapsed) {
     const body = document.createElement("div");
     body.className = "tree-children menu-service-body";
-    renderTree({ title: "", ...treeToRender }, body, 0, serviceFolder, null, agentId);
+    renderServiceTreeBody(treeToRender, body, agentId);
     section.appendChild(body);
   }
 
@@ -12361,7 +12557,7 @@ function setMenuViewMode(mode) {
   menuViewBookmarksBtn.classList.toggle("active", mode === "bookmarks");
   menuViewCardsBtn?.classList.toggle("active", mode === "cards");
   if (currentMenuData) {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
 }
@@ -12550,7 +12746,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     sectionNode.classList.toggle("is-off-pinned-branch", !onBranch);
   }
   const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath, agentId);
-  const visibleChildren = getVisibleMenuChildren(node);
+  if (pinnedPath && !isFolderInPinnedBranch(sectionFolderPath, pinnedPath)) {
+    return;
+  }
+  const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
 
   if (node.title) {
     const hasContent = visibleChildren.length > 0;
@@ -12570,7 +12769,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       folderButton.dataset.path = normalizeMenuNodePath(node.indexPath);
       applyNodeColorVars(folderButton, node.color, { isFolder: true });
       const folderSortKey = getMenuTreeFolderSortKey(node);
-      const folderBaseLabel = getLabelFromPath(node.indexPath) || getAgentTreeTitle(agentId);
+      const folderBaseLabel = node.title || getLabelFromPath(node.indexPath) || getAgentTreeTitle(agentId);
       const folderDisplayLabel = isAgentRootTreeNode(depth, sectionFolderPath)
         ? `Root: ${folderBaseLabel}`
         : folderBaseLabel;
@@ -12607,6 +12806,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     } else {
       const sectionRow = document.createElement("div");
       const isEmptyFolder = Boolean(node.empty);
+      const canAdoptArea = shouldOfferAreaAdopt(node);
       sectionRow.className = isEmptyFolder
         ? "menu-section-row menu-section-row--empty"
         : "menu-section-row";
@@ -12625,37 +12825,42 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         node,
         "menu-section-name"
       );
-      titleNode.title = isEmptyFolder
-        ? "Папка на диске без темы"
+      titleNode.title = canAdoptArea
+        ? isEmptyFolder
+          ? "Папка на диске без области"
+          : "Папка без README.x.md — можно подхватить как область"
         : hasContent
           ? (isCollapsedEffective ? "Раскрыть" : "Скрыть")
           : "";
-      if (!isEmptyFolder) {
+      if (!canAdoptArea) {
         titleNode.addEventListener("click", () => {
           if (hasContent) toggleSectionCollapsed();
         });
       }
 
       sectionRow.appendChild(titleNode);
-      if (isEmptyFolder) {
+      if (canAdoptArea) {
         const addBtn = document.createElement("button");
         addBtn.type = "button";
         addBtn.className = "add-node-btn add-node-btn--muted";
         addBtn.textContent = "+";
-        addBtn.title = "Создать тему в папке";
+        addBtn.title = "Подхватить папку как область";
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          openCreateNodeModal(sectionFolderPath || ".", {
-            emptyFolder: true,
-            folderPath: node.folderPath || sectionFolderPath,
-            agentId
+          const adoptPath = node.folderPath || sectionFolderPath || ".";
+          openCreateNodeModal(adoptPath, {
+            adoptFolder: true,
+            emptyFolder: isEmptyFolder,
+            folderPath: adoptPath,
+            agentId,
+            menuParentEl: parentEl
           });
         });
         sectionRow.appendChild(addBtn);
       }
       if (parentEl.classList.contains("tree-children")) {
         sectionRow.dataset.sortName = node.title;
-        const actionSpacerCount = isEmptyFolder ? 2 : 3;
+        const actionSpacerCount = canAdoptArea ? 2 : 3;
         for (let i = 0; i < actionSpacerCount; i += 1) {
           const spacer = document.createElement("span");
           spacer.className = "menu-row-action-spacer";
@@ -12881,12 +13086,15 @@ function setupMenuSortDragDrop() {
   });
 }
 
-function renderMenu(menu, agentId = activeAgentId) {
+function renderMenu(menu, agentId = activeAgentId, options = {}) {
+  const menuOnly = Boolean(options.menuOnly);
   const target = ensureMenuAgentPane(agentId);
   menuCacheByAgent.set(agentId, menu);
   if (agentId === activeAgentId) {
     currentMenuData = menu;
-    invalidateAgentStorageLayoutCache();
+    if (!menuOnly) {
+      invalidateAgentStorageLayoutCache();
+    }
     activateMenuAgentPane(agentId);
   }
 
@@ -12895,7 +13103,7 @@ function renderMenu(menu, agentId = activeAgentId) {
   const filteredTree = filterMenuTree(baseTree, menuSearchQuery.trim().toLowerCase());
   const treeToRender = filteredTree || { title: agentTitle, sections: [], items: [], indexPath: null };
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeAgentId && !menuOnly) {
     sanitizeCollapsedFolderPaths(agentId);
     const allPaths = new Set(
       collectFlatMenuEntries(baseTree).map((entry) => nodeStorageKey(agentId, entry.path))
@@ -12921,23 +13129,26 @@ function renderMenu(menu, agentId = activeAgentId) {
   } else {
     renderTree(treeToRender, target, 0, ".", null, agentId);
     const childrenContainer = getWorkspacesTreeChildren(agentId);
-    if (childrenContainer && menu.serviceTree) {
-      renderServiceSection(menu.serviceTree, childrenContainer, agentId);
+    if (childrenContainer) {
+      if (menu.serviceTree && shouldShowServiceSectionInMenu(agentId)) {
+        renderServiceSection(menu.serviceTree, childrenContainer, agentId);
+      } else {
+        clearMenuServiceSection(childrenContainer);
+      }
     }
     renderSystemFiles(systemFilesCache);
     decorateMenuSortRows(target);
   }
 
   if (agentId === activeAgentId) {
-    syncAgentPreview({
-      hasPreview: menu.hasPreview,
-      previewUrl: menu.previewUrl
-    });
+    if (!menuOnly) {
+      syncAgentPreview({
+        hasPreview: menu.hasPreview,
+        previewUrl: menu.previewUrl
+      });
+    }
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(agentId);
-    if (activeContentMode === NODE_NAVIGATION_MODE) {
-      void renderNodeNavigation();
-    }
   }
 }
 
@@ -12961,6 +13172,12 @@ function getWorkspacesTreeChildren(agentId = activeAgentId) {
   return childrenNode;
 }
 
+function sortSystemFilesByName(files) {
+  return [...(Array.isArray(files) ? files : [])].sort((a, b) =>
+    String(a?.name || "").localeCompare(String(b?.name || ""), "en")
+  );
+}
+
 function renderSystemFiles(files) {
   const container = getWorkspacesTreeChildren();
   if (!container) return;
@@ -12968,7 +13185,10 @@ function renderSystemFiles(files) {
   container.querySelectorAll(".system-file-row").forEach((node) => node.remove());
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  const visibleFiles = filterMenuEntriesByQuery(collectSystemFileMenuEntries(files), queryLower);
+  const visibleFiles = filterMenuEntriesByQuery(
+    collectSystemFileMenuEntries(sortSystemFilesByName(files)),
+    queryLower
+  );
 
   for (const file of visibleFiles) {
     const row = document.createElement("div");
@@ -12991,21 +13211,19 @@ async function loadSystemFiles() {
     const response = await fetch(buildApiUrl("/api/system-files"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    systemFilesCache = Array.isArray(data.files) ? data.files : [];
+    systemFilesCache = sortSystemFilesByName(Array.isArray(data.files) ? data.files : []);
   } catch {
-    systemFilesCache = [
-      { name: "AGENTS.md", exists: false, empty: true },
-      { name: "README.md", exists: false, empty: true },
-      { name: "TODO.md", exists: false, empty: true },
-      { name: "docker-compose.yml", exists: false, empty: true },
+    systemFilesCache = sortSystemFilesByName([
       { name: ".env", exists: false, empty: true },
       { name: ".gitignore", exists: false, empty: true },
-      { name: "acms.dependencies.json", exists: false, empty: true },
-      { name: "acms.deps.json", exists: false, empty: true },
-      { name: "acms.map.json", exists: false, empty: true },
-      { name: "agentcms.deps.json", exists: false, empty: true },
-      { name: "awn.dependencies.json", exists: false, empty: true }
-    ];
+      { name: "AGENTS.md", exists: false, empty: true },
+      { name: "awn-autoincrement-id.json", exists: false, empty: true },
+      { name: "awn-dependencies.json", exists: false, empty: true },
+      { name: "awn-map.json", exists: false, empty: true },
+      { name: "docker-compose.yml", exists: false, empty: true },
+      { name: "README.md", exists: false, empty: true },
+      { name: "TODO.md", exists: false, empty: true }
+    ]);
   }
   if (currentMenuData) {
     renderMenu(currentMenuData);
@@ -13044,13 +13262,13 @@ function updateActiveButton() {
 async function selectSystemFile(name) {
   if (!name) return;
   hideHomeView();
-  nodeSettingsViewActive = false;
-  nodeMemoryViewActive = false;
-  applyNodeWorkspaceViewUi();
+  nodeOverviewRenderSeq += 1;
   activeSystemFile = name;
   activePath = null;
   activeLabel = null;
   activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
   clearMediaSidecarEditor();
   updateActiveButton();
   setLoading("Загрузка файла...");
@@ -13061,17 +13279,15 @@ async function selectSystemFile(name) {
     const data = await response.json();
     fileContentInputNode.value = data.content || "";
     setPropsYamlContent("");
-    applySystemFileUi();
-    updateBreadcrumbsForActiveMode();
-    editorCodeWrapNode?.classList.remove("hidden");
+    applyModeUi();
     refreshEditorViewContent();
     commitEditorSaveBaseline();
   } catch (error) {
     fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
-    applySystemFileUi();
-    updateBreadcrumbsForActiveMode();
-    editorCodeWrapNode?.classList.remove("hidden");
+    applyModeUi();
     commitEditorSaveBaseline();
+  } finally {
+    hideContentLoading({ force: true });
   }
 }
 
@@ -13090,13 +13306,19 @@ async function selectFile(label, filePath) {
   activePath = getResolvedNodePath(filePath);
   activeLabel = label;
   activeExternalFilePath = null;
+  nodeOverviewRenderSeq += 1;
   clearMediaSidecarEditor();
   updateActiveButton();
   titleInputNode.value = label;
-  setLoading("Загрузка файла...");
+  const showFileLoadingOverlay = !isAsyncOverviewRenderMode();
+  if (showFileLoadingOverlay) {
+    showContentLoading({ variant: "default", message: "Загрузка файла…" });
+  }
+  fileContentInputNode.value = "";
+  refreshEditorViewContent();
 
   try {
-    const response = await fetch(buildApiUrl("/api/file", { path: activePath }));
+    const response = await fetch(buildApiUrl("/api/file", { path: getActiveNodeApiPath() }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     modeContentCache.description = data.content;
@@ -13124,11 +13346,24 @@ async function selectFile(label, filePath) {
     applyNodeWorkspaceViewUi();
   } catch (error) {
     fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
+    hideContentLoading({ force: true });
+  } finally {
+    if (showFileLoadingOverlay) {
+      hideContentLoading();
+    }
   }
 }
 
 async function loadContentByMode() {
   if (!activePath) return;
+
+  const deferLoadingEnd = isAsyncOverviewRenderMode();
+  if (!deferLoadingEnd) {
+    showContentLoading({
+      variant: contentLoadingVariantForMode(),
+      message: "Загрузка…"
+    });
+  }
 
   try {
   if (activeContentMode !== "external") {
@@ -13209,7 +13444,7 @@ async function loadContentByMode() {
 
   if (activeContentMode === "external") {
     try {
-      const response = await fetch(buildApiUrl("/api/external/files", { path: activePath }));
+      const response = await fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       externalFilesCache = Array.isArray(data.files) ? data.files : [];
@@ -13230,7 +13465,7 @@ async function loadContentByMode() {
   if (activeContentMode === "inbox") {
     try {
       const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_INBOX })
+        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_INBOX })
       );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
@@ -13250,7 +13485,7 @@ async function loadContentByMode() {
   if (activeContentMode === "references") {
     try {
       const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_REFERENCES })
+        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_REFERENCES })
       );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
@@ -13271,7 +13506,7 @@ async function loadContentByMode() {
     clearMediaSidecarEditor();
     fileContentInputNode.value = "";
     try {
-      const response = await fetch(buildApiUrl("/api/media", { path: activePath }));
+      const response = await fetch(buildApiUrl("/api/media", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       mediaAssetsExists = Boolean(data.exists);
@@ -13323,7 +13558,7 @@ async function loadContentByMode() {
 
   if (activeContentMode === "env") {
     try {
-      const response = await fetch(buildApiUrl("/api/env", { path: activePath }));
+      const response = await fetch(buildApiUrl("/api/env", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       modeContentCache.env = data.content || "";
@@ -13357,7 +13592,7 @@ async function loadContentByMode() {
   if (activeContentMode === "artefacts") {
     try {
       const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_ARTEFACTS })
+        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_ARTEFACTS })
       );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
@@ -13377,7 +13612,7 @@ async function loadContentByMode() {
   if (activeContentMode === "scripts") {
     try {
       const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: activePath, folder: STORAGE_SUBFOLDER_SCRIPTS })
+        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_SCRIPTS })
       );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
@@ -13392,6 +13627,9 @@ async function loadContentByMode() {
     updateBreadcrumbsForActiveMode();
   }
   } finally {
+    if (!deferLoadingEnd) {
+      hideContentLoading();
+    }
     syncEditorLineNumbers();
     commitEditorSaveBaseline();
   }
@@ -13485,7 +13723,7 @@ async function saveContent() {
       const renameResponse = await fetch(buildApiUrl("/api/file/title"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: activePath, title: nextTitle })
+        body: JSON.stringify({ path: getActiveNodeApiPath(), title: nextTitle })
       });
 
       if (!renameResponse.ok) {
@@ -13524,7 +13762,7 @@ async function saveContent() {
       const renameResponse = await fetch(buildApiUrl("/api/external/file/rename"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: activePath, file: activeExternalFilePath, title: nextTitle })
+        body: JSON.stringify({ path: getActiveNodeApiPath(), file: activeExternalFilePath, title: nextTitle })
       });
       if (!renameResponse.ok) {
         const errorData = await renameResponse.json().catch(() => ({}));
@@ -13545,7 +13783,7 @@ async function saveContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: activePath,
+          path: getActiveNodeApiPath(),
           file: activeMediaSidecarSourcePath,
           title: nextTitle
         })
@@ -13599,7 +13837,7 @@ async function saveContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: activePath,
+          path: getActiveNodeApiPath(),
           file: activeMediaSidecarSourcePath,
           content
         })
@@ -13704,7 +13942,7 @@ async function loadPropertiesForActivePath() {
     return;
   }
   try {
-    const response = await fetch(buildApiUrl("/api/file/properties", { path: activePath }));
+    const response = await fetch(buildApiUrl("/api/file/properties", { path: getActiveNodeApiPath() }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     setPropsYamlContent(data.content || "");
@@ -13727,7 +13965,7 @@ async function saveProperties({ showToastOnSuccess = true } = {}) {
     const response = await fetch(buildApiUrl("/api/file/properties"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: activePath, content })
+      body: JSON.stringify({ path: getActiveNodeApiPath(), content })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -13904,7 +14142,7 @@ function buildAgentMapZoneData(menu) {
   if (rootPath) {
     core.push({
       label: getLabelFromPath(rootPath),
-      sub: "_.x.md",
+      sub: "README.x.md",
       path: rootPath,
       action: "node"
     });
@@ -14165,7 +14403,7 @@ function buildAgentMap2Data(menu) {
 
   function walkMenuNode(menuNode, parentId, depth, parentSectionPath) {
     if (nodes.length >= AGENT_MAP2_MAX_NODES || depth > 8) return;
-    for (const child of getVisibleMenuChildren(menuNode)) {
+    for (const child of getVisibleMenuChildren(menuNode, activeAgentId, parentSectionPath, depth)) {
       if (nodes.length >= AGENT_MAP2_MAX_NODES) break;
       if (child.kind === "folder") {
         attachFolderNode(child.entry, parentId, depth, parentSectionPath);
@@ -15871,6 +16109,7 @@ function syncAppHomeButton() {
 }
 
 function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
+  hideContentLoading({ force: true });
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
   applyNodeWorkspaceViewUi();
@@ -16039,6 +16278,15 @@ function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".",
   return null;
 }
 
+function getMenuParentNodeForFolder(menu, folderPath, agentId = activeAgentId) {
+  const normalized = normalizeMenuPatchFolderPath(folderPath || ".", agentId);
+  if (normalized === ".") return null;
+  const segments = normalized.split("/").filter(Boolean);
+  const parentPath = segments.length <= 1 ? "." : segments.slice(0, -1).join("/");
+  const parentBranch = getMenuBranchForFolder(menu, parentPath, agentId);
+  return parentBranch?.node ?? null;
+}
+
 function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...menu };
@@ -16065,10 +16313,9 @@ function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
 function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeAgentId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   let changed = false;
-  const expand = (folderPath) => {
+  const expandPath = (folderPath) => {
     const normalized = normalizeFolderPath(folderPath || ".");
     if (!normalized || normalized === ".") return;
-    if (collapsed.delete(normalized)) changed = true;
     const parts = normalized.split("/").filter(Boolean);
     let acc = "";
     for (const part of parts) {
@@ -16077,9 +16324,9 @@ function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId
     }
   };
 
-  expand(parentFolder);
+  expandPath(parentFolder);
   if (type === "manifest") {
-    expand(getFolderPathFromManifest(normalizeMenuNodePath(createdPath)));
+    expandPath(getFolderPathFromManifest(normalizeMenuNodePath(createdPath)));
   }
   if (changed) saveCollapsedFoldersByAgent();
 }
@@ -16122,6 +16369,316 @@ function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
   }
 }
 
+function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
+  const toggleBtn = sectionEl.querySelector(
+    ":scope > .menu-folder-row .folder-toggle-btn, :scope > .menu-section-row .folder-toggle-btn"
+  );
+  if (toggleBtn) {
+    toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
+    toggleBtn.disabled = !hasContent;
+    toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+  }
+  const titleNode = sectionEl.querySelector(":scope > .menu-section-row .menu-section-title");
+  if (titleNode && hasContent) {
+    titleNode.title = isCollapsed ? "Раскрыть" : "Скрыть";
+  }
+}
+
+function refreshRootMenuTreeExtras(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+  const childrenContainer = getWorkspacesTreeChildren(agentId);
+  if (!childrenContainer) return;
+  if (menu?.serviceTree && shouldShowServiceSectionInMenu(agentId)) {
+    renderServiceSection(menu.serviceTree, childrenContainer, agentId);
+  } else {
+    clearMenuServiceSection(childrenContainer);
+  }
+  renderSystemFiles(systemFilesCache);
+}
+
+function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
+  if (!canIncrementalMenuPatch()) return false;
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu) return false;
+
+  try {
+    const branch = getMenuBranchForFolder(menu, folderPath, agentId);
+    if (!branch?.node) return false;
+
+    const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+    const sectionEl =
+      normalized === "."
+        ? getMenuTreeHost(agentId)?.querySelector(":scope > .menu-section")
+        : findMenuSectionByFolderPath(normalized, agentId);
+    if (!sectionEl) return false;
+
+    const isCollapsed = isFolderCollapsed(normalized, agentId);
+    const visibleChildren = getVisibleMenuChildren(
+      branch.node,
+      agentId,
+      branch.parentSectionPath,
+      branch.depth
+    );
+    const hasContent = visibleChildren.length > 0;
+
+    syncFolderToggleUi(sectionEl, isCollapsed, hasContent);
+    sectionEl.querySelector(":scope > .tree-children")?.remove();
+
+    if (!isCollapsed && visibleChildren.length > 0) {
+      const wrapper = document.createElement("div");
+      const parentMenuNode =
+        normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
+      renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
+      const newChildren = wrapper.firstElementChild?.querySelector(":scope > .tree-children");
+      if (newChildren) {
+        sectionEl.appendChild(newChildren);
+      }
+    }
+
+    if (normalized === ".") {
+      refreshRootMenuTreeExtras(agentId, menu);
+    }
+
+    refreshMenuSortDecorations(agentId);
+    return true;
+  } catch (error) {
+    console.warn("patchFolderCollapsedState failed", folderPath, error);
+    return false;
+  }
+}
+
+function refreshAllFolderCollapsedPatches(agentId = activeAgentId) {
+  if (!canIncrementalMenuPatch()) return false;
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu) return false;
+
+  try {
+    const paths = new Set([".", ...getMenuTreeFolderPaths(agentId)]);
+    for (const folderPath of paths) {
+      if (!patchFolderCollapsedState(folderPath, agentId)) {
+        return false;
+      }
+    }
+    refreshRootMenuTreeExtras(agentId, menu);
+    return true;
+  } catch (error) {
+    console.warn("refreshAllFolderCollapsedPatches failed", error);
+    return false;
+  }
+}
+
+function findCreatedMenuChild(branch, createdPath, agentId = activeAgentId) {
+  if (!branch?.node) return null;
+  const createdNorm = normalizeMenuNodePath(createdPath);
+  const visibleChildren = getVisibleMenuChildren(
+    branch.node,
+    agentId,
+    branch.parentSectionPath,
+    branch.depth
+  );
+  for (const child of visibleChildren) {
+    if (child.kind === "item") {
+      if (normalizeMenuNodePath(child.entry.path) === createdNorm) return child;
+      continue;
+    }
+    if (child.kind === "folder") {
+      const indexPath = child.entry.indexPath
+        ? normalizeMenuNodePath(child.entry.indexPath)
+        : null;
+      if (indexPath && indexPath === createdNorm) return child;
+    }
+  }
+  return null;
+}
+
+function menuTreeChildAlreadyRendered(child, parentFolder, agentId = activeAgentId) {
+  if (child.kind === "folder") {
+    const folderPath = normalizeFolderPath(
+      child.entry.folderPath || getFolderPathFromManifest(child.entry.indexPath) || parentFolder
+    );
+    return Boolean(findMenuSectionByFolderPath(folderPath, agentId));
+  }
+  const itemPath = normalizeMenuNodePath(child.entry.path);
+  const host = getMenuTreeHost(agentId);
+  return Boolean(host?.querySelector(`.menu-item[data-path="${CSS.escape(itemPath)}"]`));
+}
+
+function menuSortChildrenEqual(a, b) {
+  if (!a || !b || a.kind !== b.kind) return false;
+  if (a.kind === "item") {
+    return normalizeMenuNodePath(a.entry?.path) === normalizeMenuNodePath(b.entry?.path);
+  }
+  const aPath = normalizeFolderPath(
+    a.entry?.folderPath || getFolderPathFromManifest(a.entry?.indexPath) || "."
+  );
+  const bPath = normalizeFolderPath(
+    b.entry?.folderPath || getFolderPathFromManifest(b.entry?.indexPath) || "."
+  );
+  return aPath === bPath;
+}
+
+function getMenuTreeSortableChildren(container) {
+  return Array.from(container?.children || []).filter((el) => {
+    if (el.classList.contains("menu-service-section")) return false;
+    if (el.classList.contains("system-file-row")) return false;
+    return el.classList.contains("menu-section") || el.classList.contains("menu-item-row");
+  });
+}
+
+function getMenuTreeInsertAnchor(container) {
+  return container?.querySelector(":scope > .menu-item-row.system-file-row") || null;
+}
+
+function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
+  if (!container || !child) return null;
+  if (child.kind === "folder") {
+    const folderPath = normalizeFolderPath(
+      child.entry?.folderPath || getFolderPathFromManifest(child.entry?.indexPath) || "."
+    );
+    if (folderPath === ".") return null;
+    return container.querySelector(
+      `:scope > .menu-section[data-menu-folder="${CSS.escape(folderPath)}"]`
+    );
+  }
+  const itemPath = normalizeMenuNodePath(child.entry?.path);
+  const itemBtn = container.querySelector(
+    `:scope > .menu-item-row .menu-item[data-path="${CSS.escape(itemPath)}"]`
+  );
+  return itemBtn?.closest(".menu-item-row") || null;
+}
+
+function resolveMenuTreeInsertBefore(container, branch, createdChild, agentId = activeAgentId) {
+  const visibleChildren = getVisibleMenuChildren(
+    branch.node,
+    agentId,
+    branch.parentSectionPath,
+    branch.depth
+  );
+  const targetIndex = visibleChildren.findIndex((child) => menuSortChildrenEqual(child, createdChild));
+  if (targetIndex < 0) return getMenuTreeInsertAnchor(container);
+
+  const nextChild = visibleChildren[targetIndex + 1];
+  if (!nextChild) return getMenuTreeInsertAnchor(container);
+
+  return findDomNodeForMenuChild(container, nextChild, agentId) || getMenuTreeInsertAnchor(container);
+}
+
+function insertMenuTreeRenderedChild(container, element, insertBefore) {
+  if (!container || !element) return;
+  const anchor =
+    insertBefore && insertBefore.parentElement === container
+      ? insertBefore
+      : getMenuTreeInsertAnchor(container);
+  if (anchor) container.insertBefore(element, anchor);
+  else container.appendChild(element);
+}
+
+function renderMenuTreeChildInto(
+  child,
+  parentEl,
+  depth,
+  parentSectionPath,
+  parentMenuNode,
+  agentId = activeAgentId,
+  insertBefore = null
+) {
+  if (child.kind === "folder") {
+    const wrapper = document.createElement("div");
+    renderTree(child.entry, wrapper, depth, parentSectionPath, parentMenuNode, agentId);
+    const section = wrapper.firstElementChild;
+    insertMenuTreeRenderedChild(parentEl, section, insertBefore);
+    return section;
+  }
+  const item = child.entry;
+  const itemRow = document.createElement("div");
+  itemRow.className = "menu-item-row";
+  itemRow.dataset.sortName = item.label;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-item";
+  btn.textContent = formatMenuTreeItemLabel(item, parentMenuNode, agentId);
+  const itemPath = normalizeMenuNodePath(item.path);
+  btn.dataset.path = itemPath;
+  applyNodeColorVars(btn, item.color);
+  btn.addEventListener("click", (event) => {
+    const pathFromNode = event.currentTarget?.dataset?.path || "";
+    openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
+  });
+
+  itemRow.appendChild(btn);
+  if (isNodeSettingsTargetPath(itemPath)) {
+    itemRow.appendChild(createNodeSettingsButton(itemPath));
+  }
+  itemRow.appendChild(createBookmarkButton(itemPath));
+  insertMenuTreeRenderedChild(parentEl, itemRow, insertBefore);
+  return itemRow;
+}
+
+function patchMenuTreeInsertCreatedChild({
+  parentFolder,
+  createdPath,
+  type,
+  agentId = activeAgentId
+}) {
+  if (!canIncrementalMenuPatch()) return false;
+  if (type === "manifest" || type === "catalog" || type === "service-doc") return false;
+
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu) return false;
+
+  try {
+    const normalized = normalizeMenuPatchFolderPath(parentFolder, agentId);
+    const branch = getMenuBranchForFolder(menu, normalized, agentId);
+    if (!branch?.node) return false;
+
+    const createdChild = findCreatedMenuChild(branch, createdPath, agentId);
+    if (!createdChild) return false;
+    if (menuTreeChildAlreadyRendered(createdChild, normalized, agentId)) {
+      refreshMenuSortDecorations(agentId);
+      return true;
+    }
+
+    const parentSection =
+      normalized === "."
+        ? getMenuTreeHost(agentId)?.querySelector(":scope > .menu-section")
+        : findMenuSectionByFolderPath(normalized, agentId);
+    if (!parentSection) return false;
+
+    const visibleChildren = getVisibleMenuChildren(
+      branch.node,
+      agentId,
+      branch.parentSectionPath,
+      branch.depth
+    );
+    const isCollapsed = isFolderCollapsed(normalized, agentId);
+    let childrenNode = parentSection.querySelector(":scope > .tree-children");
+    if (!childrenNode) {
+      if (isCollapsed || visibleChildren.length === 0) return false;
+      childrenNode = document.createElement("div");
+      childrenNode.className = "tree-children";
+      childrenNode.dataset.sortFolder = normalized || ".";
+      parentSection.appendChild(childrenNode);
+      syncFolderToggleUi(parentSection, isCollapsed, true);
+    }
+
+    const insertBefore = resolveMenuTreeInsertBefore(childrenNode, branch, createdChild, agentId);
+    renderMenuTreeChildInto(
+      createdChild,
+      childrenNode,
+      branch.depth + 1,
+      normalized,
+      branch.node,
+      agentId,
+      insertBefore
+    );
+    refreshMenuSortDecorations(agentId);
+    return true;
+  } catch (error) {
+    console.warn("patchMenuTreeInsertCreatedChild failed", parentFolder, error);
+    return false;
+  }
+}
+
 function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
@@ -16135,6 +16692,8 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     if (!host) return false;
 
     const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+    const parentMenuNode =
+      normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
     const wrapper = document.createElement("div");
 
     if (normalized === ".") {
@@ -16144,13 +16703,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
       const newSection = wrapper.firstElementChild;
       if (!newSection) return false;
       oldSection.replaceWith(newSection);
-      const childrenContainer = getWorkspacesTreeChildren(agentId);
-      if (childrenContainer) {
-        if (menu.serviceTree) {
-          renderServiceSection(menu.serviceTree, childrenContainer, agentId);
-        }
-        renderSystemFiles(systemFilesCache);
-      }
+      refreshRootMenuTreeExtras(agentId, menu);
       refreshMenuSortDecorations(agentId);
       return true;
     }
@@ -16158,7 +16711,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     const oldSection = findMenuSectionByFolderPath(normalized, agentId);
     if (!oldSection || !oldSection.parentElement) return false;
 
-    renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, null, agentId);
+    renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
     oldSection.replaceWith(newSection);
@@ -16176,6 +16729,10 @@ function patchServiceMenuAfterCreate(agentId = activeAgentId) {
   if (!menu?.serviceTree) return false;
   const childrenContainer = getWorkspacesTreeChildren(agentId);
   if (!childrenContainer) return false;
+  if (!shouldShowServiceSectionInMenu(agentId)) {
+    clearMenuServiceSection(childrenContainer);
+    return true;
+  }
   renderServiceSection(menu.serviceTree, childrenContainer, agentId);
   return true;
 }
@@ -16210,7 +16767,10 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
         } else {
           const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
           expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
-          patched = patchMenuTreeAtFolder(parentFolder, agentId);
+          patched = patchMenuTreeInsertCreatedChild({ parentFolder, createdPath, type, agentId });
+          if (!patched) {
+            patched = patchMenuTreeAtFolder(parentFolder, agentId);
+          }
           if (patched && type === "manifest") {
             const adoptFolder = normalizeMenuPatchFolderPath(
               getFolderPathFromManifest(normalizeMenuNodePath(createdPath)),
@@ -16229,16 +16789,16 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
   }
 
   if (!patched) {
-    renderMenu(menuCacheByAgent.get(agentId), agentId);
+    withPreservedMenuScroll(() =>
+      renderMenu(menuCacheByAgent.get(agentId), agentId, { menuOnly: true })
+    );
   } else if (agentId === activeAgentId) {
+    refreshMenuSortDecorations(agentId);
     updateActiveButton();
     syncMenuCollapseAllButton();
-    refreshMenuSortDecorations(agentId);
+    syncMenuPinBranchUi(agentId);
     if (isAgentWorkspaceCanvasVisible()) {
       applyAgentWorkspaceCanvasUi();
-    }
-    if (activeContentMode === NODE_NAVIGATION_MODE) {
-      void renderNodeNavigation();
     }
   }
 
@@ -16298,7 +16858,7 @@ async function refreshMenuAndSelect() {
   if (first) {
     await openNodeFromMenu(first.label, first.path);
   } else {
-    clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .x.md`);
+    clearEditorState(`В ${getAgentTreeTitle()} нет markdown-манифестов`);
   }
 }
 
@@ -16322,9 +16882,8 @@ async function createNode(type, options = {}) {
   }
 
   try {
-    const adoptDirectoryPath = normalizeCreateParentPath(createModalBaseParentPath);
     const payload = {
-      parentPath: type === "manifest" ? adoptDirectoryPath : createTargetParentPath,
+      parentPath: createTargetParentPath,
       type,
       name: type === "manifest" ? folderLabel : name || folderLabel
     };
@@ -16353,9 +16912,9 @@ async function createNode(type, options = {}) {
       type === "catalog"
         ? `Справочник «${SERVICE_CATALOG_PRESET_LABELS[data.preset] || data.preset || "catalog"}» создан`
         : type === "service-doc"
-          ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.x.md)`
+          ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.md)`
           : type === "manifest"
-          ? "Область создана (t.README.md)"
+          ? "Область создана (README.x.md)"
           : type === "folder"
             ? "Папка-область создана"
             : "Файл (тема) создан";
@@ -16389,7 +16948,7 @@ function formatCreateNodeErrorMessage(message) {
     return "Нет прав на запись в workspace агента";
   }
   if (/Node manifest already exists/i.test(text)) {
-    return "В этой папке уже есть t.README.md";
+    return "В этой папке уже есть README.x.md";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
     return `Папка ${SERVICE_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
@@ -16441,7 +17000,7 @@ async function deleteNode() {
     if (next) {
       await openNodeFromMenu(next.label, next.path);
     } else {
-      clearEditorState(`В ${getAgentTreeTitle()} нет файлов с суффиксом .x.md`);
+      clearEditorState(`В ${getAgentTreeTitle()} нет markdown-манифестов`);
     }
     showToast("Удалено", "success");
   } catch (error) {
@@ -16455,9 +17014,7 @@ async function init() {
     if (location.hash === "#graph") {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
     }
-    migrateLegacyAgentQueryToPath();
     await loadAgents();
-    migrateAllAgentCollapsedFolderKeys();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     await loadSystemFiles();
@@ -17217,6 +17774,8 @@ fileContentInputNode.addEventListener("scroll", syncEditorLineNumbersScroll);
 
 editorLineNumbersBtn?.addEventListener("click", toggleEditorLineNumbers);
 applyEditorLineNumbersUi();
+ensureSourceEditorResizeObserver();
+syncEditorFillMinHeightCssVar();
 
 editorViewPreviewBtn.addEventListener("click", () => setEditorViewMode("preview"));
 editorViewWysiwygBtn?.addEventListener("click", () => setEditorViewMode("wysiwyg"));
@@ -17330,7 +17889,7 @@ createNodeModalNode?.addEventListener("click", (event) => {
 menuSearchInputNode.addEventListener("input", (event) => {
   menuSearchQuery = event.target.value || "";
   if (currentMenuData) {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -17338,7 +17897,7 @@ menuCardsPreviewOnlyNode?.addEventListener("change", () => {
   menuCardsPreviewOnly = Boolean(menuCardsPreviewOnlyNode.checked);
   saveCardsPreviewOnly(menuCardsPreviewOnly);
   if (currentMenuData) {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -17405,7 +17964,7 @@ menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
     showEmptyFolders: Boolean(menuTreeShowEmptyFoldersNode.checked)
   });
   if (currentMenuData) {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -17415,7 +17974,7 @@ menuTreePadSortIndexesNode?.addEventListener("change", () => {
     padSortIndexes: Boolean(menuTreePadSortIndexesNode.checked)
   });
   if (currentMenuData && menuViewMode === "tree") {
-    renderMenu(currentMenuData);
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
 });

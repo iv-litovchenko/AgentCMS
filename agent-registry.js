@@ -11,42 +11,21 @@ const {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,
-  buildManifestCandidatesForStorageKey,
+  STORAGE_SUBFOLDER_ASSETS,
   getManifestNamedSlotKey,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  getLegacyRootAreaManifestRel,
+  getNamedStorageSlotDirRel,
   joinAreaManifestRel,
+  getServiceAreaManifestRel,
+  SERVICE_AREA_NAME,
   toAreaFolderName,
   toTopicFileName,
   isAreaManifestFileName,
   isTopicManifestFileName,
   isStorageFolderName
 } = require("./manifest-paths");
-
-const LEGACY_PREVIEW_FOLDER_NAME = "_Preview";
-const legacyPreviewPurgedAgents = new Set();
-/** Версия миграции слотов awn-storage (смена — один повторный прогон с исправленной логикой). */
-const STORAGE_LAYOUT_MIGRATION_ID = "named-slots-v2";
-const STORAGE_FOLDER_MIGRATION_ID = "awn-storage-v1";
-const legacyStorageLayoutMigratedAgents = new Set();
-
-const NAMED_BUNDLE_FILE_NAMES_LOWER = new Set([
-  BUNDLE_CONTENT_FILE.toLowerCase(),
-  BUNDLE_TABULAR_FILE.toLowerCase(),
-  BUNDLE_CONFIG_FILE.toLowerCase(),
-  "config.yaml",
-  BUNDLE_TODO_FILE.toLowerCase(),
-  ...PREVIEW_FILE_NAMES.map((name) => name.toLowerCase())
-]);
-
-const LEGACY_NODE_STORAGE_SUBDIRS = new Set([
-  "_preview",
-  "_content",
-  "_assets",
-  "_inbox",
-  "_referenses",
-  "_scripts"
-]);
 
 const agentContext = new AsyncLocalStorage();
 
@@ -59,93 +38,28 @@ function joinNodeFrontmatter(frontmatter, body) {
 }
 
 /** Agent CMS — канонические имена файлов платформы и workspace. */
-const ACMS_MAIN_FILE = "acms.main.json";
-const ACMS_MAP_FILE = "acms.map.json";
-const ACMS_AGENTS_REGISTRY_FILE = "acms.agents.json";
-const ACMS_DEPENDENCIES_FILE = "acms.dependencies.json";
-const ACMS_DEPS_FILE = "acms.deps.json";
-
-const LEGACY_WORKSPACE_MANIFEST_FILES = ["acms.workspace.json", "agentcms.json", "awn.agent.json"];
-const LEGACY_AGENTS_REGISTRY_FILES = ["agents.registry.json"];
-const LEGACY_DEPS_FILES = ["agentcms.deps.json", "awn.dependencies.json"];
-
-/** @deprecated use ACMS_MAIN_FILE */
-const ACMS_WORKSPACE_FILE = ACMS_MAIN_FILE;
-/** @deprecated use ACMS_MAIN_FILE */
-const AGENTCMS_MANIFEST_FILE = ACMS_MAIN_FILE;
-const LEGACY_AWN_AGENT_FILE = "awn.agent.json";
-/** @deprecated use LEGACY_AWN_AGENT_FILE */
-const AWN_AGENT_FILE = LEGACY_AWN_AGENT_FILE;
+const AWN_AGENT_FILE = "awn-agent.json";
+const AWN_MAP_FILE = "awn-map.json";
+const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
+const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
+const AWN_AUTOINCREMENT_ID_FILE = "awn-autoincrement-id.json";
 
 function resolveAgentManifestAbsoluteSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return null;
-  migrateLegacyAgentManifestSync(workspaceRootAbsolute);
-  const canonical = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
-  if (fs.existsSync(canonical)) return canonical;
-  for (const name of LEGACY_WORKSPACE_MANIFEST_FILES) {
-    const legacy = path.join(workspaceRootAbsolute, name);
-    if (fs.existsSync(legacy)) return legacy;
-  }
-  return null;
-}
-
-function migrateLegacyAgentManifestSync(workspaceRootAbsolute) {
-  if (!workspaceRootAbsolute) return;
-  const canonical = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
-  if (fs.existsSync(canonical)) return;
-  for (const name of LEGACY_WORKSPACE_MANIFEST_FILES) {
-    const legacy = path.join(workspaceRootAbsolute, name);
-    if (!fs.existsSync(legacy)) continue;
-    try {
-      fs.renameSync(legacy, canonical);
-    } catch {
-      try {
-        fs.copyFileSync(legacy, canonical);
-        fs.unlinkSync(legacy);
-      } catch {
-        // keep legacy if migration fails
-      }
-    }
-    return;
-  }
+  const canonical = path.join(workspaceRootAbsolute, AWN_AGENT_FILE);
+  return fs.existsSync(canonical) ? canonical : null;
 }
 
 function getAgentsRegistryPathSync() {
-  migrateAgentsRegistrySync();
-  return path.join(projectRoot, ACMS_AGENTS_REGISTRY_FILE);
+  return path.join(projectRoot, AWN_AGENTS_REGISTRY_FILE);
 }
 
-function migrateAgentsRegistrySync() {
-  if (!projectRoot) return;
-  const canonical = path.join(projectRoot, ACMS_AGENTS_REGISTRY_FILE);
-  if (fs.existsSync(canonical)) return;
-  for (const name of LEGACY_AGENTS_REGISTRY_FILES) {
-    const legacy = path.join(projectRoot, name);
-    if (!fs.existsSync(legacy)) continue;
-    try {
-      fs.renameSync(legacy, canonical);
-    } catch {
-      try {
-        fs.copyFileSync(legacy, canonical);
-        fs.unlinkSync(legacy);
-      } catch {
-        // keep legacy if migration fails
-      }
-    }
-    return;
-  }
-}
-
-function isAcmsDepsFileName(fileName) {
+function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
-  return (
-    base === ACMS_DEPENDENCIES_FILE.toLowerCase() ||
-    base === ACMS_DEPS_FILE.toLowerCase() ||
-    LEGACY_DEPS_FILES.some((legacy) => base === legacy.toLowerCase())
-  );
+  return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
-const DEFAULT_VAULT_FOLDER = "acms.Vault";
-const DEFAULT_SERVICE_FOLDER = "acms.System";
+const DEFAULT_VAULT_FOLDER = "_vault";
+const DEFAULT_SERVICE_FOLDER = "_system";
 
 function isVaultFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
@@ -155,7 +69,7 @@ function isServiceFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_SERVICE_FOLDER.toLowerCase();
 }
 
-/** Общая папка справочников внутри acms.System */
+/** Общая папка справочников внутри _system */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
@@ -174,7 +88,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Tags",
     title: "Теги",
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter `t.*.md` или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter темы (`.md`) или `#tag` в тексте.\n",
     content:
       "# Теги\n\n#project\n#idea\n#reference\n#daily\n#person\n#source\n#todo\n#review\n"
   },
@@ -231,7 +145,6 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
   }
 ];
-const AGENT_PREVIEW_FILE_NAMES = ["preview.png", "preview.jpg", "preview.jpeg", "preview.gif"];
 const SKIP_SCAN_DIRS = new Set([
   "node_modules",
   ".git",
@@ -309,25 +222,6 @@ function normalizeReservedFolderName(raw, fallback) {
   return cleaned;
 }
 
-function migrateWorkspaceReservedFolderSync(workspaceAbsolute, fromName, toName) {
-  if (!workspaceAbsolute || !fromName || !toName || fromName === toName) return;
-  const fromAbsolute = path.join(workspaceAbsolute, fromName);
-  const toAbsolute = path.join(workspaceAbsolute, toName);
-  if (!fs.existsSync(fromAbsolute)) return;
-
-  if (fs.existsSync(toAbsolute)) {
-    if (fromName.toLowerCase() !== toName.toLowerCase()) return;
-    if (fromName === toName) return;
-    const tempAbsolute = path.join(workspaceAbsolute, `${toName}.__awn_rename__`);
-    if (fs.existsSync(tempAbsolute)) return;
-    fs.renameSync(fromAbsolute, tempAbsolute);
-    fs.renameSync(tempAbsolute, toAbsolute);
-    return;
-  }
-
-  fs.renameSync(fromAbsolute, toAbsolute);
-}
-
 function normalizeManifestFolderAliases(raw) {
   if (!raw || typeof raw !== "object") return raw;
   const manifest = { ...raw };
@@ -349,7 +243,8 @@ function normalizeVaultFolderName(raw) {
 function normalizeServiceFolderName(raw) {
   if (raw === null || raw === false) return null;
   const cleaned = String(raw ?? "").trim();
-  if (!cleaned || cleaned.toLowerCase() === "false") return null;
+  if (cleaned.toLowerCase() === "false") return null;
+  if (!cleaned) return DEFAULT_SERVICE_FOLDER;
   if (isVaultFolderEntryName(cleaned)) return null;
   return DEFAULT_SERVICE_FOLDER;
 }
@@ -371,547 +266,25 @@ function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
   return path.basename(String(workspaceRootAbsolute || "").replace(/[\\/]+$/, ""));
 }
 
-/** Превью корневой области: workspace/t.{Name}/s.{Name}/Preview.* */
+/** Превью корневой области: workspace/s.{имя_манифеста}/Preview.* */
+function resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute) {
+  const directAbsolute = path.join(workspaceRootAbsolute, AREA_MANIFEST_FILE);
+  if (fs.existsSync(directAbsolute)) return AREA_MANIFEST_FILE;
+  const legacyRel = getLegacyRootAreaManifestRel(getWorkspaceStorageKeySync(workspaceRootAbsolute));
+  if (legacyRel) {
+    const legacyAbsolute = path.join(workspaceRootAbsolute, ...legacyRel.split("/"));
+    if (fs.existsSync(legacyAbsolute)) return legacyRel;
+  }
+  return AREA_MANIFEST_FILE;
+}
+
 function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
   const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
-  const manifestRel = joinAreaManifestRel(".", workspaceKey);
+  const manifestRel = resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute);
   return path.join(
     workspaceRootAbsolute,
     ...getNamedStorageBundleDirRel(manifestRel, { workspaceFolderName: workspaceKey }).split("/")
   );
-}
-
-function removeEmptyDirectorySync(absolutePath) {
-  try {
-    const entries = fs.readdirSync(absolutePath);
-    if (entries.length === 0) fs.rmdirSync(absolutePath);
-  } catch {
-    // directory may not exist or not be empty
-  }
-}
-
-function resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute) {
-  for (const name of AREA_MANIFEST_CANDIDATES) {
-    const candidate = path.join(containerDirAbsolute, name);
-    try {
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
-    } catch {
-      // try next
-    }
-  }
-  return null;
-}
-
-function migrateLegacyPreviewDirSync(workspaceRootAbsolute, previewDirAbsolute) {
-  const parent = path.dirname(previewDirAbsolute);
-  const containerDir = isStorageFolderName(path.basename(parent)) ? path.dirname(parent) : parent;
-  const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDir);
-  if (!manifestAbsolute) {
-    removeEmptyDirectorySync(previewDirAbsolute);
-    return;
-  }
-
-  const rel = path.relative(workspaceRootAbsolute, manifestAbsolute).replace(/\\/g, "/");
-  const bundleDir = path.join(
-    workspaceRootAbsolute,
-    ...getNamedStorageBundleDirRel(rel, {
-      workspaceFolderName: getWorkspaceStorageKeySync(workspaceRootAbsolute)
-    }).split("/")
-  );
-  fs.mkdirSync(bundleDir, { recursive: true });
-
-  const legacyNames = [...new Set([...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES])];
-  for (const legacyDir of [previewDirAbsolute]) {
-    for (const name of legacyNames) {
-      const legacyAbsolute = path.join(legacyDir, name);
-      try {
-        if (!fs.existsSync(legacyAbsolute) || !fs.statSync(legacyAbsolute).isFile()) continue;
-      } catch {
-        continue;
-      }
-      const ext = path.extname(name).toLowerCase();
-      const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
-      const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
-      if (legacyAbsolute === targetAbsolute) continue;
-      try {
-        if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
-          fs.unlinkSync(legacyAbsolute);
-          continue;
-        }
-      } catch {
-        // target missing
-      }
-      fs.copyFileSync(legacyAbsolute, targetAbsolute);
-      try {
-        fs.unlinkSync(legacyAbsolute);
-      } catch {
-        // keep legacy if unlink fails
-      }
-    }
-
-    try {
-      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile() || !/^preview\.(jpe?g|png|gif)$/i.test(entry.name)) continue;
-        const legacyAbsolute = path.join(legacyDir, entry.name);
-        const ext = path.extname(entry.name).toLowerCase();
-        const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
-        const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
-        if (legacyAbsolute === targetAbsolute) continue;
-        try {
-          if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
-            fs.unlinkSync(legacyAbsolute);
-            continue;
-          }
-        } catch {
-          // target missing
-        }
-        fs.copyFileSync(legacyAbsolute, targetAbsolute);
-        try {
-          fs.unlinkSync(legacyAbsolute);
-        } catch {
-          // keep legacy if unlink fails
-        }
-      }
-    } catch {
-      // folder may not exist
-    }
-  }
-
-  removeEmptyDirectorySync(previewDirAbsolute);
-}
-
-function isNamedBundleKeyDirSync(dirAbsolute) {
-  try {
-    return fs
-      .readdirSync(dirAbsolute)
-      .some((name) => NAMED_BUNDLE_FILE_NAMES_LOWER.has(String(name).toLowerCase()));
-  } catch {
-    return false;
-  }
-}
-
-function mergeDirectorySync(fromAbsolute, toAbsolute) {
-  fs.mkdirSync(toAbsolute, { recursive: true });
-  let entries;
-  try {
-    entries = fs.readdirSync(fromAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const fromPath = path.join(fromAbsolute, entry.name);
-    const toPath = path.join(toAbsolute, entry.name);
-    if (entry.isDirectory()) {
-      mergeDirectorySync(fromPath, toPath);
-      continue;
-    }
-    if (!entry.isFile()) continue;
-    try {
-      if (fs.existsSync(toPath) && fs.statSync(toPath).isFile()) {
-        fs.unlinkSync(fromPath);
-        continue;
-      }
-    } catch {
-      // target missing
-    }
-    try {
-      fs.renameSync(fromPath, toPath);
-    } catch {
-      try {
-        fs.copyFileSync(fromPath, toPath);
-        fs.unlinkSync(fromPath);
-      } catch {
-        // keep source if move fails
-      }
-    }
-  }
-}
-
-function removeDirectoryRecursiveSync(absolutePath) {
-  let entries;
-  try {
-    entries = fs.readdirSync(absolutePath, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const child = path.join(absolutePath, entry.name);
-    if (entry.isDirectory()) removeDirectoryRecursiveSync(child);
-    else {
-      try {
-        fs.unlinkSync(child);
-      } catch {
-        // ignore
-      }
-    }
-  }
-  try {
-    fs.rmdirSync(absolutePath);
-  } catch {
-    // ignore
-  }
-}
-
-function resolveManifestAbsoluteForStorageKeySync(workspaceRootAbsolute, key) {
-  const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
-  const options = { workspaceFolderName: workspaceKey };
-  const topicHits = [];
-  const areaHits = [];
-  const stack = [workspaceRootAbsolute];
-
-  while (stack.length > 0) {
-    const dir = stack.pop();
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        if (SKIP_SCAN_DIRS.has(entry.name) || isStorageFolderName(entry.name) || entry.name.startsWith(".")) {
-          continue;
-        }
-        stack.push(path.join(dir, entry.name));
-        continue;
-      }
-      if (!entry.isFile()) continue;
-      const rel = path.relative(workspaceRootAbsolute, path.join(dir, entry.name)).replace(/\\/g, "/");
-      if (getManifestNamedSlotKey(rel) !== key) continue;
-      if (isTopicManifestFileName(entry.name)) topicHits.push(rel);
-      else if (isAreaManifestFileName(entry.name)) areaHits.push(rel);
-    }
-  }
-
-  const pick = topicHits.sort((a, b) => a.length - b.length)[0] || areaHits.sort((a, b) => a.length - b.length)[0];
-  if (pick) {
-    const abs = path.join(workspaceRootAbsolute, ...pick.split("/"));
-    return { absolute: abs, rel: pick };
-  }
-
-  const candidates = buildManifestCandidatesForStorageKey(key, options);
-  for (const cand of candidates) {
-    const abs = path.join(workspaceRootAbsolute, ...cand.split("/"));
-    try {
-      if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
-        return { absolute: abs, rel: cand.replace(/\\/g, "/") };
-      }
-    } catch {
-      // try next
-    }
-  }
-  return null;
-}
-
-/** Целевой слот awn-storage/{key}/ для каталога области (не сливать все ключи в _). */
-function resolveNamedStorageTargetDirForKeySync(
-  workspaceRootAbsolute,
-  containerDirAbsolute,
-  key
-) {
-  const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
-  const options = { workspaceFolderName: workspaceKey };
-  const containerRel = path
-    .relative(workspaceRootAbsolute, containerDirAbsolute)
-    .replace(/\\/g, "/");
-
-  const topicSiblingRel =
-    containerRel && containerRel !== "."
-      ? `${containerRel}/${toTopicFileName(key)}`
-      : toTopicFileName(key);
-  if (topicSiblingRel) {
-    const topicSiblingAbs = path.join(workspaceRootAbsolute, ...topicSiblingRel.split("/"));
-    try {
-      if (fs.existsSync(topicSiblingAbs) && fs.statSync(topicSiblingAbs).isFile()) {
-        return path.join(
-          workspaceRootAbsolute,
-          ...getNamedStorageBundleDirRel(topicSiblingRel, options).split("/")
-        );
-      }
-    } catch {
-      // try nested area folder
-    }
-  }
-
-  const nestedAreaFolder = toAreaFolderName(key);
-  if (nestedAreaFolder) {
-    const nestedAreaManifest = path.join(containerDirAbsolute, nestedAreaFolder, AREA_MANIFEST_FILE);
-    try {
-      if (fs.existsSync(nestedAreaManifest) && fs.statSync(nestedAreaManifest).isFile()) {
-        const rel = path.relative(workspaceRootAbsolute, nestedAreaManifest).replace(/\\/g, "/");
-        return path.join(
-          workspaceRootAbsolute,
-          ...getNamedStorageBundleDirRel(rel, options).split("/")
-        );
-      }
-    } catch {
-      // fall through
-    }
-  }
-
-  const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute);
-  if (manifestAbsolute) {
-    const rel = path.relative(workspaceRootAbsolute, manifestAbsolute).replace(/\\/g, "/");
-    return path.join(
-      workspaceRootAbsolute,
-      ...getNamedStorageBundleDirRel(rel, options).split("/")
-    );
-  }
-
-  return path.join(containerDirAbsolute, `s.${key}`);
-}
-
-function migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, nestedStorageAbsolute, containerDirAbsolute) {
-  let entries;
-  try {
-    entries = fs.readdirSync(nestedStorageAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (LEGACY_NODE_STORAGE_SUBDIRS.has(entry.name.toLowerCase())) continue;
-    const sourceDir = path.join(nestedStorageAbsolute, entry.name);
-    if (!isNamedBundleKeyDirSync(sourceDir)) continue;
-
-    const targetDir = resolveNamedStorageTargetDirForKeySync(
-      workspaceRootAbsolute,
-      containerDirAbsolute,
-      entry.name
-    );
-    if (path.resolve(sourceDir) === path.resolve(targetDir)) continue;
-    mergeDirectorySync(sourceDir, targetDir);
-    removeDirectoryRecursiveSync(sourceDir);
-  }
-  removeEmptyDirectorySync(nestedStorageAbsolute);
-}
-
-function migrateNestedStorageInDirSync(workspaceRootAbsolute, dirAbsolute) {
-  if (resolveAreaManifestAbsoluteInDirSync(dirAbsolute)) {
-    const nestedStorage = path.join(dirAbsolute, STORAGE_FOLDER_NAME);
-    const legacyNestedStorage = path.join(dirAbsolute, LEGACY_STORAGE_FOLDER_NAME);
-    for (const storageDir of [nestedStorage, legacyNestedStorage]) {
-      if (fs.existsSync(storageDir) && fs.statSync(storageDir).isDirectory()) {
-        migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, storageDir, dirAbsolute);
-      }
-    }
-  }
-
-  let entries;
-  try {
-    entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (isStorageFolderName(entry.name) || entry.name.startsWith(".")) continue;
-    if (SKIP_SCAN_DIRS.has(entry.name)) continue;
-    migrateNestedStorageInDirSync(workspaceRootAbsolute, path.join(dirAbsolute, entry.name));
-  }
-}
-
-function migrateFlatNamedStorageBundlesToLocalSync(workspaceRootAbsolute) {
-  if (!workspaceRootAbsolute) return;
-  const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
-  const flatStorage = path.join(workspaceRootAbsolute, STORAGE_FOLDER_NAME);
-  const legacyFlatStorage = path.join(workspaceRootAbsolute, LEGACY_STORAGE_FOLDER_NAME);
-  if (!fs.existsSync(flatStorage) && !fs.existsSync(legacyFlatStorage)) return;
-  if (!fs.existsSync(flatStorage) && fs.existsSync(legacyFlatStorage)) {
-    try {
-      fs.renameSync(legacyFlatStorage, flatStorage);
-    } catch {
-      mergeDirectorySync(legacyFlatStorage, flatStorage);
-      removeDirectoryRecursiveSync(legacyFlatStorage);
-    }
-  }
-  if (!fs.existsSync(flatStorage)) return;
-
-  const flatWorkspaceBundle = path.join(flatStorage, workspaceKey);
-  if (
-    workspaceKey &&
-    fs.existsSync(flatWorkspaceBundle) &&
-    fs.statSync(flatWorkspaceBundle).isDirectory()
-  ) {
-    mergeDirectorySync(flatWorkspaceBundle, flatStorage);
-    removeDirectoryRecursiveSync(flatWorkspaceBundle);
-  }
-
-  const legacyUnderscoreDir = path.join(flatStorage, "_");
-  if (fs.existsSync(legacyUnderscoreDir) && fs.statSync(legacyUnderscoreDir).isDirectory()) {
-    mergeDirectorySync(legacyUnderscoreDir, flatStorage);
-    removeDirectoryRecursiveSync(legacyUnderscoreDir);
-  }
-
-  let entries;
-  try {
-    entries = fs.readdirSync(flatStorage, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const key = entry.name;
-    if (LEGACY_NODE_STORAGE_SUBDIRS.has(key.toLowerCase())) continue;
-    const sourceDir = path.join(flatStorage, key);
-    if (!isNamedBundleKeyDirSync(sourceDir)) continue;
-    const hit = resolveManifestAbsoluteForStorageKeySync(workspaceRootAbsolute, key);
-    if (!hit) continue;
-    const targetDir = path.join(
-      workspaceRootAbsolute,
-      ...getNamedStorageBundleDirRel(hit.rel, { workspaceFolderName: workspaceKey }).split("/")
-    );
-    if (path.resolve(sourceDir) === path.resolve(targetDir)) continue;
-    mergeDirectorySync(sourceDir, targetDir);
-    removeDirectoryRecursiveSync(sourceDir);
-  }
-}
-
-function migrateLegacyStorageFolderNameInDirSync(dirAbsolute) {
-  const legacyPath = path.join(dirAbsolute, LEGACY_STORAGE_FOLDER_NAME);
-  const canonicalPath = path.join(dirAbsolute, STORAGE_FOLDER_NAME);
-  try {
-    if (fs.existsSync(legacyPath) && fs.statSync(legacyPath).isDirectory()) {
-      if (fs.existsSync(canonicalPath)) {
-        mergeDirectorySync(legacyPath, canonicalPath);
-        removeDirectoryRecursiveSync(legacyPath);
-      } else {
-        fs.renameSync(legacyPath, canonicalPath);
-      }
-    }
-  } catch {
-    // keep legacy folder if rename/merge fails
-  }
-
-  let entries;
-  try {
-    entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (isStorageFolderName(entry.name)) continue;
-    if (SKIP_SCAN_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
-    migrateLegacyStorageFolderNameInDirSync(path.join(dirAbsolute, entry.name));
-  }
-}
-
-function migrateLegacyStorageFolderNameSync(workspaceRootAbsolute) {
-  if (!workspaceRootAbsolute) return;
-  migrateLegacyStorageFolderNameInDirSync(workspaceRootAbsolute);
-}
-
-function migrateLegacyStorageLayoutsToLocalSync(workspaceRootAbsolute) {
-  if (!workspaceRootAbsolute) return;
-  migrateLegacyStorageFolderNameSync(workspaceRootAbsolute);
-  migrateFlatNamedStorageBundlesToLocalSync(workspaceRootAbsolute);
-  migrateNestedStorageInDirSync(workspaceRootAbsolute, workspaceRootAbsolute);
-}
-
-function purgeLegacyWorkspacePreviewFoldersSync(workspaceRootAbsolute) {
-  if (!workspaceRootAbsolute) return;
-  const stack = [workspaceRootAbsolute];
-  while (stack.length > 0) {
-    const dir = stack.pop();
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.name === LEGACY_PREVIEW_FOLDER_NAME) {
-        migrateLegacyPreviewDirSync(workspaceRootAbsolute, full);
-        continue;
-      }
-      if (SKIP_SCAN_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
-      stack.push(full);
-    }
-  }
-}
-
-function migrateLegacyAgentWorkspacePreviewToBundleSync(workspaceRootAbsolute) {
-  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
-  for (const name of PREVIEW_FILE_NAMES) {
-    const canonicalAbsolute = path.join(bundleDir, name);
-    try {
-      if (fs.existsSync(canonicalAbsolute) && fs.statSync(canonicalAbsolute).isFile()) {
-        return canonicalAbsolute;
-      }
-    } catch {
-      // try next
-    }
-  }
-
-  fs.mkdirSync(bundleDir, { recursive: true });
-  const legacyNames = [...new Set([...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES])];
-
-  for (const legacyDir of getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute)) {
-    for (const name of legacyNames) {
-      const legacyAbsolute = path.join(legacyDir, name);
-      try {
-        if (!fs.existsSync(legacyAbsolute) || !fs.statSync(legacyAbsolute).isFile()) continue;
-      } catch {
-        continue;
-      }
-      const ext = path.extname(name).toLowerCase();
-      const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
-      const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
-      if (legacyAbsolute === targetAbsolute) return targetAbsolute;
-      try {
-        if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
-          fs.unlinkSync(legacyAbsolute);
-          return targetAbsolute;
-        }
-      } catch {
-        // target missing
-      }
-      fs.copyFileSync(legacyAbsolute, targetAbsolute);
-      try {
-        fs.unlinkSync(legacyAbsolute);
-      } catch {
-        // keep legacy if unlink fails
-      }
-      return targetAbsolute;
-    }
-
-    try {
-      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile() || !/^preview\.(jpe?g|png|gif)$/i.test(entry.name)) continue;
-        const legacyAbsolute = path.join(legacyDir, entry.name);
-        const ext = path.extname(entry.name).toLowerCase();
-        const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
-        const targetAbsolute = path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
-        if (legacyAbsolute === targetAbsolute) return targetAbsolute;
-        try {
-          if (fs.existsSync(targetAbsolute) && fs.statSync(targetAbsolute).isFile()) {
-            fs.unlinkSync(legacyAbsolute);
-            return targetAbsolute;
-          }
-        } catch {
-          // target missing
-        }
-        fs.copyFileSync(legacyAbsolute, targetAbsolute);
-        try {
-          fs.unlinkSync(legacyAbsolute);
-        } catch {
-          // keep legacy if unlink fails
-        }
-        return targetAbsolute;
-      }
-    } catch {
-      // folder may not exist
-    }
-    removeEmptyDirectorySync(legacyDir);
-  }
-
-  return null;
 }
 
 function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
@@ -924,13 +297,6 @@ function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
       // try next
     }
   }
-
-  const raw = readAgentManifestRawSync(workspaceRootAbsolute);
-  const legacyPreview = String(raw?.preview || "").trim();
-  if (legacyPreview) {
-    return resolveManifestPreviewAbsolute(workspaceRootAbsolute, legacyPreview);
-  }
-
   return null;
 }
 
@@ -950,34 +316,9 @@ function clearAgentWorkspacePreviewImagesSync(workspaceRootAbsolute) {
       // file may not exist
     }
   }
-  for (const legacyDir of getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute)) {
-    for (const name of [...AGENT_PREVIEW_FILE_NAMES, ...PREVIEW_FILE_NAMES]) {
-      try {
-        fs.unlinkSync(path.join(legacyDir, name));
-      } catch {
-        // file may not exist
-      }
-    }
-    try {
-      const entries = fs.readdirSync(legacyDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isFile() && /^preview\.(jpe?g|png|gif)$/i.test(entry.name)) {
-          try {
-            fs.unlinkSync(path.join(legacyDir, entry.name));
-          } catch {
-            // ignore
-          }
-        }
-      }
-    } catch {
-      // folder may not exist
-    }
-    removeEmptyDirectorySync(legacyDir);
-  }
 }
 
 function readAgentManifestRawSync(workspaceRootAbsolute) {
-  migrateLegacyAgentManifestSync(workspaceRootAbsolute);
   const manifestPath = resolveAgentManifestAbsoluteSync(workspaceRootAbsolute);
   if (!manifestPath) return null;
   try {
@@ -989,8 +330,7 @@ function readAgentManifestRawSync(workspaceRootAbsolute) {
 }
 
 function writeAgentManifestSync(workspaceRootAbsolute, raw) {
-  migrateLegacyAgentManifestSync(workspaceRootAbsolute);
-  const manifestPath = path.join(workspaceRootAbsolute, ACMS_MAIN_FILE);
+  const manifestPath = path.join(workspaceRootAbsolute, AWN_AGENT_FILE);
   fs.writeFileSync(manifestPath, `${JSON.stringify(raw, null, 2)}\n`, "utf-8");
 }
 
@@ -1000,23 +340,13 @@ function readAgentManifestSync(workspaceRootAbsolute) {
   return normalizeAgentManifest(raw, workspaceRootAbsolute);
 }
 
-function migrateVaultFolderOnDiskSync(_workspaceAbsolute, _previousName, _nextName) {
-  // Переименование папки Vault на диске — вручную в workspace.
-}
-
-function migrateServiceFolderOnDiskSync(_workspaceAbsolute, _previousName, _nextName) {
-  // Переименование папки System на диске — вручную в workspace.
-}
-
 function updateAgentManifestFields(agentPath, fields = {}) {
   const resolvedPath = assertSafeAgentPath(agentPath);
   const absolute = resolveAgentRootAbsolute(resolvedPath);
   const raw = readAgentManifestRawSync(absolute);
   if (!raw) {
-    throw new Error(`В «${resolvedPath}» нет ${ACMS_MAIN_FILE}`);
+    throw new Error(`В «${resolvedPath}» нет ${AWN_AGENT_FILE}`);
   }
-
-  const previousManifest = normalizeAgentManifest(raw, absolute);
 
   if (fields.name !== undefined) {
     const trimmed = String(fields.name ?? "").trim();
@@ -1037,8 +367,6 @@ function updateAgentManifestFields(agentPath, fields = {}) {
   }
 
   if (fields.vaultFolder !== undefined) {
-    const previousVault = previousManifest?.vaultFolder || null;
-    let nextVault = null;
     if (fields.vaultFolder === null || fields.vaultFolder === false) {
       raw.vaultFolder = false;
       delete raw.vault;
@@ -1050,17 +378,11 @@ function updateAgentManifestFields(agentPath, fields = {}) {
       } else {
         raw.vaultFolder = normalized;
         delete raw.vault;
-        nextVault = normalized;
       }
-    }
-    if (nextVault) {
-      migrateVaultFolderOnDiskSync(absolute, previousVault, nextVault);
     }
   }
 
   if (fields.serviceFolder !== undefined) {
-    const previousService = previousManifest?.serviceFolder || null;
-    let nextService = null;
     if (fields.serviceFolder === null || fields.serviceFolder === false) {
       raw.serviceFolder = false;
       delete raw.service;
@@ -1072,11 +394,7 @@ function updateAgentManifestFields(agentPath, fields = {}) {
       } else {
         raw.serviceFolder = normalized;
         delete raw.service;
-        nextService = normalized;
       }
-    }
-    if (nextService) {
-      migrateServiceFolderOnDiskSync(absolute, previousService, nextService);
     }
   }
 
@@ -1176,7 +494,6 @@ function loadRegistrySync() {
 
 function init(rootDir) {
   projectRoot = rootDir;
-  migrateAgentsRegistrySync();
   loadRegistrySync();
 }
 
@@ -1346,7 +663,6 @@ function runWithAgent(agentId, fn) {
   if (!agent) {
     return Promise.reject(new Error(`Unknown agent: ${agentId}`));
   }
-  migrateLegacyAgentManifestSync(agent.rootAbsolute);
   return agentContext.run({ agentId: agent.id, agentRoot: agent.rootAbsolute, agent }, fn);
 }
 
@@ -1437,7 +753,6 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
     return;
   }
 
-  migrateLegacyAgentManifestSync(dirAbsolute);
   const manifestPath = resolveAgentManifestAbsoluteSync(dirAbsolute);
   if (manifestPath) {
     let key = path.normalize(dirAbsolute);
@@ -1520,33 +835,38 @@ function createAgentWorkspace(options = {}) {
   }
 
   if (readAgentManifestRawSync(workspaceAbsolute)) {
-    throw new Error(`В «${resolvedPath}» уже есть ${ACMS_MAIN_FILE}`);
+    throw new Error(`В «${resolvedPath}» уже есть ${AWN_AGENT_FILE}`);
   }
 
   const folderName = path.basename(workspaceAbsolute);
   const name = String(options.name || "").trim() || folderName.replace(/\.agent$/i, "") || folderName;
-  const areaFolder = toAreaFolderName(name);
-  const areaAbsolute = path.join(workspaceAbsolute, areaFolder);
-  fs.mkdirSync(areaAbsolute, { recursive: true });
-  fs.mkdirSync(path.join(areaAbsolute, `s.${name}`), { recursive: true });
+  const areaManifestRel = AREA_MANIFEST_FILE;
   fs.mkdirSync(
-    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, toAreaFolderName("Служебное"), `s.Служебное`, "Assets"),
+    path.join(workspaceAbsolute, ...getNamedStorageSlotDirRel(areaManifestRel).split("/")),
+    { recursive: true }
+  );
+  const serviceAbsolute = path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER);
+  fs.mkdirSync(serviceAbsolute, { recursive: true });
+  const serviceManifestRel = getServiceAreaManifestRel(DEFAULT_SERVICE_FOLDER);
+  const serviceSlotRel = getNamedStorageSlotDirRel(serviceManifestRel);
+  fs.mkdirSync(path.join(workspaceAbsolute, ...serviceSlotRel.split("/")), { recursive: true });
+  fs.mkdirSync(
+    path.join(workspaceAbsolute, ...serviceSlotRel.split("/"), STORAGE_SUBFOLDER_ASSETS),
     { recursive: true }
   );
 
   const id = slugifyAgentId(options.id || name, 0);
   writeAgentManifestSync(workspaceAbsolute, { id, name });
-  fs.writeFileSync(path.join(areaAbsolute, AREA_MANIFEST_FILE), `# ${name}\n`, "utf-8");
+  fs.writeFileSync(path.join(workspaceAbsolute, AREA_MANIFEST_FILE), `# ${name}\n`, "utf-8");
   const serviceManifestAbsolute = path.join(
     workspaceAbsolute,
-    ...joinAreaManifestRel(DEFAULT_SERVICE_FOLDER, "Служебное").split("/")
+    ...getServiceAreaManifestRel(DEFAULT_SERVICE_FOLDER).split("/")
   );
-  fs.mkdirSync(path.dirname(serviceManifestAbsolute), { recursive: true });
   fs.writeFileSync(
     serviceManifestAbsolute,
     joinNodeFrontmatter(
-      "title: Служебное\nAWN-TYPE: service",
-      "# Служебное\n\nОбщая медиатека и служебные темы агента.\n"
+      `title: ${SERVICE_AREA_NAME}\nAWN-TYPE: service`,
+      `# ${SERVICE_AREA_NAME}\n\nОбщая медиатека и служебные темы агента.\n`
     ),
     "utf-8"
   );
@@ -1600,91 +920,6 @@ function getCatalogRelPaths(scaffold) {
   return getSystemReferenceRelPaths(scaffold);
 }
 
-function renameCatalogSidecarIfExists(fromAbsolute, toAbsolute) {
-  if (!fromAbsolute || !toAbsolute || fromAbsolute === toAbsolute) return;
-  if (!fs.existsSync(fromAbsolute) || fs.existsSync(toAbsolute)) return;
-  fs.mkdirSync(path.dirname(toAbsolute), { recursive: true });
-  fs.renameSync(fromAbsolute, toAbsolute);
-}
-
-function migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, fromStem, scaffold) {
-  const pairs = [
-    [".node.content.md", ".x.content.md"],
-    [".x.content.md", ".x.content.md"],
-    [".content.md", ".x.content.md"],
-    [".props.yaml", ".props.yaml"]
-  ];
-  for (const [fromSuffix, toSuffix] of pairs) {
-    renameCatalogSidecarIfExists(
-      path.join(serviceAbsolute, `${fromStem}${fromSuffix}`),
-      path.join(catalogAbsolute, `${scaffold.fileName}${toSuffix}`)
-    );
-    renameCatalogSidecarIfExists(
-      path.join(catalogAbsolute, `${fromStem}${fromSuffix}`),
-      path.join(catalogAbsolute, `${scaffold.fileName}${toSuffix}`)
-    );
-  }
-}
-
-function migrateServiceCatalogLegacySync(serviceAbsolute) {
-  if (!serviceAbsolute || !fs.existsSync(serviceAbsolute)) return;
-
-  const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
-  const legacyCatalogAbsolute = path.join(serviceAbsolute, "_Catalog");
-  if (
-    fs.existsSync(legacyCatalogAbsolute) &&
-    !fs.existsSync(catalogAbsolute)
-  ) {
-    fs.renameSync(legacyCatalogAbsolute, catalogAbsolute);
-  }
-  fs.mkdirSync(catalogAbsolute, { recursive: true });
-
-  for (const scaffold of SYSTEM_REFERENCE_SCAFFOLDS) {
-    const rel = getSystemReferenceRelPaths(scaffold);
-    const targetManifest = path.join(serviceAbsolute, rel.manifest);
-    if (fs.existsSync(targetManifest)) continue;
-
-    const legacyStems = [
-      scaffold.preset,
-      scaffold.fileName,
-      scaffold.fileName.toLowerCase()
-    ];
-
-    for (const stem of legacyStems) {
-      const legacyCandidates = [
-        path.join(serviceAbsolute, `${stem}.node.md`),
-        path.join(serviceAbsolute, `${stem}.x.md`)
-      ];
-      if (scaffold.kind === "catalog") {
-        legacyCandidates.push(
-          path.join(catalogAbsolute, `${stem}.node.md`),
-          path.join(catalogAbsolute, `${stem}.x.md`)
-        );
-      }
-      const legacyManifest = legacyCandidates.find((candidate) => fs.existsSync(candidate));
-      if (!legacyManifest) continue;
-
-      if (scaffold.kind === "catalog") {
-        fs.mkdirSync(catalogAbsolute, { recursive: true });
-      }
-      const legacyDir = path.dirname(legacyManifest);
-      const legacyStem = path.basename(legacyManifest).replace(/\.(node|x)\.md$/i, "");
-
-      if (legacyManifest !== targetManifest) {
-        renameCatalogSidecarIfExists(legacyManifest, targetManifest);
-      }
-
-      if (scaffold.kind === "catalog") {
-        migrateCatalogSidecarsSync(serviceAbsolute, catalogAbsolute, legacyStem, scaffold);
-        if (legacyDir !== serviceAbsolute && legacyDir !== catalogAbsolute) {
-          migrateCatalogSidecarsSync(legacyDir, catalogAbsolute, legacyStem, scaffold);
-        }
-      }
-      break;
-    }
-  }
-}
-
 function systemReferenceExistsSync(serviceAbsolute, scaffold) {
   const rel = getSystemReferenceRelPaths(scaffold);
   return fs.existsSync(path.join(serviceAbsolute, rel.manifest));
@@ -1700,8 +935,6 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     error.code = "EINVAL";
     throw error;
   }
-
-  migrateServiceCatalogLegacySync(serviceAbsolute);
 
   const scaffold = findSystemReferenceScaffold(presetBase);
   if (!scaffold) {
@@ -1774,22 +1007,17 @@ module.exports = {
   isServiceFolderEntryName,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
-  migrateServiceCatalogLegacySync,
   findCatalogScaffold,
   findServiceDocScaffold,
   findSystemReferenceScaffold,
   createSystemReferenceNodeSync,
   createSystemServiceDocSync,
-  ACMS_MAIN_FILE,
-  ACMS_MAP_FILE,
-  ACMS_WORKSPACE_FILE,
-  ACMS_AGENTS_REGISTRY_FILE,
-  ACMS_DEPENDENCIES_FILE,
-  ACMS_DEPS_FILE,
-  isAcmsDepsFileName,
-  AGENTCMS_MANIFEST_FILE,
-  LEGACY_AWN_AGENT_FILE,
   AWN_AGENT_FILE,
+  AWN_MAP_FILE,
+  AWN_AGENTS_REGISTRY_FILE,
+  AWN_DEPENDENCIES_FILE,
+  AWN_AUTOINCREMENT_ID_FILE,
+  isAwnDependenciesFileName,
   init,
   getAgentRoot,
   getActiveAgentId,

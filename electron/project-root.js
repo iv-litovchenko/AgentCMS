@@ -43,13 +43,10 @@ function ensureWritableProject(app) {
 
   fs.mkdirSync(writableRoot, { recursive: true });
 
-  const registryTarget = path.join(writableRoot, "acms.agents.json");
-  const registrySource = path.join(bundledRoot, "acms.agents.json");
-  const legacyRegistrySource = path.join(bundledRoot, "agents.registry.json");
+  const registryTarget = path.join(writableRoot, "awn-agents.json");
+  const registrySource = path.join(bundledRoot, "awn-agents.json");
   if (fs.existsSync(registrySource)) {
     fs.copyFileSync(registrySource, registryTarget);
-  } else if (fs.existsSync(legacyRegistrySource)) {
-    fs.copyFileSync(legacyRegistrySource, registryTarget);
   }
 
   const workspacesSource = path.join(bundledRoot, "Workspaces");

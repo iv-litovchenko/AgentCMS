@@ -17,14 +17,13 @@ const {
   isAreaFolderName,
   isManifestMdAbsolute,
   joinAreaManifestRel,
+  getServiceAreaManifestRel,
+  SERVICE_AREA_NAME,
   toTopicFileName,
   toAreaFolderName,
   stripTopicPrefix,
   manifestRelToXSidecar,
-  legacyManifestRelToNodeSidecar,
   parsePartFolderManifestRel,
-  partFolderSidecarRel,
-  partFolderLegacySidecarRel,
   resolvePartFolderSidecarBaseRel,
   resolveParentDirectoryFromManifestPath,
   inferManifestRelFromSidecar,
@@ -164,30 +163,31 @@ const {
   createSystemCatalogNodeSync,
   createSystemServiceDocSync,
   findServiceDocScaffold,
-  migrateServiceCatalogLegacySync,
   findCatalogScaffold,
   SYSTEM_REFERENCE_SCAFFOLDS,
-  isAcmsDepsFileName
+  isAwnDependenciesFileName,
+  AWN_AGENT_FILE,
+  AWN_MAP_FILE,
+  AWN_DEPENDENCIES_FILE,
+  AWN_AUTOINCREMENT_ID_FILE
 } = agentRegistry;
 
 const SYSTEM_FILE_NAMES = [
-  "AGENTS.md",
-  "README.md",
-  "TODO.md",
-  "docker-compose.yml",
   ".env",
   ".gitignore",
-  "acms.dependencies.json",
-  "acms.deps.json",
-  "acms.map.json",
-  "agentcms.deps.json",
-  "awn.dependencies.json"
+  "AGENTS.md",
+  AWN_DEPENDENCIES_FILE,
+  AWN_AUTOINCREMENT_ID_FILE,
+  AWN_MAP_FILE,
+  "docker-compose.yml",
+  "README.md",
+  "TODO.md"
 ];
 
 function isAllowedSystemFileName(name) {
   const base = String(name || "");
   if (SYSTEM_FILE_NAMES.includes(base)) return true;
-  return isAcmsDepsFileName(base);
+  return isAwnDependenciesFileName(base);
 }
 
 function resolveSystemFileAbsolute(name) {
@@ -293,7 +293,7 @@ function normalizeWorkspacePath(inputPath) {
   return absolute;
 }
 
-/** Манифест *.x.md из прямого пути или sidecar/bundle (TODO, content, …). */
+/** Манифест *.md / README.x.md из прямого пути или bundle (TODO, content, …). */
 function resolveNodeManifestRelForScopedApi(relPath) {
   const normalized = String(relPath || "").trim().replace(/\\/g, "/");
   if (!normalized) return null;
@@ -322,49 +322,6 @@ function toFolderName(rawName) {
   return toAreaFolderName(rawName);
 }
 
-function toPartFolderManifestSidecarRel(relNodePath, nodeExt) {
-  return (
-    partFolderLegacySidecarRel(relNodePath, nodeExt) ||
-    partFolderSidecarRel(relNodePath, nodeExt)
-  );
-}
-
-async function removePartFolderLegacySidecarRel(relNodePath, legacyExt) {
-  const legacyRel = toPartFolderManifestSidecarRel(relNodePath, legacyExt);
-  if (!legacyRel) return;
-  await removeIfExists(normalizeWorkspacePath(legacyRel));
-}
-
-async function migratePartLegacySidecarFile(relNodePath, canonicalRelFn, legacyExt) {
-  const legacyRel = toPartFolderManifestSidecarRel(relNodePath, legacyExt);
-  if (!legacyRel) return;
-  const canonicalRel = canonicalRelFn(relNodePath);
-  const canonicalAbsolute = normalizeWorkspacePath(canonicalRel);
-  const legacyAbsolute = normalizeWorkspacePath(legacyRel);
-  if (!canonicalAbsolute || !legacyAbsolute || canonicalAbsolute === legacyAbsolute) return;
-
-  let canonicalExists = false;
-  try {
-    await fs.access(canonicalAbsolute);
-    canonicalExists = true;
-  } catch {
-    // canonical missing
-  }
-  if (canonicalExists) {
-    await removeIfExists(legacyAbsolute);
-    return;
-  }
-
-  try {
-    const content = await fs.readFile(legacyAbsolute, "utf-8");
-    await fs.mkdir(path.dirname(canonicalAbsolute), { recursive: true });
-    await fs.writeFile(canonicalAbsolute, content, "utf-8");
-    await removeIfExists(legacyAbsolute);
-  } catch (error) {
-    if (!error || error.code !== "ENOENT") throw error;
-  }
-}
-
 function toContentFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
   if (partBase) return `${partBase}.content.md`;
@@ -383,43 +340,22 @@ function toNodeConfigFilePath(relNodePath) {
   return namedStorageBundleRel(relNodePath, BUNDLE_CONFIG_FILE);
 }
 
-function toLegacyNodeConfigFilePath(relNodePath) {
-  const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.config.yaml`;
-  return legacyManifestRelToNodeSidecar(relNodePath, ".config.yaml");
-}
-
 async function readNodeConfigFile(relNodePath) {
-  const configRelPath = toNodeConfigFilePath(relNodePath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const configRelPath = toNodeConfigFilePath(resolvedRelPath);
   const configAbsolute = normalizeWorkspacePath(configRelPath);
   if (!configAbsolute) {
-    return { path: configRelPath, content: "", exists: false, migratedFrom: null };
+    return { path: configRelPath, content: "", exists: false };
   }
 
   try {
     const content = await fs.readFile(configAbsolute, "utf-8");
-    return { path: configRelPath, content, exists: true, migratedFrom: null };
+    return { path: configRelPath, content, exists: true };
   } catch (error) {
     if (!error || error.code !== "ENOENT") throw error;
   }
 
-  const legacyRelPaths = [
-    ...getLegacyManifestSidecarRelPaths(relNodePath, ".config.yml", ".config.yml"),
-    ...getLegacyManifestSidecarRelPaths(relNodePath, ".config.yaml", ".config.yaml"),
-    toLegacyNodeConfigFilePath(relNodePath),
-    toConfigurationFilePath(relNodePath),
-    getLegacyLowercaseBundleRel(relNodePath, BUNDLE_CONFIG_FILE)
-  ];
-  await migrateLegacySidecarFileToBundle(relNodePath, BUNDLE_CONFIG_FILE, legacyRelPaths);
-
-  try {
-    const content = await fs.readFile(configAbsolute, "utf-8");
-    return { path: configRelPath, content, exists: true, migratedFrom: null };
-  } catch (error) {
-    if (!error || error.code !== "ENOENT") throw error;
-  }
-
-  return { path: configRelPath, content: "", exists: false, migratedFrom: null };
+  return { path: configRelPath, content: "", exists: false };
 }
 
 function extractDefaultLandingModeFromNodeConfig(content) {
@@ -436,157 +372,29 @@ function toTodoFilePath(relNodePath) {
   return namedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
 }
 
-function toTodoSidecarRelPath(relNodePath) {
-  if (resolvePartFolderSidecarBaseRel(relNodePath)) return null;
-  return manifestRelToXSidecar(relNodePath, ".todo.md");
-}
-
-async function removeTodoLegacyDuplicates(relNodePath, keepBundleAbsolute, keepSidecarAbsolute = null) {
-  await removePartFolderLegacySidecarRel(relNodePath, ".node.todo.md");
-  const nodeSidecarAbsolute = normalizeWorkspacePath(
-    legacyManifestRelToNodeSidecar(relNodePath, ".todo.md")
-  );
-  if (
-    nodeSidecarAbsolute &&
-    nodeSidecarAbsolute !== keepBundleAbsolute &&
-    nodeSidecarAbsolute !== keepSidecarAbsolute
-  ) {
-    await removeIfExists(nodeSidecarAbsolute);
-  }
-  const lowercaseBundleAbsolute = normalizeWorkspacePath(
-    getLegacyLowercaseBundleRel(relNodePath, BUNDLE_TODO_FILE)
-  );
-  if (lowercaseBundleAbsolute && lowercaseBundleAbsolute !== keepBundleAbsolute) {
-    await removeIfExists(lowercaseBundleAbsolute);
-  }
-  for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relNodePath)) {
-    if (
-      legacyAbsolute &&
-      legacyAbsolute !== keepBundleAbsolute &&
-      legacyAbsolute !== keepSidecarAbsolute
-    ) {
-      await removeIfExists(legacyAbsolute);
-    }
-  }
-}
-
-/** Канон: awn-storage/{_ или тема}/Todo.md; дублирует в *.x.todo.md (кроме _Parts). */
 async function writeTodoFiles(relNodePath, content) {
-  const bundleRelPath = toTodoFilePath(relNodePath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const bundleRelPath = toTodoFilePath(resolvedRelPath);
   const bundleAbsolute = normalizeWorkspacePath(bundleRelPath);
   if (!bundleAbsolute) throw new Error("Invalid TODO path");
 
   await fs.mkdir(path.dirname(bundleAbsolute), { recursive: true });
   await fs.writeFile(bundleAbsolute, content, "utf-8");
-
-  const sidecarRelPath = toTodoSidecarRelPath(relNodePath);
-  let sidecarAbsolute = null;
-  if (sidecarRelPath) {
-    sidecarAbsolute = normalizeWorkspacePath(sidecarRelPath);
-    if (sidecarAbsolute) {
-      await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
-      await fs.writeFile(sidecarAbsolute, content, "utf-8");
-    }
-  }
-
-  await removeTodoLegacyDuplicates(relNodePath, bundleAbsolute, sidecarAbsolute);
   return bundleRelPath;
 }
 
-function getLegacyManifestSidecarRelPaths(relNodePath, xSuffix, nodeSuffix) {
-  if (resolvePartFolderSidecarBaseRel(relNodePath)) return [];
-  const paths = [];
-  if (xSuffix) paths.push(manifestRelToXSidecar(relNodePath, xSuffix));
-  if (nodeSuffix) paths.push(legacyManifestRelToNodeSidecar(relNodePath, nodeSuffix));
-  return paths;
-}
-
 async function readExistingBundleFile(relNodePath, bundleFileName) {
-  const canonicalRel = namedStorageBundleRel(relNodePath, bundleFileName);
-  const candidates = [
-    canonicalRel,
-    ...getNamedStorageBundleRelCandidates(relNodePath, bundleFileName, getStoragePathOptions()).filter(
-      (rel) => rel !== canonicalRel
-    )
-  ];
-  for (const rel of candidates) {
-    const absolute = normalizeWorkspacePath(rel);
-    if (!absolute) continue;
-    try {
-      const content = await fs.readFile(absolute, "utf-8");
-      return { path: rel, content, exists: true };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-  return { path: canonicalRel, content: "", exists: false };
-}
-
-async function migrateLegacySidecarFileToBundle(relNodePath, bundleFileName, legacyRelPaths) {
-  const canonicalRel = namedStorageBundleRel(relNodePath, bundleFileName);
-  const canonicalAbsolute = normalizeWorkspacePath(canonicalRel);
-  if (!canonicalAbsolute) return canonicalRel;
-
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const canonicalRel = namedStorageBundleRel(resolvedRelPath, bundleFileName);
+  const absolute = normalizeWorkspacePath(canonicalRel);
+  if (!absolute) return { path: canonicalRel, content: "", exists: false };
   try {
-    await fs.access(canonicalAbsolute);
-    return canonicalRel;
+    const content = await fs.readFile(absolute, "utf-8");
+    return { path: canonicalRel, content, exists: true };
   } catch (error) {
     if (!error || error.code !== "ENOENT") throw error;
   }
-
-  const manifestAbsolute = normalizeWorkspacePath(relNodePath);
-
-  for (const legacyRel of legacyRelPaths) {
-    const legacyAbsolute = normalizeWorkspacePath(legacyRel);
-    if (!legacyAbsolute || legacyAbsolute === canonicalAbsolute) continue;
-    if (manifestAbsolute && legacyAbsolute === manifestAbsolute) continue;
-    try {
-      const content = await fs.readFile(legacyAbsolute);
-      await fs.mkdir(path.dirname(canonicalAbsolute), { recursive: true });
-      await fs.writeFile(canonicalAbsolute, content);
-      await removeIfExists(legacyAbsolute);
-      return canonicalRel;
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-
-  return canonicalRel;
-}
-
-function toLegacyTodoFilePath(relNodePath) {
-  return path.join(getNodeStorageRootRel(relNodePath), "TODO.md").replace(/\\/g, "/");
-}
-
-function toLegacyFlatTodoFilePath(relNodePath) {
-  const normalized = String(relNodePath).replace(/\\/g, "/");
-  const dir = path.dirname(normalized);
-  if (!dir || dir === ".") return "TODO.md";
-  return path.join(dir, "TODO.md").replace(/\\/g, "/");
-}
-
-function getTodoLegacyAbsoluteCandidates(relNodePath) {
-  const seen = new Set();
-  const candidates = [];
-  for (const relPath of [toLegacyTodoFilePath(relNodePath), toLegacyFlatTodoFilePath(relNodePath)]) {
-    const absolute = normalizeWorkspacePath(relPath);
-    if (!absolute || seen.has(absolute)) continue;
-    seen.add(absolute);
-    candidates.push(absolute);
-  }
-  const nodeAbsolute = normalizeWorkspacePath(relNodePath);
-  if (nodeAbsolute) {
-    const storageAbsolute = path.join(getNodeStorageRootAbsolute(nodeAbsolute), "TODO.md");
-    if (storageAbsolute.startsWith(getAgentRoot()) && !seen.has(storageAbsolute)) {
-      seen.add(storageAbsolute);
-      candidates.push(storageAbsolute);
-    }
-  }
-  return candidates;
-}
-
-async function migrateTodoLegacyToCanonical(relNodePath, content) {
-  return writeTodoFiles(relNodePath, content);
+  return { path: canonicalRel, content: "", exists: false };
 }
 
 function getYamlScalar(frontmatter, key) {
@@ -648,48 +456,16 @@ function parseCsvText(text) {
 }
 
 async function readInternalMemoryContent(relPath) {
-  const memoryRelPath = toContentFilePath(relPath);
-  const partLegacyAbsolute = normalizeWorkspacePath(
-    toPartFolderManifestSidecarRel(relPath, ".node.content.md") || ""
-  );
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const memoryRelPath = toContentFilePath(resolvedRelPath);
   if (!memoryRelPath) return { path: memoryRelPath, content: "", exists: false };
-
-  const bundleHit = await readExistingBundleFile(relPath, BUNDLE_CONTENT_FILE);
-  if (bundleHit.exists) {
-    return { path: memoryRelPath, content: bundleHit.content, exists: true };
-  }
-
-  const legacyRelPaths = [
-    ...getLegacyManifestSidecarRelPaths(relPath, ".content.md", ".content.md"),
-    toLegacyFlatContentFilePath(relPath),
-    toLegacyContentFilePath(relPath),
-    namedStorageBundleRel(relPath, BUNDLE_CONTENT_FILE)
-  ];
-  for (const legacyRel of legacyRelPaths) {
-    const legacyAbsolute = normalizeWorkspacePath(legacyRel);
-    if (!legacyAbsolute) continue;
-    try {
-      const legacyContent = await fs.readFile(legacyAbsolute, "utf-8");
-      return { path: memoryRelPath, content: legacyContent, exists: true };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-
-  if (partLegacyAbsolute) {
-    try {
-      const legacyContent = await fs.readFile(partLegacyAbsolute, "utf-8");
-      return { path: memoryRelPath, content: legacyContent, exists: true };
-    } catch {
-      // try next legacy path
-    }
-  }
-
-  return { path: memoryRelPath, content: "", exists: false };
+  const bundleHit = await readExistingBundleFile(resolvedRelPath, BUNDLE_CONTENT_FILE);
+  return { path: memoryRelPath, content: bundleHit.content, exists: bundleHit.exists };
 }
 
 async function readTodoContent(relPath) {
-  const todoRelPath = toTodoFilePath(relPath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const todoRelPath = toTodoFilePath(resolvedRelPath);
   const todoAbsolute = normalizeWorkspacePath(todoRelPath);
   if (!todoAbsolute) return { path: todoRelPath, content: "", exists: false };
 
@@ -700,66 +476,17 @@ async function readTodoContent(relPath) {
     if (!error || error.code !== "ENOENT") throw error;
   }
 
-  const legacySources = [];
-  const sidecarAbsolute = normalizeWorkspacePath(toTodoSidecarRelPath(relPath) || "");
-  if (sidecarAbsolute && sidecarAbsolute !== todoAbsolute) legacySources.push(sidecarAbsolute);
-
-  const lowercaseBundleAbsolute = normalizeWorkspacePath(
-    getLegacyLowercaseBundleRel(relPath, BUNDLE_TODO_FILE)
-  );
-  if (lowercaseBundleAbsolute && !legacySources.includes(lowercaseBundleAbsolute)) {
-    legacySources.push(lowercaseBundleAbsolute);
-  }
-
-  for (const legacyAbsolute of getTodoLegacyAbsoluteCandidates(relPath)) {
-    if (legacyAbsolute && legacyAbsolute !== todoAbsolute && !legacySources.includes(legacyAbsolute)) {
-      legacySources.push(legacyAbsolute);
-    }
-  }
-
-  const partLegacyAbsolute = normalizeWorkspacePath(
-    toPartFolderManifestSidecarRel(relPath, ".node.todo.md") || ""
-  );
-  if (
-    partLegacyAbsolute &&
-    partLegacyAbsolute !== todoAbsolute &&
-    !legacySources.includes(partLegacyAbsolute)
-  ) {
-    legacySources.push(partLegacyAbsolute);
-  }
-
-  const nodeSidecarAbsolute = normalizeWorkspacePath(
-    legacyManifestRelToNodeSidecar(relPath, ".todo.md")
-  );
-  if (
-    nodeSidecarAbsolute &&
-    nodeSidecarAbsolute !== todoAbsolute &&
-    nodeSidecarAbsolute !== sidecarAbsolute &&
-    !legacySources.includes(nodeSidecarAbsolute)
-  ) {
-    legacySources.push(nodeSidecarAbsolute);
-  }
-
-  for (const legacyAbsolute of legacySources) {
-    try {
-      const legacyContent = await fs.readFile(legacyAbsolute, "utf-8");
-      const migratedPath = await writeTodoFiles(relPath, legacyContent);
-      return { path: migratedPath, content: legacyContent, exists: true };
-    } catch (legacyError) {
-      if (!legacyError || legacyError.code !== "ENOENT") throw legacyError;
-    }
-  }
-
   return { path: todoRelPath, content: "", exists: false };
 }
 
 async function readTabularMemoryContent(relPath) {
-  const tabularRelPath = toTabularFilePath(relPath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const tabularRelPath = toTabularFilePath(resolvedRelPath);
   if (!tabularRelPath) {
     return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [], rowCount: 0 };
   }
 
-  const bundleHit = await readExistingBundleFile(relPath, BUNDLE_TABULAR_FILE);
+  const bundleHit = await readExistingBundleFile(resolvedRelPath, BUNDLE_TABULAR_FILE);
   if (bundleHit.exists) {
     const parsed = parseCsvText(bundleHit.content);
     return {
@@ -772,59 +499,17 @@ async function readTabularMemoryContent(relPath) {
     };
   }
 
-  const legacyRelPaths = [
-    ...getLegacyManifestSidecarRelPaths(relPath, ".content.csv", ".content.csv"),
-    namedStorageBundleRel(relPath, BUNDLE_TABULAR_FILE)
-  ];
-  for (const legacyRel of legacyRelPaths) {
-    const legacyAbsolute = normalizeWorkspacePath(legacyRel);
-    if (!legacyAbsolute) continue;
-    try {
-      const content = await fs.readFile(legacyAbsolute, "utf-8");
-      const parsed = parseCsvText(content);
-      return {
-        path: tabularRelPath,
-        content,
-        exists: true,
-        columns: parsed.columns,
-        rows: parsed.rows,
-        rowCount: parsed.rows.length
-      };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-
-  const partLegacyAbsolute = normalizeWorkspacePath(
-    toPartFolderManifestSidecarRel(relPath, ".node.content.csv") || ""
-  );
-  if (partLegacyAbsolute) {
-    try {
-      const content = await fs.readFile(partLegacyAbsolute, "utf-8");
-      const parsed = parseCsvText(content);
-      return {
-        path: tabularRelPath,
-        content,
-        exists: true,
-        columns: parsed.columns,
-        rows: parsed.rows,
-        rowCount: parsed.rows.length
-      };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-
   return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [], rowCount: 0 };
 }
 
 async function buildMemorySummary(relPath) {
-  const nodeAbsolute = normalizeWorkspacePath(relPath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
   if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
     return null;
   }
 
-  const internal = await readInternalMemoryContent(relPath);
+  const internal = await readInternalMemoryContent(resolvedRelPath);
   const internalSummary = {
     exists: internal.exists,
     path: internal.path,
@@ -870,7 +555,7 @@ async function buildMemorySummary(relPath) {
     }
   }
 
-  const tabular = await readTabularMemoryContent(relPath);
+  const tabular = await readTabularMemoryContent(resolvedRelPath);
   const tabularSummary = {
     exists: tabular.exists,
     path: tabular.path,
@@ -930,9 +615,8 @@ async function readNodeManifestRaw(nodeAbsolute) {
 }
 
 function getLegacyPropsAbsoluteCandidates(nodeRelPath) {
-  return [toPropsFilePath, toLegacyFlatPropsFilePath]
-    .map((fn) => normalizeWorkspacePath(fn(nodeRelPath)))
-    .filter(Boolean);
+  const propsAbsolute = normalizeWorkspacePath(toPropsFilePath(nodeRelPath));
+  return propsAbsolute ? [propsAbsolute] : [];
 }
 
 async function statNodeFileMeta(absolutePath) {
@@ -966,83 +650,21 @@ async function statNodeDirMeta(absolutePath) {
   }
 }
 
-async function readLegacyPropsContent(nodeRelPath) {
-  for (const propsAbsolute of getLegacyPropsAbsoluteCandidates(nodeRelPath)) {
-    try {
-      const content = await fs.readFile(propsAbsolute, "utf-8");
-      return { content, path: path.relative(getAgentRoot(), propsAbsolute).replace(/\\/g, "/") };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
-  }
-  return null;
-}
-
-async function migrateLegacyPropsIntoManifest(nodeRelPath) {
-  const nodeAbsolute = normalizeWorkspacePath(nodeRelPath);
-  if (!nodeAbsolute) return false;
+async function readNodeFrontmatterContent(nodeRelPath) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelPath);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+  if (!nodeAbsolute) return { frontmatter: "", body: "", source: null };
 
   const raw = await readNodeManifestRaw(nodeAbsolute);
-  if (raw === null) return false;
+  if (raw === null) {
+    return { frontmatter: "", body: "", source: null };
+  }
 
   const { frontmatter, body } = splitNodeFrontmatter(raw);
-  if (frontmatter.trim()) return false;
-
-  const legacy = await readLegacyPropsContent(nodeRelPath);
-  if (!legacy || !String(legacy.content || "").trim()) return false;
-
-  const nextContent = joinNodeFrontmatter(legacy.content, body);
-  await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
-  await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
-  await removeLegacyPropsFiles(nodeRelPath);
-  return true;
-}
-
-async function migrateLegacyPropsInDirectory(dirAbsolute, relPrefix = "") {
-  if (!dirAbsolute) return;
-  const relFiles = await collectNodeMdFiles(dirAbsolute, relPrefix);
-  for (const relPath of relFiles) {
-    await migrateLegacyPropsIntoManifest(relPath);
+  if (frontmatter.trim()) {
+    return { frontmatter, body, source: "frontmatter" };
   }
-}
-
-async function readNodeFrontmatterContent(nodeRelPath) {
-  const nodeAbsolute = normalizeWorkspacePath(nodeRelPath);
-  if (!nodeAbsolute) return { frontmatter: "", body: "", source: null, legacyPath: null };
-
-  await migrateLegacyPropsIntoManifest(nodeRelPath);
-
-  const raw = await readNodeManifestRaw(nodeAbsolute);
-  if (raw !== null) {
-    const { frontmatter, body } = splitNodeFrontmatter(raw);
-    if (frontmatter.trim()) {
-      return { frontmatter, body, source: "frontmatter", legacyPath: null };
-    }
-    if (body.trim()) {
-      const legacy = await readLegacyPropsContent(nodeRelPath);
-      if (legacy) {
-        return {
-          frontmatter: legacy.content,
-          body,
-          source: "legacy-props",
-          legacyPath: legacy.path
-        };
-      }
-      return { frontmatter: "", body, source: null, legacyPath: null };
-    }
-  }
-
-  const legacy = await readLegacyPropsContent(nodeRelPath);
-  if (legacy) {
-    return {
-      frontmatter: legacy.content,
-      body: raw ?? "",
-      source: "legacy-props",
-      legacyPath: legacy.path
-    };
-  }
-
-  return { frontmatter: "", body: raw ?? "", source: null, legacyPath: null };
+  return { frontmatter: "", body, source: null };
 }
 
 async function removeLegacyPropsFiles(nodeRelPath) {
@@ -1058,22 +680,6 @@ function extractColorFromPropsYaml(content) {
     if (match) return match[1].trim();
   }
   return null;
-}
-
-function toLegacyFlatContentFilePath(relNodePath) {
-  return legacyManifestRelToNodeSidecar(relNodePath, ".content.md");
-}
-
-function toLegacyFlatPropsFilePath(relNodePath) {
-  return String(relNodePath).replace(/\.node\.md$/i, ".props.yaml");
-}
-
-function toLegacyContentFilePath(relNodePath) {
-  const normalized = String(relNodePath || "").replace(/\\/g, "/");
-  if (isTopicManifestFileName(path.posix.basename(normalized)) || isAreaManifestFileName(path.posix.basename(normalized))) {
-    return manifestRelToXSidecar(normalized, ".content.md");
-  }
-  return normalized.replace(/\.node\.md$/i, ".content.md");
 }
 
 function toConfigurationFilePath(relNodePath) {
@@ -1507,50 +1113,108 @@ async function nodePathExists(absolutePath) {
   }
 }
 
-async function resolveCanonicalManifestRelPath(relPath) {
-  return String(relPath || "").replace(/\\/g, "/");
-}
+async function resolveExistingWorkspaceRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return normalized;
 
-async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
-  const workspaceKey = path.basename(dirAbsolute);
-  const preferredFolder = toAreaFolderName(workspaceKey);
-  if (preferredFolder) {
-    const preferredRel = prefix
-      ? `${prefix}/${preferredFolder}/${AREA_MANIFEST_FILE}`
-      : `${preferredFolder}/${AREA_MANIFEST_FILE}`;
-    if (await nodePathExists(path.join(dirAbsolute, preferredFolder, AREA_MANIFEST_FILE))) {
-      return preferredRel.replace(/\\/g, "/");
+  const candidates = [];
+  const vaultFolder = getAgentVaultFolder();
+  const serviceFolder = getAgentServiceFolder();
+
+  if (vaultFolder) {
+    const normalizedLower = normalized.toLowerCase();
+    const vaultLower = vaultFolder.toLowerCase();
+    const hasVaultPrefix =
+      normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`);
+    const serviceLower = String(serviceFolder || "").toLowerCase();
+    const isServicePath =
+      serviceFolder &&
+      (normalizedLower === serviceLower || normalizedLower.startsWith(`${serviceLower}/`));
+
+    await ensureVaultFolderScaffold(getAgentRoot());
+
+    if (hasVaultPrefix || isServicePath) {
+      candidates.push(normalized);
+    } else if (normalized === AREA_MANIFEST_FILE) {
+      candidates.push(AREA_MANIFEST_FILE, `${vaultFolder}/${AREA_MANIFEST_FILE}`);
+    } else {
+      candidates.push(`${vaultFolder}/${normalized}`, normalized);
+    }
+  } else {
+    candidates.push(normalized);
+  }
+
+  for (const candidate of candidates) {
+    const absolute = normalizeWorkspacePath(candidate);
+    if (!absolute) continue;
+    if (await nodePathExists(absolute)) {
+      return candidate.replace(/\\/g, "/");
     }
   }
 
-  let entries = [];
-  try {
-    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
-  } catch {
-    return null;
+  return (candidates[0] || normalized).replace(/\\/g, "/");
+}
+
+async function resolveCanonicalManifestRelPath(relPath) {
+  return resolveExistingWorkspaceRelPath(relPath);
+}
+
+async function resolveApiManifestAbsolute(relPath) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const absolute = normalizeWorkspacePath(resolvedRelPath);
+  if (!absolute || !isManifestMdAbsolute(absolute)) return null;
+  return absolute;
+}
+
+function manifestRelFromNodeAbsolute(nodeAbsolute) {
+  return path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+}
+
+async function resolveApiManifestContext(relPath) {
+  const absolute = await resolveApiManifestAbsolute(relPath);
+  if (!absolute) return null;
+  return { absolute, rel: manifestRelFromNodeAbsolute(absolute) };
+}
+
+async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
+  const prefixNorm = String(prefix || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const directAbsolute = prefixNorm
+    ? path.join(dirAbsolute, prefixNorm, AREA_MANIFEST_FILE)
+    : path.join(dirAbsolute, AREA_MANIFEST_FILE);
+  if (await nodePathExists(directAbsolute)) {
+    return prefixNorm ? `${prefixNorm}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
   }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !isAreaFolderName(entry.name)) continue;
-    const candidate = path.join(dirAbsolute, entry.name, AREA_MANIFEST_FILE);
-    if (!(await nodePathExists(candidate))) continue;
-    const rel = prefix ? `${prefix}/${entry.name}/${AREA_MANIFEST_FILE}` : `${entry.name}/${AREA_MANIFEST_FILE}`;
-    return rel.replace(/\\/g, "/");
+  const workspaceKey = path.basename(dirAbsolute);
+  const preferredFolder = toAreaFolderName(workspaceKey);
+  if (preferredFolder) {
+    const preferredRel = prefixNorm
+      ? `${prefixNorm}/${preferredFolder}/${AREA_MANIFEST_FILE}`
+      : `${preferredFolder}/${AREA_MANIFEST_FILE}`;
+    const legacyAbsolute = prefixNorm
+      ? path.join(dirAbsolute, prefixNorm, preferredFolder, AREA_MANIFEST_FILE)
+      : path.join(dirAbsolute, preferredFolder, AREA_MANIFEST_FILE);
+    if (await nodePathExists(legacyAbsolute)) {
+      return preferredRel.replace(/\\/g, "/");
+    }
   }
   return null;
 }
 
 async function ensureWorkspaceRootIndex(dirAbsolute) {
   await fs.mkdir(dirAbsolute, { recursive: true });
-  const existing = await resolveRootAreaManifestRel(dirAbsolute);
-  if (existing) return;
   const workspaceKey = path.basename(dirAbsolute);
-  const areaFolder = toAreaFolderName(workspaceKey) || toAreaFolderName("workspace");
-  const areaAbsolute = path.join(dirAbsolute, areaFolder);
-  await fs.mkdir(areaAbsolute, { recursive: true });
-  const manifestAbsolute = path.join(areaAbsolute, AREA_MANIFEST_FILE);
-  if (await dirExists(manifestAbsolute)) return;
-  await fs.writeFile(manifestAbsolute, "", "utf-8");
+  const rootManifestAbsolute = path.join(dirAbsolute, AREA_MANIFEST_FILE);
+  if (await fileExists(rootManifestAbsolute)) return;
+
+  const legacyFolder = toAreaFolderName(workspaceKey);
+  if (legacyFolder) {
+    const legacyManifestAbsolute = path.join(dirAbsolute, legacyFolder, AREA_MANIFEST_FILE);
+    if (await fileExists(legacyManifestAbsolute)) return;
+  }
+
+  await fs.writeFile(rootManifestAbsolute, `# ${workspaceKey}\n`, "utf-8");
+  await ensureManifestStorageSlotDir(AREA_MANIFEST_FILE);
 }
 
 async function ensureServiceFolderScaffold(agentRootAbsolute) {
@@ -1558,31 +1222,27 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
   if (!serviceFolder) return null;
 
   const serviceAbsolute = path.join(agentRootAbsolute, serviceFolder);
-  const serviceAreaFolder = toAreaFolderName("Служебное");
-  const serviceAreaAbsolute = path.join(serviceAbsolute, serviceAreaFolder);
-  await fs.mkdir(path.join(serviceAreaAbsolute, `s.Служебное`, STORAGE_SUBFOLDER_ASSETS), {
-    recursive: true
-  });
+  const serviceManifestRel = getServiceAreaManifestRel(serviceFolder);
+  const manifestAbsolute = path.join(serviceAbsolute, AREA_MANIFEST_FILE);
 
-  const manifestBasename = await resolveExistingAreaManifestBasename(serviceAreaAbsolute);
-  const serviceRelPrefix = serviceFolder.replace(/\\/g, "/");
-  const serviceManifestRel = joinAreaManifestRel(serviceRelPrefix, "Служебное");
-  if (!manifestBasename) {
-    await fs.mkdir(serviceAreaAbsolute, { recursive: true });
+  await fs.mkdir(serviceAbsolute, { recursive: true });
+
+  if (!(await fileExists(manifestAbsolute))) {
     await fs.writeFile(
-      path.join(serviceAreaAbsolute, AREA_MANIFEST_FILE),
+      manifestAbsolute,
       joinNodeFrontmatter(
-        "title: Служебное\nAWN-TYPE: service",
-        "# Служебное\n\nОбщая медиатека и служебные темы агента.\n"
+        `title: ${SERVICE_AREA_NAME}\nAWN-TYPE: service`,
+        `# ${SERVICE_AREA_NAME}\n\nОбщая медиатека и служебные темы агента.\n`
       ),
       "utf-8"
     );
-  } else {
-    await migrateLegacyPropsIntoManifest(serviceManifestRel);
   }
 
-  migrateServiceCatalogLegacySync(serviceAbsolute);
-  await migrateLegacyPropsInDirectory(serviceAbsolute, serviceRelPrefix);
+  await ensureManifestStorageSlotDir(serviceManifestRel);
+  const serviceSlotAbsolute = normalizeWorkspacePath(getNamedStorageSlotDirRel(serviceManifestRel));
+  if (serviceSlotAbsolute) {
+    await fs.mkdir(path.join(serviceSlotAbsolute, STORAGE_SUBFOLDER_ASSETS), { recursive: true });
+  }
 
   return serviceAbsolute;
 }
@@ -1596,18 +1256,65 @@ async function ensureVaultFolderScaffold(agentRootAbsolute) {
   return vaultAbsolute;
 }
 
+async function normalizeServiceMenuTree(tree, serviceAbsolute) {
+  if (!tree || !serviceAbsolute) return tree;
+  const serviceFolder = getAgentServiceFolder();
+  const legacyServiceAreaFolder = toAreaFolderName(SERVICE_AREA_NAME);
+  const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
+  tree.indexPath = serviceManifestRel;
+  tree.color = null;
+  tree.tags = [];
+  tree.category = null;
+  tree.hasPreview = false;
+  tree.previewUrl = null;
+  if (serviceManifestRel) {
+    const indexMeta = await enrichMenuNodeItem(serviceManifestRel);
+    tree.color = indexMeta.color;
+    tree.tags = indexMeta.tags || [];
+    tree.category = indexMeta.category || null;
+    tree.hasPreview = indexMeta.hasPreview;
+    tree.previewUrl = indexMeta.previewUrl;
+  }
+  const legacyTopicFolder = `t.${SERVICE_AREA_NAME}`;
+  tree.sections = (tree.sections || []).filter(
+    (section) =>
+      section.title !== SERVICE_AREA_NAME &&
+      section.folderPath !== legacyServiceAreaFolder &&
+      section.folderPath !== legacyTopicFolder &&
+      section.folderPath !== `${serviceFolder}/${legacyServiceAreaFolder}`.replace(/\\/g, "/") &&
+      section.folderPath !== `${serviceFolder}/${legacyTopicFolder}`.replace(/\\/g, "/")
+  );
+  return tree;
+}
+
+function getAreaFolderPathFromManifestRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  if (!isAreaManifestRelPath(normalized)) return null;
+  return path.dirname(normalized).replace(/\\/g, "/");
+}
+
+function dedupeRootMenuSections(menu) {
+  if (!menu?.indexPath) return menu;
+  const indexFolder = getAreaFolderPathFromManifestRel(menu.indexPath);
+  if (!indexFolder || indexFolder === ".") return menu;
+  menu.sections = (menu.sections || []).filter((section) => section.folderPath !== indexFolder);
+  return menu;
+}
+
 async function buildAgentMenu(agentRootAbsolute) {
   await ensureWorkspaceRootIndex(agentRootAbsolute);
-  await migrateLegacyPropsInDirectory(agentRootAbsolute);
   await ensureVaultFolderScaffold(agentRootAbsolute);
-  const menu = await listNodeMdFiles(agentRootAbsolute);
+  const menu = dedupeRootMenuSections(await listNodeMdFiles(agentRootAbsolute));
   const serviceFolder = getAgentServiceFolder();
   let serviceTree = null;
 
   if (serviceFolder) {
     const serviceAbsolute = await ensureServiceFolderScaffold(agentRootAbsolute);
     if (serviceAbsolute) {
-      serviceTree = await listNodeMdFiles(serviceAbsolute, serviceFolder, 0);
+      serviceTree = await normalizeServiceMenuTree(
+        await listNodeMdFiles(serviceAbsolute, "", 0),
+        serviceAbsolute
+      );
     }
   }
 
@@ -1668,29 +1375,52 @@ function resolveParentDirectoryRelPath(parentPathRaw) {
 async function resolveExistingParentDirectoryRelPath(parentPathRaw) {
   const resolved = resolveParentDirectoryRelPath(parentPathRaw);
   const normalized = !resolved || resolved === "." ? "." : resolved.replace(/\\/g, "/");
-  const candidates = [normalized];
+  const candidates = [];
+  const seen = new Set();
+  const pushCandidate = (value) => {
+    const candidate = value === "" ? "." : String(value || "").replace(/\\/g, "/");
+    if (seen.has(candidate)) return;
+    seen.add(candidate);
+    candidates.push(candidate);
+  };
+
+  const serviceFolder = getAgentServiceFolder();
   const vaultFolder = getAgentVaultFolder();
+  const normalizedLower = normalized.toLowerCase();
+
+  if (serviceFolder) {
+    const serviceLower = serviceFolder.toLowerCase();
+    const hasServicePrefix =
+      normalizedLower === serviceLower || normalizedLower.startsWith(`${serviceLower}/`);
+    if (hasServicePrefix) {
+      pushCandidate(normalized);
+    } else if (normalized !== "." && normalized !== "") {
+      pushCandidate(`${serviceFolder}/${normalized}`);
+    }
+  }
 
   if (vaultFolder) {
     const vaultLower = vaultFolder.toLowerCase();
-    const normalizedLower = normalized.toLowerCase();
-    const targetsVault =
-      normalized === "." ||
-      normalized === "" ||
-      normalizedLower === vaultLower ||
-      normalizedLower.startsWith(`${vaultLower}/`);
-    const needsVaultPrefix =
-      normalized !== "." &&
-      normalized !== "" &&
-      normalizedLower !== vaultLower &&
-      !normalizedLower.startsWith(`${vaultLower}/`);
+    const hasVaultPrefix =
+      normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`);
 
-    if (targetsVault || needsVaultPrefix) {
-      await ensureVaultFolderScaffold(getAgentRoot());
+    await ensureVaultFolderScaffold(getAgentRoot());
+
+    if (hasVaultPrefix) {
+      pushCandidate(normalized);
+    } else if (normalized === "." || normalized === "") {
+      pushCandidate(vaultFolder);
+      pushCandidate(".");
+    } else {
+      pushCandidate(`${vaultFolder}/${normalized}`);
+      pushCandidate(normalized);
     }
-    if (needsVaultPrefix) {
-      candidates.push(`${vaultFolder}/${normalized}`);
-    }
+  } else if (!serviceFolder) {
+    pushCandidate(normalized);
+  } else if (normalized === "." || normalized === "") {
+    pushCandidate(".");
+  } else if (!candidates.length) {
+    pushCandidate(normalized);
   }
 
   for (const candidate of candidates) {
@@ -1715,9 +1445,13 @@ async function resolveNodeManifestRelForContainer(containerRelDir) {
   const normalized = String(containerRelDir || "").replace(/\\/g, "/");
   if (!normalized || normalized === ".") {
     const rootRel = await resolveRootAreaManifestRel(getAgentRoot());
-    return rootRel || joinAreaManifestRel(".", path.basename(getAgentRoot()));
+    return rootRel || AREA_MANIFEST_FILE;
   }
   if (isAreaManifestRelPath(normalized)) return normalized;
+  const serviceFolder = getAgentServiceFolder();
+  if (serviceFolder && normalized.replace(/\\/g, "/") === serviceFolder.replace(/\\/g, "/")) {
+    return getServiceAreaManifestRel(serviceFolder);
+  }
   const base = path.posix.basename(normalized);
   if (isAreaFolderName(base)) return `${normalized}/${AREA_MANIFEST_FILE}`;
   return joinAreaManifestRel(normalized, base);
@@ -1774,6 +1508,10 @@ function stripServicePrefixFromRelPath(relPath) {
 
 function stripAgentContentPrefixFromRelPath(relPath) {
   return stripVaultPrefixFromRelPath(stripServicePrefixFromRelPath(relPath));
+}
+
+function toMenuDisplayCreatedPath(relPath) {
+  return stripVaultPrefixFromRelPath(String(relPath || "").replace(/\\/g, "/"));
 }
 
 function getNodeContainerDir(nodeAbsolute) {
@@ -1871,7 +1609,8 @@ function resolveNodePathFromStorageRel(relPath) {
 }
 
 async function ensureManifestStorageSlotDir(relNodePath) {
-  const rel = String(relNodePath || "").replace(/\\/g, "/");
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const rel = String(resolvedRelPath || "").replace(/\\/g, "/");
   const slotAbsolute = normalizeWorkspacePath(getNamedStorageSlotDirRel(rel, getStoragePathOptions()));
   if (!slotAbsolute || !slotAbsolute.startsWith(getAgentRoot())) return null;
   await fs.mkdir(slotAbsolute, { recursive: true });
@@ -2272,10 +2011,6 @@ async function getNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderName) {
   return resolveStorageSubfolderInParentAbsolute(storageRoot, subfolderName);
 }
 
-function getLegacyContainerDir(nodeAbsolute) {
-  return getNodeContainerDir(nodeAbsolute);
-}
-
 async function isExistingDirectory(absolutePath) {
   try {
     const stat = await fs.stat(absolutePath);
@@ -2308,14 +2043,12 @@ async function ensureNodeStorageFileAbsolute(nodeAbsolute, fileName) {
 
 async function resolveNodeStorageFileAbsolute(nodeAbsolute, fileName, options = {}) {
   const storagePath = path.join(getNodeStorageRootAbsolute(nodeAbsolute), fileName);
-  const legacyPath = path.join(getLegacyContainerDir(nodeAbsolute), fileName);
 
   if (options.create) {
     return ensureNodeStorageFileAbsolute(nodeAbsolute, fileName);
   }
 
   if (await fileExists(storagePath)) return storagePath;
-  if (await fileExists(legacyPath)) return legacyPath;
   return storagePath;
 }
 
@@ -2324,6 +2057,8 @@ async function getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderNa
   if (!canonical || canonical.toLowerCase() === STORAGE_SUBFOLDER_PREVIEW.toLowerCase()) {
     return null;
   }
+  const manifestRel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+  await ensureManifestStorageSlotDir(manifestRel);
   const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
   let folderAbsolute = await resolveFolderPathCaseInsensitive(storageRoot, canonical);
   if (!folderAbsolute) {
@@ -2388,116 +2123,13 @@ function getNodePreviewSidecarBaseName(nodeAbsolute) {
   return PREVIEW_FILE_BASENAME;
 }
 
-function getPartLegacyPreviewSidecarBaseName() {
-  return "_.x.preview";
-}
-
 function getNodePreviewSidecarBaseNames(nodeAbsolute) {
   const dir = getNodePreviewDirAbsolute(nodeAbsolute);
-  const rel = path.relative(getAgentRoot(), String(nodeAbsolute || "")).replace(/\\/g, "/");
   const bases = [getNodePreviewSidecarBaseName(nodeAbsolute)];
-  if (parsePartFolderManifestRel(rel)) {
-    bases.push(getPartLegacyPreviewSidecarBaseName(), "_.node.preview");
-  } else {
-    const manifestDir = path.dirname(String(nodeAbsolute || ""));
-    bases.push(
-      path.basename(manifestRelToXSidecar(rel, ".preview")),
-      path.basename(legacyManifestRelToNodeSidecar(rel, ".preview"))
-    );
-  }
-  return { dir, bases: [...new Set(bases.filter(Boolean))] };
-}
-
-async function migrateLegacyNodePreviewToBundle(nodeAbsolute) {
-  const rel = path.relative(getAgentRoot(), String(nodeAbsolute || "")).replace(/\\/g, "/");
-  if (parsePartFolderManifestRel(rel)) return null;
-
-  const bundleDir = normalizeWorkspacePath(getNamedStorageSlotDirRel(rel, getStoragePathOptions()));
-  if (!bundleDir || !bundleDir.startsWith(getAgentRoot())) return null;
-  await fs.mkdir(bundleDir, { recursive: true });
-
-  const canonicalBase = PREVIEW_FILE_BASENAME;
-  for (const ext of NODE_PREVIEW_EXTENSIONS) {
-    const canonicalAbsolute = path.join(bundleDir, `${canonicalBase}${ext}`);
-    try {
-      const stat = await fs.stat(canonicalAbsolute);
-      if (stat.isFile()) return canonicalAbsolute;
-    } catch {
-      // canonical missing
-    }
-  }
-
-  const manifestDir = path.dirname(String(nodeAbsolute || ""));
-  const legacyDirs = [manifestDir];
-  for (const slotRel of listManifestStorageSlotDirRelCandidates(rel, getStoragePathOptions())) {
-    const slotAbsolute = normalizeWorkspacePath(slotRel);
-    if (slotAbsolute && slotAbsolute !== bundleDir && !legacyDirs.includes(slotAbsolute)) {
-      legacyDirs.push(slotAbsolute);
-    }
-  }
-  for (const previewFolderAbsolute of await listLegacyNodePreviewFoldersAbsolute(nodeAbsolute)) {
-    if (!legacyDirs.includes(previewFolderAbsolute)) {
-      legacyDirs.push(previewFolderAbsolute);
-    }
-  }
-
-  const legacyBases = [
-    path.basename(manifestRelToXSidecar(rel, ".preview")),
-    path.basename(legacyManifestRelToNodeSidecar(rel, ".preview")),
-    ...PREVIEW_FILE_NAMES.map((name) => path.basename(name, path.extname(name))),
-    "preview"
-  ];
-
-  for (const legacyDir of legacyDirs) {
-    for (const base of legacyBases) {
-      for (const ext of NODE_PREVIEW_EXTENSIONS) {
-        const legacyAbsolute = path.join(legacyDir, `${base}${ext}`);
-        const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
-        const targetAbsolute = path.join(bundleDir, `${canonicalBase}${normalizedExt}`);
-        if (legacyAbsolute === targetAbsolute) continue;
-        try {
-          const stat = await fs.stat(legacyAbsolute);
-          if (!stat.isFile()) continue;
-          try {
-            await fs.access(targetAbsolute);
-            await removeIfExists(legacyAbsolute);
-            return targetAbsolute;
-          } catch {
-            // target missing
-          }
-          const buffer = await fs.readFile(legacyAbsolute);
-          await fs.writeFile(targetAbsolute, buffer);
-          await removeIfExists(legacyAbsolute);
-          return targetAbsolute;
-        } catch {
-          // try next
-        }
-      }
-    }
-  }
-
-  await cleanupLegacyPreviewDirsForNode(nodeAbsolute);
-  return null;
-}
-
-async function removeDirectoryIfEmpty(absolutePath) {
-  try {
-    const entries = await fs.readdir(absolutePath);
-    if (entries.length === 0) await fs.rmdir(absolutePath);
-  } catch {
-    // directory may not exist or not be empty
-  }
-}
-
-async function cleanupLegacyPreviewDirsForNode(nodeAbsolute) {
-  for (const previewFolderAbsolute of await listLegacyNodePreviewFoldersAbsolute(nodeAbsolute)) {
-    await clearPreviewImages(previewFolderAbsolute);
-    await removeDirectoryIfEmpty(previewFolderAbsolute);
-  }
+  return { dir, bases };
 }
 
 async function findNodePreviewSidecarAbsolute(nodeAbsolute) {
-  await migrateLegacyNodePreviewToBundle(nodeAbsolute);
   const rel = path.relative(getAgentRoot(), String(nodeAbsolute || "")).replace(/\\/g, "/");
 
   if (!parsePartFolderManifestRel(rel)) {
@@ -2544,47 +2176,6 @@ async function clearNodePreviewSidecarFiles(nodeAbsolute) {
   }
 }
 
-async function migratePartLegacyPreviewSidecar(nodeAbsolute) {
-  const rel = path.relative(getAgentRoot(), String(nodeAbsolute || "")).replace(/\\/g, "/");
-  if (!parsePartFolderManifestRel(rel)) return null;
-
-  const dir = getNodePreviewDirAbsolute(nodeAbsolute);
-  const legacyBase = getPartLegacyPreviewSidecarBaseName();
-  let legacyAbsolute = null;
-  for (const ext of NODE_PREVIEW_EXTENSIONS) {
-    const candidate = path.join(dir, `${legacyBase}${ext}`);
-    try {
-      const stat = await fs.stat(candidate);
-      if (stat.isFile()) {
-        legacyAbsolute = candidate;
-        break;
-      }
-    } catch {
-      // try next extension
-    }
-  }
-  if (!legacyAbsolute) return null;
-
-  const ext = path.extname(legacyAbsolute);
-  const canonicalBase = getNodePreviewSidecarBaseName(nodeAbsolute);
-  const canonicalAbsolute = path.join(dir, `${canonicalBase}${ext === ".jpeg" ? ".jpg" : ext}`);
-  if (legacyAbsolute === canonicalAbsolute) return canonicalAbsolute;
-
-  try {
-    await fs.access(canonicalAbsolute);
-    await removeIfExists(legacyAbsolute);
-    return canonicalAbsolute;
-  } catch {
-    // canonical missing
-  }
-
-  const buffer = await fs.readFile(legacyAbsolute);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(canonicalAbsolute, buffer);
-  await removeIfExists(legacyAbsolute);
-  return canonicalAbsolute;
-}
-
 function resolveNodePreviewExtension(mimeType, rawName) {
   const mime = String(mimeType || "").toLowerCase();
   const ext = path.extname(String(rawName || "")).toLowerCase();
@@ -2611,7 +2202,6 @@ function validatePreviewImageBufferByExt(buffer, ext) {
 }
 
 async function findNodePreviewImageAbsolute(nodeAbsolute) {
-  await migratePartLegacyPreviewSidecar(nodeAbsolute);
   const sidecar = await findNodePreviewSidecarAbsolute(nodeAbsolute);
   return sidecar || null;
 }
@@ -2625,31 +2215,71 @@ async function getOrCreateNodePreviewSidecarAbsolute(nodeAbsolute, ext) {
   return absolute;
 }
 
+async function removeDirectoryIfEmpty(absolutePath) {
+  try {
+    const entries = await fs.readdir(absolutePath);
+    if (entries.length === 0) await fs.rmdir(absolutePath);
+  } catch {
+    // directory may not exist or not be empty
+  }
+}
+
 async function listLegacyNodePreviewFoldersAbsolute(nodeAbsolute) {
   const folders = [];
-  const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
-  const storagePreview = await resolveStorageSubfolderInParentAbsolute(
-    storageRoot,
-    STORAGE_SUBFOLDER_PREVIEW
-  );
-  if (storagePreview && storagePreview.startsWith(getAgentRoot())) {
-    folders.push(storagePreview);
+  const agentRoot = getAgentRoot();
+  const rel = path.relative(agentRoot, String(nodeAbsolute || "")).replace(/\\/g, "/");
+
+  for (const slotRel of listManifestStorageSlotDirRelCandidates(rel)) {
+    const slotAbsolute = normalizeWorkspacePath(slotRel);
+    if (!slotAbsolute || !slotAbsolute.startsWith(agentRoot)) continue;
+
+    const previewSubfolder = path.join(slotAbsolute, STORAGE_SUBFOLDER_PREVIEW);
+    if ((await isExistingDirectory(previewSubfolder)) && !folders.includes(previewSubfolder)) {
+      folders.push(previewSubfolder);
+    }
+
+    const legacyPreview = await resolveFolderPathCaseInsensitive(slotAbsolute, "_Preview");
+    if (
+      legacyPreview &&
+      legacyPreview.startsWith(agentRoot) &&
+      !folders.includes(legacyPreview) &&
+      (await isExistingDirectory(legacyPreview))
+    ) {
+      folders.push(legacyPreview);
+    }
   }
 
-  const legacyFolder = await resolveStorageSubfolderInParentAbsolute(
-    getLegacyContainerDir(nodeAbsolute),
-    STORAGE_SUBFOLDER_PREVIEW
-  );
+  const containerDir = getNodeContainerDir(nodeAbsolute);
+  const legacyContainerPreview = await resolveFolderPathCaseInsensitive(containerDir, "_Preview");
   if (
-    legacyFolder &&
-    legacyFolder.startsWith(getAgentRoot()) &&
-    !folders.includes(legacyFolder) &&
-    (await isExistingDirectory(legacyFolder))
+    legacyContainerPreview &&
+    legacyContainerPreview.startsWith(agentRoot) &&
+    !folders.includes(legacyContainerPreview) &&
+    (await isExistingDirectory(legacyContainerPreview))
   ) {
-    folders.push(legacyFolder);
+    folders.push(legacyContainerPreview);
   }
 
   return folders;
+}
+
+async function cleanupLegacyPreviewDirsForNode(nodeAbsolute) {
+  const agentRoot = getAgentRoot();
+  const rel = path.relative(agentRoot, String(nodeAbsolute || "")).replace(/\\/g, "/");
+  const manifestDir = path.dirname(String(nodeAbsolute || ""));
+
+  for (const previewFolderAbsolute of await listLegacyNodePreviewFoldersAbsolute(nodeAbsolute)) {
+    await clearPreviewImages(previewFolderAbsolute);
+    await removeDirectoryIfEmpty(previewFolderAbsolute);
+  }
+
+  if (manifestDir.startsWith(agentRoot)) {
+    const legacyBase = path.basename(manifestRelToXSidecar(rel, ".preview"));
+    for (const ext of NODE_PREVIEW_EXTENSIONS) {
+      await removeIfExists(path.join(manifestDir, `${legacyBase}${ext}`));
+      await removeIfExists(path.join(manifestDir, `preview${ext}`));
+    }
+  }
 }
 
 async function clearAllNodePreviewImages(nodeAbsolute) {
@@ -2813,7 +2443,8 @@ async function getAgentPreviewMeta(agent) {
 }
 
 async function getNodePreviewMeta(nodeRelativePath) {
-  const nodeAbsolute = normalizeWorkspacePath(nodeRelativePath);
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
   if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
     return { hasPreview: false, previewUrl: null };
   }
@@ -2900,9 +2531,81 @@ async function readMenuSortOrder(dirAbsolute) {
   }
 }
 
-function resolveSortFolderAbsolute(folderPathRaw) {
-  if (!folderPathRaw || folderPathRaw === ".") return getAgentRoot();
-  return normalizeWorkspacePath(folderPathRaw);
+async function appendMenuSortOrderEntry(dirAbsolute, sortKey) {
+  const key = String(sortKey || "").trim();
+  if (!key || !dirAbsolute) return;
+  const order = [...((await readMenuSortOrder(dirAbsolute)) || [])];
+  if (order.includes(key)) return;
+  order.push(key);
+  const sortPath = path.join(dirAbsolute, MENU_SORT_FILE);
+  await fs.writeFile(sortPath, `${JSON.stringify({ order }, null, 2)}\n`, "utf-8");
+}
+
+async function resolveExistingWorkspaceDirAbsolute(folderPathRaw) {
+  const normalized = String(folderPathRaw || "").replace(/\\/g, "/").trim();
+  if (!normalized || normalized === ".") return getAgentRoot();
+
+  const candidates = [normalized];
+  const vaultFolder = getAgentVaultFolder();
+  if (vaultFolder) {
+    const normalizedLower = normalized.toLowerCase();
+    const vaultLower = vaultFolder.toLowerCase();
+    const hasVaultPrefix =
+      normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`);
+    if (!hasVaultPrefix) {
+      candidates.push(`${vaultFolder}/${normalized}`);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const absolute = normalizeWorkspacePath(candidate);
+    if (absolute && (await dirExists(absolute))) {
+      return absolute;
+    }
+  }
+
+  return normalizeWorkspacePath(normalized);
+}
+
+async function resolveAgentRootSortDirAbsolute() {
+  const agentRoot = getAgentRoot();
+  const vaultFolder = getAgentVaultFolder();
+  if (!vaultFolder) return agentRoot;
+
+  const vaultAbsolute = path.join(agentRoot, vaultFolder);
+  if (!(await dirExists(vaultAbsolute))) return agentRoot;
+
+  const rootOrder = await readMenuSortOrder(agentRoot);
+  if (rootOrder?.length) return agentRoot;
+
+  const vaultOrder = await readMenuSortOrder(vaultAbsolute);
+  if (vaultOrder?.length) return vaultAbsolute;
+
+  let entries = [];
+  try {
+    entries = await fs.readdir(agentRoot, { withFileTypes: true });
+  } catch {
+    return agentRoot;
+  }
+
+  const hasDirectMenuFolders = entries.some(
+    (entry) =>
+      entry.isDirectory() &&
+      !isVaultFolderName(entry.name) &&
+      !isServiceFolderName(entry.name) &&
+      !isStorageFolderName(entry.name) &&
+      !isHiddenMenuEntry(entry.name) &&
+      !isPartsFolderName(entry.name)
+  );
+
+  return hasDirectMenuFolders ? agentRoot : vaultAbsolute;
+}
+
+async function resolveSortFolderAbsolute(folderPathRaw) {
+  if (!folderPathRaw || folderPathRaw === ".") {
+    return resolveAgentRootSortDirAbsolute();
+  }
+  return resolveExistingWorkspaceDirAbsolute(folderPathRaw);
 }
 
 async function collectPartNodeItems(partsDirAbsolute, relativePrefix, files) {
@@ -2969,6 +2672,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   let indexPath = null;
 
   const selfMarkers = await readFolderWorkspaceMarkers(dirPath);
+  let hoistedVaultMenuOrder = null;
 
   for (const entry of entries) {
     if (isHiddenMenuEntry(entry.name)) continue;
@@ -2978,9 +2682,10 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     if (entry.isDirectory()) {
       if (isStorageFolderName(entry.name)) continue;
       if (isVaultFolderName(entry.name)) {
-        const child = await listNodeMdFiles(fullPath, relativePath, depth);
+        const child = await listNodeMdFiles(fullPath, "", depth);
         folders.push(...child.sections);
         files.push(...child.items);
+        hoistedVaultMenuOrder = await readMenuSortOrder(fullPath);
         continue;
       }
       if (isServiceFolderName(entry.name)) {
@@ -2995,7 +2700,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       const hasNodes = Boolean(child.indexPath || child.items.length > 0 || child.sections.length > 0);
       const markers = await readFolderWorkspaceMarkers(fullPath);
 
-      const folderTitle = isAreaFolderName(entry.name) ? stripTopicPrefix(entry.name) : entry.name;
+      const folderTitle = stripTopicPrefix(entry.name) || entry.name;
 
       if (hasNodes) {
         folders.push({
@@ -3038,16 +2743,21 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     }
   }
 
-  const areaBasename = await resolveExistingAreaManifestBasename(dirPath);
-  if (areaBasename) {
-    indexPath = prefix ? path.join(prefix, areaBasename).replace(/\\/g, "/") : areaBasename;
-  } else if (!prefix) {
+  if (!prefix) {
     indexPath = await resolveRootAreaManifestRel(dirPath, prefix);
+  } else {
+    const areaBasename = await resolveExistingAreaManifestBasename(dirPath);
+    if (areaBasename) {
+      indexPath = path.join(prefix, areaBasename).replace(/\\/g, "/");
+    }
   }
 
   folders.sort((a, b) => a.title.localeCompare(b.title, "ru"));
   files.sort((a, b) => a.label.localeCompare(b.label, "ru"));
-  const menuOrder = await readMenuSortOrder(dirPath);
+  let menuOrder = await readMenuSortOrder(dirPath);
+  if (!prefix && !menuOrder?.length && hoistedVaultMenuOrder?.length) {
+    menuOrder = hoistedVaultMenuOrder;
+  }
 
   let color = null;
   let tags = [];
@@ -3150,7 +2860,7 @@ async function findNodePathInDirectory(dirAbsolute) {
   try {
     const entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.isDirectory() && isAreaFolderName(entry.name)) {
+      if (entry.isDirectory() && !isStorageFolderName(entry.name)) {
         const areaManifest = path.join(dirAbsolute, entry.name, AREA_MANIFEST_FILE);
         if (await nodePathExists(areaManifest)) {
           return relDir
@@ -3337,7 +3047,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.x\.todo\.md$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.x\.todo\.md$/i, ".x.md"),
+      nodePath: normalized.replace(/\.x\.todo\.md$/i, ".md"),
       mode: "todo",
       source: "TODO",
       canonicalPath: normalized
@@ -3346,7 +3056,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.node\.todo\.md$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.node\.todo\.md$/i, ".x.md"),
+      nodePath: normalized.replace(/\.node\.todo\.md$/i, ".md"),
       mode: "todo",
       source: "TODO",
       canonicalPath: normalized
@@ -3355,7 +3065,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.x\.content\.md$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.x\.content\.md$/i, ".x.md"),
+      nodePath: normalized.replace(/\.x\.content\.md$/i, ".md"),
       mode: "internal",
       source: "Однофайловая"
     };
@@ -3363,7 +3073,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.node\.content\.md$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.node\.content\.md$/i, ".x.md"),
+      nodePath: normalized.replace(/\.node\.content\.md$/i, ".md"),
       mode: "internal",
       source: "Однофайловая"
     };
@@ -3385,7 +3095,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.x\.config\.ya?ml$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.x\.config\.ya?ml$/i, ".x.md"),
+      nodePath: normalized.replace(/\.x\.config\.ya?ml$/i, ".md"),
       mode: "configs",
       source: "Конфигурации"
     };
@@ -3393,7 +3103,7 @@ async function classifySearchResult(relPath) {
 
   if (/\.node\.config\.ya?ml$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.node\.config\.ya?ml$/i, ".x.md"),
+      nodePath: normalized.replace(/\.node\.config\.ya?ml$/i, ".md"),
       mode: "configs",
       source: "Конфигурации"
     };
@@ -3840,7 +3550,7 @@ async function handleApiForAgent(req, res, url) {
         ? payload.order.map((name) => String(name || "").trim()).filter(Boolean)
         : [];
 
-      const folderAbsolute = resolveSortFolderAbsolute(folderPathRaw);
+      const folderAbsolute = await resolveSortFolderAbsolute(folderPathRaw);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid folder path" });
 
       const folderStat = await fs.stat(folderAbsolute).catch(() => null);
@@ -3913,12 +3623,18 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
     const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
-    const absolute = normalizeWorkspacePath(canonicalRelPath);
+    let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+
+    const serviceFolder = getAgentServiceFolder();
+    const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
+    if (serviceManifestRel && canonicalRelPath.replace(/\\/g, "/") === serviceManifestRel) {
+      await ensureServiceFolderScaffold(getAgentRoot());
+      absolute = normalizeWorkspacePath(canonicalRelPath);
+    }
 
     try {
-      await migrateLegacyPropsIntoManifest(canonicalRelPath);
       const content = await fs.readFile(absolute, "utf-8");
       return sendJson(res, 200, { path: canonicalRelPath, content });
     } catch (error) {
@@ -3937,7 +3653,7 @@ async function handleApiForAgent(req, res, url) {
 
       const absolute = normalizeWorkspacePath(relPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
       const normalized = path.normalize(relPath);
       let nextRelPath = normalized;
@@ -3990,12 +3706,8 @@ async function handleApiForAgent(req, res, url) {
           }
           const oldContentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
           const newContentAbsolute = normalizeWorkspacePath(toContentFilePath(targetRelPath));
-          const oldLegacyContentAbsolute = normalizeWorkspacePath(toLegacyFlatContentFilePath(normalized));
-          const newLegacyContentAbsolute = normalizeWorkspacePath(toLegacyFlatContentFilePath(targetRelPath));
           const oldPropsAbsolute = normalizeWorkspacePath(toPropsFilePath(normalized));
           const newPropsAbsolute = normalizeWorkspacePath(toPropsFilePath(targetRelPath));
-          const oldLegacyPropsAbsolute = normalizeWorkspacePath(toLegacyFlatPropsFilePath(normalized));
-          const newLegacyPropsAbsolute = normalizeWorkspacePath(toLegacyFlatPropsFilePath(targetRelPath));
           const oldTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(normalized));
           const newTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(targetRelPath));
           const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
@@ -4004,14 +3716,8 @@ async function handleApiForAgent(req, res, url) {
           if (oldContentAbsolute && newContentAbsolute) {
             await renameIfExists(oldContentAbsolute, newContentAbsolute);
           }
-          if (oldLegacyContentAbsolute && newLegacyContentAbsolute) {
-            await renameIfExists(oldLegacyContentAbsolute, newLegacyContentAbsolute);
-          }
           if (oldPropsAbsolute && newPropsAbsolute) {
             await renameIfExists(oldPropsAbsolute, newPropsAbsolute);
-          }
-          if (oldLegacyPropsAbsolute && newLegacyPropsAbsolute) {
-            await renameIfExists(oldLegacyPropsAbsolute, newLegacyPropsAbsolute);
           }
           if (oldTodoAbsolute && newTodoAbsolute) {
             await renameIfExists(oldTodoAbsolute, newTodoAbsolute);
@@ -4049,7 +3755,7 @@ async function handleApiForAgent(req, res, url) {
       const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
       const absolute = normalizeWorkspacePath(canonicalRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
       await fs.mkdir(path.dirname(absolute), { recursive: true });
       await fs.writeFile(absolute, content, "utf-8");
@@ -4072,9 +3778,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     try {
       const summary = await buildMemorySummary(relPath);
@@ -4089,9 +3794,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     try {
       const tabular = await readTabularMemoryContent(relPath);
@@ -4109,17 +3813,17 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+      const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
-      const tabularRelPath = toTabularFilePath(relPath);
+      const tabularRelPath = toTabularFilePath(resolvedRelPath);
       const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
       if (!tabularAbsolute) return sendJson(res, 400, { error: "Invalid tabular memory path" });
 
       await fs.mkdir(path.dirname(tabularAbsolute), { recursive: true });
       await fs.writeFile(tabularAbsolute, content, "utf-8");
-      await removePartFolderLegacySidecarRel(relPath, ".node.content.csv");
       const parsed = parseCsvText(content);
       return sendJson(res, 200, {
         path: tabularRelPath,
@@ -4138,42 +3842,13 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
-
-    const memoryRelPath = toContentFilePath(relPath);
-    const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
-    const legacyRelPath = toLegacyFlatContentFilePath(relPath);
-    const legacyAbsolute = normalizeWorkspacePath(legacyRelPath);
-    const legacyAltRelPath = toLegacyContentFilePath(relPath);
-    const legacyAltAbsolute = normalizeWorkspacePath(legacyAltRelPath);
-    const partLegacyAbsolute = normalizeWorkspacePath(
-      toPartFolderManifestSidecarRel(relPath, ".node.content.md") || ""
-    );
-    if (!memoryAbsolute) return sendJson(res, 400, { error: "Invalid internal memory path" });
 
     try {
-      const content = await fs.readFile(memoryAbsolute, "utf-8");
-      return sendJson(res, 200, { path: memoryRelPath, content, exists: true });
+      const internal = await readInternalMemoryContent(relPath);
+      return sendJson(res, 200, internal);
     } catch (error) {
-      if (error && error.code === "ENOENT") {
-        for (const candidateAbsolute of [partLegacyAbsolute, legacyAbsolute, legacyAltAbsolute]) {
-          if (!candidateAbsolute) continue;
-          try {
-            const legacyContent = await fs.readFile(candidateAbsolute, "utf-8");
-            return sendJson(res, 200, {
-              path: memoryRelPath,
-              content: legacyContent,
-              exists: true,
-              migratedFrom: path.relative(getAgentRoot(), candidateAbsolute).replace(/\\/g, "/")
-            });
-          } catch {
-            // try next legacy path
-          }
-        }
-        return sendJson(res, 200, { path: memoryRelPath, content: "", exists: false });
-      }
       return sendJson(res, 500, { error: "Failed to read internal memory", details: String(error.message || error) });
     }
   }
@@ -4187,25 +3862,17 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+      const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
-      const memoryRelPath = toContentFilePath(relPath);
+      const memoryRelPath = toContentFilePath(resolvedRelPath);
       const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
       if (!memoryAbsolute) return sendJson(res, 400, { error: "Invalid internal memory path" });
 
       await fs.mkdir(path.dirname(memoryAbsolute), { recursive: true });
       await fs.writeFile(memoryAbsolute, content, "utf-8");
-
-      await removePartFolderLegacySidecarRel(relPath, ".node.content.md");
-      for (const legacyRelPath of [toLegacyFlatContentFilePath(relPath), toLegacyContentFilePath(relPath)]) {
-        const legacyAbsolute = normalizeWorkspacePath(legacyRelPath);
-        if (legacyAbsolute && legacyAbsolute !== memoryAbsolute) {
-          await removeIfExists(legacyAbsolute);
-        }
-      }
-
       return sendJson(res, 200, { path: memoryRelPath, content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save internal memory", details: String(error.message || error) });
@@ -4216,18 +3883,16 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     try {
-      const { frontmatter, source, legacyPath } = await readNodeFrontmatterContent(relPath);
+      const { frontmatter, source } = await readNodeFrontmatterContent(relPath);
       return sendJson(res, 200, {
         path: relPath,
         content: frontmatter,
         exists: Boolean(frontmatter.trim()),
-        source: source || "none",
-        legacyPath: legacyPath || null
+        source: source || "none"
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read properties", details: String(error.message || error) });
@@ -4243,9 +3908,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
       const { body } = splitNodeFrontmatter(raw);
@@ -4263,21 +3927,19 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
-    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    const manifestCtx = await resolveApiManifestContext(relPath);
+    if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const configRelPath = toNodeConfigFilePath(relPath);
+    const configRelPath = toNodeConfigFilePath(manifestCtx.rel);
 
     try {
-      const configFile = await readNodeConfigFile(relPath);
+      const configFile = await readNodeConfigFile(manifestCtx.rel);
       const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(configFile.content);
       return sendJson(res, 200, {
         path: configFile.path || configRelPath,
         content: configFile.content,
         exists: configFile.exists,
-        defaultLandingMode,
-        migratedFrom: configFile.migratedFrom || null
+        defaultLandingMode
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read node config", details: String(error.message || error) });
@@ -4292,21 +3954,16 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const configRelPath = toNodeConfigFilePath(relPath);
+      const configRelPath = toNodeConfigFilePath(manifestCtx.rel);
       const configAbsolute = normalizeWorkspacePath(configRelPath);
       if (!configAbsolute) return sendJson(res, 400, { error: "Invalid node config path" });
-      const legacyAbsolute = normalizeWorkspacePath(toLegacyNodeConfigFilePath(relPath));
 
       const trimmed = String(content).replace(/^\uFEFF/, "").trim();
       if (!trimmed) {
         await removeIfExists(configAbsolute);
-        if (legacyAbsolute && legacyAbsolute !== configAbsolute) {
-          await removeIfExists(legacyAbsolute);
-        }
         return sendJson(res, 200, {
           path: configRelPath,
           content: "",
@@ -4317,9 +3974,6 @@ async function handleApiForAgent(req, res, url) {
 
       await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
       await fs.writeFile(configAbsolute, content.endsWith("\n") ? content : `${content}\n`, "utf-8");
-      if (legacyAbsolute && legacyAbsolute !== configAbsolute) {
-        await removeIfExists(legacyAbsolute);
-      }
       const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(content);
       return sendJson(res, 200, {
         path: configRelPath,
@@ -4336,9 +3990,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, content: "", files: [] });
@@ -4368,9 +4021,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: [] });
@@ -4393,9 +4045,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
@@ -4427,9 +4078,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
@@ -4460,9 +4110,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
@@ -4493,9 +4142,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const sectionName = toExternalSectionFolderName(title);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
@@ -4530,9 +4178,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
@@ -4577,9 +4224,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
@@ -4618,9 +4264,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const buffer = Buffer.from(data, "base64");
       if (!buffer.length) return sendJson(res, 400, { error: "Empty file data" });
@@ -4671,9 +4316,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
@@ -4709,9 +4353,8 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const configRelPath = toConfigurationFilePath(relPath);
     const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, "Configuration.md");
@@ -4736,9 +4379,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const configRelPath = toConfigurationFilePath(relPath);
       const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, "Configuration.md", {
@@ -4757,12 +4399,11 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
-    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    const manifestCtx = await resolveApiManifestContext(relPath);
+    if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const envRelPath = toEnvFilePath(relPath);
-    const envAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, ".env");
+    const envRelPath = toEnvFilePath(manifestCtx.rel);
+    const envAbsolute = await resolveNodeStorageFileAbsolute(manifestCtx.absolute, ".env");
     if (!envAbsolute) return sendJson(res, 400, { error: "Invalid .env path" });
 
     try {
@@ -4784,12 +4425,11 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const envRelPath = toEnvFilePath(relPath);
-      const envAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, ".env", { create: true });
+      const envRelPath = toEnvFilePath(manifestCtx.rel);
+      const envAbsolute = await resolveNodeStorageFileAbsolute(manifestCtx.absolute, ".env", { create: true });
       if (!envAbsolute) return sendJson(res, 400, { error: "Invalid .env path" });
 
       await fs.writeFile(envAbsolute, content, "utf-8");
@@ -4807,7 +4447,7 @@ async function handleApiForAgent(req, res, url) {
     if (!manifestRel) {
       return sendJson(res, 400, {
         error: "Invalid file path",
-        details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, awn-storage/…/Todo.md)"
+        details: "Нужен манифест (*.md, README.x.md) или файл TODO (s.*/Todo.md)"
       });
     }
 
@@ -4831,11 +4471,12 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestRel) {
         return sendJson(res, 400, {
           error: "Invalid file path",
-          details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, awn-storage/…/Todo.md)"
+          details: "Нужен манифест (*.md, README.x.md) или файл TODO (s.*/Todo.md)"
         });
       }
 
-      const todoRelPath = await writeTodoFiles(manifestRel, content);
+      const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRel);
+      const todoRelPath = await writeTodoFiles(resolvedManifest, content);
 
       return sendJson(res, 200, { path: todoRelPath, content, exists: true });
     } catch (error) {
@@ -4902,7 +4543,7 @@ async function handleApiForAgent(req, res, url) {
       const manifestAbsolute = normalizeWorkspacePath(canonicalRelPath);
       if (!manifestAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(manifestAbsolute)) {
-        return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
       }
 
       const manifest = await statNodeFileMeta(manifestAbsolute);
@@ -4912,7 +4553,6 @@ async function handleApiForAgent(req, res, url) {
 
       const containerDir = getNodeContainerDir(manifestAbsolute);
       const folder = await statNodeDirMeta(containerDir);
-      await migrateLegacyPropsIntoManifest(canonicalRelPath);
       const { frontmatter } = await readNodeFrontmatterContent(canonicalRelPath);
       const props = frontmatter.trim()
         ? {
@@ -4937,9 +4577,10 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) {
@@ -4957,9 +4598,10 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
@@ -4986,9 +4628,10 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing image data" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+      const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
       const previewExt = resolveNodePreviewExtension(mimeType, fileName);
       if (!previewExt) {
@@ -5029,9 +4672,10 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
     try {
       await clearAllNodePreviewImages(nodeAbsolute);
@@ -5047,9 +4691,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
@@ -5107,9 +4750,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
@@ -5151,9 +4793,8 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
 
-      const nodeAbsolute = normalizeWorkspacePath(relPath);
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
@@ -5227,9 +4868,8 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!folderName) return sendJson(res, 400, { error: "Missing folder query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const safeFolderName = String(folderName).trim();
     if (!isAllowedStorageSubfolderName(safeFolderName)) {
@@ -5265,9 +4905,8 @@ async function handleApiForAgent(req, res, url) {
     const mode = String(url.searchParams.get("mode") || "description");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = normalizeWorkspacePath(relPath);
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     const targetAbsolute = resolveObsidianTargetAbsolute(nodeAbsolute, mode);
     if (!targetAbsolute.startsWith(getAgentRoot())) return sendJson(res, 400, { error: "Invalid target path" });
@@ -5287,7 +4926,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const absolute = normalizeWorkspacePath(relPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
       const normalized = path.normalize(relPath);
       if (isAreaManifestRelPath(normalized)) {
@@ -5301,12 +4940,10 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const contentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
-      const legacyContentAbsolute = normalizeWorkspacePath(toLegacyContentFilePath(normalized));
       const propsAbsolute = normalizeWorkspacePath(toPropsFilePath(normalized));
 
       await fs.rm(absolute, { force: false });
       if (contentAbsolute) await removeIfExists(contentAbsolute);
-      if (legacyContentAbsolute) await removeIfExists(legacyContentAbsolute);
       if (propsAbsolute) await removeIfExists(propsAbsolute);
       const slotAbsolute = normalizeWorkspacePath(
         getNamedStorageSlotDirRel(normalized, getStoragePathOptions())
@@ -5333,7 +4970,7 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/node/create") {
     try {
       const payload = await readJsonBody(req);
-      const parentPathResolved = await resolveExistingParentDirectoryRelPath(
+      let parentPathResolved = await resolveExistingParentDirectoryRelPath(
         typeof payload.parentPath === "string" ? payload.parentPath : "."
       );
       const type = String(payload.type || "").trim();
@@ -5347,6 +4984,20 @@ async function handleApiForAgent(req, res, url) {
         type !== "service-doc"
       ) {
         return sendJson(res, 400, { error: "Invalid type" });
+      }
+
+      if (
+        type === "file" &&
+        (parentPathResolved === "." || !parentPathResolved) &&
+        !getAgentVaultFolder()
+      ) {
+        const rootRel = await resolveRootAreaManifestRel(getAgentRoot());
+        if (rootRel) {
+          const rootAreaFolder = path.dirname(rootRel).replace(/\\/g, "/");
+          if (rootAreaFolder && rootAreaFolder !== ".") {
+            parentPathResolved = rootAreaFolder;
+          }
+        }
       }
 
       const parentRelPath =
@@ -5428,27 +5079,9 @@ async function handleApiForAgent(req, res, url) {
       if (type === "manifest") {
         const folderName = path.basename(parentAbsolute);
         const title = String(name || stripTopicPrefix(folderName)).trim() || folderName;
-        let areaFolderAbsolute = parentAbsolute;
-        let areaFolderRel =
+        const areaFolderAbsolute = parentAbsolute;
+        const areaFolderRel =
           parentPathResolved && parentPathResolved !== "." ? parentPathResolved : folderName;
-
-        if (!isAreaFolderName(folderName)) {
-          const newFolderName = toAreaFolderName(title);
-          if (!newFolderName) return sendJson(res, 400, { error: "Invalid area name" });
-          const newFolderAbsolute = path.join(path.dirname(parentAbsolute), newFolderName);
-          try {
-            await fs.access(newFolderAbsolute);
-            return sendJson(res, 409, { error: "Folder already exists" });
-          } catch {
-            // continue
-          }
-          await fs.rename(parentAbsolute, newFolderAbsolute);
-          areaFolderAbsolute = newFolderAbsolute;
-          areaFolderRel =
-            parentPathResolved && parentPathResolved !== "."
-              ? path.join(path.dirname(parentPathResolved), newFolderName).replace(/\\/g, "/")
-              : newFolderName;
-        }
 
         const manifestAbsolute = path.join(areaFolderAbsolute, AREA_MANIFEST_FILE);
         try {
@@ -5466,8 +5099,15 @@ async function handleApiForAgent(req, res, url) {
 
         const createdRel = `${areaFolderRel}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
+        await appendMenuSortOrderEntry(
+          path.dirname(areaFolderAbsolute),
+          title
+        );
 
-        return sendJson(res, 200, { createdPath: createdRel, type: "manifest" });
+        return sendJson(res, 200, {
+          createdPath: toMenuDisplayCreatedPath(createdRel),
+          type: "manifest"
+        });
       }
 
       if (type === "folder") {
@@ -5496,8 +5136,12 @@ async function handleApiForAgent(req, res, url) {
           : path.join(folderName, AREA_MANIFEST_FILE);
         const createdRel = createdPath.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
+        await appendMenuSortOrderEntry(parentAbsolute, areaTitle);
 
-        return sendJson(res, 200, { createdPath: createdRel, type: "folder" });
+        return sendJson(res, 200, {
+          createdPath: toMenuDisplayCreatedPath(createdRel),
+          type: "folder"
+        });
       }
 
       const partFileName = toNodeFileName(name);
@@ -5523,7 +5167,11 @@ async function handleApiForAgent(req, res, url) {
           : partFileName;
       const createdRel = createdPath.replace(/\\/g, "/");
       await ensureManifestStorageSlotDir(createdRel);
-      return sendJson(res, 200, { createdPath: createdRel, type: "file" });
+      await appendMenuSortOrderEntry(parentAbsolute, stripTopicPrefix(partFileName));
+      return sendJson(res, 200, {
+        createdPath: toMenuDisplayCreatedPath(createdRel),
+        type: "file"
+      });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";
       if (code === "EPERM" || code === "EACCES") {
@@ -5671,7 +5319,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет acms.main.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет ${AWN_AGENT_FILE}` });
       }
 
       const data = payload?.data;
@@ -5727,7 +5375,7 @@ async function handleApi(req, res, url) {
       const absolute = resolveAgentRootAbsolute(agentPath);
       const manifest = readAgentManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет acms.main.json` });
+        return sendJson(res, 400, { error: `В «${agentPath}» нет ${AWN_AGENT_FILE}` });
       }
 
       clearAgentWorkspacePreviewImagesSync(absolute);

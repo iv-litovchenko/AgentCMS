@@ -19,7 +19,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents",
           agentScope: false,
-          description: "Список агентов из acms.agents.json и превью корня.",
+          description: "Список агентов из awn-agents.json и превью корня.",
           query: [],
           body: null,
           response: "{ agents[], defaultAgentId }"
@@ -28,7 +28,7 @@ module.exports = {
           method: "PUT",
           path: "/api/agents/registry",
           agentScope: false,
-          description: "Сохранить реестр агентов и поля acms.main.json (name, comment).",
+          description: "Сохранить реестр агентов и поля awn-agent.json (name, comment).",
           query: [],
           body: "{ agents: [{ id?, path, environment?, default?, active?, name?, comment? }] }",
           response: "{ agents[], defaultAgentId }"
@@ -37,7 +37,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (acms.main.json, _.x.md, awn-storage/).",
+          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, _system/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -46,7 +46,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
-          description: "Найти workspace с acms.main.json (Desktop, HOME, проект).",
+          description: "Найти workspace с awn-agent.json (Desktop, HOME, проект).",
           query: [],
           body: "{ roots?: string[], maxDepth?: number }",
           response: "{ agents: [{ path, name, comment, id, hasPreview, previewRel }] }"
