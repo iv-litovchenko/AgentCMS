@@ -353,9 +353,16 @@ body.app-booting {
 
 .agent-graph-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.agent-graph-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .agent-graph-head-copy {
@@ -11749,6 +11756,13 @@ body.app-booting {
   flex-direction: column;
   gap: 4px;
   z-index: 3;
+}
+
+.external-graph-controls--head {
+  position: static;
+  flex-direction: row;
+  gap: 4px;
+  z-index: auto;
 }
 
 .external-graph-control-btn {

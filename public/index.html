@@ -484,10 +484,17 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Граф</h2>
           </div>
-          <label class="agent-graph-setting" for="agent-graph-show-previews">
-            <input id="agent-graph-show-previews" type="checkbox" checked />
-            <span>Превью на темах</span>
-          </label>
+          <div class="agent-graph-head-actions">
+            <label class="agent-graph-setting" for="agent-graph-show-previews">
+              <input id="agent-graph-show-previews" type="checkbox" checked />
+              <span>Превью на темах</span>
+            </label>
+            <div id="agent-graph-controls" class="external-graph-controls external-graph-controls--head" aria-label="Масштаб графа">
+              <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
+              <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
+              <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
+            </div>
+          </div>
         </div>
         <div id="agent-graph-content" class="agent-graph-content"></div>
       </main>
@@ -1399,7 +1406,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.59"></script>
+    <script src="/main.js?v=0.4.61"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>

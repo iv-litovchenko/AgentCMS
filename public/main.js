@@ -79,6 +79,7 @@ const agentVaultStatsNode = document.getElementById("agent-vault-stats");
 const agentGraphPaneNode = document.getElementById("agent-graph-pane");
 const agentGraphContentNode = document.getElementById("agent-graph-content");
 const agentGraphShowPreviewsNode = document.getElementById("agent-graph-show-previews");
+const agentGraphControlsNode = document.getElementById("agent-graph-controls");
 const filePathNode = document.getElementById("file-path");
 const workspaceShareLinkBtn = document.getElementById("workspace-share-link-btn");
 const workspaceGdriveSyncBtn = document.getElementById("workspace-gdrive-sync-btn");
@@ -5386,7 +5387,59 @@ function sanitizeGraphDomId(value) {
   return String(value || "node").replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
-function attachObsidianGraphViewport(wrap, svg, viewport, sim, nodeElements, linkElements, degrees, showPreviews = false) {
+function attachGraphControlHandlers(controlsHost, getViewportContext) {
+  if (!controlsHost) return () => {};
+
+  if (controlsHost._graphControlHandler) {
+    controlsHost.removeEventListener("click", controlsHost._graphControlHandler);
+    controlsHost._graphControlHandler = null;
+  }
+
+  const handler = (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+    const ctx = getViewportContext();
+    if (!ctx?.wrap?.isConnected) return;
+
+    const { svg, state, fitToView, applyTransform } = ctx;
+    const rect = svg.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+
+    if (button.dataset.action === "reset") {
+      fitToView();
+      return;
+    }
+
+    const factor = button.dataset.action === "zoom-in" ? 1.15 : 0.87;
+    const nextScale = Math.min(3.2, Math.max(0.18, state.scale * factor));
+    state.tx = cx - ((cx - state.tx) * nextScale) / state.scale;
+    state.ty = cy - ((cy - state.ty) * nextScale) / state.scale;
+    state.scale = nextScale;
+    applyTransform();
+  };
+
+  controlsHost._graphControlHandler = handler;
+  controlsHost.addEventListener("click", handler);
+  return () => {
+    controlsHost.removeEventListener("click", handler);
+    if (controlsHost._graphControlHandler === handler) {
+      controlsHost._graphControlHandler = null;
+    }
+  };
+}
+
+function attachObsidianGraphViewport(
+  wrap,
+  svg,
+  viewport,
+  sim,
+  nodeElements,
+  linkElements,
+  degrees,
+  showPreviews = false,
+  controlsHost = null
+) {
   const positioned = sim.nodes;
   const nodeById = sim.nodeById;
   let layoutBounds = computeGraphLayoutBounds(positioned, degrees, 64, showPreviews);
@@ -5579,31 +5632,30 @@ function attachObsidianGraphViewport(wrap, svg, viewport, sim, nodeElements, lin
     group.el.addEventListener("mouseleave", clearFocus);
   }
 
-  const controls = document.createElement("div");
-  controls.className = "external-graph-controls";
-  controls.innerHTML = `
-    <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
-    <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
-    <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
-  `;
-  controls.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-action]");
-    if (!button) return;
-    const rect = svg.getBoundingClientRect();
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    if (button.dataset.action === "reset") {
-      fitToView();
-      return;
+  const getViewportContext = () =>
+    wrap.isConnected ? { wrap, svg, state, fitToView, applyTransform } : null;
+
+  const detachControls = attachGraphControlHandlers(controlsHost, getViewportContext);
+
+  if (!controlsHost) {
+    const controls = document.createElement("div");
+    controls.className = "external-graph-controls";
+    controls.innerHTML = `
+      <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
+      <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
+      <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
+    `;
+    attachGraphControlHandlers(controls, getViewportContext);
+    wrap.appendChild(controls);
+  }
+
+  const observer = new MutationObserver(() => {
+    if (!wrap.isConnected) {
+      detachControls();
+      observer.disconnect();
     }
-    const factor = button.dataset.action === "zoom-in" ? 1.15 : 0.87;
-    const nextScale = Math.min(3.2, Math.max(0.18, state.scale * factor));
-    state.tx = cx - ((cx - state.tx) * nextScale) / state.scale;
-    state.ty = cy - ((cy - state.ty) * nextScale) / state.scale;
-    state.scale = nextScale;
-    applyTransform();
   });
-  wrap.appendChild(controls);
+  observer.observe(wrap.parentElement || document.body, { childList: true });
 }
 
 function buildGraphDataFromExternalFiles(items) {
@@ -5720,6 +5772,7 @@ function renderGraphCanvas(container, graph, options = {}) {
     ariaLabel = "Граф",
     fullViewport = false,
     showPreviews = false,
+    controlsHost = null,
     isNodeActive = () => false,
     isNodeClickable = (node) => Boolean(node.filePath || (node.modeId && !node.disabled)),
     onNodeClick = () => {}
@@ -5919,7 +5972,8 @@ function renderGraphCanvas(container, graph, options = {}) {
     nodeElements,
     linkElements,
     degrees,
-    showPreviews
+    showPreviews,
+    controlsHost
   );
 }
 
@@ -15244,8 +15298,9 @@ function renderAgentVaultView() {
 
 function buildGraphDataFromAgentMenu(menu) {
   const baseTree = { title: getAgentTreeTitle(), ...menu };
+  const flatEntries = collectFlatMenuEntries(baseTree);
   const previewByDisplayPath = new Map();
-  for (const entry of collectFlatMenuEntries(baseTree)) {
+  for (const entry of flatEntries) {
     if (!entry.hasPreview || !entry.previewUrl) continue;
     const displayPath = entry.displayPath || getNodeDisplayPath(entry.path);
     previewByDisplayPath.set(displayPath, entry.previewUrl);
@@ -15264,8 +15319,19 @@ function buildGraphDataFromAgentMenu(menu) {
   ];
   const edges = [];
   const folderIds = new Map([["", rootId]]);
+  const nodeIds = new Set([rootId]);
 
-  for (const entry of collectFlatMenuEntries(baseTree)) {
+  // Области (README.x.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
+  for (const entry of flatEntries) {
+    if (!entry.isFolder || !entry.path) continue;
+    const displayPath = String(entry.displayPath || entry.label || getLabelFromPath(entry.path))
+      .replace(/\\/g, "/")
+      .trim();
+    if (!displayPath) continue;
+    folderIds.set(displayPath, `node:${normalizeMenuNodePath(entry.path)}`);
+  }
+
+  for (const entry of flatEntries) {
     const displayPath = entry.displayPath || entry.label || getLabelFromPath(entry.path);
     const parts = String(displayPath).split("/").filter(Boolean);
     let parentId = rootId;
@@ -15285,19 +15351,23 @@ function buildGraphDataFromAgentMenu(menu) {
         });
         edges.push({ from: parentId, to: folderId });
         folderIds.set(built, folderId);
+        nodeIds.add(folderId);
       }
       parentId = folderIds.get(built);
     }
 
     const nodeId = `node:${normalizeMenuNodePath(entry.path)}`;
-    nodes.push({
-      id: nodeId,
-      label: parts[parts.length - 1] || entry.label,
-      type: entry.isFolder ? "folder" : "file",
-      depth: Math.max(parts.length, 1),
-      nodePath: entry.path,
-      previewUrl: entry.previewUrl || null
-    });
+    if (!nodeIds.has(nodeId)) {
+      nodes.push({
+        id: nodeId,
+        label: parts[parts.length - 1] || entry.label,
+        type: entry.isFolder ? "folder" : "file",
+        depth: Math.max(parts.length, 1),
+        nodePath: entry.path,
+        previewUrl: entry.previewUrl || null
+      });
+      nodeIds.add(nodeId);
+    }
     edges.push({ from: parentId, to: nodeId });
   }
 
@@ -16223,6 +16293,7 @@ function renderAgentGraphView() {
       ariaLabel: "Граф workspace агента",
       fullViewport: true,
       showPreviews,
+      controlsHost: agentGraphControlsNode,
       isNodeClickable: (node) => Boolean(node.nodePath),
       onNodeClick: (node) => {
         if (!node.nodePath) return;
