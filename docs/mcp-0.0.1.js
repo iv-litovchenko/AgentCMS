@@ -149,7 +149,7 @@ module.exports = {
     },
     {
       id: "storage",
-      title: "Настройки _Storage",
+      title: "Настройки awn-storage",
       tools: [
         {
           name: "read_todo",

@@ -247,7 +247,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     fetchPath: "/_storage/drafts/draft-3.md",
-    subtitle: "AWN registry · awn-system · layout",
+    subtitle: "AWN registry · acms.System · layout",
     withExtras: false
   }
 ];
@@ -320,17 +320,20 @@ function readStorageItem(key) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "_.x.md";
-const LEGACY_AREA_MANIFEST_ALIASES = ["_.node.md", "_Self.node.md", "00_MAIN.node.md", "README.node.md"];
-const MANIFEST_MD_RE = /\.(node|x)\.md$/i;
-const STORAGE_FOLDER_NAME = "_Storage";
+const AREA_MANIFEST_FILE = "t.README.md";
+const TOPIC_PREFIX = "t.";
+const SLOT_STORAGE_PREFIX = "s.";
+const TOPIC_MANIFEST_RE = /^t\.[^/]+\.md$/i;
+const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
+const STORAGE_FOLDER_NAME = "s";
+const STORAGE_FOLDER_REGEX = "s\\.[^/]+";
 const BUNDLE_CONTENT_FILE = "Content.md";
 const BUNDLE_TABULAR_FILE = "Content.csv";
 const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
-const VAULT_FOLDER_DEFAULT = "_Vault";
-const SERVICE_FOLDER_DEFAULT = "_System";
+const VAULT_FOLDER_DEFAULT = "acms.Vault";
+const SERVICE_FOLDER_DEFAULT = "acms.System";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
 const SERVICE_SECTION_HINT = "служебные компоненты";
@@ -631,8 +634,26 @@ async function loadAgents() {
   updateWorkspaceShareLinkButton();
 }
 
+function stripTopicPrefix(name) {
+  let raw = String(name || "").trim();
+  if (raw.startsWith(TOPIC_PREFIX)) raw = raw.slice(TOPIC_PREFIX.length);
+  if (raw.toLowerCase().endsWith(".md")) raw = raw.slice(0, -3);
+  return raw.trim();
+}
+
+function stripStoragePrefix(name) {
+  let raw = String(name || "").trim();
+  if (raw.startsWith(SLOT_STORAGE_PREFIX)) raw = raw.slice(SLOT_STORAGE_PREFIX.length);
+  return raw.trim();
+}
+
 function isAreaManifestFileName(fileName) {
-  return fileName === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(fileName);
+  return String(fileName || "").toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
+}
+
+function isAreaFolderName(name) {
+  const raw = String(name || "");
+  return raw.startsWith(TOPIC_PREFIX) && raw.length > TOPIC_PREFIX.length;
 }
 
 function isNodeManifestFileName(fileName) {
@@ -640,13 +661,16 @@ function isNodeManifestFileName(fileName) {
 }
 
 function isNodeManifestPath(nodePath) {
-  const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
-  return isAreaManifestFileName(fileName);
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const fileName = normalized.split("/").filter(Boolean).pop() || "";
+  if (!isAreaManifestFileName(fileName)) return false;
+  const parent = normalized.split("/").filter(Boolean).slice(-2, -1)[0] || "";
+  return isAreaFolderName(parent);
 }
 
 function isTopicManifestPath(nodePath) {
   const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
-  return MANIFEST_MD_RE.test(fileName) && !isAreaManifestFileName(fileName);
+  return TOPIC_MANIFEST_RE.test(fileName) && !isAreaManifestFileName(fileName);
 }
 
 function isNodeMdPath(nodePath) {
@@ -685,23 +709,36 @@ function getCreateModalAgentId() {
   return createModalAgentId || activeAgentId;
 }
 
+function isVaultFolderEntryName(name) {
+  return String(name || "").toLowerCase() === VAULT_FOLDER_DEFAULT.toLowerCase();
+}
+
 function stripVaultPrefixFromRelPath(relPath) {
-  const vaultFolder = getActiveAgentVaultFolder();
   const normalized = String(relPath || "").replace(/\\/g, "/");
-  if (!vaultFolder) return normalized;
-  const prefix = `${vaultFolder}/`;
-  if (normalized === vaultFolder) return "";
-  if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+  if (!getActiveAgentVaultFolder()) return normalized;
+  const prefixes = [VAULT_FOLDER_DEFAULT];
+  for (const prefix of prefixes) {
+    const withSlash = `${prefix}/`;
+    if (normalized === prefix) return "";
+    if (normalized.startsWith(withSlash)) return normalized.slice(withSlash.length);
+  }
   return normalized;
+}
+
+function isServiceFolderEntryName(name) {
+  return String(name || "").toLowerCase() === SERVICE_FOLDER_DEFAULT.toLowerCase();
 }
 
 function stripServicePrefixFromRelPath(relPath) {
   const serviceFolder = getActiveAgentServiceFolder();
   const normalized = String(relPath || "").replace(/\\/g, "/");
   if (!serviceFolder) return normalized;
-  const prefix = `${serviceFolder}/`;
-  if (normalized === serviceFolder) return "";
-  if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+  const prefixes = [serviceFolder].filter(Boolean);
+  for (const prefix of prefixes) {
+    const withSlash = `${prefix}/`;
+    if (normalized === prefix) return "";
+    if (normalized.startsWith(withSlash)) return normalized.slice(withSlash.length);
+  }
   return normalized;
 }
 
@@ -711,14 +748,16 @@ function stripAgentContentPrefixFromRelPath(relPath) {
 
 function getServiceRootManifestPath() {
   const serviceFolder = getActiveAgentServiceFolder();
-  return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
+  return serviceFolder ? `${serviceFolder}/t.Служебное/${AREA_MANIFEST_FILE}` : null;
 }
 
 function isServiceNodePath(nodePath) {
-  const serviceFolder = getActiveAgentServiceFolder();
-  if (!serviceFolder || !nodePath) return false;
+  if (!getActiveAgentServiceFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  return normalized === serviceFolder || normalized.startsWith(`${serviceFolder}/`);
+  const prefixes = [getActiveAgentServiceFolder()].filter(Boolean);
+  return prefixes.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
 }
 
 function isFilePartNodePath(nodePath) {
@@ -781,14 +820,13 @@ function resolveManifestPathForNodeApi(nodePath) {
   if (/\.node\.todo\.md$/i.test(normalized)) {
     return normalized.replace(/\.node\.todo\.md$/i, ".x.md");
   }
-  const bundleMatch = normalized.match(/^(.*)\/_Storage\/([^/]+)\/(?:Todo|todo)\.md$/i);
+  const bundleMatch = normalized.match(new RegExp(`^(.*)/${STORAGE_FOLDER_REGEX}/Todo\\.md$`, "i"));
   if (bundleMatch) {
     const prefix = bundleMatch[1];
-    const key = bundleMatch[2];
-    if (key === "_") {
-      return prefix ? `${prefix}/_.x.md` : AREA_MANIFEST_FILE;
-    }
-    return prefix ? `${prefix}/${key}.x.md` : `${key}.x.md`;
+    const parts = normalized.split("/").filter(Boolean);
+    const key = stripStoragePrefix(parts[parts.length - 2] || "");
+    const topicRel = `${TOPIC_PREFIX}${key}.md`;
+    return prefix ? `${prefix}/${topicRel}` : topicRel;
   }
   return normalized;
 }
@@ -809,11 +847,10 @@ function normalizeCreateParentPath(parentPath) {
     const folder = getFolderPathFromManifest(raw);
     return folder || ".";
   }
-  const vaultFolder = getActiveAgentVaultFolder();
-  if (vaultFolder) {
-    const vaultLower = vaultFolder.toLowerCase();
+  if (getActiveAgentVaultFolder()) {
     const rawLower = raw.toLowerCase();
-    if (rawLower === vaultLower || rawLower.startsWith(`${vaultLower}/`)) {
+    const vaultPrefixes = [VAULT_FOLDER_DEFAULT];
+    if (vaultPrefixes.some((prefix) => rawLower === prefix.toLowerCase() || rawLower.startsWith(`${prefix.toLowerCase()}/`))) {
       return raw;
     }
   }
@@ -821,9 +858,12 @@ function normalizeCreateParentPath(parentPath) {
 }
 
 function isAgentRootIndexPath(nodePath) {
-  return (
-    nodePath === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(nodePath)
-  );
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  if (!isNodeManifestPath(normalized)) return false;
+  const folderPath = getFolderPathFromManifest(normalized);
+  const stripped = stripAgentContentPrefixFromRelPath(folderPath || "");
+  const parts = stripped.split("/").filter(Boolean);
+  return parts.length === 1 && isAreaFolderName(parts[0]);
 }
 
 function updateAgentPreviewCache(previewMeta) {
@@ -2379,7 +2419,7 @@ const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
-const NODE_WORKSPACE_DOMAIN_SLOT_PREFIX = "Слот: ";
+const NODE_WORKSPACE_DOMAIN_SLOT_PREFIX = "Слот/драйвер ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
   { value: "settings", label: "Настройки", branch: true },
@@ -3154,11 +3194,11 @@ function syncNodeDefaultLandingBtn() {
   btn.setAttribute("aria-pressed", currentIsSaved ? "true" : "false");
 
   if (currentIsSaved) {
-    btn.title = `Стартовая страница в ${BUNDLE_CONFIG_FILE} (_Storage): ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сбросить (открывать обзор).`;
+    btn.title = `Стартовая страница в ${BUNDLE_CONFIG_FILE} (${STORAGE_FOLDER_NAME}): ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сбросить (открывать обзор).`;
   } else if (hasCustom) {
     btn.title = `В конфиге: ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сохранить текущий раздел (${getNodeDefaultLandingDomainLabel(currentMode)}).`;
   } else {
-    btn.title = `Закрепить в ${BUNDLE_CONFIG_FILE} (_Storage): ${getNodeDefaultLandingDomainLabel(currentMode)}`;
+    btn.title = `Закрепить в ${BUNDLE_CONFIG_FILE} (${STORAGE_FOLDER_NAME}): ${getNodeDefaultLandingDomainLabel(currentMode)}`;
   }
 }
 
@@ -3407,7 +3447,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка с _.x.md — без драйверов памяти. */
+/** Область (Space): папка t.{Name}/t.README.md — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
@@ -4267,7 +4307,7 @@ function syncCreateNodeServiceDocButtonsUi() {
     const fileName = SERVICE_DOC_PRESET_FILES[preset] || preset;
     button.disabled = exists;
     button.setAttribute("aria-disabled", exists ? "true" : "false");
-    button.title = exists ? `«${label}» (${fileName}.x.md) уже создан` : `${fileName}.x.md`;
+    button.title = exists ? `«${label}» (t.${fileName}.md) уже создан` : `t.${fileName}.md`;
   }
 }
 
@@ -4592,8 +4632,7 @@ function getNodeFolderPath(nodePath) {
 }
 
 function getNodeStoragePrefix(nodePath) {
-  const folder = getNodeFolderPath(getResolvedNodePath(nodePath));
-  return folder ? `${folder}/_Storage` : "_Storage";
+  return getNamedStorageSlotDirRel(getResolvedNodePath(nodePath));
 }
 
 function getNodeStorageSubfolderPath(nodePath, subfolderOrMode) {
@@ -4627,11 +4666,6 @@ function resolvePartFolderSidecarBaseRel(nodePath) {
   return `${parsed.dir}/${stem}.x`;
 }
 
-function isAreaManifestFileName(name) {
-  const base = String(name || "");
-  return base === AREA_MANIFEST_FILE || LEGACY_AREA_MANIFEST_ALIASES.includes(base);
-}
-
 function getManifestContainerDirRel(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const slash = normalized.lastIndexOf("/");
@@ -4648,24 +4682,24 @@ function getWorkspaceFolderStorageKey() {
 }
 
 function getManifestStorageKey(relPath) {
-  const normalized = String(relPath || "").replace(/\\/g, "/");
-  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
-  if (isAreaManifestFileName(base)) return "_";
-  return base.replace(MANIFEST_MD_RE, "");
+  return getManifestNamedSlotKey(relPath);
 }
 
 function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
-  if (isAreaManifestFileName(base)) return "_";
-  return base.replace(MANIFEST_MD_RE, "");
+  if (isAreaManifestFileName(base)) {
+    return stripTopicPrefix(normalized.slice(0, normalized.lastIndexOf("/")).split("/").pop() || "");
+  }
+  return stripTopicPrefix(base);
 }
 
 function getNamedStorageSlotDirRel(relPath) {
   const containerDir = getManifestContainerDirRel(relPath);
   const slotKey = getManifestNamedSlotKey(relPath);
-  if (!containerDir) return `${STORAGE_FOLDER_NAME}/${slotKey}`;
-  return `${containerDir}/${STORAGE_FOLDER_NAME}/${slotKey}`;
+  const storageFolder = `${SLOT_STORAGE_PREFIX}${slotKey}`;
+  if (!containerDir) return storageFolder;
+  return `${containerDir}/${storageFolder}`;
 }
 
 function getNamedStorageBundleDirRel(relPath) {
@@ -6303,8 +6337,8 @@ function buildMediaAssetUrl(filePath, nodePath = activePath) {
 function stripAssetsPathPrefix(relPath) {
   let rel = String(relPath || "").replace(/\\/g, "/");
   const prefixes = [
-    `_Storage/${STORAGE_SUBFOLDER_ASSETS}/`,
-    `_Storage/_Assets/`,
+    `${STORAGE_FOLDER_NAME}/${STORAGE_SUBFOLDER_ASSETS}/`,
+    `${STORAGE_FOLDER_NAME}/_Assets/`,
     `${STORAGE_SUBFOLDER_ASSETS}/`,
     "_Assets/"
   ];
@@ -11185,7 +11219,7 @@ function isAllowedPreviewFile(file) {
 async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
   if (!activePath || !file) return;
   if (!isAllowedPreviewFile(file)) {
-    showToast(`Допустимы только JPG, PNG и GIF (${PREVIEW_FILE_BASENAME}.jpg / .png / .gif в _Storage)`, "error");
+    showToast(`Допустимы только JPG, PNG и GIF (${PREVIEW_FILE_BASENAME}.jpg / .png / .gif в ${STORAGE_FOLDER_NAME})`, "error");
     return;
   }
 
@@ -11567,9 +11601,9 @@ function getLabelFromPath(filePath) {
   const parts = String(filePath || "").split("/");
   const fileName = parts[parts.length - 1] || "";
   if (isNodeManifestFileName(fileName)) {
-    return parts[parts.length - 2] || getAgentTreeTitle();
+    return stripTopicPrefix(parts[parts.length - 2] || "") || getAgentTreeTitle();
   }
-  return fileName.replace(MANIFEST_MD_RE, "");
+  return stripTopicPrefix(fileName);
 }
 
 function getNodeDisplayPath(nodePath) {
@@ -14407,7 +14441,7 @@ function countAgentMap3SlotLayers(slot) {
 function createAgentMap3LayerDots(slot) {
   const wrap = document.createElement("div");
   wrap.className = "agent-map3-layer-dots";
-  wrap.setAttribute("aria-label", "Слои _Storage");
+  wrap.setAttribute("aria-label", `Слои ${STORAGE_FOLDER_NAME}`);
 
   for (const spec of AGENT_MAP3_LAYER_KEYS) {
     const dot = document.createElement("span");
@@ -14468,7 +14502,7 @@ function createAgentMap3ContainerLane(containerData) {
   if (containerData.rootHasContent) {
     const warn = document.createElement("p");
     warn.className = "agent-map3-lane-warn";
-    warn.textContent = "В корне _Storage есть файлы вне слотов (legacy) — см. вид «Хранилище».";
+    warn.textContent = `В корне ${STORAGE_FOLDER_NAME} есть файлы вне слотов (legacy) — см. вид «Хранилище».`;
     lane.appendChild(warn);
   }
 
@@ -14541,7 +14575,7 @@ async function renderAgentMap3View() {
   if (!agentMap3BoardNode) return;
 
   const requestId = ++agentMap3RequestId;
-  agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">Загрузка карты _Storage…</div>`;
+  agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">Загрузка карты ${STORAGE_FOLDER_NAME}…</div>`;
   if (agentMap3StatsNode) agentMap3StatsNode.innerHTML = "";
 
   try {
@@ -14552,7 +14586,7 @@ async function renderAgentMap3View() {
     renderAgentMap3Stats(layout);
 
     if (!layout.containers?.length) {
-      agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">В workspace пока нет манифестов для карты _Storage</div>`;
+      agentMap3BoardNode.innerHTML = `<div class="agent-map3-empty">В workspace пока нет манифестов для карты ${STORAGE_FOLDER_NAME}</div>`;
       return;
     }
 
@@ -15186,10 +15220,7 @@ function buildAgentStorageContainerSection(containerData) {
   if (containerData.rootHasContent) {
     const note = document.createElement("p");
     note.className = "agent-storage-root-note";
-    note.innerHTML =
-      "В корне <code>" +
-      escapeHtml(containerData.storageRoot) +
-      "</code> есть файлы вне слотов — legacy/канон. Рекомендуется перенос в <code>_Storage/&lt;ключ&gt;/</code>.";
+    note.innerHTML = `В корне <code>${escapeHtml(containerData.storageRoot)}</code> есть файлы вне слотов — legacy/канон. Рекомендуется перенос в <code>${STORAGE_FOLDER_NAME}/&lt;ключ&gt;/</code>.`;
     section.appendChild(note);
   }
 
@@ -15257,7 +15288,7 @@ async function renderAgentStorageView() {
 
   const requestId = ++agentStorageLayoutRequestId;
   agentStorageContentNode.innerHTML = "";
-  renderListEmptyMessage(agentStorageContentNode, "Загрузка раскладки _Storage…");
+  renderListEmptyMessage(agentStorageContentNode, `Загрузка раскладки ${STORAGE_FOLDER_NAME}…`);
 
   try {
     const layout = await fetchAgentStorageLayout();
@@ -15278,7 +15309,7 @@ async function renderAgentStorageView() {
     }
 
     if (!layout.containers?.length) {
-      renderListEmptyMessage(agentStorageContentNode, "В workspace пока нет манифестов для раскладки _Storage");
+      renderListEmptyMessage(agentStorageContentNode, `В workspace пока нет манифестов для раскладки ${STORAGE_FOLDER_NAME}`);
       return;
     }
 
@@ -15290,7 +15321,7 @@ async function renderAgentStorageView() {
     agentStorageContentNode.innerHTML = "";
     renderListEmptyMessage(
       agentStorageContentNode,
-      "Не удалось загрузить раскладку _Storage. Проверьте, что сервер запущен."
+      `Не удалось загрузить раскладку ${STORAGE_FOLDER_NAME}. Проверьте, что сервер запущен.`
     );
     if (agentStorageStatsNode) agentStorageStatsNode.innerHTML = "";
   }
@@ -15346,7 +15377,7 @@ async function renderAgentTableView() {
       { key: "label", label: "Тема" },
       { key: "displayPath", label: "Путь" },
       { key: "kind", label: "Тип" },
-      { key: "slotDir", label: "Слот _Storage" },
+      { key: "slotDir", label: `Слот ${STORAGE_FOLDER_NAME}` },
       { key: "layerPresent", label: "Слои" },
       { key: null, label: "Превью" },
       { key: null, label: "Категория" },
@@ -15528,7 +15559,7 @@ async function renderAgentTimelineView() {
     if (!events.length) {
       renderListEmptyMessage(
         agentTimelineContentNode,
-        "Пока нет отслеживаемых изменений в манифестах и слотах _Storage"
+        `Пока нет отслеживаемых изменений в манифестах и слотах ${STORAGE_FOLDER_NAME}`
       );
       return;
     }
@@ -16324,7 +16355,7 @@ async function createNode(type, options = {}) {
         : type === "service-doc"
           ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.x.md)`
           : type === "manifest"
-          ? "Область создана (_.x.md)"
+          ? "Область создана (t.README.md)"
           : type === "folder"
             ? "Папка-область создана"
             : "Файл (тема) создан";
@@ -16358,10 +16389,10 @@ function formatCreateNodeErrorMessage(message) {
     return "Нет прав на запись в workspace агента";
   }
   if (/Node manifest already exists/i.test(text)) {
-    return "В этой папке уже есть _.x.md";
+    return "В этой папке уже есть t.README.md";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
-    return "Папка _System ещё не создана — обновите меню (F5) и повторите";
+    return `Папка ${SERVICE_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
   }
   if (/Catalog node already exists/i.test(text)) {
     return "Такой справочник уже существует";

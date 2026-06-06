@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.29" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.31" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -415,14 +415,14 @@
         </div>
       </main>
 
-      <main id="agent-map3-pane" class="agent-canvas-pane agent-map3-pane hidden" aria-label="Карта _Storage">
+      <main id="agent-map3-pane" class="agent-canvas-pane agent-map3-pane hidden" aria-label="Карта awn-storage">
         <div class="agent-map3-head">
           <div class="agent-map3-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Карта _Storage</h2>
+            <h2 class="agent-canvas-title">Карта awn-storage</h2>
             <p class="agent-map3-lead">
               Контейнеры на диске: у области слот <code>_</code>, у каждой темы — свой слот в общем
-              <code>_Storage/</code>. Цветные точки — заполненные слои (память, конфиг, файлы).
+              <code>awn-storage/</code>. Цветные точки — заполненные слои (память, конфиг, файлы).
             </p>
           </div>
           <div id="agent-map3-stats" class="agent-map3-stats" aria-live="polite"></div>
@@ -498,7 +498,7 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Таблица</h2>
             <p class="agent-canvas-lead">
-              Плоский список манифестов: путь, слот <code>_Storage</code>, слои памяти, превью и метаданные.
+              Плоский список манифестов: путь, слот <code>awn-storage</code>, слои памяти, превью и метаданные.
             </p>
           </div>
           <div id="agent-table-stats" class="agent-table-stats" aria-live="polite"></div>
@@ -522,7 +522,7 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Хранилище</h2>
             <p class="agent-canvas-lead">
-              Слоты <code>_Storage/&lt;имя&gt;/</code> в папке манифеста: область «Иван» → <code>Иван/_Storage/_/</code>, тема → <code>…/Кристина/</code>.
+              Слоты <code>awn-storage/&lt;имя&gt;/</code> в папке манифеста: область «Иван» → <code>Иван/awn-storage/_/</code>, тема → <code>…/Кристина/</code>.
             </p>
           </div>
           <div id="agent-storage-stats" class="agent-storage-stats" aria-live="polite"></div>
@@ -536,7 +536,7 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Лента</h2>
             <p class="agent-canvas-lead">
-              Лента по дням: недавние изменения манифестов, Content/Config и слотов <code>_Storage</code>.
+              Лента по дням: недавние изменения манифестов, Content/Config и слотов <code>awn-storage</code>.
               Для оси «когда» — <strong>Timeline</strong> или вертикальная лента <strong>Timeline ↓</strong>.
             </p>
           </div>
@@ -555,7 +555,7 @@
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Timeline</h2>
             <p class="agent-canvas-lead">
-              Ось времени: когда что менялось в манифестах и слотах <code>_Storage</code>. Слева — раньше, справа — позже.
+              Ось времени: когда что менялось в манифестах и слотах <code>awn-storage</code>. Слева — раньше, справа — позже.
             </p>
           </div>
           <div id="agent-timeline-axis-stats" class="agent-timeline-axis-stats" aria-live="polite"></div>
@@ -594,6 +594,23 @@
                   </div>
                 </nav>
                 <div class="workspace-path-crumbs-actions">
+                  <button
+                    id="workspace-gdrive-sync-btn"
+                    class="workspace-gdrive-sync-btn workspace-toolbar-labeled-btn"
+                    type="button"
+                    disabled
+                    title="Google Диск — синхронизация (скоро)"
+                    aria-label="Google Диск — синхронизация (скоро)"
+                  >
+                    <span class="workspace-toolbar-btn-icon workspace-gdrive-sync-btn-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.71 3.5 2.5 12.5h4.79L12.5 3.5H7.71z" fill="#0066DA"/>
+                        <path d="M16.29 3.5H12.5l4.79 9H21.5l-5.21-9z" fill="#00AC47"/>
+                        <path d="M2.5 12.5 7.71 21.5h9.58L21.5 12.5H2.5z" fill="#FFBA00"/>
+                      </svg>
+                    </span>
+                    <span class="workspace-toolbar-btn-label">Google Диск (синхронизация)</span>
+                  </button>
                   <button
                     id="workspace-share-link-btn"
                     class="workspace-share-link-btn"
@@ -679,11 +696,11 @@
                     aria-label="Раздел"
                   >
                     <option value="navigation">Навигация</option>
-                    <option value="settings">Слот: |- Настройки</option>
-                    <option value="inbox">Слот: |- Входящие</option>
-                    <option value="references">Слот: |- Источники</option>
-                    <option value="artefacts">Слот: |- Артефакты</option>
-                    <option value="memory">Слот: |- Память (данные)</option>
+                    <option value="settings">Слот/драйвер |- Настройки</option>
+                    <option value="inbox">Слот/драйвер |- Входящие</option>
+                    <option value="references">Слот/драйвер |- Источники</option>
+                    <option value="artefacts">Слот/драйвер |- Артефакты</option>
+                    <option value="memory">Слот/драйвер |- Память (данные)</option>
                     <option value="overview">Обзор</option>
                   </select>
                 </div>
@@ -816,7 +833,7 @@
                   <option value="graph">Граф</option>
                 </select>
                 <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
-                  <option value="dashboard">Дашборд</option>
+                  <option value="dashboard">Все типы файлов</option>
                   <option value="sep" disabled>────────</option>
                   <option value="all">Старый дашборд как было</option>
                   <option value="images">Изображения</option>
@@ -938,7 +955,7 @@
                     <div id="preview-upload-placeholder" class="preview-upload-placeholder">
                       <span class="preview-upload-icon" aria-hidden="true">🖼</span>
                       <p class="preview-upload-title">Загрузите изображение</p>
-                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как <code>_Storage/…/Preview.*</code> в bundle темы</p>
+                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как <code>awn-storage/…/Preview.*</code> в bundle темы</p>
                       <button id="preview-paste-btn" type="button" class="preview-action-btn preview-action-paste">Вставить из буфера</button>
                     </div>
                     <img id="preview-image" class="preview-image hidden" alt="Превью" />
@@ -1032,7 +1049,7 @@
         />
         <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
           <input id="create-node-vault-option" type="checkbox" checked />
-          <span id="create-node-vault-option-label">Создать в _Vault</span>
+          <span id="create-node-vault-option-label">Создать в acms.Vault</span>
         </label>
         <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
           <div class="popover-label">Справочники</div>
@@ -1142,7 +1159,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_Vault</code>) сохраняются в <code>acms.main.json</code>; аватар — в <code>_Storage/Preview.*</code>.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>acms.Vault</code>) сохраняются в <code>acms.main.json</code>; аватар — в слоте превью корневой области.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -1173,7 +1190,7 @@
               <span>Некорректный путь</span>
             </li>
           </ul>
-          <p class="agents-registry-vault-footnote">* <code>_Vault</code> скрыта в дереве, содержимое показывается у корня.</p>
+          <p class="agents-registry-vault-footnote">* <code>acms.Vault</code> скрыта в дереве, содержимое показывается у корня.</p>
         </div>
       </div>
     </div>
@@ -1181,7 +1198,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>acms.main.json</code>, <code>_.x.md</code> и <code>_Storage/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>acms.main.json</code>, <code>_.x.md</code> и <code>awn-storage/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -1328,7 +1345,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.48"></script>
+    <script src="/main.js?v=0.4.53"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>

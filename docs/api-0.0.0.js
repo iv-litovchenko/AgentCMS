@@ -35,7 +35,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (acms.main.json, _.x.md, _Storage/).",
+          description: "Создать файлы агента в указанной папке workspace (acms.main.json, _.x.md, awn-storage/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -53,7 +53,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из _Storage/Preview.* по пути workspace.",
+          description: "Превью агента из awn-storage/Preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -62,7 +62,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/_Storage/Preview.*.",
+          description: "Загрузить аватар агента в workspace/awn-storage/Preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -71,7 +71,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из workspace/_Storage/Preview.*.",
+          description: "Удалить аватар агента из workspace/awn-storage/Preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -80,7 +80,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из _Storage/Preview.* (после регистрации).",
+          description: "Превью агента из awn-storage/Preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"
@@ -354,7 +354,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/configuration",
-          description: "Configuration.md в _Storage.",
+          description: "Configuration.md в awn-storage.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -370,7 +370,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/env",
-          description: ".env в _Storage.",
+          description: ".env в awn-storage.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -472,7 +472,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/preview",
-          description: "Мета превью темы ({папка}/_Storage/Preview.*; legacy: _Storage/{ключ}/, _Storage/_Preview, sidecar).",
+          description: "Мета превью темы ({папка}/awn-storage/Preview.*; legacy: awn-storage/{ключ}/, awn-storage/_Preview, sidecar).",
           query: ["path"],
           body: null,
           response: "{ exists, file, imageUrl }"

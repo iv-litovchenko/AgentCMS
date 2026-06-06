@@ -9,15 +9,17 @@ const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const {
   AREA_MANIFEST_FILE,
-  LEGACY_AREA_MANIFEST_FILE,
   AREA_MANIFEST_CANDIDATES,
-  MANIFEST_MD_RE,
+  TOPIC_MANIFEST_RE,
   isAreaManifestFileName,
   isTopicManifestFileName,
   isAreaManifestRelPath,
+  isAreaFolderName,
   isManifestMdAbsolute,
   joinAreaManifestRel,
   toTopicFileName,
+  toAreaFolderName,
+  stripTopicPrefix,
   manifestRelToXSidecar,
   legacyManifestRelToNodeSidecar,
   parsePartFolderManifestRel,
@@ -33,7 +35,8 @@ const {
   getManifestNamedSlotKey,
   getNamedStorageSlotDirRel,
   listManifestStorageSlotDirRelCandidates,
-  getLegacyLowercaseBundleRel,
+  getNamedStorageBundleRelCandidates,
+  listBundleFileNameCandidates,
   resolveManifestRelFromStorageBundlePath,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
@@ -52,7 +55,9 @@ const {
   normalizeStorageSubfolderName,
   getStorageSubfolderForMode,
   listStorageSubfolderNameCandidates,
-  isAllowedStorageSubfolderName
+  isAllowedStorageSubfolderName,
+  isStorageFolderName,
+  getStorageFolderRegexAlternation
 } = require("./manifest-paths");
 
 const execFileAsync = promisify(execFile);
@@ -153,7 +158,9 @@ const {
   refreshAgentsFromDisk,
   runWithAgent,
   getAgentVaultFolder,
+  isVaultFolderEntryName,
   getAgentServiceFolder,
+  isServiceFolderEntryName,
   createSystemCatalogNodeSync,
   createSystemServiceDocSync,
   findServiceDocScaffold,
@@ -312,12 +319,7 @@ function toNodeFileName(rawName) {
 }
 
 function toFolderName(rawName) {
-  const cleaned = String(rawName || "")
-    .trim()
-    .replace(/[\/\\]/g, "")
-    .replace(/\s+/g, " ");
-  if (!cleaned) return null;
-  return cleaned;
+  return toAreaFolderName(rawName);
 }
 
 function toPartFolderManifestSidecarRel(relNodePath, nodeExt) {
@@ -468,7 +470,7 @@ async function removeTodoLegacyDuplicates(relNodePath, keepBundleAbsolute, keepS
   }
 }
 
-/** Канон: _Storage/{_ или тема}/Todo.md; дублирует в *.x.todo.md (кроме _Parts). */
+/** Канон: awn-storage/{_ или тема}/Todo.md; дублирует в *.x.todo.md (кроме _Parts). */
 async function writeTodoFiles(relNodePath, content) {
   const bundleRelPath = toTodoFilePath(relNodePath);
   const bundleAbsolute = normalizeWorkspacePath(bundleRelPath);
@@ -497,6 +499,27 @@ function getLegacyManifestSidecarRelPaths(relNodePath, xSuffix, nodeSuffix) {
   if (xSuffix) paths.push(manifestRelToXSidecar(relNodePath, xSuffix));
   if (nodeSuffix) paths.push(legacyManifestRelToNodeSidecar(relNodePath, nodeSuffix));
   return paths;
+}
+
+async function readExistingBundleFile(relNodePath, bundleFileName) {
+  const canonicalRel = namedStorageBundleRel(relNodePath, bundleFileName);
+  const candidates = [
+    canonicalRel,
+    ...getNamedStorageBundleRelCandidates(relNodePath, bundleFileName, getStoragePathOptions()).filter(
+      (rel) => rel !== canonicalRel
+    )
+  ];
+  for (const rel of candidates) {
+    const absolute = normalizeWorkspacePath(rel);
+    if (!absolute) continue;
+    try {
+      const content = await fs.readFile(absolute, "utf-8");
+      return { path: rel, content, exists: true };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+  return { path: canonicalRel, content: "", exists: false };
 }
 
 async function migrateLegacySidecarFileToBundle(relNodePath, bundleFileName, legacyRelPaths) {
@@ -626,47 +649,43 @@ function parseCsvText(text) {
 
 async function readInternalMemoryContent(relPath) {
   const memoryRelPath = toContentFilePath(relPath);
-  const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
   const partLegacyAbsolute = normalizeWorkspacePath(
     toPartFolderManifestSidecarRel(relPath, ".node.content.md") || ""
   );
-  if (!memoryAbsolute) return { path: memoryRelPath, content: "", exists: false };
+  if (!memoryRelPath) return { path: memoryRelPath, content: "", exists: false };
 
-  try {
-    const content = await fs.readFile(memoryAbsolute, "utf-8");
-    if (partLegacyAbsolute && partLegacyAbsolute !== memoryAbsolute) {
-      await removeIfExists(partLegacyAbsolute);
-    }
-    return { path: memoryRelPath, content, exists: true };
-  } catch (error) {
-    if (!error || error.code !== "ENOENT") throw error;
-    const legacyRelPaths = [
-      ...getLegacyManifestSidecarRelPaths(relPath, ".content.md", ".content.md"),
-      toLegacyFlatContentFilePath(relPath),
-      toLegacyContentFilePath(relPath)
-    ];
-    const contentLegacyRelPaths = [
-      ...legacyRelPaths,
-      getLegacyLowercaseBundleRel(relPath, BUNDLE_CONTENT_FILE)
-    ];
-    await migrateLegacySidecarFileToBundle(relPath, BUNDLE_CONTENT_FILE, contentLegacyRelPaths);
-    try {
-      const content = await fs.readFile(memoryAbsolute, "utf-8");
-      return { path: memoryRelPath, content, exists: true };
-    } catch (readError) {
-      if (!readError || readError.code !== "ENOENT") throw readError;
-    }
-    if (partLegacyAbsolute) {
-      try {
-        const legacyContent = await fs.readFile(partLegacyAbsolute, "utf-8");
-        await migratePartLegacySidecarFile(relPath, toContentFilePath, ".node.content.md");
-        return { path: memoryRelPath, content: legacyContent, exists: true };
-      } catch {
-        // try next legacy path
-      }
-    }
-    return { path: memoryRelPath, content: "", exists: false };
+  const bundleHit = await readExistingBundleFile(relPath, BUNDLE_CONTENT_FILE);
+  if (bundleHit.exists) {
+    return { path: memoryRelPath, content: bundleHit.content, exists: true };
   }
+
+  const legacyRelPaths = [
+    ...getLegacyManifestSidecarRelPaths(relPath, ".content.md", ".content.md"),
+    toLegacyFlatContentFilePath(relPath),
+    toLegacyContentFilePath(relPath),
+    namedStorageBundleRel(relPath, BUNDLE_CONTENT_FILE)
+  ];
+  for (const legacyRel of legacyRelPaths) {
+    const legacyAbsolute = normalizeWorkspacePath(legacyRel);
+    if (!legacyAbsolute) continue;
+    try {
+      const legacyContent = await fs.readFile(legacyAbsolute, "utf-8");
+      return { path: memoryRelPath, content: legacyContent, exists: true };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  if (partLegacyAbsolute) {
+    try {
+      const legacyContent = await fs.readFile(partLegacyAbsolute, "utf-8");
+      return { path: memoryRelPath, content: legacyContent, exists: true };
+    } catch {
+      // try next legacy path
+    }
+  }
+
+  return { path: memoryRelPath, content: "", exists: false };
 }
 
 async function readTodoContent(relPath) {
@@ -736,74 +755,67 @@ async function readTodoContent(relPath) {
 
 async function readTabularMemoryContent(relPath) {
   const tabularRelPath = toTabularFilePath(relPath);
-  const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
-  if (!tabularAbsolute) return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [] };
+  if (!tabularRelPath) {
+    return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [], rowCount: 0 };
+  }
 
-  try {
-    const content = await fs.readFile(tabularAbsolute, "utf-8");
-    const partLegacyAbsolute = normalizeWorkspacePath(
-      toPartFolderManifestSidecarRel(relPath, ".node.content.csv") || ""
-    );
-    if (partLegacyAbsolute && partLegacyAbsolute !== tabularAbsolute) {
-      await removeIfExists(partLegacyAbsolute);
-    }
-    const parsed = parseCsvText(content);
+  const bundleHit = await readExistingBundleFile(relPath, BUNDLE_TABULAR_FILE);
+  if (bundleHit.exists) {
+    const parsed = parseCsvText(bundleHit.content);
     return {
       path: tabularRelPath,
-      content,
+      content: bundleHit.content,
       exists: true,
       columns: parsed.columns,
       rows: parsed.rows,
       rowCount: parsed.rows.length
     };
-  } catch (error) {
-    if (error && error.code === "ENOENT") {
-      await migrateLegacySidecarFileToBundle(
-        relPath,
-        BUNDLE_TABULAR_FILE,
-        [
-          ...getLegacyManifestSidecarRelPaths(relPath, ".content.csv", ".content.csv"),
-          getLegacyLowercaseBundleRel(relPath, BUNDLE_TABULAR_FILE)
-        ]
-      );
-      try {
-        const content = await fs.readFile(tabularAbsolute, "utf-8");
-        const parsed = parseCsvText(content);
-        return {
-          path: tabularRelPath,
-          content,
-          exists: true,
-          columns: parsed.columns,
-          rows: parsed.rows,
-          rowCount: parsed.rows.length
-        };
-      } catch (retryError) {
-        if (!retryError || retryError.code !== "ENOENT") throw retryError;
-      }
-      const partLegacyAbsolute = normalizeWorkspacePath(
-        toPartFolderManifestSidecarRel(relPath, ".node.content.csv") || ""
-      );
-      if (partLegacyAbsolute) {
-        try {
-          const legacyContent = await fs.readFile(partLegacyAbsolute, "utf-8");
-          await migratePartLegacySidecarFile(relPath, toTabularFilePath, ".node.content.csv");
-          const parsed = parseCsvText(legacyContent);
-          return {
-            path: tabularRelPath,
-            content: legacyContent,
-            exists: true,
-            columns: parsed.columns,
-            rows: parsed.rows,
-            rowCount: parsed.rows.length
-          };
-        } catch (legacyError) {
-          if (!legacyError || legacyError.code !== "ENOENT") throw legacyError;
-        }
-      }
-      return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [], rowCount: 0 };
-    }
-    throw error;
   }
+
+  const legacyRelPaths = [
+    ...getLegacyManifestSidecarRelPaths(relPath, ".content.csv", ".content.csv"),
+    namedStorageBundleRel(relPath, BUNDLE_TABULAR_FILE)
+  ];
+  for (const legacyRel of legacyRelPaths) {
+    const legacyAbsolute = normalizeWorkspacePath(legacyRel);
+    if (!legacyAbsolute) continue;
+    try {
+      const content = await fs.readFile(legacyAbsolute, "utf-8");
+      const parsed = parseCsvText(content);
+      return {
+        path: tabularRelPath,
+        content,
+        exists: true,
+        columns: parsed.columns,
+        rows: parsed.rows,
+        rowCount: parsed.rows.length
+      };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  const partLegacyAbsolute = normalizeWorkspacePath(
+    toPartFolderManifestSidecarRel(relPath, ".node.content.csv") || ""
+  );
+  if (partLegacyAbsolute) {
+    try {
+      const content = await fs.readFile(partLegacyAbsolute, "utf-8");
+      const parsed = parseCsvText(content);
+      return {
+        path: tabularRelPath,
+        content,
+        exists: true,
+        columns: parsed.columns,
+        rows: parsed.rows,
+        rowCount: parsed.rows.length
+      };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  return { path: tabularRelPath, content: "", exists: false, columns: [], rows: [], rowCount: 0 };
 }
 
 async function buildMemorySummary(relPath) {
@@ -966,9 +978,39 @@ async function readLegacyPropsContent(nodeRelPath) {
   return null;
 }
 
+async function migrateLegacyPropsIntoManifest(nodeRelPath) {
+  const nodeAbsolute = normalizeWorkspacePath(nodeRelPath);
+  if (!nodeAbsolute) return false;
+
+  const raw = await readNodeManifestRaw(nodeAbsolute);
+  if (raw === null) return false;
+
+  const { frontmatter, body } = splitNodeFrontmatter(raw);
+  if (frontmatter.trim()) return false;
+
+  const legacy = await readLegacyPropsContent(nodeRelPath);
+  if (!legacy || !String(legacy.content || "").trim()) return false;
+
+  const nextContent = joinNodeFrontmatter(legacy.content, body);
+  await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
+  await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
+  await removeLegacyPropsFiles(nodeRelPath);
+  return true;
+}
+
+async function migrateLegacyPropsInDirectory(dirAbsolute, relPrefix = "") {
+  if (!dirAbsolute) return;
+  const relFiles = await collectNodeMdFiles(dirAbsolute, relPrefix);
+  for (const relPath of relFiles) {
+    await migrateLegacyPropsIntoManifest(relPath);
+  }
+}
+
 async function readNodeFrontmatterContent(nodeRelPath) {
   const nodeAbsolute = normalizeWorkspacePath(nodeRelPath);
   if (!nodeAbsolute) return { frontmatter: "", body: "", source: null, legacyPath: null };
+
+  await migrateLegacyPropsIntoManifest(nodeRelPath);
 
   const raw = await readNodeManifestRaw(nodeAbsolute);
   if (raw !== null) {
@@ -1028,7 +1070,7 @@ function toLegacyFlatPropsFilePath(relNodePath) {
 
 function toLegacyContentFilePath(relNodePath) {
   const normalized = String(relNodePath || "").replace(/\\/g, "/");
-  if (MANIFEST_MD_RE.test(path.posix.basename(normalized))) {
+  if (isTopicManifestFileName(path.posix.basename(normalized)) || isAreaManifestFileName(path.posix.basename(normalized))) {
     return manifestRelToXSidecar(normalized, ".content.md");
   }
   return normalized.replace(/\.node\.md$/i, ".content.md");
@@ -1061,7 +1103,7 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   const rel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
   const storageRoot =
     normalizeWorkspacePath(getNamedStorageSlotDirRel(rel, getStoragePathOptions())) ||
-    path.join(getNodeContainerDir(nodeAbsolute), STORAGE_FOLDER);
+    getNodeContainerDir(nodeAbsolute);
   if (mode === "internal") {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, toContentFilePath);
   }
@@ -1465,62 +1507,48 @@ async function nodePathExists(absolutePath) {
   }
 }
 
-async function migrateLegacyAreaManifestInDir(dirAbsolute) {
-  const canonicalAbsolute = path.join(dirAbsolute, AREA_MANIFEST_FILE);
-  const legacyAbsolute = path.join(dirAbsolute, LEGACY_AREA_MANIFEST_FILE);
-  const hasCanonical = await nodePathExists(canonicalAbsolute);
-  const hasLegacy = await nodePathExists(legacyAbsolute);
-  if (!hasLegacy) return;
-
-  if (!hasCanonical) {
-    await fs.rename(legacyAbsolute, canonicalAbsolute);
-    return;
-  }
-
-  try {
-    const [canonicalContent, legacyContent] = await Promise.all([
-      fs.readFile(canonicalAbsolute, "utf-8"),
-      fs.readFile(legacyAbsolute, "utf-8")
-    ]);
-    if (!String(canonicalContent || "").trim() && String(legacyContent || "").trim()) {
-      await fs.writeFile(canonicalAbsolute, legacyContent, "utf-8");
-    }
-  } catch {
-    // keep canonical if merge fails
-  }
-  await removeIfExists(legacyAbsolute);
+async function resolveCanonicalManifestRelPath(relPath) {
+  return String(relPath || "").replace(/\\/g, "/");
 }
 
-async function resolveCanonicalManifestRelPath(relPath) {
-  const normalized = String(relPath || "").replace(/\\/g, "/");
-  const base = path.basename(normalized);
-  const dirRel = path.dirname(normalized);
-  const dirAbsolute =
-    !dirRel || dirRel === "." ? getAgentRoot() : normalizeWorkspacePath(dirRel);
-  if (!dirAbsolute) return normalized;
-
-  if (isAreaManifestFileName(base)) {
-    await migrateLegacyAreaManifestInDir(dirAbsolute);
-    const existing = await resolveExistingAreaManifestBasename(dirAbsolute);
-    if (!existing) return normalized;
-    if (!dirRel || dirRel === ".") return existing;
-    return path.join(dirRel, existing).replace(/\\/g, "/");
+async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
+  const workspaceKey = path.basename(dirAbsolute);
+  const preferredFolder = toAreaFolderName(workspaceKey);
+  if (preferredFolder) {
+    const preferredRel = prefix
+      ? `${prefix}/${preferredFolder}/${AREA_MANIFEST_FILE}`
+      : `${preferredFolder}/${AREA_MANIFEST_FILE}`;
+    if (await nodePathExists(path.join(dirAbsolute, preferredFolder, AREA_MANIFEST_FILE))) {
+      return preferredRel.replace(/\\/g, "/");
+    }
   }
 
-  if (isTopicManifestFileName(base) && /\.node\.md$/i.test(base)) {
-    const xRel = normalized.replace(/\.node\.md$/i, ".x.md");
-    const xAbsolute = normalizeWorkspacePath(xRel);
-    if (xAbsolute && (await nodePathExists(xAbsolute))) return xRel;
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return null;
   }
 
-  return normalized;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !isAreaFolderName(entry.name)) continue;
+    const candidate = path.join(dirAbsolute, entry.name, AREA_MANIFEST_FILE);
+    if (!(await nodePathExists(candidate))) continue;
+    const rel = prefix ? `${prefix}/${entry.name}/${AREA_MANIFEST_FILE}` : `${entry.name}/${AREA_MANIFEST_FILE}`;
+    return rel.replace(/\\/g, "/");
+  }
+  return null;
 }
 
 async function ensureWorkspaceRootIndex(dirAbsolute) {
   await fs.mkdir(dirAbsolute, { recursive: true });
-  await migrateLegacyAreaManifestInDir(dirAbsolute);
-  if (await resolveExistingAreaManifestBasename(dirAbsolute)) return;
-  const manifestAbsolute = path.join(dirAbsolute, AREA_MANIFEST_FILE);
+  const existing = await resolveRootAreaManifestRel(dirAbsolute);
+  if (existing) return;
+  const workspaceKey = path.basename(dirAbsolute);
+  const areaFolder = toAreaFolderName(workspaceKey) || toAreaFolderName("workspace");
+  const areaAbsolute = path.join(dirAbsolute, areaFolder);
+  await fs.mkdir(areaAbsolute, { recursive: true });
+  const manifestAbsolute = path.join(areaAbsolute, AREA_MANIFEST_FILE);
   if (await dirExists(manifestAbsolute)) return;
   await fs.writeFile(manifestAbsolute, "", "utf-8");
 }
@@ -1530,26 +1558,31 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
   if (!serviceFolder) return null;
 
   const serviceAbsolute = path.join(agentRootAbsolute, serviceFolder);
-  await fs.mkdir(path.join(serviceAbsolute, STORAGE_FOLDER, STORAGE_SUBFOLDER_ASSETS), {
+  const serviceAreaFolder = toAreaFolderName("Служебное");
+  const serviceAreaAbsolute = path.join(serviceAbsolute, serviceAreaFolder);
+  await fs.mkdir(path.join(serviceAreaAbsolute, `s.Служебное`, STORAGE_SUBFOLDER_ASSETS), {
     recursive: true
   });
 
-  await migrateLegacyAreaManifestInDir(serviceAbsolute);
-  const manifestBasename = await resolveExistingAreaManifestBasename(serviceAbsolute);
+  const manifestBasename = await resolveExistingAreaManifestBasename(serviceAreaAbsolute);
+  const serviceRelPrefix = serviceFolder.replace(/\\/g, "/");
+  const serviceManifestRel = joinAreaManifestRel(serviceRelPrefix, "Служебное");
   if (!manifestBasename) {
+    await fs.mkdir(serviceAreaAbsolute, { recursive: true });
     await fs.writeFile(
-      path.join(serviceAbsolute, AREA_MANIFEST_FILE),
-      "# Служебное\n\nОбщая медиатека и служебные темы агента.\n",
+      path.join(serviceAreaAbsolute, AREA_MANIFEST_FILE),
+      joinNodeFrontmatter(
+        "title: Служебное\nAWN-TYPE: service",
+        "# Служебное\n\nОбщая медиатека и служебные темы агента.\n"
+      ),
       "utf-8"
     );
-  }
-
-  const propsAbsolute = path.join(serviceAbsolute, "_.props.yaml");
-  if (!(await fileExists(propsAbsolute))) {
-    await fs.writeFile(propsAbsolute, "title: Служебное\nAWN-TYPE: service\n", "utf-8");
+  } else {
+    await migrateLegacyPropsIntoManifest(serviceManifestRel);
   }
 
   migrateServiceCatalogLegacySync(serviceAbsolute);
+  await migrateLegacyPropsInDirectory(serviceAbsolute, serviceRelPrefix);
 
   return serviceAbsolute;
 }
@@ -1565,6 +1598,7 @@ async function ensureVaultFolderScaffold(agentRootAbsolute) {
 
 async function buildAgentMenu(agentRootAbsolute) {
   await ensureWorkspaceRootIndex(agentRootAbsolute);
+  await migrateLegacyPropsInDirectory(agentRootAbsolute);
   await ensureVaultFolderScaffold(agentRootAbsolute);
   const menu = await listNodeMdFiles(agentRootAbsolute);
   const serviceFolder = getAgentServiceFolder();
@@ -1599,7 +1633,6 @@ function sendRenameError(res, error) {
 
 const VISIBLE_DOT_MENU_ENTRIES = new Set([".awn-framework"]);
 const MENU_SORT_FILE = "awn-sort.json";
-const STORAGE_FOLDER = "_Storage";
 const PARTS_FOLDER = "_Parts";
 async function resolveExistingAreaManifestBasename(dirAbsolute) {
   for (const name of AREA_MANIFEST_CANDIDATES) {
@@ -1680,17 +1713,18 @@ async function resolveNodeManifestAbsolute(dirAbsolute) {
 
 async function resolveNodeManifestRelForContainer(containerRelDir) {
   const normalized = String(containerRelDir || "").replace(/\\/g, "/");
-  if (!normalized || normalized === ".") return AREA_MANIFEST_FILE;
+  if (!normalized || normalized === ".") {
+    const rootRel = await resolveRootAreaManifestRel(getAgentRoot());
+    return rootRel || joinAreaManifestRel(".", path.basename(getAgentRoot()));
+  }
   if (isAreaManifestRelPath(normalized)) return normalized;
-  return joinAreaManifestRel(normalized);
+  const base = path.posix.basename(normalized);
+  if (isAreaFolderName(base)) return `${normalized}/${AREA_MANIFEST_FILE}`;
+  return joinAreaManifestRel(normalized, base);
 }
 
 function isHiddenMenuEntry(name) {
   return name.startsWith(".") && !VISIBLE_DOT_MENU_ENTRIES.has(name);
-}
-
-function isStorageFolderName(name) {
-  return String(name || "").toLowerCase() === STORAGE_FOLDER.toLowerCase();
 }
 
 function isPartsFolderName(name) {
@@ -1698,26 +1732,28 @@ function isPartsFolderName(name) {
 }
 
 function isVaultFolderName(name) {
-  const vaultFolder = getAgentVaultFolder();
-  if (!vaultFolder) return false;
-  return String(name || "").toLowerCase() === vaultFolder.toLowerCase();
+  if (!getAgentVaultFolder()) return false;
+  return isVaultFolderEntryName(name);
 }
 
 function isServiceFolderName(name) {
-  const serviceFolder = getAgentServiceFolder();
-  if (!serviceFolder) return false;
-  return String(name || "").toLowerCase() === serviceFolder.toLowerCase();
+  if (!getAgentServiceFolder()) return false;
+  const configured = getAgentServiceFolder();
+  if (String(name || "").toLowerCase() === String(configured || "").toLowerCase()) return true;
+  return isServiceFolderEntryName(name);
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
-  const vaultFolder = getAgentVaultFolder();
-  if (!vaultFolder) {
+  if (!getAgentVaultFolder()) {
     return String(relPath || "").replace(/\\/g, "/");
   }
   const normalized = String(relPath || "").replace(/\\/g, "/");
-  const prefix = `${vaultFolder}/`;
-  if (normalized === vaultFolder) return "";
-  if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+  const prefixes = [getAgentVaultFolder()].filter(Boolean);
+  for (const prefix of prefixes) {
+    const withSlash = `${prefix}/`;
+    if (normalized === prefix) return "";
+    if (normalized.startsWith(withSlash)) return normalized.slice(withSlash.length);
+  }
   return normalized;
 }
 
@@ -1727,9 +1763,12 @@ function stripServicePrefixFromRelPath(relPath) {
     return String(relPath || "").replace(/\\/g, "/");
   }
   const normalized = String(relPath || "").replace(/\\/g, "/");
-  const prefix = `${serviceFolder}/`;
-  if (normalized === serviceFolder) return "";
-  if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+  const prefixes = [serviceFolder].filter(Boolean);
+  for (const prefix of prefixes) {
+    const withSlash = `${prefix}/`;
+    if (normalized === prefix) return "";
+    if (normalized.startsWith(withSlash)) return normalized.slice(withSlash.length);
+  }
   return normalized;
 }
 
@@ -1744,7 +1783,8 @@ function getNodeContainerDir(nodeAbsolute) {
 function resolveNodeContainerAbsolute(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   if (!normalized) return null;
-  if (MANIFEST_MD_RE.test(normalized)) {
+  const base = path.posix.basename(normalized);
+  if (isAreaManifestFileName(base) || isTopicManifestFileName(base)) {
     const dirRel = path.dirname(normalized);
     if (!dirRel || dirRel === ".") return getAgentRoot();
     return normalizeWorkspacePath(dirRel);
@@ -1790,37 +1830,44 @@ async function revealFolderInSystemFileManager(absoluteDir) {
   await execFileAsync("xdg-open", [absoluteDir]);
 }
 
+function getNamedStorageRootAbsolute(nodeAbsoluteOrRel) {
+  const rel = path.isAbsolute(String(nodeAbsoluteOrRel || ""))
+    ? path.relative(getAgentRoot(), nodeAbsoluteOrRel).replace(/\\/g, "/")
+    : String(nodeAbsoluteOrRel || "").replace(/\\/g, "/");
+  return normalizeWorkspacePath(getNamedStorageSlotDirRel(rel, getStoragePathOptions()));
+}
+
 function getNodeBaseName(nodeAbsoluteOrRel) {
-  return path.basename(String(nodeAbsoluteOrRel)).replace(MANIFEST_MD_RE, "");
+  const raw = String(nodeAbsoluteOrRel || "");
+  const base = path.basename(raw);
+  if (isAreaManifestFileName(base)) {
+    return stripTopicPrefix(path.basename(path.dirname(raw)));
+  }
+  return stripTopicPrefix(base);
 }
 
 function getNodeStorageRootAbsolute(nodeAbsolute) {
   const rel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
   const slotAbsolute = normalizeWorkspacePath(getNamedStorageSlotDirRel(rel, getStoragePathOptions()));
   if (slotAbsolute) return slotAbsolute;
-  return path.join(getNodeContainerDir(nodeAbsolute), STORAGE_FOLDER);
+  return getNodeContainerDir(nodeAbsolute);
 }
 
 function getNodeStorageRootRel(relNodePath) {
-  const normalized = String(relNodePath).replace(/\\/g, "/");
-  const dir = path.dirname(normalized);
-  if (!dir || dir === ".") return STORAGE_FOLDER;
-  return path.join(dir, STORAGE_FOLDER).replace(/\\/g, "/");
+  const slotRel = getNamedStorageSlotDirRel(relNodePath, getStoragePathOptions());
+  return slotRel ? slotRel.replace(/\\/g, "/") : "";
 }
 
 function resolveNodePathFromStorageRel(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
-  if (!/\/_Storage(?:\/|$)/i.test(normalized)) return null;
-  const containerDir = normalized.replace(/\/_Storage(?:\/.*)?$/i, "");
-  if (!containerDir || containerDir === "" || containerDir === ".") return AREA_MANIFEST_FILE;
-  if (isAreaManifestRelPath(containerDir)) return containerDir;
-  return joinAreaManifestRel(containerDir);
-}
-
-function getLegacyNamedStorageRootAbsolute(nodeAbsolute) {
-  const nodeDir = getNodeContainerDir(nodeAbsolute);
-  const baseName = getNodeBaseName(nodeAbsolute);
-  return path.join(nodeDir, STORAGE_FOLDER, baseName);
+  const bundle = resolveManifestRelFromStorageBundlePath(normalized);
+  if (!bundle) return null;
+  for (const candidate of bundle.manifestCandidates) {
+    if (isAreaManifestRelPath(candidate) || isTopicManifestFileName(path.basename(candidate))) {
+      return candidate;
+    }
+  }
+  return bundle.manifestCandidates[0] || null;
 }
 
 async function ensureManifestStorageSlotDir(relNodePath) {
@@ -1864,8 +1911,12 @@ async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
   for (const fileName of STORAGE_SLOT_LAYER_FILES) {
     let exists = false;
     if (existsBase) {
-      const abs = path.join(baseAbsolute, fileName);
-      exists = await fileExists(abs);
+      for (const name of listBundleFileNameCandidates(fileName)) {
+        if (await fileExists(path.join(baseAbsolute, name))) {
+          exists = true;
+          break;
+        }
+      }
     }
     layers[fileName] = { kind: "file", exists };
   }
@@ -1944,9 +1995,8 @@ async function buildAgentStorageLayout() {
   const containers = [];
 
   for (const [containerDir, entries] of byContainer.entries()) {
-    const storageRootRel =
-      !containerDir || containerDir === "." ? STORAGE_FOLDER : `${containerDir}/${STORAGE_FOLDER}`;
-    const storageRootAbs = normalizeWorkspacePath(storageRootRel);
+    const storageRootRel = containerDir || "";
+    const storageRootAbs = storageRootRel ? normalizeWorkspacePath(storageRootRel) : getAgentRoot();
     const knownSlotKeys = new Set();
     const slots = [];
 
@@ -1960,7 +2010,7 @@ async function buildAgentStorageLayout() {
         entry.label ||
         (entry.kind === "area"
           ? containerDir
-            ? path.posix.basename(containerDir)
+            ? stripTopicPrefix(path.posix.basename(containerDir))
             : path.basename(getAgentRoot())
           : slotKey);
 
@@ -1990,8 +2040,10 @@ async function buildAgentStorageLayout() {
       for (const subdir of subdirs) {
         if (!subdir.isDirectory()) continue;
         const name = subdir.name;
+        if (!isStorageFolderName(name)) continue;
+        const slotName = stripTopicPrefix(name);
         if (STORAGE_SLOT_ROOT_FOLDER_NAMES.has(name.toLowerCase())) continue;
-        if (knownSlotKeys.has(name.toLowerCase())) continue;
+        if (knownSlotKeys.has(slotName.toLowerCase())) continue;
         orphanSlots.push(name);
       }
       orphanSlots.sort((a, b) => a.localeCompare(b, "ru"));
@@ -2224,11 +2276,6 @@ function getLegacyContainerDir(nodeAbsolute) {
   return getNodeContainerDir(nodeAbsolute);
 }
 
-async function resolveLegacyNamedStorageSubfolderAbsolute(nodeAbsolute, subfolderName) {
-  const namedRoot = getLegacyNamedStorageRootAbsolute(nodeAbsolute);
-  return resolveStorageSubfolderInParentAbsolute(namedRoot, subfolderName);
-}
-
 async function isExistingDirectory(absolutePath) {
   try {
     const stat = await fs.stat(absolutePath);
@@ -2247,22 +2294,6 @@ async function resolveNodeSubfolderAbsolute(nodeAbsolute, subfolderName, options
   if (storageFolder && (await isExistingDirectory(storageFolder))) {
     return storageFolder;
   }
-
-  const containerDir = getNodeContainerDir(nodeAbsolute);
-  const flatStorageFolder = await resolveStorageSubfolderInParentAbsolute(
-    path.join(containerDir, STORAGE_FOLDER),
-    subfolderName
-  );
-  if (flatStorageFolder) return flatStorageFolder;
-
-  const namedLegacyFolder = await resolveLegacyNamedStorageSubfolderAbsolute(nodeAbsolute, subfolderName);
-  if (namedLegacyFolder) return namedLegacyFolder;
-
-  const legacyFolder = await resolveStorageSubfolderInParentAbsolute(
-    getLegacyContainerDir(nodeAbsolute),
-    subfolderName
-  );
-  if (legacyFolder) return legacyFolder;
 
   return null;
 }
@@ -2284,10 +2315,6 @@ async function resolveNodeStorageFileAbsolute(nodeAbsolute, fileName, options = 
   }
 
   if (await fileExists(storagePath)) return storagePath;
-
-  const namedLegacyPath = path.join(getLegacyNamedStorageRootAbsolute(nodeAbsolute), fileName);
-  if (await fileExists(namedLegacyPath)) return namedLegacyPath;
-
   if (await fileExists(legacyPath)) return legacyPath;
   return storagePath;
 }
@@ -2907,7 +2934,7 @@ async function collectPartNodeItems(partsDirAbsolute, relativePrefix, files) {
     const fullPath = path.join(partsDirAbsolute, entry.name);
     const relativePath = path.join(relativePrefix, PARTS_FOLDER, entry.name).replace(/\\/g, "/");
     files.push({
-      label: entry.name.replace(MANIFEST_MD_RE, ""),
+      label: stripTopicPrefix(entry.name),
       path: relativePath,
       ...(await enrichMenuNodeItem(relativePath))
     });
@@ -2968,9 +2995,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       const hasNodes = Boolean(child.indexPath || child.items.length > 0 || child.sections.length > 0);
       const markers = await readFolderWorkspaceMarkers(fullPath);
 
+      const folderTitle = isAreaFolderName(entry.name) ? stripTopicPrefix(entry.name) : entry.name;
+
       if (hasNodes) {
         folders.push({
-          title: entry.name,
+          title: folderTitle,
           folderPath: relativePath,
           hasGit: markers.hasGitSelf,
           hasObsidian: markers.hasObsidianSelf,
@@ -2981,7 +3010,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       }
 
       folders.push({
-        title: entry.name,
+        title: folderTitle,
         folderPath: relativePath,
         empty: true,
         hasGit: markers.hasGitSelf,
@@ -3002,7 +3031,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     if (entry.isFile() && isTopicManifestFileName(entry.name)) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
       files.push({
-        label: entry.name.replace(MANIFEST_MD_RE, ""),
+        label: stripTopicPrefix(entry.name),
         path: nodeRelPath,
         ...(await enrichMenuNodeItem(nodeRelPath))
       });
@@ -3012,6 +3041,8 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   const areaBasename = await resolveExistingAreaManifestBasename(dirPath);
   if (areaBasename) {
     indexPath = prefix ? path.join(prefix, areaBasename).replace(/\\/g, "/") : areaBasename;
+  } else if (!prefix) {
+    indexPath = await resolveRootAreaManifestRel(dirPath, prefix);
   }
 
   folders.sort((a, b) => a.title.localeCompare(b.title, "ru"));
@@ -3099,10 +3130,17 @@ async function findNodePathInDirectory(dirAbsolute) {
     }
   }
 
-  const manifestCandidates = (relDir
-    ? AREA_MANIFEST_CANDIDATES.map((name) => `${relDir}/${name}`)
-    : AREA_MANIFEST_CANDIDATES
-  );
+  if (!relDir || relDir === ".") {
+    const rootManifest = await resolveRootAreaManifestRel(dirAbsolute);
+    if (rootManifest) return rootManifest;
+  }
+
+  const manifestCandidates = relDir
+    ? [
+        ...AREA_MANIFEST_CANDIDATES.map((name) => `${relDir}/${name}`),
+        ...(isAreaFolderName(path.posix.basename(relDir)) ? [`${relDir}/${AREA_MANIFEST_FILE}`] : [])
+      ]
+    : AREA_MANIFEST_CANDIDATES;
   for (const candidate of manifestCandidates) {
     if (await nodePathExists(normalizeWorkspacePath(candidate))) {
       return candidate.replace(/\\/g, "/");
@@ -3111,13 +3149,20 @@ async function findNodePathInDirectory(dirAbsolute) {
 
   try {
     const entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
-    const manifestFiles = entries.filter(
-      (entry) => entry.isFile() && /\.(node|x)\.md$/i.test(entry.name)
-    );
-    const xFile = manifestFiles.find((entry) => /\.x\.md$/i.test(entry.name));
-    const nodeFile = xFile || manifestFiles[0];
-    if (!nodeFile) return null;
-    return relDir ? `${relDir}/${nodeFile.name}`.replace(/\\/g, "/") : nodeFile.name.replace(/\\/g, "/");
+    for (const entry of entries) {
+      if (entry.isDirectory() && isAreaFolderName(entry.name)) {
+        const areaManifest = path.join(dirAbsolute, entry.name, AREA_MANIFEST_FILE);
+        if (await nodePathExists(areaManifest)) {
+          return relDir
+            ? `${relDir}/${entry.name}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
+            : `${entry.name}/${AREA_MANIFEST_FILE}`;
+        }
+      }
+      if (entry.isFile() && isTopicManifestFileName(entry.name)) {
+        return relDir ? `${relDir}/${entry.name}`.replace(/\\/g, "/") : entry.name;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -3174,7 +3219,8 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
 async function classifyStoragePathResult(normalized, subfolder, mode, source) {
   const escaped = subfolder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  const newWithFile = new RegExp(`^(.*)/_Storage/${escaped}/(.+)$`, "i");
+  const storageAlt = getStorageFolderRegexAlternation();
+  const newWithFile = new RegExp(`^(.*)/${storageAlt}/${escaped}/(.+)$`, "i");
   const newWithFileMatch = normalized.match(newWithFile);
   if (newWithFileMatch) {
     const containerDir = newWithFileMatch[1];
@@ -3189,7 +3235,7 @@ async function classifyStoragePathResult(normalized, subfolder, mode, source) {
     };
   }
 
-  const newFolderOnly = new RegExp(`^(.*)/_Storage/${escaped}(?:/|$)`, "i");
+  const newFolderOnly = new RegExp(`^(.*)/${storageAlt}/${escaped}(?:/|$)`, "i");
   const newFolderMatch = normalized.match(newFolderOnly);
   if (newFolderMatch) {
     const containerDir = newFolderMatch[1];
@@ -3199,7 +3245,7 @@ async function classifyStoragePathResult(normalized, subfolder, mode, source) {
     return { nodePath: nodePath.replace(/\\/g, "/"), mode, source };
   }
 
-  const withFile = new RegExp(`^(.*)/_Storage/([^/]+)/${escaped}/(.+)$`, "i");
+  const withFile = new RegExp(`^(.*)/${storageAlt}/([^/]+)/${escaped}/(.+)$`, "i");
   const withFileMatch = normalized.match(withFile);
   if (withFileMatch) {
     const parentFolder = withFileMatch[1];
@@ -3215,7 +3261,7 @@ async function classifyStoragePathResult(normalized, subfolder, mode, source) {
     };
   }
 
-  const folderOnly = new RegExp(`^(.*)/_Storage/([^/]+)/${escaped}(?:/|$)`, "i");
+  const folderOnly = new RegExp(`^(.*)/${storageAlt}/([^/]+)/${escaped}(?:/|$)`, "i");
   const folderMatch = normalized.match(folderOnly);
   if (folderMatch) {
     const parentFolder = folderMatch[1];
@@ -3872,6 +3918,7 @@ async function handleApiForAgent(req, res, url) {
     if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only *.x.md manifest files are allowed" });
 
     try {
+      await migrateLegacyPropsIntoManifest(canonicalRelPath);
       const content = await fs.readFile(absolute, "utf-8");
       return sendJson(res, 200, { path: canonicalRelPath, content });
     } catch (error) {
@@ -3906,7 +3953,7 @@ async function handleApiForAgent(req, res, url) {
           parentRelPath && parentRelPath !== "." ? normalizeWorkspacePath(parentRelPath) : getAgentRoot();
         if (!parentAbsolutePath) return sendJson(res, 400, { error: "Invalid parent folder path" });
 
-        const targetFolderName = String(title).trim().replace(/[\/\\]/g, "");
+        const targetFolderName = toAreaFolderName(title);
         if (!targetFolderName) return sendJson(res, 400, { error: "Folder name cannot be empty" });
         const targetFolderAbsolute = path.join(parentAbsolutePath, targetFolderName);
 
@@ -3972,9 +4019,9 @@ async function handleApiForAgent(req, res, url) {
           if (oldConfigAbsolute && newConfigAbsolute) {
             await renameIfExists(oldConfigAbsolute, newConfigAbsolute);
           }
-          const oldNamedStorageAbsolute = getLegacyNamedStorageRootAbsolute(absolute);
-          const newNamedStorageAbsolute = getLegacyNamedStorageRootAbsolute(targetAbsolute);
-          if (oldNamedStorageAbsolute !== newNamedStorageAbsolute) {
+          const oldNamedStorageAbsolute = getNamedStorageRootAbsolute(normalized);
+          const newNamedStorageAbsolute = getNamedStorageRootAbsolute(targetRelPath);
+          if (oldNamedStorageAbsolute && newNamedStorageAbsolute && oldNamedStorageAbsolute !== newNamedStorageAbsolute) {
             await renameIfExists(oldNamedStorageAbsolute, newNamedStorageAbsolute);
           }
           nextRelPath = targetRelPath;
@@ -4760,7 +4807,7 @@ async function handleApiForAgent(req, res, url) {
     if (!manifestRel) {
       return sendJson(res, 400, {
         error: "Invalid file path",
-        details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, _Storage/…/Todo.md)"
+        details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, awn-storage/…/Todo.md)"
       });
     }
 
@@ -4784,7 +4831,7 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestRel) {
         return sendJson(res, 400, {
           error: "Invalid file path",
-          details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, _Storage/…/Todo.md)"
+          details: "Нужен манифест (*.x.md) или файл TODO (*.x.todo.md, awn-storage/…/Todo.md)"
         });
       }
 
@@ -4865,37 +4912,15 @@ async function handleApiForAgent(req, res, url) {
 
       const containerDir = getNodeContainerDir(manifestAbsolute);
       const folder = await statNodeDirMeta(containerDir);
-      let props = null;
-      for (const propsAbsolute of getLegacyPropsAbsoluteCandidates(canonicalRelPath)) {
-        const entry = await statNodeFileMeta(propsAbsolute);
-        if (entry) {
-          props = {
-            ...entry,
-            path: path.relative(getAgentRoot(), propsAbsolute).replace(/\\/g, "/")
-          };
-          break;
-        }
-      }
-      if (!props && containerDir) {
-        const baseName = path.basename(canonicalRelPath);
-        const propsNames = [];
-        if (/^_.*\.x\.md$/i.test(baseName) || /^_.*\.node\.md$/i.test(baseName)) {
-          propsNames.push("_.props.yaml");
-        } else {
-          propsNames.push(baseName.replace(/\.x\.md$/i, ".props.yaml").replace(/\.node\.md$/i, ".props.yaml"));
-        }
-        for (const name of propsNames) {
-          const propsAbsolute = path.join(containerDir, name);
-          const entry = await statNodeFileMeta(propsAbsolute);
-          if (entry) {
-            props = {
-              ...entry,
-              path: path.relative(getAgentRoot(), propsAbsolute).replace(/\\/g, "/")
-            };
-            break;
+      await migrateLegacyPropsIntoManifest(canonicalRelPath);
+      const { frontmatter } = await readNodeFrontmatterContent(canonicalRelPath);
+      const props = frontmatter.trim()
+        ? {
+            ...manifest,
+            path: manifest.path,
+            embedded: true
           }
-        }
-      }
+        : null;
 
       return sendJson(res, 200, {
         path: canonicalRelPath.replace(/\\/g, "/"),
@@ -4969,7 +4994,7 @@ async function handleApiForAgent(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as {папка ноды}/_Storage/Preview.{jpg|png|gif}"
+          details: "Allowed formats: JPG, PNG, GIF → saved as {папка ноды}/awn-storage/Preview.{jpg|png|gif}"
         });
       }
 
@@ -5283,12 +5308,6 @@ async function handleApiForAgent(req, res, url) {
       if (contentAbsolute) await removeIfExists(contentAbsolute);
       if (legacyContentAbsolute) await removeIfExists(legacyContentAbsolute);
       if (propsAbsolute) await removeIfExists(propsAbsolute);
-      const legacyNamedStorageAbsolute = getLegacyNamedStorageRootAbsolute(absolute);
-      try {
-        await fs.rm(legacyNamedStorageAbsolute, { recursive: true, force: true });
-      } catch {
-        // legacy named storage may not exist
-      }
       const slotAbsolute = normalizeWorkspacePath(
         getNamedStorageSlotDirRel(normalized, getStoragePathOptions())
       );
@@ -5408,8 +5427,30 @@ async function handleApiForAgent(req, res, url) {
 
       if (type === "manifest") {
         const folderName = path.basename(parentAbsolute);
-        const title = String(name || folderName).trim() || folderName;
-        const manifestAbsolute = path.join(parentAbsolute, AREA_MANIFEST_FILE);
+        const title = String(name || stripTopicPrefix(folderName)).trim() || folderName;
+        let areaFolderAbsolute = parentAbsolute;
+        let areaFolderRel =
+          parentPathResolved && parentPathResolved !== "." ? parentPathResolved : folderName;
+
+        if (!isAreaFolderName(folderName)) {
+          const newFolderName = toAreaFolderName(title);
+          if (!newFolderName) return sendJson(res, 400, { error: "Invalid area name" });
+          const newFolderAbsolute = path.join(path.dirname(parentAbsolute), newFolderName);
+          try {
+            await fs.access(newFolderAbsolute);
+            return sendJson(res, 409, { error: "Folder already exists" });
+          } catch {
+            // continue
+          }
+          await fs.rename(parentAbsolute, newFolderAbsolute);
+          areaFolderAbsolute = newFolderAbsolute;
+          areaFolderRel =
+            parentPathResolved && parentPathResolved !== "."
+              ? path.join(path.dirname(parentPathResolved), newFolderName).replace(/\\/g, "/")
+              : newFolderName;
+        }
+
+        const manifestAbsolute = path.join(areaFolderAbsolute, AREA_MANIFEST_FILE);
         try {
           await fs.access(manifestAbsolute);
           return sendJson(res, 409, { error: "Node manifest already exists in this folder" });
@@ -5423,11 +5464,7 @@ async function handleApiForAgent(req, res, url) {
           "utf-8"
         );
 
-        const createdPath =
-          parentPathResolved && parentPathResolved !== "."
-            ? path.join(parentPathResolved, AREA_MANIFEST_FILE)
-            : AREA_MANIFEST_FILE;
-        const createdRel = createdPath.replace(/\\/g, "/");
+        const createdRel = `${areaFolderRel}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
 
         return sendJson(res, 200, { createdPath: createdRel, type: "manifest" });
@@ -5447,9 +5484,10 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
+        const areaTitle = stripTopicPrefix(folderName);
         await fs.writeFile(
           manifestAbsolute,
-          joinNodeFrontmatter(`title: ${folderName}`, `# ${folderName}\n`),
+          joinNodeFrontmatter(`title: ${areaTitle}`, `# ${areaTitle}\n`),
           "utf-8"
         );
 
@@ -5645,7 +5683,7 @@ async function handleApi(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as _Storage/Preview.{jpg|png|gif}"
+          details: "Allowed formats: JPG, PNG, GIF → saved as awn-storage/Preview.{jpg|png|gif}"
         });
       }
 

@@ -103,3 +103,10 @@ docker-compose.yml
 --
 На уровне всей системы
 awn.agents.json (реестр всех агентов)
+
+
+/a/{agentId}/t/{topicId}                    ← топик (манифест x.md)
+/a/{agentId}/t/{topicId}/e/{elementId}      ← element
+/a/{agentId}/t/{topicId}/d/{driver}         ← driver: content | todo | volume | config
+/a/{agentId}/t/{topicId}/s/{sidecarId}      ← sidecar медиа
+/a/{agentId}/sys/{file}                     ← AGENTS.md, TODO.md корня

@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const {
   AREA_MANIFEST_CANDIDATES,
+  AREA_MANIFEST_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
@@ -10,18 +11,23 @@ const {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,
-  AREA_MANIFEST_FILE,
   buildManifestCandidatesForStorageKey,
   getManifestNamedSlotKey,
   getNamedStorageBundleDirRel,
+  getNamedStorageBundleRel,
+  joinAreaManifestRel,
+  toAreaFolderName,
+  toTopicFileName,
   isAreaManifestFileName,
-  isTopicManifestFileName
+  isTopicManifestFileName,
+  isStorageFolderName
 } = require("./manifest-paths");
 
 const LEGACY_PREVIEW_FOLDER_NAME = "_Preview";
 const legacyPreviewPurgedAgents = new Set();
-/** Версия миграции слотов _Storage (смена — один повторный прогон с исправленной логикой). */
+/** Версия миграции слотов awn-storage (смена — один повторный прогон с исправленной логикой). */
 const STORAGE_LAYOUT_MIGRATION_ID = "named-slots-v2";
+const STORAGE_FOLDER_MIGRATION_ID = "awn-storage-v1";
 const legacyStorageLayoutMigratedAgents = new Set();
 
 const NAMED_BUNDLE_FILE_NAMES_LOWER = new Set([
@@ -43,6 +49,14 @@ const LEGACY_NODE_STORAGE_SUBDIRS = new Set([
 ]);
 
 const agentContext = new AsyncLocalStorage();
+
+function joinNodeFrontmatter(frontmatter, body) {
+  const fm = String(frontmatter ?? "").trim();
+  const mdBody = String(body ?? "");
+  if (!fm) return mdBody;
+  if (!mdBody) return `---\n${fm}\n---\n`;
+  return `---\n${fm}\n---\n\n${mdBody}`;
+}
 
 /** Agent CMS — канонические имена файлов платформы и workspace. */
 const ACMS_MAIN_FILE = "acms.main.json";
@@ -130,11 +144,18 @@ function isAcmsDepsFileName(fileName) {
     LEGACY_DEPS_FILES.some((legacy) => base === legacy.toLowerCase())
   );
 }
-const DEFAULT_VAULT_FOLDER = "_Vault";
-const LEGACY_VAULT_FOLDER = "_vault";
-const DEFAULT_SERVICE_FOLDER = "_System";
-const LEGACY_SERVICE_FOLDER = "_system";
-/** Общая папка справочников внутри служебного (_System), без префикса _ */
+const DEFAULT_VAULT_FOLDER = "acms.Vault";
+const DEFAULT_SERVICE_FOLDER = "acms.System";
+
+function isVaultFolderEntryName(name) {
+  return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
+}
+
+function isServiceFolderEntryName(name) {
+  return String(name || "").toLowerCase() === DEFAULT_SERVICE_FOLDER.toLowerCase();
+}
+
+/** Общая папка справочников внутри acms.System */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
@@ -143,7 +164,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Categories",
     title: "Категории",
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `Categories.x.content.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `s.Categories/Content.md`.\n",
     content:
       "# Категории\n\n| id | label | color |\n| --- | --- | --- |\n| general | Общее | #64748b |\n| project | Проекты | #2563eb |\n| reference | Справочники | #7c3aed |\n"
   },
@@ -153,7 +174,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Tags",
     title: "Теги",
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `Tags.x.content.md`.\n\nТемы ссылаются на них через `tags:` в `*.props.yaml` или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter `t.*.md` или `#tag` в тексте.\n",
     content:
       "# Теги\n\n#project\n#idea\n#reference\n#daily\n#person\n#source\n#todo\n#review\n"
   },
@@ -163,7 +184,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "Schemas",
     title: "Схемы",
     manifest:
-      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `Schemas.x.content.md`.\n",
+      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `s.Schemas/Content.md`.\n",
     content:
       "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
   },
@@ -283,8 +304,8 @@ function normalizeReservedFolderName(raw, fallback) {
   if (!cleaned || cleaned.startsWith(".")) return null;
   const lower = cleaned.toLowerCase();
   if (lower === "_storage" || lower === "_parts") return null;
-  if (lower === LEGACY_VAULT_FOLDER) return DEFAULT_VAULT_FOLDER;
-  if (lower === LEGACY_SERVICE_FOLDER) return DEFAULT_SERVICE_FOLDER;
+  if (isVaultFolderEntryName(cleaned)) return DEFAULT_VAULT_FOLDER;
+  if (isServiceFolderEntryName(cleaned)) return DEFAULT_SERVICE_FOLDER;
   return cleaned;
 }
 
@@ -311,9 +332,9 @@ function normalizeManifestFolderAliases(raw) {
   if (!raw || typeof raw !== "object") return raw;
   const manifest = { ...raw };
   const vault = String(manifest.vaultFolder ?? "").trim();
-  if (vault.toLowerCase() === LEGACY_VAULT_FOLDER) manifest.vaultFolder = DEFAULT_VAULT_FOLDER;
+  if (isVaultFolderEntryName(vault)) manifest.vaultFolder = DEFAULT_VAULT_FOLDER;
   const service = String(manifest.serviceFolder ?? "").trim();
-  if (service.toLowerCase() === LEGACY_SERVICE_FOLDER) manifest.serviceFolder = DEFAULT_SERVICE_FOLDER;
+  if (isServiceFolderEntryName(service)) manifest.serviceFolder = DEFAULT_SERVICE_FOLDER;
   return manifest;
 }
 
@@ -321,15 +342,16 @@ function normalizeVaultFolderName(raw) {
   if (raw === null || raw === false) return null;
   const cleaned = String(raw ?? "").trim();
   if (!cleaned || cleaned.toLowerCase() === "false") return null;
-  if (cleaned.toLowerCase() === DEFAULT_SERVICE_FOLDER) return null;
+  if (isServiceFolderEntryName(cleaned)) return null;
   return DEFAULT_VAULT_FOLDER;
 }
 
 function normalizeServiceFolderName(raw) {
-  const cleaned = normalizeReservedFolderName(raw, DEFAULT_SERVICE_FOLDER);
-  if (!cleaned) return cleaned;
-  if (cleaned.toLowerCase() === DEFAULT_VAULT_FOLDER) return null;
-  return cleaned;
+  if (raw === null || raw === false) return null;
+  const cleaned = String(raw ?? "").trim();
+  if (!cleaned || cleaned.toLowerCase() === "false") return null;
+  if (isVaultFolderEntryName(cleaned)) return null;
+  return DEFAULT_SERVICE_FOLDER;
 }
 
 function normalizeAgentManifest(raw, workspaceRootAbsolute) {
@@ -349,16 +371,14 @@ function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
   return path.basename(String(workspaceRootAbsolute || "").replace(/[\\/]+$/, ""));
 }
 
-/** Bundle корневой области (_.x.md): workspace/_Storage/Preview.{jpg,png,gif} */
+/** Превью корневой области: workspace/t.{Name}/s.{Name}/Preview.* */
 function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
-  return path.join(workspaceRootAbsolute, "_Storage");
-}
-
-function getAgentWorkspaceLegacyPreviewDirsSync(workspaceRootAbsolute) {
-  return [
-    path.join(workspaceRootAbsolute, "_Storage", LEGACY_PREVIEW_FOLDER_NAME),
-    path.join(workspaceRootAbsolute, LEGACY_PREVIEW_FOLDER_NAME)
-  ];
+  const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
+  const manifestRel = joinAreaManifestRel(".", workspaceKey);
+  return path.join(
+    workspaceRootAbsolute,
+    ...getNamedStorageBundleDirRel(manifestRel, { workspaceFolderName: workspaceKey }).split("/")
+  );
 }
 
 function removeEmptyDirectorySync(absolutePath) {
@@ -384,8 +404,7 @@ function resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute) {
 
 function migrateLegacyPreviewDirSync(workspaceRootAbsolute, previewDirAbsolute) {
   const parent = path.dirname(previewDirAbsolute);
-  const containerDir =
-    path.basename(parent) === "_Storage" ? path.dirname(parent) : parent;
+  const containerDir = isStorageFolderName(path.basename(parent)) ? path.dirname(parent) : parent;
   const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDir);
   if (!manifestAbsolute) {
     removeEmptyDirectorySync(previewDirAbsolute);
@@ -551,7 +570,7 @@ function resolveManifestAbsoluteForStorageKeySync(workspaceRootAbsolute, key) {
     }
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (SKIP_SCAN_DIRS.has(entry.name) || entry.name === "_Storage" || entry.name.startsWith(".")) {
+        if (SKIP_SCAN_DIRS.has(entry.name) || isStorageFolderName(entry.name) || entry.name.startsWith(".")) {
           continue;
         }
         stack.push(path.join(dir, entry.name));
@@ -585,7 +604,7 @@ function resolveManifestAbsoluteForStorageKeySync(workspaceRootAbsolute, key) {
   return null;
 }
 
-/** Целевой слот _Storage/{key}/ для каталога области (не сливать все ключи в _). */
+/** Целевой слот awn-storage/{key}/ для каталога области (не сливать все ключи в _). */
 function resolveNamedStorageTargetDirForKeySync(
   workspaceRootAbsolute,
   containerDirAbsolute,
@@ -598,58 +617,49 @@ function resolveNamedStorageTargetDirForKeySync(
     .replace(/\\/g, "/");
 
   const topicSiblingRel =
-    containerRel && containerRel !== "." ? `${containerRel}/${key}.x.md` : `${key}.x.md`;
-  const topicSiblingAbs = path.join(workspaceRootAbsolute, ...topicSiblingRel.split("/"));
-  try {
-    if (fs.existsSync(topicSiblingAbs) && fs.statSync(topicSiblingAbs).isFile()) {
-      return path.join(
-        workspaceRootAbsolute,
-        ...getNamedStorageBundleDirRel(topicSiblingRel, options).split("/")
-      );
-    }
-  } catch {
-    // try subfolder area
-  }
-
-  const legacyTopicSiblingRel =
-    containerRel && containerRel !== "." ? `${containerRel}/${key}.node.md` : `${key}.node.md`;
-  const legacyTopicSiblingAbs = path.join(workspaceRootAbsolute, ...legacyTopicSiblingRel.split("/"));
-  try {
-    if (fs.existsSync(legacyTopicSiblingAbs) && fs.statSync(legacyTopicSiblingAbs).isFile()) {
-      return path.join(
-        workspaceRootAbsolute,
-        ...getNamedStorageBundleDirRel(legacyTopicSiblingRel, options).split("/")
-      );
-    }
-  } catch {
-    // try nested area folder
-  }
-
-  const nestedAreaManifest = path.join(containerDirAbsolute, key, AREA_MANIFEST_FILE);
-  try {
-    if (fs.existsSync(nestedAreaManifest) && fs.statSync(nestedAreaManifest).isFile()) {
-      const rel = path.relative(workspaceRootAbsolute, nestedAreaManifest).replace(/\\/g, "/");
-      return path.join(
-        workspaceRootAbsolute,
-        ...getNamedStorageBundleDirRel(rel, options).split("/")
-      );
-    }
-  } catch {
-    // fall through
-  }
-
-  if (key === "_") {
-    const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute);
-    if (manifestAbsolute) {
-      const rel = path.relative(workspaceRootAbsolute, manifestAbsolute).replace(/\\/g, "/");
-      return path.join(
-        workspaceRootAbsolute,
-        ...getNamedStorageBundleDirRel(rel, options).split("/")
-      );
+    containerRel && containerRel !== "."
+      ? `${containerRel}/${toTopicFileName(key)}`
+      : toTopicFileName(key);
+  if (topicSiblingRel) {
+    const topicSiblingAbs = path.join(workspaceRootAbsolute, ...topicSiblingRel.split("/"));
+    try {
+      if (fs.existsSync(topicSiblingAbs) && fs.statSync(topicSiblingAbs).isFile()) {
+        return path.join(
+          workspaceRootAbsolute,
+          ...getNamedStorageBundleDirRel(topicSiblingRel, options).split("/")
+        );
+      }
+    } catch {
+      // try nested area folder
     }
   }
 
-  return path.join(containerDirAbsolute, "_Storage", key);
+  const nestedAreaFolder = toAreaFolderName(key);
+  if (nestedAreaFolder) {
+    const nestedAreaManifest = path.join(containerDirAbsolute, nestedAreaFolder, AREA_MANIFEST_FILE);
+    try {
+      if (fs.existsSync(nestedAreaManifest) && fs.statSync(nestedAreaManifest).isFile()) {
+        const rel = path.relative(workspaceRootAbsolute, nestedAreaManifest).replace(/\\/g, "/");
+        return path.join(
+          workspaceRootAbsolute,
+          ...getNamedStorageBundleDirRel(rel, options).split("/")
+        );
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  const manifestAbsolute = resolveAreaManifestAbsoluteInDirSync(containerDirAbsolute);
+  if (manifestAbsolute) {
+    const rel = path.relative(workspaceRootAbsolute, manifestAbsolute).replace(/\\/g, "/");
+    return path.join(
+      workspaceRootAbsolute,
+      ...getNamedStorageBundleDirRel(rel, options).split("/")
+    );
+  }
+
+  return path.join(containerDirAbsolute, `s.${key}`);
 }
 
 function migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, nestedStorageAbsolute, containerDirAbsolute) {
@@ -680,9 +690,12 @@ function migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, nestedStorag
 
 function migrateNestedStorageInDirSync(workspaceRootAbsolute, dirAbsolute) {
   if (resolveAreaManifestAbsoluteInDirSync(dirAbsolute)) {
-    const nestedStorage = path.join(dirAbsolute, "_Storage");
-    if (fs.existsSync(nestedStorage) && fs.statSync(nestedStorage).isDirectory()) {
-      migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, nestedStorage, dirAbsolute);
+    const nestedStorage = path.join(dirAbsolute, STORAGE_FOLDER_NAME);
+    const legacyNestedStorage = path.join(dirAbsolute, LEGACY_STORAGE_FOLDER_NAME);
+    for (const storageDir of [nestedStorage, legacyNestedStorage]) {
+      if (fs.existsSync(storageDir) && fs.statSync(storageDir).isDirectory()) {
+        migrateKeysFromNestedStorageDirSync(workspaceRootAbsolute, storageDir, dirAbsolute);
+      }
     }
   }
 
@@ -694,7 +707,7 @@ function migrateNestedStorageInDirSync(workspaceRootAbsolute, dirAbsolute) {
   }
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === "_Storage" || entry.name.startsWith(".")) continue;
+    if (isStorageFolderName(entry.name) || entry.name.startsWith(".")) continue;
     if (SKIP_SCAN_DIRS.has(entry.name)) continue;
     migrateNestedStorageInDirSync(workspaceRootAbsolute, path.join(dirAbsolute, entry.name));
   }
@@ -703,7 +716,17 @@ function migrateNestedStorageInDirSync(workspaceRootAbsolute, dirAbsolute) {
 function migrateFlatNamedStorageBundlesToLocalSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return;
   const workspaceKey = getWorkspaceStorageKeySync(workspaceRootAbsolute);
-  const flatStorage = path.join(workspaceRootAbsolute, "_Storage");
+  const flatStorage = path.join(workspaceRootAbsolute, STORAGE_FOLDER_NAME);
+  const legacyFlatStorage = path.join(workspaceRootAbsolute, LEGACY_STORAGE_FOLDER_NAME);
+  if (!fs.existsSync(flatStorage) && !fs.existsSync(legacyFlatStorage)) return;
+  if (!fs.existsSync(flatStorage) && fs.existsSync(legacyFlatStorage)) {
+    try {
+      fs.renameSync(legacyFlatStorage, flatStorage);
+    } catch {
+      mergeDirectorySync(legacyFlatStorage, flatStorage);
+      removeDirectoryRecursiveSync(legacyFlatStorage);
+    }
+  }
   if (!fs.existsSync(flatStorage)) return;
 
   const flatWorkspaceBundle = path.join(flatStorage, workspaceKey);
@@ -746,8 +769,44 @@ function migrateFlatNamedStorageBundlesToLocalSync(workspaceRootAbsolute) {
   }
 }
 
+function migrateLegacyStorageFolderNameInDirSync(dirAbsolute) {
+  const legacyPath = path.join(dirAbsolute, LEGACY_STORAGE_FOLDER_NAME);
+  const canonicalPath = path.join(dirAbsolute, STORAGE_FOLDER_NAME);
+  try {
+    if (fs.existsSync(legacyPath) && fs.statSync(legacyPath).isDirectory()) {
+      if (fs.existsSync(canonicalPath)) {
+        mergeDirectorySync(legacyPath, canonicalPath);
+        removeDirectoryRecursiveSync(legacyPath);
+      } else {
+        fs.renameSync(legacyPath, canonicalPath);
+      }
+    }
+  } catch {
+    // keep legacy folder if rename/merge fails
+  }
+
+  let entries;
+  try {
+    entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (isStorageFolderName(entry.name)) continue;
+    if (SKIP_SCAN_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
+    migrateLegacyStorageFolderNameInDirSync(path.join(dirAbsolute, entry.name));
+  }
+}
+
+function migrateLegacyStorageFolderNameSync(workspaceRootAbsolute) {
+  if (!workspaceRootAbsolute) return;
+  migrateLegacyStorageFolderNameInDirSync(workspaceRootAbsolute);
+}
+
 function migrateLegacyStorageLayoutsToLocalSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return;
+  migrateLegacyStorageFolderNameSync(workspaceRootAbsolute);
   migrateFlatNamedStorageBundlesToLocalSync(workspaceRootAbsolute);
   migrateNestedStorageInDirSync(workspaceRootAbsolute, workspaceRootAbsolute);
 }
@@ -856,9 +915,6 @@ function migrateLegacyAgentWorkspacePreviewToBundleSync(workspaceRootAbsolute) {
 }
 
 function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
-  const migrated = migrateLegacyAgentWorkspacePreviewToBundleSync(workspaceRootAbsolute);
-  if (migrated) return migrated;
-
   const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
   for (const name of PREVIEW_FILE_NAMES) {
     const absolute = path.join(bundleDir, name);
@@ -944,20 +1000,12 @@ function readAgentManifestSync(workspaceRootAbsolute) {
   return normalizeAgentManifest(raw, workspaceRootAbsolute);
 }
 
-function migrateVaultFolderOnDiskSync(workspaceAbsolute, previousName, nextName) {
-  if (!workspaceAbsolute || !nextName) return;
-  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_VAULT_FOLDER, nextName);
-  if (previousName && previousName !== nextName) {
-    migrateWorkspaceReservedFolderSync(workspaceAbsolute, previousName, nextName);
-  }
+function migrateVaultFolderOnDiskSync(_workspaceAbsolute, _previousName, _nextName) {
+  // Переименование папки Vault на диске — вручную в workspace.
 }
 
-function migrateServiceFolderOnDiskSync(workspaceAbsolute, previousName, nextName) {
-  if (!workspaceAbsolute || !nextName) return;
-  migrateWorkspaceReservedFolderSync(workspaceAbsolute, LEGACY_SERVICE_FOLDER, nextName);
-  if (previousName && previousName !== nextName) {
-    migrateWorkspaceReservedFolderSync(workspaceAbsolute, previousName, nextName);
-  }
+function migrateServiceFolderOnDiskSync(_workspaceAbsolute, _previousName, _nextName) {
+  // Переименование папки System на диске — вручную в workspace.
 }
 
 function updateAgentManifestFields(agentPath, fields = {}) {
@@ -1299,13 +1347,6 @@ function runWithAgent(agentId, fn) {
     return Promise.reject(new Error(`Unknown agent: ${agentId}`));
   }
   migrateLegacyAgentManifestSync(agent.rootAbsolute);
-  const storageMigrationKey = `${agent.id}:${STORAGE_LAYOUT_MIGRATION_ID}`;
-  if (!legacyStorageLayoutMigratedAgents.has(storageMigrationKey)) {
-    migrateLegacyStorageLayoutsToLocalSync(agent.rootAbsolute);
-    purgeLegacyWorkspacePreviewFoldersSync(agent.rootAbsolute);
-    legacyStorageLayoutMigratedAgents.add(storageMigrationKey);
-    legacyPreviewPurgedAgents.add(agent.id);
-  }
   return agentContext.run({ agentId: agent.id, agentRoot: agent.rootAbsolute, agent }, fn);
 }
 
@@ -1484,23 +1525,29 @@ function createAgentWorkspace(options = {}) {
 
   const folderName = path.basename(workspaceAbsolute);
   const name = String(options.name || "").trim() || folderName.replace(/\.agent$/i, "") || folderName;
-  fs.mkdirSync(path.join(workspaceAbsolute, "_Storage"), { recursive: true });
+  const areaFolder = toAreaFolderName(name);
+  const areaAbsolute = path.join(workspaceAbsolute, areaFolder);
+  fs.mkdirSync(areaAbsolute, { recursive: true });
+  fs.mkdirSync(path.join(areaAbsolute, `s.${name}`), { recursive: true });
   fs.mkdirSync(
-    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_Storage", "Assets"),
+    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, toAreaFolderName("Служебное"), `s.Служебное`, "Assets"),
     { recursive: true }
   );
 
   const id = slugifyAgentId(options.id || name, 0);
   writeAgentManifestSync(workspaceAbsolute, { id, name });
-  fs.writeFileSync(path.join(workspaceAbsolute, "_.x.md"), `# ${name}\n`, "utf-8");
-  fs.writeFileSync(
-    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_.x.md"),
-    "# Служебное\n\nОбщая медиатека и служебные темы агента.\n",
-    "utf-8"
+  fs.writeFileSync(path.join(areaAbsolute, AREA_MANIFEST_FILE), `# ${name}\n`, "utf-8");
+  const serviceManifestAbsolute = path.join(
+    workspaceAbsolute,
+    ...joinAreaManifestRel(DEFAULT_SERVICE_FOLDER, "Служебное").split("/")
   );
+  fs.mkdirSync(path.dirname(serviceManifestAbsolute), { recursive: true });
   fs.writeFileSync(
-    path.join(workspaceAbsolute, DEFAULT_SERVICE_FOLDER, "_.props.yaml"),
-    "title: Служебное\nAWN-TYPE: service\n",
+    serviceManifestAbsolute,
+    joinNodeFrontmatter(
+      "title: Служебное\nAWN-TYPE: service",
+      "# Служебное\n\nОбщая медиатека и служебные темы агента.\n"
+    ),
     "utf-8"
   );
 
@@ -1537,16 +1584,15 @@ function findServiceDocScaffold(presetBase) {
 function getSystemReferenceRelPaths(scaffold) {
   if (scaffold.kind === "service-doc") {
     return {
-      manifest: `${scaffold.fileName}.x.md`,
-      props: `${scaffold.fileName}.props.yaml`,
+      manifest: toTopicFileName(scaffold.fileName),
       content: null
     };
   }
-  const base = path.join(DEFAULT_SERVICE_CATALOG_FOLDER, scaffold.fileName).replace(/\\/g, "/");
+  const catalogDir = DEFAULT_SERVICE_CATALOG_FOLDER;
+  const manifest = path.join(catalogDir, toTopicFileName(scaffold.fileName)).replace(/\\/g, "/");
   return {
-    manifest: `${base}.x.md`,
-    props: `${base}.props.yaml`,
-    content: `${base}.x.content.md`
+    manifest,
+    content: getNamedStorageBundleRel(manifest, BUNDLE_CONTENT_FILE)
   };
 }
 
@@ -1666,7 +1712,6 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
 
   const rel = getSystemReferenceRelPaths(scaffold);
   const manifestPath = path.join(serviceAbsolute, rel.manifest);
-  const propsPath = path.join(serviceAbsolute, rel.props);
 
   if (fs.existsSync(manifestPath)) {
     const error = new Error("System reference already exists");
@@ -1678,20 +1723,25 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
     const contentPath = path.join(serviceAbsolute, rel.content);
     fs.mkdirSync(catalogAbsolute, { recursive: true });
-    fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
+    fs.mkdirSync(path.dirname(contentPath), { recursive: true });
     fs.writeFileSync(
-      propsPath,
-      `title: ${scaffold.title}\ntags: [system, catalog]\nAWN-TYPE: catalog\n`,
+      manifestPath,
+      joinNodeFrontmatter(
+        `title: ${scaffold.title}\ntags: [system, catalog]\nAWN-TYPE: catalog`,
+        scaffold.manifest
+      ),
       "utf-8"
     );
     fs.writeFileSync(contentPath, scaffold.content, "utf-8");
     return rel.manifest;
   }
 
-  fs.writeFileSync(manifestPath, scaffold.manifest, "utf-8");
   fs.writeFileSync(
-    propsPath,
-    `title: ${scaffold.title}\ntags: [system, service]\nAWN-TYPE: service-doc\n`,
+    manifestPath,
+    joinNodeFrontmatter(
+      `title: ${scaffold.title}\ntags: [system, service]\nAWN-TYPE: service-doc`,
+      scaffold.manifest
+    ),
     "utf-8"
   );
   return rel.manifest;
@@ -1719,9 +1769,9 @@ function createSystemServiceDocSync(serviceAbsolute, presetBase) {
 
 module.exports = {
   DEFAULT_VAULT_FOLDER,
-  LEGACY_VAULT_FOLDER,
+  isVaultFolderEntryName,
   DEFAULT_SERVICE_FOLDER,
-  LEGACY_SERVICE_FOLDER,
+  isServiceFolderEntryName,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   migrateServiceCatalogLegacySync,

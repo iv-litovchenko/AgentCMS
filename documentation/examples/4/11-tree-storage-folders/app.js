@@ -10,7 +10,7 @@ mountBaseShell(root, {
 const nav = bindNavInteractions(root, state);
 const sidebar = root.querySelector(".sidebar");
       sidebar.innerHTML += `
-        <div class="sidebar-item active" style="margin-left:8px">📁 _Storage</div>
+        <div class="sidebar-item active" style="margin-left:8px">📁 awn-storage</div>
         <div class="sidebar-item" style="margin-left:16px" data-domain="nav">🧭 _Graph</div>
         <div class="sidebar-item" style="margin-left:16px" data-domain="memory">🧠 _Content</div>
         <div class="sidebar-item" style="margin-left:16px" data-domain="attachments">📎 _Assets</div>
