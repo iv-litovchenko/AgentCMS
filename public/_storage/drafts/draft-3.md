@@ -97,3 +97,9 @@ TODO.md,
 docker-compose.yml
 .env, 
 .gitignore
+
+
+
+--
+На уровне всей системы
+awn.agents.json (реестр всех агентов)
