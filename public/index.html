@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.28" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.29" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -679,11 +679,11 @@
                     aria-label="Раздел"
                   >
                     <option value="navigation">Навигация</option>
-                    <option value="settings">Настройки</option>
-                    <option value="inbox">|- Входящие</option>
-                    <option value="references">|- Источники</option>
-                    <option value="artefacts">|- Артефакты</option>
-                    <option value="memory">|- Память</option>
+                    <option value="settings">Слот: |- Настройки</option>
+                    <option value="inbox">Слот: |- Входящие</option>
+                    <option value="references">Слот: |- Источники</option>
+                    <option value="artefacts">Слот: |- Артефакты</option>
+                    <option value="memory">Слот: |- Память (данные)</option>
                     <option value="overview">Обзор</option>
                   </select>
                 </div>
@@ -816,7 +816,9 @@
                   <option value="graph">Граф</option>
                 </select>
                 <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
-                  <option value="all">Весь список</option>
+                  <option value="dashboard">Дашборд</option>
+                  <option value="sep" disabled>────────</option>
+                  <option value="all">Старый дашборд как было</option>
                   <option value="images">Изображения</option>
                   <option value="audio">Аудио</option>
                   <option value="video">Видео</option>
@@ -1326,7 +1328,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.44"></script>
+    <script src="/main.js?v=0.4.48"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>

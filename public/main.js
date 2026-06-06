@@ -2379,13 +2379,14 @@ const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
+const NODE_WORKSPACE_DOMAIN_SLOT_PREFIX = "Слот: ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
-  { value: "settings", label: "Настройки" },
+  { value: "settings", label: "Настройки", branch: true },
   { value: "inbox", label: "Входящие", branch: true },
   { value: "references", label: "Источники", branch: true },
   { value: "artefacts", label: "Артефакты", branch: true },
-  { value: "memory", label: "Память", branch: true },
+  { value: "memory", label: "Память (данные)", branch: true },
   { value: "overview", label: "Обзор" }
 ];
 
@@ -2473,7 +2474,7 @@ const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
 const _savedEditorViewMode = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
 let editorViewMode = (_savedEditorViewMode === "preview" || _savedEditorViewMode === "source") ? _savedEditorViewMode : "source";
 let externalViewMode = "table";
-let mediaViewMode = "all";
+let mediaViewMode = "dashboard";
 let mediaFilesCache = {};
 let mediaAssetsExists = true;
 let activeStorageFolderExists = true;
@@ -3524,7 +3525,9 @@ function getNavigationSubsectionEntries() {
 }
 
 function getWorkspaceDomainDisplayLabel(label, branch = false) {
-  return branch ? `${NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX}${label}` : label;
+  return branch
+    ? `${NODE_WORKSPACE_DOMAIN_SLOT_PREFIX}${NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX}${label}`
+    : label;
 }
 
 function getWorkspaceDomainLabelById(domain) {
@@ -6809,6 +6812,408 @@ function getMediaItemsForView(viewMode) {
   return items.filter((item) => !item.isFolder);
 }
 
+const MEDIA_GROUP_LABELS = {
+  Images: "Изображения",
+  Videos: "Видео",
+  Audio: "Аудио",
+  Documents: "Документы",
+  Archives: "Архивы",
+  Other: "Прочее"
+};
+
+const MEDIA_DASHBOARD_SORT_DEFAULT = { key: "name", dir: "asc" };
+let mediaDashboardSort = { ...MEDIA_DASHBOARD_SORT_DEFAULT };
+let mediaDashboardFilters = { type: "all", usage: "all" };
+
+function getAllMediaFileItems() {
+  const items = [];
+  for (const groupItems of Object.values(mediaFilesCache)) {
+    if (!Array.isArray(groupItems)) continue;
+    for (const item of groupItems) {
+      if (!item.isFolder) items.push(item);
+    }
+  }
+  return items;
+}
+
+function buildMediaReferenceCorpus() {
+  return [
+    modeContentCache.description,
+    modeContentCache.internal,
+    modeContentCache.todo,
+    modeContentCache.configs,
+    modeContentCache.env,
+    modeContentCache.tabular,
+    modeContentCache.external,
+    fileContentInputNode?.value || ""
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+}
+
+function countMediaFileUsage(item, corpus) {
+  if (!corpus) return 0;
+  const path = String(item.path || "").toLowerCase();
+  const name = String(item.name || "").toLowerCase();
+  const assetRef = buildMarkdownAttachmentRef(item.path).toLowerCase();
+  const base = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
+  let count = 0;
+  const bump = (token) => {
+    if (!token || token.length < 2) return;
+    if (corpus.includes(token)) count += 1;
+  };
+  bump(path);
+  bump(name);
+  bump(assetRef);
+  bump(base);
+  return count;
+}
+
+function getMediaFileDirectory(item) {
+  const normalized = String(item.path || "").replace(/\\/g, "/");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return "/";
+  return `/${normalized.slice(0, idx)}`;
+}
+
+function getMediaDashboardGroupLabel(group) {
+  return MEDIA_GROUP_LABELS[group] || group || "Прочее";
+}
+
+function getMediaDashboardTypeIcon(item) {
+  if (item.group === "Images") return "🖼";
+  if (item.group === "Videos") return "🎬";
+  if (item.group === "Audio") return "🎵";
+  if (item.group === "Documents") return getDocumentIcon(item.ext);
+  if (item.group === "Archives") return "📦";
+  return "📎";
+}
+
+function enrichMediaDashboardItems(items) {
+  const corpus = buildMediaReferenceCorpus();
+  return items.map((item) => ({
+    ...item,
+    directory: getMediaFileDirectory(item),
+    usage: countMediaFileUsage(item, corpus),
+    typeLabel: getMediaDashboardGroupLabel(item.group)
+  }));
+}
+
+function filterMediaDashboardItems(items) {
+  return items.filter((item) => {
+    if (mediaDashboardFilters.type !== "all" && item.group !== mediaDashboardFilters.type) return false;
+    if (mediaDashboardFilters.usage === "used" && item.usage <= 0) return false;
+    if (mediaDashboardFilters.usage === "unused" && item.usage > 0) return false;
+    return true;
+  });
+}
+
+function sortMediaDashboardItems(items) {
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const dir = mediaDashboardSort.dir === "desc" ? -1 : 1;
+  const key = mediaDashboardSort.key;
+  return [...items].sort((a, b) => {
+    let cmp = 0;
+    if (key === "usage") cmp = (a.usage || 0) - (b.usage || 0);
+    else if (key === "directory") cmp = collator.compare(a.directory || "", b.directory || "");
+    else cmp = collator.compare(a.name || "", b.name || "");
+    return cmp * dir;
+  });
+}
+
+function createMediaDashboardStatCard({ icon, iconClass, label, value }) {
+  const card = document.createElement("article");
+  card.className = "media-dashboard-stat-card";
+
+  const iconWrap = document.createElement("div");
+  iconWrap.className = `media-dashboard-stat-icon ${iconClass}`;
+  iconWrap.setAttribute("aria-hidden", "true");
+  iconWrap.textContent = icon;
+
+  const body = document.createElement("div");
+  body.className = "media-dashboard-stat-body";
+
+  const valueNode = document.createElement("div");
+  valueNode.className = "media-dashboard-stat-value";
+  valueNode.textContent = String(value);
+
+  const labelNode = document.createElement("div");
+  labelNode.className = "media-dashboard-stat-label";
+  labelNode.textContent = label;
+
+  body.append(valueNode, labelNode);
+  card.append(iconWrap, body);
+  return card;
+}
+
+function createMediaDashboardSortButton(label, sortKey) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-dashboard-sort-btn";
+  const active = mediaDashboardSort.key === sortKey;
+  btn.classList.toggle("is-active", active);
+  btn.textContent = active
+    ? `${label} ${mediaDashboardSort.dir === "asc" ? "↑" : "↓"}`
+    : label;
+  btn.addEventListener("click", () => {
+    if (mediaDashboardSort.key === sortKey) {
+      mediaDashboardSort.dir = mediaDashboardSort.dir === "asc" ? "desc" : "asc";
+    } else {
+      mediaDashboardSort.key = sortKey;
+      mediaDashboardSort.dir = "asc";
+    }
+    renderListViewContent();
+  });
+  return btn;
+}
+
+function renderMediaUsageDashboard(container) {
+  container.innerHTML = "";
+
+  if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
+    syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
+  }
+
+  const allItems = enrichMediaDashboardItems(getAllMediaFileItems());
+  const filteredItems = sortMediaDashboardItems(filterMediaDashboardItems(allItems));
+  const usedCount = allItems.filter((item) => item.usage > 0).length;
+  const unusedCount = Math.max(0, allItems.length - usedCount);
+
+  const dashboard = document.createElement("div");
+  dashboard.className = "media-usage-dashboard";
+
+  const header = document.createElement("div");
+  header.className = "media-dashboard-header";
+
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "media-dashboard-title-wrap";
+  const titleIcon = document.createElement("span");
+  titleIcon.className = "media-dashboard-title-icon";
+  titleIcon.setAttribute("aria-hidden", "true");
+  titleIcon.textContent = "🖼";
+  const title = document.createElement("h3");
+  title.className = "media-dashboard-title";
+  title.textContent = "Медиа: обзор использования";
+  titleWrap.append(titleIcon, title);
+
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.className = "media-dashboard-refresh-btn";
+  refreshBtn.title = "Обновить";
+  refreshBtn.setAttribute("aria-label", "Обновить");
+  refreshBtn.innerHTML = `<span class="media-dashboard-refresh-icon" aria-hidden="true">↻</span> Обновить`;
+  refreshBtn.addEventListener("click", () => {
+    void refreshWorkspaceContent();
+  });
+
+  header.append(titleWrap, refreshBtn);
+  dashboard.appendChild(header);
+
+  const stats = document.createElement("div");
+  stats.className = "media-dashboard-stats";
+  stats.append(
+    createMediaDashboardStatCard({
+      icon: "🗄",
+      iconClass: "is-total",
+      label: "Всего файлов",
+      value: allItems.length
+    }),
+    createMediaDashboardStatCard({
+      icon: "✓",
+      iconClass: "is-used",
+      label: "Используются",
+      value: usedCount
+    }),
+    createMediaDashboardStatCard({
+      icon: "⊘",
+      iconClass: "is-unused",
+      label: "Не используются",
+      value: unusedCount
+    })
+  );
+  dashboard.appendChild(stats);
+
+  const inventory = document.createElement("section");
+  inventory.className = "media-dashboard-inventory";
+
+  const inventoryHead = document.createElement("div");
+  inventoryHead.className = "media-dashboard-inventory-head";
+
+  const inventoryTitle = document.createElement("h4");
+  inventoryTitle.className = "media-dashboard-inventory-title";
+  inventoryTitle.textContent = "Каталог медиа";
+
+  const inventoryMeta = document.createElement("div");
+  inventoryMeta.className = "media-dashboard-inventory-meta";
+  const results = document.createElement("span");
+  results.className = "media-dashboard-results";
+  results.textContent = `${filteredItems.length} результатов`;
+
+  const filters = document.createElement("div");
+  filters.className = "media-dashboard-filters";
+
+  const typeSelect = document.createElement("select");
+  typeSelect.className = "media-dashboard-filter-select";
+  typeSelect.setAttribute("aria-label", "Тип файла");
+  typeSelect.innerHTML = `
+    <option value="all">Все типы</option>
+    <option value="Images">Изображения</option>
+    <option value="Videos">Видео</option>
+    <option value="Audio">Аудио</option>
+    <option value="Documents">Документы</option>
+    <option value="Archives">Архивы</option>
+    <option value="Other">Прочее</option>
+  `;
+  typeSelect.value = mediaDashboardFilters.type;
+  typeSelect.addEventListener("change", () => {
+    mediaDashboardFilters.type = typeSelect.value;
+    renderListViewContent();
+  });
+
+  const usageSelect = document.createElement("select");
+  usageSelect.className = "media-dashboard-filter-select";
+  usageSelect.setAttribute("aria-label", "Использование");
+  usageSelect.innerHTML = `
+    <option value="all">Все</option>
+    <option value="used">Используются</option>
+    <option value="unused">Не используются</option>
+  `;
+  usageSelect.value = mediaDashboardFilters.usage;
+  usageSelect.addEventListener("change", () => {
+    mediaDashboardFilters.usage = usageSelect.value;
+    renderListViewContent();
+  });
+
+  filters.append(typeSelect, usageSelect);
+  inventoryMeta.append(results, filters);
+  inventoryHead.append(inventoryTitle, inventoryMeta);
+  inventory.appendChild(inventoryHead);
+
+  if (filteredItems.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "media-dashboard-empty";
+    empty.textContent = allItems.length ? "Нет файлов по выбранным фильтрам" : getStorageFolderEmptyMessage("media");
+    inventory.appendChild(empty);
+    dashboard.appendChild(inventory);
+    container.appendChild(dashboard);
+    return;
+  }
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "media-dashboard-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "media-dashboard-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const thToggle = document.createElement("th");
+  thToggle.className = "media-dashboard-cell-toggle";
+  thToggle.setAttribute("aria-label", "Подробнее");
+  const thPreview = document.createElement("th");
+  thPreview.textContent = "Превью";
+  const thName = document.createElement("th");
+  thName.appendChild(createMediaDashboardSortButton("Имя файла", "name"));
+  const thDir = document.createElement("th");
+  thDir.appendChild(createMediaDashboardSortButton("Папка", "directory"));
+  const thUsage = document.createElement("th");
+  thUsage.appendChild(createMediaDashboardSortButton("Использование", "usage"));
+  headRow.append(thToggle, thPreview, thName, thDir, thUsage);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const item of filteredItems) {
+    const row = document.createElement("tr");
+    row.className = "media-dashboard-row";
+
+    const toggleCell = document.createElement("td");
+    toggleCell.className = "media-dashboard-cell-toggle";
+    const toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.className = "media-dashboard-row-toggle";
+    toggleBtn.setAttribute("aria-label", "Подробнее");
+    toggleBtn.textContent = "▾";
+    toggleCell.appendChild(toggleBtn);
+
+    const previewCell = document.createElement("td");
+    previewCell.className = "media-dashboard-cell-preview";
+    const preview = document.createElement("div");
+    preview.className = "media-dashboard-preview";
+    if (item.group === "Images") {
+      const img = document.createElement("img");
+      img.alt = item.name;
+      img.loading = "lazy";
+      img.src = buildMediaAssetUrl(item.path);
+      img.addEventListener("error", () => {
+        preview.classList.add("is-fallback");
+        img.remove();
+        preview.textContent = getMediaDashboardTypeIcon(item);
+      });
+      preview.appendChild(img);
+    } else {
+      preview.classList.add("is-fallback");
+      preview.textContent = getMediaDashboardTypeIcon(item);
+    }
+    previewCell.appendChild(preview);
+
+    const nameCell = document.createElement("td");
+    nameCell.className = "media-dashboard-cell-name";
+    const nameMain = document.createElement("div");
+    nameMain.className = "media-dashboard-filename";
+    nameMain.textContent = item.name;
+    const nameMeta = document.createElement("div");
+    nameMeta.className = "media-dashboard-filemeta";
+    nameMeta.textContent = `${item.typeLabel}${item.size ? ` · ${formatFileSize(item.size)}` : ""}`;
+    nameCell.append(nameMain, nameMeta);
+
+    const dirCell = document.createElement("td");
+    dirCell.className = "media-dashboard-cell-directory";
+    dirCell.textContent = item.directory;
+
+    const usageCell = document.createElement("td");
+    usageCell.className = "media-dashboard-cell-usage";
+    const usageBadge = document.createElement("span");
+    usageBadge.className = `media-dashboard-usage-badge ${item.usage > 0 ? "is-used" : "is-unused"}`;
+    usageBadge.textContent = String(item.usage);
+    usageCell.appendChild(usageBadge);
+
+    row.append(toggleCell, previewCell, nameCell, dirCell, usageCell);
+
+    const detailRow = document.createElement("tr");
+    detailRow.className = "media-dashboard-detail-row hidden";
+    const detailCell = document.createElement("td");
+    detailCell.colSpan = 5;
+    detailCell.className = "media-dashboard-detail-cell";
+
+    const detailPath = document.createElement("div");
+    detailPath.className = "media-dashboard-detail-path";
+    detailPath.textContent = item.path;
+
+    const detailActions = document.createElement("div");
+    detailActions.className = "media-dashboard-detail-actions";
+    detailActions.append(createMediaSidecarEditButton(item), createMediaOpenButton(item));
+
+    detailCell.append(detailPath, detailActions);
+    detailRow.appendChild(detailCell);
+
+    toggleBtn.addEventListener("click", () => {
+      const open = detailRow.classList.toggle("hidden");
+      toggleBtn.classList.toggle("is-open", !open);
+      toggleBtn.textContent = open ? "▾" : "▴";
+    });
+
+    tbody.append(row, detailRow);
+  }
+
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  inventory.appendChild(tableWrap);
+  dashboard.appendChild(inventory);
+  container.appendChild(dashboard);
+}
+
 function renderMediaEmpty(container, message = "Файлы не найдены") {
   renderListEmptyMessage(container, message);
 }
@@ -7152,10 +7557,14 @@ function renderListViewContent() {
       renderListEmptyMessage(listTarget, getStorageFolderMissingMessage("media"));
       return;
     }
+    if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
+      syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
+    }
+    if (mediaViewMode === "dashboard") {
+      renderMediaUsageDashboard(listTarget);
+      return;
+    }
     if (mediaViewMode !== "all") {
-      if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
-        syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
-      }
       renderMediaFilteredView(listTarget);
       return;
     }
@@ -17014,7 +17423,8 @@ void fetchDocsMeta()
   .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
   .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
-  mediaViewMode = mediaViewSelectNode?.value || "all";
+  const nextMediaView = mediaViewSelectNode?.value || "dashboard";
+  mediaViewMode = nextMediaView && nextMediaView !== "sep" ? nextMediaView : mediaViewMode;
   if (activeContentMode === "media") renderListViewContent();
 });
 
