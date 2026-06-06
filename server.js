@@ -14,7 +14,6 @@ const {
   isAreaManifestFileName,
   isTopicManifestFileName,
   isAreaManifestRelPath,
-  isAreaFolderName,
   isManifestMdAbsolute,
   joinAreaManifestRel,
   getServiceAreaManifestRel,
@@ -582,12 +581,6 @@ async function buildMemorySummary(relPath) {
   };
 }
 
-function toPropsFilePath(relNodePath) {
-  const parsed = parsePartFolderManifestRel(relNodePath);
-  if (parsed) return `${parsed.dir}/${parsed.partName}.props.yaml`;
-  return String(relNodePath).replace(/\.node\.md$/i, ".props.yaml");
-}
-
 function splitNodeFrontmatter(raw = "") {
   const text = String(raw).replace(/^\uFEFF/, "");
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
@@ -613,11 +606,6 @@ async function readNodeManifestRaw(nodeAbsolute) {
     if (error && error.code === "ENOENT") return null;
     throw error;
   }
-}
-
-function getLegacyPropsAbsoluteCandidates(nodeRelPath) {
-  const propsAbsolute = normalizeWorkspacePath(toPropsFilePath(nodeRelPath));
-  return propsAbsolute ? [propsAbsolute] : [];
 }
 
 async function statNodeFileMeta(absolutePath) {
@@ -666,12 +654,6 @@ async function readNodeFrontmatterContent(nodeRelPath) {
     return { frontmatter, body, source: "frontmatter" };
   }
   return { frontmatter: "", body, source: null };
-}
-
-async function removeLegacyPropsFiles(nodeRelPath) {
-  for (const propsAbsolute of getLegacyPropsAbsoluteCandidates(nodeRelPath)) {
-    await removeIfExists(propsAbsolute);
-  }
 }
 
 function extractColorFromPropsYaml(content) {
@@ -1260,7 +1242,6 @@ async function ensureVaultFolderScaffold(agentRootAbsolute) {
 async function normalizeServiceMenuTree(tree, serviceAbsolute) {
   if (!tree || !serviceAbsolute) return tree;
   const serviceFolder = getAgentServiceFolder();
-  const legacyServiceAreaFolder = toAreaFolderName(SERVICE_AREA_NAME);
   const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
   tree.indexPath = serviceManifestRel;
   tree.color = null;
@@ -1276,15 +1257,7 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
     tree.hasPreview = indexMeta.hasPreview;
     tree.previewUrl = indexMeta.previewUrl;
   }
-  const legacyTopicFolder = `t.${SERVICE_AREA_NAME}`;
-  tree.sections = (tree.sections || []).filter(
-    (section) =>
-      section.title !== SERVICE_AREA_NAME &&
-      section.folderPath !== legacyServiceAreaFolder &&
-      section.folderPath !== legacyTopicFolder &&
-      section.folderPath !== `${serviceFolder}/${legacyServiceAreaFolder}`.replace(/\\/g, "/") &&
-      section.folderPath !== `${serviceFolder}/${legacyTopicFolder}`.replace(/\\/g, "/")
-  );
+  tree.sections = (tree.sections || []).filter((section) => section.title !== SERVICE_AREA_NAME);
   return tree;
 }
 
@@ -1454,7 +1427,6 @@ async function resolveNodeManifestRelForContainer(containerRelDir) {
     return getServiceAreaManifestRel(serviceFolder);
   }
   const base = path.posix.basename(normalized);
-  if (isAreaFolderName(base)) return `${normalized}/${AREA_MANIFEST_FILE}`;
   return joinAreaManifestRel(normalized, base);
 }
 
@@ -2847,10 +2819,7 @@ async function findNodePathInDirectory(dirAbsolute) {
   }
 
   const manifestCandidates = relDir
-    ? [
-        ...AREA_MANIFEST_CANDIDATES.map((name) => `${relDir}/${name}`),
-        ...(isAreaFolderName(path.posix.basename(relDir)) ? [`${relDir}/${AREA_MANIFEST_FILE}`] : [])
-      ]
+    ? AREA_MANIFEST_CANDIDATES.map((name) => `${relDir}/${name}`)
     : AREA_MANIFEST_CANDIDATES;
   for (const candidate of manifestCandidates) {
     if (await nodePathExists(normalizeWorkspacePath(candidate))) {
@@ -3072,14 +3041,6 @@ async function classifySearchResult(relPath) {
     };
   }
 
-  if (/\.node\.content\.md$/i.test(normalized)) {
-    return {
-      nodePath: normalized.replace(/\.node\.content\.md$/i, ".md"),
-      mode: "internal",
-      source: "Однофайловая"
-    };
-  }
-
   if (/\.content\.md$/i.test(normalized) && !/\.x\.content\.md$/i.test(normalized)) {
     const manifestRel = inferManifestRelFromSidecar(normalized);
     if (manifestRel) {
@@ -3087,24 +3048,9 @@ async function classifySearchResult(relPath) {
     }
   }
 
-  if (/\.props\.yaml$/i.test(normalized)) {
-    const manifestRel = inferManifestRelFromSidecar(normalized);
-    if (manifestRel) {
-      return { nodePath: manifestRel, mode: "description", source: "YAML-свойства" };
-    }
-  }
-
   if (/\.x\.config\.ya?ml$/i.test(normalized)) {
     return {
       nodePath: normalized.replace(/\.x\.config\.ya?ml$/i, ".md"),
-      mode: "configs",
-      source: "Конфигурации"
-    };
-  }
-
-  if (/\.node\.config\.ya?ml$/i.test(normalized)) {
-    return {
-      nodePath: normalized.replace(/\.node\.config\.ya?ml$/i, ".md"),
       mode: "configs",
       source: "Конфигурации"
     };
@@ -3141,7 +3087,7 @@ async function classifySearchResult(relPath) {
   const storageArtefacts = await classifyStoragePathForMode(normalized, "artefacts", "Артефакты");
   if (storageArtefacts) return storageArtefacts;
 
-  const storageTemp = await classifyStoragePathForMode(normalized, "temp", "/Temp");
+  const storageTemp = await classifyStoragePathForMode(normalized, "temp", "Временные файлы");
   if (storageTemp) return storageTemp;
 
   const storageInbox = await classifyStoragePathForMode(normalized, "inbox", "Входящие");
@@ -3175,7 +3121,7 @@ async function classifySearchResult(relPath) {
   for (const spec of [
     { mode: "scripts", source: "Скрипты" },
     { mode: "artefacts", source: "Артефакты" },
-    { mode: "temp", source: "/Temp" },
+    { mode: "temp", source: "Временные файлы" },
     { mode: "inbox", source: "Входящие" },
     { mode: "media", source: "Медиа" },
     { mode: "references", source: "Источники" }
@@ -3231,10 +3177,7 @@ function getSearchMinLength(scope) {
 function matchesFilename(relPath, query) {
   const qLower = String(query || "").toLowerCase();
   const base = path.basename(relPath);
-  const displayName = base
-    .replace(/\.node\.md$/i, "")
-    .replace(/\.props\.yaml$/i, "")
-    .replace(/\.(md|yaml|yml|json|txt)$/i, "");
+  const displayName = base.replace(/\.(md|yaml|yml|json|txt)$/i, "");
   return (
     base.toLowerCase().includes(qLower) ||
     displayName.toLowerCase().includes(qLower) ||
@@ -3723,8 +3666,6 @@ async function handleApiForAgent(req, res, url) {
           }
           const oldContentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
           const newContentAbsolute = normalizeWorkspacePath(toContentFilePath(targetRelPath));
-          const oldPropsAbsolute = normalizeWorkspacePath(toPropsFilePath(normalized));
-          const newPropsAbsolute = normalizeWorkspacePath(toPropsFilePath(targetRelPath));
           const oldTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(normalized));
           const newTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(targetRelPath));
           const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
@@ -3732,9 +3673,6 @@ async function handleApiForAgent(req, res, url) {
           await fs.rename(absolute, targetAbsolute);
           if (oldContentAbsolute && newContentAbsolute) {
             await renameIfExists(oldContentAbsolute, newContentAbsolute);
-          }
-          if (oldPropsAbsolute && newPropsAbsolute) {
-            await renameIfExists(oldPropsAbsolute, newPropsAbsolute);
           }
           if (oldTodoAbsolute && newTodoAbsolute) {
             await renameIfExists(oldTodoAbsolute, newTodoAbsolute);
@@ -3937,7 +3875,6 @@ async function handleApiForAgent(req, res, url) {
       const nextContent = joinNodeFrontmatter(content, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
-      await removeLegacyPropsFiles(relPath);
       return sendJson(res, 200, { path: relPath, content, fullContent: nextContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save properties", details: String(error.message || error) });
@@ -4995,11 +4932,9 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const contentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
-      const propsAbsolute = normalizeWorkspacePath(toPropsFilePath(normalized));
 
       await fs.rm(absolute, { force: false });
       if (contentAbsolute) await removeIfExists(contentAbsolute);
-      if (propsAbsolute) await removeIfExists(propsAbsolute);
       const slotAbsolute = normalizeWorkspacePath(
         getNamedStorageSlotDirRel(normalized, getStoragePathOptions())
       );
