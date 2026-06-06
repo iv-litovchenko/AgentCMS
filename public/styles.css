@@ -11610,6 +11610,41 @@ body.app-booting {
   min-height: 0;
 }
 
+.components-ideas-draft-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.components-ideas-draft-tab {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.components-ideas-draft-tab:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: #eef3ff;
+}
+
+.components-ideas-draft-tab.active {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
 .components-ideas-gallery {
   display: flex;
   flex-direction: column;

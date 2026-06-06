@@ -218,8 +218,41 @@ let mdShowcaseCache = null;
 const componentsIdeasBtn = document.getElementById("components-ideas-btn");
 const componentsIdeasModalNode = document.getElementById("components-ideas-modal");
 const componentsIdeasCloseBtn = document.getElementById("components-ideas-close-btn");
+const componentsIdeasSubtitleNode = document.getElementById("components-ideas-subtitle");
+const componentsIdeasDraftNavNode = document.getElementById("components-ideas-draft-nav");
 const componentsIdeasContentNode = document.getElementById("components-ideas-content");
-let componentsIdeasCache = null;
+const COMPONENTS_IDEAS_SOURCES = [
+  {
+    id: "main",
+    label: "Компоненты",
+    fetchPath: "/_storage/components-ideas.md",
+    subtitle: "My Graph ORM · черновик онтологии",
+    withExtras: true
+  },
+  {
+    id: "draft-1",
+    label: "Черновик 1",
+    fetchPath: "/_storage/drafts/draft-1.md",
+    subtitle: "Форум · темы · поля манифеста",
+    withExtras: false
+  },
+  {
+    id: "draft-2",
+    label: "Черновик 2",
+    fetchPath: "/_storage/drafts/draft-2.md",
+    subtitle: "Топик · content · resources · relations",
+    withExtras: false
+  },
+  {
+    id: "draft-3",
+    label: "Черновик 3",
+    fetchPath: "/_storage/drafts/draft-3.md",
+    subtitle: "AWN registry · awn-system · layout",
+    withExtras: false
+  }
+];
+const componentsIdeasCacheBySource = Object.create(null);
+let componentsIdeasActiveSourceId = "main";
 const userDocsBtn = document.getElementById("user-docs-btn");
 const userDocsModalNode = document.getElementById("user-docs-modal");
 const userDocsCloseBtn = document.getElementById("user-docs-close-btn");
@@ -16311,23 +16344,72 @@ function appendComponentsIdeasGallery(container, images) {
   container.appendChild(gallery);
 }
 
+function removeComponentsIdeasExtras(container) {
+  container?.querySelector(".components-ideas-gallery")?.remove();
+  container?.querySelector(".components-ideas-title-templates")?.remove();
+}
+
+async function fetchComponentsIdeasSourceMarkdown(source) {
+  if (!componentsIdeasCacheBySource[source.id]) {
+    const response = await fetch(source.fetchPath);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    componentsIdeasCacheBySource[source.id] = await response.text();
+  }
+  return componentsIdeasCacheBySource[source.id];
+}
+
+function renderComponentsIdeasDraftNav(activeSourceId) {
+  if (!componentsIdeasDraftNavNode) return;
+  componentsIdeasDraftNavNode.innerHTML = "";
+
+  for (const source of COMPONENTS_IDEAS_SOURCES) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = `components-ideas-draft-tab${source.id === activeSourceId ? " active" : ""}`;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", source.id === activeSourceId ? "true" : "false");
+    tab.title = source.fetchPath;
+    tab.textContent = source.label;
+    tab.addEventListener("click", () => {
+      void loadComponentsIdeasSource(source.id);
+    });
+    componentsIdeasDraftNavNode.appendChild(tab);
+  }
+}
+
+async function loadComponentsIdeasSource(sourceId) {
+  if (!componentsIdeasModalNode || !componentsIdeasContentNode) return;
+  const source =
+    COMPONENTS_IDEAS_SOURCES.find((entry) => entry.id === sourceId) || COMPONENTS_IDEAS_SOURCES[0];
+  componentsIdeasActiveSourceId = source.id;
+
+  try {
+    const markdown = await fetchComponentsIdeasSourceMarkdown(source);
+    setMarkdownPreviewHtml(componentsIdeasContentNode, markdown);
+    removeComponentsIdeasExtras(componentsIdeasContentNode);
+
+    if (source.withExtras) {
+      const imagesResponse = await fetch("/api/public/images");
+      if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
+      const imagesPayload = await imagesResponse.json();
+      const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
+      appendComponentsIdeasGallery(componentsIdeasContentNode, images);
+      appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
+    }
+
+    if (componentsIdeasSubtitleNode) {
+      componentsIdeasSubtitleNode.textContent = source.subtitle;
+    }
+    renderComponentsIdeasDraftNav(source.id);
+  } catch (error) {
+    showToast(`Не удалось загрузить «${source.label}»: ${error.message}`, "error");
+  }
+}
+
 async function openComponentsIdeasModal() {
   if (!componentsIdeasModalNode || !componentsIdeasContentNode) return;
   try {
-    if (!componentsIdeasCache) {
-      const response = await fetch("/_storage/components-ideas.md");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      componentsIdeasCache = await response.text();
-    }
-    setMarkdownPreviewHtml(componentsIdeasContentNode, componentsIdeasCache);
-
-    const imagesResponse = await fetch("/api/public/images");
-    if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
-    const imagesPayload = await imagesResponse.json();
-    const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
-    appendComponentsIdeasGallery(componentsIdeasContentNode, images);
-    appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
-
+    await loadComponentsIdeasSource(componentsIdeasActiveSourceId || "main");
     componentsIdeasModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить идеи: ${error.message}`, "error");
