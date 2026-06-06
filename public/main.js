@@ -7727,6 +7727,12 @@ function renderListViewContent() {
     return { title, created, updated, done, cover, tags, parent };
   }
 
+  function formatExternalItemSection(item) {
+    const parent = String(item.parent || "").replace(/\\/g, "/").trim();
+    if (!parent || parent === ".") return "Корень";
+    return parent;
+  }
+
   function comparePathsNatural(aPath, bPath) {
     const aParts = aPath.split("/").filter(Boolean);
     const bParts = bPath.split("/").filter(Boolean);
@@ -7786,6 +7792,7 @@ function renderListViewContent() {
       table.innerHTML = `
         <thead>
           <tr>
+            <th>Раздел</th>
             <th>Файл</th>
             <th>Заголовок</th>
             <th>Создан</th>
@@ -7805,6 +7812,7 @@ function renderListViewContent() {
         const created = item.createdAt ? item.createdAt.slice(0, 10) : meta.created;
         const updated = item.updatedAt ? item.updatedAt.slice(0, 10) : meta.updated;
         tr.innerHTML = `
+          <td>${escapeHtml(formatExternalItemSection(item))}</td>
           <td>${escapeHtml(item.title)}</td>
           <td>${escapeHtml(item.title)}</td>
           <td>${escapeHtml(created)}</td>
@@ -8221,10 +8229,11 @@ let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 
 const STANDARD_PROPS_FIELD_KEYS = [
-  "awn-description",
   "awn-create",
   "awn-update",
-  "awn-version"
+  "awn-description",
+  "awn-version",
+  "awn-sort"
 ];
 
 const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
