@@ -1112,9 +1112,20 @@ async function resolveExistingWorkspaceRelPath(relPath) {
 
   const vaultFolder = getAgentVaultFolder();
   const serviceFolder = getAgentServiceFolder();
+  const normalizedLower = normalized.toLowerCase();
+
+  if (serviceFolder) {
+    const serviceLower = serviceFolder.toLowerCase();
+    const hasServicePrefix =
+      normalizedLower === serviceLower || normalizedLower.startsWith(`${serviceLower}/`);
+    if (hasServicePrefix) {
+      pushCandidate(normalized);
+    } else {
+      pushCandidate(`${serviceFolder}/${normalized}`);
+    }
+  }
 
   if (vaultFolder) {
-    const normalizedLower = normalized.toLowerCase();
     const vaultLower = vaultFolder.toLowerCase();
     const hasVaultPrefix =
       normalizedLower === vaultLower || normalizedLower.startsWith(`${vaultLower}/`);
@@ -1134,6 +1145,8 @@ async function resolveExistingWorkspaceRelPath(relPath) {
       pushCandidate(`${vaultFolder}/${normalized}`);
       pushCandidate(normalized);
     }
+  } else if (!serviceFolder) {
+    pushCandidate(normalized);
   } else {
     pushCandidate(normalized);
   }

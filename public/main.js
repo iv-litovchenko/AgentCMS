@@ -923,15 +923,18 @@ function syncAgentPreview(previewMeta = null) {
     agentPreviewWrapNode.classList.remove("hidden");
     if (srcChanged) {
       agentPreviewWrapNode.classList.remove("is-revealed");
+      resetAgentPreviewPan();
     }
     agentPreviewThumbNode.onerror = () => {
       agentPreviewWrapNode.classList.add("hidden");
       agentPreviewWrapNode.classList.remove("is-revealed");
       agentPreviewThumbNode.removeAttribute("src");
+      resetAgentPreviewPan();
     };
     agentPreviewThumbNode.onload = () => {
       agentPreviewThumbNode.onerror = null;
       agentPreviewWrapNode.classList.add("is-revealed");
+      resetAgentPreviewPan();
     };
     if (srcChanged) {
       agentPreviewThumbNode.src = nextSrc;
@@ -944,6 +947,53 @@ function syncAgentPreview(previewMeta = null) {
   agentPreviewWrapNode.classList.add("hidden");
   agentPreviewWrapNode.classList.remove("is-revealed");
   agentPreviewThumbNode.removeAttribute("src");
+  resetAgentPreviewPan();
+}
+
+function getAgentPreviewFrameNode() {
+  return agentPreviewWrapNode?.querySelector(".agent-preview-frame") || null;
+}
+
+function agentPreviewImageHasPanOverflow(img, frame) {
+  if (!img?.naturalWidth || !img?.naturalHeight || !frame) return false;
+  const rect = frame.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  const frameAspect = rect.width / rect.height;
+  const imgAspect = img.naturalWidth / img.naturalHeight;
+  return Math.abs(imgAspect - frameAspect) > 0.02;
+}
+
+function resetAgentPreviewPan() {
+  const frame = getAgentPreviewFrameNode();
+  const img = agentPreviewThumbNode;
+  if (!frame || !img) return;
+  frame.classList.remove("is-hover-pan", "is-pan-available");
+  img.style.removeProperty("object-position");
+}
+
+function applyAgentPreviewPan(event) {
+  const frame = getAgentPreviewFrameNode();
+  const img = agentPreviewThumbNode;
+  if (!frame || !img || !img.complete || !img.naturalWidth) return;
+  if (!agentPreviewImageHasPanOverflow(img, frame)) {
+    resetAgentPreviewPan();
+    return;
+  }
+
+  frame.classList.add("is-hover-pan", "is-pan-available");
+  const rect = frame.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+  img.style.objectPosition = `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`;
+}
+
+function initAgentPreviewHoverPan() {
+  const frame = getAgentPreviewFrameNode();
+  if (!frame || frame.dataset.hoverPanBound === "1") return;
+  frame.dataset.hoverPanBound = "1";
+  frame.title = "Двигайте мышью, чтобы просмотреть всё превью";
+  frame.addEventListener("mousemove", applyAgentPreviewPan);
+  frame.addEventListener("mouseleave", resetAgentPreviewPan);
 }
 
 function syncAgentsRegistryDraftPreview(agentPath) {
@@ -3874,10 +3924,10 @@ function createAgentMarkerIcon() {
   return icon;
 }
 
-function createFolderMarkers(source) {
+function createFolderMarkers(source, { skipAgent = false } = {}) {
   const hasGit = Boolean(source?.hasGitSelf ?? source?.hasGit);
   const hasObsidian = Boolean(source?.hasObsidianSelf ?? source?.hasObsidian);
-  const hasAgent = Boolean(source?.hasAgentSelf ?? source?.hasAgent);
+  const hasAgent = !skipAgent && Boolean(source?.hasAgentSelf ?? source?.hasAgent);
   if (!hasAgent && !hasGit && !hasObsidian) return null;
 
   const wrap = document.createElement("span");
@@ -3911,11 +3961,11 @@ function createFolderMarkers(source) {
   return wrap;
 }
 
-function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name") {
+function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
   host.replaceChildren();
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
-  const markers = createFolderMarkers(source);
+  const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
   if (markers) labelWrap.appendChild(markers);
   const nameNode = document.createElement("span");
   nameNode.className = nameClass;
@@ -13392,7 +13442,9 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       setMenuLabelWithMarkers(
         folderButton,
         formatMenuTreeSortLabel(folderSortKey, parentMenuNode, folderDisplayLabel),
-        node
+        node,
+        "menu-folder-name",
+        { skipAgentMarker: isAgentRootTreeNode(depth, sectionFolderPath) }
       );
       folderButton.addEventListener("click", (event) => {
         const pathFromNode = event.currentTarget?.dataset?.path || "";
@@ -18904,3 +18956,4 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
 });
 
 initNodeWorkspaceDomainSelect();
+initAgentPreviewHoverPan();

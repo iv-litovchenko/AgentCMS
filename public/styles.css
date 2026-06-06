@@ -3889,6 +3889,17 @@ body.app-booting {
   background: #0f172a;
 }
 
+.agent-preview-frame.is-pan-available {
+  cursor: crosshair;
+}
+
+.agent-preview-frame.is-hover-pan .agent-preview-thumb,
+.sidebar-agent-avatar-block .agent-preview-frame.is-hover-pan .agent-preview-thumb {
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
 .agent-preview-thumb {
   display: block;
   width: 100%;

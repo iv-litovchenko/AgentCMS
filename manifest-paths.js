@@ -40,6 +40,8 @@ const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "Preview";
 const STORAGE_SUBFOLDER_TEMP = "Temp";
+const STORAGE_SUBFOLDER_HISTORY = "History";
+const HISTORY_VERSION_SUFFIX = ".md.back";
 
 const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_CONTENT,
@@ -247,6 +249,57 @@ function getNamedStorageBundleDirRel(relPath) {
 function getNamedStorageBundleRel(relPath, bundleFileName) {
   const dir = getNamedStorageBundleDirRel(relPath);
   return dir ? `${dir}/${bundleFileName}` : String(bundleFileName || "");
+}
+
+function normalizeHistoryTargetRelPath(targetRelPath) {
+  return String(targetRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function getHistoryVersionDirRel(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  if (!slotDir || !target) return "";
+  return `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${target}`;
+}
+
+function formatHistoryVersionTimestamp(date = new Date()) {
+  const value = date instanceof Date ? date : new Date(date);
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}_${pad(value.getHours())}-${pad(value.getMinutes())}-${pad(value.getSeconds())}`;
+}
+
+function buildHistoryVersionFileName(date = new Date()) {
+  return `${formatHistoryVersionTimestamp(date)}${HISTORY_VERSION_SUFFIX}`;
+}
+
+function isHistoryVersionFileName(fileName) {
+  const raw = String(fileName || "");
+  return raw.endsWith(HISTORY_VERSION_SUFFIX) && raw.length > HISTORY_VERSION_SUFFIX.length;
+}
+
+function parseHistoryVersionTimestamp(fileName) {
+  const raw = String(fileName || "");
+  if (!isHistoryVersionFileName(raw)) return null;
+  const stamp = raw.slice(0, -HISTORY_VERSION_SUFFIX.length);
+  const match = stamp.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second)
+  );
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatHistoryVersionTimestampLabel(fileName) {
+  const date = parseHistoryVersionTimestamp(fileName);
+  if (!date) return String(fileName || "");
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function resolveBundleFileMode(fileNameLower) {
@@ -461,6 +514,8 @@ module.exports = {
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
+  STORAGE_SUBFOLDER_HISTORY,
+  HISTORY_VERSION_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
   STORAGE_SUBFOLDER_BY_MODE,
   STORAGE_FOLDER_NAME,
@@ -497,6 +552,12 @@ module.exports = {
   getNamedStorageSlotDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  getHistoryVersionDirRel,
+  buildHistoryVersionFileName,
+  isHistoryVersionFileName,
+  parseHistoryVersionTimestamp,
+  formatHistoryVersionTimestampLabel,
+  normalizeHistoryTargetRelPath,
   listManifestStorageSlotDirRelCandidates,
   buildManifestCandidatesForStorageKey,
   buildManifestCandidatesForContainerDir,
