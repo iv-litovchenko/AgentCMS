@@ -7866,6 +7866,25 @@ body.app-booting {
   background: #bfdbfe;
 }
 
+.save-btn .save-btn-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
+}
+
+.save-btn.is-dirty .save-btn-lamp {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16);
+}
+
+.save-btn.is-saved .save-btn-lamp {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
+}
+
 .file-path {
   display: contents;
 }

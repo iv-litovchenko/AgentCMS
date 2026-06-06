@@ -8206,6 +8206,70 @@ function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
   }
 }
 
+let savedEditorSnapshot = null;
+
+function isEditorSaveTrackingActive() {
+  if (activeSystemFile) return true;
+  if (!activePath) return false;
+  if (
+    isNodeCanvasViewMode() ||
+    activeContentMode === NODE_OVERVIEW_MODE ||
+    activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === "node-preview" ||
+    activeContentMode === "graph" ||
+    activeContentMode === "scripts" ||
+    activeContentMode === "inbox" ||
+    activeContentMode === "references" ||
+    activeContentMode === "artefacts"
+  ) {
+    return false;
+  }
+  if (activeContentMode === "external" && !activeExternalFilePath) return false;
+  if (activeContentMode === "media" && !isMediaSidecarEditing()) return false;
+  if (activeContentMode === "tabular" && !isTabularSourceEditing()) return false;
+  return true;
+}
+
+function getEditorSavePayload() {
+  if (editorViewMode === "wysiwyg") {
+    syncSourceFromWysiwygEditor();
+  }
+  const rawContent = isExternalFileEditing()
+    ? buildExternalFileContent()
+    : activeContentMode === "description"
+      ? buildNodeManifestContent()
+      : getEditorContentValue();
+  return JSON.stringify({
+    content: typeof rawContent === "string" ? rawContent : String(rawContent ?? ""),
+    title: titleInputNode?.value?.trim() ?? ""
+  });
+}
+
+function syncSaveButtonLamp() {
+  const buttons = [saveContentBtn, saveSystemFileBtn].filter(Boolean);
+  const trackingActive = isEditorSaveTrackingActive();
+  const dirty =
+    trackingActive && savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
+
+  for (const btn of buttons) {
+    btn.classList.remove("is-dirty", "is-saved");
+    if (!trackingActive || btn.classList.contains("hidden")) continue;
+    if (savedEditorSnapshot === null) continue;
+    btn.classList.toggle("is-dirty", dirty);
+    btn.classList.toggle("is-saved", !dirty);
+  }
+}
+
+function commitEditorSaveBaseline() {
+  if (!isEditorSaveTrackingActive()) {
+    savedEditorSnapshot = null;
+    syncSaveButtonLamp();
+    return;
+  }
+  savedEditorSnapshot = getEditorSavePayload();
+  syncSaveButtonLamp();
+}
+
 function applySystemFileUi() {
   appRootNode.classList.add("system-file-view");
   workspacePathHeaderNode?.classList.add("is-service-file");
@@ -8235,6 +8299,7 @@ function applySystemFileUi() {
   editorViewSourceBtn.disabled = false;
   syncEditorViewButtonsAvailability(false, false);
   applyEditorViewMode();
+  syncSaveButtonLamp();
 }
 
 function clearSystemFileViewUi() {
@@ -10448,9 +10513,11 @@ function applyModeUi() {
     renderNodeMindmapView();
   } else if (overviewMode) {
     void renderNodeOverview();
+    syncSaveButtonLamp();
     return;
   } else if (navigationMode) {
     void renderNodeNavigation();
+    syncSaveButtonLamp();
     return;
   } else if (listTemplate) {
     listViewTitleNode.textContent = getListViewTitleByMode();
@@ -10464,10 +10531,12 @@ function applyModeUi() {
     destroyWysiwygEditor();
     editorViewMode = "source";
     setEditorViewMode("source");
+    syncSaveButtonLamp();
     return;
   }
   if (editorViewMode === "wysiwyg" && !isWysiwygEditorEnabled()) {
     setEditorViewMode("source");
+    syncSaveButtonLamp();
     return;
   }
   if (
@@ -10478,6 +10547,7 @@ function applyModeUi() {
     !listViewWithSourceToggle
   ) {
     setEditorViewMode("preview");
+    syncSaveButtonLamp();
     return;
   }
   if (!readOnly && !forceEditOnly) {
@@ -10486,6 +10556,7 @@ function applyModeUi() {
     syncEditorViewButtonsAvailability(false, forceEditOnly);
   }
   applyEditorViewMode();
+  syncSaveButtonLamp();
 }
 
 function escapeHtml(value) {
@@ -10965,7 +11036,10 @@ function initWysiwygEditor() {
   wysiwygEditorInstance.on("change", () => {
     if (editorViewMode !== "wysiwyg") return;
     syncSourceFromWysiwygEditor();
+    syncSaveButtonLamp();
   });
+
+  syncSaveButtonLamp();
 }
 
 function getEditorContentValue() {
@@ -12548,11 +12622,13 @@ async function selectSystemFile(name) {
     updateBreadcrumbsForActiveMode();
     editorCodeWrapNode?.classList.remove("hidden");
     refreshEditorViewContent();
+    commitEditorSaveBaseline();
   } catch (error) {
     fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
     applySystemFileUi();
     updateBreadcrumbsForActiveMode();
     editorCodeWrapNode?.classList.remove("hidden");
+    commitEditorSaveBaseline();
   }
 }
 
@@ -12874,6 +12950,7 @@ async function loadContentByMode() {
   }
   } finally {
     syncEditorLineNumbers();
+    commitEditorSaveBaseline();
   }
 }
 
@@ -12912,6 +12989,7 @@ async function saveContent() {
 
   if (activeSystemFile) {
     setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
     try {
       const response = await fetch(buildApiUrl("/api/system-file"), {
         method: "POST",
@@ -12925,11 +13003,13 @@ async function saveContent() {
         throw new Error(`${reason}${details}`);
       }
       await loadSystemFiles();
+      saveSucceeded = true;
       showToast("Сохранено", "success");
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
       setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
     }
     return;
   }
@@ -12955,6 +13035,7 @@ async function saveContent() {
     nextTitle !== currentMediaTitleBase;
 
   setSaveButtonsState(true, "Сохраняю...");
+  let saveSucceeded = false;
 
   try {
     if (shouldRenameDescription) {
@@ -13089,6 +13170,7 @@ async function saveContent() {
       const data = await response.json();
       fileContentInputNode.value = data.content || "";
       refreshEditorViewContent();
+      saveSucceeded = true;
       showToast("Sidecar сохранён", "success");
       return;
     }
@@ -13115,6 +13197,7 @@ async function saveContent() {
       modeContentCache.description = data.content || "";
       applyNodeManifestBody(modeContentCache.description);
       refreshEditorViewContent();
+      saveSucceeded = true;
       showToast("Сохранено", "success");
       return;
     }
@@ -13128,11 +13211,13 @@ async function saveContent() {
       };
       setEditorViewMode("preview");
       renderListViewContent();
+      saveSucceeded = true;
       showToast("CSV сохранён", "success");
       return;
     }
     if (activeContentMode === "todo") {
       modeContentCache.todo = data.content || "";
+      saveSucceeded = true;
       showToast("TODO сохранён", "success");
       refreshEditorViewContent();
       return;
@@ -13146,6 +13231,7 @@ async function saveContent() {
         defaultLandingMode: data.defaultLandingMode || parseNodeConfigContent(data.content || "").defaultLandingMode
       });
       syncNodeDefaultLandingBtn();
+      saveSucceeded = true;
       showToast(`${BUNDLE_CONFIG_FILE} сохранён`, "success");
       refreshEditorViewContent();
       return;
@@ -13153,16 +13239,19 @@ async function saveContent() {
     if (activeContentMode === "env") modeContentCache.env = data.content || "";
     if (activeContentMode === "external" && activeExternalFilePath) {
       applyExternalFileContentUi(data.content || "");
+      saveSucceeded = true;
       showToast(`Файл ${STORAGE_SUBFOLDER_CONTENT} сохранен`, "success");
       return;
     }
     fileContentInputNode.value = data.content;
     refreshEditorViewContent();
+    saveSucceeded = true;
     showToast("Сохранено", "success");
   } catch (error) {
     showToast(`Ошибка сохранения: ${error.message}`, "error");
   } finally {
     setSaveButtonsState(false);
+    if (saveSucceeded) commitEditorSaveBaseline();
   }
 }
 
@@ -16681,6 +16770,7 @@ fileContentInputNode.addEventListener("input", () => {
     renderPreviewFromEditor();
   }
   applySourceEditorAutoHeightUi();
+  syncSaveButtonLamp();
 });
 
 fileContentInputNode.addEventListener("scroll", syncEditorLineNumbersScroll);
@@ -16707,10 +16797,15 @@ propsAddFieldBtn?.addEventListener("click", () => {
 propsFormFieldsNode?.addEventListener("input", () => {
   readPropsFormIntoEntries();
   syncYamlFromPropsForm();
+  syncSaveButtonLamp();
 });
 propsInputNode?.addEventListener("input", () => {
   if (!propsRawYamlVisible) return;
   propsFormEntries = parsePropsYaml(propsInputNode.value || "");
+  syncSaveButtonLamp();
+});
+titleInputNode?.addEventListener("input", () => {
+  syncSaveButtonLamp();
 });
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "s") {
