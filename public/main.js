@@ -2177,6 +2177,7 @@ const MODE_GROUPS = [
     icon: "🧠",
     modes: [
       { id: "inbox", label: "Входящие" },
+      { id: "repository", label: "Репозиторий", disabled: true },
       { id: "external", label: "Многофайловая" },
       { id: "internal", label: "Однофайловая" },
       { id: "tabular", label: "Табличная" },
@@ -2316,6 +2317,7 @@ const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
   "artefacts",
+  "repository",
   "external",
   "internal",
   "tabular",
@@ -2325,6 +2327,7 @@ const NODE_MEMORY_MODE_IDS = new Set([
   "media"
 ]);
 const NODE_MEMORY_SUB_MODE_IDS = new Set([
+  "repository",
   "external",
   "internal",
   "tabular",
