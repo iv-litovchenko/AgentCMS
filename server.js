@@ -21,6 +21,7 @@ const {
   SERVICE_AREA_NAME,
   toTopicFileName,
   toAreaFolderName,
+  toStorageFolderName,
   stripTopicPrefix,
   manifestRelToXSidecar,
   parsePartFolderManifestRel,
@@ -3140,6 +3141,9 @@ async function classifySearchResult(relPath) {
   const storageArtefacts = await classifyStoragePathForMode(normalized, "artefacts", "Артефакты");
   if (storageArtefacts) return storageArtefacts;
 
+  const storageTemp = await classifyStoragePathForMode(normalized, "temp", "/Temp");
+  if (storageTemp) return storageTemp;
+
   const storageInbox = await classifyStoragePathForMode(normalized, "inbox", "Входящие");
   if (storageInbox) return storageInbox;
 
@@ -3171,6 +3175,7 @@ async function classifySearchResult(relPath) {
   for (const spec of [
     { mode: "scripts", source: "Скрипты" },
     { mode: "artefacts", source: "Артефакты" },
+    { mode: "temp", source: "/Temp" },
     { mode: "inbox", source: "Входящие" },
     { mode: "media", source: "Медиа" },
     { mode: "references", source: "Источники" }
@@ -3651,25 +3656,31 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
-      const absolute = normalizeWorkspacePath(relPath);
+      const resolvedRelPath = String(await resolveExistingWorkspaceRelPath(relPath)).replace(/\\/g, "/");
+      const absolute = normalizeWorkspacePath(resolvedRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
-      const normalized = path.normalize(relPath);
+      const normalized = resolvedRelPath;
       let nextRelPath = normalized;
       let nextAbsolute = absolute;
 
       if (isAreaManifestRelPath(normalized) && !parsePartFolderManifestRel(normalized)) {
-        const folderRelPath = path.dirname(normalized);
+        const folderRelPath = path.dirname(normalized).replace(/\\/g, "/");
         if (!folderRelPath || folderRelPath === ".") {
           return sendJson(res, 400, { error: "Root Workspaces folder cannot be renamed" });
         }
-        const parentRelPath = path.dirname(folderRelPath);
-        const parentAbsolutePath =
-          parentRelPath && parentRelPath !== "." ? normalizeWorkspacePath(parentRelPath) : getAgentRoot();
+        const parentRelPath = path.dirname(folderRelPath).replace(/\\/g, "/");
+        const parentAbsolutePath = await resolveExistingWorkspaceDirAbsolute(
+          !parentRelPath || parentRelPath === "." ? "" : parentRelPath
+        );
         if (!parentAbsolutePath) return sendJson(res, 400, { error: "Invalid parent folder path" });
 
-        const targetFolderName = toAreaFolderName(title);
+        const currentFolderAbsolute = path.dirname(absolute);
+        const currentFolderName = path.basename(currentFolderAbsolute);
+        const targetFolderName = isStorageFolderName(currentFolderName)
+          ? toStorageFolderName(title)
+          : toAreaFolderName(title);
         if (!targetFolderName) return sendJson(res, 400, { error: "Folder name cannot be empty" });
         const targetFolderAbsolute = path.join(parentAbsolutePath, targetFolderName);
 
@@ -3680,22 +3691,28 @@ async function handleApiForAgent(req, res, url) {
           // Target does not exist, continue.
         }
 
-        const currentFolderAbsolute = path.dirname(absolute);
         await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
 
         const targetFolderRelPath =
-          parentRelPath && parentRelPath !== "." ? path.join(parentRelPath, targetFolderName) : targetFolderName;
-        nextRelPath = path.join(targetFolderRelPath, AREA_MANIFEST_FILE);
+          parentRelPath && parentRelPath !== "."
+            ? path.join(parentRelPath, targetFolderName).replace(/\\/g, "/")
+            : targetFolderName;
+        nextRelPath = path.join(targetFolderRelPath, AREA_MANIFEST_FILE).replace(/\\/g, "/");
         nextAbsolute = path.join(targetFolderAbsolute, AREA_MANIFEST_FILE);
       } else if (!parsePartFolderManifestRel(normalized)) {
-        const dirRelPath = path.dirname(normalized);
-        const dirAbsolute = dirRelPath && dirRelPath !== "." ? normalizeWorkspacePath(dirRelPath) : getAgentRoot();
+        const dirRelPath = path.dirname(normalized).replace(/\\/g, "/");
+        const dirAbsolute = await resolveExistingWorkspaceDirAbsolute(
+          !dirRelPath || dirRelPath === "." ? "" : dirRelPath
+        );
         if (!dirAbsolute) return sendJson(res, 400, { error: "Invalid file directory path" });
 
         const nextName = toNodeFileName(title);
         if (!nextName) return sendJson(res, 400, { error: "Invalid file name" });
         const targetAbsolute = path.join(dirAbsolute, nextName);
-        const targetRelPath = dirRelPath && dirRelPath !== "." ? path.join(dirRelPath, nextName) : nextName;
+        const targetRelPath =
+          !dirRelPath || dirRelPath === "."
+            ? nextName
+            : path.join(dirRelPath, nextName).replace(/\\/g, "/");
 
         if (targetAbsolute !== absolute) {
           try {
@@ -3737,7 +3754,11 @@ async function handleApiForAgent(req, res, url) {
 
       const content = await fs.readFile(nextAbsolute, "utf-8");
 
-      return sendJson(res, 200, { path: nextRelPath, title, content });
+      return sendJson(res, 200, {
+        path: stripAgentContentPrefixFromRelPath(nextRelPath),
+        title,
+        content
+      });
     } catch (error) {
       return sendRenameError(res, error);
     }
@@ -4165,6 +4186,40 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { section: sectionName, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to create external section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/section/create") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const title = String(payload.title || payload.name || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const sectionName = toExternalSectionFolderName(title);
+      if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
+
+      const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
+
+      const sectionAbsolute = path.join(folderAbsolute, sectionName);
+      if (!sectionAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid section path" });
+
+      try {
+        await fs.access(sectionAbsolute);
+        return sendJson(res, 409, { error: "Section already exists" });
+      } catch {
+        // section does not exist
+      }
+
+      await fs.mkdir(sectionAbsolute, { recursive: false });
+      return sendJson(res, 200, { section: sectionName, exists: true });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to create media section", details: String(error.message || error) });
     }
   }
 

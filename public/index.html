@@ -741,6 +741,7 @@
                     <option value="external-db" disabled>Реляционная БД</option>
                     <option value="volume" disabled>Рассуждения (volume)</option>
                     <option value="media">Медиа и документы</option>
+                    <option value="temp">/Temp (временные файлы)</option>
                   </select>
                 </div>
               </div>
@@ -833,9 +834,9 @@
                   <option value="graph">Граф</option>
                 </select>
                 <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
-                  <option value="dashboard">Все типы файлов</option>
+                  <option value="dashboard">Обзор использования</option>
                   <option value="sep" disabled>────────</option>
-                  <option value="all">Старый дашборд как было</option>
+                  <option value="all">Все файлы</option>
                   <option value="images">Изображения</option>
                   <option value="audio">Аудио</option>
                   <option value="video">Видео</option>
@@ -843,15 +844,19 @@
                   <option value="archives">Архивы</option>
                   <option value="other">Прочее</option>
                 </select>
+                <button id="create-media-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
+                  + Раздел
+                </button>
                 <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.zip,.md,.txt" multiple hidden />
                 <button
                   id="media-upload-btn"
                   class="media-upload-btn hidden"
                   type="button"
-                  title="Загрузить файл в Assets"
-                  aria-label="Загрузить файл в Assets"
+                  title="Загрузить файлы в Assets"
+                  aria-label="Загрузка файлов в Assets"
+                  aria-expanded="false"
                 >
-                  📤
+                  📤 Загрузка
                 </button>
                 <button
                   id="save-content-btn"
@@ -929,7 +934,6 @@
           </section>
 
           <section id="yaml-form-panel" class="doc-slab doc-slab-props hidden">
-            <h2 id="yaml-panel-label" class="doc-slab-label">Свойства md-файла</h2>
             <div id="props-form-fields" class="props-form-fields"></div>
             <div class="props-form-actions">
               <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
@@ -1395,7 +1399,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.53"></script>
+    <script src="/main.js?v=0.4.54"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>
