@@ -120,8 +120,30 @@ async function revealFolderFromDesktop({ relPath, agentId }) {
   return data;
 }
 
+async function revealFileFromDesktop({ relPath, file, agentId }) {
+  if (!serverInfo?.url) throw new Error("Сервер ещё не запущен");
+  if (!relPath) throw new Error("Не выбран элемент");
+  if (!file) throw new Error("Не выбран файл");
+
+  const url = new URL("/api/reveal/file", serverInfo.url);
+  url.searchParams.set("agent", String(agentId || "").trim());
+  url.searchParams.set("path", String(relPath));
+  url.searchParams.set("file", String(file));
+
+  const response = await fetch(url.toString());
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  }
+  if (!data.fileAbsolute) throw new Error("Не удалось определить путь к файлу");
+
+  shell.showItemInFolder(data.fileAbsolute);
+  return data;
+}
+
 function registerDesktopIpcHandlers() {
   ipcMain.handle("desktop:reveal-folder", async (_event, payload) => revealFolderFromDesktop(payload || {}));
+  ipcMain.handle("desktop:reveal-file", async (_event, payload) => revealFileFromDesktop(payload || {}));
 }
 
 async function openWorkspaceDialog() {

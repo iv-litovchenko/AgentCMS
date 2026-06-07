@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.73" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.90" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -1112,19 +1112,6 @@
           <section id="doc-body-grid" class="doc-body-grid">
             <div class="doc-body-main">
               <div class="doc-head-block">
-                <section id="title-editor-block" class="doc-slab doc-slab-title">
-                  <div class="title-row">
-                    <input
-                      id="title-input"
-                      class="title-input"
-                      type="text"
-                      placeholder="Название"
-                      aria-label="Название"
-                    />
-                    <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
-                  </div>
-                </section>
-
                 <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
                   <p class="doc-slab-hint-title">Описание, инструкции, правила, документация</p>
                   <p class="doc-slab-hint-text">
@@ -1253,59 +1240,102 @@
 
             <aside id="yaml-form-panel" class="doc-props-aside doc-slab doc-slab-props hidden" aria-label="Боковая панель документа">
               <div class="doc-aside-toolbar">
-                <div class="doc-aside-tabs" role="tablist" aria-label="Панель документа">
+                <div class="doc-aside-icon-tabs" role="tablist" aria-label="Панель документа">
                   <button
                     type="button"
                     id="doc-aside-tab-props"
-                    class="doc-aside-tab active"
+                    class="doc-aside-icon-tab active"
                     role="tab"
                     aria-selected="true"
                     data-doc-aside-tab="props"
+                    title="Свойства"
                   >
-                    Свойства
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 7h16M4 12h10M4 17h14" />
+                        <circle cx="18" cy="17" r="2.5" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Свойства</span>
                   </button>
                   <button
                     type="button"
                     id="doc-aside-tab-outline"
-                    class="doc-aside-tab"
+                    class="doc-aside-icon-tab"
                     role="tab"
                     aria-selected="false"
                     data-doc-aside-tab="outline"
+                    title="Оглавление"
                   >
-                    Оглавление
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 6h13M8 12h13M8 18h13" />
+                        <path d="M3 6h.01M3 12h.01M3 18h.01" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Оглавление</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-blocks"
+                    class="doc-aside-icon-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="blocks"
+                    title="Блоки контента"
+                  >
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="8" height="8" rx="1.5" />
+                        <rect x="13" y="3" width="8" height="5" rx="1.5" />
+                        <rect x="13" y="10" width="8" height="11" rx="1.5" />
+                        <rect x="3" y="13" width="8" height="8" rx="1.5" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Блоки</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  id="doc-aside-collapse-btn"
-                  class="doc-aside-collapse-btn"
-                  aria-label="Свернуть панель"
-                  title="Свернуть"
-                >
-                  ›
-                </button>
               </div>
-              <div id="doc-aside-panel-props" class="doc-aside-panel" role="tabpanel">
-                <div id="props-form-fields" class="props-form-fields"></div>
-                <div class="props-form-actions">
+              <div id="doc-aside-panel-props" class="doc-aside-panel doc-aside-panel--props" role="tabpanel" aria-labelledby="doc-aside-tab-props">
+                <div class="doc-aside-panel-scroll">
+                  <section class="doc-aside-fields-card" aria-label="Свойства документа">
+                    <section id="title-editor-block" class="doc-aside-title-block doc-slab doc-slab-title hidden" aria-label="Название документа">
+                      <label class="doc-aside-title-label" for="title-input">Название</label>
+                      <div class="title-row">
+                        <input
+                          id="title-input"
+                          class="title-input"
+                          type="text"
+                          placeholder="Название"
+                          aria-label="Название"
+                        />
+                        <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
+                      </div>
+                    </section>
+                    <header class="doc-aside-fields-card-head">
+                      <h3 class="doc-aside-fields-card-title">Метаданные</h3>
+                      <p class="doc-aside-fields-card-sub">Поля frontmatter документа</p>
+                    </header>
+                    <div id="props-form-fields" class="props-form-fields"></div>
+                  </section>
+                  <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
+                </div>
+                <footer class="doc-aside-panel-footer props-form-actions">
                   <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
                   <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
-                </div>
-                <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
+                </footer>
               </div>
-              <div id="doc-aside-panel-outline" class="doc-aside-panel hidden" role="tabpanel" aria-label="Оглавление">
-                <div id="doc-outline-content" class="doc-outline-content"></div>
+              <div id="doc-aside-panel-outline" class="doc-aside-panel doc-aside-panel--outline hidden" role="tabpanel" aria-labelledby="doc-aside-tab-outline">
+                <div class="doc-aside-panel-scroll">
+                  <div id="doc-outline-content" class="doc-outline-content"></div>
+                </div>
+              </div>
+              <div id="doc-aside-panel-blocks" class="doc-aside-panel doc-aside-panel--blocks hidden" role="tabpanel" aria-labelledby="doc-aside-tab-blocks">
+                <div class="doc-aside-panel-scroll">
+                  <div id="doc-blocks-content" class="doc-blocks-content"></div>
+                </div>
               </div>
             </aside>
-            <button
-              type="button"
-              id="doc-aside-expand-btn"
-              class="doc-aside-expand-btn hidden"
-              aria-label="Показать боковую панель"
-              title="Свойства / оглавление"
-            >
-              ‹
-            </button>
           </section>
         </main>
         </div>
@@ -1671,7 +1701,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=1"></script>
-    <script src="/main.js?v=0.5.31"></script>
+    <script src="/main.js?v=0.5.50"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

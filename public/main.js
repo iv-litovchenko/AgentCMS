@@ -202,11 +202,12 @@ const propsAddFieldBtn = document.getElementById("props-add-field-btn");
 const propsInputNode = document.getElementById("props-input");
 const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
 const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
+const docAsideTabBlocksBtn = document.getElementById("doc-aside-tab-blocks");
 const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
 const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
+const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks");
+const docBlocksContentNode = document.getElementById("doc-blocks-content");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
-const docAsideCollapseBtn = document.getElementById("doc-aside-collapse-btn");
-const docAsideExpandBtn = document.getElementById("doc-aside-expand-btn");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
 const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
 const workspaceRevealFolderBtn = document.getElementById("workspace-reveal-folder-btn");
@@ -417,6 +418,17 @@ function getAgentIdFromUrl() {
 }
 
 /** Режимы, допустимые в сегменте /v/{mode} ЧПУ. */
+const MEDIA_ROUTE_LIST_VIEWS = new Set([
+  "dashboard",
+  "all",
+  "images",
+  "audio",
+  "video",
+  "documents",
+  "archives",
+  "other"
+]);
+
 const APP_ROUTE_VIEW_IDS = new Set([
   "navigation",
   "overview",
@@ -448,6 +460,54 @@ function resumeAppRouteSync() {
   appRouteSyncSuspended = Math.max(0, appRouteSyncSuspended - 1);
 }
 
+function parseViewRouteTail(tail, view) {
+  const result = {
+    resourcePath: null,
+    subView: null,
+    mediaSectionPath: null,
+    mediaListView: null
+  };
+  if (!Array.isArray(tail) || tail.length === 0) return result;
+
+  if (tail[0] === "source" && tail.length === 1) {
+    result.subView = "source";
+    return result;
+  }
+
+  if (view === "media") {
+    let index = 0;
+    while (index < tail.length) {
+      const marker = tail[index];
+      if (marker === "f" && index + 1 < tail.length) {
+        result.resourcePath = tail.slice(index + 1).join("/");
+        break;
+      }
+      if (marker === "s" && index + 1 < tail.length) {
+        const parts = [];
+        index += 1;
+        while (index < tail.length && tail[index] !== "m" && tail[index] !== "f") {
+          parts.push(tail[index]);
+          index += 1;
+        }
+        result.mediaSectionPath = parts.join("/");
+        continue;
+      }
+      if (marker === "m" && index + 1 < tail.length) {
+        result.mediaListView = tail[index + 1];
+        index += 2;
+        continue;
+      }
+      break;
+    }
+    return result;
+  }
+
+  if (tail[0] === "f" && tail.length > 1) {
+    result.resourcePath = tail.slice(1).join("/");
+  }
+  return result;
+}
+
 function parseAppRoute(pathname = location.pathname) {
   const normalized = String(pathname || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/" || normalized === "/index.html") {
@@ -461,22 +521,41 @@ function parseAppRoute(pathname = location.pathname) {
 
   const agentId = decodeURIComponent(parts[1]);
   let rest = parts.slice(2).map((segment) => decodeURIComponent(segment));
-  let view = null;
 
-  if (rest.length >= 2 && rest[rest.length - 2] === "v") {
-    const mode = rest[rest.length - 1];
+  if (rest[0] === "sys") {
+    const systemFile = rest.slice(1).join("/");
+    if (!systemFile) {
+      return { type: "agentHome", agentId };
+    }
+    return { type: "systemFile", agentId, systemFile };
+  }
+
+  let view = null;
+  let resourcePath = null;
+  let subView = null;
+  let mediaSectionPath = null;
+  let mediaListView = null;
+  const vIndex = rest.lastIndexOf("v");
+  if (vIndex >= 0 && vIndex < rest.length - 1) {
+    const mode = rest[vIndex + 1];
     if (APP_ROUTE_VIEW_IDS.has(mode)) {
       view = mode;
-      rest = rest.slice(0, -2);
+      const tail = rest.slice(vIndex + 2);
+      rest = rest.slice(0, vIndex);
+      const parsedTail = parseViewRouteTail(tail, mode);
+      resourcePath = parsedTail.resourcePath;
+      subView = parsedTail.subView;
+      mediaSectionPath = parsedTail.mediaSectionPath;
+      mediaListView = parsedTail.mediaListView;
     }
   }
 
   const displayPath = rest.join("/");
   if (!displayPath) {
-    return { type: "agentHome", agentId, view };
+    return { type: "agentHome", agentId, view, resourcePath, subView, mediaSectionPath, mediaListView };
   }
 
-  return { type: "node", agentId, displayPath, view };
+  return { type: "node", agentId, displayPath, view, resourcePath, subView, mediaSectionPath, mediaListView };
 }
 
 function getAgentIdFromAppLocation() {
@@ -499,7 +578,11 @@ function buildAppPathFromState() {
     return `/a/${encodeURIComponent(agentId)}`;
   }
 
-  if (!activePath || activeSystemFile) {
+  if (activeSystemFile) {
+    return `/a/${encodeURIComponent(agentId)}/sys/${encodeURIComponent(activeSystemFile)}`;
+  }
+
+  if (!activePath) {
     return `/a/${encodeURIComponent(agentId)}`;
   }
 
@@ -518,6 +601,45 @@ function buildAppPathFromState() {
 
   if (activeContentMode && APP_ROUTE_VIEW_IDS.has(activeContentMode)) {
     path += `/v/${encodeURIComponent(activeContentMode)}`;
+    if (activeContentMode === "external" && activeExternalFilePath) {
+      const fileSegments = String(activeExternalFilePath)
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment));
+      if (fileSegments.length) {
+        path += `/f/${fileSegments.join("/")}`;
+      }
+    } else if (activeContentMode === "media" && activeMediaSidecarSourcePath) {
+      const fileSegments = String(activeMediaSidecarSourcePath)
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment));
+      if (fileSegments.length) {
+        path += `/f/${fileSegments.join("/")}`;
+      }
+    } else if (activeContentMode === "media") {
+      if (activeMediaSectionFolder) {
+        const sectionSegments = String(activeMediaSectionFolder)
+          .split("/")
+          .filter(Boolean)
+          .map((segment) => encodeURIComponent(segment));
+        if (sectionSegments.length) {
+          path += `/s/${sectionSegments.join("/")}`;
+        }
+      }
+      const viewForUrl = mediaViewMode || "dashboard";
+      const omitDefaultView = activeMediaSectionFolder
+        ? viewForUrl === "all"
+        : viewForUrl === "dashboard";
+      if (!omitDefaultView && MEDIA_ROUTE_LIST_VIEWS.has(viewForUrl)) {
+        path += `/m/${encodeURIComponent(viewForUrl)}`;
+      }
+    } else if (
+      (activeContentMode === "tabular" && isTabularSourceEditing()) ||
+      (isFlatStorageListSourceToggleMode() && editorViewMode === "source")
+    ) {
+      path += "/source";
+    }
   }
 
   return path;
@@ -623,6 +745,13 @@ async function applyAppRouteFromUrl() {
     await switchActiveAgent(route.agentId);
   }
 
+  if (route.type === "systemFile") {
+    hideHomeView();
+    await selectSystemFile(route.systemFile, { skipRouteSync: true });
+    syncAppRouteToUrl({ replace: true });
+    return true;
+  }
+
   if (route.type === "agentHome") {
     showHomeView();
     if (route.view && APP_ROUTE_VIEW_IDS.has(route.view)) {
@@ -642,14 +771,60 @@ async function applyAppRouteFromUrl() {
 
   const label = entry.label || getLabelFromPath(entry.path);
   if (route.view && APP_ROUTE_VIEW_IDS.has(route.view)) {
-    const memoryModes = new Set(["internal", "external", "tabular"]);
+    const memoryModes = new Set(["internal", "external", "tabular", "media"]);
     const landingMode =
       isContainerNodePath(entry.path) && memoryModes.has(route.view) ? "navigation" : route.view;
-    await selectNodeManifest(label, entry.path, landingMode);
+    await selectNodeManifest(label, entry.path, landingMode, { skipRouteSync: true });
+    await applyAppRouteResourceFromUrl(route);
   } else {
     await openNodeFromMenu(label, entry.path, { skipRouteSync: true });
   }
+  syncAppRouteToUrl({ replace: true });
   return true;
+}
+
+async function applyMediaRouteStateFromUrl(route) {
+  activeMediaSectionFolder = route.mediaSectionPath || null;
+  if (route.mediaListView && MEDIA_ROUTE_LIST_VIEWS.has(route.mediaListView)) {
+    mediaViewMode = route.mediaListView;
+  } else if (activeMediaSectionFolder) {
+    mediaViewMode = "all";
+  } else {
+    mediaViewMode = "dashboard";
+  }
+  pruneActiveMediaSectionFolder();
+  if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+  applyModeUi();
+  renderListViewContent();
+}
+
+async function applyAppRouteResourceFromUrl(route) {
+  if (!route?.view) return;
+
+  if (route.resourcePath) {
+    if (route.view === "external") {
+      await openExternalFile(route.resourcePath, { skipRouteSync: true });
+      return;
+    }
+    if (route.view === "media") {
+      await openMediaSidecar(route.resourcePath, { skipRouteSync: true });
+      return;
+    }
+  }
+
+  if (route.view === "media") {
+    await applyMediaRouteStateFromUrl(route);
+    return;
+  }
+
+  if (route.subView === "source") {
+    if (route.view === "tabular" || route.view === "scripts") {
+      setEditorViewMode("source", { skipRouteSync: true });
+      refreshEditorViewContent();
+      updateBreadcrumbsForActiveMode();
+      applyModeUi();
+    }
+  }
 }
 
 /** @deprecated use syncAppRouteToUrl */
@@ -703,7 +878,7 @@ async function loadAgents() {
     activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
   }
-  const deferRouteSync = route.type === "node";
+  const deferRouteSync = route.type === "node" || route.type === "systemFile";
   if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
   }
@@ -1072,13 +1247,12 @@ function getFileHistoryRequestContext() {
   return context;
 }
 
-function buildFileHistoryApiQuery(context) {
-  const params = new URLSearchParams();
-  params.set("mode", context.mode);
-  if (context.path) params.set("path", context.path);
-  if (context.file) params.set("file", context.file);
-  if (context.name) params.set("name", context.name);
-  return params.toString();
+function buildFileHistoryApiParams(context) {
+  const params = { mode: context.mode };
+  if (context.path) params.path = context.path;
+  if (context.file) params.file = context.file;
+  if (context.name) params.name = context.name;
+  return params;
 }
 
 function syncFileHistoryButtonVisibility() {
@@ -1111,8 +1285,9 @@ async function refreshFileHistoryList() {
   if (!fileHistoryModalContext || !fileHistoryListNode) return;
   fileHistoryListNode.textContent = "Загрузка…";
   try {
-    const query = buildFileHistoryApiQuery(fileHistoryModalContext);
-    const response = await fetch(buildApiUrl(`/api/file/history?${query}`));
+    const response = await fetch(
+      buildApiUrl("/api/file/history", buildFileHistoryApiParams(fileHistoryModalContext))
+    );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     renderFileHistoryList(data);
@@ -1182,8 +1357,12 @@ function renderFileHistoryList(data) {
 async function previewFileHistoryVersion(version, label) {
   if (!fileHistoryModalContext) return;
   try {
-    const query = `${buildFileHistoryApiQuery(fileHistoryModalContext)}&version=${encodeURIComponent(version)}`;
-    const response = await fetch(buildApiUrl(`/api/file/history/content?${query}`));
+    const response = await fetch(
+      buildApiUrl("/api/file/history/content", {
+        ...buildFileHistoryApiParams(fileHistoryModalContext),
+        version
+      })
+    );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     if (fileHistoryPreviewTitleNode) fileHistoryPreviewTitleNode.textContent = label || data.label || version;
@@ -1719,15 +1898,15 @@ function getOrbitBubbleLayout(index, total, agentId) {
   const radius = 24 + (t / Math.max(total, 1)) * 24 + (hash % 12);
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
   const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
-  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.72;
+  const y = 48 + Math.sin(angle) * radius * 0.72;
   return {
     x: Math.min(90, Math.max(8, x)),
     y: Math.min(88, Math.max(10, y)),
     size: 58 + (hash % 28),
-    duration: 9 + (hash % 6),
+    duration: 7 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
-    floatX: 10 + (hash % 14),
-    floatY: 12 + (hash % 14)
+    floatX: 10 + (hash % 18),
+    floatY: 12 + (hash % 16)
   };
 }
 
@@ -1814,13 +1993,12 @@ function createAppLandingOrbitBubble(agent, index, total) {
 const ORBIT_LINK_CENTER = { x: 50, y: 48 };
 
 function renderAppLandingOrbitLinks(agents) {
-  if (!appLandingOrbitLinksNode) return [];
+  if (!appLandingOrbitLinksNode) return;
   appLandingOrbitLinksNode.replaceChildren();
 
-  if (!Array.isArray(agents) || agents.length === 0) return [];
+  if (!Array.isArray(agents) || agents.length === 0) return;
 
   const svgNs = "http://www.w3.org/2000/svg";
-  const lines = [];
   for (let index = 0; index < agents.length; index += 1) {
     const agent = agents[index];
     const layout = getOrbitBubbleLayout(index, agents.length, agent.id);
@@ -1833,10 +2011,9 @@ function renderAppLandingOrbitLinks(agents) {
     line.setAttribute("y2", String(layout.y));
     line.classList.add("app-landing-orbit-link");
     if (registryActive) line.classList.add("is-active");
+    line.style.animationDelay = `${layout.delay}s`;
     appLandingOrbitLinksNode.appendChild(line);
-    lines.push(line);
   }
-  return lines;
 }
 
 function renderAppLandingOrbit() {
@@ -1845,7 +2022,6 @@ function renderAppLandingOrbit() {
 
   const agents = getAgentsForLandingGrid();
   if (agents.length === 0) {
-    renderAppLandingOrbitLinks(agents);
     const empty = document.createElement("p");
     empty.className = "app-landing-orbit-empty";
     empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
@@ -3245,12 +3421,117 @@ let sourceEditorViewportResizeBound = false;
 const EDITOR_LINE_NUMBERS_STORAGE_KEY = "agentcms.editorLineNumbers";
 let editorLineNumbersEnabled = readStorageItem(EDITOR_LINE_NUMBERS_STORAGE_KEY) === "1";
 const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
-const DOC_ASIDE_COLLAPSED_STORAGE_KEY = "agentcms.docAside.collapsed.v1";
 const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
+
+const DOC_CONTENT_BLOCK_GROUPS = [
+  {
+    id: "structure",
+    title: "Структура",
+    blocks: [
+      {
+        id: "h2",
+        label: "Заголовок H2",
+        description: "Раздел второго уровня",
+        text: "\n## Заголовок\n\nТекст раздела.\n\n"
+      },
+      {
+        id: "h3",
+        label: "Заголовок H3",
+        description: "Подраздел",
+        text: "\n### Подраздел\n\nТекст подраздела.\n\n"
+      },
+      {
+        id: "hr",
+        label: "Разделитель",
+        description: "Горизонтальная линия",
+        text: "\n---\n\n"
+      }
+    ]
+  },
+  {
+    id: "text",
+    title: "Текст",
+    blocks: [
+      {
+        id: "paragraph",
+        label: "Абзац",
+        description: "Пустой блок для текста",
+        text: "\n\nТекст...\n\n"
+      },
+      {
+        id: "quote",
+        label: "Цитата",
+        description: "Выделенная цитата",
+        text: "\n> Цитата\n\n"
+      },
+      {
+        id: "note",
+        label: "Примечание",
+        description: "Короткое выделение",
+        text: "\n> **Примечание:** текст\n\n"
+      }
+    ]
+  },
+  {
+    id: "lists",
+    title: "Списки",
+    blocks: [
+      {
+        id: "ul",
+        label: "Маркированный список",
+        description: "Пункты с буллетами",
+        text: "\n- пункт 1\n- пункт 2\n- пункт 3\n\n"
+      },
+      {
+        id: "ol",
+        label: "Нумерованный список",
+        description: "Шаги или порядок",
+        text: "\n1. пункт 1\n2. пункт 2\n3. пункт 3\n\n"
+      },
+      {
+        id: "tasks",
+        label: "Чеклист",
+        description: "Задачи с галочками",
+        text: "\n- [ ] Задача 1\n- [ ] Задача 2\n\n"
+      }
+    ]
+  },
+  {
+    id: "code",
+    title: "Код и таблицы",
+    blocks: [
+      {
+        id: "codeblock",
+        label: "Блок кода",
+        description: "Многострочный код",
+        text: "\n```\nкод\n```\n\n"
+      },
+      {
+        id: "table",
+        label: "Таблица",
+        description: "2 колонки, шапка",
+        text: "\n| Колонка | Колонка |\n| --- | --- |\n| ячейка | ячейка |\n\n"
+      }
+    ]
+  },
+  {
+    id: "awn",
+    title: "AWN",
+    blocks: [
+      {
+        id: "awn-desc",
+        label: "Краткое описание",
+        description: "Превью + полный текст",
+        text: "\n> [!AWN-DESC] Краткое описание для превью.\n\n---\n\nПолный текст ниже.\n\n"
+      }
+    ]
+  }
+];
 const _savedEditorViewMode = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
 let editorViewMode = (_savedEditorViewMode === "preview" || _savedEditorViewMode === "source") ? _savedEditorViewMode : "source";
 let externalViewMode = "table";
 let mediaViewMode = "dashboard";
+let activeMediaSectionFolder = null;
 let mediaFilesCache = {};
 let mediaAssetsExists = true;
 let activeStorageFolderExists = true;
@@ -4185,12 +4466,12 @@ function isNodeSettingsTargetPath(nodePath) {
   return isNodeMdPath(nodePath);
 }
 
-async function selectNodeManifest(label, filePath, contentMode) {
+async function selectNodeManifest(label, filePath, contentMode, options = {}) {
   if (contentMode) {
     applyContentModeState(contentMode);
   }
   await selectFile(label, filePath);
-  if (contentMode) {
+  if (contentMode && !options.skipRouteSync) {
     syncAppRouteToUrl({ replace: true });
   }
 }
@@ -7635,6 +7916,17 @@ const MEDIA_VIEW_GROUPS = {
   other: "Other"
 };
 
+const MEDIA_VIEW_SELECT_NODES = [
+  { id: "dashboard", label: "Обзор использования", icon: "📊" },
+  { id: "all", label: "Все файлы", icon: "📋" },
+  { id: "images", label: "Изображения", icon: "🖼", group: "Images" },
+  { id: "audio", label: "Аудио", icon: "🎵", group: "Audio" },
+  { id: "video", label: "Видео", icon: "🎬", group: "Videos" },
+  { id: "documents", label: "Документы", icon: "📄", group: "Documents" },
+  { id: "archives", label: "Архивы", icon: "🗜", group: "Archives" },
+  { id: "other", label: "Прочее", icon: "📎", group: "Other" }
+];
+
 function buildMediaAssetUrl(filePath, nodePath = activePath) {
   if (!nodePath || !filePath) return "";
   return buildApiUrl("/api/media/file", { path: getResolvedNodePath(nodePath), file: filePath });
@@ -7830,11 +8122,51 @@ function insertTextAtEditorCursor(text) {
   fileContentInputNode.focus();
 }
 
-async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath() } = {}) {
+function canInsertDocContentBlocks() {
+  if (!activePath || activeSystemFile) return false;
+  if (isCurrentModeReadOnly()) return false;
+  if (isCurrentModeListTemplate()) return false;
+  if (editorViewMode === "preview") return false;
+  if (editorSurfaceNode?.classList.contains("hidden")) return false;
+  return true;
+}
+
+function insertMarkdownAtEditorCursor(text) {
+  const snippet = String(text || "");
+  if (!snippet) return false;
+  if (!canInsertDocContentBlocks()) {
+    showToast("Вставка доступна только в режиме редактирования", "error");
+    return false;
+  }
+
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    try {
+      wysiwygEditorInstance.insertText(snippet);
+      syncSourceFromWysiwygEditor();
+      syncSaveButtonLamp();
+      if (getDocAsideTab() === "outline") renderDocOutline();
+      return true;
+    } catch {
+      showToast("Не удалось вставить блок в WYSIWYG", "error");
+      return false;
+    }
+  }
+
+  insertTextAtEditorCursor(snippet);
+  if (getDocAsideTab() === "outline") renderDocOutline();
+  return true;
+}
+
+async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath(), subdir = null } = {}) {
   if (!file) return null;
   if (!nodePath) {
     throw new Error("Сначала откройте тему");
   }
+  const effectiveSubdir =
+    subdir ??
+    (activeContentMode === "media"
+      ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
+      : null);
   const normalizedFile = await normalizeImageAttachmentFile(file);
   const data = await readFileAsBase64(normalizedFile);
   const response = await fetch(buildApiUrl("/api/media/file"), {
@@ -7844,7 +8176,8 @@ async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath() }
       path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
       data,
       fileName: normalizedFile.name || buildPastedAttachmentFileName(normalizedFile),
-      mimeType: normalizedFile.type
+      mimeType: normalizedFile.type,
+      subdir: effectiveSubdir || undefined
     })
   });
   if (!response.ok) {
@@ -7911,6 +8244,379 @@ function syncMediaBulkUploadPanelUi() {
   mediaUploadBtnNode?.setAttribute("aria-expanded", mediaBulkUploadPanelOpen ? "true" : "false");
 }
 
+function getMediaGroupFileCount(groupName) {
+  const items = Array.isArray(mediaFilesCache[groupName]) ? mediaFilesCache[groupName] : [];
+  return items.filter((item) => !item.isFolder).length;
+}
+
+function getMediaSectionTreeTotalCount() {
+  let total = 0;
+  for (const groupName of Object.values(MEDIA_VIEW_GROUPS)) {
+    total += getMediaGroupFileCount(groupName);
+  }
+  return total;
+}
+
+function getMediaViewOptionCount(mode) {
+  if (mode === "dashboard" || mode === "all") return getMediaSectionTreeTotalCount();
+  const groupName = MEDIA_VIEW_GROUPS[mode];
+  if (!groupName) return null;
+  return getMediaGroupFileCount(groupName);
+}
+
+function getMediaViewSelectNodeMeta(mode) {
+  return MEDIA_VIEW_SELECT_NODES.find((entry) => entry.id === mode) || null;
+}
+
+function getMediaUserSections() {
+  const folders = Array.isArray(mediaFilesCache.Folders) ? mediaFilesCache.Folders : [];
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  return folders
+    .filter((item) => item.isFolder)
+    .map((item) => {
+      const folderPath = String(item.path || "").replace(/\/$/, "");
+      const segments = folderPath.split("/").filter(Boolean);
+      return {
+        folderPath,
+        label: item.name || segments[segments.length - 1] || folderPath,
+        depth: Math.max(0, segments.length - 1)
+      };
+    })
+    .filter((item) => item.folderPath)
+    .sort((a, b) => collator.compare(a.folderPath, b.folderPath));
+}
+
+function countMediaFilesInSection(sectionFolder) {
+  if (!sectionFolder) return 0;
+  const prefix = `${sectionFolder}/`;
+  let count = 0;
+  for (const groupItems of Object.values(mediaFilesCache)) {
+    if (!Array.isArray(groupItems)) continue;
+    for (const item of groupItems) {
+      if (!item.isFolder && String(item.path || "").startsWith(prefix)) count += 1;
+    }
+  }
+  return count;
+}
+
+function pruneActiveMediaSectionFolder() {
+  if (!activeMediaSectionFolder) return;
+  const folders = Array.isArray(mediaFilesCache.Folders) ? mediaFilesCache.Folders : [];
+  if (!folders.length) return;
+  const exists = getMediaUserSections().some((section) => section.folderPath === activeMediaSectionFolder);
+  if (!exists) activeMediaSectionFolder = null;
+}
+
+function getMediaItemsForSection(sectionFolder, viewMode = mediaViewMode) {
+  if (!sectionFolder) return [];
+  const prefix = `${sectionFolder}/`;
+  const groupName = MEDIA_VIEW_GROUPS[viewMode];
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const items = [];
+
+  for (const groupItems of Object.values(mediaFilesCache)) {
+    if (!Array.isArray(groupItems)) continue;
+    for (const item of groupItems) {
+      if (item.isFolder) continue;
+      if (!String(item.path || "").startsWith(prefix)) continue;
+      if (groupName && item.group !== groupName) continue;
+      items.push(item);
+    }
+  }
+
+  return items.sort((a, b) => collator.compare(a.path || a.name || "", b.path || b.name || ""));
+}
+
+function formatMediaViewSelectLabel(mode) {
+  const node = getMediaViewSelectNodeMeta(mode);
+  if (!node?.label) return "";
+  const prefix = node.icon ? `${node.icon} ` : "";
+  const count = getMediaViewOptionCount(mode);
+  const label = `${prefix}${node.label}`;
+  return count === null ? label : `${label} (${count})`;
+}
+
+function syncMediaViewSelectOptions() {
+  if (!mediaViewSelectNode) return;
+  const currentValue = mediaViewMode;
+  for (const option of mediaViewSelectNode.options) {
+    if (option.disabled || option.value === "sep") continue;
+    const label = formatMediaViewSelectLabel(option.value);
+    if (label) option.textContent = label;
+  }
+  mediaViewSelectNode.value = currentValue;
+}
+
+function rerenderMediaListViewBody() {
+  if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+  const body = listViewContentNode.querySelector(".media-list-view-body");
+  if (body) {
+    body.innerHTML = "";
+    renderMediaListViewBody(body);
+    return;
+  }
+  renderListViewContent();
+}
+
+function setActiveMediaSectionFolder(folderName, { rerender = true, skipRouteSync = false } = {}) {
+  const next = folderName ? String(folderName).replace(/\\/g, "/").replace(/\/$/, "").trim() : null;
+  if (next === activeMediaSectionFolder) {
+    syncMediaSectionTreeActiveState();
+    return;
+  }
+  activeMediaSectionFolder = next;
+  if (next) {
+    mediaViewMode = "all";
+    if (mediaViewSelectNode) mediaViewSelectNode.value = "all";
+  }
+  syncMediaSectionTreeActiveState();
+  if (rerender) rerenderMediaListViewBody();
+  if (!skipRouteSync) syncAppRouteToUrl({ push: true });
+}
+
+function setMediaViewMode(mode, { rerender = true, skipRouteSync = false } = {}) {
+  if (!mode || mode === "sep") return;
+
+  const clearsSection = mode === "dashboard" || mode === "all";
+  const unchanged =
+    mode === mediaViewMode && (!clearsSection || !activeMediaSectionFolder);
+  if (unchanged) {
+    syncMediaSectionTreeActiveState();
+    return;
+  }
+
+  mediaViewMode = mode;
+  if (clearsSection) activeMediaSectionFolder = null;
+  if (mediaViewSelectNode) mediaViewSelectNode.value = mode;
+  syncMediaSectionTreeActiveState();
+  if (rerender) rerenderMediaListViewBody();
+  if (!skipRouteSync) syncAppRouteToUrl({ push: true });
+}
+
+function syncMediaSectionTreeActiveState() {
+  const tree = listViewContentNode.querySelector(".media-section-tree");
+  if (!tree) return;
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-media-view]")) {
+    const view = btn.dataset.mediaView;
+    if (view === "dashboard") {
+      btn.classList.toggle("is-active", mediaViewMode === "dashboard" && !activeMediaSectionFolder);
+      continue;
+    }
+    if (view === "all") {
+      btn.classList.toggle("is-active", mediaViewMode === "all" && !activeMediaSectionFolder);
+    }
+  }
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-media-section]")) {
+    btn.classList.toggle("is-active", btn.dataset.mediaSection === activeMediaSectionFolder);
+  }
+}
+
+function appendMediaSectionTreeItem(
+  list,
+  { icon, label, count = null, isActive = false, isEmpty = false, depth = 0, onClick }
+) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-section-tree-item";
+  btn.setAttribute("role", "treeitem");
+  btn.title = label;
+  btn.classList.toggle("is-active", isActive);
+  btn.classList.toggle("is-empty", isEmpty);
+  if (depth > 0) {
+    btn.classList.add("is-nested");
+    btn.style.paddingLeft = `${8 + depth * 14}px`;
+  }
+
+  const iconNode = document.createElement("span");
+  iconNode.className = "media-section-tree-icon";
+  iconNode.setAttribute("aria-hidden", "true");
+  iconNode.textContent = icon;
+
+  const labelNode = document.createElement("span");
+  labelNode.className = "media-section-tree-label";
+  labelNode.textContent = label;
+
+  btn.append(iconNode, labelNode);
+
+  if (count !== null) {
+    const badge = document.createElement("span");
+    badge.className = "media-section-tree-count";
+    badge.textContent = String(count);
+    btn.appendChild(badge);
+  }
+
+  btn.addEventListener("click", onClick);
+  list.appendChild(btn);
+  return btn;
+}
+
+function renderMediaSectionTree(container) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const list = document.createElement("div");
+  list.className = "media-section-tree-list";
+  list.setAttribute("role", "tree");
+  container.appendChild(list);
+
+  const dashboardBtn = appendMediaSectionTreeItem(list, {
+    icon: "📊",
+    label: "Обзор использования",
+    isActive: mediaViewMode === "dashboard" && !activeMediaSectionFolder,
+    onClick: () => setMediaViewMode("dashboard")
+  });
+  dashboardBtn.dataset.mediaView = "dashboard";
+
+  const allBtn = appendMediaSectionTreeItem(list, {
+    icon: "📋",
+    label: "Все файлы",
+    count: getMediaSectionTreeTotalCount(),
+    isActive: mediaViewMode === "all" && !activeMediaSectionFolder,
+    onClick: () => setMediaViewMode("all")
+  });
+  allBtn.dataset.mediaView = "all";
+
+  const divider = document.createElement("div");
+  divider.className = "media-section-tree-divider";
+  divider.setAttribute("role", "presentation");
+  list.appendChild(divider);
+
+  const userSections = getMediaUserSections();
+  if (userSections.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "media-section-tree-empty";
+    empty.textContent = "Нет разделов. Создайте через «+ Раздел».";
+    list.appendChild(empty);
+  } else {
+    for (const section of userSections) {
+      const count = countMediaFilesInSection(section.folderPath);
+      const btn = appendMediaSectionTreeItem(list, {
+        icon: "📁",
+        label: section.label,
+        count,
+        depth: section.depth,
+        isActive: activeMediaSectionFolder === section.folderPath,
+        isEmpty: count === 0,
+        onClick: () => setActiveMediaSectionFolder(section.folderPath)
+      });
+      btn.dataset.mediaSection = section.folderPath;
+    }
+  }
+}
+
+function ensureMediaListViewLayout() {
+  let wrap = listViewContentNode.querySelector(".media-list-view-wrap");
+  if (!wrap) {
+    listViewContentNode.innerHTML = "";
+    mountMediaListViewLayout(listViewContentNode);
+    wrap = listViewContentNode.querySelector(".media-list-view-wrap");
+  }
+  renderMediaSectionTree(wrap.querySelector(".media-section-tree"));
+  return wrap.querySelector(".media-list-view-body");
+}
+
+function renderMediaAllFilesSections(container) {
+  const raw = getListViewRawContent();
+  const sections = parseMediaSections(raw);
+  const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+
+  function comparePathsNatural(aPath, bPath) {
+    const aParts = aPath.split("/").filter(Boolean);
+    const bParts = bPath.split("/").filter(Boolean);
+    const len = Math.min(aParts.length, bParts.length);
+    for (let i = 0; i < len; i += 1) {
+      const cmp = naturalCollator.compare(aParts[i], bParts[i]);
+      if (cmp !== 0) return cmp;
+    }
+    return aParts.length - bParts.length;
+  }
+
+  if (!raw.trim()) {
+    renderListEmptyMessage(container, getStorageFolderEmptyMessage("media"));
+    return;
+  }
+
+  for (const section of sections) {
+    const normalizedItems = section.items
+      .map((item) => normalizeListItem(item))
+      .filter((item) => item.path)
+      .sort((a, b) => {
+        if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+        return comparePathsNatural(a.path, b.path);
+      });
+
+    const sectionNode = document.createElement("section");
+    sectionNode.className = "list-section";
+
+    const headerNode = document.createElement("div");
+    headerNode.className = "list-section-header";
+    headerNode.textContent = section.title;
+    sectionNode.appendChild(headerNode);
+
+    const listNode = document.createElement("ul");
+    listNode.className = "list-items";
+
+    for (const normalized of normalizedItems) {
+      const li = document.createElement("li");
+      li.className = "list-item";
+
+      const icon = document.createElement("span");
+      icon.className = "list-item-icon";
+      icon.textContent = normalized.isFolder ? "📁" : "📄";
+
+      const pathNode = document.createElement("span");
+      pathNode.className = "list-item-path";
+      pathNode.textContent = normalized.path;
+
+      li.appendChild(icon);
+      li.appendChild(pathNode);
+
+      if (!normalized.isFolder) {
+        li.classList.add("list-item-with-actions");
+        const actions = document.createElement("div");
+        actions.className = "list-item-actions";
+        appendMediaItemActionButtons(actions, { path: normalized.path });
+        li.appendChild(actions);
+      }
+
+      listNode.appendChild(li);
+    }
+
+    sectionNode.appendChild(listNode);
+    container.appendChild(sectionNode);
+  }
+}
+
+function renderMediaListViewBody(container) {
+  if (!mediaAssetsExists) {
+    renderListEmptyMessage(container, getStorageFolderMissingMessage("media"));
+    return;
+  }
+  if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
+    syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
+  }
+  pruneActiveMediaSectionFolder();
+  syncMediaViewSelectOptions();
+  renderMediaSectionTree(listViewContentNode.querySelector(".media-section-tree"));
+  if (mediaViewMode === "dashboard" && !activeMediaSectionFolder) {
+    renderMediaUsageDashboard(container);
+    return;
+  }
+  if (activeMediaSectionFolder) {
+    if (mediaViewMode === "all") {
+      renderMediaSectionFolderView(container, activeMediaSectionFolder);
+      return;
+    }
+    renderMediaFilteredView(container);
+    return;
+  }
+  if (mediaViewMode !== "all") {
+    renderMediaFilteredView(container);
+    return;
+  }
+  renderMediaAllFilesSections(container);
+}
+
 function mountMediaListViewLayout(root) {
   const wrap = document.createElement("div");
   wrap.className = "media-list-view-wrap";
@@ -7921,11 +8627,21 @@ function mountMediaListViewLayout(root) {
   mountMediaBulkUploadZone(uploadHost);
   syncMediaBulkUploadPanelUi();
 
+  const split = document.createElement("div");
+  split.className = "media-list-view-split";
+
+  const treeHost = document.createElement("nav");
+  treeHost.className = "media-section-tree";
+  treeHost.setAttribute("aria-label", "Разделы медиа");
+  split.appendChild(treeHost);
+
   const body = document.createElement("div");
   body.className = "media-list-view-body";
-  wrap.appendChild(body);
+  split.appendChild(body);
 
+  wrap.appendChild(split);
   root.appendChild(wrap);
+  renderMediaSectionTree(treeHost);
   return body;
 }
 
@@ -8131,15 +8847,100 @@ function getMediaSidecarPath(mediaFilePath) {
   return `${dir}${base}.sidecar.md`;
 }
 
+const MEDIA_ACTION_ICON_EDIT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+const MEDIA_ACTION_ICON_OPEN =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const MEDIA_ACTION_ICON_FINDER =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7h18"/></svg>';
+
+let mediaSidecarOpenInFlight = null;
+let mediaAssetOpenLockedUntil = 0;
+
+function createMediaActionIcon(svgMarkup) {
+  const icon = document.createElement("span");
+  icon.className = "media-action-btn-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = svgMarkup;
+  return icon;
+}
+
+function guardMediaActionClick(event, action) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (typeof event.stopImmediatePropagation === "function") {
+    event.stopImmediatePropagation();
+  }
+  const btn = event.currentTarget;
+  if (btn?.dataset?.actionLocked === "1") return false;
+  if (btn) btn.dataset.actionLocked = "1";
+  window.setTimeout(() => {
+    if (btn) delete btn.dataset.actionLocked;
+  }, 500);
+  action();
+  return true;
+}
+
+function openMediaAssetExternal(filePath) {
+  const now = Date.now();
+  if (now < mediaAssetOpenLockedUntil) return;
+  mediaAssetOpenLockedUntil = now + 500;
+  const url = buildMediaAssetUrl(filePath);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function getRevealMediaFileLabel() {
+  const platform = window.desktopApp?.platform;
+  if (platform === "darwin") return "Показать в Finder";
+  if (platform === "win32") return "Показать в проводнике";
+  return "Показать в папке";
+}
+
+async function revealMediaFileInExplorer(mediaFilePath) {
+  if (!activePath || !mediaFilePath) return;
+  try {
+    if (window.desktopApp?.revealFile) {
+      await window.desktopApp.revealFile(getResolvedNodePath(activePath), mediaFilePath, activeAgentId);
+      return;
+    }
+
+    const response = await fetch(buildApiUrl("/api/reveal"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: getActiveNodeApiPath(),
+        file: mediaFilePath
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    }
+  } catch (error) {
+    showToast(`Не удалось показать файл: ${error.message}`, "error");
+  }
+}
+
+function appendMediaItemActionButtons(target, item) {
+  target.append(
+    createMediaSidecarEditButton(item),
+    createMediaOpenButton(item),
+    createMediaRevealInFinderButton(item)
+  );
+}
+
 function createMediaSidecarEditButton(item) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "media-action-btn";
-  btn.textContent = "Редактировать";
+  btn.className = "media-action-btn media-action-btn-icon-only";
+  btn.title = "Редактировать sidecar";
+  btn.setAttribute("aria-label", "Редактировать sidecar");
+  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_EDIT));
   btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void openMediaSidecar(item.path);
+    guardMediaActionClick(event, () => {
+      void openMediaSidecar(item.path);
+    });
   });
   return btn;
 }
@@ -8147,12 +8948,29 @@ function createMediaSidecarEditButton(item) {
 function createMediaOpenButton(item) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "media-action-btn";
-  btn.textContent = "Открыть";
+  btn.className = "media-action-btn media-action-btn-icon-only";
+  btn.title = "Открыть файл";
+  btn.setAttribute("aria-label", "Открыть файл");
+  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_OPEN));
   btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    window.open(buildMediaAssetUrl(item.path), "_blank", "noopener");
+    guardMediaActionClick(event, () => {
+      openMediaAssetExternal(item.path);
+    });
+  });
+  return btn;
+}
+
+function createMediaRevealInFinderButton(item) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-action-btn media-action-btn-icon-only";
+  btn.title = getRevealMediaFileLabel();
+  btn.setAttribute("aria-label", getRevealMediaFileLabel());
+  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_FINDER));
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      void revealMediaFileInExplorer(item.path);
+    });
   });
   return btn;
 }
@@ -8175,10 +8993,88 @@ function getDocumentIcon(ext) {
 }
 
 function getMediaItemsForView(viewMode) {
+  if (activeMediaSectionFolder) {
+    return getMediaItemsForSection(activeMediaSectionFolder, viewMode);
+  }
   const groupName = MEDIA_VIEW_GROUPS[viewMode];
   if (!groupName) return [];
   const items = Array.isArray(mediaFilesCache[groupName]) ? mediaFilesCache[groupName] : [];
   return items.filter((item) => !item.isFolder);
+}
+
+function getMediaIconForItem(item) {
+  if (item?.group && NAVIGATION_MEDIA_GROUP_ICONS[item.group]) {
+    return NAVIGATION_MEDIA_GROUP_ICONS[item.group];
+  }
+  return getDocumentIcon(item?.ext);
+}
+
+function getMediaChildSections(sectionFolder) {
+  const prefix = sectionFolder ? `${sectionFolder}/` : "";
+  const folders = Array.isArray(mediaFilesCache.Folders) ? mediaFilesCache.Folders : [];
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  return folders
+    .filter((item) => {
+      if (!item.isFolder) return false;
+      const folderPath = String(item.path || "").replace(/\/$/, "");
+      if (!folderPath.startsWith(prefix) || folderPath === sectionFolder) return false;
+      const remainder = folderPath.slice(prefix.length);
+      return remainder && !remainder.includes("/");
+    })
+    .map((item) => {
+      const folderPath = String(item.path || "").replace(/\/$/, "");
+      return {
+        folderPath,
+        label: item.name || folderPath.split("/").pop() || folderPath
+      };
+    })
+    .sort((a, b) => collator.compare(a.label, b.label));
+}
+
+function renderMediaSectionFolderView(container, sectionFolder) {
+  const childSections = getMediaChildSections(sectionFolder);
+  const items = getMediaItemsForSection(sectionFolder, "all");
+
+  if (childSections.length === 0 && items.length === 0) {
+    renderMediaEmpty(container, `В разделе «${sectionFolder}» пока нет файлов и подразделов`);
+    return;
+  }
+
+  const head = document.createElement("div");
+  head.className = "media-section-folder-head";
+  const title = document.createElement("h4");
+  title.className = "media-section-folder-title";
+  title.textContent = `📁 ${sectionFolder}`;
+  head.appendChild(title);
+  container.appendChild(head);
+
+  if (childSections.length > 0) {
+    const subList = document.createElement("ul");
+    subList.className = "media-section-subfolder-list";
+    for (const child of childSections) {
+      const li = document.createElement("li");
+      li.className = "media-section-subfolder-item";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "media-section-subfolder-btn";
+      btn.textContent = `📁 ${child.label}`;
+      btn.title = child.folderPath;
+      btn.addEventListener("click", () => setActiveMediaSectionFolder(child.folderPath));
+      li.appendChild(btn);
+      subList.appendChild(li);
+    }
+    container.appendChild(subList);
+  }
+
+  if (items.length === 0) return;
+
+  renderMediaFileRows(container, items, { icon: "📄", showSize: true });
+  for (const [index, row] of Array.from(container.querySelectorAll(".media-file-item")).entries()) {
+    const item = items[index];
+    if (!item) continue;
+    const iconNode = row.querySelector(".media-file-icon");
+    if (iconNode) iconNode.textContent = getMediaIconForItem(item);
+  }
 }
 
 const MEDIA_GROUP_LABELS = {
@@ -8513,7 +9409,7 @@ function renderMediaUsageDashboard(container) {
 
     const actionsCell = document.createElement("td");
     actionsCell.className = "media-dashboard-cell-actions";
-    actionsCell.append(createMediaSidecarEditButton(item), createMediaOpenButton(item));
+    appendMediaItemActionButtons(actionsCell, item);
 
     row.append(previewCell, nameCell, dirCell, usageCell, actionsCell);
     tbody.appendChild(row);
@@ -8664,8 +9560,7 @@ function renderMediaFileRows(container, items, { icon = "📄", showSize = true 
 
     const actions = document.createElement("div");
     actions.className = "media-file-actions";
-    actions.appendChild(createMediaSidecarEditButton(item));
-    actions.appendChild(createMediaOpenButton(item));
+    appendMediaItemActionButtons(actions, item);
 
     li.appendChild(iconNode);
     li.appendChild(body);
@@ -8704,8 +9599,10 @@ function renderMediaImagesGrid(container, items) {
       fallback.textContent = "🖼";
       imgWrap.appendChild(fallback);
     });
-    imgWrap.addEventListener("click", () => {
-      window.open(buildMediaAssetUrl(item.path), "_blank", "noopener");
+    imgWrap.addEventListener("click", (event) => {
+      guardMediaActionClick(event, () => {
+        openMediaAssetExternal(item.path);
+      });
     });
     imgWrap.appendChild(img);
 
@@ -8720,8 +9617,7 @@ function renderMediaImagesGrid(container, items) {
     const actions = document.createElement("div");
     actions.className = "media-image-actions";
 
-    actions.appendChild(createMediaSidecarEditButton(item));
-    actions.appendChild(createMediaOpenButton(item));
+    appendMediaItemActionButtons(actions, item);
 
     card.appendChild(imgWrap);
     card.appendChild(nameNode);
@@ -8764,8 +9660,7 @@ function renderMediaAudioList(container, items) {
 
     const actions = document.createElement("div");
     actions.className = "media-player-actions";
-    actions.appendChild(createMediaSidecarEditButton(item));
-    actions.appendChild(createMediaOpenButton(item));
+    appendMediaItemActionButtons(actions, item);
     row.appendChild(actions);
     list.appendChild(row);
   }
@@ -8804,8 +9699,7 @@ function renderMediaVideoList(container, items) {
 
     const actions = document.createElement("div");
     actions.className = "media-player-actions";
-    actions.appendChild(createMediaSidecarEditButton(item));
-    actions.appendChild(createMediaOpenButton(item));
+    appendMediaItemActionButtons(actions, item);
     row.appendChild(actions);
     list.appendChild(row);
   }
@@ -8854,35 +9748,23 @@ function renderMediaFilteredView(container) {
 
 function renderListViewContent() {
   const raw = getListViewRawContent();
-  listViewContentNode.innerHTML = "";
+  const isMediaListView = activeContentMode === "media" && !isMediaSidecarEditing();
 
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) {
+    listViewContentNode.innerHTML = "";
     renderTabularTableView(listViewContentNode);
     return;
   }
 
   let listTarget = listViewContentNode;
-  if (activeContentMode === "media" && !isMediaSidecarEditing()) {
-    listTarget = mountMediaListViewLayout(listViewContentNode);
+  if (isMediaListView) {
+    listTarget = ensureMediaListViewLayout();
+    listTarget.innerHTML = "";
+    renderMediaListViewBody(listTarget);
+    return;
   }
 
-  if (activeContentMode === "media" && !isMediaSidecarEditing()) {
-    if (!mediaAssetsExists) {
-      renderListEmptyMessage(listTarget, getStorageFolderMissingMessage("media"));
-      return;
-    }
-    if (!Object.values(mediaFilesCache).some((items) => Array.isArray(items) && items.length > 0)) {
-      syncMediaFilesCache(modeContentCache.media, mediaFilesCache);
-    }
-    if (mediaViewMode === "dashboard") {
-      renderMediaUsageDashboard(listTarget);
-      return;
-    }
-    if (mediaViewMode !== "all") {
-      renderMediaFilteredView(listTarget);
-      return;
-    }
-  }
+  listViewContentNode.innerHTML = "";
 
   if (isFlatStorageListMode()) {
     if (!activeStorageFolderExists) {
@@ -9206,8 +10088,7 @@ function renderListViewContent() {
         li.classList.add("list-item-with-actions");
         const actions = document.createElement("div");
         actions.className = "list-item-actions";
-        actions.appendChild(createMediaSidecarEditButton({ path: normalized.path }));
-        actions.appendChild(createMediaOpenButton({ path: normalized.path }));
+        appendMediaItemActionButtons(actions, { path: normalized.path });
         li.appendChild(actions);
       }
 
@@ -9324,6 +10205,7 @@ async function refreshMediaCache() {
     mediaAssetsExists = Boolean(data.exists);
     modeContentCache.media = data.content || "";
     syncMediaFilesCache(data.content, data.groups);
+    syncMediaViewSelectOptions();
   } catch {
     // ignore cache refresh errors
   }
@@ -9335,6 +10217,7 @@ function closeMediaSidecarEditor() {
   applyModeUi();
   renderListViewContent();
   updateBreadcrumbsForActiveMode();
+  syncAppRouteToUrl({ replace: true });
 }
 
 function closeExternalFileEditor() {
@@ -9349,6 +10232,8 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
   titleInputNode.value = "";
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
+
+  syncAppRouteToUrl({ replace: true });
 
   if (reloadFromServer) {
     try {
@@ -9373,7 +10258,7 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
   renderListViewContent();
 }
 
-function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content) {
+function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options = {}) {
   activeMediaSidecarSourcePath = sourceFilePath;
   activeMediaSidecarPath = sidecarPath;
   updateBreadcrumbsForActiveMode();
@@ -9383,11 +10268,17 @@ function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content) {
   syncPropsInputPlaceholder();
   editorViewMode = "source";
   applyModeUi();
-  setEditorViewMode("source");
+  setEditorViewMode("source", { skipRouteSync: true });
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
 }
 
-async function openMediaSidecar(mediaFilePath) {
+async function openMediaSidecar(mediaFilePath, options = {}) {
   if (!activePath || activeContentMode !== "media" || !mediaFilePath) return;
+  const normalizedPath = String(mediaFilePath || "").replace(/\\/g, "/");
+  if (mediaSidecarOpenInFlight === normalizedPath) return;
+  mediaSidecarOpenInFlight = normalizedPath;
   try {
     const response = await fetch(
       buildApiUrl("/api/media/sidecar", { path: getActiveNodeApiPath(), file: mediaFilePath })
@@ -9397,10 +10288,14 @@ async function openMediaSidecar(mediaFilePath) {
       throw new Error(errorData.error || `Request failed with ${response.status}`);
     }
     const data = await response.json();
-    enableMediaSidecarEditor(data.sourceFile, data.sidecar, data.content || "");
+    enableMediaSidecarEditor(data.sourceFile, data.sidecar, data.content || "", options);
     if (data.created) showToast("Sidecar-файл создан", "success");
   } catch (error) {
     showToast("Ошибка открытия sidecar", "error");
+  } finally {
+    if (mediaSidecarOpenInFlight === normalizedPath) {
+      mediaSidecarOpenInFlight = null;
+    }
   }
 }
 
@@ -9419,6 +10314,37 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-version",
   "awn-sort"
 ];
+
+const PROPS_FIELD_META = {
+  "awn-create": {
+    label: "Создан",
+    hint: "Дата и время создания документа"
+  },
+  "awn-update": {
+    label: "Изменён",
+    hint: "Дата последнего изменения"
+  },
+  "awn-description": {
+    label: "Описание",
+    hint: "Краткое назначение темы для агента"
+  },
+  "awn-version": {
+    label: "Версия",
+    hint: "Номер или метка версии"
+  },
+  "awn-sort": {
+    label: "Сортировка",
+    hint: "Порядок в списках и дереве"
+  },
+  tags: {
+    label: "Теги",
+    hint: "Через запятую, как в Obsidian (#tag)"
+  },
+  title: {
+    label: "Заголовок",
+    hint: "Отображаемое название"
+  }
+};
 
 const PROPS_KEY_CANONICAL_ALIASES = {
   "awn-title": "title",
@@ -9440,6 +10366,22 @@ function normalizePropsKey(key) {
   }
 
   return PROPS_KEY_CANONICAL_ALIASES[normalized] || normalized;
+}
+
+function getPropsFieldMeta(key) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) {
+    return { label: "Свойство", hint: "" };
+  }
+  if (PROPS_FIELD_META[normalized]) {
+    return PROPS_FIELD_META[normalized];
+  }
+  return { label: normalized, hint: "" };
+}
+
+function isStandardPropsFieldKey(key) {
+  const normalized = normalizePropsKey(key);
+  return Boolean(normalized && STANDARD_PROPS_FIELD_KEYS.includes(normalized));
 }
 
 function normalizePropsEntries(entries) {
@@ -9654,26 +10596,30 @@ function isPropsFormReadOnly() {
   return editorViewMode === "preview";
 }
 
-function isDocAsideCollapsed() {
-  return readStorageItem(DOC_ASIDE_COLLAPSED_STORAGE_KEY) === "1";
-}
-
-function setDocAsideCollapsed(collapsed) {
-  localStorage.setItem(DOC_ASIDE_COLLAPSED_STORAGE_KEY, collapsed ? "1" : "0");
-  const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
-  docBodyGridNode?.classList.toggle("has-props-aside", asideEnabled && !collapsed);
-  syncDocAsideUi({ propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden") });
-}
-
 function getDocAsideTab() {
   const saved = readStorageItem(DOC_ASIDE_TAB_STORAGE_KEY);
-  return saved === "outline" ? "outline" : "props";
+  if (saved === "outline" || saved === "blocks" || saved === "props") return saved;
+  return "props";
+}
+
+function resolveDocAsideTab(tab, { propsAvailable = true, blocksAvailable = true } = {}) {
+  const order = ["props", "outline", "blocks"];
+  const preferred = order.includes(tab) ? tab : "props";
+  const availability = {
+    props: propsAvailable,
+    outline: true,
+    blocks: blocksAvailable
+  };
+  if (availability[preferred]) return preferred;
+  return order.find((id) => availability[id]) || "outline";
 }
 
 function setDocAsideTab(tab) {
-  const next = tab === "outline" ? "outline" : "props";
+  const propsAvailable = !docAsideTabPropsBtn?.classList.contains("hidden");
+  const blocksAvailable = !docAsideTabBlocksBtn?.classList.contains("hidden");
+  const next = resolveDocAsideTab(tab, { propsAvailable, blocksAvailable });
   localStorage.setItem(DOC_ASIDE_TAB_STORAGE_KEY, next);
-  syncDocAsideUi({ propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden") });
+  syncDocAsideUi({ propsPanelAvailable: propsAvailable, blocksPanelAvailable: blocksAvailable });
 }
 
 function slugifyHeadingText(text) {
@@ -9816,29 +10762,95 @@ function renderDocOutline() {
   docOutlineContentNode.appendChild(nav);
 }
 
-function syncDocAsideUi({ propsPanelAvailable = true } = {}) {
+function renderDocContentBlocks() {
+  if (!docBlocksContentNode) return;
+  docBlocksContentNode.replaceChildren();
+
+  if (!canInsertDocContentBlocks()) {
+    const empty = document.createElement("p");
+    empty.className = "doc-blocks-empty";
+    empty.textContent = "Блоки доступны в режиме редактирования Markdown.";
+    docBlocksContentNode.appendChild(empty);
+    return;
+  }
+
+  for (const group of DOC_CONTENT_BLOCK_GROUPS) {
+    const section = document.createElement("section");
+    section.className = "doc-blocks-group";
+    section.setAttribute("aria-label", group.title);
+
+    const title = document.createElement("h3");
+    title.className = "doc-blocks-group-title";
+    title.textContent = group.title;
+    section.appendChild(title);
+
+    const list = document.createElement("ul");
+    list.className = "doc-blocks-list";
+
+    for (const block of group.blocks) {
+      const item = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "doc-block-btn";
+      btn.title = block.description || block.label;
+
+      const label = document.createElement("span");
+      label.className = "doc-block-btn-label";
+      label.textContent = block.label;
+
+      const desc = document.createElement("span");
+      desc.className = "doc-block-btn-desc";
+      desc.textContent = block.description || "";
+
+      btn.append(label, desc);
+      btn.addEventListener("click", () => {
+        if (insertMarkdownAtEditorCursor(block.text)) {
+          showToast(`Вставлено: ${block.label}`, "success");
+        }
+      });
+
+      item.appendChild(btn);
+      list.appendChild(item);
+    }
+
+    section.appendChild(list);
+    docBlocksContentNode.appendChild(section);
+  }
+}
+
+function syncDocAsideUi({
+  propsPanelAvailable = true,
+  blocksPanelAvailable = canInsertDocContentBlocks()
+} = {}) {
   const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
-  const collapsed = isDocAsideCollapsed();
-  const tab = getDocAsideTab();
   const propsAvailable = Boolean(propsPanelAvailable);
-  const effectiveTab = !propsAvailable && tab === "props" ? "outline" : tab;
+  const blocksAvailable = Boolean(blocksPanelAvailable);
+  const effectiveTab = resolveDocAsideTab(getDocAsideTab(), { propsAvailable, blocksAvailable });
 
   docAsideTabPropsBtn?.classList.toggle("hidden", !propsAvailable);
-  docAsideTabPropsBtn?.classList.toggle("active", effectiveTab === "props");
-  docAsideTabPropsBtn?.setAttribute("aria-selected", effectiveTab === "props" ? "true" : "false");
-  docAsideTabOutlineBtn?.classList.toggle("active", effectiveTab === "outline");
-  docAsideTabOutlineBtn?.setAttribute("aria-selected", effectiveTab === "outline" ? "true" : "false");
+  docAsideTabBlocksBtn?.classList.toggle("hidden", !blocksAvailable);
+
+  for (const [tabId, btn] of [
+    ["props", docAsideTabPropsBtn],
+    ["outline", docAsideTabOutlineBtn],
+    ["blocks", docAsideTabBlocksBtn]
+  ]) {
+    btn?.classList.toggle("active", effectiveTab === tabId);
+    btn?.setAttribute("aria-selected", effectiveTab === tabId ? "true" : "false");
+  }
 
   docAsidePanelPropsNode?.classList.toggle("hidden", effectiveTab !== "props");
   docAsidePanelOutlineNode?.classList.toggle("hidden", effectiveTab !== "outline");
+  docAsidePanelBlocksNode?.classList.toggle("hidden", effectiveTab !== "blocks");
 
-  yamlPanelNode?.classList.toggle("is-collapsed", collapsed);
-  docAsideExpandBtn?.classList.toggle("hidden", !asideEnabled || !collapsed);
+  yamlPanelNode?.classList.remove("is-collapsed");
 
   if (effectiveTab === "outline") {
     renderDocOutline();
-  } else if (!collapsed && asideEnabled) {
-    applyPropsFormViewMode();
+  } else if (effectiveTab === "blocks") {
+    renderDocContentBlocks();
+  } else if (effectiveTab === "props" && asideEnabled) {
+    renderPropsForm();
   }
 }
 
@@ -9860,6 +10872,14 @@ function applyPropsFormViewMode() {
   renderPropsForm();
 }
 
+function syncDocAsideTabAvailability() {
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return;
+  syncDocAsideUi({
+    propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden"),
+    blocksPanelAvailable: canInsertDocContentBlocks()
+  });
+}
+
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
@@ -9878,58 +10898,138 @@ function renderPropsForm() {
   }
 
   if (readOnly) {
-    const dl = document.createElement("dl");
-    dl.className = "props-preview-dl";
+    const list = document.createElement("div");
+    list.className = "props-preview-list";
 
     for (let index = 0; index < propsFormEntries.length; index += 1) {
       const entry = propsFormEntries[index];
-      const dt = document.createElement("dt");
-      dt.className = "props-preview-key";
-      dt.textContent = entry.key || "—";
-      if (entry.key) dt.title = entry.key;
-
+      const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryDisplayValue(entry);
-      const dd = document.createElement("dd");
-      dd.className = "props-preview-value";
-      dd.textContent = displayValue.trim() ? displayValue : "—";
-      dd.classList.toggle("is-empty", !displayValue.trim());
 
-      dl.append(dt, dd);
+      const field = document.createElement("div");
+      field.className = "props-preview-field";
+      field.dataset.index = String(index);
+
+      const head = document.createElement("div");
+      head.className = "props-preview-field-head";
+
+      const label = document.createElement("span");
+      label.className = "props-preview-label";
+      label.textContent = meta.label || entry.key || "—";
+
+      head.appendChild(label);
+
+      if (entry.key && meta.label !== entry.key) {
+        const keyCode = document.createElement("code");
+        keyCode.className = "props-preview-key";
+        keyCode.textContent = entry.key;
+        keyCode.title = entry.key;
+        head.appendChild(keyCode);
+      }
+
+      const value = document.createElement("div");
+      value.className = "props-preview-value";
+      value.textContent = displayValue.trim() ? displayValue : "—";
+      value.classList.toggle("is-empty", !displayValue.trim());
+
+      field.append(head, value);
+      list.appendChild(field);
     }
-    propsFormFieldsNode.appendChild(dl);
+    propsFormFieldsNode.appendChild(list);
     return;
   }
 
+  const standardEntries = [];
+  const customEntries = [];
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
-    const row = document.createElement("label");
-    row.className = "props-form-row";
-    row.dataset.index = String(index);
-
-    const keyNode = document.createElement(entry.key ? "span" : "input");
-    keyNode.className = entry.key ? "props-form-key" : "props-form-key props-form-key-input";
-    if (entry.key) {
-      keyNode.textContent = entry.key;
-      keyNode.title = entry.key;
+    if (entry?.key && isStandardPropsFieldKey(entry.key)) {
+      standardEntries.push({ entry, index });
     } else {
-      keyNode.type = "text";
-      keyNode.placeholder = "ключ";
-      keyNode.value = "";
-      keyNode.dataset.field = "key";
+      customEntries.push({ entry, index });
+    }
+  }
+
+  const appendPropsFieldGroup = (title, items) => {
+    if (!items.length) return;
+
+    const group = document.createElement("section");
+    group.className = "props-form-group";
+
+    if (title) {
+      const groupTitle = document.createElement("h4");
+      groupTitle.className = "props-form-group-title";
+      groupTitle.textContent = title;
+      group.appendChild(groupTitle);
     }
 
-    const displayValue = getPropsEntryDisplayValue(entry);
-    const valueNode = document.createElement("input");
-    valueNode.className = "props-form-value";
-    valueNode.type = "text";
-    valueNode.dataset.field = "value";
-    valueNode.value = displayValue;
-    valueNode.placeholder = entry.kind === "array" ? "значение1, значение2" : "значение";
+    const groupBody = document.createElement("div");
+    groupBody.className = "props-form-group-body";
 
-    row.appendChild(keyNode);
-    row.appendChild(valueNode);
-    propsFormFieldsNode.appendChild(row);
+    for (const { entry, index } of items) {
+      groupBody.appendChild(createPropsFormFieldRow(entry, index));
+    }
+
+    group.appendChild(groupBody);
+    propsFormFieldsNode.appendChild(group);
+  };
+
+  appendPropsFieldGroup(null, standardEntries);
+  appendPropsFieldGroup("Дополнительные свойства", customEntries);
+}
+
+function createPropsFormFieldRow(entry, index) {
+  const meta = getPropsFieldMeta(entry.key);
+  const row = document.createElement("div");
+  row.className = "props-form-row props-form-field";
+  row.dataset.index = String(index);
+  if (entry.key) row.dataset.propKey = entry.key;
+
+  const head = document.createElement("div");
+  head.className = "props-form-field-head";
+
+  if (entry.key) {
+    const label = document.createElement("label");
+    label.className = "props-form-field-label";
+    label.textContent = meta.label || entry.key;
+
+    head.appendChild(label);
+
+    if (meta.label !== entry.key) {
+      const keyCode = document.createElement("code");
+      keyCode.className = "props-form-field-key";
+      keyCode.textContent = entry.key;
+      keyCode.title = entry.key;
+      head.appendChild(keyCode);
+    }
+  } else {
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.className = "props-form-key-input";
+    keyInput.placeholder = "ключ свойства";
+    keyInput.value = "";
+    keyInput.dataset.field = "key";
+    head.appendChild(keyInput);
   }
+
+  const displayValue = getPropsEntryDisplayValue(entry);
+  const valueNode = document.createElement("input");
+  valueNode.className = "props-form-value";
+  valueNode.type = "text";
+  valueNode.dataset.field = "value";
+  valueNode.value = displayValue;
+  valueNode.placeholder = entry.kind === "array" ? "значение1, значение2" : "значение";
+
+  row.append(head, valueNode);
+
+  if (meta.hint) {
+    const hint = document.createElement("p");
+    hint.className = "props-form-field-hint";
+    hint.textContent = meta.hint;
+    row.appendChild(hint);
+  }
+
+  return row;
 }
 
 function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
@@ -9946,18 +11046,21 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
 
 function readPropsFormIntoEntries() {
   if (!propsFormFieldsNode) return;
-  const rows = propsFormFieldsNode.querySelectorAll(".props-form-row");
+  const rows = [...propsFormFieldsNode.querySelectorAll(".props-form-row")].sort(
+    (a, b) => Number(a.dataset.index) - Number(b.dataset.index)
+  );
   const nextEntries = [];
 
-  rows.forEach((row, index) => {
+  rows.forEach((row) => {
+    const index = Number(row.dataset.index);
     const keyInput = row.querySelector('[data-field="key"]');
     const valueInput = row.querySelector('[data-field="value"]');
-    const keyLabel = row.querySelector(".props-form-key:not(.props-form-key-input)");
+    const keyCode = row.querySelector(".props-form-field-key");
     const base = propsFormEntries[index] || { kind: "string", value: "" };
     const key = normalizePropsKey(
       keyInput
         ? keyInput.value.trim()
-        : (keyLabel?.textContent || base.key || "").trim()
+        : (row.dataset.propKey || keyCode?.textContent || base.key || "").trim()
     );
     let entry = { ...base, key };
     if (valueInput) {
@@ -10057,7 +11160,7 @@ function syncPropsInputPlaceholder() {
   }
 }
 
-function enableExternalFileEditor(filePath, content) {
+function enableExternalFileEditor(filePath, content, options = {}) {
   activeExternalFilePath = filePath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
@@ -10066,10 +11169,13 @@ function enableExternalFileEditor(filePath, content) {
   syncPropsInputPlaceholder();
   editorViewMode = "source";
   applyModeUi();
-  setEditorViewMode("source");
+  setEditorViewMode("source", { skipRouteSync: true });
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
 }
 
-async function openExternalFile(filePath) {
+async function openExternalFile(filePath, options = {}) {
   if (!activePath) return;
   try {
     const response = await fetch(
@@ -10077,7 +11183,7 @@ async function openExternalFile(filePath) {
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    enableExternalFileEditor(data.file, data.content || "");
+    enableExternalFileEditor(data.file, data.content || "", options);
   } catch (error) {
     showToast(`Ошибка открытия файла ${STORAGE_SUBFOLDER_CONTENT}`, "error");
   }
@@ -10205,6 +11311,25 @@ async function createExternalMemory() {
 }
 
 let createSectionTargetMode = "external";
+let createSectionParentFolder = null;
+
+function getActiveMediaSectionParentForCreate() {
+  if (activeMediaSectionFolder) return activeMediaSectionFolder;
+  const route = parseAppRoute(location.pathname);
+  if (route.view === "media" && route.mediaSectionPath) {
+    return route.mediaSectionPath;
+  }
+  return null;
+}
+
+function buildCreatedMediaSectionPath(parentFolder, sectionName, sectionPathFromApi = "") {
+  const apiPath = String(sectionPathFromApi || "").trim().replace(/\\/g, "/").replace(/\/$/, "");
+  if (apiPath) return apiPath;
+  const section = String(sectionName || "").trim().replace(/\\/g, "/").replace(/\/$/, "");
+  if (!section) return "";
+  const parent = String(parentFolder || "").trim().replace(/\\/g, "/").replace(/\/$/, "");
+  return parent ? `${parent}/${section}` : section;
+}
 
 function openCreateSectionModal(targetMode = "external") {
   if (!activePath) return;
@@ -10216,6 +11341,15 @@ function openCreateSectionModal(targetMode = "external") {
     return;
   }
   createSectionTargetMode = targetMode;
+  createSectionParentFolder =
+    targetMode === "media" ? getActiveMediaSectionParentForCreate() : null;
+  const modalMessage = createSectionModalNode?.querySelector(".modal-message");
+  if (modalMessage) {
+    modalMessage.textContent =
+      targetMode === "media" && createSectionParentFolder
+        ? `Создать подраздел в «${createSectionParentFolder}»`
+        : "Создать раздел";
+  }
   createSectionNameInputNode.value = "";
   createSectionModalNode.classList.remove("hidden");
   createSectionNameInputNode.focus();
@@ -10224,6 +11358,9 @@ function openCreateSectionModal(targetMode = "external") {
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
+  createSectionParentFolder = null;
+  const modalMessage = createSectionModalNode?.querySelector(".modal-message");
+  if (modalMessage) modalMessage.textContent = "Создать раздел";
 }
 
 async function createWorkspaceSection() {
@@ -10250,23 +11387,42 @@ async function createWorkspaceSection() {
       : "/api/external/section/create";
 
   try {
+    const mediaParentFolder =
+      createSectionTargetMode === "media"
+        ? createSectionParentFolder || getActiveMediaSectionParentForCreate()
+        : null;
+    const requestBody = { path: getActiveNodeApiPath(), title };
+    if (createSectionTargetMode === "media" && mediaParentFolder) {
+      requestBody.parent = mediaParentFolder;
+    }
     const response = await fetch(buildApiUrl(apiPath), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: getActiveNodeApiPath(), title })
+      body: JSON.stringify(requestBody)
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const reason = errorData.error || `Request failed with ${response.status}`;
-      const details = errorData.details ? `: ${errorData.details}` : "";
+      const reason = data.error || `Request failed with ${response.status}`;
+      const details = data.details ? `: ${data.details}` : "";
       throw new Error(`${reason}${details}`);
     }
 
     closeCreateSectionModal();
-    await loadContentByMode();
+    const createdMediaSectionPath =
+      createSectionTargetMode === "media"
+        ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
+        : "";
+    await loadContentByMode({ preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder });
+    if (createdMediaSectionPath) {
+      activeMediaSectionFolder = createdMediaSectionPath;
+      mediaViewMode = "all";
+      if (mediaViewSelectNode) mediaViewSelectNode.value = "all";
+      rerenderMediaListViewBody();
+      syncAppRouteToUrl({ push: true });
+    }
     showToast("Раздел создан", "success");
   } catch (error) {
-    showToast("Ошибка создания раздела", "error");
+    showToast(`Ошибка создания раздела: ${error.message}`, "error");
   } finally {
     createSectionOkBtn.disabled = false;
     createSectionOkBtn.textContent = "Создать";
@@ -12204,7 +13360,6 @@ function renderNodeCommentsPlaceholderBlock(options = {}) {
   section.setAttribute("aria-label", "Комментарии");
 
   const head = createNavigationSectionHead("Комментарии");
-  const headRule = head.querySelector(".node-navigation-memory-rule");
 
   const count = document.createElement("span");
   count.className = "node-comments-count";
@@ -12214,12 +13369,7 @@ function renderNodeCommentsPlaceholderBlock(options = {}) {
   badge.className = "node-comments-badge";
   badge.textContent = "заглушка";
 
-  if (headRule) {
-    head.insertBefore(badge, headRule);
-    head.insertBefore(count, badge);
-  } else {
-    head.append(count, badge);
-  }
+  head.append(count, badge);
 
   const composer = document.createElement("div");
   composer.className = "node-comments-composer";
@@ -12787,11 +13937,13 @@ function applyModeUi() {
   const hideToolbar = hideDocActions;
   const showYamlPanel =
     activeContentMode === "description" || externalEditing || mediaSidecarEditing;
-  const showDocAside =
-    !previewMode && !overviewMode && (showYamlPanel || activeContentMode === "internal");
+  const showDocAside = isEditorSaveTrackingActive() && !activeSystemFile;
   const titleBlockVisible =
-    (titleVisible || mediaSidecarEditing) && !previewMode && !overviewLikeMode;
-  titleEditorBlockNode.classList.toggle("hidden", !titleBlockVisible);
+    showDocAside &&
+    (titleVisible || mediaSidecarEditing) &&
+    !previewMode &&
+    !overviewLikeMode;
+  titleEditorBlockNode?.classList.toggle("hidden", !titleBlockVisible);
   nodeDescriptionHintNode?.classList.toggle(
     "hidden",
     activeContentMode !== "description" || previewMode || overviewLikeMode || activeSystemFile
@@ -12853,9 +14005,11 @@ function applyModeUi() {
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
   syncFileHistoryButtonVisibility();
   yamlPanelNode.classList.toggle("hidden", !showDocAside);
-  const propsAsideVisible = showDocAside && !isDocAsideCollapsed();
-  docBodyGridNode?.classList.toggle("has-props-aside", propsAsideVisible);
-  syncDocAsideUi({ propsPanelAvailable: showYamlPanel });
+  docBodyGridNode?.classList.toggle("has-props-aside", showDocAside);
+  syncDocAsideUi({
+    propsPanelAvailable: showYamlPanel,
+    blocksPanelAvailable: canInsertDocContentBlocks()
+  });
   removeYamlPanelLabel();
   syncPropsInputPlaceholder();
   externalViewSelectNode?.classList.toggle("hidden", !showExternalControls);
@@ -12868,6 +14022,7 @@ function applyModeUi() {
     if (externalViewSelectNode) externalViewSelectNode.value = externalViewMode;
   }
   if (showMediaControls) {
+    syncMediaViewSelectOptions();
     if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
   }
   syncWorkspaceCloseButtonsVisibility();
@@ -13078,7 +14233,7 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
 
 function renderPreviewFromEditor() {
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value);
-  if (getDocAsideTab() === "outline" && !isDocAsideCollapsed()) {
+  if (getDocAsideTab() === "outline") {
     renderDocOutline();
   }
 }
@@ -13531,10 +14686,12 @@ function applyEditorViewMode() {
     }
     renderPreviewFromEditor();
     applyPropsFormViewMode();
+    syncDocAsideTabAvailability();
     return;
   }
 
   applyPropsFormViewMode();
+  syncDocAsideTabAvailability();
 
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
@@ -13549,7 +14706,7 @@ function applyEditorViewMode() {
   }
 }
 
-function setEditorViewMode(mode) {
+function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
@@ -13561,6 +14718,12 @@ function setEditorViewMode(mode) {
   applyEditorViewMode();
   if (isListViewWithSourceToggleMode() || activeContentMode === "tabular") {
     applyModeUi();
+  }
+  if (
+    !options.skipRouteSync &&
+    (activeContentMode === "tabular" || isFlatStorageListSourceToggleMode())
+  ) {
+    syncAppRouteToUrl({ replace: true });
   }
 }
 
@@ -15095,7 +16258,7 @@ function updateActiveButton() {
   syncMenuPinBranchUi();
 }
 
-async function selectSystemFile(name) {
+async function selectSystemFile(name, options = {}) {
   if (!name) return;
   hideHomeView();
   nodeOverviewRenderSeq += 1;
@@ -15124,6 +16287,9 @@ async function selectSystemFile(name) {
     commitEditorSaveBaseline();
   } finally {
     hideContentLoading({ force: true });
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ replace: true });
+    }
   }
 }
 
@@ -15142,6 +16308,7 @@ async function selectFile(label, filePath) {
   activePath = getResolvedNodePath(filePath);
   activeLabel = label;
   activeExternalFilePath = null;
+  activeMediaSectionFolder = null;
   nodeOverviewRenderSeq += 1;
   clearMediaSidecarEditor();
   updateActiveButton();
@@ -15190,8 +16357,9 @@ async function selectFile(label, filePath) {
   }
 }
 
-async function loadContentByMode() {
+async function loadContentByMode(options = {}) {
   if (!activePath) return;
+  const preserveMediaSectionFolder = options.preserveMediaSectionFolder || null;
 
   const deferLoadingEnd = isAsyncOverviewRenderMode();
   if (!deferLoadingEnd) {
@@ -15341,6 +16509,8 @@ async function loadContentByMode() {
   if (activeContentMode === "media") {
     clearMediaSidecarEditor();
     fileContentInputNode.value = "";
+    const sectionToRestore =
+      preserveMediaSectionFolder || activeMediaSectionFolder || getActiveMediaSectionParentForCreate();
     try {
       const response = await fetch(buildApiUrl("/api/media", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -15348,6 +16518,10 @@ async function loadContentByMode() {
       mediaAssetsExists = Boolean(data.exists);
       modeContentCache.media = data.content || "";
       syncMediaFilesCache(data.content, data.groups);
+      if (sectionToRestore) {
+        activeMediaSectionFolder = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
+        pruneActiveMediaSectionFolder();
+      }
       applyModeUi();
       renderListViewContent();
     } catch (error) {
@@ -19998,7 +21172,7 @@ fileContentInputNode.addEventListener("input", () => {
   syncEditorLineNumbers();
   if (editorViewMode === "preview") {
     renderPreviewFromEditor();
-  } else if (getDocAsideTab() === "outline" && !isDocAsideCollapsed()) {
+  } else if (getDocAsideTab() === "outline") {
     renderDocOutline();
   }
   applySourceEditorAutoHeightUi();
@@ -20019,8 +21193,7 @@ applyEditorViewMode();
 
 docAsideTabPropsBtn?.addEventListener("click", () => setDocAsideTab("props"));
 docAsideTabOutlineBtn?.addEventListener("click", () => setDocAsideTab("outline"));
-docAsideCollapseBtn?.addEventListener("click", () => setDocAsideCollapsed(true));
-docAsideExpandBtn?.addEventListener("click", () => setDocAsideCollapsed(false));
+docAsideTabBlocksBtn?.addEventListener("click", () => setDocAsideTab("blocks"));
 
 saveContentBtn.addEventListener("click", saveContent);
 saveSystemFileBtn?.addEventListener("click", saveContent);
@@ -20264,9 +21437,7 @@ void fetchDocsMeta()
   .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
   .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
-  const nextMediaView = mediaViewSelectNode?.value || "dashboard";
-  mediaViewMode = nextMediaView && nextMediaView !== "sep" ? nextMediaView : mediaViewMode;
-  if (activeContentMode === "media") renderListViewContent();
+  setMediaViewMode(mediaViewSelectNode?.value || "dashboard");
 });
 
 mediaUploadBtnNode?.addEventListener("click", () => {

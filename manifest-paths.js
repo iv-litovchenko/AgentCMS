@@ -41,7 +41,8 @@ const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "Preview";
 const STORAGE_SUBFOLDER_TEMP = "Temp";
 const STORAGE_SUBFOLDER_HISTORY = "History";
-const HISTORY_VERSION_SUFFIX = ".md.back";
+const HISTORY_VERSION_SUFFIX = ".mdback";
+const LEGACY_HISTORY_VERSION_SUFFIX = ".md.back";
 
 const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_CONTENT,
@@ -255,11 +256,45 @@ function normalizeHistoryTargetRelPath(targetRelPath) {
   return String(targetRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
+/**
+ * Путь внутри History относительно темы:
+ * - манифест темы → Тема.md
+ * - файл в _s.* → Content/juijui.md (без _awn-vault и без _s.Тема)
+ * - файл рядом с манифестом → TODO.md
+ */
+function getHistoryRelativeTargetPath(manifestRelPath, targetRelPath) {
+  const manifest = normalizeHistoryTargetRelPath(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  if (!manifest || !target) return "";
+
+  if (target === manifest) {
+    return path.posix.basename(manifest);
+  }
+
+  const slotDir = getNamedStorageSlotDirRel(manifest);
+  if (slotDir) {
+    const slotPrefix = `${slotDir}/`;
+    if (target.startsWith(slotPrefix)) {
+      return target.slice(slotPrefix.length);
+    }
+  }
+
+  const containerDir = getManifestContainerDirRel(manifest);
+  if (containerDir) {
+    const containerPrefix = `${containerDir}/`;
+    if (target.startsWith(containerPrefix)) {
+      return target.slice(containerPrefix.length);
+    }
+  }
+
+  return path.posix.basename(target);
+}
+
 function getHistoryVersionDirRel(manifestRelPath, targetRelPath) {
   const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
-  const target = normalizeHistoryTargetRelPath(targetRelPath);
-  if (!slotDir || !target) return "";
-  return `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${target}`;
+  const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
+  if (!slotDir || !relativeTarget) return "";
+  return `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${relativeTarget}`;
 }
 
 function formatHistoryVersionTimestamp(date = new Date()) {
@@ -275,13 +310,22 @@ function buildHistoryVersionFileName(date = new Date()) {
 
 function isHistoryVersionFileName(fileName) {
   const raw = String(fileName || "");
-  return raw.endsWith(HISTORY_VERSION_SUFFIX) && raw.length > HISTORY_VERSION_SUFFIX.length;
+  if (raw.endsWith(HISTORY_VERSION_SUFFIX) && raw.length > HISTORY_VERSION_SUFFIX.length) return true;
+  return raw.endsWith(LEGACY_HISTORY_VERSION_SUFFIX) && raw.length > LEGACY_HISTORY_VERSION_SUFFIX.length;
+}
+
+function historyVersionSuffixLength(fileName) {
+  const raw = String(fileName || "");
+  if (raw.endsWith(HISTORY_VERSION_SUFFIX)) return HISTORY_VERSION_SUFFIX.length;
+  if (raw.endsWith(LEGACY_HISTORY_VERSION_SUFFIX)) return LEGACY_HISTORY_VERSION_SUFFIX.length;
+  return 0;
 }
 
 function parseHistoryVersionTimestamp(fileName) {
   const raw = String(fileName || "");
-  if (!isHistoryVersionFileName(raw)) return null;
-  const stamp = raw.slice(0, -HISTORY_VERSION_SUFFIX.length);
+  const suffixLength = historyVersionSuffixLength(raw);
+  if (!suffixLength) return null;
+  const stamp = raw.slice(0, -suffixLength);
   const match = stamp.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})(?:-(\d{1,3}))?$/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second, millisecond = "0"] = match;
@@ -554,12 +598,15 @@ module.exports = {
   getNamedStorageSlotDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   buildHistoryVersionFileName,
   isHistoryVersionFileName,
   parseHistoryVersionTimestamp,
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
+  HISTORY_VERSION_SUFFIX,
+  LEGACY_HISTORY_VERSION_SUFFIX,
   listManifestStorageSlotDirRelCandidates,
   buildManifestCandidatesForStorageKey,
   buildManifestCandidatesForContainerDir,

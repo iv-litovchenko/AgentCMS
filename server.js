@@ -59,6 +59,7 @@ const {
   isAllowedStorageSubfolderName,
   isStorageFolderName,
   getStorageFolderRegexAlternation,
+  getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   buildHistoryVersionFileName,
   isHistoryVersionFileName,
@@ -518,26 +519,15 @@ async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, system
   return null;
 }
 
-async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
-  const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
-  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
-  if (!historyManifestRel || !targetRelPath) {
-    return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
-  }
-
-  const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
+async function readHistoryVersionsFromDir(historyDirRel) {
   const historyDirAbsolute = normalizeWorkspacePath(historyDirRel);
-  if (!historyDirAbsolute) {
-    return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
-  }
+  if (!historyDirAbsolute) return [];
 
   let entries;
   try {
     entries = await fs.readdir(historyDirAbsolute, { withFileTypes: true });
   } catch (error) {
-    if (error && error.code === "ENOENT") {
-      return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
-    }
+    if (error && error.code === "ENOENT") return [];
     throw error;
   }
 
@@ -560,7 +550,66 @@ async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName
   }
 
   versions.sort((left, right) => right.version.localeCompare(left.version));
-  return { manifestPath: historyManifestRel, target: targetRelPath, versions };
+  return versions;
+}
+
+function getLegacyHistoryVersionDirRel(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  if (!slotDir || !target) return "";
+  return `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${target}`;
+}
+
+function listHistoryVersionDirCandidates(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  const targetBaseName = target ? path.posix.basename(target) : "";
+  return [...new Set([
+    getHistoryVersionDirRel(manifestRelPath, targetRelPath),
+    getLegacyHistoryVersionDirRel(manifestRelPath, targetRelPath),
+    slotDir && targetBaseName ? `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${targetBaseName}` : ""
+  ].filter(Boolean))];
+}
+
+async function readHistoryVersionFile({ manifestRelPath, targetRelPath, version }) {
+  for (const historyDirRel of listHistoryVersionDirCandidates(manifestRelPath, targetRelPath)) {
+    const versionRelPath = `${historyDirRel}/${version}`.replace(/\\/g, "/");
+    const versionAbsolute = normalizeWorkspacePath(versionRelPath);
+    if (!versionAbsolute) continue;
+    try {
+      const content = await fs.readFile(versionAbsolute, "utf-8");
+      return { content, versionRelPath };
+    } catch (error) {
+      if (error && error.code === "ENOENT") continue;
+      throw error;
+    }
+  }
+  return null;
+}
+
+async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
+  const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  const relativeTarget = historyManifestRel && targetRelPath
+    ? getHistoryRelativeTargetPath(historyManifestRel, targetRelPath)
+    : "";
+  if (!historyManifestRel || !targetRelPath) {
+    return { manifestPath: historyManifestRel, target: relativeTarget, versions: [] };
+  }
+
+  const versions = [];
+  const seenVersions = new Set();
+  for (const historyDirRel of listHistoryVersionDirCandidates(historyManifestRel, targetRelPath)) {
+    const dirVersions = await readHistoryVersionsFromDir(historyDirRel);
+    for (const entry of dirVersions) {
+      if (seenVersions.has(entry.version)) continue;
+      seenVersions.add(entry.version);
+      versions.push(entry);
+    }
+  }
+  versions.sort((left, right) => right.version.localeCompare(left.version));
+
+  return { manifestPath: historyManifestRel, target: relativeTarget, versions };
 }
 
 async function readExistingBundleFile(relNodePath, bundleFileName) {
@@ -1191,6 +1240,39 @@ function buildMediaListContent(groups) {
   return { content: lines.join("\n").trim(), files };
 }
 
+function isPathInsideDirectory(parentDir, childPath) {
+  const parent = path.resolve(parentDir);
+  const child = path.resolve(childPath);
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir) {
+  if (!folderAbsolute) return null;
+  const raw = String(subdir || "").trim().replace(/\\/g, "/");
+  if (!raw || raw === ".") return path.resolve(folderAbsolute);
+
+  const normalized = normalizeRelativeFilePath(raw);
+  if (!normalized || normalized === ".") return path.resolve(folderAbsolute);
+
+  const root = path.resolve(folderAbsolute);
+  const segments = normalized.split("/").filter(Boolean);
+  let current = root;
+
+  for (const segment of segments) {
+    const next = await resolveFolderPathCaseInsensitive(current, segment);
+    if (!next || !isPathInsideDirectory(root, next)) return null;
+    current = next;
+  }
+
+  try {
+    const stat = await fs.stat(current);
+    return stat.isDirectory() ? current : null;
+  } catch {
+    return null;
+  }
+}
+
 async function getMediaFolderAbsolute(nodeAbsolute, options = {}) {
   const folderAbsolute = await resolveNodeSubfolderAbsolute(
     nodeAbsolute,
@@ -1749,6 +1831,72 @@ async function revealFolderInSystemFileManager(absoluteDir) {
     return;
   }
   await execFileAsync("xdg-open", [absoluteDir]);
+}
+
+async function revealFileInSystemFileManager(absoluteFile) {
+  const fileAbsolute = path.resolve(String(absoluteFile || ""));
+  if (!fileAbsolute) {
+    const error = new Error("Invalid file path");
+    error.code = "INVALID_PATH";
+    throw error;
+  }
+
+  const stat = await fs.stat(fileAbsolute).catch((error) => {
+    if (error?.code === "ENOENT") {
+      const notFound = new Error("File not found");
+      notFound.code = "ENOENT";
+      throw notFound;
+    }
+    throw error;
+  });
+  if (!stat.isFile()) {
+    const error = new Error("File not found");
+    error.code = "NOT_FILE";
+    throw error;
+  }
+
+  if (process.platform === "darwin") {
+    await execFileAsync("open", ["-R", fileAbsolute]);
+    return;
+  }
+  if (process.platform === "win32") {
+    await execFileAsync("explorer", ["/select,", fileAbsolute]);
+    return;
+  }
+  await execFileAsync("xdg-open", [path.dirname(fileAbsolute)]);
+}
+
+async function resolveMediaFileAbsoluteForReveal(manifestRelPath, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) {
+    const error = new Error("Invalid file path");
+    error.code = "INVALID_PATH";
+    throw error;
+  }
+
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile) {
+    const error = new Error("Invalid media file path");
+    error.code = "INVALID_PATH";
+    throw error;
+  }
+
+  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+  if (!folderAbsolute) {
+    const error = new Error("Media folder not found");
+    error.code = "ENOENT";
+    throw error;
+  }
+
+  const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+  if (!fileAbsolute.startsWith(folderAbsolute)) {
+    const error = new Error("Invalid media file path");
+    error.code = "INVALID_PATH";
+    throw error;
+  }
+
+  const fileRel = manifestRelFromNodeAbsolute(fileAbsolute);
+  return { fileRel, fileAbsolute };
 }
 
 function getNamedStorageRootAbsolute(nodeAbsoluteOrRel) {
@@ -4256,20 +4404,20 @@ async function handleApiForAgent(req, res, url) {
       if (!historyManifestRel || !targetRelPath) {
         return sendJson(res, 400, { error: "Invalid history target" });
       }
-      const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
-      const versionRelPath = `${historyDirRel}/${version}`.replace(/\\/g, "/");
-      const versionAbsolute = normalizeWorkspacePath(versionRelPath);
-      if (!versionAbsolute) return sendJson(res, 400, { error: "Invalid history version path" });
-      const content = await fs.readFile(versionAbsolute, "utf-8");
+      const versionFile = await readHistoryVersionFile({
+        manifestRelPath: historyManifestRel,
+        targetRelPath,
+        version
+      });
+      if (!versionFile) return sendJson(res, 404, { error: "History version not found" });
       return sendJson(res, 200, {
         version,
         label: formatHistoryVersionTimestampLabel(version),
-        relPath: versionRelPath,
-        target: targetRelPath,
-        content
+        relPath: versionFile.versionRelPath,
+        target: getHistoryRelativeTargetPath(historyManifestRel, targetRelPath),
+        content: versionFile.content
       });
     } catch (error) {
-      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "History version not found" });
       return sendJson(res, 500, {
         error: "Failed to read history version",
         details: String(error && error.message ? error.message : error)
@@ -4295,18 +4443,19 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: "Invalid history target" });
       }
 
-      const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
-      const versionRelPath = `${historyDirRel}/${version}`.replace(/\\/g, "/");
-      const versionAbsolute = normalizeWorkspacePath(versionRelPath);
-      if (!versionAbsolute) return sendJson(res, 400, { error: "Invalid history version path" });
+      const versionFile = await readHistoryVersionFile({
+        manifestRelPath: historyManifestRel,
+        targetRelPath,
+        version
+      });
+      if (!versionFile) return sendJson(res, 404, { error: "History version not found" });
 
-      const content = await fs.readFile(versionAbsolute, "utf-8");
-      await writeWorkspaceTextFileWithHistory(historyManifestRel, targetRelPath, content);
+      await writeWorkspaceTextFileWithHistory(historyManifestRel, targetRelPath, versionFile.content);
       return sendJson(res, 200, {
         version,
         label: formatHistoryVersionTimestampLabel(version),
-        target: targetRelPath,
-        content
+        target: getHistoryRelativeTargetPath(historyManifestRel, targetRelPath),
+        content: versionFile.content
       });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "History version not found" });
@@ -4727,8 +4876,16 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
-      const sectionAbsolute = path.join(folderAbsolute, sectionName);
-      if (!sectionAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid section path" });
+      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+      if (!baseFolder) {
+        return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid media folder path" });
+      }
+
+      const sectionAbsolute = path.join(baseFolder, sectionName);
+      if (!isPathInsideDirectory(folderAbsolute, sectionAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid section path" });
+      }
 
       try {
         await fs.access(sectionAbsolute);
@@ -4737,8 +4894,9 @@ async function handleApiForAgent(req, res, url) {
         // section does not exist
       }
 
-      await fs.mkdir(sectionAbsolute, { recursive: false });
-      return sendJson(res, 200, { section: sectionName, exists: true });
+      await fs.mkdir(sectionAbsolute, { recursive: true });
+      const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      return sendJson(res, 200, { section: sectionName, sectionPath, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to create media section", details: String(error.message || error) });
     }
@@ -4852,6 +5010,12 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
+      const subdir = normalizeRelativeFilePath(String(payload.subdir || "").trim());
+      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir);
+      if (!targetFolder) {
+        return sendJson(res, 400, { error: subdir ? "Target section not found" : "Invalid media folder path" });
+      }
+
       const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
       let storedRelFile = null;
 
@@ -4860,7 +5024,7 @@ async function handleApiForAgent(req, res, url) {
           return sendJson(res, 400, { error: "Invalid image file", details: "File content does not match format" });
         }
         const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "pasted-image";
-        const targetAbsolute = await resolveUniqueMediaFileAbsolute(folderAbsolute, `${safeBase}${imageExt}`);
+        const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, `${safeBase}${imageExt}`);
         if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
           return sendJson(res, 400, { error: "Invalid media file path" });
         }
@@ -4869,7 +5033,7 @@ async function handleApiForAgent(req, res, url) {
       } else {
         const safeName = sanitizeMediaFileName(fileName);
         if (!safeName) return sendJson(res, 400, { error: "Invalid file name" });
-        const targetAbsolute = await resolveUniqueMediaFileAbsolute(folderAbsolute, safeName);
+        const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, safeName);
         if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
           return sendJson(res, 400, { error: "Invalid media file path" });
         }
@@ -5084,11 +5248,49 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/reveal/file") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const relFile = url.searchParams.get("file") || "";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    try {
+      const target = await resolveMediaFileAbsoluteForReveal(manifestRelPath, relFile);
+      return sendJson(res, 200, target);
+    } catch (error) {
+      if (error?.code === "INVALID_PATH") {
+        return sendJson(res, 400, { error: "Invalid file path" });
+      }
+      if (error?.code === "NOT_FILE") {
+        return sendJson(res, 400, { error: "File not found" });
+      }
+      if (error?.code === "ENOENT") {
+        return sendJson(res, 404, { error: "File not found" });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to resolve file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/reveal") {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
+      const relFile = payload.file || "";
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+
+      if (relFile) {
+        const target = await resolveMediaFileAbsoluteForReveal(relPath, relFile);
+        await revealFileInSystemFileManager(target.fileAbsolute);
+        return sendJson(res, 200, {
+          path: target.fileRel,
+          file: relFile,
+          revealed: true,
+          selected: true
+        });
+      }
 
       const target = await resolveNodeContainerForReveal(relPath);
       await revealFolderInSystemFileManager(target.folderAbsolute);
@@ -5100,8 +5302,11 @@ async function handleApiForAgent(req, res, url) {
       if (error?.code === "NOT_DIRECTORY") {
         return sendJson(res, 400, { error: "Node folder not found" });
       }
+      if (error?.code === "NOT_FILE") {
+        return sendJson(res, 400, { error: "File not found" });
+      }
       if (error?.code === "ENOENT") {
-        return sendJson(res, 404, { error: "Node folder not found" });
+        return sendJson(res, 404, { error: "File not found" });
       }
       return sendJson(res, 500, {
         error: "Failed to reveal folder",
