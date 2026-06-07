@@ -3893,11 +3893,25 @@ body.app-booting {
   cursor: crosshair;
 }
 
+.agent-preview-wrap.is-interactive,
+.sidebar-agent-avatar-block .agent-preview-wrap.is-interactive {
+  animation: none !important;
+}
+
+.agent-preview-wrap.is-interactive .agent-preview-shine,
+.sidebar-agent-avatar-block .agent-preview-wrap.is-interactive .agent-preview-frame::after {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
 .agent-preview-frame.is-hover-pan .agent-preview-thumb,
-.sidebar-agent-avatar-block .agent-preview-frame.is-hover-pan .agent-preview-thumb {
+.sidebar-agent-avatar-block .agent-preview-frame.is-hover-pan .agent-preview-thumb,
+.agent-preview-wrap.is-interactive .agent-preview-thumb {
   animation: none !important;
   transform: none !important;
   filter: none !important;
+  will-change: object-position;
+  transition: none;
 }
 
 .agent-preview-thumb {
@@ -4422,6 +4436,90 @@ body.app-booting {
 
 .sidebar-slab-menu-tools {
   padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+.sidebar-slab-menu-tools .menu-view-wrap,
+.sidebar-slab-menu-tools .menu-tools-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+
+.menu-tools-view-cluster {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  overflow: visible;
+}
+
+.sidebar-slab-menu-tools .menu-view-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.sidebar-slab-menu-tools .menu-view-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px;
+}
+
+.sidebar-slab-menu-tools .menu-view-btn + .menu-view-btn {
+  border-left: 1px solid #cbd5e1;
+}
+
+.sidebar-slab-menu-tools .menu-view-btn:hover:not(.active) {
+  background: #f8fafc;
+  color: var(--text);
+}
+
+.sidebar-slab-menu-tools .menu-view-btn.active {
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e3a8a;
+}
+
+.sidebar-slab-menu-tools .menu-tools-action-btn {
+  flex: 0 0 28px;
+  height: 28px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.sidebar-slab-menu-tools .menu-tools-action-btn:hover:not(:disabled),
+.sidebar-slab-menu-tools .menu-settings-btn[aria-expanded="true"] {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.sidebar-slab-menu-tools .menu-pin-branch-btn.is-active,
+.sidebar-slab-menu-tools .menu-pin-branch-btn[aria-pressed="true"] {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #3730a3;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25);
+}
+
+.sidebar-slab-menu-tools .menu-settings-wrap {
+  flex: 0 0 28px;
 }
 
 .sidebar-slab-menu {
@@ -14216,4 +14314,102 @@ body.app-booting {
     justify-content: flex-end;
     flex-wrap: wrap;
   }
+}
+
+.file-history-card {
+  width: min(640px, 94vw);
+}
+
+.file-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  margin-top: 12px;
+}
+
+.file-history-empty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.file-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.file-history-row-meta {
+  min-width: 0;
+}
+
+.file-history-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.file-history-row-size {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.file-history-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.file-history-action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.file-history-preview-wrap {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.file-history-preview-wrap.hidden {
+  display: none;
+}
+
+.file-history-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.file-history-preview-content {
+  margin: 0;
+  max-height: min(36vh, 280px);
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.file-history-btn {
+  flex-shrink: 0;
 }

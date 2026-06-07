@@ -50,13 +50,20 @@ const {
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_PREVIEW,
+  STORAGE_SUBFOLDER_HISTORY,
+  HISTORY_VERSION_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
   normalizeStorageSubfolderName,
   getStorageSubfolderForMode,
   listStorageSubfolderNameCandidates,
   isAllowedStorageSubfolderName,
   isStorageFolderName,
-  getStorageFolderRegexAlternation
+  getStorageFolderRegexAlternation,
+  getHistoryVersionDirRel,
+  buildHistoryVersionFileName,
+  isHistoryVersionFileName,
+  formatHistoryVersionTimestampLabel,
+  normalizeHistoryTargetRelPath
 } = require("./manifest-paths");
 
 const execFileAsync = promisify(execFile);
@@ -376,12 +383,184 @@ function toTodoFilePath(relNodePath) {
 async function writeTodoFiles(relNodePath, content) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
   const bundleRelPath = toTodoFilePath(resolvedRelPath);
-  const bundleAbsolute = normalizeWorkspacePath(bundleRelPath);
-  if (!bundleAbsolute) throw new Error("Invalid TODO path");
-
-  await fs.mkdir(path.dirname(bundleAbsolute), { recursive: true });
-  await fs.writeFile(bundleAbsolute, content, "utf-8");
+  await writeWorkspaceTextFileWithHistory(resolvedRelPath, bundleRelPath, content);
   return bundleRelPath;
+}
+
+const MAX_FILE_HISTORY_VERSIONS = 50;
+
+async function readWorkspaceTextFileIfExists(targetRelPath) {
+  const absolute = normalizeWorkspacePath(targetRelPath);
+  if (!absolute) return { content: "", exists: false, absolute: null };
+  try {
+    const content = await fs.readFile(absolute, "utf-8");
+    return { content, exists: true, absolute };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { content: "", exists: false, absolute };
+    throw error;
+  }
+}
+
+async function pruneFileHistoryVersions(historyDirAbsolute, maxVersions = MAX_FILE_HISTORY_VERSIONS) {
+  let entries;
+  try {
+    entries = await fs.readdir(historyDirAbsolute, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") return;
+    throw error;
+  }
+  const files = entries
+    .filter((entry) => entry.isFile() && isHistoryVersionFileName(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+  const excess = files.length - maxVersions;
+  if (excess <= 0) return;
+  for (let index = 0; index < excess; index += 1) {
+    await fs.unlink(path.join(historyDirAbsolute, files[index])).catch(() => {});
+  }
+}
+
+async function snapshotFileHistoryBeforeWrite({ manifestRelPath, targetRelPath, nextContent }) {
+  const normalizedTarget = normalizeHistoryTargetRelPath(targetRelPath);
+  const normalizedManifest = String(manifestRelPath || "").replace(/\\/g, "/").trim();
+  if (!normalizedManifest || !normalizedTarget) return null;
+
+  const { content: previousContent, exists } = await readWorkspaceTextFileIfExists(normalizedTarget);
+  if (!exists || previousContent === nextContent) return null;
+
+  const historyDirRel = getHistoryVersionDirRel(normalizedManifest, normalizedTarget);
+  const historyDirAbsolute = normalizeWorkspacePath(historyDirRel);
+  if (!historyDirAbsolute) return null;
+
+  const versionFileName = buildHistoryVersionFileName();
+  const versionRelPath = `${historyDirRel}/${versionFileName}`.replace(/\\/g, "/");
+  const versionAbsolute = normalizeWorkspacePath(versionRelPath);
+  if (!versionAbsolute) return null;
+
+  await fs.mkdir(historyDirAbsolute, { recursive: true });
+  await fs.writeFile(versionAbsolute, previousContent, "utf-8");
+  await pruneFileHistoryVersions(historyDirAbsolute);
+  return versionRelPath;
+}
+
+async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath, content) {
+  const normalizedTarget = normalizeHistoryTargetRelPath(targetRelPath);
+  const targetAbsolute = normalizeWorkspacePath(normalizedTarget);
+  if (!targetAbsolute) throw new Error("Invalid target path");
+  await snapshotFileHistoryBeforeWrite({
+    manifestRelPath,
+    targetRelPath: normalizedTarget,
+    nextContent: content
+  });
+  await fs.mkdir(path.dirname(targetAbsolute), { recursive: true });
+  await fs.writeFile(targetAbsolute, content, "utf-8");
+  return normalizedTarget;
+}
+
+async function resolveHistoryManifestRel({ manifestRelPath, mode, systemName }) {
+  if (mode === "system") {
+    const serviceFolder = getAgentServiceFolder();
+    return serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
+  }
+  if (!manifestRelPath) return null;
+  return resolveExistingWorkspaceRelPath(manifestRelPath);
+}
+
+async function resolveExternalFileWorkspaceRel(manifestRelPath, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return null;
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile) return null;
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+  if (!folderAbsolute) return null;
+  const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+  if (!fileAbsolute.startsWith(folderAbsolute)) return null;
+  return manifestRelFromNodeAbsolute(fileAbsolute);
+}
+
+async function resolveMediaSidecarWorkspaceRel(manifestRelPath, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return null;
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile) return null;
+  const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
+  if (!sidecarRelPath) return null;
+  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+  if (!folderAbsolute) return null;
+  const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
+  if (!sidecarAbsolute.startsWith(folderAbsolute)) return null;
+  return manifestRelFromNodeAbsolute(sidecarAbsolute);
+}
+
+async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName }) {
+  if (mode === "system") {
+    const serviceFolder = getAgentServiceFolder();
+    const name = String(systemName || "").trim();
+    if (!serviceFolder || !name) return null;
+    return normalizeHistoryTargetRelPath(`${serviceFolder}/${name}`);
+  }
+
+  const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRelPath);
+  if (!resolvedManifest) return null;
+
+  if (mode === "description") return normalizeHistoryTargetRelPath(resolvedManifest);
+  if (mode === "internal") return normalizeHistoryTargetRelPath(toContentFilePath(resolvedManifest));
+  if (mode === "tabular") return normalizeHistoryTargetRelPath(toTabularFilePath(resolvedManifest));
+  if (mode === "todo") return normalizeHistoryTargetRelPath(toTodoFilePath(resolvedManifest));
+  if (mode === "configs") return normalizeHistoryTargetRelPath(toNodeConfigFilePath(resolvedManifest));
+  if (mode === "env") return normalizeHistoryTargetRelPath(toEnvFilePath(resolvedManifest));
+  if (mode === "external" && file) {
+    return normalizeHistoryTargetRelPath(await resolveExternalFileWorkspaceRel(resolvedManifest, file));
+  }
+  if (mode === "media" && file) {
+    return normalizeHistoryTargetRelPath(await resolveMediaSidecarWorkspaceRel(resolvedManifest, file));
+  }
+  return null;
+}
+
+async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
+  const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  if (!historyManifestRel || !targetRelPath) {
+    return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
+  }
+
+  const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
+  const historyDirAbsolute = normalizeWorkspacePath(historyDirRel);
+  if (!historyDirAbsolute) {
+    return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
+  }
+
+  let entries;
+  try {
+    entries = await fs.readdir(historyDirAbsolute, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return { manifestPath: historyManifestRel, target: targetRelPath, versions: [] };
+    }
+    throw error;
+  }
+
+  const versions = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !isHistoryVersionFileName(entry.name)) continue;
+    const versionAbsolute = path.join(historyDirAbsolute, entry.name);
+    let size = 0;
+    try {
+      size = (await fs.stat(versionAbsolute)).size;
+    } catch {
+      // skip size
+    }
+    versions.push({
+      version: entry.name,
+      label: formatHistoryVersionTimestampLabel(entry.name),
+      relPath: `${historyDirRel}/${entry.name}`.replace(/\\/g, "/"),
+      size
+    });
+  }
+
+  versions.sort((left, right) => right.version.localeCompare(left.version));
+  return { manifestPath: historyManifestRel, target: targetRelPath, versions };
 }
 
 async function readExistingBundleFile(relNodePath, bundleFileName) {
@@ -3816,8 +3995,14 @@ async function handleApiForAgent(req, res, url) {
       const absolute = resolveSystemFileAbsolute(name);
       if (!absolute) return sendJson(res, 400, { error: "Invalid system file name" });
 
-      await fs.mkdir(path.dirname(absolute), { recursive: true });
-      await fs.writeFile(absolute, content, "utf-8");
+      const serviceManifestRel = getServiceAreaManifestRel(getAgentServiceFolder());
+      const targetRelPath = manifestRelFromNodeAbsolute(absolute);
+      if (serviceManifestRel && targetRelPath) {
+        await writeWorkspaceTextFileWithHistory(serviceManifestRel, targetRelPath, content);
+      } else {
+        await fs.mkdir(path.dirname(absolute), { recursive: true });
+        await fs.writeFile(absolute, content, "utf-8");
+      }
       return sendJson(res, 200, { name, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save system file", details: String(error.message || error) });
@@ -3974,8 +4159,7 @@ async function handleApiForAgent(req, res, url) {
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
-      await fs.mkdir(path.dirname(absolute), { recursive: true });
-      await fs.writeFile(absolute, content, "utf-8");
+      await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, content);
       if (canonicalRelPath !== String(relPath).replace(/\\/g, "/")) {
         const legacyAbsolute = normalizeWorkspacePath(relPath);
         if (legacyAbsolute && legacyAbsolute !== absolute) {
@@ -3986,6 +4170,108 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save content",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/history") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const mode = String(url.searchParams.get("mode") || "description").trim();
+    const file = url.searchParams.get("file") || "";
+    const systemName = url.searchParams.get("name") || "";
+
+    try {
+      const history = await listFileHistoryVersions({ manifestRelPath, mode, file, systemName });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        target: history.target,
+        manifestPath: history.manifestPath,
+        versions: history.versions
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list file history",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/history/content") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const mode = String(url.searchParams.get("mode") || "description").trim();
+    const file = url.searchParams.get("file") || "";
+    const systemName = url.searchParams.get("name") || "";
+    const version = String(url.searchParams.get("version") || "").trim();
+    if (!version || !isHistoryVersionFileName(version)) {
+      return sendJson(res, 400, { error: "Invalid history version" });
+    }
+
+    try {
+      const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+      const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+      if (!historyManifestRel || !targetRelPath) {
+        return sendJson(res, 400, { error: "Invalid history target" });
+      }
+      const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
+      const versionRelPath = `${historyDirRel}/${version}`.replace(/\\/g, "/");
+      const versionAbsolute = normalizeWorkspacePath(versionRelPath);
+      if (!versionAbsolute) return sendJson(res, 400, { error: "Invalid history version path" });
+      const content = await fs.readFile(versionAbsolute, "utf-8");
+      return sendJson(res, 200, {
+        version,
+        label: formatHistoryVersionTimestampLabel(version),
+        relPath: versionRelPath,
+        target: targetRelPath,
+        content
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "History version not found" });
+      return sendJson(res, 500, {
+        error: "Failed to read history version",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/history/restore") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const mode = String(payload.mode || "description").trim();
+      const file = payload.file || "";
+      const systemName = payload.name || "";
+      const version = String(payload.version || "").trim();
+      if (!version || !isHistoryVersionFileName(version)) {
+        return sendJson(res, 400, { error: "Invalid history version" });
+      }
+
+      const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+      const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+      if (!historyManifestRel || !targetRelPath) {
+        return sendJson(res, 400, { error: "Invalid history target" });
+      }
+
+      const historyDirRel = getHistoryVersionDirRel(historyManifestRel, targetRelPath);
+      const versionRelPath = `${historyDirRel}/${version}`.replace(/\\/g, "/");
+      const versionAbsolute = normalizeWorkspacePath(versionRelPath);
+      if (!versionAbsolute) return sendJson(res, 400, { error: "Invalid history version path" });
+
+      const content = await fs.readFile(versionAbsolute, "utf-8");
+      await writeWorkspaceTextFileWithHistory(historyManifestRel, targetRelPath, content);
+      return sendJson(res, 200, {
+        version,
+        label: formatHistoryVersionTimestampLabel(version),
+        target: targetRelPath,
+        content
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "History version not found" });
+      return sendJson(res, 500, {
+        error: "Failed to restore history version",
         details: String(error && error.message ? error.message : error)
       });
     }
@@ -4039,8 +4325,7 @@ async function handleApiForAgent(req, res, url) {
       const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
       if (!tabularAbsolute) return sendJson(res, 400, { error: "Invalid tabular memory path" });
 
-      await fs.mkdir(path.dirname(tabularAbsolute), { recursive: true });
-      await fs.writeFile(tabularAbsolute, content, "utf-8");
+      await writeWorkspaceTextFileWithHistory(resolvedRelPath, tabularRelPath, content);
       const parsed = parseCsvText(content);
       return sendJson(res, 200, {
         path: tabularRelPath,
@@ -4088,8 +4373,7 @@ async function handleApiForAgent(req, res, url) {
       const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
       if (!memoryAbsolute) return sendJson(res, 400, { error: "Invalid internal memory path" });
 
-      await fs.mkdir(path.dirname(memoryAbsolute), { recursive: true });
-      await fs.writeFile(memoryAbsolute, content, "utf-8");
+      await writeWorkspaceTextFileWithHistory(resolvedRelPath, memoryRelPath, content);
       return sendJson(res, 200, { path: memoryRelPath, content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save internal memory", details: String(error.message || error) });
@@ -4188,8 +4472,8 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
-      await fs.writeFile(configAbsolute, content.endsWith("\n") ? content : `${content}\n`, "utf-8");
+      const normalizedContent = content.endsWith("\n") ? content : `${content}\n`;
+      await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, normalizedContent);
       const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(content);
       return sendJson(res, 200, {
         path: configRelPath,
@@ -4311,7 +4595,9 @@ async function handleApiForAgent(req, res, url) {
       const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
       if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid external file path" });
 
-      await fs.writeFile(fileAbsolute, content, "utf-8");
+      const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
+      const targetRelPath = manifestRelFromNodeAbsolute(fileAbsolute);
+      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, content);
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save external file", details: String(error.message || error) });
@@ -4682,7 +4968,7 @@ async function handleApiForAgent(req, res, url) {
       const envAbsolute = await resolveNodeStorageFileAbsolute(manifestCtx.absolute, ".env", { create: true });
       if (!envAbsolute) return sendJson(res, 400, { error: "Invalid .env path" });
 
-      await fs.writeFile(envAbsolute, content, "utf-8");
+      await writeWorkspaceTextFileWithHistory(manifestCtx.rel, manifestRelFromNodeAbsolute(envAbsolute), content);
       return sendJson(res, 200, { path: envRelPath, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save .env", details: String(error.message || error) });
@@ -5021,8 +5307,9 @@ async function handleApiForAgent(req, res, url) {
       const mediaStat = await fs.stat(mediaAbsolute);
       if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
 
-      await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
-      await fs.writeFile(sidecarAbsolute, content, "utf-8");
+      const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
+      const targetRelPath = manifestRelFromNodeAbsolute(sidecarAbsolute);
+      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, content);
 
       return sendJson(res, 200, {
         sourceFile: normalizedRelFile.replace(/\\/g, "/"),

@@ -157,6 +157,16 @@ const titleFixedValueNode = document.getElementById("title-fixed-value");
 const titleFixedTextNode = document.getElementById("title-fixed-text");
 const saveContentBtn = document.getElementById("save-content-btn");
 const saveSystemFileBtn = document.getElementById("save-system-file-btn");
+const fileHistoryBtn = document.getElementById("file-history-btn");
+const fileHistoryModalNode = document.getElementById("file-history-modal");
+const fileHistoryTitleNode = document.getElementById("file-history-title");
+const fileHistorySubtitleNode = document.getElementById("file-history-subtitle");
+const fileHistoryListNode = document.getElementById("file-history-list");
+const fileHistoryPreviewWrapNode = document.getElementById("file-history-preview-wrap");
+const fileHistoryPreviewTitleNode = document.getElementById("file-history-preview-title");
+const fileHistoryPreviewContentNode = document.getElementById("file-history-preview-content");
+const fileHistoryCloseBtn = document.getElementById("file-history-close-btn");
+const fileHistoryPreviewCloseBtn = document.getElementById("file-history-preview-close-btn");
 const yamlPanelNode = document.getElementById("yaml-form-panel");
 
 function removeYamlPanelLabel() {
@@ -963,10 +973,27 @@ function agentPreviewImageHasPanOverflow(img, frame) {
   return Math.abs(imgAspect - frameAspect) > 0.02;
 }
 
+let agentPreviewPanActive = false;
+
+function readAgentPreviewPanPoint(event, frame) {
+  const rect = frame.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+  return { x: x * 100, y: y * 100 };
+}
+
+function renderAgentPreviewPanPosition(point) {
+  const img = agentPreviewThumbNode;
+  if (!img || !point) return;
+  img.style.objectPosition = `${point.x.toFixed(2)}% ${point.y.toFixed(2)}%`;
+}
+
 function resetAgentPreviewPan() {
   const frame = getAgentPreviewFrameNode();
   const img = agentPreviewThumbNode;
+  agentPreviewPanActive = false;
   if (!frame || !img) return;
+  agentPreviewWrapNode?.classList.remove("is-interactive");
   frame.classList.remove("is-hover-pan", "is-pan-available");
   img.style.removeProperty("object-position");
 }
@@ -980,11 +1007,10 @@ function applyAgentPreviewPan(event) {
     return;
   }
 
+  agentPreviewPanActive = true;
+  agentPreviewWrapNode?.classList.add("is-interactive");
   frame.classList.add("is-hover-pan", "is-pan-available");
-  const rect = frame.getBoundingClientRect();
-  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-  img.style.objectPosition = `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`;
+  renderAgentPreviewPanPosition(readAgentPreviewPanPoint(event, frame));
 }
 
 function initAgentPreviewHoverPan() {
@@ -994,6 +1020,232 @@ function initAgentPreviewHoverPan() {
   frame.title = "Двигайте мышью, чтобы просмотреть всё превью";
   frame.addEventListener("mousemove", applyAgentPreviewPan);
   frame.addEventListener("mouseleave", resetAgentPreviewPan);
+}
+
+let fileHistoryModalContext = null;
+
+function isFileHistoryAvailable() {
+  if (activeSystemFile) return true;
+  return isEditorSaveTrackingActive();
+}
+
+function getFileHistoryRequestContext() {
+  if (activeSystemFile) {
+    return { mode: "system", path: "", file: null, name: activeSystemFile };
+  }
+  if (!activePath || !isFileHistoryAvailable()) return null;
+  const context = {
+    mode: activeContentMode === "description" ? "description" : activeContentMode,
+    path: getActiveNodeApiPath(),
+    file: null,
+    name: null
+  };
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    context.file = activeExternalFilePath;
+  }
+  if (activeContentMode === "media" && activeMediaSidecarSourcePath) {
+    context.file = activeMediaSidecarSourcePath;
+  }
+  return context;
+}
+
+function buildFileHistoryApiQuery(context) {
+  const params = new URLSearchParams();
+  params.set("mode", context.mode);
+  if (context.path) params.set("path", context.path);
+  if (context.file) params.set("file", context.file);
+  if (context.name) params.set("name", context.name);
+  return params.toString();
+}
+
+function syncFileHistoryButtonVisibility() {
+  if (!fileHistoryBtn) return;
+  const saveVisible = !saveContentBtn?.classList.contains("hidden") || !saveSystemFileBtn?.classList.contains("hidden");
+  fileHistoryBtn.classList.toggle("hidden", !saveVisible || !isFileHistoryAvailable());
+}
+
+function closeFileHistoryModal() {
+  fileHistoryModalNode?.classList.add("hidden");
+  fileHistoryModalContext = null;
+  fileHistoryPreviewWrapNode?.classList.add("hidden");
+  if (fileHistoryPreviewContentNode) fileHistoryPreviewContentNode.textContent = "";
+}
+
+async function openFileHistoryModal() {
+  const context = getFileHistoryRequestContext();
+  if (!context || !fileHistoryModalNode) return;
+  fileHistoryModalContext = context;
+  fileHistoryPreviewWrapNode?.classList.add("hidden");
+  if (fileHistoryTitleNode) fileHistoryTitleNode.textContent = "История версий";
+  if (fileHistorySubtitleNode) {
+    fileHistorySubtitleNode.textContent = context.name || context.file || context.path || "";
+  }
+  fileHistoryModalNode.classList.remove("hidden");
+  await refreshFileHistoryList();
+}
+
+async function refreshFileHistoryList() {
+  if (!fileHistoryModalContext || !fileHistoryListNode) return;
+  fileHistoryListNode.textContent = "Загрузка…";
+  try {
+    const query = buildFileHistoryApiQuery(fileHistoryModalContext);
+    const response = await fetch(buildApiUrl(`/api/file/history?${query}`));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    renderFileHistoryList(data);
+  } catch (error) {
+    fileHistoryListNode.textContent = `Ошибка: ${error.message}`;
+  }
+}
+
+function renderFileHistoryList(data) {
+  if (!fileHistoryListNode) return;
+  fileHistoryListNode.replaceChildren();
+  if (data.target && fileHistorySubtitleNode) {
+    fileHistorySubtitleNode.textContent = data.target;
+  }
+  const versions = Array.isArray(data.versions) ? data.versions : [];
+  if (versions.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "file-history-empty";
+    empty.textContent =
+      "Пока нет сохранённых версий. Они появятся после первого изменения и сохранения файла.";
+    fileHistoryListNode.appendChild(empty);
+    return;
+  }
+
+  for (const entry of versions) {
+    const row = document.createElement("div");
+    row.className = "file-history-row";
+
+    const meta = document.createElement("div");
+    meta.className = "file-history-row-meta";
+    const title = document.createElement("div");
+    title.className = "file-history-row-title";
+    title.textContent = entry.label || entry.version;
+    const size = document.createElement("div");
+    size.className = "file-history-row-size";
+    size.textContent = entry.size ? `${entry.size} B` : entry.version;
+    meta.appendChild(title);
+    meta.appendChild(size);
+
+    const actions = document.createElement("div");
+    actions.className = "file-history-row-actions";
+
+    const previewBtn = document.createElement("button");
+    previewBtn.type = "button";
+    previewBtn.className = "save-btn file-history-action-btn";
+    previewBtn.textContent = "Просмотр";
+    previewBtn.addEventListener("click", () => {
+      void previewFileHistoryVersion(entry.version, entry.label || entry.version);
+    });
+
+    const restoreBtn = document.createElement("button");
+    restoreBtn.type = "button";
+    restoreBtn.className = "save-btn file-history-action-btn";
+    restoreBtn.textContent = "Восстановить";
+    restoreBtn.addEventListener("click", () => {
+      void restoreFileHistoryVersion(entry.version, entry.label || entry.version);
+    });
+
+    actions.appendChild(previewBtn);
+    actions.appendChild(restoreBtn);
+    row.appendChild(meta);
+    row.appendChild(actions);
+    fileHistoryListNode.appendChild(row);
+  }
+}
+
+async function previewFileHistoryVersion(version, label) {
+  if (!fileHistoryModalContext) return;
+  try {
+    const query = `${buildFileHistoryApiQuery(fileHistoryModalContext)}&version=${encodeURIComponent(version)}`;
+    const response = await fetch(buildApiUrl(`/api/file/history/content?${query}`));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    if (fileHistoryPreviewTitleNode) fileHistoryPreviewTitleNode.textContent = label || data.label || version;
+    if (fileHistoryPreviewContentNode) fileHistoryPreviewContentNode.textContent = data.content || "";
+    fileHistoryPreviewWrapNode?.classList.remove("hidden");
+  } catch (error) {
+    showToast(`Ошибка просмотра версии: ${error.message}`, "error");
+  }
+}
+
+function applyRestoredHistoryContent(content) {
+  const mode = fileHistoryModalContext?.mode;
+  if (mode === "system") {
+    fileContentInputNode.value = content;
+    refreshEditorViewContent();
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  switch (mode) {
+    case "description":
+      modeContentCache.description = content;
+      applyExternalFileContentUi(content);
+      break;
+    case "internal":
+      modeContentCache.internal = content;
+      fileContentInputNode.value = content;
+      break;
+    case "tabular":
+      modeContentCache.tabular = content;
+      fileContentInputNode.value = content;
+      break;
+    case "todo":
+      modeContentCache.todo = content;
+      fileContentInputNode.value = content;
+      break;
+    case "configs":
+      modeContentCache.configs = content;
+      fileContentInputNode.value = content;
+      break;
+    case "env":
+      modeContentCache.env = content;
+      fileContentInputNode.value = content;
+      break;
+    case "external":
+      applyExternalFileContentUi(content);
+      break;
+    case "media":
+      applyMediaSidecarContentUi(content);
+      break;
+    default:
+      fileContentInputNode.value = content;
+      break;
+  }
+  refreshEditorViewContent();
+  commitEditorSaveBaseline();
+}
+
+async function restoreFileHistoryVersion(version, label) {
+  if (!fileHistoryModalContext) return;
+  const confirmed = await askConfirm(`Восстановить версию ${label}? Текущее содержимое будет сохранено в историю.`, {
+    okLabel: "Восстановить"
+  });
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(buildApiUrl("/api/file/history/restore"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...fileHistoryModalContext,
+        version
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    applyRestoredHistoryContent(data.content || "");
+    showToast("Версия восстановлена", "success");
+    await refreshFileHistoryList();
+  } catch (error) {
+    showToast(`Ошибка восстановления: ${error.message}`, "error");
+  }
 }
 
 function syncAgentsRegistryDraftPreview(agentPath) {
@@ -11678,6 +11930,7 @@ function applyModeUi() {
   );
   saveContentBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar);
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
+  syncFileHistoryButtonVisibility();
   yamlPanelNode.classList.toggle("hidden", !showDocAside);
   const propsAsideVisible = showDocAside && !isDocAsideCollapsed();
   docBodyGridNode?.classList.toggle("has-props-aside", propsAsideVisible);
@@ -18587,6 +18840,16 @@ docAsideExpandBtn?.addEventListener("click", () => setDocAsideCollapsed(false));
 
 saveContentBtn.addEventListener("click", saveContent);
 saveSystemFileBtn?.addEventListener("click", saveContent);
+fileHistoryBtn?.addEventListener("click", () => {
+  void openFileHistoryModal();
+});
+fileHistoryCloseBtn?.addEventListener("click", closeFileHistoryModal);
+fileHistoryPreviewCloseBtn?.addEventListener("click", () => {
+  fileHistoryPreviewWrapNode?.classList.add("hidden");
+});
+fileHistoryModalNode?.addEventListener("click", (event) => {
+  if (event.target === fileHistoryModalNode) closeFileHistoryModal();
+});
 propsYamlToggleBtn?.addEventListener("click", togglePropsRawYaml);
 propsAddFieldBtn?.addEventListener("click", () => {
   if (isPropsFormReadOnly()) return;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.41" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.48" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -173,83 +173,85 @@
         </section>
 
         <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
-          <div class="menu-view-wrap">
-            <div class="menu-view-toggle" role="tablist" aria-label="Режим отображения меню">
-            <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
-              <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
-            </button>
-            <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
-              <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
-            </button>
-            <button id="menu-view-cards-btn" class="menu-view-btn" type="button" data-menu-view="cards" data-tooltip="Карточки" aria-label="Карточки">
-              <span class="menu-view-btn-icon" aria-hidden="true">🗂️</span>
-            </button>
-            <button id="menu-view-bookmarks-btn" class="menu-view-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
-              <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
-            </button>
-          </div>
-          <button
-            id="menu-refresh-btn"
-            class="menu-refresh-btn"
-            type="button"
-            aria-label="Обновить дерево"
-          >
-            🔄
-          </button>
-          <button
-            id="menu-collapse-all-btn"
-            class="menu-collapse-all-btn"
-            type="button"
-            aria-label="Свернуть все ветки"
-            title="Свернуть все ветки"
-          >
-            <span class="menu-collapse-all-icon" aria-hidden="true">⊟</span>
-          </button>
-          <button
-            id="menu-pin-branch-btn"
-            class="menu-pin-branch-btn"
-            type="button"
-            aria-label="Закрепить текущую ветку"
-            title="Закрепить ветку (остальные свернуть)"
-            aria-pressed="false"
-          >
-            📍
-          </button>
-          <div id="menu-settings-wrap" class="menu-settings-wrap">
+          <div class="menu-view-wrap menu-tools-row">
+            <div class="menu-view-toggle menu-tools-view-cluster" role="tablist" aria-label="Режим отображения меню">
+              <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
+                <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
+              </button>
+              <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
+                <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
+              </button>
+              <button id="menu-view-cards-btn" class="menu-view-btn" type="button" data-menu-view="cards" data-tooltip="Карточки" aria-label="Карточки">
+                <span class="menu-view-btn-icon" aria-hidden="true">🗂️</span>
+              </button>
+              <button id="menu-view-bookmarks-btn" class="menu-view-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
+                <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
+              </button>
+            </div>
             <button
-              id="menu-settings-btn"
-              class="menu-settings-btn"
+              id="menu-refresh-btn"
+              class="menu-refresh-btn workspace-reveal-folder-btn menu-tools-action-btn"
               type="button"
-              aria-label="Настройки дерева"
-              aria-expanded="false"
-              aria-controls="menu-settings-popover"
+              aria-label="Обновить дерево"
+              title="Обновить дерево"
             >
-              ⚙
+              🔄
             </button>
-            <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
-              <p class="menu-settings-popover-title">Настройки дерева</p>
-              <label class="menu-settings-option" for="menu-tree-show-empty-folders">
-                <input id="menu-tree-show-empty-folders" type="checkbox" />
-                <span>Отображать папки без тем</span>
-              </label>
-              <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
-                <input id="menu-tree-pad-sort-indexes" type="checkbox" />
-                <span>Добавлять ведущие нули к названиям (при сортировке)</span>
-              </label>
-              <div class="menu-settings-pin-block">
-                <p class="menu-settings-pin-title">Закрепление ветки</p>
-                <p id="menu-pinned-status" class="menu-settings-pin-status">Ветка не закреплена</p>
-                <div class="menu-settings-pin-actions">
-                  <button id="menu-pin-current-btn" class="menu-settings-pin-action" type="button">
-                    Закрепить текущую
-                  </button>
-                  <button id="menu-unpin-branch-btn" class="menu-settings-pin-action" type="button" hidden>
-                    Открепить
-                  </button>
+            <button
+              id="menu-collapse-all-btn"
+              class="menu-collapse-all-btn workspace-reveal-folder-btn menu-tools-action-btn"
+              type="button"
+              aria-label="Свернуть все ветки"
+              title="Свернуть все ветки"
+            >
+              <span class="menu-collapse-all-icon" aria-hidden="true">⊟</span>
+            </button>
+            <button
+              id="menu-pin-branch-btn"
+              class="menu-pin-branch-btn workspace-reveal-folder-btn menu-tools-action-btn"
+              type="button"
+              aria-label="Закрепить текущую ветку"
+              title="Закрепить ветку (остальные свернуть)"
+              aria-pressed="false"
+            >
+              📍
+            </button>
+            <div id="menu-settings-wrap" class="menu-settings-wrap">
+              <button
+                id="menu-settings-btn"
+                class="menu-settings-btn workspace-reveal-folder-btn menu-tools-action-btn"
+                type="button"
+                aria-label="Настройки дерева"
+                aria-expanded="false"
+                aria-controls="menu-settings-popover"
+                title="Настройки дерева"
+              >
+                ⚙
+              </button>
+              <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
+                <p class="menu-settings-popover-title">Настройки дерева</p>
+                <label class="menu-settings-option" for="menu-tree-show-empty-folders">
+                  <input id="menu-tree-show-empty-folders" type="checkbox" />
+                  <span>Отображать папки без тем</span>
+                </label>
+                <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
+                  <input id="menu-tree-pad-sort-indexes" type="checkbox" />
+                  <span>Добавлять ведущие нули к названиям (при сортировке)</span>
+                </label>
+                <div class="menu-settings-pin-block">
+                  <p class="menu-settings-pin-title">Закрепление ветки</p>
+                  <p id="menu-pinned-status" class="menu-settings-pin-status">Ветка не закреплена</p>
+                  <div class="menu-settings-pin-actions">
+                    <button id="menu-pin-current-btn" class="menu-settings-pin-action" type="button">
+                      Закрепить текущую
+                    </button>
+                    <button id="menu-unpin-branch-btn" class="menu-settings-pin-action" type="button" hidden>
+                      Открепить
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </div>
         </section>
 
@@ -883,6 +885,22 @@
                   <span class="workspace-toolbar-btn-label">Сохранить</span>
                 </button>
                 <button
+                  id="file-history-btn"
+                  class="file-history-btn workspace-toolbar-labeled-btn hidden"
+                  type="button"
+                  title="История версий файла"
+                  aria-label="История"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 12a9 9 0 1 0 3-6.7" />
+                      <polyline points="3 4 3 9 8 9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                  </span>
+                  <span class="workspace-toolbar-btn-label">История</span>
+                </button>
+                <button
                   id="node-workspace-close-btn"
                   class="node-workspace-close-btn workspace-toolbar-labeled-btn hidden"
                   type="button"
@@ -1350,6 +1368,26 @@
       </div>
     </div>
 
+    <div id="file-history-modal" class="modal-overlay hidden">
+      <div class="modal-card file-history-card">
+        <div class="md-showcase-header">
+          <div>
+            <div class="modal-message" id="file-history-title">История версий</div>
+            <p id="file-history-subtitle" class="md-showcase-subtitle"></p>
+          </div>
+          <button id="file-history-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="file-history-list" class="file-history-list" role="list"></div>
+        <div id="file-history-preview-wrap" class="file-history-preview-wrap hidden">
+          <div class="file-history-preview-head">
+            <strong id="file-history-preview-title">Просмотр версии</strong>
+            <button id="file-history-preview-close-btn" class="ghost-btn" type="button">Скрыть</button>
+          </div>
+          <pre id="file-history-preview-content" class="file-history-preview-content"></pre>
+        </div>
+      </div>
+    </div>
+
     <div id="md-showcase-modal" class="modal-overlay hidden">
       <div class="modal-card md-showcase-card">
         <div class="md-showcase-header">
@@ -1459,7 +1497,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.90"></script>
+    <script src="/main.js?v=0.4.97"></script>
     <script src="/app-home-title-rotator.js?v=11"></script>
   </body>
   </html>

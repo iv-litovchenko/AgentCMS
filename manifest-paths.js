@@ -265,7 +265,8 @@ function getHistoryVersionDirRel(manifestRelPath, targetRelPath) {
 function formatHistoryVersionTimestamp(date = new Date()) {
   const value = date instanceof Date ? date : new Date(date);
   const pad = (num) => String(num).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}_${pad(value.getHours())}-${pad(value.getMinutes())}-${pad(value.getSeconds())}`;
+  const padMs = (num) => String(num).padStart(3, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}_${pad(value.getHours())}-${pad(value.getMinutes())}-${pad(value.getSeconds())}-${padMs(value.getMilliseconds())}`;
 }
 
 function buildHistoryVersionFileName(date = new Date()) {
@@ -281,16 +282,17 @@ function parseHistoryVersionTimestamp(fileName) {
   const raw = String(fileName || "");
   if (!isHistoryVersionFileName(raw)) return null;
   const stamp = raw.slice(0, -HISTORY_VERSION_SUFFIX.length);
-  const match = stamp.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$/);
+  const match = stamp.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})(?:-(\d{1,3}))?$/);
   if (!match) return null;
-  const [, year, month, day, hour, minute, second] = match;
+  const [, year, month, day, hour, minute, second, millisecond = "0"] = match;
   const date = new Date(
     Number(year),
     Number(month) - 1,
     Number(day),
     Number(hour),
     Number(minute),
-    Number(second)
+    Number(second),
+    Number(millisecond)
   );
   return Number.isNaN(date.getTime()) ? null : date;
 }
