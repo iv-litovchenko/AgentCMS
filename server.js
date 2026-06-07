@@ -1273,6 +1273,20 @@ async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir) {
   }
 }
 
+function buildStorageSectionReadmeContent(title) {
+  const safeTitle = String(title || "Раздел").trim() || "Раздел";
+  return `---\ntitle: ${safeTitle}\n---\n\n# ${safeTitle}\n\n> Описание раздела.\n`;
+}
+
+async function writeStorageSectionReadme(sectionAbsolute, title) {
+  const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
+  try {
+    await fs.access(readmeAbsolute);
+  } catch {
+    await fs.writeFile(readmeAbsolute, buildStorageSectionReadmeContent(title), "utf-8");
+  }
+}
+
 async function getMediaFolderAbsolute(nodeAbsolute, options = {}) {
   const folderAbsolute = await resolveNodeSubfolderAbsolute(
     nodeAbsolute,
@@ -3033,13 +3047,23 @@ async function folderHasAgentManifest(dirAbsolute) {
   }
 }
 
+async function folderHasSkillManifest(dirAbsolute) {
+  try {
+    const stat = await fs.stat(path.join(dirAbsolute, "SKILL.md"));
+    return stat.isFile();
+  } catch {
+    return false;
+  }
+}
+
 async function readFolderWorkspaceMarkers(dirAbsolute) {
-  const [hasGitSelf, hasObsidianSelf, hasAgentSelf] = await Promise.all([
+  const [hasGitSelf, hasObsidianSelf, hasAgentSelf, hasSkillSelf] = await Promise.all([
     folderHasGitRepo(dirAbsolute),
     folderHasObsidianVault(dirAbsolute),
-    folderHasAgentManifest(dirAbsolute)
+    folderHasAgentManifest(dirAbsolute),
+    folderHasSkillManifest(dirAbsolute)
   ]);
-  return { hasGitSelf, hasObsidianSelf, hasAgentSelf };
+  return { hasGitSelf, hasObsidianSelf, hasAgentSelf, hasSkillSelf };
 }
 
 function getConfiguredVaultFolderName() {
@@ -3258,9 +3282,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
           hasGit: markers.hasGitSelf,
           hasObsidian: markers.hasObsidianSelf,
           hasAgent: markers.hasAgentSelf,
+          hasSkill: markers.hasSkillSelf,
           hasGitSelf: markers.hasGitSelf,
           hasObsidianSelf: markers.hasObsidianSelf,
-          hasAgentSelf: markers.hasAgentSelf
+          hasAgentSelf: markers.hasAgentSelf,
+          hasSkillSelf: markers.hasSkillSelf
         });
         continue;
       }
@@ -3273,9 +3299,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
         hasGit: markers.hasGitSelf,
         hasObsidian: markers.hasObsidianSelf,
         hasAgent: markers.hasAgentSelf,
+        hasSkill: markers.hasSkillSelf,
         hasGitSelf: markers.hasGitSelf,
         hasObsidianSelf: markers.hasObsidianSelf,
         hasAgentSelf: markers.hasAgentSelf,
+        hasSkillSelf: markers.hasSkillSelf,
         sections: [],
         items: [],
         indexPath: null,
@@ -4807,16 +4835,22 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
 
-      const fileName = await resolveUniqueExternalFileName(folderAbsolute, title);
+      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+      if (!targetFolder) {
+        return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
+      }
+
+      const fileName = await resolveUniqueExternalFileName(targetFolder, title);
       if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
 
-      const fileAbsolute = path.join(folderAbsolute, fileName);
+      const fileAbsolute = path.join(targetFolder, fileName);
       const baseTitle = title.replace(/\.md$/i, "");
       const content = `---\ntitle: ${baseTitle}\ntags: []\n---\n\n# ${baseTitle}\n`;
       await fs.writeFile(fileAbsolute, content, "utf-8");
 
       return sendJson(res, 200, {
-        file: fileName,
+        file: path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/"),
         content,
         exists: true
       });
@@ -4842,8 +4876,16 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
 
-      const sectionAbsolute = path.join(folderAbsolute, sectionName);
-      if (!sectionAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid section path" });
+      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+      if (!baseFolder) {
+        return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
+      }
+
+      const sectionAbsolute = path.join(baseFolder, sectionName);
+      if (!isPathInsideDirectory(folderAbsolute, sectionAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid section path" });
+      }
 
       try {
         await fs.access(sectionAbsolute);
@@ -4852,8 +4894,15 @@ async function handleApiForAgent(req, res, url) {
         // section does not exist
       }
 
-      await fs.mkdir(sectionAbsolute, { recursive: false });
-      return sendJson(res, 200, { section: sectionName, exists: true });
+      await fs.mkdir(sectionAbsolute, { recursive: true });
+      await writeStorageSectionReadme(sectionAbsolute, title);
+      const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      return sendJson(res, 200, {
+        section: sectionName,
+        sectionPath,
+        readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+        exists: true
+      });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to create external section", details: String(error.message || error) });
     }
@@ -4895,10 +4944,206 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
+      await writeStorageSectionReadme(sectionAbsolute, title);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
-      return sendJson(res, 200, { section: sectionName, sectionPath, exists: true });
+      return sendJson(res, 200, {
+        section: sectionName,
+        sectionPath,
+        readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+        exists: true
+      });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to create media section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/section/create") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const title = String(payload.title || payload.name || "").trim();
+      const storageFolder = String(payload.folder || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!isAllowedStorageSubfolderName(storageFolder)) {
+        return sendJson(res, 400, { error: "Invalid storage folder" });
+      }
+      if (
+        storageFolder !== STORAGE_SUBFOLDER_SCRIPTS &&
+        storageFolder !== STORAGE_SUBFOLDER_INBOX &&
+        storageFolder !== STORAGE_SUBFOLDER_ARTEFACTS
+      ) {
+        return sendJson(res, 400, { error: "Sections are not supported for this folder" });
+      }
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const sectionName = toExternalSectionFolderName(title);
+      if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
+
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder, { create: true });
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid storage folder path" });
+
+      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+      if (!baseFolder) {
+        return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid storage folder path" });
+      }
+
+      const sectionAbsolute = path.join(baseFolder, sectionName);
+      if (!isPathInsideDirectory(folderAbsolute, sectionAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid section path" });
+      }
+
+      try {
+        await fs.access(sectionAbsolute);
+        return sendJson(res, 409, { error: "Section already exists" });
+      } catch {
+        // section does not exist
+      }
+
+      await fs.mkdir(sectionAbsolute, { recursive: true });
+      await writeStorageSectionReadme(sectionAbsolute, title);
+      const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      return sendJson(res, 200, {
+        section: sectionName,
+        sectionPath,
+        readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+        exists: true
+      });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to create storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage/markdown") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    const storageFolder = String(url.searchParams.get("folder") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+    if (!isAllowedStorageSubfolderName(storageFolder)) {
+      return sendJson(res, 400, { error: "Invalid storage folder" });
+    }
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+    const normalizedRelFile = normalizeRelativeFilePath(relFile);
+    if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
+      return sendJson(res, 400, { error: "Only .md files are allowed" });
+    }
+
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder);
+    if (!folderAbsolute) return sendJson(res, 404, { error: "Storage folder not found" });
+
+    const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+    if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid file path" });
+
+    try {
+      const content = await fs.readFile(fileAbsolute, "utf-8");
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+    } catch (error) {
+      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Markdown file not found" });
+      return sendJson(res, 500, { error: "Failed to read markdown", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/markdown") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      const storageFolder = String(payload.folder || "").trim();
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing file path" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      if (!isAllowedStorageSubfolderName(storageFolder)) {
+        return sendJson(res, 400, { error: "Invalid storage folder" });
+      }
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const normalizedRelFile = normalizeRelativeFilePath(relFile);
+      if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
+        return sendJson(res, 400, { error: "Only .md files are allowed" });
+      }
+
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder, { create: true });
+      if (!folderAbsolute) return sendJson(res, 404, { error: "Storage folder not found" });
+
+      const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+      if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid file path" });
+
+      await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
+      await fs.writeFile(fileAbsolute, content, "utf-8");
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save markdown", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/media/markdown") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+    const normalizedRelFile = normalizeRelativeFilePath(relFile);
+    if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
+      return sendJson(res, 400, { error: "Only .md files are allowed" });
+    }
+
+    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+    if (!folderAbsolute) return sendJson(res, 404, { error: "Media folder not found" });
+
+    const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+    if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
+
+    try {
+      const content = await fs.readFile(fileAbsolute, "utf-8");
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+    } catch (error) {
+      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Media markdown file not found" });
+      return sendJson(res, 500, { error: "Failed to read media markdown", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/markdown") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const normalizedRelFile = normalizeRelativeFilePath(relFile);
+      if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
+        return sendJson(res, 400, { error: "Only .md files are allowed" });
+      }
+
+      const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
+      if (!folderAbsolute) return sendJson(res, 404, { error: "Media folder not found" });
+
+      const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+      if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
+
+      await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
+      await fs.writeFile(fileAbsolute, content, "utf-8");
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save media markdown", details: String(error.message || error) });
     }
   }
 

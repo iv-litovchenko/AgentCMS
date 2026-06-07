@@ -1,8 +1,8 @@
-# Agent CMS — конфигурация
+# Конфигурация темы PHP
+default_landing_mode: navigation
 study_level: intermediate
 preferred_framework: laravel
 locale: ru
-php_target_version: 8.3
+php_target_version: "8.3"
 show_tabular_on_overview: true
 external_view_default: table
-default_landing_mode: artefacts

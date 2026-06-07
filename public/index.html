@@ -883,6 +883,8 @@
                     <option value="references">|- Источники</option>
                     <option value="artefacts">|- Артефакты</option>
                     <option value="memory">|- Память (данные)</option>
+                    <option value="scripts">|- Скрипты</option>
+                    <option value="todo">|- TODO</option>
                     <option value="overview">Обзор</option>
                   </select>
                 </div>
@@ -904,9 +906,7 @@
                   >
                     <option value="description">Назначение</option>
                     <option value="configs">Конфигурации</option>
-                    <option value="scripts">Скрипты</option>
                     <option value="env">.env</option>
-                    <option value="todo">TODO</option>
                     <option value="node-preview">Превью</option>
                   </select>
                 </div>
@@ -916,14 +916,13 @@
                     class="node-memory-mode-select"
                     aria-label="Память"
                   >
-                    <option value="repository" disabled>Репозиторий</option>
+                    <option value="external-db" disabled>Реляционная БД</option>
                     <option value="external" data-memory-driver="external">Многофайловая</option>
                     <option value="internal" data-memory-driver="internal">Однофайловая</option>
                     <option value="tabular" data-memory-driver="tabular">Табличная</option>
-                    <option value="external-db" disabled>Реляционная БД</option>
-                    <option value="volume" disabled>Рассуждения (volume)</option>
                     <option value="media">Медиа и документы</option>
-                    <option value="temp">Временные файлы</option>
+                    <option value="volume" disabled>Рассуждения (volume)</option>
+                    <option value="temp" disabled>Временные файлы</option>
                   </select>
                 </div>
               </div>
@@ -998,6 +997,19 @@
                     </span>
                   </button>
                 </div>
+                <label
+                  id="storage-sections-panel-toggle-wrap"
+                  class="storage-sections-panel-toggle hidden"
+                  title="Показать или скрыть боковое меню разделов"
+                >
+                  <input
+                    id="storage-sections-panel-toggle"
+                    type="checkbox"
+                    checked
+                    aria-label="Отображать разделы"
+                  />
+                  <span class="storage-sections-panel-toggle-label">Разделы</span>
+                </label>
                 <button id="create-external-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
                   + Раздел
                 </button>

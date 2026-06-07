@@ -146,6 +146,8 @@ const mediaUploadBtnNode = document.getElementById("media-upload-btn");
 const createExternalMemoryBtn = document.getElementById("create-external-memory-btn");
 const createExternalSectionBtn = document.getElementById("create-external-section-btn");
 const createMediaSectionBtn = document.getElementById("create-media-section-btn");
+const storageSectionsPanelToggleWrapNode = document.getElementById("storage-sections-panel-toggle-wrap");
+const storageSectionsPanelToggleNode = document.getElementById("storage-sections-panel-toggle");
 const createSectionModalNode = document.getElementById("create-section-modal");
 const createSectionNameInputNode = document.getElementById("create-section-name-input");
 const createSectionCancelBtn = document.getElementById("create-section-cancel-btn");
@@ -474,7 +476,7 @@ function parseViewRouteTail(tail, view) {
     return result;
   }
 
-  if (view === "media") {
+  if (view === "media" || view === "external" || FLAT_STORAGE_SECTION_MODES.has(view)) {
     let index = 0;
     while (index < tail.length) {
       const marker = tail[index];
@@ -492,7 +494,7 @@ function parseViewRouteTail(tail, view) {
         result.mediaSectionPath = parts.join("/");
         continue;
       }
-      if (marker === "m" && index + 1 < tail.length) {
+      if (view === "media" && marker === "m" && index + 1 < tail.length) {
         result.mediaListView = tail[index + 1];
         index += 2;
         continue;
@@ -609,8 +611,24 @@ function buildAppPathFromState() {
       if (fileSegments.length) {
         path += `/f/${fileSegments.join("/")}`;
       }
-    } else if (activeContentMode === "media" && activeMediaSidecarSourcePath) {
-      const fileSegments = String(activeMediaSidecarSourcePath)
+    } else if (activeContentMode === "external" && activeExternalSectionFolder && isStorageSectionsPanelVisible()) {
+      const sectionSegments = String(activeExternalSectionFolder)
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment));
+      if (sectionSegments.length) {
+        path += `/s/${sectionSegments.join("/")}`;
+      }
+    } else if (isFlatStorageSectionMode() && getActiveFlatStorageSectionFolder() && isStorageSectionsPanelVisible()) {
+      const sectionSegments = String(getActiveFlatStorageSectionFolder())
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment));
+      if (sectionSegments.length) {
+        path += `/s/${sectionSegments.join("/")}`;
+      }
+    } else if (activeContentMode === "media" && (activeMediaSidecarSourcePath || activeMediaMarkdownPath)) {
+      const fileSegments = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath)
         .split("/")
         .filter(Boolean)
         .map((segment) => encodeURIComponent(segment));
@@ -618,7 +636,8 @@ function buildAppPathFromState() {
         path += `/f/${fileSegments.join("/")}`;
       }
     } else if (activeContentMode === "media") {
-      if (activeMediaSectionFolder) {
+      const viewForUrl = mediaViewMode || "dashboard";
+      if (activeMediaSectionFolder && isStorageSectionsPanelVisible()) {
         const sectionSegments = String(activeMediaSectionFolder)
           .split("/")
           .filter(Boolean)
@@ -627,8 +646,7 @@ function buildAppPathFromState() {
           path += `/s/${sectionSegments.join("/")}`;
         }
       }
-      const viewForUrl = mediaViewMode || "dashboard";
-      const omitDefaultView = activeMediaSectionFolder
+      const omitDefaultView = activeMediaSectionFolder && isStorageSectionsPanelVisible()
         ? viewForUrl === "all"
         : viewForUrl === "dashboard";
       if (!omitDefaultView && MEDIA_ROUTE_LIST_VIEWS.has(viewForUrl)) {
@@ -784,7 +802,8 @@ async function applyAppRouteFromUrl() {
 }
 
 async function applyMediaRouteStateFromUrl(route) {
-  activeMediaSectionFolder = route.mediaSectionPath || null;
+  activeMediaSectionFolder =
+    isStorageSectionsPanelVisible() && route.mediaSectionPath ? route.mediaSectionPath : null;
   if (route.mediaListView && MEDIA_ROUTE_LIST_VIEWS.has(route.mediaListView)) {
     mediaViewMode = route.mediaListView;
   } else if (activeMediaSectionFolder) {
@@ -798,6 +817,23 @@ async function applyMediaRouteStateFromUrl(route) {
   renderListViewContent();
 }
 
+async function applyExternalRouteStateFromUrl(route) {
+  activeExternalSectionFolder =
+    isStorageSectionsPanelVisible() && route.mediaSectionPath ? route.mediaSectionPath : null;
+  pruneActiveExternalSectionFolder();
+  applyModeUi();
+  renderListViewContent();
+}
+
+async function applyFlatStorageRouteStateFromUrl(route) {
+  if (!isFlatStorageSectionMode(route.view)) return;
+  activeFlatStorageSectionFolder[route.view] =
+    isStorageSectionsPanelVisible() && route.mediaSectionPath ? route.mediaSectionPath : null;
+  pruneActiveFlatStorageSectionFolder(route.view);
+  applyModeUi();
+  renderListViewContent();
+}
+
 async function applyAppRouteResourceFromUrl(route) {
   if (!route?.view) return;
 
@@ -807,13 +843,27 @@ async function applyAppRouteResourceFromUrl(route) {
       return;
     }
     if (route.view === "media") {
-      await openMediaSidecar(route.resourcePath, { skipRouteSync: true });
+      if (isSectionReadmePath(route.resourcePath)) {
+        await openMediaMarkdownFile(route.resourcePath, { skipRouteSync: true });
+      } else {
+        await openMediaSidecar(route.resourcePath, { skipRouteSync: true });
+      }
       return;
     }
   }
 
   if (route.view === "media") {
     await applyMediaRouteStateFromUrl(route);
+    return;
+  }
+
+  if (route.view === "external") {
+    await applyExternalRouteStateFromUrl(route);
+    return;
+  }
+
+  if (FLAT_STORAGE_SECTION_MODES.has(route.view)) {
+    await applyFlatStorageRouteStateFromUrl(route);
     return;
   }
 
@@ -3125,9 +3175,7 @@ const NODE_SETTINGS_GROUP = {
   modes: [
     { id: "description", label: "Назначение" },
     { id: "configs", label: "Конфигурации" },
-    { id: "scripts", label: "Скрипты" },
     { id: "env", label: ".env" },
-    { id: "todo", label: "TODO" },
     { id: "node-preview", label: "Превью" }
   ]
 };
@@ -3291,7 +3339,7 @@ let landingSearchRequestId = 0;
 const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
 const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v1";
 const NODE_OPEN_MEMORY_MODE = "internal";
-const NODE_SETTINGS_MODE_IDS = new Set(["description", "configs", "scripts", "env", "todo", "node-preview"]);
+const NODE_SETTINGS_MODE_IDS = new Set(["description", "configs", "env", "node-preview"]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
@@ -3316,12 +3364,14 @@ const NODE_MEMORY_SUB_MODE_IDS = new Set([
   "media",
   "temp"
 ]);
-const NODE_SETTINGS_CLOSE_MODES = new Set(["description", "todo"]);
+const NODE_SETTINGS_CLOSE_MODES = new Set(["description"]);
 const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "media", "temp"]);
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
+const NODE_WORKSPACE_DOMAIN_SCRIPTS = "scripts";
+const NODE_WORKSPACE_DOMAIN_TODO = "todo";
 const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
 const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
@@ -3334,6 +3384,8 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "references", label: "Источники", branch: true },
   { value: "artefacts", label: "Артефакты", branch: true },
   { value: "memory", label: "Память (данные)", branch: true },
+  { value: "scripts", label: "Скрипты", branch: true },
+  { value: "todo", label: "TODO", branch: true },
   { value: "overview", label: "Обзор" }
 ];
 
@@ -3364,6 +3416,8 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
+  if (mode === "scripts") return NODE_WORKSPACE_DOMAIN_SCRIPTS;
+  if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
   if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
   if (mode === "artefacts") return NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return NODE_WORKSPACE_DOMAIN_MEMORY;
@@ -3380,6 +3434,8 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
     domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
+    domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
+    domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
     domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
@@ -3421,6 +3477,7 @@ let sourceEditorViewportResizeBound = false;
 const EDITOR_LINE_NUMBERS_STORAGE_KEY = "agentcms.editorLineNumbers";
 let editorLineNumbersEnabled = readStorageItem(EDITOR_LINE_NUMBERS_STORAGE_KEY) === "1";
 const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
+const STORAGE_SECTIONS_PANEL_VISIBLE_KEY = "agentcms.storageSectionsPanelVisible";
 const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
 
 const DOC_CONTENT_BLOCK_GROUPS = [
@@ -3532,6 +3589,85 @@ let editorViewMode = (_savedEditorViewMode === "preview" || _savedEditorViewMode
 let externalViewMode = "table";
 let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
+let activeExternalSectionFolder = null;
+const FLAT_STORAGE_SECTION_MODES = new Set(["scripts", "inbox", "artefacts"]);
+const activeFlatStorageSectionFolder = {
+  scripts: null,
+  inbox: null,
+  artefacts: null
+};
+
+function loadStorageSectionsPanelVisible() {
+  const raw = readStorageItem(STORAGE_SECTIONS_PANEL_VISIBLE_KEY);
+  if (raw === "0" || raw === "false") return false;
+  return true;
+}
+
+let storageSectionsPanelVisible = loadStorageSectionsPanelVisible();
+
+function isStorageSectionsPanelVisible() {
+  return storageSectionsPanelVisible;
+}
+
+function isFlatStorageSectionMode(mode = activeContentMode) {
+  return FLAT_STORAGE_SECTION_MODES.has(mode);
+}
+
+function getActiveFlatStorageSectionFolder(mode = activeContentMode) {
+  return isFlatStorageSectionMode(mode) ? activeFlatStorageSectionFolder[mode] : null;
+}
+
+function isStorageSectionFilterActive() {
+  if (!isStorageSectionsPanelVisible()) return false;
+  if (activeExternalSectionFolder || activeMediaSectionFolder) return true;
+  return isFlatStorageSectionMode() && Boolean(getActiveFlatStorageSectionFolder());
+}
+
+function syncStorageSectionsPanelUi() {
+  const visible = isStorageSectionsPanelVisible();
+  if (storageSectionsPanelToggleNode) {
+    storageSectionsPanelToggleNode.checked = visible;
+  }
+  for (const wrap of listViewContentNode.querySelectorAll(".media-list-view-wrap")) {
+    wrap.classList.toggle("is-sections-panel-hidden", !visible);
+  }
+}
+
+function setStorageSectionsPanelVisible(visible, { rerender = true, skipRouteSync = false } = {}) {
+  const next = Boolean(visible);
+  if (next === storageSectionsPanelVisible) {
+    syncStorageSectionsPanelUi();
+    return;
+  }
+  storageSectionsPanelVisible = next;
+  try {
+    localStorage.setItem(STORAGE_SECTIONS_PANEL_VISIBLE_KEY, next ? "1" : "0");
+  } catch {
+    // ignore quota / private mode
+  }
+  if (!next) {
+    activeMediaSectionFolder = null;
+    activeExternalSectionFolder = null;
+    for (const mode of FLAT_STORAGE_SECTION_MODES) {
+      activeFlatStorageSectionFolder[mode] = null;
+    }
+  }
+  syncStorageSectionsPanelUi();
+  if (rerender) {
+    if (activeContentMode === "media" && !isMediaAssetEditing()) {
+      rerenderMediaListViewBody();
+    } else if (activeContentMode === "external" && !isExternalFileEditing()) {
+      rerenderExternalListViewBody();
+    } else if (isFlatStorageSectionMode() && isFlatStorageListMode()) {
+      rerenderFlatStorageListViewBody(activeContentMode);
+    } else {
+      renderListViewContent();
+    }
+  }
+  if (!skipRouteSync) {
+    syncAppRouteToUrl({ replace: true });
+  }
+}
 let mediaFilesCache = {};
 let mediaAssetsExists = true;
 let activeStorageFolderExists = true;
@@ -3542,6 +3678,7 @@ let nodeOverviewRenderSeq = 0;
 let activeExternalFilePath = null;
 let activeMediaSidecarSourcePath = null;
 let activeMediaSidecarPath = null;
+let activeMediaMarkdownPath = null;
 let systemFilesCache = [];
 const modeContentCache = {
   description: "",
@@ -3973,7 +4110,9 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (!mode || mode === "graph") return false;
   if (isAreaContentModeBlocked(mode, nodePath ?? getResolvedNodePath(activePath))) return false;
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return true;
-  if (mode === "inbox" || mode === "references" || mode === "artefacts") return true;
+  if (mode === "inbox" || mode === "references" || mode === "artefacts" || mode === "scripts" || mode === "todo") {
+    return true;
+  }
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return true;
   return false;
@@ -4122,6 +4261,8 @@ function getContentModeLabel(mode) {
     if (match) return match.label;
   }
   if (mode === "inbox") return "Входящие";
+  if (mode === "scripts") return "Скрипты";
+  if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
   return mode;
@@ -4134,6 +4275,8 @@ function getNodeDefaultLandingDomainLabel(mode) {
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
   if (
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
+    domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
     domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS
   ) {
@@ -4634,6 +4777,18 @@ function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("inbox");
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_SCRIPTS) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    setContentMode("scripts");
+    return;
+  }
+  if (domain === NODE_WORKSPACE_DOMAIN_TODO) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    setContentMode("todo");
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
     nodeMemoryViewActive = true;
     nodeSettingsViewActive = false;
@@ -4674,6 +4829,8 @@ function applyNodeWorkspaceViewUi() {
   const overviewDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_OVERVIEW;
   const settingsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
+  const scriptsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SCRIPTS;
+  const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
   const referencesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_REFERENCES;
   const artefactsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
@@ -4683,6 +4840,8 @@ function applyNodeWorkspaceViewUi() {
   nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-todo", todoDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
@@ -4712,7 +4871,7 @@ function returnToNodeNavigation() {
 }
 
 function handleWorkspaceCloseClick() {
-  if (isMediaSidecarEditing()) {
+  if (isMediaAssetEditing()) {
     closeMediaSidecarEditor();
     return;
   }
@@ -4726,13 +4885,17 @@ function handleWorkspaceCloseClick() {
 function syncWorkspaceCloseButtonsVisibility() {
   const settingsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY;
-  const mediaSidecarEditing = isMediaSidecarEditing();
+  const scriptsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SCRIPTS;
+  const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
+  const mediaSidecarEditing = isMediaAssetEditing();
   const externalEditing = isExternalFileEditing();
   const showClose =
     mediaSidecarEditing ||
     externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
-    (memoryDomain && NODE_MEMORY_CLOSE_MODES.has(activeContentMode));
+    (memoryDomain && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
+    (scriptsDomain && activeContentMode === "scripts") ||
+    (todoDomain && activeContentMode === "todo");
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
   const backToList = mediaSidecarEditing || externalEditing;
@@ -4844,6 +5007,41 @@ function createObsidianMarkerSvg() {
   return svg;
 }
 
+function createSkillMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const doc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  doc.setAttribute(
+    "d",
+    "M8 3h7l4 4v14H8V3z"
+  );
+  doc.setAttribute("fill", "none");
+  doc.setAttribute("stroke", "currentColor");
+  doc.setAttribute("stroke-width", "2");
+  doc.setAttribute("stroke-linejoin", "round");
+
+  const fold = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  fold.setAttribute("d", "M15 3v4h4");
+  fold.setAttribute("fill", "none");
+  fold.setAttribute("stroke", "currentColor");
+  fold.setAttribute("stroke-width", "2");
+  fold.setAttribute("stroke-linejoin", "round");
+
+  const spark = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  spark.setAttribute(
+    "d",
+    "M11.5 12.5 13 9l1.5 3.5L18 14l-3.5 1.5L13 19l-1.5-3.5L8 14z"
+  );
+  spark.setAttribute("fill", "currentColor");
+  spark.setAttribute("opacity", "0.92");
+
+  svg.append(doc, fold, spark);
+  return svg;
+}
+
 function createAgentMarkerIcon() {
   const icon = document.createElement("span");
   icon.className = "menu-marker-emoji menu-marker-emoji-agent";
@@ -4856,7 +5054,8 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   const hasGit = Boolean(source?.hasGitSelf ?? source?.hasGit);
   const hasObsidian = Boolean(source?.hasObsidianSelf ?? source?.hasObsidian);
   const hasAgent = !skipAgent && Boolean(source?.hasAgentSelf ?? source?.hasAgent);
-  if (!hasAgent && !hasGit && !hasObsidian) return null;
+  const hasSkill = Boolean(source?.hasSkillSelf ?? source?.hasSkill);
+  if (!hasAgent && !hasGit && !hasObsidian && !hasSkill) return null;
 
   const wrap = document.createElement("span");
   wrap.className = "menu-folder-markers";
@@ -4884,6 +5083,14 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
     obs.setAttribute("aria-label", "Obsidian");
     obs.appendChild(createObsidianMarkerSvg());
     wrap.appendChild(obs);
+  }
+  if (hasSkill) {
+    const skill = document.createElement("span");
+    skill.className = "menu-marker menu-marker-skill";
+    skill.title = "Cursor Skill (SKILL.md в этой папке)";
+    skill.setAttribute("aria-label", "Skill");
+    skill.appendChild(createSkillMarkerSvg());
+    wrap.appendChild(skill);
   }
 
   return wrap;
@@ -5933,7 +6140,13 @@ function applyContentModeState(mode) {
     clearMediaSidecarEditor();
     setMediaBulkUploadPanelOpen(false);
   }
-  if (mode !== "external") activeExternalFilePath = null;
+  if (mode !== "external") {
+    activeExternalFilePath = null;
+    activeExternalSectionFolder = null;
+  }
+  for (const flatMode of FLAT_STORAGE_SECTION_MODES) {
+    if (mode !== flatMode) activeFlatStorageSectionFolder[flatMode] = null;
+  }
   if (isFlatStorageListMode(mode) || mode === "tabular") {
     editorViewMode = "preview";
   }
@@ -5985,12 +6198,12 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === "node-preview" ||
-    (activeContentMode === "media" && !isMediaSidecarEditing())
+    (activeContentMode === "media" && !isMediaAssetEditing())
   );
 }
 
 function getListViewRawContent() {
-  if (activeContentMode === "media" && !isMediaSidecarEditing()) {
+  if (activeContentMode === "media" && !isMediaAssetEditing()) {
     return modeContentCache.media || "";
   }
   if (activeContentMode === "external" && !isExternalFileEditing()) {
@@ -6002,7 +6215,7 @@ function getListViewRawContent() {
 function isCurrentModeReadOnly() {
   if (activeSystemFile) return false;
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
-  const mediaSidecarEditing = isMediaSidecarEditing();
+  const mediaSidecarEditing = isMediaAssetEditing();
   return (
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
@@ -6021,7 +6234,7 @@ function isCurrentModeReadOnly() {
 
 function isCurrentModeTitleEditable() {
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
-  const mediaSidecarEditing = isMediaSidecarEditing();
+  const mediaSidecarEditing = isMediaAssetEditing();
   return activeContentMode === "description" || externalEditing || mediaSidecarEditing;
 }
 
@@ -6035,7 +6248,7 @@ function isNodeDeleteAvailable() {
 function isCurrentModeListTemplate() {
   if (activeSystemFile) return false;
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
-  const mediaSidecarEditing = isMediaSidecarEditing();
+  const mediaSidecarEditing = isMediaAssetEditing();
   return (
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
@@ -6158,6 +6371,10 @@ const STORAGE_SUBFOLDER_BY_MODE = {
 
 function getStorageSubfolderForMode(mode) {
   return STORAGE_SUBFOLDER_BY_MODE[String(mode || "").trim()] || null;
+}
+
+function getFlatStorageSectionFolderName(mode) {
+  return getStorageSubfolderForMode(mode);
 }
 
 const AGENT_MAP3_LAYER_KEYS = [
@@ -7452,7 +7669,7 @@ function applyMindmapLayout(direction) {
   setMindmapLayoutDirection(direction);
   syncMindmapLayoutUi();
   if (isMindmapModeActive()) renderNodeMindmapView();
-  if (activeContentMode === "external" && externalViewMode === "mindmap") renderListViewContent();
+  if (activeContentMode === "external" && externalViewMode === "mindmap") rerenderExternalListViewBody();
 }
 
 function createMindmapLayoutBarElement() {
@@ -8189,7 +8406,7 @@ async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath(), 
 }
 
 async function refreshMediaListIfVisible() {
-  if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+  if (activeContentMode !== "media" || isMediaAssetEditing()) return;
   await refreshMediaCache();
   renderListViewContent();
 }
@@ -8286,6 +8503,76 @@ function getMediaUserSections() {
     .sort((a, b) => collator.compare(a.folderPath, b.folderPath));
 }
 
+function hasMediaUserSections() {
+  return getMediaUserSections().length > 0;
+}
+
+function hasExternalUserSections() {
+  return getExternalUserSections().length > 0;
+}
+
+function isSectionReadmePath(filePath) {
+  const base = String(filePath || "").split("/").pop() || "";
+  return base.toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
+}
+
+function getSectionReadmeRelPath(sectionFolder) {
+  const folder = String(sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+  return folder ? `${folder}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
+}
+
+function buildSectionReadmeContent(title) {
+  const safeTitle = String(title || "Раздел").trim() || "Раздел";
+  return `---\ntitle: ${safeTitle}\n---\n\n# ${safeTitle}\n\n> Описание раздела.\n`;
+}
+
+function externalSectionReadmeExists(sectionFolder) {
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  return externalFilesCache.some((file) => file.relativePath === readmePath);
+}
+
+function mediaSectionReadmeExists(sectionFolder) {
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  for (const groupItems of Object.values(mediaFilesCache)) {
+    if (!Array.isArray(groupItems)) continue;
+    if (groupItems.some((item) => !item.isFolder && item.path === readmePath)) return true;
+  }
+  return false;
+}
+
+function splitSectionReadmeItems(items, sectionFolder) {
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  return {
+    readmePath,
+    readmeItem: items.find((item) => item.path === readmePath) || null,
+    items: items.filter((item) => item.path !== readmePath)
+  };
+}
+
+function appendSectionReadmeCard(container, sectionFolder, { exists, onEdit }) {
+  const card = document.createElement("article");
+  card.className = "section-readme-card";
+
+  const title = document.createElement("h5");
+  title.className = "section-readme-card-title";
+  title.textContent = "Описание раздела";
+
+  const hint = document.createElement("p");
+  hint.className = "section-readme-card-hint";
+  hint.textContent = exists
+    ? `${AREA_MANIFEST_FILE} — необязательное описание каталога`
+    : `${AREA_MANIFEST_FILE} ещё не создан`;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "section-readme-card-btn";
+  btn.textContent = exists ? "Редактировать" : "Создать описание";
+  btn.addEventListener("click", () => onEdit(getSectionReadmeRelPath(sectionFolder)));
+
+  card.append(title, hint, btn);
+  container.appendChild(card);
+}
+
 function countMediaFilesInSection(sectionFolder) {
   if (!sectionFolder) return 0;
   const prefix = `${sectionFolder}/`;
@@ -8293,7 +8580,10 @@ function countMediaFilesInSection(sectionFolder) {
   for (const groupItems of Object.values(mediaFilesCache)) {
     if (!Array.isArray(groupItems)) continue;
     for (const item of groupItems) {
-      if (!item.isFolder && String(item.path || "").startsWith(prefix)) count += 1;
+      if (item.isFolder) continue;
+      if (isSectionReadmePath(item.path)) continue;
+      if (!String(item.path || "").startsWith(prefix)) continue;
+      count += 1;
     }
   }
   return count;
@@ -8318,6 +8608,7 @@ function getMediaItemsForSection(sectionFolder, viewMode = mediaViewMode) {
     if (!Array.isArray(groupItems)) continue;
     for (const item of groupItems) {
       if (item.isFolder) continue;
+      if (isSectionReadmePath(item.path)) continue;
       if (!String(item.path || "").startsWith(prefix)) continue;
       if (groupName && item.group !== groupName) continue;
       items.push(item);
@@ -8348,7 +8639,7 @@ function syncMediaViewSelectOptions() {
 }
 
 function rerenderMediaListViewBody() {
-  if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+  if (activeContentMode !== "media" || isMediaAssetEditing()) return;
   const body = listViewContentNode.querySelector(".media-list-view-body");
   if (body) {
     body.innerHTML = "";
@@ -8485,7 +8776,7 @@ function renderMediaSectionTree(container) {
   if (userSections.length === 0) {
     const empty = document.createElement("div");
     empty.className = "media-section-tree-empty";
-    empty.textContent = "Нет разделов. Создайте через «+ Раздел».";
+    empty.textContent = "Нет разделов. Создайте раздел через «+ Раздел».";
     list.appendChild(empty);
   } else {
     for (const section of userSections) {
@@ -8512,6 +8803,7 @@ function ensureMediaListViewLayout() {
     wrap = listViewContentNode.querySelector(".media-list-view-wrap");
   }
   renderMediaSectionTree(wrap.querySelector(".media-section-tree"));
+  syncStorageSectionsPanelUi();
   return wrap.querySelector(".media-list-view-body");
 }
 
@@ -8598,11 +8890,12 @@ function renderMediaListViewBody(container) {
   pruneActiveMediaSectionFolder();
   syncMediaViewSelectOptions();
   renderMediaSectionTree(listViewContentNode.querySelector(".media-section-tree"));
-  if (mediaViewMode === "dashboard" && !activeMediaSectionFolder) {
+  syncStorageSectionsPanelUi();
+  if (mediaViewMode === "dashboard" && (!activeMediaSectionFolder || !isStorageSectionsPanelVisible())) {
     renderMediaUsageDashboard(container);
     return;
   }
-  if (activeMediaSectionFolder) {
+  if (isStorageSectionsPanelVisible() && activeMediaSectionFolder) {
     if (mediaViewMode === "all") {
       renderMediaSectionFolderView(container, activeMediaSectionFolder);
       return;
@@ -8642,7 +8935,859 @@ function mountMediaListViewLayout(root) {
   wrap.appendChild(split);
   root.appendChild(wrap);
   renderMediaSectionTree(treeHost);
+  syncStorageSectionsPanelUi();
   return body;
+}
+
+function compareExternalPathsNatural(aPath, bPath) {
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const aParts = String(aPath || "").split("/").filter(Boolean);
+  const bParts = String(bPath || "").split("/").filter(Boolean);
+  const len = Math.min(aParts.length, bParts.length);
+  for (let i = 0; i < len; i += 1) {
+    const cmp = collator.compare(aParts[i], bParts[i]);
+    if (cmp !== 0) return cmp;
+  }
+  return aParts.length - bParts.length;
+}
+
+function getExternalUserSections() {
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const folderPaths = new Set();
+
+  for (const raw of parseFlatListItems(modeContentCache.external)) {
+    const normalized = normalizeListItem(raw);
+    if (!normalized.isFolder) continue;
+    const folderPath = String(normalized.path || "").replace(/\/$/, "");
+    if (folderPath) folderPaths.add(folderPath);
+  }
+
+  for (const file of externalFilesCache) {
+    const parent = String(file.parent || "").replace(/\\/g, "/");
+    if (!parent || parent === ".") continue;
+    const parts = parent.split("/").filter(Boolean);
+    let built = "";
+    for (const part of parts) {
+      built = built ? `${built}/${part}` : part;
+      folderPaths.add(built);
+    }
+  }
+
+  return Array.from(folderPaths)
+    .map((folderPath) => {
+      const segments = folderPath.split("/").filter(Boolean);
+      return {
+        folderPath,
+        label: segments[segments.length - 1] || folderPath,
+        depth: Math.max(0, segments.length - 1)
+      };
+    })
+    .sort((a, b) => collator.compare(a.folderPath, b.folderPath));
+}
+
+function countExternalFilesInSection(sectionFolder) {
+  if (!sectionFolder) return externalFilesCache.length;
+  const prefix = `${sectionFolder}/`;
+  let count = 0;
+  for (const file of externalFilesCache) {
+    const path = String(file.relativePath || "");
+    if (isSectionReadmePath(path)) continue;
+    const parent = String(file.parent || "").replace(/\\/g, "/");
+    if (path.startsWith(prefix) || parent === sectionFolder) count += 1;
+  }
+  return count;
+}
+
+function pruneActiveExternalSectionFolder() {
+  if (!activeExternalSectionFolder) return;
+  const exists = getExternalUserSections().some(
+    (section) => section.folderPath === activeExternalSectionFolder
+  );
+  if (!exists) activeExternalSectionFolder = null;
+}
+
+function getExternalMdItems() {
+  return externalFilesCache
+    .map((item) => ({
+      path: item.relativePath,
+      name: item.name,
+      parent: item.parent,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      title: item.name.replace(/\.md$/i, "")
+    }))
+    .sort((a, b) => compareExternalPathsNatural(a.path, b.path));
+}
+
+function filterExternalMdItems(items, sectionFolder) {
+  if (!sectionFolder) return items;
+  const prefix = `${sectionFolder}/`;
+  return items.filter((item) => {
+    const path = String(item.path || "");
+    const parent = String(item.parent || "").replace(/\\/g, "/");
+    return path.startsWith(prefix) || parent === sectionFolder;
+  });
+}
+
+function getExternalChildSections(sectionFolder) {
+  const prefix = sectionFolder ? `${sectionFolder}/` : "";
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  return getExternalUserSections()
+    .filter((section) => {
+      const folderPath = section.folderPath;
+      if (!folderPath.startsWith(prefix) || folderPath === sectionFolder) return false;
+      const remainder = folderPath.slice(prefix.length);
+      return remainder && !remainder.includes("/");
+    })
+    .sort((a, b) => collator.compare(a.label, b.label));
+}
+
+function getActiveExternalSectionParentForCreate() {
+  if (!isStorageSectionsPanelVisible()) return null;
+  if (activeExternalSectionFolder) return activeExternalSectionFolder;
+  const route = parseAppRoute(location.pathname);
+  if (route.view === "external" && route.mediaSectionPath) {
+    return route.mediaSectionPath;
+  }
+  return null;
+}
+
+function setActiveExternalSectionFolder(folderName, { rerender = true, skipRouteSync = false } = {}) {
+  const next = folderName ? String(folderName).replace(/\\/g, "/").replace(/\/$/, "").trim() : null;
+  if (next === activeExternalSectionFolder) {
+    syncExternalSectionTreeActiveState();
+    return;
+  }
+  activeExternalSectionFolder = next;
+  syncExternalSectionTreeActiveState();
+  if (rerender) rerenderExternalListViewBody();
+  if (!skipRouteSync) syncAppRouteToUrl({ push: true });
+}
+
+function syncExternalSectionTreeActiveState() {
+  const tree = listViewContentNode.querySelector(".external-section-tree");
+  if (!tree) return;
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-external-view]")) {
+    btn.classList.toggle("is-active", btn.dataset.externalView === "all" && !activeExternalSectionFolder);
+  }
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-external-section]")) {
+    btn.classList.toggle("is-active", btn.dataset.externalSection === activeExternalSectionFolder);
+  }
+}
+
+function renderExternalSectionTree(container) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const list = document.createElement("div");
+  list.className = "media-section-tree-list";
+  list.setAttribute("role", "tree");
+  container.appendChild(list);
+
+  const allBtn = appendMediaSectionTreeItem(list, {
+    icon: "📋",
+    label: "Все элементы",
+    count: externalFilesCache.length,
+    isActive: !activeExternalSectionFolder,
+    onClick: () => setActiveExternalSectionFolder(null)
+  });
+  allBtn.dataset.externalView = "all";
+
+  const divider = document.createElement("div");
+  divider.className = "media-section-tree-divider";
+  divider.setAttribute("role", "presentation");
+  list.appendChild(divider);
+
+  const userSections = getExternalUserSections();
+  if (userSections.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "media-section-tree-empty";
+    empty.textContent = "Нет разделов. Создайте раздел через «+ Раздел».";
+    list.appendChild(empty);
+  } else {
+    for (const section of userSections) {
+      const count = countExternalFilesInSection(section.folderPath);
+      const btn = appendMediaSectionTreeItem(list, {
+        icon: "📁",
+        label: section.label,
+        count,
+        depth: section.depth,
+        isActive: activeExternalSectionFolder === section.folderPath,
+        isEmpty: count === 0,
+        onClick: () => setActiveExternalSectionFolder(section.folderPath)
+      });
+      btn.dataset.externalSection = section.folderPath;
+    }
+  }
+}
+
+function mountExternalListViewLayout(root) {
+  const wrap = document.createElement("div");
+  wrap.className = "media-list-view-wrap external-list-view-wrap";
+
+  const split = document.createElement("div");
+  split.className = "media-list-view-split external-list-view-split";
+
+  const treeHost = document.createElement("nav");
+  treeHost.className = "media-section-tree external-section-tree";
+  treeHost.setAttribute("aria-label", "Разделы многофайловой памяти");
+  split.appendChild(treeHost);
+
+  const body = document.createElement("div");
+  body.className = "media-list-view-body external-list-view-body";
+  split.appendChild(body);
+
+  wrap.appendChild(split);
+  root.appendChild(wrap);
+  renderExternalSectionTree(treeHost);
+  syncStorageSectionsPanelUi();
+  return body;
+}
+
+function ensureExternalListViewLayout() {
+  let wrap = listViewContentNode.querySelector(".external-list-view-wrap");
+  if (!wrap) {
+    listViewContentNode.innerHTML = "";
+    mountExternalListViewLayout(listViewContentNode);
+    wrap = listViewContentNode.querySelector(".external-list-view-wrap");
+  }
+  renderExternalSectionTree(wrap.querySelector(".external-section-tree"));
+  syncStorageSectionsPanelUi();
+  return wrap.querySelector(".external-list-view-body");
+}
+
+function rerenderExternalListViewBody() {
+  if (activeContentMode !== "external" || isExternalFileEditing()) return;
+  const body = listViewContentNode.querySelector(".external-list-view-body");
+  if (body) {
+    body.innerHTML = "";
+    renderExternalListViewBody(body);
+    return;
+  }
+  renderListViewContent();
+}
+
+function renderExternalSectionFolderView(container, sectionFolder, items) {
+  const childSections = getExternalChildSections(sectionFolder);
+  const { items: contentItems } = splitSectionReadmeItems(items, sectionFolder);
+  const readmeExists = externalSectionReadmeExists(sectionFolder);
+
+  if (childSections.length === 0 && contentItems.length === 0 && !readmeExists) {
+    renderListEmptyMessage(container, `В разделе «${sectionFolder}» пока нет элементов`);
+    return;
+  }
+
+  const head = document.createElement("div");
+  head.className = "media-section-folder-head";
+  const title = document.createElement("h4");
+  title.className = "media-section-folder-title";
+  title.textContent = `📁 ${sectionFolder}`;
+  head.appendChild(title);
+  container.appendChild(head);
+
+  appendSectionReadmeCard(container, sectionFolder, {
+    exists: readmeExists,
+    onEdit: (readmePath) => void openExternalSectionReadme(readmePath, sectionFolder)
+  });
+
+  if (childSections.length > 0) {
+    const subList = document.createElement("ul");
+    subList.className = "media-section-subfolder-list";
+    for (const child of childSections) {
+      const li = document.createElement("li");
+      li.className = "media-section-subfolder-item";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "media-section-subfolder-btn";
+      btn.textContent = `📁 ${child.label}`;
+      btn.title = child.folderPath;
+      btn.addEventListener("click", () => setActiveExternalSectionFolder(child.folderPath));
+      li.appendChild(btn);
+      subList.appendChild(li);
+    }
+    container.appendChild(subList);
+  }
+
+  if (contentItems.length > 0) {
+    renderExternalViewContent(container, contentItems);
+  }
+}
+
+function renderExternalViewContent(container, mdItems) {
+  const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+
+  function buildMockMeta(pathValue, index) {
+    const fileName = pathValue.split("/").pop() || pathValue;
+    const pathParts = pathValue.split("/").filter(Boolean);
+    const title = fileName.replace(/\.md$/i, "");
+    const baseDay = (index % 26) + 1;
+    const created = `2026-05-${String(baseDay).padStart(2, "0")}`;
+    const updated = `2026-06-${String(((baseDay + 5) % 28) + 1).padStart(2, "0")}`;
+    const done = index % 3 === 0 ? "Да" : "Нет";
+    const cover = "Есть";
+    const tags = index % 2 === 0 ? "agent, note" : "task, draft";
+    const parent = pathParts.length > 1 ? pathParts[pathParts.length - 2] : getAgentTreeTitle();
+    return { title, created, updated, done, cover, tags, parent };
+  }
+
+  function formatExternalItemSection(item) {
+    const parent = String(item.parent || "").replace(/\\/g, "/").trim();
+    if (!parent || parent === ".") return "Корень";
+    return parent;
+  }
+
+  if (mdItems.length === 0) {
+    renderListEmptyMessage(container, "Markdown-файлы не найдены");
+    return;
+  }
+
+  if (externalViewMode === "table") {
+    const table = document.createElement("table");
+    table.className = "external-table";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Раздел</th>
+          <th>Файл</th>
+          <th>Заголовок</th>
+          <th>Создан</th>
+          <th>Обновлен</th>
+          <th>Выполнен</th>
+          <th>Обложка</th>
+          <th>Тэги</th>
+          <th>Родитель</th>
+          <th>Путь</th>
+        </tr>
+      </thead>
+    `;
+    const tbody = document.createElement("tbody");
+    for (const [index, item] of mdItems.entries()) {
+      const tr = document.createElement("tr");
+      const meta = buildMockMeta(item.path, index);
+      const created = item.createdAt ? item.createdAt.slice(0, 10) : meta.created;
+      const updated = item.updatedAt ? item.updatedAt.slice(0, 10) : meta.updated;
+      tr.innerHTML = `
+        <td>${escapeHtml(formatExternalItemSection(item))}</td>
+        <td>${escapeHtml(item.title)}</td>
+        <td>${escapeHtml(item.title)}</td>
+        <td>${escapeHtml(created)}</td>
+        <td>${escapeHtml(updated)}</td>
+        <td>${escapeHtml(meta.done)}</td>
+        <td>${escapeHtml(meta.cover)}</td>
+        <td>${escapeHtml(meta.tags)}</td>
+        <td>${escapeHtml(item.parent || meta.parent)}</td>
+        <td>${escapeHtml(item.path)}</td>
+      `;
+      tr.style.cursor = "pointer";
+      tr.addEventListener("click", () => openExternalFile(item.path));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    container.appendChild(table);
+    return;
+  }
+
+  if (externalViewMode === "cards") {
+    const grid = document.createElement("div");
+    grid.className = "external-cards-grid";
+    for (const item of mdItems) {
+      const card = document.createElement("article");
+      card.className = "external-card";
+      const fileName = item.path.split("/").pop() || item.path;
+      card.innerHTML = `
+        <div class="external-card-image">Фото (рыба)</div>
+        <div class="external-card-body">
+          <div class="list-item-path">${escapeHtml(fileName)}</div>
+          <div class="list-item-path">${escapeHtml(item.path)}</div>
+        </div>
+      `;
+      card.style.cursor = "pointer";
+      card.addEventListener("click", () => openExternalFile(item.path));
+      grid.appendChild(card);
+    }
+    container.appendChild(grid);
+    return;
+  }
+
+  if (externalViewMode === "calendar") {
+    const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+    const calendar = document.createElement("div");
+    calendar.className = "external-calendar-grid";
+    const buckets = weekDays.map((title) => ({ title, items: [] }));
+    mdItems.forEach((item, idx) => {
+      buckets[idx % 7].items.push(item.path.split("/").pop() || item.path);
+    });
+    for (const bucket of buckets) {
+      const day = document.createElement("div");
+      day.className = "external-calendar-day";
+      const head = document.createElement("div");
+      head.className = "external-calendar-day-title";
+      head.textContent = bucket.title;
+      day.appendChild(head);
+      for (const entry of bucket.items.slice(0, 5)) {
+        const chip = document.createElement("div");
+        chip.className = "external-calendar-item";
+        chip.textContent = entry;
+        day.appendChild(chip);
+      }
+      calendar.appendChild(day);
+    }
+    container.appendChild(calendar);
+    return;
+  }
+
+  if (externalViewMode === "index") {
+    const groups = new Map();
+    for (const item of mdItems) {
+      const key = item.parent && item.parent !== "." ? item.parent : "Корень";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(item);
+    }
+
+    const sortedGroups = Array.from(groups.entries()).sort((a, b) =>
+      compareExternalPathsNatural(a[0], b[0])
+    );
+
+    for (const [groupTitle, items] of sortedGroups) {
+      const sectionNode = document.createElement("section");
+      sectionNode.className = "external-index-section";
+
+      const headerNode = document.createElement("div");
+      headerNode.className = "external-index-section-title";
+      headerNode.textContent = groupTitle;
+      sectionNode.appendChild(headerNode);
+
+      const listNode = document.createElement("ul");
+      listNode.className = "external-index-list";
+
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.className = "external-index-item";
+        li.textContent = item.title;
+        li.title = item.path;
+        li.addEventListener("click", () => openExternalFile(item.path));
+        listNode.appendChild(li);
+      }
+
+      sectionNode.appendChild(listNode);
+      container.appendChild(sectionNode);
+    }
+    return;
+  }
+
+  if (externalViewMode === "moc") {
+    const groups = new Map();
+    for (const [index, item] of mdItems.entries()) {
+      const meta = buildMockMeta(item.path, index);
+      const topic = String(meta.tags || "other")
+        .split(",")[0]
+        .trim() || "other";
+      if (!groups.has(topic)) groups.set(topic, []);
+      groups.get(topic).push(item);
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "external-moc-grid";
+
+    for (const [topic, items] of Array.from(groups.entries()).sort((a, b) =>
+      naturalCollator.compare(a[0], b[0])
+    )) {
+      const card = document.createElement("article");
+      card.className = "external-moc-card";
+
+      const title = document.createElement("div");
+      title.className = "external-moc-card-title";
+      title.textContent = topic;
+      card.appendChild(title);
+
+      const listNode = document.createElement("ul");
+      listNode.className = "external-moc-list";
+
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.className = "external-moc-item";
+        li.textContent = item.title;
+        li.title = item.path;
+        li.addEventListener("click", () => openExternalFile(item.path));
+        listNode.appendChild(li);
+      }
+
+      card.appendChild(listNode);
+      grid.appendChild(card);
+    }
+
+    container.appendChild(grid);
+    return;
+  }
+
+  if (externalViewMode === "mindmap") {
+    renderExternalMindmapCanvas(container, mdItems);
+    return;
+  }
+
+  if (externalViewMode === "cheatsheet") {
+    renderExternalCheatsheetView(container, mdItems);
+    return;
+  }
+
+  if (externalViewMode === "graph") {
+    renderExternalGraphCanvas(container, mdItems);
+    return;
+  }
+
+  const listNode = document.createElement("ul");
+  listNode.className = "list-items";
+  for (const item of mdItems) {
+    const li = document.createElement("li");
+    li.className = "list-item";
+    li.style.cursor = "pointer";
+    li.addEventListener("click", () => openExternalFile(item.path));
+
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = "📄";
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "list-item-path";
+    pathNode.textContent = item.path;
+
+    li.appendChild(icon);
+    li.appendChild(pathNode);
+    listNode.appendChild(li);
+  }
+  container.appendChild(listNode);
+}
+
+function renderExternalListViewBody(container) {
+  pruneActiveExternalSectionFolder();
+  renderExternalSectionTree(listViewContentNode.querySelector(".external-section-tree"));
+  syncStorageSectionsPanelUi();
+
+  const allItems = getExternalMdItems();
+  if (allItems.length === 0 && getExternalUserSections().length === 0) {
+    renderListEmptyMessage(container, "Markdown-файлы не найдены");
+    return;
+  }
+
+  if (isStorageSectionsPanelVisible() && activeExternalSectionFolder) {
+    const items = filterExternalMdItems(allItems, activeExternalSectionFolder);
+    renderExternalSectionFolderView(container, activeExternalSectionFolder, items);
+    return;
+  }
+
+  renderExternalViewContent(container, allItems);
+}
+
+function getFlatStorageSectionTreeLabel(mode) {
+  if (mode === "scripts") return "Разделы скриптов";
+  if (mode === "inbox") return "Разделы входящих";
+  if (mode === "artefacts") return "Разделы артефактов";
+  return "Разделы";
+}
+
+function getFlatStorageNormalizedItems(mode) {
+  return parseFlatListItems(modeContentCache[mode] || "")
+    .map((raw) => normalizeListItem(raw))
+    .filter((item) => item.path);
+}
+
+function getFlatStorageUserSections(mode) {
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const folderPaths = new Set();
+
+  for (const item of getFlatStorageNormalizedItems(mode)) {
+    if (item.isFolder) {
+      const folderPath = String(item.path || "").replace(/\/$/, "");
+      if (folderPath) folderPaths.add(folderPath);
+      continue;
+    }
+    const parts = String(item.path || "").split("/").filter(Boolean);
+    if (parts.length <= 1) continue;
+    let built = "";
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      built = built ? `${built}/${parts[i]}` : parts[i];
+      folderPaths.add(built);
+    }
+  }
+
+  return Array.from(folderPaths)
+    .map((folderPath) => {
+      const segments = folderPath.split("/").filter(Boolean);
+      return {
+        folderPath,
+        label: segments[segments.length - 1] || folderPath,
+        depth: Math.max(0, segments.length - 1)
+      };
+    })
+    .sort((a, b) => collator.compare(a.folderPath, b.folderPath));
+}
+
+function countFlatStorageItemsInSection(mode, sectionFolder) {
+  return filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), sectionFolder).length;
+}
+
+function filterFlatStorageSectionItems(items, sectionFolder) {
+  if (!sectionFolder) {
+    return items.filter((item) => !item.isFolder && !isSectionReadmePath(item.path));
+  }
+  const prefix = `${sectionFolder}/`;
+  return items.filter((item) => {
+    if (item.isFolder) return false;
+    if (isSectionReadmePath(item.path)) return false;
+    const path = String(item.path || "");
+    if (!path.startsWith(prefix)) return false;
+    return !path.slice(prefix.length).includes("/");
+  });
+}
+
+function flatStorageSectionReadmeExists(mode, sectionFolder) {
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  return getFlatStorageNormalizedItems(mode).some(
+    (item) => !item.isFolder && item.path === readmePath
+  );
+}
+
+function getFlatStorageChildSections(mode, sectionFolder) {
+  const prefix = sectionFolder ? `${sectionFolder}/` : "";
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  return getFlatStorageUserSections(mode)
+    .filter((section) => {
+      const folderPath = section.folderPath;
+      if (!folderPath.startsWith(prefix) || folderPath === sectionFolder) return false;
+      const remainder = folderPath.slice(prefix.length);
+      return remainder && !remainder.includes("/");
+    })
+    .sort((a, b) => collator.compare(a.label, b.label));
+}
+
+function pruneActiveFlatStorageSectionFolder(mode = activeContentMode) {
+  if (!isFlatStorageSectionMode(mode) || !activeFlatStorageSectionFolder[mode]) return;
+  const exists = getFlatStorageUserSections(mode).some(
+    (section) => section.folderPath === activeFlatStorageSectionFolder[mode]
+  );
+  if (!exists) activeFlatStorageSectionFolder[mode] = null;
+}
+
+function getActiveFlatStorageSectionParentForCreate(mode = activeContentMode) {
+  if (!isFlatStorageSectionMode(mode) || !isStorageSectionsPanelVisible()) return null;
+  if (activeFlatStorageSectionFolder[mode]) return activeFlatStorageSectionFolder[mode];
+  const route = parseAppRoute(location.pathname);
+  if (route.view === mode && route.mediaSectionPath) return route.mediaSectionPath;
+  return null;
+}
+
+function setActiveFlatStorageSectionFolder(mode, folderName, { rerender = true, skipRouteSync = false } = {}) {
+  if (!isFlatStorageSectionMode(mode)) return;
+  const next = folderName ? String(folderName).replace(/\\/g, "/").replace(/\/$/, "").trim() : null;
+  if (next === activeFlatStorageSectionFolder[mode]) {
+    syncFlatStorageSectionTreeActiveState(mode);
+    return;
+  }
+  activeFlatStorageSectionFolder[mode] = next;
+  syncFlatStorageSectionTreeActiveState(mode);
+  if (rerender) rerenderFlatStorageListViewBody(mode);
+  if (!skipRouteSync) syncAppRouteToUrl({ push: true });
+}
+
+function syncFlatStorageSectionTreeActiveState(mode) {
+  const tree = listViewContentNode.querySelector(`.flat-storage-section-tree[data-mode="${mode}"]`);
+  if (!tree) return;
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-flat-storage-view]")) {
+    btn.classList.toggle("is-active", btn.dataset.flatStorageView === "all" && !activeFlatStorageSectionFolder[mode]);
+  }
+  for (const btn of tree.querySelectorAll(".media-section-tree-item[data-flat-storage-section]")) {
+    btn.classList.toggle("is-active", btn.dataset.flatStorageSection === activeFlatStorageSectionFolder[mode]);
+  }
+}
+
+function renderFlatStorageSectionTree(container, mode) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const list = document.createElement("div");
+  list.className = "media-section-tree-list";
+  list.setAttribute("role", "tree");
+  container.appendChild(list);
+
+  const allCount = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null).length;
+  const allBtn = appendMediaSectionTreeItem(list, {
+    icon: "📋",
+    label: "Все элементы",
+    count: allCount,
+    isActive: !activeFlatStorageSectionFolder[mode],
+    onClick: () => setActiveFlatStorageSectionFolder(mode, null)
+  });
+  allBtn.dataset.flatStorageView = "all";
+
+  const divider = document.createElement("div");
+  divider.className = "media-section-tree-divider";
+  divider.setAttribute("role", "presentation");
+  list.appendChild(divider);
+
+  const userSections = getFlatStorageUserSections(mode);
+  if (userSections.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "media-section-tree-empty";
+    empty.textContent = "Нет разделов. Создайте раздел через «+ Раздел».";
+    list.appendChild(empty);
+  } else {
+    for (const section of userSections) {
+      const count = countFlatStorageItemsInSection(mode, section.folderPath);
+      const btn = appendMediaSectionTreeItem(list, {
+        icon: "📁",
+        label: section.label,
+        count,
+        depth: section.depth,
+        isActive: activeFlatStorageSectionFolder[mode] === section.folderPath,
+        isEmpty: count === 0,
+        onClick: () => setActiveFlatStorageSectionFolder(mode, section.folderPath)
+      });
+      btn.dataset.flatStorageSection = section.folderPath;
+    }
+  }
+}
+
+function mountFlatStorageListViewLayout(root, mode) {
+  const wrap = document.createElement("div");
+  wrap.className = `media-list-view-wrap flat-storage-list-view-wrap flat-storage-list-view-wrap--${mode}`;
+
+  const split = document.createElement("div");
+  split.className = "media-list-view-split flat-storage-list-view-split";
+
+  const treeHost = document.createElement("nav");
+  treeHost.className = "media-section-tree flat-storage-section-tree";
+  treeHost.dataset.mode = mode;
+  treeHost.setAttribute("aria-label", getFlatStorageSectionTreeLabel(mode));
+  split.appendChild(treeHost);
+
+  const body = document.createElement("div");
+  body.className = "media-list-view-body flat-storage-list-view-body";
+  split.appendChild(body);
+
+  wrap.appendChild(split);
+  root.appendChild(wrap);
+  renderFlatStorageSectionTree(treeHost, mode);
+  syncStorageSectionsPanelUi();
+  return body;
+}
+
+function ensureFlatStorageListViewLayout(mode) {
+  let wrap = listViewContentNode.querySelector(`.flat-storage-list-view-wrap--${mode}`);
+  if (!wrap) {
+    return mountFlatStorageListViewLayout(listViewContentNode, mode);
+  }
+  renderFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"));
+  syncStorageSectionsPanelUi();
+  return wrap.querySelector(".flat-storage-list-view-body");
+}
+
+function rerenderFlatStorageListViewBody(mode = activeContentMode) {
+  const body = listViewContentNode.querySelector(`.flat-storage-list-view-wrap--${mode} .flat-storage-list-view-body`);
+  if (!body) {
+    renderListViewContent();
+    return;
+  }
+  body.innerHTML = "";
+  renderFlatStorageListViewBody(body, mode);
+}
+
+function renderFlatStorageListItems(container, items) {
+  if (items.length === 0) {
+    renderListEmptyMessage(container, getStorageFolderEmptyMessage());
+    return;
+  }
+
+  const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const normalizedItems = items
+    .slice()
+    .sort((a, b) => naturalCollator.compare(String(a.path || ""), String(b.path || "")));
+
+  const listNode = document.createElement("ul");
+  listNode.className = "list-items";
+  for (const normalized of normalizedItems) {
+    const li = document.createElement("li");
+    li.className = "list-item";
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = "📄";
+    const pathNode = document.createElement("span");
+    pathNode.className = "list-item-path";
+    pathNode.textContent = normalized.path;
+    li.append(icon, pathNode);
+    listNode.appendChild(li);
+  }
+  container.appendChild(listNode);
+}
+
+function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
+  const childSections = getFlatStorageChildSections(mode, sectionFolder);
+  const items = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), sectionFolder);
+  const readmeExists = flatStorageSectionReadmeExists(mode, sectionFolder);
+
+  if (childSections.length === 0 && items.length === 0 && !readmeExists) {
+    renderListEmptyMessage(container, `В разделе «${sectionFolder}» пока нет элементов`);
+    return;
+  }
+
+  const head = document.createElement("div");
+  head.className = "media-section-folder-head";
+  const title = document.createElement("h4");
+  title.className = "media-section-folder-title";
+  title.textContent = `📁 ${sectionFolder}`;
+  head.appendChild(title);
+  container.appendChild(head);
+
+  appendSectionReadmeCard(container, sectionFolder, {
+    exists: readmeExists,
+    onEdit: (readmePath) => void openFlatStorageSectionReadme(mode, readmePath, sectionFolder)
+  });
+
+  if (childSections.length > 0) {
+    const subList = document.createElement("ul");
+    subList.className = "media-section-subfolder-list";
+    for (const child of childSections) {
+      const li = document.createElement("li");
+      li.className = "media-section-subfolder-item";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "media-section-subfolder-btn";
+      btn.textContent = `📁 ${child.label}`;
+      btn.title = child.folderPath;
+      btn.addEventListener("click", () => setActiveFlatStorageSectionFolder(mode, child.folderPath));
+      li.appendChild(btn);
+      subList.appendChild(li);
+    }
+    container.appendChild(subList);
+  }
+
+  if (items.length > 0) {
+    renderFlatStorageListItems(container, items);
+  }
+}
+
+function renderFlatStorageAllItemsView(container, mode) {
+  const items = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null);
+  if (items.length === 0 && getFlatStorageUserSections(mode).length === 0) {
+    renderListEmptyMessage(container, getStorageFolderEmptyMessage(mode));
+    return;
+  }
+  renderFlatStorageListItems(container, items);
+}
+
+function renderFlatStorageListViewBody(container, mode) {
+  pruneActiveFlatStorageSectionFolder(mode);
+  renderFlatStorageSectionTree(
+    listViewContentNode.querySelector(`.flat-storage-section-tree[data-mode="${mode}"]`),
+    mode
+  );
+  syncStorageSectionsPanelUi();
+
+  if (isStorageSectionsPanelVisible() && activeFlatStorageSectionFolder[mode]) {
+    renderFlatStorageSectionFolderView(container, mode, activeFlatStorageSectionFolder[mode]);
+    return;
+  }
+
+  renderFlatStorageAllItemsView(container, mode);
 }
 
 function updateMediaBulkUploadProgressUI() {
@@ -9033,9 +10178,11 @@ function getMediaChildSections(sectionFolder) {
 
 function renderMediaSectionFolderView(container, sectionFolder) {
   const childSections = getMediaChildSections(sectionFolder);
-  const items = getMediaItemsForSection(sectionFolder, "all");
+  const allItems = getMediaItemsForSection(sectionFolder, "all");
+  const { items } = splitSectionReadmeItems(allItems, sectionFolder);
+  const readmeExists = mediaSectionReadmeExists(sectionFolder);
 
-  if (childSections.length === 0 && items.length === 0) {
+  if (childSections.length === 0 && items.length === 0 && !readmeExists) {
     renderMediaEmpty(container, `В разделе «${sectionFolder}» пока нет файлов и подразделов`);
     return;
   }
@@ -9047,6 +10194,11 @@ function renderMediaSectionFolderView(container, sectionFolder) {
   title.textContent = `📁 ${sectionFolder}`;
   head.appendChild(title);
   container.appendChild(head);
+
+  appendSectionReadmeCard(container, sectionFolder, {
+    exists: readmeExists,
+    onEdit: (readmePath) => void openMediaSectionReadme(readmePath, sectionFolder)
+  });
 
   if (childSections.length > 0) {
     const subList = document.createElement("ul");
@@ -9467,7 +10619,7 @@ function isWorkspaceRefreshAvailable() {
   if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) return true;
   if (isFlatStorageListMode()) return true;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
-  if (activeContentMode === "media" && !isMediaSidecarEditing()) return true;
+  if (activeContentMode === "media" && !isMediaAssetEditing()) return true;
   if (activeContentMode === "temp") return true;
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) return true;
   return false;
@@ -9748,7 +10900,9 @@ function renderMediaFilteredView(container) {
 
 function renderListViewContent() {
   const raw = getListViewRawContent();
-  const isMediaListView = activeContentMode === "media" && !isMediaSidecarEditing();
+  const isMediaListView = activeContentMode === "media" && !isMediaAssetEditing();
+  const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();
+  const isFlatStorageSectionListView = isFlatStorageSectionMode() && isFlatStorageListMode();
 
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) {
     listViewContentNode.innerHTML = "";
@@ -9761,6 +10915,18 @@ function renderListViewContent() {
     listTarget = ensureMediaListViewLayout();
     listTarget.innerHTML = "";
     renderMediaListViewBody(listTarget);
+    return;
+  }
+  if (isExternalListView) {
+    listTarget = ensureExternalListViewLayout();
+    listTarget.innerHTML = "";
+    renderExternalListViewBody(listTarget);
+    return;
+  }
+  if (isFlatStorageSectionListView) {
+    listTarget = ensureFlatStorageListViewLayout(activeContentMode);
+    listTarget.innerHTML = "";
+    renderFlatStorageListViewBody(listTarget, activeContentMode);
     return;
   }
 
@@ -9779,26 +10945,6 @@ function renderListViewContent() {
 
   const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
-  function buildMockMeta(pathValue, index) {
-    const fileName = pathValue.split("/").pop() || pathValue;
-    const pathParts = pathValue.split("/").filter(Boolean);
-    const title = fileName.replace(/\.md$/i, "");
-    const baseDay = (index % 26) + 1;
-    const created = `2026-05-${String(baseDay).padStart(2, "0")}`;
-    const updated = `2026-06-${String(((baseDay + 5) % 28) + 1).padStart(2, "0")}`;
-    const done = index % 3 === 0 ? "Да" : "Нет";
-    const cover = "Есть";
-    const tags = index % 2 === 0 ? "agent, note" : "task, draft";
-    const parent = pathParts.length > 1 ? pathParts[pathParts.length - 2] : getAgentTreeTitle();
-    return { title, created, updated, done, cover, tags, parent };
-  }
-
-  function formatExternalItemSection(item) {
-    const parent = String(item.parent || "").replace(/\\/g, "/").trim();
-    if (!parent || parent === ".") return "Корень";
-    return parent;
-  }
-
   function comparePathsNatural(aPath, bPath) {
     const aParts = aPath.split("/").filter(Boolean);
     const bParts = bPath.split("/").filter(Boolean);
@@ -9811,237 +10957,20 @@ function renderListViewContent() {
   }
 
   if (!raw.trim()) {
-    const externalListMode = activeContentMode === "external" && !isExternalFileEditing();
-    const canRenderExternalFromCache = externalListMode && externalFilesCache.length > 0;
-    if (!canRenderExternalFromCache) {
-      const empty = document.createElement("div");
-      empty.className = "list-empty";
-      if (activeContentMode === "media" && !isMediaSidecarEditing()) {
-        empty.textContent = getStorageFolderEmptyMessage("media");
-      } else if (externalListMode) {
-        empty.textContent = "Markdown-файлы не найдены";
-      } else {
-        empty.textContent = "Список пуст";
-      }
-      listTarget.appendChild(empty);
-      return;
+    const empty = document.createElement("div");
+    empty.className = "list-empty";
+    if (activeContentMode === "media" && !isMediaAssetEditing()) {
+      empty.textContent = getStorageFolderEmptyMessage("media");
+    } else {
+      empty.textContent = "Список пуст";
     }
+    listTarget.appendChild(empty);
+    return;
   }
 
   const sections = activeContentMode === "media"
     ? parseMediaSections(raw)
     : [{ title: "Файлы", items: parseFlatListItems(raw) }];
-
-  if (activeContentMode === "external") {
-    const mdItems = externalFilesCache
-      .map((item) => ({
-        path: item.relativePath,
-        name: item.name,
-        parent: item.parent,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        title: item.name.replace(/\.md$/i, "")
-      }))
-      .sort((a, b) => comparePathsNatural(a.path, b.path));
-
-    if (mdItems.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "list-empty";
-      empty.textContent = "Markdown-файлы не найдены";
-      listViewContentNode.appendChild(empty);
-      return;
-    }
-
-    if (externalViewMode === "table") {
-      const table = document.createElement("table");
-      table.className = "external-table";
-      table.innerHTML = `
-        <thead>
-          <tr>
-            <th>Раздел</th>
-            <th>Файл</th>
-            <th>Заголовок</th>
-            <th>Создан</th>
-            <th>Обновлен</th>
-            <th>Выполнен</th>
-            <th>Обложка</th>
-            <th>Тэги</th>
-            <th>Родитель</th>
-            <th>Путь</th>
-          </tr>
-        </thead>
-      `;
-      const tbody = document.createElement("tbody");
-      for (const [index, item] of mdItems.entries()) {
-        const tr = document.createElement("tr");
-        const meta = buildMockMeta(item.path, index);
-        const created = item.createdAt ? item.createdAt.slice(0, 10) : meta.created;
-        const updated = item.updatedAt ? item.updatedAt.slice(0, 10) : meta.updated;
-        tr.innerHTML = `
-          <td>${escapeHtml(formatExternalItemSection(item))}</td>
-          <td>${escapeHtml(item.title)}</td>
-          <td>${escapeHtml(item.title)}</td>
-          <td>${escapeHtml(created)}</td>
-          <td>${escapeHtml(updated)}</td>
-          <td>${escapeHtml(meta.done)}</td>
-          <td>${escapeHtml(meta.cover)}</td>
-          <td>${escapeHtml(meta.tags)}</td>
-          <td>${escapeHtml(item.parent || meta.parent)}</td>
-          <td>${escapeHtml(item.path)}</td>
-        `;
-        tr.style.cursor = "pointer";
-        tr.addEventListener("click", () => openExternalFile(item.path));
-        tbody.appendChild(tr);
-      }
-      table.appendChild(tbody);
-      listViewContentNode.appendChild(table);
-      return;
-    }
-
-    if (externalViewMode === "cards") {
-      const grid = document.createElement("div");
-      grid.className = "external-cards-grid";
-      for (const item of mdItems) {
-        const card = document.createElement("article");
-        card.className = "external-card";
-        const fileName = item.path.split("/").pop() || item.path;
-        card.innerHTML = `
-          <div class="external-card-image">Фото (рыба)</div>
-          <div class="external-card-body">
-            <div class="list-item-path">${escapeHtml(fileName)}</div>
-            <div class="list-item-path">${escapeHtml(item.path)}</div>
-          </div>
-        `;
-        grid.appendChild(card);
-      }
-      listViewContentNode.appendChild(grid);
-      return;
-    }
-
-    if (externalViewMode === "calendar") {
-      const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-      const calendar = document.createElement("div");
-      calendar.className = "external-calendar-grid";
-      const buckets = weekDays.map((title) => ({ title, items: [] }));
-      mdItems.forEach((item, idx) => {
-        buckets[idx % 7].items.push(item.path.split("/").pop() || item.path);
-      });
-      for (const bucket of buckets) {
-        const day = document.createElement("div");
-        day.className = "external-calendar-day";
-        const head = document.createElement("div");
-        head.className = "external-calendar-day-title";
-        head.textContent = bucket.title;
-        day.appendChild(head);
-        for (const entry of bucket.items.slice(0, 5)) {
-          const chip = document.createElement("div");
-          chip.className = "external-calendar-item";
-          chip.textContent = entry;
-          day.appendChild(chip);
-        }
-        calendar.appendChild(day);
-      }
-      listViewContentNode.appendChild(calendar);
-      return;
-    }
-
-    if (externalViewMode === "index") {
-      const groups = new Map();
-      for (const item of mdItems) {
-        const key = item.parent && item.parent !== "." ? item.parent : "Корень";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(item);
-      }
-
-      const sortedGroups = Array.from(groups.entries()).sort((a, b) =>
-        comparePathsNatural(a[0], b[0])
-      );
-
-      for (const [groupTitle, items] of sortedGroups) {
-        const sectionNode = document.createElement("section");
-        sectionNode.className = "external-index-section";
-
-        const headerNode = document.createElement("div");
-        headerNode.className = "external-index-section-title";
-        headerNode.textContent = groupTitle;
-        sectionNode.appendChild(headerNode);
-
-        const listNode = document.createElement("ul");
-        listNode.className = "external-index-list";
-
-        for (const item of items) {
-          const li = document.createElement("li");
-          li.className = "external-index-item";
-          li.textContent = item.title;
-          li.title = item.path;
-          li.addEventListener("click", () => openExternalFile(item.path));
-          listNode.appendChild(li);
-        }
-
-        sectionNode.appendChild(listNode);
-        listViewContentNode.appendChild(sectionNode);
-      }
-      return;
-    }
-
-    if (externalViewMode === "moc") {
-      const groups = new Map();
-      for (const [index, item] of mdItems.entries()) {
-        const meta = buildMockMeta(item.path, index);
-        const topic = String(meta.tags || "other")
-          .split(",")[0]
-          .trim() || "other";
-        if (!groups.has(topic)) groups.set(topic, []);
-        groups.get(topic).push(item);
-      }
-
-      const grid = document.createElement("div");
-      grid.className = "external-moc-grid";
-
-      for (const [topic, items] of Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0], "ru"))) {
-        const card = document.createElement("article");
-        card.className = "external-moc-card";
-
-        const title = document.createElement("div");
-        title.className = "external-moc-card-title";
-        title.textContent = topic;
-        card.appendChild(title);
-
-        const listNode = document.createElement("ul");
-        listNode.className = "external-moc-list";
-
-        for (const item of items) {
-          const li = document.createElement("li");
-          li.className = "external-moc-item";
-          li.textContent = item.title;
-          li.title = item.path;
-          li.addEventListener("click", () => openExternalFile(item.path));
-          listNode.appendChild(li);
-        }
-
-        card.appendChild(listNode);
-        grid.appendChild(card);
-      }
-
-      listViewContentNode.appendChild(grid);
-      return;
-    }
-
-    if (externalViewMode === "mindmap") {
-      renderExternalMindmapCanvas(listViewContentNode, mdItems);
-      return;
-    }
-
-    if (externalViewMode === "cheatsheet") {
-      renderExternalCheatsheetView(listViewContentNode, mdItems);
-      return;
-    }
-
-    if (externalViewMode === "graph") {
-      renderExternalGraphCanvas(listViewContentNode, mdItems);
-      return;
-    }
-  }
 
   for (const section of sections) {
     const normalizedItems = section.items
@@ -10103,6 +11032,7 @@ function renderListViewContent() {
 function clearMediaSidecarEditor() {
   activeMediaSidecarSourcePath = null;
   activeMediaSidecarPath = null;
+  activeMediaMarkdownPath = null;
   resetTitleInputState();
 }
 
@@ -10220,6 +11150,30 @@ function closeMediaSidecarEditor() {
   syncAppRouteToUrl({ replace: true });
 }
 
+async function refreshExternalMemoryCaches() {
+  const [filesResponse, listingResponse] = await Promise.all([
+    fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() })),
+    fetch(buildApiUrl("/api/external", { path: getActiveNodeApiPath() }))
+  ]);
+
+  if (filesResponse.ok) {
+    const data = await filesResponse.json();
+    externalFilesCache = Array.isArray(data.files) ? data.files : [];
+  } else {
+    throw new Error(`Request failed with ${filesResponse.status}`);
+  }
+
+  if (listingResponse.ok) {
+    const listingData = await listingResponse.json();
+    modeContentCache.external =
+      listingData.content || externalFilesCache.map((file) => file.relativePath).join("\n");
+    return Boolean(listingData.exists);
+  }
+
+  modeContentCache.external = externalFilesCache.map((file) => file.relativePath).join("\n");
+  return externalFilesCache.length > 0;
+}
+
 function closeExternalFileEditor() {
   void refreshExternalFileListView();
 }
@@ -10237,15 +11191,8 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
 
   if (reloadFromServer) {
     try {
-      const response = await fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() }));
-      if (response.ok) {
-        const data = await response.json();
-        externalFilesCache = Array.isArray(data.files) ? data.files : [];
-        modeContentCache.external = externalFilesCache.map((file) => file.relativePath).join("\n");
-        fileContentInputNode.value = data.exists ? modeContentCache.external : "Папка не найдена";
-      } else {
-        fileContentInputNode.value = modeContentCache.external || "";
-      }
+      const exists = await refreshExternalMemoryCaches();
+      fileContentInputNode.value = exists ? modeContentCache.external : "Папка не найдена";
     } catch {
       fileContentInputNode.value = modeContentCache.external || "";
     }
@@ -10259,6 +11206,7 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
 }
 
 function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options = {}) {
+  activeMediaMarkdownPath = null;
   activeMediaSidecarSourcePath = sourceFilePath;
   activeMediaSidecarPath = sidecarPath;
   updateBreadcrumbsForActiveMode();
@@ -11152,8 +12100,154 @@ function buildMediaSidecarContent() {
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
 }
 
+function isMediaMarkdownEditing() {
+  return activeContentMode === "media" && Boolean(activeMediaMarkdownPath);
+}
+
+function isMediaAssetEditing() {
+  return isMediaSidecarEditing() || isMediaMarkdownEditing();
+}
+
+function buildMediaMarkdownContent() {
+  return buildMediaSidecarContent();
+}
+
+function enableMediaMarkdownEditor(filePath, content, options = {}) {
+  activeMediaMarkdownPath = filePath;
+  activeMediaSidecarSourcePath = null;
+  activeMediaSidecarPath = null;
+  updateBreadcrumbsForActiveMode();
+  titleEditorBlockNode.classList.remove("hidden");
+  titleInputNode.value = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  titleInputNode.readOnly = true;
+  applyMediaSidecarContentUi(content || "");
+  syncPropsInputPlaceholder();
+  editorViewMode = "source";
+  applyModeUi();
+  setEditorViewMode("source", { skipRouteSync: true });
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
+}
+
+async function openMediaMarkdownFile(filePath, options = {}) {
+  if (!activePath || activeContentMode !== "media" || !filePath) return;
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/media/markdown", { path: getActiveNodeApiPath(), file: filePath })
+    );
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    enableMediaMarkdownEditor(data.file, data.content || "", options);
+  } catch {
+    showToast("Ошибка открытия markdown-файла", "error");
+  }
+}
+
+async function ensureExternalSectionReadme(readmePath, sectionFolder) {
+  const sectionLabel = String(sectionFolder || "").split("/").filter(Boolean).pop() || "Раздел";
+  const response = await fetch(buildApiUrl("/api/external/file"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: getActiveNodeApiPath(),
+      file: readmePath,
+      content: buildSectionReadmeContent(sectionLabel)
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  await refreshExternalMemoryCaches();
+}
+
+async function openExternalSectionReadme(readmePath, sectionFolder) {
+  if (!externalSectionReadmeExists(sectionFolder)) {
+    try {
+      await ensureExternalSectionReadme(readmePath, sectionFolder);
+    } catch (error) {
+      showToast(`Не удалось создать ${AREA_MANIFEST_FILE}: ${error.message}`, "error");
+      return;
+    }
+  }
+  await openExternalFile(readmePath);
+}
+
+async function ensureMediaSectionReadme(readmePath, sectionFolder) {
+  const sectionLabel = String(sectionFolder || "").split("/").filter(Boolean).pop() || "Раздел";
+  const response = await fetch(buildApiUrl("/api/media/markdown"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: getActiveNodeApiPath(),
+      file: readmePath,
+      content: buildSectionReadmeContent(sectionLabel)
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  await refreshMediaCache();
+}
+
+async function openMediaSectionReadme(readmePath, sectionFolder) {
+  if (!mediaSectionReadmeExists(sectionFolder)) {
+    try {
+      await ensureMediaSectionReadme(readmePath, sectionFolder);
+    } catch (error) {
+      showToast(`Не удалось создать ${AREA_MANIFEST_FILE}: ${error.message}`, "error");
+      return;
+    }
+  }
+  await openMediaMarkdownFile(readmePath);
+}
+
+async function reloadFlatStorageFolderMode(mode) {
+  const folder = getFlatStorageSectionFolderName(mode);
+  if (!folder) return;
+  const response = await fetch(
+    buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder })
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  applyFlatStorageFolderLoadState(mode, data);
+}
+
+async function ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
+  const sectionLabel = String(sectionFolder || "").split("/").filter(Boolean).pop() || "Раздел";
+  const response = await fetch(buildApiUrl("/api/storage/markdown"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: getActiveNodeApiPath(),
+      folder: getFlatStorageSectionFolderName(mode),
+      file: readmePath,
+      content: buildSectionReadmeContent(sectionLabel)
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  await reloadFlatStorageFolderMode(mode);
+}
+
+async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
+  if (!flatStorageSectionReadmeExists(mode, sectionFolder)) {
+    try {
+      await ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder);
+    } catch (error) {
+      showToast(`Не удалось создать ${AREA_MANIFEST_FILE}: ${error.message}`, "error");
+      return;
+    }
+  }
+  showToast(`Описание раздела: ${readmePath}`, "info");
+}
+
 function syncPropsInputPlaceholder() {
-  if (isExternalFileEditing() || isMediaSidecarEditing()) {
+  if (isExternalFileEditing() || isMediaAssetEditing()) {
     propsInputNode.placeholder = "title: Заметка\ntags:\n  - пример\nstatus: draft";
   } else {
     propsInputNode.placeholder = "title: Название\ntags:\n  - пример\nstatus: active";
@@ -11245,10 +12339,13 @@ function closeCreateMemoryModal() {
 }
 
 async function createExternalMemoryFile(title) {
+  const parentFolder = getActiveExternalSectionParentForCreate();
+  const requestBody = { path: getActiveNodeApiPath(), title };
+  if (parentFolder) requestBody.parent = parentFolder;
   const response = await fetch(buildApiUrl("/api/external/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: getActiveNodeApiPath(), title })
+    body: JSON.stringify(requestBody)
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -11314,6 +12411,7 @@ let createSectionTargetMode = "external";
 let createSectionParentFolder = null;
 
 function getActiveMediaSectionParentForCreate() {
+  if (!isStorageSectionsPanelVisible()) return null;
   if (activeMediaSectionFolder) return activeMediaSectionFolder;
   const route = parseAppRoute(location.pathname);
   if (route.view === "media" && route.mediaSectionPath) {
@@ -11336,17 +12434,25 @@ function openCreateSectionModal(targetMode = "external") {
   if (targetMode === "external") {
     if (activeContentMode !== "external" || activeExternalFilePath) return;
   } else if (targetMode === "media") {
-    if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+    if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  } else if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
+    if (activeContentMode !== targetMode) return;
   } else {
     return;
   }
   createSectionTargetMode = targetMode;
   createSectionParentFolder =
-    targetMode === "media" ? getActiveMediaSectionParentForCreate() : null;
+    targetMode === "media"
+      ? getActiveMediaSectionParentForCreate()
+      : targetMode === "external"
+        ? getActiveExternalSectionParentForCreate()
+        : FLAT_STORAGE_SECTION_MODES.has(targetMode)
+          ? getActiveFlatStorageSectionParentForCreate(targetMode)
+          : null;
   const modalMessage = createSectionModalNode?.querySelector(".modal-message");
   if (modalMessage) {
     modalMessage.textContent =
-      targetMode === "media" && createSectionParentFolder
+      createSectionParentFolder
         ? `Создать подраздел в «${createSectionParentFolder}»`
         : "Создать раздел";
   }
@@ -11368,7 +12474,9 @@ async function createWorkspaceSection() {
   if (createSectionTargetMode === "external") {
     if (activeContentMode !== "external" || activeExternalFilePath) return;
   } else if (createSectionTargetMode === "media") {
-    if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+    if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  } else if (FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode)) {
+    if (activeContentMode !== createSectionTargetMode) return;
   } else {
     return;
   }
@@ -11381,8 +12489,10 @@ async function createWorkspaceSection() {
   createSectionOkBtn.disabled = true;
   createSectionOkBtn.textContent = "Создаю...";
 
-  const apiPath =
-    createSectionTargetMode === "media"
+  const isFlatStorageTarget = FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode);
+  const apiPath = isFlatStorageTarget
+    ? "/api/storage/section/create"
+    : createSectionTargetMode === "media"
       ? "/api/media/section/create"
       : "/api/external/section/create";
 
@@ -11391,9 +12501,23 @@ async function createWorkspaceSection() {
       createSectionTargetMode === "media"
         ? createSectionParentFolder || getActiveMediaSectionParentForCreate()
         : null;
+    const externalParentFolder =
+      createSectionTargetMode === "external"
+        ? createSectionParentFolder || getActiveExternalSectionParentForCreate()
+        : null;
+    const flatStorageParentFolder = isFlatStorageTarget
+      ? createSectionParentFolder || getActiveFlatStorageSectionParentForCreate(createSectionTargetMode)
+      : null;
     const requestBody = { path: getActiveNodeApiPath(), title };
     if (createSectionTargetMode === "media" && mediaParentFolder) {
       requestBody.parent = mediaParentFolder;
+    }
+    if (createSectionTargetMode === "external" && externalParentFolder) {
+      requestBody.parent = externalParentFolder;
+    }
+    if (isFlatStorageTarget) {
+      requestBody.folder = getFlatStorageSectionFolderName(createSectionTargetMode);
+      if (flatStorageParentFolder) requestBody.parent = flatStorageParentFolder;
     }
     const response = await fetch(buildApiUrl(apiPath), {
       method: "POST",
@@ -11412,12 +12536,33 @@ async function createWorkspaceSection() {
       createSectionTargetMode === "media"
         ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
         : "";
-    await loadContentByMode({ preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder });
+    const createdExternalSectionPath =
+      createSectionTargetMode === "external"
+        ? buildCreatedMediaSectionPath(externalParentFolder, data.section, data.sectionPath)
+        : "";
+    const createdFlatStorageSectionPath = isFlatStorageTarget
+      ? buildCreatedMediaSectionPath(flatStorageParentFolder, data.section, data.sectionPath)
+      : "";
+    await loadContentByMode({
+      preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder,
+      preserveExternalSectionFolder: createdExternalSectionPath || externalParentFolder,
+      preserveFlatStorageSectionFolder: createdFlatStorageSectionPath || flatStorageParentFolder
+    });
     if (createdMediaSectionPath) {
       activeMediaSectionFolder = createdMediaSectionPath;
       mediaViewMode = "all";
       if (mediaViewSelectNode) mediaViewSelectNode.value = "all";
       rerenderMediaListViewBody();
+      syncAppRouteToUrl({ push: true });
+    }
+    if (createdExternalSectionPath) {
+      activeExternalSectionFolder = createdExternalSectionPath;
+      rerenderExternalListViewBody();
+      syncAppRouteToUrl({ push: true });
+    }
+    if (createdFlatStorageSectionPath && isFlatStorageTarget) {
+      activeFlatStorageSectionFolder[createSectionTargetMode] = createdFlatStorageSectionPath;
+      rerenderFlatStorageListViewBody(createSectionTargetMode);
       syncAppRouteToUrl({ push: true });
     }
     showToast("Раздел создан", "success");
@@ -11466,7 +12611,7 @@ function isEditorSaveTrackingActive() {
     return false;
   }
   if (activeContentMode === "external" && !activeExternalFilePath) return false;
-  if (activeContentMode === "media" && !isMediaSidecarEditing()) return false;
+  if (activeContentMode === "media" && !isMediaAssetEditing()) return false;
   if (activeContentMode === "temp") return false;
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) return false;
   return true;
@@ -11478,11 +12623,13 @@ function getEditorSavePayload() {
   }
   const rawContent = isExternalFileEditing()
     ? buildExternalFileContent()
-    : isMediaSidecarEditing()
-      ? buildMediaSidecarContent()
-      : activeContentMode === "description"
-        ? buildNodeManifestContent()
-        : getEditorContentValue();
+    : isMediaMarkdownEditing()
+      ? buildMediaMarkdownContent()
+      : isMediaSidecarEditing()
+        ? buildMediaSidecarContent()
+        : activeContentMode === "description"
+          ? buildNodeManifestContent()
+          : getEditorContentValue();
   return JSON.stringify({
     content: typeof rawContent === "string" ? rawContent : String(rawContent ?? ""),
     title: titleInputNode?.value?.trim() ?? ""
@@ -11555,7 +12702,7 @@ function clearSystemFileViewUi() {
   appRootNode.classList.remove("system-file-view");
   workspacePathHeaderNode?.classList.remove("is-service-file");
   workspaceGdriveSyncBtn?.classList.remove("hidden");
-  if (!isMediaSidecarEditing()) {
+  if (!isMediaAssetEditing()) {
     resetTitleInputState();
   }
   saveSystemFileBtn?.classList.add("hidden");
@@ -11701,10 +12848,6 @@ function openMemoryModeFromOverview(modeId, externalFile = null) {
 }
 
 function openTodoFromOverview() {
-  nodeSettingsViewActive = true;
-  nodeMemoryViewActive = false;
-  syncNodeSettingsModeSelect();
-  applyNodeWorkspaceViewUi();
   setContentMode("todo");
 }
 
@@ -12604,7 +13747,7 @@ function appendNavigationHeroMetaRow(panel, label, value) {
 
 function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false };
+  if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false, hasSkill: false };
 
   const baseTree = { title: getAgentTreeTitle(agentId), ...menu };
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
@@ -12615,7 +13758,8 @@ function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
   return {
     hasGit: Boolean(source?.hasGitSelf ?? source?.hasGit),
     hasObsidian: Boolean(source?.hasObsidianSelf ?? source?.hasObsidian),
-    hasAgent: Boolean(source?.hasAgentSelf ?? source?.hasAgent)
+    hasAgent: Boolean(source?.hasAgentSelf ?? source?.hasAgent),
+    hasSkill: Boolean(source?.hasSkillSelf ?? source?.hasSkill)
   };
 }
 
@@ -12651,7 +13795,7 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-hero-marker-slots";
-  wrap.setAttribute("aria-label", "Agent, Git и Obsidian в папке области");
+  wrap.setAttribute("aria-label", "Agent, Git, Obsidian и Skill в папке области");
   wrap.append(
     createNavigationHeroMarkerSlot({
       id: "agent",
@@ -12672,6 +13816,14 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
       caption: "Obsidian",
       active: markers.hasObsidian,
       createSvg: createObsidianMarkerSvg
+    }),
+    createNavigationHeroMarkerSlot({
+      id: "skill",
+      caption: "Skill",
+      active: markers.hasSkill,
+      createSvg: createSkillMarkerSvg,
+      titleActive: "SKILL.md: есть в этой папке — это скилл",
+      titleInactive: "SKILL.md: нет в этой папке"
     })
   );
 
@@ -13800,7 +14952,7 @@ async function renderNodeOverview() {
       if (group.id === "memory" && MEMORY_DRIVER_MODES.has(mode.id) && memorySummary) {
         if (!shouldShowMemoryDriverBlock(mode.id, memorySummary)) continue;
       }
-      if (group.id === "main" && (mode.id === "todo" || mode.id === "description")) continue;
+      if (group.id === "main" && mode.id === "description") continue;
       if (mode.id === "media") {
         if (!isOverviewArea) {
           links.appendChild(renderOverviewMediaLink(mediaOverview, getResolvedNodePath(activePath)));
@@ -13820,6 +14972,10 @@ async function renderNodeOverview() {
       btn.append(icon, label);
       btn.addEventListener("click", () => {
         if (isOverviewArea && AREA_BLOCKED_CONTENT_MODES.has(mode.id)) return;
+        if (NODE_MEMORY_SUB_MODE_IDS.has(mode.id)) {
+          openMemoryModeFromOverview(mode.id);
+          return;
+        }
         if (group.id === "memory" && MEMORY_DRIVER_MODES.has(mode.id)) {
           openMemoryModeFromOverview(mode.id);
           return;
@@ -13893,7 +15049,7 @@ function applyModeUi() {
   const titleVisible = isCurrentModeTitleEditable();
   const forceEditOnly = activeContentMode === "env";
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
-  const mediaSidecarEditing = isMediaSidecarEditing();
+  const mediaSidecarEditing = isMediaAssetEditing();
   if (mediaSidecarEditing) {
     applyMediaSidecarTitleUi();
   } else if (isAgentRootIndexPath(activePath) && activeContentMode === "description") {
@@ -13905,6 +15061,7 @@ function applyModeUi() {
   const hideContentEditor = isCurrentModeWithoutContentEditor();
   const showExternalControls = activeContentMode === "external" && !externalEditing;
   const showMediaControls = activeContentMode === "media" && !mediaSidecarEditing;
+  const showFlatStorageSectionControls = isFlatStorageSectionMode() && isFlatStorageListMode();
   const showTabularControls = activeContentMode === "tabular" && !isTabularSourceEditing();
   const showWorkspaceRefresh = isWorkspaceRefreshAvailable();
   const showMindmapLayout =
@@ -14017,7 +15174,14 @@ function applyModeUi() {
   mediaUploadBtnNode?.classList.toggle("hidden", !showMediaControls || mediaSidecarEditing);
   createMediaSectionBtn?.classList.toggle("hidden", !showMediaControls || mediaSidecarEditing);
   createExternalMemoryBtn.classList.toggle("hidden", !showExternalControls);
-  createExternalSectionBtn.classList.toggle("hidden", !showExternalControls);
+  createExternalSectionBtn.classList.toggle(
+    "hidden",
+    !(showExternalControls || showFlatStorageSectionControls)
+  );
+  storageSectionsPanelToggleWrapNode?.classList.toggle(
+    "hidden",
+    !showExternalControls && !showMediaControls && !showFlatStorageSectionControls
+  );
   if (showExternalControls) {
     if (externalViewSelectNode) externalViewSelectNode.value = externalViewMode;
   }
@@ -14025,6 +15189,7 @@ function applyModeUi() {
     syncMediaViewSelectOptions();
     if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
   }
+  syncStorageSectionsPanelUi();
   syncWorkspaceCloseButtonsVisibility();
   tabularSourceBtn?.classList.toggle("hidden", !showTabularControls);
   tabularTableBackBtn?.classList.toggle("hidden", !showTabularSourceEditor);
@@ -15221,9 +16386,11 @@ function collectFlatMenuEntries(node, acc = []) {
       hasGit: Boolean(node.hasGitSelf ?? node.hasGit),
       hasObsidian: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
       hasAgent: Boolean(node.hasAgentSelf ?? node.hasAgent),
+      hasSkill: Boolean(node.hasSkillSelf ?? node.hasSkill),
       hasGitSelf: Boolean(node.hasGitSelf ?? node.hasGit),
       hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
-      hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent)
+      hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent),
+      hasSkillSelf: Boolean(node.hasSkillSelf ?? node.hasSkill)
     });
   }
 
@@ -16308,7 +17475,11 @@ async function selectFile(label, filePath) {
   activePath = getResolvedNodePath(filePath);
   activeLabel = label;
   activeExternalFilePath = null;
+  activeExternalSectionFolder = null;
   activeMediaSectionFolder = null;
+  for (const mode of FLAT_STORAGE_SECTION_MODES) {
+    activeFlatStorageSectionFolder[mode] = null;
+  }
   nodeOverviewRenderSeq += 1;
   clearMediaSidecarEditor();
   updateActiveButton();
@@ -16357,9 +17528,33 @@ async function selectFile(label, filePath) {
   }
 }
 
+async function loadFlatStorageSectionContent(mode, preserveSectionFolder = null) {
+  const folder = getFlatStorageSectionFolderName(mode);
+  if (!folder) return;
+  const response = await fetch(
+    buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder })
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  applyFlatStorageFolderLoadState(mode, data);
+  const sectionToRestore =
+    preserveSectionFolder ||
+    activeFlatStorageSectionFolder[mode] ||
+    getActiveFlatStorageSectionParentForCreate(mode);
+  if (sectionToRestore) {
+    activeFlatStorageSectionFolder[mode] = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
+    pruneActiveFlatStorageSectionFolder(mode);
+  }
+  applyModeUi();
+  renderListViewContent();
+  renderPreviewFromEditor();
+}
+
 async function loadContentByMode(options = {}) {
   if (!activePath) return;
   const preserveMediaSectionFolder = options.preserveMediaSectionFolder || null;
+  const preserveExternalSectionFolder = options.preserveExternalSectionFolder || null;
+  const preserveFlatStorageSectionFolder = options.preserveFlatStorageSectionFolder || null;
 
   const deferLoadingEnd = isAsyncOverviewRenderMode();
   if (!deferLoadingEnd) {
@@ -16448,13 +17643,17 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "external") {
     try {
-      const response = await fetch(buildApiUrl("/api/external/files", { path: getActiveNodeApiPath() }));
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      externalFilesCache = Array.isArray(data.files) ? data.files : [];
-      modeContentCache.external = externalFilesCache.map((file) => file.relativePath).join("\n");
-      fileContentInputNode.value = data.exists ? modeContentCache.external : "Папка не найдена";
+      const exists = await refreshExternalMemoryCaches();
+      fileContentInputNode.value = exists ? modeContentCache.external : "Папка не найдена";
       activeExternalFilePath = null;
+      const sectionToRestore =
+        preserveExternalSectionFolder ||
+        activeExternalSectionFolder ||
+        getActiveExternalSectionParentForCreate();
+      if (sectionToRestore) {
+        activeExternalSectionFolder = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
+        pruneActiveExternalSectionFolder();
+      }
       applyModeUi();
       renderListViewContent();
       renderPreviewFromEditor();
@@ -16468,15 +17667,10 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "inbox") {
     try {
-      const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_INBOX })
+      await loadFlatStorageSectionContent(
+        "inbox",
+        activeContentMode === "inbox" ? preserveFlatStorageSectionFolder : null
       );
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      applyFlatStorageFolderLoadState("inbox", data);
-      applyModeUi();
-      renderListViewContent();
-      renderPreviewFromEditor();
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения входящих: ${error.message}`;
       renderListViewContent();
@@ -16601,15 +17795,10 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "artefacts") {
     try {
-      const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_ARTEFACTS })
+      await loadFlatStorageSectionContent(
+        "artefacts",
+        activeContentMode === "artefacts" ? preserveFlatStorageSectionFolder : null
       );
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      applyFlatStorageFolderLoadState("artefacts", data);
-      applyModeUi();
-      renderListViewContent();
-      renderPreviewFromEditor();
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения артефактов: ${error.message}`;
       renderListViewContent();
@@ -16621,15 +17810,10 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "scripts") {
     try {
-      const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_SCRIPTS })
+      await loadFlatStorageSectionContent(
+        "scripts",
+        activeContentMode === "scripts" ? preserveFlatStorageSectionFolder : null
       );
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      applyFlatStorageFolderLoadState("scripts", data);
-      applyModeUi();
-      renderListViewContent();
-      renderPreviewFromEditor();
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения скриптов: ${error.message}`;
       fileContentInputNode.readOnly = true;
@@ -16694,11 +17878,13 @@ async function saveContent() {
   }
   const rawContent = isExternalFileEditing()
     ? buildExternalFileContent()
-    : isMediaSidecarEditing()
-      ? buildMediaSidecarContent()
-      : activeContentMode === "description"
-        ? buildNodeManifestContent()
-        : getEditorContentValue();
+    : isMediaMarkdownEditing()
+      ? buildMediaMarkdownContent()
+      : isMediaSidecarEditing()
+        ? buildMediaSidecarContent()
+        : activeContentMode === "description"
+          ? buildNodeManifestContent()
+          : getEditorContentValue();
   const content = typeof rawContent === "string" ? rawContent : String(rawContent ?? "");
 
   if (activeSystemFile) {
@@ -16863,13 +18049,38 @@ async function saveContent() {
     );
     if (
       (activeContentMode === "external" && !activeExternalFilePath) ||
-      (activeContentMode === "media" && !isMediaSidecarEditing()) ||
+      (activeContentMode === "media" && !isMediaAssetEditing()) ||
       (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
       activeContentMode === "scripts" ||
       activeContentMode === "node-preview" ||
       activeContentMode === "graph"
     ) {
       throw new Error("Этот режим доступен только для чтения");
+    }
+
+    if (activeContentMode === "media" && activeMediaMarkdownPath) {
+      const response = await fetch(buildApiUrl("/api/media/markdown"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: getActiveNodeApiPath(),
+          file: activeMediaMarkdownPath,
+          content
+        })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const data = await response.json();
+      applyMediaSidecarContentUi(data.content || "");
+      await refreshMediaCache();
+      refreshEditorViewContent();
+      saveSucceeded = true;
+      showToast(`${AREA_MANIFEST_FILE} сохранён`, "success");
+      return;
     }
 
     if (activeContentMode === "media" && activeMediaSidecarPath) {
@@ -21425,7 +22636,10 @@ sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SID
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
 externalViewSelectNode?.addEventListener("change", () => {
   externalViewMode = externalViewSelectNode?.value || "table";
-  if (activeContentMode === "external") renderListViewContent();
+  if (activeContentMode === "external") rerenderExternalListViewBody();
+});
+storageSectionsPanelToggleNode?.addEventListener("change", () => {
+  setStorageSectionsPanelVisible(storageSectionsPanelToggleNode.checked);
 });
 document.addEventListener("click", (event) => {
   const layoutBtn = event.target.closest(".mindmap-layout-btn[data-mindmap-layout]");
@@ -21441,7 +22655,7 @@ mediaViewSelectNode?.addEventListener("change", () => {
 });
 
 mediaUploadBtnNode?.addEventListener("click", () => {
-  if (activeContentMode !== "media" || isMediaSidecarEditing()) return;
+  if (activeContentMode !== "media" || isMediaAssetEditing()) return;
   if (!mediaBulkUploadPanelOpen) {
     setMediaBulkUploadPanelOpen(true);
     if (!listViewContentNode.querySelector(".media-bulk-upload-host")) {
@@ -21479,7 +22693,13 @@ workspaceRevealFolderBtn?.addEventListener("click", () => {
   void revealNodeFolderInExplorer();
 });
 createExternalMemoryBtn.addEventListener("click", openCreateMemoryModal);
-createExternalSectionBtn.addEventListener("click", () => openCreateSectionModal("external"));
+createExternalSectionBtn.addEventListener("click", () => {
+  if (isFlatStorageSectionMode()) {
+    openCreateSectionModal(activeContentMode);
+    return;
+  }
+  openCreateSectionModal("external");
+});
 createMediaSectionBtn?.addEventListener("click", () => openCreateSectionModal("media"));
 createMemoryCancelBtn.addEventListener("click", closeCreateMemoryModal);
 createMemoryOkBtn.addEventListener("click", createExternalMemory);
