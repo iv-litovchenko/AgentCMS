@@ -301,7 +301,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     fetchPath: "/_storage/drafts/draft-3.md",
-    subtitle: "AWN registry · _awn-system · layout",
+    subtitle: "AWN registry · _awn-assistant-ai · layout",
     withExtras: false
   }
 ];
@@ -368,7 +368,13 @@ const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
 const VAULT_FOLDER_DEFAULT = "_awn-vault";
-const SERVICE_FOLDER_DEFAULT = "_awn-system";
+const SERVICE_FOLDER_DEFAULT = "_awn-assistant-ai";
+const SERVICE_FOLDER_LEGACY_NAMES = [
+  "_awn-system",
+  "_system",
+  "_assistant-ai",
+  "_x-assistant-ai"
+];
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
@@ -799,7 +805,10 @@ function stripVaultPrefixFromRelPath(relPath) {
 }
 
 function isServiceFolderEntryName(name) {
-  return String(name || "").toLowerCase() === SERVICE_FOLDER_DEFAULT.toLowerCase();
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === SERVICE_FOLDER_DEFAULT.toLowerCase()) return true;
+  return SERVICE_FOLDER_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
 }
 
 function stripServicePrefixFromRelPath(relPath) {

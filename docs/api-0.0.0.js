@@ -35,7 +35,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, _awn-system/).",
+          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, _awn-assistant-ai/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"

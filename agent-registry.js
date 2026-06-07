@@ -58,17 +58,26 @@ function isAwnDependenciesFileName(fileName) {
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
 const DEFAULT_VAULT_FOLDER = "_awn-vault";
-const DEFAULT_SERVICE_FOLDER = "_awn-system";
+const DEFAULT_SERVICE_FOLDER = "_awn-assistant-ai";
+const SERVICE_FOLDER_LEGACY_NAMES = [
+  "_awn-system",
+  "_system",
+  "_assistant-ai",
+  "_x-assistant-ai"
+];
 
 function isVaultFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
 }
 
 function isServiceFolderEntryName(name) {
-  return String(name || "").toLowerCase() === DEFAULT_SERVICE_FOLDER.toLowerCase();
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === DEFAULT_SERVICE_FOLDER.toLowerCase()) return true;
+  return SERVICE_FOLDER_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
 }
 
-/** Общая папка справочников внутри _awn-system */
+/** Общая папка справочников внутри _awn-assistant-ai */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
@@ -245,7 +254,8 @@ function normalizeServiceFolderName(raw) {
   if (cleaned.toLowerCase() === "false") return null;
   if (!cleaned) return DEFAULT_SERVICE_FOLDER;
   if (isVaultFolderEntryName(cleaned)) return null;
-  return DEFAULT_SERVICE_FOLDER;
+  if (isServiceFolderEntryName(cleaned)) return DEFAULT_SERVICE_FOLDER;
+  return cleaned;
 }
 
 function normalizeAgentManifest(raw, workspaceRootAbsolute) {
@@ -996,6 +1006,7 @@ module.exports = {
   DEFAULT_VAULT_FOLDER,
   isVaultFolderEntryName,
   DEFAULT_SERVICE_FOLDER,
+  SERVICE_FOLDER_LEGACY_NAMES,
   isServiceFolderEntryName,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
