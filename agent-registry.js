@@ -915,7 +915,7 @@ function createAgentWorkspace(options = {}) {
   fs.writeFileSync(
     serviceManifestAbsolute,
     joinNodeFrontmatter(
-      `title: ${SERVICE_AREA_NAME}\nAWN-TYPE: service`,
+      `title: ${SERVICE_AREA_NAME}\nawn-type: service`,
       `# ${SERVICE_AREA_NAME}\n\nОбщая медиатека и служебные темы агента.\n`
     ),
     "utf-8"
@@ -1010,7 +1010,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     fs.writeFileSync(
       manifestPath,
       joinNodeFrontmatter(
-        `title: ${scaffold.title}\ntags: [system, catalog]\nAWN-TYPE: catalog`,
+        `title: ${scaffold.title}\ntags: [system, catalog]\nawn-type: catalog`,
         scaffold.manifest
       ),
       "utf-8"
@@ -1022,7 +1022,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
   fs.writeFileSync(
     manifestPath,
     joinNodeFrontmatter(
-      `title: ${scaffold.title}\ntags: [system, service]\nAWN-TYPE: service-doc`,
+      `title: ${scaffold.title}\ntags: [system, service]\nawn-type: service-doc`,
       scaffold.manifest
     ),
     "utf-8"

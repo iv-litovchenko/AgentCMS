@@ -568,7 +568,7 @@ function getWorkspaceSharePayload() {
   syncAppRouteToUrl({ replace: true });
   const url = location.href;
   const label = String(activeLabel || titleInputNode?.value || "").trim();
-  const title = label ? `Agent CMS — ${label}` : "Agent CMS";
+  const title = formatDocumentTitle(label);
   return { title, text: label || title, url };
 }
 
@@ -1719,15 +1719,15 @@ function getOrbitBubbleLayout(index, total, agentId) {
   const radius = 24 + (t / Math.max(total, 1)) * 24 + (hash % 12);
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
   const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
-  const y = 48 + Math.sin(angle) * radius * 0.72;
+  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.72;
   return {
     x: Math.min(90, Math.max(8, x)),
     y: Math.min(88, Math.max(10, y)),
     size: 58 + (hash % 28),
-    duration: 7 + (hash % 6),
+    duration: 9 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
-    floatX: 10 + (hash % 18),
-    floatY: 12 + (hash % 16)
+    floatX: 10 + (hash % 14),
+    floatY: 12 + (hash % 14)
   };
 }
 
@@ -1751,6 +1751,7 @@ function syncLandingAgentsViewUi() {
       ? "Кружки в воздухе — наведите, чтобы увидеть имя"
       : "Каждый агент — отдельный workspace с темами, памятью и файлами";
   }
+
 }
 
 function createAppLandingOrbitBubble(agent, index, total) {
@@ -1813,12 +1814,13 @@ function createAppLandingOrbitBubble(agent, index, total) {
 const ORBIT_LINK_CENTER = { x: 50, y: 48 };
 
 function renderAppLandingOrbitLinks(agents) {
-  if (!appLandingOrbitLinksNode) return;
+  if (!appLandingOrbitLinksNode) return [];
   appLandingOrbitLinksNode.replaceChildren();
 
-  if (!Array.isArray(agents) || agents.length === 0) return;
+  if (!Array.isArray(agents) || agents.length === 0) return [];
 
   const svgNs = "http://www.w3.org/2000/svg";
+  const lines = [];
   for (let index = 0; index < agents.length; index += 1) {
     const agent = agents[index];
     const layout = getOrbitBubbleLayout(index, agents.length, agent.id);
@@ -1831,9 +1833,10 @@ function renderAppLandingOrbitLinks(agents) {
     line.setAttribute("y2", String(layout.y));
     line.classList.add("app-landing-orbit-link");
     if (registryActive) line.classList.add("is-active");
-    line.style.animationDelay = `${layout.delay}s`;
     appLandingOrbitLinksNode.appendChild(line);
+    lines.push(line);
   }
+  return lines;
 }
 
 function renderAppLandingOrbit() {
@@ -1842,6 +1845,7 @@ function renderAppLandingOrbit() {
 
   const agents = getAgentsForLandingGrid();
   if (agents.length === 0) {
+    renderAppLandingOrbitLinks(agents);
     const empty = document.createElement("p");
     empty.className = "app-landing-orbit-empty";
     empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
@@ -3045,16 +3049,16 @@ function getNodeViewSurface(mode = activeContentMode) {
   return NODE_VIEW_SURFACE[mode] || "document";
 }
 
-const OVERVIEW_HERO_PROP_KEYS = new Set(["AWN-TITLE", "title", "AWN-DESC", "summary", "AWN-TYPE"]);
+const OVERVIEW_HERO_PROP_KEYS = new Set(["title", "awn-description", "summary", "awn-type"]);
 const OVERVIEW_META_PROP_KEYS = [
-  "AWN-STATUS",
-  "AWN-PRIORITY",
-  "AWN-LOAD",
-  "AWN-MEMORY",
-  "AWN-CATEGORY",
-  "AWN-VERSION",
-  "AWN-UPDATED",
-  "AWN-TRIGGERS",
+  "awn-status",
+  "awn-priority",
+  "awn-load",
+  "awn-memory",
+  "awn-category",
+  "awn-version",
+  "awn-update",
+  "awn-triggers",
   "tags",
   "status",
   "priority"
@@ -3147,7 +3151,6 @@ const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
-const NODE_WORKSPACE_DOMAIN_SLOT_PREFIX = "Слот/драйвер ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
   { value: "settings", label: "Настройки", branch: true },
@@ -4288,9 +4291,7 @@ function getNavigationSubsectionEntries() {
 }
 
 function getWorkspaceDomainDisplayLabel(label, branch = false) {
-  return branch
-    ? `${NODE_WORKSPACE_DOMAIN_SLOT_PREFIX}${NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX}${label}`
-    : label;
+  return branch ? `${NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX}${label}` : label;
 }
 
 function getWorkspaceDomainLabelById(domain) {
@@ -5980,6 +5981,103 @@ function getHomeBreadcrumbPath() {
   return getActiveAgentLabel() || getAgentTreeTitle() || "Главная";
 }
 
+const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
+  dashboard2: "Дашборд 2",
+  map: "Карта",
+  map2: "Карта 2",
+  map3: "Карта 3",
+  schema: "Схема",
+  vault: "Каталог",
+  graph: "Граф",
+  table: "Таблица",
+  storage: "Хранилище",
+  timeline: "Лента",
+  "timeline-axis": "Timeline",
+  "timeline-vertical": "Timeline ↓"
+};
+
+const CONTENT_MODE_TITLE_LABELS = {
+  internal: "Память",
+  external: "Content",
+  tabular: "Таблица",
+  inbox: "Входящие",
+  references: "Источники",
+  media: "Медиа",
+  scripts: "Скрипты",
+  artefacts: "Артефакты",
+  temp: "Временные",
+  configs: "Конфигурации",
+  env: "Env",
+  todo: "Todo",
+  "node-preview": "Превью",
+  graph: "Граф"
+};
+
+function formatDocumentTitle(pageLabel) {
+  const label = String(pageLabel || "").trim();
+  return label ? `Agent CMS: ${label}` : "Agent CMS";
+}
+
+function getDocumentTitleContentModeLabel(mode) {
+  if (!mode) return "";
+  if (mode === NODE_MINDMAP_MODE) return "Карта тем";
+  return CONTENT_MODE_TITLE_LABELS[mode] || "";
+}
+
+function getDocumentTitlePageLabel() {
+  if (appRootNode?.classList.contains("app-landing-view")) {
+    return "Главная";
+  }
+
+  if (!activeAgentId) {
+    return "";
+  }
+
+  const agentLabel = getActiveAgentLabel() || getAgentTreeTitle() || activeAgentId;
+
+  if (activeSystemFile) {
+    return `${agentLabel} — ${activeSystemFile}`;
+  }
+
+  if (activePath) {
+    const topicLabel = String(
+      activeLabel || titleInputNode?.value || getLabelFromPath(activePath) || ""
+    ).trim();
+    if (
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      activeContentMode === "description"
+    ) {
+      return topicLabel;
+    }
+    if (isGraphModeActive()) {
+      return `${topicLabel} — Граф`;
+    }
+    const domain = getNodeWorkspaceDomain(activeContentMode);
+    if (
+      domain &&
+      domain !== NODE_WORKSPACE_DOMAIN_NAVIGATION &&
+      domain !== NODE_WORKSPACE_DOMAIN_OVERVIEW
+    ) {
+      const domainLabel = getWorkspaceDomainLabelById(domain);
+      if (domainLabel) return `${topicLabel} — ${domainLabel}`;
+    }
+    const modeLabel = getDocumentTitleContentModeLabel(activeContentMode);
+    return modeLabel ? `${topicLabel} — ${modeLabel}` : topicLabel;
+  }
+
+  if (appRootNode?.classList.contains("home-view")) {
+    const viewLabel = AGENT_WORKSPACE_VIEW_TITLE_LABELS[agentWorkspaceView] || "";
+    return viewLabel ? `${agentLabel} — ${viewLabel}` : agentLabel;
+  }
+
+  return agentLabel;
+}
+
+function updateDocumentTitle() {
+  document.title = formatDocumentTitle(getDocumentTitlePageLabel());
+}
+
 function getNodeDomainBreadcrumbPath(nodePath) {
   return getNodeDisplayPath(nodePath);
 }
@@ -6047,6 +6145,7 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
 function updateBreadcrumbsForActiveMode(overrides) {
   renderBreadcrumbs(getBreadcrumbPathForActiveMode(overrides));
   updateWorkspaceShareLinkButton();
+  updateDocumentTitle();
 }
 
 function getListViewTitleByMode() {
@@ -9321,12 +9420,45 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-sort"
 ];
 
+const PROPS_KEY_CANONICAL_ALIASES = {
+  "awn-title": "title",
+  "awn-desc": "awn-description",
+  "awn-created": "awn-create",
+  "awn-updated": "awn-update"
+};
+
+function normalizePropsKey(key) {
+  const raw = String(key || "").trim();
+  if (!raw) return raw;
+
+  let normalized = raw;
+  const upperLegacy = raw.match(/^AWN-([A-Z0-9_-]+)$/);
+  if (upperLegacy) {
+    normalized = `awn-${upperLegacy[1].toLowerCase().replace(/_/g, "-")}`;
+  } else if (/^awn-/i.test(raw)) {
+    normalized = raw.toLowerCase();
+  }
+
+  return PROPS_KEY_CANONICAL_ALIASES[normalized] || normalized;
+}
+
+function normalizePropsEntries(entries) {
+  const map = new Map();
+  for (const entry of entries) {
+    if (!entry?.key) continue;
+    const key = normalizePropsKey(entry.key);
+    map.set(key, { ...entry, key });
+  }
+  return [...map.values()];
+}
+
 const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
 
 function absorbPropsYamlEntries(entries) {
+  const normalized = normalizePropsEntries(entries);
   const hidden = [];
   const visible = [];
-  for (const entry of entries) {
+  for (const entry of normalized) {
     if (entry?.key && HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) hidden.push(entry);
     else visible.push(entry);
   }
@@ -9340,7 +9472,7 @@ function mergePropsFormEntries() {
 
 function ensureStandardPropsEntries(entries) {
   const map = new Map();
-  for (const entry of entries) {
+  for (const entry of normalizePropsEntries(entries)) {
     if (entry?.key) map.set(entry.key, entry);
   }
   const result = [];
@@ -9381,7 +9513,7 @@ function parsePropsYaml(text) {
       continue;
     }
 
-    const key = match[2].trim();
+    const key = normalizePropsKey(match[2].trim());
     const rest = match[3];
 
     if (rest === "" || rest === "|" || rest === ">") {
@@ -9804,6 +9936,7 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
   propsInputNode.value = content || "";
   absorbPropsYamlEntries(parsePropsYaml(content || ""));
   if (!preserveRawMode) {
+    syncYamlFromPropsForm();
     propsRawYamlVisible = false;
     propsInputNode.classList.add("hidden");
     propsYamlToggleBtn.textContent = "Показать YAML";
@@ -9821,9 +9954,11 @@ function readPropsFormIntoEntries() {
     const valueInput = row.querySelector('[data-field="value"]');
     const keyLabel = row.querySelector(".props-form-key:not(.props-form-key-input)");
     const base = propsFormEntries[index] || { kind: "string", value: "" };
-    const key = keyInput
-      ? keyInput.value.trim()
-      : (keyLabel?.textContent || base.key || "").trim();
+    const key = normalizePropsKey(
+      keyInput
+        ? keyInput.value.trim()
+        : (keyLabel?.textContent || base.key || "").trim()
+    );
     let entry = { ...base, key };
     if (valueInput) {
       entry = applyFormValueToEntry(entry, valueInput.value);
@@ -10272,7 +10407,8 @@ function clearSystemFileViewUi() {
 }
 
 function getPropsEntryValueByKey(entries, key) {
-  const entry = entries.find((item) => item.key === key);
+  const normalizedKey = normalizePropsKey(key);
+  const entry = entries.find((item) => normalizePropsKey(item.key) === normalizedKey);
   if (!entry) return "";
   if (entry.kind === "array") return (entry.value || []).join(", ");
   if (entry.kind === "bool") return entry.value ? "да" : "нет";
@@ -10282,7 +10418,6 @@ function getPropsEntryValueByKey(entries, key) {
 
 function getOverviewTitleFromProps(entries) {
   return (
-    getPropsEntryValueByKey(entries, "AWN-TITLE") ||
     getPropsEntryValueByKey(entries, "title") ||
     activeLabel ||
     getLabelFromPath(activePath)
@@ -10320,16 +10455,17 @@ function stripAwnDescCallouts(body) {
 
 function getOverviewDescription(rawManifest, entries) {
   const fromEntries =
-    getPropsEntryValueByKey(entries, "AWN-DESC") ||
+    getPropsEntryValueByKey(entries, "awn-description") ||
     getPropsEntryValueByKey(entries, "summary");
   if (fromEntries) return fromEntries;
 
   const { frontmatter, body } = splitFrontmatter(rawManifest);
   if (frontmatter.trim()) {
     const fromFrontmatter =
+      getYamlScalarFromFrontmatter(frontmatter, "awn-description") ||
       getYamlScalarFromFrontmatter(frontmatter, "AWN-DESC") ||
       getYamlScalarFromFrontmatter(frontmatter, "summary") ||
-      getPropsEntryValueByKey(parsePropsYaml(frontmatter), "AWN-DESC") ||
+      getPropsEntryValueByKey(parsePropsYaml(frontmatter), "awn-description") ||
       getPropsEntryValueByKey(parsePropsYaml(frontmatter), "summary");
     if (fromFrontmatter) return fromFrontmatter;
   }
@@ -11247,6 +11383,13 @@ function renderNodeSlotStrip(slotStatuses = []) {
   wrap.className = "node-slot-strip";
   wrap.setAttribute("aria-label", "Заполненность слотов хранилища");
 
+  const row = document.createElement("div");
+  row.className = "node-slot-strip-row";
+
+  const heading = document.createElement("span");
+  heading.className = "node-slot-strip-title";
+  heading.textContent = "Слоты:";
+
   const list = document.createElement("ul");
   list.className = "node-slot-strip-list";
 
@@ -11287,7 +11430,8 @@ function renderNodeSlotStrip(slotStatuses = []) {
     list.appendChild(item);
   }
 
-  wrap.appendChild(list);
+  row.append(heading, list);
+  wrap.appendChild(row);
   return wrap;
 }
 
@@ -11608,8 +11752,7 @@ function renderNavigationInternalPart(internalData) {
   const content = String(internalData.content || "").trim();
 
   if (!content) {
-    body.appendChild(createNavigationEmptyPlaceholder());
-    return createNavigationMemoryPanel("internal", "Однофайловая память", body);
+    return null;
   }
 
   const previewLimit = 2400;
@@ -11726,8 +11869,7 @@ function renderNavigationExternalPart(externalData) {
   body.className = "node-navigation-external";
 
   if (!mdItems.length) {
-    body.appendChild(createNavigationEmptyPlaceholder());
-    return createNavigationMemoryPanel("external", "Многофайловая память", body);
+    return null;
   }
 
   body.appendChild(renderNavigationExternalBookToc(mdItems));
@@ -11742,8 +11884,7 @@ function renderNavigationTabularPart(tabularData) {
   body.className = "node-navigation-tabular";
 
   if (!columns.length && !rows.length) {
-    body.appendChild(createNavigationEmptyPlaceholder());
-    return createNavigationMemoryPanel("tabular", "Табличная память", body);
+    return null;
   }
 
   const wrap = document.createElement("div");
@@ -11867,8 +12008,7 @@ function renderNavigationMediaPart(mediaData) {
   body.className = "node-navigation-media";
 
   if (!entries.length) {
-    body.appendChild(createNavigationEmptyPlaceholder());
-    return createNavigationMemoryPanel("media", "Медиа и документы", body);
+    return null;
   }
 
   const root = document.createElement("div");
@@ -11964,11 +12104,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
   wrap.className = "node-navigation-manifest";
 
   if (!content) {
-    const empty = document.createElement("p");
-    empty.className = "node-navigation-empty-note";
-    empty.textContent = "Описание, инструкции, правила отсутствуют";
-    wrap.appendChild(empty);
-    return createNavigationMemoryPanel("description", "Назначение", wrap);
+    return null;
   }
 
   const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
@@ -12007,24 +12143,177 @@ function renderNavigationTodoPart(todoData) {
   const previewLimit = 2400;
 
   if (!content) {
-    wrap.appendChild(createNavigationEmptyPlaceholder());
-  } else {
-    const previewSource =
-      content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
-    const preview = document.createElement("div");
-    preview.className = "node-navigation-todo-content file-content-preview";
-    setMarkdownPreviewHtml(preview, previewSource, { nodePath: getResolvedNodePath(activePath) });
-    wrap.appendChild(preview);
+    return null;
+  }
 
-    if (content.length > previewLimit) {
-      const note = document.createElement("p");
-      note.className = "node-navigation-preview-note";
-      note.textContent = `Показано ${previewLimit.toLocaleString("ru-RU")} из ${content.length.toLocaleString("ru-RU")} символов.`;
-      wrap.appendChild(note);
-    }
+  const previewSource =
+    content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
+  const preview = document.createElement("div");
+  preview.className = "node-navigation-todo-content file-content-preview";
+  setMarkdownPreviewHtml(preview, previewSource, { nodePath: getResolvedNodePath(activePath) });
+  wrap.appendChild(preview);
+
+  if (content.length > previewLimit) {
+    const note = document.createElement("p");
+    note.className = "node-navigation-preview-note";
+    note.textContent = `Показано ${previewLimit.toLocaleString("ru-RU")} из ${content.length.toLocaleString("ru-RU")} символов.`;
+    wrap.appendChild(note);
   }
 
   return createNavigationMemoryPanel("todo", "TODO", wrap);
+}
+
+const NODE_COMMENTS_PLACEHOLDER_SAMPLES = [
+  {
+    author: "ivan_dev",
+    initials: "ID",
+    tone: "blue",
+    time: "2 часа назад",
+    body: "Добавил заметку про PDO — удобно держать примеры прямо в теме, а не в чате с агентом."
+  },
+  {
+    author: "maria_p",
+    initials: "MP",
+    tone: "violet",
+    time: "вчера",
+    body: "Раздел про безопасность стоит расширить: XSS и CSRF лучше вынести в отдельные подтемы."
+  },
+  {
+    author: "team_lead",
+    initials: "TL",
+    tone: "slate",
+    time: "3 дня назад",
+    body: "Согласовано: эту тему используем как базу для онбординга новых разработчиков."
+  }
+];
+
+function createNodeCommentAvatar(initials, tone = "slate") {
+  const avatar = document.createElement("span");
+  avatar.className = `node-comment-avatar node-comment-avatar--${tone}`;
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = initials;
+  return avatar;
+}
+
+function renderNodeCommentsPlaceholderBlock(options = {}) {
+  const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
+  const samples = Array.isArray(options.samples) ? options.samples : NODE_COMMENTS_PLACEHOLDER_SAMPLES;
+
+  const section = document.createElement("section");
+  section.className = "node-comments";
+  section.setAttribute("aria-label", "Комментарии");
+
+  const head = createNavigationSectionHead("Комментарии");
+  const headRule = head.querySelector(".node-navigation-memory-rule");
+
+  const count = document.createElement("span");
+  count.className = "node-comments-count";
+  count.textContent = String(samples.length);
+
+  const badge = document.createElement("span");
+  badge.className = "node-comments-badge";
+  badge.textContent = "заглушка";
+
+  if (headRule) {
+    head.insertBefore(badge, headRule);
+    head.insertBefore(count, badge);
+  } else {
+    head.append(count, badge);
+  }
+
+  const composer = document.createElement("div");
+  composer.className = "node-comments-composer";
+  composer.setAttribute("aria-disabled", "true");
+
+  const composerAvatar = createNodeCommentAvatar("Вы", "green");
+
+  const composerMain = document.createElement("div");
+  composerMain.className = "node-comments-composer-main";
+
+  const composerBox = document.createElement("div");
+  composerBox.className = "node-comments-composer-box";
+
+  const composerField = document.createElement("textarea");
+  composerField.className = "node-comments-input";
+  composerField.rows = 3;
+  composerField.readOnly = true;
+  composerField.placeholder = `Комментарий к «${nodeTitle}»…`;
+  composerField.setAttribute("aria-label", "Новый комментарий");
+
+  const composerActions = document.createElement("div");
+  composerActions.className = "node-comments-composer-actions";
+
+  const composerHint = document.createElement("span");
+  composerHint.className = "node-comments-composer-hint";
+  composerHint.textContent = "Markdown · @упоминания · скоро";
+
+  const composerSubmit = document.createElement("button");
+  composerSubmit.type = "button";
+  composerSubmit.className = "node-comments-submit";
+  composerSubmit.disabled = true;
+  composerSubmit.title = "Комментарии пока только для демо";
+  composerSubmit.textContent = "Комментировать";
+
+  composerActions.append(composerHint, composerSubmit);
+  composerBox.append(composerField, composerActions);
+  composerMain.appendChild(composerBox);
+  composer.append(composerAvatar, composerMain);
+
+  const thread = document.createElement("ol");
+  thread.className = "node-comments-thread";
+
+  for (const sample of samples) {
+    const item = document.createElement("li");
+    item.className = "node-comment";
+
+    const avatar = createNodeCommentAvatar(sample.initials, sample.tone);
+
+    const main = document.createElement("article");
+    main.className = "node-comment-main";
+
+    const commentHead = document.createElement("header");
+    commentHead.className = "node-comment-head";
+
+    const author = document.createElement("strong");
+    author.className = "node-comment-author";
+    author.textContent = sample.author;
+
+    const time = document.createElement("time");
+    time.className = "node-comment-time";
+    time.textContent = sample.time;
+    time.dateTime = sample.time;
+
+    commentHead.append(author, time);
+
+    const body = document.createElement("div");
+    body.className = "node-comment-body";
+    body.textContent = sample.body;
+
+    const foot = document.createElement("footer");
+    foot.className = "node-comment-foot";
+
+    const replyBtn = document.createElement("button");
+    replyBtn.type = "button";
+    replyBtn.className = "node-comment-action";
+    replyBtn.disabled = true;
+    replyBtn.title = "Скоро";
+    replyBtn.textContent = "Ответить";
+
+    const reactBtn = document.createElement("button");
+    reactBtn.type = "button";
+    reactBtn.className = "node-comment-action";
+    reactBtn.disabled = true;
+    reactBtn.title = "Скоро";
+    reactBtn.textContent = "👍 1";
+
+    foot.append(replyBtn, reactBtn);
+    main.append(commentHead, body, foot);
+    item.append(avatar, main);
+    thread.appendChild(item);
+  }
+
+  section.append(head, composer, thread);
+  return section;
 }
 
 async function renderNodeNavigation() {
@@ -12121,11 +12410,14 @@ async function renderNodeNavigation() {
     }
   }
 
-  panelsWrap.appendChild(renderNavigationTodoPart(todoData));
+  const todoPanel = renderNavigationTodoPart(todoData);
+  if (todoPanel) panelsWrap.appendChild(todoPanel);
 
   if (panelsWrap.children.length) {
     hub.appendChild(panelsWrap);
   }
+
+  hub.appendChild(renderNodeCommentsPlaceholderBlock({ nodeTitle: heroTitle }));
 
   if (isStale()) return;
   if (!hub.children.length) {
@@ -12157,7 +12449,7 @@ async function renderNodeOverview() {
   const manifestRaw = modeContentCache.description || "";
   const title = getOverviewTitleFromProps(entries);
   const desc = getOverviewDescription(manifestRaw, entries);
-  const typeLabel = getPropsEntryValueByKey(entries, "AWN-TYPE");
+  const typeLabel = getPropsEntryValueByKey(entries, "awn-type");
   const excerpt = getOverviewMarkdownBeforeDivider(manifestRaw);
   const isOverviewArea = isAreaNodePath(activePath);
   const nodePathResolved = getResolvedNodePath(activePath);
@@ -12418,6 +12710,8 @@ async function renderNodeOverview() {
   fragment.appendChild(
     createOverviewAccordionSection("todo", "✅ TODO", todoBlock, { defaultOpen: todoHasContent })
   );
+
+  fragment.appendChild(renderNodeCommentsPlaceholderBlock({ nodeTitle: title }));
 
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);
@@ -15656,6 +15950,8 @@ function applyAgentWorkspaceCanvasUi() {
   } else if (agentWorkspaceView === "timeline-vertical") {
     void renderAgentTimelineVerticalView();
   }
+
+  updateDocumentTitle();
 }
 
 function setAgentWorkspaceView(view) {
@@ -16482,20 +16778,9 @@ function renderAgentDashboardView() {
   }
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
-    const agentLabel = agent?.name || getActiveAgentLabel() || "агента";
-    homeHintNode.textContent = `Агент «${agentLabel}» — выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Таблицу / Хранилище / Ленту`;
+    homeHintNode.textContent = AGENT_HOME_HINT_DEFAULT;
   }
 }
-
-const DASHBOARD2_VIEW_SHORTCUTS = [
-  { view: "schema", label: "Схема", icon: "🗂" },
-  { view: "vault", label: "Каталог", icon: "📚" },
-  { view: "graph", label: "Граф", icon: "🕸" },
-  { view: "table", label: "Таблица", icon: "📋" },
-  { view: "storage", label: "Хранилище", icon: "🗄" },
-  { view: "map3", label: "Карта 3", icon: "🗺" },
-  { view: "timeline", label: "Лента", icon: "📅" }
-];
 
 function createHome2TopicCard(entry) {
   const btn = document.createElement("button");
@@ -16654,29 +16939,6 @@ function renderAgentDashboard2View() {
 
   shell.appendChild(topicsSection);
 
-  const viewsSection = document.createElement("section");
-  viewsSection.className = "home2-section";
-  viewsSection.setAttribute("aria-labelledby", "home2-views-title");
-
-  const viewsTitle = document.createElement("h3");
-  viewsTitle.id = "home2-views-title";
-  viewsTitle.className = "home2-section-title";
-  viewsTitle.textContent = "Виды workspace";
-
-  const viewsGrid = document.createElement("div");
-  viewsGrid.className = "home2-views-grid";
-  for (const shortcut of DASHBOARD2_VIEW_SHORTCUTS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "home2-view-btn";
-    btn.innerHTML = `<span class="home2-view-btn-icon" aria-hidden="true">${shortcut.icon}</span><span>${escapeHtml(shortcut.label)}</span>`;
-    btn.addEventListener("click", () => setAgentWorkspaceView(shortcut.view));
-    viewsGrid.appendChild(btn);
-  }
-
-  viewsSection.append(viewsTitle, viewsGrid);
-  shell.appendChild(viewsSection);
-
   const hint = document.createElement("p");
   hint.className = "home2-hint";
   hint.textContent = `Workspace «${agentLabel}» — рабочий дашборд. Дашборд 1 — обзорная главная с описанием продукта.`;
@@ -16775,8 +17037,7 @@ function renderAgentSchemaView() {
   agentSchemaContentNode.appendChild(tree);
 }
 
-const AGENT_HOME_HINT_DEFAULT =
-  "Выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Таблицу / Хранилище / Ленту";
+const AGENT_HOME_HINT_DEFAULT = "Выберите тему в дереве или откройте схему";
 
 function inferVaultCategoryFromEntry(entry) {
   if (entry?.category) return String(entry.category).trim();
@@ -19790,7 +20051,7 @@ propsFormFieldsNode?.addEventListener("input", () => {
 });
 propsInputNode?.addEventListener("input", () => {
   if (!propsRawYamlVisible) return;
-  propsFormEntries = parsePropsYaml(propsInputNode.value || "");
+  absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
   syncSaveButtonLamp();
 });
 titleInputNode?.addEventListener("input", () => {

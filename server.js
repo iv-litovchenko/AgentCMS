@@ -1419,7 +1419,7 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
     await fs.writeFile(
       manifestAbsolute,
       joinNodeFrontmatter(
-        `title: ${SERVICE_AREA_NAME}\nAWN-TYPE: service`,
+        `title: ${SERVICE_AREA_NAME}\nawn-type: service`,
         `# ${SERVICE_AREA_NAME}\n\nОбщая медиатека и служебные темы агента.\n`
       ),
       "utf-8"
