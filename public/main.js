@@ -8,6 +8,8 @@ const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 420;
 const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
+const home2PaneNode = document.getElementById("home-pane-2");
+const home2ContentNode = document.getElementById("home2-content");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
@@ -17,6 +19,7 @@ const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn
 const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
 const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
+const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitCreateBtn = document.getElementById("app-landing-orbit-create-btn");
 const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
 const appLandingSearchScopeNode = document.getElementById("app-landing-search-scope");
@@ -98,6 +101,7 @@ const agentGraphShowPreviewsNode = document.getElementById("agent-graph-show-pre
 const agentGraphControlsNode = document.getElementById("agent-graph-controls");
 const filePathNode = document.getElementById("file-path");
 const workspaceShareLinkBtn = document.getElementById("workspace-share-link-btn");
+const workspaceShareBtn = document.getElementById("workspace-share-btn");
 const workspaceGdriveSyncBtn = document.getElementById("workspace-gdrive-sync-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
@@ -532,19 +536,34 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
 }
 
 function updateWorkspaceShareLinkButton() {
-  if (!workspaceShareLinkBtn) return;
   const hasAgent = Boolean(activeAgentId && agentsCache.some((agent) => agent.id === activeAgentId));
   const inWorkspace =
     hasAgent &&
     !appRootNode?.classList.contains("home-view") &&
     Boolean(activePath || activeSystemFile);
-  workspaceShareLinkBtn.classList.toggle("hidden", !inWorkspace);
-  workspaceShareLinkBtn.disabled = !inWorkspace;
+  const canNativeShare = typeof navigator.share === "function";
+
+  if (workspaceShareLinkBtn) {
+    workspaceShareLinkBtn.classList.toggle("hidden", !inWorkspace);
+    workspaceShareLinkBtn.disabled = !inWorkspace;
+  }
+
+  if (workspaceShareBtn) {
+    workspaceShareBtn.classList.toggle("hidden", !inWorkspace || !canNativeShare);
+    workspaceShareBtn.disabled = !inWorkspace || !canNativeShare;
+  }
+}
+
+function getWorkspaceSharePayload() {
+  syncAppRouteToUrl({ replace: true });
+  const url = location.href;
+  const label = String(activeLabel || titleInputNode?.value || "").trim();
+  const title = label ? `Agent CMS — ${label}` : "Agent CMS";
+  return { title, text: label || title, url };
 }
 
 async function copyWorkspaceShareLink() {
-  syncAppRouteToUrl({ replace: true });
-  const url = location.href;
+  const { url } = getWorkspaceSharePayload();
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
@@ -556,6 +575,21 @@ async function copyWorkspaceShareLink() {
   }
 
   window.prompt("Скопируйте ссылку:", url);
+}
+
+async function shareWorkspaceLink() {
+  const payload = getWorkspaceSharePayload();
+  if (typeof navigator.share !== "function") {
+    await copyWorkspaceShareLink();
+    return;
+  }
+
+  try {
+    await navigator.share(payload);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    await copyWorkspaceShareLink();
+  }
 }
 
 async function applyAppRouteFromUrl() {
@@ -1752,6 +1786,32 @@ function createAppLandingOrbitBubble(agent, index, total) {
   return item;
 }
 
+const ORBIT_LINK_CENTER = { x: 50, y: 48 };
+
+function renderAppLandingOrbitLinks(agents) {
+  if (!appLandingOrbitLinksNode) return;
+  appLandingOrbitLinksNode.replaceChildren();
+
+  if (!Array.isArray(agents) || agents.length === 0) return;
+
+  const svgNs = "http://www.w3.org/2000/svg";
+  for (let index = 0; index < agents.length; index += 1) {
+    const agent = agents[index];
+    const layout = getOrbitBubbleLayout(index, agents.length, agent.id);
+    const registryActive = isAgentRegistryActive(agent);
+
+    const line = document.createElementNS(svgNs, "line");
+    line.setAttribute("x1", String(ORBIT_LINK_CENTER.x));
+    line.setAttribute("y1", String(ORBIT_LINK_CENTER.y));
+    line.setAttribute("x2", String(layout.x));
+    line.setAttribute("y2", String(layout.y));
+    line.classList.add("app-landing-orbit-link");
+    if (registryActive) line.classList.add("is-active");
+    line.style.animationDelay = `${layout.delay}s`;
+    appLandingOrbitLinksNode.appendChild(line);
+  }
+}
+
 function renderAppLandingOrbit() {
   if (!appLandingOrbitBubblesNode) return;
   appLandingOrbitBubblesNode.replaceChildren();
@@ -1768,6 +1828,8 @@ function renderAppLandingOrbit() {
   agents.forEach((agent, index) => {
     appLandingOrbitBubblesNode.appendChild(createAppLandingOrbitBubble(agent, index, agents.length));
   });
+
+  renderAppLandingOrbitLinks(agents);
 }
 
 function renderAppLandingAgents() {
@@ -15472,6 +15534,7 @@ function loadAgentWorkspaceView() {
     const saved = localStorage.getItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY);
     if (
       saved === "dashboard" ||
+      saved === "dashboard2" ||
       saved === "map" ||
       saved === "map2" ||
       saved === "map3" ||
@@ -15517,6 +15580,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentWorkspaceViewButtons();
   const showCanvas = isAgentWorkspaceCanvasVisible();
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
+  home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
   agentMap3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map3");
@@ -15536,6 +15600,8 @@ function applyAgentWorkspaceCanvasUi() {
 
   if (agentWorkspaceView === "dashboard") {
     renderAgentDashboardView();
+  } else if (agentWorkspaceView === "dashboard2") {
+    renderAgentDashboard2View();
   } else if (agentWorkspaceView === "map") {
     renderAgentMapView();
   } else if (agentWorkspaceView === "map2") {
@@ -15564,6 +15630,7 @@ function applyAgentWorkspaceCanvasUi() {
 function setAgentWorkspaceView(view) {
   if (
     view !== "dashboard" &&
+    view !== "dashboard2" &&
     view !== "map" &&
     view !== "map2" &&
     view !== "map3" &&
@@ -16387,6 +16454,204 @@ function renderAgentDashboardView() {
     const agentLabel = agent?.name || getActiveAgentLabel() || "агента";
     homeHintNode.textContent = `Агент «${agentLabel}» — выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Таблицу / Хранилище / Ленту`;
   }
+}
+
+const DASHBOARD2_VIEW_SHORTCUTS = [
+  { view: "schema", label: "Схема", icon: "🗂" },
+  { view: "vault", label: "Каталог", icon: "📚" },
+  { view: "graph", label: "Граф", icon: "🕸" },
+  { view: "table", label: "Таблица", icon: "📋" },
+  { view: "storage", label: "Хранилище", icon: "🗄" },
+  { view: "map3", label: "Карта 3", icon: "🗺" },
+  { view: "timeline", label: "Лента", icon: "📅" }
+];
+
+function createHome2TopicCard(entry) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "home2-topic-card";
+  btn.title = entry.displayPath || entry.path || "";
+
+  const media = document.createElement("div");
+  media.className = "home2-topic-card-media";
+
+  if (entry.hasPreview && entry.previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.src = appendCacheBuster(appendAgentToApiUrl(entry.previewUrl));
+    img.onerror = () => {
+      media.replaceChildren();
+      const fallback = document.createElement("span");
+      fallback.className = "home2-topic-card-fallback";
+      fallback.textContent = getAgentPickerInitials({ name: entry.label });
+      media.appendChild(fallback);
+    };
+    media.appendChild(img);
+  } else {
+    const fallback = document.createElement("span");
+    fallback.className = "home2-topic-card-fallback";
+    fallback.textContent = getAgentPickerInitials({ name: entry.label });
+    media.appendChild(fallback);
+  }
+
+  const body = document.createElement("div");
+  body.className = "home2-topic-card-body";
+
+  const title = document.createElement("span");
+  title.className = "home2-topic-card-title";
+  title.textContent = entry.label || getLabelFromPath(entry.path);
+
+  const path = document.createElement("span");
+  path.className = "home2-topic-card-path";
+  path.textContent = entry.displayPath || getNodeDisplayPath(entry.path);
+
+  body.append(title, path);
+  btn.append(media, body);
+  btn.addEventListener("click", () => {
+    if (entry.path) openNodeFromMenu(getLabelFromPath(entry.path), entry.path);
+  });
+  return btn;
+}
+
+function renderAgentDashboard2View() {
+  if (!home2ContentNode) return;
+
+  const agent = agentsCache.find((item) => item.id === activeAgentId);
+  const agentLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Агент";
+  const counts = countAgentMenuNodes(currentMenuData);
+  home2ContentNode.replaceChildren();
+
+  const shell = document.createElement("div");
+  shell.className = "home2-shell";
+
+  const header = document.createElement("header");
+  header.className = "home2-header";
+
+  const identity = document.createElement("div");
+  identity.className = "home2-identity";
+
+  const avatarWrap = document.createElement("div");
+  avatarWrap.className = "home2-avatar";
+  const previewUrl = agent ? getRegistryAgentPreviewUrl(agent) : null;
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.src = previewUrl;
+    img.onerror = () => {
+      avatarWrap.textContent = getAgentPickerInitials(agent);
+    };
+    avatarWrap.appendChild(img);
+  } else {
+    avatarWrap.textContent = getAgentPickerInitials(agent || { name: agentLabel });
+  }
+
+  const copy = document.createElement("div");
+  copy.className = "home2-identity-copy";
+
+  const title = document.createElement("h2");
+  title.className = "home2-title";
+  title.textContent = agentLabel;
+
+  const meta = document.createElement("p");
+  meta.className = "home2-meta";
+  meta.textContent = [activeAgentId, agent?.path].filter(Boolean).join(" · ");
+
+  copy.append(title, meta);
+
+  if (agent?.comment) {
+    const comment = document.createElement("p");
+    comment.className = "home2-comment";
+    comment.textContent = agent.comment;
+    copy.appendChild(comment);
+  }
+
+  identity.append(avatarWrap, copy);
+  header.appendChild(identity);
+
+  const stats = document.createElement("div");
+  stats.className = "home2-stats";
+  for (const stat of [
+    { value: String(counts.total), label: "Тем и областей" },
+    { value: String(counts.folders), label: "Контейнеров" },
+    { value: String(counts.leaves), label: "Тем" }
+  ]) {
+    const card = document.createElement("article");
+    card.className = "home2-stat";
+    card.innerHTML = `
+      <span class="home2-stat-value">${escapeHtml(stat.value)}</span>
+      <span class="home2-stat-label">${escapeHtml(stat.label)}</span>
+    `;
+    stats.appendChild(card);
+  }
+
+  shell.append(header, stats);
+
+  const menuRoot = currentMenuData ? { title: getAgentTreeTitle(), ...currentMenuData } : null;
+  let topicEntries = [];
+  if (menuRoot) {
+    const flat = collectFlatMenuEntries(menuRoot);
+    const leaves = flat.filter((entry) => !entry.isFolder);
+    topicEntries = (leaves.length ? leaves : flat).slice(0, 12);
+  }
+
+  const topicsSection = document.createElement("section");
+  topicsSection.className = "home2-section";
+  topicsSection.setAttribute("aria-labelledby", "home2-topics-title");
+
+  const topicsTitle = document.createElement("h3");
+  topicsTitle.id = "home2-topics-title";
+  topicsTitle.className = "home2-section-title";
+  topicsTitle.textContent = "Быстрый доступ к темам";
+
+  topicsSection.appendChild(topicsTitle);
+
+  if (topicEntries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "home2-empty";
+    empty.textContent = "В workspace пока нет тем — создайте первую в дереве слева.";
+    topicsSection.appendChild(empty);
+  } else {
+    const grid = document.createElement("div");
+    grid.className = "home2-topics-grid";
+    for (const entry of topicEntries) {
+      grid.appendChild(createHome2TopicCard(entry));
+    }
+    topicsSection.appendChild(grid);
+  }
+
+  shell.appendChild(topicsSection);
+
+  const viewsSection = document.createElement("section");
+  viewsSection.className = "home2-section";
+  viewsSection.setAttribute("aria-labelledby", "home2-views-title");
+
+  const viewsTitle = document.createElement("h3");
+  viewsTitle.id = "home2-views-title";
+  viewsTitle.className = "home2-section-title";
+  viewsTitle.textContent = "Виды workspace";
+
+  const viewsGrid = document.createElement("div");
+  viewsGrid.className = "home2-views-grid";
+  for (const shortcut of DASHBOARD2_VIEW_SHORTCUTS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "home2-view-btn";
+    btn.innerHTML = `<span class="home2-view-btn-icon" aria-hidden="true">${shortcut.icon}</span><span>${escapeHtml(shortcut.label)}</span>`;
+    btn.addEventListener("click", () => setAgentWorkspaceView(shortcut.view));
+    viewsGrid.appendChild(btn);
+  }
+
+  viewsSection.append(viewsTitle, viewsGrid);
+  shell.appendChild(viewsSection);
+
+  const hint = document.createElement("p");
+  hint.className = "home2-hint";
+  hint.textContent = `Workspace «${agentLabel}» — рабочий дашборд. Дашборд 1 — обзорная главная с описанием продукта.`;
+  shell.appendChild(hint);
+
+  home2ContentNode.appendChild(shell);
 }
 
 function getAgentSchemaNodeKindLabel(entry) {
@@ -17668,6 +17933,7 @@ function syncAppHomeButton() {
 
 function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
+  home2PaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
   agentMap3PaneNode?.classList.add("hidden");
@@ -17700,6 +17966,8 @@ function showAppLandingView(hint = "") {
   activeAgentId = null;
   appRootNode.classList.add("app-landing-view");
   appRootNode.classList.remove("home-view", "system-file-view");
+  hideContentSearchResults();
+  if (contentSearchInputNode) contentSearchInputNode.value = "";
   clearSystemFileViewUi();
   hideAllAgentCanvasPanes();
   appLandingPaneNode?.classList.remove("hidden");
@@ -18641,6 +18909,10 @@ async function deleteNode() {
 }
 
 async function init() {
+  if (window.agentAppLock?.whenUnlocked) {
+    await window.agentAppLock.whenUnlocked();
+  }
+
   const splashStartedAt = Date.now();
   const finishSplash = () => {
     const elapsed = Date.now() - splashStartedAt;
@@ -19361,6 +19633,10 @@ window.addEventListener("popstate", () => {
       resumeAppRouteSync();
       syncAppRouteToUrl({ replace: true });
     });
+});
+
+workspaceShareBtn?.addEventListener("click", () => {
+  void shareWorkspaceLink();
 });
 
 workspaceShareLinkBtn?.addEventListener("click", () => {

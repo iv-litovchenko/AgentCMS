@@ -1,6 +1,6 @@
 {
   "id": "test4",
   "name": "test4NAME",
-  "vaultFolder": "_vault",
+  "vaultFolder": "_awn-vault",
   "serviceFolder": "_system"
 }

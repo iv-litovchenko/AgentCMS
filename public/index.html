@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.60" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.64" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -36,6 +36,57 @@
         <p class="app-splash-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
       </div>
     </div>
+
+    <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
+      <div class="app-lock-bg" aria-hidden="true"></div>
+      <div class="app-lock-inner">
+        <div class="app-lock-brand">
+          <span class="app-lock-icon" aria-hidden="true">🔒</span>
+          <h2 id="app-lock-title" class="app-lock-title">Agent CMS</h2>
+        </div>
+        <p id="app-lock-lead" class="app-lock-lead">Введите пароль</p>
+        <form id="app-lock-form" class="app-lock-form">
+          <label class="app-lock-field">
+            <span class="app-lock-label">Пароль</span>
+            <input
+              id="app-lock-password"
+              class="app-lock-input"
+              type="password"
+              name="password"
+              placeholder="Пароль"
+              autocomplete="current-password"
+              required
+              minlength="4"
+            />
+          </label>
+          <label id="app-lock-confirm-wrap" class="app-lock-field hidden">
+            <span class="app-lock-label">Повторите пароль</span>
+            <input
+              id="app-lock-password-confirm"
+              class="app-lock-input"
+              type="password"
+              name="password-confirm"
+              placeholder="Ещё раз"
+              autocomplete="new-password"
+              minlength="4"
+            />
+          </label>
+          <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
+          <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
+        </form>
+        <button
+          id="app-lock-biometric-btn"
+          class="app-lock-biometric-btn"
+          type="button"
+          disabled
+          title="Скоро"
+        >
+          Face ID / Touch ID
+        </button>
+        <p class="app-lock-footnote">Локальный замок в браузере. API остаётся доступным без пароля.</p>
+      </div>
+    </div>
+
     <div id="app-root" class="app">
       <header class="app-header">
         <div class="app-header-brand">
@@ -114,6 +165,7 @@
                 <div id="agent-view-select-wrap" class="agent-view-select-wrap">
                   <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
                     <option value="dashboard" selected>Дашборд</option>
+                    <option value="dashboard2">Дашборд 2</option>
                     <option value="map">Карта</option>
                     <option value="map2">Карта 2</option>
                     <option value="map3">Карта 3</option>
@@ -327,7 +379,7 @@
           <div class="app-landing-hero-inner">
             <p class="app-landing-hero-eyebrow">Workspaces / *.x.md</p>
             <h2 class="app-landing-hero-title">Agent CMS</h2>
-            <p class="app-landing-hero-lead">Контекст для LLM — тема за темой, память заметка за заметкой</p>
+            <p class="app-landing-hero-lead">Контекст для LLM-агентов — тема за темой</p>
           </div>
         </section>
 
@@ -398,6 +450,11 @@
             </header>
             <div id="app-landing-agents" class="app-landing-agents" role="list"></div>
             <div id="app-landing-orbit" class="app-landing-orbit hidden" aria-hidden="true">
+              <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div class="app-landing-orbit-hub" aria-hidden="true">
+                <span class="app-landing-orbit-hub-ring"></span>
+                <span class="app-landing-orbit-hub-core">Agent CMS</span>
+              </div>
               <div id="app-landing-orbit-bubbles" class="app-landing-orbit-bubbles" role="list"></div>
               <button
                 type="button"
@@ -474,6 +531,10 @@
           <div id="agent-dashboard-stats" class="agent-dashboard-stats" aria-live="polite"></div>
           <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте Схему / Каталог / Граф / Карта 3 / Хранилище</p>
         </div>
+      </main>
+
+      <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд 2 агента">
+        <div id="home2-content" class="home2-content"></div>
       </main>
 
       <main id="agent-map-pane" class="agent-canvas-pane agent-map-pane hidden" aria-label="Карта агента">
@@ -722,6 +783,15 @@
                       </svg>
                     </span>
                     <span class="workspace-toolbar-btn-label">Google Диск (синхронизация)</span>
+                  </button>
+                  <button
+                    id="workspace-share-btn"
+                    class="workspace-share-link-btn"
+                    type="button"
+                    title="Поделиться ссылкой на эту страницу"
+                    aria-label="Поделиться"
+                  >
+                    Поделиться
                   </button>
                   <button
                     id="workspace-share-link-btn"
@@ -1600,7 +1670,8 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.5.9"></script>
+    <script src="/app-lock.js?v=1"></script>
+    <script src="/main.js?v=0.5.14"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>
