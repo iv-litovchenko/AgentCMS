@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.58" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.60" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -333,16 +333,81 @@
 
         <section class="app-landing-body" aria-labelledby="app-landing-agents-title">
           <div class="app-landing-inner">
+            <section class="app-landing-search" aria-labelledby="app-landing-search-title">
+              <h3 id="app-landing-search-title" class="app-landing-search-title">Поиск по агентам</h3>
+              <p class="app-landing-search-sub">Найдите тему или файл в выбранных workspace</p>
+              <div class="app-landing-search-bar-wrap">
+                <div class="app-landing-search-bar">
+                  <select id="app-landing-search-scope" class="app-landing-search-scope" aria-label="Область поиска">
+                    <option value="content">Содержимое</option>
+                    <option value="filename">Имя файла</option>
+                  </select>
+                  <input
+                    id="app-landing-search-input"
+                    class="app-landing-search-input"
+                    type="search"
+                    placeholder="Поиск по содержимому..."
+                    autocomplete="off"
+                    aria-expanded="false"
+                    aria-controls="app-landing-search-results"
+                  />
+                </div>
+                <div id="app-landing-search-results" class="app-landing-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
+              </div>
+              <div class="app-landing-search-agents-toolbar">
+                <span class="app-landing-search-agents-label">Искать в:</span>
+                <button type="button" id="app-landing-search-agents-all" class="app-landing-search-link-btn">Все</button>
+                <button type="button" id="app-landing-search-agents-none" class="app-landing-search-link-btn">Снять</button>
+                <button type="button" id="app-landing-search-agents-active" class="app-landing-search-link-btn">Только активные</button>
+              </div>
+              <div id="app-landing-search-agents" class="app-landing-search-agents" role="group" aria-label="Агенты для поиска"></div>
+            </section>
+
             <header class="app-landing-header">
               <div class="app-landing-header-copy">
                 <h3 id="app-landing-agents-title" class="app-landing-title">Выберите агента</h3>
                 <p class="app-landing-sub">Каждый агент — отдельный workspace с темами, памятью и файлами</p>
               </div>
-              <button id="app-landing-manage-btn" class="app-landing-manage-btn" type="button" title="Реестр агентов">
-                ⚙ Реестр
-              </button>
+              <div class="app-landing-header-actions">
+                <div class="app-landing-view-toggle" role="tablist" aria-label="Вид списка агентов">
+                  <button
+                    type="button"
+                    id="app-landing-view-grid-btn"
+                    class="app-landing-view-toggle-btn is-active"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="app-landing-agents"
+                  >
+                    Список
+                  </button>
+                  <button
+                    type="button"
+                    id="app-landing-view-orbit-btn"
+                    class="app-landing-view-toggle-btn"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="app-landing-orbit"
+                  >
+                    Заставка
+                  </button>
+                </div>
+                <button id="app-landing-manage-btn" class="app-landing-manage-btn" type="button" title="Реестр агентов">
+                  ⚙ Реестр
+                </button>
+              </div>
             </header>
             <div id="app-landing-agents" class="app-landing-agents" role="list"></div>
+            <div id="app-landing-orbit" class="app-landing-orbit hidden" aria-hidden="true">
+              <div id="app-landing-orbit-bubbles" class="app-landing-orbit-bubbles" role="list"></div>
+              <button
+                type="button"
+                id="app-landing-orbit-create-btn"
+                class="app-landing-orbit-create-btn"
+                title="Создать агента"
+              >
+                +
+              </button>
+            </div>
             <p id="app-landing-hint" class="app-landing-hint hidden" role="status"></p>
           </div>
         </section>
@@ -1535,7 +1600,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.5.7"></script>
+    <script src="/main.js?v=0.5.9"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

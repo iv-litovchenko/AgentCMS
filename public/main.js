@@ -13,6 +13,18 @@ const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
+const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
+const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
+const appLandingOrbitNode = document.getElementById("app-landing-orbit");
+const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
+const appLandingOrbitCreateBtn = document.getElementById("app-landing-orbit-create-btn");
+const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
+const appLandingSearchScopeNode = document.getElementById("app-landing-search-scope");
+const appLandingSearchResultsNode = document.getElementById("app-landing-search-results");
+const appLandingSearchAgentsNode = document.getElementById("app-landing-search-agents");
+const appLandingSearchAgentsAllBtn = document.getElementById("app-landing-search-agents-all");
+const appLandingSearchAgentsNoneBtn = document.getElementById("app-landing-search-agents-none");
+const appLandingSearchAgentsActiveBtn = document.getElementById("app-landing-search-agents-active");
 const menuSearchInputNode = document.getElementById("menu-search-input");
 const contentSearchInputNode = document.getElementById("content-search-input");
 const contentSearchScopeNode = document.getElementById("content-search-scope");
@@ -1617,6 +1629,147 @@ function createAppLandingAgentCard(agent) {
   return btn;
 }
 
+function hashAgentIdForOrbit(id) {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function getLandingAgentsView() {
+  try {
+    const saved = localStorage.getItem(LANDING_AGENTS_VIEW_KEY);
+    if (saved === "orbit" || saved === "grid") return saved;
+  } catch {
+    // ignore
+  }
+  return "grid";
+}
+
+function setLandingAgentsView(view) {
+  const next = view === "orbit" ? "orbit" : "grid";
+  localStorage.setItem(LANDING_AGENTS_VIEW_KEY, next);
+  syncLandingAgentsViewUi();
+}
+
+function getOrbitBubbleLayout(index, total, agentId) {
+  const hash = hashAgentIdForOrbit(String(agentId || index));
+  const golden = 2.399963229728653;
+  const t = index + 1;
+  const radius = 24 + (t / Math.max(total, 1)) * 24 + (hash % 12);
+  const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
+  const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
+  const y = 48 + Math.sin(angle) * radius * 0.72;
+  return {
+    x: Math.min(90, Math.max(8, x)),
+    y: Math.min(88, Math.max(10, y)),
+    size: 58 + (hash % 28),
+    duration: 7 + (hash % 6),
+    delay: ((hash % 50) / 10).toFixed(1),
+    floatX: 10 + (hash % 18),
+    floatY: 12 + (hash % 16)
+  };
+}
+
+function syncLandingAgentsViewUi() {
+  const view = getLandingAgentsView();
+  const isOrbit = view === "orbit";
+
+  appLandingPaneNode?.classList.toggle("is-screensaver", isOrbit);
+  appLandingAgentsNode?.classList.toggle("hidden", isOrbit);
+  appLandingOrbitNode?.classList.toggle("hidden", !isOrbit);
+  appLandingOrbitNode?.setAttribute("aria-hidden", isOrbit ? "false" : "true");
+
+  appLandingViewGridBtn?.classList.toggle("is-active", !isOrbit);
+  appLandingViewOrbitBtn?.classList.toggle("is-active", isOrbit);
+  appLandingViewGridBtn?.setAttribute("aria-selected", isOrbit ? "false" : "true");
+  appLandingViewOrbitBtn?.setAttribute("aria-selected", isOrbit ? "true" : "false");
+
+  const subNode = document.querySelector(".app-landing-sub");
+  if (subNode) {
+    subNode.textContent = isOrbit
+      ? "Кружки в воздухе — наведите, чтобы увидеть имя"
+      : "Каждый агент — отдельный workspace с темами, памятью и файлами";
+  }
+}
+
+function createAppLandingOrbitBubble(agent, index, total) {
+  const registryActive = isAgentRegistryActive(agent);
+  const label = agent.name || agent.id;
+  const layout = getOrbitBubbleLayout(index, total, agent.id);
+
+  const item = document.createElement("div");
+  item.className = "app-landing-orbit-item";
+  item.setAttribute("role", "listitem");
+  item.style.setProperty("--orbit-x", `${layout.x}%`);
+  item.style.setProperty("--orbit-y", `${layout.y}%`);
+  item.style.setProperty("--orbit-size", `${layout.size}px`);
+  item.style.setProperty("--orbit-duration", `${layout.duration}s`);
+  item.style.setProperty("--orbit-delay", `${layout.delay}s`);
+  item.style.setProperty("--orbit-float-x", `${layout.floatX}px`);
+  item.style.setProperty("--orbit-float-y", `${layout.floatY}px`);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `app-landing-orbit-bubble${registryActive ? " is-active" : " is-inactive"}`;
+  btn.title = registryActive ? `Открыть ${label}` : `${label} — неактивен`;
+  btn.setAttribute("aria-label", registryActive ? `Открыть агента ${label}` : `Агент ${label} неактивен`);
+
+  const avatar = document.createElement("span");
+  avatar.className = "app-landing-orbit-bubble-avatar";
+
+  const previewUrl = getRegistryAgentPreviewUrl(agent);
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      avatar.replaceChildren();
+      avatar.textContent = getAgentPickerInitials(agent);
+    };
+    img.src = previewUrl;
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = getAgentPickerInitials(agent);
+  }
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "app-landing-orbit-bubble-label";
+  nameNode.textContent = label;
+
+  btn.append(avatar, nameNode);
+  btn.addEventListener("click", () => {
+    if (!registryActive) {
+      showToast("Агент выключен — включите в реестре (⚙)", "error");
+      return;
+    }
+    selectAgentOption(agent.id);
+  });
+
+  item.appendChild(btn);
+  return item;
+}
+
+function renderAppLandingOrbit() {
+  if (!appLandingOrbitBubblesNode) return;
+  appLandingOrbitBubblesNode.replaceChildren();
+
+  const agents = getAgentsForLandingGrid();
+  if (agents.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-orbit-empty";
+    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
+    appLandingOrbitBubblesNode.appendChild(empty);
+    return;
+  }
+
+  agents.forEach((agent, index) => {
+    appLandingOrbitBubblesNode.appendChild(createAppLandingOrbitBubble(agent, index, agents.length));
+  });
+}
+
 function renderAppLandingAgents() {
   if (!appLandingAgentsNode) return;
   appLandingAgentsNode.replaceChildren();
@@ -1642,6 +1795,9 @@ function renderAppLandingAgents() {
   createItem.setAttribute("role", "listitem");
   createItem.appendChild(createAppLandingCreateAgentCard());
   appLandingAgentsNode.appendChild(createItem);
+
+  renderAppLandingOrbit();
+  syncLandingAgentsViewUi();
 }
 
 function setAppLandingHint(message = "", { alert = false } = {}) {
@@ -2646,6 +2802,7 @@ async function saveAgentsRegistryDraft() {
 
     if (wasOnLanding) {
       renderAppLandingAgents();
+      renderLandingSearchAgents();
     } else if (previousAgentId !== activeAgentId) {
       activePath = null;
       activeLabel = null;
@@ -2856,6 +3013,10 @@ const agentGraphSettingsByAgent = loadAgentGraphSettingsByAgent();
 let menuCardsPreviewOnly = loadCardsPreviewOnly();
 let contentSearchTimer = null;
 let contentSearchRequestId = 0;
+let landingSearchTimer = null;
+let landingSearchRequestId = 0;
+const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
+const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v1";
 const NODE_OPEN_MEMORY_MODE = "internal";
 const NODE_SETTINGS_MODE_IDS = new Set(["description", "configs", "scripts", "env", "todo", "node-preview"]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
@@ -4624,10 +4785,17 @@ function scheduleContentSearch() {
   }, 280);
 }
 
-async function openContentSearchResult(result) {
+async function openContentSearchResult(result, { agentId = null } = {}) {
   if (!result) return;
+
+  if (agentId && agentId !== activeAgentId) {
+    await switchActiveAgent(agentId);
+  }
+
   hideContentSearchResults();
+  hideLandingSearchResults();
   contentSearchInputNode?.blur();
+  appLandingSearchInputNode?.blur();
 
   if (result.systemFile) {
     await selectSystemFile(result.systemFile);
@@ -4645,6 +4813,232 @@ async function openContentSearchResult(result) {
   if (result.mode === "external" && result.externalFile) {
     await openExternalFile(result.externalFile);
   }
+}
+
+function getLandingSearchScope() {
+  const scope = appLandingSearchScopeNode?.value || "content";
+  return scope === "filename" ? "filename" : "content";
+}
+
+function getLandingSearchMinLength(scope = getLandingSearchScope()) {
+  return scope === "filename" ? 1 : 2;
+}
+
+function updateLandingSearchPlaceholder() {
+  if (!appLandingSearchInputNode) return;
+  const scope = getLandingSearchScope();
+  appLandingSearchInputNode.placeholder =
+    scope === "filename" ? "Поиск по названию файла..." : "Поиск по содержимому...";
+}
+
+function hideLandingSearchResults() {
+  appLandingSearchResultsNode?.classList.add("hidden");
+  appLandingSearchInputNode?.setAttribute("aria-expanded", "false");
+}
+
+function readLandingSearchSelectedAgentIdsFromStorage(allIds) {
+  try {
+    const raw = localStorage.getItem(LANDING_SEARCH_AGENTS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved)) return null;
+    return allIds.filter((id) => saved.includes(id));
+  } catch {
+    return null;
+  }
+}
+
+function getLandingSearchSelectedAgentIds() {
+  const agents = getAgentsForLandingGrid();
+  const allIds = agents.map((agent) => agent.id);
+  const fromStorage = readLandingSearchSelectedAgentIdsFromStorage(allIds);
+  if (fromStorage !== null) return fromStorage;
+  return agents.filter(isAgentRegistryActive).map((agent) => agent.id);
+}
+
+function saveLandingSearchSelectedAgentIds(ids) {
+  localStorage.setItem(LANDING_SEARCH_AGENTS_KEY, JSON.stringify(ids));
+}
+
+function setLandingSearchAgentSelection(ids) {
+  saveLandingSearchSelectedAgentIds(ids);
+  renderLandingSearchAgents();
+  scheduleLandingSearch();
+}
+
+function renderLandingSearchAgents() {
+  if (!appLandingSearchAgentsNode) return;
+  appLandingSearchAgentsNode.replaceChildren();
+
+  const agents = getAgentsForLandingGrid();
+  if (agents.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-search-empty-agents";
+    empty.textContent = "Нет агентов в реестре";
+    appLandingSearchAgentsNode.appendChild(empty);
+    return;
+  }
+
+  const selected = new Set(getLandingSearchSelectedAgentIds());
+
+  for (const agent of agents) {
+    const registryActive = isAgentRegistryActive(agent);
+    const label = document.createElement("label");
+    label.className = `app-landing-search-agent${registryActive ? "" : " is-inactive"}`;
+    label.title = registryActive ? agent.path || agent.id : "Агент выключен в реестре";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selected.has(agent.id);
+    checkbox.addEventListener("change", () => {
+      const next = new Set(getLandingSearchSelectedAgentIds());
+      if (checkbox.checked) next.add(agent.id);
+      else next.delete(agent.id);
+      saveLandingSearchSelectedAgentIds([...next]);
+      scheduleLandingSearch();
+    });
+
+    const nameNode = document.createElement("span");
+    nameNode.className = "app-landing-search-agent-name";
+    nameNode.textContent = agent.name || agent.id;
+
+    label.appendChild(checkbox);
+    label.appendChild(nameNode);
+
+    if (agent.id !== (agent.name || "")) {
+      const idNode = document.createElement("span");
+      idNode.className = "app-landing-search-agent-id";
+      idNode.textContent = agent.id;
+      label.appendChild(idNode);
+    }
+
+    appLandingSearchAgentsNode.appendChild(label);
+  }
+}
+
+function renderLandingSearchResults(data) {
+  if (!appLandingSearchResultsNode) return;
+  const query = data?.query || "";
+  const scope = data?.scope || getLandingSearchScope();
+  const results = Array.isArray(data?.results) ? data.results : [];
+  const minLength = getLandingSearchMinLength(scope);
+  const selectedCount = getLandingSearchSelectedAgentIds().length;
+
+  appLandingSearchResultsNode.innerHTML = "";
+
+  if (selectedCount === 0) {
+    appLandingSearchResultsNode.innerHTML =
+      `<div class="content-search-hint">Отметьте хотя бы одного агента</div>`;
+    appLandingSearchResultsNode.classList.remove("hidden");
+    appLandingSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  if (query.length < minLength) {
+    const hint =
+      minLength === 1 ? "Введите текст для поиска" : "Введите минимум 2 символа";
+    appLandingSearchResultsNode.innerHTML = `<div class="content-search-hint">${hint}</div>`;
+    appLandingSearchResultsNode.classList.remove("hidden");
+    appLandingSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  if (results.length === 0) {
+    appLandingSearchResultsNode.innerHTML = `<div class="content-search-empty">Ничего не найдено</div>`;
+    appLandingSearchResultsNode.classList.remove("hidden");
+    appLandingSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  for (const item of results) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "content-search-item";
+    btn.setAttribute("role", "option");
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "content-search-item-title";
+
+    const titleNode = document.createElement("span");
+    titleNode.textContent = item.source || "Файл";
+    titleRow.appendChild(titleNode);
+
+    if (item.agentName || item.agentId) {
+      const agentBadge = document.createElement("span");
+      agentBadge.className = "content-search-item-badge content-search-item-badge--agent";
+      agentBadge.textContent = item.agentName || item.agentId;
+      titleRow.appendChild(agentBadge);
+    }
+
+    if (item.matchCount) {
+      const badge = document.createElement("span");
+      badge.className = "content-search-item-badge";
+      badge.textContent = String(item.matchCount);
+      titleRow.appendChild(badge);
+    }
+
+    const pathNode = document.createElement("div");
+    pathNode.className = "content-search-item-path";
+    pathNode.textContent = item.systemFile || item.filePath || item.nodePath || "";
+
+    btn.appendChild(titleRow);
+    btn.appendChild(pathNode);
+
+    if (item.snippet) {
+      const snippetNode = document.createElement("div");
+      snippetNode.className = "content-search-item-snippet";
+      snippetNode.innerHTML = highlightSearchSnippet(item.snippet, query);
+      btn.appendChild(snippetNode);
+    }
+
+    btn.addEventListener("click", () => {
+      void openContentSearchResult(item, { agentId: item.agentId });
+    });
+    appLandingSearchResultsNode.appendChild(btn);
+  }
+
+  appLandingSearchResultsNode.classList.remove("hidden");
+  appLandingSearchInputNode?.setAttribute("aria-expanded", "true");
+}
+
+async function fetchLandingGlobalSearch(query, scope = getLandingSearchScope()) {
+  const agentIds = getLandingSearchSelectedAgentIds();
+  const params = { q: query, scope, limit: 50 };
+  if (agentIds.length) params.agents = agentIds.join(",");
+  const response = await fetch(buildApiUrl("/api/search/global", params));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+function scheduleLandingSearch() {
+  if (!appLandingSearchInputNode) return;
+  const query = appLandingSearchInputNode.value.trim();
+  const scope = getLandingSearchScope();
+  const minLength = getLandingSearchMinLength(scope);
+  clearTimeout(landingSearchTimer);
+  const requestId = ++landingSearchRequestId;
+
+  if (!query) {
+    hideLandingSearchResults();
+    return;
+  }
+
+  landingSearchTimer = setTimeout(async () => {
+    if (query.length < minLength || getLandingSearchSelectedAgentIds().length === 0) {
+      renderLandingSearchResults({ query, scope, results: [] });
+      return;
+    }
+
+    try {
+      const data = await fetchLandingGlobalSearch(query, scope);
+      if (requestId !== landingSearchRequestId) return;
+      renderLandingSearchResults(data);
+    } catch {
+      if (requestId !== landingSearchRequestId) return;
+      appLandingSearchResultsNode.innerHTML = `<div class="content-search-empty">Ошибка поиска</div>`;
+      appLandingSearchResultsNode.classList.remove("hidden");
+    }
+  }, 280);
 }
 
 function showToast(message, type = "") {
@@ -17316,6 +17710,9 @@ function showAppLandingView(hint = "") {
   closeAgentsPickerPopover();
   renderAgentSelect();
   renderAppLandingAgents();
+  renderLandingSearchAgents();
+  syncLandingAgentsViewUi();
+  updateLandingSearchPlaceholder();
   showMenuNoAgentPlaceholder();
   syncAgentPreview();
   setAppLandingHint(hint, { alert: Boolean(hint) });
@@ -19420,6 +19817,13 @@ document.addEventListener("click", (event) => {
       searchBar?.contains(event.target) || contentSearchResultsNode.contains(event.target);
     if (!insideSearch) hideContentSearchResults();
   }
+
+  if (appLandingSearchInputNode && appLandingSearchResultsNode) {
+    const landingBar = document.querySelector(".app-landing-search-bar-wrap");
+    const insideLandingSearch =
+      landingBar?.contains(event.target) || appLandingSearchResultsNode.contains(event.target);
+    if (!insideLandingSearch) hideLandingSearchResults();
+  }
 });
 
 contentSearchScopeNode?.addEventListener("change", () => {
@@ -19436,5 +19840,35 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
     contentSearchInputNode.blur();
   }
 });
+
+appLandingSearchScopeNode?.addEventListener("change", () => {
+  updateLandingSearchPlaceholder();
+  scheduleLandingSearch();
+});
+appLandingSearchInputNode?.addEventListener("input", scheduleLandingSearch);
+appLandingSearchInputNode?.addEventListener("focus", () => {
+  if (appLandingSearchInputNode.value.trim()) scheduleLandingSearch();
+});
+appLandingSearchInputNode?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    hideLandingSearchResults();
+    appLandingSearchInputNode.blur();
+  }
+});
+appLandingSearchAgentsAllBtn?.addEventListener("click", () => {
+  setLandingSearchAgentSelection(getAgentsForLandingGrid().map((agent) => agent.id));
+});
+appLandingSearchAgentsNoneBtn?.addEventListener("click", () => {
+  setLandingSearchAgentSelection([]);
+});
+appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
+  setLandingSearchAgentSelection(
+    getAgentsForLandingGrid().filter(isAgentRegistryActive).map((agent) => agent.id)
+  );
+});
+
+appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
+appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
+appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
 
 initNodeWorkspaceDomainSelect();

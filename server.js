@@ -3864,6 +3864,46 @@ async function searchWorkspaceContent(query, limit = 30, scope = "content") {
   return searchByContent(query, limit);
 }
 
+async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content") {
+  const trimmed = String(query || "").trim();
+  const normalizedScope = normalizeSearchScope(scope);
+  const ids = Array.isArray(agentIds) ? agentIds.filter(Boolean) : [];
+  const perAgentLimit = Math.max(5, Math.ceil(limit / Math.max(ids.length, 1)));
+  const merged = [];
+
+  for (const agentId of ids) {
+    const agent = resolveAgent(agentId);
+    if (!agent) continue;
+
+    try {
+      const data = await runWithAgent(agentId, () =>
+        searchWorkspaceContent(trimmed, perAgentLimit, normalizedScope)
+      );
+      const agentName = agent.name || agent.id;
+      for (const item of data?.results || []) {
+        merged.push({ ...item, agentId, agentName });
+      }
+    } catch {
+      // skip agent on search failure
+    }
+  }
+
+  merged.sort((a, b) => {
+    if ((b.matchCount || 0) !== (a.matchCount || 0)) return (b.matchCount || 0) - (a.matchCount || 0);
+    const agentCmp = String(a.agentName || a.agentId).localeCompare(String(b.agentName || b.agentId), "ru");
+    if (agentCmp !== 0) return agentCmp;
+    return String(a.filePath || a.nodePath || "").localeCompare(String(b.filePath || b.nodePath || ""), "ru");
+  });
+
+  return {
+    query: trimmed,
+    scope: normalizedScope,
+    results: merged.slice(0, limit),
+    total: merged.length,
+    agents: ids
+  };
+}
+
 async function handleApiForAgent(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/search") {
     const query = url.searchParams.get("q") || "";
@@ -5967,6 +6007,40 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to save agents registry",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/search/global") {
+    const query = url.searchParams.get("q") || "";
+    const scope = url.searchParams.get("scope") || "content";
+    const limitRaw = Number(url.searchParams.get("limit") || 50);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 50;
+
+    let agentIds = String(url.searchParams.get("agents") || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (agentIds.length === 0) {
+      agentIds = getAgentsPublicList()
+        .filter((agent) => agent.active !== false)
+        .map((agent) => agent.id);
+    } else {
+      agentIds = agentIds.filter((agentId) => resolveAgent(agentId));
+    }
+
+    if (agentIds.length === 0) {
+      return sendJson(res, 200, { query, scope, results: [], total: 0, agents: [] });
+    }
+
+    try {
+      const data = await searchGlobalAcrossAgents(query, agentIds, limit, scope);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to search across agents",
         details: String(error?.message || error)
       });
     }
