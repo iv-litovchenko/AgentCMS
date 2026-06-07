@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS (No DB)</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.48" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.58" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -309,6 +309,44 @@
           ▶
         </button>
       </div>
+
+      <main id="app-landing-pane" class="app-landing-pane hidden" aria-label="Главная Agent CMS">
+        <section class="app-landing-hero" aria-label="Приветствие">
+          <div class="app-landing-sky" aria-hidden="true">
+            <div class="app-landing-nebula"></div>
+            <div class="app-landing-stars app-landing-stars--far"></div>
+            <div class="app-landing-stars app-landing-stars--mid"></div>
+            <div class="app-landing-stars app-landing-stars--near"></div>
+            <div class="app-landing-meteors">
+              <span class="app-landing-meteor"></span>
+              <span class="app-landing-meteor"></span>
+              <span class="app-landing-meteor"></span>
+              <span class="app-landing-meteor"></span>
+            </div>
+          </div>
+          <div class="app-landing-hero-inner">
+            <p class="app-landing-hero-eyebrow">Workspaces / *.x.md</p>
+            <h2 class="app-landing-hero-title">Agent CMS</h2>
+            <p class="app-landing-hero-lead">Контекст для LLM — тема за темой, память заметка за заметкой</p>
+          </div>
+        </section>
+
+        <section class="app-landing-body" aria-labelledby="app-landing-agents-title">
+          <div class="app-landing-inner">
+            <header class="app-landing-header">
+              <div class="app-landing-header-copy">
+                <h3 id="app-landing-agents-title" class="app-landing-title">Выберите агента</h3>
+                <p class="app-landing-sub">Каждый агент — отдельный workspace с темами, памятью и файлами</p>
+              </div>
+              <button id="app-landing-manage-btn" class="app-landing-manage-btn" type="button" title="Реестр агентов">
+                ⚙ Реестр
+              </button>
+            </header>
+            <div id="app-landing-agents" class="app-landing-agents" role="list"></div>
+            <p id="app-landing-hint" class="app-landing-hint hidden" role="status"></p>
+          </div>
+        </section>
+      </main>
 
       <main id="home-pane" class="home-pane agent-canvas-pane hidden" aria-label="Дашборд агента">
         <div class="home-pane-bg" aria-hidden="true"></div>
@@ -1497,7 +1535,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/main.js?v=0.4.97"></script>
-    <script src="/app-home-title-rotator.js?v=11"></script>
+    <script src="/main.js?v=0.5.7"></script>
+    <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

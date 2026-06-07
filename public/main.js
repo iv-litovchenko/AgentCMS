@@ -9,6 +9,10 @@ const APP_SPLASH_MIN_MS = 420;
 const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const homeHintNode = document.getElementById("home-hint");
+const appLandingPaneNode = document.getElementById("app-landing-pane");
+const appLandingAgentsNode = document.getElementById("app-landing-agents");
+const appLandingHintNode = document.getElementById("app-landing-hint");
+const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const menuSearchInputNode = document.getElementById("menu-search-input");
 const contentSearchInputNode = document.getElementById("content-search-input");
 const contentSearchScopeNode = document.getElementById("content-search-scope");
@@ -456,7 +460,14 @@ function getAgentIdFromAppLocation() {
 }
 
 function buildAppPathFromState() {
-  const agentId = activeAgentId || "main";
+  if (appRootNode?.classList.contains("app-landing-view")) {
+    return "/";
+  }
+
+  const agentId = activeAgentId;
+  if (!agentId) {
+    return "/";
+  }
 
   if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile) {
     return `/a/${encodeURIComponent(agentId)}`;
@@ -538,8 +549,12 @@ async function copyWorkspaceShareLink() {
 async function applyAppRouteFromUrl() {
   const route = parseAppRoute(location.pathname);
   if (route.type === "root" || route.type === "legacy") {
+    activeAgentId = null;
+    renderAgentSelect();
+    showAppLandingView();
+    showMenuNoAgentPlaceholder();
     updateWorkspaceShareLinkButton();
-    return false;
+    return true;
   }
 
   const selectable = getSelectableAgents();
@@ -620,16 +635,20 @@ async function loadAgents() {
   const data = await response.json();
   agentsCache = Array.isArray(data.agents) ? data.agents : [];
   const selectableAgents = getSelectableAgents();
+  const route = parseAppRoute(location.pathname);
+  const isAppLandingRoute = route.type === "root" || route.type === "legacy";
   const urlAgentId = getAgentIdFromAppLocation();
   if (urlAgentId && selectableAgents.some((agent) => agent.id === urlAgentId)) {
     activeAgentId = urlAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+  } else if (isAppLandingRoute) {
+    activeAgentId = null;
   } else if (!selectableAgents.some((agent) => agent.id === activeAgentId)) {
     activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
   }
-  const deferRouteSync = parseAppRoute(location.pathname).type === "node";
-  if (!deferRouteSync) {
+  const deferRouteSync = route.type === "node";
+  if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
   }
   renderAgentSelect();
@@ -933,18 +952,15 @@ function syncAgentPreview(previewMeta = null) {
     agentPreviewWrapNode.classList.remove("hidden");
     if (srcChanged) {
       agentPreviewWrapNode.classList.remove("is-revealed");
-      resetAgentPreviewPan();
     }
     agentPreviewThumbNode.onerror = () => {
       agentPreviewWrapNode.classList.add("hidden");
       agentPreviewWrapNode.classList.remove("is-revealed");
       agentPreviewThumbNode.removeAttribute("src");
-      resetAgentPreviewPan();
     };
     agentPreviewThumbNode.onload = () => {
       agentPreviewThumbNode.onerror = null;
       agentPreviewWrapNode.classList.add("is-revealed");
-      resetAgentPreviewPan();
     };
     if (srcChanged) {
       agentPreviewThumbNode.src = nextSrc;
@@ -957,69 +973,6 @@ function syncAgentPreview(previewMeta = null) {
   agentPreviewWrapNode.classList.add("hidden");
   agentPreviewWrapNode.classList.remove("is-revealed");
   agentPreviewThumbNode.removeAttribute("src");
-  resetAgentPreviewPan();
-}
-
-function getAgentPreviewFrameNode() {
-  return agentPreviewWrapNode?.querySelector(".agent-preview-frame") || null;
-}
-
-function agentPreviewImageHasPanOverflow(img, frame) {
-  if (!img?.naturalWidth || !img?.naturalHeight || !frame) return false;
-  const rect = frame.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return false;
-  const frameAspect = rect.width / rect.height;
-  const imgAspect = img.naturalWidth / img.naturalHeight;
-  return Math.abs(imgAspect - frameAspect) > 0.02;
-}
-
-let agentPreviewPanActive = false;
-
-function readAgentPreviewPanPoint(event, frame) {
-  const rect = frame.getBoundingClientRect();
-  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-  return { x: x * 100, y: y * 100 };
-}
-
-function renderAgentPreviewPanPosition(point) {
-  const img = agentPreviewThumbNode;
-  if (!img || !point) return;
-  img.style.objectPosition = `${point.x.toFixed(2)}% ${point.y.toFixed(2)}%`;
-}
-
-function resetAgentPreviewPan() {
-  const frame = getAgentPreviewFrameNode();
-  const img = agentPreviewThumbNode;
-  agentPreviewPanActive = false;
-  if (!frame || !img) return;
-  agentPreviewWrapNode?.classList.remove("is-interactive");
-  frame.classList.remove("is-hover-pan", "is-pan-available");
-  img.style.removeProperty("object-position");
-}
-
-function applyAgentPreviewPan(event) {
-  const frame = getAgentPreviewFrameNode();
-  const img = agentPreviewThumbNode;
-  if (!frame || !img || !img.complete || !img.naturalWidth) return;
-  if (!agentPreviewImageHasPanOverflow(img, frame)) {
-    resetAgentPreviewPan();
-    return;
-  }
-
-  agentPreviewPanActive = true;
-  agentPreviewWrapNode?.classList.add("is-interactive");
-  frame.classList.add("is-hover-pan", "is-pan-available");
-  renderAgentPreviewPanPosition(readAgentPreviewPanPoint(event, frame));
-}
-
-function initAgentPreviewHoverPan() {
-  const frame = getAgentPreviewFrameNode();
-  if (!frame || frame.dataset.hoverPanBound === "1") return;
-  frame.dataset.hoverPanBound = "1";
-  frame.title = "Двигайте мышью, чтобы просмотреть всё превью";
-  frame.addEventListener("mousemove", applyAgentPreviewPan);
-  frame.addEventListener("mouseleave", resetAgentPreviewPan);
 }
 
 let fileHistoryModalContext = null;
@@ -1321,6 +1274,12 @@ function isAgentRegistryActive(agent) {
   return agent?.active !== false;
 }
 
+function getAgentsForLandingGrid() {
+  return [...agentsCache].sort((a, b) =>
+    String(a.name || a.id).localeCompare(String(b.name || b.id), "ru")
+  );
+}
+
 function getAgentsForPickerGrid() {
   return [...agentsCache].sort((a, b) => {
     const aOn = isAgentRegistryActive(a) ? 1 : 0;
@@ -1494,13 +1453,14 @@ function renderAgentSelect() {
   const previousValue = agentSelectNode.value;
   agentSelectNode.innerHTML = "";
 
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "— агент —";
+  agentSelectNode.appendChild(placeholderOption);
+
   if (agents.length === 0) {
-    const emptyOption = document.createElement("option");
-    emptyOption.value = "";
-    emptyOption.textContent = "Нет агентов";
-    emptyOption.disabled = true;
-    emptyOption.selected = true;
-    agentSelectNode.appendChild(emptyOption);
+    placeholderOption.textContent = "Нет агентов";
+    placeholderOption.disabled = true;
     agentSelectNode.disabled = true;
     syncAgentPreview();
     return;
@@ -1514,14 +1474,182 @@ function renderAgentSelect() {
   }
 
   agentSelectNode.disabled = false;
-  const nextValue = agents.some((agent) => agent.id === activeAgentId)
-    ? activeAgentId
-    : previousValue && agents.some((agent) => agent.id === previousValue)
-      ? previousValue
-      : agents[0].id;
+  const nextValue =
+    activeAgentId && agents.some((agent) => agent.id === activeAgentId)
+      ? activeAgentId
+      : previousValue && agents.some((agent) => agent.id === previousValue)
+        ? previousValue
+        : "";
   agentSelectNode.value = nextValue;
   syncAgentPreview();
   refreshAgentsPickerIfOpen();
+}
+
+function showMenuNoAgentPlaceholder() {
+  for (const pane of menuAgentPanes.values()) {
+    pane.classList.add("hidden");
+  }
+  if (!menuNode) return;
+
+  let placeholder = document.getElementById("menu-no-agent-placeholder");
+  if (!placeholder) {
+    placeholder = document.createElement("div");
+    placeholder.id = "menu-no-agent-placeholder";
+    placeholder.className = "menu-no-agent-placeholder";
+    menuNode.appendChild(placeholder);
+  }
+  placeholder.textContent = "Выберите агента на главной";
+  placeholder.classList.remove("hidden");
+}
+
+function hideMenuNoAgentPlaceholder() {
+  document.getElementById("menu-no-agent-placeholder")?.classList.add("hidden");
+}
+
+function openCreateAgentFromLanding() {
+  openAgentsRegistryModal();
+  openAgentsRegistryCreateModal();
+}
+
+function createAppLandingCreateAgentCard() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-agent-card app-landing-agent-card--create";
+  btn.title = "Создать нового агента";
+  btn.setAttribute("aria-label", "Создать агента");
+
+  const media = document.createElement("div");
+  media.className = "app-landing-agent-card-media";
+  const icon = document.createElement("span");
+  icon.className = "app-landing-agent-card-create-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "+";
+  media.appendChild(icon);
+
+  const body = document.createElement("div");
+  body.className = "app-landing-agent-card-body";
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "app-landing-agent-card-name";
+  nameNode.textContent = "Создать агента";
+
+  const idNode = document.createElement("span");
+  idNode.className = "app-landing-agent-card-id app-landing-agent-card-create-sub";
+  idNode.textContent = "Новый workspace";
+
+  body.append(nameNode, idNode);
+  btn.append(media, body);
+  btn.addEventListener("click", openCreateAgentFromLanding);
+  return btn;
+}
+
+function createAppLandingAgentCard(agent) {
+  const registryActive = isAgentRegistryActive(agent);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-agent-card";
+  if (!registryActive) btn.classList.add("is-registry-off");
+  const label = agent.name || agent.id;
+  btn.title = registryActive
+    ? `Открыть ${label}`
+    : `${label} — неактивен, включите в реестре`;
+  btn.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть агента ${label}` : `Агент ${label} неактивен`
+  );
+
+  const media = document.createElement("div");
+  media.className = "app-landing-agent-card-media";
+
+  const previewUrl = getRegistryAgentPreviewUrl(agent);
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      media.replaceChildren();
+      const fallback = document.createElement("span");
+      fallback.className = "app-landing-agent-card-fallback";
+      fallback.textContent = getAgentPickerInitials(agent);
+      media.appendChild(fallback);
+    };
+    img.src = previewUrl;
+    media.appendChild(img);
+  } else {
+    const fallback = document.createElement("span");
+    fallback.className = "app-landing-agent-card-fallback";
+    fallback.textContent = getAgentPickerInitials(agent);
+    media.appendChild(fallback);
+  }
+
+  const body = document.createElement("div");
+  body.className = "app-landing-agent-card-body";
+
+  const nameRow = document.createElement("div");
+  nameRow.className = "app-landing-agent-card-name-row";
+
+  const statusDot = document.createElement("span");
+  statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
+  statusDot.setAttribute("aria-label", registryActive ? "активен" : "неактивен");
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "app-landing-agent-card-name";
+  nameNode.textContent = label;
+  nameRow.append(statusDot, nameNode);
+
+  const idNode = document.createElement("span");
+  idNode.className = "app-landing-agent-card-id";
+  idNode.textContent = agent.id;
+
+  const pathNode = document.createElement("span");
+  pathNode.className = "app-landing-agent-card-path";
+  pathNode.textContent = agent.path || "";
+
+  body.append(nameRow, idNode, pathNode);
+  btn.append(media, body);
+  btn.addEventListener("click", () => {
+    if (!registryActive) {
+      showToast("Агент выключен — включите в реестре (⚙)", "error");
+      return;
+    }
+    selectAgentOption(agent.id);
+  });
+  return btn;
+}
+
+function renderAppLandingAgents() {
+  if (!appLandingAgentsNode) return;
+  appLandingAgentsNode.replaceChildren();
+
+  const agents = getAgentsForLandingGrid();
+  if (agents.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-empty";
+    empty.textContent = "Нет агентов. Нажмите «Реестр» и добавьте workspace.";
+    appLandingAgentsNode.appendChild(empty);
+  } else {
+    for (const agent of agents) {
+      const item = document.createElement("div");
+      item.className = "app-landing-agent-item";
+      item.setAttribute("role", "listitem");
+      item.appendChild(createAppLandingAgentCard(agent));
+      appLandingAgentsNode.appendChild(item);
+    }
+  }
+
+  const createItem = document.createElement("div");
+  createItem.className = "app-landing-agent-item";
+  createItem.setAttribute("role", "listitem");
+  createItem.appendChild(createAppLandingCreateAgentCard());
+  appLandingAgentsNode.appendChild(createItem);
+}
+
+function setAppLandingHint(message = "", { alert = false } = {}) {
+  if (!appLandingHintNode) return;
+  const text = String(message || "").trim();
+  appLandingHintNode.textContent = text;
+  appLandingHintNode.classList.toggle("hidden", !text);
+  appLandingHintNode.classList.toggle("is-alert", Boolean(text && alert));
 }
 
 function selectAgentOption(agentId) {
@@ -1543,6 +1671,8 @@ async function switchActiveAgent(nextAgentId) {
     closeCreateNodeModal();
     activeAgentId = nextAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    hideAppLandingView();
+    hideMenuNoAgentPlaceholder();
     syncAppRouteToUrl({ replace: true });
     activateMenuAgentPane(activeAgentId);
     activePath = null;
@@ -2498,8 +2628,14 @@ async function saveAgentsRegistryDraft() {
 
     const data = await response.json();
     await loadAgents();
+    const wasOnLanding = appRootNode?.classList.contains("app-landing-view");
     const previousAgentId = activeAgentId;
-    if (!agentsCache.some((agent) => agent.id === activeAgentId) || !getSelectableAgents().some((agent) => agent.id === activeAgentId)) {
+    if (
+      !wasOnLanding &&
+      activeAgentId &&
+      (!agentsCache.some((agent) => agent.id === activeAgentId) ||
+        !getSelectableAgents().some((agent) => agent.id === activeAgentId))
+    ) {
       activeAgentId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
       localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
       syncAgentToUrl(activeAgentId);
@@ -2508,15 +2644,19 @@ async function saveAgentsRegistryDraft() {
     syncAgentPreview();
     closeAgentsRegistryModal();
 
-    if (previousAgentId !== activeAgentId) {
+    if (wasOnLanding) {
+      renderAppLandingAgents();
+    } else if (previousAgentId !== activeAgentId) {
       activePath = null;
       activeLabel = null;
       activeSystemFile = null;
       clearMediaSidecarEditor();
-      showHomeView();
+      showAgentHomeView();
       await loadSystemFiles();
     }
-    await refreshMenu();
+    if (!wasOnLanding && activeAgentId) {
+      await refreshMenu();
+    }
     showToast("Список агентов сохранён", "success");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -14000,6 +14140,9 @@ function setupMenuSortDragDrop() {
 
 function renderMenu(menu, agentId = activeAgentId, options = {}) {
   const menuOnly = Boolean(options.menuOnly);
+  if (agentId === activeAgentId && activeAgentId) {
+    hideMenuNoAgentPlaceholder();
+  }
   const target = ensureMenuAgentPane(agentId);
   menuCacheByAgent.set(agentId, menu);
   if (agentId === activeAgentId) {
@@ -17126,10 +17269,70 @@ function renderAgentGraphView() {
 }
 
 function syncAppHomeButton() {
-  appHomeLink?.classList.toggle("active", appRootNode.classList.contains("home-view"));
+  appHomeLink?.classList.toggle("active", appRootNode.classList.contains("app-landing-view"));
 }
 
-function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
+function hideAllAgentCanvasPanes() {
+  homePaneNode?.classList.add("hidden");
+  agentMapPaneNode?.classList.add("hidden");
+  agentMap2PaneNode?.classList.add("hidden");
+  agentMap3PaneNode?.classList.add("hidden");
+  agentSchemaPaneNode?.classList.add("hidden");
+  agentVaultPaneNode?.classList.add("hidden");
+  agentGraphPaneNode?.classList.add("hidden");
+  agentTablePaneNode?.classList.add("hidden");
+  agentStoragePaneNode?.classList.add("hidden");
+  agentTimelinePaneNode?.classList.add("hidden");
+  agentTimelineAxisPaneNode?.classList.add("hidden");
+  agentTimelineVerticalPaneNode?.classList.add("hidden");
+}
+
+function hideAppLandingView() {
+  appRootNode?.classList.remove("app-landing-view");
+  appLandingPaneNode?.classList.add("hidden");
+  setAppLandingHint("");
+}
+
+function showAppLandingView(hint = "") {
+  hideContentLoading({ force: true });
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  applyNodeWorkspaceViewUi();
+  activePath = null;
+  activeLabel = null;
+  activeSystemFile = null;
+  activeExternalFilePath = null;
+  clearMediaSidecarEditor();
+  activeAgentId = null;
+  appRootNode.classList.add("app-landing-view");
+  appRootNode.classList.remove("home-view", "system-file-view");
+  clearSystemFileViewUi();
+  hideAllAgentCanvasPanes();
+  appLandingPaneNode?.classList.remove("hidden");
+  titleInputNode.value = "";
+  fileContentInputNode.value = "";
+  setPropsYamlContent("");
+  fileContentInputNode.readOnly = false;
+  closeAgentsPickerPopover();
+  renderAgentSelect();
+  renderAppLandingAgents();
+  showMenuNoAgentPlaceholder();
+  syncAgentPreview();
+  setAppLandingHint(hint, { alert: Boolean(hint) });
+  updateActiveButton();
+  syncAppHomeButton();
+  updateBreadcrumbsForActiveMode();
+  updateWorkspaceShareLinkButton();
+  syncAppRouteToUrl({ replace: true });
+}
+
+function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
+  if (!activeAgentId) {
+    showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
+    return;
+  }
+
+  hideAppLandingView();
   hideContentLoading({ force: true });
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
@@ -17157,20 +17360,18 @@ function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   syncAppRouteToUrl({ replace: true });
 }
 
+function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
+  if (!activeAgentId) {
+    showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
+    return;
+  }
+  showAgentHomeView(hint);
+}
+
 function hideHomeView() {
+  hideAppLandingView();
   appRootNode.classList.remove("home-view");
-  homePaneNode?.classList.add("hidden");
-  agentMapPaneNode?.classList.add("hidden");
-  agentMap2PaneNode?.classList.add("hidden");
-  agentMap3PaneNode?.classList.add("hidden");
-  agentSchemaPaneNode?.classList.add("hidden");
-  agentVaultPaneNode?.classList.add("hidden");
-  agentGraphPaneNode?.classList.add("hidden");
-  agentTablePaneNode?.classList.add("hidden");
-  agentStoragePaneNode?.classList.add("hidden");
-  agentTimelinePaneNode?.classList.add("hidden");
-  agentTimelineAxisPaneNode?.classList.add("hidden");
-  agentTimelineVerticalPaneNode?.classList.add("hidden");
+  hideAllAgentCanvasPanes();
   syncAppHomeButton();
 }
 
@@ -17840,6 +18041,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
 
 async function refreshMenu(options = {}) {
   const agentId = options.agentId || activeAgentId;
+  if (!agentId) return null;
   const menu = await fetchMenuData(agentId);
   renderMenu(menu, agentId);
   if (agentId === activeAgentId) {
@@ -18051,7 +18253,7 @@ async function init() {
   const splashFailsafe = window.setTimeout(() => {
     finishSplash();
     if (document.body.classList.contains("app-booting")) {
-      showHomeView("Загрузка заняла слишком много времени. Проверьте сервер и обновите страницу.");
+      showAppLandingView("Загрузка заняла слишком много времени. Проверьте сервер и обновите страницу.");
       setMenuLoading(false);
     }
   }, 20000);
@@ -18064,25 +18266,25 @@ async function init() {
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     finishSplash();
-    showHomeView();
-    setMenuLoading(true, "Загрузка дерева…");
-    await loadSystemFiles();
-    await refreshMenu();
+
+    const bootRoute = parseAppRoute(location.pathname);
+    if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
+      setMenuLoading(true, "Загрузка дерева…");
+      await loadSystemFiles();
+      await refreshMenu();
+    }
 
     suspendAppRouteSync();
-    let routeApplied = false;
     try {
-      routeApplied = await applyAppRouteFromUrl();
+      await applyAppRouteFromUrl();
     } finally {
       resumeAppRouteSync();
     }
-    if (!routeApplied) {
-      showHomeView();
-    }
+
     syncAppRouteToUrl({ replace: true });
   } catch (error) {
     finishSplash();
-    showHomeView(`Ошибка загрузки: ${error.message}`);
+    showAppLandingView(`Ошибка загрузки: ${error.message}`);
   } finally {
     window.clearTimeout(splashFailsafe);
     setMenuLoading(false);
@@ -18100,9 +18302,13 @@ function hideAppSplash() {
 
 agentSelectNode?.addEventListener("change", () => {
   const nextAgentId = agentSelectNode.value;
-  if (!nextAgentId || nextAgentId === activeAgentId) return;
+  if (!nextAgentId) {
+    showAppLandingView();
+    return;
+  }
+  if (nextAgentId === activeAgentId) return;
   switchActiveAgent(nextAgentId).catch((error) => {
-    showHomeView(`Ошибка переключения агента: ${error.message}`);
+    showAgentHomeView(`Ошибка переключения агента: ${error.message}`);
     renderAgentSelect();
   });
 });
@@ -18743,7 +18949,16 @@ window.addEventListener("popstate", () => {
   suspendAppRouteSync();
   void applyAppRouteFromUrl()
     .then((applied) => {
-      if (!applied) showHomeView();
+      if (!applied) {
+        const route = parseAppRoute(location.pathname);
+        if (route.type === "root" || route.type === "legacy") {
+          showAppLandingView();
+        } else if (activeAgentId) {
+          showAgentHomeView();
+        } else {
+          showAppLandingView();
+        }
+      }
     })
     .finally(() => {
       resumeAppRouteSync();
@@ -18760,7 +18975,11 @@ updateContentSearchPlaceholder();
 
 appHomeLink?.addEventListener("click", (event) => {
   event.preventDefault();
-  showHomeView();
+  showAppLandingView();
+});
+
+appLandingManageBtn?.addEventListener("click", () => {
+  openAgentsRegistryModal();
 });
 
 agentViewSelect?.addEventListener("change", () => {
@@ -19219,4 +19438,3 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
 });
 
 initNodeWorkspaceDomainSelect();
-initAgentPreviewHoverPan();

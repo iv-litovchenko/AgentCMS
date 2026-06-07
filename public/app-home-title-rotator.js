@@ -14,6 +14,15 @@
     { text: "My Tree", holdMs: 6500 }
   ];
 
+  function pickRandomIndex(excludeIndex) {
+    if (TITLES.length <= 1) return 0;
+    let next = excludeIndex;
+    while (next === excludeIndex) {
+      next = Math.floor(Math.random() * TITLES.length);
+    }
+    return next;
+  }
+
   function boot() {
     const link = document.querySelector("#app-home-link");
     if (!link || link.dataset.titleRotator === "on") return;
@@ -44,7 +53,7 @@
     };
 
     const step = () => {
-      index = (index + 1) % TITLES.length;
+      index = pickRandomIndex(index);
       if (reducedMotion) {
         render(index);
         schedule();
@@ -64,7 +73,8 @@
       stepTimer = window.setTimeout(step, TITLES[index].holdMs);
     };
 
-    render(0);
+    index = pickRandomIndex(-1);
+    render(index);
     schedule();
   }
 
