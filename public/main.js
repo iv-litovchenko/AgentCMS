@@ -368,13 +368,17 @@ const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
 const VAULT_FOLDER_DEFAULT = "_awn-vault";
-const SERVICE_FOLDER_DEFAULT = "_awn-assistant-ai";
-const SERVICE_FOLDER_LEGACY_NAMES = [
+const ASSISTANT_FOLDER_DEFAULT = "_awn-assistant-ai";
+/** @deprecated alias */
+const SERVICE_FOLDER_DEFAULT = ASSISTANT_FOLDER_DEFAULT;
+const ASSISTANT_FOLDER_PATH_LEGACY_NAMES = [
   "_awn-system",
   "_system",
   "_assistant-ai",
   "_x-assistant-ai"
 ];
+/** @deprecated alias */
+const SERVICE_FOLDER_LEGACY_NAMES = ASSISTANT_FOLDER_PATH_LEGACY_NAMES;
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Assistant.Ai";
@@ -777,12 +781,20 @@ function getActiveAgentVaultFolder(agentId = activeAgentId) {
   return VAULT_FOLDER_DEFAULT;
 }
 
-function getActiveAgentServiceFolder(agentId = activeAgentId) {
+function getActiveAgentAssistantFolder(agentId = activeAgentId) {
   const agent = getAgentMeta(agentId);
-  if (!agent || agent.serviceFolder === null) return null;
-  const configured = String(agent.serviceFolder || "").trim();
-  return configured || SERVICE_FOLDER_DEFAULT;
+  if (!agent) return null;
+  const raw =
+    agent.assistantFolder !== undefined
+      ? agent.assistantFolder
+      : agent.serviceFolder;
+  if (raw === null) return null;
+  const configured = String(raw || "").trim();
+  return configured || ASSISTANT_FOLDER_DEFAULT;
 }
+
+/** @deprecated alias */
+const getActiveAgentServiceFolder = getActiveAgentAssistantFolder;
 
 function getCreateModalAgentId() {
   return createModalAgentId || activeAgentId;
@@ -804,12 +816,15 @@ function stripVaultPrefixFromRelPath(relPath) {
   return normalized;
 }
 
-function isServiceFolderEntryName(name) {
+function isAssistantFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return false;
-  if (lower === SERVICE_FOLDER_DEFAULT.toLowerCase()) return true;
-  return SERVICE_FOLDER_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+  if (lower === ASSISTANT_FOLDER_DEFAULT.toLowerCase()) return true;
+  return ASSISTANT_FOLDER_PATH_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
 }
+
+/** @deprecated alias */
+const isServiceFolderEntryName = isAssistantFolderEntryName;
 
 function stripServicePrefixFromRelPath(relPath) {
   const serviceFolder = getActiveAgentServiceFolder();
@@ -2003,7 +2018,10 @@ function openAgentsRegistryModal() {
     name: agent.name || agent.id,
     comment: agent.comment || "",
     vaultFolder: agent.vaultFolder === null ? null : VAULT_FOLDER_DEFAULT,
-    serviceFolder: agent.serviceFolder === null ? null : agent.serviceFolder || SERVICE_FOLDER_DEFAULT,
+    assistantFolder:
+      agent.assistantFolder === null || agent.serviceFolder === null
+        ? null
+        : agent.assistantFolder || agent.serviceFolder || ASSISTANT_FOLDER_DEFAULT,
     default: Boolean(agent.default),
     active: agent.active !== false,
     manifestFound: Boolean(agent.manifestFound),
@@ -2165,6 +2183,10 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].comment = manifest.comment || "";
   agentsRegistryDraft[index].vaultFolder =
     manifest.vaultFolder === null || manifest.vaultFolder === false ? null : VAULT_FOLDER_DEFAULT;
+  agentsRegistryDraft[index].assistantFolder =
+    manifest.assistantFolder === null || manifest.assistantFolder === false
+      ? null
+      : manifest.assistantFolder || ASSISTANT_FOLDER_DEFAULT;
   if (manifest.id) agentsRegistryDraft[index].id = manifest.id;
 }
 
@@ -18860,7 +18882,7 @@ function formatCreateNodeErrorMessage(message) {
     return "В этой папке уже есть README.x.md";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
-    return `Папка ${SERVICE_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
+    return `Папка ${ASSISTANT_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
   }
   if (/Catalog node already exists/i.test(text)) {
     return "Такой справочник уже существует";

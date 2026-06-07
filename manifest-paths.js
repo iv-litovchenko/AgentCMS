@@ -9,7 +9,7 @@ const path = require("path");
 
 const STORAGE_PREFIX = "_s.";
 const AREA_README_FILE = "README.x.md";
-/** Заголовок служебной области; файл: {serviceFolder}/README.x.md */
+/** Заголовок служебной области; файл: {assistantFolder}/README.x.md */
 const SERVICE_AREA_NAME = "Служебное";
 
 /** @deprecated alias */
