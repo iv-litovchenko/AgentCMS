@@ -300,8 +300,10 @@ async function getAppLockStatus() {
   const env = await readRootEnvFile();
   const login = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
   const password = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
+  const configured = Boolean(login && password);
   return {
-    enabled: Boolean(login && password)
+    enabled: configured,
+    needsSetup: !configured
   };
 }
 
@@ -311,6 +313,65 @@ async function verifyAppLockCredentials(login, password) {
   const expectedPassword = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
   if (!expectedLogin || !expectedPassword) return false;
   return String(login || "").trim() === expectedLogin && String(password || "") === expectedPassword;
+}
+
+function formatRootEnvValue(value) {
+  const text = String(value ?? "");
+  if (/[\s#"'=]/.test(text)) {
+    return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  }
+  return text;
+}
+
+async function writeRootEnvValues(updates) {
+  const envPath = path.join(getProjectRoot(), ".env");
+  let lines = [];
+  try {
+    const content = await fs.readFile(envPath, "utf-8");
+    lines = content.split("\n");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const keysToUpdate = new Set(Object.keys(updates));
+  const updatedKeys = new Set();
+  const outLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      outLines.push(line);
+      continue;
+    }
+    const eqIndex = trimmed.indexOf("=");
+    if (eqIndex <= 0) {
+      outLines.push(line);
+      continue;
+    }
+    const key = trimmed.slice(0, eqIndex).trim();
+    if (keysToUpdate.has(key)) {
+      outLines.push(`${key}=${formatRootEnvValue(updates[key])}`);
+      updatedKeys.add(key);
+    } else {
+      outLines.push(line);
+    }
+  }
+
+  for (const key of keysToUpdate) {
+    if (!updatedKeys.has(key)) {
+      outLines.push(`${key}=${formatRootEnvValue(updates[key])}`);
+    }
+  }
+
+  const body = outLines.join("\n").replace(/\n*$/, "\n");
+  await fs.writeFile(envPath, body, "utf-8");
+}
+
+async function saveAppLockCredentials(login, password) {
+  await writeRootEnvValues({
+    [APP_LOCK_LOGIN_KEY]: String(login || "").trim(),
+    [APP_LOCK_PASSWORD_KEY]: String(password || "")
+  });
 }
 
 function sendJson(res, statusCode, payload) {
@@ -6325,6 +6386,35 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to verify app lock credentials",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/setup") {
+    try {
+      const status = await getAppLockStatus();
+      if (!status.needsSetup) {
+        return sendJson(res, 409, { error: "Пароль уже задан" });
+      }
+      const payload = await readJsonBody(req, 32_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      const confirm = String(payload?.confirm || "");
+      if (!login) {
+        return sendJson(res, 400, { error: "Введите логин" });
+      }
+      if (!password) {
+        return sendJson(res, 400, { error: "Введите пароль" });
+      }
+      if (password !== confirm) {
+        return sendJson(res, 400, { error: "Пароли не совпадают" });
+      }
+      await saveAppLockCredentials(login, password);
+      return sendJson(res, 200, { ok: true });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Не удалось сохранить пароль",
         details: String(error?.message || error)
       });
     }

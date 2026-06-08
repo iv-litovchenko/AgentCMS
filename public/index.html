@@ -70,10 +70,21 @@
               required
             />
           </label>
+          <label id="app-lock-confirm-field" class="app-lock-field hidden">
+            <span class="app-lock-label">Повтор пароля</span>
+            <input
+              id="app-lock-confirm"
+              class="app-lock-input"
+              type="password"
+              name="confirm"
+              placeholder="Повторите пароль"
+              autocomplete="new-password"
+            />
+          </label>
           <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
           <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
         </form>
-        <p class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
+        <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
       </div>
     </div>
 
@@ -1702,7 +1713,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/app-lock.js?v=2"></script>
+    <script src="/app-lock.js?v=3"></script>
     <script src="/main.js?v=0.5.50"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

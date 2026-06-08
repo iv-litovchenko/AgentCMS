@@ -2,16 +2,21 @@
   "use strict";
 
   const SESSION_KEY = "agentcms.appLock.unlocked.v1";
+  const DEFAULT_LOGIN = "admin";
 
   const lockNode = document.getElementById("app-lock");
   const leadNode = document.getElementById("app-lock-lead");
+  const footnoteNode = document.getElementById("app-lock-footnote");
   const formNode = document.getElementById("app-lock-form");
   const loginNode = document.getElementById("app-lock-login");
   const passwordNode = document.getElementById("app-lock-password");
+  const confirmFieldNode = document.getElementById("app-lock-confirm-field");
+  const confirmNode = document.getElementById("app-lock-confirm");
   const errorNode = document.getElementById("app-lock-error");
   const submitNode = document.getElementById("app-lock-submit");
 
   let unlockResolve = null;
+  let mode = "login";
 
   const unlockPromise = new Promise((resolve) => {
     unlockResolve = resolve;
@@ -43,7 +48,43 @@
   function setSubmitting(isSubmitting) {
     if (!submitNode) return;
     submitNode.disabled = isSubmitting;
+    if (mode === "setup") {
+      submitNode.textContent = isSubmitting ? "Сохранение…" : "Создать пароль";
+      return;
+    }
     submitNode.textContent = isSubmitting ? "Проверка…" : "Войти";
+  }
+
+  function setMode(nextMode) {
+    mode = nextMode === "setup" ? "setup" : "login";
+
+    if (leadNode) {
+      leadNode.textContent =
+        mode === "setup"
+          ? "Задайте логин и пароль для доступа к Agent CMS"
+          : "Введите логин и пароль";
+    }
+
+    if (footnoteNode) {
+      footnoteNode.innerHTML =
+        mode === "setup"
+          ? "Пароль будет сохранён в файле <code>.env</code> в корне проекта."
+          : "Логин и пароль задаются в файле <code>.env</code> в корне проекта.";
+    }
+
+    confirmFieldNode?.classList.toggle("hidden", mode !== "setup");
+
+    if (passwordNode) {
+      passwordNode.placeholder = mode === "setup" ? "Новый пароль" : "Пароль";
+      passwordNode.autocomplete = mode === "setup" ? "new-password" : "current-password";
+    }
+
+    if (confirmNode) {
+      confirmNode.required = mode === "setup";
+      if (mode !== "setup") confirmNode.value = "";
+    }
+
+    setSubmitting(false);
   }
 
   function hideLockScreen() {
@@ -88,12 +129,26 @@
     return data;
   }
 
+  async function setupCredentials(login, password, confirm) {
+    const response = await fetch("/api/app-lock/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login, password, confirm })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Не удалось сохранить пароль");
+    }
+    return data;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
     const login = String(loginNode?.value || "").trim();
     const password = String(passwordNode?.value || "");
+    const confirm = String(confirmNode?.value || "");
 
     if (!login) {
       setError("Введите логин");
@@ -103,6 +158,34 @@
     if (!password) {
       setError("Введите пароль");
       passwordNode?.focus();
+      return;
+    }
+
+    if (mode === "setup") {
+      if (!confirm) {
+        setError("Повторите пароль");
+        confirmNode?.focus();
+        return;
+      }
+      if (password !== confirm) {
+        setError("Пароли не совпадают");
+        confirmNode?.focus();
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        await setupCredentials(login, password, confirm);
+        if (loginNode) loginNode.value = "";
+        if (passwordNode) passwordNode.value = "";
+        if (confirmNode) confirmNode.value = "";
+        completeUnlock();
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Ошибка сохранения");
+        passwordNode?.focus();
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -133,15 +216,17 @@
 
     try {
       const status = await fetchLockStatus();
-      if (!status?.enabled) {
-        hideLockScreen();
-        unlockResolve?.();
+
+      if (status?.needsSetup) {
+        setMode("setup");
+        if (loginNode && !loginNode.value.trim()) {
+          loginNode.value = DEFAULT_LOGIN;
+        }
+        showLockScreen();
         return;
       }
 
-      if (leadNode) {
-        leadNode.textContent = "Введите логин и пароль";
-      }
+      setMode("login");
 
       if (isSessionUnlocked()) {
         completeUnlock();
@@ -151,6 +236,7 @@
       showLockScreen();
     } catch {
       setError("Не удалось проверить настройки входа");
+      setMode("login");
       showLockScreen();
     }
   }
