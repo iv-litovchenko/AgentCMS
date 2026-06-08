@@ -388,6 +388,7 @@ const AGENT_SYSTEM_FOLDER_DEFAULT = "_awn-agent-system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
+const REPO_ROOT_MENU_GROUP_LABEL = "Корень репозитория";
 const SERVICE_SECTION_HINT = "";
 const SERVICE_SECTION_TITLE = SERVICE_SECTION_LABEL;
 let agentsCache = [];
@@ -1104,6 +1105,9 @@ function collectMenuNodePaths(node, acc = []) {
   if (!node) return acc;
   if (node.indexPath) acc.push(normalizeMenuNodePath(node.indexPath));
   for (const item of node.items || []) {
+    if (item?.path) acc.push(normalizeMenuNodePath(item.path));
+  }
+  for (const item of node.repoItems || []) {
     if (item?.path) acc.push(normalizeMenuNodePath(item.path));
   }
   for (const section of node.sections || []) {
@@ -2189,6 +2193,7 @@ async function switchActiveAgent(nextAgentId) {
     activeLabel = null;
     activeSystemFile = null;
     clearMediaSidecarEditor();
+    resetGitWorkspaceViewToDefault();
     showHomeView();
     renderAgentSelect();
     applyMenuTreeSettingsUi();
@@ -4600,7 +4605,7 @@ function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   if (!node) return false;
   if (getMenuTreeSettings(agentId).showEmptyFolders) return true;
   if (node.empty) return false;
-  if (node.indexPath || (node.items?.length > 0)) return true;
+  if (node.indexPath || (node.items?.length > 0) || (node.repoItems?.length > 0)) return true;
   return getOrderedMenuChildren(node).some((child) => {
     if (child.kind === "item") return true;
     if (child.kind === "folder") return child.entry && shouldShowMenuTreeFolder(child.entry, agentId);
@@ -8255,10 +8260,47 @@ function stripAssetsPathPrefix(relPath) {
   return rel;
 }
 
+function encodeMarkdownPathSegment(segment) {
+  const value = String(segment || "");
+  if (!value) return value;
+  try {
+    return encodeURIComponent(decodeURIComponent(value));
+  } catch {
+    return encodeURIComponent(value);
+  }
+}
+
+function encodeMarkdownUrlDestination(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return raw;
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) {
+    return raw.replace(/ /g, "%20");
+  }
+  return raw
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+}
+
+function normalizeMarkdownLinkDestinations(markdown) {
+  let normalized = String(markdown || "").replace(/!\[([^\]]*)\]\s+\(/g, "![$1](");
+  normalized = normalized.replace(/(!?\[[^\]]*\])\(([^)\n]+)\)/g, (match, prefix, url) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed || /\s".*"$/.test(url)) return match;
+    const encoded = encodeMarkdownUrlDestination(trimmed);
+    return encoded === trimmed ? match : `${prefix}(${encoded})`;
+  });
+  return normalized;
+}
+
 function buildMarkdownAttachmentRef(relativeAssetsPath) {
   const normalized = String(relativeAssetsPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
-  return `${STORAGE_SUBFOLDER_ASSETS}/${normalized}`;
+  const encoded = normalized
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  return `${STORAGE_SUBFOLDER_ASSETS}/${encoded}`;
 }
 
 function resolveMarkdownAssetSrc(src, nodePath) {
@@ -8356,18 +8398,23 @@ function getInlineAttachmentRecordSlug() {
   return sanitizeAttachmentRecordSlug(label) || "note";
 }
 
+function buildAttachmentTimestamp() {
+  return new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+}
+
 function buildInlineAttachmentFileName(file, recordSlug = getInlineAttachmentRecordSlug()) {
   const ext = getImageAttachmentExtension(file);
-  const stamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+  const stamp = buildAttachmentTimestamp();
   const slug = sanitizeAttachmentRecordSlug(recordSlug) || "note";
   return `${slug}-${stamp}${ext}`;
 }
 
 function buildPastedAttachmentFileName(file) {
-  return buildInlineAttachmentFileName(file);
+  const ext = getImageAttachmentExtension(file);
+  return `${buildAttachmentTimestamp()}${ext}`;
 }
 
-async function normalizeImageAttachmentFile(file) {
+async function normalizeImageAttachmentFile(file, { pasted = false } = {}) {
   if (!file) return file;
   const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
   let ext = "";
@@ -8404,7 +8451,10 @@ async function normalizeImageAttachmentFile(file) {
   if (currentName.toLowerCase().endsWith(ext) && mime === String(file.type || "").toLowerCase()) {
     return file;
   }
-  const baseName = buildInlineAttachmentFileName({ type: mime }).replace(/\.[^.]+$/, "");
+  const baseName = (pasted ? buildPastedAttachmentFileName : buildInlineAttachmentFileName)({ type: mime }).replace(
+    /\.[^.]+$/,
+    ""
+  );
   return new File([file], `${baseName}${ext}`, { type: mime });
 }
 
@@ -8520,7 +8570,7 @@ async function uploadMediaAttachment(
       (activeContentMode === "media"
         ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
         : null);
-  const normalizedFile = await normalizeImageAttachmentFile(file);
+  const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: inlinePaste });
   const data = await readFileAsBase64(normalizedFile);
   const response = await fetch(buildApiUrl("/api/media/file"), {
     method: "POST",
@@ -8528,7 +8578,11 @@ async function uploadMediaAttachment(
     body: JSON.stringify({
       path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
       data,
-      fileName: normalizedFile.name || buildInlineAttachmentFileName(normalizedFile),
+      fileName:
+        normalizedFile.name ||
+        (inlinePaste
+          ? buildPastedAttachmentFileName(normalizedFile)
+          : buildInlineAttachmentFileName(normalizedFile)),
       mimeType: normalizedFile.type,
       subdir: effectiveSubdir || undefined,
       createSubdir: Boolean(effectiveSubdir)
@@ -8549,7 +8603,7 @@ async function refreshMediaListIfVisible() {
 }
 
 async function insertUploadedAttachmentIntoEditor(file) {
-  const normalizedFile = await normalizeImageAttachmentFile(file);
+  const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: true });
   if (!isAllowedMarkdownAttachmentImage(normalizedFile)) {
     showToast("Допустимы только JPG, PNG, GIF, WebP и HEIC", "error");
     return;
@@ -15564,7 +15618,7 @@ function getMarkdownIt() {
 
 function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   const md = getMarkdownIt();
-  const source = String(markdown || "");
+  const source = normalizeMarkdownLinkDestinations(String(markdown || ""));
 
   if (!md) {
     return `<pre>${escapeHtml(source)}</pre>`;
@@ -15930,7 +15984,7 @@ function normalizeWysiwygExportedMarkdown(markdown) {
 
 function normalizeWysiwygImportedMarkdown(markdown, nodePath = activePath) {
   return String(markdown || "").replace(
-    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+    /!\[([^\]]*)\]\(([^)\n]+)(?:\s+"[^"]*")?\)/g,
     (match, alt, src) => {
       const resolved = resolveMarkdownAssetSrc(src, nodePath);
       if (!resolved || resolved === src) return match;
@@ -15984,10 +16038,10 @@ function initWysiwygEditor() {
   );
 
   wysiwygEditorInstance.addHook("addImageBlobHook", (blob, callback) => {
-    const file = new File([blob], buildInlineAttachmentFileName({ type: blob.type }), {
+    const file = new File([blob], buildPastedAttachmentFileName({ type: blob.type }), {
       type: blob.type || "image/png"
     });
-    void normalizeImageAttachmentFile(file)
+    void normalizeImageAttachmentFile(file, { pasted: true })
       .then((normalizedFile) =>
         uploadMediaAttachment(normalizedFile, { inlinePaste: true }).then((payload) => ({ payload, normalizedFile }))
       )
@@ -16390,15 +16444,23 @@ function filterMenuTree(node, queryLower, agentId = activeAgentId) {
   }
 
   const filteredItems = (node.items || []).filter((item) => nodeMatchesQuery(item.label, queryLower));
+  const filteredRepoItems = (node.repoItems || []).filter((item) => nodeMatchesQuery(item.label, queryLower));
   const selfMatch = nodeMatchesQuery(node.title, queryLower);
   const keepEmptyFolder = node.empty && getMenuTreeSettings(agentId).showEmptyFolders;
 
-  if (selfMatch || keepEmptyFolder || filteredSections.length > 0 || filteredItems.length > 0) {
+  if (
+    selfMatch ||
+    keepEmptyFolder ||
+    filteredSections.length > 0 ||
+    filteredItems.length > 0 ||
+    filteredRepoItems.length > 0
+  ) {
     if (!shouldShowMenuTreeFolder(node, agentId) && !selfMatch) return null;
     return {
       ...node,
       sections: filteredSections,
-      items: filteredItems
+      items: filteredItems,
+      repoItems: filteredRepoItems
     };
   }
 
@@ -16498,6 +16560,20 @@ function findMenuNodeByPath(node, targetPath) {
     }
   }
 
+  for (const item of node.repoItems || []) {
+    if (normalizeMenuNodePath(item.path) === normalized) {
+      return {
+        indexPath: item.path,
+        title: item.label,
+        items: [],
+        sections: [],
+        color: item.color || null,
+        hasPreview: Boolean(item.hasPreview),
+        previewUrl: item.previewUrl || null
+      };
+    }
+  }
+
   for (const section of node.sections || []) {
     const found = findMenuNodeByPath(section, normalized);
     if (found) return found;
@@ -16527,7 +16603,66 @@ function findMenuSectionInAgentMenu(menuRoot, folderPath) {
 }
 
 function menuNodeHasChildren(node) {
-  return getOrderedMenuChildren(node).length > 0;
+  return getOrderedMenuChildren(node).length > 0 || (node.repoItems?.length > 0);
+}
+
+function appendRepoRootMenuItems(container, repoItems, parentMenuNode, agentId = activeAgentId) {
+  const items = (repoItems || []).filter(Boolean);
+  if (!items.length) return;
+
+  const block = document.createElement("div");
+  block.className = "menu-repo-root-block";
+
+  const head = document.createElement("div");
+  head.className = "menu-repo-root-head";
+
+  const icon = document.createElement("span");
+  icon.className = "menu-repo-root-icon";
+  icon.appendChild(createGitMarkerSvg());
+  icon.setAttribute("aria-hidden", "true");
+
+  const title = document.createElement("span");
+  title.className = "menu-repo-root-title";
+  title.textContent = REPO_ROOT_MENU_GROUP_LABEL;
+
+  const meta = document.createElement("span");
+  meta.className = "menu-repo-root-meta";
+  meta.textContent = String(items.length);
+
+  head.append(icon, title, meta);
+  block.appendChild(head);
+
+  const list = document.createElement("div");
+  list.className = "menu-repo-root-items";
+
+  for (const item of items) {
+    const itemRow = document.createElement("div");
+    itemRow.className = "menu-item-row menu-item-row--repo-root";
+    itemRow.dataset.sortName = item.label;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-item menu-item--repo-root";
+    btn.textContent = formatMenuTreeItemLabel(item, parentMenuNode, agentId);
+    const itemPath = normalizeMenuNodePath(item.path);
+    btn.dataset.path = itemPath;
+    btn.title = item.path;
+    applyNodeColorVars(btn, item.color);
+    btn.addEventListener("click", (event) => {
+      const pathFromNode = event.currentTarget?.dataset?.path || "";
+      openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
+    });
+
+    itemRow.appendChild(btn);
+    if (isNodeSettingsTargetPath(itemPath)) {
+      itemRow.appendChild(createNodeSettingsButton(itemPath));
+    }
+    itemRow.appendChild(createBookmarkButton(itemPath));
+    list.appendChild(itemRow);
+  }
+
+  block.appendChild(list);
+  container.appendChild(block);
 }
 
 function findMenuSectionByFolderPath(node, folderPath, parentSectionPath = "", depth = 0) {
@@ -16632,7 +16767,26 @@ function collectDirectChildNodeEntries(menuNode) {
   return entries;
 }
 
-function collectFlatMenuEntries(node, acc = []) {
+function collectRepoRootFlatEntries(node, acc) {
+  for (const item of node.repoItems || []) {
+    acc.push({
+      path: item.path,
+      label: getLabelFromPath(item.path),
+      displayPath: `${REPO_ROOT_MENU_GROUP_LABEL} / ${getNodeDisplayPath(item.path)}`,
+      color: item.color || null,
+      hasPreview: Boolean(item.hasPreview),
+      previewUrl: item.previewUrl || null,
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      category: item.category || null,
+      isFolder: false,
+      isRepoRoot: true
+    });
+  }
+  return acc;
+}
+
+function collectFlatMenuEntries(node, acc = [], options = {}) {
+  const includeRepoRoot = options.includeRepoRoot !== false;
   if (node.indexPath) {
     acc.push({
       path: node.indexPath,
@@ -16657,7 +16811,7 @@ function collectFlatMenuEntries(node, acc = []) {
 
   for (const child of getOrderedMenuChildren(node)) {
     if (child.kind === "folder") {
-      collectFlatMenuEntries(child.entry, acc);
+      collectFlatMenuEntries(child.entry, acc, { includeRepoRoot: false });
     } else {
       acc.push({
         path: child.entry.path,
@@ -16671,6 +16825,10 @@ function collectFlatMenuEntries(node, acc = []) {
         isFolder: false
       });
     }
+  }
+
+  if (includeRepoRoot) {
+    collectRepoRootFlatEntries(node, acc);
   }
 
   return acc;
@@ -17187,9 +17345,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     return;
   }
   const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
+  const repoRootItems = depth === 0 ? (node.repoItems || []) : [];
 
   if (node.title) {
-    const hasContent = visibleChildren.length > 0;
+    const hasContent = visibleChildren.length > 0 || repoRootItems.length > 0;
     const isCollapsedEffective = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
     if (node.indexPath) {
@@ -17318,7 +17477,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
   const isCollapsed = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
-  if (!isCollapsed && visibleChildren.length > 0) {
+  if (!isCollapsed && (visibleChildren.length > 0 || repoRootItems.length > 0)) {
     const childrenNode = document.createElement("div");
     childrenNode.className = "tree-children";
     childrenNode.dataset.sortFolder = sectionFolderPath || ".";
@@ -17351,6 +17510,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         itemRow.appendChild(createBookmarkButton(itemPath));
         childrenNode.appendChild(itemRow);
       }
+    }
+
+    if (repoRootItems.length > 0) {
+      appendRepoRootMenuItems(childrenNode, repoRootItems, node, agentId);
     }
 
     sectionNode.appendChild(childrenNode);
@@ -18531,7 +18694,6 @@ function loadAgentWorkspaceView() {
     if (
       saved === "dashboard" ||
       saved === "dashboard2" ||
-      saved === "git" ||
       saved === "map" ||
       saved === "map2" ||
       saved === "map3" ||
@@ -18554,11 +18716,17 @@ function loadAgentWorkspaceView() {
 }
 
 function saveAgentWorkspaceView(view) {
+  if (view === "git") return;
   try {
     localStorage.setItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY, view);
   } catch {
     // ignore
   }
+}
+
+function resetGitWorkspaceViewToDefault() {
+  if (agentWorkspaceView !== "git") return;
+  agentWorkspaceView = loadAgentWorkspaceView();
 }
 
 function syncAgentWorkspaceViewButtons() {
@@ -21141,6 +21309,7 @@ function showAppLandingView(hint = "") {
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
   activeAgentId = null;
+  resetGitWorkspaceViewToDefault();
   appRootNode.classList.add("app-landing-view");
   appRootNode.classList.remove("home-view", "system-file-view");
   hideContentSearchResults();

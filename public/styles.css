@@ -7254,6 +7254,71 @@ body.app-locked {
   background: #fffbeb;
 }
 
+.menu-repo-root-block {
+  margin: 8px 0 4px;
+  padding: 8px 8px 4px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.menu-repo-root-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.menu-repo-root-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #de4c36;
+  flex-shrink: 0;
+}
+
+.menu-repo-root-icon .menu-marker-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.menu-repo-root-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.menu-repo-root-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.menu-item.menu-item--repo-root {
+  color: #475569;
+  background: #fff;
+}
+
+.menu-item.menu-item--repo-root:hover {
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.menu-item.menu-item--repo-root.active {
+  border-color: #de4c36;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.menu-item-row--repo-root {
+  margin-bottom: 4px;
+}
+
 .menu-service-head {
   display: flex;
   align-items: center;
@@ -10141,6 +10206,20 @@ button.node-navigation-memory-title:focus-visible {
   margin: 10px 0 0;
   font-size: 12px;
   color: #94a3b8;
+}
+
+.node-navigation-memory-body .file-content-preview img,
+.node-overview-content .file-content-preview img {
+  display: block;
+  max-width: 50%;
+  height: auto;
+  margin: 0.5em 0;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-sizing: border-box;
+  background: #f8fafc;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .node-navigation-memory-body .node-navigation-todo-content {

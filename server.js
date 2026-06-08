@@ -2257,6 +2257,15 @@ function collectManifestEntriesFromMenu(menu, acc = []) {
     });
   }
 
+  for (const item of menu.repoItems || []) {
+    if (!item?.path) continue;
+    acc.push({
+      manifestPath: String(item.path).replace(/\\/g, "/"),
+      label: String(item.label || "").trim() || null,
+      kind: "topic"
+    });
+  }
+
   for (const section of menu.sections || []) {
     collectManifestEntriesFromMenu(section, acc);
   }
@@ -3638,10 +3647,12 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const folders = [];
   const files = [];
+  const repoRootFiles = [];
   let indexPath = null;
 
   const selfMarkers = await readFolderWorkspaceMarkers(dirPath);
   const isGitRepoRoot = selfMarkers.hasGitSelf;
+  const isGitRepoRootMenu = isGitRepoRoot && !prefix;
   let hoistedVaultMenuOrder = null;
   let hoistedGitVaultMenuOrder = null;
 
@@ -3661,7 +3672,12 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
         if (isVaultFolderName(entry.name)) {
           const child = await listNodeMdFiles(fullPath, prefix, depth);
           folders.push(...child.sections);
-          files.push(...child.items);
+          for (const item of child.items || []) {
+            files.push({ ...item, menuScope: "vault" });
+          }
+          if (child.repoItems?.length) {
+            repoRootFiles.push(...child.repoItems);
+          }
           hoistedGitVaultMenuOrder = await readMenuSortOrder(fullPath);
           continue;
         }
@@ -3738,11 +3754,16 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
 
     if (entry.isFile() && isTopicManifestFileName(entry.name, { isAgentRoot: !prefix })) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
-      files.push({
+      const menuItem = {
         label: stripTopicPrefix(entry.name),
         path: nodeRelPath,
         ...(await enrichMenuNodeItem(nodeRelPath))
-      });
+      };
+      if (isGitRepoRootMenu) {
+        repoRootFiles.push({ ...menuItem, menuScope: "repo-root" });
+      } else {
+        files.push(menuItem);
+      }
     }
   }
 
@@ -3757,6 +3778,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
 
   folders.sort((a, b) => a.title.localeCompare(b.title, "ru"));
   files.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  repoRootFiles.sort((a, b) => a.label.localeCompare(b.label, "ru"));
   let menuOrder = await readMenuSortOrder(dirPath);
   if (!prefix && !menuOrder?.length && hoistedVaultMenuOrder?.length) {
     menuOrder = hoistedVaultMenuOrder;
@@ -3782,6 +3804,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   return {
     sections: folders,
     items: files,
+    repoItems: isGitRepoRootMenu ? repoRootFiles : [],
     indexPath,
     menuOrder,
     color,

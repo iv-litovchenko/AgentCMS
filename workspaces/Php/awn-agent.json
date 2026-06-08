@@ -1,6 +1,6 @@
 {
   "id": "Php",
-  "name": "[AgentCMS] PHP",
+  "name": "[AgentCMS] PHP-Example",
   "vaultFolder": "_awn-vault",
   "agentSystemFolder": "_awn-agent-system"
 }

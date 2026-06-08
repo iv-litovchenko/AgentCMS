@@ -24,6 +24,12 @@
       "path": "workspaces/Php",
       "environment": "local",
       "active": true
+    },
+    {
+      "id": "test",
+      "path": "workspaces/Test",
+      "environment": "local",
+      "active": true
     }
   ]
 }
