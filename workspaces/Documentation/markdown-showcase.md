@@ -104,10 +104,99 @@ status: draft
 Вставьте изображение в редактор (Source или Edit) — файл сохранится в `_Storage/Assets/Pasted/` и появится ссылка:
 
 ```markdown
-![screenshot](Assets/Pasted/задача-20260528120000.png)
+![screenshot](Assets/Pasted/20260608150516.png)
 ```
 
 Preview автоматически подставит URL `/api/media/file?…`.
+
+---
+
+## Оформление картинок (7 вариантов)
+
+Демо на одном изображении (по 3 копии в каждом примере). Откройте через кнопку **MD**.
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">1. Карточка с ограничением</p>
+<p class="preview-image-demo-note"><code>max-width: min(50%, 520px)</code>, <code>max-height: 360px</code>, <code>object-fit: contain</code> — скрин не раздувает блок, мелкая картинка не исчезает.</p>
+<div class="img-style-card">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">2. Адаптивная ширина (clamp)</p>
+<p class="preview-image-demo-note"><code>max-width: clamp(180px, 45vw, 520px)</code> — подстраивается под экран и размер картинки. <strong>Используется в обзоре темы.</strong></p>
+<div class="img-style-clamp">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">3. Figure + подпись</p>
+<p class="preview-image-demo-note">Обёртка <code>&lt;figure&gt;</code> + <code>&lt;figcaption&gt;</code> — удобно для вложений «Вложение 1, 2, 3…».</p>
+<div class="img-style-figure">
+<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1"><figcaption>Вложение 1 · menu-bad-readability</figcaption></figure>
+<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2"><figcaption>Вложение 2 · keywords-main-page</figcaption></figure>
+<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3"><figcaption>Вложение 3 · tasks-medknizhki</figcaption></figure>
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">4. Сетка (несколько скринов)</p>
+<p class="preview-image-demo-note"><code>display: grid</code>, <code>object-fit: cover</code> — компактно, когда вложений несколько подряд.</p>
+<div class="img-style-grid">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">5. Lightbox (клик → полный размер)</p>
+<p class="preview-image-demo-note">В обзоре — миниатюра (<code>max-height: 280px</code>). Клик по картинке открывает оверлей.</p>
+<div class="img-style-lightbox">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">6. Два режима: обзор vs редактор</p>
+<p class="preview-image-demo-note">Слева — компактный обзор темы, справа — preview редактора на всю ширину.</p>
+<div class="img-style-compare">
+<div class="img-style-compare-col">
+<p class="img-style-compare-label">Обзор</p>
+<div class="img-style-overview">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+<div class="img-style-compare-col">
+<p class="img-style-compare-label">Редактор / Preview</p>
+<div class="img-style-editor">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
+</div>
+</div>
+
+<div class="preview-image-demo">
+<p class="preview-image-demo-title">7. Авто: широкие vs компактные</p>
+<p class="preview-image-demo-note">JS смотрит <code>naturalWidth / naturalHeight</code>: если &gt; 1.4 — класс <code>is-wide</code> (70%), иначе <code>is-compact</code> (240px). Птица здесь — landscape, все три будут «wide».</p>
+<div class="img-style-auto">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
+<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
+</div>
+</div>
 
 ---
 

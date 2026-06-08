@@ -15671,6 +15671,86 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
   if (!element) return;
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath });
   void typesetMarkdownDiagrams(element);
+  enhanceMarkdownPreviewImages(element);
+}
+
+let previewLightboxNode = null;
+
+function ensurePreviewImageLightbox() {
+  if (previewLightboxNode) return previewLightboxNode;
+
+  const overlay = document.createElement("div");
+  overlay.className = "preview-image-lightbox hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Просмотр изображения");
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "preview-image-lightbox-close";
+  closeBtn.setAttribute("aria-label", "Закрыть");
+  closeBtn.textContent = "×";
+
+  const img = document.createElement("img");
+  img.className = "preview-image-lightbox-img";
+  img.alt = "";
+
+  overlay.append(closeBtn, img);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.classList.add("hidden");
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !overlay.classList.contains("hidden")) close();
+  });
+
+  previewLightboxNode = overlay;
+  return overlay;
+}
+
+function openPreviewImageLightbox(src, alt = "") {
+  const overlay = ensurePreviewImageLightbox();
+  const img = overlay.querySelector(".preview-image-lightbox-img");
+  if (img) {
+    img.src = src;
+    img.alt = alt;
+  }
+  overlay.classList.remove("hidden");
+}
+
+function classifyPreviewImagesAuto(root) {
+  if (!root) return;
+  for (const img of root.querySelectorAll(".img-style-auto img")) {
+    const apply = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      img.classList.remove("is-wide", "is-compact");
+      if (w && h && w / h > 1.4) img.classList.add("is-wide");
+      else img.classList.add("is-compact");
+    };
+    if (img.complete) apply();
+    else img.addEventListener("load", apply, { once: true });
+  }
+}
+
+function initPreviewImageLightbox(root) {
+  if (!root || root.dataset.previewLightboxBound === "1") return;
+  root.dataset.previewLightboxBound = "1";
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (!target.closest(".img-style-lightbox")) return;
+    openPreviewImageLightbox(target.currentSrc || target.src, target.alt || "");
+  });
+}
+
+function enhanceMarkdownPreviewImages(root) {
+  if (!root) return;
+  initPreviewImageLightbox(root);
+  classifyPreviewImagesAuto(root);
 }
 
 function renderPreviewFromEditor() {
