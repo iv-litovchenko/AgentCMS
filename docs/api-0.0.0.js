@@ -6,7 +6,7 @@ module.exports = {
   notes: [
     "Снимок справки до версионирования (июнь 2026). Для актуального API выберите версию 0.0.1 в select.",
     "JSON-ответы, UTF-8. Контекст агента: ?agent=<id> (кроме /api/agents, /api/docs).",
-    "path — путь к _.x.md. Без: /api/user-docs, workspace-дашборда, reveal, validate-paths."
+    "path — путь к _REGINFO.md. Без: /api/user-docs, workspace-дашборда, reveal, validate-paths."
   ],
   groups: [
     {
@@ -112,7 +112,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/menu",
-          description: "Дерево нод workspace (_.x.md).",
+          description: "Дерево нод workspace (_REGINFO.md).",
           query: [],
           body: null,
           response: "{ title, sections?, items?, indexPath?, hasGit?, hasObsidian?, hasGitSelf?, hasObsidianSelf?, ... } — hasGit/hasObsidian true только если .git / .obsidian есть в каталоге этой папки (без наследования)"
@@ -172,7 +172,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file",
-          description: "Содержимое _.x.md (описание).",
+          description: "Содержимое _REGINFO.md (описание).",
           query: ["path"],
           body: null,
           response: "{ path, content }"
@@ -180,7 +180,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/content",
-          description: "Сохранить содержимое _.x.md.",
+          description: "Сохранить содержимое _REGINFO.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -196,7 +196,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _.x.md (между ---).",
+          description: "YAML frontmatter из _REGINFO.md (между ---).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -204,7 +204,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _.x.md.",
+          description: "Сохранить YAML frontmatter в _REGINFO.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -236,7 +236,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/node/create",
-          description: "Создать _.x.md в текущей папке, подпапку-ноду или part в _Parts.",
+          description: "Создать _REGINFO.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
           body: "{ parentPath?: \".\", type: \"manifest\"|\"folder\"|\"file\", name }",
           response: "{ createdPath, type }"

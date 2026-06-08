@@ -180,8 +180,9 @@
                 </div>
               </div>
               <div class="sidebar-agent-row sidebar-agent-row--view">
-                <div id="agent-view-select-wrap" class="agent-view-select-wrap">
-                  <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
+                <div class="sidebar-agent-view-controls">
+                  <div id="agent-view-select-wrap" class="agent-view-select-wrap">
+                    <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
                     <option value="dashboard" selected>Дашборд</option>
                     <option value="dashboard2">Дашборд 2</option>
                     <option value="map">Карта</option>
@@ -197,6 +198,14 @@
                     <option value="timeline-axis">Timeline</option>
                     <option value="timeline-vertical">Timeline ↓</option>
                   </select>
+                  </div>
+                  <button
+                    id="agent-git-btn"
+                    class="agents-manage-btn agent-git-btn"
+                    type="button"
+                    title="Git-репозиторий — изменения в workspace"
+                    aria-label="Git-репозиторий"
+                  ></button>
                 </div>
               </div>
               <div
@@ -553,6 +562,25 @@
 
       <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд 2 агента">
         <div id="home2-content" class="home2-content"></div>
+      </main>
+
+      <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
+        <div class="agent-canvas-head agent-git-head">
+          <div class="agent-git-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Git-репозиторий</h2>
+            <p class="agent-canvas-lead">
+              Несохранённые изменения, индекс и последние коммиты в git-репозитории workspace.
+            </p>
+          </div>
+          <div class="agent-git-head-actions">
+            <div id="agent-git-stats" class="agent-git-stats" aria-live="polite"></div>
+            <button id="agent-git-refresh-btn" class="agent-git-refresh-btn" type="button" title="Обновить статус git">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-git-content" class="agent-git-content"></div>
       </main>
 
       <main id="agent-map-pane" class="agent-canvas-pane agent-map-pane hidden" aria-label="Карта агента">
@@ -1436,7 +1464,7 @@
           </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
-          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_.x.md)">Подхватить (область)</button>
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_REGINFO.md)">Подхватить (область)</button>
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
           <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.x.md)">Файл (тема)</button>
           </div>

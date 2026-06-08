@@ -9,7 +9,7 @@ module.exports = {
     "Актуальная справка по mcp-server/index.js. В UI: select «0.0.1 — актуальная».",
     "Обёртка над HTTP API. Перед запуском MCP: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.1 (по умолчанию). 0.0.0 — предыдущий снимок.",
-    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _.x.md; file → _Content/ / _Assets/.",
+    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _REGINFO.md; file → _Content/ / _Assets/.",
     "25 tools — полный список ниже."
   ],
   cursorConfig: {
@@ -51,7 +51,7 @@ module.exports = {
       tools: [
         {
           name: "get_menu",
-          description: "Дерево нод workspace (_.x.md).",
+          description: "Дерево нод workspace (_REGINFO.md).",
           parameters: "—",
           http: "GET /api/menu"
         },
@@ -69,19 +69,19 @@ module.exports = {
       tools: [
         {
           name: "read_node_description",
-          description: "Прочитать _.x.md.",
+          description: "Прочитать _REGINFO.md.",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
           name: "write_node_description",
-          description: "Сохранить _.x.md.",
+          description: "Сохранить _REGINFO.md.",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
         {
           name: "read_node_properties",
-          description: "Frontmatter из _.x.md.",
+          description: "Frontmatter из _REGINFO.md.",
           parameters: "path",
           http: "GET /api/file/properties"
         },

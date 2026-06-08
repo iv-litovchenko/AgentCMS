@@ -433,7 +433,7 @@ function normalizeWorkspacePath(inputPath) {
   return absolute;
 }
 
-/** Манифест *.md / README.x.md из прямого пути или bundle (TODO, content, …). */
+/** Манифест *.md / _REGINFO.md из прямого пути или bundle (TODO, content, …). */
 function resolveNodeManifestRelForScopedApi(relPath) {
   const normalized = String(relPath || "").trim().replace(/\\/g, "/");
   if (!normalized) return null;
@@ -1531,7 +1531,7 @@ async function resolveExistingWorkspaceRelPath(relPath) {
     if (hasServicePrefix) {
       pushCandidate(normalized);
     } else if (normalized !== AREA_MANIFEST_FILE) {
-      // Workspace root README.x.md is not the service-area manifest; only explicit
+      // Workspace root _REGINFO.md is not the service-area manifest; only explicit
       // _awn-agent-system/... paths should resolve under the service folder.
       pushCandidate(`${serviceFolder}/${normalized}`);
     }
@@ -1999,6 +1999,54 @@ async function revealFolderInSystemFileManager(absoluteDir) {
     return;
   }
   await execFileAsync("xdg-open", [absoluteDir]);
+}
+
+async function revealWorkspaceRelativePath(relPath, options = {}) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim().replace(/^\/+/, "");
+  if (!normalized) {
+    const error = new Error("Invalid file path");
+    error.code = "INVALID_PATH";
+    throw error;
+  }
+
+  let absolute = null;
+  if (options.repoFile) {
+    const repoAbsolute = await resolveGitRepoRootAbsolute(getAgentRoot());
+    if (!repoAbsolute) {
+      const error = new Error("Git repository not found");
+      error.code = "INVALID_PATH";
+      throw error;
+    }
+    absolute = path.resolve(repoAbsolute, normalized);
+    const repoPrefix = `${path.resolve(repoAbsolute)}${path.sep}`;
+    if (!absolute.startsWith(repoPrefix) && absolute !== path.resolve(repoAbsolute)) {
+      const error = new Error("Invalid file path");
+      error.code = "INVALID_PATH";
+      throw error;
+    }
+  } else {
+    absolute = normalizeWorkspacePath(normalized);
+    if (!absolute || !absolute.startsWith(getAgentRoot())) {
+      const error = new Error("Invalid file path");
+      error.code = "INVALID_PATH";
+      throw error;
+    }
+  }
+
+  const stat = await fs.stat(absolute).catch((error) => {
+    if (error?.code === "ENOENT") {
+      const notFound = new Error("File not found");
+      notFound.code = "ENOENT";
+      throw notFound;
+    }
+    throw error;
+  });
+  if (stat.isDirectory()) {
+    await revealFolderInSystemFileManager(absolute);
+  } else {
+    await revealFileInSystemFileManager(absolute);
+  }
+  return { path: normalized, absolute };
 }
 
 async function revealFileInSystemFileManager(absoluteFile) {
@@ -3200,6 +3248,196 @@ async function folderHasGitRepo(dirAbsolute) {
   }
 }
 
+const GIT_STATUS_LABELS = {
+  staged: "В индексе",
+  modified: "Изменено",
+  untracked: "Неотслеживаемые",
+  deleted: "Удалено",
+  renamed: "Переименовано",
+  conflict: "Конфликт"
+};
+
+function classifyGitPorcelainEntry(indexStatus, workTreeStatus) {
+  if (indexStatus === "?" && workTreeStatus === "?") return "untracked";
+  if (indexStatus === "U" || workTreeStatus === "U" || indexStatus === "A" && workTreeStatus === "A") {
+    return "conflict";
+  }
+  if (indexStatus === "R") return "renamed";
+  if (indexStatus === "D" || workTreeStatus === "D") return "deleted";
+  if (indexStatus && indexStatus !== " " && indexStatus !== "?") return "staged";
+  if (workTreeStatus && workTreeStatus !== " " && workTreeStatus !== "?") return "modified";
+  return "modified";
+}
+
+function parseGitStatusPorcelain(rawOutput) {
+  const lines = String(rawOutput || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+
+  let branch = "";
+  let upstream = "";
+  let ahead = 0;
+  let behind = 0;
+  const changes = [];
+
+  for (const line of lines) {
+    if (line.startsWith("##")) {
+      const header = line.slice(2).trim();
+      const branchMatch = header.match(/^([^.\s]+(?:\.[^.\s]+)*?)(?:\.\.\.([^ \[]+))?(?:\s+\[(.+)\])?$/);
+      if (branchMatch) {
+        branch = branchMatch[1] || "";
+        upstream = branchMatch[2] || "";
+        const flags = branchMatch[3] || "";
+        const aheadMatch = flags.match(/ahead (\d+)/);
+        const behindMatch = flags.match(/behind (\d+)/);
+        ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
+        behind = behindMatch ? Number(behindMatch[1]) : 0;
+      } else {
+        branch = header.split("...")[0] || header;
+      }
+      continue;
+    }
+
+    const indexStatus = line[0] || " ";
+    const workTreeStatus = line[1] || " ";
+    const rawPath = line.slice(3).trim();
+    if (!rawPath) continue;
+
+    let filePath = rawPath;
+    let oldPath = "";
+    if (rawPath.includes("->")) {
+      const parts = rawPath.split("->").map((part) => part.trim());
+      oldPath = parts[0] || "";
+      filePath = parts[1] || parts[0] || "";
+    }
+
+    const kind = classifyGitPorcelainEntry(indexStatus, workTreeStatus);
+    changes.push({
+      path: filePath.replace(/\\/g, "/"),
+      oldPath: oldPath.replace(/\\/g, "/"),
+      indexStatus,
+      workTreeStatus,
+      kind,
+      label: GIT_STATUS_LABELS[kind] || kind
+    });
+  }
+
+  return { branch, upstream, ahead, behind, changes };
+}
+
+function parseGitLogOneline(rawOutput) {
+  return String(rawOutput || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^([0-9a-f]+)\|([^|]+)\|([^|]*)\|([^|]*)\|(.*)$/);
+      if (!match) {
+        return { hash: line.slice(0, 7), shortHash: line.slice(0, 7), subject: line, when: "", author: "" };
+      }
+      return {
+        hash: match[1],
+        shortHash: match[2],
+        subject: match[3],
+        when: match[4],
+        author: match[5]
+      };
+    });
+}
+
+async function runGitInRepo(repoAbsolute, args) {
+  const { stdout } = await execFileAsync("git", ["-C", repoAbsolute, ...args], {
+    maxBuffer: 4 * 1024 * 1024
+  });
+  return String(stdout || "");
+}
+
+async function resolveGitRepoRootAbsolute(startAbsolute) {
+  let current = path.resolve(String(startAbsolute || ""));
+  const stopRoot = path.resolve(getProjectRoot());
+  while (current) {
+    if (await folderHasGitRepo(current)) {
+      return current;
+    }
+    if (current === stopRoot) break;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return null;
+}
+
+async function buildAgentGitStatus() {
+  const agentRoot = getAgentRoot();
+  const repoAbsolute = await resolveGitRepoRootAbsolute(agentRoot);
+  if (!repoAbsolute) {
+    return {
+      isRepo: false,
+      repoPath: null,
+      repoRel: null,
+      branch: "",
+      upstream: "",
+      ahead: 0,
+      behind: 0,
+      clean: true,
+      changes: [],
+      commits: [],
+      counts: { total: 0, staged: 0, modified: 0, untracked: 0, deleted: 0, renamed: 0, conflict: 0 }
+    };
+  }
+
+  const repoRel = path.relative(agentRoot, repoAbsolute).replace(/\\/g, "/") || ".";
+
+  try {
+    const [statusRaw, logRaw] = await Promise.all([
+      runGitInRepo(repoAbsolute, ["status", "--porcelain=v1", "-b", "--untracked-files=all"]),
+      runGitInRepo(repoAbsolute, ["log", "-8", "--format=%H|%h|%s|%cr|%an"]).catch(() => "")
+    ]);
+
+    const parsed = parseGitStatusPorcelain(statusRaw);
+    const commits = parseGitLogOneline(logRaw);
+    const counts = {
+      total: parsed.changes.length,
+      staged: parsed.changes.filter((item) => item.kind === "staged").length,
+      modified: parsed.changes.filter((item) => item.kind === "modified").length,
+      untracked: parsed.changes.filter((item) => item.kind === "untracked").length,
+      deleted: parsed.changes.filter((item) => item.kind === "deleted").length,
+      renamed: parsed.changes.filter((item) => item.kind === "renamed").length,
+      conflict: parsed.changes.filter((item) => item.kind === "conflict").length
+    };
+
+    return {
+      isRepo: true,
+      repoPath: repoAbsolute,
+      repoRel,
+      branch: parsed.branch,
+      upstream: parsed.upstream,
+      ahead: parsed.ahead,
+      behind: parsed.behind,
+      clean: parsed.changes.length === 0,
+      changes: parsed.changes,
+      commits,
+      counts
+    };
+  } catch (error) {
+    return {
+      isRepo: true,
+      repoPath: repoAbsolute,
+      repoRel,
+      branch: "",
+      upstream: "",
+      ahead: 0,
+      behind: 0,
+      clean: true,
+      changes: [],
+      commits: [],
+      counts: { total: 0, staged: 0, modified: 0, untracked: 0, deleted: 0, renamed: 0, conflict: 0 },
+      error: String(error?.message || error)
+    };
+  }
+}
+
 async function folderHasObsidianVault(dirAbsolute) {
   return existsDirectory(path.join(dirAbsolute, ".obsidian"));
 }
@@ -4295,6 +4533,18 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/git/status") {
+    try {
+      const status = await buildAgentGitStatus();
+      return sendJson(res, 200, status);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read git status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/storage-layout") {
     try {
       const layout = await buildAgentStorageLayout();
@@ -4423,7 +4673,7 @@ async function handleApiForAgent(req, res, url) {
     const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
     const serviceFolder = getAgentSystemFolder();
     const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
@@ -4455,7 +4705,7 @@ async function handleApiForAgent(req, res, url) {
       }
       const absolute = normalizeWorkspacePath(resolvedRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       const normalized = resolvedRelPath;
       let nextRelPath = normalized;
@@ -4567,7 +4817,7 @@ async function handleApiForAgent(req, res, url) {
       const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
       const absolute = normalizeWorkspacePath(canonicalRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, content);
       if (canonicalRelPath !== String(relPath).replace(/\\/g, "/")) {
@@ -4730,7 +4980,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       const tabularRelPath = toTabularFilePath(resolvedRelPath);
       const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
@@ -4778,7 +5028,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       const memoryRelPath = toContentFilePath(resolvedRelPath);
       const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
@@ -5631,7 +5881,7 @@ async function handleApiForAgent(req, res, url) {
     if (!manifestRel) {
       return sendJson(res, 400, {
         error: "Invalid file path",
-        details: "Нужен манифест (*.md, README.x.md) или файл TODO (s.*/Todo.md)"
+        details: "Нужен манифест (*.md, _REGINFO.md) или файл TODO (s.*/Todo.md)"
       });
     }
 
@@ -5655,7 +5905,7 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestRel) {
         return sendJson(res, 400, {
           error: "Invalid file path",
-          details: "Нужен манифест (*.md, README.x.md) или файл TODO (s.*/Todo.md)"
+          details: "Нужен манифест (*.md, _REGINFO.md) или файл TODO (s.*/Todo.md)"
         });
       }
 
@@ -5725,6 +5975,11 @@ async function handleApiForAgent(req, res, url) {
       const relFile = payload.file || "";
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
 
+      if (payload.workspace) {
+        const target = await revealWorkspaceRelativePath(relPath, { repoFile: Boolean(payload.repoFile) });
+        return sendJson(res, 200, { path: target.path, revealed: true, workspace: true });
+      }
+
       if (relFile) {
         const target = await resolveMediaFileAbsoluteForReveal(relPath, relFile);
         await revealFileInSystemFileManager(target.fileAbsolute);
@@ -5768,7 +6023,7 @@ async function handleApiForAgent(req, res, url) {
       const manifestAbsolute = normalizeWorkspacePath(canonicalRelPath);
       if (!manifestAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(manifestAbsolute)) {
-        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
       }
 
       const manifest = await statNodeFileMeta(manifestAbsolute);
@@ -5805,7 +6060,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) {
@@ -5826,7 +6081,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
@@ -5856,7 +6111,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       const previewExt = resolveNodePreviewExtension(mimeType, fileName);
       if (!previewExt) {
@@ -5900,7 +6155,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
     try {
       await clearAllNodePreviewImages(nodeAbsolute);
@@ -6152,7 +6407,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const absolute = normalizeWorkspacePath(relPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
       const normalized = path.normalize(relPath);
       if (isAreaManifestRelPath(normalized)) {

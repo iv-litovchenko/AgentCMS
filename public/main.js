@@ -10,6 +10,11 @@ const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const home2PaneNode = document.getElementById("home-pane-2");
 const home2ContentNode = document.getElementById("home2-content");
+const agentGitPaneNode = document.getElementById("agent-git-pane");
+const agentGitContentNode = document.getElementById("agent-git-content");
+const agentGitStatsNode = document.getElementById("agent-git-stats");
+const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
+const agentGitBtn = document.getElementById("agent-git-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
@@ -366,11 +371,11 @@ function readStorageItem(key) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "README.x.md";
+const AREA_MANIFEST_FILE = "_REGINFO.md";
 const SLOT_STORAGE_PREFIX = "_s.";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["readme.x.md", "agents.md", "todo.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["_reginfo.md", "agents.md", "todo.md"]);
 const STORAGE_FOLDER_NAME = "_s";
 const STORAGE_FOLDER_REGEX = "_s\\.[^/]+";
 const BUNDLE_CONTENT_FILE = "Content.md";
@@ -1230,7 +1235,7 @@ function syncNodeDescriptionHintUi() {
     titleNode.textContent = "Workspace агента — описание проекта";
     textNode.innerHTML =
       "Корневая область контента: контекст проекта, правила и документация для работы в этом workspace. " +
-      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>_s.README.x/Preview.*</code>). " +
+      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>_s._REGINFO/Preview.*</code>). " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
   }
@@ -4673,7 +4678,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка {Name}/README.x.md — без драйверов памяти. */
+/** Область (Space): папка {Name}/_REGINFO.md — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
@@ -6564,6 +6569,7 @@ function getHomeBreadcrumbPath() {
 
 const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard2: "Дашборд 2",
+  git: "Git-репозиторий",
   map: "Карта",
   map2: "Карта 2",
   map3: "Карта 3",
@@ -15480,7 +15486,7 @@ function getMarkdownIt() {
   if (typeof window.markdownit !== "function") return null;
 
   markdownItInstance = window.markdownit({
-    html: false,
+    html: true,
     linkify: true,
     breaks: true,
     typographer: false
@@ -17247,7 +17253,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         folderLabel.className = "menu-folder menu-folder--adopt";
         folderLabel.title = isEmptyFolder
           ? "Папка на диске без области — нажмите +, чтобы подхватить"
-          : "Папка без README.x.md — нажмите +, чтобы подхватить как область";
+          : `Папка без ${AREA_MANIFEST_FILE} — нажмите +, чтобы подхватить как область`;
         setMenuLabelWithMarkers(
           folderLabel,
           formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
@@ -18525,6 +18531,7 @@ function loadAgentWorkspaceView() {
     if (
       saved === "dashboard" ||
       saved === "dashboard2" ||
+      saved === "git" ||
       saved === "map" ||
       saved === "map2" ||
       saved === "map3" ||
@@ -18571,6 +18578,7 @@ function applyAgentWorkspaceCanvasUi() {
   const showCanvas = isAgentWorkspaceCanvasVisible();
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
+  agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
   agentMap3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map3");
@@ -18592,6 +18600,8 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentDashboardView();
   } else if (agentWorkspaceView === "dashboard2") {
     renderAgentDashboard2View();
+  } else if (agentWorkspaceView === "git") {
+    void renderAgentGitView();
   } else if (agentWorkspaceView === "map") {
     renderAgentMapView();
   } else if (agentWorkspaceView === "map2") {
@@ -18616,6 +18626,7 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentTimelineVerticalView();
   }
 
+  syncAgentGitToolbarUi();
   updateDocumentTitle();
 }
 
@@ -18623,6 +18634,7 @@ function setAgentWorkspaceView(view) {
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
+    view !== "git" &&
     view !== "map" &&
     view !== "map2" &&
     view !== "map3" &&
@@ -18680,7 +18692,7 @@ function buildAgentMapZoneData(menu) {
   if (rootPath) {
     core.push({
       label: getLabelFromPath(rootPath),
-      sub: "README.x.md",
+      sub: AREA_MANIFEST_FILE,
       path: rootPath,
       action: "node"
     });
@@ -19420,6 +19432,213 @@ function renderAgentMap2View() {
   });
 }
 
+function initAgentGitToolbar() {
+  if (!agentGitBtn) return;
+  agentGitBtn.replaceChildren();
+  const icon = createGitMarkerSvg();
+  icon.classList.add("agent-git-btn-icon");
+  agentGitBtn.appendChild(icon);
+  syncAgentGitToolbarUi();
+}
+
+function syncAgentGitToolbarUi() {
+  agentGitBtn?.classList.toggle("is-active", agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible());
+}
+
+async function fetchAgentGitStatus() {
+  const response = await fetch(buildApiUrl("/api/git/status"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderAgentGitStatChip(label, value, tone = "") {
+  const chip = document.createElement("span");
+  chip.className = `agent-git-stat-chip${tone ? ` is-${tone}` : ""}`;
+  chip.innerHTML = `<strong>${escapeHtml(String(value))}</strong> ${escapeHtml(label)}`;
+  return chip;
+}
+
+function appendAgentGitChangeGroup(container, title, items) {
+  if (!items.length) return;
+  const section = document.createElement("section");
+  section.className = "agent-git-group";
+
+  const heading = document.createElement("h3");
+  heading.className = "agent-git-group-title";
+  heading.textContent = `${title} (${items.length})`;
+  section.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "agent-git-change-list";
+
+  for (const item of items) {
+    const row = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `agent-git-change-row is-${item.kind || "modified"}`;
+
+    const badge = document.createElement("span");
+    badge.className = "agent-git-change-badge";
+    badge.textContent = item.label || item.kind || "изменено";
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "agent-git-change-path";
+    pathNode.textContent = item.oldPath ? `${item.oldPath} → ${item.path}` : item.path;
+
+    btn.append(badge, pathNode);
+    btn.title = item.path;
+    btn.addEventListener("click", () => {
+      void revealWorkspacePath(item.path);
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+
+  section.appendChild(list);
+  container.appendChild(section);
+}
+
+async function renderAgentGitView() {
+  if (!agentGitContentNode) return;
+
+  agentGitContentNode.replaceChildren();
+  if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
+
+  const loading = document.createElement("p");
+  loading.className = "agent-git-empty";
+  loading.textContent = "Загрузка git status…";
+  agentGitContentNode.appendChild(loading);
+
+  try {
+    const data = await fetchAgentGitStatus();
+    agentGitContentNode.replaceChildren();
+
+    if (agentGitStatsNode) {
+      if (data.isRepo) {
+        agentGitStatsNode.append(
+          renderAgentGitStatChip("изменений", data.counts?.total ?? 0, data.clean ? "clean" : "dirty"),
+          renderAgentGitStatChip("ветка", data.branch || "—", "branch")
+        );
+      }
+    }
+
+    if (!data.isRepo) {
+      const empty = document.createElement("div");
+      empty.className = "agent-git-empty-state";
+      empty.innerHTML = `
+        <p class="agent-git-empty-title">Git-репозиторий не найден</p>
+        <p class="agent-git-empty-text">В workspace агента нет каталога <code>.git</code>. Инициализируйте репозиторий в корне workspace или во вложенной папке.</p>
+      `;
+      agentGitContentNode.appendChild(empty);
+      return;
+    }
+
+    if (data.error) {
+      const error = document.createElement("p");
+      error.className = "agent-git-empty is-alert";
+      error.textContent = `Git: ${data.error}`;
+      agentGitContentNode.appendChild(error);
+      return;
+    }
+
+    const shell = document.createElement("div");
+    shell.className = "agent-git-shell";
+
+    const meta = document.createElement("div");
+    meta.className = "agent-git-meta";
+    const branchLine = document.createElement("p");
+    branchLine.className = "agent-git-meta-line";
+    const branchParts = [`Ветка: ${data.branch || "—"}`];
+    if (data.upstream) branchParts.push(`upstream: ${data.upstream}`);
+    if (data.ahead) branchParts.push(`↑${data.ahead}`);
+    if (data.behind) branchParts.push(`↓${data.behind}`);
+    branchLine.textContent = branchParts.join(" · ");
+    meta.appendChild(branchLine);
+
+    if (data.repoRel) {
+      const repoLine = document.createElement("p");
+      repoLine.className = "agent-git-meta-line is-muted";
+      repoLine.textContent = `Корень репозитория: ${data.repoRel}`;
+      meta.appendChild(repoLine);
+    }
+
+    shell.appendChild(meta);
+
+    if (data.clean) {
+      const clean = document.createElement("p");
+      clean.className = "agent-git-clean-banner";
+      clean.textContent = "Рабочая копия чистая — нет незакоммиченных изменений.";
+      shell.appendChild(clean);
+    } else {
+      const groups = [
+        ["В индексе", data.changes.filter((item) => item.kind === "staged")],
+        ["Изменено", data.changes.filter((item) => item.kind === "modified")],
+        ["Неотслеживаемые", data.changes.filter((item) => item.kind === "untracked")],
+        ["Удалено", data.changes.filter((item) => item.kind === "deleted")],
+        ["Переименовано", data.changes.filter((item) => item.kind === "renamed")],
+        ["Конфликты", data.changes.filter((item) => item.kind === "conflict")]
+      ];
+      for (const [title, items] of groups) {
+        appendAgentGitChangeGroup(shell, title, items);
+      }
+    }
+
+    if (Array.isArray(data.commits) && data.commits.length) {
+      const commitsSection = document.createElement("section");
+      commitsSection.className = "agent-git-group agent-git-group--commits";
+
+      const commitsTitle = document.createElement("h3");
+      commitsTitle.className = "agent-git-group-title";
+      commitsTitle.textContent = "Последние коммиты";
+      commitsSection.appendChild(commitsTitle);
+
+      const commitsList = document.createElement("ul");
+      commitsList.className = "agent-git-commit-list";
+      for (const commit of data.commits) {
+        const item = document.createElement("li");
+        item.className = "agent-git-commit-row";
+        item.innerHTML = `
+          <span class="agent-git-commit-hash">${escapeHtml(commit.shortHash || commit.hash || "")}</span>
+          <span class="agent-git-commit-subject">${escapeHtml(commit.subject || "")}</span>
+          <span class="agent-git-commit-meta">${escapeHtml([commit.when, commit.author].filter(Boolean).join(" · "))}</span>
+        `;
+        commitsList.appendChild(item);
+      }
+      commitsSection.appendChild(commitsList);
+      shell.appendChild(commitsSection);
+    }
+
+    agentGitContentNode.appendChild(shell);
+  } catch (error) {
+    agentGitContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-git-empty is-alert";
+    errorNode.textContent = `Не удалось загрузить git status: ${error.message}`;
+    agentGitContentNode.appendChild(errorNode);
+  }
+}
+
+async function revealWorkspacePath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/reveal"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: normalized, workspace: true, repoFile: true })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+  } catch (error) {
+    showToast(`Не удалось показать в Finder: ${error.message}`, "error");
+  }
+}
+
 function renderAgentDashboardView() {
   if (!agentDashboardStatsNode) return;
   const agent = agentsCache.find((item) => item.id === activeAgentId);
@@ -19881,7 +20100,7 @@ function buildGraphDataFromAgentMenu(menu) {
     nodeIds.add(serviceRootId);
   }
 
-  // Области (README.x.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
+  // Области (_REGINFO.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
   for (const entry of workspaceEntries) {
     if (!entry.isFolder || !entry.path) continue;
     if (skipNormalizedPaths.has(normalizeMenuNodePath(entry.path))) continue;
@@ -20891,6 +21110,7 @@ function syncAppHomeButton() {
 function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
   home2PaneNode?.classList.add("hidden");
+  agentGitPaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
   agentMap3PaneNode?.classList.add("hidden");
@@ -21771,7 +21991,7 @@ async function createNode(type, options = {}) {
         : type === "service-doc"
           ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.md)`
           : type === "manifest"
-          ? "Область создана (README.x.md)"
+          ? `Область создана (${AREA_MANIFEST_FILE})`
           : type === "folder"
             ? "Папка-область создана"
             : "Файл (тема) создан";
@@ -21805,7 +22025,7 @@ function formatCreateNodeErrorMessage(message) {
     return "Нет прав на запись в workspace агента";
   }
   if (/Node manifest already exists/i.test(text)) {
-    return "В этой папке уже есть README.x.md";
+    return `В этой папке уже есть ${AREA_MANIFEST_FILE}`;
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
     return `Папка ${AGENT_SYSTEM_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
@@ -22625,6 +22845,16 @@ agentViewSelect?.addEventListener("change", () => {
   setAgentWorkspaceView(view);
 });
 
+agentGitBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("git");
+});
+
+agentGitRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "git") {
+    void renderAgentGitView();
+  }
+});
+
 agentVaultSearchNode?.addEventListener("input", () => {
   agentVaultSearchQuery = agentVaultSearchNode.value;
   if (agentWorkspaceView === "vault") {
@@ -23113,3 +23343,4 @@ appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("or
 appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
 
 initNodeWorkspaceDomainSelect();
+initAgentGitToolbar();

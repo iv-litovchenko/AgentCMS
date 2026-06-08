@@ -1,6 +1,6 @@
 {
-  "id": "Documentation",
-  "name": "[AgentCMS] Documentation",
+  "id": "Php",
+  "name": "[AgentCMS] PHP",
   "vaultFolder": "_awn-vault",
   "agentSystemFolder": "_awn-agent-system"
 }

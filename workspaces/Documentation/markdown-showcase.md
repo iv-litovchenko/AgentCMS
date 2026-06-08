@@ -205,9 +205,9 @@ gantt
 [[Другая нода]]
 [[Путь/К ноде|Подпись]]
 
-### HTML — отключён (`html: false`)
+### HTML — включён (`html: true`)
 
-<div style="color:red">Красный HTML не пройдёт</div>
+<div style="color:red">Красный HTML</div>
 
 ---
 
