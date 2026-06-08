@@ -176,10 +176,13 @@ function normalizeManifestRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/");
 }
 
-/** Справочник категорий записей: _s.Categories/Content/{slug}.md */
+/** Справочник категорий записей: _s.Categories/Content/{slug}.md или …/Content/Categories/{slug}.md */
 function isRecordCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
-  return /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized);
+  return (
+    /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized) ||
+    /\/Content\/Categories\/[^/]+\.md$/i.test(normalized)
+  );
 }
 
 /** Справочник категорий медиа: …/Assets/Categories/{slug}.md или _s.MediaCategories/Content/{slug}.md */
