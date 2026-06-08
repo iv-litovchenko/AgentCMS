@@ -185,6 +185,20 @@ function isRecordCategoryContentRelPath(relPath) {
   );
 }
 
+/** Описание подкаталога в Content: …/Content/{section}/_REGINFO.md */
+function isExternalSectionReadmeRelPath(relPath) {
+  const normalized = normalizeManifestRelPath(relPath);
+  if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
+  return /\/Content\//i.test(normalized);
+}
+
+/** Описание подкаталога в Assets: …/Assets/{section}/_REGINFO.md */
+function isMediaSectionReadmeRelPath(relPath) {
+  const normalized = normalizeManifestRelPath(relPath);
+  if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
+  return /\/Assets\//i.test(normalized);
+}
+
 /** Справочник категорий медиа: …/Assets/Categories/{slug}.md или _s.MediaCategories/Content/{slug}.md */
 function isMediaCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
@@ -599,6 +613,8 @@ module.exports = {
   isAreaManifestRelPath,
   isManifestMdRelPath,
   isRecordCategoryContentRelPath,
+  isExternalSectionReadmeRelPath,
+  isMediaSectionReadmeRelPath,
   isMediaCategoryContentRelPath,
   joinAreaManifestRel,
   getManifestContainerDirRel,

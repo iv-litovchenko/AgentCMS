@@ -20,6 +20,8 @@ const {
   isAreaManifestFileName,
   isTopicManifestFileName,
   isRecordCategoryContentRelPath,
+  isExternalSectionReadmeRelPath,
+  isMediaSectionReadmeRelPath,
   isMediaCategoryContentRelPath
 } = require("./manifest-paths");
 
@@ -175,6 +177,14 @@ function inferAwnTypeFromPath(relPath, options = {}) {
 
   if (isRecordCategoryContentRelPath(normalized)) {
     return "awn.record.category";
+  }
+
+  if (isExternalSectionReadmeRelPath(normalized)) {
+    return "awn.record.category";
+  }
+
+  if (isMediaSectionReadmeRelPath(normalized)) {
+    return "awn.media.category";
   }
 
   if (options.contentMode === "external" || /\/Content\//i.test(normalized)) {
@@ -361,11 +371,13 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   };
 }
 
-const AWN_SCHEMA_TARGETS = ["topic", "record", "sidecar"];
+const AWN_SCHEMA_TARGETS = ["topic", "record", "record_category", "media_category", "sidecar"];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
   topic: "awn.topic",
   record: "awn.record",
+  record_category: "awn.record.category",
+  media_category: "awn.media.category",
   sidecar: "awn.sidecar"
 };
 
@@ -373,6 +385,8 @@ function emptyAwnSchema() {
   return {
     topic: { fields: {} },
     record: { fields: {} },
+    record_category: { fields: {} },
+    media_category: { fields: {} },
     sidecar: { fields: {} }
   };
 }

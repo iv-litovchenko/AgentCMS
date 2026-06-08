@@ -3795,6 +3795,10 @@ let editorViewMode =
     ? _savedEditorViewMode
     : "preview";
 let externalViewMode = "table";
+let externalListFilterQuery = "";
+let externalListSort = { key: "path", dir: "asc" };
+let externalListSchemaReadyKey = "";
+let externalListSchemaReadyPromise = null;
 let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
 let activeExternalSectionFolder = null;
@@ -7605,7 +7609,14 @@ function buildGraphDataFromExternalFiles(items) {
     const parentId = ensureFolder(parentPath === "." ? null : parentPath);
     const fileId = `file:${item.path}`;
     const depth = parentPath && parentPath !== "." ? parentPath.split("/").filter(Boolean).length + 1 : 1;
-    nodes.push({ id: fileId, label: item.title, filePath: item.path, type: "file", depth });
+    nodes.push({
+      id: fileId,
+      label: item.title,
+      filePath: item.path,
+      type: "file",
+      depth,
+      previewUrl: item.previewUrl || null
+    });
     edges.push({ from: parentId, to: fileId });
     if (!fileIdsByParent.has(parentPath)) fileIdsByParent.set(parentPath, []);
     fileIdsByParent.get(parentPath).push(fileId);
@@ -8406,6 +8417,7 @@ function renderExternalGraphCanvas(container, items) {
   const graph = buildGraphDataFromExternalFiles(items);
   renderGraphCanvas(container, graph, {
     ariaLabel: `Граф файлов ${STORAGE_SUBFOLDER_CONTENT}`,
+    showPreviews: true,
     isNodeActive: (node) => Boolean(node.filePath && node.filePath === activeExternalFilePath),
     isNodeClickable: (node) => Boolean(node.filePath),
     onNodeClick: (node) => openExternalFile(node.filePath)
@@ -9082,9 +9094,15 @@ function getSectionReadmeRelPath(sectionFolder) {
   return folder ? `${folder}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
 }
 
-function buildSectionReadmeContent(title) {
+function buildSectionReadmeContent(title, awnType = "awn.record.category") {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
-  return `---\ntitle: ${safeTitle}\n---\n\n> Описание раздела.\n`;
+  const quotedTitle = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeTitle)
+    ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+    : safeTitle;
+  if (!awnType) {
+    return `---\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+  }
+  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
 function externalSectionReadmeExists(sectionFolder) {
@@ -9110,7 +9128,7 @@ function splitSectionReadmeItems(items, sectionFolder) {
   };
 }
 
-function appendSectionReadmeCard(container, sectionFolder, { exists, onEdit }) {
+function appendSectionReadmeCard(container, sectionFolder, { exists, onEdit, categoryType = "awn.record.category" }) {
   const card = document.createElement("article");
   card.className = "section-readme-card";
 
@@ -9121,8 +9139,8 @@ function appendSectionReadmeCard(container, sectionFolder, { exists, onEdit }) {
   const hint = document.createElement("p");
   hint.className = "section-readme-card-hint";
   hint.textContent = exists
-    ? `${AREA_MANIFEST_FILE} — необязательное описание каталога`
-    : `${AREA_MANIFEST_FILE} ещё не создан`;
+    ? `${AREA_MANIFEST_FILE} (${categoryType}) — описание каталога`
+    : `${AREA_MANIFEST_FILE} (${categoryType}) ещё не создан`;
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -9575,9 +9593,454 @@ function getExternalMdItems() {
       parent: item.parent,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
-      title: item.name.replace(/\.md$/i, "")
+      title: item.title || item.name.replace(/\.md$/i, ""),
+      props: Array.isArray(item.props) ? item.props : [],
+      status: item.status || "",
+      tags: item.tags || "",
+      hasPreview: Boolean(item.hasPreview),
+      previewUrl: item.previewUrl || null
     }))
     .sort((a, b) => compareExternalPathsNatural(a.path, b.path));
+}
+
+const EXTERNAL_LIST_SORT_OPTIONS = [
+  { key: "path", label: "Путь" },
+  { key: "file", label: "Файл" },
+  { key: "title", label: "Заголовок" },
+  { key: "section", label: "Раздел" },
+  { key: "created", label: "Создан" },
+  { key: "updated", label: "Обновлён" }
+];
+
+function getExternalItemSearchHaystack(item) {
+  const parts = [
+    item.path,
+    item.name,
+    item.title,
+    item.status,
+    item.tags,
+    formatExternalCardSection(item),
+    formatExternalTableParent(item),
+    getExternalCardFileName(item)
+  ];
+  if (Array.isArray(item.props)) {
+    for (const entry of item.props) {
+      if (!entry?.key) continue;
+      parts.push(entry.key);
+      if (entry.kind === "array") parts.push((entry.value || []).join(", "));
+      else if (entry.kind === "bool") parts.push(entry.value ? "true" : "false");
+      else if (entry.value !== null && entry.value !== undefined) parts.push(String(entry.value));
+    }
+  }
+  return parts.filter(Boolean).join("\n").toLowerCase();
+}
+
+function filterExternalListItems(items, query = externalListFilterQuery) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((item) => getExternalItemSearchHaystack(item).includes(q));
+}
+
+function getExternalItemSortValue(item, key) {
+  switch (key) {
+    case "file":
+      return getExternalCardFileName(item);
+    case "title":
+      return item.title || "";
+    case "section":
+      return formatExternalCardSection(item);
+    case "created":
+      return item.createdAt || "";
+    case "updated":
+      return item.updatedAt || "";
+    default:
+      if (key === "path") return item.path || "";
+      return getPropsEntryValueByKey(Array.isArray(item.props) ? item.props : [], key);
+  }
+}
+
+function sortExternalListItems(items, sort = externalListSort) {
+  const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const dir = sort.dir === "desc" ? -1 : 1;
+  const key = sort.key;
+  return [...items].sort((a, b) => {
+    let cmp = 0;
+    if (key === "path") {
+      cmp = compareExternalPathsNatural(a.path, b.path);
+    } else if (key === "created" || key === "updated") {
+      const av = getExternalItemSortValue(a, key);
+      const bv = getExternalItemSortValue(b, key);
+      cmp = av === bv ? 0 : av < bv ? -1 : 1;
+    } else {
+      cmp = collator.compare(getExternalItemSortValue(a, key), getExternalItemSortValue(b, key));
+    }
+    return cmp * dir;
+  });
+}
+
+function prepareExternalListItems(items) {
+  return sortExternalListItems(filterExternalListItems(items));
+}
+
+function syncExternalListToolbarMeta(shown, total) {
+  const countNode = listViewContentNode?.querySelector(".external-list-results-count");
+  if (!countNode) return;
+  countNode.textContent =
+    shown === total ? `${total} элементов` : `${shown} из ${total}`;
+}
+
+function syncExternalListToolbarFromState() {
+  const toolbar = listViewContentNode?.querySelector(".external-list-toolbar");
+  if (!toolbar) return;
+  const filterInput = toolbar.querySelector(".external-list-filter-input");
+  const sortSelect = toolbar.querySelector(".external-list-sort-select");
+  const sortDirBtn = toolbar.querySelector(".external-list-sort-dir-btn");
+  if (filterInput && filterInput.value !== externalListFilterQuery) {
+    filterInput.value = externalListFilterQuery;
+  }
+  syncExternalListSortSelectOptions(sortSelect);
+  if (sortSelect && !sortSelect.querySelector(`option[value="${CSS.escape(externalListSort.key)}"]`)) {
+    externalListSort.key = "path";
+  }
+  if (sortSelect) sortSelect.value = externalListSort.key;
+  if (sortDirBtn) sortDirBtn.textContent = externalListSort.dir === "asc" ? "↑" : "↓";
+}
+
+function syncExternalListSortSelectOptions(sortSelect) {
+  if (!sortSelect) return;
+  const options = getExternalListSortOptions();
+  const current = sortSelect.value || externalListSort.key;
+  sortSelect.replaceChildren();
+  for (const option of options) {
+    const opt = document.createElement("option");
+    opt.value = option.key;
+    opt.textContent = option.label;
+    sortSelect.appendChild(opt);
+  }
+  sortSelect.value = options.some((option) => option.key === current) ? current : "path";
+}
+
+function syncExternalListSectionHead(sectionFolder) {
+  const main = listViewContentNode?.querySelector(".external-list-view-main");
+  if (!main) return;
+  let host = main.querySelector(".external-list-section-head");
+  if (!host) {
+    host = document.createElement("div");
+    host.className = "external-list-section-head hidden";
+    const toolbar = main.querySelector(".external-list-toolbar");
+    if (toolbar) main.insertBefore(host, toolbar);
+    else main.prepend(host);
+  }
+  host.replaceChildren();
+  host.classList.toggle("hidden", !sectionFolder);
+  if (!sectionFolder) return;
+
+  const head = document.createElement("div");
+  head.className = "media-section-folder-head";
+  const title = document.createElement("h4");
+  title.className = "media-section-folder-title";
+  title.textContent = `📁 ${sectionFolder}`;
+  head.appendChild(title);
+  host.appendChild(head);
+}
+
+function createExternalListToolbar() {
+  const toolbar = document.createElement("div");
+  toolbar.className = "external-list-toolbar";
+
+  const countNode = document.createElement("span");
+  countNode.className = "external-list-results-count";
+  countNode.textContent = "0 элементов";
+
+  const filterInput = document.createElement("input");
+  filterInput.type = "search";
+  filterInput.className = "external-list-filter-input";
+  filterInput.placeholder = "Поиск по файлам, заголовкам, тэгам…";
+  filterInput.setAttribute("aria-label", "Фильтр внешней памяти");
+  filterInput.value = externalListFilterQuery;
+  filterInput.addEventListener("input", () => {
+    externalListFilterQuery = filterInput.value;
+    rerenderExternalListViewBody();
+  });
+
+  const sortSelect = document.createElement("select");
+  sortSelect.className = "external-list-sort-select";
+  sortSelect.setAttribute("aria-label", "Сортировка внешней памяти");
+  for (const option of EXTERNAL_LIST_SORT_OPTIONS) {
+    const opt = document.createElement("option");
+    opt.value = option.key;
+    opt.textContent = option.label;
+    sortSelect.appendChild(opt);
+  }
+  sortSelect.value = externalListSort.key;
+  sortSelect.addEventListener("change", () => {
+    externalListSort.key = sortSelect.value;
+    rerenderExternalListViewBody();
+  });
+
+  const sortDirBtn = document.createElement("button");
+  sortDirBtn.type = "button";
+  sortDirBtn.className = "external-list-sort-dir-btn";
+  sortDirBtn.title = "Направление сортировки";
+  sortDirBtn.setAttribute("aria-label", "Направление сортировки");
+  const syncSortDirBtn = () => {
+    sortDirBtn.textContent = externalListSort.dir === "asc" ? "↑" : "↓";
+  };
+  syncSortDirBtn();
+  sortDirBtn.addEventListener("click", () => {
+    externalListSort.dir = externalListSort.dir === "asc" ? "desc" : "asc";
+    syncSortDirBtn();
+    rerenderExternalListViewBody();
+  });
+
+  const controls = document.createElement("div");
+  controls.className = "external-list-toolbar-controls";
+  controls.append(filterInput, sortSelect, sortDirBtn);
+
+  toolbar.append(countNode, controls);
+  return toolbar;
+}
+
+function ensureExternalListToolbar(wrap) {
+  if (!wrap) return;
+  const split = wrap.querySelector(".external-list-view-split");
+  let body = wrap.querySelector(".external-list-view-body");
+  if (!split || !body) return;
+
+  let main = wrap.querySelector(".external-list-view-main");
+  if (!main) {
+    main = document.createElement("div");
+    main.className = "external-list-view-main media-list-view-main";
+    split.replaceChild(main, body);
+    const sectionHead = document.createElement("div");
+    sectionHead.className = "external-list-section-head hidden";
+    main.append(sectionHead, createExternalListToolbar(), body);
+    return;
+  }
+
+  if (!main.querySelector(".external-list-section-head")) {
+    const sectionHead = document.createElement("div");
+    sectionHead.className = "external-list-section-head hidden";
+    const toolbar = main.querySelector(".external-list-toolbar");
+    if (toolbar) main.insertBefore(sectionHead, toolbar);
+    else main.prepend(sectionHead);
+  }
+
+  if (!main.querySelector(".external-list-toolbar")) {
+    const toolbar = createExternalListToolbar();
+    const sectionHead = main.querySelector(".external-list-section-head");
+    if (sectionHead) main.insertBefore(toolbar, sectionHead.nextSibling);
+    else main.prepend(toolbar);
+  }
+}
+
+async function ensureExternalListSchemaReady() {
+  const manifestPath = getTopicSchemaManifestPath();
+  const key = `${activeAgentId || ""}:${manifestPath || ""}`;
+  if (externalListSchemaReadyKey !== key) {
+    externalListSchemaReadyKey = key;
+    externalListSchemaReadyPromise = null;
+  }
+  if (!externalListSchemaReadyPromise) {
+    externalListSchemaReadyPromise = (async () => {
+      if (!awnTypesCache) await loadAwnTypes(activeAgentId);
+      if (manifestPath && !getTopicSchemaCache(manifestPath)) {
+        await loadTopicSchemaForManifest(activePath).catch(() => null);
+      }
+    })();
+  }
+  return externalListSchemaReadyPromise;
+}
+
+function getExternalCardFileName(item) {
+  return String(item.name || item.path.split("/").pop() || "").replace(/\.md$/i, "");
+}
+
+function formatExternalCardSection(item) {
+  const parent = String(item.parent || "").replace(/\\/g, "/").trim();
+  if (!parent || parent === ".") return "Корень";
+  return parent;
+}
+
+function formatExternalTableParent(item) {
+  const parent = String(item.parent || "").replace(/\\/g, "/").trim();
+  if (!parent || parent === ".") return "—";
+  return parent;
+}
+
+function formatExternalTablePropDisplay(column, item) {
+  const entries = Array.isArray(item.props) ? item.props : [];
+  const value = getPropsEntryValueByKey(entries, column.key);
+  if (!value) return "—";
+  if (column.typeId === "awn.boolean") {
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "true" || normalized === "да") return "Да";
+    if (normalized === "false" || normalized === "нет") return "Нет";
+  }
+  return value;
+}
+
+function appendExternalTableSchemaCell(row, column, item) {
+  const cell = document.createElement("td");
+
+  if (column.key === "awn-preview") {
+    cell.className = "external-table-cover-cell";
+    if (item.hasPreview && item.previewUrl) {
+      const img = document.createElement("img");
+      img.className = "external-table-cover-thumb";
+      img.alt = "";
+      img.loading = "lazy";
+      img.draggable = false;
+      img.src = appendCacheBuster(appendAgentToApiUrl(item.previewUrl));
+      cell.appendChild(img);
+    } else {
+      cell.textContent = "—";
+    }
+    row.appendChild(cell);
+    return;
+  }
+
+  if (column.typeId === "awn.color") {
+    cell.className = "external-table-color-cell";
+    const raw = formatExternalTablePropDisplay(column, item);
+    if (raw && raw !== "—") {
+      const swatch = document.createElement("span");
+      swatch.className = "external-table-color-swatch";
+      swatch.style.backgroundColor = raw;
+      swatch.setAttribute("aria-hidden", "true");
+      cell.appendChild(swatch);
+      cell.append(document.createTextNode(raw));
+    } else {
+      cell.textContent = "—";
+    }
+    row.appendChild(cell);
+    return;
+  }
+
+  cell.textContent = formatExternalTablePropDisplay(column, item);
+  row.appendChild(cell);
+}
+
+function renderExternalTableView(container, mdItems) {
+  const columns = getExternalTableSchemaColumns();
+  const wrap = document.createElement("div");
+  wrap.className = "external-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "external-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const column of columns) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.className = "external-table-sort-header";
+    const active = externalListSort.key === column.key;
+    th.classList.toggle("is-active", active);
+    th.textContent = active
+      ? `${column.label} ${externalListSort.dir === "asc" ? "↑" : "↓"}`
+      : column.label;
+    const activateSort = () => {
+      if (externalListSort.key === column.key) {
+        externalListSort.dir = externalListSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        externalListSort.key = column.key;
+        externalListSort.dir = "asc";
+      }
+      syncExternalListToolbarFromState();
+      rerenderExternalListViewBody();
+    };
+    th.addEventListener("click", activateSort);
+    th.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activateSort();
+      }
+    });
+    th.tabIndex = 0;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const item of mdItems) {
+    const row = document.createElement("tr");
+    row.tabIndex = 0;
+    row.addEventListener("click", () => openExternalFile(item.path));
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openExternalFile(item.path);
+      }
+    });
+
+    for (const column of columns) {
+      appendExternalTableSchemaCell(row, column, item);
+    }
+
+    tbody.appendChild(row);
+  }
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+}
+
+function getExternalCardStatusClass(status) {
+  const raw = String(status || "").trim().toLowerCase();
+  if (raw.includes("🔴") || raw.includes("закрыт")) return "external-card-status--closed";
+  if (raw.includes("🟡") || raw.includes("черновик")) return "external-card-status--draft";
+  if (raw.includes("🟢") || raw.includes("открыт")) return "external-card-status--open";
+  return "external-card-status--default";
+}
+
+function appendExternalCardStatusBadge(cover, status) {
+  const label = String(status || "").trim();
+  if (!label) return;
+  const badge = document.createElement("span");
+  badge.className = `external-card-status ${getExternalCardStatusClass(label)}`;
+  badge.textContent = label;
+  cover.appendChild(badge);
+}
+
+function createExternalCard(item) {
+  const card = document.createElement("article");
+  card.className = "external-card";
+
+  const cover = document.createElement("div");
+  cover.className = "external-card-image";
+  if (item.hasPreview && item.previewUrl) {
+    const img = document.createElement("img");
+    img.className = "external-card-cover-img";
+    img.alt = "";
+    img.loading = "lazy";
+    img.draggable = false;
+    img.src = appendCacheBuster(appendAgentToApiUrl(item.previewUrl));
+    cover.appendChild(img);
+  } else {
+    const icon = createNodeCoverIconElement(getActiveNodeApiPath());
+    icon.classList.add("external-card-cover-icon");
+    cover.appendChild(icon);
+  }
+  appendExternalCardStatusBadge(cover, item.status);
+
+  const body = document.createElement("div");
+  body.className = "external-card-body";
+
+  const titleNode = document.createElement("div");
+  titleNode.className = "list-item-path external-card-file-name";
+  titleNode.textContent = getExternalCardFileName(item);
+
+  const sectionNode = document.createElement("div");
+  sectionNode.className = "external-card-path";
+  sectionNode.textContent = formatExternalCardSection(item);
+
+  body.append(titleNode, sectionNode);
+  card.append(cover, body);
+  card.style.cursor = "pointer";
+  card.addEventListener("click", () => openExternalFile(item.path));
+  return card;
 }
 
 function filterExternalMdItems(items, sectionFolder) {
@@ -9694,9 +10157,19 @@ function mountExternalListViewLayout(root) {
   treeHost.setAttribute("aria-label", "Разделы многофайловой памяти");
   split.appendChild(treeHost);
 
+  const main = document.createElement("div");
+  main.className = "external-list-view-main media-list-view-main";
+
+  const sectionHead = document.createElement("div");
+  sectionHead.className = "external-list-section-head hidden";
+  main.appendChild(sectionHead);
+
+  main.append(createExternalListToolbar());
+
   const body = document.createElement("div");
   body.className = "media-list-view-body external-list-view-body";
-  split.appendChild(body);
+  main.appendChild(body);
+  split.appendChild(main);
 
   wrap.appendChild(split);
   root.appendChild(wrap);
@@ -9712,6 +10185,7 @@ function ensureExternalListViewLayout() {
     mountExternalListViewLayout(listViewContentNode);
     wrap = listViewContentNode.querySelector(".external-list-view-wrap");
   }
+  ensureExternalListToolbar(wrap);
   renderExternalSectionTree(wrap.querySelector(".external-section-tree"));
   syncStorageSectionsPanelUi();
   return wrap.querySelector(".external-list-view-body");
@@ -9734,17 +10208,14 @@ function renderExternalSectionFolderView(container, sectionFolder, items) {
   const readmeExists = externalSectionReadmeExists(sectionFolder);
 
   if (childSections.length === 0 && contentItems.length === 0 && !readmeExists) {
-    renderListEmptyMessage(container, `В разделе «${sectionFolder}» пока нет элементов`);
+    renderListEmptyMessage(
+      container,
+      externalListFilterQuery.trim()
+        ? "Ничего не найдено по фильтру"
+        : `В разделе «${sectionFolder}» пока нет элементов`
+    );
     return;
   }
-
-  const head = document.createElement("div");
-  head.className = "media-section-folder-head";
-  const title = document.createElement("h4");
-  title.className = "media-section-folder-title";
-  title.textContent = `📁 ${sectionFolder}`;
-  head.appendChild(title);
-  container.appendChild(head);
 
   appendSectionReadmeCard(container, sectionFolder, {
     exists: readmeExists,
@@ -9771,80 +10242,27 @@ function renderExternalSectionFolderView(container, sectionFolder, items) {
 
   if (contentItems.length > 0) {
     renderExternalViewContent(container, contentItems);
+    return;
+  }
+
+  if (externalListFilterQuery.trim()) {
+    renderListEmptyMessage(container, "Ничего не найдено по фильтру");
   }
 }
 
 function renderExternalViewContent(container, mdItems) {
   const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
-  function buildMockMeta(pathValue, index) {
-    const fileName = pathValue.split("/").pop() || pathValue;
-    const pathParts = pathValue.split("/").filter(Boolean);
-    const title = fileName.replace(/\.md$/i, "");
-    const baseDay = (index % 26) + 1;
-    const created = `2026-05-${String(baseDay).padStart(2, "0")}`;
-    const updated = `2026-06-${String(((baseDay + 5) % 28) + 1).padStart(2, "0")}`;
-    const done = index % 3 === 0 ? "Да" : "Нет";
-    const cover = "Есть";
-    const tags = index % 2 === 0 ? "agent, note" : "task, draft";
-    const parent = pathParts.length > 1 ? pathParts[pathParts.length - 2] : getAgentTreeTitle();
-    return { title, created, updated, done, cover, tags, parent };
-  }
-
-  function formatExternalItemSection(item) {
-    const parent = String(item.parent || "").replace(/\\/g, "/").trim();
-    if (!parent || parent === ".") return "Корень";
-    return parent;
-  }
-
   if (mdItems.length === 0) {
-    renderListEmptyMessage(container, "Markdown-файлы не найдены");
+    renderListEmptyMessage(
+      container,
+      externalListFilterQuery.trim() ? "Ничего не найдено по фильтру" : "Markdown-файлы не найдены"
+    );
     return;
   }
 
   if (externalViewMode === "table") {
-    const table = document.createElement("table");
-    table.className = "external-table";
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th>Раздел</th>
-          <th>Файл</th>
-          <th>Заголовок</th>
-          <th>Создан</th>
-          <th>Обновлен</th>
-          <th>Выполнен</th>
-          <th>Обложка</th>
-          <th>Тэги</th>
-          <th>Родитель</th>
-          <th>Путь</th>
-        </tr>
-      </thead>
-    `;
-    const tbody = document.createElement("tbody");
-    for (const [index, item] of mdItems.entries()) {
-      const tr = document.createElement("tr");
-      const meta = buildMockMeta(item.path, index);
-      const created = item.createdAt ? item.createdAt.slice(0, 10) : meta.created;
-      const updated = item.updatedAt ? item.updatedAt.slice(0, 10) : meta.updated;
-      tr.innerHTML = `
-        <td>${escapeHtml(formatExternalItemSection(item))}</td>
-        <td>${escapeHtml(item.title)}</td>
-        <td>${escapeHtml(item.title)}</td>
-        <td>${escapeHtml(created)}</td>
-        <td>${escapeHtml(updated)}</td>
-        <td>${escapeHtml(meta.done)}</td>
-        <td>${escapeHtml(meta.cover)}</td>
-        <td>${escapeHtml(meta.tags)}</td>
-        <td>${escapeHtml(item.parent || meta.parent)}</td>
-        <td>${escapeHtml(item.path)}</td>
-      `;
-      tr.style.cursor = "pointer";
-      tr.addEventListener("click", () => openExternalFile(item.path));
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    container.appendChild(table);
+    renderExternalTableView(container, mdItems);
     return;
   }
 
@@ -9852,19 +10270,7 @@ function renderExternalViewContent(container, mdItems) {
     const grid = document.createElement("div");
     grid.className = "external-cards-grid";
     for (const item of mdItems) {
-      const card = document.createElement("article");
-      card.className = "external-card";
-      const fileName = item.path.split("/").pop() || item.path;
-      card.innerHTML = `
-        <div class="external-card-image">Фото (рыба)</div>
-        <div class="external-card-body">
-          <div class="list-item-path">${escapeHtml(fileName)}</div>
-          <div class="list-item-path">${escapeHtml(item.path)}</div>
-        </div>
-      `;
-      card.style.cursor = "pointer";
-      card.addEventListener("click", () => openExternalFile(item.path));
-      grid.appendChild(card);
+      grid.appendChild(createExternalCard(item));
     }
     container.appendChild(grid);
     return;
@@ -10026,17 +10432,27 @@ function renderExternalListViewBody(container) {
 
   const allItems = getExternalMdItems();
   if (allItems.length === 0 && getExternalUserSections().length === 0) {
+    syncExternalListSectionHead(null);
+    syncExternalListToolbarMeta(0, 0);
     renderListEmptyMessage(container, "Markdown-файлы не найдены");
     return;
   }
 
   if (isStorageSectionsPanelVisible() && activeExternalSectionFolder) {
-    const items = filterExternalMdItems(allItems, activeExternalSectionFolder);
-    renderExternalSectionFolderView(container, activeExternalSectionFolder, items);
+    const sectionItems = filterExternalMdItems(allItems, activeExternalSectionFolder);
+    const preparedItems = prepareExternalListItems(sectionItems);
+    syncExternalListSectionHead(activeExternalSectionFolder);
+    syncExternalListToolbarMeta(preparedItems.length, sectionItems.length);
+    syncExternalListToolbarFromState();
+    renderExternalSectionFolderView(container, activeExternalSectionFolder, preparedItems);
     return;
   }
 
-  renderExternalViewContent(container, allItems);
+  syncExternalListSectionHead(null);
+  const preparedItems = prepareExternalListItems(allItems);
+  syncExternalListToolbarMeta(preparedItems.length, allItems.length);
+  syncExternalListToolbarFromState();
+  renderExternalViewContent(container, preparedItems);
 }
 
 function getFlatStorageSectionTreeLabel(mode) {
@@ -10766,6 +11182,7 @@ function renderMediaSectionFolderView(container, sectionFolder) {
 
   appendSectionReadmeCard(container, sectionFolder, {
     exists: readmeExists,
+    categoryType: "awn.media.category",
     onEdit: (readmePath) => void openMediaSectionReadme(readmePath, sectionFolder)
   });
 
@@ -11489,7 +11906,12 @@ function renderListViewContent() {
   if (isExternalListView) {
     listTarget = ensureExternalListViewLayout();
     listTarget.innerHTML = "";
-    renderExternalListViewBody(listTarget);
+    void ensureExternalListSchemaReady().then(() => {
+      if (activeContentMode !== "external" || isExternalFileEditing()) return;
+      const body = listViewContentNode.querySelector(".external-list-view-body");
+      if (!body || body !== listTarget) return;
+      renderExternalListViewBody(listTarget);
+    });
     return;
   }
   if (isFlatStorageSectionListView) {
@@ -11763,6 +12185,8 @@ async function refreshExternalMemoryCaches() {
     throw new Error(`Request failed with ${filesResponse.status}`);
   }
 
+  await ensureExternalListSchemaReady();
+
   if (listingResponse.ok) {
     const listingData = await listingResponse.json();
     modeContentCache.external =
@@ -11945,6 +12369,9 @@ async function loadAwnTypes(agentId = activeAgentId) {
     const response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     awnTypesCache = await response.json();
+    for (const cache of topicSchemaCacheByManifest.values()) {
+      enrichTopicSchemaCacheFromTypes(cache);
+    }
     if (getDocAsideTab() === "blocks") renderDocContentBlocks();
     return awnTypesCache;
   } catch {
@@ -11982,8 +12409,69 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
 const TOPIC_SCHEMA_TARGETS = [
   { id: "topic", label: "Тема" },
   { id: "record", label: "Записи" },
+  { id: "record_category", label: "Категория записи" },
+  { id: "media_category", label: "Категория медиа" },
   { id: "sidecar", label: "Sidecar" }
 ];
+
+const AWN_SCHEMA_TARGET_TYPE_NAMES = {
+  topic: "awn.topic",
+  record: "awn.record",
+  record_category: "awn.record.category",
+  media_category: "awn.media.category",
+  sidecar: "awn.sidecar"
+};
+
+function getTopicSchemaTargetLabel(targetId) {
+  const typeName = AWN_SCHEMA_TARGET_TYPE_NAMES[targetId];
+  const typeDef = typeName ? awnTypesCache?.types?.[typeName] : null;
+  if (typeDef?.name) return typeDef.name;
+  return TOPIC_SCHEMA_TARGETS.find((item) => item.id === targetId)?.label || targetId;
+}
+
+function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
+  const fromCache = cache?.baseTypes?.[target];
+  if (fromCache?.fields && Object.keys(fromCache.fields).length) return fromCache;
+
+  const typeName = AWN_SCHEMA_TARGET_TYPE_NAMES[target];
+  const typeDef = typeName ? awnTypesCache?.types?.[typeName] : null;
+  if (!typeDef?.fields) return fromCache || null;
+
+  return {
+    name: typeName,
+    kind: typeDef.kind || "type",
+    fields: { ...typeDef.fields }
+  };
+}
+
+function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
+  const fromCache = cache?.merged?.[target];
+  const customFields = cache?.awnSchema?.[target]?.fields || {};
+  if (fromCache?.fields && Object.keys(fromCache.fields).length) {
+    return fromCache;
+  }
+
+  const base = resolveTopicSchemaBaseType(target, cache);
+  if (!base) return fromCache || null;
+
+  return {
+    ...base,
+    fields: { ...base.fields, ...customFields }
+  };
+}
+
+function enrichTopicSchemaCacheFromTypes(cache) {
+  if (!cache || !awnTypesCache?.types) return cache;
+  cache.baseTypes = { ...(cache.baseTypes || {}) };
+  cache.merged = { ...(cache.merged || {}) };
+  for (const { id } of TOPIC_SCHEMA_TARGETS) {
+    const base = resolveTopicSchemaBaseType(id, cache);
+    if (base) cache.baseTypes[id] = base;
+    const merged = resolveTopicSchemaMergedType(id, cache);
+    if (merged) cache.merged[id] = merged;
+  }
+  return cache;
+}
 
 const topicSchemaCacheByManifest = new Map();
 let topicSchemaActiveTarget = "topic";
@@ -12017,6 +12505,8 @@ function emptyTopicSchemaState() {
   return {
     topic: { fields: {} },
     record: { fields: {} },
+    record_category: { fields: {} },
+    media_category: { fields: {} },
     sidecar: { fields: {} }
   };
 }
@@ -12454,11 +12944,16 @@ function isTopicSchemaModeAvailable(nodePath = getResolvedNodePath(activePath)) 
   return Boolean(getTopicSchemaManifestPath(nodePath));
 }
 
-function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
-  const typeName = resolveAwnTypeForContext(nodePath);
+function resolveAwnSchemaTargetForType(typeName) {
   if (typeName === "awn.sidecar") return "sidecar";
+  if (typeName === "awn.record.category") return "record_category";
+  if (typeName === "awn.media.category") return "media_category";
   if (typeName === "awn.record") return "record";
   return "topic";
+}
+
+function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
+  return resolveAwnSchemaTargetForType(resolveAwnTypeForContext(nodePath));
 }
 
 function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath()) {
@@ -12498,6 +12993,7 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     merged: data.merged || {},
     fieldRegistry
   };
+  enrichTopicSchemaCacheFromTypes(payload);
   topicSchemaCacheByManifest.set(manifestPath, payload);
   return payload;
 }
@@ -12580,7 +13076,7 @@ function renameTopicSchemaField(target, oldKey, newKey) {
 function renderTopicSchemaTargetTabs() {
   if (!topicSchemaTargetTabsNode) return;
   topicSchemaTargetTabsNode.replaceChildren(
-    ...TOPIC_SCHEMA_TARGETS.map(({ id, label }) => {
+    ...TOPIC_SCHEMA_TARGETS.map(({ id }) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "topic-schema-target-tab";
@@ -12588,7 +13084,9 @@ function renderTopicSchemaTargetTabs() {
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
       btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
-      btn.textContent = label;
+      const typeName = AWN_SCHEMA_TARGET_TYPE_NAMES[id];
+      btn.textContent = getTopicSchemaTargetLabel(id);
+      if (typeName) btn.title = typeName;
       return btn;
     })
   );
@@ -12596,7 +13094,16 @@ function renderTopicSchemaTargetTabs() {
 
 function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
   if (!topicSchemaBaseFieldsNode) return;
-  const base = cache?.baseTypes?.[topicSchemaActiveTarget];
+  const target = topicSchemaActiveTarget;
+  const base = resolveTopicSchemaBaseType(target, cache);
+  const titleNode = topicSchemaPanelNode?.querySelector(".topic-schema-base-title");
+  const typeName = AWN_SCHEMA_TARGET_TYPE_NAMES[target];
+  if (titleNode) {
+    const label = getTopicSchemaTargetLabel(target);
+    titleNode.textContent = typeName
+      ? `Базовые поля · ${label} (${typeName})`
+      : "Базовые поля (read-only)";
+  }
   if (!base?.fields) {
     topicSchemaBaseFieldsNode.textContent = "—";
     return;
@@ -12858,6 +13365,7 @@ async function saveTopicSchemaContent() {
   cache.awnSchema = normalizeTopicSchemaState(data.awnSchema);
   cache.baseTypes = data.baseTypes || cache.baseTypes;
   cache.merged = data.merged || cache.merged;
+  enrichTopicSchemaCacheFromTypes(cache);
   cache.configExists = Boolean(data.exists);
   cache.configPath = data.configPath || cache.configPath;
   if (typeof data.content === "string") {
@@ -12913,6 +13421,9 @@ function sortPropsEntries(entries) {
 
 function isRecordCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
+  if (normalized.toLowerCase().endsWith("/_reginfo.md") && /\/Content\//i.test(normalized)) {
+    return true;
+  }
   return (
     /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized) ||
     /\/Content\/Categories\/[^/]+\.md$/i.test(normalized)
@@ -12921,8 +13432,9 @@ function isRecordCategoryContentPath(nodePath) {
 
 function isMediaCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const lower = normalized.toLowerCase();
-  if (lower.endsWith(".sidecar.md")) return false;
+  if (normalized.toLowerCase().endsWith("/_reginfo.md") && /\/Assets\//i.test(normalized)) {
+    return true;
+  }
   return (
     /\/Assets\/Categories\/[^/]+\.md$/i.test(normalized) ||
     /\/_s\.MediaCategories\/Content\/[^/]+\.md$/i.test(normalized)
@@ -12962,6 +13474,12 @@ function resolveAwnTypeForContext(nodePath = activePath) {
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
   if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
   if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
+  if (activeContentMode === "media" && activeMediaMarkdownPath && isSectionReadmePath(activeMediaMarkdownPath)) {
+    return "awn.media.category";
+  }
+  if (activeContentMode === "external" && activeExternalFilePath && isSectionReadmePath(activeExternalFilePath)) {
+    return "awn.record.category";
+  }
   if (/\/Content\//i.test(normalized)) return "awn.record";
   if (activeContentMode === "external" && activeExternalFilePath) {
     return "awn.record";
@@ -12984,8 +13502,10 @@ function getActiveAwnTypeDef(typeName = null) {
     return { name: resolvedType, ...baseTypeDef };
   }
 
-  const target = resolveAwnSchemaTargetForContext();
-  const merged = cache.merged[target];
+  const target = typeName
+    ? resolveAwnSchemaTargetForType(resolvedType)
+    : resolveAwnSchemaTargetForContext();
+  const merged = resolveTopicSchemaMergedType(target, cache);
   if (merged?.fields) {
     return {
       name: merged.name || resolvedType,
@@ -12994,6 +13514,69 @@ function getActiveAwnTypeDef(typeName = null) {
     };
   }
   return { name: resolvedType, ...baseTypeDef };
+}
+
+function getExternalRecordTypeDef() {
+  const baseTypeDef = awnTypesCache?.types?.["awn.record"];
+  const cache = getTopicSchemaCache();
+  const merged = cache?.merged?.record;
+  if (merged?.fields) {
+    return {
+      name: merged.name || "awn.record",
+      kind: merged.kind || baseTypeDef?.kind || "type",
+      fields: merged.fields
+    };
+  }
+  if (baseTypeDef) return { name: "awn.record", ...baseTypeDef };
+  return null;
+}
+
+function getExternalTableSchemaColumns() {
+  const typeDef = getExternalRecordTypeDef();
+  const standardKeys = getStandardPropsFieldKeys();
+  if (!typeDef?.fields) {
+    return standardKeys
+      .filter((key) => !HIDDEN_PROPS_FIELD_KEYS.has(key))
+      .map((key) => ({
+        key,
+        label: getPropsFieldMeta(key).label,
+        fieldDef: null,
+        typeId: null
+      }));
+  }
+
+  const columns = [];
+  const seen = new Set();
+  const orderedKeys = [
+    ...standardKeys,
+    ...getTypeSchemaFieldKeys(typeDef).filter((key) => !standardKeys.includes(key))
+  ];
+
+  for (const key of orderedKeys) {
+    if (seen.has(key) || HIDDEN_PROPS_FIELD_KEYS.has(key)) continue;
+    const fieldDef = typeDef.fields[key];
+    if (!fieldDef && !standardKeys.includes(key)) continue;
+    seen.add(key);
+    columns.push({
+      key,
+      label: fieldDef?.title || getPropsFieldMeta(key).label || key,
+      fieldDef: fieldDef || null,
+      typeId: fieldDef ? resolveFieldTypeId(fieldDef.type || "awn.string") : null
+    });
+  }
+
+  return columns;
+}
+
+function getExternalListSortOptions() {
+  const seen = new Set(["path"]);
+  const options = [{ key: "path", label: "Путь" }];
+  for (const column of getExternalTableSchemaColumns()) {
+    if (seen.has(column.key) || column.key === "awn-preview") continue;
+    seen.add(column.key);
+    options.push({ key: column.key, label: column.label });
+  }
+  return options.length > 1 ? options : EXTERNAL_LIST_SORT_OPTIONS;
 }
 
 const AWN_TYPE_USAGE_HINTS = {
@@ -15727,7 +16310,7 @@ async function ensureMediaSectionReadme(readmePath, sectionFolder) {
     body: JSON.stringify({
       path: getActiveNodeApiPath(),
       file: readmePath,
-      content: buildSectionReadmeContent(sectionLabel)
+      content: buildSectionReadmeContent(sectionLabel, "awn.media.category")
     })
   });
   if (!response.ok) {
@@ -15769,7 +16352,7 @@ async function ensureFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
       path: getActiveNodeApiPath(),
       folder: getFlatStorageSectionFolderName(mode),
       file: readmePath,
-      content: buildSectionReadmeContent(sectionLabel)
+      content: buildSectionReadmeContent(sectionLabel, null)
     })
   });
   if (!response.ok) {

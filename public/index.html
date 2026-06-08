@@ -1097,6 +1097,7 @@
                   <option value="table">Таблица</option>
                   <option value="list">Список</option>
                   <option value="cards">Карточки</option>
+                  <option value="kanban" disabled>Канбан</option>
                   <option value="calendar">Календарь</option>
                   <option value="index">Index</option>
                   <option value="moc">Moc</option>
@@ -1292,10 +1293,12 @@
                   <p id="topic-schema-base-fields" class="topic-schema-base-fields"></p>
                 </section>
                 <div id="topic-schema-fields" class="topic-schema-fields"></div>
-                <p id="topic-schema-empty" class="topic-schema-empty hidden">Дополнительных полей пока нет — добавьте поле кнопкой ниже.</p>
-                <footer class="topic-schema-footer">
-                  <button id="topic-schema-add-btn" class="topic-schema-add-btn" type="button">+ Поле</button>
-                </footer>
+                <div class="topic-schema-add-area">
+                  <p id="topic-schema-empty" class="topic-schema-empty hidden">Дополнительных полей пока нет — добавьте поле кнопкой ниже.</p>
+                  <footer class="topic-schema-footer">
+                    <button id="topic-schema-add-btn" class="topic-schema-add-btn" type="button">+ Поле</button>
+                  </footer>
+                </div>
               </section>
               <div class="editor-surface">
                 <div id="editor-code-wrap" class="editor-code-wrap">

@@ -773,6 +773,100 @@ function getYamlScalar(frontmatter, key) {
   return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
+function normalizeFrontmatterPropKey(key) {
+  return String(key || "").trim();
+}
+
+function parseFrontmatterProps(frontmatter) {
+  const lines = String(frontmatter || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+  const entries = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim() || line.trim().startsWith("#")) {
+      index += 1;
+      continue;
+    }
+
+    const match = line.match(/^(\s*)([^:]+):\s*(.*)$/);
+    if (!match || match[1].length > 0) {
+      index += 1;
+      continue;
+    }
+
+    const key = normalizeFrontmatterPropKey(match[2].trim());
+    const rest = match[3];
+
+    if (rest === "" || rest === "|" || rest === ">") {
+      const items = [];
+      index += 1;
+      while (index < lines.length && /^\s+-\s?/.test(lines[index])) {
+        items.push(lines[index].replace(/^\s+-\s?/, "").trim().replace(/^["']|["']$/g, ""));
+        index += 1;
+      }
+      if (items.length) {
+        entries.push({ key, kind: "array", value: items });
+        continue;
+      }
+      entries.push({ key, kind: "string", value: "" });
+      continue;
+    }
+
+    if (rest.startsWith("[") && rest.endsWith("]")) {
+      const inner = rest.slice(1, -1).trim();
+      const value = inner
+        ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
+        : [];
+      entries.push({ key, kind: "array", value });
+      index += 1;
+      continue;
+    }
+
+    if (rest === "true" || rest === "false") {
+      entries.push({ key, kind: "bool", value: rest === "true" });
+      index += 1;
+      continue;
+    }
+
+    if (rest === "null" || rest === "~") {
+      entries.push({ key, kind: "null", value: null });
+      index += 1;
+      continue;
+    }
+
+    if (/^-?\d+(?:\.\d+)?$/.test(rest)) {
+      entries.push({ key, kind: "number", value: Number(rest) });
+      index += 1;
+      continue;
+    }
+
+    if (
+      (rest.startsWith('"') && rest.endsWith('"')) ||
+      (rest.startsWith("'") && rest.endsWith("'"))
+    ) {
+      entries.push({ key, kind: "string", value: rest.slice(1, -1) });
+      index += 1;
+      continue;
+    }
+
+    entries.push({ key, kind: "string", value: rest });
+    index += 1;
+  }
+
+  return entries;
+}
+
+function getFrontmatterPropValue(entries, key) {
+  const normalizedKey = normalizeFrontmatterPropKey(key);
+  const entry = entries.find((item) => normalizeFrontmatterPropKey(item.key) === normalizedKey);
+  if (!entry) return "";
+  if (entry.kind === "array") return (entry.value || []).join(", ");
+  if (entry.kind === "bool") return entry.value ? "true" : "false";
+  if (entry.kind === "null") return "";
+  return String(entry.value ?? "").trim();
+}
+
 function isEmptyAwnTimestampValue(value) {
   const raw = String(value ?? "").trim();
   return !raw || raw === '""' || raw === "''" || raw === "~" || raw === "null";
@@ -1275,6 +1369,44 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
   return files;
 }
 
+async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, fileEntry) {
+  const fileAbsolute = path.join(folderAbsolute, fileEntry.relativePath);
+  try {
+    const raw = await fs.readFile(fileAbsolute, "utf-8");
+    const { frontmatter } = splitNodeFrontmatter(raw);
+    const props = parseFrontmatterProps(frontmatter);
+    const previewRaw = getFrontmatterPropValue(props, "awn-preview") || getYamlScalar(frontmatter, "awn-preview");
+    const previewMeta = await resolveAwnPreviewFieldMeta(manifestRelPath, previewRaw);
+    const title =
+      getFrontmatterPropValue(props, "title") ||
+      getFrontmatterPropValue(props, "awn-name") ||
+      getYamlScalar(frontmatter, "title") ||
+      getYamlScalar(frontmatter, "awn-name") ||
+      fileEntry.name.replace(/\.md$/i, "");
+    return {
+      ...fileEntry,
+      title,
+      props,
+      status: getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null,
+      tags: getFrontmatterPropValue(props, "awn-tags") || getYamlScalar(frontmatter, "awn-tags") || null,
+      hasPreview: Boolean(previewMeta.hasPreview),
+      previewUrl: previewMeta.previewUrl || null,
+      previewFile: previewMeta.previewFile || null
+    };
+  } catch {
+    return {
+      ...fileEntry,
+      title: fileEntry.name.replace(/\.md$/i, ""),
+      props: [],
+      status: null,
+      tags: null,
+      hasPreview: false,
+      previewUrl: null,
+      previewFile: null
+    };
+  }
+}
+
 function normalizeRelativeFilePath(input) {
   const normalized = path.normalize(String(input || "")).replace(/^(\.\.[\/\\])+/, "");
   if (!normalized || normalized.startsWith("..") || path.isAbsolute(normalized)) return null;
@@ -1456,17 +1588,23 @@ async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options 
   }
 }
 
-function buildStorageSectionReadmeContent(title) {
+function buildStorageSectionReadmeContent(title, awnType = "awn.record.category") {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
-  return `---\ntitle: ${safeTitle}\n---\n\n# ${safeTitle}\n\n> Описание раздела.\n`;
+  const quotedTitle = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeTitle)
+    ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+    : safeTitle;
+  if (!awnType) {
+    return `---\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+  }
+  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
-async function writeStorageSectionReadme(sectionAbsolute, title) {
+async function writeStorageSectionReadme(sectionAbsolute, title, awnType = "awn.record.category") {
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
   try {
     await fs.access(readmeAbsolute);
   } catch {
-    await fs.writeFile(readmeAbsolute, buildStorageSectionReadmeContent(title), "utf-8");
+    await fs.writeFile(readmeAbsolute, buildStorageSectionReadmeContent(title, awnType), "utf-8");
   }
 }
 
@@ -5677,7 +5815,10 @@ async function handleApiForAgent(req, res, url) {
       const stat = await fs.stat(folderAbsolute);
       if (!stat.isDirectory()) return sendJson(res, 200, { exists: false, files: [] });
       const files = await collectMarkdownFiles(folderAbsolute);
-      return sendJson(res, 200, { exists: true, files });
+      const enrichedFiles = await Promise.all(
+        files.map((file) => enrichExternalMarkdownFilePreview(relPath, folderAbsolute, file))
+      );
+      return sendJson(res, 200, { exists: true, files: enrichedFiles });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [] });
       return sendJson(res, 500, { error: "Failed to read external files", details: String(error.message || error) });
@@ -5824,7 +5965,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title);
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.record.category");
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -5873,7 +6014,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title);
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.media.category");
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -5933,7 +6074,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title);
+      await writeStorageSectionReadme(sectionAbsolute, title, null);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
