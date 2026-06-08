@@ -1,0 +1,29 @@
+awn_schema:
+  topic:
+    fields:
+      genreауц:
+        type: awn.color
+        title: Жанацур
+      field_1:
+        type: awn.color
+      field_2:
+        type: awn.number
+        title: ауцау
+      field_3:
+        type: string
+  record:
+    fields:
+      directorпку:
+        type: string
+        title: Режиссёр
+      пку:
+        type: string
+        title: пукпку
+      field_1:
+        type: enum
+      field_2:
+        type: link
+      field_3:
+        type: string
+      field_4:
+        type: string

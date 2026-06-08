@@ -201,6 +201,7 @@ const {
   createSystemServiceDocSync,
   findServiceDocScaffold,
   findCatalogScaffold,
+  DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   isAwnDependenciesFileName,
   AWN_AGENT_FILE,
@@ -3048,6 +3049,199 @@ function extractCategoryFromProps(content, nodeRelPath) {
   return inferCategoryFromNodePath(nodeRelPath);
 }
 
+function getServiceCatalogManifestRel(preset) {
+  const scaffold = findCatalogScaffold(preset);
+  if (!scaffold) return null;
+  return path.posix.join(DEFAULT_SERVICE_CATALOG_FOLDER, toTopicFileName(scaffold.fileName));
+}
+
+function parseMarkdownTableBody(body) {
+  const lines = String(body || "").split("\n");
+  let headers = null;
+  const rows = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) continue;
+    const cells = trimmed
+      .split("|")
+      .map((cell) => cell.trim())
+      .filter((cell, index, all) => index > 0 && index < all.length - 1);
+    if (!cells.length) continue;
+    const isSeparator = cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+    if (isSeparator) continue;
+    if (!headers) {
+      headers = cells.map((cell) => cell.toLowerCase());
+      continue;
+    }
+    rows.push(cells);
+  }
+  return { headers, rows };
+}
+
+function parseCategoryTableItems(body) {
+  const { headers, rows } = parseMarkdownTableBody(body);
+  if (!headers?.length) return [];
+  const idIdx = headers.findIndex((h) => ["id", "slug", "код", "code"].includes(h));
+  const labelIdx = headers.findIndex((h) => ["label", "name", "title", "название"].includes(h));
+  const colorIdx = headers.findIndex((h) => h === "color" || h === "цвет");
+  return rows
+    .map((cells) => {
+      const id = String(cells[idIdx >= 0 ? idIdx : 0] || "").trim();
+      const label = String(cells[labelIdx >= 0 ? labelIdx : 1] || id).trim();
+      const color = colorIdx >= 0 ? String(cells[colorIdx] || "").trim() : "";
+      if (!id) return null;
+      return { id, label, color: color || null };
+    })
+    .filter(Boolean);
+}
+
+function parseTagsBodyItems(body) {
+  const tags = new Set();
+  for (const line of String(body || "").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("# ")) continue;
+    if (trimmed.startsWith("#")) {
+      trimmed
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter((part) => part.startsWith("#") && part.length > 1)
+        .forEach((part) => tags.add(part.replace(/^#+/, "")));
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+#?([^\s#]+)/);
+    if (bullet) tags.add(bullet[1].trim());
+  }
+  return [...tags]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((id) => ({ id, label: `#${id}` }));
+}
+
+async function readServiceCatalogFileBody(serviceAbsolute, manifestRel, bundleFileName = BUNDLE_CONTENT_FILE) {
+  const contentRel = path.posix.join(namedStorageBundleDirRel(manifestRel), bundleFileName);
+  const contentAbs = path.join(serviceAbsolute, contentRel);
+  try {
+    const raw = await fs.readFile(contentAbs, "utf-8");
+    const { body } = splitNodeFrontmatter(raw);
+    return body;
+  } catch {
+    return "";
+  }
+}
+
+async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
+  const contentDirRel = path.posix.join(namedStorageBundleDirRel(manifestRel), STORAGE_SUBFOLDER_CONTENT);
+  const contentDirAbs = path.join(serviceAbsolute, contentDirRel);
+  const items = [];
+
+  try {
+    const entries = await fs.readdir(contentDirAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      if (entry.name.toLowerCase() === AREA_MANIFEST_FILE.toLowerCase()) continue;
+      const fileRel = path.posix.join(contentDirRel, entry.name);
+      const fileAbs = path.join(serviceAbsolute, fileRel);
+      const raw = await fs.readFile(fileAbs, "utf-8");
+      const { frontmatter } = splitNodeFrontmatter(raw);
+      const baseName = entry.name.replace(/\.md$/i, "");
+      const id = getYamlScalar(frontmatter, "awn-slug") || baseName;
+      const label =
+        getYamlScalar(frontmatter, "title") ||
+        getYamlScalar(frontmatter, "awn-name") ||
+        baseName;
+      const color = getYamlScalar(frontmatter, "awn-color") || null;
+      if (!id) continue;
+      items.push({ id, label, color, path: fileRel });
+    }
+  } catch {
+    // fall back to Content.md table
+  }
+
+  if (items.length) {
+    return items.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  }
+
+  const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
+  return parseCategoryTableItems(body);
+}
+
+async function listTagsCatalogItems(serviceAbsolute, manifestRel) {
+  const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
+  const fromBody = parseTagsBodyItems(body);
+  if (fromBody.length) return fromBody;
+
+  const contentDirRel = path.posix.join(namedStorageBundleDirRel(manifestRel), STORAGE_SUBFOLDER_CONTENT);
+  const contentDirAbs = path.join(serviceAbsolute, contentDirRel);
+  const tags = new Set();
+  try {
+    const entries = await fs.readdir(contentDirAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      const baseName = entry.name.replace(/\.md$/i, "");
+      if (baseName) tags.add(baseName);
+    }
+  } catch {
+    return [];
+  }
+  return [...tags]
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((id) => ({ id, label: `#${id}` }));
+}
+
+async function loadAgentCatalogPreset(serviceAbsolute, preset) {
+  const scaffold = findCatalogScaffold(preset);
+  if (!scaffold) {
+    return { preset, exists: false, title: preset, items: [] };
+  }
+  const manifestRel = getServiceCatalogManifestRel(preset);
+  if (!manifestRel) {
+    return { preset, exists: false, title: scaffold.title, items: [] };
+  }
+  const manifestAbs = path.join(serviceAbsolute, manifestRel);
+  try {
+    await fs.access(manifestAbs);
+  } catch {
+    return { preset, exists: false, title: scaffold.title, manifestRel, items: [] };
+  }
+
+  const items =
+    preset === "categories"
+      ? await listCategoryCatalogItems(serviceAbsolute, manifestRel)
+      : preset === "tags"
+        ? await listTagsCatalogItems(serviceAbsolute, manifestRel)
+        : [];
+
+  return {
+    preset,
+    exists: true,
+    title: scaffold.title,
+    manifestRel,
+    items
+  };
+}
+
+async function getAgentCatalogsPayload() {
+  const serviceFolder = getAgentSystemFolder();
+  if (!serviceFolder) {
+    return {
+      categories: { preset: "categories", exists: false, title: "Категории", items: [] },
+      tags: { preset: "tags", exists: false, title: "Теги", items: [] }
+    };
+  }
+  const serviceAbsolute = await ensureServiceFolderScaffold(getAgentRoot());
+  if (!serviceAbsolute) {
+    return {
+      categories: { preset: "categories", exists: false, title: "Категории", items: [] },
+      tags: { preset: "tags", exists: false, title: "Теги", items: [] }
+    };
+  }
+  const [categories, tags] = await Promise.all([
+    loadAgentCatalogPreset(serviceAbsolute, "categories"),
+    loadAgentCatalogPreset(serviceAbsolute, "tags")
+  ]);
+  return { categories, tags };
+}
+
 async function readNodeMenuMetaForNodeRel(nodeRelPath) {
   try {
     const { frontmatter } = await readNodeFrontmatterContent(nodeRelPath);
@@ -5081,6 +5275,20 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load awn types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/catalogs") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await getAgentCatalogsPayload();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load agent catalogs",
         details: String(error.message || error)
       });
     }

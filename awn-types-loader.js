@@ -18,7 +18,9 @@ const {
 const {
   AREA_MANIFEST_FILE,
   isAreaManifestFileName,
-  isTopicManifestFileName
+  isTopicManifestFileName,
+  isRecordCategoryContentRelPath,
+  isMediaCategoryContentRelPath
 } = require("./manifest-paths");
 
 const TYPE_FILE_RE = YAML_FILE_RE;
@@ -166,6 +168,14 @@ function inferAwnTypeFromPath(relPath, options = {}) {
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
+
+  if (isMediaCategoryContentRelPath(normalized)) {
+    return "awn.media.category";
+  }
+
+  if (isRecordCategoryContentRelPath(normalized)) {
+    return "awn.record.category";
+  }
 
   if (options.contentMode === "external" || /\/Content\//i.test(normalized)) {
     return "awn.record";

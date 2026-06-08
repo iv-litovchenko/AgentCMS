@@ -6,3 +6,4 @@ mdbase: date
 widget: date
 format: YYYY-MM-DD
 description: Дата без времени
+settings: [description, hint, required, locked, format, default]

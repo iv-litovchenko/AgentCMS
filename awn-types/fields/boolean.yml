@@ -5,3 +5,4 @@ storage: bool
 mdbase: boolean
 widget: checkbox
 description: Логическое значение
+settings: [description, hint, required, locked, default]

@@ -5,3 +5,4 @@ storage: "null"
 mdbase: "null"
 widget: nullable-input
 description: Явное отсутствие значения
+settings: [description, hint, locked]

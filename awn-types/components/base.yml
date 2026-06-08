@@ -8,8 +8,8 @@ fields:
     type: awn.enum
     title: Статус
     description: Состояние записи
-    enum: [Открыта, Закрыта]
-    default: Открыта
+    enum: [🟢 Открыта, 🟡 Черновик, 🔴 Закрыта]
+    default: 🟡Черновик
   awn-type:
     type: awn.string
     title: Тип

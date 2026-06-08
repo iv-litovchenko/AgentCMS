@@ -5,3 +5,4 @@ storage: string
 mdbase: string
 widget: input
 description: Короткая строка
+settings: [description, hint, required, locked, format, default]

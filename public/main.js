@@ -703,22 +703,33 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   updateWorkspaceShareLinkButton();
 }
 
+const WORKSPACE_SHARE_ACTIONS_ENABLED = false;
+
 function updateWorkspaceShareLinkButton() {
   const hasAgent = Boolean(activeAgentId && agentsCache.some((agent) => agent.id === activeAgentId));
   const inWorkspace =
     hasAgent &&
     !appRootNode?.classList.contains("home-view") &&
     Boolean(activePath || activeSystemFile);
-  const canNativeShare = typeof navigator.share === "function";
+  const actionsEnabled = WORKSPACE_SHARE_ACTIONS_ENABLED && inWorkspace;
 
   if (workspaceShareLinkBtn) {
     workspaceShareLinkBtn.classList.toggle("hidden", !inWorkspace);
-    workspaceShareLinkBtn.disabled = !inWorkspace;
+    workspaceShareLinkBtn.disabled = !actionsEnabled;
+    workspaceShareLinkBtn.title = actionsEnabled
+      ? "Скопировать ссылку на эту страницу"
+      : "Копировать ссылку (скоро)";
+    workspaceShareLinkBtn.setAttribute(
+      "aria-label",
+      actionsEnabled ? "Копировать ссылку" : "Копировать ссылку (скоро)"
+    );
   }
 
   if (workspaceShareBtn) {
-    workspaceShareBtn.classList.toggle("hidden", !inWorkspace || !canNativeShare);
-    workspaceShareBtn.disabled = !inWorkspace || !canNativeShare;
+    workspaceShareBtn.classList.toggle("hidden", !inWorkspace);
+    workspaceShareBtn.disabled = !actionsEnabled;
+    workspaceShareBtn.title = actionsEnabled ? "Поделиться ссылкой на эту страницу" : "Поделиться (скоро)";
+    workspaceShareBtn.setAttribute("aria-label", actionsEnabled ? "Поделиться" : "Поделиться (скоро)");
   }
 }
 
@@ -2327,7 +2338,7 @@ async function switchActiveAgent(nextAgentId) {
       });
     }
 
-    await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId)]);
+    await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId), loadAgentCatalogs(activeAgentId)]);
 
     if (hasCachedView) {
       renderSystemFiles(systemFilesCache);
@@ -3654,6 +3665,7 @@ let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
 let lastWysiwygMarkdownSelection = null;
+const WYSIWYG_INSERT_MARKER = "awn-block-insert-marker";
 let wysiwygEditorResizeObserver = null;
 let sourceEditorResizeObserver = null;
 let sourceEditorViewportResizeBound = false;
@@ -6018,13 +6030,11 @@ function syncCreateNodeVaultOptionUi() {
 const SERVICE_CATALOG_FOLDER = "Catalog";
 const SERVICE_CATALOG_PRESET_FILES = {
   categories: "Categories",
-  tags: "Tags",
-  schemas: "Schemas"
+  tags: "Tags"
 };
 const SERVICE_CATALOG_PRESET_LABELS = {
   categories: "Категории",
-  tags: "Теги",
-  schemas: "Схемы"
+  tags: "Теги"
 };
 const SERVICE_DOC_PRESET_FILES = {
   agent: "Agent",
@@ -6390,6 +6400,9 @@ function applyContentModeState(mode) {
   }
 
   activeContentMode = mode;
+  if (isFlatStorageListMode(mode)) {
+    activeStorageFolderExists = false;
+  }
   if (mode !== "media") {
     clearMediaSidecarEditor();
     setMediaBulkUploadPanelOpen(false);
@@ -6435,6 +6448,7 @@ function setContentMode(mode) {
 
 async function applyContentModeChange() {
   if (activePath) {
+    applyModeUi();
     await loadContentByMode();
     syncEditorLineNumbers();
   } else {
@@ -6510,6 +6524,7 @@ function isCurrentModeListTemplate() {
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
     activeContentMode === "references" ||
+    activeContentMode === "artefacts" ||
     (activeContentMode === "media" && !mediaSidecarEditing) ||
     activeContentMode === "temp" ||
     activeContentMode === "scripts"
@@ -8730,6 +8745,20 @@ function markdownOffsetToLineCol(markdown, offset) {
   return { line: lastLine, col: lastLen + 1 };
 }
 
+function isWysiwygOffsetSelection(selection) {
+  if (!Array.isArray(selection) || selection.length < 2) return false;
+  return (
+    Number.isFinite(selection[0]) &&
+    Number.isFinite(selection[1]) &&
+    !Array.isArray(selection[0])
+  );
+}
+
+function isMarkdownLineColSelection(selection) {
+  if (!Array.isArray(selection) || selection.length < 2) return false;
+  return Array.isArray(selection[0]) && Array.isArray(selection[1]);
+}
+
 function cloneWysiwygMarkdownSelection(selection) {
   if (!Array.isArray(selection) || selection.length < 2) return null;
   const first = selection[0];
@@ -8753,13 +8782,6 @@ function captureWysiwygMarkdownSelection() {
   if (cloned) lastWysiwygMarkdownSelection = cloned;
 }
 
-function isWysiwygEditorFocused() {
-  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
-  if (!pm) return false;
-  const active = document.activeElement;
-  return active === pm || Boolean(active && pm.contains(active));
-}
-
 function bindWysiwygSelectionCapture() {
   const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
   if (!pm || pm.dataset.awnSelectionBound === "1") return;
@@ -8774,16 +8796,14 @@ function bindWysiwygSelectionCapture() {
 }
 
 function getWysiwygMarkdownSelectionForInsert(editor) {
-  const current = editor.getSelection?.();
-  if (isWysiwygEditorFocused()) {
-    const cloned = cloneWysiwygMarkdownSelection(current);
-    if (cloned) {
-      lastWysiwygMarkdownSelection = cloned;
-      return cloned;
-    }
-  }
   if (lastWysiwygMarkdownSelection) {
     return lastWysiwygMarkdownSelection;
+  }
+  const current = editor.getSelection?.();
+  const cloned = cloneWysiwygMarkdownSelection(current);
+  if (cloned) {
+    lastWysiwygMarkdownSelection = cloned;
+    return cloned;
   }
   return current;
 }
@@ -8791,7 +8811,10 @@ function getWysiwygMarkdownSelectionForInsert(editor) {
 function bindEditorAsideInsertControl(node) {
   if (!node || node.dataset.awnInsertBound === "1") return;
   node.dataset.awnInsertBound = "1";
-  node.addEventListener("mousedown", (event) => event.preventDefault());
+  node.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    captureWysiwygMarkdownSelection();
+  });
 }
 
 function resolveWysiwygMarkdownSelection(markdown, selection) {
@@ -8826,28 +8849,42 @@ function insertMarkdownAtWysiwygCursor(snippet) {
   const text = String(snippet || "");
   if (!text) return false;
 
-  const current = String(editor.getMarkdown() || "");
-  const { start, end } = resolveWysiwygMarkdownSelection(
-    current,
-    getWysiwygMarkdownSelectionForInsert(editor)
-  );
-  const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
-  editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+  const selection = getWysiwygMarkdownSelectionForInsert(editor);
+  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  pm?.focus();
 
-  const cursorOffset = start + text.length;
-  const { line: cursorLine, col: cursorCol } = markdownOffsetToLineCol(next, cursorOffset);
-
-  try {
-    editor.setSelection([[cursorLine, cursorCol], [cursorLine, cursorCol]]);
-    lastWysiwygMarkdownSelection = [
-      [cursorLine, cursorCol],
-      [cursorLine, cursorCol]
-    ];
-  } catch {
-    // Toast UI may reject out-of-range selection after re-parse — safe to ignore.
+  if (isWysiwygOffsetSelection(selection)) {
+    try {
+      editor.setSelection(selection[0], selection[1]);
+    } catch {
+      // Selection may be stale after aside click — marker insert still attempts current range.
+    }
+    editor.insertText(WYSIWYG_INSERT_MARKER);
+    const markdown = String(editor.getMarkdown() || "");
+    const markerIndex = markdown.indexOf(WYSIWYG_INSERT_MARKER);
+    if (markerIndex >= 0) {
+      const next = `${markdown.slice(0, markerIndex)}${text}${markdown.slice(markerIndex + WYSIWYG_INSERT_MARKER.length)}`;
+      editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+      syncSourceFromWysiwygEditor();
+      pm?.focus();
+      return true;
+    }
   }
+
+  if (isMarkdownLineColSelection(selection)) {
+    const current = String(editor.getMarkdown() || "");
+    const { start, end } = resolveWysiwygMarkdownSelection(current, selection);
+    const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+    editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+    syncSourceFromWysiwygEditor();
+    pm?.focus();
+    return true;
+  }
+
+  const current = String(editor.getMarkdown() || "");
+  editor.setMarkdown(normalizeWysiwygImportedMarkdown(`${current}${text}`), false);
   syncSourceFromWysiwygEditor();
-  editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus();
+  pm?.focus();
   return true;
 }
 
@@ -10277,6 +10314,10 @@ function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
 }
 
 function renderFlatStorageAllItemsView(container, mode) {
+  if (!activeStorageFolderExists) {
+    renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
+    return;
+  }
   const items = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null);
   if (items.length === 0 && getFlatStorageUserSections(mode).length === 0) {
     renderListEmptyMessage(container, getStorageFolderEmptyMessage(mode));
@@ -10286,6 +10327,10 @@ function renderFlatStorageAllItemsView(container, mode) {
 }
 
 function renderFlatStorageListViewBody(container, mode) {
+  if (!activeStorageFolderExists) {
+    renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
+    return;
+  }
   pruneActiveFlatStorageSectionFolder(mode);
   renderFlatStorageSectionTree(
     listViewContentNode.querySelector(`.flat-storage-section-tree[data-mode="${mode}"]`),
@@ -11435,6 +11480,11 @@ function renderListViewContent() {
     return;
   }
   if (isFlatStorageSectionListView) {
+    if (!activeStorageFolderExists) {
+      listViewContentNode.innerHTML = "";
+      renderListEmptyMessage(listViewContentNode, getStorageFolderMissingMessage(activeContentMode));
+      return;
+    }
     listTarget = ensureFlatStorageListViewLayout(activeContentMode);
     listTarget.innerHTML = "";
     renderFlatStorageListViewBody(listTarget, activeContentMode);
@@ -11792,15 +11842,17 @@ let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
+let agentCatalogsCache = null;
+let agentCatalogsLoadPromise = null;
 let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
+  "awn-status",
   "awn-type",
   "awn-name",
   "awn-create",
   "awn-update",
   "awn-description",
-  "awn-status",
   "awn-category",
   "awn-tags",
   "awn-version",
@@ -11872,6 +11924,8 @@ const PROPS_FIELD_META = {
 async function loadAwnTypes(agentId = activeAgentId) {
   if (!agentId) {
     awnTypesCache = null;
+    agentCatalogsCache = null;
+    agentCatalogsLoadPromise = null;
     return null;
   }
   try {
@@ -11886,6 +11940,32 @@ async function loadAwnTypes(agentId = activeAgentId) {
   }
 }
 
+async function loadAgentCatalogs(agentId = activeAgentId) {
+  if (!agentId) {
+    agentCatalogsCache = null;
+    agentCatalogsLoadPromise = null;
+    return null;
+  }
+  if (agentCatalogsLoadPromise) return agentCatalogsLoadPromise;
+
+  agentCatalogsLoadPromise = (async () => {
+    try {
+      const response = await fetch(buildApiUrl("/api/agent/catalogs", {}, agentId));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      agentCatalogsCache = await response.json();
+      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
+      return agentCatalogsCache;
+    } catch {
+      agentCatalogsCache = null;
+      return null;
+    } finally {
+      agentCatalogsLoadPromise = null;
+    }
+  })();
+
+  return agentCatalogsLoadPromise;
+}
+
 const TOPIC_SCHEMA_TARGETS = [
   { id: "topic", label: "Тема" },
   { id: "record", label: "Записи" },
@@ -11894,6 +11974,31 @@ const TOPIC_SCHEMA_TARGETS = [
 
 const topicSchemaCacheByManifest = new Map();
 let topicSchemaActiveTarget = "topic";
+const topicSchemaExpandedKeys = new Set();
+
+function getTopicSchemaExpandedKey(target, key) {
+  return `${target}:${key}`;
+}
+
+function isTopicSchemaFieldExpanded(target, key) {
+  return topicSchemaExpandedKeys.has(getTopicSchemaExpandedKey(target, key));
+}
+
+function setTopicSchemaFieldExpanded(target, key, expanded) {
+  const token = getTopicSchemaExpandedKey(target, key);
+  if (expanded) topicSchemaExpandedKeys.add(token);
+  else topicSchemaExpandedKeys.delete(token);
+}
+
+function toggleTopicSchemaFieldExpanded(target, key) {
+  const token = getTopicSchemaExpandedKey(target, key);
+  if (topicSchemaExpandedKeys.has(token)) {
+    topicSchemaExpandedKeys.delete(token);
+    return false;
+  }
+  topicSchemaExpandedKeys.add(token);
+  return true;
+}
 
 function emptyTopicSchemaState() {
   return {
@@ -12023,6 +12128,27 @@ function removeTopicSchemaField(target, key) {
   const cache = getTopicSchemaCache();
   if (!cache?.awnSchema?.[target]?.fields) return;
   delete cache.awnSchema[target].fields[key];
+  setTopicSchemaFieldExpanded(target, key, false);
+  renderTopicSchemaEditor();
+  syncSaveButtonLamp();
+}
+
+function reorderTopicSchemaFields(target, key, direction) {
+  const cache = getTopicSchemaCache();
+  if (!cache?.awnSchema?.[target]?.fields) return;
+  const fields = cache.awnSchema[target].fields;
+  const keys = Object.keys(fields);
+  const index = keys.indexOf(key);
+  if (index < 0) return;
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= keys.length) return;
+  keys.splice(index, 1);
+  keys.splice(nextIndex, 0, key);
+  const reordered = {};
+  for (const fieldKey of keys) {
+    reordered[fieldKey] = fields[fieldKey];
+  }
+  cache.awnSchema[target].fields = reordered;
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
 }
@@ -12036,6 +12162,10 @@ function renameTopicSchemaField(target, oldKey, newKey) {
   if (!trimmed) return;
   fields[trimmed] = fields[oldKey];
   delete fields[oldKey];
+  if (isTopicSchemaFieldExpanded(target, oldKey)) {
+    setTopicSchemaFieldExpanded(target, oldKey, false);
+    setTopicSchemaFieldExpanded(target, trimmed, true);
+  }
 }
 
 function renderTopicSchemaTargetTabs() {
@@ -12070,9 +12200,22 @@ function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
   topicSchemaBaseFieldsNode.textContent = parts.join(" · ") || "—";
 }
 
+function createTopicSchemaSortButton(action, key, { disabled = false, title = "" } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "topic-schema-sort-btn";
+  button.dataset.schemaAction = action;
+  button.dataset.schemaKey = key;
+  button.textContent = action === "move-up" ? "↑" : "↓";
+  button.title = title;
+  button.disabled = disabled;
+  return button;
+}
+
 function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   if (!topicSchemaFieldsNode || !topicSchemaEmptyNode) return;
-  const fields = cache?.awnSchema?.[topicSchemaActiveTarget]?.fields || {};
+  const target = topicSchemaActiveTarget;
+  const fields = cache?.awnSchema?.[target]?.fields || {};
   const keys = Object.keys(fields);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
 
@@ -12083,27 +12226,45 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   }
   topicSchemaEmptyNode.classList.add("hidden");
 
-  for (const key of keys) {
+  keys.forEach((key, index) => {
     const fieldDef = fields[key] || {};
+    const expanded = isTopicSchemaFieldExpanded(target, key);
     const row = document.createElement("div");
     row.className = "topic-schema-field-row";
     row.dataset.schemaRowKey = key;
+    row.classList.toggle("is-settings-open", expanded);
 
-    const keyLabel = document.createElement("label");
-    keyLabel.textContent = "Ключ";
+    const compact = document.createElement("div");
+    compact.className = "topic-schema-field-compact";
+
+    const sort = document.createElement("div");
+    sort.className = "topic-schema-field-sort";
+    sort.append(
+      createTopicSchemaSortButton("move-up", key, {
+        disabled: index === 0,
+        title: "Выше"
+      }),
+      createTopicSchemaSortButton("move-down", key, {
+        disabled: index === keys.length - 1,
+        title: "Ниже"
+      })
+    );
+
     const keyInput = document.createElement("input");
     keyInput.type = "text";
+    keyInput.className = "topic-schema-inline-input";
     keyInput.value = key;
+    keyInput.placeholder = "ключ";
     keyInput.dataset.schemaKey = key;
     keyInput.dataset.schemaField = "key";
     keyInput.spellcheck = false;
-    keyLabel.append(keyInput);
+    keyInput.title = "Ключ поля";
 
-    const typeLabel = document.createElement("label");
-    typeLabel.textContent = "Тип";
     const typeSelect = document.createElement("select");
+    typeSelect.className = "topic-schema-inline-select";
     typeSelect.dataset.schemaKey = key;
     typeSelect.dataset.schemaField = "type";
+    typeSelect.title = "Тип поля";
     for (const entry of registryEntries) {
       const option = document.createElement("option");
       option.value = entry.id;
@@ -12111,28 +12272,24 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
       typeSelect.append(option);
     }
     typeSelect.value = resolveFieldTypeId(fieldDef.type || "awn.string");
-    typeLabel.append(typeSelect);
 
-    const titleLabel = document.createElement("label");
-    titleLabel.textContent = "Название";
     const titleInput = document.createElement("input");
     titleInput.type = "text";
+    titleInput.className = "topic-schema-inline-input topic-schema-inline-input--title";
     titleInput.value = fieldDef.title || "";
+    titleInput.placeholder = "название";
     titleInput.dataset.schemaKey = key;
     titleInput.dataset.schemaField = "title";
-    titleLabel.append(titleInput);
+    titleInput.title = "Название поля";
 
-    const enumLabel = document.createElement("label");
-    enumLabel.textContent = "Enum";
-    const enumInput = document.createElement("input");
-    enumInput.type = "text";
-    enumInput.placeholder = "драма, комедия";
-    enumInput.value = Array.isArray(fieldDef.enum) ? fieldDef.enum.join(", ") : "";
-    enumInput.dataset.schemaKey = key;
-    enumInput.dataset.schemaField = "enum";
-    enumInput.classList.toggle("hidden", !isAwnEnumFieldType(fieldDef.type));
-    enumLabel.classList.toggle("hidden", !isAwnEnumFieldType(fieldDef.type));
-    enumLabel.append(enumInput);
+    const settingsBtn = document.createElement("button");
+    settingsBtn.type = "button";
+    settingsBtn.className = "topic-schema-settings-toggle";
+    settingsBtn.dataset.schemaAction = "toggle-settings";
+    settingsBtn.dataset.schemaKey = key;
+    settingsBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    settingsBtn.title = "Расширенные настройки";
+    settingsBtn.textContent = expanded ? "Скрыть" : "Настройки";
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
@@ -12142,9 +12299,11 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     removeBtn.title = "Удалить поле";
     removeBtn.textContent = "×";
 
-    row.append(keyLabel, typeLabel, titleLabel, enumLabel, removeBtn);
+    compact.append(sort, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    row.appendChild(compact);
+    appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
     topicSchemaFieldsNode.append(row);
-  }
+  });
 }
 
 function renderTopicSchemaEditor() {
@@ -12169,29 +12328,45 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
   const keyInput = row.querySelector('[data-schema-field="key"]');
   const typeSelect = row.querySelector('[data-schema-field="type"]');
   const titleInput = row.querySelector('[data-schema-field="title"]');
-  const enumInput = row.querySelector('[data-schema-field="enum"]');
   const fields = cache.awnSchema[target].fields;
 
   const nextKey = String(keyInput?.value || "").trim() || oldKey;
   if (nextKey !== oldKey) {
     renameTopicSchemaField(target, oldKey, nextKey);
     row.dataset.schemaRowKey = nextKey;
+    row.querySelectorAll("[data-schema-key]").forEach((node) => {
+      node.dataset.schemaKey = nextKey;
+    });
   }
 
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
-  fieldDef.type = resolveFieldTypeId(typeSelect?.value || "awn.string");
+  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.string");
+  const allowedSettings = new Set(["type", "title", ...getFieldTypeSettingsKeys(nextType)]);
+
+  fieldDef.type = nextType;
   fieldDef.title = String(titleInput?.value || "").trim();
 
-  if (isAwnEnumFieldType(fieldDef.type)) {
-    const enumRaw = String(enumInput?.value || "");
-    fieldDef.enum = enumRaw
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  } else {
-    delete fieldDef.enum;
+  for (const propKey of Object.keys(getFieldDefSchemaProperties())) {
+    if (propKey === "type" || propKey === "title") continue;
+    if (!allowedSettings.has(propKey)) delete fieldDef[propKey];
   }
+
+  row.querySelectorAll(".topic-schema-setting [data-schema-field]").forEach((control) => {
+    const propKey = control.dataset.schemaField;
+    if (!propKey || !allowedSettings.has(propKey)) return;
+    const propDef = getFieldTypeSettingPropDef(propKey);
+    const parsed = parseFieldDefSettingValue(
+      propKey,
+      propDef,
+      control.type === "checkbox" ? control.checked : control.value
+    );
+    if (shouldPersistFieldDefSetting(propKey, parsed)) {
+      fieldDef[propKey] = parsed;
+    } else {
+      delete fieldDef[propKey];
+    }
+  });
 
   fields[activeKey] = fieldDef;
 }
@@ -12202,18 +12377,51 @@ function handleTopicSchemaFieldsInput(event) {
   if (!row) return;
   readTopicSchemaFieldFromRow(row);
   if (event.target.dataset.schemaField === "type") {
+    const activeKey = row.dataset.schemaRowKey;
+    const expanded = isTopicSchemaFieldExpanded(topicSchemaActiveTarget, activeKey);
     renderTopicSchemaCustomFields();
+    if (expanded && activeKey) {
+      setTopicSchemaFieldExpanded(topicSchemaActiveTarget, activeKey, true);
+      const nextRow = topicSchemaFieldsNode?.querySelector(
+        `[data-schema-row-key="${CSS.escape(activeKey)}"]`
+      );
+      nextRow?.classList.add("is-settings-open");
+      nextRow?.querySelector(".topic-schema-field-settings")?.classList.remove("is-collapsed");
+      const toggle = nextRow?.querySelector('[data-schema-action="toggle-settings"]');
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "true");
+        toggle.textContent = "Скрыть";
+      }
+    }
   }
   syncSaveButtonLamp();
 }
 
 function handleTopicSchemaFieldsClick(event) {
   if (activeContentMode !== "topic-schema") return;
-  const btn = event.target.closest("[data-schema-action='remove']");
+  const btn = event.target.closest("[data-schema-action]");
   if (!btn) return;
+  const action = btn.dataset.schemaAction;
   const key = btn.dataset.schemaKey;
   if (!key) return;
-  removeTopicSchemaField(topicSchemaActiveTarget, key);
+
+  if (action === "remove") {
+    removeTopicSchemaField(topicSchemaActiveTarget, key);
+    return;
+  }
+  if (action === "move-up" || action === "move-down") {
+    reorderTopicSchemaFields(topicSchemaActiveTarget, key, action === "move-up" ? "up" : "down");
+    return;
+  }
+  if (action === "toggle-settings") {
+    const expanded = toggleTopicSchemaFieldExpanded(topicSchemaActiveTarget, key);
+    const row = btn.closest(".topic-schema-field-row");
+    row?.classList.toggle("is-settings-open", expanded);
+    btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    btn.textContent = expanded ? "Скрыть" : "Настройки";
+    const settingsHost = row?.querySelector(".topic-schema-field-settings");
+    settingsHost?.classList.toggle("is-collapsed", !expanded);
+  }
 }
 
 async function saveTopicSchemaContent() {
@@ -12294,6 +12502,21 @@ function sortPropsEntries(entries) {
   return [...result, ...drafts];
 }
 
+function isRecordCategoryContentPath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  return /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized);
+}
+
+function isMediaCategoryContentPath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const lower = normalized.toLowerCase();
+  if (lower.endsWith(".sidecar.md")) return false;
+  return (
+    /\/Assets\/Categories\/[^/]+\.md$/i.test(normalized) ||
+    /\/_s\.MediaCategories\/Content\/[^/]+\.md$/i.test(normalized)
+  );
+}
+
 function resolveAwnTypeForContext(nodePath = getResolvedNodePath(activePath)) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
@@ -12306,6 +12529,8 @@ function resolveAwnTypeForContext(nodePath = getResolvedNodePath(activePath)) {
     return "awn.record";
   }
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
+  if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
+  if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
   if (/\/Content\//i.test(normalized)) return "awn.record";
   if (isNodeManifestPath(normalized)) {
     if (isAgentRootIndexPath(normalized)) return "awn.agent";
@@ -12380,6 +12605,145 @@ function isAwnEnumFieldType(typeId) {
   return resolveFieldTypeId(typeId) === "awn.enum";
 }
 
+function getFieldDefSchemaProperties() {
+  return awnTypesCache?.fieldDefSchema?.properties || {};
+}
+
+function getFieldTypeSettingsKeys(typeId) {
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry = registry[resolveFieldTypeId(typeId)];
+  if (Array.isArray(entry?.settings) && entry.settings.length) {
+    return entry.settings.filter((key) => key !== "type" && key !== "title");
+  }
+  if (resolveFieldTypeId(typeId) === "awn.enum") {
+    return ["description", "hint", "required", "locked", "default", "enum"];
+  }
+  if (resolveFieldTypeId(typeId) === "awn.array") {
+    return ["description", "hint", "required", "locked", "default", "items"];
+  }
+  if (resolveFieldTypeId(typeId) === "awn.null") {
+    return ["description", "hint", "locked"];
+  }
+  return ["description", "hint", "required", "locked", "format", "default"];
+}
+
+function getFieldTypeSettingPropDef(propKey) {
+  return getFieldDefSchemaProperties()[propKey] || { title: propKey };
+}
+
+function isFieldDefBooleanSetting(propKey, propDef = getFieldTypeSettingPropDef(propKey)) {
+  const typeId = resolveFieldTypeId(propDef?.type || "");
+  return propKey === "required" || propKey === "locked" || typeId === "awn.boolean";
+}
+
+function formatFieldDefSettingValue(propKey, value) {
+  if (propKey === "enum" || propKey === "items") {
+    return Array.isArray(value) ? value.join(", ") : String(value || "");
+  }
+  if (isFieldDefBooleanSetting(propKey)) {
+    return value ? "true" : "false";
+  }
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+function parseFieldDefSettingValue(propKey, propDef, rawValue) {
+  if (propKey === "enum") {
+    return String(rawValue || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (propKey === "items") {
+    const next = String(rawValue || "").trim();
+    return next ? resolveFieldTypeId(next) : "";
+  }
+  if (isFieldDefBooleanSetting(propKey, propDef)) {
+    if (typeof rawValue === "boolean") return rawValue;
+    const normalized = String(rawValue || "").trim().toLowerCase();
+    return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+  }
+  return String(rawValue ?? "").trim();
+}
+
+function shouldPersistFieldDefSetting(propKey, value) {
+  if (propKey === "enum") return Array.isArray(value) && value.length > 0;
+  if (propKey === "items") return Boolean(String(value || "").trim());
+  if (isFieldDefBooleanSetting(propKey)) return value === true;
+  return String(value ?? "").trim().length > 0;
+}
+
+function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) {
+  const label = document.createElement("label");
+  label.className = "topic-schema-setting";
+  label.dataset.schemaField = propKey;
+
+  const caption = document.createElement("span");
+  caption.className = "topic-schema-setting-label";
+  caption.textContent = propDef?.title || propKey;
+  if (propDef?.description) caption.title = propDef.description;
+
+  let control;
+  if (isFieldDefBooleanSetting(propKey, propDef)) {
+    control = document.createElement("input");
+    control.type = "checkbox";
+    control.checked = Boolean(fieldDef?.[propKey]);
+  } else if (propDef?.type === "awn.text" || propKey === "description") {
+    control = document.createElement("textarea");
+    control.rows = 2;
+    control.value = formatFieldDefSettingValue(propKey, fieldDef?.[propKey]);
+  } else if (propKey === "items") {
+    control = document.createElement("select");
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = "—";
+    control.appendChild(emptyOption);
+    for (const entry of getTopicSchemaRegistryEntries()) {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = entry.name;
+      control.append(option);
+    }
+    control.value = resolveFieldTypeId(fieldDef?.items || "awn.string");
+  } else {
+    control = document.createElement("input");
+    control.type = "text";
+    control.value = formatFieldDefSettingValue(propKey, fieldDef?.[propKey]);
+    if (propDef?.description) control.placeholder = propDef.description;
+  }
+
+  control.dataset.schemaKey = schemaKey;
+  control.dataset.schemaField = propKey;
+  label.append(caption, control);
+  return label;
+}
+
+function appendTopicSchemaFieldSettings(host, fieldDef, schemaKey, { expanded = false } = {}) {
+  const settingsHost = document.createElement("div");
+  settingsHost.className = "topic-schema-field-settings";
+  const settingKeys = getFieldTypeSettingsKeys(fieldDef?.type);
+  if (!settingKeys.length) {
+    settingsHost.classList.add("is-empty");
+    host.appendChild(settingsHost);
+    return settingsHost;
+  }
+
+  if (!expanded) settingsHost.classList.add("is-collapsed");
+
+  for (const propKey of settingKeys) {
+    settingsHost.appendChild(
+      createTopicSchemaSettingControl(
+        propKey,
+        getFieldTypeSettingPropDef(propKey),
+        fieldDef,
+        schemaKey
+      )
+    );
+  }
+  host.appendChild(settingsHost);
+  return settingsHost;
+}
+
 function getAwnFieldTypeLabel(typeId) {
   const registry = awnTypesCache?.fieldRegistry || {};
   const entry = registry[resolveFieldTypeId(typeId)];
@@ -12411,7 +12775,10 @@ function getPropsFieldMetaFromSchema(key) {
     hint: fieldDef.hint || fieldDef.description || "",
     format: fieldDef.format || "",
     required: Boolean(fieldDef.required),
-    locked: isPropsFieldLocked(key, fieldDef)
+    locked: isPropsFieldLocked(key, fieldDef),
+    typeId: resolveFieldTypeId(fieldDef.type || "awn.string"),
+    enum: Array.isArray(fieldDef.enum) ? fieldDef.enum : null,
+    fieldDef
   };
 }
 
@@ -12549,8 +12916,7 @@ function ensureAwnContextDefaults(entries) {
   }
 
   const inferredType = resolveAwnTypeForContext();
-  const typeEntry = map.get("awn-type");
-  if (!typeEntry?.value && inferredType) {
+  if (inferredType) {
     map.set("awn-type", { key: "awn-type", kind: "string", value: inferredType });
   }
 
@@ -13548,7 +13914,9 @@ function applyPropsFormViewMode() {
       propsRawYamlVisible = false;
       propsInputNode.classList.add("hidden");
       setPropsYamlToggleLabel("Показать YAML");
-    } else if (propsFormFieldsNode?.querySelector('input[data-field="value"]')) {
+    } else if (
+      propsFormFieldsNode?.querySelector('.props-form-value-wrap[data-field="value"], input[data-field="value"]')
+    ) {
       readPropsFormIntoEntries();
     }
   }
@@ -13650,6 +14018,358 @@ function renderPropsForm() {
 
 const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
 
+function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
+  const normalized = normalizePropsKey(key);
+  if (normalized === "awn-category") return "catalog-category";
+  if (normalized === "awn-tags") return "catalog-tags";
+
+  const typeId = resolveFieldTypeId(fieldDef?.type || "");
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const registryEntry = registry[typeId];
+  const widget = String(registryEntry?.widget || "").trim();
+
+  if (typeId === "awn.enum" || widget === "select") return "select";
+  if (typeId === "awn.boolean" || widget === "toggle") return "boolean";
+  if (typeId === "awn.link" || widget === "link") return "link";
+  if (typeId === "awn.text" || widget === "textarea") return "textarea";
+  if (typeId === "awn.url" || widget === "url") return "url";
+  if (typeId === "awn.color" || widget === "color") return "color";
+  if (typeId === "awn.date") return "date";
+  if (typeId === "awn.datetime") return "datetime";
+  if (typeId === "awn.integer" || typeId === "awn.number") return "number";
+  if (typeId === "awn.array") return "array";
+  return "text";
+}
+
+function getAgentCatalogPreset(preset) {
+  return agentCatalogsCache?.[preset] || { exists: false, title: preset, items: [] };
+}
+
+function appendPropsFormSelectOption(select, value, label, { selected = false } = {}) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  option.selected = selected;
+  select.appendChild(option);
+}
+
+function appendPropsFormSelectGroup(select, label, items, currentValue) {
+  if (!items.length) return;
+  const group = document.createElement("optgroup");
+  group.label = label;
+  for (const item of items) {
+    const option = document.createElement("option");
+    option.value = item.wikilink || item.id || "";
+    option.textContent = item.label || item.id || "—";
+    if (item.color) option.dataset.color = item.color;
+    if (currentValue && option.value === currentValue) option.selected = true;
+    group.appendChild(option);
+  }
+  select.appendChild(group);
+}
+
+function createPropsFormCatalogMissingNote(text = "Справочник не создан") {
+  const note = document.createElement("p");
+  note.className = "props-form-catalog-missing";
+  note.textContent = text;
+  return note;
+}
+
+function createPropsFormValueWrap(widget) {
+  const wrap = document.createElement("div");
+  wrap.className = "props-form-value-wrap";
+  wrap.dataset.widget = widget;
+  wrap.dataset.field = "value";
+  return wrap;
+}
+
+function bindPropsFormLockedState(control, locked) {
+  if (!control || !locked) return;
+  if (control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement) {
+    control.disabled = true;
+  } else if (control.type === "checkbox") {
+    control.disabled = true;
+  } else {
+    control.readOnly = true;
+  }
+  control.classList.add("is-locked");
+}
+
+function createPropsFormTextValueControl(entry, meta, { locked = false } = {}) {
+  const widget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
+  const displayValue = getPropsEntryDisplayValue(entry);
+  const wrap = createPropsFormValueWrap(widget === "array" ? "array" : "text");
+  const input = document.createElement("input");
+  input.className = "props-form-value";
+  input.type = "text";
+  input.value = displayValue;
+  input.placeholder =
+    meta.format ? meta.format : entry.kind === "array" ? "a, b, c" : meta.hint || "—";
+  if (meta.hint) input.title = meta.hint;
+  bindPropsFormLockedState(input, locked);
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function createPropsFormTypedInputControl(entry, meta, type, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap(type);
+  const input = document.createElement("input");
+  input.className = "props-form-value";
+  input.type = type === "datetime" ? "datetime-local" : type;
+  input.value = getPropsEntryDisplayValue(entry);
+  if (meta.hint) input.title = meta.hint;
+  if (meta.format && !input.value) input.placeholder = meta.format;
+  bindPropsFormLockedState(input, locked);
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function createPropsFormTextareaControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("textarea");
+  const textarea = document.createElement("textarea");
+  textarea.className = "props-form-value props-form-value--textarea";
+  textarea.rows = 3;
+  textarea.value = getPropsEntryDisplayValue(entry);
+  if (meta.hint) textarea.title = meta.hint;
+  textarea.placeholder = meta.hint || "—";
+  bindPropsFormLockedState(textarea, locked);
+  wrap.appendChild(textarea);
+  return wrap;
+}
+
+function createPropsFormBooleanControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("boolean");
+  wrap.classList.add("props-form-value-wrap--boolean");
+  const label = document.createElement("label");
+  label.className = "props-form-bool-label";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.className = "props-form-value props-form-value--bool";
+  input.checked = entry.kind === "bool" ? Boolean(entry.value) : String(entry.value).trim() === "true";
+  bindPropsFormLockedState(input, locked);
+  const caption = document.createElement("span");
+  caption.textContent = input.checked ? "Да" : "Нет";
+  input.addEventListener("change", () => {
+    caption.textContent = input.checked ? "Да" : "Нет";
+  });
+  label.append(input, caption);
+  wrap.appendChild(label);
+  return wrap;
+}
+
+function createPropsFormSelectControl(entry, meta, options, { locked = false, placeholder = "—" } = {}) {
+  const wrap = createPropsFormValueWrap("select");
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select";
+  const currentValue = getPropsEntryDisplayValue(entry);
+  appendPropsFormSelectOption(select, "", placeholder);
+  for (const optionValue of options) {
+    appendPropsFormSelectOption(select, optionValue, optionValue, {
+      selected: optionValue === currentValue
+    });
+  }
+  if (currentValue && !options.includes(currentValue)) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне списка)`, {
+      selected: true
+    });
+  }
+  if (meta.hint) select.title = meta.hint;
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+  return wrap;
+}
+
+function createPropsFormCatalogCategoryControl(entry, meta, { locked = false } = {}) {
+  const catalog = getAgentCatalogPreset("categories");
+  const wrap = createPropsFormValueWrap("catalog-category");
+  if (!catalog.exists) {
+    wrap.appendChild(createPropsFormCatalogMissingNote("Справочник «Категории» не создан"));
+    return wrap;
+  }
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select";
+  const currentValue = getPropsEntryDisplayValue(entry);
+  appendPropsFormSelectOption(select, "", "— не выбрано —");
+  for (const item of catalog.items || []) {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.label || item.id;
+    if (item.color) option.dataset.color = item.color;
+    if (currentValue && (item.id === currentValue || item.label === currentValue)) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  }
+  if (
+    currentValue &&
+    !(catalog.items || []).some((item) => item.id === currentValue || item.label === currentValue)
+  ) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне справочника)`, {
+      selected: true
+    });
+  }
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+  return wrap;
+}
+
+function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {}) {
+  const catalog = getAgentCatalogPreset("tags");
+  const wrap = createPropsFormValueWrap("catalog-tags");
+  if (!catalog.exists) {
+    wrap.appendChild(createPropsFormCatalogMissingNote("Справочник «Теги» не создан"));
+    return wrap;
+  }
+
+  const selected = new Set(
+    entry.kind === "array" && Array.isArray(entry.value)
+      ? entry.value.map((item) => String(item).replace(/^#+/, "").trim()).filter(Boolean)
+      : String(entry.value || "")
+          .split(",")
+          .map((item) => item.trim().replace(/^#+/, ""))
+          .filter(Boolean)
+  );
+
+  const list = document.createElement("div");
+  list.className = "props-form-tags-list";
+  const items = catalog.items || [];
+  if (!items.length) {
+    list.appendChild(createPropsFormCatalogMissingNote("Справочник пуст"));
+  } else {
+    for (const item of items) {
+      const label = document.createElement("label");
+      label.className = "props-form-tag-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = item.id;
+      checkbox.checked = selected.has(item.id);
+      checkbox.disabled = locked;
+      const caption = document.createElement("span");
+      caption.textContent = item.label || `#${item.id}`;
+      label.append(checkbox, caption);
+      list.appendChild(label);
+    }
+  }
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("link");
+  const currentValue = getPropsEntryDisplayValue(entry);
+  const { currentTopic, otherTopics } = collectDocLinkLibraryGroups();
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select props-form-link-select";
+  appendPropsFormSelectOption(select, "", "— выберите из библиотеки —");
+  appendPropsFormSelectGroup(select, "Текущая тема", currentTopic, currentValue);
+  appendPropsFormSelectGroup(select, "Другие темы", otherTopics, currentValue);
+  if (
+    currentValue &&
+    ![...currentTopic, ...otherTopics].some((item) => (item.wikilink || "") === currentValue)
+  ) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (текущее)`, {
+      selected: true
+    });
+  }
+
+  const manual = document.createElement("input");
+  manual.type = "text";
+  manual.className = "props-form-value props-form-link-manual";
+  manual.dataset.linkManual = "1";
+  manual.placeholder = "[[wikilink]] или путь";
+  manual.value = select.value || currentValue;
+  if (meta.hint) manual.title = meta.hint;
+
+  select.addEventListener("change", () => {
+    if (select.value) manual.value = select.value;
+  });
+  manual.addEventListener("input", () => {
+    if (manual.value.trim()) select.value = "";
+  });
+
+  bindPropsFormLockedState(select, locked);
+  bindPropsFormLockedState(manual, locked);
+  wrap.append(select, manual);
+  return wrap;
+}
+
+function createPropsFormValueControl(entry, meta) {
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const locked = Boolean(entry.key && meta.locked);
+  const widget = resolvePropsFieldWidget(entry.key, fieldDef);
+
+  if (widget === "catalog-category") {
+    return createPropsFormCatalogCategoryControl(entry, meta, { locked });
+  }
+  if (widget === "catalog-tags") {
+    return createPropsFormCatalogTagsControl(entry, meta, { locked });
+  }
+  if (widget === "link") {
+    return createPropsFormLinkControl(entry, meta, { locked });
+  }
+  if (widget === "select") {
+    const options = Array.isArray(fieldDef?.enum)
+      ? fieldDef.enum
+      : Array.isArray(meta.enum)
+        ? meta.enum
+        : [];
+    return createPropsFormSelectControl(entry, meta, options, { locked });
+  }
+  if (widget === "boolean") {
+    return createPropsFormBooleanControl(entry, meta, { locked });
+  }
+  if (widget === "textarea") {
+    return createPropsFormTextareaControl(entry, meta, { locked });
+  }
+  if (widget === "url") {
+    return createPropsFormTypedInputControl(entry, meta, "url", { locked });
+  }
+  if (widget === "color") {
+    return createPropsFormTypedInputControl(entry, meta, "color", { locked });
+  }
+  if (widget === "date") {
+    return createPropsFormTypedInputControl(entry, meta, "date", { locked });
+  }
+  if (widget === "datetime") {
+    return createPropsFormTypedInputControl(entry, meta, "datetime", { locked });
+  }
+  if (widget === "number") {
+    return createPropsFormTypedInputControl(entry, meta, "number", { locked });
+  }
+  if (widget === "array") {
+    return createPropsFormTextValueControl(entry, meta, { locked });
+  }
+  return createPropsFormTextValueControl(entry, meta, { locked });
+}
+
+function readPropsFormValueFromControl(valueWrap) {
+  const widget = valueWrap?.dataset?.widget || "text";
+  if (widget === "boolean") {
+    const checkbox = valueWrap.querySelector('input[type="checkbox"]');
+    return checkbox?.checked ? "true" : "false";
+  }
+  if (widget === "catalog-tags") {
+    return [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
+      .map((input) => input.value)
+      .join(", ");
+  }
+  if (widget === "link") {
+    const select = valueWrap.querySelector("select");
+    const manual = valueWrap.querySelector("[data-link-manual]");
+    const manualValue = String(manual?.value || "").trim();
+    const selectValue = String(select?.value || "").trim();
+    return manualValue || selectValue;
+  }
+  if (widget === "select" || widget === "catalog-category") {
+    const select = valueWrap.querySelector("select");
+    return select?.value ?? "";
+  }
+  const control = valueWrap.querySelector(".props-form-value, textarea.props-form-value");
+  return control?.value ?? "";
+}
+
 function createPropsFormFieldRow(entry, index) {
   const meta = getPropsFieldMeta(entry.key);
   const row = document.createElement("div");
@@ -13677,21 +14397,16 @@ function createPropsFormFieldRow(entry, index) {
     head.appendChild(keyInput);
   }
 
-  const displayValue = getPropsEntryDisplayValue(entry);
-  const valueNode = document.createElement("input");
-  valueNode.className = "props-form-value";
-  valueNode.type = "text";
-  valueNode.dataset.field = "value";
-  valueNode.value = displayValue;
-  valueNode.placeholder =
-    meta.format ? meta.format : entry.kind === "array" ? "a, b, c" : meta.hint || "—";
-  if (meta.hint) valueNode.title = meta.hint;
-  if (entry.key && meta.locked) {
-    valueNode.readOnly = true;
-    valueNode.classList.add("is-locked");
+  const valueControl = createPropsFormValueControl(entry, meta);
+  row.append(head, valueControl);
+
+  const needsCatalog =
+    resolvePropsFieldWidget(entry.key, meta.fieldDef) === "catalog-category" ||
+    resolvePropsFieldWidget(entry.key, meta.fieldDef) === "catalog-tags";
+  if (needsCatalog && !agentCatalogsCache && activeAgentId) {
+    loadAgentCatalogs(activeAgentId);
   }
 
-  row.append(head, valueNode);
   return row;
 }
 
@@ -13717,7 +14432,8 @@ function readPropsFormIntoEntries() {
   rows.forEach((row) => {
     const index = Number(row.dataset.index);
     const keyInput = row.querySelector('[data-field="key"]');
-    const valueInput = row.querySelector('[data-field="value"]');
+    const valueWrap = row.querySelector('.props-form-value-wrap[data-field="value"]');
+    const valueInput = row.querySelector('input[data-field="value"]:not([data-link-manual])');
     const keyCode = row.querySelector(".props-form-field-key");
     const base = propsFormEntries[index] || { kind: "string", value: "" };
     const key = normalizePropsKey(
@@ -13726,7 +14442,10 @@ function readPropsFormIntoEntries() {
         : (row.dataset.propKey || keyCode?.textContent || base.key || "").trim()
     );
     let entry = { ...base, key };
-    if (valueInput) {
+    if (valueWrap) {
+      entry = applyFormValueToEntry(entry, readPropsFormValueFromControl(valueWrap));
+      entry.key = key;
+    } else if (valueInput) {
       entry = applyFormValueToEntry(entry, valueInput.value);
       entry.key = key;
     }
@@ -17000,7 +17719,8 @@ function applyModeUi() {
       activeContentMode === "scripts" ||
       activeContentMode === "temp" ||
       activeContentMode === "inbox" ||
-      activeContentMode === "references"
+      activeContentMode === "references" ||
+      activeContentMode === "artefacts"
   );
   docActionsNode?.classList.toggle("hidden", hideToolbar);
   workspacePathToolbarNode?.classList.toggle(
@@ -22259,11 +22979,12 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     table.className = "agent-awn-field-registry-table";
     table.innerHTML =
       "<thead><tr>" +
-      "<th>ID</th><th>Название</th><th>kind</th><th>Хранение</th><th>Виджет</th><th>Описание</th>" +
+      "<th>ID</th><th>Название</th><th>kind</th><th>Хранение</th><th>Виджет</th><th>Настройки</th><th>Описание</th>" +
       "</tr></thead>";
     const tbody = document.createElement("tbody");
     for (const key of registryKeys) {
       const entry = registry[key];
+      const settings = Array.isArray(entry.settings) ? entry.settings.join(", ") : "—";
       const row = document.createElement("tr");
       row.innerHTML =
         `<td><code>${entry.id}</code></td>` +
@@ -22271,6 +22992,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
         `<td><code>${entry.kind || "field"}</code></td>` +
         `<td><code>${entry.storage || entry.kind || "—"}</code></td>` +
         `<td><code>${entry.widget || "—"}</code></td>` +
+        `<td><code>${settings}</code></td>` +
         `<td>${entry.description || "—"}</td>`;
       tbody.appendChild(row);
     }
@@ -24574,7 +25296,7 @@ async function init() {
     const bootRoute = parseAppRoute(location.pathname);
     if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
       setMenuLoading(true, "Загрузка дерева…");
-      await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId)]);
+      await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId), loadAgentCatalogs(activeAgentId)]);
       await refreshMenu();
     }
 

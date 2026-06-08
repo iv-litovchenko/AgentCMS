@@ -5,3 +5,4 @@ storage: string
 mdbase: link
 widget: link
 description: Ссылка на другой файл/запись ([[wikilink]] или путь)
+settings: [description, hint, required, locked, default]

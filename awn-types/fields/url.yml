@@ -5,3 +5,4 @@ storage: string
 mdbase: url
 widget: url
 description: Внешняя ссылка
+settings: [description, hint, required, locked, default]

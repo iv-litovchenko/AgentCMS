@@ -26,6 +26,15 @@ const MDBASE_STORAGE = {
   list: "array"
 };
 
+const DEFAULT_FIELD_SETTINGS = [
+  "description",
+  "hint",
+  "required",
+  "locked",
+  "format",
+  "default"
+];
+
 const FALLBACK_FIELD_TYPES = {
   "awn.string": {
     id: "awn.string",
@@ -34,7 +43,8 @@ const FALLBACK_FIELD_TYPES = {
     storage: "string",
     mdbase: "string",
     widget: "input",
-    description: "Короткая строка"
+    description: "Короткая строка",
+    settings: [...DEFAULT_FIELD_SETTINGS]
   }
 };
 
@@ -57,12 +67,12 @@ function resolveFieldTypeId(typeId) {
 }
 
 const FALLBACK_BASE_FIELD_ORDER = [
+  "awn-status",
   "awn-type",
   "awn-name",
   "awn-create",
   "awn-update",
   "awn-description",
-  "awn-status",
   "awn-category",
   "awn-tags",
   "awn-version",
@@ -115,6 +125,15 @@ function normalizeFieldTypeDef(parsed) {
     description: parsed.description || ""
   };
   if (parsed.format) field.format = parsed.format;
+  if (Array.isArray(parsed.settings)) {
+    field.settings = parsed.settings.map((item) => String(item).trim()).filter(Boolean);
+  } else {
+    const idSuffix = id.replace(/^awn\./, "");
+    if (idSuffix === "enum") field.settings = [...DEFAULT_FIELD_SETTINGS, "enum"];
+    else if (idSuffix === "array") field.settings = [...DEFAULT_FIELD_SETTINGS, "items"];
+    else if (idSuffix === "null") field.settings = ["description", "hint", "locked"];
+    else field.settings = [...DEFAULT_FIELD_SETTINGS];
+  }
   return field;
 }
 

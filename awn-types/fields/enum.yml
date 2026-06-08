@@ -5,3 +5,4 @@ storage: string
 mdbase: enum
 widget: select
 description: Значение из фиксированного списка
+settings: [description, hint, required, locked, default, enum]

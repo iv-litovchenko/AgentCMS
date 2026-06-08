@@ -5,3 +5,4 @@ storage: array
 mdbase: list
 widget: tags
 description: Массив значений
+settings: [description, hint, required, locked, default, items]

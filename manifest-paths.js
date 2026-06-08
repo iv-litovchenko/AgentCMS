@@ -172,6 +172,27 @@ function isManifestMdRelPath(relPath) {
   return isAreaManifestRelPath(relPath) || isTopicManifestRelPath(relPath);
 }
 
+function normalizeManifestRelPath(relPath) {
+  return String(relPath || "").replace(/\\/g, "/");
+}
+
+/** Справочник категорий записей: _s.Categories/Content/{slug}.md */
+function isRecordCategoryContentRelPath(relPath) {
+  const normalized = normalizeManifestRelPath(relPath);
+  return /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized);
+}
+
+/** Справочник категорий медиа: …/Assets/Categories/{slug}.md или _s.MediaCategories/Content/{slug}.md */
+function isMediaCategoryContentRelPath(relPath) {
+  const normalized = normalizeManifestRelPath(relPath);
+  const lower = normalized.toLowerCase();
+  if (lower.endsWith(".sidecar.md")) return false;
+  return (
+    /\/Assets\/Categories\/[^/]+\.md$/i.test(normalized) ||
+    /\/_s\.MediaCategories\/Content\/[^/]+\.md$/i.test(normalized)
+  );
+}
+
 function getServiceAreaManifestRel(serviceFolderRel) {
   const prefix = String(serviceFolderRel || "").replace(/\\/g, "/").replace(/\/$/, "");
   return prefix && prefix !== "." ? `${prefix}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
@@ -574,6 +595,8 @@ module.exports = {
   isTopicManifestRelPath,
   isAreaManifestRelPath,
   isManifestMdRelPath,
+  isRecordCategoryContentRelPath,
+  isMediaCategoryContentRelPath,
   joinAreaManifestRel,
   getManifestContainerDirRel,
   getManifestNamedSlotKey,

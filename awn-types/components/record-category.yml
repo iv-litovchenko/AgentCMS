@@ -2,5 +2,18 @@ id: awn.record.category
 name: Категория записи
 kind: type
 extends: awn.base
-description: Справочная категория для группировки записей в Content (_s.*/Content/)
+description: Справочная категория для группировки записей в Content (_s.Categories/Content/)
 fields:
+  awn-color:
+    type: awn.color
+    title: Цвет
+    description: Цвет метки в списках, дереве и фильтрах
+  awn-parent:
+    type: awn.link
+    title: Родитель
+    description: Ссылка на родительскую категорию (иерархия)
+  awn-slug:
+    type: awn.string
+    title: Slug
+    description: Стабильный код категории для awn-category у записей
+    hint: general, project, reference…

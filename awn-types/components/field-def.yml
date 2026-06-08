@@ -13,28 +13,34 @@ properties:
   description:
     title: Описание
     description: Развёрнутое пояснение для схемы и документации
+    type: awn.text
   hint:
     title: Подсказка
     description: Краткая подсказка в UI (placeholder, title)
+    type: awn.string
   required:
-    type: boolean
+    type: awn.boolean
     title: Обязательное
     description: Поле должно быть заполнено
     default: false
   locked:
-    type: boolean
+    type: awn.boolean
     title: Заблокированное
     description: Только чтение в форме (системное или вычисляемое значение)
     default: false
   format:
     title: Формат
     description: Пример или шаблон заполнения (0.0.1, YYYY-MM-DD)
+    type: awn.string
   default:
     title: По умолчанию
     description: Значение при создании новой записи
+    type: awn.string
   enum:
     title: Варианты
     description: Список значений для type enum
+    type: awn.array
   items:
     title: Элемент списка
-    description: Тип элементов для type array
+    description: Тип элементов для type array (awn.string, awn.link…)
+    type: awn.string

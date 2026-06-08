@@ -10,7 +10,7 @@ awn_schema:
         type: awn.number
         title: ауцау
       field_3:
-        type: string
+        type: awn.link
   record:
     fields:
       directorпку:

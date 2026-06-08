@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.12" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.20" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -833,6 +833,16 @@
                 </nav>
                 <div class="workspace-path-crumbs-actions">
                   <button
+                    id="workspace-pin-panel-btn"
+                    class="workspace-pin-panel-btn workspace-share-link-btn"
+                    type="button"
+                    disabled
+                    title="Зафиксировать панель (скоро)"
+                    aria-label="Зафиксировать панель (скоро)"
+                  >
+                    Зафиксировать панель
+                  </button>
+                  <button
                     id="workspace-gdrive-sync-btn"
                     class="workspace-gdrive-sync-btn workspace-toolbar-labeled-btn"
                     type="button"
@@ -853,8 +863,9 @@
                     id="workspace-share-btn"
                     class="workspace-share-link-btn"
                     type="button"
-                    title="Поделиться ссылкой на эту страницу"
-                    aria-label="Поделиться"
+                    disabled
+                    title="Поделиться (скоро)"
+                    aria-label="Поделиться (скоро)"
                   >
                     Поделиться
                   </button>
@@ -862,8 +873,9 @@
                     id="workspace-share-link-btn"
                     class="workspace-share-link-btn"
                     type="button"
-                    title="Скопировать ссылку на эту страницу"
-                    aria-label="Копировать ссылку"
+                    disabled
+                    title="Копировать ссылку (скоро)"
+                    aria-label="Копировать ссылку (скоро)"
                   >
                     Копировать ссылку
                   </button>
@@ -1258,7 +1270,6 @@
                       Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
                     </p>
                   </div>
-                  <button id="topic-schema-add-btn" class="topic-schema-add-btn" type="button">+ Поле</button>
                 </header>
                 <div id="topic-schema-target-tabs" class="topic-schema-target-tabs" role="tablist" aria-label="Цель схемы"></div>
                 <section class="topic-schema-base-card" aria-label="Базовые поля типа">
@@ -1266,7 +1277,10 @@
                   <p id="topic-schema-base-fields" class="topic-schema-base-fields"></p>
                 </section>
                 <div id="topic-schema-fields" class="topic-schema-fields"></div>
-                <p id="topic-schema-empty" class="topic-schema-empty hidden">Дополнительных полей пока нет — нажмите «+ Поле».</p>
+                <p id="topic-schema-empty" class="topic-schema-empty hidden">Дополнительных полей пока нет — добавьте поле кнопкой ниже.</p>
+                <footer class="topic-schema-footer">
+                  <button id="topic-schema-add-btn" class="topic-schema-add-btn" type="button">+ Поле</button>
+                </footer>
               </section>
               <div class="editor-surface">
                 <div id="editor-code-wrap" class="editor-code-wrap">
@@ -1519,7 +1533,6 @@
           <div id="create-node-catalog-actions" class="create-node-catalog-actions">
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="categories">Категории</button>
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="tags" title="Список #tag, как в Obsidian">Теги</button>
-            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="schemas">Схемы</button>
           </div>
         </div>
         <div id="create-node-service-docs-wrap" class="create-node-service-docs-wrap hidden">
@@ -1844,7 +1857,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.102"></script>
+    <script src="/main.js?v=0.5.113"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

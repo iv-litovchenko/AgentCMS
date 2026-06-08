@@ -4,3 +4,21 @@ kind: type
 extends: awn.base
 description: Справочная категория для группировки файлов в media/assets
 fields:
+  awn-color:
+    type: awn.color
+    title: Цвет
+    description: Цвет метки в медиа-панели
+  awn-parent:
+    type: awn.link
+    title: Родитель
+    description: Ссылка на родительскую категорию (иерархия)
+  awn-slug:
+    type: awn.string
+    title: Slug
+    description: Стабильный код категории для группировки медиа
+    hint: images, docs, archive…
+  awn-icon:
+    type: awn.string
+    title: Иконка
+    description: Символ или эмодзи в медиа-панели
+    hint: 🖼, 📄, 🎬…
