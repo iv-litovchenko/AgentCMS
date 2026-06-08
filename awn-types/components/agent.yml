@@ -1,0 +1,6 @@
+id: awn.agent
+name: Агент
+kind: type
+extends: awn.base
+description: Корневой манифест workspace агента (_REGINFO.md в корне)
+fields:

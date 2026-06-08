@@ -1,0 +1,7 @@
+id: awn.color
+name: Цвет
+kind: field
+storage: string
+mdbase: color
+widget: color
+description: Цвет в формате #RRGGBB

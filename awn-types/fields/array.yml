@@ -1,0 +1,7 @@
+id: awn.array
+name: Список
+kind: field
+storage: array
+mdbase: list
+widget: tags
+description: Массив значений

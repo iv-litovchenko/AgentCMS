@@ -1,0 +1,8 @@
+id: awn.date
+name: Дата
+kind: field
+storage: string
+mdbase: date
+widget: date
+format: YYYY-MM-DD
+description: Дата без времени

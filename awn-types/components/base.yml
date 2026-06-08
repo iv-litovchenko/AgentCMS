@@ -1,0 +1,60 @@
+id: awn.base
+name: База
+kind: base
+description: Базовые YAML-свойства для всех типов записей агента
+mixins: [awn.mixin.preview]
+fields:
+  awn-status:
+    type: awn.enum
+    title: Статус
+    description: Состояние записи
+    enum: [Открыта, Закрыта]
+    default: Открыта
+  awn-type:
+    type: awn.string
+    title: Тип
+    description: Идентификатор типа записи (awn.agent, awn.area, awn.topic, …)
+    hint: awn.agent, awn.area, awn.topic, awn.record.category…
+    required: true
+    locked: true
+  awn-name:
+    type: awn.string
+    title: Имя
+    description: Имя файла без расширения (дублирует имя файла на диске)
+    locked: true
+  awn-create:
+    type: awn.datetime
+    title: Создан
+    description: Дата и время создания
+    format: ISO-8601
+    locked: true
+  awn-update:
+    type: awn.datetime
+    title: Изменён
+    description: Дата последнего изменения
+    format: ISO-8601
+    locked: true
+  awn-description:
+    type: awn.text
+    title: Описание
+    description: Краткое назначение для агента
+  awn-category:
+    type: awn.string
+    title: Категория
+    description: Категория или группа записи
+  awn-tags:
+    type: awn.array
+    title: Теги
+    description: Метки для поиска и фильтрации
+    items: awn.string
+  awn-version:
+    type: awn.string
+    title: Версия
+    description: Семантическая версия
+    hint: Мажор.минор.патч
+    format: 0.0.1
+    default: "0.0.1"
+  awn-sort:
+    type: awn.integer
+    title: Сортировка
+    description: Порядок в списках и дереве

@@ -1,0 +1,6 @@
+id: awn.media.category
+name: Категория медиа
+kind: type
+extends: awn.base
+description: Справочная категория для группировки файлов в media/assets
+fields:

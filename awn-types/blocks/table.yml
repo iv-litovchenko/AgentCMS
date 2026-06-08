@@ -1,0 +1,7 @@
+id: awn.block.table
+name: Таблица
+kind: block
+group: code
+sort: 2
+description: 2 колонки, шапка
+template: "\n| Колонка | Колонка |\n| --- | --- |\n| ячейка | ячейка |\n\n"

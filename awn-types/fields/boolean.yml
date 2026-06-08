@@ -1,0 +1,7 @@
+id: awn.boolean
+name: Да/нет
+kind: field
+storage: bool
+mdbase: boolean
+widget: checkbox
+description: Логическое значение

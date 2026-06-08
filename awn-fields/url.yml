@@ -1,6 +1,0 @@
-id: url
-label: URL
-kind: string
-mdbase: url
-widget: url
-description: Внешняя ссылка

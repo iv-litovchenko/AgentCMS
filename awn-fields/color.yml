@@ -1,6 +1,0 @@
-id: color
-label: Цвет
-kind: string
-mdbase: color
-widget: color
-description: Цвет в формате #RRGGBB

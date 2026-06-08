@@ -7,6 +7,8 @@ const {
   fieldDefDefaultValue,
   sortPropsEntries
 } = require("./awn-field-registry");
+const { loadAgentFields } = require("./awn-fields-loader");
+const { getBlockGroups, getBlockRegistry } = require("./awn-blocks-loader");
 const {
   parseTypeYaml,
   listYamlFilesSync,
@@ -21,27 +23,71 @@ const {
 
 const TYPE_FILE_RE = YAML_FILE_RE;
 
-function loadTypeFileSync(filePath) {
-  const parsed = loadYamlFileSync(filePath, { idKey: "name", nameKey: "name" });
-  if (!parsed.name) {
-    const base = path.basename(filePath).replace(TYPE_FILE_RE, "");
-    parsed.name = base.replace(/\./g, ".");
-  }
-  return parsed;
+function getRecordTypeId(typeDef) {
+  return String(typeDef?.id || typeDef?.name || "").trim();
 }
 
+function normalizeRecordTypeDef(parsed, filePath) {
+  const raw = { ...(parsed || {}) };
+  let id = String(raw.id || "").trim();
+  let name = String(raw.name || "").trim();
+
+  // Legacy: единственный ключ name был идентификатором (awn.*)
+  if (!id && name) {
+    if (/^awn\.[\w.-]+$/.test(name)) {
+      id = name;
+      name = "";
+    } else {
+      id = name;
+    }
+  }
+  if (!id) {
+    const base = path.basename(filePath).replace(TYPE_FILE_RE, "");
+    id = base;
+  }
+  if (!name) name = id;
+
+  return {
+    ...raw,
+    id,
+    name,
+    description: raw.description || ""
+  };
+}
+
+function loadTypeFileSync(filePath) {
+  const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
+  return normalizeRecordTypeDef(parsed, filePath);
+}
+
+const TYPE_SKIP_FILES = new Set(["field-def.yml"]);
+const TYPE_SKIP_DIRS = new Set(["fields", "blocks"]);
+
 function listTypeFilesSync(typesDir, acc = []) {
-  return listYamlFilesSync(typesDir, acc);
+  if (!fs.existsSync(typesDir)) return acc;
+  const entries = fs.readdirSync(typesDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(typesDir, entry.name);
+    if (entry.isDirectory()) {
+      if (TYPE_SKIP_DIRS.has(entry.name)) continue;
+      listTypeFilesSync(fullPath, acc);
+    } else if (entry.isFile() && TYPE_FILE_RE.test(entry.name)) {
+      if (TYPE_SKIP_FILES.has(entry.name)) continue;
+      acc.push(fullPath);
+    }
+  }
+  return acc;
 }
 
 function loadTypesFromDirectory(typesDir) {
   const files = listTypeFilesSync(typesDir);
-  const byName = new Map();
+  const byId = new Map();
   for (const filePath of files) {
     const def = loadTypeFileSync(filePath);
-    if (def?.name) byName.set(def.name, def);
+    const typeId = getRecordTypeId(def);
+    if (typeId) byId.set(typeId, def);
   }
-  return byName;
+  return byId;
 }
 
 function applyTypeMixins(typeDef, byName, fields) {
@@ -59,9 +105,9 @@ function applyTypeMixins(typeDef, byName, fields) {
 
 function mergeTypeFields(typeDef, byName, visited = new Set()) {
   if (!typeDef) return {};
-  const name = typeDef.name;
-  if (visited.has(name)) return {};
-  visited.add(name);
+  const typeId = getRecordTypeId(typeDef);
+  if (!typeId || visited.has(typeId)) return {};
+  visited.add(typeId);
 
   let fields = {};
   if (typeDef.extends) {
@@ -280,15 +326,20 @@ function typeFieldsToFormEntries(typeDef, existingEntries = [], options = {}) {
 
 function getAwnTypesPayload(agentRoot, projectRoot) {
   const types = loadAgentTypes(agentRoot, projectRoot);
+  const { fieldDefSchema } = loadAgentFields(agentRoot, projectRoot);
   return {
-    specVersion: "0.2.1",
+    specVersion: "0.2.2",
     fieldRegistry: getFieldRegistry(agentRoot, projectRoot),
     baseFieldOrder: getBaseFieldOrder(agentRoot, projectRoot),
+    fieldDefSchema: fieldDefSchema || null,
+    blockRegistry: getBlockRegistry(agentRoot, projectRoot),
+    blockGroups: getBlockGroups(agentRoot, projectRoot),
     types: Object.fromEntries(
-      Object.entries(types).map(([name, def]) => [
-        name,
+      Object.entries(types).map(([typeId, def]) => [
+        typeId,
         {
-          name: def.name,
+          id: getRecordTypeId(def) || typeId,
+          name: def.name || typeId,
           kind: def.kind,
           extends: def.extends || null,
           mixins: Array.isArray(def.mixins) ? [...def.mixins] : [],
@@ -359,6 +410,10 @@ function stringifyFieldDefYaml(fieldDef, indent) {
   if (fieldDef.description) {
     lines.push(`${pad}description: ${formatYamlScalar(String(fieldDef.description))}`);
   }
+  if (fieldDef.hint) lines.push(`${pad}hint: ${formatYamlScalar(String(fieldDef.hint))}`);
+  if (fieldDef.format) lines.push(`${pad}format: ${formatYamlScalar(String(fieldDef.format))}`);
+  if (fieldDef.required === true) lines.push(`${pad}required: true`);
+  if (fieldDef.locked === true) lines.push(`${pad}locked: true`);
   if (Array.isArray(fieldDef.enum) && fieldDef.enum.length) {
     const items = fieldDef.enum.map((item) => formatYamlScalar(String(item))).join(", ");
     lines.push(`${pad}enum: [${items}]`);

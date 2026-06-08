@@ -1,0 +1,6 @@
+id: awn.record
+name: Запись
+kind: type
+extends: awn.base
+description: Запись по умолчанию — элемент в _s.*/Content/ (расширяется в Config.yml темы)
+fields:

@@ -1,6 +1,0 @@
-id: "null"
-label: Пусто
-kind: null
-mdbase: null
-widget: nullable-input
-description: Явное отсутствие значения

@@ -1,0 +1,7 @@
+id: awn.link
+name: Связь
+kind: field
+storage: string
+mdbase: link
+widget: link
+description: Ссылка на другой файл/запись ([[wikilink]] или путь)

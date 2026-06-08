@@ -1,0 +1,6 @@
+id: awn.record.category
+name: Категория записи
+kind: type
+extends: awn.base
+description: Справочная категория для группировки записей в Content (_s.*/Content/)
+fields:

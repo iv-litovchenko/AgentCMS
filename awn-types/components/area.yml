@@ -1,0 +1,10 @@
+id: awn.area
+name: Область
+kind: type
+extends: awn.base
+description: Область (категория) — папка с _REGINFO.md
+fields:
+  awn-color:
+    type: awn.color
+    title: Цвет
+    description: Акцентный цвет области в меню

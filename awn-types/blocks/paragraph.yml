@@ -1,0 +1,7 @@
+id: awn.block.paragraph
+name: Абзац
+kind: block
+group: text
+sort: 1
+description: Пустой блок для текста
+template: "\n\nТекст...\n\n"

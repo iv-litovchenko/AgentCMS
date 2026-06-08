@@ -4,7 +4,10 @@ awn-name: Фильмы
 awn-create: ""
 awn-update: ""
 awn-description: ""
-awn-version: ""
+awn-status: Открыта
+awn-category: ""
+awn-tags: []
+awn-version: 0.0.1
 awn-sort: 0
 awn-preview: ""
 пку: ""
@@ -18,11 +21,4 @@ title: ""
 title: ""
 ---
 
-кер
-ке
-рек
-рек
-
-рке
-рек
-рекрекр
+Смотрим фильм гарри потетр

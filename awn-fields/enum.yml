@@ -1,6 +1,0 @@
-id: enum
-label: Перечисление
-kind: string
-mdbase: enum
-widget: select
-description: Значение из фиксированного списка

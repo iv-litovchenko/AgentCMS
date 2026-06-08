@@ -1,0 +1,7 @@
+id: awn.null
+name: Пусто
+kind: field
+storage: "null"
+mdbase: "null"
+widget: nullable-input
+description: Явное отсутствие значения

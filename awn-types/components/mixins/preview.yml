@@ -1,0 +1,9 @@
+id: awn.mixin.preview
+name: Превью
+kind: mixin
+description: Превью-картинка для карточек, обзора и графа
+fields:
+  awn-preview:
+    type: awn.url
+    title: Превью
+    description: Путь или URL изображения превью (например Assets/Preview.png или /api/...)

@@ -1,6 +1,0 @@
-id: link
-label: Связь
-kind: string
-mdbase: link
-widget: link
-description: Ссылка на другой файл/запись ([[wikilink]] или путь)

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.4" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.12" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -595,7 +595,7 @@
           <p class="agent-canvas-eyebrow">Workspace</p>
           <h2 class="agent-canvas-title">Типы YAML</h2>
           <p class="agent-canvas-lead">
-            Системные схемы полей frontmatter. Базовые типы — в <code>awn-types/</code> (read-only).
+            Системные схемы полей frontmatter. Типы записей — в <code>awn-types/components/</code> (read-only).
             Дополнительные поля темы — в <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>.
           </p>
         </div>
@@ -1429,16 +1429,38 @@
                     </section>
                     <header class="doc-aside-fields-card-head">
                       <h3 class="doc-aside-fields-card-title">Метаданные</h3>
-                      <p class="doc-aside-fields-card-sub">Поля frontmatter документа</p>
-                      <p id="props-type-hint" class="doc-aside-fields-card-sub props-type-hint hidden"></p>
                     </header>
                     <div id="props-form-fields" class="props-form-fields"></div>
                   </section>
                   <textarea id="props-input" class="props-input props-raw-yaml hidden" spellcheck="false" placeholder="key: value"></textarea>
                 </div>
                 <footer class="doc-aside-panel-footer props-form-actions">
-                  <button id="props-add-field-btn" class="props-form-btn" type="button">+ Свойство</button>
-                  <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
+                  <div class="props-form-actions-cluster" role="group" aria-label="Действия со свойствами">
+                    <button
+                      id="props-add-field-btn"
+                      class="props-form-cluster-btn workspace-toolbar-labeled-btn"
+                      type="button"
+                      title="Добавить свойство"
+                    >
+                      <span class="workspace-toolbar-btn-label">+ Свойство</span>
+                    </button>
+                    <button
+                      id="props-yaml-toggle"
+                      class="props-form-cluster-btn workspace-toolbar-labeled-btn"
+                      type="button"
+                      title="Показать YAML"
+                    >
+                      <span class="workspace-toolbar-btn-label">Показать YAML</span>
+                    </button>
+                  </div>
+                  <button
+                    id="props-edit-schema-btn"
+                    class="node-workspace-close-btn workspace-toolbar-labeled-btn props-form-schema-btn hidden"
+                    type="button"
+                    title="Редактировать схему полей темы"
+                  >
+                    <span class="workspace-toolbar-btn-label">Редактировать схему</span>
+                  </button>
                 </footer>
               </div>
               <div id="doc-aside-panel-outline" class="doc-aside-panel doc-aside-panel--outline" role="tabpanel" aria-labelledby="doc-aside-tab-outline">
@@ -1822,7 +1844,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.74"></script>
+    <script src="/main.js?v=0.5.102"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

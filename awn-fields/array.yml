@@ -1,6 +1,0 @@
-id: array
-label: Список
-kind: array
-mdbase: list
-widget: tags
-description: Массив значений

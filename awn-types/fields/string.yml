@@ -1,0 +1,7 @@
+id: awn.string
+name: Текст
+kind: field
+storage: string
+mdbase: string
+widget: input
+description: Короткая строка

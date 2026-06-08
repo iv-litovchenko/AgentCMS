@@ -1,12 +1,13 @@
 /**
  * Реестр типов полей YAML-свойств (awn-*).
- * Определения хранятся в awn-fields/*.yml, загрузка — awn-fields-loader.js.
+ * Типы данных полей — awn-types/fields/*.yml, загрузка — awn-fields-loader.js.
  */
 
 const {
   loadAgentFields,
   getFieldRegistry: loadFieldRegistry,
   getBaseFieldOrder: loadBaseFieldOrder,
+  resolveFieldTypeId,
   FALLBACK_FIELD_TYPES
 } = require("./awn-fields-loader");
 
@@ -16,8 +17,8 @@ function resolveRegistryContext(agentRoot = "", projectRoot = process.cwd()) {
 
 function getFieldType(typeId, agentRoot = "", projectRoot = process.cwd()) {
   const { fieldRegistry } = resolveRegistryContext(agentRoot, projectRoot);
-  const id = String(typeId || "").trim();
-  return fieldRegistry[id] || fieldRegistry.string || FALLBACK_FIELD_TYPES.string;
+  const id = resolveFieldTypeId(typeId);
+  return fieldRegistry[id] || fieldRegistry["awn.string"] || FALLBACK_FIELD_TYPES["awn.string"];
 }
 
 function getFieldRegistry(agentRoot = "", projectRoot = process.cwd()) {
@@ -68,8 +69,10 @@ function sortPropsEntries(entries, agentRoot = "", projectRoot = process.cwd()) 
 }
 
 function fieldDefToEntryKind(fieldDef, agentRoot = "", projectRoot = process.cwd()) {
-  const typeId = fieldDef?.type || "string";
-  return getFieldType(typeId, agentRoot, projectRoot).kind;
+  const entry = getFieldType(fieldDef?.type, agentRoot, projectRoot);
+  if (entry?.storage) return entry.storage;
+  if (entry?.kind && entry.kind !== "field") return entry.kind;
+  return "string";
 }
 
 function fieldDefDefaultValue(fieldDef, agentRoot = "", projectRoot = process.cwd()) {
@@ -85,6 +88,7 @@ module.exports = {
   getFieldType,
   getFieldRegistry,
   getBaseFieldOrder,
+  resolveFieldTypeId,
   isAwnFieldKey,
   sortPropsFieldKeys,
   sortPropsEntries,

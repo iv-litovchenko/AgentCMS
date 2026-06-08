@@ -1,0 +1,7 @@
+id: awn.block.quote
+name: Цитата
+kind: block
+group: text
+sort: 2
+description: Выделенная цитата
+template: "\n> Цитата\n\n"

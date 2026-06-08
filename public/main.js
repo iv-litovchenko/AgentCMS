@@ -98,7 +98,6 @@ const agentMap2LinksNode = document.getElementById("agent-map2-links");
 const agentMap2NodesNode = document.getElementById("agent-map2-nodes");
 const agentSchemaPaneNode = document.getElementById("agent-schema-pane");
 const agentSchemaContentNode = document.getElementById("agent-schema-content");
-const propsTypeHintNode = document.getElementById("props-type-hint");
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
 const topicSchemaTargetTabsNode = document.getElementById("topic-schema-target-tabs");
 const topicSchemaBaseFieldsNode = document.getElementById("topic-schema-base-fields");
@@ -216,6 +215,7 @@ removeYamlPanelLabel();
 const propsFormFieldsNode = document.getElementById("props-form-fields");
 const propsYamlToggleBtn = document.getElementById("props-yaml-toggle");
 const propsAddFieldBtn = document.getElementById("props-add-field-btn");
+const propsEditSchemaBtn = document.getElementById("props-edit-schema-btn");
 const propsInputNode = document.getElementById("props-input");
 const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
 const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
@@ -3653,6 +3653,7 @@ let nodeSettingsViewActive = false;
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
+let lastWysiwygMarkdownSelection = null;
 let wysiwygEditorResizeObserver = null;
 let sourceEditorResizeObserver = null;
 let sourceEditorViewportResizeBound = false;
@@ -3663,7 +3664,7 @@ const STORAGE_SECTIONS_PANEL_VISIBLE_KEY = "agentcms.storageSectionsPanelVisible
 const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
 const DOC_ASIDE_MINI_DOC_OPEN_KEY = "agentcms.docAside.miniDocOpen.v1";
 
-const DOC_CONTENT_BLOCK_GROUPS = [
+const DOC_CONTENT_BLOCK_GROUPS_FALLBACK = [
   {
     id: "structure",
     title: "Структура",
@@ -8695,6 +8696,161 @@ function canInsertDocContentBlocks() {
   return true;
 }
 
+function markdownOffsetFromLineCol(markdown, line, col) {
+  const lines = String(markdown || "").split("\n");
+  const lineIdx = Math.max(1, Number(line) || 1) - 1;
+  let offset = 0;
+  for (let i = 0; i < lineIdx && i < lines.length; i += 1) {
+    offset += lines[i].length + 1;
+  }
+  const column = Math.max(1, Number(col) || 1);
+  const lineText = lines[lineIdx] || "";
+  offset += Math.min(column - 1, lineText.length);
+  return offset;
+}
+
+function markdownOffsetToLineCol(markdown, offset) {
+  const text = String(markdown || "");
+  const lines = text.split("\n");
+  const target = Math.max(0, Math.min(offset, text.length));
+  let walked = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const lineText = lines[i];
+    const lineEnd = walked + lineText.length;
+    if (target <= lineEnd) {
+      return { line: i + 1, col: target - walked + 1 };
+    }
+    walked = lineEnd + 1;
+    if (target === walked) {
+      return { line: i + 2, col: 1 };
+    }
+  }
+  const lastLine = Math.max(1, lines.length);
+  const lastLen = lines[lastLine - 1]?.length || 0;
+  return { line: lastLine, col: lastLen + 1 };
+}
+
+function cloneWysiwygMarkdownSelection(selection) {
+  if (!Array.isArray(selection) || selection.length < 2) return null;
+  const first = selection[0];
+  const second = selection[1];
+  if (Array.isArray(first) && Array.isArray(second)) {
+    return [
+      [first[0], first[1]],
+      [second[0], second[1]]
+    ];
+  }
+  if (Number.isFinite(first) && Number.isFinite(second)) {
+    return [first, second];
+  }
+  return null;
+}
+
+function captureWysiwygMarkdownSelection() {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return;
+  const cloned = cloneWysiwygMarkdownSelection(editor.getSelection?.());
+  if (cloned) lastWysiwygMarkdownSelection = cloned;
+}
+
+function isWysiwygEditorFocused() {
+  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  if (!pm) return false;
+  const active = document.activeElement;
+  return active === pm || Boolean(active && pm.contains(active));
+}
+
+function bindWysiwygSelectionCapture() {
+  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  if (!pm || pm.dataset.awnSelectionBound === "1") return;
+  pm.dataset.awnSelectionBound = "1";
+  const capture = () => {
+    if (editorViewMode !== "wysiwyg") return;
+    captureWysiwygMarkdownSelection();
+  };
+  pm.addEventListener("keyup", capture);
+  pm.addEventListener("mouseup", capture);
+  pm.addEventListener("focus", capture);
+}
+
+function getWysiwygMarkdownSelectionForInsert(editor) {
+  const current = editor.getSelection?.();
+  if (isWysiwygEditorFocused()) {
+    const cloned = cloneWysiwygMarkdownSelection(current);
+    if (cloned) {
+      lastWysiwygMarkdownSelection = cloned;
+      return cloned;
+    }
+  }
+  if (lastWysiwygMarkdownSelection) {
+    return lastWysiwygMarkdownSelection;
+  }
+  return current;
+}
+
+function bindEditorAsideInsertControl(node) {
+  if (!node || node.dataset.awnInsertBound === "1") return;
+  node.dataset.awnInsertBound = "1";
+  node.addEventListener("mousedown", (event) => event.preventDefault());
+}
+
+function resolveWysiwygMarkdownSelection(markdown, selection) {
+  const text = String(markdown || "");
+  if (!Array.isArray(selection) || selection.length < 2) {
+    return { start: text.length, end: text.length };
+  }
+
+  const first = selection[0];
+  const second = selection[1];
+  if (Number.isFinite(first) && Number.isFinite(second) && !Array.isArray(first)) {
+    const start = Math.max(0, Math.min(first, text.length));
+    const end = Math.max(start, Math.min(second, text.length));
+    return { start, end };
+  }
+
+  if (Array.isArray(first) && Array.isArray(second)) {
+    const start = markdownOffsetFromLineCol(text, first[0], first[1]);
+    const end = markdownOffsetFromLineCol(text, second[0], second[1]);
+    return {
+      start: Math.max(0, Math.min(start, text.length)),
+      end: Math.max(start, Math.min(end, text.length))
+    };
+  }
+
+  return { start: text.length, end: text.length };
+}
+
+function insertMarkdownAtWysiwygCursor(snippet) {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return false;
+  const text = String(snippet || "");
+  if (!text) return false;
+
+  const current = String(editor.getMarkdown() || "");
+  const { start, end } = resolveWysiwygMarkdownSelection(
+    current,
+    getWysiwygMarkdownSelectionForInsert(editor)
+  );
+  const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+  editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+
+  const cursorOffset = start + text.length;
+  const { line: cursorLine, col: cursorCol } = markdownOffsetToLineCol(next, cursorOffset);
+
+  try {
+    editor.setSelection([[cursorLine, cursorCol], [cursorLine, cursorCol]]);
+    lastWysiwygMarkdownSelection = [
+      [cursorLine, cursorCol],
+      [cursorLine, cursorCol]
+    ];
+  } catch {
+    // Toast UI may reject out-of-range selection after re-parse — safe to ignore.
+  }
+  syncSourceFromWysiwygEditor();
+  editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus();
+  return true;
+}
+
 function insertMarkdownAtEditorCursor(text) {
   const snippet = String(text || "");
   if (!snippet) return false;
@@ -8705,8 +8861,7 @@ function insertMarkdownAtEditorCursor(text) {
 
   if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
     try {
-      wysiwygEditorInstance.insertText(snippet);
-      syncSourceFromWysiwygEditor();
+      if (!insertMarkdownAtWysiwygCursor(snippet)) throw new Error("insert failed");
       syncSaveButtonLamp();
       if (getDocAsideTab() === "outline") renderDocOutline();
       return true;
@@ -11637,6 +11792,7 @@ let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
+let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
   "awn-type",
@@ -11644,14 +11800,24 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-create",
   "awn-update",
   "awn-description",
+  "awn-status",
+  "awn-category",
+  "awn-tags",
   "awn-version",
-  "awn-sort"
+  "awn-sort",
+  "awn-preview"
 ];
+
+function getStandardPropsFieldKeys() {
+  const fromApi = awnTypesCache?.baseFieldOrder;
+  if (Array.isArray(fromApi) && fromApi.length) return fromApi;
+  return STANDARD_PROPS_FIELD_KEYS;
+}
 
 const PROPS_FIELD_META = {
   "awn-type": {
     label: "Тип",
-    hint: "Идентификатор типа записи (awn.agent, awn.area, awn.topic, …)"
+    hint: "Идентификатор типа (awn.agent, awn.record, awn.record.category, awn.media.category, …)"
   },
   "awn-name": {
     label: "Имя",
@@ -11669,13 +11835,29 @@ const PROPS_FIELD_META = {
     label: "Описание",
     hint: "Краткое назначение темы для агента"
   },
+  "awn-status": {
+    label: "Статус",
+    hint: "Открыта или Закрыта"
+  },
+  "awn-category": {
+    label: "Категория",
+    hint: "Категория или группа записи"
+  },
+  "awn-tags": {
+    label: "Теги",
+    hint: "Метки для поиска и фильтрации"
+  },
   "awn-version": {
     label: "Версия",
-    hint: "Номер или метка версии"
+    hint: "Семантическая версия, например 0.0.1"
   },
   "awn-sort": {
     label: "Сортировка",
     hint: "Порядок в списках и дереве"
+  },
+  "awn-preview": {
+    label: "Превью",
+    hint: "Путь или URL изображения превью (Assets/Preview.png или /api/...)"
   },
   tags: {
     label: "Теги",
@@ -11696,6 +11878,7 @@ async function loadAwnTypes(agentId = activeAgentId) {
     const response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     awnTypesCache = await response.json();
+    if (getDocAsideTab() === "blocks") renderDocContentBlocks();
     return awnTypesCache;
   } catch {
     awnTypesCache = null;
@@ -11786,6 +11969,12 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   const response = await fetch(buildApiUrl("/api/file/topic-schema", { path: manifestPath }));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
+  let fieldRegistry = data.fieldRegistry || awnTypesCache?.fieldRegistry || {};
+  const canonicalFieldTypes = Object.keys(fieldRegistry).filter((id) => id.startsWith("awn.")).length;
+  if (canonicalFieldTypes < 2) {
+    await loadAwnTypes(activeAgentId);
+    fieldRegistry = awnTypesCache?.fieldRegistry || fieldRegistry;
+  }
   const payload = {
     manifestPath,
     configPath: data.configPath || "",
@@ -11793,7 +11982,7 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     awnSchema: normalizeTopicSchemaState(data.awnSchema),
     baseTypes: data.baseTypes || {},
     merged: data.merged || {},
-    fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {}
+    fieldRegistry
   };
   topicSchemaCacheByManifest.set(manifestPath, payload);
   return payload;
@@ -11802,8 +11991,9 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
 function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
   const registry = cache?.fieldRegistry || awnTypesCache?.fieldRegistry || {};
   return Object.entries(registry)
-    .map(([id, def]) => ({ id, label: def?.label || id }))
-    .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    .filter(([id]) => id.startsWith("awn."))
+    .map(([id, def]) => ({ id, name: def?.name || def?.label || id }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
 function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache = getTopicSchemaCache()) {
@@ -11821,7 +12011,7 @@ function addTopicSchemaField(target = topicSchemaActiveTarget) {
     index += 1;
     key = `field_${index}`;
   }
-  fields[key] = { type: "string", title: "" };
+  fields[key] = { type: "awn.string", title: "" };
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
   const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
@@ -11917,10 +12107,10 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     for (const entry of registryEntries) {
       const option = document.createElement("option");
       option.value = entry.id;
-      option.textContent = entry.label;
+      option.textContent = entry.name;
       typeSelect.append(option);
     }
-    typeSelect.value = fieldDef.type || "string";
+    typeSelect.value = resolveFieldTypeId(fieldDef.type || "awn.string");
     typeLabel.append(typeSelect);
 
     const titleLabel = document.createElement("label");
@@ -11940,8 +12130,8 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     enumInput.value = Array.isArray(fieldDef.enum) ? fieldDef.enum.join(", ") : "";
     enumInput.dataset.schemaKey = key;
     enumInput.dataset.schemaField = "enum";
-    enumInput.classList.toggle("hidden", (fieldDef.type || "string") !== "enum");
-    enumLabel.classList.toggle("hidden", (fieldDef.type || "string") !== "enum");
+    enumInput.classList.toggle("hidden", !isAwnEnumFieldType(fieldDef.type));
+    enumLabel.classList.toggle("hidden", !isAwnEnumFieldType(fieldDef.type));
     enumLabel.append(enumInput);
 
     const removeBtn = document.createElement("button");
@@ -11990,10 +12180,10 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
 
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
-  fieldDef.type = typeSelect?.value || "string";
+  fieldDef.type = resolveFieldTypeId(typeSelect?.value || "awn.string");
   fieldDef.title = String(titleInput?.value || "").trim();
 
-  if (fieldDef.type === "enum") {
+  if (isAwnEnumFieldType(fieldDef.type)) {
     const enumRaw = String(enumInput?.value || "");
     fieldDef.enum = enumRaw
       .split(",")
@@ -12071,11 +12261,12 @@ function isAwnFieldKey(key) {
 
 function sortPropsFieldKeys(keys) {
   const list = [...keys];
+  const standardKeys = getStandardPropsFieldKeys();
   return list.sort((a, b) => {
     const aNorm = String(a || "").toLowerCase();
     const bNorm = String(b || "").toLowerCase();
-    const aBase = STANDARD_PROPS_FIELD_KEYS.indexOf(aNorm);
-    const bBase = STANDARD_PROPS_FIELD_KEYS.indexOf(bNorm);
+    const aBase = standardKeys.indexOf(aNorm);
+    const bBase = standardKeys.indexOf(bNorm);
     const aAwn = isAwnFieldKey(aNorm);
     const bAwn = isAwnFieldKey(bNorm);
     if (aBase !== -1 && bBase !== -1) return aBase - bBase;
@@ -12089,17 +12280,18 @@ function sortPropsFieldKeys(keys) {
 }
 
 function sortPropsEntries(entries) {
-  const keys = entries.map((entry) => entry?.key).filter(Boolean);
-  const order = sortPropsFieldKeys(keys);
-  const map = new Map(entries.map((entry) => [entry.key, entry]));
+  const drafts = entries.filter((entry) => !entry?.key);
+  const keyed = entries.filter((entry) => entry?.key);
+  const order = sortPropsFieldKeys(keyed.map((entry) => entry.key));
+  const map = new Map(keyed.map((entry) => [entry.key, entry]));
   const result = [];
   for (const key of order) {
     if (map.has(key)) result.push(map.get(key));
   }
-  for (const entry of entries) {
-    if (entry?.key && !order.includes(entry.key)) result.push(entry);
+  for (const entry of keyed) {
+    if (!order.includes(entry.key)) result.push(entry);
   }
-  return result;
+  return [...result, ...drafts];
 }
 
 function resolveAwnTypeForContext(nodePath = getResolvedNodePath(activePath)) {
@@ -12152,14 +12344,20 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.area": "Область (категория) — папка с _REGINFO.md",
   "awn.topic": "Тема — standalone *.md манифест",
   "awn.record": "Запись в _s.*/Content/ (расширяется в Config.yml темы)",
+  "awn.record.category": "Категория записей — справочник для awn-category в Content",
+  "awn.media.category": "Категория медиа — справочник для группировки файлов в assets",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
 };
 
 const AWN_TYPE_KIND_LABELS = {
   base: "база",
   mixin: "миксин",
-  type: "тип"
+  type: "тип",
+  field: "поле",
+  block: "блок"
 };
+
+const AWN_TYPE_LIST_SKIP = new Set(["awn.file", "awn.mixin.base", "awn.field-def"]);
 
 function getAwnTypeKindSortOrder(kind) {
   if (kind === "base") return 0;
@@ -12171,27 +12369,21 @@ function getAwnTypeUsageHint(typeName) {
   return AWN_TYPE_USAGE_HINTS[typeName] || "";
 }
 
-function getAwnFieldTypeLabel(typeId) {
-  const registry = awnTypesCache?.fieldRegistry || {};
-  const entry = registry[typeId];
-  return entry?.label || typeId || "—";
+function resolveFieldTypeId(typeId) {
+  const raw = String(typeId || "").trim();
+  if (!raw) return "awn.string";
+  if (raw.startsWith("awn.")) return raw;
+  return `awn.${raw}`;
 }
 
-function syncPropsTypeHintUi() {
-  if (!propsTypeHintNode) return;
-  const typeDef = getActiveAwnTypeDef();
-  if (!typeDef?.name || !awnTypesCache?.types) {
-    propsTypeHintNode.textContent = "";
-    propsTypeHintNode.classList.add("hidden");
-    return;
-  }
-  const kindLabel = AWN_TYPE_KIND_LABELS[typeDef.kind] || typeDef.kind || "тип";
-  const usage = getAwnTypeUsageHint(typeDef.name);
-  const usageShort = usage ? usage.replace(/\s+/g, " ").trim() : "";
-  propsTypeHintNode.textContent = usageShort
-    ? `${typeDef.name} (${kindLabel}) · ${usageShort}`
-    : `${typeDef.name} (${kindLabel})`;
-  propsTypeHintNode.classList.remove("hidden");
+function isAwnEnumFieldType(typeId) {
+  return resolveFieldTypeId(typeId) === "awn.enum";
+}
+
+function getAwnFieldTypeLabel(typeId) {
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry = registry[resolveFieldTypeId(typeId)];
+  return entry?.name || entry?.label || typeId || "—";
 }
 
 function getTypeSchemaFieldKeys(typeDef) {
@@ -12199,25 +12391,40 @@ function getTypeSchemaFieldKeys(typeDef) {
   return Object.keys(typeDef.fields);
 }
 
-function getPropsFieldMetaFromSchema(key) {
+function getPropsFieldDef(key) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return null;
   const typeDef = getActiveAwnTypeDef();
-  const fieldDef = typeDef?.fields?.[key];
+  return typeDef?.fields?.[normalized] || null;
+}
+
+function isPropsFieldLocked(key, fieldDef = getPropsFieldDef(key)) {
+  if (fieldDef?.locked) return true;
+  return PROPS_FORM_LOCKED_KEYS.has(normalizePropsKey(key));
+}
+
+function getPropsFieldMetaFromSchema(key) {
+  const fieldDef = getPropsFieldDef(key);
   if (!fieldDef) return null;
   return {
     label: fieldDef.title || key,
-    hint: fieldDef.description || ""
+    hint: fieldDef.hint || fieldDef.description || "",
+    format: fieldDef.format || "",
+    required: Boolean(fieldDef.required),
+    locked: isPropsFieldLocked(key, fieldDef)
   };
 }
 
 function fieldDefToEntryKind(fieldDef) {
-  const typeId = fieldDef?.type || "string";
+  const typeId = resolveFieldTypeId(fieldDef?.type || "awn.string");
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry = registry[typeId];
-  if (registryEntry?.kind) return registryEntry.kind;
-  if (typeId === "integer" || typeId === "number") return "number";
-  if (typeId === "boolean") return "bool";
-  if (typeId === "array") return "array";
-  if (typeId === "null") return "null";
+  if (registryEntry?.storage) return registryEntry.storage;
+  if (registryEntry?.kind && registryEntry.kind !== "field") return registryEntry.kind;
+  if (typeId === "awn.integer" || typeId === "awn.number") return "number";
+  if (typeId === "awn.boolean") return "bool";
+  if (typeId === "awn.array") return "array";
+  if (typeId === "awn.null") return "null";
   return "string";
 }
 
@@ -12239,9 +12446,10 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
     if (entry?.key) map.set(entry.key, entry);
   }
 
+  const standardKeys = getStandardPropsFieldKeys();
   const orderedKeys = [
-    ...STANDARD_PROPS_FIELD_KEYS,
-    ...getTypeSchemaFieldKeys(typeDef).filter((key) => !STANDARD_PROPS_FIELD_KEYS.includes(key))
+    ...standardKeys,
+    ...getTypeSchemaFieldKeys(typeDef).filter((key) => !standardKeys.includes(key))
   ];
 
   const result = [];
@@ -12257,7 +12465,7 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
     }
 
     const fieldDef = typeDef.fields[key];
-    if (!fieldDef && STANDARD_PROPS_FIELD_KEYS.includes(key)) {
+    if (!fieldDef && standardKeys.includes(key)) {
       result.push({ key, kind: "string", value: "" });
       continue;
     }
@@ -12274,6 +12482,9 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
   for (const entry of entries) {
     if (!entry?.key || seen.has(entry.key) || HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
     result.push(entry);
+  }
+  for (const entry of entries) {
+    if (!entry?.key) result.push({ key: "", kind: entry.kind || "string", value: entry.value ?? "" });
   }
 
   return sortPropsEntries(result);
@@ -12316,7 +12527,7 @@ function getPropsFieldMeta(key) {
 
 function isStandardPropsFieldKey(key) {
   const normalized = normalizePropsKey(key);
-  return Boolean(normalized && STANDARD_PROPS_FIELD_KEYS.includes(normalized));
+  return Boolean(normalized && getStandardPropsFieldKeys().includes(normalized));
 }
 
 function normalizePropsEntries(entries) {
@@ -12387,13 +12598,17 @@ function ensureStandardPropsEntries(entries) {
     if (entry?.key) map.set(entry.key, entry);
   }
   const result = [];
-  for (const key of STANDARD_PROPS_FIELD_KEYS) {
+  const standardKeys = getStandardPropsFieldKeys();
+  for (const key of standardKeys) {
     result.push(map.get(key) || { key, kind: "string", value: "" });
   }
   for (const entry of entries) {
-    if (!entry?.key || STANDARD_PROPS_FIELD_KEYS.includes(entry.key)) continue;
+    if (!entry?.key || standardKeys.includes(entry.key)) continue;
     if (HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
     result.push(entry);
+  }
+  for (const entry of entries) {
+    if (!entry?.key) result.push({ key: "", kind: entry.kind || "string", value: entry.value ?? "" });
   }
   return sortPropsEntries(result);
 }
@@ -12581,12 +12796,16 @@ function getDocAsideTab() {
   return "outline";
 }
 
-function isDocAsideOutlineTabAvailable() {
+function isDocAsideAvailable() {
   if (!activePath || activeSystemFile) return false;
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
   return true;
+}
+
+function isDocAsideOutlineTabAvailable() {
+  return isDocAsideAvailable();
 }
 
 function isDocAsidePropsTabAvailable() {
@@ -12787,6 +13006,12 @@ function renderDocOutline() {
   docOutlineContentNode.appendChild(nav);
 }
 
+function getDocContentBlockGroups() {
+  const groups = awnTypesCache?.blockGroups;
+  if (Array.isArray(groups) && groups.length) return groups;
+  return DOC_CONTENT_BLOCK_GROUPS_FALLBACK;
+}
+
 function renderDocContentBlocks() {
   if (!docBlocksContentNode) return;
   docBlocksContentNode.replaceChildren();
@@ -12799,7 +13024,7 @@ function renderDocContentBlocks() {
     return;
   }
 
-  for (const group of DOC_CONTENT_BLOCK_GROUPS) {
+  for (const group of getDocContentBlockGroups()) {
     const section = document.createElement("section");
     section.className = "doc-blocks-group";
     section.setAttribute("aria-label", group.title);
@@ -12817,20 +13042,23 @@ function renderDocContentBlocks() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "doc-block-btn";
-      btn.title = block.description || block.label;
+      const blockLabel = block.label || block.name || block.id;
+      btn.title = block.description || blockLabel;
 
       const label = document.createElement("span");
       label.className = "doc-block-btn-label";
-      label.textContent = block.label;
+      label.textContent = blockLabel;
 
       const desc = document.createElement("span");
       desc.className = "doc-block-btn-desc";
       desc.textContent = block.description || "";
 
       btn.append(label, desc);
+      bindEditorAsideInsertControl(btn);
       btn.addEventListener("click", () => {
-        if (insertMarkdownAtEditorCursor(block.text)) {
-          showToast(`Вставлено: ${block.label}`, "success");
+        const snippet = block.template || block.text || "";
+        if (insertMarkdownAtEditorCursor(snippet)) {
+          showToast(`Вставлено: ${block.label || block.name}`, "success");
         }
       });
 
@@ -12978,6 +13206,7 @@ function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
     snippet.textContent = item.wikilink;
 
     btn.append(label, path, snippet);
+    bindEditorAsideInsertControl(btn);
     btn.addEventListener("click", () => {
       if (insertMarkdownAtEditorCursor(item.wikilink)) {
         showToast(`Вставлена ссылка: ${item.label}`, "success");
@@ -13282,6 +13511,34 @@ function syncDocAsideUi({
   renderDocAsideMiniDoc();
 }
 
+function setPropsYamlToggleLabel(text) {
+  if (!propsYamlToggleBtn) return;
+  const label = text || "Показать YAML";
+  propsYamlToggleBtn.title = label;
+  const labelNode = propsYamlToggleBtn.querySelector(".workspace-toolbar-btn-label");
+  if (labelNode) labelNode.textContent = label;
+  else propsYamlToggleBtn.textContent = label;
+}
+
+function openTopicSchemaFromPropsAside() {
+  if (!isTopicSchemaModeAvailable()) {
+    showToast("Схема полей недоступна для этой записи", "info");
+    return;
+  }
+  setContentMode("topic-schema");
+}
+
+function syncPropsFormActionsUi() {
+  const readOnly = isPropsFormReadOnly();
+  const schemaAvailable = isTopicSchemaModeAvailable();
+  yamlPanelNode?.classList.toggle("is-props-preview", readOnly);
+  propsAddFieldBtn?.toggleAttribute("disabled", readOnly);
+  propsYamlToggleBtn?.toggleAttribute("disabled", readOnly);
+  propsYamlToggleBtn?.classList.toggle("active", propsRawYamlVisible);
+  propsEditSchemaBtn?.classList.toggle("hidden", !schemaAvailable);
+  propsEditSchemaBtn?.toggleAttribute("disabled", !schemaAvailable);
+}
+
 function applyPropsFormViewMode() {
   if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return;
   const readOnly = isPropsFormReadOnly();
@@ -13290,12 +13547,12 @@ function applyPropsFormViewMode() {
       absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
       propsRawYamlVisible = false;
       propsInputNode.classList.add("hidden");
-      if (propsYamlToggleBtn) propsYamlToggleBtn.textContent = "Показать YAML";
+      setPropsYamlToggleLabel("Показать YAML");
     } else if (propsFormFieldsNode?.querySelector('input[data-field="value"]')) {
       readPropsFormIntoEntries();
     }
   }
-  yamlPanelNode.classList.toggle("is-props-preview", readOnly);
+  syncPropsFormActionsUi();
   propsInputNode.readOnly = readOnly;
   renderPropsForm();
 }
@@ -13307,7 +13564,6 @@ function syncDocAsideTabAvailability() {
 
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
-  syncPropsTypeHintUi();
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
@@ -13407,6 +13663,7 @@ function createPropsFormFieldRow(entry, index) {
   if (entry.key) {
     const label = document.createElement("label");
     label.className = "props-form-field-label";
+    if (meta.required) label.classList.add("is-required");
     label.textContent = meta.label || entry.key;
     label.title = meta.hint ? `${entry.key} — ${meta.hint}` : entry.key;
     head.appendChild(label);
@@ -13426,9 +13683,10 @@ function createPropsFormFieldRow(entry, index) {
   valueNode.type = "text";
   valueNode.dataset.field = "value";
   valueNode.value = displayValue;
-  valueNode.placeholder = entry.kind === "array" ? "a, b, c" : "—";
+  valueNode.placeholder =
+    meta.format ? meta.format : entry.kind === "array" ? "a, b, c" : meta.hint || "—";
   if (meta.hint) valueNode.title = meta.hint;
-  if (entry.key && PROPS_FORM_LOCKED_KEYS.has(entry.key)) {
+  if (entry.key && meta.locked) {
     valueNode.readOnly = true;
     valueNode.classList.add("is-locked");
   }
@@ -13444,7 +13702,7 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     syncYamlFromPropsForm();
     propsRawYamlVisible = false;
     propsInputNode.classList.add("hidden");
-    propsYamlToggleBtn.textContent = "Показать YAML";
+    setPropsYamlToggleLabel("Показать YAML");
   }
   renderPropsForm();
 }
@@ -13486,7 +13744,8 @@ function togglePropsRawYaml() {
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
     propsRawYamlVisible = false;
     propsInputNode.classList.add("hidden");
-    propsYamlToggleBtn.textContent = "Показать YAML";
+    setPropsYamlToggleLabel("Показать YAML");
+    propsYamlToggleBtn?.classList.remove("active");
     renderPropsForm();
     return;
   }
@@ -13495,7 +13754,8 @@ function togglePropsRawYaml() {
   syncYamlFromPropsForm();
   propsRawYamlVisible = true;
   propsInputNode.classList.remove("hidden");
-  propsYamlToggleBtn.textContent = "Скрыть YAML";
+  setPropsYamlToggleLabel("Скрыть YAML");
+  propsYamlToggleBtn?.classList.add("active");
 }
 
 function splitFrontmatter(raw = "") {
@@ -16677,7 +16937,7 @@ function applyModeUi() {
   const hideToolbar = hideDocActions;
   const showYamlPanel =
     activeContentMode === "description" || externalEditing || mediaSidecarEditing;
-  const showDocAside = isEditorSaveTrackingActive() && !activeSystemFile;
+  const showDocAside = isDocAsideAvailable();
   const titleBlockVisible =
     showDocAside &&
     (titleVisible || mediaSidecarEditing) &&
@@ -16757,6 +17017,7 @@ function applyModeUi() {
     propsPanelAvailable: showYamlPanel,
     editorToolsPanelAvailable: canInsertDocContentBlocks()
   });
+  if (showDocAside) syncPropsFormActionsUi();
   removeYamlPanelLabel();
   syncPropsInputPlaceholder();
   externalViewSelectNode?.classList.toggle("hidden", !showExternalControls);
@@ -17088,7 +17349,8 @@ function initPreviewImageExpand(root) {
     if (target.closest(".img-style-lightbox")) return;
     if (
       !target.closest(".node-navigation-memory-body .file-content-preview") &&
-      !target.closest(".node-overview-content .file-content-preview")
+      !target.closest(".node-overview-content .file-content-preview") &&
+      !target.closest(".editor-surface .file-content-preview")
     ) {
       return;
     }
@@ -17413,6 +17675,7 @@ function destroyWysiwygEditor() {
     wysiwygEditorInstance.destroy();
     wysiwygEditorInstance = null;
   }
+  lastWysiwygMarkdownSelection = null;
   if (editorWysiwygWrapNode) {
     editorWysiwygWrapNode.innerHTML = "";
   }
@@ -17520,7 +17783,10 @@ function initWysiwygEditor() {
   });
 
   syncSaveButtonLamp();
-  requestAnimationFrame(() => syncEditorFillMinHeightCssVar());
+  requestAnimationFrame(() => {
+    bindWysiwygSelectionCapture();
+    syncEditorFillMinHeightCssVar();
+  });
 }
 
 function getEditorContentValue() {
@@ -20244,7 +20510,8 @@ async function loadPropertiesForActivePath() {
     setPropsYamlContent(`# Ошибка чтения YAML-свойств: ${error.message}`);
     propsRawYamlVisible = true;
     propsInputNode.classList.remove("hidden");
-    propsYamlToggleBtn.textContent = "Скрыть YAML";
+    setPropsYamlToggleLabel("Скрыть YAML");
+    propsYamlToggleBtn?.classList.add("active");
   }
 }
 
@@ -21683,88 +21950,254 @@ function walkAgentSchemaMenu(node, container, depth = 0) {
   }
 }
 
-function createAwnTypeFieldRow(fieldKey, fieldDef) {
-  const row = document.createElement("li");
-  row.className = "agent-awn-type-field";
-
-  const key = document.createElement("span");
-  key.className = "agent-awn-type-field-key";
-  key.textContent = fieldKey;
-
-  const type = document.createElement("span");
-  type.className = "agent-awn-type-field-type";
-  type.textContent = getAwnFieldTypeLabel(fieldDef?.type);
-
-  const title = document.createElement("span");
-  title.className = "agent-awn-type-field-title";
-  title.textContent = fieldDef?.title || fieldDef?.description || "";
-
-  row.append(key, type, title);
-  return row;
+function getSortedAwnTypesList(typesMap) {
+  return Object.entries(typesMap || {})
+    .filter(([typeKey]) => !AWN_TYPE_LIST_SKIP.has(typeKey))
+    .map(([typeKey, typeDef]) => ({ typeKey, typeDef }))
+    .sort((a, b) => {
+      const aOrder = getAwnTypeKindSortOrder(a.typeDef?.kind);
+      const bOrder = getAwnTypeKindSortOrder(b.typeDef?.kind);
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return String(a.typeKey || "").localeCompare(String(b.typeKey || ""));
+    });
 }
 
-function createAwnTypeCard(typeDef) {
-  const card = document.createElement("article");
-  const kind = typeDef?.kind || "type";
-  const isMixin = kind === "mixin";
-  const isBase = kind === "base";
-  card.className = `agent-awn-type-card${isMixin ? " is-mixin" : ""}${isBase ? " is-base" : ""}`;
-
-  const head = document.createElement("div");
-  head.className = "agent-awn-type-card-head";
-
-  const name = document.createElement("span");
-  name.className = "agent-awn-type-card-name";
-  name.textContent = typeDef?.name || "—";
-
+function createAwnTypeKindBadge(kind) {
   const badge = document.createElement("span");
-  badge.className = `agent-awn-type-badge agent-awn-type-badge--${kind}`;
+  badge.className = `agent-awn-type-badge agent-awn-type-badge--${kind || "type"}`;
   badge.textContent = AWN_TYPE_KIND_LABELS[kind] || kind || "тип";
+  return badge;
+}
 
-  head.append(name, badge);
-  card.appendChild(head);
+const AWN_TYPE_NAV_GROUPS = [
+  { kind: "base", label: "База" },
+  { kind: "mixin", label: "Миксины" },
+  { kind: "type", label: "Типы" }
+];
+
+function createAwnTypeNavItem(typeKey, typeDef, isActive) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `agent-awn-type-nav-item${isActive ? " is-active" : ""}`;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  btn.dataset.typeKey = typeKey || "";
+
+  const id = document.createElement("span");
+  id.className = "agent-awn-type-nav-id";
+  id.textContent = typeDef?.id || typeKey || "—";
+  btn.appendChild(id);
+
+  const humanName = String(typeDef?.name || "").trim();
+  if (humanName && humanName !== typeDef?.id) {
+    const title = document.createElement("span");
+    title.className = "agent-awn-type-nav-name";
+    title.textContent = humanName;
+    btn.appendChild(title);
+  }
+
+  return btn;
+}
+
+function createAwnTypeFieldFlags(fieldDef) {
+  const flags = document.createElement("span");
+  flags.className = "agent-awn-type-field-flags";
+  if (fieldDef?.required) {
+    const required = document.createElement("span");
+    required.className = "agent-awn-type-field-flag agent-awn-type-field-flag--required";
+    required.textContent = "обяз.";
+    required.title = "Обязательное поле";
+    flags.appendChild(required);
+  }
+  if (fieldDef?.locked) {
+    const locked = document.createElement("span");
+    locked.className = "agent-awn-type-field-flag agent-awn-type-field-flag--locked";
+    locked.textContent = "закр.";
+    locked.title = "Только чтение";
+    flags.appendChild(locked);
+  }
+  if (!flags.childElementCount) {
+    flags.textContent = "—";
+  }
+  return flags;
+}
+
+function renderAwnTypeDetailPanel(typeDef) {
+  const panel = document.createElement("div");
+  panel.className = "agent-awn-type-detail";
+  panel.setAttribute("role", "tabpanel");
+
+  const head = document.createElement("header");
+  head.className = "agent-awn-type-detail-head";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "agent-awn-type-detail-title-row";
+  const title = document.createElement("h4");
+  title.className = "agent-awn-type-detail-title";
+  title.textContent = typeDef?.name || typeDef?.id || "—";
+  titleRow.append(title, createAwnTypeKindBadge(typeDef?.kind || "type"));
+  head.appendChild(titleRow);
+
+  if (typeDef?.id) {
+    const idLine = document.createElement("p");
+    idLine.className = "agent-awn-type-detail-id";
+    idLine.innerHTML = `<code>${typeDef.id}</code>`;
+    head.appendChild(idLine);
+  }
+
+  panel.appendChild(head);
+
+  const meta = document.createElement("div");
+  meta.className = "agent-awn-type-detail-meta";
 
   if (typeDef?.description) {
     const desc = document.createElement("p");
-    desc.className = "agent-awn-type-card-desc";
+    desc.className = "agent-awn-type-detail-desc";
     desc.textContent = typeDef.description;
-    card.appendChild(desc);
+    meta.appendChild(desc);
   }
 
-  const usage = getAwnTypeUsageHint(typeDef?.name);
+  const usage = getAwnTypeUsageHint(typeDef?.id || typeDef?.name);
   if (usage) {
     const usageNode = document.createElement("p");
-    usageNode.className = "agent-awn-type-card-usage";
+    usageNode.className = "agent-awn-type-detail-usage";
     usageNode.textContent = usage;
-    card.appendChild(usageNode);
+    meta.appendChild(usageNode);
   }
 
   if (typeDef?.extends) {
     const extendsNode = document.createElement("p");
-    extendsNode.className = "agent-awn-type-card-extends";
-    extendsNode.textContent = `Наследует: ${typeDef.extends}`;
-    card.appendChild(extendsNode);
+    extendsNode.className = "agent-awn-type-detail-line";
+    extendsNode.innerHTML = `Наследует: <code>${typeDef.extends}</code>`;
+    meta.appendChild(extendsNode);
   }
 
   if (Array.isArray(typeDef?.mixins) && typeDef.mixins.length) {
     const mixinsNode = document.createElement("p");
-    mixinsNode.className = "agent-awn-type-card-extends";
-    mixinsNode.textContent = `Миксины: ${typeDef.mixins.join(", ")}`;
-    card.appendChild(mixinsNode);
+    mixinsNode.className = "agent-awn-type-detail-line";
+    mixinsNode.innerHTML = `Миксины: <code>${typeDef.mixins.join("</code>, <code>")}</code>`;
+    meta.appendChild(mixinsNode);
   }
+
+  if (meta.childNodes.length) panel.appendChild(meta);
 
   const fields = typeDef?.fields && typeof typeDef.fields === "object" ? typeDef.fields : {};
   const fieldKeys = Object.keys(fields);
   if (fieldKeys.length) {
-    const list = document.createElement("ul");
-    list.className = "agent-awn-type-fields";
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "agent-awn-type-fields-table-wrap";
+    const table = document.createElement("table");
+    table.className = "agent-awn-field-registry-table agent-awn-type-fields-table";
+    table.innerHTML =
+      "<thead><tr>" +
+      "<th>Поле</th><th>Тип</th><th>Название</th><th>Флаги</th>" +
+      "</tr></thead>";
+    const tbody = document.createElement("tbody");
     for (const fieldKey of fieldKeys) {
-      list.appendChild(createAwnTypeFieldRow(fieldKey, fields[fieldKey]));
+      const fieldDef = fields[fieldKey];
+      const row = document.createElement("tr");
+      const keyCell = document.createElement("td");
+      keyCell.innerHTML = `<code>${fieldKey}</code>`;
+      const typeCell = document.createElement("td");
+      typeCell.innerHTML = `<code>${fieldDef?.type || "—"}</code>`;
+      const titleCell = document.createElement("td");
+      titleCell.textContent = fieldDef?.title || fieldDef?.description || "—";
+      const flagsCell = document.createElement("td");
+      flagsCell.appendChild(createAwnTypeFieldFlags(fieldDef));
+      row.append(keyCell, typeCell, titleCell, flagsCell);
+      tbody.appendChild(row);
     }
-    card.appendChild(list);
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    panel.appendChild(tableWrap);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "agent-awn-type-detail-empty";
+    empty.textContent = "У типа нет собственных полей.";
+    panel.appendChild(empty);
   }
 
-  return card;
+  return panel;
+}
+
+function createAwnTypesBrowserSection(typeEntries) {
+  const section = document.createElement("section");
+  section.className = "agent-awn-types-section";
+  section.innerHTML =
+    '<header class="agent-awn-types-section-head">' +
+    '<h3 class="agent-awn-types-section-title">Типы записей</h3>' +
+    '<p class="agent-awn-types-section-sub">Выберите тип — поля frontmatter для <code>awn-type</code></p>' +
+    "</header>";
+
+  if (!typeEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "agent-awn-types-empty";
+    empty.textContent = "Типы не найдены.";
+    section.appendChild(empty);
+    return section;
+  }
+
+  const selectedKey =
+    typeEntries.find((entry) => entry.typeKey === awnTypesSelectedKey)?.typeKey ||
+    typeEntries[0].typeKey;
+  awnTypesSelectedKey = selectedKey;
+  const selectedEntry =
+    typeEntries.find((entry) => entry.typeKey === selectedKey) || typeEntries[0];
+
+  const browser = document.createElement("div");
+  browser.className = "agent-awn-types-browser";
+
+  const nav = document.createElement("nav");
+  nav.className = "agent-awn-types-nav";
+  nav.setAttribute("role", "tablist");
+  nav.setAttribute("aria-label", "Типы записей");
+
+  for (const group of AWN_TYPE_NAV_GROUPS) {
+    const groupEntries = typeEntries.filter(
+      (entry) => (entry.typeDef?.kind || "type") === group.kind
+    );
+    if (!groupEntries.length) continue;
+
+    const groupNode = document.createElement("div");
+    groupNode.className = "agent-awn-types-nav-group";
+
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "agent-awn-types-nav-group-label";
+    groupLabel.textContent = group.label;
+    groupNode.appendChild(groupLabel);
+
+    const list = document.createElement("div");
+    list.className = "agent-awn-types-nav-list";
+    for (const { typeKey, typeDef } of groupEntries) {
+      list.appendChild(createAwnTypeNavItem(typeKey, typeDef, typeKey === selectedKey));
+    }
+    groupNode.appendChild(list);
+    nav.appendChild(groupNode);
+  }
+
+  const detailHost = document.createElement("div");
+  detailHost.className = "agent-awn-types-detail-host";
+  detailHost.appendChild(renderAwnTypeDetailPanel(selectedEntry.typeDef));
+
+  browser.append(nav, detailHost);
+  section.appendChild(browser);
+
+  nav.addEventListener("click", (event) => {
+    const tab = event.target.closest(".agent-awn-type-nav-item");
+    if (!tab?.dataset.typeKey || tab.dataset.typeKey === awnTypesSelectedKey) return;
+    awnTypesSelectedKey = tab.dataset.typeKey;
+    nav.querySelectorAll(".agent-awn-type-nav-item").forEach((node) => {
+      const isActive = node.dataset.typeKey === awnTypesSelectedKey;
+      node.classList.toggle("is-active", isActive);
+      node.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+    const nextEntry = typeEntries.find((entry) => entry.typeKey === awnTypesSelectedKey);
+    if (nextEntry) {
+      detailHost.replaceChildren(renderAwnTypeDetailPanel(nextEntry.typeDef));
+    }
+  });
+
+  return section;
 }
 
 async function renderAgentAwnTypesView() {
@@ -21794,41 +22227,23 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     return;
   }
 
-  const note = document.createElement("div");
+  const note = document.createElement("aside");
   note.className = "agent-awn-types-note";
   note.innerHTML =
-    "<strong>Системные типы</strong> (read-only) — в <code>awn-types/</code> и <code>awn-types/mixins/</code>. " +
-    "Типы полей (<code>string</code>, <code>url</code>…) — в <code>awn-fields/</code>. " +
-    "Дополнительные поля для конкретной темы задаются в <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>. " +
-    "<br><br><strong>Что такое <code>kind</code>?</strong> " +
-    "<code>base</code> — общий фундамент полей, <code>mixin</code> — опциональный набор полей (подключается через <code>mixins:</code> в типе или <code>awn.base</code>), <code>type</code> — значение в <code>awn-type</code>. " +
-    "У поля в реестре: формат хранения в YAML (<code>string</code>, <code>number</code>…).";
+    '<h3 class="agent-awn-types-note-title">Системные схемы полей frontmatter</h3>' +
+    "<p><strong>Компоненты</strong> — <code>awn-types/components/</code> (типы записей, <code>mixins/</code>). " +
+    "Типы полей — <code>awn-types/fields/</code>. Блоки редактора — <code>awn-types/blocks/</code>. " +
+    "Мета-схема поля — <code>awn-types/components/field-def.yml</code>. " +
+    "Доп. поля темы — <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>.</p>" +
+    "<p><strong>kind:</strong> <code>base</code> / <code>mixin</code> / <code>type</code> — записи; " +
+    "<code>field</code> — значения в frontmatter; <code>block</code> — вставки в тело Markdown.</p>";
   containerNode.appendChild(note);
 
-  const types = Object.values(awnTypesCache.types).sort((a, b) => {
-    const aOrder = getAwnTypeKindSortOrder(a?.kind);
-    const bOrder = getAwnTypeKindSortOrder(b?.kind);
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    return String(a?.name || "").localeCompare(String(b?.name || ""));
-  });
-
-  const typesSection = document.createElement("section");
-  typesSection.className = "agent-awn-types-section";
-  typesSection.innerHTML =
-    '<header class="agent-awn-types-section-head">' +
-    '<h3 class="agent-awn-types-section-title">Типы записей</h3>' +
-    '<p class="agent-awn-types-section-sub">Какие поля frontmatter ожидаются у файла с данным <code>awn-type</code></p>' +
-    "</header>";
-  const typesGrid = document.createElement("div");
-  typesGrid.className = "agent-awn-types-grid";
-  for (const typeDef of types) {
-    typesGrid.appendChild(createAwnTypeCard(typeDef));
-  }
-  typesSection.appendChild(typesGrid);
-  containerNode.appendChild(typesSection);
+  const types = getSortedAwnTypesList(awnTypesCache.types);
+  containerNode.appendChild(createAwnTypesBrowserSection(types));
 
   const registry = awnTypesCache.fieldRegistry || {};
-  const registryKeys = Object.keys(registry).sort();
+  const registryKeys = Object.keys(registry).filter((id) => id.startsWith("awn.")).sort();
   if (registryKeys.length) {
     const registrySection = document.createElement("section");
     registrySection.className = "agent-awn-types-section";
@@ -21844,7 +22259,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     table.className = "agent-awn-field-registry-table";
     table.innerHTML =
       "<thead><tr>" +
-      "<th>ID</th><th>Название</th><th>Хранение</th><th>Виджет</th><th>Описание</th>" +
+      "<th>ID</th><th>Название</th><th>kind</th><th>Хранение</th><th>Виджет</th><th>Описание</th>" +
       "</tr></thead>";
     const tbody = document.createElement("tbody");
     for (const key of registryKeys) {
@@ -21852,8 +22267,9 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
       const row = document.createElement("tr");
       row.innerHTML =
         `<td><code>${entry.id}</code></td>` +
-        `<td>${entry.label || "—"}</td>` +
-        `<td><code>${entry.kind || "—"}</code></td>` +
+        `<td>${entry.name || entry.label || "—"}</td>` +
+        `<td><code>${entry.kind || "field"}</code></td>` +
+        `<td><code>${entry.storage || entry.kind || "—"}</code></td>` +
         `<td><code>${entry.widget || "—"}</code></td>` +
         `<td>${entry.description || "—"}</td>`;
       tbody.appendChild(row);
@@ -21862,6 +22278,81 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     tableWrap.appendChild(table);
     registrySection.appendChild(tableWrap);
     containerNode.appendChild(registrySection);
+  }
+
+  const fieldDefSchema = awnTypesCache.fieldDefSchema;
+  const defProps = fieldDefSchema?.properties;
+  if (defProps && typeof defProps === "object") {
+    const defSection = document.createElement("section");
+    defSection.className = "agent-awn-types-section";
+    defSection.innerHTML =
+      '<header class="agent-awn-types-section-head">' +
+      '<h3 class="agent-awn-types-section-title">Мета-свойства поля</h3>' +
+      '<p class="agent-awn-types-section-sub">Что можно указать у каждого поля в <code>awn-types</code> → <code>fields</code></p>' +
+      "</header>";
+
+    const tableWrap = document.createElement("div");
+    tableWrap.style.overflowX = "auto";
+    const table = document.createElement("table");
+    table.className = "agent-awn-field-registry-table";
+    table.innerHTML =
+      "<thead><tr><th>Ключ</th><th>Название</th><th>Описание</th></tr></thead>";
+    const tbody = document.createElement("tbody");
+    for (const [propKey, propDef] of Object.entries(defProps)) {
+      const row = document.createElement("tr");
+      row.innerHTML =
+        `<td><code>${propKey}</code></td>` +
+        `<td>${propDef?.title || "—"}</td>` +
+        `<td>${propDef?.description || "—"}</td>`;
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    defSection.appendChild(tableWrap);
+    containerNode.appendChild(defSection);
+  }
+
+  const blockGroups = awnTypesCache.blockGroups || [];
+  if (blockGroups.length) {
+    const blocksSection = document.createElement("section");
+    blocksSection.className = "agent-awn-types-section";
+    blocksSection.innerHTML =
+      '<header class="agent-awn-types-section-head">' +
+      '<h3 class="agent-awn-types-section-title">Блоки редактора</h3>' +
+      '<p class="agent-awn-types-section-sub">Шаблоны Markdown для вкладки «Блоки» (<code>kind: block</code>)</p>' +
+      "</header>";
+
+    for (const group of blockGroups) {
+      const groupWrap = document.createElement("div");
+      groupWrap.className = "agent-awn-blocks-group";
+      const groupTitle = document.createElement("h4");
+      groupTitle.className = "agent-awn-blocks-group-title";
+      groupTitle.textContent = group.title || group.id;
+      groupWrap.appendChild(groupTitle);
+
+      const tableWrap = document.createElement("div");
+      tableWrap.style.overflowX = "auto";
+      const table = document.createElement("table");
+      table.className = "agent-awn-field-registry-table";
+      table.innerHTML =
+        "<thead><tr><th>ID</th><th>Название</th><th>kind</th><th>Описание</th></tr></thead>";
+      const tbody = document.createElement("tbody");
+      for (const block of group.blocks || []) {
+        const row = document.createElement("tr");
+        row.innerHTML =
+          `<td><code>${block.id}</code></td>` +
+          `<td>${block.name || block.label || "—"}</td>` +
+          `<td><code>${block.kind || "block"}</code></td>` +
+          `<td>${block.description || "—"}</td>`;
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      groupWrap.appendChild(tableWrap);
+      blocksSection.appendChild(groupWrap);
+    }
+
+    containerNode.appendChild(blocksSection);
   }
 }
 
@@ -24936,6 +25427,7 @@ propsAddFieldBtn?.addEventListener("click", () => {
   const lastInput = propsFormFieldsNode?.querySelector(".props-form-row:last-child .props-form-key-input");
   lastInput?.focus();
 });
+propsEditSchemaBtn?.addEventListener("click", openTopicSchemaFromPropsAside);
 propsFormFieldsNode?.addEventListener("input", () => {
   readPropsFormIntoEntries();
   syncYamlFromPropsForm();

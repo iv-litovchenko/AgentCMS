@@ -1,0 +1,7 @@
+id: awn.number
+name: Число
+kind: field
+storage: number
+mdbase: number
+widget: number
+description: Число с дробной частью

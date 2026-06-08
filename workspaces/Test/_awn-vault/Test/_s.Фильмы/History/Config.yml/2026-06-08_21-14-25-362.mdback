@@ -2,12 +2,12 @@ awn_schema:
   topic:
     fields:
       genreауц:
-        type: awn.color
+        type: boolean
         title: Жанацур
       field_1:
-        type: awn.color
+        type: string
       field_2:
-        type: awn.number
+        type: url
         title: ауцау
       field_3:
         type: string
@@ -20,9 +20,9 @@ awn_schema:
         type: string
         title: пукпку
       field_1:
-        type: enum
+        type: string
       field_2:
-        type: link
+        type: string
       field_3:
         type: string
       field_4:

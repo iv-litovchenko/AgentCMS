@@ -1,0 +1,7 @@
+id: awn.block.hr
+name: Разделитель
+kind: block
+group: structure
+sort: 3
+description: Горизонтальная линия
+template: "\n---\n\n"

@@ -1,0 +1,7 @@
+id: awn.block.h3
+name: Заголовок H3
+kind: block
+group: structure
+sort: 2
+description: Подраздел
+template: "\n### Подраздел\n\nТекст подраздела.\n\n"

@@ -1,0 +1,7 @@
+id: awn.enum
+name: Перечисление
+kind: field
+storage: string
+mdbase: enum
+widget: select
+description: Значение из фиксированного списка

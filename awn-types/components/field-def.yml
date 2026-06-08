@@ -1,0 +1,40 @@
+id: awn.field-def
+name: Мета-свойства поля
+description: Мета-свойства определения поля в awn-types (блок fields)
+properties:
+  type:
+    title: Тип данных
+    description: Тип из awn-types/fields/ (awn.string, awn.enum, awn.url, awn.array…)
+    required: true
+  title:
+    title: Название
+    description: Подпись поля в форме «Свойства»
+    required: true
+  description:
+    title: Описание
+    description: Развёрнутое пояснение для схемы и документации
+  hint:
+    title: Подсказка
+    description: Краткая подсказка в UI (placeholder, title)
+  required:
+    type: boolean
+    title: Обязательное
+    description: Поле должно быть заполнено
+    default: false
+  locked:
+    type: boolean
+    title: Заблокированное
+    description: Только чтение в форме (системное или вычисляемое значение)
+    default: false
+  format:
+    title: Формат
+    description: Пример или шаблон заполнения (0.0.1, YYYY-MM-DD)
+  default:
+    title: По умолчанию
+    description: Значение при создании новой записи
+  enum:
+    title: Варианты
+    description: Список значений для type enum
+  items:
+    title: Элемент списка
+    description: Тип элементов для type array

@@ -4,12 +4,8 @@ awn-name: Фильмы
 awn-create: ""
 awn-update: ""
 awn-description: ""
-awn-status: Открыта
-awn-category: ""
-awn-tags: []
 awn-version: ""
 awn-sort: 0
-awn-preview: ""
 field_1: ""
 field_2: ""
 field_3: ""
@@ -19,11 +15,8 @@ priority: 0
 status: draft
 tags: []
 title: ""
+title: ""
 ---
-
-\#\#\# Подраздел
-
-Текст подраздела.
 
 [[Test]]
 [[Test/Test2]]

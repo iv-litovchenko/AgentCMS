@@ -1,0 +1,7 @@
+id: awn.block.ol
+name: Нумерованный список
+kind: block
+group: lists
+sort: 2
+description: Шаги или порядок
+template: "\n1. пункт 1\n2. пункт 2\n3. пункт 3\n\n"
