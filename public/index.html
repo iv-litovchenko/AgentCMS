@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.90" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.91" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -84,6 +84,15 @@
           <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
           <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
         </form>
+        <button
+          id="app-lock-biometric-btn"
+          class="app-lock-biometric-btn"
+          type="button"
+          disabled
+          title="Скоро"
+        >
+          Face ID / Touch ID
+        </button>
         <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
       </div>
     </div>
@@ -134,6 +143,14 @@
               title="Идеи и компоненты системы (My Graph ORM)"
             >
               💡
+            </button>
+            <button
+              id="app-lock-logout-btn"
+              class="header-tool-btn header-tool-btn--logout hidden"
+              type="button"
+              title="Выйти из Agent CMS"
+            >
+              Выход
             </button>
           </div>
         </div>
@@ -1713,7 +1730,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/app-lock.js?v=3"></script>
+    <script src="/app-lock.js?v=4"></script>
     <script src="/main.js?v=0.5.50"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

@@ -164,6 +164,19 @@ body.app-locked {
   cursor: wait;
 }
 
+.app-lock-biometric-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
 .app-lock-footnote {
   margin: 16px 0 0;
   text-align: center;
@@ -4709,6 +4722,18 @@ body.app-locked {
   border-color: #22c55e;
   background: #d1fae5;
   color: #14532d;
+}
+
+.header-tool-btn--logout {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.header-tool-btn--logout:hover {
+  border-color: #f87171;
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .sidebar-agent-bar {

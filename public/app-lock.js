@@ -14,9 +14,11 @@
   const confirmNode = document.getElementById("app-lock-confirm");
   const errorNode = document.getElementById("app-lock-error");
   const submitNode = document.getElementById("app-lock-submit");
+  const logoutBtn = document.getElementById("app-lock-logout-btn");
 
   let unlockResolve = null;
   let mode = "login";
+  let lockActive = false;
 
   const unlockPromise = new Promise((resolve) => {
     unlockResolve = resolve;
@@ -36,6 +38,20 @@
     } catch {
       // ignore
     }
+  }
+
+  function clearSessionUnlocked() {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  function updateLogoutButton() {
+    if (!logoutBtn) return;
+    const show = lockActive && mode === "login" && isSessionUnlocked();
+    logoutBtn.classList.toggle("hidden", !show);
   }
 
   function setError(message = "") {
@@ -85,16 +101,19 @@
     }
 
     setSubmitting(false);
+    updateLogoutButton();
   }
 
   function hideLockScreen() {
     lockNode?.classList.add("hidden");
     document.body.classList.remove("app-locked");
+    updateLogoutButton();
   }
 
   function showLockScreen() {
     lockNode?.classList.remove("hidden");
     document.body.classList.add("app-locked");
+    updateLogoutButton();
     window.setTimeout(() => loginNode?.focus(), 60);
   }
 
@@ -106,6 +125,17 @@
       unlockResolve();
       unlockResolve = null;
     }
+  }
+
+  function logout() {
+    if (!lockActive || mode === "setup") return;
+    clearSessionUnlocked();
+    if (loginNode) loginNode.value = "";
+    if (passwordNode) passwordNode.value = "";
+    if (confirmNode) confirmNode.value = "";
+    setError("");
+    setMode("login");
+    showLockScreen();
   }
 
   async function fetchLockStatus() {
@@ -176,6 +206,8 @@
       setSubmitting(true);
       try {
         await setupCredentials(login, password, confirm);
+        lockActive = true;
+        setMode("login");
         if (loginNode) loginNode.value = "";
         if (passwordNode) passwordNode.value = "";
         if (confirmNode) confirmNode.value = "";
@@ -214,8 +246,13 @@
       void handleSubmit(event);
     });
 
+    logoutBtn?.addEventListener("click", () => {
+      logout();
+    });
+
     try {
       const status = await fetchLockStatus();
+      lockActive = Boolean(status?.enabled || status?.needsSetup);
 
       if (status?.needsSetup) {
         setMode("setup");
@@ -242,7 +279,8 @@
   }
 
   window.agentAppLock = {
-    whenUnlocked: () => unlockPromise
+    whenUnlocked: () => unlockPromise,
+    logout
   };
 
   void boot();
