@@ -99,12 +99,12 @@ status: draft
 
 ![Placeholder 120×80](https://placehold.co/120x80/e2e8f0/334155?text=img)
 
-### Локальные вложения (_Assets)
+### Локальные вложения (Assets/Pasted)
 
-Вставьте изображение в редактор (Source или Edit) — файл сохранится в `_Storage/_Assets/` и появится ссылка:
+Вставьте изображение в редактор (Source или Edit) — файл сохранится в `_Storage/Assets/Pasted/` и появится ссылка:
 
 ```markdown
-![screenshot](_Assets/pasted-20260528120000.png)
+![screenshot](Assets/Pasted/задача-20260528120000.png)
 ```
 
 Preview автоматически подставит URL `/api/media/file?…`.

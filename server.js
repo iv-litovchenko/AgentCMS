@@ -1378,7 +1378,7 @@ function isPathInsideDirectory(parentDir, childPath) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir) {
+async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options = {}) {
   if (!folderAbsolute) return null;
   const raw = String(subdir || "").trim().replace(/\\/g, "/");
   if (!raw || raw === ".") return path.resolve(folderAbsolute);
@@ -1391,7 +1391,11 @@ async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir) {
   let current = root;
 
   for (const segment of segments) {
-    const next = await resolveFolderPathCaseInsensitive(current, segment);
+    let next = await resolveFolderPathCaseInsensitive(current, segment);
+    if (!next && options.create) {
+      next = path.join(current, segment);
+      await fs.mkdir(next, { recursive: true });
+    }
     if (!next || !isPathInsideDirectory(root, next)) return null;
     current = next;
   }
@@ -2927,6 +2931,14 @@ async function resolveUniqueMediaFileAbsolute(folderAbsolute, fileName) {
 async function getAgentPreviewMeta(agent) {
   const enriched = enrichAgentEntry(agent);
   try {
+    const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(enriched.rootAbsolute);
+    if (previewAbsolute) {
+      return {
+        hasPreview: true,
+        previewUrl: `/api/agents/workspace-preview?path=${encodeURIComponent(enriched.path)}`
+      };
+    }
+
     return await runWithAgent(enriched.id, async () => {
       const manifestRel =
         (await resolveExistingNodeManifestRel(getAgentRoot())) || AREA_MANIFEST_FILE;
@@ -3545,6 +3557,21 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   };
 }
 
+function isSpaAppRoute(reqPath) {
+  const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
+  return normalized.startsWith("/a/");
+}
+
+async function serveIndexHtml(res) {
+  const indexPath = path.join(getPublicDir(), "index.html");
+  const content = await fs.readFile(indexPath);
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(content);
+}
+
 async function serveStatic(reqPath, res) {
   const targetPath = reqPath === "/" ? "/index.html" : reqPath;
   const safePath = path.normalize(targetPath).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
@@ -3567,15 +3594,9 @@ async function serveStatic(reqPath, res) {
     res.end(content);
   } catch {
     const ext = path.extname(safePath).toLowerCase();
-    if (!ext || ext === ".html") {
+    if (!ext || ext === ".html" || isSpaAppRoute(reqPath)) {
       try {
-        const indexPath = path.join(getPublicDir(), "index.html");
-        const content = await fs.readFile(indexPath);
-        res.writeHead(200, {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store"
-        });
-        res.end(content);
+        await serveIndexHtml(res);
         return;
       } catch {
         // fall through to 404
@@ -5429,9 +5450,14 @@ async function handleApiForAgent(req, res, url) {
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
       const subdir = normalizeRelativeFilePath(String(payload.subdir || "").trim());
-      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir);
+      const createSubdir = Boolean(payload.createSubdir);
+      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, {
+        create: createSubdir
+      });
       if (!targetFolder) {
-        return sendJson(res, 400, { error: subdir ? "Target section not found" : "Invalid media folder path" });
+        return sendJson(res, 400, {
+          error: subdir ? "Target section not found" : "Invalid media folder path"
+        });
       }
 
       const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
@@ -5441,7 +5467,7 @@ async function handleApiForAgent(req, res, url) {
         if (!validateMediaImageBufferByExt(buffer, imageExt)) {
           return sendJson(res, 400, { error: "Invalid image file", details: "File content does not match format" });
         }
-        const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "pasted-image";
+        const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "image";
         const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, `${safeBase}${imageExt}`);
         if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
           return sendJson(res, 400, { error: "Invalid media file path" });

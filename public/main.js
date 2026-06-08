@@ -2010,7 +2010,7 @@ function syncLandingAgentsViewUi() {
   const subNode = document.querySelector(".app-landing-sub");
   if (subNode) {
     subNode.textContent = isOrbit
-      ? "Кружки в воздухе — наведите, чтобы увидеть имя"
+      ? "Кружки в воздухе — выберите workspace"
       : "Каждый агент — отдельный workspace с темами, памятью и файлами";
   }
 
@@ -2060,7 +2060,7 @@ function createAppLandingOrbitBubble(agent, index, total) {
   nameNode.className = "app-landing-orbit-bubble-label";
   nameNode.textContent = label;
 
-  btn.append(avatar, nameNode);
+  btn.append(avatar);
   btn.addEventListener("click", () => {
     if (!registryActive) {
       showToast("Агент выключен — включите в реестре (⚙)", "error");
@@ -2069,7 +2069,7 @@ function createAppLandingOrbitBubble(agent, index, total) {
     selectAgentOption(agent.id);
   });
 
-  item.appendChild(btn);
+  item.append(btn, nameNode);
   return item;
 }
 
@@ -2292,6 +2292,21 @@ function openAgentsRegistryModal() {
   }));
   renderAgentsRegistryList();
   agentsRegistryModalNode?.classList.remove("hidden");
+  void refreshAgentsRegistryPreviewMeta();
+}
+
+async function refreshAgentsRegistryPreviewMeta() {
+  if (!agentsRegistryModalNode || agentsRegistryModalNode.classList.contains("hidden")) return;
+  try {
+    const response = await fetch("/api/agents");
+    if (!response.ok) return;
+    const data = await response.json();
+    const freshAgents = Array.isArray(data.agents) ? data.agents : [];
+    agentsCache = freshAgents;
+    freshAgents.forEach((agent) => syncAgentsRegistryDraftPreview(agent.path));
+  } catch {
+    // keep cached preview state
+  }
 }
 
 function countActiveAgentsRegistryDraft() {
@@ -2452,11 +2467,18 @@ function applyManifestToRegistryDraft(index, result) {
 }
 
 function getRegistryAgentPreviewUrl(agent) {
-  if (!agent?.path || !agent.hasPreview) return null;
-  if (agent.previewUrl && agent.previewUrl.startsWith("/api/preview/image")) {
+  if (!agent?.path) return null;
+  if (agent.previewUrl?.startsWith("/api/preview/image")) {
+    if (!agent.hasPreview) return null;
     return appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id));
   }
-  return appendCacheBuster(`/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`);
+  if (agent.hasPreview || agent.previewUrl?.startsWith("/api/agents/workspace-preview")) {
+    const url = agent.previewUrl?.startsWith("/api/agents/workspace-preview")
+      ? agent.previewUrl
+      : `/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`;
+    return appendCacheBuster(url);
+  }
+  return null;
 }
 
 function updateRegistryRowPreview(row, agent) {
@@ -6414,6 +6436,7 @@ const STORAGE_SUBFOLDER_CONTENT = "Content";
 const STORAGE_SUBFOLDER_INBOX = "Inbox";
 const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
 const STORAGE_SUBFOLDER_ASSETS = "Assets";
+const PASTED_ASSETS_SUBDIR = "Pasted";
 const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "Preview";
@@ -8281,19 +8304,61 @@ function buildMarkdownImageSnippet(relativeAssetsPath, altText) {
   return `\n![${alt}](${ref})\n`;
 }
 
-function buildPastedAttachmentFileName(file) {
+function getImageAttachmentExtension(file) {
   const mime = String(file?.type || "").toLowerCase();
   const name = String(file?.name || "").toLowerCase();
-  let ext = "";
-  if (mime === "image/png" || name.endsWith(".png")) ext = ".png";
-  else if (mime === "image/gif" || name.endsWith(".gif")) ext = ".gif";
-  else if (mime === "image/webp" || name.endsWith(".webp")) ext = ".webp";
-  else if (mime === "image/heic" || mime === "image/heif" || name.endsWith(".heic") || name.endsWith(".heif")) {
-    ext = ".heic";
-  } else if (mime === "image/jpeg" || /\.jpe?g$/.test(name)) ext = ".jpg";
-  else ext = ".png";
+  if (mime === "image/png" || name.endsWith(".png")) return ".png";
+  if (mime === "image/gif" || name.endsWith(".gif")) return ".gif";
+  if (mime === "image/webp" || name.endsWith(".webp")) return ".webp";
+  if (mime === "image/heic" || mime === "image/heif" || name.endsWith(".heic") || name.endsWith(".heif")) {
+    return ".heic";
+  }
+  if (mime === "image/jpeg" || /\.jpe?g$/.test(name)) return ".jpg";
+  return ".png";
+}
+
+function sanitizeAttachmentRecordSlug(text) {
+  let name = String(text || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .split("/")
+    .pop()
+    .replace(/\.(sidecar\.)?md$/i, "")
+    .replace(/\s+/g, " ");
+  name = name.replace(/[^\w.\- ()[\]а-яА-ЯёЁ]/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  if (name.length > 48) name = name.slice(0, 48).replace(/-+$/g, "");
+  return name || "";
+}
+
+function getInlineAttachmentRecordSlug() {
+  let label = "";
+  if (activeExternalFilePath) {
+    label = activeExternalFilePath.split("/").pop() || "";
+  } else if (activeMediaMarkdownPath) {
+    label = activeMediaMarkdownPath.split("/").pop() || "";
+  } else if (activeMediaSidecarSourcePath) {
+    label = activeMediaSidecarSourcePath.split("/").pop() || "";
+  } else if (activeMediaSidecarPath) {
+    label = activeMediaSidecarPath.split("/").pop() || "";
+  } else if (titleInputNode?.value?.trim()) {
+    label = titleInputNode.value.trim();
+  } else if (activeLabel) {
+    label = activeLabel;
+  } else if (activePath) {
+    label = getLabelFromPath(activePath);
+  }
+  return sanitizeAttachmentRecordSlug(label) || "note";
+}
+
+function buildInlineAttachmentFileName(file, recordSlug = getInlineAttachmentRecordSlug()) {
+  const ext = getImageAttachmentExtension(file);
   const stamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
-  return `pasted-${stamp}${ext}`;
+  const slug = sanitizeAttachmentRecordSlug(recordSlug) || "note";
+  return `${slug}-${stamp}${ext}`;
+}
+
+function buildPastedAttachmentFileName(file) {
+  return buildInlineAttachmentFileName(file);
 }
 
 async function normalizeImageAttachmentFile(file) {
@@ -8333,7 +8398,7 @@ async function normalizeImageAttachmentFile(file) {
   if (currentName.toLowerCase().endsWith(ext) && mime === String(file.type || "").toLowerCase()) {
     return file;
   }
-  const baseName = buildPastedAttachmentFileName({ type: mime }).replace(/\.[^.]+$/, "");
+  const baseName = buildInlineAttachmentFileName({ type: mime }).replace(/\.[^.]+$/, "");
   return new File([file], `${baseName}${ext}`, { type: mime });
 }
 
@@ -8435,16 +8500,20 @@ function insertMarkdownAtEditorCursor(text) {
   return true;
 }
 
-async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath(), subdir = null } = {}) {
+async function uploadMediaAttachment(
+  file,
+  { nodePath = getActiveNodeApiPath(), subdir = null, inlinePaste = false } = {}
+) {
   if (!file) return null;
   if (!nodePath) {
     throw new Error("Сначала откройте тему");
   }
-  const effectiveSubdir =
-    subdir ??
-    (activeContentMode === "media"
-      ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
-      : null);
+  const effectiveSubdir = inlinePaste
+    ? PASTED_ASSETS_SUBDIR
+    : subdir ??
+      (activeContentMode === "media"
+        ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
+        : null);
   const normalizedFile = await normalizeImageAttachmentFile(file);
   const data = await readFileAsBase64(normalizedFile);
   const response = await fetch(buildApiUrl("/api/media/file"), {
@@ -8453,9 +8522,10 @@ async function uploadMediaAttachment(file, { nodePath = getActiveNodeApiPath(), 
     body: JSON.stringify({
       path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
       data,
-      fileName: normalizedFile.name || buildPastedAttachmentFileName(normalizedFile),
+      fileName: normalizedFile.name || buildInlineAttachmentFileName(normalizedFile),
       mimeType: normalizedFile.type,
-      subdir: effectiveSubdir || undefined
+      subdir: effectiveSubdir || undefined,
+      createSubdir: Boolean(effectiveSubdir)
     })
   });
   if (!response.ok) {
@@ -8480,14 +8550,14 @@ async function insertUploadedAttachmentIntoEditor(file) {
   }
 
   try {
-    const payload = await uploadMediaAttachment(normalizedFile);
+    const payload = await uploadMediaAttachment(normalizedFile, { inlinePaste: true });
     const relativeFile = payload?.file;
     if (!relativeFile) throw new Error("Upload response missing file path");
 
     const markdown = buildMarkdownImageSnippet(relativeFile, getAttachmentAltText(file.name));
     insertTextAtEditorCursor(markdown);
 
-    showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
+    showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -15908,19 +15978,19 @@ function initWysiwygEditor() {
   );
 
   wysiwygEditorInstance.addHook("addImageBlobHook", (blob, callback) => {
-    const file = new File([blob], buildPastedAttachmentFileName({ type: blob.type }), {
+    const file = new File([blob], buildInlineAttachmentFileName({ type: blob.type }), {
       type: blob.type || "image/png"
     });
     void normalizeImageAttachmentFile(file)
       .then((normalizedFile) =>
-        uploadMediaAttachment(normalizedFile).then((payload) => ({ payload, normalizedFile }))
+        uploadMediaAttachment(normalizedFile, { inlinePaste: true }).then((payload) => ({ payload, normalizedFile }))
       )
       .then(({ payload, normalizedFile }) => {
         const relativeFile = payload?.file;
         if (!relativeFile) throw new Error("Upload response missing file path");
         callback(buildMediaAssetUrl(relativeFile), getAttachmentAltText(normalizedFile.name || file.name));
         syncSourceFromWysiwygEditor();
-        showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
+        showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}`, "success");
         void refreshMediaListIfVisible();
       })
       .catch((error) => {
