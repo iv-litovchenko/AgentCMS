@@ -95,20 +95,21 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     kind: "catalog",
     fileName: "Categories",
     title: "Категории",
+    bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `_s.Categories/Content.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `_s.Categories/Content.csv` (табличная память).\n",
     content:
-      "# Категории\n\n| id | label | color |\n| --- | --- | --- |\n| general | Общее | #64748b |\n| project | Проекты | #2563eb |\n| reference | Справочники | #7c3aed |\n"
+      "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
   {
     preset: "tags",
     kind: "catalog",
     fileName: "Tags",
     title: "Теги",
+    bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `_s.Tags/Content.md`.\n\nТемы ссылаются на них через `tags:` в YAML-frontmatter темы (`.md`) или `#tag` в тексте.\n",
-    content:
-      "# Теги\n\n#project\n#idea\n#reference\n#daily\n#person\n#source\n#todo\n#review\n"
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `_s.Tags/Content.csv` (табличная память).\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+    content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
     preset: "schemas",
@@ -959,9 +960,11 @@ function getSystemReferenceRelPaths(scaffold) {
   }
   const catalogDir = DEFAULT_SERVICE_CATALOG_FOLDER;
   const manifest = path.join(catalogDir, toTopicFileName(scaffold.fileName)).replace(/\\/g, "/");
+  const bundleFile =
+    scaffold.bundleFile === BUNDLE_TABULAR_FILE ? BUNDLE_TABULAR_FILE : BUNDLE_CONTENT_FILE;
   return {
     manifest,
-    content: getNamedStorageBundleRel(manifest, BUNDLE_CONTENT_FILE)
+    content: getNamedStorageBundleRel(manifest, bundleFile)
   };
 }
 

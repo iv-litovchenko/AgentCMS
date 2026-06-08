@@ -1,7 +1,0 @@
-# Категории
-
-| id | label | color |
-| --- | --- | --- |
-| general | Общее | #64748b |
-| project | Проекты | #2563eb |
-| reference | Справочники | #7c3aed |

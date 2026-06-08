@@ -104,6 +104,10 @@ const topicSchemaBaseFieldsNode = document.getElementById("topic-schema-base-fie
 const topicSchemaFieldsNode = document.getElementById("topic-schema-fields");
 const topicSchemaEmptyNode = document.getElementById("topic-schema-empty");
 const topicSchemaAddBtn = document.getElementById("topic-schema-add-btn");
+const nodeConfigPanelNode = document.getElementById("node-config-panel");
+const nodeConfigFieldsNode = document.getElementById("node-config-fields");
+const nodeConfigEmptyNode = document.getElementById("node-config-empty");
+const nodeConfigAddBtn = document.getElementById("node-config-add-btn");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
 const agentVaultSearchNode = document.getElementById("agent-vault-search");
 const agentVaultGridNode = document.getElementById("agent-vault-grid");
@@ -4471,7 +4475,8 @@ function getContentModeLabel(mode) {
 
 function getNodeDefaultLandingDomainLabel(mode) {
   const domain = getNodeWorkspaceDomain(mode);
-  const domainLabel = getWorkspaceDomainLabelById(domain);
+  const spec = NODE_WORKSPACE_DOMAIN_SPECS.find((item) => item.value === domain);
+  const domainLabel = spec?.label || domain;
   const modeLabel = getContentModeLabel(mode);
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
   if (
@@ -4502,12 +4507,14 @@ function syncNodeDefaultLandingBtn() {
   btn.classList.toggle("has-custom", hasCustom && !currentIsSaved);
   btn.setAttribute("aria-pressed", currentIsSaved ? "true" : "false");
 
+  const currentLabel = getNodeDefaultLandingDomainLabel(currentMode);
   if (currentIsSaved) {
-    btn.title = `Стартовая страница в ${BUNDLE_CONFIG_FILE} (${STORAGE_FOLDER_NAME}): ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сбросить (открывать обзор).`;
+    btn.title = `Стартовая страница: ${currentLabel}. Нажмите, чтобы сбросить (при открытии — обзор).`;
   } else if (hasCustom) {
-    btn.title = `В конфиге: ${getNodeDefaultLandingDomainLabel(saved.mode)}. Нажмите, чтобы сохранить текущий раздел (${getNodeDefaultLandingDomainLabel(currentMode)}).`;
+    const savedLabel = getNodeDefaultLandingDomainLabel(saved.mode);
+    btn.title = `Сейчас открыт: ${currentLabel}. В конфиге: ${savedLabel}. Нажмите, чтобы закрепить «${currentLabel}».`;
   } else {
-    btn.title = `Закрепить в ${BUNDLE_CONFIG_FILE} (${STORAGE_FOLDER_NAME}): ${getNodeDefaultLandingDomainLabel(currentMode)}`;
+    btn.title = `Закрепить стартовую страницу: ${currentLabel}`;
   }
 }
 
@@ -6467,6 +6474,7 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
+    activeContentMode === "configs" ||
     (activeContentMode === "media" && !isMediaAssetEditing())
   );
 }
@@ -11847,17 +11855,17 @@ let agentCatalogsLoadPromise = null;
 let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
+  "awn-preview",
+  "awn-category",
   "awn-status",
   "awn-type",
   "awn-name",
   "awn-create",
   "awn-update",
   "awn-description",
-  "awn-category",
   "awn-tags",
   "awn-version",
-  "awn-sort",
-  "awn-preview"
+  "awn-sort"
 ];
 
 function getStandardPropsFieldKeys() {
@@ -12033,6 +12041,402 @@ function resolveTopicManifestFromBundlePath(nodePath) {
   if (!slotKey) return null;
   const manifest = prefix ? `${prefix}/${slotKey}.md` : `${slotKey}.md`;
   return isTopicManifestPath(manifest) ? manifest : null;
+}
+
+const NODE_CONFIG_RESERVED_KEYS = new Set(["awn_schema", "default_landing_mode"]);
+
+const NODE_CONFIG_VALUE_TYPES = [
+  { id: "string", label: "Текст", icon: "🔤" },
+  { id: "number", label: "Число", icon: "📊" },
+  { id: "bool", label: "Да/нет", icon: "☑️" },
+  { id: "null", label: "Пусто", icon: "⚪" },
+  { id: "array", label: "Список", icon: "📚" }
+];
+
+const nodeSettingsCacheByManifest = new Map();
+
+function getNodeConfigValueTypeLabel(kind) {
+  const match = NODE_CONFIG_VALUE_TYPES.find((item) => item.id === kind);
+  if (!match) return kind;
+  return match.icon ? `${match.icon} ${match.label}` : match.label;
+}
+
+function extractConfigHeaderComment(content) {
+  const lines = String(content || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+  const comments = [];
+  for (const line of lines) {
+    if (!line.trim()) break;
+    if (line.trim().startsWith("#")) comments.push(line);
+    else break;
+  }
+  return comments.join("\n");
+}
+
+function extractAwnSchemaYamlFromConfig(content) {
+  const lines = String(content || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+  const schemaLines = [];
+  let capturing = false;
+  let schemaIndent = 0;
+
+  for (const line of lines) {
+    if (!capturing && /^awn_schema:\s*$/.test(line.trim())) {
+      capturing = true;
+      schemaIndent = line.match(/^(\s*)/)[1].length;
+      schemaLines.push(line);
+      continue;
+    }
+    if (!capturing) continue;
+    if (!line.trim()) {
+      schemaLines.push(line);
+      continue;
+    }
+    const indent = line.match(/^(\s*)/)[1].length;
+    if (indent <= schemaIndent) break;
+    schemaLines.push(line);
+  }
+
+  return schemaLines.join("\n").trim();
+}
+
+function parseNodeSettingsState(content) {
+  const entries = parsePropsYaml(content).filter(
+    (entry) => entry?.key && !NODE_CONFIG_RESERVED_KEYS.has(entry.key)
+  );
+  const parsed = parseNodeConfigContent(content);
+  return {
+    headerComment: extractConfigHeaderComment(content),
+    entries,
+    defaultLandingMode: parsed.defaultLandingMode,
+    awnSchemaYaml: extractAwnSchemaYamlFromConfig(content)
+  };
+}
+
+function buildNodeConfigYamlFromState(state) {
+  const parts = [];
+  if (state?.headerComment) parts.push(state.headerComment);
+  const settingsYaml = stringifyPropsYaml(state?.entries || []);
+  if (settingsYaml) parts.push(settingsYaml);
+  if (state?.defaultLandingMode) {
+    parts.push(`default_landing_mode: ${formatYamlScalar(state.defaultLandingMode)}`);
+  }
+  if (state?.awnSchemaYaml) parts.push(state.awnSchemaYaml);
+  if (!parts.length) return "";
+  return `${parts.join("\n\n")}\n`;
+}
+
+function getNodeSettingsManifestPath(nodePath = getResolvedNodePath(activePath)) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
+  if (!normalized || !isNodeMdPath(normalized)) return "";
+  return normalized;
+}
+
+function isNodeSettingsModeAvailable(nodePath = getResolvedNodePath(activePath)) {
+  return Boolean(getNodeSettingsManifestPath(nodePath));
+}
+
+function getNodeSettingsCache(manifestPath = getNodeSettingsManifestPath()) {
+  if (!manifestPath) return null;
+  return nodeSettingsCacheByManifest.get(manifestPath) || null;
+}
+
+function getNodeSettingsSavePayload() {
+  const cache = getNodeSettingsCache();
+  if (!cache) return null;
+  return {
+    entries: cache.entries || [],
+    headerComment: cache.headerComment || "",
+    defaultLandingMode: cache.defaultLandingMode || null,
+    awnSchemaYaml: cache.awnSchemaYaml || ""
+  };
+}
+
+async function loadNodeSettingsForManifest(nodePath, options = {}) {
+  const manifestPath = getNodeSettingsManifestPath(nodePath);
+  if (!manifestPath) return null;
+
+  if (!options.force) {
+    const cached = nodeSettingsCacheByManifest.get(manifestPath);
+    if (cached) return cached;
+  }
+
+  const data = await loadNodeConfig(manifestPath, { force: true });
+  const state = parseNodeSettingsState(data.content || "");
+  const payload = {
+    manifestPath,
+    configPath: data.path || "",
+    exists: Boolean(data.exists),
+    ...state
+  };
+  nodeSettingsCacheByManifest.set(manifestPath, payload);
+  return payload;
+}
+
+function createNodeSettingsSortButton(action, key, { disabled = false, title = "" } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "node-config-sort-btn";
+  button.dataset.configAction = action;
+  button.dataset.configKey = key;
+  button.textContent = action === "move-up" ? "↑" : "↓";
+  button.title = title;
+  button.disabled = disabled;
+  return button;
+}
+
+function createNodeSettingsValueControl(kind, value) {
+  if (kind === "bool") {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = Boolean(value);
+    input.dataset.configField = "value";
+    input.className = "node-config-value-bool";
+    return input;
+  }
+  if (kind === "null") {
+    const span = document.createElement("span");
+    span.className = "node-config-null-value";
+    span.textContent = "null";
+    span.dataset.configField = "value";
+    return span;
+  }
+
+  const input = document.createElement("input");
+  input.type = kind === "number" ? "number" : "text";
+  input.className = "topic-schema-inline-input node-config-inline-input--value";
+  input.dataset.configField = "value";
+  if (kind === "array") {
+    input.placeholder = "через запятую";
+    input.value = Array.isArray(value) ? value.join(", ") : "";
+  } else {
+    input.value = value ?? "";
+  }
+  return input;
+}
+
+function readNodeSettingsEntryFromRow(row) {
+  const oldKey = row?.dataset?.configRowKey || "";
+  const keyInput = row?.querySelector('[data-config-field="key"]');
+  const typeSelect = row?.querySelector('[data-config-field="type"]');
+  const valueControl = row?.querySelector('[data-config-field="value"]');
+  const key = normalizePropsKey(keyInput?.value || oldKey);
+  const kind = typeSelect?.value || "string";
+  let value = "";
+
+  if (kind === "bool") {
+    value = Boolean(valueControl?.checked);
+  } else if (kind === "null") {
+    value = null;
+  } else if (kind === "number") {
+    const raw = String(valueControl?.value ?? "").trim();
+    value = raw === "" ? 0 : Number(raw);
+    if (!Number.isFinite(value)) value = 0;
+  } else if (kind === "array") {
+    value = String(valueControl?.value ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } else {
+    value = String(valueControl?.value ?? "");
+  }
+
+  return { key, kind, value };
+}
+
+function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
+  if (!cache || !nodeConfigFieldsNode) return cache;
+  const entries = [];
+  nodeConfigFieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
+    const entry = readNodeSettingsEntryFromRow(row);
+    if (!entry.key || NODE_CONFIG_RESERVED_KEYS.has(entry.key)) return;
+    entries.push(entry);
+    row.dataset.configRowKey = entry.key;
+  });
+  cache.entries = sortPropsEntries(entries);
+  return cache;
+}
+
+function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
+  if (!nodeConfigFieldsNode || !nodeConfigEmptyNode) return;
+
+  nodeConfigFieldsNode.replaceChildren();
+  const entries = cache?.entries || [];
+  if (!entries.length) {
+    nodeConfigEmptyNode.classList.remove("hidden");
+    return;
+  }
+  nodeConfigEmptyNode.classList.add("hidden");
+
+  entries.forEach((entry, index) => {
+    const row = document.createElement("div");
+    row.className = "node-config-field-row";
+    row.dataset.configRowKey = entry.key;
+
+    const compact = document.createElement("div");
+    compact.className = "node-config-field-compact";
+
+    const sort = document.createElement("div");
+    sort.className = "node-config-field-sort";
+    sort.append(
+      createNodeSettingsSortButton("move-up", entry.key, {
+        disabled: index === 0,
+        title: "Выше"
+      }),
+      createNodeSettingsSortButton("move-down", entry.key, {
+        disabled: index === entries.length - 1,
+        title: "Ниже"
+      })
+    );
+
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.className = "topic-schema-inline-input";
+    keyInput.value = entry.key;
+    keyInput.placeholder = "ключ";
+    keyInput.dataset.configField = "key";
+    keyInput.spellcheck = false;
+    keyInput.title = "Ключ параметра";
+
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "topic-schema-inline-select";
+    typeSelect.dataset.configField = "type";
+    typeSelect.title = "Тип значения";
+    for (const typeDef of NODE_CONFIG_VALUE_TYPES) {
+      const option = document.createElement("option");
+      option.value = typeDef.id;
+      option.textContent = getNodeConfigValueTypeLabel(typeDef.id);
+      typeSelect.append(option);
+    }
+    typeSelect.value = entry.kind || "string";
+
+    const valueWrap = document.createElement("div");
+    valueWrap.className = "node-config-value-wrap";
+    valueWrap.dataset.configValueWrap = "1";
+    valueWrap.append(createNodeSettingsValueControl(typeSelect.value, entry.value));
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "node-config-field-remove";
+    removeBtn.dataset.configAction = "remove";
+    removeBtn.dataset.configKey = entry.key;
+    removeBtn.title = "Удалить параметр";
+    removeBtn.textContent = "×";
+
+    compact.append(sort, keyInput, typeSelect, valueWrap, removeBtn);
+    row.appendChild(compact);
+    nodeConfigFieldsNode.append(row);
+  });
+}
+
+function addNodeSettingsField() {
+  const cache = getNodeSettingsCache();
+  if (!cache) return;
+  let index = 1;
+  let key = `param_${index}`;
+  const used = new Set((cache.entries || []).map((entry) => entry.key));
+  while (used.has(key)) {
+    index += 1;
+    key = `param_${index}`;
+  }
+  cache.entries = [...(cache.entries || []), { key, kind: "string", value: "" }];
+  renderNodeSettingsEditor(cache);
+  const row = nodeConfigFieldsNode?.querySelector(
+    `.node-config-field-row[data-config-row-key="${CSS.escape(key)}"]`
+  );
+  const keyInput = row?.querySelector('[data-config-field="key"]');
+  keyInput?.focus();
+  keyInput?.select();
+}
+
+function moveNodeSettingsField(key, direction) {
+  const cache = syncNodeSettingsCacheFromDom();
+  if (!cache) return;
+  const keys = (cache.entries || []).map((entry) => entry.key);
+  const index = keys.indexOf(key);
+  if (index === -1) return;
+  const target = direction === "move-up" ? index - 1 : index + 1;
+  if (target < 0 || target >= keys.length) return;
+  const next = [...cache.entries];
+  [next[index], next[target]] = [next[target], next[index]];
+  cache.entries = next;
+  renderNodeSettingsEditor(cache);
+}
+
+function removeNodeSettingsField(key) {
+  const cache = syncNodeSettingsCacheFromDom();
+  if (!cache) return;
+  cache.entries = (cache.entries || []).filter((entry) => entry.key !== key);
+  renderNodeSettingsEditor(cache);
+}
+
+function handleNodeConfigFieldsInput(event) {
+  if (activeContentMode !== "configs") return;
+  const typeSelect = event.target.closest('[data-config-field="type"]');
+  if (typeSelect) {
+    const row = typeSelect.closest(".node-config-field-row");
+    const valueWrap = row?.querySelector("[data-config-value-wrap]");
+    const current = readNodeSettingsEntryFromRow(row);
+    if (valueWrap) {
+      valueWrap.replaceChildren(createNodeSettingsValueControl(typeSelect.value, current.value));
+    }
+  }
+  syncNodeSettingsCacheFromDom();
+  syncSaveButtonLamp();
+}
+
+function handleNodeConfigFieldsClick(event) {
+  if (activeContentMode !== "configs") return;
+  const btn = event.target.closest("[data-config-action]");
+  if (!btn) return;
+  const action = btn.dataset.configAction;
+  const key = btn.dataset.configKey;
+  if (action === "remove") {
+    removeNodeSettingsField(key);
+    syncSaveButtonLamp();
+    return;
+  }
+  if (action === "move-up" || action === "move-down") {
+    moveNodeSettingsField(key, action);
+    syncSaveButtonLamp();
+  }
+}
+
+async function saveNodeSettingsContent() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (!manifestPath) throw new Error("Конфигурация доступна только для тем с bundle");
+  const cache = syncNodeSettingsCacheFromDom();
+  if (!cache) throw new Error("Конфигурация не загружена");
+
+  const content = buildNodeConfigYamlFromState(cache);
+  const response = await fetch(buildApiUrl("/api/file/node-config"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: manifestPath, content })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+
+  const data = await response.json();
+  cache.exists = Boolean(data.exists);
+  cache.configPath = data.path || cache.configPath;
+  const nextState = parseNodeSettingsState(data.content || content);
+  cache.headerComment = nextState.headerComment;
+  cache.entries = nextState.entries;
+  cache.defaultLandingMode = nextState.defaultLandingMode;
+  cache.awnSchemaYaml = nextState.awnSchemaYaml;
+  setCachedNodeConfig(manifestPath, {
+    path: data.path || cache.configPath,
+    content: data.content || content,
+    exists: Boolean(data.exists),
+    defaultLandingMode: nextState.defaultLandingMode
+  });
+  modeContentCache.configs = data.content || content;
+  syncNodeDefaultLandingBtn();
+  renderNodeSettingsEditor(cache);
+  return data;
 }
 
 function getTopicSchemaManifestPath(nodePath = getResolvedNodePath(activePath)) {
@@ -12268,7 +12672,7 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     for (const entry of registryEntries) {
       const option = document.createElement("option");
       option.value = entry.id;
-      option.textContent = entry.name;
+      option.textContent = getFieldTypeOptionLabel(entry.id, entry.name);
       typeSelect.append(option);
     }
     typeSelect.value = resolveFieldTypeId(fieldDef.type || "awn.string");
@@ -12504,7 +12908,10 @@ function sortPropsEntries(entries) {
 
 function isRecordCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  return /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized);
+  return (
+    /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized) ||
+    /\/Content\/Categories\/[^/]+\.md$/i.test(normalized)
+  );
 }
 
 function isMediaCategoryContentPath(nodePath) {
@@ -12517,21 +12924,43 @@ function isMediaCategoryContentPath(nodePath) {
   );
 }
 
-function resolveAwnTypeForContext(nodePath = getResolvedNodePath(activePath)) {
-  const normalized = String(nodePath || "").replace(/\\/g, "/");
+function getPropsContextPath(nodePath = activePath) {
+  const base = getResolvedNodePath(nodePath);
+  if (!base) return "";
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    const rel = String(activeExternalFilePath).replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${getNodeStorageSubfolderPath(base, "external")}/${rel}`.replace(/\/+/g, "/");
+  }
+
+  if (activeContentMode === "media" && activeMediaMarkdownPath) {
+    const rel = String(activeMediaMarkdownPath).replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${getNodeStorageSubfolderPath(base, "media")}/${rel}`.replace(/\/+/g, "/");
+  }
+
+  if (activeContentMode === "media" && activeMediaSidecarPath) {
+    const rel = String(activeMediaSidecarPath).replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${getNodeStorageSubfolderPath(base, "media")}/${rel}`.replace(/\/+/g, "/");
+  }
+
+  return base;
+}
+
+function resolveAwnTypeForContext(nodePath = activePath) {
+  const normalized = String(getPropsContextPath(nodePath) || "").replace(/\\/g, "/");
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
   const lower = fileName.toLowerCase();
 
   if (activeContentMode === "media" && (activeMediaSidecarPath || lower.endsWith(".sidecar.md"))) {
     return "awn.sidecar";
   }
-  if (activeContentMode === "external" && activeExternalFilePath) {
-    return "awn.record";
-  }
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
   if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
   if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
   if (/\/Content\//i.test(normalized)) return "awn.record";
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    return "awn.record";
+  }
   if (isNodeManifestPath(normalized)) {
     if (isAgentRootIndexPath(normalized)) return "awn.agent";
     return "awn.area";
@@ -12594,11 +13023,35 @@ function getAwnTypeUsageHint(typeName) {
   return AWN_TYPE_USAGE_HINTS[typeName] || "";
 }
 
+const FIELD_TYPE_ICONS = {
+  "awn.boolean": "☑️",
+  "awn.date": "📅",
+  "awn.datetime": "🕒",
+  "awn.enum": "🎛️",
+  "awn.null": "⚪",
+  "awn.link": "🔗",
+  "awn.file": "📎",
+  "awn.array": "📚",
+  "awn.string": "🔤",
+  "awn.text": "📝",
+  "awn.color": "🎨",
+  "awn.integer": "🔢",
+  "awn.number": "📊",
+  "awn.url": "🌐"
+};
+
 function resolveFieldTypeId(typeId) {
   const raw = String(typeId || "").trim();
   if (!raw) return "awn.string";
   if (raw.startsWith("awn.")) return raw;
   return `awn.${raw}`;
+}
+
+function getFieldTypeOptionLabel(typeId, name = "") {
+  const id = resolveFieldTypeId(typeId);
+  const label = String(name || id).trim();
+  const icon = FIELD_TYPE_ICONS[id];
+  return icon ? `${icon} ${label}` : label;
 }
 
 function isAwnEnumFieldType(typeId) {
@@ -12701,10 +13154,23 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     for (const entry of getTopicSchemaRegistryEntries()) {
       const option = document.createElement("option");
       option.value = entry.id;
-      option.textContent = entry.name;
+      option.textContent = getFieldTypeOptionLabel(entry.id, entry.name);
       control.append(option);
     }
     control.value = resolveFieldTypeId(fieldDef?.items || "awn.string");
+  } else if (propKey === "scope") {
+    control = document.createElement("select");
+    for (const [value, label] of [
+      ["all", "Все (Content/ + Assets/)"],
+      ["external", "Только Content/"],
+      ["media", "Только Assets/"]
+    ]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      control.append(option);
+    }
+    control.value = String(fieldDef?.scope || "all");
   } else {
     control = document.createElement("input");
     control.type = "text";
@@ -12920,7 +13386,7 @@ function ensureAwnContextDefaults(entries) {
     map.set("awn-type", { key: "awn-type", kind: "string", value: inferredType });
   }
 
-  const nodePath = getResolvedNodePath(activePath) || activeExternalFilePath || activeMediaSidecarPath;
+  const nodePath = getPropsContextPath(activePath) || activeExternalFilePath || activeMediaSidecarPath;
   if (nodePath) {
     const fileName = String(nodePath).split("/").filter(Boolean).pop() || "";
     let baseName = fileName;
@@ -13102,6 +13568,15 @@ function stringifyPropsYaml(entries) {
   return lines.join("\n");
 }
 
+function formatPropsDatetimeLocalValue(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function getPropsEntryDisplayValue(entry) {
   if (entry.kind === "array") {
     return (entry.value || []).join(", ");
@@ -13167,6 +13642,7 @@ function isDocAsideAvailable() {
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
+  if (activeContentMode === "configs") return false;
   return true;
 }
 
@@ -13700,7 +14176,11 @@ function getDocAsideMiniDocSpec() {
     case "configs":
       return {
         title: "Конфигурация",
-        items: [`Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)}`]
+        items: [
+          `Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)}`,
+          "Параметры для агента: <code>study_level</code>, <code>locale</code> и др.",
+          "<code>awn_schema</code> и <code>default_landing_mode</code> редактируются в других разделах"
+        ]
       };
     case "topic-schema":
       return {
@@ -13708,7 +14188,8 @@ function getDocAsideMiniDocSpec() {
         items: [
           `Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)} → <code>awn_schema</code>`,
           `Вкладки: тема, записи ${STORAGE_SUBFOLDER_CONTENT}/, sidecar`,
-          "Базовые <code>awn-*</code> поля наследуются и не редактируются"
+          "Базовые <code>awn-*</code> поля наследуются и не редактируются",
+          "<code>awn.link</code> — связь с темой/записью; <code>awn.file</code> — путь к файлу"
         ]
       };
     case "env":
@@ -14012,6 +14493,16 @@ function renderPropsForm() {
     propsFormFieldsNode.appendChild(group);
   };
 
+  const needsPropsLibrary = [...standardEntries, ...customEntries].some(({ entry }) => {
+    const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
+    return widget === "link" || widget === "file";
+  });
+  if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode()) {
+    void ensurePropsLibrariesLoaded().then(() => {
+      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
+    });
+  }
+
   appendPropsFieldGroup(null, standardEntries);
   appendPropsFieldGroup(customEntries.length ? "Ещё" : null, customEntries);
 }
@@ -14031,6 +14522,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (typeId === "awn.enum" || widget === "select") return "select";
   if (typeId === "awn.boolean" || widget === "toggle") return "boolean";
   if (typeId === "awn.link" || widget === "link") return "link";
+  if (typeId === "awn.file" || widget === "file") return "file";
   if (typeId === "awn.text" || widget === "textarea") return "textarea";
   if (typeId === "awn.url" || widget === "url") return "url";
   if (typeId === "awn.color" || widget === "color") return "color";
@@ -14059,7 +14551,7 @@ function appendPropsFormSelectGroup(select, label, items, currentValue) {
   group.label = label;
   for (const item of items) {
     const option = document.createElement("option");
-    option.value = item.wikilink || item.id || "";
+    option.value = item.wikilink || item.value || item.id || "";
     option.textContent = item.label || item.id || "—";
     if (item.color) option.dataset.color = item.color;
     if (currentValue && option.value === currentValue) option.selected = true;
@@ -14116,7 +14608,8 @@ function createPropsFormTypedInputControl(entry, meta, type, { locked = false } 
   const input = document.createElement("input");
   input.className = "props-form-value";
   input.type = type === "datetime" ? "datetime-local" : type;
-  input.value = getPropsEntryDisplayValue(entry);
+  const displayValue = getPropsEntryDisplayValue(entry);
+  input.value = type === "datetime" ? formatPropsDatetimeLocalValue(displayValue) : displayValue;
   if (meta.hint) input.title = meta.hint;
   if (meta.format && !input.value) input.placeholder = meta.format;
   bindPropsFormLockedState(input, locked);
@@ -14255,43 +14748,364 @@ function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {})
   return wrap;
 }
 
-function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
-  const wrap = createPropsFormValueWrap("link");
-  const currentValue = getPropsEntryDisplayValue(entry);
-  const { currentTopic, otherTopics } = collectDocLinkLibraryGroups();
+const propsLibrariesCache = {
+  nodePath: "",
+  contentRecords: [],
+  mediaFiles: [],
+  loaded: false
+};
+let propsLibrariesLoading = false;
 
-  const select = document.createElement("select");
-  select.className = "props-form-value props-form-value--select props-form-link-select";
-  appendPropsFormSelectOption(select, "", "— выберите из библиотеки —");
-  appendPropsFormSelectGroup(select, "Текущая тема", currentTopic, currentValue);
-  appendPropsFormSelectGroup(select, "Другие темы", otherTopics, currentValue);
-  if (
-    currentValue &&
-    ![...currentTopic, ...otherTopics].some((item) => (item.wikilink || "") === currentValue)
-  ) {
-    appendPropsFormSelectOption(select, currentValue, `${currentValue} (текущее)`, {
-      selected: true
-    });
+function isPropsLibrariesReadyForActiveNode(nodePath = getResolvedNodePath(activePath)) {
+  const resolved = String(nodePath || "").replace(/\\/g, "/").trim();
+  return Boolean(resolved && propsLibrariesCache.nodePath === resolved && propsLibrariesCache.loaded);
+}
+
+function resetPropsLibrariesCache() {
+  propsLibrariesCache.nodePath = "";
+  propsLibrariesCache.contentRecords = [];
+  propsLibrariesCache.mediaFiles = [];
+  propsLibrariesCache.loaded = false;
+}
+
+function buildContentRecordWikilink(relativePath) {
+  const slug = String(relativePath || "").replace(/\\/g, "/").replace(/\.md$/i, "");
+  return slug ? `[[${slug}]]` : "";
+}
+
+function buildPropsFileRef(subfolder, relativePath) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return rel ? `${subfolder}/${rel}` : "";
+}
+
+function parsePropsFileRef(value) {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return null;
+  if (raw.startsWith(`${STORAGE_SUBFOLDER_CONTENT}/`)) {
+    return {
+      mode: "external",
+      file: raw.slice(STORAGE_SUBFOLDER_CONTENT.length + 1)
+    };
+  }
+  if (raw.startsWith(`${STORAGE_SUBFOLDER_ASSETS}/`)) {
+    return {
+      mode: "media",
+      file: raw.slice(STORAGE_SUBFOLDER_ASSETS.length + 1)
+    };
+  }
+  return { mode: "external", file: raw };
+}
+
+function parsePropsWikilinkTarget(wikilink) {
+  const raw = String(wikilink || "").trim();
+  const match = raw.match(/^\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]$/);
+  if (!match) return { target: raw, alias: "" };
+  return { target: match[1].trim(), alias: String(match[2] || "").trim() };
+}
+
+async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activePath)) {
+  const resolved = String(nodePath || "").replace(/\\/g, "/").trim();
+  if (!resolved) return propsLibrariesCache;
+  if (isPropsLibrariesReadyForActiveNode(resolved)) return propsLibrariesCache;
+  if (propsLibrariesLoading) return propsLibrariesCache;
+
+  propsLibrariesLoading = true;
+  try {
+    const apiPath = getOverviewNodeApiPath(resolved);
+    const [filesResponse, mediaResponse] = await Promise.all([
+      fetch(buildApiUrl("/api/external/files", { path: apiPath })),
+      fetch(buildApiUrl("/api/media", { path: apiPath }))
+    ]);
+
+    const contentRecords = [];
+    if (filesResponse.ok) {
+      const data = await filesResponse.json();
+      for (const file of Array.isArray(data.files) ? data.files : []) {
+        const relativePath = String(file.relativePath || file.name || "").replace(/\\/g, "/");
+        if (!relativePath) continue;
+        const label = relativePath.replace(/\.md$/i, "").split("/").pop() || relativePath;
+        contentRecords.push({
+          relativePath,
+          label,
+          wikilink: buildContentRecordWikilink(relativePath),
+          fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath)
+        });
+      }
+    }
+
+    const mediaFiles = [];
+    if (mediaResponse.ok) {
+      const data = await mediaResponse.json();
+      const groups =
+        data.groups && typeof data.groups === "object"
+          ? data.groups
+          : buildMediaFilesCacheFromContent(data.content || "");
+      for (const [groupName, items] of Object.entries(groups)) {
+        for (const item of Array.isArray(items) ? items : []) {
+          if (item?.isFolder) continue;
+          const relativePath = String(item.path || item.name || "").replace(/\\/g, "/");
+          if (!relativePath) continue;
+          mediaFiles.push({
+            relativePath,
+            label: item.name || relativePath.split("/").pop() || relativePath,
+            group: groupName,
+            fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath),
+            icon: getMediaIconForItem(item)
+          });
+        }
+      }
+    }
+
+    propsLibrariesCache.nodePath = resolved;
+    propsLibrariesCache.contentRecords = contentRecords;
+    propsLibrariesCache.mediaFiles = mediaFiles;
+    propsLibrariesCache.loaded = true;
+  } catch {
+    propsLibrariesCache.nodePath = resolved;
+    propsLibrariesCache.contentRecords = [];
+    propsLibrariesCache.mediaFiles = [];
+    propsLibrariesCache.loaded = true;
+  } finally {
+    propsLibrariesLoading = false;
   }
 
-  const manual = document.createElement("input");
-  manual.type = "text";
-  manual.className = "props-form-value props-form-link-manual";
-  manual.dataset.linkManual = "1";
-  manual.placeholder = "[[wikilink]] или путь";
-  manual.value = select.value || currentValue;
-  if (meta.hint) manual.title = meta.hint;
+  return propsLibrariesCache;
+}
 
+function collectPropsLinkLibraryGroups() {
+  const menuGroups = collectDocLinkLibraryGroups();
+  const contentRecords = [...(propsLibrariesCache.contentRecords || [])].sort((a, b) =>
+    String(a.label || "").localeCompare(String(b.label || ""), "ru")
+  );
+  return {
+    contentRecords,
+    currentTopic: menuGroups.currentTopic,
+    otherTopics: menuGroups.otherTopics,
+    scopeLabel: menuGroups.scopeLabel
+  };
+}
+
+function createPropsFormPickerOpenButton({ title = "Открыть", disabled = false, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "props-form-picker-open";
+  btn.textContent = "→";
+  btn.title = title;
+  btn.disabled = disabled;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    onClick?.();
+  });
+  return btn;
+}
+
+function bindPropsFormPickerControls(select, manual) {
   select.addEventListener("change", () => {
     if (select.value) manual.value = select.value;
   });
   manual.addEventListener("input", () => {
     if (manual.value.trim()) select.value = "";
   });
+}
+
+function appendPropsFormPickerGroups(select, groups, currentValue) {
+  const known = new Set();
+  for (const { label, items } of groups) {
+    if (!items.length) continue;
+    appendPropsFormSelectGroup(select, label, items, currentValue);
+    for (const item of items) {
+      if (item.value) known.add(item.value);
+    }
+  }
+  if (currentValue && !known.has(currentValue)) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (текущее)`, {
+      selected: true
+    });
+  }
+}
+
+async function openPropsLinkTarget(wikilink) {
+  const value = String(wikilink || "").trim();
+  if (!value) return;
+
+  const { target, alias } = parsePropsWikilinkTarget(value);
+  const nodePath = resolveWikilinkToNodePath(target, alias);
+  if (nodePath) {
+    await openNodeFromMenu(getLabelFromPath(nodePath), nodePath);
+    return;
+  }
+
+  const { target } = parsePropsWikilinkTarget(value);
+  const record = (propsLibrariesCache.contentRecords || []).find((item) => {
+    const slug = item.relativePath.replace(/\.md$/i, "");
+    return item.wikilink === value || slug === target || item.label === target;
+  });
+  if (!record || !activePath) return;
+
+  await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
+  setContentMode("external");
+  await openExternalFile(record.relativePath);
+}
+
+async function openPropsFileTarget(fileRef) {
+  const parsed = parsePropsFileRef(fileRef);
+  if (!parsed?.file || !activePath) return;
+
+  await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
+  if (parsed.mode === "media") {
+    setContentMode("media");
+    openMediaAssetExternal(parsed.file);
+    return;
+  }
+  setContentMode("external");
+  await openExternalFile(parsed.file);
+}
+
+function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("link");
+  const currentValue = getPropsEntryDisplayValue(entry);
+  const { contentRecords, currentTopic, otherTopics } = collectPropsLinkLibraryGroups();
+
+  const picker = document.createElement("div");
+  picker.className = "props-form-picker";
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select props-form-link-select";
+  appendPropsFormSelectOption(select, "", "— выберите связь —");
+
+  const recordItems = contentRecords.map((item) => ({
+    value: item.wikilink,
+    label: `${item.label} · ${item.relativePath}`,
+    wikilink: item.wikilink
+  }));
+  const topicItems = (items) =>
+    items.map((item) => ({
+      value: item.wikilink,
+      label: item.label || item.displayPath || item.path,
+      wikilink: item.wikilink
+    }));
+
+  appendPropsFormPickerGroups(
+    select,
+    [
+      { label: "Записи (Content/)", items: recordItems },
+      { label: "Темы раздела", items: topicItems(currentTopic) },
+      { label: "Другие темы", items: topicItems(otherTopics) }
+    ],
+    currentValue
+  );
+
+  const manual = document.createElement("input");
+  manual.type = "text";
+  manual.className = "props-form-value props-form-link-manual";
+  manual.dataset.linkManual = "1";
+  manual.placeholder = "[[wikilink]] или [[путь/запись]]";
+  manual.value = select.value || currentValue;
+  if (meta.hint) manual.title = meta.hint;
+
+  bindPropsFormPickerControls(select, manual);
+
+  const actions = document.createElement("div");
+  actions.className = "props-form-picker-actions";
+  actions.append(
+    createPropsFormPickerOpenButton({
+      title: "Открыть связь",
+      disabled: locked || !currentValue,
+      onClick: () => {
+        const nextValue = String(manual.value || select.value || "").trim();
+        if (nextValue) void openPropsLinkTarget(nextValue);
+      }
+    })
+  );
+
+  if (!propsLibrariesCache.loaded) {
+    const note = document.createElement("p");
+    note.className = "props-form-picker-note";
+    note.textContent = "Загрузка библиотеки связей…";
+    picker.append(note);
+  }
 
   bindPropsFormLockedState(select, locked);
   bindPropsFormLockedState(manual, locked);
-  wrap.append(select, manual);
+  picker.append(select, actions, manual);
+  wrap.appendChild(picker);
+  return wrap;
+}
+
+function resolvePropsFileScope(fieldDef) {
+  const scope = String(fieldDef?.scope || "all").trim().toLowerCase();
+  if (scope === "external" || scope === "media") return scope;
+  return "all";
+}
+
+function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("file");
+  const currentValue = getPropsEntryDisplayValue(entry);
+  const scope = resolvePropsFileScope(meta.fieldDef);
+  const { contentRecords, mediaFiles } = propsLibrariesCache;
+
+  const picker = document.createElement("div");
+  picker.className = "props-form-picker";
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select props-form-file-select";
+  appendPropsFormSelectOption(select, "", "— выберите файл —");
+
+  const groups = [];
+  if (scope === "all" || scope === "external") {
+    groups.push({
+      label: `Многофайловая (${STORAGE_SUBFOLDER_CONTENT}/)`,
+      items: contentRecords.map((item) => ({
+        value: item.fileRef,
+        label: `${item.label} · ${item.relativePath}`
+      }))
+    });
+  }
+  if (scope === "all" || scope === "media") {
+    groups.push({
+      label: `Медиа (${STORAGE_SUBFOLDER_ASSETS}/)`,
+      items: mediaFiles.map((item) => ({
+        value: item.fileRef,
+        label: `${item.icon || "📎"} ${item.label}`
+      }))
+    });
+  }
+  appendPropsFormPickerGroups(select, groups, currentValue);
+
+  const manual = document.createElement("input");
+  manual.type = "text";
+  manual.className = "props-form-value props-form-file-manual";
+  manual.dataset.fileManual = "1";
+  manual.placeholder = `${STORAGE_SUBFOLDER_CONTENT}/note.md или ${STORAGE_SUBFOLDER_ASSETS}/image.png`;
+  manual.value = select.value || currentValue;
+  if (meta.hint) manual.title = meta.hint;
+
+  bindPropsFormPickerControls(select, manual);
+
+  const actions = document.createElement("div");
+  actions.className = "props-form-picker-actions";
+  actions.append(
+    createPropsFormPickerOpenButton({
+      title: "Открыть файл",
+      disabled: locked || !currentValue,
+      onClick: () => {
+        const nextValue = String(manual.value || select.value || "").trim();
+        if (nextValue) void openPropsFileTarget(nextValue);
+      }
+    })
+  );
+
+  if (!propsLibrariesCache.loaded) {
+    const note = document.createElement("p");
+    note.className = "props-form-picker-note";
+    note.textContent = "Загрузка списка файлов…";
+    picker.append(note);
+  }
+
+  bindPropsFormLockedState(select, locked);
+  bindPropsFormLockedState(manual, locked);
+  picker.append(select, actions, manual);
+  wrap.appendChild(picker);
   return wrap;
 }
 
@@ -14308,6 +15122,9 @@ function createPropsFormValueControl(entry, meta) {
   }
   if (widget === "link") {
     return createPropsFormLinkControl(entry, meta, { locked });
+  }
+  if (widget === "file") {
+    return createPropsFormFileControl(entry, meta, { locked });
   }
   if (widget === "select") {
     const options = Array.isArray(fieldDef?.enum)
@@ -14358,6 +15175,13 @@ function readPropsFormValueFromControl(valueWrap) {
   if (widget === "link") {
     const select = valueWrap.querySelector("select");
     const manual = valueWrap.querySelector("[data-link-manual]");
+    const manualValue = String(manual?.value || "").trim();
+    const selectValue = String(select?.value || "").trim();
+    return manualValue || selectValue;
+  }
+  if (widget === "file") {
+    const select = valueWrap.querySelector("select");
+    const manual = valueWrap.querySelector("[data-file-manual]");
     const manualValue = String(manual?.value || "").trim();
     const selectValue = String(select?.value || "").trim();
     return manualValue || selectValue;
@@ -15092,6 +15916,10 @@ function isEditorSaveTrackingActive() {
 function getEditorSavePayload() {
   if (activeContentMode === "topic-schema") {
     return JSON.stringify({ topicSchema: getTopicSchemaSavePayload() });
+  }
+  if (activeContentMode === "configs") {
+    syncNodeSettingsCacheFromDom();
+    return JSON.stringify({ nodeSettings: getNodeSettingsSavePayload() });
   }
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
@@ -16660,6 +17488,25 @@ function buildNavigationPathTree(items) {
   return root;
 }
 
+function getNavBookTocFileIcon(item) {
+  if (item?.isFolder) return "📁";
+  if (item?.group) return getMediaIconForItem(item);
+  const name = String(item?.name || item?.path || "");
+  const dot = name.lastIndexOf(".");
+  const ext = dot === -1 ? ".md" : name.slice(dot).toLowerCase();
+  return getDocumentIcon(ext);
+}
+
+function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
+  const icon = document.createElement("span");
+  icon.className = branch
+    ? "nav-book-toc-link-icon nav-book-toc-link-icon--branch"
+    : "nav-book-toc-link-icon";
+  icon.setAttribute("aria-hidden", "true");
+  if (!branch) icon.textContent = symbol;
+  return icon;
+}
+
 function appendNavigationBookTocList(parentList, node, depth = 0) {
   const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
     compareNavigationPathsNatural(a[0], b[0])
@@ -16673,7 +17520,11 @@ function appendNavigationBookTocList(parentList, node, depth = 0) {
 
     const folderLabel = document.createElement("span");
     folderLabel.className = "nav-book-toc-folder-label";
-    folderLabel.textContent = folderNode.label;
+    const folderIcon = document.createElement("span");
+    folderIcon.className = "nav-book-toc-folder-icon";
+    folderIcon.setAttribute("aria-hidden", "true");
+    folderIcon.textContent = "📁";
+    folderLabel.append(folderIcon, folderNode.label);
     folderItem.appendChild(folderLabel);
 
     const subList = document.createElement("ul");
@@ -16701,7 +17552,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0) {
     leaders.className = "nav-book-toc-leaders";
     leaders.setAttribute("aria-hidden", "true");
 
-    link.append(text, leaders);
+    link.append(createNavBookTocLinkIcon({ branch: true }), text, leaders);
     link.addEventListener("click", (event) => {
       event.stopPropagation();
       openMemoryModeFromOverview("external", item.path);
@@ -16924,7 +17775,11 @@ function renderNavigationMediaPart(mediaData) {
       leaders.className = "nav-book-toc-leaders";
       leaders.setAttribute("aria-hidden", "true");
 
-      link.append(text, leaders);
+      link.append(
+        createNavBookTocLinkIcon({ symbol: getNavBookTocFileIcon({ ...item, group: groupName }) }),
+        text,
+        leaders
+      );
       link.addEventListener("click", (event) => {
         event.stopPropagation();
         openNavigationPanelMode("media");
@@ -17603,11 +18458,12 @@ function applyModeUi() {
   const showListView = listTemplate && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
   const topicSchemaMode = activeContentMode === "topic-schema";
+  const configsMode = activeContentMode === "configs";
   const overviewMode = activeContentMode === NODE_OVERVIEW_MODE;
   const navigationMode = activeContentMode === NODE_NAVIGATION_MODE;
   const overviewLikeMode = overviewMode || navigationMode;
   const titleVisible = isCurrentModeTitleEditable();
-  const forceEditOnly = activeContentMode === "env" || activeContentMode === "configs";
+  const forceEditOnly = activeContentMode === "env";
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
   const mediaSidecarEditing = isMediaAssetEditing();
   if (mediaSidecarEditing) {
@@ -17692,9 +18548,11 @@ function applyModeUi() {
   );
   topicSchemaPanelNode?.classList.toggle("hidden", !topicSchemaMode);
   if (topicSchemaMode) renderTopicSchemaEditor();
+  nodeConfigPanelNode?.classList.toggle("hidden", !configsMode);
+  if (configsMode) renderNodeSettingsEditor();
   editorSurfaceNode?.classList.toggle(
     "hidden",
-    previewMode || canvasMode || overviewLikeMode || showListView || topicSchemaMode
+    previewMode || canvasMode || overviewLikeMode || showListView || topicSchemaMode || configsMode
   );
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
   graphViewBlockNode?.classList.toggle("hidden", !canvasMode);
@@ -20460,6 +21318,7 @@ async function selectFile(label, filePath) {
   }
   activePath = getResolvedNodePath(filePath);
   activeLabel = label;
+  resetPropsLibrariesCache();
   activeExternalFilePath = null;
   activeExternalSectionFolder = null;
   activeMediaSectionFolder = null;
@@ -20741,14 +21600,21 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "configs") {
     try {
-      const data = await loadNodeConfig(activePath, { force: true });
-      modeContentCache.configs = data.content || "";
-      fileContentInputNode.value = modeContentCache.configs;
+      const cache = await loadNodeSettingsForManifest(activePath, { force: true });
+      modeContentCache.configs = buildNodeConfigYamlFromState(cache || {});
+      fileContentInputNode.value = "";
       applyModeUi();
-      refreshEditorViewContent();
+      renderNodeSettingsEditor(cache);
+      commitEditorSaveBaseline();
     } catch (error) {
-      fileContentInputNode.value = `Ошибка чтения ${BUNDLE_CONFIG_FILE}: ${error.message}`;
-      fileContentInputNode.readOnly = true;
+      if (nodeConfigFieldsNode) nodeConfigFieldsNode.replaceChildren();
+      nodeConfigEmptyNode?.classList.remove("hidden");
+      if (nodeConfigPanelNode) {
+        const note = document.createElement("p");
+        note.className = "node-config-error";
+        note.textContent = `Ошибка чтения ${BUNDLE_CONFIG_FILE}: ${error.message}`;
+        nodeConfigFieldsNode?.append(note);
+      }
     }
     updateBreadcrumbsForActiveMode();
     return;
@@ -20926,6 +21792,22 @@ async function saveContent() {
   }
 
   if (!activePath) return;
+
+  if (activeContentMode === "configs") {
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      await saveNodeSettingsContent();
+      saveSucceeded = true;
+      showToast(`Конфигурация сохранена в ${BUNDLE_CONFIG_FILE}`, "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
 
   if (activeContentMode === "topic-schema") {
     setSaveButtonsState(true, "Сохраняю...");
@@ -21156,6 +22038,8 @@ async function saveContent() {
     const data = await response.json();
     if (activeContentMode === "description") {
       modeContentCache.description = data.content || "";
+      const { frontmatter } = splitFrontmatter(modeContentCache.description);
+      setPropsYamlContent(frontmatter);
       applyNodeManifestBody(modeContentCache.description);
       refreshEditorViewContent();
       saveSucceeded = true;
@@ -26212,6 +27096,10 @@ nodeSettingsModeSelectNode?.addEventListener("change", () => {
   }
 });
 topicSchemaAddBtn?.addEventListener("click", () => addTopicSchemaField());
+nodeConfigAddBtn?.addEventListener("click", () => addNodeSettingsField());
+nodeConfigFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
+nodeConfigFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
+nodeConfigFieldsNode?.addEventListener("click", handleNodeConfigFieldsClick);
 topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
   const tab = event.target.closest(".topic-schema-target-tab");
   if (!tab?.dataset.target) return;

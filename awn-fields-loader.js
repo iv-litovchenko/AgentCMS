@@ -67,17 +67,17 @@ function resolveFieldTypeId(typeId) {
 }
 
 const FALLBACK_BASE_FIELD_ORDER = [
+  "awn-preview",
+  "awn-category",
   "awn-status",
   "awn-type",
   "awn-name",
   "awn-create",
   "awn-update",
   "awn-description",
-  "awn-category",
   "awn-tags",
   "awn-version",
-  "awn-sort",
-  "awn-preview"
+  "awn-sort"
 ];
 
 function resolveFieldsContext(agentRoot = "", projectRoot = process.cwd()) {

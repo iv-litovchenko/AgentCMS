@@ -773,6 +773,45 @@ function getYamlScalar(frontmatter, key) {
   return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
+function isEmptyAwnTimestampValue(value) {
+  const raw = String(value ?? "").trim();
+  return !raw || raw === '""' || raw === "''" || raw === "~" || raw === "null";
+}
+
+function upsertFrontmatterScalar(frontmatter, key, value) {
+  const lines = String(frontmatter || "").split("\n");
+  const pattern = new RegExp(`^${key}:\\s*`);
+  let replaced = false;
+  const nextLines = lines.map((line) => {
+    if (pattern.test(line)) {
+      replaced = true;
+      return `${key}: ${value}`;
+    }
+    return line;
+  });
+  if (!replaced) nextLines.push(`${key}: ${value}`);
+  return nextLines.join("\n");
+}
+
+function applyAwnTimestampsToFrontmatter(frontmatter) {
+  const now = new Date().toISOString();
+  let next = String(frontmatter || "");
+  const created = getYamlScalar(next, "awn-create");
+  if (isEmptyAwnTimestampValue(created)) {
+    next = upsertFrontmatterScalar(next, "awn-create", now);
+  }
+  next = upsertFrontmatterScalar(next, "awn-update", now);
+  return next;
+}
+
+function applyAwnTimestampsToMarkdownContent(content) {
+  const text = String(content ?? "");
+  if (!/^---\r?\n/.test(text)) return text;
+  const { frontmatter, body } = splitNodeFrontmatter(text);
+  const nextFrontmatter = applyAwnTimestampsToFrontmatter(frontmatter);
+  return joinNodeFrontmatter(nextFrontmatter, body);
+}
+
 function excerptText(text, maxLen = 220) {
   const cleaned = String(text || "")
     .replace(/^---[\s\S]*?---\s*/m, "")
@@ -3095,6 +3134,40 @@ function parseCategoryTableItems(body) {
     .filter(Boolean);
 }
 
+function parseCategoryCsvItems(csv) {
+  const columns = (csv?.columns || []).map((cell) => String(cell).trim().toLowerCase());
+  const rows = Array.isArray(csv?.rows) ? csv.rows : [];
+  if (!columns.length) return [];
+  const idIdx = columns.findIndex((h) => ["id", "slug", "код", "code"].includes(h));
+  const labelIdx = columns.findIndex((h) => ["label", "name", "title", "название"].includes(h));
+  const colorIdx = columns.findIndex((h) => h === "color" || h === "цвет");
+  return rows
+    .map((cells) => {
+      const id = String(cells[idIdx >= 0 ? idIdx : 0] || "").trim();
+      const label = String(cells[labelIdx >= 0 ? labelIdx : 1] || id).trim();
+      const color = colorIdx >= 0 ? String(cells[colorIdx] || "").trim() : "";
+      if (!id) return null;
+      return { id, label, color: color || null };
+    })
+    .filter(Boolean);
+}
+
+function parseTagsCsvItems(csv) {
+  const columns = (csv?.columns || []).map((cell) => String(cell).trim().toLowerCase());
+  const rows = Array.isArray(csv?.rows) ? csv.rows : [];
+  if (!columns.length) return [];
+  const tagIdx = columns.findIndex((h) => ["tag", "id", "name", "тег"].includes(h));
+  const colIdx = tagIdx >= 0 ? tagIdx : 0;
+  const tags = new Set();
+  for (const cells of rows) {
+    const raw = String(cells[colIdx] || "").trim().replace(/^#+/, "");
+    if (raw) tags.add(raw);
+  }
+  return [...tags]
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((id) => ({ id, label: `#${id}` }));
+}
+
 function parseTagsBodyItems(body) {
   const tags = new Set();
   for (const line of String(body || "").split("\n")) {
@@ -3122,11 +3195,18 @@ async function readServiceCatalogFileBody(serviceAbsolute, manifestRel, bundleFi
   const contentAbs = path.join(serviceAbsolute, contentRel);
   try {
     const raw = await fs.readFile(contentAbs, "utf-8");
+    if (bundleFileName === BUNDLE_TABULAR_FILE) return raw;
     const { body } = splitNodeFrontmatter(raw);
     return body;
   } catch {
     return "";
   }
+}
+
+async function readServiceCatalogCsv(serviceAbsolute, manifestRel) {
+  const raw = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_TABULAR_FILE);
+  if (!String(raw || "").trim()) return { columns: [], rows: [] };
+  return parseCsvText(raw);
 }
 
 async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
@@ -3161,11 +3241,19 @@ async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
     return items.sort((a, b) => a.label.localeCompare(b.label, "ru"));
   }
 
+  const csv = await readServiceCatalogCsv(serviceAbsolute, manifestRel);
+  const fromCsv = parseCategoryCsvItems(csv);
+  if (fromCsv.length) return fromCsv;
+
   const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
   return parseCategoryTableItems(body);
 }
 
 async function listTagsCatalogItems(serviceAbsolute, manifestRel) {
+  const csv = await readServiceCatalogCsv(serviceAbsolute, manifestRel);
+  const fromCsv = parseTagsCsvItems(csv);
+  if (fromCsv.length) return fromCsv;
+
   const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
   const fromBody = parseTagsBodyItems(body);
   if (fromBody.length) return fromBody;
@@ -5044,14 +5132,15 @@ async function handleApiForAgent(req, res, url) {
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
-      await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, content);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, stampedContent);
       if (canonicalRelPath !== String(relPath).replace(/\\/g, "/")) {
         const legacyAbsolute = normalizeWorkspacePath(relPath);
         if (legacyAbsolute && legacyAbsolute !== absolute) {
           await removeIfExists(legacyAbsolute);
         }
       }
-      return sendJson(res, 200, { path: canonicalRelPath, content });
+      return sendJson(res, 200, { path: canonicalRelPath, content: stampedContent });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save content",
@@ -5328,10 +5417,11 @@ async function handleApiForAgent(req, res, url) {
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
       const { body } = splitNodeFrontmatter(raw);
-      const nextContent = joinNodeFrontmatter(content, body);
+      const stampedFrontmatter = applyAwnTimestampsToFrontmatter(content);
+      const nextContent = joinNodeFrontmatter(stampedFrontmatter, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
-      return sendJson(res, 200, { path: relPath, content, fullContent: nextContent });
+      return sendJson(res, 200, { path: relPath, content: stampedFrontmatter, fullContent: nextContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save properties", details: String(error.message || error) });
     }
@@ -5580,8 +5670,9 @@ async function handleApiForAgent(req, res, url) {
 
       const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
       const targetRelPath = manifestRelFromNodeAbsolute(fileAbsolute);
-      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, content);
-      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content: stampedContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save external file", details: String(error.message || error) });
     }
@@ -5906,8 +5997,9 @@ async function handleApiForAgent(req, res, url) {
       if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
 
       await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
-      await fs.writeFile(fileAbsolute, content, "utf-8");
-      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      await fs.writeFile(fileAbsolute, stampedContent, "utf-8");
+      return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content: stampedContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save media markdown", details: String(error.message || error) });
     }
@@ -6575,12 +6667,13 @@ async function handleApiForAgent(req, res, url) {
 
       const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
       const targetRelPath = manifestRelFromNodeAbsolute(sidecarAbsolute);
-      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, content);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
 
       return sendJson(res, 200, {
         sourceFile: normalizedRelFile.replace(/\\/g, "/"),
         sidecar: sidecarRelPath.replace(/\\/g, "/"),
-        content
+        content: stampedContent
       });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Media file not found" });

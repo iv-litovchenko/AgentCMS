@@ -1,0 +1,8 @@
+id: awn.file
+name: Файл
+kind: field
+storage: string
+mdbase: file
+widget: file
+description: Ссылка на файл в памяти темы (Content/… или Assets/…)
+settings: [description, hint, required, locked, default, scope]

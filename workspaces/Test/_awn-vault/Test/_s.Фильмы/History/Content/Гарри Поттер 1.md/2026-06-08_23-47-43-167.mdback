@@ -5,7 +5,7 @@ awn-name: Фильмы
 awn-create: ""
 awn-update: ""
 awn-description: ""
-awn-category: reference
+awn-category: general
 awn-tags:
   - reference
   - review

@@ -1,0 +1,11 @@
+awn_schema:
+  record:
+    fields:
+      event_date:
+        type: awn.date
+        title: Дата события
+  sidecar:
+    fields:
+      obrabotano:
+        type: awn.boolean
+        title: Обработано

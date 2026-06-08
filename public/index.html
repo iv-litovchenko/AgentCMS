@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.20" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.25" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -1261,6 +1261,22 @@
                   </div>
                 </div>
               </div>
+              <section id="node-config-panel" class="node-config-panel hidden" aria-label="Конфигурация темы">
+                <header class="node-config-head">
+                  <div>
+                    <h3 class="node-config-title">Конфигурация темы</h3>
+                    <p class="node-config-lead">
+                      Параметры для агента сохраняются в <code>Config.yml</code>.
+                      Схема полей (<code>awn_schema</code>) и стартовая страница (<code>default_landing_mode</code>) редактируются отдельно.
+                    </p>
+                  </div>
+                </header>
+                <div id="node-config-fields" class="node-config-fields"></div>
+                <p id="node-config-empty" class="node-config-empty hidden">Параметров пока нет — добавьте ключ кнопкой ниже.</p>
+                <footer class="node-config-footer">
+                  <button id="node-config-add-btn" class="node-config-add-btn" type="button">+ Параметр</button>
+                </footer>
+              </section>
               <section id="topic-schema-panel" class="topic-schema-panel hidden" aria-label="Схема полей темы">
                 <header class="topic-schema-head">
                   <div>
@@ -1857,7 +1873,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.113"></script>
+    <script src="/main.js?v=0.5.126"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

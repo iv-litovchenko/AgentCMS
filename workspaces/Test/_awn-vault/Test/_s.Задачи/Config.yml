@@ -1,0 +1,14 @@
+awn_schema:
+  record:
+    fields:
+      event_date:
+        type: awn.date
+        title: Дата события
+      user_id:
+        type: awn.link
+        title: Пригласил
+  sidecar:
+    fields:
+      obrabotano:
+        type: awn.boolean
+        title: Обработано

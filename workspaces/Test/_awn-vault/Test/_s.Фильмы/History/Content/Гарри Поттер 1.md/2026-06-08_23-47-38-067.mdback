@@ -1,22 +1,19 @@
 ---
-awn-status: 🟢 Открыта
+awn-status: Открыта
 awn-type: awn.record
 awn-name: Фильмы
 awn-create: ""
 awn-update: ""
 awn-description: ""
-awn-category: reference
-awn-tags:
-  - reference
-  - review
-  - todo
+awn-category: general
+awn-tags: []
 awn-version: 0.0.1
 awn-sort: 0
 awn-preview: ""
 пку: ""
 directorпку: ""
 field_1: ""
-field_2: "[[Test/рекрек]]"
+field_2: ""
 field_3: ""
 field_4: ""
 tags: []

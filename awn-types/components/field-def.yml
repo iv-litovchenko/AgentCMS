@@ -44,3 +44,8 @@ properties:
     title: Элемент списка
     description: Тип элементов для type array (awn.string, awn.link…)
     type: awn.string
+  scope:
+    title: Область файлов
+    description: Для type file — откуда выбирать (all, external, media)
+    type: awn.enum
+    enum: [all, external, media]
