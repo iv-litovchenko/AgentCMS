@@ -196,7 +196,7 @@ module.exports = {
     },
     {
       id: "node",
-      title: "Тема / область (*.x.md)",
+      title: "Тема / область (*.md)",
       endpoints: [
         {
           method: "GET",

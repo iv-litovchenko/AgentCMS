@@ -388,6 +388,14 @@ function readStorageItem(key) {
   }
 }
 
+function writeStorageItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore quota / privacy mode errors
+  }
+}
+
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const AREA_MANIFEST_FILE = "_REGINFO.md";
@@ -3797,6 +3805,9 @@ let editorViewMode =
 let externalViewMode = "table";
 let externalListFilterQuery = "";
 let externalListSort = { key: "path", dir: "asc" };
+let externalListVisibleColumnKeysCache = null;
+let externalListVisibleColumnKeysScope = "";
+const EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX = "externalListColumns:";
 let externalListSchemaReadyKey = "";
 let externalListSchemaReadyPromise = null;
 let mediaViewMode = "dashboard";
@@ -9682,6 +9693,51 @@ function prepareExternalListItems(items) {
   return sortExternalListItems(filterExternalListItems(items));
 }
 
+function getExternalListColumnsStorageKey() {
+  const manifest = getTopicSchemaManifestPath() || activePath || "";
+  return `${EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX}${activeAgentId || "main"}:${manifest}`;
+}
+
+function getExternalListVisibleColumnKeys() {
+  const scope = getExternalListColumnsStorageKey();
+  const allKeys = getExternalTableSchemaColumns().map((column) => column.key);
+  if (!allKeys.length) return [];
+
+  if (externalListVisibleColumnKeysScope !== scope) {
+    externalListVisibleColumnKeysScope = scope;
+    externalListVisibleColumnKeysCache = null;
+    const stored = readStorageItem(scope);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          externalListVisibleColumnKeysCache = parsed.filter((key) => allKeys.includes(key));
+        }
+      } catch {
+        externalListVisibleColumnKeysCache = null;
+      }
+    }
+  }
+
+  if (!externalListVisibleColumnKeysCache?.length) return allKeys;
+  return externalListVisibleColumnKeysCache;
+}
+
+function setExternalListVisibleColumnKeys(keys) {
+  const allKeys = getExternalTableSchemaColumns().map((column) => column.key);
+  const normalized = keys.filter((key) => allKeys.includes(key));
+  externalListVisibleColumnKeysCache = normalized.length ? normalized : [...allKeys];
+  externalListVisibleColumnKeysScope = getExternalListColumnsStorageKey();
+  writeStorageItem(externalListVisibleColumnKeysScope, JSON.stringify(externalListVisibleColumnKeysCache));
+  syncExternalListToolbarFromState();
+  rerenderExternalListViewBody();
+}
+
+function getExternalTableVisibleColumns() {
+  const visible = new Set(getExternalListVisibleColumnKeys());
+  return getExternalTableSchemaColumns().filter((column) => visible.has(column.key));
+}
+
 function syncExternalListToolbarMeta(shown, total) {
   const countNode = listViewContentNode?.querySelector(".external-list-results-count");
   if (!countNode) return;
@@ -9695,6 +9751,7 @@ function syncExternalListToolbarFromState() {
   const filterInput = toolbar.querySelector(".external-list-filter-input");
   const sortSelect = toolbar.querySelector(".external-list-sort-select");
   const sortDirBtn = toolbar.querySelector(".external-list-sort-dir-btn");
+  const columnsBtn = toolbar.querySelector(".external-list-columns-btn");
   if (filterInput && filterInput.value !== externalListFilterQuery) {
     filterInput.value = externalListFilterQuery;
   }
@@ -9704,6 +9761,94 @@ function syncExternalListToolbarFromState() {
   }
   if (sortSelect) sortSelect.value = externalListSort.key;
   if (sortDirBtn) sortDirBtn.textContent = externalListSort.dir === "asc" ? "↑" : "↓";
+  if (columnsBtn) {
+    const visibleCount = getExternalListVisibleColumnKeys().length;
+    const totalCount = getExternalTableSchemaColumns().length;
+    columnsBtn.textContent =
+      visibleCount === totalCount ? "Колонки" : `Колонки (${visibleCount})`;
+  }
+}
+
+function renderExternalListColumnsPanel(panel) {
+  if (!panel) return;
+  panel.replaceChildren();
+
+  const head = document.createElement("div");
+  head.className = "external-list-columns-panel-head";
+  const title = document.createElement("span");
+  title.className = "external-list-columns-panel-title";
+  title.textContent = "Колонки YAML";
+  const actions = document.createElement("div");
+  actions.className = "external-list-columns-panel-actions";
+  const showAllBtn = document.createElement("button");
+  showAllBtn.type = "button";
+  showAllBtn.className = "external-list-columns-action-btn";
+  showAllBtn.textContent = "Все";
+  showAllBtn.addEventListener("click", () => {
+    setExternalListVisibleColumnKeys(getExternalTableSchemaColumns().map((column) => column.key));
+    renderExternalListColumnsPanel(panel);
+  });
+  actions.append(showAllBtn);
+  head.append(title, actions);
+  panel.appendChild(head);
+
+  const list = document.createElement("div");
+  list.className = "external-list-columns-panel-list";
+  const visible = new Set(getExternalListVisibleColumnKeys());
+
+  for (const column of getExternalTableSchemaColumns()) {
+    const label = document.createElement("label");
+    label.className = "external-list-columns-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = visible.has(column.key);
+    input.addEventListener("change", () => {
+      const next = new Set(getExternalListVisibleColumnKeys());
+      if (input.checked) next.add(column.key);
+      else next.delete(column.key);
+      if (!next.size) {
+        input.checked = true;
+        return;
+      }
+      setExternalListVisibleColumnKeys([...next]);
+      renderExternalListColumnsPanel(panel);
+    });
+
+    const text = document.createElement("span");
+    text.textContent = column.label;
+    text.title = column.key;
+    label.append(input, text);
+    list.appendChild(label);
+  }
+
+  panel.appendChild(list);
+}
+
+function bindExternalListColumnsPicker(wrap, columnsBtn, columnsPanel) {
+  if (!wrap || !columnsBtn || !columnsPanel || columnsBtn.dataset.bound === "1") return;
+  columnsBtn.dataset.bound = "1";
+
+  columnsBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = columnsPanel.classList.contains("hidden");
+    document.querySelectorAll(".external-list-columns-panel").forEach((node) => {
+      if (node !== columnsPanel) node.classList.add("hidden");
+    });
+    if (willOpen) renderExternalListColumnsPanel(columnsPanel);
+    columnsPanel.classList.toggle("hidden");
+  });
+
+  if (!wrap.dataset.columnsPickerBound) {
+    wrap.dataset.columnsPickerBound = "1";
+    document.addEventListener("click", (event) => {
+      if (wrap.contains(event.target)) return;
+      columnsPanel.classList.add("hidden");
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") columnsPanel.classList.add("hidden");
+    });
+  }
 }
 
 function syncExternalListSortSelectOptions(sortSelect) {
@@ -9795,7 +9940,22 @@ function createExternalListToolbar() {
 
   const controls = document.createElement("div");
   controls.className = "external-list-toolbar-controls";
-  controls.append(filterInput, sortSelect, sortDirBtn);
+
+  const columnsWrap = document.createElement("div");
+  columnsWrap.className = "external-list-columns-wrap";
+  const columnsBtn = document.createElement("button");
+  columnsBtn.type = "button";
+  columnsBtn.className = "external-list-columns-btn";
+  columnsBtn.textContent = "Колонки";
+  columnsBtn.title = "Видимые колонки таблицы";
+  columnsBtn.setAttribute("aria-haspopup", "true");
+  const columnsPanel = document.createElement("div");
+  columnsPanel.className = "external-list-columns-panel hidden";
+  columnsPanel.setAttribute("role", "menu");
+  columnsWrap.append(columnsBtn, columnsPanel);
+  bindExternalListColumnsPicker(columnsWrap, columnsBtn, columnsPanel);
+
+  controls.append(filterInput, columnsWrap, sortSelect, sortDirBtn);
 
   toolbar.append(countNode, controls);
   return toolbar;
@@ -9832,6 +9992,30 @@ function ensureExternalListToolbar(wrap) {
     if (sectionHead) main.insertBefore(toolbar, sectionHead.nextSibling);
     else main.prepend(toolbar);
   }
+
+  ensureExternalListColumnsPicker(main.querySelector(".external-list-toolbar"));
+}
+
+function ensureExternalListColumnsPicker(toolbar) {
+  if (!toolbar || toolbar.querySelector(".external-list-columns-wrap")) return;
+  const controls = toolbar.querySelector(".external-list-toolbar-controls");
+  const sortSelect = controls?.querySelector(".external-list-sort-select");
+  if (!controls || !sortSelect) return;
+
+  const columnsWrap = document.createElement("div");
+  columnsWrap.className = "external-list-columns-wrap";
+  const columnsBtn = document.createElement("button");
+  columnsBtn.type = "button";
+  columnsBtn.className = "external-list-columns-btn";
+  columnsBtn.textContent = "Колонки";
+  columnsBtn.title = "Видимые колонки таблицы";
+  columnsBtn.setAttribute("aria-haspopup", "true");
+  const columnsPanel = document.createElement("div");
+  columnsPanel.className = "external-list-columns-panel hidden";
+  columnsPanel.setAttribute("role", "menu");
+  columnsWrap.append(columnsBtn, columnsPanel);
+  bindExternalListColumnsPicker(columnsWrap, columnsBtn, columnsPanel);
+  controls.insertBefore(columnsWrap, sortSelect);
 }
 
 async function ensureExternalListSchemaReady() {
@@ -9922,7 +10106,11 @@ function appendExternalTableSchemaCell(row, column, item) {
 }
 
 function renderExternalTableView(container, mdItems) {
-  const columns = getExternalTableSchemaColumns();
+  const columns = getExternalTableVisibleColumns();
+  if (!columns.length) {
+    renderListEmptyMessage(container, "Нет выбранных колонок — откройте «Колонки»");
+    return;
+  }
   const wrap = document.createElement("div");
   wrap.className = "external-table-wrap";
 
@@ -10250,6 +10438,27 @@ function renderExternalSectionFolderView(container, sectionFolder, items) {
   }
 }
 
+function getExternalItemPropValue(item, key) {
+  const entries = Array.isArray(item?.props) ? item.props : [];
+  return String(getPropsEntryValueByKey(entries, key) || "").trim();
+}
+
+function getExternalMocTopicKey(item) {
+  const tagsRaw = String(item?.tags || "").trim();
+  if (tagsRaw && tagsRaw !== "[]" && tagsRaw !== "—") {
+    const firstTag = tagsRaw.split(",")[0].trim();
+    if (firstTag) return firstTag;
+  }
+
+  const category = getExternalItemPropValue(item, "awn-category");
+  if (category) return category;
+
+  const section = formatExternalCardSection(item);
+  if (section && section !== "Корень") return section;
+
+  return "Без категории";
+}
+
 function renderExternalViewContent(container, mdItems) {
   const naturalCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
@@ -10344,11 +10553,8 @@ function renderExternalViewContent(container, mdItems) {
 
   if (externalViewMode === "moc") {
     const groups = new Map();
-    for (const [index, item] of mdItems.entries()) {
-      const meta = buildMockMeta(item.path, index);
-      const topic = String(meta.tags || "other")
-        .split(",")[0]
-        .trim() || "other";
+    for (const item of mdItems) {
+      const topic = getExternalMocTopicKey(item);
       if (!groups.has(topic)) groups.set(topic, []);
       groups.get(topic).push(item);
     }
@@ -20757,25 +20963,6 @@ function appendRepoRootMenuItems(container, repoItems, parentMenuNode, agentId =
 
   const block = document.createElement("div");
   block.className = "menu-repo-root-block";
-
-  const head = document.createElement("div");
-  head.className = "menu-repo-root-head";
-
-  const icon = document.createElement("span");
-  icon.className = "menu-repo-root-icon";
-  icon.appendChild(createGitMarkerSvg());
-  icon.setAttribute("aria-hidden", "true");
-
-  const title = document.createElement("span");
-  title.className = "menu-repo-root-title";
-  title.textContent = REPO_ROOT_MENU_GROUP_LABEL;
-
-  const meta = document.createElement("span");
-  meta.className = "menu-repo-root-meta";
-  meta.textContent = String(items.length);
-
-  head.append(icon, title, meta);
-  block.appendChild(head);
 
   const list = document.createElement("div");
   list.className = "menu-repo-root-items";

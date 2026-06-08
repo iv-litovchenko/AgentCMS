@@ -1,11 +1,11 @@
 ---
-awn-preview: Assets/Preview/2026-06-09_01-17-07-760-pasted-preview.png
+awn-preview: Assets/Preview/20260608232935.png
 awn-category: ""
-awn-status: Открыта
+awn-status: 🟢 Открыта
 awn-type: awn.agent
 awn-name: _REGINFO
-awn-create: 2026-06-08T22:17:07.793Z
-awn-update: 2026-06-08T22:17:07.793Z
+awn-create: "2026-06-08T22:17:07.793Z"
+awn-update: 2026-06-08T23:29:35.808Z
 awn-description: ""
 awn-tags: []
 awn-version: ""

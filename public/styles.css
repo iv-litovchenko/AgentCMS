@@ -8045,48 +8045,11 @@ body.app-locked {
 }
 
 .menu-repo-root-block {
-  margin: 8px 0 4px;
-  padding: 8px 8px 4px;
+  margin: 4px 0;
+  padding: 4px 8px;
   border: 1px dashed #cbd5e1;
   border-radius: 10px;
   background: #f8fafc;
-}
-
-.menu-repo-root-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  padding: 0 2px;
-}
-
-.menu-repo-root-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  color: #de4c36;
-  flex-shrink: 0;
-}
-
-.menu-repo-root-icon .menu-marker-svg {
-  width: 14px;
-  height: 14px;
-}
-
-.menu-repo-root-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.menu-repo-root-meta {
-  margin-left: auto;
-  font-size: 11px;
-  color: #94a3b8;
 }
 
 .menu-item.menu-item--repo-root {
@@ -8724,8 +8687,9 @@ body.app-locked {
 
 .doc-props-aside .doc-aside-preview-block .props-form-preview-thumb-wrap {
   width: 100%;
-  min-height: 132px;
-  max-height: 200px;
+  min-height: 80px;
+  max-height: none;
+  height: auto;
   border-radius: 10px;
 }
 
@@ -12184,14 +12148,29 @@ button.node-navigation-memory-title:focus-visible {
 
 .doc-props-aside .props-form-preview-thumb-wrap {
   width: 100%;
-  min-height: 120px;
-  max-height: 180px;
+  min-height: 80px;
+  max-height: none;
+  height: auto;
   border-radius: 10px;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap.node-overview-thumb-wrap {
+  flex: none;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: block;
 }
 
 .doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb,
 .doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb-placeholder {
   border-radius: 10px;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 
 .doc-props-aside .props-preview-field--preview {
@@ -16306,6 +16285,111 @@ button.node-navigation-memory-title:focus-visible {
 .external-list-sort-dir-btn:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+.external-list-columns-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.external-list-columns-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.external-list-columns-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.external-list-columns-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 220px;
+  max-width: min(320px, 70vw);
+  max-height: min(420px, 60vh);
+  overflow: auto;
+  padding: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+.external-list-columns-panel.hidden {
+  display: none;
+}
+
+.external-list-columns-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  margin-bottom: 4px;
+}
+
+.external-list-columns-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.external-list-columns-panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.external-list-columns-action-btn {
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.external-list-columns-action-btn:hover {
+  text-decoration: underline;
+}
+
+.external-list-columns-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 6px;
+}
+
+.external-list-columns-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.external-list-columns-option:hover {
+  background: #f8fafc;
+}
+
+.external-list-columns-option input {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .external-table-wrap {
