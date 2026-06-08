@@ -1,18 +1,18 @@
 ---
-awn-preview: ""
-awn-category: ""
 awn-status: 🟢 Открыта
 awn-type: awn.record
 awn-name: Фильмы
-awn-create: 2026-06-08T23:08:09.892Z
-awn-update: 2026-06-08T23:08:09.892Z
+awn-create: ""
+awn-update: ""
 awn-description: ""
+awn-category: reference
 awn-tags:
   - reference
   - review
   - todo
 awn-version: 0.0.1
 awn-sort: 0
+awn-preview: ""
 пку: ""
 directorпку: ""
 field_1: ""

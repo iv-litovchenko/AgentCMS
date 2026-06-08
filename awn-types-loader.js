@@ -371,7 +371,7 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   };
 }
 
-const AWN_SCHEMA_TARGETS = ["topic", "record", "record_category", "media_category", "sidecar"];
+const AWN_SCHEMA_TARGETS = ["topic", "record", "record_category", "sidecar", "media_category"];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
   topic: "awn.topic",

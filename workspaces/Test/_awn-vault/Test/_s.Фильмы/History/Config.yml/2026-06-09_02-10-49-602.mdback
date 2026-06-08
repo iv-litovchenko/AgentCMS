@@ -31,21 +31,16 @@ awn_schema:
     fields:
       field_1:
         type: awn.string
-        title: Cat - 1
       field_2:
         type: awn.string
-        title: Cat - 3
       field_3:
         type: awn.string
-        title: Cat - 2
   media_category:
     fields:
       field_1:
         type: awn.string
-        title: Cat Media - 1
       field_2:
         type: awn.string
-        title: Cat Media - 2
   sidecar:
     fields:
       field_1:

@@ -1,18 +1,15 @@
 ---
-awn-preview: ""
-awn-category: ""
-awn-status: 🟢 Открыта
-awn-type: awn.record.category
+awn-type: awn.record
 awn-name: Фильмы
-awn-create: 2026-06-08T23:14:58.367Z
-awn-update: 2026-06-08T23:14:58.367Z
+awn-create: ""
+awn-update: ""
 awn-description: ""
+awn-status: Открыта
+awn-category: ""
 awn-tags: []
 awn-version: 0.0.1
 awn-sort: 0
-awn-color: "#000000"
-awn-parent: ""
-awn-slug: ""
+awn-preview: ""
 пку: ""
 directorпку: ""
 field_1: ""

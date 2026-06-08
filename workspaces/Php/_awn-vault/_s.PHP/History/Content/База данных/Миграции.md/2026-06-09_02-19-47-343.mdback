@@ -1,17 +1,3 @@
----
-awn-preview: ""
-awn-category: ""
-awn-status: 🟢 Открыта
-awn-type: awn.record
-awn-name: Миграции
-awn-create: 2026-06-08T23:19:47.342Z
-awn-update: 2026-06-08T23:19:47.342Z
-awn-description: ""
-awn-tags: []
-awn-version: 0.0.1
-awn-sort: 0
----
-
 # Миграции (концепция)
 
 В Laravel / Symfony миграции — версионирование схемы БД.

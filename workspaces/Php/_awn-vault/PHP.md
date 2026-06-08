@@ -1,17 +1,16 @@
 ---
-title: PHP
-awn-create: "2026-03-15T10:30:00+03:00"
-awn-update: "2026-06-06T18:00:00+03:00"
-awn-description: "Тема для изучения PHP — серверный язык для веба: синтаксис, типы, ООП, Composer, PDO и типичные паттерны."
-awn-version: 1.2.0
+awn-preview: Assets/Preview/20260608231834.png
+awn-category: ""
+awn-status: 🟡 Черновик
+awn-type: awn.topic
+awn-name: PHP
+awn-create: "2026-06-08T23:18:28.212Z"
+awn-update: 2026-06-08T23:18:34.563Z
+awn-description: ""
+awn-tags: []
+awn-version: 0.0.1
 awn-sort: ""
-tags:
-  - php
-  - programming
-  - backend
-  - web
-color: indigo
-category: Программирование
+title: PHP
 ---
 
 **Назначение темы** — учебный workspace по PHP 8.x: от синтаксиса до практики с БД и фреймворками.

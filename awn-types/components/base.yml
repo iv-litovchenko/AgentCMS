@@ -9,7 +9,7 @@ fields:
     title: Статус
     description: Состояние записи
     enum: [🟢 Открыта, 🟡 Черновик, 🔴 Закрыта]
-    default: 🟡Черновик
+    default: 🟡 Черновик
   awn-type:
     type: awn.string
     title: Тип
