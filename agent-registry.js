@@ -58,57 +58,35 @@ function isAwnDependenciesFileName(fileName) {
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
 const DEFAULT_VAULT_FOLDER = "_awn-vault";
-const DEFAULT_ASSISTANT_FOLDER = "_awn-assistant-ai";
-/** @deprecated alias */
-const DEFAULT_SERVICE_FOLDER = DEFAULT_ASSISTANT_FOLDER;
-const ASSISTANT_FOLDER_PATH_LEGACY_NAMES = [
-  "_awn-system",
-  "_system",
-  "_assistant-ai",
-  "_x-assistant-ai"
-];
-/** @deprecated alias */
-const SERVICE_FOLDER_LEGACY_NAMES = ASSISTANT_FOLDER_PATH_LEGACY_NAMES;
-const ASSISTANT_FOLDER_MANIFEST_KEYS = ["assistantFolder", "serviceFolder", "service"];
+const DEFAULT_AGENT_SYSTEM_FOLDER = "_awn-agent-system";
 
 function isVaultFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
 }
 
-function isAssistantFolderEntryName(name) {
+function isAgentSystemFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
-  if (!lower) return false;
-  if (lower === DEFAULT_ASSISTANT_FOLDER.toLowerCase()) return true;
-  return ASSISTANT_FOLDER_PATH_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+  return lower === DEFAULT_AGENT_SYSTEM_FOLDER.toLowerCase();
 }
 
-/** @deprecated alias */
-const isServiceFolderEntryName = isAssistantFolderEntryName;
-
-function readAssistantFolderManifestValue(raw) {
+function readAgentSystemFolderManifestValue(raw) {
   if (!raw || typeof raw !== "object") return undefined;
-  for (const key of ASSISTANT_FOLDER_MANIFEST_KEYS) {
-    if (raw[key] !== undefined) return raw[key];
-  }
-  return undefined;
+  return raw.agentSystemFolder;
 }
 
 function migrateManifestRawFolderKeys(raw) {
   if (!raw || typeof raw !== "object") return;
-  const assistant = readAssistantFolderManifestValue(raw);
-  if (assistant !== undefined) {
-    const normalized = normalizeAssistantFolderName(assistant);
-    if (normalized === null) {
-      raw.assistantFolder = false;
-    } else {
-      raw.assistantFolder = normalized;
-    }
+  if (raw.agentSystemFolder !== undefined) {
+    const normalized = normalizeAgentSystemFolderName(raw.agentSystemFolder);
+    raw.agentSystemFolder = normalized === null ? false : normalized;
   }
+  delete raw.agentCoreFolder;
+  delete raw.assistantFolder;
   delete raw.serviceFolder;
   delete raw.service;
 }
 
-/** Общая папка справочников внутри _awn-assistant-ai */
+/** Общая папка справочников внутри _awn-agent-system */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
@@ -257,7 +235,6 @@ function normalizeReservedFolderName(raw, fallback) {
   const lower = cleaned.toLowerCase();
   if (lower === "_storage" || lower === "_parts") return null;
   if (isVaultFolderEntryName(cleaned)) return DEFAULT_VAULT_FOLDER;
-  if (isAssistantFolderEntryName(cleaned)) return DEFAULT_ASSISTANT_FOLDER;
   return cleaned;
 }
 
@@ -266,12 +243,12 @@ function normalizeManifestFolderAliases(raw) {
   const manifest = { ...raw };
   const vault = String(manifest.vaultFolder ?? "").trim();
   if (isVaultFolderEntryName(vault)) manifest.vaultFolder = DEFAULT_VAULT_FOLDER;
-  const assistant = readAssistantFolderManifestValue(manifest);
-  if (assistant !== undefined) {
-    const normalized = normalizeAssistantFolderName(assistant);
-    if (normalized !== null) manifest.assistantFolder = normalized;
-    else manifest.assistantFolder = null;
+  if (manifest.agentSystemFolder !== undefined) {
+    const normalized = normalizeAgentSystemFolderName(manifest.agentSystemFolder);
+    manifest.agentSystemFolder = normalized;
   }
+  delete manifest.agentCoreFolder;
+  delete manifest.assistantFolder;
   delete manifest.serviceFolder;
   delete manifest.service;
   return manifest;
@@ -281,22 +258,22 @@ function normalizeVaultFolderName(raw) {
   if (raw === null || raw === false) return null;
   const cleaned = String(raw ?? "").trim();
   if (!cleaned || cleaned.toLowerCase() === "false") return null;
-  if (isAssistantFolderEntryName(cleaned)) return null;
+  if (isAgentSystemFolderEntryName(cleaned)) return null;
   return DEFAULT_VAULT_FOLDER;
 }
 
-function normalizeAssistantFolderName(raw) {
+function normalizeAgentSystemFolderName(raw) {
   if (raw === null || raw === false) return null;
   const cleaned = String(raw ?? "").trim();
   if (cleaned.toLowerCase() === "false") return null;
-  if (!cleaned) return DEFAULT_ASSISTANT_FOLDER;
+  if (!cleaned) return DEFAULT_AGENT_SYSTEM_FOLDER;
   if (isVaultFolderEntryName(cleaned)) return null;
-  if (isAssistantFolderEntryName(cleaned)) return DEFAULT_ASSISTANT_FOLDER;
-  return cleaned;
+  const sanitized = cleaned.replace(/[\\/]/g, "").replace(/\s+/g, " ");
+  if (!sanitized || sanitized.startsWith(".")) return null;
+  const lower = sanitized.toLowerCase();
+  if (lower === "_storage" || lower === "_parts") return null;
+  return sanitized;
 }
-
-/** @deprecated alias */
-const normalizeServiceFolderName = normalizeAssistantFolderName;
 
 function normalizeAgentManifest(raw, workspaceRootAbsolute) {
   if (!raw || typeof raw !== "object") return null;
@@ -307,7 +284,7 @@ function normalizeAgentManifest(raw, workspaceRootAbsolute) {
     name: String(raw.name || folderName).trim(),
     comment: String(raw.comment || raw.description || "").trim(),
     vaultFolder: normalizeVaultFolderName(raw.vaultFolder ?? raw.vault),
-    assistantFolder: normalizeAssistantFolderName(readAssistantFolderManifestValue(raw))
+    agentSystemFolder: normalizeAgentSystemFolderName(raw.agentSystemFolder)
   };
 }
 
@@ -425,21 +402,13 @@ function updateAgentManifestFields(agentPath, fields = {}) {
     }
   }
 
-  const assistantField =
-    fields.assistantFolder !== undefined ? fields.assistantFolder : fields.serviceFolder;
-  if (fields.assistantFolder !== undefined || fields.serviceFolder !== undefined) {
-    if (assistantField === null || assistantField === false) {
-      raw.assistantFolder = false;
+  if (fields.agentSystemFolder !== undefined) {
+    if (fields.agentSystemFolder === null || fields.agentSystemFolder === false) {
+      raw.agentSystemFolder = false;
     } else {
-      const normalized = normalizeAssistantFolderName(assistantField);
-      if (!normalized) {
-        raw.assistantFolder = false;
-      } else {
-        raw.assistantFolder = normalized;
-      }
+      const normalized = normalizeAgentSystemFolderName(fields.agentSystemFolder);
+      raw.agentSystemFolder = normalized === null ? false : normalized;
     }
-    delete raw.serviceFolder;
-    delete raw.service;
   }
 
   writeAgentManifestSync(absolute, raw);
@@ -468,8 +437,8 @@ function enrichAgentEntry(entry) {
     name: manifest?.name || entry.name || entry.id || folderName,
     comment: manifest?.comment || entry.comment || "",
     manifestId: manifest?.id || "",
-    vaultFolder: manifest ? manifest.vaultFolder : DEFAULT_VAULT_FOLDER,
-    assistantFolder: manifest ? manifest.assistantFolder : DEFAULT_ASSISTANT_FOLDER,
+    vaultFolder: manifest ? (manifest.vaultFolder ?? null) : null,
+    agentSystemFolder: manifest ? manifest.agentSystemFolder : DEFAULT_AGENT_SYSTEM_FOLDER,
     hasPreview: Boolean(findAgentWorkspacePreviewAbsoluteSync(entry.rootAbsolute)),
     previewRel: null
   };
@@ -477,20 +446,18 @@ function enrichAgentEntry(entry) {
 
 function getAgentVaultFolder(agentId) {
   const agent = resolveAgent(agentId || getActiveAgentId());
-  if (!agent) return DEFAULT_VAULT_FOLDER;
-  if (agent.vaultFolder === null) return null;
-  return DEFAULT_VAULT_FOLDER;
+  if (!agent) return null;
+  const vault = agent.vaultFolder;
+  if (vault === null || vault === false) return null;
+  return vault || DEFAULT_VAULT_FOLDER;
 }
 
-function getAgentAssistantFolder(agentId) {
+function getAgentSystemFolder(agentId) {
   const agent = resolveAgent(agentId || getActiveAgentId());
-  if (!agent) return DEFAULT_ASSISTANT_FOLDER;
-  if (agent.assistantFolder === null) return null;
-  return agent.assistantFolder || DEFAULT_ASSISTANT_FOLDER;
+  if (!agent) return DEFAULT_AGENT_SYSTEM_FOLDER;
+  if (agent.agentSystemFolder === null) return null;
+  return agent.agentSystemFolder || DEFAULT_AGENT_SYSTEM_FOLDER;
 }
-
-/** @deprecated alias */
-const getAgentServiceFolder = getAgentAssistantFolder;
 
 function normalizeAgentActive(raw) {
   return raw !== false;
@@ -577,7 +544,7 @@ function getAgentsPublicList() {
       manifestFound,
       manifestId,
       vaultFolder,
-      assistantFolder,
+      agentSystemFolder,
       previewRel
     }) => ({
       id,
@@ -590,7 +557,7 @@ function getAgentsPublicList() {
       manifestFound: Boolean(manifestFound),
       manifestId: manifestId || "",
       vaultFolder,
-      assistantFolder,
+      agentSystemFolder,
       previewRel: previewRel || null
     })
   );
@@ -651,6 +618,9 @@ function saveAgentsRegistry(rawAgents) {
     }
 
     const manifestAfterUpdate = readAgentManifestSync(absolute);
+    if (manifestAfterUpdate?.vaultFolder) {
+      fs.mkdirSync(path.join(absolute, manifestAfterUpdate.vaultFolder), { recursive: true });
+    }
     const id = slugifyAgentId(
       entry?.id ||
         manifestAfterUpdate?.id ||
@@ -822,8 +792,8 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
         name: manifest?.name || path.basename(dirAbsolute),
         comment: manifest?.comment || "",
         id: slugifyAgentId(manifest?.id || manifest?.name || path.basename(dirAbsolute), results.length),
-        vaultFolder: manifest ? manifest.vaultFolder : DEFAULT_VAULT_FOLDER,
-        assistantFolder: manifest ? manifest.assistantFolder : DEFAULT_ASSISTANT_FOLDER,
+        vaultFolder: manifest ? manifest.vaultFolder ?? null : null,
+        agentSystemFolder: manifest ? manifest.agentSystemFolder : DEFAULT_AGENT_SYSTEM_FOLDER,
         hasPreview: Boolean(previewAbsolute),
         previewRel: null
       });
@@ -895,9 +865,9 @@ function createAgentWorkspace(options = {}) {
     path.join(workspaceAbsolute, ...getNamedStorageSlotDirRel(areaManifestRel).split("/")),
     { recursive: true }
   );
-  const serviceAbsolute = path.join(workspaceAbsolute, DEFAULT_ASSISTANT_FOLDER);
+  const serviceAbsolute = path.join(workspaceAbsolute, DEFAULT_AGENT_SYSTEM_FOLDER);
   fs.mkdirSync(serviceAbsolute, { recursive: true });
-  const serviceManifestRel = getServiceAreaManifestRel(DEFAULT_ASSISTANT_FOLDER);
+  const serviceManifestRel = getServiceAreaManifestRel(DEFAULT_AGENT_SYSTEM_FOLDER);
   const serviceSlotRel = getNamedStorageSlotDirRel(serviceManifestRel);
   fs.mkdirSync(path.join(workspaceAbsolute, ...serviceSlotRel.split("/")), { recursive: true });
   fs.mkdirSync(
@@ -910,7 +880,7 @@ function createAgentWorkspace(options = {}) {
   fs.writeFileSync(path.join(workspaceAbsolute, AREA_MANIFEST_FILE), `# ${name}\n`, "utf-8");
   const serviceManifestAbsolute = path.join(
     workspaceAbsolute,
-    ...getServiceAreaManifestRel(DEFAULT_ASSISTANT_FOLDER).split("/")
+    ...getServiceAreaManifestRel(DEFAULT_AGENT_SYSTEM_FOLDER).split("/")
   );
   fs.writeFileSync(
     serviceManifestAbsolute,
@@ -1053,14 +1023,9 @@ function createSystemServiceDocSync(serviceAbsolute, presetBase) {
 module.exports = {
   DEFAULT_VAULT_FOLDER,
   isVaultFolderEntryName,
-  DEFAULT_ASSISTANT_FOLDER,
-  DEFAULT_SERVICE_FOLDER,
-  ASSISTANT_FOLDER_PATH_LEGACY_NAMES,
-  SERVICE_FOLDER_LEGACY_NAMES,
-  isAssistantFolderEntryName,
-  isServiceFolderEntryName,
-  getAgentAssistantFolder,
-  getAgentServiceFolder,
+  DEFAULT_AGENT_SYSTEM_FOLDER,
+  isAgentSystemFolderEntryName,
+  getAgentSystemFolder,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   findCatalogScaffold,

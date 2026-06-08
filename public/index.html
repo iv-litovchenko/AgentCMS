@@ -44,8 +44,20 @@
           <span class="app-lock-icon" aria-hidden="true">🔒</span>
           <h2 id="app-lock-title" class="app-lock-title">Agent CMS</h2>
         </div>
-        <p id="app-lock-lead" class="app-lock-lead">Введите пароль</p>
+        <p id="app-lock-lead" class="app-lock-lead">Введите логин и пароль</p>
         <form id="app-lock-form" class="app-lock-form">
+          <label class="app-lock-field">
+            <span class="app-lock-label">Логин</span>
+            <input
+              id="app-lock-login"
+              class="app-lock-input"
+              type="text"
+              name="login"
+              placeholder="Логин"
+              autocomplete="username"
+              required
+            />
+          </label>
           <label class="app-lock-field">
             <span class="app-lock-label">Пароль</span>
             <input
@@ -56,34 +68,12 @@
               placeholder="Пароль"
               autocomplete="current-password"
               required
-              minlength="4"
-            />
-          </label>
-          <label id="app-lock-confirm-wrap" class="app-lock-field hidden">
-            <span class="app-lock-label">Повторите пароль</span>
-            <input
-              id="app-lock-password-confirm"
-              class="app-lock-input"
-              type="password"
-              name="password-confirm"
-              placeholder="Ещё раз"
-              autocomplete="new-password"
-              minlength="4"
             />
           </label>
           <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
           <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
         </form>
-        <button
-          id="app-lock-biometric-btn"
-          class="app-lock-biometric-btn"
-          type="button"
-          disabled
-          title="Скоро"
-        >
-          Face ID / Touch ID
-        </button>
-        <p class="app-lock-footnote">Локальный замок в браузере. API остаётся доступным без пароля.</p>
+        <p class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
       </div>
     </div>
 
@@ -1545,7 +1535,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>_awn-assistant-ai/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>_awn-agent-system/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />
@@ -1712,7 +1702,7 @@
     <script src="/markdown-github-alerts.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
-    <script src="/app-lock.js?v=1"></script>
+    <script src="/app-lock.js?v=2"></script>
     <script src="/main.js?v=0.5.50"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

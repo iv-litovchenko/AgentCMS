@@ -2,5 +2,5 @@
   "id": "test4",
   "name": "test4NAME",
   "vaultFolder": "_awn-vault",
-  "serviceFolder": "_awn-assistant-ai"
+  "agentSystemFolder": "_awn-agent-system"
 }

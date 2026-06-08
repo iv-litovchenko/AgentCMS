@@ -1,6 +1,6 @@
 ---
 title: Служебное
-AWN-TYPE: service
+awn-type: service
 ---
 
 # Служебное

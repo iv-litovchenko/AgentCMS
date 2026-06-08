@@ -304,7 +304,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     fetchPath: "/_storage/drafts/draft-3.md",
-    subtitle: "AWN registry · _awn-assistant-ai · layout",
+    subtitle: "AWN registry · _awn-agent-system · layout",
     withExtras: false
   }
 ];
@@ -371,22 +371,12 @@ const BUNDLE_CONFIG_FILE = "Config.yml";
 const BUNDLE_TODO_FILE = "Todo.md";
 const PREVIEW_FILE_BASENAME = "Preview";
 const VAULT_FOLDER_DEFAULT = "_awn-vault";
-const ASSISTANT_FOLDER_DEFAULT = "_awn-assistant-ai";
-/** @deprecated alias */
-const SERVICE_FOLDER_DEFAULT = ASSISTANT_FOLDER_DEFAULT;
-const ASSISTANT_FOLDER_PATH_LEGACY_NAMES = [
-  "_awn-system",
-  "_system",
-  "_assistant-ai",
-  "_x-assistant-ai"
-];
-/** @deprecated alias */
-const SERVICE_FOLDER_LEGACY_NAMES = ASSISTANT_FOLDER_PATH_LEGACY_NAMES;
+const AGENT_SYSTEM_FOLDER_DEFAULT = "_awn-agent-system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
-const SERVICE_SECTION_LABEL = "Assistant.Ai";
-const SERVICE_SECTION_HINT = "служебные компоненты";
-const SERVICE_SECTION_TITLE = `${SERVICE_SECTION_LABEL} (${SERVICE_SECTION_HINT})`;
+const SERVICE_SECTION_LABEL = "Служебные компоненты";
+const SERVICE_SECTION_HINT = "";
+const SERVICE_SECTION_TITLE = SERVICE_SECTION_LABEL;
 let agentsCache = [];
 let agentsRegistryDraft = [];
 let agentsRegistryPathValidateTimer = null;
@@ -1002,24 +992,19 @@ function getAgentMeta(agentId = activeAgentId) {
 
 function getActiveAgentVaultFolder(agentId = activeAgentId) {
   const agent = getAgentMeta(agentId);
-  if (!agent || agent.vaultFolder === null) return null;
-  return VAULT_FOLDER_DEFAULT;
+  if (!agent) return null;
+  const vault = agent.vaultFolder;
+  if (vault === null || vault === false) return null;
+  return vault || VAULT_FOLDER_DEFAULT;
 }
 
-function getActiveAgentAssistantFolder(agentId = activeAgentId) {
+function getActiveAgentSystemFolder(agentId = activeAgentId) {
   const agent = getAgentMeta(agentId);
   if (!agent) return null;
-  const raw =
-    agent.assistantFolder !== undefined
-      ? agent.assistantFolder
-      : agent.serviceFolder;
-  if (raw === null) return null;
-  const configured = String(raw || "").trim();
-  return configured || ASSISTANT_FOLDER_DEFAULT;
+  if (agent.agentSystemFolder === null) return null;
+  const configured = String(agent.agentSystemFolder || "").trim();
+  return configured || AGENT_SYSTEM_FOLDER_DEFAULT;
 }
-
-/** @deprecated alias */
-const getActiveAgentServiceFolder = getActiveAgentAssistantFolder;
 
 function getCreateModalAgentId() {
   return createModalAgentId || activeAgentId;
@@ -1041,18 +1026,8 @@ function stripVaultPrefixFromRelPath(relPath) {
   return normalized;
 }
 
-function isAssistantFolderEntryName(name) {
-  const lower = String(name || "").trim().toLowerCase();
-  if (!lower) return false;
-  if (lower === ASSISTANT_FOLDER_DEFAULT.toLowerCase()) return true;
-  return ASSISTANT_FOLDER_PATH_LEGACY_NAMES.some((legacy) => legacy.toLowerCase() === lower);
-}
-
-/** @deprecated alias */
-const isServiceFolderEntryName = isAssistantFolderEntryName;
-
 function stripServicePrefixFromRelPath(relPath) {
-  const serviceFolder = getActiveAgentServiceFolder();
+  const serviceFolder = getActiveAgentSystemFolder();
   const normalized = String(relPath || "").replace(/\\/g, "/");
   if (!serviceFolder) return normalized;
   const prefixes = [serviceFolder].filter(Boolean);
@@ -1069,14 +1044,22 @@ function stripAgentContentPrefixFromRelPath(relPath) {
 }
 
 function getServiceRootManifestPath() {
-  const serviceFolder = getActiveAgentServiceFolder();
+  const serviceFolder = getActiveAgentSystemFolder();
   return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
+function isAgentSystemRootIndexPath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
+  if (!isNodeManifestPath(normalized)) return false;
+  const serviceRoot = getServiceRootManifestPath();
+  if (!serviceRoot) return false;
+  return normalized === normalizeMenuNodePath(serviceRoot);
+}
+
 function isServiceNodePath(nodePath) {
-  if (!getActiveAgentServiceFolder() || !nodePath) return false;
+  if (!getActiveAgentSystemFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefixes = [getActiveAgentServiceFolder()].filter(Boolean);
+  const prefixes = [getActiveAgentSystemFolder()].filter(Boolean);
   return prefixes.some(
     (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
   );
@@ -1215,6 +1198,37 @@ function updateAgentPreviewCache(previewMeta) {
     hasPreview: Boolean(previewMeta?.hasPreview),
     previewUrl: previewMeta?.previewUrl || null
   };
+}
+
+function syncNodeDescriptionHintUi() {
+  if (!nodeDescriptionHintNode) return;
+  const titleNode = nodeDescriptionHintNode.querySelector(".doc-slab-hint-title");
+  const textNode = nodeDescriptionHintNode.querySelector(".doc-slab-hint-text");
+  if (!titleNode || !textNode) return;
+
+  const resolvedPath = getActiveNodeApiPath();
+  if (isAgentRootIndexPath(resolvedPath)) {
+    titleNode.textContent = "Workspace агента — описание проекта";
+    textNode.innerHTML =
+      "Корневая область контента: контекст проекта, правила и документация для работы в этом workspace. " +
+      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>_s.README.x/Preview.*</code>). " +
+      "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
+    return;
+  }
+  if (isAgentSystemRootIndexPath(resolvedPath)) {
+    titleNode.textContent = "Служебные компоненты — назначение области";
+    textNode.innerHTML =
+      "Системная область агента: Agent.md, User.md, справочники и другие служебные файлы. " +
+      "Превью здесь относится только к этой служебной области, не к аватару агента. " +
+      "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
+    return;
+  }
+
+  titleNode.textContent = "Описание, инструкции, правила, документация";
+  textNode.innerHTML =
+    "Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева. " +
+    "Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент, " +
+    "ниже — полный текст (кнопка «Читать все»).";
 }
 
 function syncAgentPreviewPlaceholder() {
@@ -2248,10 +2262,8 @@ function openAgentsRegistryModal() {
     name: agent.name || agent.id,
     comment: agent.comment || "",
     vaultFolder: agent.vaultFolder === null ? null : VAULT_FOLDER_DEFAULT,
-    assistantFolder:
-      agent.assistantFolder === null || agent.serviceFolder === null
-        ? null
-        : agent.assistantFolder || agent.serviceFolder || ASSISTANT_FOLDER_DEFAULT,
+    agentSystemFolder:
+      agent.agentSystemFolder === null ? null : agent.agentSystemFolder || AGENT_SYSTEM_FOLDER_DEFAULT,
     default: Boolean(agent.default),
     active: agent.active !== false,
     manifestFound: Boolean(agent.manifestFound),
@@ -2413,10 +2425,10 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].comment = manifest.comment || "";
   agentsRegistryDraft[index].vaultFolder =
     manifest.vaultFolder === null || manifest.vaultFolder === false ? null : VAULT_FOLDER_DEFAULT;
-  agentsRegistryDraft[index].assistantFolder =
-    manifest.assistantFolder === null || manifest.assistantFolder === false
+  agentsRegistryDraft[index].agentSystemFolder =
+    manifest.agentSystemFolder === null || manifest.agentSystemFolder === false
       ? null
-      : manifest.assistantFolder || ASSISTANT_FOLDER_DEFAULT;
+      : manifest.agentSystemFolder || AGENT_SYSTEM_FOLDER_DEFAULT;
   if (manifest.id) agentsRegistryDraft[index].id = manifest.id;
 }
 
@@ -3923,7 +3935,7 @@ function applyPinnedBranchCollapse(agentId = activeAgentId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   const folderPaths = getMenuTreeFolderPaths(agentId);
   const paths = new Set([".", ...folderPaths]);
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   const pinInService = serviceFolder && isPinnedInsideServiceFolder(agentId);
 
   expandPinnedFolderPathChain(pinned, agentId);
@@ -4496,9 +4508,32 @@ function markMenuSectionSortRow(sectionNode, node) {
   }
 }
 
+function appendAdoptFolderRowPinSpacer(row) {
+  if (!row) return;
+  const pinSpacer = document.createElement("span");
+  pinSpacer.className = "menu-row-action-spacer menu-row-action-spacer--pin";
+  pinSpacer.setAttribute("aria-hidden", "true");
+  row.appendChild(pinSpacer);
+}
+
+function appendAdoptFolderRowTrailingActionSpacers(row, { showPinSlot = false } = {}) {
+  if (!row) return;
+  if (showPinSlot) {
+    appendAdoptFolderRowPinSpacer(row);
+  }
+  for (let i = 0; i < 2; i += 1) {
+    const spacer = document.createElement("span");
+    spacer.className = "menu-row-action-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    row.appendChild(spacer);
+  }
+}
+
 function prepareMenuSectionForSortContainer(sectionNode, node) {
   if (!sectionNode || !node) return;
   markMenuSectionSortRow(sectionNode, node);
+  const adoptRow = sectionNode.querySelector(":scope > .menu-folder-row--adopt");
+  if (adoptRow) return;
   const sectionRow = sectionNode.querySelector(":scope > .menu-section-row");
   if (!sectionRow || sectionRow.querySelector(".menu-row-action-spacer")) return;
   const actionSpacerCount = shouldOfferAreaAdopt(node) ? 2 : 3;
@@ -5688,7 +5723,7 @@ function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isServiceNodePath(raw)) return raw;
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   if (!serviceFolder) return raw;
   return `${serviceFolder}/${raw}`.replace(/\/+/g, "/");
 }
@@ -5800,7 +5835,7 @@ function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
 function collectServicePathLookupVariants(agentId, relPath) {
   const raw = String(relPath || "").replace(/\\/g, "/").trim();
   if (!raw) return [];
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   const variants = new Set([raw.toLowerCase()]);
   if (!serviceFolder) return [...variants];
 
@@ -5852,7 +5887,7 @@ function getCatalogPresetManifestCandidates(serviceFolder, preset) {
 }
 
 function isCatalogPresetPresent(agentId, preset) {
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   if (!serviceFolder) return false;
   return isServiceManifestCandidatePresent(
     agentId,
@@ -5867,7 +5902,7 @@ function getServiceDocManifestCandidates(serviceFolder, preset) {
 }
 
 function isServiceDocPresetPresent(agentId, preset) {
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   if (!serviceFolder) return false;
   return isServiceManifestCandidatePresent(
     agentId,
@@ -5918,13 +5953,13 @@ function syncCreateNodeServicePresetsUi() {
 }
 
 function isServiceRootCreateParent(parentPath) {
-  const serviceFolder = getActiveAgentServiceFolder(getCreateModalAgentId());
+  const serviceFolder = getActiveAgentSystemFolder(getCreateModalAgentId());
   if (!serviceFolder) return false;
   return normalizeCreateParentPath(parentPath || ".") === serviceFolder;
 }
 
 function isServiceSubfolderCreateParent(parentPath) {
-  const serviceFolder = getActiveAgentServiceFolder(getCreateModalAgentId());
+  const serviceFolder = getActiveAgentSystemFolder(getCreateModalAgentId());
   if (!serviceFolder) return false;
   const normalized = normalizeCreateParentPath(parentPath || ".");
   if (!normalized || normalized === serviceFolder) return false;
@@ -6242,6 +6277,7 @@ function isNodeDeleteAvailable() {
   if (!activePath || activeSystemFile) return false;
   if (activeContentMode !== "description") return false;
   if (isAgentRootIndexPath(getActiveNodeApiPath())) return false;
+  if (isAgentSystemRootIndexPath(getActiveNodeApiPath())) return false;
   return true;
 }
 
@@ -6642,6 +6678,7 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
 
 function updateBreadcrumbsForActiveMode(overrides) {
   renderBreadcrumbs(getBreadcrumbPathForActiveMode(overrides));
+  syncTitleLockForActivePath();
   updateWorkspaceShareLinkButton();
   updateDocumentTitle();
 }
@@ -8178,7 +8215,7 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   if (raw.startsWith("/api/")) return appendAgentToApiUrl(raw);
 
   let relFile = raw.replace(/\\/g, "/");
-  const serviceFolder = getActiveAgentServiceFolder();
+  const serviceFolder = getActiveAgentSystemFolder();
   const servicePrefix = serviceFolder ? `${serviceFolder}/` : "";
 
   if (serviceFolder && relFile.toLowerCase().startsWith(servicePrefix.toLowerCase())) {
@@ -11069,6 +11106,32 @@ function setTitleLockedDisplay(label) {
     placeTitleFixedInBreadcrumbs();
   } else {
     placeTitleFixedInTitleRow();
+  }
+}
+
+function isTitleLockedNodePath(nodePath = getActiveNodeApiPath()) {
+  return isAgentRootIndexPath(nodePath) || isAgentSystemRootIndexPath(nodePath);
+}
+
+function setTitleLockedInput(label) {
+  titleInputNode.classList.remove("hidden");
+  titleInputNode.value = label || "";
+  titleInputNode.readOnly = true;
+  titleInputNode.disabled = true;
+  titleMediaExtNode?.classList.add("hidden");
+  titleFixedValueNode.classList.add("hidden");
+  if (titleFixedTextNode) titleFixedTextNode.textContent = "";
+  placeTitleFixedInTitleRow();
+}
+
+function syncTitleLockForActivePath() {
+  if (activeSystemFile || activeContentMode !== "description") return;
+  if (isAgentSystemRootIndexPath(activePath)) {
+    setTitleLockedInput(SERVICE_SECTION_LABEL);
+    return;
+  }
+  if (isAgentRootIndexPath(activePath)) {
+    setTitleLockedInput(getActiveAgentLabel() || getAgentTreeTitle());
   }
 }
 
@@ -14033,16 +14096,32 @@ async function fetchTabularMemoryForNavigation(nodePath) {
 function renderNavigationSubsectionsBlock(childEntries) {
   if (!childEntries.length) return null;
 
+  const folders = childEntries.filter((entry) => entry.isFolder);
+  const topics = childEntries.filter((entry) => !entry.isFolder);
+
   const body = document.createElement("div");
   body.className = "node-navigation-subsections";
-  body.appendChild(createNavigationSectionHead("Разделы"));
 
-  const grid = document.createElement("div");
-  grid.className = "node-overview-children-grid";
-  for (const entry of childEntries) {
-    grid.appendChild(createMenuCard(entry, { gallery: true }));
+  if (folders.length) {
+    body.appendChild(createNavigationSectionHead("Подразделы"));
+    const folderGrid = document.createElement("div");
+    folderGrid.className = "node-overview-children-grid";
+    for (const entry of folders) {
+      folderGrid.appendChild(createMenuCard(entry, { gallery: true }));
+    }
+    body.appendChild(folderGrid);
   }
-  body.appendChild(grid);
+
+  if (topics.length) {
+    body.appendChild(createNavigationSectionHead("Темы"));
+    const topicGrid = document.createElement("div");
+    topicGrid.className = "node-overview-children-grid";
+    for (const entry of topics) {
+      topicGrid.appendChild(createMenuCard(entry, { gallery: true }));
+    }
+    body.appendChild(topicGrid);
+  }
+
   return createNavigationSubsectionsBlock(body);
 }
 
@@ -15052,8 +15131,10 @@ function applyModeUi() {
   const mediaSidecarEditing = isMediaAssetEditing();
   if (mediaSidecarEditing) {
     applyMediaSidecarTitleUi();
+  } else if (isAgentSystemRootIndexPath(activePath) && activeContentMode === "description") {
+    setTitleLockedInput(SERVICE_SECTION_LABEL);
   } else if (isAgentRootIndexPath(activePath) && activeContentMode === "description") {
-    setTitleLockedDisplay(getActiveAgentLabel() || getAgentTreeTitle());
+    setTitleLockedInput(getActiveAgentLabel() || getAgentTreeTitle());
   } else if (titleVisible || mediaSidecarEditing) {
     showTitleEditableInput();
     titleInputNode.disabled = false;
@@ -15105,6 +15186,7 @@ function applyModeUi() {
     "hidden",
     activeContentMode !== "description" || previewMode || overviewLikeMode || activeSystemFile
   );
+  syncNodeDescriptionHintUi();
   document.querySelector(".doc-head-block")?.classList.toggle(
     "hidden",
     titleEditorBlockNode?.classList.contains("hidden") &&
@@ -15902,6 +15984,9 @@ function stripNodeManifestFromPath(normalizedPath) {
 }
 
 function getLabelFromPath(filePath) {
+  if (isAgentSystemRootIndexPath(filePath)) {
+    return SERVICE_SECTION_LABEL;
+  }
   if (isAgentRootIndexPath(filePath)) {
     return getActiveAgentLabel() || getAgentTreeTitle();
   }
@@ -15942,6 +16027,9 @@ function getNodeDisplayPath(nodePath) {
   }
 
   if (isNodeManifestPath(normalized)) {
+    if (isAgentSystemRootIndexPath(normalized)) {
+      return SERVICE_SECTION_LABEL;
+    }
     if (isAgentRootIndexPath(normalized)) {
       return getActiveAgentLabel() || getAgentTreeTitle();
     }
@@ -16265,6 +16353,27 @@ function findMenuNodeByPath(node, targetPath) {
   return null;
 }
 
+function findMenuNodeInAgentMenu(menuRoot, targetPath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(targetPath));
+  if (!menuRoot || !normalized) return null;
+
+  const mainMatch = findMenuNodeByPath(menuRoot, normalized);
+  if (mainMatch) return mainMatch;
+
+  const serviceTree = menuRoot?.serviceTree;
+  if (!serviceTree) return null;
+  return findMenuNodeByPath({ title: "", ...serviceTree }, normalized);
+}
+
+function findMenuSectionInAgentMenu(menuRoot, folderPath) {
+  if (!menuRoot) return null;
+  const folderSection = findMenuSectionByFolderPath(menuRoot, folderPath);
+  if (folderSection) return folderSection;
+  const serviceTree = menuRoot?.serviceTree;
+  if (!serviceTree) return null;
+  return findMenuSectionByFolderPath({ title: "", ...serviceTree }, folderPath);
+}
+
 function menuNodeHasChildren(node) {
   return getOrderedMenuChildren(node).length > 0;
 }
@@ -16298,13 +16407,13 @@ function findMenuSectionByFolderPath(node, folderPath, parentSectionPath = "", d
 
 function findOverviewChildrenSourceNode(menuRoot, nodePath) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
-  const direct = findMenuNodeByPath(menuRoot, normalized);
+  const direct = findMenuNodeInAgentMenu(menuRoot, normalized);
   if (direct && menuNodeHasChildren(direct)) {
     return direct;
   }
 
   const folderRel = normalizeMenuNodePath(getFolderPathFromManifest(normalized));
-  const folderSection = findMenuSectionByFolderPath(menuRoot, folderRel);
+  const folderSection = findMenuSectionInAgentMenu(menuRoot, folderRel);
   if (folderSection) return folderSection;
 
   return direct;
@@ -16473,7 +16582,7 @@ function toggleServiceTreeCollapsed() {
 }
 
 function isPinnedInsideServiceFolder(agentId = activeAgentId) {
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!serviceFolder || !pinnedPath) return false;
   const service = normalizeFolderPath(serviceFolder);
@@ -16483,7 +16592,7 @@ function isPinnedInsideServiceFolder(agentId = activeAgentId) {
 }
 
 function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   if (!serviceFolder) return false;
   if (menuSearchQuery.trim()) return true;
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
@@ -16504,7 +16613,7 @@ function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId) {
 }
 
 function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
-  const serviceFolder = getActiveAgentServiceFolder(agentId);
+  const serviceFolder = getActiveAgentSystemFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
   if (!shouldShowServiceSectionInMenu(agentId)) {
     clearMenuServiceSection(parentEl);
@@ -16524,40 +16633,46 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   section.className = "menu-service-section";
 
   const headRow = document.createElement("div");
-  headRow.className = "menu-service-head";
+  headRow.className = "menu-folder-row menu-service-head";
 
   const visibleChildren = getVisibleMenuChildren(treeToRender);
   const hasContent = visibleChildren.length > 0 || Boolean(treeToRender.indexPath);
   const collapsed = queryLower ? false : isServiceTreeCollapsed();
+  const serviceManifestPath = treeToRender.indexPath || getServiceRootManifestPath();
 
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleServiceTreeCollapsed));
 
-  const title = document.createElement("h3");
-  title.className = "menu-service-title";
-  const titleMain = document.createElement("span");
-  titleMain.className = "menu-service-title-main";
-  titleMain.textContent = `${SERVICE_SECTION_LABEL} `;
-  const titleHint = document.createElement("span");
-  titleHint.className = "menu-service-title-hint";
-  titleHint.textContent = `(${SERVICE_SECTION_HINT})`;
-  title.append(titleMain, titleHint);
-  const serviceManifestPath = treeToRender.indexPath || getServiceRootManifestPath();
   if (serviceManifestPath) {
-    title.classList.add("menu-service-title--linked");
-    title.title = "Открыть область служебных компонентов";
-    titleMain.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openNodeFromMenu(SERVICE_AREA_NAME, serviceManifestPath);
+    const folderButton = document.createElement("button");
+    folderButton.type = "button";
+    folderButton.className = "menu-folder menu-folder-service-root";
+    folderButton.dataset.path = normalizeMenuNodePath(serviceManifestPath);
+    applyNodeColorVars(folderButton, treeToRender.color, { isFolder: true });
+    setMenuLabelWithMarkers(
+      folderButton,
+      SERVICE_SECTION_LABEL,
+      treeToRender,
+      "menu-folder-name",
+      { skipAgentMarker: true }
+    );
+    folderButton.addEventListener("click", (event) => {
+      const pathFromNode = event.currentTarget?.dataset?.path || "";
+      openNodeFromMenu(SERVICE_SECTION_LABEL, pathFromNode);
     });
+    headRow.appendChild(folderButton);
+    if (isNodeSettingsTargetPath(serviceManifestPath)) {
+      headRow.appendChild(createNodeSettingsButton(serviceManifestPath));
+    }
+    headRow.appendChild(createBookmarkButton(serviceManifestPath));
   } else {
+    const title = document.createElement("h3");
+    title.className = "menu-service-title";
+    title.textContent = SERVICE_SECTION_LABEL;
     title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "";
     if (hasContent) {
       title.addEventListener("click", toggleServiceTreeCollapsed);
     }
-  }
-  headRow.appendChild(title);
-  if (serviceManifestPath && isNodeSettingsTargetPath(serviceManifestPath)) {
-    headRow.appendChild(createNodeSettingsButton(serviceManifestPath));
+    headRow.appendChild(title);
   }
 
   const addBtn = document.createElement("button");
@@ -16976,42 +17091,32 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       const sectionRow = document.createElement("div");
       const isEmptyFolder = Boolean(node.empty);
       const canAdoptArea = shouldOfferAreaAdopt(node);
-      sectionRow.className = isEmptyFolder
-        ? "menu-section-row menu-section-row--empty"
-        : "menu-section-row";
 
-      sectionRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
-
-      const titleNode = document.createElement("h3");
-      titleNode.className = depth === 0
-        ? "menu-section-title menu-section-title-agent"
-        : isEmptyFolder
-          ? "menu-section-title menu-section-title--empty"
-          : "menu-section-title";
-      setMenuLabelWithMarkers(
-        titleNode,
-        formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
-        node,
-        "menu-section-name"
-      );
-      titleNode.title = canAdoptArea
-        ? isEmptyFolder
-          ? "Папка на диске без области"
-          : "Папка без README.x.md — можно подхватить как область"
-        : hasContent
-          ? (isCollapsedEffective ? "Раскрыть" : "Скрыть")
-          : "";
-      if (!canAdoptArea) {
-        titleNode.addEventListener("click", () => {
-          if (hasContent) toggleSectionCollapsed();
-        });
-      }
-
-      sectionRow.appendChild(titleNode);
       if (canAdoptArea) {
+        sectionRow.className = "menu-folder-row menu-folder-row--adopt";
+
+        sectionRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
+
+        const folderLabel = document.createElement("span");
+        folderLabel.className = "menu-folder menu-folder--adopt";
+        folderLabel.title = isEmptyFolder
+          ? "Папка на диске без области — нажмите +, чтобы подхватить"
+          : "Папка без README.x.md — нажмите +, чтобы подхватить как область";
+        setMenuLabelWithMarkers(
+          folderLabel,
+          formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
+          node,
+          "menu-folder-name"
+        );
+        sectionRow.appendChild(folderLabel);
+
+        appendAdoptFolderRowTrailingActionSpacers(sectionRow, {
+          showPinSlot: !searchActive && menuViewMode === "tree"
+        });
+
         const addBtn = document.createElement("button");
         addBtn.type = "button";
-        addBtn.className = "add-node-btn add-node-btn--muted";
+        addBtn.className = "add-node-btn";
         addBtn.textContent = "+";
         addBtn.title = "Подхватить папку как область";
         addBtn.addEventListener("click", (event) => {
@@ -17026,8 +17131,36 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
           });
         });
         sectionRow.appendChild(addBtn);
+        sectionNode.appendChild(sectionRow);
+      } else {
+        sectionRow.className = isEmptyFolder
+          ? "menu-section-row menu-section-row--empty"
+          : "menu-section-row";
+
+        sectionRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
+
+        const titleNode = document.createElement("h3");
+        titleNode.className = depth === 0
+          ? "menu-section-title menu-section-title-agent"
+          : isEmptyFolder
+            ? "menu-section-title menu-section-title--empty"
+            : "menu-section-title";
+        setMenuLabelWithMarkers(
+          titleNode,
+          formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
+          node,
+          "menu-section-name"
+        );
+        titleNode.title = hasContent
+          ? (isCollapsedEffective ? "Раскрыть" : "Скрыть")
+          : "";
+        titleNode.addEventListener("click", () => {
+          if (hasContent) toggleSectionCollapsed();
+        });
+
+        sectionRow.appendChild(titleNode);
+        sectionNode.appendChild(sectionRow);
       }
-      sectionNode.appendChild(sectionRow);
     }
   }
 
@@ -17926,6 +18059,7 @@ async function saveContent() {
     nextTitle &&
     nextTitle !== currentTitle &&
     !isAgentRootIndexPath(activePath) &&
+    !isAgentSystemRootIndexPath(activePath) &&
     !isPartNodePath(activePath);
   const shouldRenameExternal = activeContentMode === "external" && activeExternalFilePath && nextTitle && nextTitle !== currentExternalTitle;
   const shouldRenameMediaSidecar =
@@ -19582,7 +19716,7 @@ function buildGraphDataFromAgentMenu(menu) {
   }
 
   let serviceRootId = null;
-  if (menu?.serviceTree && getActiveAgentServiceFolder()) {
+  if (menu?.serviceTree && getActiveAgentSystemFolder()) {
     serviceRootId = "service-root";
     const serviceManifestPath = menu.serviceTree.indexPath || getServiceRootManifestPath();
     if (serviceManifestPath) {
@@ -20902,7 +21036,7 @@ function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
 
 function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
   if (type === "catalog" || type === "service-doc") {
-    return getActiveAgentServiceFolder(agentId) || ".";
+    return getActiveAgentSystemFolder(agentId) || ".";
   }
   const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
   let parentFolder = ".";
@@ -21466,7 +21600,7 @@ async function createNode(type, options = {}) {
     };
     if (type === "catalog" || type === "service-doc") {
       payload.preset = options.preset || name;
-      payload.parentPath = getActiveAgentServiceFolder(agentId) || createTargetParentPath;
+      payload.parentPath = getActiveAgentSystemFolder(agentId) || createTargetParentPath;
     }
 
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
@@ -21528,7 +21662,7 @@ function formatCreateNodeErrorMessage(message) {
     return "В этой папке уже есть README.x.md";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
-    return `Папка ${ASSISTANT_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
+    return `Папка ${AGENT_SYSTEM_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
   }
   if (/Catalog node already exists/i.test(text)) {
     return "Такой справочник уже существует";

@@ -24,6 +24,12 @@
       "path": "/Users/macbook/Desktop/MosconstAgent",
       "environment": "local",
       "active": true
+    },
+    {
+      "id": "awn-documentation",
+      "path": "public/_storage",
+      "environment": "local",
+      "active": true
     }
   ]
 }

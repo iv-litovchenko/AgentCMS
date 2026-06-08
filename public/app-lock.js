@@ -1,38 +1,21 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "agentcms.appLock.v1";
   const SESSION_KEY = "agentcms.appLock.unlocked.v1";
-  const MIN_PASSWORD_LENGTH = 4;
-  const PBKDF2_ITERATIONS = 120000;
 
   const lockNode = document.getElementById("app-lock");
   const leadNode = document.getElementById("app-lock-lead");
   const formNode = document.getElementById("app-lock-form");
+  const loginNode = document.getElementById("app-lock-login");
   const passwordNode = document.getElementById("app-lock-password");
-  const confirmNode = document.getElementById("app-lock-password-confirm");
-  const confirmWrapNode = document.getElementById("app-lock-confirm-wrap");
   const errorNode = document.getElementById("app-lock-error");
   const submitNode = document.getElementById("app-lock-submit");
 
   let unlockResolve = null;
-  let setupMode = false;
 
   const unlockPromise = new Promise((resolve) => {
     unlockResolve = resolve;
   });
-
-  function readStoredLock() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      const data = JSON.parse(raw);
-      if (!data?.salt || !data?.hash) return null;
-      return data;
-    } catch {
-      return null;
-    }
-  }
 
   function isSessionUnlocked() {
     try {
@@ -50,45 +33,6 @@
     }
   }
 
-  function bytesToBase64(bytes) {
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-  }
-
-  function base64ToBytes(value) {
-    const binary = atob(String(value || ""));
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return bytes;
-  }
-
-  async function derivePasswordHash(password, saltBase64) {
-    const encoder = new TextEncoder();
-    const salt = saltBase64 ? base64ToBytes(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(password),
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-    const bits = await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt,
-        iterations: PBKDF2_ITERATIONS,
-        hash: "SHA-256"
-      },
-      keyMaterial,
-      256
-    );
-    return {
-      salt: bytesToBase64(salt),
-      hash: bytesToBase64(new Uint8Array(bits))
-    };
-  }
-
   function setError(message = "") {
     if (!errorNode) return;
     const text = String(message || "").trim();
@@ -96,20 +40,10 @@
     errorNode.classList.toggle("hidden", !text);
   }
 
-  function setSetupMode(enabled) {
-    setupMode = enabled;
-    if (leadNode) {
-      leadNode.textContent = enabled
-        ? "Задайте пароль для доступа к Agent CMS"
-        : "Введите пароль";
-    }
-    if (submitNode) submitNode.textContent = enabled ? "Сохранить пароль" : "Войти";
-    if (confirmWrapNode) confirmWrapNode.classList.toggle("hidden", !enabled);
-    if (passwordNode) {
-      passwordNode.autocomplete = enabled ? "new-password" : "current-password";
-      passwordNode.placeholder = enabled ? "Новый пароль" : "Пароль";
-    }
-    if (confirmNode) confirmNode.value = "";
+  function setSubmitting(isSubmitting) {
+    if (!submitNode) return;
+    submitNode.disabled = isSubmitting;
+    submitNode.textContent = isSubmitting ? "Проверка…" : "Войти";
   }
 
   function hideLockScreen() {
@@ -120,7 +54,7 @@
   function showLockScreen() {
     lockNode?.classList.remove("hidden");
     document.body.classList.add("app-locked");
-    window.setTimeout(() => passwordNode?.focus(), 60);
+    window.setTimeout(() => loginNode?.focus(), 60);
   }
 
   function completeUnlock() {
@@ -133,70 +67,61 @@
     }
   }
 
-  async function verifyPassword(password) {
-    const stored = readStoredLock();
-    if (!stored) return false;
-    const derived = await derivePasswordHash(password, stored.salt);
-    return derived.hash === stored.hash;
+  async function fetchLockStatus() {
+    const response = await fetch("/api/app-lock/status", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Request failed with ${response.status}`);
+    }
+    return response.json();
   }
 
-  async function savePassword(password) {
-    const derived = await derivePasswordHash(password);
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        salt: derived.salt,
-        hash: derived.hash,
-        createdAt: new Date().toISOString()
-      })
-    );
+  async function verifyCredentials(login, password) {
+    const response = await fetch("/api/app-lock/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login, password })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Неверный логин или пароль");
+    }
+    return data;
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
+    const login = String(loginNode?.value || "").trim();
     const password = String(passwordNode?.value || "");
-    const confirm = String(confirmNode?.value || "");
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Минимум ${MIN_PASSWORD_LENGTH} символа`);
+    if (!login) {
+      setError("Введите логин");
+      loginNode?.focus();
+      return;
+    }
+    if (!password) {
+      setError("Введите пароль");
+      passwordNode?.focus();
       return;
     }
 
-    if (setupMode) {
-      if (password !== confirm) {
-        setError("Пароли не совпадают");
-        return;
-      }
-      try {
-        await savePassword(password);
-        if (passwordNode) passwordNode.value = "";
-        if (confirmNode) confirmNode.value = "";
-        completeUnlock();
-      } catch {
-        setError("Не удалось сохранить пароль");
-      }
-      return;
-    }
-
+    setSubmitting(true);
     try {
-      const ok = await verifyPassword(password);
-      if (!ok) {
-        setError("Неверный пароль");
-        if (passwordNode) passwordNode.value = "";
-        passwordNode?.focus();
-        return;
-      }
+      await verifyCredentials(login, password);
+      if (loginNode) loginNode.value = "";
       if (passwordNode) passwordNode.value = "";
       completeUnlock();
-    } catch {
-      setError("Ошибка проверки пароля");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Ошибка входа");
+      if (passwordNode) passwordNode.value = "";
+      passwordNode?.focus();
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  function boot() {
+  async function boot() {
     if (!lockNode || !formNode) {
       unlockResolve?.();
       return;
@@ -206,19 +131,33 @@
       void handleSubmit(event);
     });
 
-    if (isSessionUnlocked()) {
-      hideLockScreen();
-      unlockResolve?.();
-      return;
-    }
+    try {
+      const status = await fetchLockStatus();
+      if (!status?.enabled) {
+        hideLockScreen();
+        unlockResolve?.();
+        return;
+      }
 
-    setSetupMode(!readStoredLock());
-    showLockScreen();
+      if (leadNode) {
+        leadNode.textContent = "Введите логин и пароль";
+      }
+
+      if (isSessionUnlocked()) {
+        completeUnlock();
+        return;
+      }
+
+      showLockScreen();
+    } catch {
+      setError("Не удалось проверить настройки входа");
+      showLockScreen();
+    }
   }
 
   window.agentAppLock = {
     whenUnlocked: () => unlockPromise
   };
 
-  boot();
+  void boot();
 })();

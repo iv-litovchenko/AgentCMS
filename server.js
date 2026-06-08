@@ -167,8 +167,7 @@ const {
   getAgentVaultFolder,
   isVaultFolderEntryName,
   DEFAULT_VAULT_FOLDER,
-  getAgentServiceFolder,
-  isServiceFolderEntryName,
+  getAgentSystemFolder,
   createSystemCatalogNodeSync,
   createSystemServiceDocSync,
   findServiceDocScaffold,
@@ -263,6 +262,56 @@ const MIME_TYPES = {
 
 const PREVIEW_FILE_NAME_SET = new Set(PREVIEW_FILE_NAMES);
 const NODE_PREVIEW_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
+const APP_LOCK_LOGIN_KEY = "APP_LOCK_LOGIN";
+const APP_LOCK_PASSWORD_KEY = "APP_LOCK_PASSWORD";
+
+function parseRootEnvFileContent(content) {
+  const result = {};
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIndex = trimmed.indexOf("=");
+    if (eqIndex <= 0) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    let value = trimmed.slice(eqIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+async function readRootEnvFile() {
+  const envPath = path.join(getProjectRoot(), ".env");
+  try {
+    const content = await fs.readFile(envPath, "utf-8");
+    return parseRootEnvFileContent(content);
+  } catch (error) {
+    if (error?.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+async function getAppLockStatus() {
+  const env = await readRootEnvFile();
+  const login = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
+  const password = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
+  return {
+    enabled: Boolean(login && password)
+  };
+}
+
+async function verifyAppLockCredentials(login, password) {
+  const env = await readRootEnvFile();
+  const expectedLogin = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
+  const expectedPassword = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
+  if (!expectedLogin || !expectedPassword) return false;
+  return String(login || "").trim() === expectedLogin && String(password || "") === expectedPassword;
+}
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
@@ -460,7 +509,7 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
 
 async function resolveHistoryManifestRel({ manifestRelPath, mode, systemName }) {
   if (mode === "system") {
-    const serviceFolder = getAgentServiceFolder();
+    const serviceFolder = getAgentSystemFolder();
     return serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
   }
   if (!manifestRelPath) return null;
@@ -495,7 +544,7 @@ async function resolveMediaSidecarWorkspaceRel(manifestRelPath, relFile) {
 
 async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName }) {
   if (mode === "system") {
-    const serviceFolder = getAgentServiceFolder();
+    const serviceFolder = getAgentSystemFolder();
     const name = String(systemName || "").trim();
     if (!serviceFolder || !name) return null;
     return normalizeHistoryTargetRelPath(`${serviceFolder}/${name}`);
@@ -1386,7 +1435,7 @@ async function resolveExistingWorkspaceRelPath(relPath) {
   };
 
   const vaultFolder = getAgentVaultFolder();
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   const normalizedLower = normalized.toLowerCase();
 
   if (serviceFolder) {
@@ -1395,7 +1444,9 @@ async function resolveExistingWorkspaceRelPath(relPath) {
       normalizedLower === serviceLower || normalizedLower.startsWith(`${serviceLower}/`);
     if (hasServicePrefix) {
       pushCandidate(normalized);
-    } else {
+    } else if (normalized !== AREA_MANIFEST_FILE) {
+      // Workspace root README.x.md is not the service-area manifest; only explicit
+      // _awn-agent-system/... paths should resolve under the service folder.
       pushCandidate(`${serviceFolder}/${normalized}`);
     }
   }
@@ -1502,7 +1553,7 @@ async function ensureWorkspaceRootIndex(dirAbsolute) {
 }
 
 async function ensureServiceFolderScaffold(agentRootAbsolute) {
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   if (!serviceFolder) return null;
 
   const serviceAbsolute = path.join(agentRootAbsolute, serviceFolder);
@@ -1542,7 +1593,7 @@ async function ensureVaultFolderScaffold(agentRootAbsolute) {
 
 async function normalizeServiceMenuTree(tree, serviceAbsolute) {
   if (!tree || !serviceAbsolute) return tree;
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
   tree.indexPath = serviceManifestRel;
   tree.color = null;
@@ -1580,7 +1631,7 @@ async function buildAgentMenu(agentRootAbsolute) {
   await ensureWorkspaceRootIndex(agentRootAbsolute);
   await ensureVaultFolderScaffold(agentRootAbsolute);
   const menu = dedupeRootMenuSections(await listNodeMdFiles(agentRootAbsolute));
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   let serviceTree = null;
 
   if (serviceFolder) {
@@ -1659,7 +1710,7 @@ async function resolveExistingParentDirectoryRelPath(parentPathRaw) {
     candidates.push(candidate);
   };
 
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   const vaultFolder = getAgentVaultFolder();
   const normalizedLower = normalized.toLowerCase();
 
@@ -1722,7 +1773,7 @@ async function resolveNodeManifestRelForContainer(containerRelDir) {
     return rootRel || AREA_MANIFEST_FILE;
   }
   if (isAreaManifestRelPath(normalized)) return normalized;
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   if (serviceFolder && normalized.replace(/\\/g, "/") === serviceFolder.replace(/\\/g, "/")) {
     return getServiceAreaManifestRel(serviceFolder);
   }
@@ -1744,10 +1795,9 @@ function isVaultFolderName(name) {
 }
 
 function isServiceFolderName(name) {
-  if (!getAgentServiceFolder()) return false;
-  const configured = getAgentServiceFolder();
-  if (String(name || "").toLowerCase() === String(configured || "").toLowerCase()) return true;
-  return isServiceFolderEntryName(name);
+  const configured = getAgentSystemFolder();
+  if (!configured) return false;
+  return String(name || "").toLowerCase() === String(configured).toLowerCase();
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
@@ -1765,7 +1815,7 @@ function stripVaultPrefixFromRelPath(relPath) {
 }
 
 function stripServicePrefixFromRelPath(relPath) {
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   if (!serviceFolder) {
     return String(relPath || "").replace(/\\/g, "/");
   }
@@ -1786,6 +1836,7 @@ function stripAgentContentPrefixFromRelPath(relPath) {
 function toMenuDisplayCreatedPath(relPath) {
   let normalized = stripVaultPrefixFromRelPath(String(relPath || "").replace(/\\/g, "/"));
   const vaultFolder = getConfiguredVaultFolderName();
+  if (!vaultFolder) return normalized;
   const nestedToken = `/${vaultFolder}/`;
   if (normalized.includes(nestedToken)) {
     normalized = normalized.replace(nestedToken, "/");
@@ -2966,6 +3017,7 @@ async function resolveSortFolderAbsolute(folderPathRaw) {
   const gitRoot = await resolveGitRepoRootForMenuPath(normalized);
   const vaultFolder = getConfiguredVaultFolderName();
   if (
+    vaultFolder &&
     gitRoot &&
     gitRoot.rel !== "." &&
     (normalized === `${gitRoot.rel}/${vaultFolder}` ||
@@ -2977,12 +3029,15 @@ async function resolveSortFolderAbsolute(folderPathRaw) {
   const absolute = await resolveExistingWorkspaceDirAbsolute(folderPathRaw);
   if (!absolute) return null;
   if (await folderHasGitRepo(absolute)) {
-    const vaultAbsolute = path.join(absolute, getConfiguredVaultFolderName());
     const rootOrder = await readMenuSortOrder(absolute);
     if (rootOrder?.length) return absolute;
-    if (await dirExists(vaultAbsolute)) {
-      const vaultOrder = await readMenuSortOrder(vaultAbsolute);
-      if (vaultOrder?.length) return vaultAbsolute;
+    const nestedVaultFolder = getConfiguredVaultFolderName();
+    if (nestedVaultFolder) {
+      const vaultAbsolute = path.join(absolute, nestedVaultFolder);
+      if (await dirExists(vaultAbsolute)) {
+        const vaultOrder = await readMenuSortOrder(vaultAbsolute);
+        if (vaultOrder?.length) return vaultAbsolute;
+      }
     }
     return absolute;
   }
@@ -3067,11 +3122,13 @@ async function readFolderWorkspaceMarkers(dirAbsolute) {
 }
 
 function getConfiguredVaultFolderName() {
-  return getAgentVaultFolder() || DEFAULT_VAULT_FOLDER;
+  return getAgentVaultFolder();
 }
 
 async function ensureGitRepoVaultAbsolute(gitRepoDirAbsolute) {
-  const vaultAbsolute = path.join(gitRepoDirAbsolute, getConfiguredVaultFolderName());
+  const vaultFolder = getAgentVaultFolder();
+  if (!vaultFolder) return null;
+  const vaultAbsolute = path.join(gitRepoDirAbsolute, vaultFolder);
   await fs.mkdir(vaultAbsolute, { recursive: true });
   return vaultAbsolute;
 }
@@ -3117,6 +3174,7 @@ async function resolveGitRepoRootForMenuPath(relPath) {
 
 function isMenuPathInsideGitRepoVault(relPath, gitRepoRootRel = ".") {
   const vaultFolder = getConfiguredVaultFolderName();
+  if (!vaultFolder) return false;
   const normalized = stripVaultPrefixFromRelPath(String(relPath || "").replace(/\\/g, "/").trim() || ".") || ".";
   const gitRoot = gitRepoRootRel === "." ? "" : String(gitRepoRootRel || "").replace(/\\/g, "/").replace(/\/$/, "");
 
@@ -3131,10 +3189,12 @@ function isMenuPathInsideGitRepoVault(relPath, gitRepoRootRel = ".") {
 }
 
 async function appendGitRepoVaultRelCandidates(candidates, normalized, seen) {
+  const vaultFolder = getConfiguredVaultFolderName();
+  if (!vaultFolder) return;
+
   const gitRoot = await resolveGitRepoRootForMenuPath(normalized);
   if (!gitRoot) return;
 
-  const vaultFolder = getConfiguredVaultFolderName();
   const norm = String(normalized || "").replace(/\\/g, "/").trim() || ".";
   const gitRootRel = gitRoot.rel === "." ? "" : gitRoot.rel;
   const gitRootPrefix = gitRootRel || ".";
@@ -3206,12 +3266,23 @@ async function resolveGitRepoCreateParentPath(parentPathResolved) {
 }
 
 function isServiceNodePath(relPath) {
-  const serviceFolder = getAgentServiceFolder();
+  const serviceFolder = getAgentSystemFolder();
   if (!serviceFolder) return false;
   const normalized = String(relPath || "").replace(/\\/g, "/").trim() || ".";
   const serviceLower = serviceFolder.toLowerCase();
   const normalizedLower = normalized.toLowerCase();
   return normalizedLower === serviceLower || normalizedLower.startsWith(`${serviceLower}/`);
+}
+
+function getServiceRootManifestRel() {
+  const serviceFolder = getAgentSystemFolder();
+  return serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
+}
+
+function isServiceAreaRootManifestRel(relPath) {
+  const serviceRoot = getServiceRootManifestRel();
+  if (!serviceRoot) return false;
+  return String(relPath || "").replace(/\\/g, "/") === serviceRoot.replace(/\\/g, "/");
 }
 
 async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
@@ -3225,7 +3296,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   let hoistedVaultMenuOrder = null;
   let hoistedGitVaultMenuOrder = null;
 
-  if (isGitRepoRoot) {
+  if (isGitRepoRoot && getAgentVaultFolder()) {
     await ensureGitRepoVaultAbsolute(dirPath);
   }
 
@@ -4211,7 +4282,7 @@ async function handleApiForAgent(req, res, url) {
       const absolute = resolveSystemFileAbsolute(name);
       if (!absolute) return sendJson(res, 400, { error: "Invalid system file name" });
 
-      const serviceManifestRel = getServiceAreaManifestRel(getAgentServiceFolder());
+      const serviceManifestRel = getServiceAreaManifestRel(getAgentSystemFolder());
       const targetRelPath = manifestRelFromNodeAbsolute(absolute);
       if (serviceManifestRel && targetRelPath) {
         await writeWorkspaceTextFileWithHistory(serviceManifestRel, targetRelPath, content);
@@ -4234,7 +4305,7 @@ async function handleApiForAgent(req, res, url) {
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
     if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
 
-    const serviceFolder = getAgentServiceFolder();
+    const serviceFolder = getAgentSystemFolder();
     const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
     if (serviceManifestRel && canonicalRelPath.replace(/\\/g, "/") === serviceManifestRel) {
       await ensureServiceFolderScaffold(getAgentRoot());
@@ -4259,6 +4330,9 @@ async function handleApiForAgent(req, res, url) {
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
 
       const resolvedRelPath = String(await resolveExistingWorkspaceRelPath(relPath)).replace(/\\/g, "/");
+      if (isServiceAreaRootManifestRel(resolvedRelPath)) {
+        return sendJson(res, 403, { error: "Служебная область агента не может быть переименована" });
+      }
       const absolute = normalizeWorkspacePath(resolvedRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, README.x.md)" });
@@ -6033,7 +6107,7 @@ async function handleApiForAgent(req, res, url) {
         parentPathResolved && parentPathResolved !== "."
           ? parentPathResolved.replace(/\\/g, "/")
           : "";
-      const serviceFolder = getAgentServiceFolder();
+      const serviceFolder = getAgentSystemFolder();
 
       if (type === "catalog" || type === "service-doc") {
         if (!serviceFolder) {
@@ -6223,6 +6297,39 @@ async function handleApiForAgent(req, res, url) {
 }
 
 async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/app-lock/status") {
+    try {
+      const status = await getAppLockStatus();
+      return sendJson(res, 200, status);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read app lock config",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/login") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      if (!login || !password) {
+        return sendJson(res, 400, { error: "Missing login or password" });
+      }
+      const ok = await verifyAppLockCredentials(login, password);
+      if (!ok) {
+        return sendJson(res, 401, { error: "Неверный логин или пароль" });
+      }
+      return sendJson(res, 200, { ok: true });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to verify app lock credentials",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/docs-meta") {
     return sendJson(res, 200, docsRegistry.getDocsMeta());
   }
