@@ -8586,9 +8586,9 @@ function sanitizeAttachmentRecordSlug(text) {
 function getInlineAttachmentRecordSlug() {
   let label = "";
   if (activeExternalFilePath) {
-    label = activeExternalFilePath.split("/").pop() || "";
+    label = getLabelFromPath(activeExternalFilePath) || activeExternalFilePath.split("/").pop() || "";
   } else if (activeMediaMarkdownPath) {
-    label = activeMediaMarkdownPath.split("/").pop() || "";
+    label = getLabelFromPath(activeMediaMarkdownPath) || activeMediaMarkdownPath.split("/").pop() || "";
   } else if (activeMediaSidecarSourcePath) {
     label = activeMediaSidecarSourcePath.split("/").pop() || "";
   } else if (activeMediaSidecarPath) {
@@ -12408,10 +12408,10 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
 
 const TOPIC_SCHEMA_TARGETS = [
   { id: "topic", label: "Тема" },
-  { id: "record", label: "Записи" },
-  { id: "record_category", label: "Категория записи" },
-  { id: "media_category", label: "Категория медиа" },
-  { id: "sidecar", label: "Sidecar" }
+  { id: "record", label: "Запись" },
+  { id: "record_category", label: "Запись (категория)" },
+  { id: "sidecar", label: "Sidecar" },
+  { id: "media_category", label: "Медиа (категория)" }
 ];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
@@ -12423,10 +12423,12 @@ const AWN_SCHEMA_TARGET_TYPE_NAMES = {
 };
 
 function getTopicSchemaTargetLabel(targetId) {
+  const configured = TOPIC_SCHEMA_TARGETS.find((item) => item.id === targetId);
+  if (configured?.label) return configured.label;
   const typeName = AWN_SCHEMA_TARGET_TYPE_NAMES[targetId];
   const typeDef = typeName ? awnTypesCache?.types?.[typeName] : null;
   if (typeDef?.name) return typeDef.name;
-  return TOPIC_SCHEMA_TARGETS.find((item) => item.id === targetId)?.label || targetId;
+  return targetId;
 }
 
 function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
@@ -12978,6 +12980,9 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   const response = await fetch(buildApiUrl("/api/file/topic-schema", { path: manifestPath }));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
+  if (!awnTypesCache?.types) {
+    await loadAwnTypes(activeAgentId);
+  }
   let fieldRegistry = data.fieldRegistry || awnTypesCache?.fieldRegistry || {};
   const canonicalFieldTypes = Object.keys(fieldRegistry).filter((id) => id.startsWith("awn.")).length;
   if (canonicalFieldTypes < 2) {
@@ -13494,25 +13499,22 @@ function resolveAwnTypeForContext(nodePath = activePath) {
 
 function getActiveAwnTypeDef(typeName = null) {
   const resolvedType = typeName || resolveAwnTypeForContext();
-  const baseTypeDef = awnTypesCache?.types?.[resolvedType];
-  if (!baseTypeDef) return null;
-
   const cache = getTopicSchemaCache();
-  if (!cache?.merged) {
-    return { name: resolvedType, ...baseTypeDef };
-  }
-
   const target = typeName
     ? resolveAwnSchemaTargetForType(resolvedType)
     : resolveAwnSchemaTargetForContext();
-  const merged = resolveTopicSchemaMergedType(target, cache);
+  const merged = cache ? resolveTopicSchemaMergedType(target, cache) : null;
   if (merged?.fields) {
+    const baseTypeDef = awnTypesCache?.types?.[resolvedType];
     return {
       name: merged.name || resolvedType,
-      kind: merged.kind || baseTypeDef.kind,
+      kind: merged.kind || baseTypeDef?.kind || "type",
       fields: merged.fields
     };
   }
+
+  const baseTypeDef = awnTypesCache?.types?.[resolvedType];
+  if (!baseTypeDef) return null;
   return { name: resolvedType, ...baseTypeDef };
 }
 
@@ -13881,6 +13883,14 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
 
     const existing = map.get(key);
     if (existing) {
+      const fieldDef = typeDef.fields[key];
+      if (Array.isArray(fieldDef?.enum) && fieldDef.enum.length) {
+        const normalized = normalizeEnumDisplayValue(existing.value, fieldDef.enum);
+        if (normalized !== existing.value) {
+          result.push({ ...existing, value: normalized });
+          continue;
+        }
+      }
       result.push(existing);
       continue;
     }
@@ -13982,6 +13992,10 @@ function ensureAwnContextDefaults(entries) {
       baseName = baseName.slice(0, -".sidecar.md".length);
     } else if (baseName.toLowerCase().endsWith(".md")) {
       baseName = baseName.slice(0, -3);
+    }
+    if (isSectionReadmePath(nodePath)) {
+      const parts = String(nodePath).replace(/\\/g, "/").split("/").filter(Boolean);
+      if (parts.length >= 2) baseName = parts[parts.length - 2];
     }
     const nameEntry = map.get("awn-name");
     if (baseName && !nameEntry?.value) {
@@ -14211,7 +14225,7 @@ function canEditPropsForm() {
   return (
     activeContentMode === "description" ||
     (activeContentMode === "external" && Boolean(activeExternalFilePath)) ||
-    isMediaSidecarEditing()
+    isMediaAssetEditing()
   );
 }
 
@@ -15307,11 +15321,34 @@ function createPropsFormBooleanControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
+function normalizeEnumDisplayValue(rawValue, options = []) {
+  const raw = String(rawValue ?? "").trim();
+  if (!raw || !Array.isArray(options) || !options.length) return raw;
+  if (options.includes(raw)) return raw;
+
+  const squeeze = (value) => String(value).replace(/\s+/g, "").toLowerCase();
+  for (const option of options) {
+    if (squeeze(option) === squeeze(raw)) return option;
+  }
+
+  const enumLabel = (value) => {
+    const text = String(value).trim();
+    const match = text.match(/^\S+\s+(.+)$/);
+    return (match?.[1] || text).trim().toLowerCase();
+  };
+  const rawLabel = enumLabel(raw);
+  for (const option of options) {
+    if (enumLabel(option) === rawLabel) return option;
+  }
+
+  return raw;
+}
+
 function createPropsFormSelectControl(entry, meta, options, { locked = false, placeholder = "—" } = {}) {
   const wrap = createPropsFormValueWrap("select");
   const select = document.createElement("select");
   select.className = "props-form-value props-form-value--select";
-  const currentValue = getPropsEntryDisplayValue(entry);
+  const currentValue = normalizeEnumDisplayValue(getPropsEntryDisplayValue(entry), options);
   appendPropsFormSelectOption(select, "", placeholder);
   for (const optionValue of options) {
     appendPropsFormSelectOption(select, optionValue, optionValue, {
@@ -16220,8 +16257,30 @@ function applyMediaSidecarContentUi(rawContent) {
   fileContentInputNode.value = body;
 }
 
+function syncSectionReadmeDisplayNameIntoProps(displayName) {
+  const trimmed = String(displayName || "").trim();
+  if (!trimmed) return;
+
+  const upsertVisible = (key, value) => {
+    const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+    const nextEntry = { key, kind: "string", value };
+    if (index >= 0) propsFormEntries[index] = { ...propsFormEntries[index], ...nextEntry };
+    else propsFormEntries.push(nextEntry);
+  };
+
+  upsertVisible("awn-name", trimmed);
+
+  const titleIndex = propsFormHiddenEntries.findIndex((entry) => entry.key === "title");
+  const titleEntry = { key: "title", kind: "string", value: trimmed };
+  if (titleIndex >= 0) propsFormHiddenEntries[titleIndex] = titleEntry;
+  else propsFormHiddenEntries.push(titleEntry);
+}
+
 function buildMediaSidecarContent() {
   readPropsFormIntoEntries();
+  if (activeMediaMarkdownPath && isSectionReadmePath(activeMediaMarkdownPath)) {
+    syncSectionReadmeDisplayNameIntoProps(titleInputNode?.value?.trim());
+  }
   if (!propsRawYamlVisible) {
     syncYamlFromPropsForm();
   }
@@ -16240,14 +16299,30 @@ function buildMediaMarkdownContent() {
   return buildMediaSidecarContent();
 }
 
+function getMediaMarkdownTitleValue(filePath, frontmatter = "") {
+  const folderLabel = getLabelFromPath(filePath);
+  const reginfoStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  const awnName = getYamlScalarFromFrontmatter(frontmatter, "awn-name");
+  const title = getYamlScalarFromFrontmatter(frontmatter, "title");
+
+  if (isSectionReadmePath(filePath)) {
+    if (awnName && awnName !== reginfoStem) return awnName;
+    if (title) return title;
+    return folderLabel;
+  }
+
+  return awnName || title || folderLabel;
+}
+
 function enableMediaMarkdownEditor(filePath, content, options = {}) {
   activeMediaMarkdownPath = filePath;
   activeMediaSidecarSourcePath = null;
   activeMediaSidecarPath = null;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
-  titleInputNode.value = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
-  titleInputNode.readOnly = true;
+  showTitleEditableInput();
+  const { frontmatter } = splitFrontmatter(content || "");
+  titleInputNode.value = getMediaMarkdownTitleValue(filePath, frontmatter);
   applyMediaSidecarContentUi(content || "");
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -16386,7 +16461,12 @@ function enableExternalFileEditor(filePath, content, options = {}) {
   activeExternalFilePath = filePath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
-  titleInputNode.value = (filePath.split("/").pop() || filePath).replace(/\.md$/i, "");
+  if (isSectionReadmePath(filePath)) {
+    setTitleLockedInput(getLabelFromPath(filePath));
+  } else {
+    showTitleEditableInput();
+    titleInputNode.value = getLabelFromPath(filePath);
+  }
   applyExternalFileContentUi(content || "");
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -22592,9 +22672,7 @@ async function saveContent() {
 
   const nextTitle = titleInputNode.value.trim();
   const currentTitle = getLabelFromPath(activePath);
-  const currentExternalTitle = activeExternalFilePath
-    ? (activeExternalFilePath.split("/").pop() || activeExternalFilePath).replace(/\.md$/i, "")
-    : "";
+  const currentExternalTitle = activeExternalFilePath ? getLabelFromPath(activeExternalFilePath) : "";
   const currentMediaTitleBase = getMediaSidecarTitleBase();
   const shouldRenameDescription =
     activeContentMode === "description" &&
@@ -22603,12 +22681,24 @@ async function saveContent() {
     !isAgentRootIndexPath(activePath) &&
     !isAgentSystemRootIndexPath(activePath) &&
     !isPartNodePath(activePath);
-  const shouldRenameExternal = activeContentMode === "external" && activeExternalFilePath && nextTitle && nextTitle !== currentExternalTitle;
+  const shouldRenameExternal =
+    activeContentMode === "external" &&
+    activeExternalFilePath &&
+    !isSectionReadmePath(activeExternalFilePath) &&
+    nextTitle &&
+    nextTitle !== currentExternalTitle;
+  const currentMediaMarkdownTitle = activeMediaMarkdownPath ? getLabelFromPath(activeMediaMarkdownPath) : "";
   const shouldRenameMediaSidecar =
     activeContentMode === "media" &&
     activeMediaSidecarPath &&
     nextTitle &&
     nextTitle !== currentMediaTitleBase;
+  const shouldRenameMediaMarkdown =
+    activeContentMode === "media" &&
+    activeMediaMarkdownPath &&
+    !isSectionReadmePath(activeMediaMarkdownPath) &&
+    nextTitle &&
+    nextTitle !== currentMediaMarkdownTitle;
 
   setSaveButtonsState(true, "Сохраняю...");
   let saveSucceeded = false;
@@ -22702,6 +22792,33 @@ async function saveContent() {
       updateBreadcrumbsForActiveMode();
       applyMediaSidecarTitleUi();
       if (typeof renameData.content === "string") {
+        applyMediaSidecarContentUi(renameData.content);
+      }
+      await refreshMediaCache();
+      showToast("Файл переименован", "success");
+    }
+
+    if (shouldRenameMediaMarkdown) {
+      const renameResponse = await fetch(buildApiUrl("/api/media/file/rename"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: getActiveNodeApiPath(),
+          file: activeMediaMarkdownPath,
+          title: nextTitle
+        })
+      });
+      if (!renameResponse.ok) {
+        const errorData = await renameResponse.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${renameResponse.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`Ошибка переименования markdown-файла: ${reason}${details}`);
+      }
+      const renameData = await renameResponse.json();
+      activeMediaMarkdownPath = renameData.file;
+      updateBreadcrumbsForActiveMode();
+      titleInputNode.value = getLabelFromPath(renameData.file);
+      if (typeof renameData.content === "string" && renameData.content.trim()) {
         applyMediaSidecarContentUi(renameData.content);
       }
       await refreshMediaCache();
