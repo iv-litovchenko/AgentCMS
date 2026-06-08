@@ -1,10 +1,8 @@
 # Agent CMS — конфигурация
-
-external_view_default: table
+study_level: intermediate
+preferred_framework: laravel
 locale: ru
 php_target_version: 8.3
-preferred_framework: laravel
 show_tabular_on_overview: true
-study_level: intermediate
-
+external_view_default: table
 default_landing_mode: navigation

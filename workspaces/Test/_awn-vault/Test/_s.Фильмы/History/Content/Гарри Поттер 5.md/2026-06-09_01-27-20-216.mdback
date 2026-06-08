@@ -1,11 +1,11 @@
 ---
-awn-preview: Assets/Preview/20260608222758.png
+awn-preview: Assets/Preview/20260608222706.png
 awn-category: ""
 awn-status: 🟡Черновик
 awn-type: awn.record
 awn-name: Гарри Поттер 5
 awn-create: "2026-06-09T01:27"
-awn-update: 2026-06-08T22:27:58.531Z
+awn-update: 2026-06-08T22:27:07.684Z
 awn-description: ""
 awn-tags: []
 awn-version: 0.0.1
@@ -19,14 +19,3 @@ field_4: ""
 tags: []
 title: Гарри Поттер 5
 ---
-
-### Подраздел
-
-Текст подраздела.
-
-[[Test]]
-[[Test/Test2]]
-[[Test/Фильмы]]
-[[Test/Test2]]
-[[Test]]
-Коллекция фильмов

@@ -3054,23 +3054,95 @@ async function getAgentPreviewMeta(agent) {
   }
 }
 
+function stripAssetsPathPrefix(relPath) {
+  let rel = String(relPath || "").replace(/\\/g, "/");
+  const prefixes = [
+    `${STORAGE_SUBFOLDER_ASSETS}/`,
+    "_Assets/"
+  ];
+  for (const prefix of prefixes) {
+    if (rel.startsWith(prefix)) return rel.slice(prefix.length);
+    const lower = prefix.toLowerCase();
+    if (rel.toLowerCase().startsWith(lower)) return rel.slice(prefix.length);
+  }
+  return rel;
+}
+
+async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
+  const previewValue = String(previewRaw || "").trim();
+  if (!previewValue) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const normalizedPath = String(nodeRelativePath || "").replace(/\\/g, "/");
+
+  if (/^https?:\/\//i.test(previewValue)) {
+    return {
+      hasPreview: true,
+      previewUrl: previewValue,
+      previewFile: path.basename(previewValue.split("?")[0]) || null
+    };
+  }
+
+  if (previewValue.startsWith("/api/")) {
+    return {
+      hasPreview: true,
+      previewUrl: previewValue,
+      previewFile: null
+    };
+  }
+
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+  if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const relFile = normalizeRelativeFilePath(stripAssetsPathPrefix(previewValue));
+  if (!relFile) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+  if (!folderAbsolute) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const fileAbsolute = path.join(folderAbsolute, relFile);
+  if (!fileAbsolute.startsWith(folderAbsolute)) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  try {
+    const stat = await fs.stat(fileAbsolute);
+    if (!stat.isFile()) {
+      return { hasPreview: false, previewUrl: null, previewFile: null };
+    }
+  } catch {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  return {
+    hasPreview: true,
+    previewUrl: `/api/media/file?path=${encodeURIComponent(normalizedPath)}&file=${encodeURIComponent(relFile)}`,
+    previewFile: path.basename(relFile)
+  };
+}
+
 async function getNodePreviewMeta(nodeRelativePath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
   const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
   if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
-    return { hasPreview: false, previewUrl: null };
+    return { hasPreview: false, previewUrl: null, previewFile: null };
   }
 
-  const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
-  if (!imageAbsolute) {
-    return { hasPreview: false, previewUrl: null };
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(nodeRelativePath);
+    const previewRaw = getYamlScalar(frontmatter, "awn-preview");
+    return await resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw);
+  } catch {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
   }
-
-  const normalizedPath = String(nodeRelativePath).replace(/\\/g, "/");
-  return {
-    hasPreview: true,
-    previewUrl: `/api/preview/image?path=${encodeURIComponent(normalizedPath)}`
-  };
 }
 
 function inferCategoryFromNodePath(nodeRelPath) {
@@ -6476,15 +6548,15 @@ async function handleApiForAgent(req, res, url) {
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
     if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
 
-    const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
-    if (!imageAbsolute) {
+    const previewMeta = await getNodePreviewMeta(relPath);
+    if (!previewMeta.hasPreview || !previewMeta.previewUrl) {
       return sendJson(res, 200, { exists: false, file: null, imageUrl: null });
     }
 
     return sendJson(res, 200, {
       exists: true,
-      file: path.basename(imageAbsolute),
-      imageUrl: `/api/preview/image?path=${encodeURIComponent(relPath)}`
+      file: previewMeta.previewFile || null,
+      imageUrl: previewMeta.previewUrl
     });
   }
 

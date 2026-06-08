@@ -6,4 +6,4 @@ fields:
   awn-preview:
     type: awn.url
     title: Превью
-    description: Путь или URL изображения превью (например Assets/Preview.png или /api/...)
+    description: Путь к файлу в Assets/Preview/ (заполняется при загрузке превью)

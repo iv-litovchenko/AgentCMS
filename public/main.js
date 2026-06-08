@@ -125,6 +125,7 @@ const workspacePathHeaderNode = document.getElementById("workspace-path-header")
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
 const titleEditorBlockNode = document.getElementById("title-editor-block");
+const propsPreviewBlockNode = document.getElementById("props-preview-block");
 const docBodyGridNode = document.getElementById("doc-body-grid");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
@@ -2610,7 +2611,10 @@ function applyManifestToRegistryDraft(index, result) {
 
 function getRegistryAgentPreviewUrl(agent) {
   if (!agent?.path) return null;
-  if (agent.previewUrl?.startsWith("/api/preview/image")) {
+  if (
+    agent.previewUrl?.startsWith("/api/preview/image") ||
+    agent.previewUrl?.startsWith("/api/media/file")
+  ) {
     if (!agent.hasPreview) return null;
     return appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id));
   }
@@ -3371,8 +3375,7 @@ const NODE_SETTINGS_GROUP = {
     { id: "description", label: "Назначение" },
     { id: "configs", label: "Конфигурация" },
     { id: "topic-schema", label: "Схема полей" },
-    { id: "env", label: ".env" },
-    { id: "node-preview", label: "Превью" }
+    { id: "env", label: ".env" }
   ]
 };
 
@@ -3536,7 +3539,7 @@ let landingSearchRequestId = 0;
 const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
 const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v1";
 const NODE_OPEN_MEMORY_MODE = "internal";
-const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env", "node-preview"]);
+const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env"]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
@@ -6634,6 +6637,7 @@ const STORAGE_SUBFOLDER_INBOX = "Inbox";
 const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
 const STORAGE_SUBFOLDER_ASSETS = "Assets";
 const PASTED_ASSETS_SUBDIR = "Pasted";
+const PREVIEW_ASSETS_SUBDIR = "Preview";
 const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "Preview";
@@ -8923,19 +8927,20 @@ function insertMarkdownAtEditorCursor(text) {
 
 async function uploadMediaAttachment(
   file,
-  { nodePath = getActiveNodeApiPath(), subdir = null, inlinePaste = false } = {}
+  { nodePath = getActiveNodeApiPath(), subdir = null, inlinePaste = false, pastedNaming = false } = {}
 ) {
   if (!file) return null;
   if (!nodePath) {
     throw new Error("Сначала откройте тему");
   }
+  const usePastedNaming = inlinePaste || pastedNaming;
   const effectiveSubdir = inlinePaste
     ? PASTED_ASSETS_SUBDIR
     : subdir ??
       (activeContentMode === "media"
         ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
         : null);
-  const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: inlinePaste });
+  const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: usePastedNaming });
   const data = await readFileAsBase64(normalizedFile);
   const response = await fetch(buildApiUrl("/api/media/file"), {
     method: "POST",
@@ -8945,7 +8950,7 @@ async function uploadMediaAttachment(
       data,
       fileName:
         normalizedFile.name ||
-        (inlinePaste
+        (usePastedNaming
           ? buildPastedAttachmentFileName(normalizedFile)
           : buildInlineAttachmentFileName(normalizedFile)),
       mimeType: normalizedFile.type,
@@ -11917,7 +11922,7 @@ const PROPS_FIELD_META = {
   },
   "awn-preview": {
     label: "Превью",
-    hint: "Путь или URL изображения превью (Assets/Preview.png или /api/...)"
+    hint: "Изображение в Assets/Preview/ (загрузка через миниатюру)"
   },
   tags: {
     label: "Теги",
@@ -14411,9 +14416,72 @@ function syncDocAsideTabAvailability() {
   syncDocAsideUi(getDocAsideTabAvailability());
 }
 
+function findPropsPreviewEntry() {
+  const index = propsFormEntries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === "awn-preview"
+  );
+  if (index < 0) return null;
+  return { entry: propsFormEntries[index], index };
+}
+
+function mergePropsPreviewIntoEntries(entries) {
+  const key = "awn-preview";
+  const withoutPreview = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
+  const previewWrap = propsPreviewBlockNode?.querySelector(
+    '.props-form-value-wrap[data-widget="preview"]'
+  );
+  if (!previewWrap) {
+    const existing = entries.find((entry) => normalizePropsKey(entry.key) === key);
+    if (existing) withoutPreview.push(existing);
+    return ensureStandardPropsEntries(withoutPreview);
+  }
+  const domValue = readPropsFormValueFromControl(previewWrap);
+  const memoryValue = getPropsEntryValueByKey(entries, key);
+  const yamlValue = getPropsEntryValueByKey(parsePropsYaml(propsInputNode.value || ""), key);
+  const value = domValue.trim() || memoryValue.trim() || yamlValue.trim();
+  const nextEntry = applyFormValueToEntry({ key, kind: "string", value: "" }, value);
+  return ensureStandardPropsEntries([...withoutPreview, nextEntry]);
+}
+
+function renderPropsPreviewBlock() {
+  if (!propsPreviewBlockNode) return;
+
+  const previewSpec = findPropsPreviewEntry();
+  propsPreviewBlockNode.replaceChildren();
+
+  if (!previewSpec || propsRawYamlVisible) {
+    propsPreviewBlockNode.classList.add("hidden");
+    return;
+  }
+
+  propsPreviewBlockNode.classList.remove("hidden");
+  const { entry, index } = previewSpec;
+  const meta = getPropsFieldMeta(entry.key);
+  const readOnly = isPropsFormReadOnly();
+
+  if (readOnly) {
+    const displayValue = getPropsEntryDisplayValue(entry);
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "node-overview-thumb-wrap props-form-preview-thumb-wrap is-readonly";
+    thumbWrap.setAttribute("role", "img");
+    populatePreviewThumbWrap(
+      thumbWrap,
+      buildPreviewUiFromPath(displayValue, getPropsContextPath()),
+      meta.label || "Превью",
+      getPropsContextPath()
+    );
+    thumbWrap.querySelector(".node-overview-thumb-actions")?.remove();
+    propsPreviewBlockNode.appendChild(thumbWrap);
+    return;
+  }
+
+  propsPreviewBlockNode.appendChild(createPropsFormFieldRow(entry, index));
+}
+
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
+  renderPropsPreviewBlock();
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
   propsFormFieldsNode.classList.toggle("is-readonly", readOnly);
@@ -14436,6 +14504,10 @@ function renderPropsForm() {
       const entry = propsFormEntries[index];
       const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryDisplayValue(entry);
+
+      if (normalizePropsKey(entry.key) === "awn-preview") {
+        continue;
+      }
 
       const field = document.createElement("div");
       field.className = "props-preview-field props-preview-field--compact";
@@ -14462,6 +14534,7 @@ function renderPropsForm() {
   const customEntries = [];
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
+    if (normalizePropsKey(entry.key) === "awn-preview") continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
       standardEntries.push({ entry, index });
     } else {
@@ -14511,6 +14584,7 @@ const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
+  if (normalized === "awn-preview") return "preview";
   if (normalized === "awn-category") return "catalog-category";
   if (normalized === "awn-tags") return "catalog-tags";
 
@@ -15118,6 +15192,157 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
+function resolveAwnPreviewDisplayUrl(previewPath, nodePath = activePath) {
+  const raw = String(previewPath || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
+  if (raw.startsWith("/api/")) return appendCacheBuster(appendAgentToApiUrl(raw));
+  return appendCacheBuster(appendAgentToApiUrl(resolveMarkdownAssetSrc(raw, nodePath)));
+}
+
+function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
+  if (preview?.imageUrl) {
+    const raw = String(preview.imageUrl).trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
+    return appendCacheBuster(appendAgentToApiUrl(raw));
+  }
+  const previewPath = String(preview?.previewPath || "").trim();
+  return resolveAwnPreviewDisplayUrl(previewPath, nodePath);
+}
+
+function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
+  const imageUrl = resolveAwnPreviewDisplayUrl(previewPath, nodePath);
+  if (!imageUrl) return null;
+  return { imageUrl, previewPath: String(previewPath || "").trim() };
+}
+
+function syncPropsPreviewDomValue(previewValue) {
+  const hidden = propsPreviewBlockNode?.querySelector(".props-form-preview-value");
+  if (hidden) hidden.value = String(previewValue || "");
+}
+
+async function setPropsPreviewValue(previewRef, { save = true, showToastOnSuccess = false } = {}) {
+  absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+  propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
+
+  const key = "awn-preview";
+  const previewValue = String(previewRef || "").trim();
+  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const base =
+    index >= 0 ? propsFormEntries[index] : { key, kind: "string", value: "" };
+  const nextEntry = applyFormValueToEntry(base, previewValue);
+  if (index >= 0) propsFormEntries[index] = nextEntry;
+  else propsFormEntries.push(nextEntry);
+  syncYamlFromPropsForm();
+  syncPropsPreviewDomValue(previewValue);
+  if (shouldRenderPropsFormNow()) renderPropsForm();
+  if (save) {
+    await saveProperties({ showToastOnSuccess, fromSyncedYaml: true });
+  }
+}
+
+function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePath) {
+  const imageUrl = resolvePreviewThumbImageSrc(preview, nodePath);
+  thumbWrap.replaceChildren();
+  thumbWrap.dataset.overviewTitle = title;
+  thumbWrap.dataset.hasPreview = imageUrl ? "1" : "0";
+
+  if (imageUrl) {
+    const img = document.createElement("img");
+    img.className = "node-overview-thumb";
+    img.alt = title ? `Превью: ${title}` : "Превью";
+    img.src = imageUrl;
+    img.draggable = false;
+    thumbWrap.appendChild(img);
+  } else {
+    const placeholder = createNodeCoverIconElement(nodePath);
+    placeholder.classList.add("node-overview-thumb-placeholder");
+    thumbWrap.appendChild(placeholder);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "node-overview-thumb-actions";
+
+  const replaceBtn = document.createElement("button");
+  replaceBtn.type = "button";
+  replaceBtn.className = "node-overview-thumb-action";
+  replaceBtn.setAttribute("aria-label", imageUrl ? "Заменить превью" : "Загрузить превью");
+  replaceBtn.appendChild(createOverviewThumbEditIcon());
+  replaceBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openOverviewPreviewFilePicker(thumbWrap);
+  });
+  actions.appendChild(replaceBtn);
+
+  const pasteBtn = document.createElement("button");
+  pasteBtn.type = "button";
+  pasteBtn.className = "node-overview-thumb-action";
+  pasteBtn.setAttribute("aria-label", "Вставить изображение из буфера");
+  pasteBtn.title = "Вставить из буфера";
+  pasteBtn.appendChild(createOverviewThumbPasteIcon());
+  pasteBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void pasteOverviewPreviewFromClipboard(thumbWrap);
+  });
+  actions.appendChild(pasteBtn);
+
+  if (imageUrl) {
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "node-overview-thumb-action node-overview-thumb-action--remove";
+    removeBtn.setAttribute("aria-label", "Удалить превью");
+    removeBtn.appendChild(createOverviewThumbRemoveIcon());
+    removeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void removeOverviewPreviewInline(thumbWrap);
+    });
+    actions.appendChild(removeBtn);
+  }
+
+  thumbWrap.appendChild(actions);
+}
+
+function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("preview");
+  wrap.classList.add("props-form-value-wrap--preview");
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "props-form-value props-form-preview-value";
+  hidden.value = getPropsEntryDisplayValue(entry);
+  hidden.dataset.field = "value";
+  if (locked) hidden.disabled = true;
+  wrap.appendChild(hidden);
+
+  const thumbWrap = document.createElement("div");
+  thumbWrap.className = "node-overview-thumb-wrap props-form-preview-thumb-wrap";
+  thumbWrap.tabIndex = locked ? -1 : 0;
+  thumbWrap.setAttribute("role", locked ? "img" : "button");
+  const previewPath = hidden.value;
+  const title = meta.label || "Превью";
+  populatePreviewThumbWrap(thumbWrap, buildPreviewUiFromPath(previewPath), title, getPropsContextPath());
+
+  if (!locked) {
+    thumbWrap.addEventListener("click", () => {
+      if (thumbWrap.dataset.hasPreview === "1") return;
+      openOverviewPreviewFilePicker(thumbWrap);
+    });
+    thumbWrap.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (thumbWrap.dataset.hasPreview === "1") return;
+      openOverviewPreviewFilePicker(thumbWrap);
+    });
+  }
+
+  wrap.appendChild(thumbWrap);
+  return wrap;
+}
+
 function createPropsFormValueControl(entry, meta) {
   const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
   const locked = Boolean(entry.key && meta.locked);
@@ -15149,6 +15374,9 @@ function createPropsFormValueControl(entry, meta) {
   if (widget === "textarea") {
     return createPropsFormTextareaControl(entry, meta, { locked });
   }
+  if (widget === "preview") {
+    return createPropsFormPreviewControl(entry, meta, { locked });
+  }
   if (widget === "url") {
     return createPropsFormTypedInputControl(entry, meta, "url", { locked });
   }
@@ -15172,6 +15400,10 @@ function createPropsFormValueControl(entry, meta) {
 
 function readPropsFormValueFromControl(valueWrap) {
   const widget = valueWrap?.dataset?.widget || "text";
+  if (widget === "preview") {
+    const hidden = valueWrap.querySelector(".props-form-preview-value");
+    return hidden?.value ?? "";
+  }
   if (widget === "boolean") {
     const checkbox = valueWrap.querySelector('input[type="checkbox"]');
     return checkbox?.checked ? "true" : "false";
@@ -15205,22 +15437,24 @@ function readPropsFormValueFromControl(valueWrap) {
 
 function createPropsFormFieldRow(entry, index) {
   const meta = getPropsFieldMeta(entry.key);
+  const isPreviewField = normalizePropsKey(entry.key) === "awn-preview";
   const row = document.createElement("div");
   row.className = "props-form-row props-form-field props-form-field--compact";
+  if (isPreviewField) row.classList.add("props-form-field--preview");
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
   const head = document.createElement("div");
   head.className = "props-form-field-head";
 
-  if (entry.key) {
+  if (entry.key && !isPreviewField) {
     const label = document.createElement("label");
     label.className = "props-form-field-label";
     if (meta.required) label.classList.add("is-required");
     label.textContent = meta.label || entry.key;
     label.title = meta.hint ? `${entry.key} — ${meta.hint}` : entry.key;
     head.appendChild(label);
-  } else {
+  } else if (!entry.key) {
     const keyInput = document.createElement("input");
     keyInput.type = "text";
     keyInput.className = "props-form-key-input";
@@ -15231,7 +15465,11 @@ function createPropsFormFieldRow(entry, index) {
   }
 
   const valueControl = createPropsFormValueControl(entry, meta);
-  row.append(head, valueControl);
+  if (isPreviewField) {
+    row.append(valueControl);
+  } else {
+    row.append(head, valueControl);
+  }
 
   const needsCatalog =
     resolvePropsFieldWidget(entry.key, meta.fieldDef) === "catalog-category" ||
@@ -15289,7 +15527,7 @@ function readPropsFormIntoEntries() {
     }
   });
 
-  propsFormEntries = ensureStandardPropsEntries(nextEntries);
+  propsFormEntries = mergePropsPreviewIntoEntries(nextEntries);
 }
 
 function togglePropsRawYaml() {
@@ -16265,7 +16503,9 @@ function clipboardItemToPreviewFile(type, blob) {
           ? "jpg"
           : null;
   if (!ext) return null;
-  return new File([blob], `pasted-preview.${ext}`, { type: normalizedType });
+  return new File([blob], buildPastedAttachmentFileName({ type: normalizedType }), {
+    type: normalizedType
+  });
 }
 
 async function readPreviewFileFromClipboard() {
@@ -16356,66 +16596,7 @@ function createNodeCoverIconElement(nodePath) {
 }
 
 function populateOverviewThumbWrap(thumbWrap, preview, title, nodePath = activePath) {
-  thumbWrap.replaceChildren();
-  thumbWrap.dataset.overviewTitle = title;
-  thumbWrap.dataset.hasPreview = preview?.imageUrl ? "1" : "0";
-
-  if (preview?.imageUrl) {
-    const img = document.createElement("img");
-    img.className = "node-overview-thumb";
-    img.alt = `Превью: ${title}`;
-    img.src = appendCacheBuster(appendAgentToApiUrl(preview.imageUrl));
-    img.draggable = false;
-    thumbWrap.appendChild(img);
-  } else {
-    const placeholder = createNodeCoverIconElement(nodePath);
-    placeholder.classList.add("node-overview-thumb-placeholder");
-    thumbWrap.appendChild(placeholder);
-  }
-
-  const actions = document.createElement("div");
-  actions.className = "node-overview-thumb-actions";
-
-  const replaceBtn = document.createElement("button");
-  replaceBtn.type = "button";
-  replaceBtn.className = "node-overview-thumb-action";
-  replaceBtn.setAttribute("aria-label", preview?.imageUrl ? "Заменить превью" : "Загрузить превью");
-  replaceBtn.appendChild(createOverviewThumbEditIcon());
-  replaceBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openOverviewPreviewFilePicker(thumbWrap);
-  });
-  actions.appendChild(replaceBtn);
-
-  const pasteBtn = document.createElement("button");
-  pasteBtn.type = "button";
-  pasteBtn.className = "node-overview-thumb-action";
-  pasteBtn.setAttribute("aria-label", "Вставить изображение из буфера");
-  pasteBtn.title = "Вставить из буфера";
-  pasteBtn.appendChild(createOverviewThumbPasteIcon());
-  pasteBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void pasteOverviewPreviewFromClipboard(thumbWrap);
-  });
-  actions.appendChild(pasteBtn);
-
-  if (preview?.imageUrl) {
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "node-overview-thumb-action node-overview-thumb-action--remove";
-    removeBtn.setAttribute("aria-label", "Удалить превью");
-    removeBtn.appendChild(createOverviewThumbRemoveIcon());
-    removeBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void removeOverviewPreviewInline(thumbWrap);
-    });
-    actions.appendChild(removeBtn);
-  }
-
-  thumbWrap.appendChild(actions);
+  populatePreviewThumbWrap(thumbWrap, preview, title, nodePath);
 }
 
 function createOverviewThumbWrap(preview, title, nodePath = activePath) {
@@ -19072,51 +19253,55 @@ function isAllowedPreviewFile(file) {
   return mime === "image/jpeg" || mime === "image/png" || mime === "image/gif";
 }
 
+async function refreshPreviewUiAfterChange() {
+  const preview = await fetchNodeOverviewPreview();
+  renderPreviewUploadUi(
+    preview ? { exists: true, imageUrl: preview.imageUrl, file: null } : { exists: false }
+  );
+  if (isAgentRootIndexPath(activePath)) {
+    syncAgentPreview(
+      preview
+        ? { hasPreview: true, previewUrl: preview.imageUrl }
+        : { hasPreview: false, previewUrl: null }
+    );
+  }
+  if (menuViewMode === "cards") await refreshMenu();
+  if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
+    await refreshNodeCoverThumbInPlace();
+  }
+  if (shouldRenderPropsFormNow()) renderPropsForm();
+}
+
 async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
   if (!activePath || !file) return;
   if (!isAllowedPreviewFile(file)) {
-    showToast(`Допустимы только JPG, PNG и GIF (${PREVIEW_FILE_BASENAME}.jpg / .png / .gif в ${STORAGE_FOLDER_NAME})`, "error");
+    showToast(`Допустимы только JPG, PNG и GIF (${STORAGE_SUBFOLDER_ASSETS}/${PREVIEW_ASSETS_SUBDIR}/)`, "error");
     return;
   }
 
   previewUploadZoneNode?.classList.add("is-uploading");
   overviewThumbWrap?.classList.add("is-uploading");
+  overviewThumbWrap?.closest(".props-form-preview-thumb-wrap")?.classList.add("is-uploading");
 
   try {
-    const data = await readFileAsBase64(file);
-    const response = await fetch(buildApiUrl("/api/preview"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: getActiveNodeApiPath(),
-        data,
-        fileName: file.name,
-        mimeType: file.type
-      })
+    const payload = await uploadMediaAttachment(file, {
+      nodePath: getActiveNodeApiPath(),
+      subdir: PREVIEW_ASSETS_SUBDIR,
+      pastedNaming: true
     });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const details = errorData.details ? `: ${errorData.details}` : "";
-      throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
-    }
-    const payload = await response.json();
-    renderPreviewUploadUi(payload);
+    const relativeFile = payload?.file;
+    if (!relativeFile) throw new Error("Upload response missing file path");
+
+    const previewRef = buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativeFile);
+    await setPropsPreviewValue(previewRef, { save: true, showToastOnSuccess: false });
     showToast("Превью сохранено", "success");
-    if (isAgentRootIndexPath(activePath)) {
-      syncAgentPreview({
-        hasPreview: true,
-        previewUrl: payload.imageUrl
-      });
-    }
-    if (menuViewMode === "cards") await refreshMenu();
-    if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
-      await refreshNodeCoverThumbInPlace();
-    }
+    await refreshPreviewUiAfterChange();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
   } finally {
     previewUploadZoneNode?.classList.remove("is-uploading");
     overviewThumbWrap?.classList.remove("is-uploading");
+    overviewThumbWrap?.closest(".props-form-preview-thumb-wrap")?.classList.remove("is-uploading");
     if (previewFileInputNode) previewFileInputNode.value = "";
   }
 }
@@ -19125,22 +19310,9 @@ async function removePreviewImage() {
   if (!activePath) return;
 
   try {
-    const response = await fetch(buildApiUrl("/api/preview", { path: getActiveNodeApiPath() }), {
-      method: "DELETE"
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Request failed with ${response.status}`);
-    }
-    renderPreviewUploadUi({ exists: false });
+    await setPropsPreviewValue("", { save: true, showToastOnSuccess: false });
     showToast("Превью удалено", "success");
-    if (isAgentRootIndexPath(activePath)) {
-      syncAgentPreview({ hasPreview: false, previewUrl: null });
-    }
-    if (menuViewMode === "cards") await refreshMenu();
-    if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
-      await refreshNodeCoverThumbInPlace();
-    }
+    await refreshPreviewUiAfterChange();
   } catch (error) {
     showToast(`Ошибка удаления: ${error.message}`, "error");
   }
@@ -21420,6 +21592,12 @@ async function loadContentByMode(options = {}) {
   const preserveExternalSectionFolder = options.preserveExternalSectionFolder || null;
   const preserveFlatStorageSectionFolder = options.preserveFlatStorageSectionFolder || null;
 
+  if (activeContentMode === "node-preview") {
+    activeContentMode = "description";
+    setDocAsideTab("props");
+    syncDocAsideUi(getDocAsideTabAvailability());
+  }
+
   const deferLoadingEnd = isAsyncOverviewRenderMode();
   if (!deferLoadingEnd) {
     showContentLoading({
@@ -21599,13 +21777,6 @@ async function loadContentByMode(options = {}) {
     fileContentInputNode.value = "";
     applyModeUi();
     updateBreadcrumbsForActiveMode();
-    return;
-  }
-
-  if (activeContentMode === "node-preview") {
-    fileContentInputNode.value = "";
-    applyModeUi();
-    await loadNodePreview();
     return;
   }
 
@@ -22130,11 +22301,13 @@ async function loadPropertiesForActivePath() {
   }
 }
 
-async function saveProperties({ showToastOnSuccess = true } = {}) {
+async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = false } = {}) {
   if (!activePath) return;
-  readPropsFormIntoEntries();
-  if (!propsRawYamlVisible) {
-    syncYamlFromPropsForm();
+  if (!fromSyncedYaml) {
+    readPropsFormIntoEntries();
+    if (!propsRawYamlVisible) {
+      syncYamlFromPropsForm();
+    }
   }
   const content = propsInputNode.value;
   try {
@@ -22151,7 +22324,11 @@ async function saveProperties({ showToastOnSuccess = true } = {}) {
     }
     const data = await response.json();
     setPropsYamlContent(data.content || "", { preserveRawMode: propsRawYamlVisible });
-    if (activeContentMode === "description") {
+    if (
+      activeContentMode === "description" ||
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE
+    ) {
       const { body } = splitFrontmatter(modeContentCache.description || "");
       modeContentCache.description = joinFrontmatter(data.content || "", body);
     }

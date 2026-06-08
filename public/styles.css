@@ -8691,6 +8691,31 @@ body.app-locked {
   z-index: 2;
 }
 
+.doc-props-aside .doc-aside-preview-block {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 10px 4px;
+  background: #fff;
+}
+
+.doc-props-aside .doc-aside-preview-block.hidden {
+  display: none;
+}
+
+.doc-props-aside .doc-aside-preview-block .props-form-field--preview {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  min-height: 0;
+  border-top: 0;
+}
+
+.doc-props-aside .doc-aside-preview-block .props-form-preview-thumb-wrap {
+  width: 100%;
+  min-height: 132px;
+  max-height: 200px;
+  border-radius: 10px;
+}
+
 .doc-props-aside .doc-aside-title-block {
   flex-shrink: 0;
   margin: 0;
@@ -12132,6 +12157,36 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 30px;
   width: 100%;
   box-sizing: border-box;
+}
+
+.doc-props-aside .props-form-field--preview {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 8px 10px 10px;
+  min-height: 0;
+}
+
+.doc-props-aside .props-form-field--preview .props-form-value-wrap--preview {
+  width: 100%;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap {
+  width: 100%;
+  min-height: 120px;
+  max-height: 180px;
+  border-radius: 10px;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb,
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb-placeholder {
+  border-radius: 10px;
+}
+
+.doc-props-aside .props-preview-field--preview {
+  padding: 8px 10px 10px;
+}
+
+.doc-props-aside .props-preview-field--preview .props-form-preview-thumb-wrap {
+  pointer-events: none;
 }
 
 .doc-props-aside .props-form-group-body .props-form-row:first-child {

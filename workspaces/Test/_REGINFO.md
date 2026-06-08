@@ -1,15 +1,15 @@
 ---
+awn-preview: Assets/Preview/2026-06-09_01-17-07-760-pasted-preview.png
+awn-category: ""
+awn-status: Открыта
 awn-type: awn.agent
 awn-name: _REGINFO
-awn-create: ""
-awn-update: ""
+awn-create: 2026-06-08T22:17:07.793Z
+awn-update: 2026-06-08T22:17:07.793Z
 awn-description: ""
-awn-status: Открыта
-awn-category: ""
 awn-tags: []
 awn-version: ""
 awn-sort: 0
-awn-preview: ""
 awn-dkdkd: fewfewfew
 tags: []
 title: ""
