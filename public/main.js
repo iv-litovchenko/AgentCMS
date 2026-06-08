@@ -14497,9 +14497,9 @@ function renderPropsForm() {
     const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
     return widget === "link" || widget === "file";
   });
-  if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode()) {
+  if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode() && shouldRenderPropsFormNow()) {
     void ensurePropsLibrariesLoaded().then(() => {
-      if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
+      if (shouldRenderPropsFormNow() && !propsRawYamlVisible) renderPropsForm();
     });
   }
 
@@ -14754,7 +14754,13 @@ const propsLibrariesCache = {
   mediaFiles: [],
   loaded: false
 };
-let propsLibrariesLoading = false;
+let propsLibrariesLoadPromise = null;
+
+function shouldRenderPropsFormNow() {
+  if (!propsFormFieldsNode) return false;
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return false;
+  return getDocAsideTab() === "props";
+}
 
 function isPropsLibrariesReadyForActiveNode(nodePath = getResolvedNodePath(activePath)) {
   const resolved = String(nodePath || "").replace(/\\/g, "/").trim();
@@ -14766,6 +14772,7 @@ function resetPropsLibrariesCache() {
   propsLibrariesCache.contentRecords = [];
   propsLibrariesCache.mediaFiles = [];
   propsLibrariesCache.loaded = false;
+  propsLibrariesLoadPromise = null;
 }
 
 function buildContentRecordWikilink(relativePath) {
@@ -14807,69 +14814,72 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
   const resolved = String(nodePath || "").replace(/\\/g, "/").trim();
   if (!resolved) return propsLibrariesCache;
   if (isPropsLibrariesReadyForActiveNode(resolved)) return propsLibrariesCache;
-  if (propsLibrariesLoading) return propsLibrariesCache;
+  if (propsLibrariesLoadPromise) return propsLibrariesLoadPromise;
 
-  propsLibrariesLoading = true;
-  try {
-    const apiPath = getOverviewNodeApiPath(resolved);
-    const [filesResponse, mediaResponse] = await Promise.all([
-      fetch(buildApiUrl("/api/external/files", { path: apiPath })),
-      fetch(buildApiUrl("/api/media", { path: apiPath }))
-    ]);
+  propsLibrariesLoadPromise = (async () => {
+    try {
+      const apiPath = getOverviewNodeApiPath(resolved);
+      const [filesResponse, mediaResponse] = await Promise.all([
+        fetch(buildApiUrl("/api/external/files", { path: apiPath })),
+        fetch(buildApiUrl("/api/media", { path: apiPath }))
+      ]);
 
-    const contentRecords = [];
-    if (filesResponse.ok) {
-      const data = await filesResponse.json();
-      for (const file of Array.isArray(data.files) ? data.files : []) {
-        const relativePath = String(file.relativePath || file.name || "").replace(/\\/g, "/");
-        if (!relativePath) continue;
-        const label = relativePath.replace(/\.md$/i, "").split("/").pop() || relativePath;
-        contentRecords.push({
-          relativePath,
-          label,
-          wikilink: buildContentRecordWikilink(relativePath),
-          fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath)
-        });
-      }
-    }
-
-    const mediaFiles = [];
-    if (mediaResponse.ok) {
-      const data = await mediaResponse.json();
-      const groups =
-        data.groups && typeof data.groups === "object"
-          ? data.groups
-          : buildMediaFilesCacheFromContent(data.content || "");
-      for (const [groupName, items] of Object.entries(groups)) {
-        for (const item of Array.isArray(items) ? items : []) {
-          if (item?.isFolder) continue;
-          const relativePath = String(item.path || item.name || "").replace(/\\/g, "/");
+      const contentRecords = [];
+      if (filesResponse.ok) {
+        const data = await filesResponse.json();
+        for (const file of Array.isArray(data.files) ? data.files : []) {
+          const relativePath = String(file.relativePath || file.name || "").replace(/\\/g, "/");
           if (!relativePath) continue;
-          mediaFiles.push({
+          const label = relativePath.replace(/\.md$/i, "").split("/").pop() || relativePath;
+          contentRecords.push({
             relativePath,
-            label: item.name || relativePath.split("/").pop() || relativePath,
-            group: groupName,
-            fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath),
-            icon: getMediaIconForItem(item)
+            label,
+            wikilink: buildContentRecordWikilink(relativePath),
+            fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath)
           });
         }
       }
+
+      const mediaFiles = [];
+      if (mediaResponse.ok) {
+        const data = await mediaResponse.json();
+        const groups =
+          data.groups && typeof data.groups === "object"
+            ? data.groups
+            : buildMediaFilesCacheFromContent(data.content || "");
+        for (const [groupName, items] of Object.entries(groups)) {
+          for (const item of Array.isArray(items) ? items : []) {
+            if (item?.isFolder) continue;
+            const relativePath = String(item.path || item.name || "").replace(/\\/g, "/");
+            if (!relativePath) continue;
+            mediaFiles.push({
+              relativePath,
+              label: item.name || relativePath.split("/").pop() || relativePath,
+              group: groupName,
+              fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath),
+              icon: getMediaIconForItem(item)
+            });
+          }
+        }
+      }
+
+      propsLibrariesCache.nodePath = resolved;
+      propsLibrariesCache.contentRecords = contentRecords;
+      propsLibrariesCache.mediaFiles = mediaFiles;
+      propsLibrariesCache.loaded = true;
+    } catch {
+      propsLibrariesCache.nodePath = resolved;
+      propsLibrariesCache.contentRecords = [];
+      propsLibrariesCache.mediaFiles = [];
+      propsLibrariesCache.loaded = true;
+    } finally {
+      propsLibrariesLoadPromise = null;
     }
 
-    propsLibrariesCache.nodePath = resolved;
-    propsLibrariesCache.contentRecords = contentRecords;
-    propsLibrariesCache.mediaFiles = mediaFiles;
-    propsLibrariesCache.loaded = true;
-  } catch {
-    propsLibrariesCache.nodePath = resolved;
-    propsLibrariesCache.contentRecords = [];
-    propsLibrariesCache.mediaFiles = [];
-    propsLibrariesCache.loaded = true;
-  } finally {
-    propsLibrariesLoading = false;
-  }
+    return propsLibrariesCache;
+  })();
 
-  return propsLibrariesCache;
+  return propsLibrariesLoadPromise;
 }
 
 function collectPropsLinkLibraryGroups() {
@@ -15242,7 +15252,9 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     propsInputNode.classList.add("hidden");
     setPropsYamlToggleLabel("Показать YAML");
   }
-  renderPropsForm();
+  if (shouldRenderPropsFormNow()) {
+    renderPropsForm();
+  }
 }
 
 function readPropsFormIntoEntries() {
@@ -17515,10 +17527,10 @@ function appendNavigationBookTocList(parentList, node, depth = 0) {
   for (const [, folderNode] of folderEntries) {
     const folderItem = document.createElement("li");
     folderItem.className = "nav-book-toc-folder";
-    folderItem.style.setProperty("--toc-depth", String(depth));
 
     const folderLabel = document.createElement("span");
     folderLabel.className = "nav-book-toc-folder-label";
+    folderLabel.style.setProperty("--toc-depth", String(depth));
     const folderIcon = document.createElement("span");
     folderIcon.className = "nav-book-toc-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
@@ -17536,11 +17548,11 @@ function appendNavigationBookTocList(parentList, node, depth = 0) {
   for (const item of fileEntries) {
     const entry = document.createElement("li");
     entry.className = "nav-book-toc-entry";
-    entry.style.setProperty("--toc-depth", String(depth));
 
     const link = document.createElement("button");
     link.type = "button";
     link.className = "nav-book-toc-link";
+    link.style.setProperty("--toc-depth", String(depth));
     link.title = item.path;
 
     const text = document.createElement("span");
