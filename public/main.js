@@ -387,7 +387,7 @@ const VAULT_FOLDER_DEFAULT = "_awn-vault";
 const AGENT_SYSTEM_FOLDER_DEFAULT = "_awn-agent-system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
-const SERVICE_SECTION_LABEL = "Служебные компоненты";
+const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
 const SERVICE_SECTION_HINT = "";
 const SERVICE_SECTION_TITLE = SERVICE_SECTION_LABEL;
 let agentsCache = [];
@@ -1240,7 +1240,7 @@ function syncNodeDescriptionHintUi() {
     return;
   }
   if (isAgentSystemRootIndexPath(resolvedPath)) {
-    titleNode.textContent = "Служебные компоненты — назначение области";
+    titleNode.textContent = "Служебные темы и компоненты — назначение области";
     textNode.innerHTML =
       "Системная область агента: Agent.md, User.md, справочники и другие служебные файлы. " +
       "Превью здесь относится только к этой служебной области, не к аватару агента. " +
