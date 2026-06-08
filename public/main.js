@@ -14935,7 +14935,6 @@ async function openPropsLinkTarget(wikilink) {
     return;
   }
 
-  const { target } = parsePropsWikilinkTarget(value);
   const record = (propsLibrariesCache.contentRecords || []).find((item) => {
     const slug = item.relativePath.replace(/\.md$/i, "");
     return item.wikilink === value || slug === target || item.label === target;
