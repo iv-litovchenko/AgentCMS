@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.96" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.4" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -199,6 +199,13 @@
                     <option value="timeline-vertical">Timeline ↓</option>
                   </select>
                   </div>
+                  <button
+                    id="agent-awn-types-btn"
+                    class="agents-manage-btn agent-awn-types-btn"
+                    type="button"
+                    title="Типы YAML — схемы полей frontmatter"
+                    aria-label="Типы YAML"
+                  ></button>
                   <button
                     id="agent-git-btn"
                     class="agents-manage-btn agent-git-btn"
@@ -583,6 +590,18 @@
         <div id="agent-git-content" class="agent-git-content"></div>
       </main>
 
+      <main id="agent-awn-types-pane" class="agent-canvas-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
+        <div class="agent-canvas-head">
+          <p class="agent-canvas-eyebrow">Workspace</p>
+          <h2 class="agent-canvas-title">Типы YAML</h2>
+          <p class="agent-canvas-lead">
+            Системные схемы полей frontmatter. Базовые типы — в <code>awn-types/</code> (read-only).
+            Дополнительные поля темы — в <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>.
+          </p>
+        </div>
+        <div id="agent-awn-types-content" class="agent-awn-types-content"></div>
+      </main>
+
       <main id="agent-map-pane" class="agent-canvas-pane agent-map-pane hidden" aria-label="Карта агента">
         <div id="agent-map-stage" class="agent-map-stage">
           <svg id="agent-map-links" class="agent-map-links" aria-hidden="true"></svg>
@@ -951,7 +970,8 @@
                     aria-label="Настройки"
                   >
                     <option value="description">Назначение</option>
-                    <option value="configs">Конфигурации</option>
+                    <option value="configs">Конфигурация</option>
+                    <option value="topic-schema">Схема полей</option>
                     <option value="env">.env</option>
                     <option value="node-preview">Превью</option>
                   </select>
@@ -1229,6 +1249,25 @@
                   </div>
                 </div>
               </div>
+              <section id="topic-schema-panel" class="topic-schema-panel hidden" aria-label="Схема полей темы">
+                <header class="topic-schema-head">
+                  <div>
+                    <h3 class="topic-schema-title">Схема полей темы</h3>
+                    <p class="topic-schema-lead">
+                      Дополнительные поля сохраняются в <code>Config.yml</code> → <code>awn_schema</code>.
+                      Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
+                    </p>
+                  </div>
+                  <button id="topic-schema-add-btn" class="topic-schema-add-btn" type="button">+ Поле</button>
+                </header>
+                <div id="topic-schema-target-tabs" class="topic-schema-target-tabs" role="tablist" aria-label="Цель схемы"></div>
+                <section class="topic-schema-base-card" aria-label="Базовые поля типа">
+                  <h4 class="topic-schema-base-title">Базовые поля (read-only)</h4>
+                  <p id="topic-schema-base-fields" class="topic-schema-base-fields"></p>
+                </section>
+                <div id="topic-schema-fields" class="topic-schema-fields"></div>
+                <p id="topic-schema-empty" class="topic-schema-empty hidden">Дополнительных полей пока нет — нажмите «+ Поле».</p>
+              </section>
               <div class="editor-surface">
                 <div id="editor-code-wrap" class="editor-code-wrap">
                   <pre id="editor-line-numbers" class="editor-line-numbers" aria-hidden="true">1</pre>
@@ -1301,27 +1340,10 @@
                 <div class="doc-aside-icon-tabs" role="tablist" aria-label="Панель документа">
                   <button
                     type="button"
-                    id="doc-aside-tab-props"
+                    id="doc-aside-tab-outline"
                     class="doc-aside-icon-tab active"
                     role="tab"
                     aria-selected="true"
-                    data-doc-aside-tab="props"
-                    title="Свойства"
-                  >
-                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 7h16M4 12h10M4 17h14" />
-                        <circle cx="18" cy="17" r="2.5" />
-                      </svg>
-                    </span>
-                    <span class="doc-aside-icon-tab-label">Свойства</span>
-                  </button>
-                  <button
-                    type="button"
-                    id="doc-aside-tab-outline"
-                    class="doc-aside-icon-tab"
-                    role="tab"
-                    aria-selected="false"
                     data-doc-aside-tab="outline"
                     title="Оглавление"
                   >
@@ -1332,6 +1354,23 @@
                       </svg>
                     </span>
                     <span class="doc-aside-icon-tab-label">Оглавление</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-props"
+                    class="doc-aside-icon-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="props"
+                    title="Свойства"
+                  >
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 7h16M4 12h10M4 17h14" />
+                        <circle cx="18" cy="17" r="2.5" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Свойства</span>
                   </button>
                   <button
                     type="button"
@@ -1352,10 +1391,27 @@
                     </span>
                     <span class="doc-aside-icon-tab-label">Блоки</span>
                   </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-links"
+                    class="doc-aside-icon-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="links"
+                    title="Ссылки на записи"
+                  >
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07l-1.6 1.6" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-2.92 2.92a5 5 0 0 0 7.07 7.07l1.6-1.6" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Ссылки</span>
+                  </button>
                 </div>
                 <div id="doc-aside-mini-doc" class="doc-aside-mini-doc hidden" aria-live="polite"></div>
               </div>
-              <div id="doc-aside-panel-props" class="doc-aside-panel doc-aside-panel--props" role="tabpanel" aria-labelledby="doc-aside-tab-props">
+              <div id="doc-aside-panel-props" class="doc-aside-panel doc-aside-panel--props hidden" role="tabpanel" aria-labelledby="doc-aside-tab-props">
                 <div class="doc-aside-panel-scroll">
                   <section class="doc-aside-fields-card" aria-label="Свойства документа">
                     <section id="title-editor-block" class="doc-aside-title-block doc-slab doc-slab-title hidden" aria-label="Название документа">
@@ -1374,6 +1430,7 @@
                     <header class="doc-aside-fields-card-head">
                       <h3 class="doc-aside-fields-card-title">Метаданные</h3>
                       <p class="doc-aside-fields-card-sub">Поля frontmatter документа</p>
+                      <p id="props-type-hint" class="doc-aside-fields-card-sub props-type-hint hidden"></p>
                     </header>
                     <div id="props-form-fields" class="props-form-fields"></div>
                   </section>
@@ -1384,7 +1441,7 @@
                   <button id="props-yaml-toggle" class="props-form-btn props-form-btn-ghost" type="button">Показать YAML</button>
                 </footer>
               </div>
-              <div id="doc-aside-panel-outline" class="doc-aside-panel doc-aside-panel--outline hidden" role="tabpanel" aria-labelledby="doc-aside-tab-outline">
+              <div id="doc-aside-panel-outline" class="doc-aside-panel doc-aside-panel--outline" role="tabpanel" aria-labelledby="doc-aside-tab-outline">
                 <div class="doc-aside-panel-scroll">
                   <div id="doc-outline-content" class="doc-outline-content"></div>
                 </div>
@@ -1392,6 +1449,11 @@
               <div id="doc-aside-panel-blocks" class="doc-aside-panel doc-aside-panel--blocks hidden" role="tabpanel" aria-labelledby="doc-aside-tab-blocks">
                 <div class="doc-aside-panel-scroll">
                   <div id="doc-blocks-content" class="doc-blocks-content"></div>
+                </div>
+              </div>
+              <div id="doc-aside-panel-links" class="doc-aside-panel doc-aside-panel--links hidden" role="tabpanel" aria-labelledby="doc-aside-tab-links">
+                <div class="doc-aside-panel-scroll">
+                  <div id="doc-links-content" class="doc-links-content"></div>
                 </div>
               </div>
             </aside>
@@ -1760,7 +1822,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.53"></script>
+    <script src="/main.js?v=0.5.74"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

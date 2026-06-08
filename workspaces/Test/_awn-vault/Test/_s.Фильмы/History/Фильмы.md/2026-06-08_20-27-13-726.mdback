@@ -1,11 +1,12 @@
 ---
-awn-type: awn.topic
-awn-name: Test2
+awn-type: ""
+awn-name: ""
 awn-create: ""
 awn-update: ""
 awn-description: ""
 awn-version: ""
-awn-sort: ""
+awn-sort: 0
+genre: ""
 priority: 0
 status: draft
 tags: []
@@ -13,4 +14,4 @@ title: ""
 title: ""
 ---
 
-ммвм
+Коллекция фильмов

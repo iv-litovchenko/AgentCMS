@@ -1,0 +1,6 @@
+id: boolean
+label: Да/нет
+kind: bool
+mdbase: boolean
+widget: checkbox
+description: Логическое значение

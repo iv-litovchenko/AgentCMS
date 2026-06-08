@@ -1,0 +1,18 @@
+awn_schema:
+  file:
+    fields:
+      genreауц:
+        type: boolean
+        title: Жанацур
+      field_1:
+        type: string
+      field_2:
+        type: url
+        title: ауцау
+      field_3:
+        type: string
+  record:
+    fields:
+      director:
+        type: string
+        title: Режиссёр

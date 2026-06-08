@@ -10,10 +10,13 @@ const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const home2PaneNode = document.getElementById("home-pane-2");
 const home2ContentNode = document.getElementById("home2-content");
+const agentAwnTypesPaneNode = document.getElementById("agent-awn-types-pane");
+const agentAwnTypesContentNode = document.getElementById("agent-awn-types-content");
 const agentGitPaneNode = document.getElementById("agent-git-pane");
 const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
+const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
@@ -95,6 +98,13 @@ const agentMap2LinksNode = document.getElementById("agent-map2-links");
 const agentMap2NodesNode = document.getElementById("agent-map2-nodes");
 const agentSchemaPaneNode = document.getElementById("agent-schema-pane");
 const agentSchemaContentNode = document.getElementById("agent-schema-content");
+const propsTypeHintNode = document.getElementById("props-type-hint");
+const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
+const topicSchemaTargetTabsNode = document.getElementById("topic-schema-target-tabs");
+const topicSchemaBaseFieldsNode = document.getElementById("topic-schema-base-fields");
+const topicSchemaFieldsNode = document.getElementById("topic-schema-fields");
+const topicSchemaEmptyNode = document.getElementById("topic-schema-empty");
+const topicSchemaAddBtn = document.getElementById("topic-schema-add-btn");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
 const agentVaultSearchNode = document.getElementById("agent-vault-search");
 const agentVaultGridNode = document.getElementById("agent-vault-grid");
@@ -210,10 +220,13 @@ const propsInputNode = document.getElementById("props-input");
 const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
 const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
 const docAsideTabBlocksBtn = document.getElementById("doc-aside-tab-blocks");
+const docAsideTabLinksBtn = document.getElementById("doc-aside-tab-links");
 const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
 const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
 const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks");
+const docAsidePanelLinksNode = document.getElementById("doc-aside-panel-links");
 const docBlocksContentNode = document.getElementById("doc-blocks-content");
+const docLinksContentNode = document.getElementById("doc-links-content");
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
@@ -1139,6 +1152,101 @@ function resolveNodeManifestPathFromMenu(nodePath) {
 
 function getResolvedNodePath(nodePath = activePath) {
   return resolveNodeManifestPathFromMenu(nodePath);
+}
+
+const MENU_LINK_DRAG_MIME = "application/x-awn-menu-link";
+
+function getWikilinkTargetFromNodePath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
+  if (!normalized) return "";
+  const parts = normalized.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  const fileName = parts[parts.length - 1];
+  if (isAreaManifestFileName(fileName)) {
+    const folderName = parts[parts.length - 2] || "";
+    const topicLabel = stripStoragePrefix(folderName) || stripTopicPrefix(folderName);
+    if (parts.length > 2) {
+      return [...parts.slice(0, -2), topicLabel].filter(Boolean).join("/");
+    }
+    return topicLabel;
+  }
+  const baseName = stripTopicPrefix(fileName);
+  if (parts.length > 1) {
+    return [...parts.slice(0, -1), baseName].join("/");
+  }
+  return baseName;
+}
+
+function buildObsidianWikilink(nodePath, displayLabel) {
+  const target = getWikilinkTargetFromNodePath(nodePath);
+  if (!target) return "";
+  const label = String(displayLabel || getLabelFromPath(nodePath) || "").trim();
+  const basename = target.includes("/") ? target.slice(target.lastIndexOf("/") + 1) : target;
+  if (label && label !== basename) {
+    return `[[${target}|${label}]]`;
+  }
+  return `[[${target}]]`;
+}
+
+function resolveWikilinkToNodePath(target, alias) {
+  const slug = String(target || "").replace(/\\/g, "/").trim();
+  if (!slug) return null;
+
+  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  if (!menu) return null;
+  const baseTree = { title: getAgentTreeTitle(), ...menu };
+  const paths = collectMenuNodePaths(baseTree);
+
+  const exact = paths.find((candidate) => getWikilinkTargetFromNodePath(candidate) === slug);
+  if (exact) return exact;
+
+  const lower = slug.toLowerCase();
+  const caseInsensitive = paths.find(
+    (candidate) => getWikilinkTargetFromNodePath(candidate).toLowerCase() === lower
+  );
+  if (caseInsensitive) return caseInsensitive;
+
+  const aliasNorm = String(alias || "").trim();
+  if (aliasNorm) {
+    const byLabel = paths.find((candidate) => getLabelFromPath(candidate) === aliasNorm);
+    if (byLabel) return byLabel;
+  }
+
+  const base = slug.includes("/") ? slug.slice(slug.lastIndexOf("/") + 1) : slug;
+  const byBase = paths.filter((candidate) => {
+    const linkTarget = getWikilinkTargetFromNodePath(candidate);
+    const linkBase = linkTarget.includes("/") ? linkTarget.slice(linkTarget.lastIndexOf("/") + 1) : linkTarget;
+    return linkBase.toLowerCase() === base.toLowerCase();
+  });
+  if (byBase.length === 1) return byBase[0];
+
+  return null;
+}
+
+function dataTransferHasMenuLink(dataTransfer) {
+  if (!dataTransfer?.types) return false;
+  const types = [...dataTransfer.types];
+  if (types.includes("Files")) return false;
+  return types.includes(MENU_LINK_DRAG_MIME) || types.includes("text/plain");
+}
+
+function extractMenuLinkFromDataTransfer(dataTransfer) {
+  if (!dataTransfer) return null;
+  const raw = dataTransfer.getData(MENU_LINK_DRAG_MIME);
+  if (raw) {
+    try {
+      const payload = JSON.parse(raw);
+      if (payload?.wikilink) return payload;
+    } catch {
+      // ignore malformed payload
+    }
+  }
+  const plain = String(dataTransfer.getData("text/plain") || "").trim();
+  const match = plain.match(/^\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]$/);
+  if (match) {
+    return { wikilink: plain, label: match[2]?.trim() || "" };
+  }
+  return null;
 }
 
 function resolveManifestPathForNodeApi(nodePath) {
@@ -2195,6 +2303,14 @@ async function switchActiveAgent(nextAgentId) {
     activeSystemFile = null;
     clearMediaSidecarEditor();
     resetGitWorkspaceViewToDefault();
+
+    const cachedMenu = menuCacheByAgent.get(activeAgentId);
+    const cachedPane = menuAgentPanes.get(activeAgentId);
+    const hasCachedView = Boolean(cachedMenu && cachedPane && cachedPane.childElementCount > 0);
+    if (hasCachedView) {
+      currentMenuData = cachedMenu;
+    }
+
     showHomeView();
     renderAgentSelect();
     applyMenuTreeSettingsUi();
@@ -2202,13 +2318,8 @@ async function switchActiveAgent(nextAgentId) {
     closeMenuSettingsPopover();
     setMenuLoading(true, `Загрузка: ${getActiveAgentLabel() || nextAgentId}`);
 
-    const cachedMenu = menuCacheByAgent.get(activeAgentId);
-    const cachedPane = menuAgentPanes.get(activeAgentId);
-    const hasCachedView = Boolean(cachedMenu && cachedPane && cachedPane.childElementCount > 0);
-
     if (hasCachedView) {
       activateMenuAgentPane(activeAgentId);
-      currentMenuData = cachedMenu;
       updateActiveButton();
       syncAgentPreview({
         hasPreview: cachedMenu.hasPreview,
@@ -2216,14 +2327,19 @@ async function switchActiveAgent(nextAgentId) {
       });
     }
 
-    await loadSystemFiles();
+    await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId)]);
 
     if (hasCachedView) {
       renderSystemFiles(systemFilesCache);
-      return;
+    } else {
+      await refreshMenu({ agentId: activeAgentId });
     }
 
-    await refreshMenu({ agentId: activeAgentId });
+    if (isAgentWorkspaceCanvasVisible()) {
+      applyAgentWorkspaceCanvasUi();
+    }
+    updateDocumentTitle();
+    updateBreadcrumbsForActiveMode();
   } finally {
     setMenuLoading(false);
   }
@@ -3238,7 +3354,8 @@ const NODE_SETTINGS_GROUP = {
   icon: "⚙️",
   modes: [
     { id: "description", label: "Назначение" },
-    { id: "configs", label: "Конфигурации" },
+    { id: "configs", label: "Конфигурация" },
+    { id: "topic-schema", label: "Схема полей" },
     { id: "env", label: ".env" },
     { id: "node-preview", label: "Превью" }
   ]
@@ -3319,6 +3436,7 @@ const NODE_VIEW_SURFACE = {
   internal: "document",
   tabular: "table",
   configs: "document",
+  "topic-schema": "document",
   env: "document",
   todo: "document",
   external: "browser",
@@ -3403,7 +3521,7 @@ let landingSearchRequestId = 0;
 const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
 const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v1";
 const NODE_OPEN_MEMORY_MODE = "internal";
-const NODE_SETTINGS_MODE_IDS = new Set(["description", "configs", "env", "node-preview"]);
+const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env", "node-preview"]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
@@ -3543,6 +3661,7 @@ let editorLineNumbersEnabled = readStorageItem(EDITOR_LINE_NUMBERS_STORAGE_KEY) 
 const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
 const STORAGE_SECTIONS_PANEL_VISIBLE_KEY = "agentcms.storageSectionsPanelVisible";
 const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
+const DOC_ASIDE_MINI_DOC_OPEN_KEY = "agentcms.docAside.miniDocOpen.v1";
 
 const DOC_CONTENT_BLOCK_GROUPS = [
   {
@@ -4778,7 +4897,14 @@ async function openNodeSettings(label, filePath) {
 
 function syncNodeSettingsModeSelect() {
   if (!nodeSettingsModeSelectNode) return;
+  const schemaOption = nodeSettingsModeSelectNode.querySelector('option[value="topic-schema"]');
+  const schemaAvailable = isTopicSchemaModeAvailable();
+  if (schemaOption) schemaOption.disabled = !schemaAvailable;
   if (isNodeSettingsSelectMode(activeContentMode)) {
+    if (activeContentMode === "topic-schema" && !schemaAvailable) {
+      setContentMode("description");
+      return;
+    }
     nodeSettingsModeSelectNode.value = activeContentMode;
   }
 }
@@ -5033,6 +5159,38 @@ function createBookmarkButton(nodePath) {
     toggleBookmark(canonicalPath);
   });
   return btn;
+}
+
+function createAwnTypesMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  for (const [x1, y1, x2, y2] of [
+    [4, 7, 20, 7],
+    [4, 12, 14, 12],
+    [4, 17, 18, 17]
+  ]) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(x1));
+    line.setAttribute("y1", String(y1));
+    line.setAttribute("x2", String(x2));
+    line.setAttribute("y2", String(y2));
+    line.setAttribute("stroke", "currentColor");
+    line.setAttribute("stroke-width", "2");
+    line.setAttribute("stroke-linecap", "round");
+    svg.appendChild(line);
+  }
+
+  const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  dot.setAttribute("cx", "18");
+  dot.setAttribute("cy", "17");
+  dot.setAttribute("r", "2.5");
+  dot.setAttribute("fill", "currentColor");
+  svg.appendChild(dot);
+
+  return svg;
 }
 
 function createGitMarkerSvg() {
@@ -6226,6 +6384,9 @@ function applyContentModeState(mode) {
   if (isMemoryDriverModeBlockedForActivePath(mode)) {
     mode = NODE_NAVIGATION_MODE;
   }
+  if (mode === "topic-schema" && !isTopicSchemaModeAvailable()) {
+    mode = "description";
+  }
 
   activeContentMode = mode;
   if (mode !== "media") {
@@ -6290,6 +6451,7 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === "node-preview" ||
+    activeContentMode === "topic-schema" ||
     (activeContentMode === "media" && !isMediaAssetEditing())
   );
 }
@@ -6580,6 +6742,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   map2: "Карта 2",
   map3: "Карта 3",
   schema: "Схема",
+  "awn-types": "Типы YAML",
   vault: "Каталог",
   graph: "Граф",
   table: "Таблица",
@@ -6599,7 +6762,8 @@ const CONTENT_MODE_TITLE_LABELS = {
   scripts: "Скрипты",
   artefacts: "Артефакты",
   temp: "Временные",
-  configs: "Конфигурации",
+  configs: "Конфигурация",
+  "topic-schema": "Схема полей",
   env: "Env",
   todo: "Todo",
   "node-preview": "Превью",
@@ -11472,8 +11636,11 @@ function isExternalFileEditing() {
 let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
+let awnTypesCache = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
+  "awn-type",
+  "awn-name",
   "awn-create",
   "awn-update",
   "awn-description",
@@ -11482,6 +11649,14 @@ const STANDARD_PROPS_FIELD_KEYS = [
 ];
 
 const PROPS_FIELD_META = {
+  "awn-type": {
+    label: "Тип",
+    hint: "Идентификатор типа записи (awn.agent, awn.area, awn.topic, …)"
+  },
+  "awn-name": {
+    label: "Имя",
+    hint: "Имя файла без расширения (дублирует имя на диске)"
+  },
   "awn-create": {
     label: "Создан",
     hint: "Дата и время создания документа"
@@ -11512,6 +11687,598 @@ const PROPS_FIELD_META = {
   }
 };
 
+async function loadAwnTypes(agentId = activeAgentId) {
+  if (!agentId) {
+    awnTypesCache = null;
+    return null;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    awnTypesCache = await response.json();
+    return awnTypesCache;
+  } catch {
+    awnTypesCache = null;
+    return null;
+  }
+}
+
+const TOPIC_SCHEMA_TARGETS = [
+  { id: "topic", label: "Тема" },
+  { id: "record", label: "Записи" },
+  { id: "sidecar", label: "Sidecar" }
+];
+
+const topicSchemaCacheByManifest = new Map();
+let topicSchemaActiveTarget = "topic";
+
+function emptyTopicSchemaState() {
+  return {
+    topic: { fields: {} },
+    record: { fields: {} },
+    sidecar: { fields: {} }
+  };
+}
+
+function normalizeTopicSchemaState(raw) {
+  const result = emptyTopicSchemaState();
+  if (!raw || typeof raw !== "object") return result;
+  const source = { ...raw };
+  if (source.file && !source.topic) {
+    source.topic = source.file;
+  }
+  for (const { id } of TOPIC_SCHEMA_TARGETS) {
+    const block = source[id];
+    if (block?.fields && typeof block.fields === "object") {
+      result[id].fields = { ...block.fields };
+    }
+  }
+  return result;
+}
+
+function resolveTopicManifestFromBundlePath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const match = normalized.match(new RegExp(`^(.*)/(${STORAGE_FOLDER_REGEX})(?:/|$)`));
+  if (!match) return null;
+  const prefix = match[1] || "";
+  const slotKey = stripStoragePrefix(match[2]);
+  if (!slotKey) return null;
+  const manifest = prefix ? `${prefix}/${slotKey}.md` : `${slotKey}.md`;
+  return isTopicManifestPath(manifest) ? manifest : null;
+}
+
+function getTopicSchemaManifestPath(nodePath = getResolvedNodePath(activePath)) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  if (isTopicManifestPath(normalized)) return normalized;
+  return resolveTopicManifestFromBundlePath(normalized);
+}
+
+function isTopicSchemaModeAvailable(nodePath = getResolvedNodePath(activePath)) {
+  return Boolean(getTopicSchemaManifestPath(nodePath));
+}
+
+function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
+  const typeName = resolveAwnTypeForContext(nodePath);
+  if (typeName === "awn.sidecar") return "sidecar";
+  if (typeName === "awn.record") return "record";
+  return "topic";
+}
+
+function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath()) {
+  if (!manifestPath) return null;
+  return topicSchemaCacheByManifest.get(manifestPath) || null;
+}
+
+function getTopicSchemaSavePayload() {
+  const cache = getTopicSchemaCache();
+  return cache ? normalizeTopicSchemaState(cache.awnSchema) : null;
+}
+
+async function loadTopicSchemaForManifest(nodePath, options = {}) {
+  const manifestPath = getTopicSchemaManifestPath(nodePath);
+  if (!manifestPath) return null;
+
+  if (!options.force) {
+    const cached = topicSchemaCacheByManifest.get(manifestPath);
+    if (cached) return cached;
+  }
+
+  const response = await fetch(buildApiUrl("/api/file/topic-schema", { path: manifestPath }));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  const payload = {
+    manifestPath,
+    configPath: data.configPath || "",
+    configExists: Boolean(data.configExists),
+    awnSchema: normalizeTopicSchemaState(data.awnSchema),
+    baseTypes: data.baseTypes || {},
+    merged: data.merged || {},
+    fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {}
+  };
+  topicSchemaCacheByManifest.set(manifestPath, payload);
+  return payload;
+}
+
+function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
+  const registry = cache?.fieldRegistry || awnTypesCache?.fieldRegistry || {};
+  return Object.entries(registry)
+    .map(([id, def]) => ({ id, label: def?.label || id }))
+    .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+}
+
+function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache = getTopicSchemaCache()) {
+  if (!cache) return [];
+  return Object.keys(cache.awnSchema?.[target]?.fields || {});
+}
+
+function addTopicSchemaField(target = topicSchemaActiveTarget) {
+  const cache = getTopicSchemaCache();
+  if (!cache) return;
+  const fields = cache.awnSchema[target].fields;
+  let index = 1;
+  let key = `field_${index}`;
+  while (fields[key]) {
+    index += 1;
+    key = `field_${index}`;
+  }
+  fields[key] = { type: "string", title: "" };
+  renderTopicSchemaEditor();
+  syncSaveButtonLamp();
+  const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
+  keyInput?.focus();
+  keyInput?.select();
+}
+
+function removeTopicSchemaField(target, key) {
+  const cache = getTopicSchemaCache();
+  if (!cache?.awnSchema?.[target]?.fields) return;
+  delete cache.awnSchema[target].fields[key];
+  renderTopicSchemaEditor();
+  syncSaveButtonLamp();
+}
+
+function renameTopicSchemaField(target, oldKey, newKey) {
+  const cache = getTopicSchemaCache();
+  if (!cache?.awnSchema?.[target]?.fields || oldKey === newKey) return;
+  const fields = cache.awnSchema[target].fields;
+  const trimmed = String(newKey || "").trim();
+  if (!trimmed || (trimmed !== oldKey && fields[trimmed])) return;
+  if (!trimmed) return;
+  fields[trimmed] = fields[oldKey];
+  delete fields[oldKey];
+}
+
+function renderTopicSchemaTargetTabs() {
+  if (!topicSchemaTargetTabsNode) return;
+  topicSchemaTargetTabsNode.replaceChildren(
+    ...TOPIC_SCHEMA_TARGETS.map(({ id, label }) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "topic-schema-target-tab";
+      btn.dataset.target = id;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
+      btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
+      btn.textContent = label;
+      return btn;
+    })
+  );
+}
+
+function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
+  if (!topicSchemaBaseFieldsNode) return;
+  const base = cache?.baseTypes?.[topicSchemaActiveTarget];
+  if (!base?.fields) {
+    topicSchemaBaseFieldsNode.textContent = "—";
+    return;
+  }
+  const parts = Object.entries(base.fields).map(([key, def]) => {
+    const title = def?.title ? ` (${def.title})` : "";
+    const typeLabel = getAwnFieldTypeLabel(def?.type);
+    return `${key}${title} · ${typeLabel}`;
+  });
+  topicSchemaBaseFieldsNode.textContent = parts.join(" · ") || "—";
+}
+
+function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
+  if (!topicSchemaFieldsNode || !topicSchemaEmptyNode) return;
+  const fields = cache?.awnSchema?.[topicSchemaActiveTarget]?.fields || {};
+  const keys = Object.keys(fields);
+  const registryEntries = getTopicSchemaRegistryEntries(cache);
+
+  topicSchemaFieldsNode.replaceChildren();
+  if (!keys.length) {
+    topicSchemaEmptyNode.classList.remove("hidden");
+    return;
+  }
+  topicSchemaEmptyNode.classList.add("hidden");
+
+  for (const key of keys) {
+    const fieldDef = fields[key] || {};
+    const row = document.createElement("div");
+    row.className = "topic-schema-field-row";
+    row.dataset.schemaRowKey = key;
+
+    const keyLabel = document.createElement("label");
+    keyLabel.textContent = "Ключ";
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.value = key;
+    keyInput.dataset.schemaKey = key;
+    keyInput.dataset.schemaField = "key";
+    keyInput.spellcheck = false;
+    keyLabel.append(keyInput);
+
+    const typeLabel = document.createElement("label");
+    typeLabel.textContent = "Тип";
+    const typeSelect = document.createElement("select");
+    typeSelect.dataset.schemaKey = key;
+    typeSelect.dataset.schemaField = "type";
+    for (const entry of registryEntries) {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = entry.label;
+      typeSelect.append(option);
+    }
+    typeSelect.value = fieldDef.type || "string";
+    typeLabel.append(typeSelect);
+
+    const titleLabel = document.createElement("label");
+    titleLabel.textContent = "Название";
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.value = fieldDef.title || "";
+    titleInput.dataset.schemaKey = key;
+    titleInput.dataset.schemaField = "title";
+    titleLabel.append(titleInput);
+
+    const enumLabel = document.createElement("label");
+    enumLabel.textContent = "Enum";
+    const enumInput = document.createElement("input");
+    enumInput.type = "text";
+    enumInput.placeholder = "драма, комедия";
+    enumInput.value = Array.isArray(fieldDef.enum) ? fieldDef.enum.join(", ") : "";
+    enumInput.dataset.schemaKey = key;
+    enumInput.dataset.schemaField = "enum";
+    enumInput.classList.toggle("hidden", (fieldDef.type || "string") !== "enum");
+    enumLabel.classList.toggle("hidden", (fieldDef.type || "string") !== "enum");
+    enumLabel.append(enumInput);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "topic-schema-field-remove";
+    removeBtn.dataset.schemaKey = key;
+    removeBtn.dataset.schemaAction = "remove";
+    removeBtn.title = "Удалить поле";
+    removeBtn.textContent = "×";
+
+    row.append(keyLabel, typeLabel, titleLabel, enumLabel, removeBtn);
+    topicSchemaFieldsNode.append(row);
+  }
+}
+
+function renderTopicSchemaEditor() {
+  const cache = getTopicSchemaCache();
+  if (!cache) {
+    if (topicSchemaBaseFieldsNode) topicSchemaBaseFieldsNode.textContent = "—";
+    if (topicSchemaFieldsNode) topicSchemaFieldsNode.replaceChildren();
+    topicSchemaEmptyNode?.classList.remove("hidden");
+    return;
+  }
+  renderTopicSchemaTargetTabs();
+  renderTopicSchemaBaseFields(cache);
+  renderTopicSchemaCustomFields(cache);
+}
+
+function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
+  if (!row || !cache) return;
+  const target = topicSchemaActiveTarget;
+  const oldKey = row.dataset.schemaRowKey;
+  if (!oldKey) return;
+
+  const keyInput = row.querySelector('[data-schema-field="key"]');
+  const typeSelect = row.querySelector('[data-schema-field="type"]');
+  const titleInput = row.querySelector('[data-schema-field="title"]');
+  const enumInput = row.querySelector('[data-schema-field="enum"]');
+  const fields = cache.awnSchema[target].fields;
+
+  const nextKey = String(keyInput?.value || "").trim() || oldKey;
+  if (nextKey !== oldKey) {
+    renameTopicSchemaField(target, oldKey, nextKey);
+    row.dataset.schemaRowKey = nextKey;
+  }
+
+  const activeKey = row.dataset.schemaRowKey;
+  const fieldDef = fields[activeKey] || {};
+  fieldDef.type = typeSelect?.value || "string";
+  fieldDef.title = String(titleInput?.value || "").trim();
+
+  if (fieldDef.type === "enum") {
+    const enumRaw = String(enumInput?.value || "");
+    fieldDef.enum = enumRaw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } else {
+    delete fieldDef.enum;
+  }
+
+  fields[activeKey] = fieldDef;
+}
+
+function handleTopicSchemaFieldsInput(event) {
+  if (activeContentMode !== "topic-schema") return;
+  const row = event.target.closest(".topic-schema-field-row");
+  if (!row) return;
+  readTopicSchemaFieldFromRow(row);
+  if (event.target.dataset.schemaField === "type") {
+    renderTopicSchemaCustomFields();
+  }
+  syncSaveButtonLamp();
+}
+
+function handleTopicSchemaFieldsClick(event) {
+  if (activeContentMode !== "topic-schema") return;
+  const btn = event.target.closest("[data-schema-action='remove']");
+  if (!btn) return;
+  const key = btn.dataset.schemaKey;
+  if (!key) return;
+  removeTopicSchemaField(topicSchemaActiveTarget, key);
+}
+
+async function saveTopicSchemaContent() {
+  const manifestPath = getTopicSchemaManifestPath();
+  if (!manifestPath) throw new Error("Схема полей доступна только для тем");
+  const cache = getTopicSchemaCache(manifestPath);
+  if (!cache) throw new Error("Схема не загружена");
+
+  const response = await fetch(buildApiUrl("/api/file/topic-schema"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: manifestPath,
+      awnSchema: normalizeTopicSchemaState(cache.awnSchema)
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+
+  const data = await response.json();
+  cache.awnSchema = normalizeTopicSchemaState(data.awnSchema);
+  cache.baseTypes = data.baseTypes || cache.baseTypes;
+  cache.merged = data.merged || cache.merged;
+  cache.configExists = Boolean(data.exists);
+  cache.configPath = data.configPath || cache.configPath;
+  if (typeof data.content === "string") {
+    setCachedNodeConfig(manifestPath, {
+      path: data.configPath || cache.configPath,
+      content: data.content,
+      exists: Boolean(data.exists),
+      defaultLandingMode: parseNodeConfigContent(data.content).defaultLandingMode
+    });
+  }
+  renderTopicSchemaEditor();
+  return data;
+}
+
+function isAwnFieldKey(key) {
+  return /^awn-/i.test(String(key || "").trim());
+}
+
+function sortPropsFieldKeys(keys) {
+  const list = [...keys];
+  return list.sort((a, b) => {
+    const aNorm = String(a || "").toLowerCase();
+    const bNorm = String(b || "").toLowerCase();
+    const aBase = STANDARD_PROPS_FIELD_KEYS.indexOf(aNorm);
+    const bBase = STANDARD_PROPS_FIELD_KEYS.indexOf(bNorm);
+    const aAwn = isAwnFieldKey(aNorm);
+    const bAwn = isAwnFieldKey(bNorm);
+    if (aBase !== -1 && bBase !== -1) return aBase - bBase;
+    if (aBase !== -1) return -1;
+    if (bBase !== -1) return 1;
+    if (aAwn && !bAwn) return -1;
+    if (!aAwn && bAwn) return 1;
+    if (aAwn && bAwn) return aNorm.localeCompare(bNorm);
+    return aNorm.localeCompare(bNorm);
+  });
+}
+
+function sortPropsEntries(entries) {
+  const keys = entries.map((entry) => entry?.key).filter(Boolean);
+  const order = sortPropsFieldKeys(keys);
+  const map = new Map(entries.map((entry) => [entry.key, entry]));
+  const result = [];
+  for (const key of order) {
+    if (map.has(key)) result.push(map.get(key));
+  }
+  for (const entry of entries) {
+    if (entry?.key && !order.includes(entry.key)) result.push(entry);
+  }
+  return result;
+}
+
+function resolveAwnTypeForContext(nodePath = getResolvedNodePath(activePath)) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const fileName = normalized.split("/").filter(Boolean).pop() || "";
+  const lower = fileName.toLowerCase();
+
+  if (activeContentMode === "media" && (activeMediaSidecarPath || lower.endsWith(".sidecar.md"))) {
+    return "awn.sidecar";
+  }
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    return "awn.record";
+  }
+  if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
+  if (/\/Content\//i.test(normalized)) return "awn.record";
+  if (isNodeManifestPath(normalized)) {
+    if (isAgentRootIndexPath(normalized)) return "awn.agent";
+    return "awn.area";
+  }
+  if (isTopicManifestPath(normalized)) return "awn.topic";
+  return "awn.record";
+}
+
+function getActiveAwnTypeDef(typeName = null) {
+  const resolvedType = typeName || resolveAwnTypeForContext();
+  const baseTypeDef = awnTypesCache?.types?.[resolvedType];
+  if (!baseTypeDef) return null;
+
+  const cache = getTopicSchemaCache();
+  if (!cache?.merged) {
+    return { name: resolvedType, ...baseTypeDef };
+  }
+
+  const target = resolveAwnSchemaTargetForContext();
+  const merged = cache.merged[target];
+  if (merged?.fields) {
+    return {
+      name: merged.name || resolvedType,
+      kind: merged.kind || baseTypeDef.kind,
+      fields: merged.fields
+    };
+  }
+  return { name: resolvedType, ...baseTypeDef };
+}
+
+const AWN_TYPE_USAGE_HINTS = {
+  "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
+  "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
+  "awn.agent": "Корневой манифест workspace — _REGINFO.md в корне агента",
+  "awn.area": "Область (категория) — папка с _REGINFO.md",
+  "awn.topic": "Тема — standalone *.md манифест",
+  "awn.record": "Запись в _s.*/Content/ (расширяется в Config.yml темы)",
+  "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
+};
+
+const AWN_TYPE_KIND_LABELS = {
+  base: "база",
+  mixin: "миксин",
+  type: "тип"
+};
+
+function getAwnTypeKindSortOrder(kind) {
+  if (kind === "base") return 0;
+  if (kind === "mixin") return 1;
+  return 2;
+}
+
+function getAwnTypeUsageHint(typeName) {
+  return AWN_TYPE_USAGE_HINTS[typeName] || "";
+}
+
+function getAwnFieldTypeLabel(typeId) {
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry = registry[typeId];
+  return entry?.label || typeId || "—";
+}
+
+function syncPropsTypeHintUi() {
+  if (!propsTypeHintNode) return;
+  const typeDef = getActiveAwnTypeDef();
+  if (!typeDef?.name || !awnTypesCache?.types) {
+    propsTypeHintNode.textContent = "";
+    propsTypeHintNode.classList.add("hidden");
+    return;
+  }
+  const kindLabel = AWN_TYPE_KIND_LABELS[typeDef.kind] || typeDef.kind || "тип";
+  const usage = getAwnTypeUsageHint(typeDef.name);
+  const usageShort = usage ? usage.replace(/\s+/g, " ").trim() : "";
+  propsTypeHintNode.textContent = usageShort
+    ? `${typeDef.name} (${kindLabel}) · ${usageShort}`
+    : `${typeDef.name} (${kindLabel})`;
+  propsTypeHintNode.classList.remove("hidden");
+}
+
+function getTypeSchemaFieldKeys(typeDef) {
+  if (!typeDef?.fields) return [];
+  return Object.keys(typeDef.fields);
+}
+
+function getPropsFieldMetaFromSchema(key) {
+  const typeDef = getActiveAwnTypeDef();
+  const fieldDef = typeDef?.fields?.[key];
+  if (!fieldDef) return null;
+  return {
+    label: fieldDef.title || key,
+    hint: fieldDef.description || ""
+  };
+}
+
+function fieldDefToEntryKind(fieldDef) {
+  const typeId = fieldDef?.type || "string";
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const registryEntry = registry[typeId];
+  if (registryEntry?.kind) return registryEntry.kind;
+  if (typeId === "integer" || typeId === "number") return "number";
+  if (typeId === "boolean") return "bool";
+  if (typeId === "array") return "array";
+  if (typeId === "null") return "null";
+  return "string";
+}
+
+function fieldDefDefaultValue(fieldDef) {
+  if (fieldDef?.default !== undefined) return fieldDef.default;
+  const kind = fieldDefToEntryKind(fieldDef);
+  if (kind === "array") return [];
+  if (kind === "bool") return false;
+  if (kind === "null") return null;
+  return "";
+}
+
+function applyTypeSchemaToEntries(entries, typeName = null) {
+  const typeDef = getActiveAwnTypeDef(typeName);
+  if (!typeDef?.fields) return sortPropsEntries(entries);
+
+  const map = new Map();
+  for (const entry of normalizePropsEntries(entries)) {
+    if (entry?.key) map.set(entry.key, entry);
+  }
+
+  const orderedKeys = [
+    ...STANDARD_PROPS_FIELD_KEYS,
+    ...getTypeSchemaFieldKeys(typeDef).filter((key) => !STANDARD_PROPS_FIELD_KEYS.includes(key))
+  ];
+
+  const result = [];
+  const seen = new Set();
+  for (const key of orderedKeys) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const existing = map.get(key);
+    if (existing) {
+      result.push(existing);
+      continue;
+    }
+
+    const fieldDef = typeDef.fields[key];
+    if (!fieldDef && STANDARD_PROPS_FIELD_KEYS.includes(key)) {
+      result.push({ key, kind: "string", value: "" });
+      continue;
+    }
+    if (!fieldDef) continue;
+
+    result.push({
+      key,
+      kind: fieldDefToEntryKind(fieldDef),
+      value: fieldDefDefaultValue(fieldDef),
+      fieldDef
+    });
+  }
+
+  for (const entry of entries) {
+    if (!entry?.key || seen.has(entry.key) || HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
+    result.push(entry);
+  }
+
+  return sortPropsEntries(result);
+}
+
 const PROPS_KEY_CANONICAL_ALIASES = {
   "awn-title": "title",
   "awn-desc": "awn-description",
@@ -11539,6 +12306,8 @@ function getPropsFieldMeta(key) {
   if (!normalized) {
     return { label: "Свойство", hint: "" };
   }
+  const schemaMeta = getPropsFieldMetaFromSchema(normalized);
+  if (schemaMeta) return schemaMeta;
   if (PROPS_FIELD_META[normalized]) {
     return PROPS_FIELD_META[normalized];
   }
@@ -11562,6 +12331,36 @@ function normalizePropsEntries(entries) {
 
 const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
 
+function ensureAwnContextDefaults(entries) {
+  const map = new Map();
+  for (const entry of entries) {
+    if (entry?.key) map.set(entry.key, entry);
+  }
+
+  const inferredType = resolveAwnTypeForContext();
+  const typeEntry = map.get("awn-type");
+  if (!typeEntry?.value && inferredType) {
+    map.set("awn-type", { key: "awn-type", kind: "string", value: inferredType });
+  }
+
+  const nodePath = getResolvedNodePath(activePath) || activeExternalFilePath || activeMediaSidecarPath;
+  if (nodePath) {
+    const fileName = String(nodePath).split("/").filter(Boolean).pop() || "";
+    let baseName = fileName;
+    if (baseName.toLowerCase().endsWith(".sidecar.md")) {
+      baseName = baseName.slice(0, -".sidecar.md".length);
+    } else if (baseName.toLowerCase().endsWith(".md")) {
+      baseName = baseName.slice(0, -3);
+    }
+    const nameEntry = map.get("awn-name");
+    if (baseName && !nameEntry?.value) {
+      map.set("awn-name", { key: "awn-name", kind: "string", value: baseName });
+    }
+  }
+
+  return [...map.values()];
+}
+
 function absorbPropsYamlEntries(entries) {
   const normalized = normalizePropsEntries(entries);
   const hidden = [];
@@ -11571,7 +12370,7 @@ function absorbPropsYamlEntries(entries) {
     else visible.push(entry);
   }
   propsFormHiddenEntries = hidden;
-  propsFormEntries = ensureStandardPropsEntries(visible);
+  propsFormEntries = ensureStandardPropsEntries(ensureAwnContextDefaults(visible));
 }
 
 function mergePropsFormEntries() {
@@ -11579,6 +12378,10 @@ function mergePropsFormEntries() {
 }
 
 function ensureStandardPropsEntries(entries) {
+  if (awnTypesCache?.types) {
+    return applyTypeSchemaToEntries(entries);
+  }
+
   const map = new Map();
   for (const entry of normalizePropsEntries(entries)) {
     if (entry?.key) map.set(entry.key, entry);
@@ -11592,7 +12395,7 @@ function ensureStandardPropsEntries(entries) {
     if (HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
     result.push(entry);
   }
-  return result;
+  return sortPropsEntries(result);
 }
 
 function formatYamlScalar(value) {
@@ -11685,7 +12488,7 @@ function parsePropsYaml(text) {
 
 function stringifyPropsYaml(entries) {
   const lines = [];
-  for (const entry of entries) {
+  for (const entry of sortPropsEntries(entries)) {
     if (!entry.key) continue;
     if (entry.kind === "array") {
       const items = Array.isArray(entry.value) ? entry.value : [];
@@ -11758,34 +12561,90 @@ function syncYamlFromPropsForm() {
   propsInputNode.value = stringifyPropsYaml(mergePropsFormEntries());
 }
 
+function canEditPropsForm() {
+  if (activeSystemFile) return true;
+  if (!isEditorSaveTrackingActive()) return false;
+  return (
+    activeContentMode === "description" ||
+    (activeContentMode === "external" && Boolean(activeExternalFilePath)) ||
+    isMediaSidecarEditing()
+  );
+}
+
 function isPropsFormReadOnly() {
-  return editorViewMode === "preview";
+  return !canEditPropsForm();
 }
 
 function getDocAsideTab() {
   const saved = readStorageItem(DOC_ASIDE_TAB_STORAGE_KEY);
-  if (saved === "outline" || saved === "blocks" || saved === "props") return saved;
-  return "props";
+  if (saved === "outline" || saved === "blocks" || saved === "links" || saved === "props") return saved;
+  return "outline";
 }
 
-function resolveDocAsideTab(tab, { propsAvailable = true, blocksAvailable = true } = {}) {
-  const order = ["props", "outline", "blocks"];
-  const preferred = order.includes(tab) ? tab : "props";
+function isDocAsideOutlineTabAvailable() {
+  if (!activePath || activeSystemFile) return false;
+  if (!isEditorSaveTrackingActive()) return false;
+  if (isCurrentModeWithoutContentEditor()) return false;
+  if (isCurrentModeListTemplate()) return false;
+  return true;
+}
+
+function isDocAsidePropsTabAvailable() {
+  return (
+    activeContentMode === "description" ||
+    (activeContentMode === "external" && Boolean(activeExternalFilePath)) ||
+    isMediaAssetEditing()
+  );
+}
+
+function isDocAsideEditorToolsTabAvailable() {
+  return canInsertDocContentBlocks();
+}
+
+function getDocAsideTabAvailability() {
+  return {
+    outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
+    propsPanelAvailable: isDocAsidePropsTabAvailable(),
+    editorToolsPanelAvailable: isDocAsideEditorToolsTabAvailable()
+  };
+}
+
+function resolveDocAsideTab(
+  tab,
+  { outlineAvailable = true, propsAvailable = true, editorToolsAvailable = true } = {}
+) {
+  const order = ["outline", "props", "blocks", "links"];
+  const preferred = order.includes(tab) ? tab : "outline";
   const availability = {
+    outline: outlineAvailable,
     props: propsAvailable,
-    outline: true,
-    blocks: blocksAvailable
+    blocks: editorToolsAvailable,
+    links: editorToolsAvailable
   };
   if (availability[preferred]) return preferred;
   return order.find((id) => availability[id]) || "outline";
 }
 
+function syncDocAsideTabButton(btn, available, disabledHint = "") {
+  if (!btn) return;
+  if (!btn.dataset.defaultTitle) {
+    btn.dataset.defaultTitle = btn.title || btn.textContent?.trim() || "";
+  }
+  btn.disabled = !available;
+  btn.classList.toggle("is-disabled", !available);
+  btn.setAttribute("aria-disabled", available ? "false" : "true");
+  btn.title = available ? btn.dataset.defaultTitle : disabledHint || btn.dataset.defaultTitle;
+}
+
 function setDocAsideTab(tab) {
-  const propsAvailable = !docAsideTabPropsBtn?.classList.contains("hidden");
-  const blocksAvailable = !docAsideTabBlocksBtn?.classList.contains("hidden");
-  const next = resolveDocAsideTab(tab, { propsAvailable, blocksAvailable });
+  const availability = getDocAsideTabAvailability();
+  const next = resolveDocAsideTab(tab, {
+    outlineAvailable: availability.outlinePanelAvailable,
+    propsAvailable: availability.propsPanelAvailable,
+    editorToolsAvailable: availability.editorToolsPanelAvailable
+  });
   localStorage.setItem(DOC_ASIDE_TAB_STORAGE_KEY, next);
-  syncDocAsideUi({ propsPanelAvailable: propsAvailable, blocksPanelAvailable: blocksAvailable });
+  syncDocAsideUi(availability);
 }
 
 function slugifyHeadingText(text) {
@@ -11984,6 +12843,192 @@ function renderDocContentBlocks() {
   }
 }
 
+function getLinkLibraryScopeFolder(nodePath) {
+  const resolved = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  const topicManifest = getTopicSchemaManifestPath(resolved);
+  const anchor = topicManifest || resolved;
+  if (!anchor) return ".";
+  return normalizeFolderPath(getFolderPathFromManifest(anchor) || ".");
+}
+
+function getLinkLibraryScopeLabel(nodePath) {
+  const topicManifest = getTopicSchemaManifestPath(nodePath);
+  if (topicManifest) {
+    return getLabelFromPath(topicManifest) || stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(topicManifest));
+  }
+  const folder = getLinkLibraryScopeFolder(nodePath);
+  if (!folder || folder === ".") return getAgentTreeTitle();
+  return stripAgentContentPrefixFromRelPath(folder);
+}
+
+function isDocLinkLibraryEntry(entry) {
+  if (!entry?.path || entry.isSystemFile) return false;
+  const path = normalizeMenuNodePath(entry.path);
+  return Boolean(path && isNodeMdPath(path));
+}
+
+function collectDocLinkLibraryGroups() {
+  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  if (!menu || !activePath) {
+    return { currentTopic: [], otherTopics: [], scopeLabel: "" };
+  }
+
+  const baseTree = { title: getAgentTreeTitle(), ...menu };
+  const allEntries = collectFlatMenuEntries(baseTree);
+  const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  const activeScope = getLinkLibraryScopeFolder(activePath);
+  const currentTopic = [];
+  const otherTopics = [];
+
+  for (const entry of allEntries) {
+    if (!isDocLinkLibraryEntry(entry)) continue;
+    const path = normalizeMenuNodePath(entry.path);
+    if (!path || path === activeResolved) continue;
+
+    const item = {
+      path,
+      label: entry.label || getLabelFromPath(path),
+      displayPath: entry.displayPath || getNodeDisplayPath(path),
+      wikilink: buildObsidianWikilink(path, entry.label),
+      color: entry.color || null
+    };
+
+    if (getLinkLibraryScopeFolder(path) === activeScope) {
+      currentTopic.push(item);
+    } else {
+      otherTopics.push(item);
+    }
+  }
+
+  const sorter = (a, b) => String(a.label || "").localeCompare(String(b.label || ""), "ru");
+  currentTopic.sort(sorter);
+  otherTopics.sort(sorter);
+
+  return {
+    currentTopic,
+    otherTopics,
+    scopeLabel: getLinkLibraryScopeLabel(activePath)
+  };
+}
+
+function bindDocLinkLibraryItem(btn, item) {
+  btn.draggable = true;
+  btn.addEventListener("dragstart", (event) => {
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData(
+      MENU_LINK_DRAG_MIME,
+      JSON.stringify({ path: item.path, label: item.label, wikilink: item.wikilink })
+    );
+    event.dataTransfer.setData("text/plain", item.wikilink);
+    btn.classList.add("is-dragging-menu-link");
+  });
+  btn.addEventListener("dragend", () => {
+    btn.classList.remove("is-dragging-menu-link");
+  });
+}
+
+function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
+  const section = document.createElement("section");
+  section.className = "doc-links-group";
+  section.setAttribute("aria-label", title);
+
+  const heading = document.createElement("h3");
+  heading.className = "doc-links-group-title";
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  if (hint) {
+    const hintNode = document.createElement("p");
+    hintNode.className = "doc-links-group-hint";
+    hintNode.textContent = hint;
+    section.appendChild(hintNode);
+  }
+
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "doc-links-empty";
+    empty.textContent = emptyText;
+    section.appendChild(empty);
+    parent.appendChild(section);
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "doc-links-list";
+
+  for (const item of items) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "doc-link-btn";
+    btn.title = `${item.wikilink} — клик или перетащите в редактор`;
+    applyNodeColorVars(btn, item.color);
+
+    const label = document.createElement("span");
+    label.className = "doc-link-btn-label";
+    label.textContent = item.label;
+
+    const path = document.createElement("span");
+    path.className = "doc-link-btn-path";
+    path.textContent = item.displayPath || item.path;
+
+    const snippet = document.createElement("span");
+    snippet.className = "doc-link-btn-snippet";
+    snippet.textContent = item.wikilink;
+
+    btn.append(label, path, snippet);
+    btn.addEventListener("click", () => {
+      if (insertMarkdownAtEditorCursor(item.wikilink)) {
+        showToast(`Вставлена ссылка: ${item.label}`, "success");
+      }
+    });
+    bindDocLinkLibraryItem(btn, item);
+
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+
+  section.appendChild(list);
+  parent.appendChild(section);
+}
+
+function renderDocLinksLibrary() {
+  if (!docLinksContentNode) return;
+  docLinksContentNode.replaceChildren();
+
+  if (!canInsertDocContentBlocks()) {
+    const empty = document.createElement("p");
+    empty.className = "doc-links-empty";
+    empty.textContent = "Ссылки доступны в режиме редактирования Markdown.";
+    docLinksContentNode.appendChild(empty);
+    return;
+  }
+
+  const { currentTopic, otherTopics, scopeLabel } = collectDocLinkLibraryGroups();
+
+  appendDocLinkLibraryGroup(docLinksContentNode, {
+    title: "Текущая тема",
+    hint: scopeLabel ? `Область: ${scopeLabel}` : "",
+    items: currentTopic,
+    emptyText: "В текущей теме нет других записей для ссылки."
+  });
+
+  appendDocLinkLibraryGroup(docLinksContentNode, {
+    title: "Все другие темы",
+    hint: "Записи из остальных тем агента",
+    items: otherTopics,
+    emptyText: "Других тем для ссылки пока нет."
+  });
+}
+
+function formatMiniDocPathHint(relativePath) {
+  const rel = String(relativePath || "").replace(/^\/+/, "");
+  const slotDir = activePath ? getNamedStorageSlotDirRel(getResolvedNodePath(activePath)) : "";
+  const fullPath = slotDir ? `${slotDir}/${rel}` : `_s.{тема}/${rel}`;
+  return `<code>${fullPath}</code>`;
+}
+
 function getDocAsideMiniDocSpec() {
   if (activeContentMode === "tabular" && isTabularSourceEditing()) {
     return {
@@ -11994,7 +13039,7 @@ function getDocAsideMiniDocSpec() {
         "Первая строка — заголовки колонок",
         "Текст с запятой — в кавычках <code>\"…\"</code>",
         "Кавычка внутри поля — <code>\"\"</code>",
-        "Файл: <code>Content.csv</code>"
+        `Файл: ${formatMiniDocPathHint("Content.csv")}`
       ],
       example: "name,role,status\nИван,admin,active\nМария,\"user, guest\",pending"
     };
@@ -12007,16 +13052,16 @@ function getDocAsideMiniDocSpec() {
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
-          "Картинки: <code>![alt](Assets/Pasted/…)</code>",
+          "Картинки в тексте: <code>![alt](Assets/Pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
-          "Вставка из буфера → <code>Assets/Pasted/YYYYMMDDHHmmss.ext</code>"
+          `Вставка из буфера → ${formatMiniDocPathHint("Assets/Pasted/YYYYMMDDHHmmss.ext")}`
         ]
       };
     case "internal":
       return {
         title: "Однофайловая память",
         items: [
-          "Файл: <code>Content.md</code> в слоте темы",
+          `Файл: ${formatMiniDocPathHint(BUNDLE_CONTENT_FILE)}`,
           "Markdown, как в «Назначении»",
           "TODO-чеклисты: <code>- [ ]</code> / <code>- [x]</code>"
         ]
@@ -12025,7 +13070,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Многофайловая память",
         items: [
-          "Папка: <code>_Content/</code>",
+          `Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_CONTENT}/`)}`,
           "Каждая заметка — отдельный <code>.md</code>",
           "Вложенные разделы — подпапки"
         ]
@@ -12034,7 +13079,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Табличная память",
         items: [
-          "Данные в <code>Content.csv</code>",
+          `Данные в ${formatMiniDocPathHint("Content.csv")}`,
           "Кнопка «Исходник CSV» — правка текста",
           "Колонки через <code>,</code>, строки через Enter"
         ],
@@ -12044,40 +13089,91 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Медиа и документы",
         items: [
-          "Папка: <code>Assets/</code> в слоте темы",
-          "Вставка в текст → <code>Assets/Pasted/</code>",
+          `Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/`)}`,
+          `Вставка в текст → ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`,
           "Имя файла — метка времени"
         ]
       };
     case "todo":
       return {
         title: "TODO",
-        items: ["Файл: <code>Todo.md</code>", "Чеклисты markdown: <code>- [ ]</code>"]
+        items: [
+          `Файл: ${formatMiniDocPathHint(BUNDLE_TODO_FILE)}`,
+          "Чеклисты markdown: <code>- [ ]</code>"
+        ]
       };
     case "configs":
       return {
         title: "Конфигурация",
-        items: ["Файл: <code>Configuration.md</code>"]
+        items: [`Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)}`]
+      };
+    case "topic-schema":
+      return {
+        title: "Схема полей",
+        items: [
+          `Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)} → <code>awn_schema</code>`,
+          `Вкладки: тема, записи ${STORAGE_SUBFOLDER_CONTENT}/, sidecar`,
+          "Базовые <code>awn-*</code> поля наследуются и не редактируются"
+        ]
       };
     case "env":
       return {
         title: "Окружение",
-        items: ["Файл: <code>.env</code> в слоте темы", "Формат: <code>KEY=value</code>"]
+        items: [`Файл: ${formatMiniDocPathHint(".env")}`, "Формат: <code>KEY=value</code>"]
       };
     case "scripts":
       return {
         title: "Скрипты",
-        items: ["Папка: <code>Scripts/</code>"]
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_SCRIPTS}/`)}`]
+      };
+    case "inbox":
+      return {
+        title: "Входящие",
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_INBOX}/`)}`]
+      };
+    case "references":
+      return {
+        title: "Источники",
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_REFERENCES}/`)}`]
+      };
+    case "artefacts":
+      return {
+        title: "Артефакты",
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ARTEFACTS}/`)}`]
+      };
+    case "temp":
+      return {
+        title: "Временные",
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_TEMP}/`)}`]
       };
     default:
       return null;
   }
 }
 
+function isDocAsideMiniDocOpen() {
+  return readStorageItem(DOC_ASIDE_MINI_DOC_OPEN_KEY) === "1";
+}
+
+function setDocAsideMiniDocOpen(open) {
+  localStorage.setItem(DOC_ASIDE_MINI_DOC_OPEN_KEY, open ? "1" : "0");
+}
+
+function syncDocAsideMiniDocExpandedUi(open = isDocAsideMiniDocOpen()) {
+  if (!docAsideMiniDocNode) return;
+  const head = docAsideMiniDocNode.querySelector(".doc-aside-mini-doc-head");
+  const body = docAsideMiniDocNode.querySelector(".doc-aside-mini-doc-body");
+  if (!head || !body) return;
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+  docAsideMiniDocNode.classList.toggle("is-open", open);
+  body.hidden = !open;
+}
+
 function renderDocAsideMiniDoc() {
   if (!docAsideMiniDocNode) return;
   if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) {
     docAsideMiniDocNode.classList.add("hidden");
+    docAsideMiniDocNode.classList.remove("is-open");
     docAsideMiniDocNode.innerHTML = "";
     return;
   }
@@ -12085,6 +13181,7 @@ function renderDocAsideMiniDoc() {
   const spec = getDocAsideMiniDocSpec();
   if (!spec) {
     docAsideMiniDocNode.classList.add("hidden");
+    docAsideMiniDocNode.classList.remove("is-open");
     docAsideMiniDocNode.innerHTML = "";
     return;
   }
@@ -12093,31 +13190,73 @@ function renderDocAsideMiniDoc() {
   const exampleHtml = spec.example
     ? `<pre class="doc-aside-mini-doc-example">${escapeHtml(spec.example)}</pre>`
     : "";
+  const isOpen = isDocAsideMiniDocOpen();
 
   docAsideMiniDocNode.innerHTML = `
-    <p class="doc-aside-mini-doc-title">${escapeHtml(spec.title)}</p>
-    <ul class="doc-aside-mini-doc-list">${itemsHtml}</ul>
-    ${exampleHtml}
+    <button
+      type="button"
+      class="doc-aside-mini-doc-head"
+      aria-expanded="${isOpen ? "true" : "false"}"
+      aria-controls="doc-aside-mini-doc-body"
+      title="${isOpen ? "Свернуть подсказку" : "Развернуть подсказку"}"
+    >
+      <span class="doc-aside-mini-doc-head-main">
+        <span class="doc-aside-mini-doc-label">Инфо</span>
+        <span class="doc-aside-mini-doc-kicker">${escapeHtml(spec.title)}</span>
+      </span>
+      <span class="doc-aside-mini-doc-chevron" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </span>
+    </button>
+    <div id="doc-aside-mini-doc-body" class="doc-aside-mini-doc-body"${isOpen ? "" : " hidden"}>
+      <ul class="doc-aside-mini-doc-list">${itemsHtml}</ul>
+      ${exampleHtml}
+    </div>
   `;
+  docAsideMiniDocNode.classList.toggle("is-open", isOpen);
   docAsideMiniDocNode.classList.remove("hidden");
 }
 
 function syncDocAsideUi({
-  propsPanelAvailable = true,
-  blocksPanelAvailable = canInsertDocContentBlocks()
+  outlinePanelAvailable = isDocAsideOutlineTabAvailable(),
+  propsPanelAvailable = isDocAsidePropsTabAvailable(),
+  blocksPanelAvailable = canInsertDocContentBlocks(),
+  editorToolsPanelAvailable = blocksPanelAvailable
 } = {}) {
   const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
+  const outlineAvailable = Boolean(outlinePanelAvailable);
   const propsAvailable = Boolean(propsPanelAvailable);
-  const blocksAvailable = Boolean(blocksPanelAvailable);
-  const effectiveTab = resolveDocAsideTab(getDocAsideTab(), { propsAvailable, blocksAvailable });
+  const editorToolsAvailable = Boolean(editorToolsPanelAvailable);
+  const effectiveTab = resolveDocAsideTab(getDocAsideTab(), {
+    outlineAvailable,
+    propsAvailable,
+    editorToolsAvailable
+  });
 
-  docAsideTabPropsBtn?.classList.toggle("hidden", !propsAvailable);
-  docAsideTabBlocksBtn?.classList.toggle("hidden", !blocksAvailable);
+  syncDocAsideTabButton(
+    docAsideTabOutlineBtn,
+    outlineAvailable,
+    "Оглавление недоступно в этом режиме"
+  );
+  syncDocAsideTabButton(docAsideTabPropsBtn, propsAvailable, "Свойства недоступны в этом режиме");
+  syncDocAsideTabButton(
+    docAsideTabBlocksBtn,
+    editorToolsAvailable,
+    "Блоки доступны только при редактировании Markdown"
+  );
+  syncDocAsideTabButton(
+    docAsideTabLinksBtn,
+    editorToolsAvailable,
+    "Ссылки доступны только при редактировании Markdown"
+  );
 
   for (const [tabId, btn] of [
-    ["props", docAsideTabPropsBtn],
     ["outline", docAsideTabOutlineBtn],
-    ["blocks", docAsideTabBlocksBtn]
+    ["props", docAsideTabPropsBtn],
+    ["blocks", docAsideTabBlocksBtn],
+    ["links", docAsideTabLinksBtn]
   ]) {
     btn?.classList.toggle("active", effectiveTab === tabId);
     btn?.setAttribute("aria-selected", effectiveTab === tabId ? "true" : "false");
@@ -12126,6 +13265,7 @@ function syncDocAsideUi({
   docAsidePanelPropsNode?.classList.toggle("hidden", effectiveTab !== "props");
   docAsidePanelOutlineNode?.classList.toggle("hidden", effectiveTab !== "outline");
   docAsidePanelBlocksNode?.classList.toggle("hidden", effectiveTab !== "blocks");
+  docAsidePanelLinksNode?.classList.toggle("hidden", effectiveTab !== "links");
 
   yamlPanelNode?.classList.remove("is-collapsed");
 
@@ -12133,6 +13273,8 @@ function syncDocAsideUi({
     renderDocOutline();
   } else if (effectiveTab === "blocks") {
     renderDocContentBlocks();
+  } else if (effectiveTab === "links") {
+    renderDocLinksLibrary();
   } else if (effectiveTab === "props" && asideEnabled) {
     renderPropsForm();
   }
@@ -12160,14 +13302,12 @@ function applyPropsFormViewMode() {
 
 function syncDocAsideTabAvailability() {
   if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return;
-  syncDocAsideUi({
-    propsPanelAvailable: !docAsideTabPropsBtn?.classList.contains("hidden"),
-    blocksPanelAvailable: canInsertDocContentBlocks()
-  });
+  syncDocAsideUi(getDocAsideTabAvailability());
 }
 
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
+  syncPropsTypeHintUi();
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
@@ -12185,7 +13325,7 @@ function renderPropsForm() {
 
   if (readOnly) {
     const list = document.createElement("div");
-    list.className = "props-preview-list";
+    list.className = "props-preview-list props-preview-list--compact";
 
     for (let index = 0; index < propsFormEntries.length; index += 1) {
       const entry = propsFormEntries[index];
@@ -12193,32 +13333,20 @@ function renderPropsForm() {
       const displayValue = getPropsEntryDisplayValue(entry);
 
       const field = document.createElement("div");
-      field.className = "props-preview-field";
+      field.className = "props-preview-field props-preview-field--compact";
       field.dataset.index = String(index);
-
-      const head = document.createElement("div");
-      head.className = "props-preview-field-head";
+      field.title = entry.key || "";
 
       const label = document.createElement("span");
       label.className = "props-preview-label";
       label.textContent = meta.label || entry.key || "—";
 
-      head.appendChild(label);
-
-      if (entry.key && meta.label !== entry.key) {
-        const keyCode = document.createElement("code");
-        keyCode.className = "props-preview-key";
-        keyCode.textContent = entry.key;
-        keyCode.title = entry.key;
-        head.appendChild(keyCode);
-      }
-
-      const value = document.createElement("div");
+      const value = document.createElement("span");
       value.className = "props-preview-value";
       value.textContent = displayValue.trim() ? displayValue : "—";
       value.classList.toggle("is-empty", !displayValue.trim());
 
-      field.append(head, value);
+      field.append(label, value);
       list.appendChild(field);
     }
     propsFormFieldsNode.appendChild(list);
@@ -12261,13 +13389,15 @@ function renderPropsForm() {
   };
 
   appendPropsFieldGroup(null, standardEntries);
-  appendPropsFieldGroup("Дополнительные свойства", customEntries);
+  appendPropsFieldGroup(customEntries.length ? "Ещё" : null, customEntries);
 }
+
+const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
 
 function createPropsFormFieldRow(entry, index) {
   const meta = getPropsFieldMeta(entry.key);
   const row = document.createElement("div");
-  row.className = "props-form-row props-form-field";
+  row.className = "props-form-row props-form-field props-form-field--compact";
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
@@ -12278,21 +13408,13 @@ function createPropsFormFieldRow(entry, index) {
     const label = document.createElement("label");
     label.className = "props-form-field-label";
     label.textContent = meta.label || entry.key;
-
+    label.title = meta.hint ? `${entry.key} — ${meta.hint}` : entry.key;
     head.appendChild(label);
-
-    if (meta.label !== entry.key) {
-      const keyCode = document.createElement("code");
-      keyCode.className = "props-form-field-key";
-      keyCode.textContent = entry.key;
-      keyCode.title = entry.key;
-      head.appendChild(keyCode);
-    }
   } else {
     const keyInput = document.createElement("input");
     keyInput.type = "text";
     keyInput.className = "props-form-key-input";
-    keyInput.placeholder = "ключ свойства";
+    keyInput.placeholder = "ключ";
     keyInput.value = "";
     keyInput.dataset.field = "key";
     head.appendChild(keyInput);
@@ -12304,17 +13426,14 @@ function createPropsFormFieldRow(entry, index) {
   valueNode.type = "text";
   valueNode.dataset.field = "value";
   valueNode.value = displayValue;
-  valueNode.placeholder = entry.kind === "array" ? "значение1, значение2" : "значение";
-
-  row.append(head, valueNode);
-
-  if (meta.hint) {
-    const hint = document.createElement("p");
-    hint.className = "props-form-field-hint";
-    hint.textContent = meta.hint;
-    row.appendChild(hint);
+  valueNode.placeholder = entry.kind === "array" ? "a, b, c" : "—";
+  if (meta.hint) valueNode.title = meta.hint;
+  if (entry.key && PROPS_FORM_LOCKED_KEYS.has(entry.key)) {
+    valueNode.readOnly = true;
+    valueNode.classList.add("is-locked");
   }
 
+  row.append(head, valueNode);
   return row;
 }
 
@@ -12992,6 +14111,9 @@ function isEditorSaveTrackingActive() {
 }
 
 function getEditorSavePayload() {
+  if (activeContentMode === "topic-schema") {
+    return JSON.stringify({ topicSchema: getTopicSchemaSavePayload() });
+  }
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
   }
@@ -13224,11 +14346,7 @@ function openTodoFromOverview() {
 }
 
 function openDescriptionFromOverview() {
-  nodeSettingsViewActive = true;
-  nodeMemoryViewActive = false;
-  syncNodeSettingsModeSelect();
-  applyNodeWorkspaceViewUi();
-  setContentMode("description");
+  openSettingsModeFromOverview("description");
 }
 
 function getRevealFolderLabel() {
@@ -14000,9 +15118,49 @@ function getNodeDescriptionHasContent(raw = "") {
   return Boolean(stripAwnDescCallouts(body).trim());
 }
 
-function buildNodeSlotStatuses({
-  isArea = false,
+const NODE_SLOT_SETTINGS_ROW_TITLE = "Настройки:";
+const NODE_SLOT_MEMORY_ROW_TITLE = "Информация:";
+
+function configHasTopicSchemaFields(configText = "") {
+  return /awn_schema:\s*\n\s+\w+:\s*\n\s+fields:\s*\n\s+\w+:/im.test(String(configText));
+}
+
+function buildNodeSettingsSlotStatuses({
+  nodePath = getResolvedNodePath(activePath),
   descriptionRaw = "",
+  configContent = null
+} = {}) {
+  const hasDescription = getNodeDescriptionHasContent(descriptionRaw);
+  const configCache = getCachedNodeConfig(nodePath);
+  const configText = configContent ?? configCache?.content ?? modeContentCache.configs ?? "";
+  const hasConfigs = Boolean(String(configText).trim());
+  const schemaCache = getTopicSchemaCache(getTopicSchemaManifestPath(nodePath));
+  const hasTopicSchemaFilled =
+    configHasTopicSchemaFields(configText) ||
+    Boolean(
+      schemaCache &&
+        Object.values(schemaCache.awnSchema || {}).some(
+          (block) => Object.keys(block?.fields || {}).length > 0
+        )
+    );
+
+  const slots = [
+    { id: "description", label: "Назначение", filled: hasDescription, modeId: "description" },
+    { id: "configs", label: "Конфигурация", filled: hasConfigs, modeId: "configs" }
+  ];
+  if (isTopicSchemaModeAvailable(nodePath)) {
+    slots.push({
+      id: "topic-schema",
+      label: "Схема полей",
+      filled: hasTopicSchemaFilled,
+      modeId: "topic-schema"
+    });
+  }
+  return slots;
+}
+
+function buildNodeMemorySlotStatuses({
+  isArea = false,
   internalData = null,
   externalData = null,
   tabularData = null,
@@ -14010,8 +15168,9 @@ function buildNodeSlotStatuses({
   todoData = null,
   memorySummary = null
 } = {}) {
+  if (isArea) return [];
+
   const drivers = memorySummary?.drivers || {};
-  const hasDescription = getNodeDescriptionHasContent(descriptionRaw);
   const hasInternal =
     Boolean(String(internalData?.content || "").trim()) ||
     Boolean(drivers.internal?.exists && Number(drivers.internal.charCount) > 0);
@@ -14033,38 +15192,62 @@ function buildNodeSlotStatuses({
     tabular: hasTabular,
     media: hasMedia
   };
-  const memorySlots = isArea
-    ? []
-    : NODE_OVERVIEW_SLOT_MEMORY_SPECS.map((spec) => ({
-        ...spec,
-        filled: Boolean(filledById[spec.id])
-      }));
 
   return [
-    { id: "description", label: "Назначение", filled: hasDescription, modeId: "description" },
-    ...memorySlots,
+    ...NODE_OVERVIEW_SLOT_MEMORY_SPECS.map((spec) => ({
+      ...spec,
+      filled: Boolean(filledById[spec.id])
+    })),
     { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
   ];
 }
 
-function renderNodeSlotStrip(slotStatuses = []) {
-  if (!slotStatuses.length) return null;
+function buildNodeSlotStripGroups(options = {}) {
+  return {
+    settings: buildNodeSettingsSlotStatuses(options),
+    memory: buildNodeMemorySlotStatuses(options)
+  };
+}
 
-  const wrap = document.createElement("div");
-  wrap.className = "node-slot-strip";
-  wrap.setAttribute("aria-label", "Заполненность слотов хранилища");
+function openSettingsModeFromOverview(modeId) {
+  if (modeId === "topic-schema" && !isTopicSchemaModeAvailable()) return;
+  nodeSettingsViewActive = true;
+  nodeMemoryViewActive = false;
+  setContentMode(modeId);
+}
+
+function handleNodeSlotChipClick(slot) {
+  if (!slot?.modeId) return;
+  if (NODE_SETTINGS_MODE_IDS.has(slot.modeId)) {
+    openSettingsModeFromOverview(slot.modeId);
+    return;
+  }
+  if (slot.modeId === "todo") {
+    openTodoFromOverview();
+    return;
+  }
+  if (slot.modeId === "media") {
+    openNavigationPanelMode("media");
+    return;
+  }
+  if (isAreaContentModeBlocked(slot.modeId)) return;
+  openMemoryModeFromOverview(slot.modeId);
+}
+
+function createNodeSlotStripRow(title, slots = []) {
+  if (!slots.length) return null;
 
   const row = document.createElement("div");
   row.className = "node-slot-strip-row";
 
   const heading = document.createElement("span");
   heading.className = "node-slot-strip-title";
-  heading.textContent = "Слоты:";
+  heading.textContent = title;
 
   const list = document.createElement("ul");
   list.className = "node-slot-strip-list";
 
-  for (const slot of slotStatuses) {
+  for (const slot of slots) {
     const item = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
@@ -14080,29 +15263,29 @@ function renderNodeSlotStrip(slotStatuses = []) {
     label.textContent = slot.label;
 
     btn.append(lamp, label);
-    btn.addEventListener("click", () => {
-      if (slot.modeId === "description") {
-        openDescriptionFromOverview();
-        return;
-      }
-      if (slot.modeId === "todo") {
-        openTodoFromOverview();
-        return;
-      }
-      if (slot.modeId === "media") {
-        openNavigationPanelMode("media");
-        return;
-      }
-      if (isAreaContentModeBlocked(slot.modeId)) return;
-      openMemoryModeFromOverview(slot.modeId);
-    });
+    btn.addEventListener("click", () => handleNodeSlotChipClick(slot));
 
     item.appendChild(btn);
     list.appendChild(item);
   }
 
   row.append(heading, list);
-  wrap.appendChild(row);
+  return row;
+}
+
+function renderNodeSlotStrip(slotGroups = {}) {
+  const settingsSlots = slotGroups.settings || [];
+  const memorySlots = slotGroups.memory || [];
+  if (!settingsSlots.length && !memorySlots.length) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-slot-strip";
+  wrap.setAttribute("aria-label", "Быстрый переход к настройкам и слотам хранилища");
+
+  const settingsRow = createNodeSlotStripRow(NODE_SLOT_SETTINGS_ROW_TITLE, settingsSlots);
+  const memoryRow = createNodeSlotStripRow(NODE_SLOT_MEMORY_ROW_TITLE, memorySlots);
+  if (settingsRow) wrap.appendChild(settingsRow);
+  if (memoryRow) wrap.appendChild(memoryRow);
   return wrap;
 }
 
@@ -15067,7 +16250,8 @@ async function renderNodeNavigation() {
   const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
   if (isStale()) return;
 
-  const slotStatuses = buildNodeSlotStatuses({
+  const slotStripGroups = buildNodeSlotStripGroups({
+    nodePath,
     isArea,
     descriptionRaw: modeContentCache.description || "",
     internalData,
@@ -15087,7 +16271,7 @@ async function renderNodeNavigation() {
     })
   );
 
-  const slotStrip = renderNodeSlotStrip(slotStatuses);
+  const slotStrip = renderNodeSlotStrip(slotStripGroups);
   if (slotStrip) hub.appendChild(slotStrip);
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
@@ -15160,7 +16344,8 @@ async function renderNodeOverview() {
   ]);
   if (isStale()) return;
 
-  const slotStatuses = buildNodeSlotStatuses({
+  const slotStripGroups = buildNodeSlotStripGroups({
+    nodePath: nodePathResolved,
     isArea: isOverviewArea,
     descriptionRaw: manifestRaw,
     memorySummary: memorySummaryForSlots,
@@ -15220,7 +16405,7 @@ async function renderNodeOverview() {
     head.appendChild(descNode);
   }
 
-  const slotStrip = renderNodeSlotStrip(slotStatuses);
+  const slotStrip = renderNodeSlotStrip(slotStripGroups);
   if (slotStrip) head.appendChild(slotStrip);
 
   hero.append(thumbWrap, head);
@@ -15438,11 +16623,12 @@ function applyModeUi() {
   const listViewWithSourceToggle = isListViewWithSourceToggleMode();
   const showListView = listTemplate && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
+  const topicSchemaMode = activeContentMode === "topic-schema";
   const overviewMode = activeContentMode === NODE_OVERVIEW_MODE;
   const navigationMode = activeContentMode === NODE_NAVIGATION_MODE;
   const overviewLikeMode = overviewMode || navigationMode;
   const titleVisible = isCurrentModeTitleEditable();
-  const forceEditOnly = activeContentMode === "env";
+  const forceEditOnly = activeContentMode === "env" || activeContentMode === "configs";
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
   const mediaSidecarEditing = isMediaAssetEditing();
   if (mediaSidecarEditing) {
@@ -15525,7 +16711,12 @@ function applyModeUi() {
     "is-line-numbers-only",
     hideEditorViewToggle && showTabularSourceEditor
   );
-  editorSurfaceNode?.classList.toggle("hidden", previewMode || canvasMode || overviewLikeMode || showListView);
+  topicSchemaPanelNode?.classList.toggle("hidden", !topicSchemaMode);
+  if (topicSchemaMode) renderTopicSchemaEditor();
+  editorSurfaceNode?.classList.toggle(
+    "hidden",
+    previewMode || canvasMode || overviewLikeMode || showListView || topicSchemaMode
+  );
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
   graphViewBlockNode?.classList.toggle("hidden", !canvasMode);
   graphViewBlockNode?.classList.toggle("is-mindmap", mindmapMode);
@@ -15562,8 +16753,9 @@ function applyModeUi() {
   yamlPanelNode.classList.toggle("hidden", !showDocAside);
   docBodyGridNode?.classList.toggle("has-props-aside", showDocAside);
   syncDocAsideUi({
+    outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
     propsPanelAvailable: showYamlPanel,
-    blocksPanelAvailable: canInsertDocContentBlocks()
+    editorToolsPanelAvailable: canInsertDocContentBlocks()
   });
   removeYamlPanelLabel();
   syncPropsInputPlaceholder();
@@ -15734,6 +16926,36 @@ function getMarkdownIt() {
     return defaultHeadingOpen(tokens, idx, options, env, self);
   };
 
+  markdownItInstance.inline.ruler.before("link", "wikilink", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x5b /* [ */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x5b) return false;
+
+    const match = state.src.slice(start).match(/^\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/);
+    if (!match) return false;
+
+    if (!silent) {
+      const token = state.push("wikilink", "", 0);
+      token.content = match[1].trim();
+      token.meta = { heading: match[2]?.trim() || "", alias: match[3]?.trim() || "" };
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  markdownItInstance.renderer.rules.wikilink = (tokens, idx) => {
+    const token = tokens[idx];
+    const target = token.content;
+    const alias = token.meta?.alias || target;
+    const nodePath = resolveWikilinkToNodePath(target, alias);
+    const label = escapeHtml(alias);
+    if (nodePath) {
+      return `<a href="#" class="wikilink" data-node-path="${escapeHtml(nodePath)}">${label}</a>`;
+    }
+    return `<span class="wikilink wikilink--unresolved">${label}</span>`;
+  };
+
   return markdownItInstance;
 }
 
@@ -15857,6 +17079,23 @@ function classifyPreviewImagesAuto(root) {
   }
 }
 
+function initPreviewImageExpand(root) {
+  if (!root || root.dataset.previewExpandBound === "1") return;
+  root.dataset.previewExpandBound = "1";
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (target.closest(".img-style-lightbox")) return;
+    if (
+      !target.closest(".node-navigation-memory-body .file-content-preview") &&
+      !target.closest(".node-overview-content .file-content-preview")
+    ) {
+      return;
+    }
+    target.classList.toggle("is-expanded");
+  });
+}
+
 function initPreviewImageLightbox(root) {
   if (!root || root.dataset.previewLightboxBound === "1") return;
   root.dataset.previewLightboxBound = "1";
@@ -15868,9 +17107,24 @@ function initPreviewImageLightbox(root) {
   });
 }
 
+function initPreviewWikilinkNavigation(root) {
+  if (!root || root.dataset.wikilinkNavBound === "1") return;
+  root.dataset.wikilinkNavBound = "1";
+  root.addEventListener("click", (event) => {
+    const link = event.target.closest("a.wikilink[data-node-path]");
+    if (!link) return;
+    event.preventDefault();
+    const path = link.dataset.nodePath;
+    if (!path) return;
+    void openNodeFromMenu(getLabelFromPath(path), path);
+  });
+}
+
 function enhanceMarkdownPreviewImages(root) {
   if (!root) return;
   initPreviewImageLightbox(root);
+  initPreviewImageExpand(root);
+  initPreviewWikilinkNavigation(root);
   classifyPreviewImagesAuto(root);
 }
 
@@ -17739,23 +18993,36 @@ function applyMenuSortRow(row, kind, options = {}) {
   row.classList.add("menu-sort-row");
   if (disabled) row.classList.add("menu-sort-row--disabled");
   row.dataset.sortKind = kind;
-  row.draggable = !disabled;
+  row.draggable = false;
   if (row.querySelector(".menu-sort-handle")) return;
   const handle = document.createElement("button");
   handle.type = "button";
   handle.className = "menu-sort-handle";
+  handle.draggable = !disabled;
   if (disabled) {
     handle.classList.add("menu-sort-handle--disabled");
     handle.disabled = true;
     handle.title = "Сортировка недоступна для группирующих папок";
     handle.setAttribute("aria-label", "Сортировка недоступна");
   } else {
-    handle.title = "Перетащить";
-    handle.setAttribute("aria-label", "Перетащить");
+    handle.title = "Перетащить для сортировки";
+    handle.setAttribute("aria-label", "Перетащить для сортировки");
   }
   handle.textContent = "⠿";
   handle.addEventListener("mousedown", (event) => event.stopPropagation());
   row.insertBefore(handle, row.firstChild);
+}
+
+function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
+  if (!root) return;
+  root.querySelectorAll(".menu-item[data-path], .menu-folder[data-path]").forEach((btn) => {
+    btn.draggable = true;
+    if (!btn.dataset.linkDragHint) {
+      btn.dataset.linkDragHint = "1";
+      const hint = "Перетащите в редактор для ссылки";
+      btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
+    }
+  });
 }
 
 function decorateMenuSortRows(root = getMenuQueryRoot()) {
@@ -17840,11 +19107,10 @@ function setupMenuSortDragDrop() {
   menuNode.dataset.sortBound = "1";
 
   menuNode.addEventListener("dragstart", (event) => {
-    if (!canSortMenu()) {
-      event.preventDefault();
-      return;
-    }
-    const row = event.target.closest(".menu-sort-row");
+    if (!canSortMenu()) return;
+    const handle = event.target.closest(".menu-sort-handle");
+    if (!handle || handle.disabled) return;
+    const row = handle.closest(".menu-sort-row");
     if (!row || row.classList.contains("menu-sort-row--disabled")) {
       event.preventDefault();
       return;
@@ -17896,6 +19162,85 @@ function setupMenuSortDragDrop() {
       menuSortDragRow = null;
     }
   });
+}
+
+let menuLinkDragBtn = null;
+
+function setupMenuLinkDragToEditor() {
+  if (!menuNode || menuNode.dataset.linkDragBound === "1") return;
+  menuNode.dataset.linkDragBound = "1";
+
+  menuNode.addEventListener("dragstart", (event) => {
+    if (event.target.closest(".menu-sort-handle")) return;
+    const linkBtn = event.target.closest(".menu-item[data-path], .menu-folder[data-path]");
+    if (!linkBtn) return;
+
+    const nodePath = normalizeMenuNodePath(linkBtn.dataset.path);
+    if (!nodePath) return;
+
+    const label = getLabelFromPath(nodePath);
+    const wikilink = buildObsidianWikilink(nodePath, label);
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData(
+      MENU_LINK_DRAG_MIME,
+      JSON.stringify({ path: nodePath, label, wikilink })
+    );
+    event.dataTransfer.setData("text/plain", wikilink);
+    menuLinkDragBtn = linkBtn;
+    linkBtn.classList.add("is-dragging-menu-link");
+  });
+
+  menuNode.addEventListener("dragend", () => {
+    if (!menuLinkDragBtn) return;
+    menuLinkDragBtn.classList.remove("is-dragging-menu-link");
+    menuLinkDragBtn = null;
+  });
+}
+
+function setupEditorMenuLinkDrop() {
+  const targets = [
+    editorSurfaceNode,
+    editorCodeWrapNode,
+    editorWysiwygWrapNode,
+    fileContentInputNode,
+    fileContentPreviewNode
+  ].filter(Boolean);
+  if (!targets.length || editorSurfaceNode?.dataset.menuLinkDropBound === "1") return;
+  if (editorSurfaceNode) editorSurfaceNode.dataset.menuLinkDropBound = "1";
+
+  const setDropTarget = (active) => {
+    editorSurfaceNode?.classList.toggle("is-menu-link-drop-target", active);
+  };
+
+  for (const target of targets) {
+    target.addEventListener("dragover", (event) => {
+      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+      if (!canInsertDocContentBlocks()) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setDropTarget(true);
+    });
+
+    target.addEventListener("dragleave", (event) => {
+      if (!editorSurfaceNode?.contains(event.relatedTarget)) {
+        setDropTarget(false);
+      }
+    });
+
+    target.addEventListener("drop", (event) => {
+      setDropTarget(false);
+      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+      const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
+      const wikilink = payload?.wikilink;
+      if (!wikilink) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (editorViewMode === "source" && fileContentInputNode) {
+        fileContentInputNode.focus();
+      }
+      insertMarkdownAtEditorCursor(wikilink);
+    });
+  }
 }
 
 function renderMenu(menu, agentId = activeAgentId, options = {}) {
@@ -17964,6 +19309,12 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     }
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(agentId);
+  }
+
+  enableMenuLinkDragSources(target);
+
+  if (agentId === activeAgentId && getDocAsideTab() === "links") {
+    renderDocLinksLibrary();
   }
 }
 
@@ -18161,6 +19512,14 @@ async function selectFile(label, filePath) {
         await loadNodeConfig(activePath);
       } catch {
         invalidateNodeConfigCache(activePath);
+      }
+    }
+    if (isTopicSchemaModeAvailable(activePath)) {
+      try {
+        await loadTopicSchemaForManifest(activePath);
+      } catch {
+        const manifestPath = getTopicSchemaManifestPath(activePath);
+        if (manifestPath) topicSchemaCacheByManifest.delete(manifestPath);
       }
     }
     applyNodeManifestBody(modeContentCache.description || "");
@@ -18409,6 +19768,23 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
+  if (activeContentMode === "topic-schema") {
+    try {
+      await loadAwnTypes(activeAgentId);
+      await loadTopicSchemaForManifest(activePath, { force: true });
+      fileContentInputNode.value = "";
+      applyModeUi();
+      renderTopicSchemaEditor();
+    } catch (error) {
+      if (topicSchemaBaseFieldsNode) topicSchemaBaseFieldsNode.textContent = `Ошибка: ${error.message}`;
+      topicSchemaFieldsNode?.replaceChildren();
+      topicSchemaEmptyNode?.classList.remove("hidden");
+      applyModeUi();
+    }
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
   if (activeContentMode === "env") {
     try {
       const response = await fetch(buildApiUrl("/api/env", { path: getActiveNodeApiPath() }));
@@ -18564,6 +19940,23 @@ async function saveContent() {
   }
 
   if (!activePath) return;
+
+  if (activeContentMode === "topic-schema") {
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      await saveTopicSchemaContent();
+      saveSucceeded = true;
+      showToast(`Схема полей сохранена в ${BUNDLE_CONFIG_FILE}`, "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
+
   const nextTitle = titleInputNode.value.trim();
   const currentTitle = getLabelFromPath(activePath);
   const currentExternalTitle = activeExternalFilePath
@@ -18917,7 +20310,7 @@ function loadAgentWorkspaceView() {
 }
 
 function saveAgentWorkspaceView(view) {
-  if (view === "git") return;
+  if (view === "git" || view === "awn-types") return;
   try {
     localStorage.setItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY, view);
   } catch {
@@ -18926,7 +20319,7 @@ function saveAgentWorkspaceView(view) {
 }
 
 function resetGitWorkspaceViewToDefault() {
-  if (agentWorkspaceView !== "git") return;
+  if (agentWorkspaceView !== "git" && agentWorkspaceView !== "awn-types") return;
   agentWorkspaceView = loadAgentWorkspaceView();
 }
 
@@ -18948,6 +20341,7 @@ function applyAgentWorkspaceCanvasUi() {
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
+  agentAwnTypesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "awn-types");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
   agentMap3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map3");
@@ -18971,6 +20365,8 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentDashboard2View();
   } else if (agentWorkspaceView === "git") {
     void renderAgentGitView();
+  } else if (agentWorkspaceView === "awn-types") {
+    void renderAgentAwnTypesView();
   } else if (agentWorkspaceView === "map") {
     renderAgentMapView();
   } else if (agentWorkspaceView === "map2") {
@@ -18996,6 +20392,7 @@ function applyAgentWorkspaceCanvasUi() {
   }
 
   syncAgentGitToolbarUi();
+  syncAgentAwnTypesToolbarUi();
   updateDocumentTitle();
 }
 
@@ -19004,6 +20401,7 @@ function setAgentWorkspaceView(view) {
     view !== "dashboard" &&
     view !== "dashboard2" &&
     view !== "git" &&
+    view !== "awn-types" &&
     view !== "map" &&
     view !== "map2" &&
     view !== "map3" &&
@@ -19801,6 +21199,22 @@ function renderAgentMap2View() {
   });
 }
 
+function initAgentAwnTypesToolbar() {
+  if (!agentAwnTypesBtn) return;
+  agentAwnTypesBtn.replaceChildren();
+  const icon = createAwnTypesMarkerSvg();
+  icon.classList.add("agent-awn-types-btn-icon");
+  agentAwnTypesBtn.appendChild(icon);
+  syncAgentAwnTypesToolbarUi();
+}
+
+function syncAgentAwnTypesToolbarUi() {
+  agentAwnTypesBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "awn-types" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
 function initAgentGitToolbar() {
   if (!agentGitBtn) return;
   agentGitBtn.replaceChildren();
@@ -20266,6 +21680,188 @@ function walkAgentSchemaMenu(node, container, depth = 0) {
         depth + 1
       );
     }
+  }
+}
+
+function createAwnTypeFieldRow(fieldKey, fieldDef) {
+  const row = document.createElement("li");
+  row.className = "agent-awn-type-field";
+
+  const key = document.createElement("span");
+  key.className = "agent-awn-type-field-key";
+  key.textContent = fieldKey;
+
+  const type = document.createElement("span");
+  type.className = "agent-awn-type-field-type";
+  type.textContent = getAwnFieldTypeLabel(fieldDef?.type);
+
+  const title = document.createElement("span");
+  title.className = "agent-awn-type-field-title";
+  title.textContent = fieldDef?.title || fieldDef?.description || "";
+
+  row.append(key, type, title);
+  return row;
+}
+
+function createAwnTypeCard(typeDef) {
+  const card = document.createElement("article");
+  const kind = typeDef?.kind || "type";
+  const isMixin = kind === "mixin";
+  const isBase = kind === "base";
+  card.className = `agent-awn-type-card${isMixin ? " is-mixin" : ""}${isBase ? " is-base" : ""}`;
+
+  const head = document.createElement("div");
+  head.className = "agent-awn-type-card-head";
+
+  const name = document.createElement("span");
+  name.className = "agent-awn-type-card-name";
+  name.textContent = typeDef?.name || "—";
+
+  const badge = document.createElement("span");
+  badge.className = `agent-awn-type-badge agent-awn-type-badge--${kind}`;
+  badge.textContent = AWN_TYPE_KIND_LABELS[kind] || kind || "тип";
+
+  head.append(name, badge);
+  card.appendChild(head);
+
+  if (typeDef?.description) {
+    const desc = document.createElement("p");
+    desc.className = "agent-awn-type-card-desc";
+    desc.textContent = typeDef.description;
+    card.appendChild(desc);
+  }
+
+  const usage = getAwnTypeUsageHint(typeDef?.name);
+  if (usage) {
+    const usageNode = document.createElement("p");
+    usageNode.className = "agent-awn-type-card-usage";
+    usageNode.textContent = usage;
+    card.appendChild(usageNode);
+  }
+
+  if (typeDef?.extends) {
+    const extendsNode = document.createElement("p");
+    extendsNode.className = "agent-awn-type-card-extends";
+    extendsNode.textContent = `Наследует: ${typeDef.extends}`;
+    card.appendChild(extendsNode);
+  }
+
+  if (Array.isArray(typeDef?.mixins) && typeDef.mixins.length) {
+    const mixinsNode = document.createElement("p");
+    mixinsNode.className = "agent-awn-type-card-extends";
+    mixinsNode.textContent = `Миксины: ${typeDef.mixins.join(", ")}`;
+    card.appendChild(mixinsNode);
+  }
+
+  const fields = typeDef?.fields && typeof typeDef.fields === "object" ? typeDef.fields : {};
+  const fieldKeys = Object.keys(fields);
+  if (fieldKeys.length) {
+    const list = document.createElement("ul");
+    list.className = "agent-awn-type-fields";
+    for (const fieldKey of fieldKeys) {
+      list.appendChild(createAwnTypeFieldRow(fieldKey, fields[fieldKey]));
+    }
+    card.appendChild(list);
+  }
+
+  return card;
+}
+
+async function renderAgentAwnTypesView() {
+  if (!agentAwnTypesContentNode) return;
+  await renderAwnTypesContent(agentAwnTypesContentNode);
+}
+
+async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } = {}) {
+  if (!containerNode) return;
+  containerNode.innerHTML = "";
+
+  if (!agentId) {
+    renderListEmptyMessage(
+      containerNode,
+      "Выберите агента в меню слева — схемы подгружаются в контексте workspace."
+    );
+    return;
+  }
+
+  await loadAwnTypes(agentId);
+
+  if (!awnTypesCache?.types) {
+    renderListEmptyMessage(
+      containerNode,
+      "Не удалось загрузить типы. Проверьте, что сервер запущен и папка awn-types/ доступна."
+    );
+    return;
+  }
+
+  const note = document.createElement("div");
+  note.className = "agent-awn-types-note";
+  note.innerHTML =
+    "<strong>Системные типы</strong> (read-only) — в <code>awn-types/</code> и <code>awn-types/mixins/</code>. " +
+    "Типы полей (<code>string</code>, <code>url</code>…) — в <code>awn-fields/</code>. " +
+    "Дополнительные поля для конкретной темы задаются в <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>. " +
+    "<br><br><strong>Что такое <code>kind</code>?</strong> " +
+    "<code>base</code> — общий фундамент полей, <code>mixin</code> — опциональный набор полей (подключается через <code>mixins:</code> в типе или <code>awn.base</code>), <code>type</code> — значение в <code>awn-type</code>. " +
+    "У поля в реестре: формат хранения в YAML (<code>string</code>, <code>number</code>…).";
+  containerNode.appendChild(note);
+
+  const types = Object.values(awnTypesCache.types).sort((a, b) => {
+    const aOrder = getAwnTypeKindSortOrder(a?.kind);
+    const bOrder = getAwnTypeKindSortOrder(b?.kind);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return String(a?.name || "").localeCompare(String(b?.name || ""));
+  });
+
+  const typesSection = document.createElement("section");
+  typesSection.className = "agent-awn-types-section";
+  typesSection.innerHTML =
+    '<header class="agent-awn-types-section-head">' +
+    '<h3 class="agent-awn-types-section-title">Типы записей</h3>' +
+    '<p class="agent-awn-types-section-sub">Какие поля frontmatter ожидаются у файла с данным <code>awn-type</code></p>' +
+    "</header>";
+  const typesGrid = document.createElement("div");
+  typesGrid.className = "agent-awn-types-grid";
+  for (const typeDef of types) {
+    typesGrid.appendChild(createAwnTypeCard(typeDef));
+  }
+  typesSection.appendChild(typesGrid);
+  containerNode.appendChild(typesSection);
+
+  const registry = awnTypesCache.fieldRegistry || {};
+  const registryKeys = Object.keys(registry).sort();
+  if (registryKeys.length) {
+    const registrySection = document.createElement("section");
+    registrySection.className = "agent-awn-types-section";
+    registrySection.innerHTML =
+      '<header class="agent-awn-types-section-head">' +
+      '<h3 class="agent-awn-types-section-title">Реестр типов полей</h3>' +
+      '<p class="agent-awn-types-section-sub">Базовые типы данных для свойств (по спецификации mdbase)</p>' +
+      "</header>";
+
+    const tableWrap = document.createElement("div");
+    tableWrap.style.overflowX = "auto";
+    const table = document.createElement("table");
+    table.className = "agent-awn-field-registry-table";
+    table.innerHTML =
+      "<thead><tr>" +
+      "<th>ID</th><th>Название</th><th>Хранение</th><th>Виджет</th><th>Описание</th>" +
+      "</tr></thead>";
+    const tbody = document.createElement("tbody");
+    for (const key of registryKeys) {
+      const entry = registry[key];
+      const row = document.createElement("tr");
+      row.innerHTML =
+        `<td><code>${entry.id}</code></td>` +
+        `<td>${entry.label || "—"}</td>` +
+        `<td><code>${entry.kind || "—"}</code></td>` +
+        `<td><code>${entry.widget || "—"}</code></td>` +
+        `<td>${entry.description || "—"}</td>`;
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    registrySection.appendChild(tableWrap);
+    containerNode.appendChild(registrySection);
   }
 }
 
@@ -21480,6 +23076,7 @@ function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
   home2PaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
+  agentAwnTypesPaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
   agentMap3PaneNode?.classList.add("hidden");
@@ -22486,7 +24083,7 @@ async function init() {
     const bootRoute = parseAppRoute(location.pathname);
     if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
       setMenuLoading(true, "Загрузка дерева…");
-      await loadSystemFiles();
+      await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId)]);
       await refreshMenu();
     }
 
@@ -23092,6 +24689,11 @@ bestPracticesModalNode?.addEventListener("click", (event) => {
 apiDocsBtn?.addEventListener("click", () => {
   void openApiDocsModal();
 });
+
+agentAwnTypesBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("awn-types");
+});
+
 apiDocsVersionSelectNode?.addEventListener("change", () => {
   void (async () => {
     try {
@@ -23163,6 +24765,8 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 });
 
 setupMenuSortDragDrop();
+setupMenuLinkDragToEditor();
+setupEditorMenuLinkDrop();
 window.addEventListener("popstate", () => {
   suspendAppRouteSync();
   void applyAppRouteFromUrl()
@@ -23284,9 +24888,31 @@ editorViewWysiwygBtn?.addEventListener("click", () => setEditorViewMode("wysiwyg
 editorViewSourceBtn?.addEventListener("click", () => setEditorViewMode("source"));
 applyEditorViewMode();
 
-docAsideTabPropsBtn?.addEventListener("click", () => setDocAsideTab("props"));
-docAsideTabOutlineBtn?.addEventListener("click", () => setDocAsideTab("outline"));
-docAsideTabBlocksBtn?.addEventListener("click", () => setDocAsideTab("blocks"));
+docAsideTabOutlineBtn?.addEventListener("click", () => {
+  if (docAsideTabOutlineBtn.disabled) return;
+  setDocAsideTab("outline");
+});
+docAsideTabPropsBtn?.addEventListener("click", () => {
+  if (docAsideTabPropsBtn.disabled) return;
+  setDocAsideTab("props");
+});
+docAsideTabBlocksBtn?.addEventListener("click", () => {
+  if (docAsideTabBlocksBtn.disabled) return;
+  setDocAsideTab("blocks");
+});
+docAsideTabLinksBtn?.addEventListener("click", () => {
+  if (docAsideTabLinksBtn.disabled) return;
+  setDocAsideTab("links");
+});
+
+docAsideMiniDocNode?.addEventListener("click", (event) => {
+  const toggleBtn = event.target.closest(".doc-aside-mini-doc-head");
+  if (!toggleBtn || !docAsideMiniDocNode.contains(toggleBtn)) return;
+  const nextOpen = !docAsideMiniDocNode.classList.contains("is-open");
+  setDocAsideMiniDocOpen(nextOpen);
+  syncDocAsideMiniDocExpandedUi(nextOpen);
+  toggleBtn.title = nextOpen ? "Свернуть подсказку" : "Развернуть подсказку";
+});
 
 saveContentBtn.addEventListener("click", saveContent);
 saveSystemFileBtn?.addEventListener("click", saveContent);
@@ -23371,6 +24997,16 @@ nodeSettingsModeSelectNode?.addEventListener("change", () => {
     setContentMode(mode);
   }
 });
+topicSchemaAddBtn?.addEventListener("click", () => addTopicSchemaField());
+topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
+  const tab = event.target.closest(".topic-schema-target-tab");
+  if (!tab?.dataset.target) return;
+  topicSchemaActiveTarget = tab.dataset.target;
+  renderTopicSchemaEditor();
+});
+topicSchemaFieldsNode?.addEventListener("input", handleTopicSchemaFieldsInput);
+topicSchemaFieldsNode?.addEventListener("change", handleTopicSchemaFieldsInput);
+topicSchemaFieldsNode?.addEventListener("click", handleTopicSchemaFieldsClick);
 nodeWorkspaceDomainSelectNode?.addEventListener("change", () => {
   applyNodeWorkspaceDomainChange(nodeWorkspaceDomainSelectNode.value);
 });
@@ -23713,4 +25349,5 @@ appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("or
 appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
 
 initNodeWorkspaceDomainSelect();
+initAgentAwnTypesToolbar();
 initAgentGitToolbar();

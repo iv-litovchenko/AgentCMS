@@ -1,0 +1,6 @@
+id: text
+label: Текст (многострочный)
+kind: string
+mdbase: text
+widget: textarea
+description: Длинный текст или описание

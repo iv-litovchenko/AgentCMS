@@ -1,0 +1,6 @@
+id: string
+label: Текст
+kind: string
+mdbase: string
+widget: input
+description: Короткая строка

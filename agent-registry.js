@@ -25,6 +25,7 @@ const {
   isTopicManifestFileName,
   isStorageFolderName
 } = require("./manifest-paths");
+const { buildDefaultFrontmatter } = require("./awn-types-loader");
 
 const agentContext = new AsyncLocalStorage();
 
@@ -896,7 +897,16 @@ function createAgentWorkspace(options = {}) {
 
   const id = slugifyAgentId(options.id || name, 0);
   writeAgentManifestSync(workspaceAbsolute, { id, name });
-  fs.writeFileSync(path.join(workspaceAbsolute, AREA_MANIFEST_FILE), `# ${name}\n`, "utf-8");
+  const agentFrontmatter = buildDefaultFrontmatter("awn.agent", {
+    name,
+    agentRoot: workspaceAbsolute,
+    projectRoot
+  });
+  fs.writeFileSync(
+    path.join(workspaceAbsolute, AREA_MANIFEST_FILE),
+    joinNodeFrontmatter(agentFrontmatter, `# ${name}\n`),
+    "utf-8"
+  );
   const serviceManifestAbsolute = path.join(
     workspaceAbsolute,
     ...getServiceAreaManifestRel(DEFAULT_AGENT_SYSTEM_FOLDER).split("/")

@@ -1,0 +1,6 @@
+id: number
+label: Число
+kind: number
+mdbase: number
+widget: number
+description: Число с дробной частью

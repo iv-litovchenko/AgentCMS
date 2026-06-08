@@ -1,0 +1,7 @@
+id: datetime
+label: Дата и время
+kind: string
+mdbase: datetime
+widget: datetime
+format: ISO-8601
+description: Дата и время (ISO 8601)

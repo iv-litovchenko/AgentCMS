@@ -1,0 +1,7 @@
+id: date
+label: Дата
+kind: string
+mdbase: date
+widget: date
+format: YYYY-MM-DD
+description: Дата без времени

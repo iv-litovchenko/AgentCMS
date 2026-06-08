@@ -1,0 +1,12 @@
+awn_schema:
+  file:
+    fields:
+      genre:
+        type: enum
+        title: Жанр
+        enum: [драма, комедия]
+  record:
+    fields:
+      director:
+        type: string
+        title: Режиссёр

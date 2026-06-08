@@ -66,6 +66,14 @@ const {
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath
 } = require("./manifest-paths");
+const {
+  buildDefaultFrontmatter,
+  getAwnTypesPayload,
+  inferAwnTypeFromPath,
+  normalizeAwnSchema,
+  applyAwnSchemaToConfig,
+  getTopicSchemaPayload
+} = require("./awn-types-loader");
 
 const execFileAsync = promisify(execFile);
 
@@ -5064,6 +5072,20 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/awn-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = getAwnTypesPayload(agentRoot, getProjectRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load awn types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/file/properties") {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
@@ -5104,6 +5126,75 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { path: relPath, content, fullContent: nextContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save properties", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/topic-schema") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    const manifestCtx = await resolveApiManifestContext(relPath);
+    if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+
+    try {
+      const configFile = await readNodeConfigFile(manifestCtx.rel);
+      const payload = getTopicSchemaPayload(configFile.content, getAgentRoot(), getProjectRoot());
+      return sendJson(res, 200, {
+        path: manifestCtx.rel,
+        configPath: configFile.path,
+        configExists: configFile.exists,
+        awnSchema: payload.awnSchema,
+        baseTypes: payload.baseTypes,
+        merged: payload.merged,
+        fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/topic-schema") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const awnSchema = normalizeAwnSchema(payload.awnSchema);
+
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const configFile = await readNodeConfigFile(manifestCtx.rel);
+      const configRelPath = toNodeConfigFilePath(manifestCtx.rel);
+      const configAbsolute = normalizeWorkspacePath(configRelPath);
+      if (!configAbsolute) return sendJson(res, 400, { error: "Invalid node config path" });
+
+      const nextContent = applyAwnSchemaToConfig(configFile.content, awnSchema);
+      await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
+      if (!String(nextContent).trim()) {
+        await removeIfExists(configAbsolute);
+      } else {
+        await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, nextContent);
+      }
+
+      const schemaPayload = getTopicSchemaPayload(nextContent, getAgentRoot(), getProjectRoot());
+      return sendJson(res, 200, {
+        path: manifestCtx.rel,
+        configPath: configRelPath,
+        content: nextContent,
+        exists: Boolean(String(nextContent).trim()),
+        awnSchema: schemaPayload.awnSchema,
+        baseTypes: schemaPayload.baseTypes,
+        merged: schemaPayload.merged
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save topic schema",
+        details: String(error.message || error)
+      });
     }
   }
 
@@ -6597,9 +6688,14 @@ async function handleApiForAgent(req, res, url) {
           // continue
         }
 
+        const manifestFrontmatter = buildDefaultFrontmatter("awn.area", {
+          name: title,
+          agentRoot: getAgentRoot(),
+          projectRoot: getProjectRoot()
+        });
         await fs.writeFile(
           manifestAbsolute,
-          joinNodeFrontmatter(`title: ${title}`, ""),
+          joinNodeFrontmatter(manifestFrontmatter, ""),
           "utf-8"
         );
 
@@ -6631,9 +6727,14 @@ async function handleApiForAgent(req, res, url) {
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
         const areaTitle = stripTopicPrefix(folderName);
+        const areaFrontmatter = buildDefaultFrontmatter("awn.area", {
+          name: areaTitle,
+          agentRoot: getAgentRoot(),
+          projectRoot: getProjectRoot()
+        });
         await fs.writeFile(
           manifestAbsolute,
-          joinNodeFrontmatter(`title: ${areaTitle}`, ""),
+          joinNodeFrontmatter(areaFrontmatter, ""),
           "utf-8"
         );
 
@@ -6661,9 +6762,14 @@ async function handleApiForAgent(req, res, url) {
         // continue
       }
 
+      const fileFrontmatter = buildDefaultFrontmatter("awn.topic", {
+        name: stripTopicPrefix(partFileName),
+        agentRoot: getAgentRoot(),
+        projectRoot: getProjectRoot()
+      });
       await fs.writeFile(
         partFileAbsolute,
-        joinNodeFrontmatter(`title: ${name}`, ""),
+        joinNodeFrontmatter(fileFrontmatter, ""),
         "utf-8"
       );
 

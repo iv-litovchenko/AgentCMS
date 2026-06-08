@@ -1,0 +1,19 @@
+name: awn.sidecar
+kind: type
+extends: awn.base
+description: Sidecar — метаданные медиафайла (*.sidecar.md, расширяется в Config.yml темы)
+fields:
+  awn-filename:
+    type: string
+    title: Файл
+    description: Имя связанного медиафайла
+  awn-mime:
+    type: string
+    title: MIME-тип
+  awn-size:
+    type: integer
+    title: Размер (байт)
+  tags:
+    type: array
+    title: Теги
+    items: string
