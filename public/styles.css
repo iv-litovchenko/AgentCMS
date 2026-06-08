@@ -7955,12 +7955,70 @@ body.app-locked {
 .doc-props-aside .doc-aside-toolbar {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   margin: 0;
   padding: 10px 10px 9px;
   border-bottom: 1px solid var(--border);
   background: #fff;
+}
+
+.doc-aside-mini-doc {
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.doc-aside-mini-doc.hidden {
+  display: none;
+}
+
+.doc-aside-mini-doc-title {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.doc-aside-mini-doc-list {
+  margin: 0;
+  padding: 0 0 0 14px;
+}
+
+.doc-aside-mini-doc-list li {
+  margin: 0 0 3px;
+}
+
+.doc-aside-mini-doc-list li:last-child {
+  margin-bottom: 0;
+}
+
+.doc-aside-mini-doc-example {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #eef2f7;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.doc-aside-mini-doc code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 4px;
+  padding: 0 3px;
 }
 
 .doc-props-aside .doc-aside-panel {

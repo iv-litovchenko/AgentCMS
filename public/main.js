@@ -214,6 +214,7 @@ const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
 const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
 const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks");
 const docBlocksContentNode = document.getElementById("doc-blocks-content");
+const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
 const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
@@ -11983,6 +11984,124 @@ function renderDocContentBlocks() {
   }
 }
 
+function getDocAsideMiniDocSpec() {
+  if (activeContentMode === "tabular" && isTabularSourceEditing()) {
+    return {
+      title: "CSV · исходник",
+      items: [
+        "Колонки — запятая <code>,</code>",
+        "Строки — перевод строки",
+        "Первая строка — заголовки колонок",
+        "Текст с запятой — в кавычках <code>\"…\"</code>",
+        "Кавычка внутри поля — <code>\"\"</code>",
+        "Файл: <code>Content.csv</code>"
+      ],
+      example: "name,role,status\nИван,admin,active\nМария,\"user, guest\",pending"
+    };
+  }
+
+  switch (activeContentMode) {
+    case "description":
+      return {
+        title: "Назначение · markdown",
+        items: [
+          "Превью в обзоре режется строкой <code>---</code>",
+          "Выше — краткий фрагмент, ниже — «Читать все»",
+          "Картинки: <code>![alt](Assets/Pasted/…)</code>",
+          "Без пробела между <code>]</code> и <code>(</code>",
+          "Вставка из буфера → <code>Assets/Pasted/YYYYMMDDHHmmss.ext</code>"
+        ]
+      };
+    case "internal":
+      return {
+        title: "Однофайловая память",
+        items: [
+          "Файл: <code>Content.md</code> в слоте темы",
+          "Markdown, как в «Назначении»",
+          "TODO-чеклисты: <code>- [ ]</code> / <code>- [x]</code>"
+        ]
+      };
+    case "external":
+      return {
+        title: "Многофайловая память",
+        items: [
+          "Папка: <code>_Content/</code>",
+          "Каждая заметка — отдельный <code>.md</code>",
+          "Вложенные разделы — подпапки"
+        ]
+      };
+    case "tabular":
+      return {
+        title: "Табличная память",
+        items: [
+          "Данные в <code>Content.csv</code>",
+          "Кнопка «Исходник CSV» — правка текста",
+          "Колонки через <code>,</code>, строки через Enter"
+        ],
+        example: "word,learned,notes\nhello,yes,пример"
+      };
+    case "media":
+      return {
+        title: "Медиа и документы",
+        items: [
+          "Папка: <code>Assets/</code> в слоте темы",
+          "Вставка в текст → <code>Assets/Pasted/</code>",
+          "Имя файла — метка времени"
+        ]
+      };
+    case "todo":
+      return {
+        title: "TODO",
+        items: ["Файл: <code>Todo.md</code>", "Чеклисты markdown: <code>- [ ]</code>"]
+      };
+    case "configs":
+      return {
+        title: "Конфигурация",
+        items: ["Файл: <code>Configuration.md</code>"]
+      };
+    case "env":
+      return {
+        title: "Окружение",
+        items: ["Файл: <code>.env</code> в слоте темы", "Формат: <code>KEY=value</code>"]
+      };
+    case "scripts":
+      return {
+        title: "Скрипты",
+        items: ["Папка: <code>Scripts/</code>"]
+      };
+    default:
+      return null;
+  }
+}
+
+function renderDocAsideMiniDoc() {
+  if (!docAsideMiniDocNode) return;
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) {
+    docAsideMiniDocNode.classList.add("hidden");
+    docAsideMiniDocNode.innerHTML = "";
+    return;
+  }
+
+  const spec = getDocAsideMiniDocSpec();
+  if (!spec) {
+    docAsideMiniDocNode.classList.add("hidden");
+    docAsideMiniDocNode.innerHTML = "";
+    return;
+  }
+
+  const itemsHtml = spec.items.map((item) => `<li>${item}</li>`).join("");
+  const exampleHtml = spec.example
+    ? `<pre class="doc-aside-mini-doc-example">${escapeHtml(spec.example)}</pre>`
+    : "";
+
+  docAsideMiniDocNode.innerHTML = `
+    <p class="doc-aside-mini-doc-title">${escapeHtml(spec.title)}</p>
+    <ul class="doc-aside-mini-doc-list">${itemsHtml}</ul>
+    ${exampleHtml}
+  `;
+  docAsideMiniDocNode.classList.remove("hidden");
+}
+
 function syncDocAsideUi({
   propsPanelAvailable = true,
   blocksPanelAvailable = canInsertDocContentBlocks()
@@ -12017,6 +12136,8 @@ function syncDocAsideUi({
   } else if (effectiveTab === "props" && asideEnabled) {
     renderPropsForm();
   }
+
+  renderDocAsideMiniDoc();
 }
 
 function applyPropsFormViewMode() {
