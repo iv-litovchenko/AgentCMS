@@ -320,7 +320,13 @@ function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
 }
 
 function getOrCreateAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute, ext = ".jpg") {
-  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
+  const directoryState = resolveExistingWorkspaceDirectory(workspaceRootAbsolute);
+  if (!directoryState.exists) {
+    const error = new Error("Workspace folder not found");
+    error.code = "ENOENT";
+    throw error;
+  }
+  const bundleDir = getAgentWorkspacePreviewBundleDirSync(directoryState.absolute);
   fs.mkdirSync(bundleDir, { recursive: true });
   const normalizedExt = ext === ".jpeg" ? ".jpg" : ext;
   return path.join(bundleDir, `${PREVIEW_FILE_BASENAME}${normalizedExt}`);
@@ -606,10 +612,16 @@ function saveAgentsRegistry(rawAgents) {
   rawAgents.forEach((entry, index) => {
     const agentPath = assertSafeAgentPath(entry?.path || "./Workspaces");
     const absolute = resolveAgentRootAbsolute(agentPath);
-    const manifest = readAgentManifestSync(absolute);
-    const folderName = path.basename(absolute);
+    const directoryState = resolveExistingWorkspaceDirectory(absolute);
+    const workspaceAbsolute = directoryState.absolute;
+    const manifest = directoryState.exists ? readAgentManifestSync(workspaceAbsolute) : null;
+    const folderName = path.basename(workspaceAbsolute);
 
-    if (manifest && (entry?.name !== undefined || entry?.comment !== undefined || entry?.vaultFolder !== undefined)) {
+    if (
+      directoryState.exists &&
+      manifest &&
+      (entry?.name !== undefined || entry?.comment !== undefined || entry?.vaultFolder !== undefined)
+    ) {
       updateAgentManifestFields(agentPath, {
         name: entry?.name,
         comment: entry?.comment,
@@ -617,9 +629,16 @@ function saveAgentsRegistry(rawAgents) {
       });
     }
 
-    const manifestAfterUpdate = readAgentManifestSync(absolute);
-    if (manifestAfterUpdate?.vaultFolder) {
-      fs.mkdirSync(path.join(absolute, manifestAfterUpdate.vaultFolder), { recursive: true });
+    const manifestAfterUpdate = directoryState.exists
+      ? readAgentManifestSync(workspaceAbsolute)
+      : null;
+    if (directoryState.exists && manifestAfterUpdate?.vaultFolder) {
+      const vaultAbsolute = path.join(workspaceAbsolute, manifestAfterUpdate.vaultFolder);
+      try {
+        fs.mkdirSync(vaultAbsolute, { recursive: false });
+      } catch (error) {
+        if (error?.code !== "EEXIST") throw error;
+      }
     }
     const id = slugifyAgentId(
       entry?.id ||

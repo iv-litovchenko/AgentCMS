@@ -14,7 +14,8 @@ const mcpByVersion = {
   "0.0.1": () => require("./docs/mcp-0.0.1")
 };
 
-const USER_DOCS_DIR = path.join(__dirname, "public", "_storage");
+const USER_DOCS_DIR = path.join(__dirname, "workspaces", "Documentation");
+const DOCUMENTATION_AGENT_ID = "documentation";
 
 function normalizeDocVersion(version) {
   const value = String(version || "").trim();
@@ -66,6 +67,7 @@ function getDocsMeta() {
 module.exports = {
   DOC_VERSIONS,
   DEFAULT_DOC_VERSION,
+  DOCUMENTATION_AGENT_ID,
   normalizeDocVersion,
   getApiDocs,
   getMcpDocs,

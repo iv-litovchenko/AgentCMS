@@ -282,29 +282,36 @@ const COMPONENTS_IDEAS_SOURCES = [
   {
     id: "main",
     label: "Компоненты",
-    fetchPath: "/_storage/components-ideas.md",
+    topicPath: "components-ideas.md",
     subtitle: "My Graph ORM · черновик онтологии",
     withExtras: true
   },
   {
     id: "draft-1",
     label: "Черновик 1",
-    fetchPath: "/_storage/drafts/draft-1.md",
+    topicPath: "drafts/draft-1.md",
     subtitle: "Форум · темы · поля манифеста",
     withExtras: false
   },
   {
     id: "draft-2",
     label: "Черновик 2",
-    fetchPath: "/_storage/drafts/draft-2.md",
+    topicPath: "drafts/draft-2.md",
     subtitle: "Топик · content · resources · relations",
     withExtras: false
   },
   {
     id: "draft-3",
     label: "Черновик 3",
-    fetchPath: "/_storage/drafts/draft-3.md",
+    topicPath: "drafts/draft-3.md",
     subtitle: "AWN registry · _awn-agent-system · layout",
+    withExtras: false
+  },
+  {
+    id: "comments",
+    label: "Комментарии",
+    kind: "comments",
+    subtitle: "Обсуждение тем · заглушка",
     withExtras: false
   }
 ];
@@ -318,6 +325,7 @@ const userDocsVersionSelectNode = document.getElementById("user-docs-version-sel
 const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
 const DEFAULT_DOC_VERSION = "0.0.1";
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
+const DOCUMENTATION_AGENT_ID = "documentation";
 const userDocsCacheByVersion = Object.create(null);
 let userDocsVersion = DEFAULT_DOC_VERSION;
 let docsMetaCache = null;
@@ -879,6 +887,17 @@ function buildApiUrl(apiPath, params = {}, agentId = activeAgentId) {
     if (value != null && value !== "") search.set(key, String(value));
   }
   return `${apiPath}?${search.toString()}`;
+}
+
+function buildDocumentationApiUrl(apiPath, params = {}) {
+  return buildApiUrl(apiPath, params, DOCUMENTATION_AGENT_ID);
+}
+
+async function fetchDocumentationTopicMarkdown(topicPath) {
+  const response = await fetch(buildDocumentationApiUrl("/api/file", { path: topicPath }));
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json();
+  return String(data.content || "");
 }
 
 function appendAgentToApiUrl(url, agentId = activeAgentId) {
@@ -3597,7 +3616,12 @@ const DOC_CONTENT_BLOCK_GROUPS = [
   }
 ];
 const _savedEditorViewMode = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
-let editorViewMode = (_savedEditorViewMode === "preview" || _savedEditorViewMode === "source") ? _savedEditorViewMode : "source";
+let editorViewMode =
+  _savedEditorViewMode === "preview" ||
+  _savedEditorViewMode === "source" ||
+  _savedEditorViewMode === "wysiwyg"
+    ? _savedEditorViewMode
+    : "preview";
 let externalViewMode = "table";
 let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
@@ -8560,7 +8584,7 @@ function getSectionReadmeRelPath(sectionFolder) {
 
 function buildSectionReadmeContent(title) {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
-  return `---\ntitle: ${safeTitle}\n---\n\n# ${safeTitle}\n\n> Описание раздела.\n`;
+  return `---\ntitle: ${safeTitle}\n---\n\n> Описание раздела.\n`;
 }
 
 function externalSectionReadmeExists(sectionFolder) {
@@ -11277,9 +11301,9 @@ function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options 
   applyMediaSidecarTitleUi();
   applyMediaSidecarContentUi(content || "");
   syncPropsInputPlaceholder();
-  editorViewMode = "source";
+  editorViewMode = "preview";
   applyModeUi();
-  setEditorViewMode("source", { skipRouteSync: true });
+  setEditorViewMode("preview", { skipRouteSync: true });
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
@@ -12122,9 +12146,41 @@ function joinFrontmatter(frontmatter, body) {
   return `---\n${fm}\n---\n\n${mdBody}`;
 }
 
+function stripDefaultManifestHeading(body, titleHint = "") {
+  let text = String(body ?? "");
+  if (!text.trim()) return text;
+
+  const lines = text.replace(/^\uFEFF/, "").split("\n");
+  let index = 0;
+  while (index < lines.length && !lines[index].trim()) index += 1;
+  if (index >= lines.length) return text;
+
+  const headingMatch = lines[index].trim().match(/^#\s+(.+)$/);
+  if (!headingMatch) return text;
+
+  const title = String(titleHint || "").trim();
+  if (title) {
+    const headingText = headingMatch[1].trim().replace(/^["']|["']$/g, "");
+    if (headingText.localeCompare(title, "ru", { sensitivity: "accent" }) !== 0) {
+      return text;
+    }
+  }
+
+  lines.splice(index, 1);
+  while (index < lines.length && !lines[index].trim()) {
+    lines.splice(index, 1);
+  }
+  return lines.join("\n");
+}
+
 function applyNodeManifestBody(rawContent) {
-  const { body } = splitFrontmatter(rawContent || "");
-  fileContentInputNode.value = body;
+  const { frontmatter, body } = splitFrontmatter(rawContent || "");
+  const titleHint =
+    getYamlScalarFromFrontmatter(frontmatter, "title") ||
+    getPropsEntryValueByKey(propsFormEntries, "title") ||
+    titleInputNode?.value?.trim() ||
+    "";
+  fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
 }
 
 function buildNodeManifestContent() {
@@ -12138,7 +12194,11 @@ function buildNodeManifestContent() {
 function applyExternalFileContentUi(rawContent) {
   const { frontmatter, body } = splitFrontmatter(rawContent);
   setPropsYamlContent(frontmatter);
-  fileContentInputNode.value = body;
+  const titleHint =
+    getYamlScalarFromFrontmatter(frontmatter, "title") ||
+    titleInputNode?.value?.trim() ||
+    "";
+  fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
 }
 
 function buildExternalFileContent() {
@@ -12185,9 +12245,9 @@ function enableMediaMarkdownEditor(filePath, content, options = {}) {
   titleInputNode.readOnly = true;
   applyMediaSidecarContentUi(content || "");
   syncPropsInputPlaceholder();
-  editorViewMode = "source";
+  editorViewMode = "preview";
   applyModeUi();
-  setEditorViewMode("source", { skipRouteSync: true });
+  setEditorViewMode("preview", { skipRouteSync: true });
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
@@ -12324,9 +12384,9 @@ function enableExternalFileEditor(filePath, content, options = {}) {
   titleInputNode.value = (filePath.split("/").pop() || filePath).replace(/\.md$/i, "");
   applyExternalFileContentUi(content || "");
   syncPropsInputPlaceholder();
-  editorViewMode = "source";
+  editorViewMode = "preview";
   applyModeUi();
-  setEditorViewMode("source", { skipRouteSync: true });
+  setEditorViewMode("preview", { skipRouteSync: true });
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
@@ -12898,15 +12958,13 @@ async function pickDefaultMemoryMode(nodePath = activePath) {
   return "internal";
 }
 
-function openMemoryModeFromOverview(modeId, externalFile = null) {
+async function openMemoryModeFromOverview(modeId, externalFile = null) {
   if (isAreaContentModeBlocked(modeId)) return;
-  nodeMemoryViewActive = true;
-  nodeSettingsViewActive = false;
-  syncNodeMemoryModeSelect();
-  applyNodeWorkspaceViewUi();
-  setContentMode(modeId);
+  if (!applyContentModeState(modeId)) return;
+  syncAppRouteToUrl({ replace: true });
+  await applyContentModeChange();
   if (modeId === "external" && externalFile) {
-    void openExternalFile(externalFile);
+    await openExternalFile(externalFile);
   }
 }
 
@@ -13948,11 +14006,23 @@ function openNavigationPanelMode(modeId, externalFile = null) {
 
 function createNavigationSectionHead(title, options = {}) {
   const variant = [1, 2, 3].includes(options.titleVariant) ? options.titleVariant : 1;
+  const viewModeId = options.viewModeId;
   const head = document.createElement("div");
   head.className = `node-navigation-memory-head node-navigation-memory-head--title-v${variant}`;
+  if (viewModeId) {
+    head.classList.add("node-navigation-memory-head--actionable");
+  }
 
-  const titleNode = document.createElement("span");
+  const titleNode = document.createElement(viewModeId ? "button" : "span");
   titleNode.className = "node-navigation-memory-title";
+  if (viewModeId) {
+    titleNode.type = "button";
+    titleNode.title = `Открыть: ${title}`;
+    titleNode.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openNavigationPanelMode(viewModeId, options.externalFile ?? null);
+    });
+  }
   titleNode.textContent = title;
 
   const rule = document.createElement("span");
@@ -13961,7 +14031,6 @@ function createNavigationSectionHead(title, options = {}) {
 
   head.append(titleNode, rule);
 
-  const viewModeId = options.viewModeId;
   if (viewModeId) {
     const viewBtn = document.createElement("button");
     viewBtn.type = "button";
@@ -14798,8 +14867,6 @@ async function renderNodeNavigation() {
     hub.appendChild(panelsWrap);
   }
 
-  hub.appendChild(renderNodeCommentsPlaceholderBlock({ nodeTitle: heroTitle }));
-
   if (isStale()) return;
   if (!hub.children.length) {
     const empty = document.createElement("p");
@@ -15096,8 +15163,6 @@ async function renderNodeOverview() {
     createOverviewAccordionSection("todo", "✅ TODO", todoBlock, { defaultOpen: todoHasContent })
   );
 
-  fragment.appendChild(renderNodeCommentsPlaceholderBlock({ nodeTitle: title }));
-
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);
 }
@@ -15305,7 +15370,7 @@ function applyModeUi() {
     return;
   }
   if (editorViewMode === "wysiwyg" && !isWysiwygEditorEnabled()) {
-    setEditorViewMode("source");
+    setEditorViewMode("preview");
     syncSaveButtonLamp();
     return;
   }
@@ -15772,7 +15837,7 @@ function normalizeWysiwygExportedMarkdown(markdown) {
   // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
   let normalized = String(markdown || "").replace(/\\([\\`*_~\-])/g, "$1");
   normalized = normalized.replace(
-    /!\[([^\]]*)\]\((\/api\/media\/file[^)]+)\)/g,
+    /!\[([^\]]*)\]\(((?:https?:\/\/[^/]+)?\/api\/media\/file[^)]+)\)/g,
     (match, alt, url) => {
       try {
         const parsed = new URL(url, window.location.origin);
@@ -15785,6 +15850,17 @@ function normalizeWysiwygExportedMarkdown(markdown) {
     }
   );
   return normalized;
+}
+
+function normalizeWysiwygImportedMarkdown(markdown, nodePath = activePath) {
+  return String(markdown || "").replace(
+    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+    (match, alt, src) => {
+      const resolved = resolveMarkdownAssetSrc(src, nodePath);
+      if (!resolved || resolved === src) return match;
+      return `![${alt}](${resolved})`;
+    }
+  );
 }
 
 function syncSourceFromWysiwygEditor() {
@@ -15819,7 +15895,7 @@ function initWysiwygEditor() {
         ["table", "link", "image"],
         ["code", "codeblock"]
       ],
-      initialValue: fileContentInputNode.value || ""
+      initialValue: normalizeWysiwygImportedMarkdown(fileContentInputNode.value || "")
     });
   } catch (error) {
     destroyWysiwygEditor();
@@ -22102,9 +22178,7 @@ async function openMdShowcaseModal() {
   if (!mdShowcaseModalNode || !mdShowcaseContentNode) return;
   try {
     if (!mdShowcaseCache) {
-      const response = await fetch("/_storage/markdown-showcase.md");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      mdShowcaseCache = await response.text();
+      mdShowcaseCache = await fetchDocumentationTopicMarkdown("markdown-showcase.md");
     }
     setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache);
     mdShowcaseModalNode.classList.remove("hidden");
@@ -22142,12 +22216,12 @@ function appendComponentsIdeasGallery(container, images) {
 
   const gallery = document.createElement("div");
   gallery.className = "components-ideas-gallery";
-  gallery.setAttribute("aria-label", "Изображения из public/_storage/images");
+  gallery.setAttribute("aria-label", "Изображения из workspaces/Documentation/images");
 
   if (!images.length) {
     const empty = document.createElement("p");
     empty.className = "components-ideas-gallery-empty";
-    empty.textContent = "Папка /_storage/images пуста — положите сюда .png, .jpg, .webp …";
+    empty.textContent = "Папка workspaces/Documentation/images пуста — положите сюда .png, .jpg, .webp …";
     gallery.appendChild(empty);
     container.appendChild(gallery);
     return;
@@ -22171,10 +22245,9 @@ function removeComponentsIdeasExtras(container) {
 }
 
 async function fetchComponentsIdeasSourceMarkdown(source) {
+  if (source.kind === "comments") return "";
   if (!componentsIdeasCacheBySource[source.id]) {
-    const response = await fetch(source.fetchPath);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    componentsIdeasCacheBySource[source.id] = await response.text();
+    componentsIdeasCacheBySource[source.id] = await fetchDocumentationTopicMarkdown(source.topicPath);
   }
   return componentsIdeasCacheBySource[source.id];
 }
@@ -22189,7 +22262,7 @@ function renderComponentsIdeasDraftNav(activeSourceId) {
     tab.className = `components-ideas-draft-tab${source.id === activeSourceId ? " active" : ""}`;
     tab.setAttribute("role", "tab");
     tab.setAttribute("aria-selected", source.id === activeSourceId ? "true" : "false");
-    tab.title = source.fetchPath;
+    tab.title = source.topicPath || source.subtitle || source.label;
     tab.textContent = source.label;
     tab.addEventListener("click", () => {
       void loadComponentsIdeasSource(source.id);
@@ -22205,17 +22278,24 @@ async function loadComponentsIdeasSource(sourceId) {
   componentsIdeasActiveSourceId = source.id;
 
   try {
-    const markdown = await fetchComponentsIdeasSourceMarkdown(source);
-    setMarkdownPreviewHtml(componentsIdeasContentNode, markdown);
     removeComponentsIdeasExtras(componentsIdeasContentNode);
 
-    if (source.withExtras) {
-      const imagesResponse = await fetch("/api/public/images");
-      if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
-      const imagesPayload = await imagesResponse.json();
-      const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
-      appendComponentsIdeasGallery(componentsIdeasContentNode, images);
-      appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
+    if (source.kind === "comments") {
+      componentsIdeasContentNode.replaceChildren(
+        renderNodeCommentsPlaceholderBlock({ nodeTitle: "Agent CMS" })
+      );
+    } else {
+      const markdown = await fetchComponentsIdeasSourceMarkdown(source);
+      setMarkdownPreviewHtml(componentsIdeasContentNode, markdown);
+
+      if (source.withExtras) {
+        const imagesResponse = await fetch("/api/public/images");
+        if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
+        const imagesPayload = await imagesResponse.json();
+        const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
+        appendComponentsIdeasGallery(componentsIdeasContentNode, images);
+        appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
+      }
     }
 
     if (componentsIdeasSubtitleNode) {
@@ -22292,9 +22372,7 @@ async function openBestPracticesModal() {
   if (!bestPracticesModalNode || !bestPracticesContentNode) return;
   try {
     if (!bestPracticesCache) {
-      const response = await fetch("/_storage/agent-best-practices.md");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      bestPracticesCache = await response.text();
+      bestPracticesCache = await fetchDocumentationTopicMarkdown("agent-best-practices.md");
     }
     setMarkdownPreviewHtml(bestPracticesContentNode, bestPracticesCache);
     bestPracticesModalNode.classList.remove("hidden");

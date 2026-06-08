@@ -86,7 +86,7 @@ function getPublicDir() {
 }
 
 function getPublicImagesDir() {
-  return path.join(getPublicDir(), "_storage", "images");
+  return path.join(getProjectRoot(), "workspaces", "Documentation", "images");
 }
 
 const PUBLIC_IMAGE_EXTENSIONS = new Set([
@@ -119,8 +119,29 @@ async function listPublicImages() {
     .sort((a, b) => a.localeCompare(b, "ru"))
     .map((name) => ({
       name,
-      url: `/_storage/images/${encodeURI(name)}`
+      url: `/api/public/images/file?${new URLSearchParams({ name }).toString()}`
     }));
+}
+
+async function readPublicImageFile(name) {
+  const safeName = path.basename(String(name || "").trim());
+  if (!safeName || safeName !== String(name || "").trim()) {
+    return null;
+  }
+  const ext = path.extname(safeName).toLowerCase();
+  if (!PUBLIC_IMAGE_EXTENSIONS.has(ext)) return null;
+
+  const imagesDir = path.resolve(getPublicImagesDir());
+  const absolute = path.resolve(imagesDir, safeName);
+  if (absolute !== imagesDir && !absolute.startsWith(`${imagesDir}${path.sep}`)) return null;
+
+  try {
+    const stat = await fs.stat(absolute);
+    if (!stat.isFile()) return null;
+    return { absolute, ext };
+  } catch {
+    return null;
+  }
 }
 
 function initProjectRoot(root, options = {}) {
@@ -1598,7 +1619,7 @@ async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
 }
 
 async function ensureWorkspaceRootIndex(dirAbsolute) {
-  await fs.mkdir(dirAbsolute, { recursive: true });
+  if (!(await dirExists(dirAbsolute))) return;
   const workspaceKey = path.basename(dirAbsolute);
   const rootManifestAbsolute = path.join(dirAbsolute, AREA_MANIFEST_FILE);
   if (await fileExists(rootManifestAbsolute)) return;
@@ -1616,12 +1637,15 @@ async function ensureWorkspaceRootIndex(dirAbsolute) {
 async function ensureServiceFolderScaffold(agentRootAbsolute) {
   const serviceFolder = getAgentSystemFolder();
   if (!serviceFolder) return null;
+  if (!(await dirExists(agentRootAbsolute))) return null;
 
   const serviceAbsolute = path.join(agentRootAbsolute, serviceFolder);
   const serviceManifestRel = getServiceAreaManifestRel(serviceFolder);
   const manifestAbsolute = path.join(serviceAbsolute, AREA_MANIFEST_FILE);
 
-  await fs.mkdir(serviceAbsolute, { recursive: true });
+  if (!(await dirExists(serviceAbsolute))) {
+    await fs.mkdir(serviceAbsolute, { recursive: false });
+  }
 
   if (!(await fileExists(manifestAbsolute))) {
     await fs.writeFile(
@@ -1646,9 +1670,12 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
 async function ensureVaultFolderScaffold(agentRootAbsolute) {
   const vaultFolder = getAgentVaultFolder();
   if (!vaultFolder) return null;
+  if (!(await dirExists(agentRootAbsolute))) return null;
 
   const vaultAbsolute = path.join(agentRootAbsolute, vaultFolder);
-  await fs.mkdir(vaultAbsolute, { recursive: true });
+  if (!(await dirExists(vaultAbsolute))) {
+    await fs.mkdir(vaultAbsolute, { recursive: false });
+  }
   return vaultAbsolute;
 }
 
@@ -1689,6 +1716,17 @@ function dedupeRootMenuSections(menu) {
 }
 
 async function buildAgentMenu(agentRootAbsolute) {
+  if (!(await dirExists(agentRootAbsolute))) {
+    return {
+      title: path.basename(agentRootAbsolute),
+      sections: [],
+      items: [],
+      indexPath: null,
+      serviceTree: null,
+      workspaceMissing: true
+    };
+  }
+
   await ensureWorkspaceRootIndex(agentRootAbsolute);
   await ensureVaultFolderScaffold(agentRootAbsolute);
   const menu = dedupeRootMenuSections(await listNodeMdFiles(agentRootAbsolute));
@@ -6257,7 +6295,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.writeFile(
           manifestAbsolute,
-          joinNodeFrontmatter(`title: ${title}`, `# ${title}\n`),
+          joinNodeFrontmatter(`title: ${title}`, ""),
           "utf-8"
         );
 
@@ -6291,7 +6329,7 @@ async function handleApiForAgent(req, res, url) {
         const areaTitle = stripTopicPrefix(folderName);
         await fs.writeFile(
           manifestAbsolute,
-          joinNodeFrontmatter(`title: ${areaTitle}`, `# ${areaTitle}\n`),
+          joinNodeFrontmatter(`title: ${areaTitle}`, ""),
           "utf-8"
         );
 
@@ -6321,7 +6359,7 @@ async function handleApiForAgent(req, res, url) {
 
       await fs.writeFile(
         partFileAbsolute,
-        joinNodeFrontmatter(`title: ${name}`, `# ${name}\n`),
+        joinNodeFrontmatter(`title: ${name}`, ""),
         "utf-8"
       );
 
@@ -6459,6 +6497,24 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to list public images",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/public/images/file") {
+    try {
+      const image = await readPublicImageFile(url.searchParams.get("name"));
+      if (!image) return sendJson(res, 404, { error: "Image not found" });
+
+      const content = await fs.readFile(image.absolute);
+      const contentType = MIME_TYPES[image.ext] || "application/octet-stream";
+      res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-cache" });
+      res.end(content);
+      return;
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read image",
         details: String(error?.message || error)
       });
     }

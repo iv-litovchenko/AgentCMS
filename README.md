@@ -28,7 +28,7 @@ cd mcp-server && npm install
 
 ## Документация
 
-- Пользовательская: `public/_storage/user-docs.md` (кнопка **DOC** в UI)
+- Пользовательская: `workspaces/Documentation/user-docs*.md` (кнопка **DOC** в UI)
 - Примеры UI: `documentation/examples/`
 - Типы свойств темы: `documentation/examples/6/`
 

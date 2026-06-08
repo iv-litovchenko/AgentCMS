@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.91" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.96" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -951,7 +951,7 @@
                   <div id="editor-view-toggle" class="editor-view-toggle" role="tablist" aria-label="Режим отображения редактора">
                     <button
                       id="editor-view-preview-btn"
-                      class="editor-view-btn"
+                      class="editor-view-btn active"
                       type="button"
                       data-view-mode="preview"
                       data-tooltip="Просмотр"
@@ -1071,6 +1071,22 @@
                   📤 Загрузка
                 </button>
                 <button
+                  id="file-history-btn"
+                  class="file-history-btn workspace-toolbar-labeled-btn hidden"
+                  type="button"
+                  title="История версий файла"
+                  aria-label="История"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 12a9 9 0 1 0 3-6.7" />
+                      <polyline points="3 4 3 9 8 9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                  </span>
+                  <span class="workspace-toolbar-btn-label">История</span>
+                </button>
+                <button
                   id="save-content-btn"
                   class="save-btn workspace-toolbar-labeled-btn"
                   type="button"
@@ -1086,22 +1102,6 @@
                   </span>
                   <span class="save-btn-lamp" aria-hidden="true"></span>
                   <span class="workspace-toolbar-btn-label">Сохранить</span>
-                </button>
-                <button
-                  id="file-history-btn"
-                  class="file-history-btn workspace-toolbar-labeled-btn hidden"
-                  type="button"
-                  title="История версий файла"
-                  aria-label="История"
-                >
-                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M3 12a9 9 0 1 0 3-6.7" />
-                      <polyline points="3 4 3 9 8 9" />
-                      <path d="M12 7v5l3 2" />
-                    </svg>
-                  </span>
-                  <span class="workspace-toolbar-btn-label">История</span>
                 </button>
                 <button
                   id="node-workspace-close-btn"
@@ -1731,7 +1731,7 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.50"></script>
+    <script src="/main.js?v=0.5.53"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>
