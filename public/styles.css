@@ -15983,11 +15983,77 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .media-dashboard-cell-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
+  min-width: 176px;
 }
 
-.media-dashboard-cell-actions .media-action-btn + .media-action-btn {
-  margin-left: 6px;
+.media-action-btn-text {
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.media-path-popover {
+  position: fixed;
+  z-index: 1100;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.media-path-popover-title {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.media-path-popover-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.media-path-popover-action:hover,
+.media-path-popover-action:focus-visible {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.media-path-popover-action-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.media-path-popover-action-hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  word-break: break-all;
 }
 
 .media-action-btn-icon-only {
@@ -16200,6 +16266,9 @@ button.node-navigation-memory-title:focus-visible {
 .media-sidecar-back-btn,
 .external-memory-back-btn {
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;

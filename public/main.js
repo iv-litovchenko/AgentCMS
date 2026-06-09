@@ -11190,6 +11190,8 @@ const MEDIA_ACTION_ICON_OPEN =
 const MEDIA_ACTION_ICON_FINDER =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7h18"/></svg>';
 
+let mediaPathPopoverState = null;
+
 let mediaSidecarOpenInFlight = null;
 let mediaAssetOpenLockedUntil = 0;
 
@@ -11258,11 +11260,175 @@ async function revealMediaFileInExplorer(mediaFilePath) {
   }
 }
 
+async function resolveMediaAbsolutePath(item, { quiet = false } = {}) {
+  if (!activePath || !item?.path) return "";
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/reveal/file", {
+        path: getActiveNodeApiPath(),
+        file: item.path
+      })
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    }
+    return String(data.fileAbsolute || "").trim();
+  } catch (error) {
+    if (!quiet) {
+      showToast(`Не удалось получить путь: ${error.message}`, "error");
+    }
+    return "";
+  }
+}
+
+function buildMediaLinkPath(item) {
+  return buildMarkdownAttachmentRef(item?.path);
+}
+
+async function copyMediaPathText(text, successMessage) {
+  const value = String(text || "").trim();
+  if (!value) {
+    showToast("Путь недоступен", "error");
+    return false;
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      showToast(successMessage, "success");
+      return true;
+    }
+  } catch {
+    // fallback below
+  }
+  window.prompt("Скопируйте:", value);
+  return true;
+}
+
+function closeMediaPathPopover() {
+  if (mediaPathPopoverState?.onDocumentClick) {
+    document.removeEventListener("mousedown", mediaPathPopoverState.onDocumentClick);
+  }
+  if (mediaPathPopoverState?.onKeyDown) {
+    document.removeEventListener("keydown", mediaPathPopoverState.onKeyDown);
+  }
+  mediaPathPopoverState?.popover?.remove();
+  mediaPathPopoverState = null;
+}
+
+function positionMediaPathPopover(anchor, popover) {
+  const rect = anchor.getBoundingClientRect();
+  const margin = 8;
+  popover.style.visibility = "hidden";
+  popover.style.left = "0";
+  popover.style.top = "0";
+  const popoverRect = popover.getBoundingClientRect();
+  let left = rect.right - popoverRect.width;
+  let top = rect.bottom + margin;
+  left = Math.max(margin, Math.min(left, window.innerWidth - popoverRect.width - margin));
+  if (top + popoverRect.height > window.innerHeight - margin) {
+    top = rect.top - popoverRect.height - margin;
+  }
+  top = Math.max(margin, Math.min(top, window.innerHeight - popoverRect.height - margin));
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+  popover.style.visibility = "";
+}
+
+function createMediaPathPopoverAction(label, hint, options = {}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-path-popover-action";
+
+  const labelNode = document.createElement("span");
+  labelNode.className = "media-path-popover-action-label";
+  labelNode.textContent = label;
+
+  const hintNode = document.createElement("span");
+  hintNode.className = "media-path-popover-action-hint";
+  hintNode.textContent = hint;
+
+  btn.append(labelNode, hintNode);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void (async () => {
+      btn.disabled = true;
+      try {
+        const value =
+          typeof options.resolveValue === "function"
+            ? await options.resolveValue()
+            : String(options.value || "");
+        const copied = await copyMediaPathText(value, options.successMessage || "Скопировано");
+        if (copied) closeMediaPathPopover();
+      } finally {
+        btn.disabled = false;
+      }
+    })();
+  });
+  return btn;
+}
+
+function openMediaPathPopover(anchor, item) {
+  closeMediaPathPopover();
+
+  const linkPath = buildMediaLinkPath(item);
+  const popover = document.createElement("div");
+  popover.className = "media-path-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", "Копирование пути");
+
+  const title = document.createElement("p");
+  title.className = "media-path-popover-title";
+  title.textContent = item?.name || "Файл";
+
+  const fullPathAction = createMediaPathPopoverAction("Скопировать полный путь", "Загрузка…", {
+    resolveValue: () => resolveMediaAbsolutePath(item),
+    successMessage: "Полный путь скопирован"
+  });
+
+  popover.append(
+    title,
+    fullPathAction,
+    createMediaPathPopoverAction(
+      "Скопировать путь для ссылок",
+      linkPath || "—",
+      {
+        value: linkPath,
+        successMessage: "Путь для ссылок скопирован"
+      }
+    )
+  );
+
+  document.body.appendChild(popover);
+  positionMediaPathPopover(anchor, popover);
+
+  void resolveMediaAbsolutePath(item, { quiet: true }).then((absolutePath) => {
+    if (mediaPathPopoverState?.popover !== popover) return;
+    const hint = fullPathAction.querySelector(".media-path-popover-action-hint");
+    if (hint) hint.textContent = absolutePath || "—";
+  });
+
+  const onDocumentClick = (event) => {
+    const target = event.target;
+    if (popover.contains(target) || anchor.contains(target)) return;
+    closeMediaPathPopover();
+  };
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") closeMediaPathPopover();
+  };
+
+  mediaPathPopoverState = { popover, anchor, onDocumentClick, onKeyDown };
+  document.addEventListener("mousedown", onDocumentClick);
+  document.addEventListener("keydown", onKeyDown);
+}
+
 function appendMediaItemActionButtons(target, item) {
   target.append(
     createMediaSidecarEditButton(item),
     createMediaOpenButton(item),
-    createMediaRevealInFinderButton(item)
+    createMediaRevealInFinderButton(item),
+    createMediaLinkPathButton(item)
   );
 }
 
@@ -11306,6 +11472,25 @@ function createMediaRevealInFinderButton(item) {
   btn.addEventListener("click", (event) => {
     guardMediaActionClick(event, () => {
       void revealMediaFileInExplorer(item.path);
+    });
+  });
+  return btn;
+}
+
+function createMediaLinkPathButton(item) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-action-btn media-action-btn-text";
+  btn.textContent = "Ссылка";
+  btn.title = "Скопировать путь";
+  btn.setAttribute("aria-label", "Скопировать путь");
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      if (mediaPathPopoverState?.anchor === btn) {
+        closeMediaPathPopover();
+        return;
+      }
+      openMediaPathPopover(btn, item);
     });
   });
   return btn;
@@ -12091,6 +12276,7 @@ function renderMediaFilteredView(container) {
 }
 
 function renderListViewContent() {
+  closeMediaPathPopover();
   const raw = getListViewRawContent();
   const isMediaListView = activeContentMode === "media" && !isMediaAssetEditing();
   const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();

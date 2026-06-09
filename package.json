@@ -34,16 +34,12 @@
     "files": [
       "electron/**/*",
       "public/**/*",
-      "server.js",
-      "agent-registry.js",
-      "awn-field-registry.js",
-      "awn-types-loader.js",
+      "*.js",
+      "docs/**/*",
       "awn-types/**/*",
-      "api-docs.js",
-      "mcp-docs.js",
       "mcp-server/**/*",
       "awn-agents.json",
-      "Workspaces/**/*",
+      "workspaces/**/*",
       "package.json"
     ],
     "protocols": [
