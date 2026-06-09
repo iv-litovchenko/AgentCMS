@@ -3380,7 +3380,7 @@ const NODE_SETTINGS_GROUP = {
   title: "Настройки",
   icon: "⚙️",
   modes: [
-    { id: "description", label: "Назначение" },
+    { id: "description", label: "Назначение (инструкция для агента)" },
     { id: "configs", label: "Конфигурация" },
     { id: "topic-schema", label: "Схема полей" },
     { id: "env", label: ".env" }
@@ -14927,7 +14927,7 @@ function getDocAsideMiniDocSpec() {
   switch (activeContentMode) {
     case "description":
       return {
-        title: "Назначение · markdown",
+        title: "Назначение (инструкция для агента) · markdown",
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
@@ -18013,7 +18013,7 @@ function buildNodeSettingsSlotStatuses({
     );
 
   const slots = [
-    { id: "description", label: "Назначение", filled: hasDescription, modeId: "description" },
+    { id: "description", label: "Назначение (инструкция для агента)", filled: hasDescription, modeId: "description" },
     { id: "configs", label: "Конфигурация", filled: hasConfigs, modeId: "configs" }
   ];
   if (isTopicSchemaModeAvailable(nodePath)) {
@@ -18918,7 +18918,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
     wrap.appendChild(actions);
   }
 
-  return createNavigationMemoryPanel("description", "Назначение", wrap);
+  return createNavigationMemoryPanel("description", "Назначение (инструкция для агента)", wrap);
 }
 
 function renderNavigationTodoPart(todoData) {
