@@ -7042,26 +7042,26 @@ function getNodeDomainBreadcrumbPath(nodePath) {
   return getNodeDisplayPath(nodePath);
 }
 
+function getNodeMemoryListBreadcrumbPath(nodePath) {
+  const parts = normalizeBreadcrumbPath(getNodeDisplayPath(nodePath)).split("/").filter(Boolean);
+  const collapsed = [];
+  for (const part of parts) {
+    if (part === STORAGE_ROOT_FOLDER) continue;
+    if (part === STORAGE_SUBFOLDER_CONTENT || part === STORAGE_SUBFOLDER_ASSETS) continue;
+    collapsed.push(part);
+  }
+  return collapsed.join("/");
+}
+
 function getStorageListBreadcrumbPath(overrides = {}) {
   if (!activePath) return null;
 
-  const {
-    previewFile = null,
-    externalFile = activeExternalFilePath,
-    mediaFile = activeMediaSidecarSourcePath
-  } = overrides;
+  const { previewFile = null } = overrides;
 
   switch (activeContentMode) {
-    case "external": {
-      const base = getNodeStorageSubfolderPath(activePath, "external");
-      if (externalFile) return `${base}/${externalFile}`;
+    case "external":
+    case "media":
       return null;
-    }
-    case "media": {
-      const base = getNodeStorageSubfolderPath(activePath, "media");
-      if (mediaFile) return `${base}/${mediaFile}`;
-      return null;
-    }
     case "inbox":
     case "references":
     case "scripts":
@@ -7093,6 +7093,10 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
     return getHomeBreadcrumbPath();
   }
   if (isGraphModeActive()) return normalizeBreadcrumbPath(activePath);
+
+  if (activeContentMode === "external" || activeContentMode === "media") {
+    return getNodeMemoryListBreadcrumbPath(activePath);
+  }
 
   const storageListPath = getStorageListBreadcrumbPath(overrides);
   if (storageListPath) return storageListPath;
@@ -9345,6 +9349,7 @@ function formatMemoryListSectionHeadLabel(sectionFolder) {
 function ensureExternalListSectionHeadHost(main) {
   if (!main) return null;
   main.querySelector(".memory-list-view-crumbs")?.remove();
+  main.querySelector(".media-list-section-head")?.remove();
   let host = main.querySelector(".external-list-section-head");
   if (!host) {
     host = document.createElement("div");
@@ -9390,6 +9395,7 @@ function syncExternalListSectionHead(sectionFolder) {
 function ensureMediaListSectionHeadHost(main) {
   if (!main) return null;
   main.querySelector(".memory-list-view-crumbs")?.remove();
+  main.querySelector(".external-list-section-head")?.remove();
   let host = main.querySelector(".media-list-section-head");
   if (!host) {
     host = document.createElement("div");
@@ -10059,12 +10065,13 @@ function renderMediaSectionTree(container) {
 }
 
 function ensureMediaListViewLayout() {
-  let wrap = listViewContentNode.querySelector(".media-list-view-wrap");
-  if (!wrap) {
+  const existing = listViewContentNode.querySelector(".media-list-view-wrap");
+  if (!existing || existing.classList.contains("external-list-view-wrap")) {
     listViewContentNode.innerHTML = "";
     mountMediaListViewLayout(listViewContentNode);
-    wrap = listViewContentNode.querySelector(".media-list-view-wrap");
   }
+  const wrap = listViewContentNode.querySelector(".media-list-view-wrap");
+  if (!wrap) return null;
   ensureMediaListViewMainWrapper();
   renderMediaSectionTree(wrap.querySelector(".media-section-tree"));
   syncStorageSectionsPanelUi();
@@ -11153,12 +11160,13 @@ function mountExternalListViewLayout(root) {
 }
 
 function ensureExternalListViewLayout() {
-  let wrap = listViewContentNode.querySelector(".external-list-view-wrap");
-  if (!wrap) {
+  const existing = listViewContentNode.querySelector(".media-list-view-wrap");
+  if (!existing || !existing.classList.contains("external-list-view-wrap")) {
     listViewContentNode.innerHTML = "";
     mountExternalListViewLayout(listViewContentNode);
-    wrap = listViewContentNode.querySelector(".external-list-view-wrap");
   }
+  const wrap = listViewContentNode.querySelector(".external-list-view-wrap");
+  if (!wrap) return null;
   ensureExternalListToolbar(wrap);
   renderExternalSectionTree(wrap.querySelector(".external-section-tree"));
   syncStorageSectionsPanelUi();
@@ -12666,13 +12674,11 @@ function renderMediaUsageDashboard(container) {
   thPreview.textContent = "Превью";
   const thName = document.createElement("th");
   thName.appendChild(createMediaDashboardSortButton("Имя файла", "name"));
-  const thDir = document.createElement("th");
-  thDir.appendChild(createMediaDashboardSortButton("Папка", "directory"));
   const thUsage = document.createElement("th");
   thUsage.appendChild(createMediaDashboardSortButton("Использование", "usage"));
   const thActions = document.createElement("th");
   thActions.textContent = "Действия";
-  headRow.append(thPreview, thName, thDir, thUsage, thActions);
+  headRow.append(thPreview, thName, thUsage, thActions);
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -12712,10 +12718,6 @@ function renderMediaUsageDashboard(container) {
     nameMeta.textContent = `${item.typeLabel}${item.size ? ` · ${formatFileSize(item.size)}` : ""}`;
     nameCell.append(nameMain, nameMeta);
 
-    const dirCell = document.createElement("td");
-    dirCell.className = "media-dashboard-cell-directory";
-    dirCell.textContent = item.directory;
-
     const usageCell = document.createElement("td");
     usageCell.className = "media-dashboard-cell-usage";
     const usageBadge = document.createElement("span");
@@ -12727,7 +12729,7 @@ function renderMediaUsageDashboard(container) {
     actionsCell.className = "media-dashboard-cell-actions";
     appendMediaItemActionButtons(actionsCell, item);
 
-    row.append(previewCell, nameCell, dirCell, usageCell, actionsCell);
+    row.append(previewCell, nameCell, usageCell, actionsCell);
     tbody.appendChild(row);
   }
 
@@ -20120,6 +20122,12 @@ function renderNavigationMediaPart(mediaData) {
 
   const body = document.createElement("div");
   body.className = "node-navigation-media";
+  const nodePath = getResolvedNodePath(activePath);
+
+  const imageItems = Array.isArray(groups.Images) ? groups.Images : [];
+  if (imageItems.length) {
+    appendNavigationMediaImageStrip(body, imageItems, nodePath);
+  }
 
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc";
@@ -20177,7 +20185,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
   const nodePath = getResolvedNodePath(activePath);
 
   const preview = document.createElement("div");
-  preview.className = "node-navigation-preview file-content-preview";
+  preview.className = "node-navigation-preview node-navigation-agent-instruction file-content-preview";
   setMarkdownPreviewHtml(preview, previewText, { nodePath });
   wrap.appendChild(preview);
 
