@@ -1618,6 +1618,23 @@ async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = 
           path.posix.basename(path.posix.dirname(relPath)) ||
           path.posix.basename(relPath).replace(/\.md$/i, "");
         displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
+      } else {
+        const sidecarRel = toMediaSidecarRelativePath(relPath);
+        if (sidecarRel) {
+          const sidecarAbsolute = path.join(folderAbsolute, sidecarRel);
+          if (sidecarAbsolute.startsWith(folderAbsolute)) {
+            try {
+              const sidecarRaw = await fs.readFile(sidecarAbsolute, "utf-8");
+              const { frontmatter } = splitNodeFrontmatter(sidecarRaw);
+              displayName = resolveNodeDisplayName(
+                getYamlScalar(frontmatter, "awn-name") || "",
+                entry.name
+              );
+            } catch {
+              // sidecar may not exist yet
+            }
+          }
+        }
       }
     } catch {
       // keep size 0
@@ -1885,6 +1902,26 @@ async function nodePathExists(absolutePath) {
   }
 }
 
+async function appendPrefixedWorkspaceManifestCandidates(candidates, normalized, seen) {
+  const base = path.posix.basename(normalized);
+  if (!isTopicManifestFileName(base) && !isAreaManifestFileName(base)) return;
+
+  let rootEntries;
+  try {
+    rootEntries = await fs.readdir(getAgentRoot(), { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of rootEntries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const prefixed = `${entry.name}/${normalized}`.replace(/\\/g, "/");
+    if (seen.has(prefixed)) continue;
+    seen.add(prefixed);
+    candidates.push(prefixed);
+  }
+}
+
 async function resolveExistingWorkspaceRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   if (!normalized) return normalized;
@@ -1900,6 +1937,7 @@ async function resolveExistingWorkspaceRelPath(relPath) {
 
   pushCandidate(normalized);
   await appendGitRepoContainerRelCandidates(candidates, normalized, seen);
+  await appendPrefixedWorkspaceManifestCandidates(candidates, normalized, seen);
 
   for (const candidate of candidates) {
     const absolute = normalizeWorkspacePath(candidate);

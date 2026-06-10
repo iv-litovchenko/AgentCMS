@@ -5637,7 +5637,17 @@ function syncNodeWorkspaceDomainSelect() {
   }
 }
 
-function applyNodeWorkspaceDomainChange(domain) {
+async function applyNodeWorkspaceDomainChange(domain) {
+  const leavingTodo =
+    getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO && activeContentMode === "todo";
+  if (leavingTodo && isEditorSaveTrackingActive()) {
+    const dirty =
+      savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
+    if (dirty) {
+      await saveContent();
+    }
+  }
+
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW) {
     setContentMode(NODE_OVERVIEW_MODE);
     return;
@@ -5764,6 +5774,18 @@ function handleWorkspaceCloseClick() {
   if (isExternalFileEditing()) {
     closeExternalFileEditor();
     return;
+  }
+  if (
+    getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO &&
+    activeContentMode === "todo" &&
+    isEditorSaveTrackingActive()
+  ) {
+    const dirty =
+      savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
+    if (dirty) {
+      void saveContent().then(() => returnToNodeNavigation());
+      return;
+    }
   }
   returnToNodeNavigation();
 }
@@ -6733,6 +6755,21 @@ function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
   return isGitRepoMenuFolder(parentFolder, agentId);
 }
 
+function isGitRepoLooseMdPath(nodePath, agentId = activeAgentId) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!normalized || !/\.md$/i.test(normalized)) return false;
+  return isGitRepoLooseFilePath(normalized, agentId);
+}
+
+function isGitRepoLooseMdEditing() {
+  return isGitRepoLooseMdPath(activePath);
+}
+
+function isPlainServiceStyleOpen() {
+  if (activeSystemFile) return true;
+  return isGitRepoLooseFilePath(activePath) && !isGitRepoLooseMdEditing();
+}
+
 function isServiceStyleContentOpen() {
   return Boolean(activeSystemFile) || isGitRepoLooseFilePath(activePath);
 }
@@ -7403,6 +7440,9 @@ function applyContentModeState(mode) {
   if (isFlatStorageListMode(mode) || mode === "tabular") {
     editorViewMode = "preview";
   }
+  if (mode === "todo" && WYSIWYG_EDITOR_ENABLED) {
+    editorViewMode = "wysiwyg";
+  }
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -7427,6 +7467,7 @@ function applyContentModeState(mode) {
 }
 
 function setContentMode(mode) {
+  if (isGitRepoLooseMdEditing() && mode !== "internal") return;
   if (!applyContentModeState(mode)) return;
   syncAppRouteToUrl({ replace: true });
   void applyContentModeChange();
@@ -7545,7 +7586,7 @@ function getNodeStorageSubfolderPath(nodePath, subfolderOrMode) {
 }
 
 function getEnvBreadcrumbPath(nodePath) {
-  return `${getNodeStoragePrefix(nodePath)}/.env`;
+  return getNodeDisplayPath(nodePath);
 }
 
 function parsePartFolderManifestRel(nodePath) {
@@ -7724,23 +7765,23 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
 }
 
 function getTodoBreadcrumbPath(nodePath) {
-  return resolveNodeSidecarRelPath(nodePath, "todo");
+  return getNodeDisplayPath(nodePath);
 }
 
 function getPreviewBreadcrumbPath(nodePath) {
-  return resolveNodeSidecarRelPath(nodePath, "preview");
+  return getNodeDisplayPath(nodePath);
 }
 
 function getConfigsBreadcrumbPath(nodePath) {
-  return resolveNodeSidecarRelPath(nodePath, "config");
+  return getNodeDisplayPath(nodePath);
 }
 
 function getInternalMemoryBreadcrumbPath(nodePath) {
-  return resolveNodeSidecarRelPath(nodePath, "content");
+  return getNodeDisplayPath(nodePath);
 }
 
 function getTabularBreadcrumbPath(nodePath) {
-  return resolveNodeSidecarRelPath(nodePath, "tabular");
+  return getNodeDisplayPath(nodePath);
 }
 
 function getHomeBreadcrumbPath() {
@@ -7884,10 +7925,8 @@ function getStorageListBreadcrumbPath(overrides = {}) {
       return getInternalMemoryBreadcrumbPath(activePath);
     case "tabular":
       return getTabularBreadcrumbPath(activePath);
-    case "node-preview": {
-      const base = getPreviewBreadcrumbPath(activePath);
-      return previewFile ? `${base}/${previewFile}` : base;
-    }
+    case "node-preview":
+      return getPreviewBreadcrumbPath(activePath);
     case "configs":
       return getConfigsBreadcrumbPath(activePath);
     case "env":
@@ -10318,6 +10357,19 @@ function isSectionReadmeSegmentName(segment) {
     normalized === LEGACY_AREA_MANIFEST_FILE.toLowerCase() ||
     normalized === areaManifestStem ||
     normalized === legacyManifestStem
+  );
+}
+
+function isBreadcrumbStorageInfrastructureSegment(part) {
+  const lower = String(part || "").trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === STORAGE_ROOT_FOLDER.toLowerCase()) return true;
+  return (
+    lower === BUNDLE_CONTENT_FILE.toLowerCase() ||
+    lower === BUNDLE_TABULAR_FILE.toLowerCase() ||
+    lower === BUNDLE_TODO_FILE.toLowerCase() ||
+    lower === BUNDLE_CONFIG_FILE.toLowerCase() ||
+    lower === ".env"
   );
 }
 
@@ -13703,7 +13755,7 @@ function renderMediaFileRows(container, items, { icon = "📄", showSize = true 
 
     const nameNode = document.createElement("div");
     nameNode.className = "media-file-name";
-    nameNode.textContent = item.name;
+    nameNode.textContent = String(item.displayName || "").trim() || item.name;
 
     const pathNode = document.createElement("div");
     pathNode.className = "media-file-path";
@@ -14142,7 +14194,7 @@ function syncTitleInputEditableState() {
   const titleEditable = isCurrentModeTitleEditable();
 
   if (mediaSidecarEditing) {
-    applyMediaSidecarTitleUi();
+    syncMediaSidecarTitleFields();
     return;
   }
 
@@ -14178,39 +14230,31 @@ function resetTitleInputState() {
   if (titleMediaExtNode) titleMediaExtNode.textContent = "";
 }
 
-function splitMediaFileName(filePath = activeMediaSidecarSourcePath) {
-  const fileName = getMediaSidecarFileName(filePath);
-  const dotIndex = fileName.lastIndexOf(".");
-  if (dotIndex <= 0) return { base: fileName, ext: "" };
-  return { base: fileName.slice(0, dotIndex), ext: fileName.slice(dotIndex) };
+function getMediaFileSlugFromPath(filePath = activeMediaSidecarSourcePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  return normalized.split("/").filter(Boolean).pop() || "";
 }
 
-function getMediaSidecarTitleBase(filePath = activeMediaSidecarSourcePath) {
-  return splitMediaFileName(filePath).base;
-}
+function syncMediaSidecarTitleFields() {
+  if (!isMediaSidecarEditing() || !activeMediaSidecarSourcePath || !titleInputNode) return;
+  const filePath = activeMediaSidecarSourcePath;
+  const slug = getMediaFileSlugFromPath(filePath);
+  const rawAwnName = getAwnNameRawForNode(filePath);
 
-function buildMediaFileNameFromTitle(titleBase, filePath = activeMediaSidecarSourcePath) {
-  const base = String(titleBase || "").trim();
-  if (!base) return "";
-  const { ext } = splitMediaFileName(filePath);
-  return `${base}${ext}`;
-}
-
-function applyMediaSidecarTitleUi() {
-  const { base, ext } = splitMediaFileName();
   showTitleEditableInput();
-  titleInputNode.value = base;
+  titleMediaExtNode?.classList.add("hidden");
+  if (titleMediaExtNode) titleMediaExtNode.textContent = "";
+
+  titleInputNode.value = rawAwnName;
   titleInputNode.readOnly = false;
   titleInputNode.disabled = false;
-  if (titleMediaExtNode) {
-    if (ext) {
-      titleMediaExtNode.textContent = ext;
-      titleMediaExtNode.classList.remove("hidden");
-    } else {
-      titleMediaExtNode.textContent = "";
-      titleMediaExtNode.classList.add("hidden");
-    }
+  titleInputNode.placeholder = slug ? `Пусто → в меню: ${slug}` : "Название";
+  if (titleSlugInputNode) {
+    titleSlugInputNode.value = slug;
   }
+  titleSlugLinked = false;
+  applyTitleSlugLinkedUi();
+  showTitleSlugRow(filePath);
 }
 
 function getMediaSidecarFileName(filePath = activeMediaSidecarSourcePath) {
@@ -14305,8 +14349,8 @@ function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options 
   activeMediaSidecarPath = sidecarPath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
-  applyMediaSidecarTitleUi();
   applyMediaSidecarContentUi(content || "");
+  syncMediaSidecarTitleFields();
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
   applyModeUi();
@@ -16329,7 +16373,7 @@ function getDocAsideTab() {
 }
 
 function isDocAsideAvailable() {
-  if (!activePath || isServiceStyleContentOpen()) return false;
+  if (!activePath || isPlainServiceStyleOpen()) return false;
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
@@ -16342,6 +16386,7 @@ function isDocAsideOutlineTabAvailable() {
 }
 
 function isDocAsidePropsTabAvailable() {
+  if (isGitRepoLooseMdEditing()) return false;
   return (
     activeContentMode === "description" ||
     (activeContentMode === "external" && Boolean(activeExternalFilePath)) ||
@@ -18373,6 +18418,8 @@ function syncSectionReadmeDisplayNameIntoProps(displayName) {
 function buildMediaSidecarContent() {
   if (activeMediaMarkdownPath) {
     syncDisplayNameIntoAwnNameProp(activeMediaMarkdownPath);
+  } else if (isMediaSidecarEditing() && activeMediaSidecarSourcePath) {
+    syncDisplayNameIntoAwnNameProp(activeMediaSidecarSourcePath);
   }
   flushPropsYamlFromFormBeforeSave();
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
@@ -19020,6 +19067,20 @@ function clearSystemFileViewUi() {
   saveContentBtn?.classList.remove("hidden");
 }
 
+function syncGitRepoLooseMdPathHeaderUi() {
+  const mdEditing = isGitRepoLooseMdEditing();
+  workspacePathHeaderNode?.classList.toggle("is-service-file", mdEditing);
+  workspaceGdriveSyncBtn?.classList.toggle("hidden", mdEditing);
+  nodeWorkspaceNavControlsNode?.classList.toggle("hidden", mdEditing);
+  nodeSettingsPathControlsNode?.classList.toggle("hidden", mdEditing);
+  nodeMemoryPathControlsNode?.classList.toggle("hidden", mdEditing);
+  if (mdEditing) {
+    titleEditorBlockNode?.classList.add("hidden");
+    nodeOverviewBlockNode?.classList.add("hidden");
+    nodeOverviewBlockNode?.classList.remove("is-node-navigation", "is-container-node");
+  }
+}
+
 function getPropsEntryValueByKey(entries, key) {
   const normalizedKey = normalizePropsKey(key);
   const entry = entries.find((item) => normalizePropsKey(item.key) === normalizedKey);
@@ -19538,11 +19599,11 @@ function getOverviewMemoryStoragePath(nodePath, driverId, summary) {
   if (driver.path && isFullWorkspaceRelPath(driver.path)) return driver.path;
   switch (driverId) {
     case "internal":
-      return getInternalMemoryBreadcrumbPath(resolvedPath);
+      return resolveNodeSidecarRelPath(resolvedPath, "content");
     case "external":
       return getNodeStorageSubfolderPath(resolvedPath, "external");
     case "tabular":
-      return getTabularBreadcrumbPath(resolvedPath);
+      return resolveNodeSidecarRelPath(resolvedPath, "tabular");
     default:
       return "";
   }
@@ -19619,7 +19680,7 @@ function renderOverviewTodoBlock(todoData, nodePath = activePath) {
   const body = document.createElement("div");
   body.className = "node-overview-todo-body";
   const content = String(todoData?.content || "").trim();
-  const storagePath = getTodoBreadcrumbPath(nodePath);
+  const storagePath = resolveNodeSidecarRelPath(nodePath, "todo");
 
   if (!content) {
     body.classList.add("node-overview-todo-body--empty");
@@ -21663,7 +21724,7 @@ function applyModeUi() {
   if (appRootNode.classList.contains("home-view")) {
     return;
   }
-  if (isServiceStyleContentOpen()) {
+  if (isPlainServiceStyleOpen()) {
     nodeOverviewRenderSeq += 1;
     applySystemFileUi();
     updateBreadcrumbsForActiveMode();
@@ -21671,6 +21732,7 @@ function applyModeUi() {
     return;
   }
   clearSystemFileViewUi();
+  syncGitRepoLooseMdPathHeaderUi();
 
   const listTemplate = isCurrentModeListTemplate();
   const graphMode = isGraphModeActive();
@@ -21726,7 +21788,8 @@ function applyModeUi() {
       !showMindmapLayout);
   const hideToolbar = hideDocActions;
   const showYamlPanel =
-    activeContentMode === "description" || externalEditing || mediaSidecarEditing;
+    !isGitRepoLooseMdEditing() &&
+    (activeContentMode === "description" || externalEditing || mediaSidecarEditing);
   const showDocAside = isDocAsideAvailable();
   const titleBlockVisible =
     showDocAside &&
@@ -21807,7 +21870,7 @@ function applyModeUi() {
   docBodyGridNode?.classList.toggle("has-props-aside", showDocAside);
   syncDocAsideUi({
     outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
-    propsPanelAvailable: showYamlPanel,
+    propsPanelAvailable: isDocAsidePropsTabAvailable(),
     editorToolsPanelAvailable: canInsertDocContentBlocks()
   });
   if (showDocAside) syncPropsFormActionsUi();
@@ -21888,6 +21951,9 @@ function applyModeUi() {
     syncEditorViewButtonsAvailability(false, forceEditOnly);
   }
   applyEditorViewMode();
+  if (isGitRepoLooseMdEditing()) {
+    updateBreadcrumbsForActiveMode();
+  }
   syncSaveButtonLamp();
 }
 
@@ -22867,6 +22933,9 @@ function isAutoSlugForDisplay(displayName, slug) {
 }
 
 function getTitleSlugInputValue() {
+  if (isMediaSidecarEditing() && activeMediaSidecarSourcePath) {
+    return String(titleSlugInputNode?.value || "").trim();
+  }
   return sanitizeSlugValue(titleSlugInputNode?.value || "");
 }
 
@@ -22929,6 +22998,7 @@ function setCreateSlugLinked(linked) {
 function getActiveTitleEditorPath() {
   if (activeContentMode === "external" && activeExternalFilePath) return activeExternalFilePath;
   if (activeContentMode === "media" && activeMediaMarkdownPath) return activeMediaMarkdownPath;
+  if (activeContentMode === "media" && activeMediaSidecarSourcePath) return activeMediaSidecarSourcePath;
   return activePath;
 }
 
@@ -22944,6 +23014,9 @@ function isTitleSlugRenameSupported(nodePath = getActiveTitleEditorPath()) {
   if (activeContentMode === "media" && activeMediaMarkdownPath === nodePath) {
     return !isSectionReadmePath(nodePath);
   }
+  if (activeContentMode === "media" && activeMediaSidecarSourcePath === nodePath) {
+    return Boolean(nodePath);
+  }
   return false;
 }
 
@@ -22954,6 +23027,7 @@ function isTitleSlugRowVisible(nodePath = getActiveTitleEditorPath()) {
   }
   if (activeContentMode === "external" && activeExternalFilePath === nodePath) return true;
   if (activeContentMode === "media" && activeMediaMarkdownPath === nodePath) return true;
+  if (activeContentMode === "media" && activeMediaSidecarSourcePath === nodePath) return true;
   return false;
 }
 
@@ -23045,7 +23119,9 @@ function getNodeDisplayTitleForActiveManifest(nodePath = activePath) {
   return resolveNodeDisplayName(getAwnNameRawForNode(nodePath), slug);
 }
 
-function syncDisplayNameIntoAwnNameProp(nodePath = activePath || activeExternalFilePath || activeMediaMarkdownPath) {
+function syncDisplayNameIntoAwnNameProp(
+  nodePath = activePath || activeExternalFilePath || activeMediaMarkdownPath || activeMediaSidecarSourcePath
+) {
   if (!titleInputNode || titleInputNode.disabled) return;
   if (activeContentMode === "description" && isTitleLockedNodePath(nodePath)) return;
   const slug = getNodeSlugFromPath(nodePath);
@@ -23316,7 +23392,10 @@ function renderBreadcrumbs(filePath) {
 
   const visibleSegments = parts
     .map((part, index) => ({ part, index }))
-    .filter(({ part }) => !isSectionReadmeSegmentName(part));
+    .filter(
+      ({ part }) =>
+        !isSectionReadmeSegmentName(part) && !isBreadcrumbStorageInfrastructureSegment(part)
+    );
 
   visibleSegments.forEach(({ part, index }, visibleIndex) => {
     const isLast = visibleIndex === visibleSegments.length - 1;
@@ -24117,6 +24196,13 @@ function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath =
   };
 }
 
+function getGitRepoMenuHasContent(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
+  const layout = getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth);
+  return Boolean(
+    layout.hasService || layout.hasContainer || layout.hasWorkspace || layout.hasRepoService
+  );
+}
+
 function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId = activeAgentId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder || !serviceTree || !parentEl) return;
@@ -24213,7 +24299,7 @@ function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth
     renderGitRepoContainerSection(layout.containerTree, childrenNode, sectionFolderPath, agentId);
   }
 
-  if ((layout.hasService || layout.hasContainer) && (layout.hasWorkspace || layout.hasRepoService)) {
+  if ((layout.hasService || layout.hasContainer) && layout.hasWorkspace) {
     childrenNode.appendChild(createMenuTreeDivider("workspace"));
   }
 
@@ -24780,12 +24866,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
   if (node.title) {
     const hasContent = isGitRepoMenuNode
-      ? Boolean(
-          gitRepoLayout?.hasService ||
-            gitRepoLayout?.hasContainer ||
-            gitRepoLayout?.hasWorkspace ||
-            gitRepoLayout?.hasRepoService
-        )
+      ? getGitRepoMenuHasContent(node, agentId, sectionFolderPath, depth)
       : hasNestedContainer || hasNonContainer || hasRepoService;
     const isCollapsedEffective =
       searchActive || isRootFolder ? false : isFolderCollapsed(sectionFolderPath, agentId);
@@ -25536,14 +25617,23 @@ async function selectRepoLooseFile(label, filePath, options = {}) {
   updateActiveButton();
   setLoading("Загрузка файла...");
   setPropsYamlContent("");
-  applyContentModeState("description");
+  const isMd = /\.md$/i.test(normalizedPath);
+  applyContentModeState(isMd ? "internal" : "description");
 
   try {
     const response = await fetch(buildApiUrl("/api/repo-loose-file", { path: normalizedPath }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    fileContentInputNode.value = data.content || "";
+    const content = data.content || "";
+    if (isMd) {
+      modeContentCache.internal = content;
+    }
+    fileContentInputNode.value = content;
     applyModeUi();
+    if (isGitRepoLooseMdEditing()) {
+      updateBreadcrumbsForActiveMode();
+      setDocAsideTab("outline");
+    }
     refreshEditorViewContent();
     commitEditorSaveBaseline();
   } catch (error) {
@@ -25720,6 +25810,13 @@ async function loadContentByMode(options = {}) {
   }
 
   if (activeContentMode === "internal") {
+    if (isGitRepoLooseMdEditing()) {
+      fileContentInputNode.value = modeContentCache.internal || fileContentInputNode.value || "";
+      applyModeUi();
+      refreshEditorViewContent();
+      updateBreadcrumbsForActiveMode();
+      return;
+    }
     try {
       const response = await fetch(buildApiUrl("/api/memory/internal", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -26110,6 +26207,9 @@ async function saveContent() {
         const details = errorData.details ? `: ${errorData.details}` : "";
         throw new Error(`${reason}${details}`);
       }
+      if (isGitRepoLooseMdEditing()) {
+        modeContentCache.internal = content;
+      }
       saveSucceeded = true;
       showToast("Сохранено", "success");
     } catch (error) {
@@ -26171,7 +26271,9 @@ async function saveContent() {
     nextSlug !== manifestSlug &&
     isTitleSlugRenameSupported(activePath);
   const currentExternalSlug = activeExternalFilePath ? getNodeSlugFromPath(activeExternalFilePath) : "";
-  const currentMediaTitleBase = getMediaSidecarTitleBase();
+  const currentMediaSidecarSlug = activeMediaSidecarSourcePath
+    ? getMediaFileSlugFromPath(activeMediaSidecarSourcePath)
+    : "";
   const shouldRenameExternal =
     activeContentMode === "external" &&
     activeExternalFilePath &&
@@ -26181,8 +26283,9 @@ async function saveContent() {
   const shouldRenameMediaSidecar =
     activeContentMode === "media" &&
     activeMediaSidecarPath &&
-    nextTitle &&
-    nextTitle !== currentMediaTitleBase;
+    isTitleSlugRenameSupported(activeMediaSidecarSourcePath) &&
+    nextSlug &&
+    nextSlug !== currentMediaSidecarSlug;
   const currentMediaMarkdownSlug = activeMediaMarkdownPath
     ? getNodeSlugFromPath(activeMediaMarkdownPath)
     : "";
@@ -26275,7 +26378,7 @@ async function saveContent() {
         body: JSON.stringify({
           path: getActiveNodeApiPath(),
           file: activeMediaSidecarSourcePath,
-          title: nextTitle
+          title: nextSlug
         })
       });
       if (!renameResponse.ok) {
@@ -26288,10 +26391,10 @@ async function saveContent() {
       activeMediaSidecarSourcePath = renameData.file;
       activeMediaSidecarPath = renameData.sidecar || getMediaSidecarPath(renameData.file);
       updateBreadcrumbsForActiveMode();
-      applyMediaSidecarTitleUi();
       if (typeof renameData.content === "string") {
         applyMediaSidecarContentUi(renameData.content);
       }
+      syncMediaSidecarTitleFields();
       await refreshMediaCache();
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
@@ -26458,6 +26561,7 @@ async function saveContent() {
     }
     if (activeContentMode === "todo") {
       modeContentCache.todo = data.content || "";
+      fileContentInputNode.value = modeContentCache.todo;
       saveSucceeded = true;
       showToast("TODO сохранён", "success");
       refreshEditorViewContent();
@@ -30101,25 +30205,58 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
     if (!sectionEl) return false;
 
     const isCollapsed = isFolderCollapsed(normalized, agentId);
+    const sectionFolderPath = normalized;
     const visibleChildren = getVisibleMenuChildren(
       branch.node,
       agentId,
       branch.parentSectionPath,
       branch.depth
     );
-    const hasContent = visibleChildren.length > 0;
+    const repoServiceItems = getMenuRepoServiceItems(branch.node);
+    const isGitRepoMenuNode = Boolean(branch.node.hasGitSelf && branch.depth > 0);
+    const nestedContainerTree =
+      !isGitRepoMenuNode && branch.depth > 0 && branch.node.containerTree
+        ? branch.node.containerTree
+        : null;
+    const nestedContainerPrefix = nestedContainerTree
+      ? `${sectionFolderPath}/${getActiveAgentContainerFolder(agentId)}`.replace(/\/+/g, "/")
+      : "";
+    const nestedContainerChildren = nestedContainerTree
+      ? getVisibleMenuChildren(
+          { title: "", ...nestedContainerTree },
+          agentId,
+          nestedContainerPrefix,
+          branch.depth + 1
+        )
+      : [];
+    const hasContent = isGitRepoMenuNode
+      ? getGitRepoMenuHasContent(branch.node, agentId, sectionFolderPath, branch.depth)
+      : nestedContainerChildren.length > 0 ||
+        visibleChildren.length > 0 ||
+        repoServiceItems.length > 0;
 
     syncFolderToggleUi(sectionEl, isCollapsed, hasContent);
     sectionEl.querySelector(":scope > .tree-children")?.remove();
 
-    if (!isCollapsed && visibleChildren.length > 0) {
-      const wrapper = document.createElement("div");
+    if (!isCollapsed && hasContent) {
       const parentMenuNode =
         normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
-      renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
-      const newChildren = wrapper.firstElementChild?.querySelector(":scope > .tree-children");
-      if (newChildren) {
-        sectionEl.appendChild(newChildren);
+      if (isGitRepoMenuNode) {
+        renderGitRepoFolderContents(
+          branch.node,
+          sectionEl,
+          sectionFolderPath,
+          branch.depth,
+          parentMenuNode,
+          agentId
+        );
+      } else {
+        const wrapper = document.createElement("div");
+        renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
+        const newChildren = wrapper.firstElementChild?.querySelector(":scope > .tree-children");
+        if (newChildren) {
+          sectionEl.appendChild(newChildren);
+        }
       }
     }
 
@@ -31753,13 +31890,27 @@ titleInputNode?.addEventListener("input", () => {
     syncDisplayNameIntoAwnNameProp(activeExternalFilePath);
   } else if (activeMediaMarkdownPath && titlePath === activeMediaMarkdownPath) {
     syncDisplayNameIntoAwnNameProp(activeMediaMarkdownPath);
+  } else if (activeMediaSidecarSourcePath && titlePath === activeMediaSidecarSourcePath) {
+    syncDisplayNameIntoAwnNameProp(activeMediaSidecarSourcePath);
   }
-  syncTitleSlugFromDisplayName();
+  if (!isMediaSidecarEditing()) {
+    syncTitleSlugFromDisplayName();
+  }
   syncSaveButtonLamp();
 });
 titleSlugInputNode?.addEventListener("input", () => {
   if (!titleSlugLinked && titleSlugInputNode) {
-    titleSlugInputNode.value = sanitizeSlugValue(titleSlugInputNode.value);
+    if (isMediaSidecarEditing()) {
+      const sanitized = String(titleSlugInputNode.value || "")
+        .trim()
+        .replace(/\\/g, "/")
+        .split("/")
+        .pop()
+        .replace(/\s+/g, " ");
+      titleSlugInputNode.value = sanitized.includes("..") ? "" : sanitized;
+    } else {
+      titleSlugInputNode.value = sanitizeSlugValue(titleSlugInputNode.value);
+    }
   }
   syncSaveButtonLamp();
 });
@@ -31866,7 +32017,7 @@ topicSchemaFieldsNode?.addEventListener("input", handleTopicSchemaFieldsInput);
 topicSchemaFieldsNode?.addEventListener("change", handleTopicSchemaFieldsInput);
 topicSchemaFieldsNode?.addEventListener("click", handleTopicSchemaFieldsClick);
 nodeWorkspaceDomainSelectNode?.addEventListener("change", () => {
-  applyNodeWorkspaceDomainChange(nodeWorkspaceDomainSelectNode.value);
+  void applyNodeWorkspaceDomainChange(nodeWorkspaceDomainSelectNode.value);
 });
 nodeDefaultLandingBtn?.addEventListener("click", () => {
   void toggleNodeDefaultLanding();
