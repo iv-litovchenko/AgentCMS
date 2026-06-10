@@ -3,5 +3,6 @@ name: Цитата
 kind: block
 group: text
 sort: 2
+icon: "💬"
 description: Выделенная цитата
 template: "\n> Цитата\n\n"

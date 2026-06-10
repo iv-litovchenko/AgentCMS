@@ -3,5 +3,6 @@ name: Краткое описание
 kind: block
 group: awn
 sort: 1
+icon: "🏷️"
 description: Превью + полный текст
 template: "\n> [!AWN-DESC] Краткое описание для превью.\n\n---\n\nПолный текст ниже.\n\n"

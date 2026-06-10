@@ -251,6 +251,29 @@ const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks"
 const docAsidePanelLinksNode = document.getElementById("doc-aside-panel-links");
 const docBlocksContentNode = document.getElementById("doc-blocks-content");
 const docLinksContentNode = document.getElementById("doc-links-content");
+let docLinksSearchQuery = "";
+let docLinksSearchInputNode = null;
+let markdownLinkIndexCache = {
+  agentId: null,
+  items: [],
+  groups: [],
+  loading: false,
+  promise: null
+};
+let renderDocLinksLibraryRequestId = 0;
+const AWN_LINK_TYPE_GROUP_ORDER = [
+  { id: "awn.topic", label: "Темы", hint: "awn.topic — темы из меню" },
+  { id: "awn.area", label: "Области", hint: "awn.area — папки с _registration.md" },
+  { id: "awn.workspace", label: "Workspace", hint: "awn.workspace — корень агента" },
+  { id: "awn.record", label: "Записи", hint: "awn.record — markdown в Content" },
+  { id: "awn.record.category", label: "Разделы Content", hint: "awn.record.category" },
+  { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category" },
+  { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
+  { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
+  { id: "awn.memory", label: "Память темы", hint: "content.md, todo, конфиги" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, TODO.md" },
+  { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
+];
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
@@ -1330,6 +1353,8 @@ function getResolvedNodePath(nodePath = activePath) {
 }
 
 const MENU_LINK_DRAG_MIME = "application/x-awn-menu-link";
+const MENU_LINK_DRAG_SELECTOR =
+  ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path], .system-file-item[data-system-file]";
 
 function getWikilinkTargetFromNodePath(nodePath) {
   const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
@@ -1352,15 +1377,207 @@ function getWikilinkTargetFromNodePath(nodePath) {
   return baseName;
 }
 
-function buildObsidianWikilink(nodePath, displayLabel) {
-  const target = getWikilinkTargetFromNodePath(nodePath);
-  if (!target) return "";
-  const label = String(displayLabel || getLabelFromPath(nodePath) || "").trim();
-  const basename = target.includes("/") ? target.slice(target.lastIndexOf("/") + 1) : target;
-  if (label && label !== basename) {
-    return `[[${target}|${label}]]`;
+function normalizeLinkFilePath(relPath) {
+  return String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function getLinkTargetFileRelPath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/").trim());
+  if (!normalized) return "";
+  if (/\.md$/i.test(normalized)) return normalized;
+  return `${normalized}.md`;
+}
+
+function getCurrentEditorLinkBasePath() {
+  if (activeSystemFile) return normalizeSystemFileName(activeSystemFile);
+  return getPropsContextPath(activePath) || getResolvedNodePath(activePath) || "";
+}
+
+function joinWorkspaceRelativePath(baseRel, hrefRel) {
+  const stack = baseRel ? normalizeLinkFilePath(baseRel).split("/").filter(Boolean) : [];
+  if (stack.length && /\.md$/i.test(stack[stack.length - 1])) {
+    stack.pop();
   }
-  return `[[${target}]]`;
+  for (const part of String(hrefRel || "").split("/")) {
+    if (part === "..") stack.pop();
+    else if (part && part !== ".") stack.push(part);
+  }
+  return stack.join("/");
+}
+
+function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLinkBasePath()) {
+  const raw = String(href || "").trim();
+  if (!raw || /^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) {
+    return null;
+  }
+  const pathPart = raw.split("#")[0].split("?")[0].trim();
+  if (!pathPart) return null;
+  if (pathPart.startsWith("/")) {
+    return normalizeLinkFilePath(pathPart);
+  }
+  return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
+}
+
+function relativizeWorkspacePath(fromRel, toRel) {
+  const from = normalizeLinkFilePath(fromRel);
+  const to = normalizeLinkFilePath(toRel);
+  if (!to) return "";
+  if (!from || from === to) return to.split("/").pop() || to;
+
+  const fromParts = from.split("/").filter(Boolean);
+  const toParts = to.split("/").filter(Boolean);
+  if (fromParts.length && /\.md$/i.test(fromParts[fromParts.length - 1])) {
+    fromParts.pop();
+  }
+
+  let index = 0;
+  while (
+    index < fromParts.length &&
+    index < toParts.length &&
+    fromParts[index].toLowerCase() === toParts[index].toLowerCase()
+  ) {
+    index += 1;
+  }
+  const up = fromParts.length - index;
+  const relParts = [...Array(up).fill(".."), ...toParts.slice(index)];
+  return relParts.join("/") || toParts[toParts.length - 1] || to;
+}
+
+function escapeMarkdownLinkLabel(label) {
+  return String(label || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]");
+}
+
+function buildMarkdownFileLink(nodePath, displayLabel, options = {}) {
+  const targetRel = getLinkTargetFileRelPath(nodePath);
+  if (!targetRel) return "";
+  return buildMarkdownLinkFromWorkspaceRel(targetRel, displayLabel, options);
+}
+
+function buildMarkdownLinkFromWorkspaceRel(workspaceRelPath, displayLabel, options = {}) {
+  const targetRel = normalizeLinkFilePath(workspaceRelPath);
+  if (!targetRel) return "";
+  const fromRel = options.fromPath ?? getCurrentEditorLinkBasePath();
+  const href = relativizeWorkspacePath(fromRel, targetRel);
+  const encodedHref = href
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  const label = escapeMarkdownLinkLabel(
+    displayLabel || targetRel.split("/").pop()?.replace(/\.md$/i, "") || targetRel
+  );
+  return `[${label}](${encodedHref})`;
+}
+
+function buildObsidianWikilink(nodePath, displayLabel) {
+  return buildMarkdownFileLink(nodePath, displayLabel);
+}
+
+function parseMarkdownLinkValue(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^\[((?:\\.|[^\]])*)\]\(([^)#]+)(?:#[^)]*)?\)$/);
+  if (!match) return null;
+  return {
+    label: match[1].replace(/\\([\\[\]])/g, "$1").trim(),
+    href: match[2].trim()
+  };
+}
+
+function resolveMarkdownLinkToNodePath(href, options = {}) {
+  const sourceRel = options.sourcePath ?? getCurrentEditorLinkBasePath();
+  const targetRel = resolveMarkdownHrefToWorkspaceRel(href, sourceRel);
+  if (!targetRel) return null;
+
+  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  if (menu) {
+    const baseTree = { title: getAgentTreeTitle(), ...menu };
+    const paths = collectMenuNodePaths(baseTree);
+    const exact = paths.find(
+      (candidate) =>
+        normalizeLinkFilePath(getLinkTargetFileRelPath(candidate)).toLowerCase() === targetRel.toLowerCase()
+    );
+    if (exact) return exact;
+  }
+
+  const wikiTarget = getWikilinkTargetFromNodePath(targetRel);
+  if (wikiTarget) {
+    const byWiki = resolveWikilinkToNodePath(wikiTarget);
+    if (byWiki) return byWiki;
+  }
+
+  return null;
+}
+
+async function openMarkdownLinkIndexItem(item) {
+  if (!item) return;
+
+  if (item.systemFile) {
+    await selectSystemFile(item.systemFile);
+    return;
+  }
+
+  if (!item.nodePath) return;
+
+  if (item.mode) {
+    await selectNodeManifest(getLabelFromPath(item.nodePath), item.nodePath, item.mode);
+  } else {
+    await openNodeFromMenu(getLabelFromPath(item.nodePath), item.nodePath);
+  }
+
+  if (item.mode === "external" && item.externalFile) {
+    setContentMode("external");
+    await openExternalFile(item.externalFile);
+  }
+}
+
+async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBasePath()) {
+  const value = String(href || "").trim();
+  if (!value) return;
+
+  const nodePath = resolveMarkdownLinkToNodePath(value, { sourcePath });
+  if (nodePath) {
+    await openNodeFromMenu(getLabelFromPath(nodePath), nodePath);
+    return;
+  }
+
+  const targetRel = resolveMarkdownHrefToWorkspaceRel(value, sourcePath);
+  if (!targetRel) return;
+
+  if (!(markdownLinkIndexCache.items || []).length) {
+    await loadMarkdownLinkIndex();
+  }
+
+  const indexItem = (markdownLinkIndexCache.items || []).find(
+    (item) => normalizeLinkFilePath(item.relPath).toLowerCase() === targetRel.toLowerCase()
+  );
+  if (indexItem) {
+    await openMarkdownLinkIndexItem(indexItem);
+    return;
+  }
+
+  const record = (propsLibrariesCache.contentRecords || []).find((item) => {
+    const recordRel = normalizeLinkFilePath(
+      `${getNodeStorageSubfolderPath(getResolvedNodePath(activePath), "external")}/${item.relativePath}`
+    );
+    return (
+      recordRel.toLowerCase() === targetRel.toLowerCase() ||
+      normalizeLinkFilePath(item.relativePath).toLowerCase() === targetRel.toLowerCase() ||
+      item.relativePath.replace(/\.md$/i, "").toLowerCase() === targetRel.replace(/\.md$/i, "").toLowerCase()
+    );
+  });
+  if (record && activePath) {
+    await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
+    setContentMode("external");
+    await openExternalFile(record.relativePath);
+    return;
+  }
+
+  const systemName = normalizeSystemFileName(targetRel.split("/").pop() || targetRel);
+  if (systemFilesCache.some((file) => normalizeSystemFileName(file.name) === systemName)) {
+    await selectSystemFile(systemName);
+  }
 }
 
 function resolveWikilinkToNodePath(target, alias) {
@@ -1411,15 +1628,28 @@ function extractMenuLinkFromDataTransfer(dataTransfer) {
   if (raw) {
     try {
       const payload = JSON.parse(raw);
-      if (payload?.wikilink) return payload;
+      if (payload?.path || payload?.markdownLink || payload?.wikilink) return payload;
     } catch {
       // ignore malformed payload
     }
   }
   const plain = String(dataTransfer.getData("text/plain") || "").trim();
+  const markdown = parseMarkdownLinkValue(plain);
+  if (markdown) {
+    return { markdownLink: plain, label: markdown.label, href: markdown.href };
+  }
   const match = plain.match(/^\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]$/);
   if (match) {
-    return { wikilink: plain, label: match[2]?.trim() || "" };
+    const target = match[1].trim();
+    const alias = String(match[2] || "").trim();
+    const nodePath = resolveWikilinkToNodePath(target, alias);
+    if (nodePath) {
+      return {
+        path: nodePath,
+        label: alias || getLabelFromPath(nodePath),
+        wikilink: plain
+      };
+    }
   }
   return null;
 }
@@ -1534,7 +1764,7 @@ function syncNodeDescriptionHintUi() {
     titleNode.textContent = "Контейнер — назначение области";
     textNode.innerHTML =
       "Корневая область контентных папок агента: области и темы внутри <code>awn-container/</code>. " +
-      "Пути в markdown и wikilink совпадают с путями на диске. " +
+      "Пути в markdown — GitHub-ссылки `[название](путь/к/файлу.md)`; относительный путь считается от текущего файла. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
   }
@@ -2605,6 +2835,7 @@ async function switchActiveAgent(nextAgentId) {
     closeCreateNodeModal();
     activeAgentId = nextAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    invalidateMarkdownLinkIndexCache();
     hideAppLandingView();
     hideMenuNoAgentPlaceholder();
     syncAppRouteToUrl({ replace: true });
@@ -4095,6 +4326,8 @@ let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
 let lastWysiwygMarkdownSelection = null;
+let pendingWysiwygInsertSelection = null;
+let lastSourceEditorSelection = null;
 const WYSIWYG_INSERT_MARKER = "awn-block-insert-marker";
 let wysiwygEditorResizeObserver = null;
 let sourceEditorResizeObserver = null;
@@ -4105,6 +4338,42 @@ const EDITOR_VIEW_MODE_STORAGE_KEY = "agentcms.editorViewMode";
 const STORAGE_SECTIONS_PANEL_VISIBLE_KEY = "agentcms.storageSectionsPanelVisible";
 const DOC_ASIDE_TAB_STORAGE_KEY = "agentcms.docAside.tab.v1";
 const DOC_ASIDE_MINI_DOC_OPEN_KEY = "agentcms.docAside.miniDocOpen.v1";
+
+const DOC_CONTENT_BLOCK_ICON_BY_ID = {
+  h2: "2️⃣",
+  "awn.block.h2": "2️⃣",
+  h3: "3️⃣",
+  "awn.block.h3": "3️⃣",
+  hr: "➖",
+  "awn.block.hr": "➖",
+  paragraph: "📝",
+  "awn.block.paragraph": "📝",
+  quote: "💬",
+  "awn.block.quote": "💬",
+  note: "💡",
+  "awn.block.note": "💡",
+  ul: "📋",
+  "awn.block.ul": "📋",
+  ol: "🔢",
+  "awn.block.ol": "🔢",
+  tasks: "☑️",
+  "awn.block.tasks": "☑️",
+  codeblock: "💻",
+  "awn.block.codeblock": "💻",
+  table: "📊",
+  "awn.block.table": "📊",
+  "awn-desc": "🏷️",
+  "awn.block.awn-desc": "🏷️"
+};
+
+function resolveDocBlockIcon(block) {
+  const direct = String(block?.icon || block?.emoji || "").trim();
+  if (direct) return direct;
+  const id = String(block?.id || "").trim();
+  if (DOC_CONTENT_BLOCK_ICON_BY_ID[id]) return DOC_CONTENT_BLOCK_ICON_BY_ID[id];
+  const shortId = id.replace(/^awn\.block\./, "");
+  return DOC_CONTENT_BLOCK_ICON_BY_ID[shortId] || "";
+}
 
 const DOC_CONTENT_BLOCK_GROUPS_FALLBACK = [
   {
@@ -4309,6 +4578,7 @@ function setStorageSectionsPanelVisible(visible, { rerender = true, skipRouteSyn
   }
 }
 let mediaFilesCache = {};
+let mediaSectionManifests = [];
 let mediaAssetsExists = true;
 let activeStorageFolderExists = true;
 let externalFilesCache = [];
@@ -8022,14 +8292,50 @@ function parseFlatListItems(text) {
     .filter(Boolean);
 }
 
+function normalizeMediaSectionManifestEntry(item) {
+  return {
+    path: String(item?.path || "").replace(/\\/g, "/"),
+    displayName: String(item?.displayName || "").trim()
+  };
+}
+
+function stripSectionManifestsFromMediaGroups(groups) {
+  const cleaned = {};
+  for (const [groupName, groupItems] of Object.entries(groups || {})) {
+    if (!Array.isArray(groupItems)) continue;
+    const items = groupItems.filter(
+      (item) => item.isFolder || !isSectionReadmePath(String(item.path || ""))
+    );
+    if (items.length > 0) cleaned[groupName] = items;
+  }
+  return cleaned;
+}
+
+function extractSectionManifestsFromMediaGroups(groups) {
+  const manifests = [];
+  for (const groupItems of Object.values(groups || {})) {
+    if (!Array.isArray(groupItems)) continue;
+    for (const item of groupItems) {
+      if (item.isFolder || !isSectionReadmePath(String(item.path || ""))) continue;
+      manifests.push(normalizeMediaSectionManifestEntry(item));
+    }
+  }
+  return manifests;
+}
+
 function buildMediaFilesCacheFromContent(text) {
   const sections = parseMediaSections(text);
   const groups = {};
+  const sectionManifests = [];
 
   for (const section of sections) {
     const items = [];
     for (const rawItem of section.items) {
       const normalized = normalizeListItem(rawItem);
+      if (!normalized.isFolder && isSectionReadmePath(normalized.path)) {
+        sectionManifests.push(normalizeMediaSectionManifestEntry({ path: normalized.path }));
+        continue;
+      }
       const segments = normalized.path.split("/").filter(Boolean);
       const name = normalized.isFolder
         ? segments[segments.length - 1] || normalized.path.replace(/\/$/, "")
@@ -8050,15 +8356,20 @@ function buildMediaFilesCacheFromContent(text) {
     if (items.length > 0) groups[section.title] = items;
   }
 
-  return groups;
+  return { groups, sectionManifests };
 }
 
-function syncMediaFilesCache(content, groups) {
+function syncMediaFilesCache(content, groups, sectionManifests) {
   if (groups && typeof groups === "object" && Object.keys(groups).length > 0) {
-    mediaFilesCache = groups;
+    mediaFilesCache = stripSectionManifestsFromMediaGroups(groups);
+    mediaSectionManifests = Array.isArray(sectionManifests) && sectionManifests.length > 0
+      ? sectionManifests.map(normalizeMediaSectionManifestEntry)
+      : extractSectionManifestsFromMediaGroups(groups);
     return;
   }
-  mediaFilesCache = buildMediaFilesCacheFromContent(content || "");
+  const built = buildMediaFilesCacheFromContent(content || "");
+  mediaFilesCache = built.groups;
+  mediaSectionManifests = built.sectionManifests;
 }
 
 function normalizeListItem(rawItem) {
@@ -9757,16 +10068,21 @@ function canPasteMarkdownAttachment() {
 function insertTextAtEditorCursor(text) {
   const snippet = String(text || "");
   if (!snippet || !fileContentInputNode) return;
-  const start = fileContentInputNode.selectionStart ?? fileContentInputNode.value.length;
-  const end = fileContentInputNode.selectionEnd ?? start;
-  const before = fileContentInputNode.value.slice(0, start);
-  const after = fileContentInputNode.value.slice(end);
-  fileContentInputNode.value = `${before}${snippet}${after}`;
-  const cursor = start + snippet.length;
-  fileContentInputNode.selectionStart = cursor;
-  fileContentInputNode.selectionEnd = cursor;
-  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
-  fileContentInputNode.focus();
+  return withPreservedEditorScroll(() => {
+    const saved = lastSourceEditorSelection;
+    const start =
+      saved?.start ?? fileContentInputNode.selectionStart ?? fileContentInputNode.value.length;
+    const end = saved?.end ?? fileContentInputNode.selectionEnd ?? start;
+    const before = fileContentInputNode.value.slice(0, start);
+    const after = fileContentInputNode.value.slice(end);
+    fileContentInputNode.value = `${before}${snippet}${after}`;
+    const cursor = start + snippet.length;
+    fileContentInputNode.selectionStart = cursor;
+    fileContentInputNode.selectionEnd = cursor;
+    lastSourceEditorSelection = { start: cursor, end: cursor };
+    fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+    fileContentInputNode.focus({ preventScroll: true });
+  });
 }
 
 function canInsertDocContentBlocks() {
@@ -9849,6 +10165,78 @@ function captureWysiwygMarkdownSelection() {
   if (cloned) lastWysiwygMarkdownSelection = cloned;
 }
 
+function rememberPendingWysiwygInsertSelection() {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return;
+  const cloned = cloneWysiwygMarkdownSelection(editor.getSelection?.());
+  if (cloned) pendingWysiwygInsertSelection = cloned;
+}
+
+function setWysiwygCursorAtMarkdownOffset(markdown, offset) {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return;
+  const pos = markdownOffsetToLineCol(String(markdown || ""), offset);
+  const mdStart = [pos.line, pos.col];
+  const mdEnd = [pos.line, pos.col];
+
+  const applySelection = () => {
+    try {
+      if (editor.isWysiwygMode?.() && typeof editor.convertPosToMatchEditorMode === "function") {
+        const ww = editor.convertPosToMatchEditorMode(mdStart, mdEnd, "wysiwyg");
+        if (Array.isArray(ww) && ww.length >= 2 && Number.isFinite(ww[0]) && Number.isFinite(ww[1])) {
+          editor.setSelection(ww[0], ww[1]);
+          lastWysiwygMarkdownSelection = [ww[0], ww[1]];
+          editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus({ preventScroll: true });
+          return;
+        }
+      }
+      editor.setSelection(mdStart, mdEnd);
+      lastWysiwygMarkdownSelection = [mdStart, mdEnd];
+      editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus({ preventScroll: true });
+    } catch {
+      // ignore stale selection after setMarkdown
+    }
+  };
+
+  applySelection();
+  requestAnimationFrame(applySelection);
+}
+
+function captureSourceEditorSelection() {
+  if (!fileContentInputNode) return;
+  lastSourceEditorSelection = {
+    start: fileContentInputNode.selectionStart ?? fileContentInputNode.value.length,
+    end:
+      fileContentInputNode.selectionEnd ??
+      fileContentInputNode.selectionStart ??
+      fileContentInputNode.value.length
+  };
+}
+
+function captureEditorInsertSelection() {
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    rememberPendingWysiwygInsertSelection();
+    captureWysiwygMarkdownSelection();
+    return;
+  }
+  captureSourceEditorSelection();
+}
+
+function getWysiwygMarkdownSelectionForInsert(editor) {
+  if (pendingWysiwygInsertSelection) {
+    const pending = pendingWysiwygInsertSelection;
+    pendingWysiwygInsertSelection = null;
+    return pending;
+  }
+  const current = editor.getSelection?.();
+  const cloned = cloneWysiwygMarkdownSelection(current);
+  if (cloned) {
+    lastWysiwygMarkdownSelection = cloned;
+    return cloned;
+  }
+  return lastWysiwygMarkdownSelection;
+}
+
 function bindWysiwygSelectionCapture() {
   const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
   if (!pm || pm.dataset.awnSelectionBound === "1") return;
@@ -9862,27 +10250,82 @@ function bindWysiwygSelectionCapture() {
   pm.addEventListener("focus", capture);
 }
 
-function getWysiwygMarkdownSelectionForInsert(editor) {
-  if (lastWysiwygMarkdownSelection) {
-    return lastWysiwygMarkdownSelection;
-  }
-  const current = editor.getSelection?.();
-  const cloned = cloneWysiwygMarkdownSelection(current);
-  if (cloned) {
-    lastWysiwygMarkdownSelection = cloned;
-    return cloned;
-  }
-  return current;
-}
-
 function bindEditorAsideInsertControl(node) {
   if (!node || node.dataset.awnInsertBound === "1") return;
   node.dataset.awnInsertBound = "1";
-  node.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    captureWysiwygMarkdownSelection();
-  });
+  node.addEventListener(
+    "mousedown",
+    (event) => {
+      event.preventDefault();
+      captureEditorInsertSelection();
+    },
+    true
+  );
 }
+
+function setupEditorAsideSelectionCapture() {
+  const panel = document.getElementById("yaml-form-panel");
+  if (!panel || panel.dataset.selectionCaptureBound === "1") return;
+  panel.dataset.selectionCaptureBound = "1";
+  panel.addEventListener(
+    "mousedown",
+    (event) => {
+      if (!canInsertDocContentBlocks()) return;
+      if (
+        event.target.closest(
+          ".doc-block-btn, .doc-link-btn, .awn-wysiwyg-link-picker-item, .menu-item[data-path], .menu-card-body[data-path]"
+        )
+      ) {
+        captureEditorInsertSelection();
+      }
+    },
+    true
+  );
+}
+
+function getEditorScrollSnapshot() {
+  const ta = fileContentInputNode;
+  const wysiwygScrollEl =
+    editorWysiwygWrapNode?.querySelector(".toastui-editor-contents") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const workspaceBody = document.querySelector(".workspace-body");
+  return {
+    textareaScrollTop: ta?.scrollTop ?? 0,
+    wysiwygScrollTop: wysiwygScrollEl?.scrollTop ?? 0,
+    workspaceScrollTop: workspaceBody?.scrollTop ?? 0,
+    pageScrollTop: window.scrollY || 0
+  };
+}
+
+function restoreEditorScrollSnapshot(snapshot) {
+  if (!snapshot) return;
+  const ta = fileContentInputNode;
+  const wysiwygScrollEl =
+    editorWysiwygWrapNode?.querySelector(".toastui-editor-contents") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const workspaceBody = document.querySelector(".workspace-body");
+  if (ta) ta.scrollTop = snapshot.textareaScrollTop;
+  if (wysiwygScrollEl) wysiwygScrollEl.scrollTop = snapshot.wysiwygScrollTop;
+  if (workspaceBody) workspaceBody.scrollTop = snapshot.workspaceScrollTop;
+  if (Math.abs((window.scrollY || 0) - snapshot.pageScrollTop) > 1) {
+    window.scrollTo(0, snapshot.pageScrollTop);
+  }
+}
+
+function withPreservedEditorScroll(action) {
+  const snapshot = getEditorScrollSnapshot();
+  const result = action();
+  restoreEditorScrollSnapshot(snapshot);
+  requestAnimationFrame(() => restoreEditorScrollSnapshot(snapshot));
+  return result;
+}
+
+function scheduleDocOutlineRefresh() {
+  if (getDocAsideTab() !== "outline") return;
+  requestAnimationFrame(() => renderDocOutline());
+}
+
+const MENU_INSERT_LINK_SELECTOR = ".menu-item[data-path], .menu-card-body[data-path]";
 
 function resolveWysiwygMarkdownSelection(markdown, selection) {
   const text = String(markdown || "");
@@ -9916,43 +10359,46 @@ function insertMarkdownAtWysiwygCursor(snippet) {
   const text = String(snippet || "");
   if (!text) return false;
 
-  const selection = getWysiwygMarkdownSelectionForInsert(editor);
-  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
-  pm?.focus();
+  return withPreservedEditorScroll(() => {
+    const selection = getWysiwygMarkdownSelectionForInsert(editor);
+    const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+    pm?.focus({ preventScroll: true });
 
-  if (isWysiwygOffsetSelection(selection)) {
-    try {
-      editor.setSelection(selection[0], selection[1]);
-    } catch {
-      // Selection may be stale after aside click — marker insert still attempts current range.
-    }
-    editor.insertText(WYSIWYG_INSERT_MARKER);
-    const markdown = String(editor.getMarkdown() || "");
-    const markerIndex = markdown.indexOf(WYSIWYG_INSERT_MARKER);
-    if (markerIndex >= 0) {
-      const next = `${markdown.slice(0, markerIndex)}${text}${markdown.slice(markerIndex + WYSIWYG_INSERT_MARKER.length)}`;
+    const insertAtMarkdownOffsets = (start, end) => {
+      const current = String(editor.getMarkdown() || "");
+      const safeStart = Math.max(0, Math.min(start, current.length));
+      const safeEnd = Math.max(safeStart, Math.min(end, current.length));
+      const next = `${current.slice(0, safeStart)}${text}${current.slice(safeEnd)}`;
       editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
       syncSourceFromWysiwygEditor();
-      pm?.focus();
+      const exported = normalizeWysiwygExportedMarkdown(editor.getMarkdown());
+      setWysiwygCursorAtMarkdownOffset(exported, safeStart + text.length);
       return true;
+    };
+
+    if (isWysiwygOffsetSelection(selection)) {
+      try {
+        editor.setSelection(selection[0], selection[1]);
+      } catch {
+        // Selection may be stale after aside click — marker insert still attempts current range.
+      }
+      editor.insertText(WYSIWYG_INSERT_MARKER);
+      const markdown = String(editor.getMarkdown() || "");
+      const markerIndex = markdown.indexOf(WYSIWYG_INSERT_MARKER);
+      if (markerIndex >= 0) {
+        return insertAtMarkdownOffsets(markerIndex, markerIndex + WYSIWYG_INSERT_MARKER.length);
+      }
     }
-  }
 
-  if (isMarkdownLineColSelection(selection)) {
+    if (isMarkdownLineColSelection(selection)) {
+      const current = String(editor.getMarkdown() || "");
+      const { start, end } = resolveWysiwygMarkdownSelection(current, selection);
+      return insertAtMarkdownOffsets(start, end);
+    }
+
     const current = String(editor.getMarkdown() || "");
-    const { start, end } = resolveWysiwygMarkdownSelection(current, selection);
-    const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
-    editor.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
-    syncSourceFromWysiwygEditor();
-    pm?.focus();
-    return true;
-  }
-
-  const current = String(editor.getMarkdown() || "");
-  editor.setMarkdown(normalizeWysiwygImportedMarkdown(`${current}${text}`), false);
-  syncSourceFromWysiwygEditor();
-  pm?.focus();
-  return true;
+    return insertAtMarkdownOffsets(current.length, current.length);
+  });
 }
 
 function insertMarkdownAtEditorCursor(text) {
@@ -9967,7 +10413,7 @@ function insertMarkdownAtEditorCursor(text) {
     try {
       if (!insertMarkdownAtWysiwygCursor(snippet)) throw new Error("insert failed");
       syncSaveButtonLamp();
-      if (getDocAsideTab() === "outline") renderDocOutline();
+      scheduleDocOutlineRefresh();
       return true;
     } catch {
       showToast("Не удалось вставить блок в WYSIWYG", "error");
@@ -9976,7 +10422,7 @@ function insertMarkdownAtEditorCursor(text) {
   }
 
   insertTextAtEditorCursor(snippet);
-  if (getDocAsideTab() === "outline") renderDocOutline();
+  scheduleDocOutlineRefresh();
   return true;
 }
 
@@ -10391,16 +10837,13 @@ function getMemorySectionDisplayLabel(folderPath) {
     return resolveNodeDisplayName(awnName, segment);
   }
 
-  for (const groupItems of Object.values(mediaFilesCache)) {
-    if (!Array.isArray(groupItems)) continue;
-    const readme = groupItems.find(
-      (item) => !item.isFolder && String(item.path || "").replace(/\\/g, "/") === readmePath
-    );
-    if (readme) {
-      const displayName = String(readme.displayName || "").trim();
-      if (displayName) return displayName;
-      return segment;
-    }
+  const manifest = mediaSectionManifests.find(
+    (item) => String(item.path || "").replace(/\\/g, "/") === readmePath
+  );
+  if (manifest) {
+    const displayName = String(manifest.displayName || "").trim();
+    if (displayName) return displayName;
+    return segment;
   }
 
   return segment;
@@ -10435,17 +10878,20 @@ function buildMemoryContentLabelMap() {
     map.set(path, title || resolveNodeDisplayName(awnName, slug));
   }
 
+  for (const manifest of mediaSectionManifests) {
+    const path = String(manifest.path || "").replace(/\\/g, "/");
+    if (!path) continue;
+    const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    if (folderKey) map.set(folderKey, getMemorySectionDisplayLabel(folderKey));
+  }
+
   for (const groupItems of Object.values(mediaFilesCache)) {
     if (!Array.isArray(groupItems)) continue;
     for (const item of groupItems) {
       if (item.isFolder) continue;
       const path = String(item.path || "").replace(/\\/g, "/");
       if (!path) continue;
-      if (isSectionReadmePath(path)) {
-        const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
-        if (folderKey) map.set(folderKey, getMemorySectionDisplayLabel(folderKey));
-        continue;
-      }
+      if (isSectionReadmePath(path)) continue;
       if (!path.toLowerCase().endsWith(".md")) continue;
       const slug = String(item.name || path.split("/").pop() || "").replace(/\.md$/i, "");
       const title = String(item.displayName || "").trim();
@@ -10619,11 +11065,9 @@ function externalSectionReadmeExists(sectionFolder) {
 
 function mediaSectionReadmeExists(sectionFolder) {
   const readmePath = getSectionReadmeRelPath(sectionFolder);
-  for (const groupItems of Object.values(mediaFilesCache)) {
-    if (!Array.isArray(groupItems)) continue;
-    if (groupItems.some((item) => !item.isFolder && item.path === readmePath)) return true;
-  }
-  return false;
+  return mediaSectionManifests.some(
+    (item) => String(item.path || "").replace(/\\/g, "/") === readmePath
+  );
 }
 
 function splitSectionReadmeItems(items, sectionFolder) {
@@ -11000,11 +11444,13 @@ function renderMediaAllFilesSections(container) {
   for (const section of sections) {
     const normalizedItems = section.items
       .map((item) => normalizeListItem(item))
-      .filter((item) => item.path)
+      .filter((item) => item.path && !isSectionReadmePath(item.path))
       .sort((a, b) => {
         if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
         return comparePathsNatural(a.path, b.path);
       });
+
+    if (normalizedItems.length === 0) continue;
 
     const sectionNode = document.createElement("section");
     sectionNode.className = "list-section";
@@ -14269,7 +14715,7 @@ async function refreshMediaCache() {
     const data = await response.json();
     mediaAssetsExists = Boolean(data.exists);
     modeContentCache.media = data.content || "";
-    syncMediaFilesCache(data.content, data.groups);
+    syncMediaFilesCache(data.content, data.groups, data.sectionManifests);
     syncMediaViewSelectOptions();
   } catch {
     // ignore cache refresh errors
@@ -16543,7 +16989,10 @@ function scrollToDocHeading(heading) {
     return;
   }
   if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
-    scrollEditorToLine(heading.line - 1);
+    const md = getDocOutlineMarkdownSource();
+    const offset = markdownOffsetFromLineCol(md, heading.line, 1);
+    setWysiwygCursorAtMarkdownOffset(md, offset);
+    return;
   }
 }
 
@@ -16623,21 +17072,33 @@ function renderDocContentBlocks() {
       const blockLabel = block.label || block.name || block.id;
       btn.title = block.description || blockLabel;
 
+      const head = document.createElement("span");
+      head.className = "doc-block-btn-head";
+
+      const iconText = resolveDocBlockIcon(block);
+      if (iconText) {
+        const icon = document.createElement("span");
+        icon.className = "doc-block-btn-icon";
+        icon.textContent = iconText;
+        icon.setAttribute("aria-hidden", "true");
+        head.appendChild(icon);
+      }
+
       const label = document.createElement("span");
       label.className = "doc-block-btn-label";
       label.textContent = blockLabel;
+      head.appendChild(label);
 
       const desc = document.createElement("span");
       desc.className = "doc-block-btn-desc";
       desc.textContent = block.description || "";
 
-      btn.append(label, desc);
+      btn.append(head, desc);
       bindEditorAsideInsertControl(btn);
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
         const snippet = block.template || block.text || "";
-        if (insertMarkdownAtEditorCursor(snippet)) {
-          showToast(`Вставлено: ${block.label || block.name}`, "success");
-        }
+        insertMarkdownAtEditorCursor(snippet);
       });
 
       item.appendChild(btn);
@@ -16667,6 +17128,265 @@ function getLinkLibraryScopeLabel(nodePath) {
   return stripAgentContentPrefixFromRelPath(folder);
 }
 
+async function loadMarkdownLinkIndex(options = {}) {
+  const force = options.force === true;
+  if (!activeAgentId) {
+    invalidateMarkdownLinkIndexCache();
+    return markdownLinkIndexCache;
+  }
+
+  if (
+    !force &&
+    markdownLinkIndexCache.agentId === activeAgentId &&
+    markdownLinkIndexCache.items.length
+  ) {
+    return markdownLinkIndexCache;
+  }
+
+  if (
+    !force &&
+    markdownLinkIndexCache.loading &&
+    markdownLinkIndexCache.promise &&
+    markdownLinkIndexCache.agentId === activeAgentId
+  ) {
+    return markdownLinkIndexCache.promise;
+  }
+
+  const agentId = activeAgentId;
+  markdownLinkIndexCache.loading = true;
+  markdownLinkIndexCache.agentId = agentId;
+
+  markdownLinkIndexCache.promise = fetch(buildApiUrl("/api/agent/markdown-index"))
+    .then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (markdownLinkIndexCache.agentId !== agentId) return markdownLinkIndexCache;
+      markdownLinkIndexCache.items = Array.isArray(data.items) ? data.items : [];
+      markdownLinkIndexCache.groups = Array.isArray(data.groups) ? data.groups : [];
+      markdownLinkIndexCache.awnTypes = Array.isArray(data.awnTypes) ? data.awnTypes : [];
+      markdownLinkFlatLibraryCache = null;
+      markdownLinkFlatLibraryCacheKey = "";
+      return markdownLinkIndexCache;
+    })
+    .catch((error) => {
+      if (markdownLinkIndexCache.agentId === agentId) {
+        markdownLinkIndexCache.items = [];
+        markdownLinkIndexCache.groups = [];
+      }
+      console.warn("Failed to load markdown link index:", error);
+      return markdownLinkIndexCache;
+    })
+    .finally(() => {
+      markdownLinkIndexCache.loading = false;
+      markdownLinkIndexCache.promise = null;
+    });
+
+  return markdownLinkIndexCache.promise;
+}
+
+function invalidateMarkdownLinkIndexCache() {
+  markdownLinkIndexCache = {
+    agentId: null,
+    items: [],
+    groups: [],
+    loading: false,
+    promise: null
+  };
+  markdownLinkFlatLibraryCache = null;
+  markdownLinkFlatLibraryCacheKey = "";
+}
+
+function getWorkspaceRelParentDir(relPath) {
+  const parts = normalizeLinkFilePath(relPath).split("/").filter(Boolean);
+  if (parts.length <= 1) return "";
+  parts.pop();
+  return parts.join("/");
+}
+
+function mapIndexItemToLibraryItem(item) {
+  return {
+    relPath: item.relPath,
+    label: item.label,
+    fileName: item.fileName,
+    awnType: item.awnType || "awn.file",
+    awnTypeLabel: item.awnTypeLabel || item.kindLabel || "Файл",
+    kindLabel: item.awnTypeLabel || item.kindLabel || "Файл",
+    locationHint: item.locationHint,
+    displayPath: item.locationHint || item.relPath,
+    group: item.group,
+    groupLabel: item.groupLabel,
+    nodePath: item.nodePath,
+    externalFile: item.externalFile,
+    mode: item.mode,
+    systemFile: item.systemFile,
+    path: item.nodePath,
+    markdownLink: buildMarkdownLinkFromWorkspaceRel(item.relPath, item.label)
+  };
+}
+
+function isDocLinkRegistryNoise(item) {
+  const base = String(item.fileName || item.relPath || "")
+    .split("/")
+    .pop()
+    .toLowerCase();
+  return base === "_reg-info.md" || base === "_reginfo.md" || base === "_registration.md";
+}
+
+function shouldShowDocLinkItemByDefault(item) {
+  if (String(docLinksSearchQuery || "").trim()) return true;
+  if (item.awnType === "service") return false;
+  if (isDocLinkRegistryNoise(item)) return false;
+  if (item.awnType === "awn.memory") return false;
+  return true;
+}
+
+function filterVisibleDocLinkItems(items) {
+  return items.filter(shouldShowDocLinkItemByDefault);
+}
+
+function formatDocLinkLibraryPresentation(item) {
+  const relPath = normalizeLinkFilePath(item.relPath || getLinkTargetFileRelPath(item.path) || item.path || "");
+  const fileName = item.fileName || relPath.split("/").pop() || relPath;
+  const menuTitle = item.nodePath ? resolveMenuEntryLabel(item.nodePath, item.label) : "";
+  const title = menuTitle || item.label || fileName.replace(/\.md$/i, "");
+  const typeLabel = item.awnTypeLabel || item.kindLabel || "Файл";
+  const insertHref = extractMarkdownLinkHref(getMarkdownLinkForLibraryItem(item)) || fileName;
+  const menuPath =
+    item.nodePath && (item.awnType === "awn.topic" || item.awnType === "awn.area")
+      ? stripAgentContentPrefixFromRelPath(stripVaultPrefixFromRelPath(getNodeDisplayPath(item.nodePath)))
+      : "";
+  return { title, fileName, typeLabel, insertHref, menuPath };
+}
+
+function getMarkdownLinkForLibraryItem(item) {
+  if (item.relPath) return buildMarkdownLinkFromWorkspaceRel(item.relPath, item.label);
+  if (item.path) return buildMarkdownFileLink(item.path, item.label);
+  return item.markdownLink || item.wikilink || "";
+}
+
+function sortDocLinkItemsByMenuOrder(items) {
+  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  if (!menu) {
+    return [...items].sort((a, b) =>
+      String(a.label || "").localeCompare(String(b.label || ""), "ru")
+    );
+  }
+
+  const order = new Map();
+  let index = 0;
+  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+    const path = normalizeMenuNodePath(entry.path);
+    if (path && !order.has(path)) order.set(path, index++);
+  }
+
+  return [...items].sort((a, b) => {
+    const aPath = a.nodePath ? normalizeMenuNodePath(a.nodePath) : "";
+    const bPath = b.nodePath ? normalizeMenuNodePath(b.nodePath) : "";
+    const aRank = aPath && order.has(aPath) ? order.get(aPath) : null;
+    const bRank = bPath && order.has(bPath) ? order.get(bPath) : null;
+    if (aRank != null && bRank != null && aRank !== bRank) return aRank - bRank;
+    if (aRank != null && bRank == null) return -1;
+    if (aRank == null && bRank != null) return 1;
+    return String(a.label || "").localeCompare(String(b.label || ""), "ru");
+  });
+}
+
+function collectMarkdownLinkLibraryGroups() {
+  const currentPath = normalizeLinkFilePath(getCurrentEditorLinkBasePath());
+  const currentDir = getWorkspaceRelParentDir(currentPath);
+  const activeScope = getLinkLibraryScopeFolder(activePath);
+  const sourceItems = (markdownLinkIndexCache.items || [])
+    .filter(
+      (item) =>
+        normalizeLinkFilePath(item.relPath).toLowerCase() !== currentPath.toLowerCase()
+    )
+    .map(mapIndexItemToLibraryItem);
+
+  const nearby = [];
+  const grouped = Object.fromEntries(AWN_LINK_TYPE_GROUP_ORDER.map(({ id }) => [id, []]));
+  const used = new Set();
+
+  for (const item of sourceItems) {
+    const parentDir = getWorkspaceRelParentDir(item.relPath);
+    const inSameFolder = Boolean(currentDir && parentDir === currentDir);
+    const inSameScope =
+      Boolean(item.nodePath && activeScope && getLinkLibraryScopeFolder(item.nodePath) === activeScope);
+    if (inSameFolder || inSameScope) {
+      nearby.push(item);
+      used.add(item.relPath);
+    }
+  }
+
+  for (const item of sourceItems) {
+    if (used.has(item.relPath)) continue;
+    const typeKey = AWN_LINK_TYPE_GROUP_ORDER.some(({ id }) => id === item.awnType)
+      ? item.awnType
+      : "awn.file";
+    grouped[typeKey].push(item);
+  }
+
+  const sorter = (a, b) => String(a.label || "").localeCompare(String(b.label || ""), "ru");
+  nearby.sort(sorter);
+  grouped["awn.topic"] = sortDocLinkItemsByMenuOrder(grouped["awn.topic"] || []);
+  for (const { id } of AWN_LINK_TYPE_GROUP_ORDER) {
+    if (id === "awn.topic") continue;
+    grouped[id].sort(sorter);
+  }
+
+  return {
+    nearby,
+    grouped,
+    scopeLabel: getLinkLibraryScopeLabel(activePath),
+    currentDir
+  };
+}
+
+function getFlatMarkdownLinkLibraryItems(options = {}) {
+  const force = options.force === true;
+  const cacheKey = `${activeAgentId || ""}:${getCurrentEditorLinkBasePath()}:${(markdownLinkIndexCache.items || []).length}`;
+  if (!force && markdownLinkFlatLibraryCache && markdownLinkFlatLibraryCacheKey === cacheKey) {
+    return markdownLinkFlatLibraryCache;
+  }
+
+  let items;
+  if ((markdownLinkIndexCache.items || []).length) {
+    const { nearby, grouped } = collectMarkdownLinkLibraryGroups();
+    items = [
+      ...nearby,
+      ...AWN_LINK_TYPE_GROUP_ORDER.flatMap(({ id }) => grouped[id] || [])
+    ];
+  } else {
+    const menuGroups = collectDocLinkLibraryGroups();
+    items = [...menuGroups.currentTopic, ...menuGroups.otherTopics];
+  }
+
+  markdownLinkFlatLibraryCache = items;
+  markdownLinkFlatLibraryCacheKey = cacheKey;
+  return items;
+}
+
+function buildDocLinkLibrarySearchHaystack(item) {
+  return [
+    item.label,
+    item.fileName,
+    item.awnType,
+    item.awnTypeLabel,
+    item.kindLabel,
+    item.locationHint,
+    item.displayPath,
+    item.relPath,
+    item.path,
+    item.groupLabel,
+    item.markdownLink,
+    item.wikilink
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 function isDocLinkLibraryEntry(entry) {
   if (!entry?.path || entry.isSystemFile) return false;
   const path = normalizeMenuNodePath(entry.path);
@@ -16694,7 +17414,8 @@ function collectDocLinkLibraryGroups() {
       path,
       label: entry.label || getLabelFromPath(path),
       displayPath: entry.displayPath || getNodeDisplayPath(path),
-      wikilink: buildObsidianWikilink(path, entry.label),
+      wikilink: buildMarkdownFileLink(path, entry.label),
+      markdownLink: buildMarkdownFileLink(path, entry.label),
       color: entry.color || null
     };
 
@@ -16717,20 +17438,60 @@ function collectDocLinkLibraryGroups() {
 }
 
 function bindDocLinkLibraryItem(btn, item) {
-  btn.draggable = true;
-  btn.addEventListener("dragstart", (event) => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = "copy";
-    event.dataTransfer.setData(
-      MENU_LINK_DRAG_MIME,
-      JSON.stringify({ path: item.path, label: item.label, wikilink: item.wikilink })
-    );
-    event.dataTransfer.setData("text/plain", item.wikilink);
-    btn.classList.add("is-dragging-menu-link");
-  });
-  btn.addEventListener("dragend", () => {
-    btn.classList.remove("is-dragging-menu-link");
-  });
+  btn.draggable = false;
+  delete btn.dataset.linkDragHint;
+}
+
+function filterDocLinkLibraryItems(items, query = docLinksSearchQuery) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((item) => buildDocLinkLibrarySearchHaystack(item).includes(q));
+}
+
+function ensureDocLinksSearchUi() {
+  const scroll = docLinksContentNode?.parentElement;
+  if (!scroll) return;
+
+  let wrap = scroll.querySelector(".doc-links-search-wrap");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "doc-links-search-wrap";
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.id = "doc-links-search";
+    input.className = "doc-links-search";
+    input.placeholder = "Тема, awn-тип или файл…";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.value = docLinksSearchQuery;
+    input.addEventListener("input", () => {
+      docLinksSearchQuery = input.value;
+      renderDocLinksLibrary({ preserveSearchFocus: true });
+    });
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+    });
+
+    const hint = document.createElement("p");
+    hint.className = "doc-links-search-hint";
+    hint.textContent = "Нажмите — вставит markdown-ссылку. Поиск находит и служебные файлы.";
+
+    wrap.appendChild(input);
+    wrap.appendChild(hint);
+    scroll.insertBefore(wrap, docLinksContentNode);
+  }
+
+  docLinksSearchInputNode = wrap.querySelector("#doc-links-search") || docLinksSearchInputNode;
+}
+
+function syncDocLinksSearchUi({ disabled = false } = {}) {
+  ensureDocLinksSearchUi();
+  if (!docLinksSearchInputNode) return;
+  docLinksSearchInputNode.disabled = disabled;
+  if (docLinksSearchInputNode.value !== docLinksSearchQuery) {
+    docLinksSearchInputNode.value = docLinksSearchQuery;
+  }
 }
 
 function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
@@ -16767,29 +17528,30 @@ function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "doc-link-btn";
-    btn.title = `${item.wikilink} — клик или перетащите в редактор`;
+    const presentation = formatDocLinkLibraryPresentation(item);
+    btn.title = `${presentation.title}\n${presentation.typeLabel} · ${presentation.fileName}\n→ ${presentation.insertHref}`;
+
+    const title = document.createElement("span");
+    title.className = "doc-link-btn-title";
+    title.textContent = presentation.title;
+
+    const meta = document.createElement("span");
+    meta.className = "doc-link-btn-meta";
+    meta.textContent = presentation.menuPath
+      ? `${presentation.typeLabel} · ${presentation.menuPath}`
+      : `${presentation.typeLabel} · ${presentation.fileName}`;
+
+    const insert = document.createElement("span");
+    insert.className = "doc-link-btn-insert";
+    insert.textContent = `→ ${presentation.insertHref}`;
+
+    btn.append(title, meta, insert);
     applyNodeColorVars(btn, item.color);
-
-    const label = document.createElement("span");
-    label.className = "doc-link-btn-label";
-    label.textContent = item.label;
-
-    const path = document.createElement("span");
-    path.className = "doc-link-btn-path";
-    path.textContent = item.displayPath || item.path;
-
-    const snippet = document.createElement("span");
-    snippet.className = "doc-link-btn-snippet";
-    snippet.textContent = item.wikilink;
-
-    btn.append(label, path, snippet);
-    bindEditorAsideInsertControl(btn);
-    btn.addEventListener("click", () => {
-      if (insertMarkdownAtEditorCursor(item.wikilink)) {
-        showToast(`Вставлена ссылка: ${item.label}`, "success");
-      }
-    });
     bindDocLinkLibraryItem(btn, item);
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      insertMarkdownAtEditorCursor(getMarkdownLinkForLibraryItem(item));
+    });
 
     li.appendChild(btn);
     list.appendChild(li);
@@ -16799,33 +17561,133 @@ function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
   parent.appendChild(section);
 }
 
-function renderDocLinksLibrary() {
+function renderDocLinksLibrary(options = {}) {
   if (!docLinksContentNode) return;
+
+  const editable = canInsertDocContentBlocks();
+  syncDocLinksSearchUi({ disabled: !editable });
   docLinksContentNode.replaceChildren();
 
-  if (!canInsertDocContentBlocks()) {
+  if (!editable) {
+    docLinksSearchQuery = "";
+    syncDocLinksSearchUi({ disabled: true });
     const empty = document.createElement("p");
     empty.className = "doc-links-empty";
-    empty.textContent = "Ссылки доступны в режиме редактирования Markdown.";
+    empty.textContent = "Ссылки доступны в режиме редактирования Markdown (Source).";
     docLinksContentNode.appendChild(empty);
     return;
   }
 
-  const { currentTopic, otherTopics, scopeLabel } = collectDocLinkLibraryGroups();
+  const requestId = ++renderDocLinksLibraryRequestId;
+  const loading = document.createElement("p");
+  loading.className = "doc-links-empty";
+  loading.textContent = "Загрузка индекса markdown…";
+  docLinksContentNode.appendChild(loading);
 
-  appendDocLinkLibraryGroup(docLinksContentNode, {
-    title: "Текущая тема",
-    hint: scopeLabel ? `Область: ${scopeLabel}` : "",
-    items: currentTopic,
-    emptyText: "В текущей теме нет других записей для ссылки."
+  loadMarkdownLinkIndex().then(() => {
+    if (requestId !== renderDocLinksLibraryRequestId || !docLinksContentNode) return;
+    renderDocLinksLibraryContent(options);
   });
+}
 
-  appendDocLinkLibraryGroup(docLinksContentNode, {
-    title: "Все другие темы",
-    hint: "Записи из остальных тем агента",
-    items: otherTopics,
-    emptyText: "Других тем для ссылки пока нет."
-  });
+function renderDocLinksLibraryContent(options = {}) {
+  if (!docLinksContentNode) return;
+
+  docLinksContentNode.replaceChildren();
+  const hasQuery = Boolean(String(docLinksSearchQuery || "").trim());
+  const useIndex = (markdownLinkIndexCache.items || []).length > 0;
+
+  if (useIndex) {
+    const { nearby, grouped, scopeLabel, currentDir } = collectMarkdownLinkLibraryGroups();
+    const sections = [];
+    const filteredNearby = filterDocLinkLibraryItems(filterVisibleDocLinkItems(nearby));
+
+    if (!hasQuery || filteredNearby.length) {
+      sections.push({
+        title: "Рядом",
+        hint: currentDir
+          ? `Та же папка: ${stripAgentContentPrefixFromRelPath(currentDir)}`
+          : scopeLabel
+            ? `Та же область: ${scopeLabel}`
+            : "Файлы рядом с текущим",
+        items: filteredNearby,
+        emptyText: hasQuery ? "Рядом нет совпадений." : "Рядом нет других .md для ссылки."
+      });
+    }
+
+    for (const { id, label, hint } of AWN_LINK_TYPE_GROUP_ORDER) {
+      const filtered = filterDocLinkLibraryItems(filterVisibleDocLinkItems(grouped[id] || []));
+      if (hasQuery && !filtered.length) continue;
+      const sectionTitle =
+        id === "awn.topic"
+          ? `Темы · ${getActiveAgentLabel() || activeAgentId || "агент"}`
+          : label;
+      const sectionHint =
+        id === "awn.topic" ? "Только темы текущего агента, как в меню слева" : hint || "";
+      sections.push({
+        title: sectionTitle,
+        hint: sectionHint,
+        items: filtered,
+        emptyText: hasQuery ? `В «${sectionTitle}» нет совпадений.` : `Нет элементов типа ${id}.`
+      });
+    }
+
+    const totalMatches = sections.reduce((sum, section) => sum + section.items.length, 0);
+    if (hasQuery && !totalMatches) {
+      const empty = document.createElement("p");
+      empty.className = "doc-links-empty";
+      empty.textContent = "Ничего не найдено.";
+      docLinksContentNode.appendChild(empty);
+    } else {
+      for (const section of sections) {
+        if (!section.items.length) continue;
+        appendDocLinkLibraryGroup(docLinksContentNode, section);
+      }
+      if (!docLinksContentNode.childElementCount) {
+        const empty = document.createElement("p");
+        empty.className = "doc-links-empty";
+        empty.textContent = "В workspace пока нет markdown-файлов для ссылки.";
+        docLinksContentNode.appendChild(empty);
+      }
+    }
+  } else {
+    const { currentTopic, otherTopics, scopeLabel } = collectDocLinkLibraryGroups();
+    const filteredCurrent = filterDocLinkLibraryItems(currentTopic);
+    const filteredOther = filterDocLinkLibraryItems(otherTopics);
+
+    if (hasQuery && !filteredCurrent.length && !filteredOther.length) {
+      const empty = document.createElement("p");
+      empty.className = "doc-links-empty";
+      empty.textContent = "Ничего не найдено.";
+      docLinksContentNode.appendChild(empty);
+    } else {
+      if (!hasQuery || filteredCurrent.length) {
+        appendDocLinkLibraryGroup(docLinksContentNode, {
+          title: "Текущая тема",
+          hint: scopeLabel ? `Область: ${scopeLabel}` : "",
+          items: filteredCurrent,
+          emptyText: hasQuery
+            ? "В текущей теме нет совпадений."
+            : "В текущей теме нет других записей для ссылки."
+        });
+      }
+
+      if (!hasQuery || filteredOther.length) {
+        appendDocLinkLibraryGroup(docLinksContentNode, {
+          title: "Все другие темы",
+          hint: "Темы из остальных разделов агента",
+          items: filteredOther,
+          emptyText: hasQuery ? "В других темах нет совпадений." : "Других тем для ссылки пока нет."
+        });
+      }
+    }
+  }
+
+  if (options.preserveSearchFocus && docLinksSearchInputNode) {
+    docLinksSearchInputNode.focus();
+    const end = docLinksSearchInputNode.value.length;
+    docLinksSearchInputNode.setSelectionRange(end, end);
+  }
 }
 
 function formatMiniDocPathHint(relativePath) {
@@ -17603,9 +18465,25 @@ function resetPropsLibrariesCache() {
   propsLibrariesLoadPromise = null;
 }
 
+function buildContentRecordMarkdownLink(relativePath, fromPath = getCurrentEditorLinkBasePath()) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return "";
+  const nodeBase = getResolvedNodePath(activePath);
+  if (!nodeBase) return `[${escapeMarkdownLinkLabel(rel.replace(/\.md$/i, "").split("/").pop() || rel)}](${rel})`;
+  const targetRel = normalizeLinkFilePath(
+    `${getNodeStorageSubfolderPath(nodeBase, "external")}/${rel}`
+  );
+  const href = relativizeWorkspacePath(fromPath, targetRel);
+  const encodedHref = href
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  const label = escapeMarkdownLinkLabel(rel.replace(/\.md$/i, "").split("/").pop() || rel);
+  return `[${label}](${encodedHref})`;
+}
+
 function buildContentRecordWikilink(relativePath) {
-  const slug = String(relativePath || "").replace(/\\/g, "/").replace(/\.md$/i, "");
-  return slug ? `[[${slug}]]` : "";
+  return buildContentRecordMarkdownLink(relativePath);
 }
 
 function buildPropsFileRef(subfolder, relativePath) {
@@ -17662,7 +18540,8 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
           contentRecords.push({
             relativePath,
             label,
-            wikilink: buildContentRecordWikilink(relativePath),
+            wikilink: buildContentRecordMarkdownLink(relativePath),
+            markdownLink: buildContentRecordMarkdownLink(relativePath),
             fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath)
           });
         }
@@ -17674,7 +18553,7 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
         const groups =
           data.groups && typeof data.groups === "object"
             ? data.groups
-            : buildMediaFilesCacheFromContent(data.content || "");
+            : buildMediaFilesCacheFromContent(data.content || "").groups;
         for (const [groupName, items] of Object.entries(groups)) {
           for (const item of Array.isArray(items) ? items : []) {
             if (item?.isFolder) continue;
@@ -17762,9 +18641,15 @@ function appendPropsFormPickerGroups(select, groups, currentValue) {
   }
 }
 
-async function openPropsLinkTarget(wikilink) {
-  const value = String(wikilink || "").trim();
+async function openPropsLinkTarget(linkValue) {
+  const value = String(linkValue || "").trim();
   if (!value) return;
+
+  const markdown = parseMarkdownLinkValue(value);
+  if (markdown?.href) {
+    await openMarkdownLinkTarget(markdown.href);
+    return;
+  }
 
   const { target, alias } = parsePropsWikilinkTarget(value);
   const nodePath = resolveWikilinkToNodePath(target, alias);
@@ -17775,7 +18660,12 @@ async function openPropsLinkTarget(wikilink) {
 
   const record = (propsLibrariesCache.contentRecords || []).find((item) => {
     const slug = item.relativePath.replace(/\.md$/i, "");
-    return item.wikilink === value || slug === target || item.label === target;
+    return (
+      item.wikilink === value ||
+      item.markdownLink === value ||
+      slug === target ||
+      item.label === target
+    );
   });
   if (!record || !activePath) return;
 
@@ -17811,15 +18701,17 @@ function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
   appendPropsFormSelectOption(select, "", "— выберите связь —");
 
   const recordItems = contentRecords.map((item) => ({
-    value: item.wikilink,
+    value: item.markdownLink || item.wikilink,
     label: `${item.label} · ${item.relativePath}`,
-    wikilink: item.wikilink
+    wikilink: item.markdownLink || item.wikilink,
+    markdownLink: item.markdownLink || item.wikilink
   }));
   const topicItems = (items) =>
     items.map((item) => ({
-      value: item.wikilink,
+      value: item.markdownLink || item.wikilink,
       label: item.label || item.displayPath || item.path,
-      wikilink: item.wikilink
+      wikilink: item.markdownLink || item.wikilink,
+      markdownLink: item.markdownLink || item.wikilink
     }));
 
   appendPropsFormPickerGroups(
@@ -17836,7 +18728,7 @@ function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
   manual.type = "text";
   manual.className = "props-form-value props-form-link-manual";
   manual.dataset.linkManual = "1";
-  manual.placeholder = "[[wikilink]] или [[путь/запись]]";
+  manual.placeholder = "[Название](путь/к/файлу.md)";
   manual.value = select.value || currentValue;
   if (meta.hint) manual.title = meta.hint;
 
@@ -21990,8 +22882,27 @@ function getMarkdownIt() {
     };
 
   markdownItInstance.renderer.rules.link_open = function renderExternalLinkOpen(tokens, idx, options, env, self) {
-    tokens[idx].attrSet("target", "_blank");
-    tokens[idx].attrSet("rel", "noopener noreferrer");
+    const token = tokens[idx];
+    const hrefIdx = token.attrIndex("href");
+    if (hrefIdx >= 0) {
+      const href = token.attrs[hrefIdx][1];
+      const sourcePath = env?.nodePath || getActiveNodeApiPath();
+      const nodePath = resolveMarkdownLinkToNodePath(href, { sourcePath });
+      if (nodePath) {
+        token.attrs[hrefIdx][1] = "#";
+        token.attrJoin("class", "md-file-link");
+        token.attrSet("data-node-path", nodePath);
+        token.attrSet("data-md-href", href);
+        return defaultLinkOpen(tokens, idx, options, env, self);
+      }
+      if (/\.md(?:$|[#?])/i.test(href) && !/^https?:\/\//i.test(href)) {
+        token.attrJoin("class", "md-file-link");
+        token.attrSet("data-md-href", href);
+        return defaultLinkOpen(tokens, idx, options, env, self);
+      }
+      token.attrSet("target", "_blank");
+      token.attrSet("rel", "noopener noreferrer");
+    }
     return defaultLinkOpen(tokens, idx, options, env, self);
   };
 
@@ -22232,12 +23143,16 @@ function initPreviewWikilinkNavigation(root) {
   if (!root || root.dataset.wikilinkNavBound === "1") return;
   root.dataset.wikilinkNavBound = "1";
   root.addEventListener("click", (event) => {
-    const link = event.target.closest("a.wikilink[data-node-path]");
+    const link = event.target.closest("a.wikilink[data-node-path], a.md-file-link[data-node-path], a.md-file-link[data-md-href]");
     if (!link) return;
     event.preventDefault();
     const path = link.dataset.nodePath;
-    if (!path) return;
-    void openNodeFromMenu(getLabelFromPath(path), path);
+    if (path) {
+      void openNodeFromMenu(getLabelFromPath(path), path);
+      return;
+    }
+    const href = link.dataset.mdHref;
+    if (href) void openMarkdownLinkTarget(href);
   });
 }
 
@@ -22518,7 +23433,228 @@ function getToastUiEditorClass() {
   return null;
 }
 
+let wysiwygLinkPopupEnhancer = null;
+let wysiwygLinkPopupEnhancing = false;
+let wysiwygLinkPopupWasVisible = false;
+let wysiwygLinkPopupObserverScheduled = false;
+let markdownLinkFlatLibraryCache = null;
+let markdownLinkFlatLibraryCacheKey = "";
+
+function extractMarkdownLinkHref(markdownLink) {
+  const match = String(markdownLink || "").match(/^\[[^\]]*\]\(([^)]+)\)$/);
+  return match ? match[1] : "";
+}
+
+function enhanceToastUiLinkPopup(popup) {
+  if (popup.dataset.awnEnhanced === "1") return;
+  const body = popup.querySelector(".toastui-editor-popup-body");
+  if (!body) return;
+
+  const inputs = body.querySelectorAll('input[type="text"]');
+  const urlInput = inputs[0];
+  const textInput = inputs[1];
+  if (!urlInput || !textInput) return;
+
+  popup.dataset.awnEnhanced = "1";
+  popup.classList.add("awn-wysiwyg-link-popup");
+
+  const labels = body.querySelectorAll("label");
+  if (labels[0]) labels[0].textContent = "Путь к файлу или URL";
+  if (labels[1]) labels[1].textContent = "Текст ссылки";
+  urlInput.placeholder = "agent.md, content/запись.md или https://…";
+  textInput.placeholder = "Подпись ссылки";
+
+  const buttonContainer = body.querySelector(".toastui-editor-button-container");
+  const cancelBtn = buttonContainer?.querySelector(".toastui-editor-close-button");
+  const okBtn = buttonContainer?.querySelector(".toastui-editor-ok-button");
+  if (cancelBtn) cancelBtn.textContent = "Отмена";
+  if (okBtn) okBtn.textContent = "OK";
+
+  const extra = document.createElement("div");
+  extra.className = "awn-wysiwyg-link-popup-extra";
+
+  const searchLabel = document.createElement("label");
+  searchLabel.textContent = "Найти файл";
+  searchLabel.className = "awn-wysiwyg-link-search-label";
+
+  const searchInput = document.createElement("input");
+  searchInput.type = "search";
+  searchInput.className = "awn-wysiwyg-link-search";
+  searchInput.placeholder = "Поиск markdown-файлов…";
+  searchInput.autocomplete = "off";
+
+  const picker = document.createElement("div");
+  picker.className = "awn-wysiwyg-link-picker";
+
+  const preview = document.createElement("code");
+  preview.className = "awn-wysiwyg-link-preview";
+
+  const hint = document.createElement("p");
+  hint.className = "awn-wysiwyg-link-hint";
+  hint.textContent = "Формат для GitHub и агента: [название](путь/к/файлу.md)";
+
+  extra.append(searchLabel, searchInput, picker, preview, hint);
+  body.insertBefore(extra, buttonContainer);
+
+  const updatePreview = () => {
+    const label = textInput.value.trim() || "ссылка";
+    const rawPath = urlInput.value.trim();
+    if (!rawPath) {
+      preview.textContent = "";
+      return;
+    }
+    if (/^https?:\/\//i.test(rawPath)) {
+      preview.textContent = `[${escapeMarkdownLinkLabel(label)}](${rawPath})`;
+      return;
+    }
+    const encoded = rawPath
+      .split("/")
+      .map((segment) => encodeMarkdownPathSegment(segment))
+      .join("/");
+    preview.textContent = `[${escapeMarkdownLinkLabel(label)}](${encoded})`;
+  };
+
+  const renderPicker = (query = "") => {
+    picker.replaceChildren();
+    const loadingNode = document.createElement("div");
+    loadingNode.className = "awn-wysiwyg-link-picker-empty";
+    loadingNode.textContent = "Загрузка…";
+    picker.appendChild(loadingNode);
+
+    window.setTimeout(() => {
+      if (!popup.isConnected || popup.dataset.awnEnhanced !== "1") return;
+      picker.replaceChildren();
+      const items = filterDocLinkLibraryItems(getFlatMarkdownLinkLibraryItems(), query).slice(0, 32);
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "awn-wysiwyg-link-picker-empty";
+        empty.textContent = query.trim() ? "Ничего не найдено" : "Нет markdown-файлов для ссылки";
+        picker.appendChild(empty);
+        return;
+      }
+      for (const item of items) {
+        const presentation = formatDocLinkLibraryPresentation(item);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "awn-wysiwyg-link-picker-item";
+        btn.textContent = `${presentation.title} · ${presentation.typeLabel}`;
+        btn.title = `${presentation.fileName}\n→ ${presentation.insertHref}`;
+        btn.addEventListener("click", () => {
+          urlInput.value = presentation.insertHref;
+          if (!textInput.value.trim()) textInput.value = presentation.title;
+          urlInput.classList.remove("wrong");
+          updatePreview();
+        });
+        picker.appendChild(btn);
+      }
+    }, 0);
+  };
+
+  let pickerRenderTimer = null;
+  const schedulePickerRender = (query = "") => {
+    window.clearTimeout(pickerRenderTimer);
+    pickerRenderTimer = window.setTimeout(() => renderPicker(query), 120);
+  };
+
+  searchInput.addEventListener("input", () => schedulePickerRender(searchInput.value));
+  searchInput.addEventListener("keydown", (event) => event.stopPropagation());
+  urlInput.addEventListener("input", () => {
+    urlInput.classList.remove("wrong");
+    updatePreview();
+  });
+  textInput.addEventListener("input", updatePreview);
+
+  loadMarkdownLinkIndex().then(() => {
+    if (!popup.isConnected || popup.dataset.awnEnhanced !== "1") return;
+    renderPicker(searchInput.value);
+  });
+  updatePreview();
+}
+
+function teardownWysiwygLinkPopupEnhancement(popup = null) {
+  const target =
+    popup || editorWysiwygWrapNode?.querySelector(".toastui-editor-popup-add-link");
+  if (target) {
+    delete target.dataset.awnEnhanced;
+    target.querySelector(".awn-wysiwyg-link-popup-extra")?.remove();
+    target.classList.remove("awn-wysiwyg-link-popup");
+  }
+  wysiwygLinkPopupWasVisible = false;
+}
+
+function syncWysiwygLinkPopupEnhancement() {
+  if (wysiwygLinkPopupEnhancing) return;
+
+  const popup = editorWysiwygWrapNode?.querySelector(".toastui-editor-popup-add-link");
+  if (!popup) {
+    if (wysiwygLinkPopupWasVisible) teardownWysiwygLinkPopupEnhancement();
+    return;
+  }
+
+  const visible = popup.style.display !== "none" && popup.offsetParent !== null;
+  if (!visible) {
+    if (wysiwygLinkPopupWasVisible) teardownWysiwygLinkPopupEnhancement(popup);
+    return;
+  }
+
+  if (popup.dataset.awnEnhanced === "1") {
+    wysiwygLinkPopupWasVisible = true;
+    return;
+  }
+
+  wysiwygLinkPopupEnhancing = true;
+  wysiwygLinkPopupWasVisible = true;
+  try {
+    wysiwygLinkPopupEnhancer?.disconnect();
+    enhanceToastUiLinkPopup(popup);
+  } finally {
+    wysiwygLinkPopupEnhancing = false;
+    if (wysiwygLinkPopupEnhancer && editorWysiwygWrapNode) {
+      wysiwygLinkPopupEnhancer.observe(editorWysiwygWrapNode, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style", "class"]
+      });
+    }
+  }
+}
+
+function scheduleWysiwygLinkPopupEnhancementSync() {
+  if (wysiwygLinkPopupObserverScheduled) return;
+  wysiwygLinkPopupObserverScheduled = true;
+  requestAnimationFrame(() => {
+    wysiwygLinkPopupObserverScheduled = false;
+    syncWysiwygLinkPopupEnhancement();
+  });
+}
+
+function setupWysiwygLinkPopupEnhancement() {
+  wysiwygLinkPopupEnhancer?.disconnect();
+  wysiwygLinkPopupEnhancer = null;
+  wysiwygLinkPopupWasVisible = false;
+  if (!editorWysiwygWrapNode) return;
+
+  wysiwygLinkPopupEnhancer = new MutationObserver(() => {
+    scheduleWysiwygLinkPopupEnhancementSync();
+  });
+
+  wysiwygLinkPopupEnhancer.observe(editorWysiwygWrapNode, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["style", "class"]
+  });
+}
+
+function teardownWysiwygLinkPopupEnhancementObserver() {
+  wysiwygLinkPopupEnhancer?.disconnect();
+  wysiwygLinkPopupEnhancer = null;
+  wysiwygLinkPopupWasVisible = false;
+}
+
 function destroyWysiwygEditor() {
+  teardownWysiwygLinkPopupEnhancementObserver();
   wysiwygEditorResizeObserver?.disconnect();
   wysiwygEditorResizeObserver = null;
   if (wysiwygEditorInstance) {
@@ -22526,6 +23662,7 @@ function destroyWysiwygEditor() {
     wysiwygEditorInstance = null;
   }
   lastWysiwygMarkdownSelection = null;
+  pendingWysiwygInsertSelection = null;
   if (editorWysiwygWrapNode) {
     editorWysiwygWrapNode.innerHTML = "";
   }
@@ -22635,6 +23772,7 @@ function initWysiwygEditor() {
   syncSaveButtonLamp();
   requestAnimationFrame(() => {
     bindWysiwygSelectionCapture();
+    setupWysiwygLinkPopupEnhancement();
     syncEditorFillMinHeightCssVar();
   });
 }
@@ -24637,6 +25775,8 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
 
   if (systemFile) {
     card.dataset.systemFile = entry.systemFile || entry.label;
+    openBtn.dataset.systemFile = entry.systemFile || entry.label;
+    openBtn.classList.add("system-file-item");
     openBtn.addEventListener("click", () => selectSystemFile(entry.systemFile || entry.label));
   } else {
     openBtn.dataset.path = entry.path;
@@ -24747,6 +25887,7 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
     btn.type = "button";
     if (entry.isSystemFile) {
       btn.className = buildSystemFileItemClassName(entry);
+      btn.classList.add("system-file-item");
       btn.textContent = entry.label;
       btn.dataset.systemFile = entry.systemFile;
       btn.addEventListener("click", () => selectSystemFile(entry.systemFile));
@@ -25141,13 +26282,9 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  root.querySelectorAll(".menu-item[data-path], .menu-folder[data-path]").forEach((btn) => {
-    btn.draggable = true;
-    if (!btn.dataset.linkDragHint) {
-      btn.dataset.linkDragHint = "1";
-      const hint = "Перетащите в редактор для ссылки";
-      btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
-    }
+  root.querySelectorAll(MENU_LINK_DRAG_SELECTOR).forEach((btn) => {
+    btn.draggable = false;
+    delete btn.dataset.linkDragHint;
   });
 }
 
@@ -25293,83 +26430,45 @@ function setupMenuSortDragDrop() {
   });
 }
 
-let menuLinkDragBtn = null;
-
 function setupMenuLinkDragToEditor() {
-  if (!menuNode || menuNode.dataset.linkDragBound === "1") return;
-  menuNode.dataset.linkDragBound = "1";
-
-  menuNode.addEventListener("dragstart", (event) => {
-    if (event.target.closest(".menu-sort-handle")) return;
-    const linkBtn = event.target.closest(".menu-item[data-path], .menu-folder[data-path]");
-    if (!linkBtn) return;
-
-    const nodePath = normalizeMenuNodePath(linkBtn.dataset.path);
-    if (!nodePath) return;
-
-    const label = getLabelFromPath(nodePath);
-    const wikilink = buildObsidianWikilink(nodePath, label);
-    event.dataTransfer.effectAllowed = "copy";
-    event.dataTransfer.setData(
-      MENU_LINK_DRAG_MIME,
-      JSON.stringify({ path: nodePath, label, wikilink })
-    );
-    event.dataTransfer.setData("text/plain", wikilink);
-    menuLinkDragBtn = linkBtn;
-    linkBtn.classList.add("is-dragging-menu-link");
-  });
-
-  menuNode.addEventListener("dragend", () => {
-    if (!menuLinkDragBtn) return;
-    menuLinkDragBtn.classList.remove("is-dragging-menu-link");
-    menuLinkDragBtn = null;
-  });
+  enableMenuLinkDragSources(getMenuQueryRoot());
 }
 
 function setupEditorMenuLinkDrop() {
-  const targets = [
-    editorSurfaceNode,
-    editorCodeWrapNode,
-    editorWysiwygWrapNode,
-    fileContentInputNode,
-    fileContentPreviewNode
-  ].filter(Boolean);
-  if (!targets.length || editorSurfaceNode?.dataset.menuLinkDropBound === "1") return;
-  if (editorSurfaceNode) editorSurfaceNode.dataset.menuLinkDropBound = "1";
-
-  const setDropTarget = (active) => {
-    editorSurfaceNode?.classList.toggle("is-menu-link-drop-target", active);
-  };
-
-  for (const target of targets) {
-    target.addEventListener("dragover", (event) => {
-      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
-      if (!canInsertDocContentBlocks()) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-      setDropTarget(true);
-    });
-
-    target.addEventListener("dragleave", (event) => {
-      if (!editorSurfaceNode?.contains(event.relatedTarget)) {
-        setDropTarget(false);
-      }
-    });
-
-    target.addEventListener("drop", (event) => {
-      setDropTarget(false);
-      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
-      const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
-      const wikilink = payload?.wikilink;
-      if (!wikilink) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (editorViewMode === "source" && fileContentInputNode) {
-        fileContentInputNode.focus();
-      }
-      insertMarkdownAtEditorCursor(wikilink);
-    });
+  if (editorSurfaceNode) {
+    editorSurfaceNode.classList.remove("is-menu-link-drop-target");
   }
+}
+
+function setupMenuInsertLinkClickBehavior() {
+  if (!menuNode || menuNode.dataset.insertLinkClickBound === "1") return;
+  menuNode.dataset.insertLinkClickBound = "1";
+  menuNode.addEventListener(
+    "mousedown",
+    (event) => {
+      if (!canInsertDocContentBlocks()) return;
+      if (event.altKey || event.metaKey || event.ctrlKey) return;
+      if (!event.target.closest(MENU_INSERT_LINK_SELECTOR)) return;
+      captureEditorInsertSelection();
+    },
+    true
+  );
+  menuNode.addEventListener(
+    "click",
+    (event) => {
+      if (!canInsertDocContentBlocks()) return;
+      if (event.altKey || event.metaKey || event.ctrlKey) return;
+      const btn = event.target.closest(MENU_INSERT_LINK_SELECTOR);
+      if (!btn?.dataset?.path) return;
+      const nodePath = normalizeMenuNodePath(btn.dataset.path);
+      if (!nodePath || !isNodeMdPath(nodePath)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const label = resolveMenuEntryLabel(nodePath);
+      insertMarkdownAtEditorCursor(buildMarkdownFileLink(nodePath, label));
+    },
+    true
+  );
 }
 
 function renderMenu(menu, agentId = activeAgentId, options = {}) {
@@ -25492,6 +26591,7 @@ function renderSystemFiles(files) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = buildSystemFileItemClassName(file);
+    btn.classList.add("system-file-item");
     btn.textContent = file.label;
     btn.dataset.systemFile = file.systemFile;
     btn.addEventListener("click", () => selectSystemFile(file.systemFile));
@@ -25499,6 +26599,8 @@ function renderSystemFiles(files) {
     row.appendChild(btn);
     container.appendChild(row);
   }
+
+  enableMenuLinkDragSources(getMenuQueryRoot());
 }
 
 async function loadSystemFiles(options = {}) {
@@ -25943,7 +27045,7 @@ async function loadContentByMode(options = {}) {
       const data = await response.json();
       mediaAssetsExists = Boolean(data.exists);
       modeContentCache.media = data.content || "";
-      syncMediaFilesCache(data.content, data.groups);
+      syncMediaFilesCache(data.content, data.groups, data.sectionManifests);
       if (sectionToRestore) {
         activeMediaSectionFolder = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
         pruneActiveMediaSectionFolder();
@@ -25953,7 +27055,7 @@ async function loadContentByMode(options = {}) {
     } catch (error) {
       mediaAssetsExists = true;
       modeContentCache.media = "";
-      syncMediaFilesCache("", {});
+      syncMediaFilesCache("", {}, []);
       applyModeUi();
       listViewContentNode.innerHTML = "";
       renderMediaEmpty(listViewContentNode, `Ошибка чтения медиа: ${error.message}`);
@@ -31689,6 +32791,8 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupMenuLinkDragToEditor();
 setupEditorMenuLinkDrop();
+setupMenuInsertLinkClickBehavior();
+setupEditorAsideSelectionCapture();
 window.addEventListener("popstate", () => {
   suspendAppRouteSync();
   void applyAppRouteFromUrl()
@@ -31804,8 +32908,8 @@ fileContentInputNode.addEventListener("input", () => {
   syncEditorLineNumbers();
   if (editorViewMode === "preview") {
     renderPreviewFromEditor();
-  } else if (getDocAsideTab() === "outline") {
-    renderDocOutline();
+  } else {
+    scheduleDocOutlineRefresh();
   }
   applySourceEditorAutoHeightUi();
   syncSaveButtonLamp();

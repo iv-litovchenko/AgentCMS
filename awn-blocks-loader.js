@@ -15,6 +15,7 @@ const FALLBACK_BLOCK_GROUPS = [
         name: "Заголовок H2",
         kind: "block",
         description: "Раздел второго уровня",
+        icon: "2️⃣",
         template: "\n## Заголовок\n\nТекст раздела.\n\n"
       }
     ]
@@ -60,6 +61,7 @@ function normalizeBlockDef(parsed, filePath) {
     group,
     sort,
     description: parsed?.description || "",
+    icon: String(parsed?.icon || parsed?.emoji || "").trim(),
     template
   };
 }
@@ -127,6 +129,7 @@ function buildBlockGroups(blocksById, meta) {
         name: block.name,
         kind: block.kind,
         description: block.description,
+        icon: block.icon || "",
         text: block.template,
         template: block.template
       }))

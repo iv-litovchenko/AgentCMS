@@ -4,5 +4,5 @@ kind: field
 storage: string
 mdbase: link
 widget: link
-description: Связь с темой или записью ([[wikilink]]); записи content/ — в той же группе
+description: Связь с темой или записью — markdown `[название](путь/к/файлу.md)`
 settings: [description, hint, required, locked, default]

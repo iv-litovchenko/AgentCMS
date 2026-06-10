@@ -76,6 +76,7 @@ const {
   buildDefaultFrontmatter,
   getAwnTypesPayload,
   inferAwnTypeFromPath,
+  loadAgentTypes,
   normalizeAwnSchema,
   applyAwnSchemaToConfig,
   getTopicSchemaPayload
@@ -1575,7 +1576,12 @@ function classifyMediaGroup(ext) {
   return "Other";
 }
 
-async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = []) {
+async function collectMediaFilesStructured(
+  folderAbsolute,
+  prefix = "",
+  items = [],
+  sectionManifests = []
+) {
   let entries = [];
   try {
     entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
@@ -1599,11 +1605,27 @@ async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = 
         size: 0,
         ext: ""
       });
-      await collectMediaFilesStructured(absolute, relPath, items);
+      await collectMediaFilesStructured(absolute, relPath, items, sectionManifests);
       continue;
     }
 
     if (!entry.isFile()) continue;
+
+    if (isAreaManifestFileName(entry.name)) {
+      let displayName = "";
+      try {
+        const raw = await fs.readFile(absolute, "utf-8");
+        const { frontmatter } = splitNodeFrontmatter(raw);
+        const folderSlug =
+          path.posix.basename(path.posix.dirname(relPath)) ||
+          path.posix.basename(relPath).replace(/\.md$/i, "");
+        displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
+      } catch {
+        // manifest may be unreadable
+      }
+      sectionManifests.push({ path: relPath, displayName });
+      continue;
+    }
 
     const ext = path.extname(entry.name).toLowerCase();
     let size = 0;
@@ -1611,28 +1633,19 @@ async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = 
     try {
       const stat = await fs.stat(absolute);
       size = stat.size;
-      if (isAreaManifestFileName(entry.name)) {
-        const raw = await fs.readFile(absolute, "utf-8");
-        const { frontmatter } = splitNodeFrontmatter(raw);
-        const folderSlug =
-          path.posix.basename(path.posix.dirname(relPath)) ||
-          path.posix.basename(relPath).replace(/\.md$/i, "");
-        displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
-      } else {
-        const sidecarRel = toMediaSidecarRelativePath(relPath);
-        if (sidecarRel) {
-          const sidecarAbsolute = path.join(folderAbsolute, sidecarRel);
-          if (sidecarAbsolute.startsWith(folderAbsolute)) {
-            try {
-              const sidecarRaw = await fs.readFile(sidecarAbsolute, "utf-8");
-              const { frontmatter } = splitNodeFrontmatter(sidecarRaw);
-              displayName = resolveNodeDisplayName(
-                getYamlScalar(frontmatter, "awn-name") || "",
-                entry.name
-              );
-            } catch {
-              // sidecar may not exist yet
-            }
+      const sidecarRel = toMediaSidecarRelativePath(relPath);
+      if (sidecarRel) {
+        const sidecarAbsolute = path.join(folderAbsolute, sidecarRel);
+        if (sidecarAbsolute.startsWith(folderAbsolute)) {
+          try {
+            const sidecarRaw = await fs.readFile(sidecarAbsolute, "utf-8");
+            const { frontmatter } = splitNodeFrontmatter(sidecarRaw);
+            displayName = resolveNodeDisplayName(
+              getYamlScalar(frontmatter, "awn-name") || "",
+              entry.name
+            );
+          } catch {
+            // sidecar may not exist yet
           }
         }
       }
@@ -1676,6 +1689,7 @@ function buildMediaListContent(groups) {
     if (groupItems.length === 0) continue;
     lines.push(`## ${groupName}`);
     for (const item of groupItems) {
+      if (!item.isFolder && isAreaManifestFileName(path.basename(item.path))) continue;
       lines.push(`- ${item.path}`);
       files += 1;
     }
@@ -4779,6 +4793,299 @@ async function classifySearchResult(relPath) {
   return null;
 }
 
+const MARKDOWN_LINK_AWN_TYPE_LABELS = {
+  "awn.topic": "Тема",
+  "awn.area": "Область",
+  "awn.workspace": "Workspace",
+  "awn.record": "Запись",
+  "awn.record.category": "Раздел Content",
+  "awn.media.category": "Раздел Media",
+  "awn.sidecar": "Sidecar",
+  "awn.memory": "Память темы",
+  "awn.system": "Системный файл",
+  "awn.file": "Произвольный файл",
+  service: "Служебный"
+};
+
+const MARKDOWN_LINK_AWN_TYPE_ORDER = [
+  "awn.topic",
+  "awn.area",
+  "awn.workspace",
+  "awn.record",
+  "awn.record.category",
+  "awn.media.category",
+  "awn.sidecar",
+  "awn.file",
+  "awn.memory",
+  "awn.system",
+  "service"
+];
+
+async function isWorkspaceRootManifestRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  try {
+    const rootRel = await resolveRootAreaManifestRel(getAgentRoot());
+    return normalized.toLowerCase() === String(rootRel || "").replace(/\\/g, "/").toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+async function resolveMarkdownLinkAwnType(relPath, meta) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+
+  if (meta?.systemFile || isAllowedSystemFileName(base)) {
+    return "awn.system";
+  }
+
+  if (
+    meta?.mode &&
+    ["internal", "tabular", "todo", "configs", "env", "node-preview"].includes(meta.mode)
+  ) {
+    return "awn.memory";
+  }
+
+  if (meta?.externalFile && meta.mode === "external") {
+    return "awn.record";
+  }
+
+  let explicitType = null;
+  const typeSources = [normalized];
+  if (meta?.nodePath && meta.nodePath !== normalized) {
+    typeSources.push(String(meta.nodePath).replace(/\\/g, "/"));
+  }
+  for (const sourcePath of typeSources) {
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(sourcePath);
+      const value = getYamlScalar(frontmatter, "awn-type");
+      if (value) {
+        explicitType = value;
+        break;
+      }
+    } catch {
+      // try next source
+    }
+  }
+
+  const inferred = inferAwnTypeFromPath(normalized, {
+    contentMode: meta?.mode === "external" ? "external" : undefined,
+    isAgentRoot: await isWorkspaceRootManifestRel(normalized)
+  });
+
+  let awnType = explicitType || inferred;
+
+  const kitFolder = getAgentKitFolder();
+  if (kitFolder && normalized.toLowerCase().startsWith(`${kitFolder.toLowerCase()}/`)) {
+    if (awnType === "awn.topic" && isTopicManifestFileName(base)) {
+      return "awn.topic";
+    }
+    if (isAreaManifestFileName(base) || base.toLowerCase() === "_reginfo.md") {
+      return "service";
+    }
+    if (awnType !== "awn.topic" && awnType !== "awn.record") {
+      return "service";
+    }
+  }
+
+  if (awnType === "awn.record" && !meta?.externalFile) {
+    const inStorage =
+      /\/awn-storage\//i.test(normalized) ||
+      /\/content\//i.test(normalized) ||
+      /\/_storage\//i.test(normalized);
+    if (
+      !inStorage &&
+      !isTopicManifestFileName(base) &&
+      !isAreaManifestFileName(base) &&
+      base.toLowerCase() !== "_reginfo.md"
+    ) {
+      return "awn.file";
+    }
+  }
+
+  return awnType || "awn.file";
+}
+
+function getMarkdownLinkAwnTypeLabel(typeId, typesMap = null) {
+  const key = String(typeId || "awn.file");
+  return typesMap?.[key]?.name || MARKDOWN_LINK_AWN_TYPE_LABELS[key] || key;
+}
+
+const MARKDOWN_LINK_GROUP_LABELS = {
+  topics: "Темы и области",
+  content: "Content / записи",
+  memory: "Память темы",
+  service: "Служебные файлы",
+  system: "Системные",
+  other: "Прочие markdown"
+};
+
+function classifyMarkdownLinkGroup(relPath, meta) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+
+  if (meta?.systemFile || isAllowedSystemFileName(base)) {
+    return "system";
+  }
+
+  if (meta?.externalFile && meta?.mode === "external") {
+    return "content";
+  }
+
+  if (
+    meta?.mode === "description" &&
+    (isAreaManifestRelPath(normalized) || isTopicManifestFileName(base))
+  ) {
+    return "topics";
+  }
+
+  if (
+    meta?.mode &&
+    ["internal", "tabular", "todo", "configs", "env", "node-preview"].includes(meta.mode)
+  ) {
+    return "memory";
+  }
+
+  const kitFolder = getAgentKitFolder();
+  if (kitFolder && normalized.toLowerCase().startsWith(`${kitFolder.toLowerCase()}/`)) {
+    return "service";
+  }
+
+  if (isAreaManifestRelPath(normalized) || isTopicManifestFileName(base)) {
+    return "topics";
+  }
+
+  return "other";
+}
+
+const MARKDOWN_LINK_KIND_LABELS = {
+  topics: "Тема",
+  content: "Запись",
+  memory: "Память",
+  service: "Служебный",
+  system: "Системный",
+  other: "Файл"
+};
+
+function resolveMarkdownLinkLocationHint(relPath, meta) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const dir = path.posix.dirname(normalized);
+
+  if (meta?.externalFile) {
+    const topicFolder = meta.nodePath ? path.posix.dirname(String(meta.nodePath)) : "";
+    const topicName =
+      topicFolder && topicFolder !== "." ? path.posix.basename(topicFolder) : "тема";
+    return `Content · ${topicName} / ${meta.externalFile}`;
+  }
+
+  if (meta?.systemFile) {
+    return "Системные файлы workspace";
+  }
+
+  if (meta?.source) {
+    return dir && dir !== "." ? `${meta.source} · ${dir}` : meta.source;
+  }
+
+  return dir && dir !== "." ? dir : "Корень workspace";
+}
+
+async function resolveMarkdownLinkIndexLabel(relPath, meta) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+
+  if (meta?.externalFile) {
+    const recordName = path.posix.basename(meta.externalFile).replace(/\.md$/i, "");
+    if (meta.nodePath) {
+      try {
+        const { frontmatter } = await readNodeFrontmatterContent(meta.nodePath);
+        const slug = getManifestSlugFromRel(meta.nodePath);
+        const topicName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", slug);
+        if (topicName) return `${recordName} · ${topicName}`;
+      } catch {
+        // fall through
+      }
+    }
+    return recordName || meta.externalFile;
+  }
+
+  if (meta?.systemFile) {
+    return meta.systemFile.replace(/\.md$/i, "") || meta.systemFile;
+  }
+
+  if (isAreaManifestFileName(base) || base.toLowerCase() === "_reginfo.md") {
+    const parentDir = path.posix.dirname(normalized);
+    if (parentDir && parentDir !== ".") {
+      return `Реестр · ${path.posix.basename(parentDir)}`;
+    }
+    return "Реестр workspace";
+  }
+
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(relPath);
+    const slug = getManifestSlugFromRel(relPath);
+    const awnName = getYamlScalar(frontmatter, "awn-name") || "";
+    return resolveNodeDisplayName(awnName, slug);
+  } catch {
+    return path.posix.basename(relPath).replace(/\.md$/i, "") || relPath;
+  }
+}
+
+async function buildAgentMarkdownLinkIndex() {
+  const relFiles = await collectSearchableFiles(getAgentRoot());
+  const mdFiles = relFiles.filter((relPath) => String(relPath || "").toLowerCase().endsWith(".md"));
+  const typesMap = loadAgentTypes(getAgentRoot(), getProjectRoot());
+  const items = [];
+
+  for (const relPath of mdFiles) {
+    const meta = await classifySearchResult(relPath);
+    const normalized = String(relPath || "").replace(/\\/g, "/");
+    const base = path.posix.basename(normalized);
+    const label = await resolveMarkdownLinkIndexLabel(normalized, meta);
+    const group = classifyMarkdownLinkGroup(normalized, meta);
+    const awnType = await resolveMarkdownLinkAwnType(normalized, meta);
+    const awnTypeLabel = getMarkdownLinkAwnTypeLabel(awnType, typesMap);
+
+    items.push({
+      relPath: normalized,
+      label,
+      fileName: base,
+      awnType,
+      awnTypeLabel,
+      kindLabel: awnTypeLabel,
+      locationHint: resolveMarkdownLinkLocationHint(normalized, meta),
+      group,
+      groupLabel: MARKDOWN_LINK_GROUP_LABELS[group] || MARKDOWN_LINK_GROUP_LABELS.other,
+      nodePath: meta?.nodePath ? String(meta.nodePath).replace(/\\/g, "/") : null,
+      externalFile: meta?.externalFile ? String(meta.externalFile).replace(/\\/g, "/") : null,
+      mode: meta?.mode || null,
+      source: meta?.source || null,
+      systemFile: meta?.systemFile || null
+    });
+  }
+
+  items.sort((a, b) => {
+    const typeOrderA = MARKDOWN_LINK_AWN_TYPE_ORDER.indexOf(a.awnType);
+    const typeOrderB = MARKDOWN_LINK_AWN_TYPE_ORDER.indexOf(b.awnType);
+    const rankA = typeOrderA === -1 ? MARKDOWN_LINK_AWN_TYPE_ORDER.length : typeOrderA;
+    const rankB = typeOrderB === -1 ? MARKDOWN_LINK_AWN_TYPE_ORDER.length : typeOrderB;
+    if (rankA !== rankB) return rankA - rankB;
+    return String(a.label || a.relPath || "").localeCompare(String(b.label || b.relPath || ""), "ru", {
+      sensitivity: "base",
+      numeric: true
+    });
+  });
+
+  return {
+    items,
+    total: items.length,
+    groups: Object.entries(MARKDOWN_LINK_GROUP_LABELS).map(([id, label]) => ({ id, label })),
+    awnTypes: MARKDOWN_LINK_AWN_TYPE_ORDER.map((id) => ({
+      id,
+      label: getMarkdownLinkAwnTypeLabel(id, typesMap)
+    }))
+  };
+}
+
 function countTextMatches(content, query) {
   const lower = String(content || "").toLowerCase();
   const q = String(query || "").toLowerCase();
@@ -5180,6 +5487,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace timeline",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/markdown-index") {
+    try {
+      const index = await buildAgentMarkdownLinkIndex();
+      return sendJson(res, 200, index);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read markdown index",
         details: String(error.message || error)
       });
     }
@@ -6438,7 +6757,8 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
       }
 
-      const items = await collectMediaFilesStructured(folderAbsolute);
+      const sectionManifests = [];
+      const items = await collectMediaFilesStructured(folderAbsolute, "", [], sectionManifests);
       const groups = groupMediaFiles(items);
       const { content, files } = buildMediaListContent(groups);
 
@@ -6446,7 +6766,8 @@ async function handleApiForAgent(req, res, url) {
         exists: true,
         files,
         content,
-        groups
+        groups,
+        sectionManifests
       });
     } catch (error) {
       if (error && error.code === "ENOENT") {
