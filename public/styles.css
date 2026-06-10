@@ -8376,10 +8376,37 @@ body.app-locked {
 .menu-folder-name,
 .menu-item-name,
 .menu-section-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.menu-tree-status {
+  flex: 0 0 auto;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(71, 85, 105, 0.82);
+}
+
+.menu-tree-status--open {
+  background: rgba(22, 101, 52, 0.88);
+}
+
+.menu-tree-status--draft {
+  background: rgba(161, 98, 7, 0.9);
+}
+
+.menu-tree-status--closed {
+  background: rgba(185, 28, 28, 0.88);
 }
 
 .menu-folder-markers {
@@ -8433,6 +8460,7 @@ body.app-locked {
   font-size: 12px;
 }
 
+.menu-folder .menu-folder-label,
 .menu-item .menu-folder-label,
 .menu-flat-item .menu-folder-label {
   width: 100%;

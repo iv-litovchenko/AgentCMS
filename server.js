@@ -1877,6 +1877,7 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
   tree.color = null;
   tree.tags = [];
   tree.category = null;
+  tree.status = null;
   tree.hasPreview = false;
   tree.previewUrl = null;
   if (serviceManifestRel) {
@@ -1884,6 +1885,7 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
     tree.color = indexMeta.color;
     tree.tags = indexMeta.tags || [];
     tree.category = indexMeta.category || null;
+    tree.status = indexMeta.status || null;
     tree.hasPreview = indexMeta.hasPreview;
     tree.previewUrl = indexMeta.previewUrl;
   }
@@ -3298,6 +3300,14 @@ function extractCategoryFromProps(content, nodeRelPath) {
   return inferCategoryFromNodePath(nodeRelPath);
 }
 
+function extractStatusFromProps(content) {
+  const props = parseFrontmatterProps(content);
+  const fromProps = getFrontmatterPropValue(props, "awn-status");
+  if (fromProps) return fromProps;
+  const scalar = getYamlScalar(content, "awn-status");
+  return scalar || null;
+}
+
 function getServiceCatalogManifestRel(preset) {
   const scaffold = findCatalogScaffold(preset);
   if (!scaffold) return null;
@@ -3546,13 +3556,15 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
     return {
       color: extractColorFromPropsYaml(frontmatter),
       tags: extractTagsFromProps(frontmatter),
-      category: extractCategoryFromProps(frontmatter, nodeRelPath)
+      category: extractCategoryFromProps(frontmatter, nodeRelPath),
+      status: extractStatusFromProps(frontmatter)
     };
   } catch {
     return {
       color: null,
       tags: [],
-      category: inferCategoryFromNodePath(nodeRelPath)
+      category: inferCategoryFromNodePath(nodeRelPath),
+      status: null
     };
   }
 }
@@ -3572,6 +3584,7 @@ async function enrichMenuNodeItem(nodeRelPath) {
     color: meta.color,
     tags: meta.tags,
     category: meta.category,
+    status: meta.status || null,
     ...previewMeta
   };
 }
@@ -4290,6 +4303,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   let color = null;
   let tags = [];
   let category = null;
+  let status = null;
   let hasPreview = false;
   let previewUrl = null;
   if (indexPath) {
@@ -4297,6 +4311,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     color = indexMeta.color;
     tags = indexMeta.tags || [];
     category = indexMeta.category || null;
+    status = indexMeta.status || null;
     hasPreview = indexMeta.hasPreview;
     previewUrl = indexMeta.previewUrl;
   }
@@ -4310,6 +4325,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     color,
     tags,
     category,
+    status,
     hasPreview,
     previewUrl,
     hasGit: selfMarkers.hasGitSelf,

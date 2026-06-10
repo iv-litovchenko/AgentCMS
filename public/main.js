@@ -4705,6 +4705,34 @@ function formatMenuTreeItemLabel(item, parentNode, agentId = activeAgentId) {
   return formatMenuTreeSortLabel(item?.label, parentNode, item?.label, agentId);
 }
 
+function getAwnStatusTone(status) {
+  const raw = String(status || "").trim().toLowerCase();
+  if (raw.includes("🔴") || raw.includes("закрыт")) return "closed";
+  if (raw.includes("🟡") || raw.includes("черновик")) return "draft";
+  if (raw.includes("🟢") || raw.includes("открыт")) return "open";
+  return "default";
+}
+
+function createMenuTreeStatusBadge(status) {
+  const label = String(status || "").trim();
+  if (!label) return null;
+  const badge = document.createElement("span");
+  badge.className = `menu-tree-status menu-tree-status--${getAwnStatusTone(label)}`;
+  badge.textContent = label;
+  badge.title = `Статус: ${label}`;
+  badge.setAttribute("aria-label", `Статус: ${label}`);
+  return badge;
+}
+
+function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
+  setMenuLabelWithMarkers(
+    btn,
+    formatMenuTreeItemLabel(item, parentNode, agentId),
+    item,
+    "menu-item-name"
+  );
+}
+
 function getMenuTreeFolderSortKey(node) {
   if (!node) return "";
   return node.title || (node.indexPath ? getLabelFromPath(node.indexPath) : "");
@@ -5394,6 +5422,8 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   nameNode.className = nameClass;
   nameNode.textContent = labelText;
   labelWrap.appendChild(nameNode);
+  const statusBadge = createMenuTreeStatusBadge(source?.status);
+  if (statusBadge) labelWrap.appendChild(statusBadge);
   host.appendChild(labelWrap);
 }
 
@@ -10176,11 +10206,7 @@ function renderExternalTableView(container, mdItems) {
 }
 
 function getExternalCardStatusClass(status) {
-  const raw = String(status || "").trim().toLowerCase();
-  if (raw.includes("🔴") || raw.includes("закрыт")) return "external-card-status--closed";
-  if (raw.includes("🟡") || raw.includes("черновик")) return "external-card-status--draft";
-  if (raw.includes("🟢") || raw.includes("открыт")) return "external-card-status--open";
-  return "external-card-status--default";
+  return `external-card-status--${getAwnStatusTone(status)}`;
 }
 
 function appendExternalCardStatusBadge(cover, status) {
@@ -21161,7 +21187,7 @@ function appendRepoRootMenuItems(container, repoItems, parentMenuNode, agentId =
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "menu-item menu-item--repo-root";
-    btn.textContent = formatMenuTreeItemLabel(item, parentMenuNode, agentId);
+    setMenuTreeItemLabel(btn, item, parentMenuNode, agentId);
     const itemPath = normalizeMenuNodePath(item.path);
     btn.dataset.path = itemPath;
     btn.title = item.path;
@@ -21243,6 +21269,7 @@ function collectDirectChildNodeEntries(menuNode) {
       label: getLabelFromPath(section.indexPath),
       displayPath: getNodeDisplayPath(section.indexPath),
       color: section.color || null,
+      status: section.status || null,
       hasPreview: Boolean(section.hasPreview),
       previewUrl: section.previewUrl || null,
       isFolder: true
@@ -21256,6 +21283,7 @@ function collectDirectChildNodeEntries(menuNode) {
       label: getLabelFromPath(item.path),
       displayPath: getNodeDisplayPath(item.path),
       color: item.color || null,
+      status: item.status || null,
       hasPreview: Boolean(item.hasPreview),
       previewUrl: item.previewUrl || null,
       isFolder: isNodeManifestPath(item.path) && !isPartNodePath(item.path)
@@ -21311,6 +21339,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
       label: getLabelFromPath(node.indexPath),
       displayPath: getNodeDisplayPath(node.indexPath),
       color: node.color || null,
+      status: node.status || null,
       hasPreview: Boolean(node.hasPreview),
       previewUrl: node.previewUrl || null,
       tags: Array.isArray(node.tags) ? node.tags : [],
@@ -21336,6 +21365,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
         label: getLabelFromPath(child.entry.path),
         displayPath: getNodeDisplayPath(child.entry.path),
         color: child.entry.color || null,
+        status: child.entry.status || null,
         hasPreview: Boolean(child.entry.hasPreview),
         previewUrl: child.entry.previewUrl || null,
         tags: Array.isArray(child.entry.tags) ? child.entry.tags : [],
@@ -22012,10 +22042,10 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "menu-item";
-        btn.textContent = formatMenuTreeItemLabel(item, node);
         const itemPath = normalizeMenuNodePath(item.path);
         btn.dataset.path = itemPath;
         applyNodeColorVars(btn, item.color);
+        setMenuTreeItemLabel(btn, item, node, agentId);
         btn.addEventListener("click", (event) => {
           const pathFromNode = event.currentTarget?.dataset?.path || "";
           openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
@@ -26988,10 +27018,10 @@ function renderMenuTreeChildInto(
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "menu-item";
-  btn.textContent = formatMenuTreeItemLabel(item, parentMenuNode, agentId);
   const itemPath = normalizeMenuNodePath(item.path);
   btn.dataset.path = itemPath;
   applyNodeColorVars(btn, item.color);
+  setMenuTreeItemLabel(btn, item, parentMenuNode, agentId);
   btn.addEventListener("click", (event) => {
     const pathFromNode = event.currentTarget?.dataset?.path || "";
     openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
