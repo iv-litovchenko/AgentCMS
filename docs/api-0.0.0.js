@@ -26,7 +26,7 @@ module.exports = {
           method: "PUT",
           path: "/api/agents/registry",
           agentScope: false,
-          description: "Сохранить реестр агентов и поля awn-agent.json (name, comment).",
+          description: "Сохранить реестр агентов и поля _reg-info.md (awn-name, awn-description, awn-status).",
           query: [],
           body: "{ agents: [{ id?, path, environment?, default?, active?, name?, comment? }] }",
           response: "{ agents[], defaultAgentId }"
@@ -35,7 +35,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, awn-agent-system/).",
+          description: "Создать workspace: _reg-info.md (awn.workspace) в указанной папке.",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -44,7 +44,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
-          description: "Найти workspace с awn-agent.json (Desktop, HOME, проект).",
+          description: "Найти workspace с _reg-info.md (awn.workspace) (Desktop, HOME, проект).",
           query: [],
           body: "{ roots?: string[], maxDepth?: number }",
           response: "{ agents: [{ path, name, comment, id, hasPreview, previewRel }] }"

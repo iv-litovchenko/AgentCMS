@@ -1,6 +1,4 @@
 {
   "id": "php",
-  "name": "PHP",
-  "vaultFolder": "awn-vault",
-  "agentSystemFolder": "awn-agent-system"
+  "name": "PHP"
 }

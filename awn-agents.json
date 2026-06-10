@@ -1,22 +1,21 @@
 {
   "agents": [
     {
-      "id": "documentation",
       "path": "workspaces/Documentation",
       "environment": "local",
-      "active": true
+      "default": true
     },
     {
-      "id": "php",
       "path": "workspaces/Php",
-      "environment": "local",
-      "active": true
+      "environment": "local"
     },
     {
-      "id": "test",
       "path": "workspaces/Test",
-      "environment": "local",
-      "active": true
+      "environment": "local"
+    },
+    {
+      "path": "workspaces/test8",
+      "environment": "local"
     }
   ]
 }

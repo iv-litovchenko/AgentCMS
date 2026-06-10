@@ -190,13 +190,14 @@ const {
   createAgentWorkspace,
   getAgentManifestPreviewAbsolute,
   resolveManifestPreviewAbsolute,
-  readAgentManifestSync,
+  readWorkspaceManifestSync,
+  isWorkspaceReginfoAtPath,
   resolveAgentRootAbsolute,
   enrichAgentEntry,
   findAgentWorkspacePreviewAbsoluteSync,
   getOrCreateAgentWorkspacePreviewAbsoluteSync,
   clearAgentWorkspacePreviewImagesSync,
-  updateAgentManifestFields,
+  updateWorkspaceReginfoFields,
   assertSafeAgentPath,
   refreshAgentsFromDisk,
   runWithAgent,
@@ -213,7 +214,7 @@ const {
   SYSTEM_REFERENCE_SCAFFOLDS,
   isSystemReferenceManifestRel,
   isAwnDependenciesFileName,
-  AWN_AGENT_FILE,
+  WORKSPACE_AWN_TYPE,
   AWN_MAP_FILE,
   AWN_DEPENDENCIES_FILE,
   AWN_AUTOINCREMENT_ID_FILE
@@ -3986,12 +3987,7 @@ async function folderHasObsidianVault(dirAbsolute) {
 }
 
 async function folderHasAgentManifest(dirAbsolute) {
-  try {
-    const stat = await fs.stat(path.join(dirAbsolute, AWN_AGENT_FILE));
-    return stat.isFile();
-  } catch {
-    return false;
-  }
+  return isWorkspaceReginfoAtPath(dirAbsolute);
 }
 
 async function folderHasSkillManifest(dirAbsolute) {
@@ -7617,6 +7613,7 @@ async function handleApi(req, res, url) {
       const agent = createAgentWorkspace({
         path: payload?.path,
         name: payload?.name,
+        comment: payload?.comment ?? payload?.description,
         id: payload?.id
       });
       return sendJson(res, 200, { agent });
@@ -7656,9 +7653,11 @@ async function handleApi(req, res, url) {
 
       const agentPath = assertSafeAgentPath(workspacePath);
       const absolute = resolveAgentRootAbsolute(agentPath);
-      const manifest = readAgentManifestSync(absolute);
+      const manifest = readWorkspaceManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет ${AWN_AGENT_FILE}` });
+        return sendJson(res, 400, {
+          error: `В «${agentPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`
+        });
       }
 
       const data = payload?.data;
@@ -7712,9 +7711,11 @@ async function handleApi(req, res, url) {
     try {
       const agentPath = assertSafeAgentPath(workspacePath);
       const absolute = resolveAgentRootAbsolute(agentPath);
-      const manifest = readAgentManifestSync(absolute);
+      const manifest = readWorkspaceManifestSync(absolute);
       if (!manifest) {
-        return sendJson(res, 400, { error: `В «${agentPath}» нет ${AWN_AGENT_FILE}` });
+        return sendJson(res, 400, {
+          error: `В «${agentPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`
+        });
       }
 
       clearAgentWorkspacePreviewImagesSync(absolute);

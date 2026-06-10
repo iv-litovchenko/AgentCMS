@@ -1,6 +1,4 @@
 {
   "id": "documentation",
-  "name": "Documentation",
-  "vaultFolder": "awn-vault",
-  "agentSystemFolder": "awn-agent-system"
+  "name": "Documentation"
 }

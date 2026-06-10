@@ -1,0 +1,6 @@
+id: awn.workspace
+name: Workspace
+kind: type
+extends: awn.base
+description: Корневой манифест агента — папка workspace (_reg-info.md в корне)
+fields:

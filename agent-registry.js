@@ -38,16 +38,146 @@ function joinNodeFrontmatter(frontmatter, body) {
 }
 
 /** Agent CMS — канонические имена файлов платформы и workspace. */
-const AWN_AGENT_FILE = "awn-agent.json";
+const WORKSPACE_AWN_TYPE = "awn.workspace";
+const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
+const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
 const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
 const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
 const AWN_AUTOINCREMENT_ID_FILE = "awn-autoincrement-id.json";
 
-function resolveAgentManifestAbsoluteSync(workspaceRootAbsolute) {
+function resolveWorkspaceReginfoAbsoluteSync(workspaceRootAbsolute) {
   if (!workspaceRootAbsolute) return null;
-  const canonical = path.join(workspaceRootAbsolute, AWN_AGENT_FILE);
+  const canonical = path.join(workspaceRootAbsolute, AREA_MANIFEST_FILE);
   return fs.existsSync(canonical) ? canonical : null;
+}
+
+function splitFrontmatter(content) {
+  const text = String(content || "");
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return { frontmatter: "", body: text };
+  return { frontmatter: match[1], body: match[2] };
+}
+
+function getYamlScalar(frontmatter, key) {
+  const text = String(frontmatter || "");
+  const match = text.match(new RegExp(`^${key}:\\s*(.+)$`, "im"));
+  if (!match) return "";
+  return match[1].trim().replace(/^["']|["']$/g, "");
+}
+
+function formatYamlScalar(value) {
+  const text = String(value ?? "");
+  if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
+    return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  }
+  return text;
+}
+
+function upsertYamlScalarInFrontmatter(frontmatter, key, value) {
+  const lines = String(frontmatter || "").split(/\r?\n/);
+  const scalar = formatYamlScalar(value);
+  const nextLine = `${key}: ${scalar}`;
+  let replaced = false;
+  const result = lines.map((line) => {
+    if (new RegExp(`^${key}:`).test(line)) {
+      replaced = true;
+      return nextLine;
+    }
+    return line;
+  });
+  if (!replaced) result.push(nextLine);
+  return result.join("\n");
+}
+
+function readWorkspaceReginfoRawSync(workspaceRootAbsolute) {
+  const manifestPath = resolveWorkspaceReginfoAbsoluteSync(workspaceRootAbsolute);
+  if (!manifestPath) return null;
+  try {
+    const content = fs.readFileSync(manifestPath, "utf-8");
+    const { frontmatter, body } = splitFrontmatter(content);
+    return { absolute: manifestPath, frontmatter, body, content };
+  } catch {
+    return null;
+  }
+}
+
+function isWorkspaceReginfoRaw(raw) {
+  if (!raw) return false;
+  return getYamlScalar(raw.frontmatter, "awn-type") === WORKSPACE_AWN_TYPE;
+}
+
+function isWorkspaceReginfoAtPath(workspaceRootAbsolute) {
+  const raw = readWorkspaceReginfoRawSync(workspaceRootAbsolute);
+  return isWorkspaceReginfoRaw(raw);
+}
+
+function normalizeWorkspaceManifest(raw, workspaceRootAbsolute) {
+  if (!raw || !isWorkspaceReginfoRaw(raw)) return null;
+  const folderName = path.basename(String(workspaceRootAbsolute || ""));
+  let name = getYamlScalar(raw.frontmatter, "awn-name") || "";
+  if (!String(name).trim()) {
+    const headingMatch = String(raw.body || "").match(/^#\s+(.+?)\s*$/m);
+    if (headingMatch) name = headingMatch[1].trim();
+  }
+  const comment = getYamlScalar(raw.frontmatter, "awn-description") || "";
+  const status = getYamlScalar(raw.frontmatter, "awn-status") || "";
+  const preview = getYamlScalar(raw.frontmatter, "awn-preview") || "";
+  return {
+    name: String(name).trim() || folderName,
+    comment: String(comment).trim(),
+    status: String(status).trim(),
+    preview: String(preview).trim()
+  };
+}
+
+function readWorkspaceManifestSync(workspaceRootAbsolute) {
+  const raw = readWorkspaceReginfoRawSync(workspaceRootAbsolute);
+  if (!raw) return null;
+  return normalizeWorkspaceManifest(raw, workspaceRootAbsolute);
+}
+
+function writeWorkspaceReginfoSync(workspaceRootAbsolute, frontmatter, body) {
+  const manifestPath = path.join(workspaceRootAbsolute, AREA_MANIFEST_FILE);
+  fs.writeFileSync(manifestPath, joinNodeFrontmatter(frontmatter, body), "utf-8");
+}
+
+function updateWorkspaceReginfoFields(agentPath, fields = {}) {
+  const resolvedPath = assertSafeAgentPath(agentPath);
+  const absolute = resolveAgentRootAbsolute(resolvedPath);
+  const raw = readWorkspaceReginfoRawSync(absolute);
+  if (!isWorkspaceReginfoRaw(raw)) {
+    throw new Error(`В «${resolvedPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`);
+  }
+
+  let frontmatter = raw.frontmatter;
+
+  if (fields.name !== undefined) {
+    const trimmed = String(fields.name ?? "").trim();
+    if (!trimmed) {
+      throw new Error("Название агента не может быть пустым");
+    }
+    frontmatter = upsertYamlScalarInFrontmatter(frontmatter, "awn-name", trimmed);
+  }
+
+  if (fields.comment !== undefined) {
+    const trimmed = String(fields.comment ?? "").trim();
+    frontmatter = upsertYamlScalarInFrontmatter(frontmatter, "awn-description", trimmed);
+  }
+
+  if (fields.status !== undefined) {
+    const trimmed = String(fields.status ?? "").trim();
+    if (trimmed) {
+      frontmatter = upsertYamlScalarInFrontmatter(frontmatter, "awn-status", trimmed);
+    }
+  }
+
+  if (fields.active !== undefined) {
+    const status = fields.active === false ? WORKSPACE_STATUS_INACTIVE : WORKSPACE_STATUS_ACTIVE;
+    frontmatter = upsertYamlScalarInFrontmatter(frontmatter, "awn-status", status);
+  }
+
+  writeWorkspaceReginfoSync(absolute, frontmatter, raw.body);
 }
 
 function getAgentsRegistryPathSync() {
@@ -75,16 +205,6 @@ function isReservedAgentRootFolderEntryName(name) {
   return isAgentKitFolderEntryName(name) || isContainerFolderEntryName(name);
 }
 
-function migrateManifestRawFolderKeys(raw) {
-  if (!raw || typeof raw !== "object") return;
-  delete raw.vaultFolder;
-  delete raw.vault;
-  delete raw.agentSystemFolder;
-  delete raw.agentCoreFolder;
-  delete raw.assistantFolder;
-  delete raw.serviceFolder;
-  delete raw.service;
-}
 
 /** Общая папка справочников внутри awn-agent-kit */
 const DEFAULT_SERVICE_CATALOG_FOLDER = "catalog";
@@ -184,6 +304,13 @@ function resolveAgentRootAbsolute(rawPath) {
   return path.resolve(projectRoot, cleaned);
 }
 
+function normalizeRegistryPathKey(rawPath) {
+  return String(rawPath || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+}
+
 function toRegistryPath(absolutePath) {
   const absolute = path.normalize(String(absolutePath || ""));
   if (!absolute) return "";
@@ -226,28 +353,8 @@ function normalizeAgentEnvironment(raw) {
   return AGENT_ENVIRONMENTS.includes(value) ? value : "local";
 }
 
-function normalizeManifestFolderAliases(raw) {
-  if (!raw || typeof raw !== "object") return raw;
-  const manifest = { ...raw };
-  delete manifest.vaultFolder;
-  delete manifest.vault;
-  delete manifest.agentSystemFolder;
-  delete manifest.agentCoreFolder;
-  delete manifest.assistantFolder;
-  delete manifest.serviceFolder;
-  delete manifest.service;
-  return manifest;
-}
-
-function normalizeAgentManifest(raw, workspaceRootAbsolute) {
-  if (!raw || typeof raw !== "object") return null;
-  raw = normalizeManifestFolderAliases(raw);
-  const folderName = path.basename(String(workspaceRootAbsolute || ""));
-  return {
-    id: String(raw.id || "").trim(),
-    name: String(raw.name || folderName).trim(),
-    comment: String(raw.comment || raw.description || "").trim()
-  };
+function isWorkspaceActiveFromStatus(status) {
+  return String(status || "").trim() !== WORKSPACE_STATUS_INACTIVE;
 }
 
 function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
@@ -268,15 +375,57 @@ function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
   );
 }
 
+function getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute) {
+  return path.join(getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute), STORAGE_SUBFOLDER_ASSETS);
+}
+
+function stripAssetsPathPrefix(relPath) {
+  let rel = String(relPath || "").replace(/\\/g, "/");
+  const prefix = `${STORAGE_SUBFOLDER_ASSETS}/`;
+  if (rel.startsWith(prefix)) return rel.slice(prefix.length);
+  const lowerPrefix = prefix.toLowerCase();
+  if (rel.toLowerCase().startsWith(lowerPrefix)) return rel.slice(lowerPrefix.length);
+  return rel;
+}
+
+function resolveWorkspaceManifestPreviewAbsoluteSync(workspaceRootAbsolute, previewRel) {
+  const previewValue = String(previewRel || "").trim();
+  if (!previewValue || /^https?:\/\//i.test(previewValue)) return null;
+
+  let relFile = stripAssetsPathPrefix(previewValue).replace(/^(\.\.[\/\\])+/, "").replace(/\\/g, "/");
+  if (!relFile || relFile.startsWith("..")) return null;
+
+  const assetsDir = getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute);
+  const fileAbsolute = path.resolve(assetsDir, relFile);
+  if (!fileAbsolute.startsWith(path.resolve(assetsDir))) return null;
+
+  try {
+    if (fs.existsSync(fileAbsolute) && fs.statSync(fileAbsolute).isFile()) return fileAbsolute;
+  } catch {
+    // not found
+  }
+  return null;
+}
+
 function findAgentWorkspacePreviewAbsoluteSync(workspaceRootAbsolute) {
-  const bundleDir = getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute);
-  for (const name of PREVIEW_FILE_NAMES) {
-    const absolute = path.join(bundleDir, name);
-    try {
-      if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) return absolute;
-    } catch {
-      // try next
+  const previewCandidates = [
+    getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute),
+    getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute)
+  ];
+  for (const dir of previewCandidates) {
+    for (const name of PREVIEW_FILE_NAMES) {
+      const absolute = path.join(dir, name);
+      try {
+        if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) return absolute;
+      } catch {
+        // try next
+      }
     }
+  }
+
+  const manifest = readWorkspaceManifestSync(workspaceRootAbsolute);
+  if (manifest?.preview) {
+    return resolveWorkspaceManifestPreviewAbsoluteSync(workspaceRootAbsolute, manifest.preview);
   }
   return null;
 }
@@ -305,58 +454,6 @@ function clearAgentWorkspacePreviewImagesSync(workspaceRootAbsolute) {
   }
 }
 
-function readAgentManifestRawSync(workspaceRootAbsolute) {
-  const manifestPath = resolveAgentManifestAbsoluteSync(workspaceRootAbsolute);
-  if (!manifestPath) return null;
-  try {
-    const raw = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeAgentManifestSync(workspaceRootAbsolute, raw) {
-  migrateManifestRawFolderKeys(raw);
-  const manifestPath = path.join(workspaceRootAbsolute, AWN_AGENT_FILE);
-  fs.writeFileSync(manifestPath, `${JSON.stringify(raw, null, 2)}\n`, "utf-8");
-}
-
-function readAgentManifestSync(workspaceRootAbsolute) {
-  const raw = readAgentManifestRawSync(workspaceRootAbsolute);
-  if (!raw) return null;
-  return normalizeAgentManifest(raw, workspaceRootAbsolute);
-}
-
-function updateAgentManifestFields(agentPath, fields = {}) {
-  const resolvedPath = assertSafeAgentPath(agentPath);
-  const absolute = resolveAgentRootAbsolute(resolvedPath);
-  const raw = readAgentManifestRawSync(absolute);
-  if (!raw) {
-    throw new Error(`В «${resolvedPath}» нет ${AWN_AGENT_FILE}`);
-  }
-
-  if (fields.name !== undefined) {
-    const trimmed = String(fields.name ?? "").trim();
-    if (!trimmed) {
-      throw new Error("Название агента не может быть пустым");
-    }
-    raw.name = trimmed;
-  }
-
-  if (fields.comment !== undefined) {
-    const trimmed = String(fields.comment ?? "").trim();
-    if (trimmed) {
-      raw.comment = trimmed;
-    } else {
-      delete raw.comment;
-      delete raw.description;
-    }
-  }
-
-  writeAgentManifestSync(absolute, raw);
-}
-
 function resolveManifestPreviewAbsolute(workspaceRootAbsolute, previewRel) {
   const rel = String(previewRel || "").trim().replace(/\\/g, "/");
   if (!rel) return null;
@@ -372,16 +469,23 @@ function resolveManifestPreviewAbsolute(workspaceRootAbsolute, previewRel) {
 }
 
 function enrichAgentEntry(entry) {
-  const manifest = readAgentManifestSync(entry.rootAbsolute);
+  const folderExists =
+    entry.folderExists !== undefined
+      ? entry.folderExists !== false
+      : isWorkspaceDirectoryExisting(entry.rootAbsolute);
+  const manifest = folderExists ? readWorkspaceManifestSync(entry.rootAbsolute) : null;
   const folderName = path.basename(entry.rootAbsolute);
+  const activeFromStatus = manifest ? isWorkspaceActiveFromStatus(manifest.status) : entry.active !== false;
   return {
     ...entry,
+    folderExists,
     manifestFound: Boolean(manifest),
     name: manifest?.name || entry.name || entry.id || folderName,
     comment: manifest?.comment || entry.comment || "",
-    manifestId: manifest?.id || "",
+    status: manifest?.status || "",
+    active: activeFromStatus,
     hasPreview: Boolean(findAgentWorkspacePreviewAbsoluteSync(entry.rootAbsolute)),
-    previewRel: null
+    previewRel: manifest?.preview || null
   };
 }
 
@@ -403,19 +507,31 @@ function pickDefaultAgentId(agentList) {
   return pool.find((agent) => agent.default)?.id || pool[0]?.id || "main";
 }
 
-function normalizeAgentEntry(entry) {
-  const id = String(entry.id || "").trim();
+function deriveAgentIdFromPath(agentPath, fallbackIndex = 0) {
+  const rootAbsolute = resolveAgentRootAbsolute(agentPath);
+  const folderName = path.basename(String(rootAbsolute || "").replace(/[\\/]+$/, ""));
+  return slugifyAgentId(folderName, fallbackIndex);
+}
+
+function isWorkspaceDirectoryExisting(rootAbsolute) {
+  return resolveExistingWorkspaceDirectory(rootAbsolute).exists;
+}
+
+function normalizeAgentEntry(entry, index = 0) {
   const agentPath = String(entry.path || "./Workspaces");
   const rootAbsolute = resolveAgentRootAbsolute(agentPath);
+  const folderName = path.basename(String(rootAbsolute || "").replace(/[\\/]+$/, ""));
+  const id = deriveAgentIdFromPath(agentPath, index);
   const base = {
     id,
-    name: String(entry.name || id).trim(),
+    name: folderName,
     path: agentPath,
     rootAbsolute,
     environment: normalizeAgentEnvironment(entry.environment),
-    comment: String(entry.comment || "").trim(),
+    comment: "",
     default: Boolean(entry.default),
-    active: normalizeAgentActive(entry.active)
+    active: true,
+    folderExists: isWorkspaceDirectoryExisting(rootAbsolute)
   };
   return enrichAgentEntry(base);
 }
@@ -424,18 +540,30 @@ function loadRegistrySync() {
   const registryPath = getAgentsRegistryPathSync();
   if (!fs.existsSync(registryPath)) {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
-    agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true })];
+    agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true, folderExists: true })];
     defaultAgentId = "main";
     return;
   }
 
   const raw = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
-  agents = (Array.isArray(raw.agents) ? raw.agents : [])
-    .map(normalizeAgentEntry)
-    .filter((agent) => agent.id);
+  const rawEntries = Array.isArray(raw.agents) ? raw.agents : [];
+  const normalized = rawEntries.map((entry, index) => normalizeAgentEntry(entry, index));
+  agents = normalized.filter((agent) => agent.id && agent.folderExists !== false);
+
+  if (agents.length < rawEntries.length) {
+    const payload = {
+      agents: agents.map(({ path: agentPath, environment, default: isDefault }) => {
+        const item = { path: agentPath, environment };
+        if (isDefault) item.default = true;
+        return item;
+      })
+    };
+    fs.writeFileSync(registryPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+  }
+
   if (agents.length === 0) {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
-    agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true })];
+    agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true, folderExists: true })];
   }
   defaultAgentId = pickDefaultAgentId(agents);
 }
@@ -476,18 +604,20 @@ function getAgentsPublicList() {
       default: isDefault,
       active,
       manifestFound,
-      manifestId,
-      previewRel
+      status,
+      previewRel,
+      folderExists
     }) => ({
       id,
       name,
       path: agentPath,
       environment,
       comment: comment || "",
+      status: status || "",
       default: isDefault,
       active: normalizeAgentActive(active),
       manifestFound: Boolean(manifestFound),
-      manifestId: manifestId || "",
+      folderExists: folderExists !== false,
       previewRel: previewRel || null
     })
   );
@@ -537,39 +667,36 @@ function saveAgentsRegistry(rawAgents) {
     const agentPath = assertSafeAgentPath(entry?.path || "./Workspaces");
     const absolute = resolveAgentRootAbsolute(agentPath);
     const directoryState = resolveExistingWorkspaceDirectory(absolute);
+    if (!directoryState.exists) return;
     const workspaceAbsolute = directoryState.absolute;
-    const manifest = directoryState.exists ? readAgentManifestSync(workspaceAbsolute) : null;
-    const folderName = path.basename(workspaceAbsolute);
+    const manifest = readWorkspaceManifestSync(workspaceAbsolute);
 
     if (
       directoryState.exists &&
       manifest &&
-      (entry?.name !== undefined || entry?.comment !== undefined)
+      (entry?.name !== undefined || entry?.comment !== undefined || entry?.active !== undefined)
     ) {
-      updateAgentManifestFields(agentPath, {
+      updateWorkspaceReginfoFields(agentPath, {
         name: entry?.name,
-        comment: entry?.comment
+        comment: entry?.comment,
+        active: entry?.active
       });
     }
 
-    const manifestAfterUpdate = directoryState.exists
-      ? readAgentManifestSync(workspaceAbsolute)
-      : null;
-    const id = slugifyAgentId(
-      entry?.id ||
-        manifestAfterUpdate?.id ||
-        manifestAfterUpdate?.name ||
-        entry?.name ||
-        folderName,
-      index
-    );
-    if (seen.has(id)) {
-      throw new Error(`Дублирующийся id: ${id}`);
+    const id = deriveAgentIdFromPath(agentPath, index);
+    const pathKey = normalizeRegistryPathKey(agentPath);
+    if (seen.has(pathKey)) {
+      throw new Error(`Дублирующийся workspace: ${agentPath}`);
     }
-    seen.add(id);
+    seen.add(pathKey);
 
+    const manifestAfterUpdate = directoryState.exists
+      ? readWorkspaceManifestSync(workspaceAbsolute)
+      : null;
+    const isActive = manifestAfterUpdate
+      ? isWorkspaceActiveFromStatus(manifestAfterUpdate.status)
+      : normalizeAgentActive(entry?.active);
     const wantsDefault = Boolean(entry?.default);
-    const isActive = normalizeAgentActive(entry?.active);
     const isDefault = wantsDefault && isActive && !defaultAssigned;
 
     normalized.push({
@@ -594,10 +721,9 @@ function saveAgentsRegistry(rawAgents) {
 
   const registryPath = getAgentsRegistryPathSync();
   const payload = {
-    agents: normalized.map(({ id, path: agentPath, environment, active, default: isDefault }) => {
-      const item = { id, path: agentPath, environment, active: normalizeAgentActive(active) };
+    agents: normalized.map(({ path: agentPath, environment, default: isDefault }) => {
+      const item = { path: agentPath, environment };
       if (isDefault) item.default = true;
-      if (!normalizeAgentActive(active)) item.active = false;
       return item;
     })
   };
@@ -622,7 +748,7 @@ function runWithAgent(agentId, fn) {
 function buildPathValidationResult(pathValue, resolvedPath) {
   const absolute = resolveAgentRootAbsolute(resolvedPath);
   const directoryState = resolveExistingWorkspaceDirectory(absolute);
-  const manifest = directoryState.exists ? readAgentManifestSync(directoryState.absolute) : null;
+  const manifest = directoryState.exists ? readWorkspaceManifestSync(directoryState.absolute) : null;
 
   if (directoryState.error) {
     return {
@@ -706,8 +832,7 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
     return;
   }
 
-  const manifestPath = resolveAgentManifestAbsoluteSync(dirAbsolute);
-  if (manifestPath) {
+  if (isWorkspaceReginfoAtPath(dirAbsolute)) {
     let key = path.normalize(dirAbsolute);
     try {
       key = fs.realpathSync.native(dirAbsolute);
@@ -716,18 +841,19 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
     }
     if (!seen.has(key)) {
       seen.add(key);
-      const manifest = readAgentManifestSync(dirAbsolute);
+      const manifest = readWorkspaceManifestSync(dirAbsolute);
       const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(dirAbsolute);
+      const folderName = path.basename(dirAbsolute);
       results.push({
         path: toRegistryPath(dirAbsolute),
         absolute: key,
         manifestFound: Boolean(manifest),
         manifest: manifest || null,
-        name: manifest?.name || path.basename(dirAbsolute),
+        name: manifest?.name || folderName,
         comment: manifest?.comment || "",
-        id: slugifyAgentId(manifest?.id || manifest?.name || path.basename(dirAbsolute), results.length),
+        id: slugifyAgentId(folderName, results.length),
         hasPreview: Boolean(previewAbsolute),
-        previewRel: null
+        previewRel: manifest?.preview || null
       });
     }
   }
@@ -777,6 +903,10 @@ function createAgentWorkspace(options = {}) {
 
   const resolvedPath = assertSafeAgentPath(workspacePath);
   const workspaceAbsolute = resolveAgentRootAbsolute(resolvedPath);
+  const folderName = path.basename(workspaceAbsolute);
+  if (folderName !== folderName.toLowerCase()) {
+    throw new Error(`Название папки «${folderName}» должно быть в нижнем регистре`);
+  }
 
   if (fs.existsSync(workspaceAbsolute)) {
     if (!fs.statSync(workspaceAbsolute).isDirectory()) {
@@ -786,25 +916,27 @@ function createAgentWorkspace(options = {}) {
     fs.mkdirSync(workspaceAbsolute, { recursive: true });
   }
 
-  if (readAgentManifestRawSync(workspaceAbsolute)) {
-    throw new Error(`В «${resolvedPath}» уже есть ${AWN_AGENT_FILE}`);
+  if (isWorkspaceReginfoAtPath(workspaceAbsolute)) {
+    throw new Error(`В «${resolvedPath}» уже есть ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`);
   }
 
-  const folderName = path.basename(workspaceAbsolute);
   const name = String(options.name || "").trim() || folderName.replace(/\.agent$/i, "") || folderName;
+  const comment = String(options.comment ?? options.description ?? "").trim();
   const areaManifestRel = AREA_MANIFEST_FILE;
   fs.mkdirSync(
     path.join(workspaceAbsolute, ...getNamedStorageSlotDirRel(areaManifestRel).split("/")),
     { recursive: true }
   );
 
-  const id = slugifyAgentId(options.id || name, 0);
-  writeAgentManifestSync(workspaceAbsolute, { id, name });
-  const agentFrontmatter = buildDefaultFrontmatter("awn.agent", {
+  const id = slugifyAgentId(folderName, 0);
+  let agentFrontmatter = buildDefaultFrontmatter("awn.workspace", {
     name,
     agentRoot: workspaceAbsolute,
     projectRoot
   });
+  if (comment) {
+    agentFrontmatter = upsertYamlScalarInFrontmatter(agentFrontmatter, "awn-description", comment);
+  }
   fs.writeFileSync(
     path.join(workspaceAbsolute, AREA_MANIFEST_FILE),
     joinNodeFrontmatter(agentFrontmatter, `# ${name}\n`),
@@ -815,7 +947,7 @@ function createAgentWorkspace(options = {}) {
     path: toRegistryPath(workspaceAbsolute) || resolvedPath,
     id,
     name,
-    comment: "",
+    comment,
     manifestFound: true,
     hasPreview: false,
     previewRel: null
@@ -970,7 +1102,7 @@ module.exports = {
   isSystemReferenceManifestRel,
   createSystemReferenceNodeSync,
   createSystemServiceDocSync,
-  AWN_AGENT_FILE,
+  WORKSPACE_AWN_TYPE,
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
   AWN_DEPENDENCIES_FILE,
@@ -987,7 +1119,8 @@ module.exports = {
   validateAgentWorkspacePaths,
   discoverAgentManifests,
   createAgentWorkspace,
-  readAgentManifestSync,
+  readWorkspaceManifestSync,
+  isWorkspaceReginfoAtPath,
   enrichAgentEntry,
   getAgentManifestPreviewAbsolute,
   resolveManifestPreviewAbsolute,
@@ -996,7 +1129,7 @@ module.exports = {
   findAgentWorkspacePreviewAbsoluteSync,
   getOrCreateAgentWorkspacePreviewAbsoluteSync,
   clearAgentWorkspacePreviewImagesSync,
-  updateAgentManifestFields,
+  updateWorkspaceReginfoFields,
   assertSafeAgentPath,
   refreshAgentsFromDisk,
   runWithAgent

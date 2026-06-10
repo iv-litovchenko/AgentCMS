@@ -120,8 +120,12 @@ const agentGraphContentNode = document.getElementById("agent-graph-content");
 const agentGraphShowPreviewsNode = document.getElementById("agent-graph-show-previews");
 const agentGraphControlsNode = document.getElementById("agent-graph-controls");
 const filePathNode = document.getElementById("file-path");
-const workspaceShareLinkBtn = document.getElementById("workspace-share-link-btn");
-const workspaceShareBtn = document.getElementById("workspace-share-btn");
+const workspaceLinksMenuWrap = document.getElementById("workspace-links-menu-wrap");
+const workspaceLinksMenuBtn = document.getElementById("workspace-links-menu-btn");
+const workspaceLinksMenuPopover = document.getElementById("workspace-links-menu-popover");
+const workspaceLinksMenuItems = Array.from(
+  document.querySelectorAll("#workspace-links-menu-popover .workspace-links-menu-item")
+);
 const workspaceGdriveSyncBtn = document.getElementById("workspace-gdrive-sync-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
@@ -273,10 +277,13 @@ const createNodeStructureLabelNode = document.getElementById("create-node-struct
 const createNodeDividerNode = document.getElementById("create-node-divider");
 const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
 const createNodeRootWrapNode = document.getElementById("create-node-root-wrap");
-const createNodeRootDividerNode = document.getElementById("create-node-root-divider");
 const createNodeReservedWrapNode = document.getElementById("create-node-reserved-wrap");
 const createNodeKitScaffoldBtn = document.getElementById("create-node-kit-scaffold-btn");
 const createNodeContainerScaffoldBtn = document.getElementById("create-node-container-scaffold-btn");
+const createNodeRootSystemWrapNode = document.getElementById("create-node-root-system-wrap");
+const createNodeAgentsScaffoldBtn = document.getElementById("create-node-agents-scaffold-btn");
+const createNodeTodoScaffoldBtn = document.getElementById("create-node-todo-scaffold-btn");
+const createNodeReadmeScaffoldBtn = document.getElementById("create-node-readme-scaffold-btn");
 const createNodeContainerScaffoldHintNode = document.getElementById("create-node-container-scaffold-hint");
 const createNodeContainerTargetWrapNode = document.getElementById("create-node-container-target-wrap");
 const createNodeContainerTargetNode = document.getElementById("create-node-container-target");
@@ -309,9 +316,17 @@ const agentsRegistryListNode = document.getElementById("agents-registry-list");
 const agentsRegistryAddBtn = document.getElementById("agents-registry-add-btn");
 const agentsRegistryCreateBtn = document.getElementById("agents-registry-create-btn");
 const agentsRegistryCreateModalNode = document.getElementById("agents-registry-create-modal");
+const agentsRegistryCreateNameInputNode = document.getElementById("agents-registry-create-name-input");
+const agentsRegistryCreateDescriptionInputNode = document.getElementById("agents-registry-create-description-input");
 const agentsRegistryCreatePathInputNode = document.getElementById("agents-registry-create-path-input");
 const agentsRegistryCreateCancelBtn = document.getElementById("agents-registry-create-cancel-btn");
 const agentsRegistryCreateSubmitBtn = document.getElementById("agents-registry-create-submit-btn");
+const appLandingCreateModalNode = document.getElementById("app-landing-create-modal");
+const appLandingCreateNameInputNode = document.getElementById("app-landing-create-name-input");
+const appLandingCreateDescriptionInputNode = document.getElementById("app-landing-create-description-input");
+const appLandingCreatePathInputNode = document.getElementById("app-landing-create-path-input");
+const appLandingCreateCancelBtn = document.getElementById("app-landing-create-cancel-btn");
+const appLandingCreateSubmitBtn = document.getElementById("app-landing-create-submit-btn");
 const agentsRegistryCancelBtn = document.getElementById("agents-registry-cancel-btn");
 const agentsRegistrySaveBtn = document.getElementById("agents-registry-save-btn");
 const agentsRegistryDiscoverModalNode = document.getElementById("agents-registry-discover-modal");
@@ -438,6 +453,7 @@ const BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
+const MENU_TREE_VISIBLE_SYSTEM_MD = new Set(["AGENTS.md", ROOT_SYSTEM_TODO_FILE, "README.md"]);
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-container";
@@ -758,23 +774,75 @@ function updateWorkspaceShareLinkButton() {
     Boolean(activePath || activeSystemFile);
   const actionsEnabled = WORKSPACE_SHARE_ACTIONS_ENABLED && inWorkspace;
 
-  if (workspaceShareLinkBtn) {
-    workspaceShareLinkBtn.classList.toggle("hidden", !inWorkspace);
-    workspaceShareLinkBtn.disabled = !actionsEnabled;
-    workspaceShareLinkBtn.title = actionsEnabled
-      ? "Скопировать ссылку на эту страницу"
-      : "Копировать ссылку (скоро)";
-    workspaceShareLinkBtn.setAttribute(
-      "aria-label",
-      actionsEnabled ? "Копировать ссылку" : "Копировать ссылку (скоро)"
-    );
-  }
+  workspaceLinksMenuWrap?.classList.toggle("hidden", !inWorkspace);
 
-  if (workspaceShareBtn) {
-    workspaceShareBtn.classList.toggle("hidden", !inWorkspace);
-    workspaceShareBtn.disabled = !actionsEnabled;
-    workspaceShareBtn.title = actionsEnabled ? "Поделиться ссылкой на эту страницу" : "Поделиться (скоро)";
-    workspaceShareBtn.setAttribute("aria-label", actionsEnabled ? "Поделиться" : "Поделиться (скоро)");
+  for (const item of workspaceLinksMenuItems) {
+    item.disabled = !actionsEnabled;
+    const action = item.dataset.action || "";
+    if (action === "copy-link") {
+      item.title = actionsEnabled ? "Скопировать ссылку на эту страницу" : "Копировать ссылку (скоро)";
+    } else if (action === "copy-full-path") {
+      item.title = actionsEnabled ? "Скопировать полный путь до файла" : "Полный путь до файла (скоро)";
+    } else if (action === "copy-root-path") {
+      item.title = actionsEnabled
+        ? "Скопировать полный путь до файла от корня workspace"
+        : "Полный путь до файла (от корня) (скоро)";
+    } else if (action === "share") {
+      item.title = actionsEnabled ? "Поделиться ссылкой на эту страницу" : "Поделиться (скоро)";
+    }
+  }
+}
+
+function resetWorkspaceLinksMenuPopoverPosition() {
+  if (!workspaceLinksMenuPopover) return;
+  for (const prop of ["top", "left", "width", "maxHeight", "overflowY"]) {
+    workspaceLinksMenuPopover.style.removeProperty(prop);
+  }
+}
+
+function positionWorkspaceLinksMenuPopover() {
+  const popover = workspaceLinksMenuPopover;
+  const anchor = workspaceLinksMenuBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(280, Math.max(Math.round(rect.width), 220));
+  const left = Math.round(rect.right - width);
+  const top = Math.round(rect.bottom + 6);
+  const maxHeight = Math.max(120, window.innerHeight - top - 12);
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+  popover.style.overflowY = "auto";
+}
+
+function closeWorkspaceLinksMenuPopover() {
+  workspaceLinksMenuPopover?.classList.add("hidden");
+  workspaceLinksMenuBtn?.setAttribute("aria-expanded", "false");
+  resetWorkspaceLinksMenuPopoverPosition();
+}
+
+function toggleWorkspaceLinksMenuPopover() {
+  if (!workspaceLinksMenuPopover || !workspaceLinksMenuBtn) return;
+  const willOpen = workspaceLinksMenuPopover.classList.contains("hidden");
+  if (willOpen) {
+    workspaceLinksMenuPopover.classList.remove("hidden");
+    workspaceLinksMenuBtn.setAttribute("aria-expanded", "true");
+    positionWorkspaceLinksMenuPopover();
+  } else {
+    closeWorkspaceLinksMenuPopover();
+  }
+}
+
+function handleWorkspaceLinksMenuAction(action) {
+  if (action === "copy-link") {
+    void copyWorkspaceShareLink();
+    return;
+  }
+  if (action === "share") {
+    void shareWorkspaceLink();
   }
 }
 
@@ -1829,10 +1897,13 @@ function isAgentRegistryActive(agent) {
   return agent?.active !== false;
 }
 
+/** Агенты реестра для UI: порядок из awn-agents.json, без записей без папки на диске. */
+function getRegistryAgentsForUi() {
+  return agentsCache.filter((agent) => agent.folderExists !== false);
+}
+
 function getAgentsForLandingGrid() {
-  return [...agentsCache].sort((a, b) =>
-    String(a.name || a.id).localeCompare(String(b.name || b.id), "ru")
-  );
+  return getRegistryAgentsForUi();
 }
 
 function getAgentsForPickerGrid() {
@@ -2004,7 +2075,8 @@ function getActiveAgentLabel() {
 function renderAgentSelect() {
   if (!agentSelectNode) return;
 
-  const agents = getSelectableAgents();
+  const agents = getRegistryAgentsForUi();
+  const selectableAgents = getSelectableAgents();
   const previousValue = agentSelectNode.value;
   agentSelectNode.innerHTML = "";
 
@@ -2023,16 +2095,18 @@ function renderAgentSelect() {
 
   for (const agent of agents) {
     const option = document.createElement("option");
+    const registryActive = isAgentRegistryActive(agent);
     option.value = agent.id;
-    option.textContent = agent.name || agent.id;
+    option.textContent = registryActive ? agent.name || agent.id : `${agent.name || agent.id} (выкл.)`;
+    option.disabled = !registryActive;
     agentSelectNode.appendChild(option);
   }
 
   agentSelectNode.disabled = false;
   const nextValue =
-    activeAgentId && agents.some((agent) => agent.id === activeAgentId)
+    activeAgentId && selectableAgents.some((agent) => agent.id === activeAgentId)
       ? activeAgentId
-      : previousValue && agents.some((agent) => agent.id === previousValue)
+      : previousValue && selectableAgents.some((agent) => agent.id === previousValue)
         ? previousValue
         : "";
   agentSelectNode.value = nextValue;
@@ -2062,8 +2136,135 @@ function hideMenuNoAgentPlaceholder() {
 }
 
 function openCreateAgentFromLanding() {
-  openAgentsRegistryModal();
-  openAgentsRegistryCreateModal();
+  openAppLandingCreateModal();
+}
+
+function openAppLandingCreateModal() {
+  if (!appLandingCreateModalNode) return;
+  if (appLandingCreateNameInputNode) {
+    appLandingCreateNameInputNode.value = "";
+  }
+  if (appLandingCreateDescriptionInputNode) {
+    appLandingCreateDescriptionInputNode.value = "";
+  }
+  if (appLandingCreatePathInputNode) {
+    appLandingCreatePathInputNode.value = "./workspaces/";
+  }
+  clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
+  appLandingCreateModalNode.classList.remove("hidden");
+  window.setTimeout(() => appLandingCreateNameInputNode?.focus(), 0);
+}
+
+function closeAppLandingCreateModal() {
+  appLandingCreateModalNode?.classList.add("hidden");
+  if (appLandingCreateSubmitBtn) {
+    appLandingCreateSubmitBtn.disabled = false;
+    appLandingCreateSubmitBtn.textContent = "Создать";
+  }
+}
+
+function isAgentPathInRegistry(pathValue) {
+  const key = normalizeRegistryPathKey(pathValue);
+  return agentsCache.some((agent) => normalizeRegistryPathKey(agent.path) === key);
+}
+
+async function appendCreatedAgentToRegistry(discovered) {
+  const key = normalizeRegistryPathKey(discovered.path);
+  const base = getRegistryAgentsForUi();
+  if (base.some((agent) => normalizeRegistryPathKey(agent.path) === key)) {
+    return false;
+  }
+
+  const agents = [
+    ...base.map(({ path, environment, default: isDefault, active, name, comment }) => ({
+      path,
+      environment: environment || "local",
+      default: Boolean(isDefault),
+      active: active !== false,
+      name: name ?? "",
+      comment: comment ?? ""
+    })),
+    {
+      path: discovered.path,
+      environment: "local",
+      default: base.length === 0,
+      active: true,
+      name: discovered.name ?? "",
+      comment: discovered.comment ?? ""
+    }
+  ];
+
+  const response = await fetch("/api/agents/registry", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agents })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
+  }
+
+  await loadAgents();
+  return true;
+}
+
+async function submitAppLandingCreate() {
+  if (!appLandingCreateSubmitBtn || !appLandingCreatePathInputNode) return;
+
+  const workspacePath = appLandingCreatePathInputNode.value.trim();
+  const agentName = appLandingCreateNameInputNode?.value.trim() || "";
+  const agentDescription = appLandingCreateDescriptionInputNode?.value.trim() || "";
+  const validationError = validateCreateAgentForm({
+    name: agentName,
+    description: agentDescription,
+    path: workspacePath,
+    checkRegistry: true
+  });
+  if (validationError) {
+    applyCreateAgentFormValidation("app-landing", validationError);
+    return;
+  }
+
+  appLandingCreateSubmitBtn.disabled = true;
+  appLandingCreateSubmitBtn.textContent = "Создаю...";
+
+  try {
+    const response = await fetch("/api/agents/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: workspacePath,
+        name: agentName || undefined,
+        comment: agentDescription || undefined
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const details = errorData.details ? `: ${errorData.details}` : "";
+      throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
+    }
+
+    const data = await response.json();
+    if (!data.agent) throw new Error("Сервер не вернул данные агента");
+
+    const added = await appendCreatedAgentToRegistry(data.agent);
+    if (!added) {
+      showToast("Агент создан, но уже есть в реестре", "error");
+      return;
+    }
+
+    closeAppLandingCreateModal();
+    renderAppLandingAgents();
+    renderLandingSearchAgents();
+    showToast("Агент создан", "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Ошибка создания: ${message}` : "Ошибка создания", "error");
+  } finally {
+    appLandingCreateSubmitBtn.disabled = false;
+    appLandingCreateSubmitBtn.textContent = "Создать";
+  }
 }
 
 function createAppLandingCreateAgentCard() {
@@ -2504,19 +2705,20 @@ function invalidateMenuAgentCache(agentId = activeAgentId) {
 }
 
 function openAgentsRegistryModal() {
-  agentsRegistryDraft = agentsCache.map((agent) => ({
-    id: agent.id,
-    path: agent.path,
-    environment: normalizeAgentEnvironmentDraft(agent.environment),
-    name: agent.name || agent.id,
-    comment: agent.comment || "",
-    default: Boolean(agent.default),
-    active: agent.active !== false,
-    manifestFound: Boolean(agent.manifestFound),
-    hasPreview: Boolean(agent.hasPreview),
-    previewUrl: agent.previewUrl || null,
-    previewRel: agent.previewRel || null
-  }));
+  agentsRegistryDraft = getRegistryAgentsForUi().map((agent) => ({
+      id: agent.id,
+      path: agent.path,
+      environment: normalizeAgentEnvironmentDraft(agent.environment),
+      name: agent.name || agent.id,
+      comment: agent.comment || "",
+      default: Boolean(agent.default),
+      active: agent.active !== false,
+      manifestFound: Boolean(agent.manifestFound),
+      folderExists: agent.folderExists !== false,
+      hasPreview: Boolean(agent.hasPreview),
+      previewUrl: agent.previewUrl || null,
+      previewRel: agent.previewRel || null
+    }));
   renderAgentsRegistryList();
   agentsRegistryModalNode?.classList.remove("hidden");
   void refreshAgentsRegistryPreviewMeta();
@@ -2576,6 +2778,146 @@ function normalizeRegistryPathKey(rawPath) {
     .replace(/\/+$/, "");
 }
 
+function getWorkspaceFolderNameFromPath(rawPath) {
+  const trimmed = String(rawPath || "").trim().replace(/[\\/]+$/, "");
+  if (!trimmed) return "";
+  return trimmed.split(/[\\/]/).filter(Boolean).pop() || "";
+}
+
+const CREATE_AGENT_NAME_MAX_LENGTH = 120;
+const CREATE_AGENT_DESCRIPTION_MAX_LENGTH = 2000;
+const CREATE_AGENT_ID_FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
+
+function getCreateAgentNameError(rawName) {
+  const name = String(rawName || "").trim();
+  if (!name) return "Укажите название агента";
+  if (name.length > CREATE_AGENT_NAME_MAX_LENGTH) {
+    return `Название агента: не более ${CREATE_AGENT_NAME_MAX_LENGTH} символов`;
+  }
+  return null;
+}
+
+function getCreateAgentDescriptionError(rawDescription) {
+  const description = String(rawDescription || "");
+  if (description.length > CREATE_AGENT_DESCRIPTION_MAX_LENGTH) {
+    return `Описание агента: не более ${CREATE_AGENT_DESCRIPTION_MAX_LENGTH} символов`;
+  }
+  return null;
+}
+
+function getCreateAgentWorkspacePathError(rawPath) {
+  const trimmedPath = String(rawPath || "").trim();
+  if (!trimmedPath) return "Укажите путь workspace";
+
+  const folderName = getWorkspaceFolderNameFromPath(trimmedPath);
+  if (!folderName) return "Укажите путь workspace";
+  if (folderName === "workspaces" || folderName === "Workspaces") {
+    return "Укажите ID агента в имени последней папки (например ./workspaces/my-agent)";
+  }
+  if (folderName !== folderName.toLowerCase()) {
+    return `ID агента (имя папки) «${folderName}» должен быть в нижнем регистре`;
+  }
+  if (!CREATE_AGENT_ID_FOLDER_RE.test(folderName)) {
+    return "ID агента (имя папки): латиница, цифры, дефис и подчёркивание; начинается с буквы или цифры";
+  }
+  return null;
+}
+
+function getLowercaseWorkspaceFolderNameError(rawPath) {
+  return getCreateAgentWorkspacePathError(rawPath);
+}
+
+function getCreateAgentFormFields(prefix) {
+  const nameInput = document.getElementById(`${prefix}-create-name-input`);
+  const descriptionInput = document.getElementById(`${prefix}-create-description-input`);
+  const pathInput = document.getElementById(`${prefix}-create-path-input`);
+  return {
+    nameInput,
+    descriptionInput,
+    pathInput,
+    nameField: nameInput?.closest(".agents-registry-create-field") || null,
+    descriptionField: descriptionInput?.closest(".agents-registry-create-field") || null,
+    pathField: pathInput?.closest(".agents-registry-create-path-field") || null,
+    fieldNodes: [
+      nameInput?.closest(".agents-registry-create-field"),
+      descriptionInput?.closest(".agents-registry-create-field"),
+      pathInput?.closest(".agents-registry-create-path-field")
+    ].filter(Boolean)
+  };
+}
+
+function clearCreateAgentFormValidation(fieldNodes) {
+  for (const fieldNode of fieldNodes || []) {
+    fieldNode.classList.remove("is-invalid");
+    fieldNode.querySelector(".agents-registry-create-error")?.remove();
+  }
+}
+
+function showCreateAgentFieldError(fieldNode, message) {
+  if (!fieldNode) return;
+  fieldNode.classList.add("is-invalid");
+  let errorNode = fieldNode.querySelector(".agents-registry-create-error");
+  if (!errorNode) {
+    errorNode = document.createElement("div");
+    errorNode.className = "agents-registry-create-error";
+    errorNode.setAttribute("role", "alert");
+    fieldNode.appendChild(errorNode);
+  }
+  errorNode.textContent = message;
+}
+
+function validateCreateAgentForm({ name, description, path, checkRegistry = false, checkDraft = false }) {
+  const nameError = getCreateAgentNameError(name);
+  if (nameError) return { field: "name", message: nameError };
+
+  const descriptionError = getCreateAgentDescriptionError(description);
+  if (descriptionError) return { field: "description", message: descriptionError };
+
+  const pathError = getCreateAgentWorkspacePathError(path);
+  if (pathError) return { field: "path", message: pathError };
+
+  if (checkRegistry && isAgentPathInRegistry(path)) {
+    return { field: "path", message: "Агент с таким путём уже в реестре" };
+  }
+  if (checkDraft && isAgentPathAlreadyInDraft(path)) {
+    return { field: "path", message: "Этот агент уже в списке" };
+  }
+
+  return null;
+}
+
+function applyCreateAgentFormValidation(prefix, validationError) {
+  const fields = getCreateAgentFormFields(prefix);
+  clearCreateAgentFormValidation(fields.fieldNodes);
+  if (!validationError) return fields;
+
+  const fieldMap = {
+    name: fields.nameField,
+    description: fields.descriptionField,
+    path: fields.pathField
+  };
+  const inputMap = {
+    name: fields.nameInput,
+    description: fields.descriptionInput,
+    path: fields.pathInput
+  };
+  const fieldNode = fieldMap[validationError.field];
+  showCreateAgentFieldError(fieldNode, validationError.message);
+  showToast(validationError.message, "error");
+  inputMap[validationError.field]?.focus();
+  return fields;
+}
+
+function bindCreateAgentFormValidation(prefix) {
+  const fields = getCreateAgentFormFields(prefix);
+  for (const fieldNode of fields.fieldNodes) {
+    fieldNode?.addEventListener("input", () => {
+      fieldNode.classList.remove("is-invalid");
+      fieldNode.querySelector(".agents-registry-create-error")?.remove();
+    });
+  }
+}
+
 function buildRegistryPathResultMap(results) {
   const byPath = new Map();
   if (!Array.isArray(results)) return byPath;
@@ -2613,15 +2955,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `awn-agent.json найден:\n${result.absolute}` : "awn-agent.json найден";
+    node.title = result.absolute ? `_reg-info.md (awn.workspace) найден:\n${result.absolute}` : "_reg-info.md (awn.workspace) найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет awn-agent.json:\n${result.absolute}`
-      : "Папка есть, но нет awn-agent.json";
+      ? `Папка есть, но нет _reg-info.md (awn.workspace):\n${result.absolute}`
+      : "Папка есть, но нет _reg-info.md (awn.workspace)";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -2684,7 +3026,6 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].manifestFound = true;
   agentsRegistryDraft[index].name = manifest.name || agentsRegistryDraft[index].name;
   agentsRegistryDraft[index].comment = manifest.comment || "";
-  if (manifest.id) agentsRegistryDraft[index].id = manifest.id;
 }
 
 function getRegistryAgentPreviewUrl(agent) {
@@ -2847,6 +3188,8 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
       ? pathsSnapshot
       : agentsRegistryDraft.map((agent) => normalizeRegistryPathKey(agent.path));
 
+  const missingFolderIndexes = [];
+
   agentsRegistryDraft.forEach((agent, index) => {
     const expectedPath = snapshot[index];
     const currentPath = normalizeRegistryPathKey(agent.path);
@@ -2856,6 +3199,10 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
     const statusNode = agentsRegistryListNode.querySelector(
       `.agents-registry-row[data-registry-index="${index}"] .agents-registry-path-dot`
     );
+    if (result?.valid && result.exists === false) {
+      missingFolderIndexes.push(index);
+      return;
+    }
     if (!statusNode) return;
     if (result) {
       applyManifestToRegistryDraft(index, result);
@@ -2864,6 +3211,16 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
     }
     updateAgentsRegistryPathStatusNode(statusNode, { status: "checking" });
   });
+
+  if (missingFolderIndexes.length > 0) {
+    missingFolderIndexes
+      .sort((left, right) => right - left)
+      .forEach((index) => agentsRegistryDraft.splice(index, 1));
+    renderAgentsRegistryList();
+    scheduleAgentsRegistryPathValidation();
+    return;
+  }
+
   syncRegistryRowMetaFromDraft();
 }
 
@@ -2972,7 +3329,7 @@ function renderAgentsRegistryList() {
     nameInput.type = "text";
     nameInput.className = "agents-registry-name-input";
     nameInput.dataset.agentName = "1";
-    nameInput.placeholder = "Сохраняется в awn-agent.json";
+    nameInput.placeholder = "Название";
     nameInput.value = agent.name || "";
     nameInput.addEventListener("input", () => {
       agentsRegistryDraft[index].name = nameInput.value;
@@ -2987,7 +3344,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус awn-agent.json");
+    pathStatusNode.setAttribute("aria-label", "Статус _reg-info.md (awn.workspace)");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -3005,7 +3362,7 @@ function renderAgentsRegistryList() {
     commentInput.className = "agents-registry-comment-input";
     commentInput.dataset.agentComment = "1";
     commentInput.rows = 1;
-    commentInput.placeholder = "Сохраняется в awn-agent.json";
+    commentInput.placeholder = "Описание";
     commentInput.value = agent.comment || "";
     commentInput.addEventListener("input", () => {
       agentsRegistryDraft[index].comment = commentInput.value;
@@ -3141,11 +3498,18 @@ function addAgentsRegistryDraftRow() {
 
 function openAgentsRegistryCreateModal() {
   if (!agentsRegistryCreateModalNode) return;
+  if (agentsRegistryCreateNameInputNode) {
+    agentsRegistryCreateNameInputNode.value = "";
+  }
+  if (agentsRegistryCreateDescriptionInputNode) {
+    agentsRegistryCreateDescriptionInputNode.value = "";
+  }
   if (agentsRegistryCreatePathInputNode) {
     agentsRegistryCreatePathInputNode.value = "./workspaces/";
   }
+  clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
   agentsRegistryCreateModalNode.classList.remove("hidden");
-  window.setTimeout(() => agentsRegistryCreatePathInputNode?.focus(), 0);
+  window.setTimeout(() => agentsRegistryCreateNameInputNode?.focus(), 0);
 }
 
 function closeAgentsRegistryCreateModal() {
@@ -3160,9 +3524,16 @@ async function submitAgentsRegistryCreate() {
   if (!agentsRegistryCreateSubmitBtn || !agentsRegistryCreatePathInputNode) return;
 
   const workspacePath = agentsRegistryCreatePathInputNode.value.trim();
-  if (!workspacePath) {
-    showToast("Укажите путь workspace", "error");
-    agentsRegistryCreatePathInputNode.focus();
+  const agentName = agentsRegistryCreateNameInputNode?.value.trim() || "";
+  const agentDescription = agentsRegistryCreateDescriptionInputNode?.value.trim() || "";
+  const validationError = validateCreateAgentForm({
+    name: agentName,
+    description: agentDescription,
+    path: workspacePath,
+    checkDraft: true
+  });
+  if (validationError) {
+    applyCreateAgentFormValidation("agents-registry", validationError);
     return;
   }
 
@@ -3173,7 +3544,11 @@ async function submitAgentsRegistryCreate() {
     const response = await fetch("/api/agents/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: workspacePath })
+      body: JSON.stringify({
+        path: workspacePath,
+        name: agentName || undefined,
+        comment: agentDescription || undefined
+      })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -3206,12 +3581,14 @@ function applyDiscoverAgentToDraft(discovered) {
     id: discovered.id,
     path: discovered.path,
     environment: "local",
-    name: discovered.name,
-    comment: discovered.comment || "",
+    name: getDiscoverAgentDisplayName(discovered),
+    comment: getDiscoverAgentDisplayComment(discovered),
     manifestFound: true,
-    hasPreview: Boolean(discovered.hasPreview),
+    hasPreview: Boolean(
+      discovered.hasPreview || discovered.previewRel || discovered.manifest?.preview
+    ),
     previewUrl: null,
-    previewRel: discovered.previewRel || null,
+    previewRel: discovered.previewRel || discovered.manifest?.preview || null,
     active: true,
     default: agentsRegistryDraft.length === 0
   };
@@ -3226,7 +3603,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование awn-agent.json…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование _reg-info.md (awn.workspace)…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -3241,27 +3618,49 @@ async function loadAgentDiscoverResults() {
   }
 }
 
+function getDiscoverAgentDisplayName(item) {
+  return String(item?.manifest?.name || item?.name || item?.id || "Agent").trim() || "Agent";
+}
+
+function getDiscoverAgentDisplayComment(item) {
+  return String(item?.manifest?.comment ?? item?.comment ?? "").trim();
+}
+
 function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">awn-agent.json не найден</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">_reg-info.md (awn.workspace) не найден</div>`;
     return;
   }
 
   for (const item of items) {
+    const displayName = getDiscoverAgentDisplayName(item);
+    const displayComment = getDiscoverAgentDisplayComment(item);
     const row = document.createElement("button");
     row.type = "button";
     row.className = "agents-registry-discover-item";
 
     const previewSlot = document.createElement("div");
     previewSlot.className = "agents-registry-preview-slot agents-registry-discover-preview";
-    if (item.hasPreview && item.path) {
+
+    const previewHint =
+      item.previewRel || item.manifest?.preview || item.hasPreview ? displayName.charAt(0).toUpperCase() : "+";
+    const previewFallback = document.createElement("span");
+    previewFallback.className = "agents-registry-discover-preview-fallback";
+    previewFallback.textContent = previewHint;
+    previewSlot.appendChild(previewFallback);
+
+    if (item.path && (item.hasPreview || item.previewRel || item.manifest?.preview)) {
       const img = document.createElement("img");
       img.className = "agents-registry-preview-thumb";
-      img.alt = "";
+      img.alt = displayName;
       img.draggable = false;
       img.src = appendCacheBuster(`/api/agents/workspace-preview?path=${encodeURIComponent(item.path)}`);
+      img.onload = () => {
+        previewSlot.classList.add("has-image");
+        previewFallback.remove();
+      };
       img.onerror = () => img.remove();
       previewSlot.appendChild(img);
     }
@@ -3269,9 +3668,9 @@ function renderAgentDiscoverResults(items) {
     const meta = document.createElement("div");
     meta.className = "agents-registry-discover-meta";
     meta.innerHTML = `
-      <div class="agents-registry-discover-name">${escapeHtml(item.name || item.id || "Agent")}</div>
+      <div class="agents-registry-discover-name">${escapeHtml(displayName)}</div>
       <div class="agents-registry-discover-path">${escapeHtml(item.path || "")}</div>
-      ${item.comment ? `<div class="agents-registry-discover-comment">${escapeHtml(item.comment)}</div>` : ""}
+      ${displayComment ? `<div class="agents-registry-discover-comment">${escapeHtml(displayComment)}</div>` : ""}
     `;
 
     row.append(previewSlot, meta);
@@ -3305,15 +3704,16 @@ async function saveAgentsRegistryDraft() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        agents: agentsRegistryDraft.map(({ id, path, environment, default: isDefault, active, name, comment }) => ({
-          id,
-          path,
-          environment,
-          default: isDefault,
-          active: active !== false,
-          name: name ?? "",
-          comment: comment ?? ""
-        }))
+        agents: agentsRegistryDraft
+          .filter((agent) => agent.folderExists !== false)
+          .map(({ path, environment, default: isDefault, active, name, comment }) => ({
+            path,
+            environment,
+            default: isDefault,
+            active: active !== false,
+            name: name ?? "",
+            comment: comment ?? ""
+          }))
       })
     });
     if (!response.ok) {
@@ -4009,8 +4409,9 @@ function getAgentCollapsedFolders(agentId = activeAgentId) {
 }
 
 function isFolderCollapsed(folderPath, agentId = activeAgentId) {
-  if (!folderPath) return false;
-  return getAgentCollapsedFolders(agentId).has(normalizeFolderPath(folderPath));
+  const normalized = normalizeFolderPath(folderPath);
+  if (!normalized || normalized === ".") return false;
+  return getAgentCollapsedFolders(agentId).has(normalized);
 }
 
 function loadCollapsedFoldersByAgent() {
@@ -5568,7 +5969,7 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   if (hasAgent) {
     const agent = document.createElement("span");
     agent.className = "menu-marker menu-marker-agent";
-    agent.title = "AWN-агент (awn-agent.json в этой папке)";
+    agent.title = "AWN workspace (_reg-info.md, awn.workspace)";
     agent.setAttribute("aria-label", "Agent");
     agent.appendChild(createAgentMarkerIcon());
     wrap.appendChild(agent);
@@ -5678,10 +6079,18 @@ function getSectionFolderPath(node, parentSectionPath = "") {
   return `${parent}/${title}`;
 }
 
-function createFolderToggleButton(hasContent, isCollapsed, onToggle) {
+function createFolderToggleButton(hasContent, isCollapsed, onToggle, options = {}) {
+  const lockOpen = Boolean(options.lockOpen);
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
   toggleBtn.className = "folder-toggle-btn";
+  if (lockOpen) {
+    toggleBtn.classList.add("folder-toggle-btn--lock-open");
+    toggleBtn.textContent = "▾";
+    toggleBtn.disabled = true;
+    toggleBtn.title = "";
+    return toggleBtn;
+  }
   toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
   toggleBtn.disabled = !hasContent;
   toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
@@ -6410,7 +6819,7 @@ function shouldShowReservedFoldersInCreateModal(agentId = getCreateModalAgentId(
   if (normalized !== ".") return false;
   if (isServiceNodePath(createModalBaseParentPath)) return false;
   if (isAgentContainerNodePath(createModalBaseParentPath)) return false;
-  return !isAgentKitFolderPresent(agentId) || !isAgentContainerFolderPresent(agentId);
+  return true;
 }
 
 function shouldShowNestedGitContainerScaffold(agentId = getCreateModalAgentId()) {
@@ -6429,6 +6838,72 @@ function resolveNestedGitContainerScaffoldParentPath(agentId = getCreateModalAge
   return normalized || ".";
 }
 
+function getSystemFileCacheEntry(name) {
+  const normalized = normalizeSystemFileName(name);
+  return (systemFilesCache || []).find(
+    (file) => normalizeSystemFileName(file?.name) === normalized
+  );
+}
+
+function getDefaultSystemFileScaffoldContent(name) {
+  const normalized = normalizeSystemFileName(name);
+  if (normalized === "AGENTS.md") {
+    return "# Agent\n\n> Инструкции для LLM-агента.\n";
+  }
+  if (normalized === ROOT_SYSTEM_TODO_FILE) {
+    return "# TODO\n\n- [ ] \n";
+  }
+  if (normalized === "README.md") {
+    return "# README\n\n> Описание workspace.\n";
+  }
+  return "";
+}
+
+function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId()) {
+  const showNestedGitContainerScaffold = shouldShowNestedGitContainerScaffold(agentId);
+  const gitRoot = getGitRepoRootForMenuPath(createModalBaseParentPath || ".", agentId);
+  const kitExists = isAgentKitFolderPresent(agentId);
+  const containerExists = showNestedGitContainerScaffold
+    ? hasContainerForGitRoot(gitRoot, agentId)
+    : isAgentContainerFolderPresent(agentId);
+
+  if (createNodeKitScaffoldBtn) {
+    createNodeKitScaffoldBtn.disabled = kitExists;
+    createNodeKitScaffoldBtn.setAttribute("aria-disabled", kitExists ? "true" : "false");
+    createNodeKitScaffoldBtn.title = kitExists ? "awn-agent-kit уже создан" : KIT_ROOT_HINT;
+  }
+  if (createNodeContainerScaffoldBtn) {
+    const containerHint = showNestedGitContainerScaffold
+      ? CONTAINER_ROOT_HINT_GIT
+      : getContainerRootHint(agentId);
+    createNodeContainerScaffoldBtn.disabled = containerExists;
+    createNodeContainerScaffoldBtn.setAttribute("aria-disabled", containerExists ? "true" : "false");
+    createNodeContainerScaffoldBtn.title = containerExists
+      ? "awn-container уже создан"
+      : containerHint;
+  }
+}
+
+function syncCreateNodeRootSystemFilesUi() {
+  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
+  const show = normalized === ".";
+  createNodeRootSystemWrapNode?.classList.toggle("hidden", !show);
+
+  const buttons = [
+    [createNodeAgentsScaffoldBtn, "AGENTS.md"],
+    [createNodeTodoScaffoldBtn, ROOT_SYSTEM_TODO_FILE],
+    [createNodeReadmeScaffoldBtn, "README.md"]
+  ];
+  for (const [button, fileName] of buttons) {
+    if (!button) continue;
+    const meta = getSystemFileCacheEntry(fileName);
+    const exists = Boolean(meta?.exists);
+    button.disabled = exists;
+    button.setAttribute("aria-disabled", exists ? "true" : "false");
+    button.title = exists ? `${fileName} уже создан` : `Создать ${fileName}`;
+  }
+}
+
 function syncCreateNodeReservedFoldersUi() {
   const agentId = getCreateModalAgentId();
   const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
@@ -6441,7 +6916,6 @@ function syncCreateNodeReservedFoldersUi() {
 
   createNodeRootWrapNode?.classList.toggle("hidden", !showRootReservedBlock);
   createNodeReservedWrapNode?.classList.toggle("hidden", !showRootReservedBlock);
-  createNodeRootDividerNode?.classList.toggle("hidden", !showRootReservedBlock);
 
   const reservedLabelNode = createNodeRootWrapNode?.querySelector(".create-node-reserved-label");
   if (reservedLabelNode) {
@@ -6450,23 +6924,18 @@ function syncCreateNodeReservedFoldersUi() {
       : "Служебные папки workspace";
   }
 
-  const showKit = showWrap && !isAgentKitFolderPresent(agentId) && !isNestedGitRoot;
-  const showContainer =
-    (showWrap && !isAgentContainerFolderPresent(agentId)) || showNestedGitContainerScaffold;
+  const showKit = showWrap && !isNestedGitRoot;
+  const showContainer = (showWrap && !isNestedGitRoot) || showNestedGitContainerScaffold;
   createNodeKitScaffoldBtn?.classList.toggle("hidden", !showKit);
   createNodeContainerScaffoldBtn?.classList.toggle("hidden", !showContainer);
-  if (createNodeKitScaffoldBtn) {
-    createNodeKitScaffoldBtn.title = KIT_ROOT_HINT;
-  }
-  if (createNodeContainerScaffoldBtn) {
-    const containerHint = showNestedGitContainerScaffold
+  if (createNodeContainerScaffoldHintNode) {
+    createNodeContainerScaffoldHintNode.textContent = showNestedGitContainerScaffold
       ? CONTAINER_ROOT_HINT_GIT
       : getContainerRootHint(agentId);
-    createNodeContainerScaffoldBtn.title = containerHint;
-    if (createNodeContainerScaffoldHintNode) {
-      createNodeContainerScaffoldHintNode.textContent = containerHint;
-    }
   }
+
+  syncCreateNodeReservedScaffoldButtonsUi(agentId);
+  syncCreateNodeRootSystemFilesUi();
 
   applyCreateNodeTargetPath();
   syncCreateNodeContainerTargetUi();
@@ -6666,11 +7135,12 @@ function syncCreateNodeActionsUi() {
   const atWorkspaceRoot = createModalBaseParentPath === ".";
   const showRootReserved = shouldShowReservedFoldersInCreateModal(getCreateModalAgentId());
   const showNestedGitContainerScaffold = shouldShowNestedGitContainerScaffold(getCreateModalAgentId());
+  const showRootScaffoldBlock = (atWorkspaceRoot && showRootReserved) || showNestedGitContainerScaffold;
   createNodeCatalogWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeServiceDocsWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeDividerNode?.classList.toggle(
     "hidden",
-    !(serviceRoot || (atWorkspaceRoot && !showRootReserved) || showNestedGitContainerScaffold)
+    !(serviceRoot || showRootScaffoldBlock)
   );
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
   createNodeActionsNode?.classList.toggle("create-node-actions--service", inServiceTree);
@@ -6713,7 +7183,6 @@ function closeCreateNodeModal() {
   setCreateSlugLinked(true);
   createNodeRootWrapNode?.classList.add("hidden");
   createNodeReservedWrapNode?.classList.add("hidden");
-  createNodeRootDividerNode?.classList.add("hidden");
   createNodeContainerTargetWrapNode?.classList.add("hidden");
   createNodeManualSectionNode?.classList.remove("hidden");
   syncCreateNodeActionsUi();
@@ -6743,7 +7212,7 @@ function openCreateNodeModal(parentPath, options = {}) {
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   const normalizedPath = normalizeFolderPath(folderPath);
-  if (!normalizedPath) return;
+  if (!normalizedPath || normalizedPath === ".") return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (collapsedFolders.has(normalizedPath)) {
     collapsedFolders.delete(normalizedPath);
@@ -9897,23 +10366,40 @@ function buildMenuDisplayLabelMap(menu = currentMenuData) {
   const map = new Map();
   if (!menu) return map;
 
+  function registerManifestLabel(manifestPath, title) {
+    const trimmedTitle = String(title || "").trim();
+    if (!trimmedTitle || !manifestPath) return;
+    const folderPath = stripVaultPrefixFromRelPath(
+      stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(manifestPath) || "")
+    );
+    if (folderPath) map.set(folderPath, trimmedTitle);
+    const displayPath = stripVaultPrefixFromRelPath(getNodeDisplayPath(manifestPath));
+    if (displayPath && displayPath !== folderPath) map.set(displayPath, trimmedTitle);
+  }
+
   function walk(node) {
     if (!node || typeof node !== "object") return;
+    if (node.indexPath) {
+      registerManifestLabel(node.indexPath, node.title);
+    }
     for (const section of node.sections || []) {
       const folderPath = stripVaultPrefixFromRelPath(section.folderPath || "");
       if (folderPath && section.title) {
         map.set(folderPath, section.title);
       }
       if (section.indexPath) {
-        const displayPath = stripVaultPrefixFromRelPath(getNodeDisplayPath(section.indexPath));
-        if (displayPath && section.title) map.set(displayPath, section.title);
+        registerManifestLabel(section.indexPath, section.title);
       }
       walk(section);
     }
     for (const item of [...(node.items || []), ...getMenuRepoServiceItems(node)]) {
       if (!item?.path) continue;
+      const normalizedPath = normalizeMenuNodePath(item.path);
       const displayPath = stripVaultPrefixFromRelPath(getNodeDisplayPath(item.path));
-      if (displayPath && item.label) map.set(displayPath, item.label);
+      if (item.label) {
+        if (normalizedPath) map.set(normalizedPath, item.label);
+        if (displayPath) map.set(displayPath, item.label);
+      }
     }
   }
 
@@ -9975,6 +10461,13 @@ function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
   }
 
   if (menuMap.has(menuKey)) return menuMap.get(menuKey);
+
+  const manifestPath = getBreadcrumbManifestPathForSegmentIndex(segmentIndex, parts);
+  if (manifestPath) {
+    const resolved = resolveMenuEntryLabel(manifestPath);
+    const slug = getLabelFromPath(manifestPath);
+    if (resolved && resolved !== slug) return resolved;
+  }
 
   const entry = resolveMenuEntryByDisplayPath(menuKey);
   if (entry?.label) {
@@ -13837,7 +14330,7 @@ function getStandardPropsFieldKeys() {
 const PROPS_FIELD_META = {
   "awn-type": {
     label: "Тип",
-    hint: "Идентификатор типа (awn.agent, awn.record, awn.record.category, awn.media.category, …)"
+    hint: "Идентификатор типа (awn.workspace, awn.record, awn.record.category, awn.media.category, …)"
   },
   "awn-name": {
     label: "Имя",
@@ -15030,7 +15523,7 @@ function resolveAwnTypeForContext(nodePath = activePath) {
     return "awn.record";
   }
   if (isNodeManifestPath(normalized)) {
-    if (isAgentRootIndexPath(normalized)) return "awn.agent";
+    if (isAgentRootIndexPath(normalized)) return "awn.workspace";
     return "awn.area";
   }
   if (isTopicManifestPath(normalized)) return "awn.topic";
@@ -15128,7 +15621,7 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
-  "awn.agent": "Корневой манифест workspace — _reg-info.md в корне агента",
+  "awn.workspace": "Корневой манифест workspace — _reg-info.md в корне агента",
   "awn.area": "Область (категория) — папка с _reg-info.md",
   "awn.topic": "Тема — standalone *.md манифест",
   "awn.record": "Запись в awn-storage/*/content/ (расширяется в configuration.yml темы)",
@@ -19660,8 +20153,8 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
       caption: "Agent",
       active: markers.hasAgent,
       createSvg: createAgentMarkerIcon,
-      titleActive: "awn-agent.json: есть в этой папке",
-      titleInactive: "awn-agent.json: нет в этой папке"
+      titleActive: "_reg-info.md (awn.workspace): есть в этой папке",
+      titleInactive: "_reg-info.md (awn.workspace): нет в этой папке"
     }),
     createNavigationHeroMarkerSlot({
       id: "git",
@@ -22173,11 +22666,44 @@ function getLabelFromPath(filePath) {
 function resolveMenuEntryLabel(path, menuLabel = "") {
   const normalizedPath = normalizeMenuNodePath(path);
   const displayPath = stripVaultPrefixFromRelPath(getNodeDisplayPath(normalizedPath));
-  const mapped = getMenuDisplayLabelMap().get(displayPath);
+  const folderPath = stripVaultPrefixFromRelPath(
+    stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(normalizedPath) || "")
+  );
+  const menuMap = getMenuDisplayLabelMap();
+  const mapped =
+    menuMap.get(normalizedPath) ||
+    menuMap.get(displayPath) ||
+    (folderPath ? menuMap.get(folderPath) : null);
   if (mapped) return mapped;
   const explicit = String(menuLabel || "").trim();
   if (explicit) return explicit;
   return getLabelFromPath(normalizedPath);
+}
+
+function resolveGraphEntryLabel(entry) {
+  if (!entry?.path) return "";
+  return resolveMenuEntryLabel(entry.path, entry.label);
+}
+
+function resolveGraphAreaLabelFromRel(relPath, scopePrefix) {
+  const rel = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!rel) return null;
+
+  let prefix = "";
+  if (scopePrefix === "service") {
+    prefix = getActiveAgentKitFolder() || "";
+  } else if (scopePrefix === "container") {
+    prefix = getActiveAgentContainerFolder() || "";
+  }
+
+  const manifestRel = prefix
+    ? normalizeMenuNodePath(`${prefix}/${rel}/${AREA_MANIFEST_FILE}`)
+    : normalizeMenuNodePath(`${rel}/${AREA_MANIFEST_FILE}`);
+
+  const resolved = resolveMenuEntryLabel(manifestRel);
+  const slug = getLabelFromPath(manifestRel);
+  if (resolved && resolved !== slug) return resolved;
+  return resolved || null;
 }
 
 function getSlugTranslitApi() {
@@ -23145,10 +23671,18 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
   const includeRepoRoot = options.includeRepoRoot !== false;
   if (node.indexPath) {
     const displayPath = getNodeDisplayPath(node.indexPath);
-    const menuLabel = getMenuDisplayLabelMap().get(stripVaultPrefixFromRelPath(displayPath));
+    const normalizedDisplay = stripVaultPrefixFromRelPath(displayPath);
+    const folderPath = stripVaultPrefixFromRelPath(
+      stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(node.indexPath) || "")
+    );
+    const menuMap = getMenuDisplayLabelMap();
+    const mapped =
+      menuMap.get(normalizeMenuNodePath(node.indexPath)) ||
+      menuMap.get(normalizedDisplay) ||
+      (folderPath ? menuMap.get(folderPath) : null);
     acc.push({
       path: node.indexPath,
-      label: menuLabel || getLabelFromPath(node.indexPath),
+      label: mapped || String(node.title || "").trim() || getLabelFromPath(node.indexPath),
       displayPath,
       color: node.color || null,
       status: node.status || null,
@@ -23181,7 +23715,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
     } else {
       acc.push({
         path: child.entry.path,
-        label: child.entry.label || getLabelFromPath(child.entry.path),
+        label: resolveMenuEntryLabel(child.entry.path, child.entry.label),
         displayPath: getNodeDisplayPath(child.entry.path),
         color: child.entry.color || null,
         status: child.entry.status || null,
@@ -23233,7 +23767,11 @@ function getSystemFileMenuLabel(name) {
 
 function collectSystemFileMenuEntries(files) {
   return (Array.isArray(files) ? files : [])
-    .filter((file) => !/\.md$/i.test(normalizeSystemFileName(file?.name)))
+    .filter((file) => {
+      const systemFile = normalizeSystemFileName(file?.name);
+      if (!/\.md$/i.test(systemFile)) return true;
+      return MENU_TREE_VISIBLE_SYSTEM_MD.has(systemFile);
+    })
     .map((file) => {
     const systemFile = normalizeSystemFileName(file.name);
     return {
@@ -23361,24 +23899,6 @@ function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, paren
 function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, parentSectionPath = null) {
   const containerFolder = parentSectionPath || getActiveAgentContainerFolder(agentId);
   if (!containerTree || !body) return;
-
-  if (containerTree.indexPath) {
-    const wrapper = document.createElement("div");
-    renderTree(
-      {
-        ...containerTree,
-        title: String(containerTree.title || "").trim() || getContainerRootMenuTitle(agentId)
-      },
-      wrapper,
-      1,
-      containerFolder,
-      null,
-      agentId
-    );
-    const section = wrapper.firstElementChild;
-    if (section) body.appendChild(section);
-    return;
-  }
 
   const parentNode = { title: "", ...containerTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, containerFolder, 0);
@@ -23747,10 +24267,6 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
   const showKit = Boolean(kit && hasVisibleKitSection(menu, agentId));
   const showContainer = Boolean(container && hasVisibleContainerSection(menu, agentId));
   const showWorkspace = hasVisibleWorkspaceRootTreeContent(menu, agentId);
-
-  if (showKit && showContainer) {
-    kit.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
-  }
 
   const workspaceAnchor = showContainer ? container : showKit ? kit : null;
   if (workspaceAnchor && showWorkspace) {
@@ -24184,6 +24700,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     sectionNode.classList.toggle("is-off-pinned-branch", !onBranch);
   }
   const toggleSectionCollapsed = () => toggleFolderCollapsed(sectionFolderPath, agentId);
+  const isRootFolder = isAgentRootTreeNode(depth, sectionFolderPath);
   if (pinnedPath && !isFolderInPinnedBranch(sectionFolderPath, pinnedPath)) {
     return;
   }
@@ -24214,13 +24731,18 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
             gitRepoLayout?.hasRepoService
         )
       : hasNestedContainer || hasNonContainer || hasRepoService;
-    const isCollapsedEffective = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
+    const isCollapsedEffective =
+      searchActive || isRootFolder ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
     if (node.indexPath) {
       const folderRow = document.createElement("div");
       folderRow.className = "menu-folder-row";
 
-      folderRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
+      folderRow.appendChild(
+        createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed, {
+          lockOpen: isRootFolder
+        })
+      );
 
       const folderButton = document.createElement("button");
       folderButton.type = "button";
@@ -24242,9 +24764,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
             ? getServiceRootMenuTitle(agentId)
             : getLabelFromPath(node.indexPath)) ||
         getAgentTreeTitle(agentId);
-      const folderDisplayLabel = isAgentRootTreeNode(depth, sectionFolderPath)
-        ? `Root: ${folderBaseLabel}`
-        : folderBaseLabel;
+      const folderDisplayLabel = folderBaseLabel;
       setMenuLabelWithMarkers(
         folderButton,
         formatMenuTreeSortLabel(folderSortKey, parentMenuNode, folderDisplayLabel),
@@ -24288,7 +24808,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       if (canAdoptArea) {
         sectionRow.className = "menu-folder-row menu-folder-row--adopt";
 
-        sectionRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
+        sectionRow.appendChild(
+          createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed, {
+            lockOpen: isRootFolder
+          })
+        );
 
         const folderLabel = document.createElement("span");
         folderLabel.className = "menu-folder menu-folder--adopt";
@@ -24330,7 +24854,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
           ? "menu-section-row menu-section-row--empty"
           : "menu-section-row";
 
-        sectionRow.appendChild(createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed));
+        sectionRow.appendChild(
+          createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed, {
+            lockOpen: isRootFolder
+          })
+        );
 
         const titleNode = document.createElement("h3");
         titleNode.className = depth === 0
@@ -24348,7 +24876,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
           ? (isCollapsedEffective ? "Раскрыть" : "Скрыть")
           : "";
         titleNode.addEventListener("click", () => {
-          if (hasContent) toggleSectionCollapsed();
+          if (hasContent && !isRootFolder) toggleSectionCollapsed();
         });
 
         sectionRow.appendChild(titleNode);
@@ -27860,26 +28388,89 @@ function renderAgentVaultView() {
   }
 }
 
+function stripGraphFolderPrefix(relPath, folderName) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized || !folderName) return normalized;
+  if (normalized === folderName) return "";
+  const prefix = `${folderName}/`;
+  if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+  return normalized;
+}
+
+function stripGraphKitFolderPrefix(relPath) {
+  return stripGraphFolderPrefix(relPath, getActiveAgentKitFolder());
+}
+
+function stripGraphContainerFolderPrefix(relPath) {
+  return stripGraphFolderPrefix(relPath, getActiveAgentContainerFolder());
+}
+
+function isGraphReservedSubtreeEntry(entry, menu) {
+  if (!entry?.path) return false;
+  const normalized = normalizeMenuNodePath(entry.path);
+  const kitFolder = getActiveAgentKitFolder();
+  const containerFolder = getActiveAgentContainerFolder();
+  if (menu?.serviceTree && kitFolder) {
+    const kitManifest = normalizeMenuNodePath(getServiceRootManifestPath());
+    if (normalized === kitManifest || normalized === kitFolder || normalized.startsWith(`${kitFolder}/`)) {
+      return true;
+    }
+  }
+  if (menu?.containerTree && containerFolder) {
+    const containerManifest = normalizeMenuNodePath(getContainerRootManifestPath());
+    if (
+      normalized === containerManifest ||
+      normalized === containerFolder ||
+      normalized.startsWith(`${containerFolder}/`)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function getServiceGraphRelativePath(entry) {
   const rawDisplay = entry?.displayPath || (entry?.path ? getNodeDisplayPath(entry.path) : "");
-  const stripped = stripServicePrefixFromRelPath(rawDisplay);
+  const stripped = stripGraphKitFolderPrefix(stripServicePrefixFromRelPath(rawDisplay));
   if (stripped) return stripped.replace(/\\/g, "/").trim();
-  return stripServicePrefixFromRelPath(entry?.path || "").replace(/\\/g, "/").trim();
+  return stripGraphKitFolderPrefix(stripServicePrefixFromRelPath(entry?.path || "")).replace(/\\/g, "/").trim();
 }
 
 function getContainerGraphRelativePath(entry) {
   const rawDisplay = entry?.displayPath || (entry?.path ? getNodeDisplayPath(entry.path) : "");
-  return String(rawDisplay || entry?.path || "").replace(/\\/g, "/").trim();
+  const stripped = stripGraphContainerFolderPrefix(String(rawDisplay || entry?.path || ""));
+  return stripped.replace(/\\/g, "/").trim();
 }
 
 function getScopedGraphRelativePath(entry, scopePrefix) {
   if (scopePrefix === "service") return getServiceGraphRelativePath(entry);
   if (scopePrefix === "container") return getContainerGraphRelativePath(entry);
+  if (entry?.path) {
+    const routePath = getNodeRoutePath(entry.path);
+    if (routePath) return routePath.replace(/\\/g, "/").trim();
+  }
   return String(entry.displayPath || entry.label || getLabelFromPath(entry.path)).replace(/\\/g, "/").trim();
 }
 
+function resolveGraphIntermediateFolderLabel(entries, relPath, fallback, scopePrefix) {
+  for (const entry of entries) {
+    if (!entry?.isFolder || !entry.path) continue;
+    const entryRel = getScopedGraphRelativePath(entry, scopePrefix);
+    if (entryRel !== relPath) continue;
+    return resolveGraphEntryLabel(entry);
+  }
+
+  const fromManifest = resolveGraphAreaLabelFromRel(relPath, scopePrefix);
+  if (fromManifest) return fromManifest;
+
+  const mapped = getMenuDisplayLabelMap().get(relPath);
+  if (mapped) return mapped;
+
+  return fallback;
+}
+
 function buildGraphDataFromAgentMenu(menu) {
-  const baseTree = { title: getAgentTreeTitle(), ...menu };
+  const baseTree = getWorkspaceRootMenuTreeNode(menu);
   const workspaceEntries = collectFlatMenuEntries(baseTree);
   const serviceEntries = menu?.serviceTree
     ? collectFlatMenuEntries({ title: "", ...menu.serviceTree })
@@ -27936,7 +28527,7 @@ function buildGraphDataFromAgentMenu(menu) {
     }
     nodes.push({
       id: serviceRootId,
-      label: SERVICE_SECTION_LABEL,
+      label: getServiceRootMenuTitle(),
       type: "folder",
       depth: 1,
       nodePath: serviceManifestPath || null,
@@ -27956,7 +28547,7 @@ function buildGraphDataFromAgentMenu(menu) {
     }
     nodes.push({
       id: containerRootId,
-      label: CONTAINER_SECTION_LABEL,
+      label: getContainerRootMenuTitle(),
       type: "folder",
       depth: 1,
       nodePath: containerManifestPath || null,
@@ -27971,6 +28562,7 @@ function buildGraphDataFromAgentMenu(menu) {
   for (const entry of workspaceEntries) {
     if (!entry.isFolder || !entry.path) continue;
     if (skipNormalizedPaths.has(normalizeMenuNodePath(entry.path))) continue;
+    if (isGraphReservedSubtreeEntry(entry, menu)) continue;
     const displayPath = String(entry.displayPath || entry.label || getLabelFromPath(entry.path))
       .replace(/\\/g, "/")
       .trim();
@@ -27994,9 +28586,12 @@ function buildGraphDataFromAgentMenu(menu) {
     for (const entry of entries) {
       const normPath = entry.path ? normalizeMenuNodePath(entry.path) : null;
       if (normPath && skipNormalizedPaths.has(normPath)) continue;
+      if (!scopePrefix && isGraphReservedSubtreeEntry(entry, menu)) continue;
 
       const displayPath = getScopedGraphRelativePath(entry, scopePrefix);
+      if (!displayPath) continue;
       const parts = String(displayPath).split("/").filter(Boolean);
+      if (!parts.length) continue;
       let parentId = parentRootId;
 
       for (let i = 0; i < parts.length - 1; i += 1) {
@@ -28005,9 +28600,10 @@ function buildGraphDataFromAgentMenu(menu) {
           : parts.slice(0, i + 1).join("/");
         if (!folderIds.has(built)) {
           const folderId = `folder:${built}`;
+          const relPath = parts.slice(0, i + 1).join("/");
           nodes.push({
             id: folderId,
-            label: parts[i],
+            label: resolveGraphIntermediateFolderLabel(entries, relPath, parts[i], scopePrefix),
             type: "folder",
             depth: (scopePrefix ? 1 : 0) + i + 1,
             nodePath: null,
@@ -28024,7 +28620,7 @@ function buildGraphDataFromAgentMenu(menu) {
       if (!nodeIds.has(nodeId)) {
         nodes.push({
           id: nodeId,
-          label: parts[parts.length - 1] || entry.label,
+          label: resolveGraphEntryLabel(entry),
           type: entry.isFolder ? "folder" : "file",
           depth: Math.max((scopePrefix ? 1 : 0) + parts.length, scopePrefix ? 2 : 1),
           nodePath: entry.path,
@@ -29323,16 +29919,25 @@ function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
 }
 
 function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
+  const isRootFolder = sectionEl?.dataset?.menuFolder === ".";
   const toggleBtn = sectionEl.querySelector(
     ":scope > .menu-folder-row .folder-toggle-btn, :scope > .menu-section-row .folder-toggle-btn"
   );
   if (toggleBtn) {
-    toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
-    toggleBtn.disabled = !hasContent;
-    toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+    if (isRootFolder) {
+      toggleBtn.textContent = "▾";
+      toggleBtn.disabled = true;
+      toggleBtn.title = "";
+      toggleBtn.classList.add("folder-toggle-btn--lock-open");
+    } else {
+      toggleBtn.classList.remove("folder-toggle-btn--lock-open");
+      toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
+      toggleBtn.disabled = !hasContent;
+      toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+    }
   }
   const titleNode = sectionEl.querySelector(":scope > .menu-section-row .menu-section-title");
-  if (titleNode && hasContent) {
+  if (titleNode && hasContent && !isRootFolder) {
     titleNode.title = isCollapsed ? "Раскрыть" : "Скрыть";
   }
 }
@@ -29889,6 +30494,51 @@ async function createKitRoot(options = {}) {
 
 async function createContainerRoot(options = {}) {
   return createReservedRootFolder("container-root", options);
+}
+
+async function createSystemFileScaffold(name, options = {}) {
+  const normalizedName = normalizeSystemFileName(name);
+  if (!normalizedName || !MENU_TREE_VISIBLE_SYSTEM_MD.has(normalizedName)) return;
+
+  const meta = getSystemFileCacheEntry(normalizedName);
+  if (meta?.exists) {
+    showToast(`${normalizedName} уже создан`, "error");
+    syncCreateNodeRootSystemFilesUi();
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/system-file"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: normalizedName,
+        content: getDefaultSystemFileScaffoldContent(normalizedName)
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+
+    await loadSystemFiles();
+    if (currentMenuData) {
+      withPreservedMenuScroll(() => renderMenu(currentMenuData));
+    } else {
+      renderSystemFiles(systemFilesCache);
+    }
+    syncCreateNodeRootSystemFilesUi();
+    syncCreateNodeReservedScaffoldButtonsUi();
+
+    if (options.openAfterCreate !== false) {
+      closeCreateNodeModal();
+      await selectSystemFile(normalizedName);
+    } else {
+      showToast(`${normalizedName} создан`, "success");
+    }
+  } catch (error) {
+    showToast(`Не удалось создать ${normalizedName}: ${error.message}`, "error");
+  }
 }
 
 async function createNode(type, options = {}) {
@@ -30788,15 +31438,28 @@ window.addEventListener("popstate", () => {
     });
 });
 
-workspaceShareBtn?.addEventListener("click", () => {
-  void shareWorkspaceLink();
+workspaceLinksMenuBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleWorkspaceLinksMenuPopover();
 });
 
-workspaceShareLinkBtn?.addEventListener("click", () => {
-  void copyWorkspaceShareLink();
+workspaceLinksMenuPopover?.addEventListener("click", (event) => {
+  const btn = event.target.closest(".workspace-links-menu-item");
+  if (!btn || btn.disabled) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeWorkspaceLinksMenuPopover();
+  handleWorkspaceLinksMenuAction(btn.dataset.action);
+});
+
+window.addEventListener("resize", () => {
+  if (workspaceLinksMenuPopover?.classList.contains("hidden")) return;
+  positionWorkspaceLinksMenuPopover();
 });
 
 init();
+bindCreateAgentFormValidation("app-landing");
+bindCreateAgentFormValidation("agents-registry");
 updateContentSearchPlaceholder();
 
 appHomeLink?.addEventListener("click", (event) => {
@@ -31024,13 +31687,27 @@ createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
   void createNode("service-doc", { preset });
 });
 createNodeKitScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeKitScaffoldBtn.disabled) return;
   void createKitRoot({ agentId: getCreateModalAgentId() });
 });
 createNodeContainerScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeContainerScaffoldBtn.disabled) return;
   void createContainerRoot({
     agentId: getCreateModalAgentId(),
     parentPath: resolveNestedGitContainerScaffoldParentPath()
   });
+});
+createNodeAgentsScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeAgentsScaffoldBtn.disabled) return;
+  void createSystemFileScaffold("AGENTS.md");
+});
+createNodeTodoScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeTodoScaffoldBtn.disabled) return;
+  void createSystemFileScaffold(ROOT_SYSTEM_TODO_FILE);
+});
+createNodeReadmeScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeReadmeScaffoldBtn.disabled) return;
+  void createSystemFileScaffold("README.md");
 });
 createNodeCancelBtn?.addEventListener("click", closeCreateNodeModal);
 nodeSettingsModeSelectNode?.addEventListener("change", () => {
@@ -31210,10 +31887,17 @@ document.addEventListener("click", (event) => {
   closeMenuSettingsPopover();
 });
 
+document.addEventListener("click", (event) => {
+  if (workspaceLinksMenuPopover?.classList.contains("hidden")) return;
+  if (event.target.closest("#workspace-links-menu-wrap")) return;
+  closeWorkspaceLinksMenuPopover();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeMenuContextMenu();
   closeMenuSettingsPopover();
+  closeWorkspaceLinksMenuPopover();
 });
 sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SIDEBAR_WIDTH_STEP));
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
@@ -31416,6 +32100,19 @@ appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
 appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
+appLandingCreateCancelBtn?.addEventListener("click", closeAppLandingCreateModal);
+appLandingCreateSubmitBtn?.addEventListener("click", () => {
+  void submitAppLandingCreate();
+});
+appLandingCreatePathInputNode?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void submitAppLandingCreate();
+  }
+});
+appLandingCreateModalNode?.addEventListener("click", (event) => {
+  if (event.target === appLandingCreateModalNode) closeAppLandingCreateModal();
+});
 
 initNodeWorkspaceDomainSelect();
 initAgentAwnTypesToolbar();

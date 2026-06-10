@@ -217,7 +217,7 @@ function inferAwnTypeFromPath(relPath, options = {}) {
   }
 
   if (isAreaManifestFileName(fileName)) {
-    if (options.isAgentRoot) return "awn.agent";
+    if (options.isAgentRoot) return "awn.workspace";
     return "awn.area";
   }
 

@@ -22,8 +22,8 @@ fields:
   awn-type:
     type: awn.string
     title: Тип
-    description: Идентификатор типа записи (awn.agent, awn.area, awn.topic, …)
-    hint: awn.agent, awn.area, awn.topic, awn.record.category…
+    description: Идентификатор типа записи (awn.workspace, awn.area, awn.topic, …)
+    hint: awn.workspace, awn.area, awn.topic, awn.record.category…
     required: true
     locked: true
   awn-create:
