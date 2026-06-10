@@ -5470,6 +5470,13 @@ async function openNodeNavigation(label, filePath) {
 }
 
 async function openNodeFromMenu(label, filePath, options = {}) {
+  if (isGitRepoLooseFilePath(filePath)) {
+    await selectRepoLooseFile(label, filePath, { skipRouteSync: true });
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ push: true });
+    }
+    return;
+  }
   try {
     await loadNodeConfig(filePath);
   } catch {
@@ -6713,6 +6720,31 @@ function getGitRepoRootForMenuPath(folderPath, agentId = getCreateModalAgentId()
   return null;
 }
 
+function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!normalized) return false;
+  const base = normalized.split("/").filter(Boolean).pop() || "";
+  if (isAreaManifestFileName(base)) return false;
+  if (base.toLowerCase() === "awn-sort.json") return false;
+  const parentFolder = normalized.includes("/")
+    ? normalized.slice(0, normalized.lastIndexOf("/"))
+    : ".";
+  if (!parentFolder || parentFolder === ".") return false;
+  return isGitRepoMenuFolder(parentFolder, agentId);
+}
+
+function isServiceStyleContentOpen() {
+  return Boolean(activeSystemFile) || isGitRepoLooseFilePath(activePath);
+}
+
+function getServiceStyleContentLabel() {
+  if (activeSystemFile) return activeSystemFile;
+  if (isGitRepoLooseFilePath(activePath)) {
+    return activePath.split("/").filter(Boolean).pop() || activePath;
+  }
+  return "";
+}
+
 function getNestedContainerRelForGitRoot(gitRootRel, agentId = getCreateModalAgentId()) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder) return null;
@@ -7774,6 +7806,9 @@ function getDocumentTitlePageLabel() {
 
   if (activeSystemFile) {
     return `${agentLabel} — ${activeSystemFile}`;
+  }
+  if (isGitRepoLooseFilePath(activePath)) {
+    return `${agentLabel} — ${getServiceStyleContentLabel()}`;
   }
 
   if (activePath) {
@@ -14047,7 +14082,7 @@ function setTitleLockedDisplay(label) {
   titleMediaExtNode?.classList.add("hidden");
   titleFixedValueNode.classList.remove("hidden");
   if (titleFixedTextNode) titleFixedTextNode.textContent = label || "";
-  if (activeSystemFile) {
+  if (activeSystemFile || isGitRepoLooseFilePath(activePath)) {
     placeTitleFixedInBreadcrumbs();
   } else {
     placeTitleFixedInTitleRow();
@@ -14099,7 +14134,7 @@ function setTitleLockedInput(label) {
 }
 
 function syncTitleInputEditableState() {
-  if (activeSystemFile) return;
+  if (activeSystemFile || isGitRepoLooseFilePath(activePath)) return;
 
   const mediaSidecarEditing = isMediaAssetEditing();
   const externalEditing =
@@ -16294,7 +16329,7 @@ function getDocAsideTab() {
 }
 
 function isDocAsideAvailable() {
-  if (!activePath || activeSystemFile) return false;
+  if (!activePath || isServiceStyleContentOpen()) return false;
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
@@ -18870,7 +18905,7 @@ function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
 let savedEditorSnapshot = null;
 
 function isEditorSaveTrackingActive() {
-  if (activeSystemFile) return true;
+  if (activeSystemFile || isGitRepoLooseFilePath(activePath)) return true;
   if (!activePath) return false;
   if (
     isNodeCanvasViewMode() ||
@@ -18941,9 +18976,11 @@ function applySystemFileUi() {
   nodeOverviewBlockNode?.classList.add("hidden");
   nodeOverviewBlockNode?.classList.remove("is-node-navigation", "is-container-node");
   titleEditorBlockNode.classList.add("hidden");
-  setTitleLockedDisplay(activeSystemFile || "");
+  setTitleLockedDisplay(getServiceStyleContentLabel());
   editorViewToggleNode?.classList.remove("hidden");
-  editorViewMode = "source";
+  if (!/\.md$/i.test(getServiceStyleContentLabel())) {
+    editorViewMode = "source";
+  }
   listViewBlockNode.classList.add("hidden");
   yamlPanelNode.classList.add("hidden");
   externalViewSelectNode?.classList.add("hidden");
@@ -21626,7 +21663,7 @@ function applyModeUi() {
   if (appRootNode.classList.contains("home-view")) {
     return;
   }
-  if (activeSystemFile) {
+  if (isServiceStyleContentOpen()) {
     nodeOverviewRenderSeq += 1;
     applySystemFileUi();
     updateBreadcrumbsForActiveMode();
@@ -21699,7 +21736,7 @@ function applyModeUi() {
   titleEditorBlockNode?.classList.toggle("hidden", !titleBlockVisible);
   nodeDescriptionHintNode?.classList.toggle(
     "hidden",
-    activeContentMode !== "description" || previewMode || overviewLikeMode || activeSystemFile
+    activeContentMode !== "description" || previewMode || overviewLikeMode || isServiceStyleContentOpen()
   );
   syncNodeDescriptionHintUi();
   document.querySelector(".doc-head-block")?.classList.toggle(
@@ -23249,8 +23286,9 @@ function appendBreadcrumbCrumb(label, { className = "", isCurrent = false, onCli
 }
 
 function renderBreadcrumbs(filePath) {
-  if (activeSystemFile) {
-    const parts = String(filePath || activeSystemFile || "")
+  if (isServiceStyleContentOpen()) {
+    const label = getServiceStyleContentLabel();
+    const parts = String(filePath || label || "")
       .split("/")
       .filter(Boolean);
     const prefixParts = parts.length > 1 ? parts.slice(0, -1) : [];
@@ -23265,7 +23303,7 @@ function renderBreadcrumbs(filePath) {
 
     if (prefixParts.length > 0) appendBreadcrumbSeparator();
 
-    setTitleLockedDisplay(activeSystemFile);
+    setTitleLockedDisplay(label);
     return;
   }
 
@@ -23537,13 +23575,10 @@ function appendRepoServiceMenuItems(container, repoServiceItems, parentMenuNode,
     applyNodeColorVars(btn, item.color);
     btn.addEventListener("click", (event) => {
       const pathFromNode = event.currentTarget?.dataset?.path || "";
-      openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
+      void selectRepoLooseFile(getLabelFromPath(pathFromNode), pathFromNode);
     });
 
     itemRow.appendChild(btn);
-    if (isNodeSettingsTargetPath(itemPath)) {
-      itemRow.appendChild(createNodeSettingsButton(itemPath));
-    }
     itemRow.appendChild(createBookmarkButton(itemPath));
     container.appendChild(itemRow);
   }
@@ -25482,7 +25517,52 @@ async function selectSystemFile(name, options = {}) {
   }
 }
 
+async function selectRepoLooseFile(label, filePath, options = {}) {
+  const normalizedPath = normalizeMenuNodePath(filePath);
+  if (!normalizedPath || !isGitRepoLooseFilePath(normalizedPath)) {
+    await selectFile(label, filePath);
+    return;
+  }
+
+  hideHomeView();
+  nodeOverviewRenderSeq += 1;
+  activeSystemFile = null;
+  activePath = normalizedPath;
+  activeLabel = label || getLabelFromPath(normalizedPath);
+  activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  clearMediaSidecarEditor();
+  updateActiveButton();
+  setLoading("Загрузка файла...");
+  setPropsYamlContent("");
+  applyContentModeState("description");
+
+  try {
+    const response = await fetch(buildApiUrl("/api/repo-loose-file", { path: normalizedPath }));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    fileContentInputNode.value = data.content || "";
+    applyModeUi();
+    refreshEditorViewContent();
+    commitEditorSaveBaseline();
+  } catch (error) {
+    fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
+    applyModeUi();
+    commitEditorSaveBaseline();
+  } finally {
+    hideContentLoading({ force: true });
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ replace: true });
+    }
+  }
+}
+
 async function selectFile(label, filePath) {
+  if (isGitRepoLooseFilePath(filePath)) {
+    await selectRepoLooseFile(label, filePath);
+    return;
+  }
   if (!filePath) {
     fileContentInputNode.value = "Ошибка чтения файла: пустой путь";
     return;
@@ -25970,9 +26050,11 @@ function buildSaveContentPayload() {
       ? buildMediaMarkdownContent()
       : isMediaSidecarEditing()
         ? buildMediaSidecarContent()
-        : activeContentMode === "description"
-          ? buildNodeManifestContent()
-          : getEditorContentValue();
+        : isGitRepoLooseFilePath(activePath)
+          ? getEditorContentValue()
+          : activeContentMode === "description"
+            ? buildNodeManifestContent()
+            : getEditorContentValue();
   return typeof rawContent === "string" ? rawContent : String(rawContent ?? "");
 }
 
@@ -25999,6 +26081,35 @@ async function saveContent() {
         throw new Error(`${reason}${details}`);
       }
       await loadSystemFiles();
+      saveSucceeded = true;
+      showToast("Сохранено", "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
+
+  if (isGitRepoLooseFilePath(activePath)) {
+    if (deferDescriptionContentBuild) {
+      content = getEditorContentValue();
+    }
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      const response = await fetch(buildApiUrl("/api/repo-loose-file"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: getActiveNodeApiPath(), content })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
       saveSucceeded = true;
       showToast("Сохранено", "success");
     } catch (error) {

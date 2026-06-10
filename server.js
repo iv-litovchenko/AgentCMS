@@ -4131,13 +4131,24 @@ async function resolveGitRepoCreateParentPath(parentPathResolved) {
 
 function isGitRepoRootServiceLooseFile(name) {
   const base = String(name || "");
-  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base) || isTopicManifestFileName(base)) {
+  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base)) {
     return false;
   }
-  const lower = base.toLowerCase();
-  if (lower === ".env" || lower === ".gitignore") return true;
-  const ext = path.extname(base).toLowerCase();
-  return ext === ".json" || ext === ".yaml" || ext === ".yml";
+  return true;
+}
+
+async function isGitRepoLooseFileRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized || normalized === ".") return false;
+  const base = path.posix.basename(normalized);
+  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base)) return false;
+
+  const gitRoot = await resolveGitRepoRootForMenuPath(normalized);
+  if (!gitRoot) return false;
+
+  const parentRel = path.posix.dirname(normalized).replace(/\\/g, "/");
+  const gitRootRel = String(gitRoot.rel || ".").replace(/\\/g, "/");
+  return parentRel === gitRootRel;
 }
 
 function isServiceNodePath(relPath) {
@@ -4268,6 +4279,17 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       continue;
     }
 
+    if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootServiceLooseFile(entry.name)) {
+      const nodeRelPath = relativePath.replace(/\\/g, "/");
+      const menuItem = {
+        label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
+        path: nodeRelPath,
+        ...(await enrichMenuNodeItem(nodeRelPath))
+      };
+      repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
+      continue;
+    }
+
     if (entry.isFile() && isTopicManifestFileName(entry.name, { isAgentRoot: !prefix })) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
       const menuItem = {
@@ -4277,16 +4299,6 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       };
       files.push(menuItem);
       continue;
-    }
-
-    if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootServiceLooseFile(entry.name)) {
-      const nodeRelPath = relativePath.replace(/\\/g, "/");
-      const menuItem = {
-        label: path.basename(entry.name),
-        path: nodeRelPath,
-        ...(await enrichMenuNodeItem(nodeRelPath))
-      };
-      repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
     }
   }
 
@@ -5219,6 +5231,60 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { name: canonical, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save system file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/repo-loose-file") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    try {
+      const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+      if (!(await isGitRepoLooseFileRelPath(normalized))) {
+        return sendJson(res, 400, { error: "Not a git repo loose file path" });
+      }
+      const absolute = normalizeWorkspacePath(normalized);
+      if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
+      try {
+        const content = await fs.readFile(absolute, "utf-8");
+        return sendJson(res, 200, { path: normalized, content, exists: true });
+      } catch (error) {
+        if (error && error.code === "ENOENT") {
+          return sendJson(res, 200, { path: normalized, content: "", exists: false });
+        }
+        throw error;
+      }
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read git repo loose file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/repo-loose-file") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+      if (!(await isGitRepoLooseFileRelPath(normalized))) {
+        return sendJson(res, 400, { error: "Not a git repo loose file path" });
+      }
+      const absolute = normalizeWorkspacePath(normalized);
+      if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      await fs.mkdir(path.dirname(absolute), { recursive: true });
+      await fs.writeFile(absolute, content, "utf-8");
+      return sendJson(res, 200, { path: normalized, content, exists: true });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save git repo loose file",
+        details: String(error.message || error)
+      });
     }
   }
 
