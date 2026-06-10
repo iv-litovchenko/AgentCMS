@@ -58,8 +58,8 @@ function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
-const DEFAULT_VAULT_FOLDER = "_awn-vault";
-const DEFAULT_AGENT_SYSTEM_FOLDER = "_awn-agent-system";
+const DEFAULT_VAULT_FOLDER = "awn-vault";
+const DEFAULT_AGENT_SYSTEM_FOLDER = "awn-agent-system";
 
 function isVaultFolderEntryName(name) {
   return String(name || "").toLowerCase() === DEFAULT_VAULT_FOLDER.toLowerCase();
@@ -87,79 +87,79 @@ function migrateManifestRawFolderKeys(raw) {
   delete raw.service;
 }
 
-/** Общая папка справочников внутри _awn-agent-system */
-const DEFAULT_SERVICE_CATALOG_FOLDER = "Catalog";
+/** Общая папка справочников внутри awn-agent-system */
+const DEFAULT_SERVICE_CATALOG_FOLDER = "catalog";
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
     preset: "categories",
     kind: "catalog",
-    fileName: "Categories",
+    fileName: "categories",
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `_s.Categories/Content.csv` (табличная память).\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv` (табличная память).\n",
     content:
       "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
   {
     preset: "tags",
     kind: "catalog",
-    fileName: "Tags",
+    fileName: "tags",
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `_s.Tags/Content.csv` (табличная память).\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv` (табличная память).\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
     preset: "schemas",
     kind: "catalog",
-    fileName: "Schemas",
+    fileName: "schemas",
     title: "Схемы",
     manifest:
-      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `_s.Schemas/Content.md`.\n",
+      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `awn-storage/schemas/content.md`.\n",
     content:
       "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
   },
   {
     preset: "agent",
     kind: "service-doc",
-    fileName: "Agent",
+    fileName: "agent",
     title: "Агент",
     manifest: "# Агент\n\nОписание агента: роль, цели и границы workspace.\n"
   },
   {
     preset: "user",
     kind: "service-doc",
-    fileName: "User",
+    fileName: "user",
     title: "Пользователь",
     manifest: "# Пользователь\n\nПрофиль пользователя: предпочтения, контекст и стиль работы.\n"
   },
   {
     preset: "users",
     kind: "service-doc",
-    fileName: "Users",
+    fileName: "users",
     title: "Пользователи",
     manifest: "# Пользователи\n\nСписок пользователей и связанных ролей в workspace.\n"
   },
   {
     preset: "agent-rules",
     kind: "service-doc",
-    fileName: "Agent.Rules",
+    fileName: "agent.rules",
     title: "Правила агента",
     manifest: "# Правила агента\n\nОбщие правила и ограничения для агента в этом workspace.\n"
   },
   {
     preset: "agent-voice-tts",
     kind: "service-doc",
-    fileName: "Agent.Voice.Tts",
+    fileName: "agent.voice.tts",
     title: "Голос · TTS",
     manifest: "# Голос · TTS\n\nНастройки и инструкции для синтеза речи (text-to-speech).\n"
   },
   {
     preset: "agent-voice-stt",
     kind: "service-doc",
-    fileName: "Agent.Voice.STT",
+    fileName: "agent.voice.stt",
     title: "Голос · STT",
     manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
   }
@@ -294,7 +294,7 @@ function getWorkspaceStorageKeySync(workspaceRootAbsolute) {
   return path.basename(String(workspaceRootAbsolute || "").replace(/[\\/]+$/, ""));
 }
 
-/** Превью корневой области: workspace/_s.{имя_манифеста}/Preview.* */
+/** Превью корневой области: workspace/awn-storage/{имя_манифеста}/preview.* */
 function resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute) {
   return AREA_MANIFEST_FILE;
 }

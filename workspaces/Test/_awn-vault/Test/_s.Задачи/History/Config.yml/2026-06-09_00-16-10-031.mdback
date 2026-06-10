@@ -1,6 +1,0 @@
-awn_schema:
-  sidecar:
-    fields:
-      obrabotano:
-        type: awn.boolean
-        title: Обработано

@@ -2,7 +2,7 @@ id: awn.sidecar
 name: Sidecar
 kind: type
 extends: awn.base
-description: Метаданные медиафайла (*.sidecar.md, расширяется в Config.yml темы)
+description: Метаданные медиафайла (*.sidecar.md, расширяется в configuration.yml темы)
 fields:
   awn-filename:
     type: awn.string

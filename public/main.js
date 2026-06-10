@@ -330,7 +330,7 @@ const COMPONENTS_IDEAS_SOURCES = [
     id: "draft-3",
     label: "Черновик 3",
     topicPath: "drafts/draft-3.md",
-    subtitle: "AWN registry · _awn-agent-system · layout",
+    subtitle: "AWN registry · awn-agent-system · layout",
     withExtras: false
   },
   {
@@ -400,20 +400,21 @@ function writeStorageItem(key, value) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "_REGINFO.md";
-const SLOT_STORAGE_PREFIX = "_s.";
+const AREA_MANIFEST_FILE = "_reg-info.md";
+const STORAGE_ROOT_FOLDER = "awn-storage";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["_reginfo.md", "agents.md", "todo.md"]);
-const STORAGE_FOLDER_NAME = "_s";
-const STORAGE_FOLDER_REGEX = "_s\\.[^/]+";
-const BUNDLE_CONTENT_FILE = "Content.md";
-const BUNDLE_TABULAR_FILE = "Content.csv";
-const BUNDLE_CONFIG_FILE = "Config.yml";
-const BUNDLE_TODO_FILE = "Todo.md";
-const PREVIEW_FILE_BASENAME = "Preview";
-const VAULT_FOLDER_DEFAULT = "_awn-vault";
-const AGENT_SYSTEM_FOLDER_DEFAULT = "_awn-agent-system";
+const MENU_EXCLUDED_TOPIC_MD = new Set(["_reg-info.md", "agents.md", "todo.md"]);
+const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
+const STORAGE_FOLDER_REGEX = "awn-storage/[^/]+";
+const STORAGE_SLOT_REGEX = "awn-storage/([^/]+)";
+const BUNDLE_CONTENT_FILE = "content.md";
+const BUNDLE_TABULAR_FILE = "content.csv";
+const BUNDLE_CONFIG_FILE = "configuration.yml";
+const BUNDLE_TODO_FILE = "todo.md";
+const PREVIEW_FILE_BASENAME = "preview";
+const VAULT_FOLDER_DEFAULT = "awn-vault";
+const AGENT_SYSTEM_FOLDER_DEFAULT = "awn-agent-system";
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебное";
 const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
@@ -998,9 +999,7 @@ function stripTopicPrefix(name) {
 }
 
 function stripStoragePrefix(name) {
-  let raw = String(name || "").trim();
-  if (raw.startsWith(SLOT_STORAGE_PREFIX)) raw = raw.slice(SLOT_STORAGE_PREFIX.length);
-  return raw.trim();
+  return String(name || "").trim();
 }
 
 function isAreaManifestFileName(fileName) {
@@ -1288,12 +1287,11 @@ function resolveManifestPathForNodeApi(nodePath) {
   if (/\.todo\.md$/i.test(normalized) && !/\/todo\.md$/i.test(normalized)) {
     return normalized.replace(/\.todo\.md$/i, ".md");
   }
-  const bundleMatch = normalized.match(new RegExp(`^(.*)/${STORAGE_FOLDER_REGEX}/Todo\\.md$`, "i"));
+  const bundleMatch = normalized.match(new RegExp(`^(.*)/${STORAGE_SLOT_REGEX}/todo\\.md$`, "i"));
   if (bundleMatch) {
     const prefix = bundleMatch[1];
-    const parts = normalized.split("/").filter(Boolean);
-    const key = stripStoragePrefix(parts[parts.length - 2] || "");
-    const topicRel = `${key}.md`;
+    const slotKey = bundleMatch[2];
+    const topicRel = `${slotKey}.md`;
     return prefix ? `${prefix}/${topicRel}` : topicRel;
   }
   return normalized;
@@ -1374,7 +1372,7 @@ function syncNodeDescriptionHintUi() {
     titleNode.textContent = "Workspace агента — описание проекта";
     textNode.innerHTML =
       "Корневая область контента: контекст проекта, правила и документация для работы в этом workspace. " +
-      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>_s._REGINFO/Preview.*</code>). " +
+      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>awn-storage/_reg-info/preview.*</code>). " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
   }
@@ -4970,7 +4968,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка {Name}/_REGINFO.md — без драйверов памяти. */
+/** Область (Space): папка {Name}/_reg-info.md — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
@@ -6183,22 +6181,22 @@ function syncCreateNodeVaultOptionUi() {
   applyCreateNodeTargetPath();
 }
 
-const SERVICE_CATALOG_FOLDER = "Catalog";
+const SERVICE_CATALOG_FOLDER = "catalog";
 const SERVICE_CATALOG_PRESET_FILES = {
-  categories: "Categories",
-  tags: "Tags"
+  categories: "categories",
+  tags: "tags"
 };
 const SERVICE_CATALOG_PRESET_LABELS = {
   categories: "Категории",
   tags: "Теги"
 };
 const SERVICE_DOC_PRESET_FILES = {
-  agent: "Agent",
-  user: "User",
-  users: "Users",
-  "agent-rules": "Agent.Rules",
-  "agent-voice-tts": "Agent.Voice.Tts",
-  "agent-voice-stt": "Agent.Voice.STT"
+  agent: "agent",
+  user: "user",
+  users: "users",
+  "agent-rules": "agent.rules",
+  "agent-voice-tts": "agent.voice.tts",
+  "agent-voice-stt": "agent.voice.stt"
 };
 const SERVICE_DOC_PRESET_LABELS = {
   agent: "Агент",
@@ -6772,9 +6770,10 @@ function getManifestNamedSlotKey(relPath) {
 function getNamedStorageSlotDirRel(relPath) {
   const containerDir = getManifestContainerDirRel(relPath);
   const slotKey = getManifestNamedSlotKey(relPath);
-  const storageFolder = `${SLOT_STORAGE_PREFIX}${slotKey}`;
-  if (!containerDir) return storageFolder;
-  return `${containerDir}/${storageFolder}`;
+  if (!slotKey) return "";
+  const slotDir = `${STORAGE_ROOT_FOLDER}/${slotKey}`;
+  if (!containerDir) return slotDir;
+  return `${containerDir}/${slotDir}`;
 }
 
 function getNamedStorageBundleDirRel(relPath) {
@@ -6785,16 +6784,16 @@ function getNamedStorageBundleRel(relPath, bundleFileName) {
   return `${getNamedStorageBundleDirRel(relPath)}/${bundleFileName}`;
 }
 
-const STORAGE_SUBFOLDER_CONTENT = "Content";
-const STORAGE_SUBFOLDER_INBOX = "Inbox";
-const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
-const STORAGE_SUBFOLDER_ASSETS = "Assets";
-const PASTED_ASSETS_SUBDIR = "Pasted";
-const PREVIEW_ASSETS_SUBDIR = "Preview";
-const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
-const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
-const STORAGE_SUBFOLDER_PREVIEW = "Preview";
-const STORAGE_SUBFOLDER_TEMP = "Temp";
+const STORAGE_SUBFOLDER_CONTENT = "content";
+const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_REFERENCES = "references";
+const STORAGE_SUBFOLDER_ASSETS = "assets";
+const PASTED_ASSETS_SUBDIR = "pasted";
+const PREVIEW_ASSETS_SUBDIR = "preview";
+const STORAGE_SUBFOLDER_SCRIPTS = "scripts";
+const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
+const STORAGE_SUBFOLDER_PREVIEW = "preview";
+const STORAGE_SUBFOLDER_TEMP = "temp";
 
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
@@ -6877,7 +6876,7 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
     tabular: ".content.csv",
     todo: ".todo.md",
     preview: ".preview",
-    config: ".config.yml"
+    config: ".configuration.yml"
   };
   if (partBase) return `${partBase}${suffixByKind[kind]}`;
   if (kind === "preview") {
@@ -8600,12 +8599,7 @@ function buildMediaAssetUrl(filePath, nodePath = activePath) {
 
 function stripAssetsPathPrefix(relPath) {
   let rel = String(relPath || "").replace(/\\/g, "/");
-  const prefixes = [
-    `${STORAGE_FOLDER_NAME}/${STORAGE_SUBFOLDER_ASSETS}/`,
-    `${STORAGE_FOLDER_NAME}/_Assets/`,
-    `${STORAGE_SUBFOLDER_ASSETS}/`,
-    "_Assets/"
-  ];
+  const prefixes = [`${STORAGE_SUBFOLDER_ASSETS}/`];
   for (const prefix of prefixes) {
     if (rel.startsWith(prefix)) return rel.slice(prefix.length);
     const lower = prefix.toLowerCase();
@@ -13057,11 +13051,16 @@ function normalizeTopicSchemaState(raw) {
 
 function resolveTopicManifestFromBundlePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const match = normalized.match(new RegExp(`^(.*)/(${STORAGE_FOLDER_REGEX})(?:/|$)`));
+  const match = normalized.match(new RegExp(`^(.*)/${STORAGE_SLOT_REGEX}(?:/|$)`));
   if (!match) return null;
   const prefix = match[1] || "";
-  const slotKey = stripStoragePrefix(match[2]);
+  const slotKey = match[2];
   if (!slotKey) return null;
+  const areaSlotKey = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  if (slotKey.toLowerCase() === areaSlotKey.toLowerCase()) {
+    const manifest = prefix ? `${prefix}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
+    return isAreaManifestFileName(AREA_MANIFEST_FILE) ? manifest : null;
+  }
   const manifest = prefix ? `${prefix}/${slotKey}.md` : `${slotKey}.md`;
   return isTopicManifestPath(manifest) ? manifest : null;
 }
@@ -13952,23 +13951,23 @@ function sortPropsEntries(entries) {
 
 function isRecordCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  if (normalized.toLowerCase().endsWith("/_reginfo.md") && /\/Content\//i.test(normalized)) {
+  if (normalized.toLowerCase().endsWith("/_reg-info.md") && /\/content\//i.test(normalized)) {
     return true;
   }
   return (
-    /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized) ||
-    /\/Content\/Categories\/[^/]+\.md$/i.test(normalized)
+    /\/awn-storage\/categories\/content\/[^/]+\.md$/i.test(normalized) ||
+    /\/content\/categories\/[^/]+\.md$/i.test(normalized)
   );
 }
 
 function isMediaCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  if (normalized.toLowerCase().endsWith("/_reginfo.md") && /\/Assets\//i.test(normalized)) {
+  if (normalized.toLowerCase().endsWith("/_reg-info.md") && /\/assets\//i.test(normalized)) {
     return true;
   }
   return (
-    /\/Assets\/Categories\/[^/]+\.md$/i.test(normalized) ||
-    /\/_s\.MediaCategories\/Content\/[^/]+\.md$/i.test(normalized)
+    /\/assets\/categories\/[^/]+\.md$/i.test(normalized) ||
+    /\/awn-storage\/[^/]+\/content\/[^/]+\.md$/i.test(normalized)
   );
 }
 
@@ -14110,11 +14109,11 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
-  "awn.agent": "Корневой манифест workspace — _REGINFO.md в корне агента",
-  "awn.area": "Область (категория) — папка с _REGINFO.md",
+  "awn.agent": "Корневой манифест workspace — _reg-info.md в корне агента",
+  "awn.area": "Область (категория) — папка с _reg-info.md",
   "awn.topic": "Тема — standalone *.md манифест",
-  "awn.record": "Запись в _s.*/Content/ (расширяется в Config.yml темы)",
-  "awn.record.category": "Категория записей — справочник для awn-category в Content",
+  "awn.record": "Запись в awn-storage/*/content/ (расширяется в configuration.yml темы)",
+  "awn.record.category": "Категория записей — справочник для awn-category в content",
   "awn.media.category": "Категория медиа — справочник для группировки файлов в assets",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
 };
@@ -15224,7 +15223,7 @@ function renderDocLinksLibrary() {
 function formatMiniDocPathHint(relativePath) {
   const rel = String(relativePath || "").replace(/^\/+/, "");
   const slotDir = activePath ? getNamedStorageSlotDirRel(getResolvedNodePath(activePath)) : "";
-  const fullPath = slotDir ? `${slotDir}/${rel}` : `_s.{тема}/${rel}`;
+  const fullPath = slotDir ? `${slotDir}/${rel}` : `awn-storage/{тема}/${rel}`;
   return `<code>${fullPath}</code>`;
 }
 
@@ -15238,7 +15237,7 @@ function getDocAsideMiniDocSpec() {
         "Первая строка — заголовки колонок",
         "Текст с запятой — в кавычках <code>\"…\"</code>",
         "Кавычка внутри поля — <code>\"\"</code>",
-        `Файл: ${formatMiniDocPathHint("Content.csv")}`
+        `Файл: ${formatMiniDocPathHint("content.csv")}`
       ],
       example: "name,role,status\nИван,admin,active\nМария,\"user, guest\",pending"
     };
@@ -15278,7 +15277,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Табличная память",
         items: [
-          `Данные в ${formatMiniDocPathHint("Content.csv")}`,
+          `Данные в ${formatMiniDocPathHint("content.csv")}`,
           "Кнопка «Исходник CSV» — правка текста",
           "Колонки через <code>,</code>, строки через Enter"
         ],
@@ -20908,8 +20907,8 @@ function getLabelFromPath(filePath) {
   const fileName = parts[parts.length - 1] || "";
   if (isAreaManifestFileName(fileName)) {
     const folderName = parts[parts.length - 2] || "";
-    if (folderName.startsWith(SLOT_STORAGE_PREFIX)) {
-      return stripStoragePrefix(folderName) || getAgentTreeTitle();
+    if (folderName.toLowerCase() === STORAGE_ROOT_FOLDER) {
+      return stripTopicPrefix(parts[parts.length - 3] || "") || getAgentTreeTitle();
     }
     return stripTopicPrefix(folderName) || getAgentTreeTitle();
   }
@@ -22626,7 +22625,7 @@ async function loadSystemFiles() {
       { name: "awn-map.json", exists: false, empty: true },
       { name: "docker-compose.yml", exists: false, empty: true },
       { name: "README.md", exists: false, empty: true },
-      { name: "TODO.md", exists: false, empty: true }
+      { name: "todo.md", exists: false, empty: true }
     ]);
   }
   if (currentMenuData) {
@@ -24381,7 +24380,7 @@ function createAgentMap3ContainerLane(containerData) {
   if (containerData.rootHasContent) {
     const warn = document.createElement("p");
     warn.className = "agent-map3-lane-warn";
-    warn.textContent = `В корне ${STORAGE_FOLDER_NAME} есть файлы вне слотов (legacy) — см. вид «Хранилище».`;
+    warn.textContent = `В корне ${STORAGE_FOLDER_NAME} есть файлы вне слотов — см. вид «Хранилище».`;
     lane.appendChild(warn);
   }
 
@@ -25291,7 +25290,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     "<p><strong>Компоненты</strong> — <code>awn-types/components/</code> (типы записей, <code>mixins/</code>). " +
     "Типы полей — <code>awn-types/fields/</code>. Блоки редактора — <code>awn-types/blocks/</code>. " +
     "Мета-схема поля — <code>awn-types/components/field-def.yml</code>. " +
-    "Доп. поля темы — <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>.</p>" +
+    "Доп. поля темы — <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.</p>" +
     "<p><strong>kind:</strong> <code>base</code> / <code>mixin</code> / <code>type</code> — записи; " +
     "<code>field</code> — значения в frontmatter; <code>block</code> — вставки в тело Markdown.</p>";
   containerNode.appendChild(note);
@@ -25615,7 +25614,7 @@ function buildGraphDataFromAgentMenu(menu) {
     nodeIds.add(serviceRootId);
   }
 
-  // Области (_REGINFO.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
+  // Области (_reg-info.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
   for (const entry of workspaceEntries) {
     if (!entry.isFolder || !entry.path) continue;
     if (skipNormalizedPaths.has(normalizeMenuNodePath(entry.path))) continue;
@@ -25971,7 +25970,7 @@ function buildAgentStorageContainerSection(containerData) {
   if (containerData.rootHasContent) {
     const note = document.createElement("p");
     note.className = "agent-storage-root-note";
-    note.innerHTML = `В корне <code>${escapeHtml(containerData.storageRoot)}</code> есть файлы вне слотов — legacy/канон. Рекомендуется перенос в <code>${STORAGE_FOLDER_NAME}/&lt;ключ&gt;/</code>.`;
+    note.innerHTML = `В корне <code>${escapeHtml(containerData.storageRoot)}</code> есть файлы вне слотов. Рекомендуется перенос в <code>${STORAGE_FOLDER_NAME}/&lt;ключ&gt;/</code>.`;
     section.appendChild(note);
   }
 

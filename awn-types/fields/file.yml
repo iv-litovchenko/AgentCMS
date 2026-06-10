@@ -4,5 +4,5 @@ kind: field
 storage: string
 mdbase: file
 widget: file
-description: Ссылка на файл в памяти темы (Content/… или Assets/…)
+description: Ссылка на файл в памяти темы (content/… или assets/…)
 settings: [description, hint, required, locked, default, scope]

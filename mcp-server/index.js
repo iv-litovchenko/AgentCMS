@@ -4,8 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 
-const nodePath = z.string().min(1).describe("Path to _REGINFO.md, e.g. 05 Хобби/MyArea/_REGINFO.md");
-const extFile = z.string().min(1).describe("Relative path inside _Content or _Assets");
+const nodePath = z.string().min(1).describe("Path to _reg-info.md, e.g. 05 Хобби/MyArea/_reg-info.md");
+const extFile = z.string().min(1).describe("Relative path inside content/ or assets/");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -56,24 +56,24 @@ function createServer() {
       client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
   );
 
-  reg("read_node_description", "Read _REGINFO.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_description", "Read _reg-info.md.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file", { path })
   );
 
   reg(
     "write_node_description",
-    "Save _REGINFO.md.",
+    "Save _reg-info.md.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })
   );
 
-  reg("read_node_properties", "Read frontmatter from _REGINFO.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_properties", "Read frontmatter from _reg-info.md.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file/properties", { path })
   );
 
   reg(
     "write_node_properties",
-    "Save frontmatter to _REGINFO.md.",
+    "Save frontmatter to _reg-info.md.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/properties", { path, content })
   );
@@ -105,27 +105,27 @@ function createServer() {
     ({ path, content }) => client.post("/api/memory/internal", { path, content })
   );
 
-  reg("list_external_memory", "List _Content files.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_external_memory", "List content/ files.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/external/files", { path })
   );
 
   reg(
     "read_external_memory",
-    "Read _Content .md.",
+    "Read content/ .md.",
     z.object({ path: nodePath, file: extFile }),
     ({ path, file }) => client.get("/api/external/file", { path, file })
   );
 
   reg(
     "write_external_memory",
-    "Save _Content .md.",
+    "Save content/ .md.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
 
   reg(
     "create_external_memory",
-    "Create memory note in _Content.",
+    "Create memory note in content/.",
     z.object({ path: nodePath, title: z.string().optional() }),
     ({ path, title }) => client.post("/api/external/file/create", { path, title })
   );
@@ -141,13 +141,13 @@ function createServer() {
     ({ path, content }) => client.post("/api/todo", { path, content })
   );
 
-  reg("read_configuration", "Read Configuration.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_configuration", "Read configuration.yml.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/configuration", { path })
   );
 
   reg(
     "write_configuration",
-    "Save Configuration.md.",
+    "Save configuration.yml.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/configuration", { path, content })
   );
@@ -163,12 +163,12 @@ function createServer() {
 
   reg(
     "list_folder",
-    "List _Inbox, _Scripts, etc.",
+    "List inbox/, scripts/, etc.",
     z.object({ path: nodePath, folder: z.string().min(1) }),
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
   );
 
-  reg("list_media", "List _Assets.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_media", "List assets/.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/media", { path })
   );
 

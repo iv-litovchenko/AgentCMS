@@ -58,7 +58,9 @@ const {
   listStorageSubfolderNameCandidates,
   isAllowedStorageSubfolderName,
   isStorageFolderName,
+  getStorageRootDirRel,
   getStorageFolderRegexAlternation,
+  STORAGE_ROOT_FOLDER,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   buildHistoryVersionFileName,
@@ -219,7 +221,7 @@ const SYSTEM_FILE_NAMES = [
   AWN_MAP_FILE,
   "docker-compose.yml",
   "README.md",
-  "TODO.md"
+  "todo.md"
 ];
 
 function isAllowedSystemFileName(name) {
@@ -442,7 +444,7 @@ function normalizeWorkspacePath(inputPath) {
   return absolute;
 }
 
-/** Манифест *.md / _REGINFO.md из прямого пути или bundle (TODO, content, …). */
+/** Манифест *.md / _reg-info.md из прямого пути или bundle (todo, content, …). */
 function resolveNodeManifestRelForScopedApi(relPath) {
   const normalized = String(relPath || "").trim().replace(/\\/g, "/");
   if (!normalized) return null;
@@ -485,7 +487,7 @@ function toTabularFilePath(relNodePath) {
 
 function toNodeConfigFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.config.yml`;
+  if (partBase) return `${partBase}.configuration.yml`;
   return namedStorageBundleRel(relNodePath, BUNDLE_CONFIG_FILE);
 }
 
@@ -1168,7 +1170,7 @@ function extractColorFromPropsYaml(content) {
 }
 
 function toConfigurationFilePath(relNodePath) {
-  return path.join(getNodeStorageRootRel(relNodePath), "Configuration.md").replace(/\\/g, "/");
+  return path.join(getNodeStorageRootRel(relNodePath), BUNDLE_CONFIG_FILE).replace(/\\/g, "/");
 }
 
 function toEnvFilePath(relNodePath) {
@@ -1717,8 +1719,8 @@ async function resolveExistingWorkspaceRelPath(relPath) {
     if (hasServicePrefix) {
       pushCandidate(normalized);
     } else if (normalized !== AREA_MANIFEST_FILE) {
-      // Workspace root _REGINFO.md is not the service-area manifest; only explicit
-      // _awn-agent-system/... paths should resolve under the service folder.
+      // Workspace root _reg-info.md is not the service-area manifest; only explicit
+      // awn-agent-system/... paths should resolve under the service folder.
       pushCandidate(`${serviceFolder}/${normalized}`);
     }
   }
@@ -2358,9 +2360,7 @@ const STORAGE_SLOT_LAYER_FILES = [
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
   ".env",
-  ...PREVIEW_FILE_NAMES,
-  "Configuration.md",
-  "config.yaml"
+  ...PREVIEW_FILE_NAMES
 ];
 
 const STORAGE_SLOT_ROOT_FOLDER_NAMES = new Set(
@@ -2478,8 +2478,8 @@ async function buildAgentStorageLayout() {
   const containers = [];
 
   for (const [containerDir, entries] of byContainer.entries()) {
-    const storageRootRel = containerDir || "";
-    const storageRootAbs = storageRootRel ? normalizeWorkspacePath(storageRootRel) : getAgentRoot();
+    const storageRootRel = getStorageRootDirRel(containerDir);
+    const storageRootAbs = normalizeWorkspacePath(storageRootRel);
     const knownSlotKeys = new Set();
     const slots = [];
 
@@ -2523,10 +2523,8 @@ async function buildAgentStorageLayout() {
       for (const subdir of subdirs) {
         if (!subdir.isDirectory()) continue;
         const name = subdir.name;
-        if (!isStorageFolderName(name)) continue;
-        const slotName = stripTopicPrefix(name);
         if (STORAGE_SLOT_ROOT_FOLDER_NAMES.has(name.toLowerCase())) continue;
-        if (knownSlotKeys.has(slotName.toLowerCase())) continue;
+        if (knownSlotKeys.has(name.toLowerCase())) continue;
         orphanSlots.push(name);
       }
       orphanSlots.sort((a, b) => a.localeCompare(b, "ru"));
@@ -2968,7 +2966,7 @@ async function removeDirectoryIfEmpty(absolutePath) {
   }
 }
 
-async function listLegacyNodePreviewFoldersAbsolute(nodeAbsolute) {
+async function listNodePreviewFoldersAbsolute(nodeAbsolute) {
   const folders = [];
   const agentRoot = getAgentRoot();
   const rel = path.relative(agentRoot, String(nodeAbsolute || "")).replace(/\\/g, "/");
@@ -2981,54 +2979,21 @@ async function listLegacyNodePreviewFoldersAbsolute(nodeAbsolute) {
     if ((await isExistingDirectory(previewSubfolder)) && !folders.includes(previewSubfolder)) {
       folders.push(previewSubfolder);
     }
-
-    const legacyPreview = await resolveFolderPathCaseInsensitive(slotAbsolute, "_Preview");
-    if (
-      legacyPreview &&
-      legacyPreview.startsWith(agentRoot) &&
-      !folders.includes(legacyPreview) &&
-      (await isExistingDirectory(legacyPreview))
-    ) {
-      folders.push(legacyPreview);
-    }
-  }
-
-  const containerDir = getNodeContainerDir(nodeAbsolute);
-  const legacyContainerPreview = await resolveFolderPathCaseInsensitive(containerDir, "_Preview");
-  if (
-    legacyContainerPreview &&
-    legacyContainerPreview.startsWith(agentRoot) &&
-    !folders.includes(legacyContainerPreview) &&
-    (await isExistingDirectory(legacyContainerPreview))
-  ) {
-    folders.push(legacyContainerPreview);
   }
 
   return folders;
 }
 
-async function cleanupLegacyPreviewDirsForNode(nodeAbsolute) {
-  const agentRoot = getAgentRoot();
-  const rel = path.relative(agentRoot, String(nodeAbsolute || "")).replace(/\\/g, "/");
-  const manifestDir = path.dirname(String(nodeAbsolute || ""));
-
-  for (const previewFolderAbsolute of await listLegacyNodePreviewFoldersAbsolute(nodeAbsolute)) {
+async function cleanupNodePreviewDirsForNode(nodeAbsolute) {
+  for (const previewFolderAbsolute of await listNodePreviewFoldersAbsolute(nodeAbsolute)) {
     await clearPreviewImages(previewFolderAbsolute);
     await removeDirectoryIfEmpty(previewFolderAbsolute);
-  }
-
-  if (manifestDir.startsWith(agentRoot)) {
-    const legacyBase = path.basename(manifestRelToXSidecar(rel, ".preview"));
-    for (const ext of NODE_PREVIEW_EXTENSIONS) {
-      await removeIfExists(path.join(manifestDir, `${legacyBase}${ext}`));
-      await removeIfExists(path.join(manifestDir, `preview${ext}`));
-    }
   }
 }
 
 async function clearAllNodePreviewImages(nodeAbsolute) {
   await clearNodePreviewSidecarFiles(nodeAbsolute);
-  await cleanupLegacyPreviewDirsForNode(nodeAbsolute);
+  await cleanupNodePreviewDirsForNode(nodeAbsolute);
 }
 
 async function findPreviewImageAbsolute(previewFolderAbsolute) {
@@ -3196,10 +3161,7 @@ async function getAgentPreviewMeta(agent) {
 
 function stripAssetsPathPrefix(relPath) {
   let rel = String(relPath || "").replace(/\\/g, "/");
-  const prefixes = [
-    `${STORAGE_SUBFOLDER_ASSETS}/`,
-    "_Assets/"
-  ];
+  const prefixes = [`${STORAGE_SUBFOLDER_ASSETS}/`];
   for (const prefix of prefixes) {
     if (rel.startsWith(prefix)) return rel.slice(prefix.length);
     const lower = prefix.toLowerCase();
@@ -3454,7 +3416,7 @@ async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
       items.push({ id, label, color, path: fileRel });
     }
   } catch {
-    // fall back to Content.md table
+    // fall back to content.md table
   }
 
   if (items.length) {
@@ -4629,15 +4591,15 @@ async function classifySearchResult(relPath) {
     }
   }
 
-  if (/\.x\.config\.ya?ml$/i.test(normalized)) {
+  if (/\.x\.configuration\.ya?ml$/i.test(normalized)) {
     return {
-      nodePath: normalized.replace(/\.x\.config\.ya?ml$/i, ".md"),
+      nodePath: normalized.replace(/\.x\.configuration\.ya?ml$/i, ".md"),
       mode: "configs",
       source: "Конфигурации"
     };
   }
 
-  if (base === "Configuration.md" && dirAbsolute) {
+  if (base.toLowerCase() === BUNDLE_CONFIG_FILE.toLowerCase() && dirAbsolute) {
     const nodePath = await findNodePathInDirectory(dirAbsolute);
     if (!nodePath) return null;
     return { nodePath, mode: "configs", source: "Конфигурации" };
@@ -4649,7 +4611,7 @@ async function classifySearchResult(relPath) {
     return { nodePath, mode: "env", source: ".env" };
   }
 
-  if (base === "TODO.md" && dirAbsolute) {
+  if (base.toLowerCase() === BUNDLE_TODO_FILE.toLowerCase() && dirAbsolute) {
     const nodePath = await findNodePathInDirectory(dirAbsolute);
     if (!nodePath) return null;
     return { nodePath, mode: "todo", source: "TODO", canonicalPath: toTodoFilePath(nodePath) };
@@ -5212,7 +5174,7 @@ async function handleApiForAgent(req, res, url) {
     const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
     const serviceFolder = getAgentSystemFolder();
     const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
@@ -5244,7 +5206,7 @@ async function handleApiForAgent(req, res, url) {
       }
       const absolute = normalizeWorkspacePath(resolvedRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const normalized = resolvedRelPath;
       let nextRelPath = normalized;
@@ -5356,7 +5318,7 @@ async function handleApiForAgent(req, res, url) {
       const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
       const absolute = normalizeWorkspacePath(canonicalRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const stampedContent = applyAwnTimestampsToMarkdownContent(content);
       await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, stampedContent);
@@ -5520,7 +5482,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const tabularRelPath = toTabularFilePath(resolvedRelPath);
       const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
@@ -5568,7 +5530,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const memoryRelPath = toContentFilePath(resolvedRelPath);
       const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
@@ -6434,7 +6396,7 @@ async function handleApiForAgent(req, res, url) {
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
     const configRelPath = toConfigurationFilePath(relPath);
-    const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, "Configuration.md");
+    const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, BUNDLE_CONFIG_FILE);
     if (!configAbsolute) return sendJson(res, 400, { error: "Invalid configuration path" });
 
     try {
@@ -6460,7 +6422,7 @@ async function handleApiForAgent(req, res, url) {
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
       const configRelPath = toConfigurationFilePath(relPath);
-      const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, "Configuration.md", {
+      const configAbsolute = await resolveNodeStorageFileAbsolute(nodeAbsolute, BUNDLE_CONFIG_FILE, {
         create: true
       });
       if (!configAbsolute) return sendJson(res, 400, { error: "Invalid configuration path" });
@@ -6524,7 +6486,7 @@ async function handleApiForAgent(req, res, url) {
     if (!manifestRel) {
       return sendJson(res, 400, {
         error: "Invalid file path",
-        details: "Нужен манифест (*.md, _REGINFO.md) или файл TODO (s.*/Todo.md)"
+        details: "Нужен манифест (*.md, _reg-info.md) или файл todo (awn-storage/*/todo.md)"
       });
     }
 
@@ -6548,7 +6510,7 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestRel) {
         return sendJson(res, 400, {
           error: "Invalid file path",
-          details: "Нужен манифест (*.md, _REGINFO.md) или файл TODO (s.*/Todo.md)"
+          details: "Нужен манифест (*.md, _reg-info.md) или файл todo (awn-storage/*/todo.md)"
         });
       }
 
@@ -6666,7 +6628,7 @@ async function handleApiForAgent(req, res, url) {
       const manifestAbsolute = normalizeWorkspacePath(canonicalRelPath);
       if (!manifestAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(manifestAbsolute)) {
-        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
       }
 
       const manifest = await statNodeFileMeta(manifestAbsolute);
@@ -6703,7 +6665,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
     const previewMeta = await getNodePreviewMeta(relPath);
     if (!previewMeta.hasPreview || !previewMeta.previewUrl) {
@@ -6724,7 +6686,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
@@ -6754,13 +6716,13 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const previewExt = resolveNodePreviewExtension(mimeType, fileName);
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as {папка ноды}/awn-storage/Preview.{jpg|png|gif}"
+          details: "Allowed formats: JPG, PNG, GIF → saved as {папка ноды}/awn-storage/*/preview.{jpg|png|gif}"
         });
       }
 
@@ -6779,7 +6741,7 @@ async function handleApiForAgent(req, res, url) {
       if (!targetAbsolute) return sendJson(res, 400, { error: "Invalid preview path" });
       const storedName = path.basename(targetAbsolute);
       await fs.writeFile(targetAbsolute, buffer);
-      await cleanupLegacyPreviewDirsForNode(nodeAbsolute);
+      await cleanupNodePreviewDirsForNode(nodeAbsolute);
 
       return sendJson(res, 200, {
         exists: true,
@@ -6798,7 +6760,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
     try {
       await clearAllNodePreviewImages(nodeAbsolute);
@@ -7051,7 +7013,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const absolute = normalizeWorkspacePath(relPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _REGINFO.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
 
       const normalized = path.normalize(relPath);
       if (isAreaManifestRelPath(normalized)) {
@@ -7553,7 +7515,7 @@ async function handleApi(req, res, url) {
       if (!previewExt) {
         return sendJson(res, 400, {
           error: "Invalid preview format",
-          details: "Allowed formats: JPG, PNG, GIF → saved as awn-storage/Preview.{jpg|png|gif}"
+          details: "Allowed formats: JPG, PNG, GIF → saved as awn-storage/*/preview.{jpg|png|gif}"
         });
       }
 
@@ -7573,7 +7535,7 @@ async function handleApi(req, res, url) {
 
       const rootManifestAbsolute = path.join(absolute, AREA_MANIFEST_FILE);
       if (await fileExists(rootManifestAbsolute)) {
-        await cleanupLegacyPreviewDirsForNode(rootManifestAbsolute);
+        await cleanupNodePreviewDirsForNode(rootManifestAbsolute);
       }
 
       return sendJson(res, 200, {

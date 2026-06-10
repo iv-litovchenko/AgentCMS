@@ -6,7 +6,7 @@ module.exports = {
   notes: [
     "Снимок справки до версионирования (июнь 2026). Для актуального API выберите версию 0.0.1 в select.",
     "JSON-ответы, UTF-8. Контекст агента: ?agent=<id> (кроме /api/agents, /api/docs).",
-    "path — путь к _REGINFO.md. Без: /api/user-docs, workspace-дашборда, reveal, validate-paths."
+    "path — путь к _reg-info.md. Без: /api/user-docs, workspace-дашборда, reveal, validate-paths."
   ],
   groups: [
     {
@@ -35,7 +35,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, _awn-agent-system/).",
+          description: "Создать файлы агента в указанной папке workspace (awn-agent.json, t.{имя}/t.README.md, awn-agent-system/).",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -53,7 +53,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/workspace-preview",
           agentScope: false,
-          description: "Превью агента из awn-storage/Preview.* по пути workspace.",
+          description: "Превью агента из awn-storage/*/preview.* по пути workspace.",
           query: ["path"],
           body: null,
           response: "image/*"
@@ -62,7 +62,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Загрузить аватар агента в workspace/awn-storage/Preview.*.",
+          description: "Загрузить аватар агента в workspace/awn-storage/*/preview.*.",
           query: [],
           body: "{ path, data: base64, fileName?, mimeType? }",
           response: "{ hasPreview, previewUrl }"
@@ -71,7 +71,7 @@ module.exports = {
           method: "DELETE",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Удалить аватар агента из workspace/awn-storage/Preview.*.",
+          description: "Удалить аватар агента из workspace/awn-storage/*/preview.*.",
           query: ["path"],
           body: null,
           response: "{ hasPreview: false, previewUrl: null }"
@@ -80,7 +80,7 @@ module.exports = {
           method: "GET",
           path: "/api/agents/preview",
           agentScope: false,
-          description: "Превью агента из awn-storage/Preview.* (после регистрации).",
+          description: "Превью агента из awn-storage/*/preview.* (после регистрации).",
           query: ["agent"],
           body: null,
           response: "image/*"
@@ -112,7 +112,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/menu",
-          description: "Дерево нод workspace (_REGINFO.md).",
+          description: "Дерево нод workspace (_reg-info.md).",
           query: [],
           body: null,
           response: "{ title, sections?, items?, indexPath?, hasGit?, hasObsidian?, hasGitSelf?, hasObsidianSelf?, ... } — hasGit/hasObsidian true только если .git / .obsidian есть в каталоге этой папки (без наследования)"
@@ -142,7 +142,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/system-files",
-          description: "Мета AGENTS.md, README.md, TODO.md, .env и др.",
+          description: "Мета AGENTS.md, README.md, todo.md, .env и др.",
           query: [],
           body: null,
           response: "{ files: [{ name, exists, empty }] }"
@@ -172,7 +172,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file",
-          description: "Содержимое _REGINFO.md (описание).",
+          description: "Содержимое _reg-info.md (описание).",
           query: ["path"],
           body: null,
           response: "{ path, content }"
@@ -180,7 +180,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/content",
-          description: "Сохранить содержимое _REGINFO.md.",
+          description: "Сохранить содержимое _reg-info.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -196,7 +196,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _REGINFO.md (между ---).",
+          description: "YAML frontmatter из _reg-info.md (между ---).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -204,7 +204,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _REGINFO.md.",
+          description: "Сохранить YAML frontmatter в _reg-info.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -212,7 +212,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/node-config",
-          description: "Конфигурация ноды (*.x.config.yml).",
+          description: "Конфигурация ноды (*.x.configuration.yml).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -220,7 +220,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/node-config",
-          description: "Сохранить *.x.config.yml (пустой content удаляет файл).",
+          description: "Сохранить *.x.configuration.yml (пустой content удаляет файл).",
           query: [],
           body: "{ path, content }",
           response: "{ path, content, exists, defaultLandingMode? }"
@@ -236,7 +236,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/node/create",
-          description: "Создать _REGINFO.md в текущей папке, подпапку-ноду или part в _Parts.",
+          description: "Создать _reg-info.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
           body: "{ parentPath?: \".\", type: \"manifest\"|\"folder\"|\"file\", name }",
           response: "{ createdPath, type }"
@@ -354,7 +354,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/configuration",
-          description: "Configuration.md в awn-storage.",
+          description: "configuration.yml в awn-storage.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -362,7 +362,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/configuration",
-          description: "Сохранить Configuration.md.",
+          description: "Сохранить configuration.yml.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -416,7 +416,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media",
-          description: "Файлы _Assets, группы по типу.",
+          description: "Файлы assets, группы по типу.",
           query: ["path"],
           body: null,
           response: "{ exists, files, content, groups }"
@@ -424,7 +424,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media/file",
-          description: "Скачать бинарный файл из _Assets.",
+          description: "Скачать бинарный файл из assets.",
           query: ["path", "file"],
           body: null,
           response: "Binary (Content-Type по расширению)"
@@ -432,7 +432,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/media/file",
-          description: "Загрузить файл в _Assets (base64).",
+          description: "Загрузить файл в assets (base64).",
           query: [],
           body: "{ path, data, fileName?, mimeType? }",
           response: "{ file, imageUrl }"
@@ -472,7 +472,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/preview",
-          description: "Мета превью темы ({папка}/awn-storage/Preview.*; legacy: awn-storage/{ключ}/, awn-storage/_Preview, sidecar).",
+          description: "Мета превью темы ({папка}/awn-storage/*/preview.*).",
           query: ["path"],
           body: null,
           response: "{ exists, file, imageUrl }"

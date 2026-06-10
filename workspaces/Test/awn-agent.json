@@ -1,5 +1,5 @@
 {
   "id": "test",
   "name": "[AgentCMS] Test",
-  "vaultFolder": "_awn-vault"
+  "vaultFolder": "awn-vault"
 }

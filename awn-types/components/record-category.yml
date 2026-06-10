@@ -2,7 +2,7 @@ id: awn.record.category
 name: Категория записи
 kind: type
 extends: awn.base
-description: Справочная категория для группировки записей в Content (_s.Categories/Content/)
+description: Справочная категория для группировки записей в content (awn-storage/categories/content/)
 fields:
   awn-color:
     type: awn.color

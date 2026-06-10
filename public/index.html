@@ -604,7 +604,7 @@
           <h2 class="agent-canvas-title">Типы YAML</h2>
           <p class="agent-canvas-lead">
             Системные схемы полей frontmatter. Типы записей — в <code>awn-types/components/</code> (read-only).
-            Дополнительные поля темы — в <code>_s.{тема}/Config.yml</code> → <code>awn_schema</code>.
+            Дополнительные поля темы — в <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.
           </p>
         </div>
         <div id="agent-awn-types-content" class="agent-awn-types-content"></div>
@@ -1274,7 +1274,7 @@
                   <div>
                     <h3 class="node-config-title">Конфигурация темы</h3>
                     <p class="node-config-lead">
-                      Параметры для агента сохраняются в <code>Config.yml</code>.
+                      Параметры для агента сохраняются в <code>configuration.yml</code>.
                       Схема полей (<code>awn_schema</code>) и стартовая страница (<code>default_landing_mode</code>) редактируются отдельно.
                     </p>
                   </div>
@@ -1290,7 +1290,7 @@
                   <div>
                     <h3 class="topic-schema-title">Схема полей темы</h3>
                     <p class="topic-schema-lead">
-                      Дополнительные поля сохраняются в <code>Config.yml</code> → <code>awn_schema</code>.
+                      Дополнительные поля сохраняются в <code>configuration.yml</code> → <code>awn_schema</code>.
                       Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
                     </p>
                   </div>
@@ -1323,7 +1323,7 @@
                     <div id="preview-upload-placeholder" class="preview-upload-placeholder">
                       <span class="preview-upload-icon" aria-hidden="true">🖼</span>
                       <p class="preview-upload-title">Загрузите изображение</p>
-                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как <code>awn-storage/…/Preview.*</code> в bundle темы</p>
+                      <p class="preview-upload-hint">JPG, PNG или GIF → сохранится как <code>awn-storage/*/preview.*</code> в слоте темы</p>
                       <button id="preview-paste-btn" type="button" class="preview-action-btn preview-action-paste">Вставить из буфера</button>
                     </div>
                     <img id="preview-image" class="preview-image hidden" alt="Превью" />
@@ -1589,11 +1589,11 @@
           />
           <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
             <input id="create-node-vault-option" type="checkbox" checked />
-            <span id="create-node-vault-option-label">Создать в _awn-vault</span>
+            <span id="create-node-vault-option-label">Создать в awn-vault</span>
           </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
-          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_REGINFO.md)">Подхватить (область)</button>
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_reg-info.md)">Подхватить (область)</button>
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
           <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.md)">Файл (тема)</button>
           </div>
@@ -1681,7 +1681,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>_awn-vault</code>) сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>awn-vault</code>) сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -1712,7 +1712,7 @@
               <span>Некорректный путь</span>
             </li>
           </ul>
-          <p class="agents-registry-vault-footnote">* <code>_awn-vault</code> скрыта в дереве, содержимое показывается у корня.</p>
+          <p class="agents-registry-vault-footnote">* <code>awn-vault</code> скрыта в дереве, содержимое показывается у корня.</p>
         </div>
       </div>
     </div>
@@ -1720,7 +1720,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>_awn-agent-system/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>awn-agent-system/</code>. Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />

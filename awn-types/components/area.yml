@@ -2,7 +2,7 @@ id: awn.area
 name: Область
 kind: type
 extends: awn.base
-description: Область (категория) — папка с _REGINFO.md
+description: Область (категория) — папка с _reg-info.md
 fields:
   awn-color:
     type: awn.color

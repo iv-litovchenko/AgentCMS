@@ -1,22 +1,22 @@
 /**
  * Конвенции манифестов workspace:
- * - Корень workspace: _REGINFO.md (без папки с именем агента)
- * - Область: {Name}/_REGINFO.md
+ * - Корень workspace: _reg-info.md (без папки с именем агента)
+ * - Область: {Name}/_reg-info.md
  * - Тема: {Name}.md
- * - Слот данных: _s.{имя_манифеста_без_.md}/ в той же папке, что и *.md (Content.md, Todo.md, …)
+ * - Слот данных: awn-storage/{имя_манифеста_без_.md}/ рядом с *.md (content.md, todo.md, …)
  */
 const path = require("path");
 
-const STORAGE_PREFIX = "_s.";
-const AREA_MANIFEST_FILE = "_REGINFO.md";
-/** Заголовок служебной области; файл: {agentSystemFolder}/_REGINFO.md */
+const STORAGE_ROOT_FOLDER = "awn-storage";
+const AREA_MANIFEST_FILE = "_reg-info.md";
+/** Заголовок служебной области; файл: {agentSystemFolder}/_reg-info.md */
 const SERVICE_AREA_NAME = "Служебное";
 
-const BUNDLE_CONTENT_FILE = "Content.md";
-const BUNDLE_TABULAR_FILE = "Content.csv";
-const BUNDLE_CONFIG_FILE = "Config.yml";
-const BUNDLE_TODO_FILE = "Todo.md";
-const PREVIEW_FILE_BASENAME = "Preview";
+const BUNDLE_CONTENT_FILE = "content.md";
+const BUNDLE_TABULAR_FILE = "content.csv";
+const BUNDLE_CONFIG_FILE = "configuration.yml";
+const BUNDLE_TODO_FILE = "todo.md";
+const PREVIEW_FILE_BASENAME = "preview";
 const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_BASENAME}${ext}`);
 
@@ -24,20 +24,20 @@ const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const AREA_MANIFEST_CANDIDATES = [AREA_MANIFEST_FILE];
 
 const WORKSPACE_MENU_EXCLUDED_TOPIC_MD = new Set([
-  "_reginfo.md",
+  "_reg-info.md",
   "agents.md",
   "todo.md"
 ]);
 
-const STORAGE_SUBFOLDER_CONTENT = "Content";
-const STORAGE_SUBFOLDER_INBOX = "Inbox";
-const STORAGE_SUBFOLDER_REFERENCES = "Referenses";
-const STORAGE_SUBFOLDER_ASSETS = "Assets";
-const STORAGE_SUBFOLDER_SCRIPTS = "Scripts";
-const STORAGE_SUBFOLDER_ARTEFACTS = "Artefacts";
-const STORAGE_SUBFOLDER_PREVIEW = "Preview";
-const STORAGE_SUBFOLDER_TEMP = "Temp";
-const STORAGE_SUBFOLDER_HISTORY = "History";
+const STORAGE_SUBFOLDER_CONTENT = "content";
+const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_REFERENCES = "references";
+const STORAGE_SUBFOLDER_ASSETS = "assets";
+const STORAGE_SUBFOLDER_SCRIPTS = "scripts";
+const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
+const STORAGE_SUBFOLDER_PREVIEW = "preview";
+const STORAGE_SUBFOLDER_TEMP = "temp";
+const STORAGE_SUBFOLDER_HISTORY = "history";
 const HISTORY_VERSION_SUFFIX = ".mdback";
 const LEGACY_HISTORY_VERSION_SUFFIX = ".md.back";
 
@@ -88,14 +88,23 @@ function toTopicFileName(rawName) {
   return cleaned ? `${cleaned}.md` : null;
 }
 
-function toStorageFolderName(rawName) {
+function toStorageSlotKey(rawName) {
   const cleaned = cleanManifestName(stripTopicPrefix(rawName));
-  return cleaned ? `${STORAGE_PREFIX}${cleaned}` : null;
+  return cleaned || null;
+}
+
+/** @deprecated alias — возвращает ключ слота (без awn-storage/) */
+function toStorageFolderName(rawName) {
+  return toStorageSlotKey(rawName);
 }
 
 function isStorageFolderName(name) {
-  const raw = String(name || "");
-  return raw.startsWith(STORAGE_PREFIX) && raw.length > STORAGE_PREFIX.length;
+  return String(name || "").toLowerCase() === STORAGE_ROOT_FOLDER.toLowerCase();
+}
+
+function getStorageRootDirRel(containerDirRel) {
+  const container = String(containerDirRel || "").replace(/\\/g, "/").replace(/\/$/, "");
+  return container ? `${container}/${STORAGE_ROOT_FOLDER}` : STORAGE_ROOT_FOLDER;
 }
 
 function isExcludedMenuTopicMdFileName(name, options = {}) {
@@ -104,13 +113,13 @@ function isExcludedMenuTopicMdFileName(name, options = {}) {
   if (isAreaManifestFileName(base)) return true;
   if (lower.endsWith(".sidecar.md")) return true;
   if (WORKSPACE_MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
-  // README.md at agent workspace root is hidden; _REGINFO.md is the area manifest.
+  // README.md at agent workspace root is hidden; _reg-info.md is the area manifest.
   if (lower === "readme.md" && options.isAgentRoot) return true;
   return false;
 }
 
 function getStorageFolderRegexAlternation() {
-  return `${escapeRegex(STORAGE_PREFIX)}[^/]+`;
+  return `${escapeRegex(STORAGE_ROOT_FOLDER)}/[^/]+`;
 }
 
 function listBundleFileNameCandidates(bundleFileName) {
@@ -176,37 +185,37 @@ function normalizeManifestRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/");
 }
 
-/** Справочник категорий записей: _s.Categories/Content/{slug}.md или …/Content/Categories/{slug}.md */
+/** Справочник категорий записей: awn-storage/categories/content/{slug}.md или …/content/categories/{slug}.md */
 function isRecordCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   return (
-    /\/_s\.Categories\/Content\/[^/]+\.md$/i.test(normalized) ||
-    /\/Content\/Categories\/[^/]+\.md$/i.test(normalized)
+    /\/awn-storage\/categories\/content\/[^/]+\.md$/i.test(normalized) ||
+    /\/content\/categories\/[^/]+\.md$/i.test(normalized)
   );
 }
 
-/** Описание подкаталога в Content: …/Content/{section}/_REGINFO.md */
+/** Описание подкаталога в content: …/content/{section}/_reg-info.md */
 function isExternalSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
-  return /\/Content\//i.test(normalized);
+  return /\/content\//i.test(normalized);
 }
 
-/** Описание подкаталога в Assets: …/Assets/{section}/_REGINFO.md */
+/** Описание подкаталога в assets: …/assets/{section}/_reg-info.md */
 function isMediaSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
-  return /\/Assets\//i.test(normalized);
+  return /\/assets\//i.test(normalized);
 }
 
-/** Справочник категорий медиа: …/Assets/Categories/{slug}.md или _s.MediaCategories/Content/{slug}.md */
+/** Справочник категорий медиа: …/assets/categories/{slug}.md или awn-storage/{ключ}/content/{slug}.md */
 function isMediaCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   const lower = normalized.toLowerCase();
   if (lower.endsWith(".sidecar.md")) return false;
   return (
-    /\/Assets\/Categories\/[^/]+\.md$/i.test(normalized) ||
-    /\/_s\.MediaCategories\/Content\/[^/]+\.md$/i.test(normalized)
+    /\/assets\/categories\/[^/]+\.md$/i.test(normalized) ||
+    /\/awn-storage\/[^/]+\/content\/[^/]+\.md$/i.test(normalized)
   );
 }
 
@@ -265,10 +274,10 @@ function appendManifestCandidatesForStorageKey(manifestCandidates, containerPref
 function getNamedStorageSlotDirRel(relPath) {
   const containerDir = getManifestContainerDirRel(relPath);
   const slotKey = getManifestNamedSlotKey(relPath);
-  const storageFolder = toStorageFolderName(slotKey);
-  if (!storageFolder) return "";
-  if (!containerDir) return storageFolder;
-  return `${containerDir}/${storageFolder}`;
+  if (!slotKey) return "";
+  const slotDir = `${STORAGE_ROOT_FOLDER}/${slotKey}`;
+  if (!containerDir) return slotDir;
+  return `${containerDir}/${slotDir}`;
 }
 
 function getNamedStorageBundleDirRel(relPath) {
@@ -287,8 +296,8 @@ function normalizeHistoryTargetRelPath(targetRelPath) {
 /**
  * Путь внутри History относительно темы:
  * - манифест темы → Тема.md
- * - файл в _s.* → Content/juijui.md (без _awn-vault и без _s.Тема)
- * - файл рядом с манифестом → TODO.md
+ * - файл в awn-storage/* → content/juijui.md (без awn-vault и без awn-storage/Тема)
+ * - файл рядом с манифестом → todo.md
  */
 function getHistoryRelativeTargetPath(manifestRelPath, targetRelPath) {
   const manifest = normalizeHistoryTargetRelPath(manifestRelPath);
@@ -379,7 +388,7 @@ function formatHistoryVersionTimestampLabel(fileName) {
 function resolveBundleFileMode(fileNameLower) {
   if (fileNameLower === BUNDLE_CONTENT_FILE.toLowerCase()) return "internal";
   if (fileNameLower === BUNDLE_TABULAR_FILE.toLowerCase()) return "tabular";
-  if (fileNameLower === BUNDLE_CONFIG_FILE.toLowerCase() || fileNameLower === "config.yaml") {
+  if (fileNameLower === BUNDLE_CONFIG_FILE.toLowerCase()) {
     return "configs";
   }
   if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
@@ -409,15 +418,13 @@ function buildManifestCandidatesForContainerDir(containerPrefix) {
 }
 
 function stripStoragePrefix(name) {
-  let raw = String(name || "").trim();
-  if (raw.startsWith(STORAGE_PREFIX)) raw = raw.slice(STORAGE_PREFIX.length);
-  return raw.trim();
+  return String(name || "").trim();
 }
 
 function resolveManifestRelFromStorageBundlePath(normalized) {
   const rel = String(normalized || "").replace(/\\/g, "/");
   const match = rel.match(
-    new RegExp(`^(.*)/(${getStorageFolderRegexAlternation()})/([^/]+)$`, "i")
+    new RegExp(`^(.*)/${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/([^/]+)$`, "i")
   );
   if (!match) return null;
   const containerPrefix = match[1] ? match[1].replace(/\/$/, "") : "";
@@ -483,12 +490,11 @@ function stripTopicManifestSuffix(fileName) {
   return stripTopicPrefix(fileName);
 }
 
-/** @deprecated */
-const STORAGE_FOLDER_NAME = "_s";
+const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 /** @deprecated */
 const LEGACY_STORAGE_FOLDER_NAME = "_Storage";
 /** @deprecated */
-const LEGACY_AREA_MANIFEST_FILE = "_REGINFO.md";
+const LEGACY_AREA_MANIFEST_FILE = "_reg-info.md";
 /** @deprecated */
 const LEGACY_AREA_MANIFEST_ALIASES = [];
 /** @deprecated */
@@ -559,7 +565,8 @@ function resolvePartFolderSidecarBaseRel() {
 }
 
 module.exports = {
-  STORAGE_PREFIX,
+  STORAGE_ROOT_FOLDER,
+  STORAGE_PREFIX: STORAGE_ROOT_FOLDER,
   AREA_MANIFEST_FILE,
   SERVICE_AREA_NAME,
   getServiceAreaManifestRel,
@@ -596,7 +603,9 @@ module.exports = {
   stripStoragePrefix,
   toAreaFolderName,
   toTopicFileName,
+  toStorageSlotKey,
   toStorageFolderName,
+  getStorageRootDirRel,
   isStorageFolderName,
   isExcludedMenuTopicMdFileName,
   getStorageFolderRegexAlternation,
