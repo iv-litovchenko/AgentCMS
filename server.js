@@ -43,6 +43,8 @@ const {
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  ROOT_SYSTEM_TODO_FILE,
+  normalizeSystemFileRequestName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
@@ -226,35 +228,56 @@ const SYSTEM_FILE_NAMES = [
   AWN_MAP_FILE,
   "docker-compose.yml",
   "README.md",
-  "todo.md"
+  ROOT_SYSTEM_TODO_FILE
 ];
 
+function canonicalSystemFileName(name) {
+  const normalized = normalizeSystemFileRequestName(name);
+  if (SYSTEM_FILE_NAMES.includes(normalized)) return normalized;
+  if (isAwnDependenciesFileName(normalized)) return normalized;
+  return null;
+}
+
 function isAllowedSystemFileName(name) {
-  const base = String(name || "");
-  if (SYSTEM_FILE_NAMES.includes(base)) return true;
-  return isAwnDependenciesFileName(base);
+  return Boolean(canonicalSystemFileName(name));
 }
 
 function resolveSystemFileAbsolute(name) {
-  if (!isAllowedSystemFileName(name)) return null;
+  const canonical = canonicalSystemFileName(name);
+  if (!canonical) return null;
   const agentRoot = getAgentRoot();
-  const absolute = path.join(agentRoot, name);
+  const absolute = path.join(agentRoot, canonical);
   if (!absolute.startsWith(agentRoot)) return null;
   return absolute;
 }
 
-async function getSystemFileMeta(name) {
-  const absolute = resolveSystemFileAbsolute(name);
-  if (!absolute) return { name, exists: false, empty: true };
+async function resolveExistingSystemFileAbsolute(name) {
+  const canonical = canonicalSystemFileName(name);
+  if (!canonical) return null;
+  const agentRoot = getAgentRoot();
+  const candidates =
+    canonical === ROOT_SYSTEM_TODO_FILE ? [ROOT_SYSTEM_TODO_FILE, "todo.md"] : [canonical];
+  for (const candidate of candidates) {
+    const absolute = path.join(agentRoot, candidate);
+    if (!absolute.startsWith(agentRoot)) continue;
+    if (await fileExists(absolute)) return absolute;
+  }
+  return path.join(agentRoot, canonical);
+}
 
+async function getSystemFileMeta(name) {
+  const canonical = canonicalSystemFileName(name);
+  if (!canonical) return { name: normalizeSystemFileRequestName(name), exists: false, empty: true };
+
+  const absolute = await resolveExistingSystemFileAbsolute(canonical);
   const exists = await fileExists(absolute);
-  if (!exists) return { name, exists: false, empty: true };
+  if (!exists) return { name: canonical, exists: false, empty: true };
 
   try {
     const content = await fs.readFile(absolute, "utf-8");
-    return { name, exists: true, empty: content.trim().length === 0 };
+    return { name: canonical, exists: true, empty: content.trim().length === 0 };
   } catch {
-    return { name, exists: false, empty: true };
+    return { name: canonical, exists: false, empty: true };
   }
 }
 
@@ -2031,6 +2054,13 @@ async function normalizeContainerMenuTree(tree, containerAbsolute) {
   if (!tree || !containerAbsolute) return tree;
   const containerFolder = getAgentContainerFolder();
   const containerManifestRel = containerFolder ? `${containerFolder}/${AREA_MANIFEST_FILE}` : null;
+  return normalizeNestedContainerMenuTree(tree, containerAbsolute, containerFolder || "");
+}
+
+async function normalizeNestedContainerMenuTree(tree, containerAbsolute, containerRelPrefix) {
+  if (!tree || !containerAbsolute) return tree;
+  const prefix = String(containerRelPrefix || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const containerManifestRel = prefix ? `${prefix}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
   tree.indexPath = containerManifestRel;
   tree.color = null;
   tree.tags = [];
@@ -4029,28 +4059,54 @@ async function appendGitRepoContainerRelCandidates(candidates, normalized, seen)
 
 async function resolveGitRepoCreateParentPath(parentPathResolved) {
   const normalized = String(parentPathResolved || ".").replace(/\\/g, "/").trim() || ".";
-  if (isServiceNodePath(normalized) || isAgentContainerNodePath(normalized)) {
+  if (isServiceNodePath(normalized)) {
     return parentPathResolved;
   }
 
   const containerFolder = getAgentContainerFolder();
   if (!containerFolder) return parentPathResolved;
 
-  const agentRoot = getAgentRoot();
-  if (!(await folderHasGitRepo(agentRoot))) return parentPathResolved;
+  const gitRoot = await resolveGitRepoRootForMenuPath(normalized);
+  if (gitRoot) {
+    const gitRootRel = gitRoot.rel === "." ? "" : gitRoot.rel;
+    const nestedContainerRel = gitRootRel
+      ? `${gitRootRel}/${containerFolder}`.replace(/\\/g, "/")
+      : containerFolder;
 
-  const containerAbsolute = path.join(agentRoot, containerFolder);
-  if (!(await dirExists(containerAbsolute))) return parentPathResolved;
+    const nestedAbsolute = path.join(getAgentRoot(), nestedContainerRel);
+    if (await dirExists(nestedAbsolute)) {
+      if (isMenuPathInsideGitRepoContainer(normalized, gitRoot.rel)) {
+        return parentPathResolved;
+      }
 
-  const containerLower = containerFolder.toLowerCase();
-  const normalizedLower = normalized.toLowerCase();
-  if (normalizedLower === containerLower || normalizedLower.startsWith(`${containerLower}/`)) {
+      const gitRootPrefix = gitRootRel || ".";
+      if (normalized === gitRootPrefix || (gitRootPrefix === "." && normalized === ".")) {
+        return nestedContainerRel;
+      }
+
+      if (gitRootRel && normalized.startsWith(`${gitRootRel}/`)) {
+        const tail = normalized.slice(gitRootRel.length + 1);
+        if (tail && tail !== containerFolder && !tail.startsWith(`${containerFolder}/`)) {
+          return `${nestedContainerRel}/${tail}`.replace(/\\/g, "/");
+        }
+      }
+    }
+  }
+
+  if (isAgentContainerNodePath(normalized)) {
     return parentPathResolved;
   }
 
-  if (normalized === ".") return containerFolder;
-
   return parentPathResolved;
+}
+
+function isGitRepoRootLooseMenuFile(name) {
+  const base = String(name || "");
+  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base) || isTopicManifestFileName(base)) {
+    return false;
+  }
+  const ext = path.extname(base).toLowerCase();
+  return ext === ".md" || ext === ".json" || ext === ".yaml" || ext === ".yml";
 }
 
 function isServiceNodePath(relPath) {
@@ -4086,10 +4142,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   const files = [];
   const repoRootFiles = [];
   let indexPath = null;
+  let nestedContainerTree = null;
 
   const selfMarkers = await readFolderWorkspaceMarkers(dirPath);
   const isGitRepoRoot = selfMarkers.hasGitSelf;
-  const isGitRepoRootMenu = isGitRepoRoot && !prefix;
+  const isGitRepoRootMenu = isGitRepoRoot;
 
   for (const entry of entries) {
     if (isHiddenMenuEntry(entry.name)) continue;
@@ -4102,6 +4159,14 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       if (isGitRepoRoot) {
         if (isPartsFolderName(entry.name)) {
           await collectPartNodeItems(fullPath, prefix, files);
+          continue;
+        }
+        if (isContainerFolderName(entry.name) && prefix) {
+          nestedContainerTree = await normalizeNestedContainerMenuTree(
+            await listNodeMdFiles(fullPath, relativePath, depth + 1),
+            fullPath,
+            relativePath
+          );
           continue;
         }
         continue;
@@ -4176,6 +4241,17 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       } else {
         files.push(menuItem);
       }
+      continue;
+    }
+
+    if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootLooseMenuFile(entry.name)) {
+      const nodeRelPath = relativePath.replace(/\\/g, "/");
+      const menuItem = {
+        label: path.basename(entry.name),
+        path: nodeRelPath,
+        ...(await enrichMenuNodeItem(nodeRelPath))
+      };
+      repoRootFiles.push({ ...menuItem, menuScope: "repo-root" });
     }
   }
 
@@ -4213,6 +4289,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     sections: folders,
     items: files,
     repoItems: isGitRepoRootMenu ? repoRootFiles : [],
+    containerTree: nestedContainerTree || null,
     indexPath,
     menuOrder,
     color,
@@ -5059,15 +5136,17 @@ async function handleApiForAgent(req, res, url) {
     const name = url.searchParams.get("name");
     if (!name) return sendJson(res, 400, { error: "Missing name query parameter" });
 
-    const absolute = resolveSystemFileAbsolute(name);
-    if (!absolute) return sendJson(res, 400, { error: "Invalid system file name" });
+    const canonical = canonicalSystemFileName(name);
+    if (!canonical) return sendJson(res, 400, { error: "Invalid system file name" });
+
+    const absolute = await resolveExistingSystemFileAbsolute(canonical);
 
     try {
       const content = await fs.readFile(absolute, "utf-8");
-      return sendJson(res, 200, { name, content, exists: true });
+      return sendJson(res, 200, { name: canonical, content, exists: true });
     } catch (error) {
       if (error && error.code === "ENOENT") {
-        return sendJson(res, 200, { name, content: "", exists: false });
+        return sendJson(res, 200, { name: canonical, content: "", exists: false });
       }
       return sendJson(res, 500, { error: "Failed to read system file", details: String(error.message || error) });
     }
@@ -5081,7 +5160,10 @@ async function handleApiForAgent(req, res, url) {
       if (!name) return sendJson(res, 400, { error: "Missing file name" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const absolute = resolveSystemFileAbsolute(name);
+      const canonical = canonicalSystemFileName(name);
+      if (!canonical) return sendJson(res, 400, { error: "Invalid system file name" });
+
+      const absolute = resolveSystemFileAbsolute(canonical);
       if (!absolute) return sendJson(res, 400, { error: "Invalid system file name" });
 
       const serviceManifestRel = getServiceAreaManifestRel(getAgentKitFolder());
@@ -5092,7 +5174,7 @@ async function handleApiForAgent(req, res, url) {
         await fs.mkdir(path.dirname(absolute), { recursive: true });
         await fs.writeFile(absolute, content, "utf-8");
       }
-      return sendJson(res, 200, { name, content, exists: true });
+      return sendJson(res, 200, { name: canonical, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save system file", details: String(error.message || error) });
     }
@@ -7016,11 +7098,11 @@ async function handleApiForAgent(req, res, url) {
 
       if (type === "kit-root" || type === "container-root") {
         const parentRel = String(payload.parentPath || ".").replace(/\\/g, "/").trim() || ".";
-        if (parentRel !== ".") {
+        const isKit = type === "kit-root";
+        if (isKit && parentRel !== ".") {
           return sendJson(res, 400, { error: "Reserved folders can only be created at workspace root" });
         }
 
-        const isKit = type === "kit-root";
         const folderName = isKit ? getAgentKitFolder() : getAgentContainerFolder();
         const areaName = isKit ? SERVICE_AREA_NAME : CONTAINER_AREA_NAME;
         const areaType = isKit ? "service" : "awn.area";
@@ -7031,7 +7113,22 @@ async function handleApiForAgent(req, res, url) {
           });
         }
 
-        const folderAbsolute = path.join(getAgentRoot(), folderName);
+        let parentAbsolute = getAgentRoot();
+        if (!isKit) {
+          if (parentRel === ".") {
+            parentAbsolute = getAgentRoot();
+          } else {
+            const gitRoot = await resolveGitRepoRootForMenuPath(parentRel);
+            if (!gitRoot || gitRoot.rel !== parentRel) {
+              return sendJson(res, 400, {
+                error: "Container can only be created at workspace or git repo area root"
+              });
+            }
+            parentAbsolute = gitRoot.absolute;
+          }
+        }
+
+        const folderAbsolute = path.join(parentAbsolute, folderName);
         if (await dirExists(folderAbsolute)) {
           return sendJson(res, 409, {
             error: isKit ? "Agent kit folder already exists" : "Container folder already exists"
@@ -7051,7 +7148,10 @@ async function handleApiForAgent(req, res, url) {
           "utf-8"
         );
 
-        const createdRel = `${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+        const createdRel =
+          parentRel === "."
+            ? `${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
+            : `${parentRel}/${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
         await appendMenuSortOrderEntry(folderAbsolute, areaName);
 

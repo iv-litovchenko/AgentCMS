@@ -437,6 +437,7 @@ const BUNDLE_CONTENT_FILE = "content.md";
 const BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-container";
@@ -652,10 +653,8 @@ function buildAppPathFromState() {
     return `/a/${encodeURIComponent(agentId)}`;
   }
 
-  const displayPath = normalizeBreadcrumbPath(
-    getNodeDisplayPath(getResolvedNodePath(activePath))
-  );
-  const segments = displayPath
+  const routePath = normalizeBreadcrumbPath(getNodeRoutePath(getResolvedNodePath(activePath)));
+  const segments = routePath
     .split("/")
     .filter(Boolean)
     .map((segment) => encodeURIComponent(segment));
@@ -3388,7 +3387,7 @@ const NODE_SETTINGS_GROUP = {
   title: "Настройки",
   icon: "⚙️",
   modes: [
-    { id: "description", label: "Назначение (инструкция для агента)" },
+    { id: "description", label: "Инструкция для агента" },
     { id: "configs", label: "Конфигурация" },
     { id: "topic-schema", label: "Схема полей" },
     { id: "env", label: ".env" }
@@ -6100,19 +6099,28 @@ function formatCreateParentLabel(parentPath) {
 
 function resolveCreateTargetParentPath(baseParentPath, agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(baseParentPath || ".");
-  if (isServiceNodePath(normalized) || isAgentContainerNodePath(normalized)) return normalized;
-  if (!shouldRedirectCreatesToContainer(agentId)) return normalized;
+  if (isServiceNodePath(normalized)) return normalized;
 
-  const containerFolder = getActiveAgentContainerFolder(agentId);
-  if (!containerFolder) return normalized;
-
-  const containerLower = containerFolder.toLowerCase();
-  const normalizedLower = normalized.toLowerCase();
-  if (normalizedLower === containerLower || normalizedLower.startsWith(`${containerLower}/`)) {
-    return normalized;
+  const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
+  if (gitRoot) {
+    if (hasContainerForGitRoot(gitRoot, agentId)) {
+      const containerRel = getNestedContainerRelForGitRoot(gitRoot, agentId);
+      if (containerRel && !isMenuPathInsideGitRepoContainer(normalized, gitRoot, agentId)) {
+        if (normalized === gitRoot || (gitRoot === "." && normalized === ".")) {
+          return containerRel;
+        }
+        if (gitRoot !== "." && normalized.startsWith(`${gitRoot}/`)) {
+          const containerFolder = getActiveAgentContainerFolder(agentId);
+          const tail = normalized.slice(gitRoot.length + 1);
+          if (tail && tail !== containerFolder && !tail.startsWith(`${containerFolder}/`)) {
+            return `${containerRel}/${tail}`.replace(/\\/g, "/");
+          }
+        }
+      }
+    }
   }
 
-  if (normalized === ".") return containerFolder;
+  if (isAgentContainerNodePath(normalized)) return normalized;
   return normalized;
 }
 
@@ -6170,6 +6178,51 @@ function isGitRepoMenuFolder(folderPath, agentId = getCreateModalAgentId()) {
   return Boolean(getMenuTreeNodeByFolderPath(folderPath, agentId)?.hasGitSelf);
 }
 
+function getGitRepoRootForMenuPath(folderPath, agentId = getCreateModalAgentId()) {
+  const normalized = normalizeCreateParentPath(folderPath || ".");
+  const parts = normalized === "." ? [] : normalized.split("/").filter(Boolean);
+  for (let len = parts.length; len >= 0; len -= 1) {
+    const prefix = len === 0 ? "." : parts.slice(0, len).join("/");
+    const node = getMenuTreeNodeByFolderPath(prefix, agentId);
+    if (node?.hasGitSelf) return prefix;
+  }
+  return null;
+}
+
+function getNestedContainerRelForGitRoot(gitRootRel, agentId = getCreateModalAgentId()) {
+  const containerFolder = getActiveAgentContainerFolder(agentId);
+  if (!containerFolder) return null;
+  if (!gitRootRel || gitRootRel === ".") return containerFolder;
+  return `${gitRootRel}/${containerFolder}`.replace(/\\/g, "/");
+}
+
+function hasContainerForGitRoot(gitRootRel, agentId = getCreateModalAgentId()) {
+  if (!gitRootRel || gitRootRel === ".") {
+    return isAgentContainerFolderPresent(agentId);
+  }
+  const node = getMenuTreeNodeByFolderPath(gitRootRel, agentId);
+  return Boolean(node?.containerTree);
+}
+
+function isMenuPathInsideGitRepoContainer(relPath, gitRepoRootRel = ".", agentId = getCreateModalAgentId()) {
+  const containerFolder = getActiveAgentContainerFolder(agentId);
+  if (!containerFolder) return false;
+  const normalized = normalizeCreateParentPath(relPath || ".");
+  const gitRoot =
+    gitRepoRootRel === "."
+      ? ""
+      : String(gitRepoRootRel || "")
+          .replace(/\\/g, "/")
+          .replace(/\/$/, "");
+
+  if (!gitRoot) {
+    return normalized === containerFolder || normalized.startsWith(`${containerFolder}/`);
+  }
+  if (normalized === gitRoot) return false;
+  if (normalized === `${gitRoot}/${containerFolder}`) return true;
+  return normalized.startsWith(`${gitRoot}/${containerFolder}/`);
+}
+
 function isAgentKitFolderPresent(agentId = getCreateModalAgentId()) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   return Boolean(menu?.serviceTree);
@@ -6202,8 +6255,13 @@ function shouldRedirectCreatesToContainer(agentId = getCreateModalAgentId()) {
 
 function syncCreateNodeContainerTargetUi() {
   const agentId = getCreateModalAgentId();
+  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
+  const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
   const showTarget =
-    createModalBaseParentPath === "." && isAgentContainerFolderPresent(agentId);
+    gitRoot !== null &&
+    hasContainerForGitRoot(gitRoot, agentId) &&
+    normalized === gitRoot &&
+    !isMenuPathInsideGitRepoContainer(normalized, gitRoot, agentId);
   createNodeContainerTargetWrapNode?.classList.toggle("hidden", !showTarget);
   createNodeContainerTargetWrapNode?.classList.toggle("is-disabled", showTarget);
   if (createNodeContainerTargetNode) {
@@ -6216,7 +6274,12 @@ function syncCreateNodeContainerTargetUi() {
 }
 
 function shouldShowReservedFoldersInCreateModal(agentId = getCreateModalAgentId()) {
-  if (createModalBaseParentPath !== ".") return false;
+  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
+  const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
+  if (gitRoot && normalized === gitRoot && gitRoot !== ".") {
+    return !hasContainerForGitRoot(gitRoot, agentId);
+  }
+  if (normalized !== ".") return false;
   if (isServiceNodePath(createModalBaseParentPath)) return false;
   if (isAgentContainerNodePath(createModalBaseParentPath)) return false;
   return !isAgentKitFolderPresent(agentId) || !isAgentContainerFolderPresent(agentId);
@@ -6224,15 +6287,20 @@ function shouldShowReservedFoldersInCreateModal(agentId = getCreateModalAgentId(
 
 function syncCreateNodeReservedFoldersUi() {
   const agentId = getCreateModalAgentId();
+  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
+  const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
+  const isNestedGitRoot = Boolean(gitRoot && gitRoot !== "." && normalized === gitRoot);
   const showWrap = shouldShowReservedFoldersInCreateModal(agentId);
   const isRoot = createModalBaseParentPath === ".";
 
   createNodeRootWrapNode?.classList.toggle("hidden", !isRoot || !showWrap);
-  createNodeReservedWrapNode?.classList.toggle("hidden", !showWrap);
+  createNodeReservedWrapNode?.classList.toggle("hidden", !showWrap && !isNestedGitRoot);
   createNodeRootDividerNode?.classList.toggle("hidden", !showWrap);
 
-  const showKit = showWrap && !isAgentKitFolderPresent(agentId);
-  const showContainer = showWrap && !isAgentContainerFolderPresent(agentId);
+  const showKit = showWrap && !isAgentKitFolderPresent(agentId) && !isNestedGitRoot;
+  const showContainer =
+    (showWrap && !isAgentContainerFolderPresent(agentId)) ||
+    (isNestedGitRoot && !hasContainerForGitRoot(gitRoot, agentId));
   createNodeKitScaffoldBtn?.classList.toggle("hidden", !showKit);
   createNodeContainerScaffoldBtn?.classList.toggle("hidden", !showContainer);
   if (createNodeKitScaffoldBtn) {
@@ -9722,6 +9790,7 @@ function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
   const cumulativePath = parts.slice(0, segmentIndex + 1).join("/");
   const menuKey = stripAgentContentPrefixFromRelPath(cumulativePath);
   const menuMap = getMenuDisplayLabelMap();
+  const memoryMap = buildMemoryContentLabelMap();
   const isLast = segmentIndex === parts.length - 1;
 
   if (MEMORY_SUBFOLDER_BREADCRUMB_LABELS[segment]) {
@@ -9730,7 +9799,6 @@ function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
 
   const memoryRel = getMemoryContentRelativePath(parts, segmentIndex);
   if (memoryRel) {
-    const memoryMap = buildMemoryContentLabelMap();
     if (memoryMap.has(memoryRel)) return memoryMap.get(memoryRel);
     if (!/\.md$/i.test(memoryRel)) {
       const sectionLabel = getMemorySectionDisplayLabel(memoryRel);
@@ -16037,7 +16105,7 @@ function getDocAsideMiniDocSpec() {
   switch (activeContentMode) {
     case "description":
       return {
-        title: "Назначение (инструкция для агента) · markdown",
+        title: "Инструкция для агента · markdown",
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
@@ -19221,7 +19289,7 @@ function buildNodeSettingsSlotStatuses({
     );
 
   const slots = [
-    { id: "description", label: "Назначение (инструкция для агента)", filled: hasDescription, modeId: "description" },
+    { id: "description", label: "Инструкция для агента", filled: hasDescription, modeId: "description" },
     { id: "configs", label: "Конфигурация", filled: hasConfigs, modeId: "configs" }
   ];
   if (isTopicSchemaModeAvailable(nodePath)) {
@@ -20308,7 +20376,7 @@ function renderNavigationManifestPart(manifestRaw = "") {
     wrap.appendChild(actions);
   }
 
-  return createNavigationMemoryPanel("description", "Назначение (инструкция для агента)", wrap);
+  return createNavigationMemoryPanel("description", "Инструкция для агента", wrap);
 }
 
 function renderNavigationTodoPart(todoData) {
@@ -22300,6 +22368,40 @@ function getNodeDisplayPath(nodePath) {
   return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
 }
 
+function getNodeRoutePath(nodePath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  if (!normalized) return "";
+
+  const filePartMatch = normalized.match(/^(.*)\/_Parts\/([^/]+)\.node\.md$/i);
+  if (filePartMatch) {
+    const parentPath = filePartMatch[1];
+    const partName = filePartMatch[2];
+    return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+  }
+
+  if (isPartNodePath(normalized)) {
+    const withoutManifest = stripNodeManifestFromPath(normalized);
+    const partsMatch = withoutManifest.match(/^(.*)\/_Parts\/([^/]+)$/i);
+    if (partsMatch) {
+      const parentPath = partsMatch[1];
+      const partName = partsMatch[2];
+      return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+    }
+  }
+
+  if (isNodeManifestPath(normalized) || isTopicManifestPath(normalized)) {
+    const folderPath = getFolderPathFromManifest(normalized);
+    if (isTopicManifestPath(normalized)) {
+      const label = getLabelFromPath(normalized);
+      const displayFolder = stripAgentContentPrefixFromRelPath(folderPath || "");
+      return displayFolder ? `${displayFolder}/${label}` : label;
+    }
+    return stripAgentContentPrefixFromRelPath(folderPath || "");
+  }
+
+  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
+}
+
 function normalizeBreadcrumbPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
   if (!normalized) return "";
@@ -22309,18 +22411,40 @@ function normalizeBreadcrumbPath(nodePath) {
   return stripNodeManifestFromPath(normalized);
 }
 
+function collectAllMenuFlatEntries(menu = currentMenuData) {
+  if (!menu) return [];
+  const baseTree = { title: getAgentTreeTitle(), ...menu };
+  const entries = collectFlatMenuEntries(baseTree);
+  if (menu.serviceTree) {
+    entries.push(
+      ...collectFlatMenuEntries({ title: "", ...menu.serviceTree }, [], { includeRepoRoot: false })
+    );
+  }
+  if (menu.containerTree) {
+    entries.push(
+      ...collectFlatMenuEntries({ title: "", ...menu.containerTree }, [], { includeRepoRoot: false })
+    );
+  }
+  return entries;
+}
+
 function resolveMenuEntryByDisplayPath(displayPath) {
   const normalized = stripVaultPrefixFromRelPath(String(displayPath || "").replace(/\\/g, "/").trim());
   if (!normalized || !currentMenuData) return null;
+  const normalizedLower = normalized.toLowerCase();
+
+  for (const entry of collectAllMenuFlatEntries()) {
+    const entryDisplay = stripVaultPrefixFromRelPath(entry.displayPath || "");
+    if (entryDisplay === normalized) return entry;
+    const routePath = getNodeRoutePath(entry.path);
+    if (routePath === normalized || routePath.toLowerCase() === normalizedLower) return entry;
+  }
+
   const baseTree = { title: getAgentTreeTitle(), ...currentMenuData };
-  const entries = collectFlatMenuEntries(baseTree);
-  const exact = entries.find(
-    (entry) => stripVaultPrefixFromRelPath(entry.displayPath || "") === normalized
-  );
-  if (exact) return exact;
   if (baseTree.indexPath) {
     const rootDisplay = stripVaultPrefixFromRelPath(getNodeDisplayPath(baseTree.indexPath));
-    if (rootDisplay === normalized) {
+    const rootRoute = getNodeRoutePath(baseTree.indexPath);
+    if (rootDisplay === normalized || rootRoute === normalized) {
       return {
         path: baseTree.indexPath,
         label: getLabelFromPath(baseTree.indexPath),
@@ -22673,7 +22797,8 @@ function findMenuSectionInAgentMenu(menuRoot, folderPath) {
 }
 
 function menuNodeHasChildren(node) {
-  return getOrderedMenuChildren(node).length > 0 || (node.repoItems?.length > 0);
+  const nestedContainerChildren = node.containerTree ? getOrderedMenuChildren(node.containerTree).length : 0;
+  return getOrderedMenuChildren(node).length > 0 || (node.repoItems?.length > 0) || nestedContainerChildren > 0;
 }
 
 function appendRepoRootMenuItems(container, repoItems, parentMenuNode, agentId = activeAgentId) {
@@ -22729,6 +22854,23 @@ function findMenuSectionByFolderPath(node, folderPath, parentSectionPath = "", d
   }
   if (menuNodeHasChildren(node) && depth > 0 && sectionFolderPath === targetFolder) {
     return node;
+  }
+
+  if (node.containerTree) {
+    const containerFolder = getActiveAgentContainerFolder();
+    if (containerFolder) {
+      const containerPrefix =
+        sectionFolderPath === "."
+          ? containerFolder
+          : `${sectionFolderPath}/${containerFolder}`.replace(/\/+/g, "/");
+      const found = findMenuSectionByFolderPath(
+        { title: "", ...node.containerTree },
+        folderPath,
+        containerPrefix,
+        depth + 1
+      );
+      if (found) return found;
+    }
   }
 
   for (const section of node.sections || []) {
@@ -22891,19 +23033,32 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
   return acc;
 }
 
+function normalizeSystemFileName(name) {
+  const base = String(name || "").trim();
+  if (base.toLowerCase() === "todo.md") return ROOT_SYSTEM_TODO_FILE;
+  return base;
+}
+
+function getSystemFileMenuLabel(name) {
+  return normalizeSystemFileName(name);
+}
+
 function collectSystemFileMenuEntries(files) {
-  return (Array.isArray(files) ? files : []).map((file) => ({
-    path: null,
-    systemFile: file.name,
-    label: file.name,
-    displayPath: file.name,
-    color: "slate",
-    hasPreview: false,
-    previewUrl: null,
-    exists: file.exists,
-    empty: Boolean(file.empty ?? !file.exists),
-    isSystemFile: true
-  }));
+  return (Array.isArray(files) ? files : []).map((file) => {
+    const systemFile = normalizeSystemFileName(file.name);
+    return {
+      path: null,
+      systemFile,
+      label: getSystemFileMenuLabel(systemFile),
+      displayPath: getSystemFileMenuLabel(systemFile),
+      color: "slate",
+      hasPreview: false,
+      previewUrl: null,
+      exists: file.exists,
+      empty: Boolean(file.empty ?? !file.exists),
+      isSystemFile: true
+    };
+  });
 }
 
 function buildSystemFileItemClassName(file) {
@@ -23116,6 +23271,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   if (!collapsed) {
     const body = document.createElement("div");
     body.className = "tree-children menu-service-body";
+    body.dataset.sortFolder = serviceFolder;
     renderServiceTreeBody(treeToRender, body, agentId);
     section.appendChild(body);
   }
@@ -23150,6 +23306,7 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
 
   const body = document.createElement("div");
   body.className = "tree-children";
+  body.dataset.sortFolder = containerFolder;
   renderContainerTreeBody(treeToRender, body, agentId);
   wrap.appendChild(body);
 
@@ -23162,18 +23319,57 @@ function normalizeMenuReservedSectionsOrder(parentEl) {
   if (!parentEl) return;
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
-  const divider = parentEl.querySelector(":scope > .menu-reserved-divider");
-  if (!kit && !container && !divider) return;
+  if (!kit && !container) return;
 
-  const reserved = new Set([kit, container, divider].filter(Boolean));
+  const reserved = new Set([kit, container].filter(Boolean));
   let insertRef = parentEl.firstChild;
   while (insertRef && reserved.has(insertRef)) {
     insertRef = insertRef.nextSibling;
   }
 
-  [kit, container, divider].filter(Boolean).forEach((node) => {
+  [kit, container].filter(Boolean).forEach((node) => {
     parentEl.insertBefore(node, insertRef);
   });
+
+  syncMenuWorkspaceTreeDivider(parentEl);
+}
+
+function clearMenuWorkspaceTreeDivider(parentEl) {
+  parentEl?.querySelectorAll(".menu-tree-divider--workspace").forEach((node) => node.remove());
+}
+
+function clearMenuSystemFilesDivider(parentEl) {
+  parentEl?.querySelectorAll(".menu-tree-divider--system-files").forEach((node) => node.remove());
+}
+
+function createMenuTreeDivider(kind) {
+  const divider = document.createElement("div");
+  divider.className = `menu-tree-divider menu-tree-divider--${kind}`;
+  divider.setAttribute("role", "separator");
+  return divider;
+}
+
+function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
+  clearMenuWorkspaceTreeDivider(parentEl);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!hasVisibleContainerSection(menu, agentId)) return;
+  const containerSection = parentEl?.querySelector(":scope > .menu-container-section");
+  if (!containerSection) return;
+  containerSection.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
+}
+
+function syncMenuSystemFilesDivider(parentEl, hasSystemFiles) {
+  clearMenuSystemFilesDivider(parentEl);
+  if (!parentEl || !hasSystemFiles) return;
+  const anchor =
+    parentEl.querySelector(":scope > .menu-item-row.system-file-row") ||
+    parentEl.querySelector(":scope > .menu-tree-divider--system-files");
+  const divider = createMenuTreeDivider("system-files");
+  if (anchor) {
+    parentEl.insertBefore(divider, anchor);
+  } else {
+    parentEl.appendChild(divider);
+  }
 }
 
 function insertMenuReservedNode(parentEl, node, slot = "kit") {
@@ -23203,14 +23399,9 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
 }
 
 function clearMenuReservedDivider(parentEl) {
+  clearMenuWorkspaceTreeDivider(parentEl);
+  clearMenuSystemFilesDivider(parentEl);
   parentEl?.querySelectorAll(".menu-reserved-divider").forEach((node) => node.remove());
-}
-
-function renderMenuReservedDivider(parentEl) {
-  const divider = document.createElement("div");
-  divider.className = "menu-reserved-divider";
-  divider.setAttribute("role", "separator");
-  insertMenuReservedNode(parentEl, divider, "divider");
 }
 
 function hasVisibleContainerSection(menu, agentId = activeAgentId) {
@@ -23363,8 +23554,8 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
   }
 
   if (systemFile) {
-    card.dataset.systemFile = entry.label;
-    openBtn.addEventListener("click", () => selectSystemFile(entry.label));
+    card.dataset.systemFile = entry.systemFile || entry.label;
+    openBtn.addEventListener("click", () => selectSystemFile(entry.systemFile || entry.label));
   } else {
     openBtn.dataset.path = entry.path;
     openBtn.addEventListener("click", () => openNodeFromMenu(getLabelFromPath(entry.path), entry.path));
@@ -23576,10 +23767,18 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     return;
   }
   const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
-  const repoRootItems = depth === 0 ? (node.repoItems || []) : [];
+  const repoRootItems = node.hasGitSelf ? node.repoItems || [] : depth === 0 ? node.repoItems || [] : [];
+  const nestedContainerTree = node.containerTree || null;
+  const nestedContainerPrefix = nestedContainerTree
+    ? `${sectionFolderPath}/${getActiveAgentContainerFolder(agentId)}`.replace(/\/+/g, "/")
+    : "";
+  const nestedContainerChildren = nestedContainerTree
+    ? getVisibleMenuChildren({ title: "", ...nestedContainerTree }, agentId, nestedContainerPrefix, depth + 1)
+    : [];
 
   if (node.title) {
-    const hasContent = visibleChildren.length > 0 || repoRootItems.length > 0;
+    const hasContent =
+      visibleChildren.length > 0 || repoRootItems.length > 0 || nestedContainerChildren.length > 0;
     const isCollapsedEffective = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
     if (node.indexPath) {
@@ -23630,7 +23829,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       addBtn.textContent = "+";
       addBtn.title = isAgentRootTreeNode(depth, sectionFolderPath)
         ? getWorkspaceRootAddButtonTitle(agentId)
-        : "Создать";
+        : node.hasGitSelf && !nestedContainerTree
+          ? `Создать. ${getContainerRootHint(agentId)}`
+          : node.hasGitSelf
+            ? "Создать область или тему в контейнере"
+            : "Создать";
       addBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         openCreateNodeModal(sectionFolderPath || ".", { agentId });
@@ -23723,39 +23926,69 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
   const isCollapsed = searchActive ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
-  if (!isCollapsed && (visibleChildren.length > 0 || repoRootItems.length > 0)) {
+  if (!isCollapsed && (visibleChildren.length > 0 || repoRootItems.length > 0 || nestedContainerChildren.length > 0)) {
     const childrenNode = document.createElement("div");
     childrenNode.className = "tree-children";
-    childrenNode.dataset.sortFolder = sectionFolderPath || ".";
 
-    for (const child of visibleChildren) {
-      if (child.kind === "folder") {
-        renderTree(child.entry, childrenNode, depth + 1, sectionFolderPath, node, agentId);
-      } else {
-        const item = child.entry;
-        const itemRow = document.createElement("div");
-        itemRow.className = "menu-item-row";
-        itemRow.dataset.sortName = item.label;
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "menu-item";
-        const itemPath = normalizeMenuNodePath(item.path);
-        btn.dataset.path = itemPath;
-        applyNodeColorVars(btn, item.color);
-        setMenuTreeItemLabel(btn, item, node, agentId);
-        btn.addEventListener("click", (event) => {
-          const pathFromNode = event.currentTarget?.dataset?.path || "";
-          openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
-        });
-
-        itemRow.appendChild(btn);
-        if (isNodeSettingsTargetPath(itemPath)) {
-          itemRow.appendChild(createNodeSettingsButton(itemPath));
-        }
-        itemRow.appendChild(createBookmarkButton(itemPath));
-        childrenNode.appendChild(itemRow);
+    if (nestedContainerChildren.length > 0) {
+      const nestedSortNode = document.createElement("div");
+      nestedSortNode.className = "tree-children menu-nested-container-body";
+      nestedSortNode.dataset.sortFolder = nestedContainerPrefix;
+      for (const child of nestedContainerChildren) {
+        renderMenuTreeChildInto(child, nestedSortNode, depth + 1, nestedContainerPrefix, node, agentId);
       }
+      childrenNode.appendChild(nestedSortNode);
+    }
+
+    const visibleSortTarget =
+      visibleChildren.length > 0
+        ? (() => {
+            if (nestedContainerChildren.length > 0) {
+              const nodeEl = document.createElement("div");
+              nodeEl.className = "tree-children";
+              nodeEl.dataset.sortFolder = sectionFolderPath || ".";
+              childrenNode.appendChild(nodeEl);
+              return nodeEl;
+            }
+            childrenNode.dataset.sortFolder = sectionFolderPath || ".";
+            return childrenNode;
+          })()
+        : null;
+
+    if (visibleSortTarget) {
+      for (const child of visibleChildren) {
+        if (child.kind === "folder") {
+          renderTree(child.entry, visibleSortTarget, depth + 1, sectionFolderPath, node, agentId);
+        } else {
+          const item = child.entry;
+          const itemRow = document.createElement("div");
+          itemRow.className = "menu-item-row";
+          itemRow.dataset.sortName = item.label;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "menu-item";
+          const itemPath = normalizeMenuNodePath(item.path);
+          btn.dataset.path = itemPath;
+          applyNodeColorVars(btn, item.color);
+          setMenuTreeItemLabel(btn, item, node, agentId);
+          btn.addEventListener("click", (event) => {
+            const pathFromNode = event.currentTarget?.dataset?.path || "";
+            openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
+          });
+
+          itemRow.appendChild(btn);
+          if (isNodeSettingsTargetPath(itemPath)) {
+            itemRow.appendChild(createNodeSettingsButton(itemPath));
+          }
+          itemRow.appendChild(createBookmarkButton(itemPath));
+          visibleSortTarget.appendChild(itemRow);
+        }
+      }
+    }
+
+    if (nestedContainerTree && repoRootItems.length > 0) {
+      childrenNode.appendChild(createMenuTreeDivider("workspace"));
     }
 
     if (repoRootItems.length > 0) {
@@ -24137,12 +24370,15 @@ function renderSystemFiles(files) {
   if (!container) return;
 
   container.querySelectorAll(".system-file-row").forEach((node) => node.remove());
+  clearMenuSystemFilesDivider(container);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const visibleFiles = filterMenuEntriesByQuery(
     collectSystemFileMenuEntries(sortSystemFilesByName(files)),
     queryLower
   );
+
+  syncMenuSystemFilesDivider(container, visibleFiles.length > 0);
 
   for (const file of visibleFiles) {
     const row = document.createElement("div");
@@ -24165,7 +24401,12 @@ async function loadSystemFiles() {
     const response = await fetch(buildApiUrl("/api/system-files"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    systemFilesCache = sortSystemFilesByName(Array.isArray(data.files) ? data.files : []);
+    systemFilesCache = sortSystemFilesByName(
+      (Array.isArray(data.files) ? data.files : []).map((file) => ({
+        ...file,
+        name: normalizeSystemFileName(file.name)
+      }))
+    );
   } catch {
     systemFilesCache = sortSystemFilesByName([
       { name: ".env", exists: false, empty: true },
@@ -24176,7 +24417,7 @@ async function loadSystemFiles() {
       { name: "awn-map.json", exists: false, empty: true },
       { name: "docker-compose.yml", exists: false, empty: true },
       { name: "README.md", exists: false, empty: true },
-      { name: "todo.md", exists: false, empty: true }
+      { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true }
     ]);
   }
   if (currentMenuData) {
@@ -24197,7 +24438,7 @@ function updateActiveButton() {
     item.classList.toggle("active", isActive);
   }
   for (const item of root.querySelectorAll(".system-file-item")) {
-    const name = item.dataset.systemFile || "";
+    const name = normalizeSystemFileName(item.dataset.systemFile || "");
     item.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
   }
   for (const card of (appRootNode || document).querySelectorAll(".menu-card-body[data-path]")) {
@@ -24207,17 +24448,18 @@ function updateActiveButton() {
     card.closest(".menu-card")?.classList.toggle("active", isActive);
   }
   for (const card of (appRootNode || document).querySelectorAll(".menu-card[data-system-file]")) {
-    const name = card.dataset.systemFile || "";
+    const name = normalizeSystemFileName(card.dataset.systemFile || "");
     card.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
   }
   syncMenuPinBranchUi();
 }
 
 async function selectSystemFile(name, options = {}) {
-  if (!name) return;
+  const normalizedName = normalizeSystemFileName(name);
+  if (!normalizedName) return;
   hideHomeView();
   nodeOverviewRenderSeq += 1;
-  activeSystemFile = name;
+  activeSystemFile = normalizedName;
   activePath = null;
   activeLabel = null;
   activeExternalFilePath = null;
@@ -24228,7 +24470,7 @@ async function selectSystemFile(name, options = {}) {
   setLoading("Загрузка файла...");
 
   try {
-    const response = await fetch(buildApiUrl("/api/system-file", { name }));
+    const response = await fetch(buildApiUrl("/api/system-file", { name: normalizedName }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     fileContentInputNode.value = data.content || "";
@@ -28475,6 +28717,22 @@ function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".",
   if (current === target) {
     return { node, depth, parentSectionPath, sectionFolderPath: current };
   }
+
+  if (node.containerTree) {
+    const containerFolder = getActiveAgentContainerFolder();
+    if (containerFolder) {
+      const containerPrefix =
+        current === "." ? containerFolder : `${current}/${containerFolder}`.replace(/\/+/g, "/");
+      const containerHit = findMenuTreeNodeByFolderPath(
+        { title: "", ...node.containerTree },
+        folderPath,
+        containerPrefix,
+        depth + 1
+      );
+      if (containerHit) return containerHit;
+    }
+  }
+
   for (const child of node.sections || []) {
     const hit = findMenuTreeNodeByFolderPath(child, folderPath, current, depth + 1);
     if (hit) return hit;
@@ -28720,13 +28978,19 @@ function menuSortChildrenEqual(a, b) {
 function getMenuTreeSortableChildren(container) {
   return Array.from(container?.children || []).filter((el) => {
     if (el.classList.contains("menu-service-section")) return false;
+    if (el.classList.contains("menu-container-section")) return false;
+    if (el.classList.contains("menu-tree-divider")) return false;
     if (el.classList.contains("system-file-row")) return false;
     return el.classList.contains("menu-section") || el.classList.contains("menu-item-row");
   });
 }
 
 function getMenuTreeInsertAnchor(container) {
-  return container?.querySelector(":scope > .menu-item-row.system-file-row") || null;
+  return (
+    container?.querySelector(":scope > .menu-item-row.system-file-row") ||
+    container?.querySelector(":scope > .menu-tree-divider--system-files") ||
+    null
+  );
 }
 
 function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
@@ -29101,6 +29365,7 @@ async function refreshMenuAndSelect() {
 
 async function createReservedRootFolder(type, options = {}) {
   const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const parentPath = options.parentPath || ".";
   const isKit = type === "kit-root";
   const label = isKit ? SERVICE_SECTION_LABEL : CONTAINER_SECTION_LABEL;
   const folderName = isKit ? AGENT_KIT_FOLDER_DEFAULT : CONTAINER_FOLDER_DEFAULT;
@@ -29108,7 +29373,7 @@ async function createReservedRootFolder(type, options = {}) {
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ parentPath: ".", type })
+      body: JSON.stringify({ parentPath, type })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -30267,7 +30532,10 @@ createNodeKitScaffoldBtn?.addEventListener("click", () => {
   void createKitRoot({ agentId: getCreateModalAgentId() });
 });
 createNodeContainerScaffoldBtn?.addEventListener("click", () => {
-  void createContainerRoot({ agentId: getCreateModalAgentId() });
+  void createContainerRoot({
+    agentId: getCreateModalAgentId(),
+    parentPath: createModalBaseParentPath || "."
+  });
 });
 createNodeCancelBtn?.addEventListener("click", closeCreateNodeModal);
 nodeSettingsModeSelectNode?.addEventListener("change", () => {

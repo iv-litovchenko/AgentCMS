@@ -16,6 +16,8 @@ const BUNDLE_CONTENT_FILE = "content.md";
 const BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+/** Корневой системный TODO workspace (не путать с todo.md в awn-storage) */
+const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const PREVIEW_FILE_BASENAME = "preview";
 const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_BASENAME}${ext}`);
@@ -128,6 +130,16 @@ function isStorageFolderName(name) {
 function getStorageRootDirRel(containerDirRel) {
   const container = String(containerDirRel || "").replace(/\\/g, "/").replace(/\/$/, "");
   return container ? `${container}/${STORAGE_ROOT_FOLDER}` : STORAGE_ROOT_FOLDER;
+}
+
+function normalizeSystemFileRequestName(name) {
+  const base = String(name || "").trim();
+  if (base.toLowerCase() === "todo.md") return ROOT_SYSTEM_TODO_FILE;
+  return base;
+}
+
+function isRootSystemTodoFileName(name) {
+  return String(name || "").trim().toLowerCase() === "todo.md";
 }
 
 function isExcludedMenuTopicMdFileName(name, options = {}) {
@@ -599,6 +611,9 @@ module.exports = {
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  ROOT_SYSTEM_TODO_FILE,
+  normalizeSystemFileRequestName,
+  isRootSystemTodoFileName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,

@@ -8176,6 +8176,24 @@ body.app-locked {
   margin-bottom: 4px;
 }
 
+.menu-tree-divider {
+  height: 1px;
+  margin: 8px 0 10px;
+  background: #e5e7eb;
+  border: 0;
+  flex-shrink: 0;
+}
+
+.menu-tree-divider--workspace {
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+.menu-tree-divider--system-files {
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
 .menu-section {
   margin-bottom: 6px;
 }
