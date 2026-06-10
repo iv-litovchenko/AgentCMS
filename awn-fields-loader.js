@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const { listYamlFilesSync, loadYamlFileSync } = require("./awn-yaml-utils");
 
-const FIELDS_ORDER_FILE = "order.yml";
 const FIELD_DEF_FILE = "field-def.yml";
 const LEGACY_FIELDS_DIR = "awn-fields";
 const TYPES_FIELDS_DIR = path.join("awn-types", "fields");
@@ -66,20 +65,6 @@ function resolveFieldTypeId(typeId) {
   return `awn.${raw}`;
 }
 
-const FALLBACK_BASE_FIELD_ORDER = [
-  "awn-preview",
-  "awn-category",
-  "awn-status",
-  "awn-type",
-  "awn-name",
-  "awn-create",
-  "awn-update",
-  "awn-description",
-  "awn-tags",
-  "awn-version",
-  "awn-sort"
-];
-
 function resolveFieldsContext(agentRoot = "", projectRoot = process.cwd()) {
   return {
     projectRoot: projectRoot || process.cwd(),
@@ -142,29 +127,12 @@ function loadFieldTypesFromDirectory(fieldsDir) {
   if (!fs.existsSync(fieldsDir)) return registry;
 
   for (const filePath of listYamlFilesSync(fieldsDir)) {
-    const fileName = path.basename(filePath);
-    if (fileName === FIELDS_ORDER_FILE) continue;
-
     const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
     const field = normalizeFieldTypeDef(parsed);
     if (field) registry[field.id] = field;
   }
 
   return registry;
-}
-
-function loadBaseFieldOrderFromDirectory(fieldsDir) {
-  const orderPath = path.join(fieldsDir, FIELDS_ORDER_FILE);
-  if (!fs.existsSync(orderPath)) {
-    const legacyOrder = path.join(fieldsDir, "base-order.yml");
-    if (!fs.existsSync(legacyOrder)) return null;
-    const parsed = loadYamlFileSync(legacyOrder, { idKey: "name", nameKey: "name" });
-    return Array.isArray(parsed.order)
-      ? parsed.order.map((item) => String(item).trim()).filter(Boolean)
-      : null;
-  }
-  const parsed = loadYamlFileSync(orderPath, { idKey: "name", nameKey: "name" });
-  return Array.isArray(parsed.order) ? parsed.order.map((item) => String(item).trim()).filter(Boolean) : null;
 }
 
 function loadFieldDefSchema(projectRoot = process.cwd()) {
@@ -194,19 +162,11 @@ function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
     }
   }
 
-  let baseFieldOrder = loadBaseFieldOrderFromDirectory(systemDir);
-  if (agentDir && fs.existsSync(agentDir)) {
-    const agentOrder = loadBaseFieldOrderFromDirectory(agentDir);
-    if (agentOrder?.length) baseFieldOrder = agentOrder;
-  }
-  if (!baseFieldOrder?.length) baseFieldOrder = [...FALLBACK_BASE_FIELD_ORDER];
-
   const fieldDefSchema = loadFieldDefSchema(root);
 
   if (!Object.keys(registry).length) {
     return {
       fieldRegistry: { ...FALLBACK_FIELD_TYPES },
-      baseFieldOrder,
       fieldDefSchema
     };
   }
@@ -215,15 +175,11 @@ function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
     registry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
   }
 
-  return { fieldRegistry: registry, baseFieldOrder, fieldDefSchema };
+  return { fieldRegistry: registry, fieldDefSchema };
 }
 
 function getFieldRegistry(agentRoot = "", projectRoot = process.cwd()) {
   return loadAgentFields(agentRoot, projectRoot).fieldRegistry;
-}
-
-function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
-  return loadAgentFields(agentRoot, projectRoot).baseFieldOrder;
 }
 
 function getFieldDefSchema(projectRoot = process.cwd()) {
@@ -233,11 +189,9 @@ function getFieldDefSchema(projectRoot = process.cwd()) {
 module.exports = {
   loadAgentFields,
   getFieldRegistry,
-  getBaseFieldOrder,
   getFieldDefSchema,
   loadFieldDefSchema,
   resolveFieldTypeId,
   resolveFieldStorage,
-  FALLBACK_FIELD_TYPES,
-  FALLBACK_BASE_FIELD_ORDER
+  FALLBACK_FIELD_TYPES
 };

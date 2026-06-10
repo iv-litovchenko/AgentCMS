@@ -1367,6 +1367,27 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
   return chunks;
 }
 
+async function collectExternalContentFolders(folderAbsolute, prefix = "") {
+  const folders = [];
+  let entries = [];
+  try {
+    entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+  } catch {
+    return folders;
+  }
+
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    if (!entry.isDirectory()) continue;
+    const absolute = path.join(folderAbsolute, entry.name);
+    const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
+    folders.push({ path: relative, name: entry.name });
+    folders.push(...(await collectExternalContentFolders(absolute, relative)));
+  }
+
+  return folders;
+}
+
 async function collectMarkdownFiles(folderAbsolute, prefix = "") {
   const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
   const files = [];
@@ -1390,6 +1411,37 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
         parent: path.dirname(relative).replace(/\\/g, "/"),
         createdAt: stat.birthtime ? stat.birthtime.toISOString() : null,
         updatedAt: stat.mtime ? stat.mtime.toISOString() : null
+      });
+    }
+  }
+
+  files.sort((a, b) => a.relativePath.localeCompare(b.relativePath, "ru", { sensitivity: "base", numeric: true }));
+  return files;
+}
+
+async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
+  let entries = [];
+  try {
+    entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const files = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const absolute = path.join(folderAbsolute, entry.name);
+    const relative = path.join(prefix, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...(await collectNonMarkdownFiles(absolute, relative)));
+      continue;
+    }
+
+    if (entry.isFile() && !entry.name.toLowerCase().endsWith(".md")) {
+      files.push({
+        name: entry.name,
+        relativePath: relative.replace(/\\/g, "/")
       });
     }
   }
@@ -1529,9 +1581,18 @@ async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = 
 
     const ext = path.extname(entry.name).toLowerCase();
     let size = 0;
+    let displayName = "";
     try {
       const stat = await fs.stat(absolute);
       size = stat.size;
+      if (isAreaManifestFileName(entry.name)) {
+        const raw = await fs.readFile(absolute, "utf-8");
+        const { frontmatter } = splitNodeFrontmatter(raw);
+        const folderSlug =
+          path.posix.basename(path.posix.dirname(relPath)) ||
+          path.posix.basename(relPath).replace(/\.md$/i, "");
+        displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
+      }
     } catch {
       // keep size 0
     }
@@ -1539,6 +1600,7 @@ async function collectMediaFilesStructured(folderAbsolute, prefix = "", items = 
     items.push({
       path: relPath,
       name: entry.name,
+      displayName,
       group: classifyMediaGroup(ext),
       isFolder: false,
       size,
@@ -1628,12 +1690,87 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.record.category"
   return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
-async function writeStorageSectionReadme(sectionAbsolute, title, awnType = "awn.record.category") {
+function resolveAwnSchemaTargetForSectionType(awnType) {
+  if (awnType === "awn.media.category") return "media_category";
+  if (awnType === "awn.record.category") return "record_category";
+  return null;
+}
+
+async function buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType) {
+  const safeTitle = String(title || "Раздел").trim() || "Раздел";
+  if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null);
+
+  const schemaTarget = resolveAwnSchemaTargetForSectionType(awnType);
+  if (schemaTarget) {
+    try {
+      const configFile = await readNodeConfigFile(manifestRel);
+      const payload = getTopicSchemaPayload(
+        configFile.content || "",
+        getAgentRoot(),
+        getProjectRoot()
+      );
+      const mergedType = payload.merged[schemaTarget];
+      if (mergedType?.fields && Object.keys(mergedType.fields).length) {
+        const frontmatter = buildDefaultFrontmatter(awnType, {
+          name: safeTitle,
+          agentRoot: getAgentRoot(),
+          projectRoot: getProjectRoot(),
+          typeDef: mergedType
+        });
+        return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
+      }
+    } catch {
+      // fallback to minimal readme below
+    }
+  }
+
+  return buildStorageSectionReadmeContent(safeTitle, awnType);
+}
+
+async function buildExternalRecordFileContentForManifest(manifestRel, title) {
+  const safeTitle = String(title || "Воспоминание").trim() || "Воспоминание";
+  try {
+    const configFile = await readNodeConfigFile(manifestRel);
+    const payload = getTopicSchemaPayload(
+      configFile.content || "",
+      getAgentRoot(),
+      getProjectRoot()
+    );
+    const mergedType = payload.merged.record;
+    if (mergedType?.fields && Object.keys(mergedType.fields).length) {
+      const frontmatter = buildDefaultFrontmatter("awn.record", {
+        name: safeTitle,
+        agentRoot: getAgentRoot(),
+        projectRoot: getProjectRoot(),
+        typeDef: mergedType
+      });
+      return `---\n${frontmatter}\n---\n\n# ${safeTitle}\n`;
+    }
+  } catch {
+    // fallback below
+  }
+  const frontmatter = buildDefaultFrontmatter("awn.record", {
+    name: safeTitle,
+    agentRoot: getAgentRoot(),
+    projectRoot: getProjectRoot()
+  });
+  return `---\n${frontmatter}\n---\n\n# ${safeTitle}\n`;
+}
+
+async function writeStorageSectionReadme(
+  sectionAbsolute,
+  title,
+  awnType = "awn.record.category",
+  manifestRel = null
+) {
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
   try {
     await fs.access(readmeAbsolute);
   } catch {
-    await fs.writeFile(readmeAbsolute, buildStorageSectionReadmeContent(title, awnType), "utf-8");
+    const content = manifestRel
+      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType)
+      : buildStorageSectionReadmeContent(title, awnType);
+    await fs.writeFile(readmeAbsolute, content, "utf-8");
   }
 }
 
@@ -5841,11 +5978,15 @@ async function handleApiForAgent(req, res, url) {
     try {
       const stat = await fs.stat(folderAbsolute);
       if (!stat.isDirectory()) return sendJson(res, 200, { exists: false, files: [] });
-      const files = await collectMarkdownFiles(folderAbsolute);
+      const [files, folders, nonMarkdownFiles] = await Promise.all([
+        collectMarkdownFiles(folderAbsolute),
+        collectExternalContentFolders(folderAbsolute),
+        collectNonMarkdownFiles(folderAbsolute)
+      ]);
       const enrichedFiles = await Promise.all(
         files.map((file) => enrichExternalMarkdownFilePreview(relPath, folderAbsolute, file))
       );
-      return sendJson(res, 200, { exists: true, files: enrichedFiles });
+      return sendJson(res, 200, { exists: true, files: enrichedFiles, folders, nonMarkdownFiles });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [] });
       return sendJson(res, 500, { error: "Failed to read external files", details: String(error.message || error) });
@@ -5944,8 +6085,7 @@ async function handleApiForAgent(req, res, url) {
       if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
 
       const fileAbsolute = path.join(targetFolder, fileName);
-      const quotedDisplay = formatYamlScalarForFrontmatter(title);
-      const content = `---\nawn-name: ${quotedDisplay}\ntags: []\n---\n\n# ${title}\n`;
+      const content = await buildExternalRecordFileContentForManifest(relPath, title);
       await fs.writeFile(fileAbsolute, content, "utf-8");
 
       return sendJson(res, 200, {
@@ -5996,7 +6136,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.record.category");
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.record.category", relPath);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -6047,7 +6187,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.media.category");
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.media.category", relPath);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -6856,24 +6996,19 @@ async function handleApiForAgent(req, res, url) {
       if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
 
       let content = "";
-      let created = false;
+      let exists = false;
       try {
         content = await fs.readFile(sidecarAbsolute, "utf-8");
+        exists = true;
       } catch (error) {
-        if (error && error.code === "ENOENT") {
-          await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
-          await fs.writeFile(sidecarAbsolute, "", "utf-8");
-          created = true;
-        } else {
-          throw error;
-        }
+        if (!error || error.code !== "ENOENT") throw error;
       }
 
       return sendJson(res, 200, {
         sourceFile: normalizedRelFile.replace(/\\/g, "/"),
         sidecar: sidecarRelPath.replace(/\\/g, "/"),
         content,
-        created
+        exists
       });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Media file not found" });
@@ -7223,13 +7358,39 @@ async function handleApiForAgent(req, res, url) {
       }
 
       if (type === "manifest") {
-        const folderName = path.basename(parentAbsolute);
+        const currentFolderName = path.basename(parentAbsolute);
         const displayName = String(payload.displayName || "").trim();
         const title =
-          displayName || String(name || stripTopicPrefix(folderName)).trim() || folderName;
-        const areaFolderAbsolute = parentAbsolute;
-        const areaFolderRel =
-          parentPathResolved && parentPathResolved !== "." ? parentPathResolved : folderName;
+          displayName ||
+          String(name || stripTopicPrefix(currentFolderName)).trim() ||
+          currentFolderName;
+        const diskSlug = resolveNodeDiskSlugFromPayload(payload);
+        const targetFolderName = toFolderName(diskSlug);
+        if (!targetFolderName) return sendJson(res, 400, { error: "Invalid folder name" });
+
+        let areaFolderAbsolute = parentAbsolute;
+        let areaFolderRel =
+          parentPathResolved && parentPathResolved !== "."
+            ? parentPathResolved
+            : currentFolderName;
+
+        if (targetFolderName !== currentFolderName) {
+          const parentDirAbsolute = path.dirname(parentAbsolute);
+          const targetFolderAbsolute = path.join(parentDirAbsolute, targetFolderName);
+          try {
+            await fs.access(targetFolderAbsolute);
+            return sendJson(res, 409, { error: "Folder with this name already exists" });
+          } catch {
+            // Target does not exist, continue.
+          }
+          await fs.rename(parentAbsolute, targetFolderAbsolute);
+          areaFolderAbsolute = targetFolderAbsolute;
+          const parentFolderRel = path.dirname(areaFolderRel).replace(/\\/g, "/");
+          areaFolderRel =
+            parentFolderRel && parentFolderRel !== "."
+              ? path.join(parentFolderRel, targetFolderName).replace(/\\/g, "/")
+              : targetFolderName;
+        }
 
         const manifestAbsolute = path.join(areaFolderAbsolute, AREA_MANIFEST_FILE);
         try {

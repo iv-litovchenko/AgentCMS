@@ -6,7 +6,6 @@
 const {
   loadAgentFields,
   getFieldRegistry: loadFieldRegistry,
-  getBaseFieldOrder: loadBaseFieldOrder,
   resolveFieldTypeId,
   FALLBACK_FIELD_TYPES
 } = require("./awn-fields-loader");
@@ -26,6 +25,7 @@ function getFieldRegistry(agentRoot = "", projectRoot = process.cwd()) {
 }
 
 function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
+  const { getBaseFieldOrder: loadBaseFieldOrder } = require("./awn-types-loader");
   return [...loadBaseFieldOrder(agentRoot, projectRoot)];
 }
 

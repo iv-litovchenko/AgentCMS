@@ -4,10 +4,6 @@ kind: type
 extends: awn.base
 description: Метаданные медиафайла (*.sidecar.md, расширяется в configuration.yml темы)
 fields:
-  awn-filename:
-    type: awn.string
-    title: Файл
-    description: Имя связанного медиафайла
   awn-mime:
     type: awn.string
     title: MIME-тип

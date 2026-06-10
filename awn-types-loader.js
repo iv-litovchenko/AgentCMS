@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const {
   getFieldRegistry,
-  getBaseFieldOrder,
   fieldDefToEntryKind,
   fieldDefDefaultValue,
   sortPropsEntries
@@ -136,6 +135,32 @@ function resolveTypeDefinition(typeName, typesByName) {
   };
 }
 
+const FALLBACK_BASE_FIELD_ORDER = [
+  "awn-preview",
+  "awn-name",
+  "awn-status",
+  "awn-type",
+  "awn-create",
+  "awn-update",
+  "awn-description",
+  "awn-category",
+  "awn-tags",
+  "awn-color",
+  "awn-version",
+  "awn-sort"
+];
+
+/** Порядок стандартных awn-* полей — из ключей merged fields в awn.base (components/base.yml). */
+function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
+  const types = loadAgentTypes(agentRoot, projectRoot);
+  const baseFields = types["awn.base"]?.fields;
+  if (!baseFields || typeof baseFields !== "object") {
+    return [...FALLBACK_BASE_FIELD_ORDER];
+  }
+  const keys = Object.keys(baseFields);
+  return keys.length ? keys : [...FALLBACK_BASE_FIELD_ORDER];
+}
+
 function loadAgentTypes(agentRoot, projectRoot) {
   const systemDir = path.join(projectRoot, "awn-types");
   const agentDir = path.join(agentRoot, "awn-types");
@@ -216,11 +241,18 @@ function extractFileBaseName(relPath) {
 }
 
 function buildDefaultFrontmatter(typeName, options = {}) {
-  const { name = "", types = null, projectRoot = null, agentRoot = null } = options;
+  const {
+    name = "",
+    types = null,
+    projectRoot = null,
+    agentRoot = null,
+    typeDef: typeDefOverride = null
+  } = options;
   const resolvedProjectRoot = projectRoot || process.cwd();
   const resolvedAgentRoot = agentRoot || "";
   const typesMap = types || loadAgentTypes(resolvedAgentRoot, resolvedProjectRoot);
-  const typeDef = resolveTypeDefinition(typeName, new Map(Object.entries(typesMap)));
+  const typeDef =
+    typeDefOverride || resolveTypeDefinition(typeName, new Map(Object.entries(typesMap)));
   const fields = typeDef?.fields || {};
 
   const lines = [];
@@ -539,6 +571,9 @@ module.exports = {
   loadAgentTypes,
   loadTypesFromDirectory,
   resolveTypeDefinition,
+  mergeTypeFields,
+  getBaseFieldOrder,
+  FALLBACK_BASE_FIELD_ORDER,
   inferAwnTypeFromPath,
   extractFileBaseName,
   buildDefaultFrontmatter,

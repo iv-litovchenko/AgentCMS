@@ -1,5 +1,5 @@
 ---
-title: Служебное
+awn-name: Служебное
 awn-type: service
 ---
 

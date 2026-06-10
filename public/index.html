@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.28" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.49" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -1098,8 +1098,8 @@
                 <button id="create-external-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
                   + Раздел
                 </button>
-                <button id="create-external-memory-btn" class="save-btn external-create-btn hidden" type="button" title="Создать элемент">
-                  + Элемент
+                <button id="create-external-memory-btn" class="save-btn external-create-btn hidden" type="button" title="Создать запись">
+                  + Запись
                 </button>
                 <select id="external-view-select" class="external-view-select hidden" aria-label="Вид отображения внешней памяти">
                   <option value="table">Таблица</option>
@@ -1112,17 +1112,6 @@
                   <option value="mindmap">Карта</option>
                   <option value="cheatsheet">Шпаргалка</option>
                   <option value="graph">Граф</option>
-                </select>
-                <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
-                  <option value="dashboard">Обзор использования</option>
-                  <option value="sep" disabled>────────</option>
-                  <option value="all">Все файлы</option>
-                  <option value="images">Изображения</option>
-                  <option value="audio">Аудио</option>
-                  <option value="video">Видео</option>
-                  <option value="documents">Документы</option>
-                  <option value="archives">Архивы</option>
-                  <option value="other">Прочее</option>
                 </select>
                 <button id="create-media-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
                   + Раздел
@@ -1171,6 +1160,17 @@
                   <span class="save-btn-lamp" aria-hidden="true"></span>
                   <span class="workspace-toolbar-btn-label">Сохранить</span>
                 </button>
+                <select id="media-view-select" class="media-view-select hidden" aria-label="Вид отображения медиа">
+                  <option value="dashboard">Обзор использования</option>
+                  <option value="sep" disabled>────────</option>
+                  <option value="all">Все файлы</option>
+                  <option value="images">Изображения</option>
+                  <option value="audio">Аудио</option>
+                  <option value="video">Видео</option>
+                  <option value="documents">Документы</option>
+                  <option value="archives">Архивы</option>
+                  <option value="other">Прочее</option>
+                </select>
                 <button
                   id="node-workspace-close-btn"
                   class="node-workspace-close-btn workspace-toolbar-labeled-btn hidden"
@@ -1456,14 +1456,14 @@
                   <section class="doc-aside-fields-card" aria-label="Свойства документа">
                     <section id="props-preview-block" class="doc-aside-preview-block hidden" aria-label="Превью"></section>
                     <section id="title-editor-block" class="doc-aside-title-block doc-slab doc-slab-title hidden" aria-label="Название документа">
-                      <label class="doc-aside-title-label" for="title-input">Название</label>
+                      <label class="doc-aside-title-label" for="title-input">Отображаемое имя (awn-name)</label>
                       <div class="title-row">
                         <input
                           id="title-input"
                           class="title-input"
                           type="text"
-                          placeholder="Название"
-                          aria-label="Название"
+                          placeholder="Пусто — в меню показывается slug"
+                          aria-label="Отображаемое имя"
                         />
                         <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
                       </div>
@@ -1488,7 +1488,7 @@
                             aria-label="Редактировать slug вручную"
                           >✎</button>
                         </div>
-                        <p class="slug-field-hint">Транслит из названия; можно открепить и ввести вручную.</p>
+                        <p class="slug-field-hint">Имя папки или файла на диске. Транслит из awn-name; можно открепить ✎ и ввести вручную.</p>
                       </div>
                     </section>
                     <header class="doc-aside-fields-card-head">
@@ -1688,38 +1688,48 @@
 
     <div id="create-memory-modal" class="modal-overlay hidden">
       <div class="modal-card create-memory-card">
-        <div class="modal-message">Создать элементы</div>
-        <p class="create-memory-hint">До 5 элементов за раз. Пустые строки пропускаются.</p>
-        <div id="create-memory-names-list" class="create-memory-names-list" role="group" aria-label="Названия элементов">
+        <div class="modal-message">Создать записи</div>
+        <p class="create-memory-hint">До 5 записей за раз. Пустые строки пропускаются.</p>
+        <div id="create-memory-names-list" class="create-memory-names-list" role="group" aria-label="Названия записей">
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">1</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Название" autocomplete="off" />
-            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
-            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            <div class="slug-input-wrap">
+              <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+              <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            </div>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">2</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
-            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
-            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            <div class="slug-input-wrap">
+              <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+              <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            </div>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">3</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
-            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
-            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            <div class="slug-input-wrap">
+              <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+              <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            </div>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">4</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
-            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
-            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            <div class="slug-input-wrap">
+              <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+              <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            </div>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">5</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
-            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
-            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            <div class="slug-input-wrap">
+              <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+              <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
+            </div>
           </label>
         </div>
         <fieldset id="create-memory-after-fieldset" class="create-memory-after-fieldset">
@@ -1966,7 +1976,7 @@
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.135"></script>
+    <script src="/main.js?v=0.5.174"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

@@ -4,6 +4,15 @@ kind: base
 description: Базовые YAML-свойства для всех типов записей агента
 mixins: [awn.mixin.preview]
 fields:
+  awn-preview:
+    type: awn.url
+    title: Превью
+    description: Путь к файлу в Assets/Preview/ (заполняется при загрузке превью)
+  awn-name:
+    type: awn.string
+    title: Имя
+    description: Отображаемое имя в меню; пустое — показывается slug (имя файла или папки на диске)
+    locked: true
   awn-status:
     type: awn.enum
     title: Статус
@@ -16,11 +25,6 @@ fields:
     description: Идентификатор типа записи (awn.agent, awn.area, awn.topic, …)
     hint: awn.agent, awn.area, awn.topic, awn.record.category…
     required: true
-    locked: true
-  awn-name:
-    type: awn.string
-    title: Имя
-    description: Отображаемое имя в меню; пустое — показывается slug (имя файла или папки на диске)
     locked: true
   awn-create:
     type: awn.datetime
@@ -47,6 +51,10 @@ fields:
     title: Теги
     description: Метки для поиска и фильтрации
     items: awn.string
+  awn-color:
+    type: awn.color
+    title: Цвет
+    description: Цвет метки в-панели
   awn-version:
     type: awn.string
     title: Версия
