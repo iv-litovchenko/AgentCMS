@@ -8,7 +8,7 @@ module.exports = {
     "Актуальная справка по коду server.js (июнь 2026). В UI: select «0.0.1 — актуальная».",
     "JSON-ответы, UTF-8. ?version=0.0.1 по умолчанию; 0.0.0 — предыдущий снимок.",
     "Контекст агента ?agent=<id>: все маршруты, кроме /api/agents*, /api/docs*, /api/mcp-docs*, /api/user-docs*, /api/public/images.",
-    "path — путь к _reg-info.md; file — путь в content/ или assets/."
+    "path — путь к _registration.md; file — путь в content/ или assets/."
   ],
   groups: [
     {
@@ -28,7 +28,7 @@ module.exports = {
           method: "PUT",
           path: "/api/agents/registry",
           agentScope: false,
-          description: "Сохранить реестр агентов и поля _reg-info.md (awn-name, awn-description, awn-status).",
+          description: "Сохранить реестр агентов и поля _registration.md (awn-name, awn-description, awn-status).",
           query: [],
           body: "{ agents: [{ id?, path, environment?, default?, active?, name?, comment? }] }",
           response: "{ agents[], defaultAgentId }"
@@ -37,7 +37,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/create",
           agentScope: false,
-          description: "Создать workspace: _reg-info.md (awn.workspace) в указанной папке.",
+          description: "Создать workspace: _registration.md (awn.workspace) в указанной папке.",
           query: [],
           body: "{ path, name?, id? }",
           response: "{ agent: { path, id, name, comment, manifestFound, hasPreview } }"
@@ -46,7 +46,7 @@ module.exports = {
           method: "POST",
           path: "/api/agents/discover",
           agentScope: false,
-          description: "Найти workspace с _reg-info.md (awn.workspace) (Desktop, HOME, проект).",
+          description: "Найти workspace с _registration.md (awn.workspace) (Desktop, HOME, проект).",
           query: [],
           body: "{ roots?: string[], maxDepth?: number }",
           response: "{ agents: [{ path, name, comment, id, hasPreview, previewRel }] }"
@@ -141,7 +141,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/menu",
-          description: "Дерево нод workspace (_reg-info.md).",
+          description: "Дерево нод workspace (_registration.md).",
           query: [],
           body: null,
           response: "{ title, sections?, items?, indexPath?, hasGit?, hasObsidian?, hasGitSelf?, hasObsidianSelf?, ... } — hasGit/hasObsidian true только если .git / .obsidian есть в каталоге этой папки (без наследования)"
@@ -201,7 +201,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file",
-          description: "Содержимое _reg-info.md (описание).",
+          description: "Содержимое _registration.md (описание).",
           query: ["path"],
           body: null,
           response: "{ path, content }"
@@ -209,7 +209,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/content",
-          description: "Сохранить содержимое _reg-info.md.",
+          description: "Сохранить содержимое _registration.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -225,7 +225,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _reg-info.md (между ---).",
+          description: "YAML frontmatter из _registration.md (между ---).",
           query: ["path"],
           body: null,
           response: "{ path, content, exists }"
@@ -233,7 +233,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _reg-info.md.",
+          description: "Сохранить YAML frontmatter в _registration.md.",
           query: [],
           body: "{ path, content }",
           response: "{ path, content }"
@@ -265,7 +265,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/node/create",
-          description: "Создать _reg-info.md в текущей папке, подпапку-ноду или part в _Parts.",
+          description: "Создать _registration.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
           body: "{ parentPath?: \".\", type: \"folder\"|\"file\"|\"manifest\"|\"catalog\"|\"service-doc\", name }",
           response: "{ createdPath, type }"

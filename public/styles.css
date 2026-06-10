@@ -8236,8 +8236,7 @@ body.app-locked {
 
 .menu-container-body,
 .menu-container-section > .tree-children,
-.menu-nested-container-body,
-.menu-git-workspace-body {
+.menu-nested-container-body {
   margin-left: 0;
   padding-left: 0;
   border-left: none;
@@ -8895,6 +8894,14 @@ body.app-locked {
   padding-left: 7px;
   border-left: 1px dashed var(--border);
   margin-top: 2px;
+}
+
+.tree-children.menu-container-body,
+.tree-children.menu-nested-container-body,
+.menu-git-workspace-body {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
 }
 
 .menu-sort-handle {

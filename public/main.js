@@ -440,11 +440,12 @@ function writeStorageItem(key, value) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "_reg-info.md";
+const AREA_MANIFEST_FILE = "_registration.md";
+const LEGACY_AREA_MANIFEST_FILE = "_reg-info.md";
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["_reg-info.md", "agents.md", "todo.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["_registration.md", "_reg-info.md", "agents.md", "todo.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "awn-storage/[^/]+";
 const STORAGE_SLOT_REGEX = "awn-storage/([^/]+)";
@@ -1100,7 +1101,11 @@ function stripStoragePrefix(name) {
 }
 
 function isAreaManifestFileName(fileName) {
-  return String(fileName || "").toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
+  const lower = String(fileName || "").toLowerCase();
+  return (
+    lower === AREA_MANIFEST_FILE.toLowerCase() ||
+    lower === LEGACY_AREA_MANIFEST_FILE.toLowerCase()
+  );
 }
 
 function isExcludedMenuTopicMd(fileName, options = {}) {
@@ -1513,7 +1518,7 @@ function syncNodeDescriptionHintUi() {
     titleNode.textContent = "Workspace агента — описание проекта";
     textNode.innerHTML =
       "Корневая область контента: контекст проекта, правила и документация для работы в этом workspace. " +
-      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>awn-storage/_reg-info/preview.*</code>). " +
+      "Превью на вкладке «Превью» — аватар агента в сайдбаре (<code>awn-storage/_registration/preview.*</code>). " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
   }
@@ -2955,15 +2960,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `_reg-info.md (awn.workspace) найден:\n${result.absolute}` : "_reg-info.md (awn.workspace) найден";
+    node.title = result.absolute ? `_registration.md (awn.workspace) найден:\n${result.absolute}` : "_registration.md (awn.workspace) найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет _reg-info.md (awn.workspace):\n${result.absolute}`
-      : "Папка есть, но нет _reg-info.md (awn.workspace)";
+      ? `Папка есть, но нет _registration.md (awn.workspace):\n${result.absolute}`
+      : "Папка есть, но нет _registration.md (awn.workspace)";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -3344,7 +3349,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус _reg-info.md (awn.workspace)");
+    pathStatusNode.setAttribute("aria-label", "Статус _registration.md (awn.workspace)");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -3603,7 +3608,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование _reg-info.md (awn.workspace)…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование _registration.md (awn.workspace)…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -3630,7 +3635,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">_reg-info.md (awn.workspace) не найден</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">_registration.md (awn.workspace) не найден</div>`;
     return;
   }
 
@@ -5423,7 +5428,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка {Name}/_reg-info.md — без драйверов памяти. */
+/** Область (Space): папка {Name}/_registration.md — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return isContainerNodePath(nodePath);
 }
@@ -5969,7 +5974,7 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   if (hasAgent) {
     const agent = document.createElement("span");
     agent.className = "menu-marker menu-marker-agent";
-    agent.title = "AWN workspace (_reg-info.md, awn.workspace)";
+    agent.title = "AWN workspace (_registration.md, awn.workspace)";
     agent.setAttribute("aria-label", "Agent");
     agent.appendChild(createAgentMarkerIcon());
     wrap.appendChild(agent);
@@ -10265,14 +10270,20 @@ function hasExternalUserSections() {
 
 function isSectionReadmePath(filePath) {
   const base = String(filePath || "").split("/").pop() || "";
-  return base.toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
+  return isAreaManifestFileName(base);
 }
 
 function isSectionReadmeSegmentName(segment) {
   const normalized = String(segment || "").trim().toLowerCase();
   if (!normalized) return false;
-  const reginfoStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "").toLowerCase();
-  return normalized === AREA_MANIFEST_FILE.toLowerCase() || normalized === reginfoStem;
+  const areaManifestStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "").toLowerCase();
+  const legacyManifestStem = LEGACY_AREA_MANIFEST_FILE.replace(/\.md$/i, "").toLowerCase();
+  return (
+    normalized === AREA_MANIFEST_FILE.toLowerCase() ||
+    normalized === LEGACY_AREA_MANIFEST_FILE.toLowerCase() ||
+    normalized === areaManifestStem ||
+    normalized === legacyManifestStem
+  );
 }
 
 function getMemorySectionDisplayLabel(folderPath) {
@@ -15459,7 +15470,11 @@ function sortPropsEntries(entries) {
 
 function isRecordCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  if (normalized.toLowerCase().endsWith("/_reg-info.md") && /\/content\//i.test(normalized)) {
+  if (
+    (normalized.toLowerCase().endsWith("/_registration.md") ||
+      normalized.toLowerCase().endsWith("/_reg-info.md")) &&
+    /\/content\//i.test(normalized)
+  ) {
     return true;
   }
   return (
@@ -15470,7 +15485,11 @@ function isRecordCategoryContentPath(nodePath) {
 
 function isMediaCategoryContentPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  if (normalized.toLowerCase().endsWith("/_reg-info.md") && /\/assets\//i.test(normalized)) {
+  if (
+    (normalized.toLowerCase().endsWith("/_registration.md") ||
+      normalized.toLowerCase().endsWith("/_reg-info.md")) &&
+    /\/assets\//i.test(normalized)
+  ) {
     return true;
   }
   return (
@@ -15621,8 +15640,8 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
-  "awn.workspace": "Корневой манифест workspace — _reg-info.md в корне агента",
-  "awn.area": "Область (категория) — папка с _reg-info.md",
+  "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
+  "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
   "awn.record": "Запись в awn-storage/*/content/ (расширяется в configuration.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
@@ -20153,8 +20172,8 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
       caption: "Agent",
       active: markers.hasAgent,
       createSvg: createAgentMarkerIcon,
-      titleActive: "_reg-info.md (awn.workspace): есть в этой папке",
-      titleInactive: "_reg-info.md (awn.workspace): нет в этой папке"
+      titleActive: "_registration.md (awn.workspace): есть в этой папке",
+      titleInactive: "_registration.md (awn.workspace): нет в этой папке"
     }),
     createNavigationHeroMarkerSlot({
       id: "git",
@@ -22969,9 +22988,11 @@ function resolveNodeDisplayName(awnNameRaw, slug) {
   const awnName = String(awnNameRaw || "").trim();
   const slugLabel = String(slug || "").trim();
   if (!awnName) return slugLabel;
-  const reginfoStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
-  if (awnName.toLowerCase() === reginfoStem.toLowerCase()) return slugLabel;
-  if (awnName === "_REGINFO") return slugLabel;
+  const areaManifestStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  const legacyManifestStem = LEGACY_AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  if (awnName.toLowerCase() === areaManifestStem.toLowerCase()) return slugLabel;
+  if (awnName.toLowerCase() === legacyManifestStem.toLowerCase()) return slugLabel;
+  if (awnName === "_REGISTRATION" || awnName === "_REGINFO") return slugLabel;
   return awnName;
 }
 
@@ -24163,7 +24184,7 @@ function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth
 
   if (layout.hasWorkspace) {
     const workspaceSortNode = document.createElement("div");
-    workspaceSortNode.className = "tree-children menu-git-workspace-body";
+    workspaceSortNode.className = "menu-git-workspace-body";
     workspaceSortNode.dataset.sortFolder = sectionFolderPath || ".";
     childrenNode.appendChild(workspaceSortNode);
 
@@ -24243,11 +24264,11 @@ function normalizeMenuReservedSectionsOrder(parentEl) {
 }
 
 function clearMenuWorkspaceTreeDivider(parentEl) {
-  parentEl?.querySelectorAll(".menu-tree-divider--workspace").forEach((node) => node.remove());
+  parentEl?.querySelectorAll(":scope > .menu-tree-divider--workspace").forEach((node) => node.remove());
 }
 
 function clearMenuSystemFilesDivider(parentEl) {
-  parentEl?.querySelectorAll(".menu-tree-divider--system-files").forEach((node) => node.remove());
+  parentEl?.querySelectorAll(":scope > .menu-tree-divider--system-files").forEach((node) => node.remove());
 }
 
 function createMenuTreeDivider(kind) {
@@ -24317,7 +24338,7 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
 function clearMenuReservedDivider(parentEl) {
   clearMenuWorkspaceTreeDivider(parentEl);
   clearMenuSystemFilesDivider(parentEl);
-  parentEl?.querySelectorAll(".menu-reserved-divider").forEach((node) => node.remove());
+  parentEl?.querySelectorAll(":scope > .menu-reserved-divider").forEach((node) => node.remove());
 }
 
 function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
@@ -25014,9 +25035,12 @@ function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   });
 }
 
+const MENU_SORT_FOLDER_SELECTOR =
+  ".tree-children[data-sort-folder], .menu-git-workspace-body[data-sort-folder]";
+
 function decorateMenuSortRows(root = getMenuQueryRoot()) {
   if (!canSortMenu() || !root) return;
-  root.querySelectorAll(".tree-children[data-sort-folder]").forEach((container) => {
+  root.querySelectorAll(MENU_SORT_FOLDER_SELECTOR).forEach((container) => {
     container.querySelectorAll(":scope > .menu-section > .menu-folder-row").forEach((row) => {
       applyMenuSortRow(row, "folder");
     });
@@ -25035,7 +25059,7 @@ function refreshMenuSortDecorations(agentId = activeAgentId) {
 }
 
 function getMenuSortContainer(row) {
-  return row?.closest(".tree-children[data-sort-folder]") || null;
+  return row?.closest(MENU_SORT_FOLDER_SELECTOR) || null;
 }
 
 function getMenuSortBlock(row) {
@@ -28558,7 +28582,7 @@ function buildGraphDataFromAgentMenu(menu) {
     nodeIds.add(containerRootId);
   }
 
-  // Области (_reg-info.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
+  // Области (_registration.md) уже есть в меню — не создавать вторую «пустую» folder:path для того же displayPath.
   for (const entry of workspaceEntries) {
     if (!entry.isFolder || !entry.path) continue;
     if (skipNormalizedPaths.has(normalizeMenuNodePath(entry.path))) continue;

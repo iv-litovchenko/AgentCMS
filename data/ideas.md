@@ -36,7 +36,7 @@ steps:
   - id: publish  → actor: support-agent → publish_to_channel
 ```
 
-Это напрямую стыкуется с `awn-status` из `awn-types` (🟡 Черновик → человек → 🟢 Открыта). Можно сделать первый workflow «публикация темы» без БД — чисто на YAML + статусы в `_reg-info.md`.
+Это напрямую стыкуется с `awn-status` из `awn-types` (🟡 Черновик → человек → 🟢 Открыта). Можно сделать первый workflow «публикация темы» без БД — чисто на YAML + статусы в `_registration.md`.
 
 ### 3. `index.json` как навигационный каталог
 

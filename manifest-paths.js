@@ -1,15 +1,16 @@
 /**
  * Конвенции манифестов workspace:
- * - Корень workspace: _reg-info.md (без папки с именем агента)
- * - Область: {Name}/_reg-info.md
+ * - Корень workspace: _registration.md (без папки с именем агента)
+ * - Область: {Name}/_registration.md
  * - Тема: {Name}.md
  * - Слот данных: awn-storage/{имя_манифеста_без_.md}/ рядом с *.md (content.md, todo.md, …)
  */
 const path = require("path");
 
 const STORAGE_ROOT_FOLDER = "awn-storage";
-const AREA_MANIFEST_FILE = "_reg-info.md";
-/** awn-name корня awn-agent-kit ({agentSystemFolder}/_reg-info.md) */
+const AREA_MANIFEST_FILE = "_registration.md";
+const LEGACY_AREA_MANIFEST_FILE = "_reg-info.md";
+/** awn-name корня awn-agent-kit ({agentSystemFolder}/_registration.md) */
 const SERVICE_AREA_NAME = "Служебные темы и компоненты системы";
 
 const BUNDLE_CONTENT_FILE = "content.md";
@@ -23,10 +24,11 @@ const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_BASENAME}${ext}`);
 
 const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
-const AREA_MANIFEST_CANDIDATES = [AREA_MANIFEST_FILE];
+const AREA_MANIFEST_CANDIDATES = [AREA_MANIFEST_FILE, LEGACY_AREA_MANIFEST_FILE];
 
 const WORKSPACE_MENU_EXCLUDED_TOPIC_MD = new Set([
-  "_reg-info.md",
+  AREA_MANIFEST_FILE,
+  LEGACY_AREA_MANIFEST_FILE,
   "agents.md",
   "todo.md"
 ]);
@@ -98,9 +100,11 @@ function resolveNodeDisplayName(awnNameRaw, slug) {
   const awnName = String(awnNameRaw || "").trim();
   const slugLabel = String(slug || "").trim();
   if (!awnName) return slugLabel;
-  const reginfoStem = stripTopicPrefix(AREA_MANIFEST_FILE);
-  if (awnName.toLowerCase() === reginfoStem.toLowerCase()) return slugLabel;
-  if (awnName === "_REGINFO") return slugLabel;
+  const areaManifestStem = stripTopicPrefix(AREA_MANIFEST_FILE);
+  const legacyManifestStem = stripTopicPrefix(LEGACY_AREA_MANIFEST_FILE);
+  if (awnName.toLowerCase() === areaManifestStem.toLowerCase()) return slugLabel;
+  if (awnName.toLowerCase() === legacyManifestStem.toLowerCase()) return slugLabel;
+  if (awnName === "_REGISTRATION" || awnName === "_REGINFO") return slugLabel;
   return awnName;
 }
 
@@ -148,7 +152,7 @@ function isExcludedMenuTopicMdFileName(name, options = {}) {
   if (isAreaManifestFileName(base)) return true;
   if (lower.endsWith(".sidecar.md")) return true;
   if (WORKSPACE_MENU_EXCLUDED_TOPIC_MD.has(lower)) return true;
-  // README.md at agent workspace root is hidden; _reg-info.md is the area manifest.
+  // README.md at agent workspace root is hidden; _registration.md is the area manifest.
   if (lower === "readme.md" && options.isAgentRoot) return true;
   return false;
 }
@@ -194,7 +198,13 @@ function isAllowedStorageSubfolderName(name) {
 }
 
 function isAreaManifestFileName(name) {
-  return String(name || "").toLowerCase() === AREA_MANIFEST_FILE.toLowerCase();
+  const lower = String(name || "").toLowerCase();
+  return AREA_MANIFEST_CANDIDATES.some((candidate) => lower === candidate.toLowerCase());
+}
+
+function isAreaManifestRelPathSuffix(normalized) {
+  const lower = String(normalized || "").toLowerCase();
+  return AREA_MANIFEST_CANDIDATES.some((candidate) => lower.endsWith(`/${candidate.toLowerCase()}`));
 }
 
 function isTopicManifestFileName(name, options = {}) {
@@ -229,17 +239,17 @@ function isRecordCategoryContentRelPath(relPath) {
   );
 }
 
-/** Описание подкаталога в content: …/content/{section}/_reg-info.md */
+/** Описание подкаталога в content: …/content/{section}/_registration.md */
 function isExternalSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
-  if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
+  if (!isAreaManifestRelPathSuffix(normalized)) return false;
   return /\/content\//i.test(normalized);
 }
 
-/** Описание подкаталога в assets: …/assets/{section}/_reg-info.md */
+/** Описание подкаталога в assets: …/assets/{section}/_registration.md */
 function isMediaSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
-  if (!normalized.toLowerCase().endsWith(`/${AREA_MANIFEST_FILE.toLowerCase()}`)) return false;
+  if (!isAreaManifestRelPathSuffix(normalized)) return false;
   return /\/assets\//i.test(normalized);
 }
 
@@ -299,11 +309,16 @@ function appendManifestCandidatesForStorageKey(manifestCandidates, containerPref
   manifestCandidates.push(withPrefix(`${slotKey}.md`));
 
   const areaSlotKey = stripTopicPrefix(AREA_MANIFEST_FILE);
-  if (slotKey === areaSlotKey) {
-    manifestCandidates.push(withPrefix(AREA_MANIFEST_FILE));
+  const legacyAreaSlotKey = stripTopicPrefix(LEGACY_AREA_MANIFEST_FILE);
+  if (slotKey === areaSlotKey || slotKey === legacyAreaSlotKey) {
+    for (const manifestFile of AREA_MANIFEST_CANDIDATES) {
+      manifestCandidates.push(withPrefix(manifestFile));
+    }
   }
 
-  manifestCandidates.push(withPrefix(`${slotKey}/${AREA_MANIFEST_FILE}`));
+  for (const manifestFile of AREA_MANIFEST_CANDIDATES) {
+    manifestCandidates.push(withPrefix(`${slotKey}/${manifestFile}`));
+  }
 }
 
 function getNamedStorageSlotDirRel(relPath) {
@@ -439,8 +454,10 @@ function buildManifestCandidatesForStorageKey(key, options = {}) {
   const workspaceKey = String(options.workspaceFolderName || "").trim();
   if (workspaceKey) {
     if (slotKey === workspaceKey) {
-      manifestCandidates.push(`${workspaceKey}/${AREA_MANIFEST_FILE}`);
-      manifestCandidates.push(AREA_MANIFEST_FILE);
+      for (const manifestFile of AREA_MANIFEST_CANDIDATES) {
+        manifestCandidates.push(`${workspaceKey}/${manifestFile}`);
+        manifestCandidates.push(manifestFile);
+      }
     }
   }
   return [...new Set(manifestCandidates.filter((candidate) => isManifestMdRelPath(candidate)))];
@@ -528,8 +545,6 @@ function stripTopicManifestSuffix(fileName) {
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 /** @deprecated */
 const LEGACY_STORAGE_FOLDER_NAME = "_Storage";
-/** @deprecated */
-const LEGACY_AREA_MANIFEST_FILE = "_reg-info.md";
 /** @deprecated */
 const LEGACY_AREA_MANIFEST_ALIASES = [];
 /** @deprecated */

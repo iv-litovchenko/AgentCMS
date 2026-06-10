@@ -4,7 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 
-const nodePath = z.string().min(1).describe("Path to _reg-info.md, e.g. 05 Хобби/MyArea/_reg-info.md");
+const nodePath = z.string().min(1).describe("Path to _registration.md, e.g. 05 Хобби/MyArea/_registration.md");
 const extFile = z.string().min(1).describe("Relative path inside content/ or assets/");
 
 function textResult(data) {
@@ -56,24 +56,24 @@ function createServer() {
       client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
   );
 
-  reg("read_node_description", "Read _reg-info.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_description", "Read _registration.md.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file", { path })
   );
 
   reg(
     "write_node_description",
-    "Save _reg-info.md.",
+    "Save _registration.md.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })
   );
 
-  reg("read_node_properties", "Read frontmatter from _reg-info.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_properties", "Read frontmatter from _registration.md.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file/properties", { path })
   );
 
   reg(
     "write_node_properties",
-    "Save frontmatter to _reg-info.md.",
+    "Save frontmatter to _registration.md.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/properties", { path, content })
   );

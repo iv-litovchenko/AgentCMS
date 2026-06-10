@@ -7,7 +7,7 @@ module.exports = {
   notes: [
     "MCP-сервер — обёртка над HTTP API Agent CMS. Перед запуском поднимите CMS: npm start (по умолчанию http://localhost:3000).",
     "Переменные: AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (id агента для ?agent=). Старые YAMLCMS_* тоже поддерживаются.",
-    "path — путь к _reg-info.md ноды; file — путь к .md внутри content/ или файлу в assets/.",
+    "path — путь к _registration.md ноды; file — путь к .md внутри content/ или файлу в assets/.",
     "Установка: cd mcp-server && npm install. Запуск вручную: node mcp-server/index.js (stdio)."
   ],
   cursorConfig: {
@@ -49,7 +49,7 @@ module.exports = {
       tools: [
         {
           name: "get_menu",
-          description: "Дерево нод workspace (_reg-info.md).",
+          description: "Дерево нод workspace (_registration.md).",
           parameters: "—",
           http: "GET /api/menu"
         },
@@ -67,25 +67,25 @@ module.exports = {
       tools: [
         {
           name: "read_node_description",
-          description: "Прочитать _reg-info.md (описание, инструкции).",
+          description: "Прочитать _registration.md (описание, инструкции).",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
           name: "write_node_description",
-          description: "Сохранить _reg-info.md.",
+          description: "Сохранить _registration.md.",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
         {
           name: "read_node_properties",
-          description: "Прочитать frontmatter из _reg-info.md.",
+          description: "Прочитать frontmatter из _registration.md.",
           parameters: "path",
           http: "GET /api/file/properties"
         },
         {
           name: "write_node_properties",
-          description: "Сохранить frontmatter в _reg-info.md.",
+          description: "Сохранить frontmatter в _registration.md.",
           parameters: "path, content",
           http: "POST /api/file/properties"
         },

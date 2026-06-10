@@ -473,7 +473,7 @@ function normalizeWorkspacePath(inputPath) {
   return absolute;
 }
 
-/** Манифест *.md / _reg-info.md из прямого пути или bundle (todo, content, …). */
+/** Манифест *.md / _registration.md из прямого пути или bundle (todo, content, …). */
 function resolveNodeManifestRelForScopedApi(relPath) {
   const normalized = String(relPath || "").trim().replace(/\\/g, "/");
   if (!normalized) return null;
@@ -5229,7 +5229,7 @@ async function handleApiForAgent(req, res, url) {
     const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
     const serviceFolder = getAgentKitFolder();
     const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
@@ -5265,7 +5265,7 @@ async function handleApiForAgent(req, res, url) {
       }
       const absolute = normalizeWorkspacePath(resolvedRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const normalized = resolvedRelPath;
       let nextRelPath = normalized;
@@ -5377,7 +5377,7 @@ async function handleApiForAgent(req, res, url) {
       const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
       const absolute = normalizeWorkspacePath(canonicalRelPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const stampedContent = applyAwnTimestampsToMarkdownContent(content);
       await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, stampedContent);
@@ -5541,7 +5541,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const tabularRelPath = toTabularFilePath(resolvedRelPath);
       const tabularAbsolute = normalizeWorkspacePath(tabularRelPath);
@@ -5589,7 +5589,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const memoryRelPath = toContentFilePath(resolvedRelPath);
       const memoryAbsolute = normalizeWorkspacePath(memoryRelPath);
@@ -6556,7 +6556,7 @@ async function handleApiForAgent(req, res, url) {
     if (!manifestRel) {
       return sendJson(res, 400, {
         error: "Invalid file path",
-        details: "Нужен манифест (*.md, _reg-info.md) или файл todo (awn-storage/*/todo.md)"
+        details: "Нужен манифест (*.md, _registration.md) или файл todo (awn-storage/*/todo.md)"
       });
     }
 
@@ -6580,7 +6580,7 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestRel) {
         return sendJson(res, 400, {
           error: "Invalid file path",
-          details: "Нужен манифест (*.md, _reg-info.md) или файл todo (awn-storage/*/todo.md)"
+          details: "Нужен манифест (*.md, _registration.md) или файл todo (awn-storage/*/todo.md)"
         });
       }
 
@@ -6698,7 +6698,7 @@ async function handleApiForAgent(req, res, url) {
       const manifestAbsolute = normalizeWorkspacePath(canonicalRelPath);
       if (!manifestAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(manifestAbsolute)) {
-        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+        return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
       }
 
       const manifest = await statNodeFileMeta(manifestAbsolute);
@@ -6735,7 +6735,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
     const previewMeta = await getNodePreviewMeta(relPath);
     if (!previewMeta.hasPreview || !previewMeta.previewUrl) {
@@ -6756,7 +6756,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
     const imageAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
     if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
@@ -6786,7 +6786,7 @@ async function handleApiForAgent(req, res, url) {
       const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
       const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const previewExt = resolveNodePreviewExtension(mimeType, fileName);
       if (!previewExt) {
@@ -6830,7 +6830,7 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
     try {
       await clearAllNodePreviewImages(nodeAbsolute);
@@ -7078,7 +7078,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const absolute = normalizeWorkspacePath(relPath);
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _reg-info.md)" });
+      if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
       const normalized = path.normalize(relPath);
       if (isAreaManifestRelPath(normalized)) {
