@@ -2096,6 +2096,48 @@ function dedupeReservedRootMenuSections(menu) {
   return dedupeRootMenuSections(menu);
 }
 
+function dedupeGitRepoReservedSections(sections, gitRootRel) {
+  const reserved = new Set(
+    [getAgentKitFolder(), getAgentContainerFolder()]
+      .filter(Boolean)
+      .map((folder) => String(folder).toLowerCase())
+  );
+  const gitPrefix = gitRootRel ? `${String(gitRootRel || "").replace(/\\/g, "/")}/` : "";
+  return (sections || []).filter((section) => {
+    const folderPath = String(section.folderPath || "").replace(/\\/g, "/");
+    if (!folderPath) return true;
+    let tail = folderPath;
+    if (gitPrefix && folderPath.startsWith(gitPrefix)) {
+      tail = folderPath.slice(gitPrefix.length);
+    }
+    const firstSeg = tail.split("/").filter(Boolean)[0] || "";
+    return !reserved.has(firstSeg.toLowerCase());
+  });
+}
+
+async function enrichGitRepoMenuNode(node, gitRootAbsolute, gitRootRel) {
+  if (!node?.hasGitSelf || !gitRootRel) return node;
+
+  const kitFolder = getAgentKitFolder();
+  let serviceTree = null;
+  if (kitFolder) {
+    const kitAbsolute = path.join(gitRootAbsolute, kitFolder);
+    if (await dirExists(kitAbsolute)) {
+      const kitRel = `${gitRootRel}/${kitFolder}`.replace(/\\/g, "/");
+      serviceTree = await normalizeServiceMenuTree(
+        await listNodeMdFiles(kitAbsolute, kitRel, 0),
+        kitAbsolute
+      );
+    }
+  }
+
+  return {
+    ...node,
+    serviceTree,
+    sections: dedupeGitRepoReservedSections(node.sections, gitRootRel)
+  };
+}
+
 function getAreaFolderPathFromManifestRel(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   if (!isAreaManifestRelPath(normalized)) return null;
@@ -2533,15 +2575,6 @@ function collectManifestEntriesFromMenu(menu, acc = []) {
   }
 
   for (const item of menu.items || []) {
-    if (!item?.path) continue;
-    acc.push({
-      manifestPath: String(item.path).replace(/\\/g, "/"),
-      label: String(item.label || "").trim() || null,
-      kind: "topic"
-    });
-  }
-
-  for (const item of menu.repoItems || []) {
     if (!item?.path) continue;
     acc.push({
       manifestPath: String(item.path).replace(/\\/g, "/"),
@@ -4100,13 +4133,15 @@ async function resolveGitRepoCreateParentPath(parentPathResolved) {
   return parentPathResolved;
 }
 
-function isGitRepoRootLooseMenuFile(name) {
+function isGitRepoRootServiceLooseFile(name) {
   const base = String(name || "");
   if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base) || isTopicManifestFileName(base)) {
     return false;
   }
+  const lower = base.toLowerCase();
+  if (lower === ".env" || lower === ".gitignore") return true;
   const ext = path.extname(base).toLowerCase();
-  return ext === ".md" || ext === ".json" || ext === ".yaml" || ext === ".yml";
+  return ext === ".json" || ext === ".yaml" || ext === ".yml";
 }
 
 function isServiceNodePath(relPath) {
@@ -4140,7 +4175,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const folders = [];
   const files = [];
-  const repoRootFiles = [];
+  const repoServiceFiles = [];
   let indexPath = null;
   let nestedContainerTree = null;
 
@@ -4156,12 +4191,15 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     if (entry.isDirectory()) {
       if (isStorageFolderName(entry.name)) continue;
 
-      if (isGitRepoRoot) {
+      if (isGitRepoRoot && prefix) {
         if (isPartsFolderName(entry.name)) {
           await collectPartNodeItems(fullPath, prefix, files);
           continue;
         }
-        if (isContainerFolderName(entry.name) && prefix) {
+        if (isKitFolderName(entry.name)) {
+          continue;
+        }
+        if (isContainerFolderName(entry.name)) {
           nestedContainerTree = await normalizeNestedContainerMenuTree(
             await listNodeMdFiles(fullPath, relativePath, depth + 1),
             fullPath,
@@ -4169,7 +4207,6 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
           );
           continue;
         }
-        continue;
       }
 
       if (!prefix && (isKitFolderName(entry.name) || isContainerFolderName(entry.name))) {
@@ -4181,7 +4218,13 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       }
 
       const child = await listNodeMdFiles(fullPath, relativePath, depth + 1);
-      const hasNodes = Boolean(child.indexPath || child.items.length > 0 || child.sections.length > 0);
+      const hasNodes = Boolean(
+        child.indexPath ||
+        child.items.length > 0 ||
+        child.sections.length > 0 ||
+        child.containerTree ||
+        (child.repoServiceItems || child.repoItems || []).length > 0
+      );
       const markers = await readFolderWorkspaceMarkers(fullPath);
 
       const folderTitle = await resolveFolderDisplayTitle(fullPath, relativePath, child);
@@ -4236,22 +4279,18 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
         path: nodeRelPath,
         ...(await enrichMenuNodeItem(nodeRelPath))
       };
-      if (isGitRepoRootMenu) {
-        repoRootFiles.push({ ...menuItem, menuScope: "repo-root" });
-      } else {
-        files.push(menuItem);
-      }
+      files.push(menuItem);
       continue;
     }
 
-    if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootLooseMenuFile(entry.name)) {
+    if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootServiceLooseFile(entry.name)) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
       const menuItem = {
         label: path.basename(entry.name),
         path: nodeRelPath,
         ...(await enrichMenuNodeItem(nodeRelPath))
       };
-      repoRootFiles.push({ ...menuItem, menuScope: "repo-root" });
+      repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
     }
   }
 
@@ -4266,7 +4305,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
 
   folders.sort((a, b) => a.title.localeCompare(b.title, "ru"));
   files.sort((a, b) => a.label.localeCompare(b.label, "ru"));
-  repoRootFiles.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  repoServiceFiles.sort((a, b) => a.label.localeCompare(b.label, "ru"));
   let menuOrder = await readMenuSortOrder(dirPath);
 
   let color = null;
@@ -4285,10 +4324,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     previewUrl = indexMeta.previewUrl;
   }
 
-  return {
+  const baseNode = {
     sections: folders,
     items: files,
-    repoItems: isGitRepoRootMenu ? repoRootFiles : [],
+    repoItems: isGitRepoRootMenu ? repoServiceFiles : [],
+    repoServiceItems: isGitRepoRootMenu ? repoServiceFiles : [],
     containerTree: nestedContainerTree || null,
     indexPath,
     menuOrder,
@@ -4302,6 +4342,12 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     hasObsidian: selfMarkers.hasObsidianSelf,
     ...selfMarkers
   };
+
+  if (isGitRepoRootMenu && prefix) {
+    return enrichGitRepoMenuNode(baseNode, dirPath, prefix);
+  }
+
+  return baseNode;
 }
 
 function isSpaAppRoute(reqPath) {

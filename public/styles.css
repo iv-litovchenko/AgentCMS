@@ -7980,10 +7980,16 @@ body.app-locked {
   display: block;
   width: 100%;
   padding: 0;
+  margin: 0;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: inherit;
+  line-height: normal;
 }
 
 .menu-card-title {
@@ -7994,22 +8000,35 @@ body.app-locked {
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-.menu-card-preview {
-  display: block;
+.menu-card .menu-card-cover {
+  position: relative;
   width: 100%;
   height: 112px;
-  object-fit: cover;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
   border-bottom: 1px solid var(--border);
   background: #f1f5f9;
+}
+
+.menu-card .menu-card-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  object-fit: cover;
+  object-position: center;
   transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
-.menu-card:not(.active):not(:hover):not(:focus-within) .menu-card-preview {
+.menu-card:not(.menu-card--gallery):not(.active):not(:hover):not(:focus-within) .menu-card-cover-img {
   opacity: 0.48;
   filter: saturate(0.55) brightness(0.9);
 }
 
-.menu-card.has-node-color:is(:hover, :focus-within, .active) .menu-card-preview {
+.menu-card.has-node-color:not(.menu-card--gallery):is(:hover, :focus-within, .active) .menu-card-cover-img {
   opacity: 1;
   filter: none;
 }
@@ -8215,6 +8234,14 @@ body.app-locked {
   padding: 0;
 }
 
+.menu-container-body,
+.menu-container-section > .tree-children,
+.menu-nested-container-body {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
+}
+
 .menu-container-section--placeholder {
   margin: 0 0 4px;
   padding: 0;
@@ -8237,12 +8264,14 @@ body.app-locked {
   font-weight: 500;
 }
 
-.menu-repo-root-block {
-  margin: 4px 0;
-  padding: 4px 8px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 10px;
-  background: #f8fafc;
+.menu-git-service-section,
+.menu-git-container-section {
+  margin-left: 0;
+}
+
+.menu-item.menu-item--repo-service {
+  color: inherit;
+  background: #fff;
 }
 
 .menu-item.menu-item--repo-root {
@@ -14918,8 +14947,11 @@ button.node-navigation-memory-title:focus-visible {
 
 .menu-card--gallery .menu-card-cover {
   position: relative;
+  width: 100%;
   height: 112px;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
   background: linear-gradient(
     135deg,
     var(--node-color-bg, #ddd6fe) 0%,
@@ -14934,7 +14966,11 @@ button.node-navigation-memory-title:focus-visible {
   display: block;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
   object-fit: cover;
+  object-position: center;
 }
 
 .menu-card--gallery:not(.active):not(:hover):not(:focus-within) .menu-card-cover-img {
