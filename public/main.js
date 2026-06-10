@@ -57,6 +57,8 @@ const menuUnpinBranchBtn = document.getElementById("menu-unpin-branch-btn");
 const menuPinnedStatusNode = document.getElementById("menu-pinned-status");
 const menuSettingsBtn = document.getElementById("menu-settings-btn");
 const menuSettingsPopoverNode = document.getElementById("menu-settings-popover");
+const menuContextMenuNode = document.getElementById("menu-context-menu");
+const menuContextMenuListNode = document.getElementById("menu-context-menu-list");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
 const menuTreePadSortIndexesNode = document.getElementById("menu-tree-pad-sort-indexes");
 const agentViewSelect = document.getElementById("agent-view-select");
@@ -3899,6 +3901,7 @@ let tabularDataCache = { columns: [], rows: [], rowCount: 0 };
 let activeMemorySummary = null;
 let nodeOverviewRenderSeq = 0;
 let activeExternalFilePath = null;
+let pendingDirectExternalFile = null;
 let activeMediaSidecarSourcePath = null;
 let activeMediaSidecarPath = null;
 let activeMediaMarkdownPath = null;
@@ -4731,6 +4734,104 @@ function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
     item,
     "menu-item-name"
   );
+}
+
+const MENU_CONTEXT_MENU_ACTIONS = {
+  area: [
+    { id: "rename", label: "Переименовать" },
+    { id: "move", label: "Переместить" }
+  ],
+  topic: [
+    { id: "rename", label: "Переименовать" },
+    { id: "move", label: "Переместить" },
+    { id: "convert-to-area", label: "Преобразовать в область" }
+  ]
+};
+
+let menuContextMenuState = null;
+
+function getMenuContextMenuKind(nodePath) {
+  const path = normalizeMenuNodePath(nodePath);
+  if (!path) return null;
+  if (isAreaNodePath(path)) return "area";
+  if (isTopicManifestPath(path) && !isPartNodePath(path)) return "topic";
+  return null;
+}
+
+function isMenuContextMenuTarget(button) {
+  if (!button?.dataset?.path) return false;
+  if (button.classList.contains("menu-folder--adopt")) return false;
+  if (button.classList.contains("menu-folder-agent-root")) return false;
+  if (button.classList.contains("menu-folder-service-root")) return false;
+  if (button.classList.contains("menu-item--repo-root")) return false;
+  return getMenuContextMenuKind(button.dataset.path) !== null;
+}
+
+function closeMenuContextMenu() {
+  menuContextMenuNode?.classList.add("hidden");
+  menuContextMenuState = null;
+}
+
+function positionMenuContextMenu(clientX, clientY) {
+  if (!menuContextMenuNode) return;
+  menuContextMenuNode.classList.remove("hidden");
+  menuContextMenuNode.style.visibility = "hidden";
+  menuContextMenuNode.style.left = "0px";
+  menuContextMenuNode.style.top = "0px";
+  const rect = menuContextMenuNode.getBoundingClientRect();
+  const left = Math.min(clientX, window.innerWidth - rect.width - 8);
+  const top = Math.min(clientY, window.innerHeight - rect.height - 8);
+  menuContextMenuNode.style.left = `${Math.max(8, left)}px`;
+  menuContextMenuNode.style.top = `${Math.max(8, top)}px`;
+  menuContextMenuNode.style.visibility = "";
+}
+
+function renderMenuContextMenuItems(kind) {
+  if (!menuContextMenuListNode) return;
+  menuContextMenuListNode.replaceChildren();
+  const actions = MENU_CONTEXT_MENU_ACTIONS[kind] || [];
+  for (const action of actions) {
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn";
+    btn.dataset.action = action.id;
+    btn.textContent = action.label;
+    btn.disabled = true;
+    btn.setAttribute("role", "menuitem");
+    btn.setAttribute("aria-disabled", "true");
+    item.appendChild(btn);
+    menuContextMenuListNode.appendChild(item);
+  }
+}
+
+function openMenuContextMenu(event, target) {
+  if (!menuContextMenuNode || !menuContextMenuListNode) return;
+  const path = normalizeMenuNodePath(target.dataset.path);
+  const kind = getMenuContextMenuKind(path);
+  if (!kind) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenuSettingsPopover();
+
+  menuContextMenuState = {
+    path,
+    kind,
+    label: getLabelFromPath(path),
+    target
+  };
+  renderMenuContextMenuItems(kind);
+  positionMenuContextMenu(event.clientX, event.clientY);
+}
+
+function handleMenuContextMenuEvent(event) {
+  const target = event.target.closest(".menu-item[data-path], .menu-folder[data-path]");
+  if (!target || !isMenuContextMenuTarget(target)) return;
+  openMenuContextMenu(event, target);
 }
 
 function getMenuTreeFolderSortKey(node) {
@@ -6571,9 +6672,16 @@ function isNodeDeleteAvailable() {
   return true;
 }
 
+function isExternalFileEditingOrOpening() {
+  return (
+    activeContentMode === "external" &&
+    (Boolean(activeExternalFilePath) || Boolean(pendingDirectExternalFile))
+  );
+}
+
 function isCurrentModeListTemplate() {
   if (activeSystemFile) return false;
-  const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
+  const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
   return (
     (activeContentMode === "external" && !externalEditing) ||
@@ -17472,9 +17580,23 @@ async function openMemoryModeFromOverview(modeId, externalFile = null) {
   if (isAreaContentModeBlocked(modeId)) return;
   if (!applyContentModeState(modeId)) return;
   syncAppRouteToUrl({ replace: true });
-  await applyContentModeChange();
-  if (modeId === "external" && externalFile) {
-    await openExternalFile(externalFile);
+  const directExternalFile =
+    modeId === "external" && externalFile
+      ? String(externalFile).replace(/\\/g, "/").trim()
+      : "";
+  if (directExternalFile) pendingDirectExternalFile = directExternalFile;
+  try {
+    if (activePath) {
+      applyModeUi();
+      await loadContentByMode(
+        directExternalFile ? { openExternalFile: directExternalFile } : {}
+      );
+      syncEditorLineNumbers();
+    } else {
+      applyModeUi();
+    }
+  } finally {
+    pendingDirectExternalFile = null;
   }
 }
 
@@ -18462,7 +18584,30 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
     })
   );
 
-  dd.appendChild(wrap);
+  const kindRow = document.createElement("div");
+  kindRow.className = "node-navigation-hero-kind-terms";
+  kindRow.setAttribute("aria-label", "Тип записи");
+
+  const singleTerm = document.createElement("span");
+  singleTerm.className = "node-navigation-hero-kind-term";
+  singleTerm.textContent = "Одиночка (идея)";
+
+  const separator = document.createElement("span");
+  separator.className = "node-navigation-hero-kind-separator";
+  separator.setAttribute("aria-hidden", "true");
+  separator.textContent = "|";
+
+  const collectionTerm = document.createElement("span");
+  collectionTerm.className = "node-navigation-hero-kind-term";
+  collectionTerm.textContent = "Коллекция (идея)";
+
+  kindRow.append(singleTerm, separator, collectionTerm);
+
+  const block = document.createElement("div");
+  block.className = "node-navigation-hero-marker-block";
+  block.append(wrap, kindRow);
+
+  dd.appendChild(block);
   panel.appendChild(dd);
 }
 
@@ -19737,7 +19882,7 @@ function applyModeUi() {
   const overviewLikeMode = overviewMode || navigationMode;
   const titleVisible = isCurrentModeTitleEditable();
   const forceEditOnly = activeContentMode === "env";
-  const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
+  const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
   if (mediaSidecarEditing) {
     applyMediaSidecarTitleUi();
@@ -22752,6 +22897,23 @@ async function loadContentByMode(options = {}) {
   if (activeContentMode === "external") {
     try {
       const exists = await refreshExternalMemoryCaches();
+      const targetFile = String(options.openExternalFile || "")
+        .replace(/\\/g, "/")
+        .trim();
+      if (targetFile) {
+        const parentFolder = targetFile.includes("/")
+          ? targetFile.split("/").filter(Boolean).slice(0, -1).join("/")
+          : null;
+        if (parentFolder) {
+          activeExternalSectionFolder = parentFolder;
+          pruneActiveExternalSectionFolder();
+        }
+        fileContentInputNode.value = exists ? modeContentCache.external : "Папка не найдена";
+        await openExternalFile(targetFile, { skipRouteSync: true });
+        syncAppRouteToUrl({ replace: true });
+        updateBreadcrumbsForActiveMode();
+        return;
+      }
       fileContentInputNode.value = exists ? modeContentCache.external : "Папка не найдена";
       activeExternalFilePath = null;
       const sectionToRestore =
@@ -28499,11 +28661,20 @@ window.addEventListener("resize", () => {
 document.getElementById("menu")?.addEventListener(
   "scroll",
   () => {
+    closeMenuContextMenu();
     if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
     closeMenuSettingsPopover();
   },
   { passive: true }
 );
+
+menuNode?.addEventListener("contextmenu", handleMenuContextMenuEvent);
+
+document.addEventListener("click", (event) => {
+  if (menuContextMenuNode?.classList.contains("hidden")) return;
+  if (event.target.closest("#menu-context-menu")) return;
+  closeMenuContextMenu();
+});
 
 menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
   saveMenuTreeSettings(activeAgentId, {
@@ -28541,7 +28712,9 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeMenuSettingsPopover();
+  if (event.key !== "Escape") return;
+  closeMenuContextMenu();
+  closeMenuSettingsPopover();
 });
 sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SIDEBAR_WIDTH_STEP));
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
