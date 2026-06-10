@@ -16605,7 +16605,13 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 28px;
 }
 
-.media-image-name,
+.media-image-name {
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
 .media-file-name {
   padding: 6px 8px 2px;
   font-size: 12px;

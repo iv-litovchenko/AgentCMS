@@ -12926,10 +12926,6 @@ function renderMediaImagesGrid(container, items) {
     nameNode.className = "media-image-name";
     nameNode.textContent = item.name;
 
-    const pathNode = document.createElement("div");
-    pathNode.className = "media-image-path";
-    pathNode.textContent = item.path;
-
     const actions = document.createElement("div");
     actions.className = "media-image-actions";
 
@@ -12937,7 +12933,6 @@ function renderMediaImagesGrid(container, items) {
 
     card.appendChild(imgWrap);
     card.appendChild(nameNode);
-    card.appendChild(pathNode);
     card.appendChild(actions);
     grid.appendChild(card);
   }
