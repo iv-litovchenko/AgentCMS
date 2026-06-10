@@ -1,10 +1,10 @@
 ---
 awn-preview: ""
-awn-name: Служебное
+awn-name: Служебные темы и компоненты системы
 awn-status: 🟡 Черновик
 awn-type: service
-awn-create: 2026-06-10T18:33:08.996Z
-awn-update: 2026-06-10T18:33:08.996Z
+awn-create: 2026-06-10T18:54:03.172Z
+awn-update: 2026-06-10T18:54:03.172Z
 awn-description: ""
 awn-category: ""
 awn-tags: []

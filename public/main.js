@@ -278,6 +278,9 @@ const createNodeReservedWrapNode = document.getElementById("create-node-reserved
 const createNodeKitScaffoldBtn = document.getElementById("create-node-kit-scaffold-btn");
 const createNodeContainerScaffoldBtn = document.getElementById("create-node-container-scaffold-btn");
 const createNodeContainerScaffoldHintNode = document.getElementById("create-node-container-scaffold-hint");
+const createNodeContainerTargetWrapNode = document.getElementById("create-node-container-target-wrap");
+const createNodeContainerTargetNode = document.getElementById("create-node-container-target");
+const createNodeContainerTargetLabelNode = document.getElementById("create-node-container-target-label");
 const createNodeManualSectionNode = document.querySelector(".create-node-manual-section");
 const nodeSettingsPathControlsNode = document.getElementById("node-settings-path-controls");
 const nodeSettingsModeSelectNode = document.getElementById("node-settings-mode-select");
@@ -6194,8 +6197,22 @@ function getWorkspaceRootAddButtonTitle(agentId = activeAgentId) {
 }
 
 function shouldRedirectCreatesToContainer(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  return Boolean(menu?.hasGitSelf && menu?.containerTree);
+  return isAgentContainerFolderPresent(agentId);
+}
+
+function syncCreateNodeContainerTargetUi() {
+  const agentId = getCreateModalAgentId();
+  const showTarget =
+    createModalBaseParentPath === "." && isAgentContainerFolderPresent(agentId);
+  createNodeContainerTargetWrapNode?.classList.toggle("hidden", !showTarget);
+  createNodeContainerTargetWrapNode?.classList.toggle("is-disabled", showTarget);
+  if (createNodeContainerTargetNode) {
+    createNodeContainerTargetNode.checked = showTarget;
+    createNodeContainerTargetNode.disabled = showTarget;
+  }
+  if (createNodeContainerTargetLabelNode) {
+    createNodeContainerTargetLabelNode.textContent = `Создать в папке ${CONTAINER_FOLDER_DEFAULT}`;
+  }
 }
 
 function shouldShowReservedFoldersInCreateModal(agentId = getCreateModalAgentId()) {
@@ -6230,6 +6247,7 @@ function syncCreateNodeReservedFoldersUi() {
   }
 
   applyCreateNodeTargetPath();
+  syncCreateNodeContainerTargetUi();
 }
 
 const SERVICE_CATALOG_FOLDER = "catalog";
@@ -6440,6 +6458,7 @@ function syncCreateNodeActionsUi() {
         ? "Например: sport"
         : "Например: Плавание";
   }
+  syncCreateNodeContainerTargetUi();
   syncCreateNodeServicePresetsUi();
 }
 
@@ -6472,6 +6491,7 @@ function closeCreateNodeModal() {
   createNodeRootWrapNode?.classList.add("hidden");
   createNodeReservedWrapNode?.classList.add("hidden");
   createNodeRootDividerNode?.classList.add("hidden");
+  createNodeContainerTargetWrapNode?.classList.add("hidden");
   createNodeManualSectionNode?.classList.remove("hidden");
   syncCreateNodeActionsUi();
 }
@@ -23095,7 +23115,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
 
   if (!collapsed) {
     const body = document.createElement("div");
-    body.className = "tree-children";
+    body.className = "tree-children menu-service-body";
     renderServiceTreeBody(treeToRender, body, agentId);
     section.appendChild(body);
   }
@@ -23127,20 +23147,6 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
 
   const wrap = document.createElement("div");
   wrap.className = "menu-container-section";
-
-  const headRow = document.createElement("div");
-  headRow.className = "menu-container-head";
-  const addBtn = document.createElement("button");
-  addBtn.type = "button";
-  addBtn.className = "add-node-btn";
-  addBtn.textContent = "+";
-  addBtn.title = "Создать тему, папку или part";
-  addBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openCreateNodeModal(containerFolder, { agentId, inContainerTree: true });
-  });
-  headRow.appendChild(addBtn);
-  wrap.appendChild(headRow);
 
   const body = document.createElement("div");
   body.className = "tree-children";
