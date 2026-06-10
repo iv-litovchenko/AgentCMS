@@ -253,11 +253,6 @@ function buildDefaultFrontmatter(typeName, options = {}) {
       lines.push(`awn-update: ${now}`);
       continue;
     }
-    if (key === "title" && name) {
-      lines.push(`title: ${formatYamlScalar(name)}`);
-      continue;
-    }
-
     const fieldDef = fields[key];
     if (!fieldDef) continue;
     if (fieldDef.default === undefined) {

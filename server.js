@@ -22,6 +22,8 @@ const {
   toAreaFolderName,
   toStorageFolderName,
   stripTopicPrefix,
+  getManifestSlugFromRel,
+  resolveNodeDisplayName,
   manifestRelToXSidecar,
   parsePartFolderManifestRel,
   resolvePartFolderSidecarBaseRel,
@@ -76,6 +78,7 @@ const {
   applyAwnSchemaToConfig,
   getTopicSchemaPayload
 } = require("./awn-types-loader");
+const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
 
@@ -471,6 +474,33 @@ function toNodeFileName(rawName) {
 
 function toFolderName(rawName) {
   return toAreaFolderName(rawName);
+}
+
+function resolveNodeDiskSlugFromPayload(payload = {}) {
+  const displayName = String(payload.displayName || "").trim();
+  const slug = sanitizeSlugInput(payload.slug);
+  const legacyName = String(payload.name || "").trim();
+  const display = displayName || legacyName;
+  const raw = slug || transliterateToSlug(display || legacyName) || legacyName;
+  return sanitizeSlugInput(raw) || transliterateToSlug(display) || legacyName;
+}
+
+function resolveContentItemNames(payload = {}) {
+  const displayName = String(payload.displayName || payload.title || payload.name || "").trim();
+  const slug = sanitizeSlugInput(payload.slug);
+  const legacy = String(payload.title || payload.name || "").trim();
+  const display = displayName || legacy;
+  const diskSlug =
+    slug || sanitizeSlugInput(transliterateToSlug(display)) || sanitizeSlugInput(legacy) || "";
+  return { display, diskSlug };
+}
+
+function formatYamlScalarForFrontmatter(value) {
+  const text = String(value ?? "");
+  if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
+    return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  }
+  return text;
 }
 
 function toContentFilePath(relNodePath) {
@@ -1178,13 +1208,10 @@ function toEnvFilePath(relNodePath) {
 }
 
 function toExternalMarkdownFileName(rawName) {
-  const cleaned = String(rawName || "")
-    .trim()
-    .replace(/[\/\\]/g, "")
-    .replace(/\.md$/i, "")
-    .replace(/\s+/g, " ");
-  if (!cleaned) return null;
-  return `${cleaned}.md`;
+  const slug = sanitizeSlugInput(String(rawName || "").replace(/\.md$/i, "")) ||
+    transliterateToSlug(String(rawName || "").replace(/\.md$/i, ""));
+  if (!slug) return null;
+  return `${slug}.md`;
 }
 
 function resolveObsidianSidecarAbsolute(nodeAbsolute, sidecarRelFn) {
@@ -1379,12 +1406,12 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
     const props = parseFrontmatterProps(frontmatter);
     const previewRaw = getFrontmatterPropValue(props, "awn-preview") || getYamlScalar(frontmatter, "awn-preview");
     const previewMeta = await resolveAwnPreviewFieldMeta(manifestRelPath, previewRaw);
-    const title =
-      getFrontmatterPropValue(props, "title") ||
+    const slug = fileEntry.name.replace(/\.md$/i, "");
+    const awnName =
       getFrontmatterPropValue(props, "awn-name") ||
-      getYamlScalar(frontmatter, "title") ||
       getYamlScalar(frontmatter, "awn-name") ||
-      fileEntry.name.replace(/\.md$/i, "");
+      "";
+    const title = resolveNodeDisplayName(awnName, slug);
     return {
       ...fileEntry,
       title,
@@ -1596,9 +1623,9 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.record.category"
     ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
     : safeTitle;
   if (!awnType) {
-    return `---\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+    return `---\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
   }
-  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
 async function writeStorageSectionReadme(sectionAbsolute, title, awnType = "awn.record.category") {
@@ -1843,7 +1870,7 @@ async function ensureServiceFolderScaffold(agentRootAbsolute) {
     await fs.writeFile(
       manifestAbsolute,
       joinNodeFrontmatter(
-        `title: ${SERVICE_AREA_NAME}\nawn-type: service`,
+        `awn-name: ${SERVICE_AREA_NAME}\nawn-type: service`,
         `# ${SERVICE_AREA_NAME}\n\nОбщая медиатека и служебные темы агента.\n`
       ),
       "utf-8"
@@ -2812,12 +2839,9 @@ async function getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderNa
 }
 
 function toExternalSectionFolderName(rawName) {
-  const cleaned = String(rawName || "")
-    .trim()
-    .replace(/[\/\\]/g, "")
-    .replace(/\s+/g, " ");
-  if (!cleaned) return null;
-  return cleaned;
+  const slug = sanitizeSlugInput(rawName) || transliterateToSlug(rawName);
+  if (!slug) return null;
+  return slug;
 }
 
 async function resolveUniqueExternalFileName(folderAbsolute, baseName = "Воспоминание") {
@@ -3407,10 +3431,7 @@ async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
       const { frontmatter } = splitNodeFrontmatter(raw);
       const baseName = entry.name.replace(/\.md$/i, "");
       const id = getYamlScalar(frontmatter, "awn-slug") || baseName;
-      const label =
-        getYamlScalar(frontmatter, "title") ||
-        getYamlScalar(frontmatter, "awn-name") ||
-        baseName;
+      const label = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", baseName);
       const color = getYamlScalar(frontmatter, "awn-color") || null;
       if (!id) continue;
       items.push({ id, label, color, path: fileRel });
@@ -3510,6 +3531,34 @@ async function getAgentCatalogsPayload() {
     loadAgentCatalogPreset(serviceAbsolute, "tags")
   ]);
   return { categories, tags };
+}
+
+async function readNodeDisplayLabelForManifestRel(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const slug = getManifestSlugFromRel(normalized);
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(normalized);
+    const awnName = getYamlScalar(frontmatter, "awn-name") || "";
+    return resolveNodeDisplayName(awnName, slug);
+  } catch {
+    return slug;
+  }
+}
+
+async function resolveFolderDisplayTitle(dirAbsolute, relativePath, child = null) {
+  const slug = stripTopicPrefix(path.posix.basename(String(relativePath || "").replace(/\\/g, "/"))) ||
+    path.posix.basename(String(relativePath || "").replace(/\\/g, "/"));
+  let manifestRel = child?.indexPath || null;
+  if (!manifestRel) {
+    const areaBasename = await resolveExistingAreaManifestBasename(dirAbsolute);
+    if (areaBasename) {
+      manifestRel = path.join(relativePath, areaBasename).replace(/\\/g, "/");
+    }
+  }
+  if (manifestRel) {
+    return readNodeDisplayLabelForManifestRel(manifestRel);
+  }
+  return slug;
 }
 
 async function readNodeMenuMetaForNodeRel(nodeRelPath) {
@@ -3705,7 +3754,7 @@ async function collectPartNodeItems(partsDirAbsolute, relativePrefix, files) {
     if (!manifestRel) continue;
     const relativePath = manifestRel.replace(/\\/g, "/");
     files.push({
-      label: entry.name,
+      label: await readNodeDisplayLabelForManifestRel(relativePath),
       path: relativePath,
       ...(await enrichMenuNodeItem(relativePath))
     });
@@ -3716,7 +3765,7 @@ async function collectPartNodeItems(partsDirAbsolute, relativePrefix, files) {
     const fullPath = path.join(partsDirAbsolute, entry.name);
     const relativePath = path.join(relativePrefix, PARTS_FOLDER, entry.name).replace(/\\/g, "/");
     files.push({
-      label: stripTopicPrefix(entry.name),
+      label: await readNodeDisplayLabelForManifestRel(relativePath),
       path: relativePath,
       ...(await enrichMenuNodeItem(relativePath))
     });
@@ -4182,7 +4231,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
       const hasNodes = Boolean(child.indexPath || child.items.length > 0 || child.sections.length > 0);
       const markers = await readFolderWorkspaceMarkers(fullPath);
 
-      const folderTitle = stripTopicPrefix(entry.name) || entry.name;
+      const folderTitle = await resolveFolderDisplayTitle(fullPath, relativePath, child);
 
       if (hasNodes) {
         folders.push({
@@ -4230,7 +4279,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
     if (entry.isFile() && isTopicManifestFileName(entry.name, { isAgentRoot: !prefix })) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
       const menuItem = {
-        label: stripTopicPrefix(entry.name),
+        label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
         path: nodeRelPath,
         ...(await enrichMenuNodeItem(nodeRelPath))
       };
@@ -5873,9 +5922,11 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const title = String(payload.title || "Воспоминание").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display || "Воспоминание";
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
@@ -5889,12 +5940,12 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
       }
 
-      const fileName = await resolveUniqueExternalFileName(targetFolder, title);
+      const fileName = await resolveUniqueExternalFileName(targetFolder, diskSlug);
       if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
 
       const fileAbsolute = path.join(targetFolder, fileName);
-      const baseTitle = title.replace(/\.md$/i, "");
-      const content = `---\ntitle: ${baseTitle}\ntags: []\n---\n\n# ${baseTitle}\n`;
+      const quotedDisplay = formatYamlScalarForFrontmatter(title);
+      const content = `---\nawn-name: ${quotedDisplay}\ntags: []\n---\n\n# ${title}\n`;
       await fs.writeFile(fileAbsolute, content, "utf-8");
 
       return sendJson(res, 200, {
@@ -5911,14 +5962,16 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const title = String(payload.title || payload.name || "").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display;
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const sectionName = toExternalSectionFolderName(title);
+      const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
@@ -5960,14 +6013,16 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const title = String(payload.title || payload.name || "").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display;
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const sectionName = toExternalSectionFolderName(title);
+      const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
       const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
@@ -6009,10 +6064,12 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const title = String(payload.title || payload.name || "").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display;
       const storageFolder = String(payload.folder || "").trim();
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
       if (!isAllowedStorageSubfolderName(storageFolder)) {
         return sendJson(res, 400, { error: "Invalid storage folder" });
       }
@@ -6027,7 +6084,7 @@ async function handleApiForAgent(req, res, url) {
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const sectionName = toExternalSectionFolderName(title);
+      const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder, { create: true });
@@ -7167,7 +7224,9 @@ async function handleApiForAgent(req, res, url) {
 
       if (type === "manifest") {
         const folderName = path.basename(parentAbsolute);
-        const title = String(name || stripTopicPrefix(folderName)).trim() || folderName;
+        const displayName = String(payload.displayName || "").trim();
+        const title =
+          displayName || String(name || stripTopicPrefix(folderName)).trim() || folderName;
         const areaFolderAbsolute = parentAbsolute;
         const areaFolderRel =
           parentPathResolved && parentPathResolved !== "." ? parentPathResolved : folderName;
@@ -7205,7 +7264,9 @@ async function handleApiForAgent(req, res, url) {
       }
 
       if (type === "folder") {
-        const folderName = toFolderName(name);
+        const displayName = String(payload.displayName || "").trim() || String(name || "").trim();
+        const diskSlug = resolveNodeDiskSlugFromPayload(payload);
+        const folderName = toFolderName(diskSlug);
         if (!folderName) return sendJson(res, 400, { error: "Invalid folder name" });
 
         const folderAbsolute = path.join(parentAbsolute, folderName);
@@ -7218,7 +7279,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const areaTitle = stripTopicPrefix(folderName);
+        const areaTitle = displayName || stripTopicPrefix(folderName);
         const areaFrontmatter = buildDefaultFrontmatter("awn.area", {
           name: areaTitle,
           agentRoot: getAgentRoot(),
@@ -7243,7 +7304,9 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      const partFileName = toNodeFileName(name);
+      const displayName = String(payload.displayName || "").trim() || String(name || "").trim();
+      const diskSlug = resolveNodeDiskSlugFromPayload(payload);
+      const partFileName = toNodeFileName(diskSlug);
       if (!partFileName) return sendJson(res, 400, { error: "Invalid topic name" });
 
       const partFileAbsolute = path.join(parentAbsolute, partFileName);
@@ -7255,7 +7318,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const fileFrontmatter = buildDefaultFrontmatter("awn.topic", {
-        name: stripTopicPrefix(partFileName),
+        name: displayName || stripTopicPrefix(partFileName),
         agentRoot: getAgentRoot(),
         projectRoot: getProjectRoot()
       });

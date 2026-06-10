@@ -171,6 +171,8 @@ const storageSectionsPanelToggleWrapNode = document.getElementById("storage-sect
 const storageSectionsPanelToggleNode = document.getElementById("storage-sections-panel-toggle");
 const createSectionModalNode = document.getElementById("create-section-modal");
 const createSectionNameInputNode = document.getElementById("create-section-name-input");
+const createSectionSlugInputNode = document.getElementById("create-section-slug-input");
+const createSectionSlugUnlinkBtn = document.getElementById("create-section-slug-unlink-btn");
 const createSectionCancelBtn = document.getElementById("create-section-cancel-btn");
 const createSectionOkBtn = document.getElementById("create-section-ok-btn");
 const CREATE_MEMORY_MAX_COUNT = 5;
@@ -180,6 +182,14 @@ const createMemoryNamesListNode = document.getElementById("create-memory-names-l
 const createMemoryNameInputNodes = createMemoryNamesListNode
   ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-name-input")]
   : [];
+const createMemorySlugInputNodes = createMemoryNamesListNode
+  ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-slug-input")]
+  : [];
+const createMemorySlugUnlinkBtns = createMemoryNamesListNode
+  ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-slug-unlink-btn")]
+  : [];
+let createSectionSlugController = null;
+const createMemorySlugControllers = [];
 const createMemoryAfterListRadio = document.getElementById("create-memory-after-list");
 const createMemoryAfterEditRadio = document.getElementById("create-memory-after-edit");
 const createMemoryAfterRadios = [createMemoryAfterListRadio, createMemoryAfterEditRadio].filter(Boolean);
@@ -195,6 +205,9 @@ const editorLineNumbersNode = document.getElementById("editor-line-numbers");
 const tabularSourceBtn = document.getElementById("tabular-source-btn");
 const tabularTableBackBtn = document.getElementById("tabular-table-back-btn");
 const titleInputNode = document.getElementById("title-input");
+const titleSlugRowNode = document.getElementById("title-slug-row");
+const titleSlugInputNode = document.getElementById("title-slug-input");
+const titleSlugUnlinkBtn = document.getElementById("title-slug-unlink-btn");
 const titleMediaExtNode = document.getElementById("title-media-ext");
 const titleFixedValueNode = document.getElementById("title-fixed-value");
 const titleFixedTextNode = document.getElementById("title-fixed-text");
@@ -243,6 +256,11 @@ const toastNode = document.getElementById("toast");
 const createNodeModalNode = document.getElementById("create-node-modal");
 const createNodeModalTitleNode = document.getElementById("create-node-modal-title");
 const createNameInputNode = document.getElementById("create-name-input");
+const createSlugRowNode = document.getElementById("create-slug-row");
+const createSlugInputNode = document.getElementById("create-slug-input");
+const createSlugUnlinkBtn = document.getElementById("create-slug-unlink-btn");
+let titleSlugLinked = true;
+let createSlugLinked = true;
 const createFolderBtn = document.getElementById("create-folder-btn");
 const createManifestBtn = document.getElementById("create-manifest-btn");
 const createNodeActionsNode = document.getElementById("create-node-actions");
@@ -3481,7 +3499,7 @@ function getNodeViewSurface(mode = activeContentMode) {
   return NODE_VIEW_SURFACE[mode] || "document";
 }
 
-const OVERVIEW_HERO_PROP_KEYS = new Set(["title", "awn-description", "summary", "awn-type"]);
+const OVERVIEW_HERO_PROP_KEYS = new Set(["awn-name", "awn-description", "summary", "awn-type"]);
 const OVERVIEW_META_PROP_KEYS = [
   "awn-status",
   "awn-priority",
@@ -6360,6 +6378,7 @@ function syncCreateNodeActionsUi() {
   createNodeDividerNode?.classList.toggle("hidden", !serviceRoot);
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
   createNodeActionsNode?.classList.toggle("create-node-actions--service", inServiceTree);
+  createSlugRowNode?.classList.toggle("hidden", showManifestOption);
 
   if (createNameInputNode) {
     createNameInputNode.placeholder = inServiceTree ? "Например: statuses" : "Например: Плавание";
@@ -6393,6 +6412,8 @@ function closeCreateNodeModal() {
   createModalEmptyFolder = false;
   createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
+  if (createSlugInputNode) createSlugInputNode.value = "";
+  setCreateSlugLinked(true);
   createNodeVaultOptionWrapNode?.classList.add("hidden");
   createNodeVaultOptionWrapNode?.classList.remove("is-disabled");
   if (createNodeVaultOptionNode) {
@@ -6418,6 +6439,7 @@ function openCreateNodeModal(parentPath, options = {}) {
     }
     createNameInputNode.focus();
   }
+  syncCreateSlugFromDisplayName();
 }
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
@@ -9243,9 +9265,9 @@ function buildSectionReadmeContent(title, awnType = "awn.record.category") {
     ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
     : safeTitle;
   if (!awnType) {
-    return `---\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+    return `---\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
   }
-  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\ntitle: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
 function externalSectionReadmeExists(sectionFolder) {
@@ -12589,7 +12611,7 @@ function setTitleLockedDisplay(label) {
 }
 
 function isTitleLockedNodePath(nodePath = getActiveNodeApiPath()) {
-  return isAgentRootIndexPath(nodePath) || isAgentSystemRootIndexPath(nodePath);
+  return isAgentSystemRootIndexPath(nodePath);
 }
 
 function setTitleLockedInput(label) {
@@ -12601,17 +12623,47 @@ function setTitleLockedInput(label) {
   titleFixedValueNode.classList.add("hidden");
   if (titleFixedTextNode) titleFixedTextNode.textContent = "";
   placeTitleFixedInTitleRow();
+  titleSlugRowNode?.classList.add("hidden");
 }
 
-function syncTitleLockForActivePath() {
-  if (activeSystemFile || activeContentMode !== "description") return;
-  if (isAgentSystemRootIndexPath(activePath)) {
+function syncTitleInputEditableState() {
+  if (activeSystemFile) return;
+
+  const mediaSidecarEditing = isMediaAssetEditing();
+  const externalEditing =
+    activeContentMode === "external" && Boolean(activeExternalFilePath);
+  const titleEditable = isCurrentModeTitleEditable();
+
+  if (mediaSidecarEditing) {
+    applyMediaSidecarTitleUi();
+    return;
+  }
+
+  if (isAgentSystemRootIndexPath(activePath) && activeContentMode === "description") {
     setTitleLockedInput(SERVICE_SECTION_LABEL);
     return;
   }
-  if (isAgentRootIndexPath(activePath)) {
-    setTitleLockedInput(getActiveAgentLabel() || getAgentTreeTitle());
+
+  if (titleEditable) {
+    showTitleEditableInput();
+    titleInputNode.disabled = false;
+    titleInputNode.readOnly = false;
+    if (externalEditing && activeExternalFilePath && isSectionReadmePath(activeExternalFilePath)) {
+      const frontmatter = propsInputNode?.value || "";
+      titleInputNode.value =
+        getNodeDisplayTitleFromFrontmatter(activeExternalFilePath, frontmatter) ||
+        getLabelFromPath(activeExternalFilePath);
+    } else if (activeContentMode === "description" && activePath) {
+      titleInputNode.value =
+        getNodeDisplayTitleForActiveManifest() ||
+        titleInputNode.value ||
+        getLabelFromPath(activePath);
+    }
   }
+}
+
+function syncTitleLockForActivePath() {
+  syncTitleInputEditableState();
 }
 
 function showTitleEditableInput() {
@@ -12621,6 +12673,7 @@ function showTitleEditableInput() {
   titleFixedValueNode.classList.add("hidden");
   if (titleFixedTextNode) titleFixedTextNode.textContent = "";
   placeTitleFixedInTitleRow();
+  showTitleSlugRow();
 }
 
 function resetTitleInputState() {
@@ -12830,7 +12883,7 @@ const PROPS_FIELD_META = {
   },
   "awn-name": {
     label: "Имя",
-    hint: "Имя файла без расширения (дублирует имя на диске)"
+    hint: "Отображаемое имя в меню; пустое — показывается slug (имя файла/папки)"
   },
   "awn-create": {
     label: "Создан",
@@ -14447,7 +14500,7 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
 }
 
 const PROPS_KEY_CANONICAL_ALIASES = {
-  "awn-title": "title",
+  "awn-title": "awn-name",
   "awn-desc": "awn-description",
   "awn-created": "awn-create",
   "awn-updated": "awn-update"
@@ -14496,7 +14549,7 @@ function normalizePropsEntries(entries) {
   return [...map.values()];
 }
 
-const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
+const HIDDEN_PROPS_FIELD_KEYS = new Set(["title", "awn-name"]);
 
 function ensureAwnContextDefaults(entries) {
   const map = new Map();
@@ -14517,14 +14570,6 @@ function ensureAwnContextDefaults(entries) {
       baseName = baseName.slice(0, -".sidecar.md".length);
     } else if (baseName.toLowerCase().endsWith(".md")) {
       baseName = baseName.slice(0, -3);
-    }
-    if (isSectionReadmePath(nodePath)) {
-      const parts = String(nodePath).replace(/\\/g, "/").split("/").filter(Boolean);
-      if (parts.length >= 2) baseName = parts[parts.length - 2];
-    }
-    const nameEntry = map.get("awn-name");
-    if (baseName && !nameEntry?.value) {
-      map.set("awn-name", { key: "awn-name", kind: "string", value: baseName });
     }
   }
 
@@ -16743,14 +16788,14 @@ function stripDefaultManifestHeading(body, titleHint = "") {
 function applyNodeManifestBody(rawContent) {
   const { frontmatter, body } = splitFrontmatter(rawContent || "");
   const titleHint =
-    getYamlScalarFromFrontmatter(frontmatter, "title") ||
-    getPropsEntryValueByKey(propsFormEntries, "title") ||
+    getNodeDisplayTitleFromFrontmatter(activePath, frontmatter) ||
     titleInputNode?.value?.trim() ||
     "";
   fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
 }
 
 function buildNodeManifestContent() {
+  syncDisplayNameIntoAwnNameProp(activePath);
   readPropsFormIntoEntries();
   if (!propsRawYamlVisible) {
     syncYamlFromPropsForm();
@@ -16762,13 +16807,16 @@ function applyExternalFileContentUi(rawContent) {
   const { frontmatter, body } = splitFrontmatter(rawContent);
   setPropsYamlContent(frontmatter);
   const titleHint =
-    getYamlScalarFromFrontmatter(frontmatter, "title") ||
+    getNodeDisplayTitleFromFrontmatter(activeExternalFilePath, frontmatter) ||
     titleInputNode?.value?.trim() ||
     "";
   fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
 }
 
 function buildExternalFileContent() {
+  if (activeExternalFilePath && isSectionReadmePath(activeExternalFilePath)) {
+    syncSectionReadmeDisplayNameIntoProps(titleInputNode?.value?.trim());
+  }
   readPropsFormIntoEntries();
   if (!propsRawYamlVisible) {
     syncYamlFromPropsForm();
@@ -16784,21 +16832,18 @@ function applyMediaSidecarContentUi(rawContent) {
 
 function syncSectionReadmeDisplayNameIntoProps(displayName) {
   const trimmed = String(displayName || "").trim();
-  if (!trimmed) return;
+  const nodePath = activeMediaMarkdownPath || activeExternalFilePath;
+  const slug = nodePath ? getNodeSlugFromPath(nodePath) : "";
+  const valueToStore = trimmed && trimmed !== slug ? trimmed : "";
 
-  const upsertVisible = (key, value) => {
-    const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const upsertHidden = (key, value) => {
+    const index = propsFormHiddenEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
     const nextEntry = { key, kind: "string", value };
-    if (index >= 0) propsFormEntries[index] = { ...propsFormEntries[index], ...nextEntry };
-    else propsFormEntries.push(nextEntry);
+    if (index >= 0) propsFormHiddenEntries[index] = nextEntry;
+    else propsFormHiddenEntries.push(nextEntry);
   };
 
-  upsertVisible("awn-name", trimmed);
-
-  const titleIndex = propsFormHiddenEntries.findIndex((entry) => entry.key === "title");
-  const titleEntry = { key: "title", kind: "string", value: trimmed };
-  if (titleIndex >= 0) propsFormHiddenEntries[titleIndex] = titleEntry;
-  else propsFormHiddenEntries.push(titleEntry);
+  upsertHidden("awn-name", valueToStore);
 }
 
 function buildMediaSidecarContent() {
@@ -16825,18 +16870,7 @@ function buildMediaMarkdownContent() {
 }
 
 function getMediaMarkdownTitleValue(filePath, frontmatter = "") {
-  const folderLabel = getLabelFromPath(filePath);
-  const reginfoStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
-  const awnName = getYamlScalarFromFrontmatter(frontmatter, "awn-name");
-  const title = getYamlScalarFromFrontmatter(frontmatter, "title");
-
-  if (isSectionReadmePath(filePath)) {
-    if (awnName && awnName !== reginfoStem) return awnName;
-    if (title) return title;
-    return folderLabel;
-  }
-
-  return awnName || title || folderLabel;
+  return getNodeDisplayTitleFromFrontmatter(filePath, frontmatter);
 }
 
 function enableMediaMarkdownEditor(filePath, content, options = {}) {
@@ -16848,6 +16882,7 @@ function enableMediaMarkdownEditor(filePath, content, options = {}) {
   showTitleEditableInput();
   const { frontmatter } = splitFrontmatter(content || "");
   titleInputNode.value = getMediaMarkdownTitleValue(filePath, frontmatter);
+  showTitleSlugRow(filePath);
   applyMediaSidecarContentUi(content || "");
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -16976,9 +17011,9 @@ async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
 
 function syncPropsInputPlaceholder() {
   if (isExternalFileEditing() || isMediaAssetEditing()) {
-    propsInputNode.placeholder = "title: Заметка\ntags:\n  - пример\nstatus: draft";
+    propsInputNode.placeholder = "awn-name: Заметка\ntags:\n  - пример\nawn-status: draft";
   } else {
-    propsInputNode.placeholder = "title: Название\ntags:\n  - пример\nstatus: active";
+    propsInputNode.placeholder = "awn-name: Название\ntags:\n  - пример\nawn-status: active";
   }
 }
 
@@ -16986,11 +17021,14 @@ function enableExternalFileEditor(filePath, content, options = {}) {
   activeExternalFilePath = filePath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
+  showTitleEditableInput();
+  const { frontmatter } = splitFrontmatter(content || "");
   if (isSectionReadmePath(filePath)) {
-    setTitleLockedInput(getLabelFromPath(filePath));
+    titleInputNode.value =
+      getNodeDisplayTitleFromFrontmatter(filePath, frontmatter) || getLabelFromPath(filePath);
   } else {
-    showTitleEditableInput();
     titleInputNode.value = getLabelFromPath(filePath);
+    showTitleSlugRow(filePath);
   }
   applyExternalFileContentUi(content || "");
   syncPropsInputPlaceholder();
@@ -17018,13 +17056,21 @@ async function openExternalFile(filePath, options = {}) {
 
 function resetCreateMemoryNameInputs() {
   for (const input of createMemoryNameInputNodes) input.value = "";
+  for (const controller of createMemorySlugControllers) controller.reset();
 }
 
-function getCreateMemoryTitles() {
-  return createMemoryNameInputNodes
-    .map((input) => input.value.trim())
-    .filter(Boolean)
-    .slice(0, CREATE_MEMORY_MAX_COUNT);
+function getCreateMemoryItems() {
+  const items = [];
+  for (let index = 0; index < createMemoryNameInputNodes.length; index += 1) {
+    const displayName = createMemoryNameInputNodes[index]?.value?.trim() || "";
+    if (!displayName) continue;
+    const slug =
+      createMemorySlugControllers[index]?.getSlug() ||
+      sanitizeSlugValue(transliterateDisplayToSlug(displayName));
+    if (!slug) continue;
+    items.push({ displayName, slug });
+  }
+  return items.slice(0, CREATE_MEMORY_MAX_COUNT);
 }
 
 function shouldOpenCreatedMemoryForEdit() {
@@ -17051,6 +17097,8 @@ function setCreateMemoryModalBusy(busy) {
   createMemoryOkBtn.disabled = busy;
   createMemoryCancelBtn.disabled = busy;
   for (const input of createMemoryNameInputNodes) input.disabled = busy;
+  for (const input of createMemorySlugInputNodes) input.disabled = busy;
+  for (const button of createMemorySlugUnlinkBtns) button.disabled = busy;
   for (const radio of createMemoryAfterRadios) radio.disabled = busy;
 }
 
@@ -17071,9 +17119,14 @@ function closeCreateMemoryModal() {
   createMemoryOkBtn.textContent = "Создать";
 }
 
-async function createExternalMemoryFile(title) {
+async function createExternalMemoryFile(displayName, slug) {
   const parentFolder = getActiveExternalSectionParentForCreate();
-  const requestBody = { path: getActiveNodeApiPath(), title };
+  const requestBody = {
+    path: getActiveNodeApiPath(),
+    title: displayName,
+    displayName,
+    slug
+  };
   if (parentFolder) requestBody.parent = parentFolder;
   const response = await fetch(buildApiUrl("/api/external/file/create"), {
     method: "POST",
@@ -17091,8 +17144,8 @@ async function createExternalMemoryFile(title) {
 
 async function createExternalMemory() {
   if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
-  const titles = getCreateMemoryTitles();
-  if (!titles.length) {
+  const items = getCreateMemoryItems();
+  if (!items.length) {
     showToast("Введите хотя бы одно название", "error");
     return;
   }
@@ -17102,12 +17155,12 @@ async function createExternalMemory() {
   let lastFile = null;
 
   try {
-    for (let index = 0; index < titles.length; index += 1) {
-      const title = titles[index];
+    for (let index = 0; index < items.length; index += 1) {
+      const { displayName, slug } = items[index];
       createMemoryOkBtn.textContent =
-        titles.length === 1 ? "Создаю..." : `Создаю ${index + 1} из ${titles.length}...`;
+        items.length === 1 ? "Создаю..." : `Создаю ${index + 1} из ${items.length}...`;
       try {
-        const data = await createExternalMemoryFile(title);
+        const data = await createExternalMemoryFile(displayName, slug);
         created += 1;
         lastFile = data.file;
       } catch {
@@ -17124,13 +17177,13 @@ async function createExternalMemory() {
       }
     }
 
-    if (created === titles.length) {
+    if (created === items.length) {
       showToast(
         created === 1 ? "Элемент создан" : `Создано элементов: ${created}`,
         "success"
       );
     } else if (created > 0) {
-      showToast(`Создано ${created} из ${titles.length}`, "error");
+      showToast(`Создано ${created} из ${items.length}`, "error");
     } else {
       showToast("Ошибка создания элементов", "error");
     }
@@ -17190,6 +17243,7 @@ function openCreateSectionModal(targetMode = "external") {
         : "Создать раздел";
   }
   createSectionNameInputNode.value = "";
+  createSectionSlugController?.reset();
   createSectionModalNode.classList.remove("hidden");
   createSectionNameInputNode.focus();
 }
@@ -17197,6 +17251,7 @@ function openCreateSectionModal(targetMode = "external") {
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
+  createSectionSlugController?.reset();
   createSectionParentFolder = null;
   const modalMessage = createSectionModalNode?.querySelector(".modal-message");
   if (modalMessage) modalMessage.textContent = "Создать раздел";
@@ -17213,9 +17268,14 @@ async function createWorkspaceSection() {
   } else {
     return;
   }
-  const title = createSectionNameInputNode.value.trim();
-  if (!title) {
+  const displayName = createSectionNameInputNode.value.trim();
+  const slug = createSectionSlugController?.getSlug() || "";
+  if (!displayName) {
     showToast("Введите название раздела", "error");
+    return;
+  }
+  if (!slug) {
+    showToast("Введите slug (имя папки)", "error");
     return;
   }
 
@@ -17241,7 +17301,12 @@ async function createWorkspaceSection() {
     const flatStorageParentFolder = isFlatStorageTarget
       ? createSectionParentFolder || getActiveFlatStorageSectionParentForCreate(createSectionTargetMode)
       : null;
-    const requestBody = { path: getActiveNodeApiPath(), title };
+    const requestBody = {
+      path: getActiveNodeApiPath(),
+      title: displayName,
+      displayName,
+      slug
+    };
     if (createSectionTargetMode === "media" && mediaParentFolder) {
       requestBody.parent = mediaParentFolder;
     }
@@ -17459,12 +17524,27 @@ function getPropsEntryValueByKey(entries, key) {
   return String(entry.value ?? "").trim();
 }
 
+function getOverviewPropsEntries(entries) {
+  if (Array.isArray(entries) && entries.length) {
+    return normalizePropsEntries([...propsFormHiddenEntries, ...entries]);
+  }
+  return mergePropsFormEntries();
+}
+
 function getOverviewTitleFromProps(entries) {
+  const nodePath = activePath;
+  const slug = getNodeSlugFromPath(nodePath);
+  const merged = getOverviewPropsEntries(entries);
   return (
-    getPropsEntryValueByKey(entries, "title") ||
+    resolveNodeDisplayName(getPropsEntryValueByKey(merged, "awn-name"), slug) ||
     activeLabel ||
-    getLabelFromPath(activePath)
+    getLabelFromPath(nodePath)
   );
+}
+
+function formatNodeHeroSlugLabel(nodePath = activePath) {
+  const slug = getNodeSlugFromPath(nodePath);
+  return slug ? `slug: ${slug}` : "slug: —";
 }
 
 function getYamlScalarFromFrontmatter(frontmatter, key) {
@@ -17863,7 +17943,7 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 
   const pathNode = document.createElement("p");
   pathNode.className = "node-navigation-hero-path";
-  pathNode.textContent = getLabelFromPath(nodePath) || activeLabel || "—";
+  pathNode.textContent = formatNodeHeroSlugLabel(nodePath);
 
   head.append(titleNode, pathNode);
   body.append(thumbWrap, head);
@@ -19883,15 +19963,8 @@ function applyModeUi() {
   const forceEditOnly = activeContentMode === "env";
   const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
-  if (mediaSidecarEditing) {
-    applyMediaSidecarTitleUi();
-  } else if (isAgentSystemRootIndexPath(activePath) && activeContentMode === "description") {
-    setTitleLockedInput(SERVICE_SECTION_LABEL);
-  } else if (isAgentRootIndexPath(activePath) && activeContentMode === "description") {
-    setTitleLockedInput(getActiveAgentLabel() || getAgentTreeTitle());
-  } else if (titleVisible || mediaSidecarEditing) {
-    showTitleEditableInput();
-    titleInputNode.disabled = false;
+  if (titleVisible || mediaSidecarEditing) {
+    syncTitleInputEditableState();
   }
   const hideContentEditor = isCurrentModeWithoutContentEditor();
   const showExternalControls = activeContentMode === "external" && !externalEditing;
@@ -20918,6 +20991,248 @@ function getLabelFromPath(filePath) {
   return stripTopicPrefix(fileName);
 }
 
+function getSlugTranslitApi() {
+  return typeof SlugTranslit !== "undefined" ? SlugTranslit : null;
+}
+
+function createSlugFieldController({ nameInput, slugInput, unlinkBtn }) {
+  let linked = true;
+
+  function applyUi() {
+    if (!slugInput || !unlinkBtn) return;
+    slugInput.readOnly = linked;
+    unlinkBtn.classList.toggle("is-linked", linked);
+    unlinkBtn.textContent = linked ? "✎" : "↩";
+    unlinkBtn.title = linked
+      ? "Редактировать slug вручную"
+      : "Привязать slug к названию (автотранслит)";
+    unlinkBtn.setAttribute(
+      "aria-label",
+      linked ? "Редактировать slug вручную" : "Привязать slug к названию"
+    );
+  }
+
+  function sync() {
+    if (!linked || !slugInput) return;
+    slugInput.value = transliterateDisplayToSlug(nameInput?.value || "");
+  }
+
+  function setLinked(nextLinked) {
+    linked = Boolean(nextLinked);
+    applyUi();
+    if (linked) sync();
+  }
+
+  function getSlug() {
+    return sanitizeSlugValue(slugInput?.value || "");
+  }
+
+  function reset() {
+    linked = true;
+    if (slugInput) slugInput.value = "";
+    applyUi();
+    sync();
+  }
+
+  nameInput?.addEventListener("input", sync);
+  unlinkBtn?.addEventListener("click", () => setLinked(!linked));
+  slugInput?.addEventListener("input", () => {
+    if (!linked && slugInput) {
+      slugInput.value = sanitizeSlugValue(slugInput.value);
+    }
+  });
+  applyUi();
+
+  return { sync, reset, getSlug, setLinked, applyUi };
+}
+
+function initCreateSectionSlugController() {
+  if (!createSectionNameInputNode || !createSectionSlugInputNode) return;
+  createSectionSlugController = createSlugFieldController({
+    nameInput: createSectionNameInputNode,
+    slugInput: createSectionSlugInputNode,
+    unlinkBtn: createSectionSlugUnlinkBtn
+  });
+}
+
+function initCreateMemorySlugControllers() {
+  createMemorySlugControllers.length = 0;
+  for (let index = 0; index < createMemoryNameInputNodes.length; index += 1) {
+    const controller = createSlugFieldController({
+      nameInput: createMemoryNameInputNodes[index],
+      slugInput: createMemorySlugInputNodes[index],
+      unlinkBtn: createMemorySlugUnlinkBtns[index]
+    });
+    createMemorySlugControllers.push(controller);
+  }
+}
+
+function transliterateDisplayToSlug(text) {
+  const api = getSlugTranslitApi();
+  if (api) return api.transliterateToSlug(text);
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function sanitizeSlugValue(text) {
+  const api = getSlugTranslitApi();
+  if (api) return api.sanitizeSlugInput(text);
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function isAutoSlugForDisplay(displayName, slug) {
+  const api = getSlugTranslitApi();
+  if (api) return api.isAutoSlug(displayName, slug);
+  return transliterateDisplayToSlug(displayName) === sanitizeSlugValue(slug);
+}
+
+function getTitleSlugInputValue() {
+  return sanitizeSlugValue(titleSlugInputNode?.value || "");
+}
+
+function getCreateSlugInputValue() {
+  return sanitizeSlugValue(createSlugInputNode?.value || "");
+}
+
+function syncTitleSlugFromDisplayName() {
+  if (!titleSlugLinked || !titleSlugInputNode) return;
+  titleSlugInputNode.value = transliterateDisplayToSlug(titleInputNode?.value || "");
+}
+
+function syncCreateSlugFromDisplayName() {
+  if (!createSlugLinked || !createSlugInputNode) return;
+  createSlugInputNode.value = transliterateDisplayToSlug(createNameInputNode?.value || "");
+}
+
+function applyTitleSlugLinkedUi() {
+  if (!titleSlugInputNode || !titleSlugUnlinkBtn) return;
+  titleSlugInputNode.readOnly = titleSlugLinked;
+  titleSlugUnlinkBtn.classList.toggle("is-linked", titleSlugLinked);
+  titleSlugUnlinkBtn.textContent = titleSlugLinked ? "✎" : "↩";
+  titleSlugUnlinkBtn.title = titleSlugLinked
+    ? "Редактировать slug вручную"
+    : "Привязать slug к названию (автотранслит)";
+  titleSlugUnlinkBtn.setAttribute(
+    "aria-label",
+    titleSlugLinked ? "Редактировать slug вручную" : "Привязать slug к названию"
+  );
+}
+
+function applyCreateSlugLinkedUi() {
+  if (!createSlugInputNode || !createSlugUnlinkBtn) return;
+  createSlugInputNode.readOnly = createSlugLinked;
+  createSlugUnlinkBtn.classList.toggle("is-linked", createSlugLinked);
+  createSlugUnlinkBtn.textContent = createSlugLinked ? "✎" : "↩";
+  createSlugUnlinkBtn.title = createSlugLinked
+    ? "Редактировать slug вручную"
+    : "Привязать slug к названию (автотранслит)";
+  createSlugUnlinkBtn.setAttribute(
+    "aria-label",
+    createSlugLinked ? "Редактировать slug вручную" : "Привязать slug к названию"
+  );
+}
+
+function setTitleSlugLinked(linked) {
+  titleSlugLinked = Boolean(linked);
+  applyTitleSlugLinkedUi();
+  if (titleSlugLinked) syncTitleSlugFromDisplayName();
+}
+
+function setCreateSlugLinked(linked) {
+  createSlugLinked = Boolean(linked);
+  applyCreateSlugLinkedUi();
+  if (createSlugLinked) syncCreateSlugFromDisplayName();
+}
+
+function showTitleSlugRow(nodePath = activePath) {
+  if (!titleSlugRowNode) return;
+  const canEditSlug =
+    activeContentMode === "description" &&
+    nodePath &&
+    !isAgentRootIndexPath(nodePath) &&
+    !isAgentSystemRootIndexPath(nodePath) &&
+    !isPartNodePath(nodePath);
+  titleSlugRowNode.classList.toggle("hidden", !canEditSlug);
+  if (!canEditSlug) return;
+  const display = titleInputNode?.value?.trim() || getNodeDisplayTitleForActiveManifest(nodePath) || "";
+  const currentSlug = getNodeSlugFromPath(nodePath);
+  if (titleSlugInputNode && !titleSlugInputNode.value) {
+    titleSlugInputNode.value = currentSlug;
+  }
+  titleSlugLinked = isAutoSlugForDisplay(display, titleSlugInputNode?.value || currentSlug);
+  applyTitleSlugLinkedUi();
+  if (titleSlugLinked) syncTitleSlugFromDisplayName();
+}
+
+function getNodeSlugFromPath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  const fileName = parts[parts.length - 1] || "";
+  if (isAreaManifestFileName(fileName)) {
+    const folderName = parts[parts.length - 2] || "";
+    if (folderName.toLowerCase() === STORAGE_ROOT_FOLDER && parts.length >= 3) {
+      return stripTopicPrefix(parts[parts.length - 3] || "");
+    }
+    return stripTopicPrefix(folderName);
+  }
+  return stripTopicPrefix(fileName);
+}
+
+function resolveNodeDisplayName(awnNameRaw, slug) {
+  const awnName = String(awnNameRaw || "").trim();
+  const slugLabel = String(slug || "").trim();
+  if (!awnName) return slugLabel;
+  const reginfoStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
+  if (awnName.toLowerCase() === reginfoStem.toLowerCase()) return slugLabel;
+  if (awnName === "_REGINFO") return slugLabel;
+  return awnName;
+}
+
+function getNodeDisplayTitleFromFrontmatter(filePath, frontmatter = "") {
+  const slug = getNodeSlugFromPath(filePath);
+  const awnName = getYamlScalarFromFrontmatter(frontmatter, "awn-name");
+  return resolveNodeDisplayName(awnName, slug);
+}
+
+function getNodeDisplayTitleForActiveManifest(nodePath = activePath) {
+  if (!nodePath) return "";
+  const slug = getNodeSlugFromPath(nodePath);
+  const merged = mergePropsFormEntries();
+  const awnNameEntry = merged.find((entry) => normalizePropsKey(entry?.key) === "awn-name");
+  if (awnNameEntry) {
+    return resolveNodeDisplayName(awnNameEntry.value, slug);
+  }
+  const frontmatter = propsInputNode?.value || "";
+  return getNodeDisplayTitleFromFrontmatter(nodePath, frontmatter);
+}
+
+function syncDisplayNameIntoAwnNameProp(nodePath = activePath || activeExternalFilePath || activeMediaMarkdownPath) {
+  if (!titleInputNode || titleInputNode.readOnly || titleInputNode.disabled) return;
+  const trimmed = titleInputNode.value.trim();
+  const slug = getNodeSlugFromPath(nodePath);
+  const valueToStore = trimmed && trimmed !== slug ? trimmed : "";
+
+  const upsertHidden = (key, value) => {
+    const index = propsFormHiddenEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+    const nextEntry = { key, kind: "string", value };
+    if (index >= 0) propsFormHiddenEntries[index] = nextEntry;
+    else propsFormHiddenEntries.push(nextEntry);
+  };
+
+  upsertHidden("awn-name", valueToStore);
+  const visibleIndex = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === "awn-name");
+  if (visibleIndex >= 0) propsFormEntries.splice(visibleIndex, 1);
+}
+
 function getNodeDisplayPath(nodePath) {
   const normalized = getResolvedNodePath(nodePath).replace(/\\/g, "/");
   if (!normalized) return "";
@@ -21662,6 +21977,18 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
       openNodeFromMenu(SERVICE_SECTION_LABEL, pathFromNode);
     });
     headRow.appendChild(folderButton);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-node-btn";
+    addBtn.textContent = "+";
+    addBtn.title = "Создать справочник, папку или part";
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openCreateNodeModal(serviceFolder, { agentId });
+    });
+    headRow.appendChild(addBtn);
+
     if (isNodeSettingsTargetPath(serviceManifestPath)) {
       headRow.appendChild(createNodeSettingsButton(serviceManifestPath));
     }
@@ -21675,18 +22002,18 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
       title.addEventListener("click", toggleServiceTreeCollapsed);
     }
     headRow.appendChild(title);
-  }
 
-  const addBtn = document.createElement("button");
-  addBtn.type = "button";
-  addBtn.className = "add-node-btn";
-  addBtn.textContent = "+";
-  addBtn.title = "Создать справочник, папку или part";
-  addBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openCreateNodeModal(serviceFolder, { agentId });
-  });
-  headRow.appendChild(addBtn);
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-node-btn";
+    addBtn.textContent = "+";
+    addBtn.title = "Создать справочник, папку или part";
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openCreateNodeModal(serviceFolder, { agentId });
+    });
+    headRow.appendChild(addBtn);
+  }
 
   section.appendChild(headRow);
 
@@ -22762,7 +23089,15 @@ async function selectFile(label, filePath) {
     }
     applyNodeManifestBody(modeContentCache.description || "");
     await loadContentByMode();
-    titleInputNode.value = getLabelFromPath(activePath);
+    titleInputNode.value =
+      getNodeDisplayTitleForActiveManifest() || label || getLabelFromPath(activePath);
+    if (titleSlugInputNode) {
+      titleSlugInputNode.value = getNodeSlugFromPath(activePath);
+    }
+    titleSlugLinked = isAutoSlugForDisplay(titleInputNode.value, titleSlugInputNode?.value || "");
+    applyTitleSlugLinkedUi();
+    if (titleSlugLinked) syncTitleSlugFromDisplayName();
+    showTitleSlugRow(activePath);
     applyNodeWorkspaceViewUi();
   } catch (error) {
     fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
@@ -23235,16 +23570,23 @@ async function saveContent() {
   }
 
   const nextTitle = titleInputNode.value.trim();
-  const currentTitle = getLabelFromPath(activePath);
-  const currentExternalTitle = activeExternalFilePath ? getLabelFromPath(activeExternalFilePath) : "";
-  const currentMediaTitleBase = getMediaSidecarTitleBase();
-  const shouldRenameDescription =
+  const manifestSlug = getNodeSlugFromPath(activePath);
+  const previousDisplayName = getNodeDisplayTitleForActiveManifest();
+  const displayNameChanged =
     activeContentMode === "description" &&
-    nextTitle &&
-    nextTitle !== currentTitle &&
+    nextTitle !== previousDisplayName &&
+    !isAgentSystemRootIndexPath(activePath) &&
+    !isPartNodePath(activePath);
+  const nextSlug = getTitleSlugInputValue();
+  const shouldRenameSlug =
+    activeContentMode === "description" &&
+    nextSlug &&
+    nextSlug !== manifestSlug &&
     !isAgentRootIndexPath(activePath) &&
     !isAgentSystemRootIndexPath(activePath) &&
     !isPartNodePath(activePath);
+  const currentExternalTitle = activeExternalFilePath ? getLabelFromPath(activeExternalFilePath) : "";
+  const currentMediaTitleBase = getMediaSidecarTitleBase();
   const shouldRenameExternal =
     activeContentMode === "external" &&
     activeExternalFilePath &&
@@ -23268,18 +23610,18 @@ async function saveContent() {
   let saveSucceeded = false;
 
   try {
-    if (shouldRenameDescription) {
+    if (shouldRenameSlug) {
       const renameResponse = await fetch(buildApiUrl("/api/file/title"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: getActiveNodeApiPath(), title: nextTitle })
+        body: JSON.stringify({ path: getActiveNodeApiPath(), title: nextSlug })
       });
 
       if (!renameResponse.ok) {
         const errorData = await renameResponse.json().catch(() => ({}));
         const reason = errorData.error || `Request failed with ${renameResponse.status}`;
         const details = errorData.details ? `: ${errorData.details}` : "";
-        throw new Error(`Ошибка переименования: ${reason}${details}`);
+        throw new Error(`Ошибка переименования slug: ${reason}${details}`);
       }
 
       const renameData = await renameResponse.json();
@@ -23289,9 +23631,8 @@ async function saveContent() {
       }
       const oldPath = activePath;
       activePath = renameData.path;
-      activeLabel = nextTitle;
       updateBreadcrumbsForActiveMode();
-      titleInputNode.value = getLabelFromPath(renameData.path);
+      if (titleSlugInputNode) titleSlugInputNode.value = getNodeSlugFromPath(activePath);
 
       const currentNode = getMenuQueryRoot().querySelector(`[data-path="${CSS.escape(oldPath)}"]`);
       if (currentNode) currentNode.dataset.path = renameData.path;
@@ -23304,14 +23645,12 @@ async function saveContent() {
         patchTreePaths(oldPath, renameData.path);
       }
 
-      replaceActiveMenuLabel(getLabelFromPath(renameData.path), renameData.path);
       try {
         await refreshMenu({ agentId: activeAgentId });
       } catch {
-        // rename already applied on disk; menu will resync on next open
+        // menu will resync on next open
       }
       updateActiveButton();
-      showToast("Переименовано", "success");
     }
 
     if (shouldRenameExternal) {
@@ -23488,6 +23827,23 @@ async function saveContent() {
       setPropsYamlContent(frontmatter);
       applyNodeManifestBody(modeContentCache.description);
       refreshEditorViewContent();
+      if (displayNameChanged) {
+        activeLabel = resolveNodeDisplayName(
+          nextTitle && nextTitle !== manifestSlug ? nextTitle : "",
+          manifestSlug
+        );
+        replaceActiveMenuLabel(activeLabel, activePath);
+        try {
+          await refreshMenu({ agentId: activeAgentId });
+        } catch {
+          // menu will resync on next open
+        }
+      }
+      titleInputNode.value = getNodeDisplayTitleForActiveManifest() || getLabelFromPath(activePath);
+      if (titleSlugInputNode) {
+        titleSlugInputNode.value = getNodeSlugFromPath(activePath);
+      }
+      showTitleSlugRow(activePath);
       saveSucceeded = true;
       showToast("Сохранено", "success");
       return;
@@ -23567,7 +23923,18 @@ async function loadPropertiesForActivePath() {
 
 async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = false } = {}) {
   if (!activePath) return;
+  const manifestSlug = getNodeSlugFromPath(activePath);
+  const previousDisplayName = getNodeDisplayTitleForActiveManifest();
+  const nextTitle = titleInputNode?.value?.trim() || "";
+  const displayNameChanged =
+    activeContentMode === "description" &&
+    nextTitle !== previousDisplayName &&
+    !isAgentSystemRootIndexPath(activePath) &&
+    !isPartNodePath(activePath);
   if (!fromSyncedYaml) {
+    if (activeContentMode === "description" && !isPartNodePath(activePath)) {
+      syncDisplayNameIntoAwnNameProp(activePath);
+    }
     readPropsFormIntoEntries();
     if (!propsRawYamlVisible) {
       syncYamlFromPropsForm();
@@ -23595,6 +23962,23 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
     ) {
       const { body } = splitFrontmatter(modeContentCache.description || "");
       modeContentCache.description = joinFrontmatter(data.content || "", body);
+    }
+    if (displayNameChanged) {
+      activeLabel = resolveNodeDisplayName(
+        nextTitle && nextTitle !== manifestSlug ? nextTitle : "",
+        manifestSlug
+      );
+      replaceActiveMenuLabel(activeLabel, activePath);
+      try {
+        await refreshMenu({ agentId: activeAgentId });
+      } catch {
+        // menu will resync on next open
+      }
+      titleInputNode.value = getNodeDisplayTitleForActiveManifest() || getLabelFromPath(activePath);
+      if (titleSlugInputNode) {
+        titleSlugInputNode.value = getNodeSlugFromPath(activePath);
+      }
+      showTitleSlugRow(activePath);
     }
     if (showToastOnSuccess) {
       showToast("YAML сохранен", "success");
@@ -27467,10 +27851,15 @@ async function createNode(type, options = {}) {
     type = "manifest";
   }
 
-  const name = createNameInputNode?.value?.trim() ?? "";
+  const displayName = createNameInputNode?.value?.trim() ?? "";
+  const slug = getCreateSlugInputValue();
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
-  if (!name && type !== "manifest" && type !== "catalog" && type !== "service-doc") {
-    showToast("Введите название папки", "error");
+  if (!displayName && type !== "manifest" && type !== "catalog" && type !== "service-doc") {
+    showToast("Введите название", "error");
+    return;
+  }
+  if ((type === "folder" || type === "file") && !slug) {
+    showToast("Введите slug (имя на диске)", "error");
     return;
   }
 
@@ -27478,7 +27867,9 @@ async function createNode(type, options = {}) {
     const payload = {
       parentPath: createTargetParentPath,
       type,
-      name: type === "manifest" ? folderLabel : name || folderLabel
+      name: type === "manifest" ? folderLabel : displayName || folderLabel,
+      displayName: type === "manifest" ? displayName || folderLabel : displayName,
+      slug: type === "folder" || type === "file" ? slug : ""
     };
     if (type === "catalog" || type === "service-doc") {
       payload.preset = options.preset || name;
@@ -28497,7 +28888,29 @@ propsInputNode?.addEventListener("input", () => {
   syncSaveButtonLamp();
 });
 titleInputNode?.addEventListener("input", () => {
+  syncTitleSlugFromDisplayName();
   syncSaveButtonLamp();
+});
+titleSlugInputNode?.addEventListener("input", () => {
+  if (!titleSlugLinked && titleSlugInputNode) {
+    titleSlugInputNode.value = sanitizeSlugValue(titleSlugInputNode.value);
+  }
+  syncSaveButtonLamp();
+});
+titleSlugUnlinkBtn?.addEventListener("click", () => {
+  setTitleSlugLinked(!titleSlugLinked);
+  syncSaveButtonLamp();
+});
+createNameInputNode?.addEventListener("input", () => {
+  syncCreateSlugFromDisplayName();
+});
+createSlugInputNode?.addEventListener("input", () => {
+  if (!createSlugLinked && createSlugInputNode) {
+    createSlugInputNode.value = sanitizeSlugValue(createSlugInputNode.value);
+  }
+});
+createSlugUnlinkBtn?.addEventListener("click", () => {
+  setCreateSlugLinked(!createSlugLinked);
 });
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "s") {
@@ -28730,6 +29143,10 @@ document.addEventListener("click", (event) => {
   applyMindmapLayout(layoutBtn.dataset.mindmapLayout || "horizontal");
 });
 syncMindmapLayoutUi();
+applyTitleSlugLinkedUi();
+applyCreateSlugLinkedUi();
+initCreateSectionSlugController();
+initCreateMemorySlugControllers();
 void fetchDocsMeta()
   .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
   .catch(() => {});

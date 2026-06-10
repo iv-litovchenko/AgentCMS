@@ -1467,6 +1467,29 @@
                         />
                         <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
                       </div>
+                      <div id="title-slug-row" class="slug-field-row hidden">
+                        <label class="slug-field-label" for="title-slug-input">Имя на диске (slug)</label>
+                        <div class="slug-input-row">
+                          <input
+                            id="title-slug-input"
+                            class="slug-input"
+                            type="text"
+                            placeholder="plavanie"
+                            aria-label="Slug — имя папки или файла"
+                            spellcheck="false"
+                            autocomplete="off"
+                            readonly
+                          />
+                          <button
+                            id="title-slug-unlink-btn"
+                            class="slug-unlink-btn"
+                            type="button"
+                            title="Редактировать slug вручную"
+                            aria-label="Редактировать slug вручную"
+                          >✎</button>
+                        </div>
+                        <p class="slug-field-hint">Транслит из названия; можно открепить и ввести вручную.</p>
+                      </div>
                     </section>
                     <header class="doc-aside-fields-card-head">
                       <h3 class="doc-aside-fields-card-title">Метаданные</h3>
@@ -1587,6 +1610,28 @@
             placeholder="Например: Плавание"
             autocomplete="off"
           />
+          <div id="create-slug-row" class="slug-field-row">
+            <label class="slug-field-label" for="create-slug-input">Имя папки или файла (slug)</label>
+            <div class="slug-input-row">
+              <input
+                id="create-slug-input"
+                class="popover-input slug-input"
+                type="text"
+                placeholder="plavanie"
+                spellcheck="false"
+                autocomplete="off"
+                readonly
+              />
+              <button
+                id="create-slug-unlink-btn"
+                class="slug-unlink-btn"
+                type="button"
+                title="Редактировать slug вручную"
+                aria-label="Редактировать slug вручную"
+              >✎</button>
+            </div>
+            <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
+          </div>
           <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
             <input id="create-node-vault-option" type="checkbox" checked />
             <span id="create-node-vault-option-label">Создать в awn-vault</span>
@@ -1612,6 +1657,28 @@
           placeholder="Например: TODO"
           autocomplete="off"
         />
+        <div id="create-section-slug-row" class="slug-field-row">
+          <label class="slug-field-label" for="create-section-slug-input">Имя папки (slug)</label>
+          <div class="slug-input-row">
+            <input
+              id="create-section-slug-input"
+              class="popover-input slug-input"
+              type="text"
+              placeholder="todo"
+              spellcheck="false"
+              autocomplete="off"
+              readonly
+            />
+            <button
+              id="create-section-slug-unlink-btn"
+              class="slug-unlink-btn"
+              type="button"
+              title="Редактировать slug вручную"
+              aria-label="Редактировать slug вручную"
+            >✎</button>
+          </div>
+          <p class="slug-field-hint">Транслит из названия; можно открепить и ввести вручную.</p>
+        </div>
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-section-ok-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -1626,23 +1693,33 @@
         <div id="create-memory-names-list" class="create-memory-names-list" role="group" aria-label="Названия элементов">
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">1</span>
-            <input class="popover-input create-memory-name-input" type="text" placeholder="Название элемента" autocomplete="off" />
+            <input class="popover-input create-memory-name-input" type="text" placeholder="Название" autocomplete="off" />
+            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">2</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">3</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">4</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
           </label>
           <label class="create-memory-name-row">
             <span class="create-memory-name-index">5</span>
             <input class="popover-input create-memory-name-input" type="text" placeholder="Необязательно" autocomplete="off" />
+            <input class="popover-input slug-input create-memory-slug-input" type="text" placeholder="slug" spellcheck="false" autocomplete="off" readonly />
+            <button class="slug-unlink-btn create-memory-slug-unlink-btn" type="button" title="Редактировать slug вручную" aria-label="Редактировать slug вручную">✎</button>
           </label>
         </div>
         <fieldset id="create-memory-after-fieldset" class="create-memory-after-fieldset">
@@ -1888,7 +1965,8 @@
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
-    <script src="/main.js?v=0.5.131"></script>
+    <script src="/slug-translit.js?v=1"></script>
+    <script src="/main.js?v=0.5.135"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

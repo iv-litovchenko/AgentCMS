@@ -20,7 +20,7 @@ fields:
   awn-name:
     type: awn.string
     title: Имя
-    description: Имя файла без расширения (дублирует имя файла на диске)
+    description: Отображаемое имя в меню; пустое — показывается slug (имя файла или папки на диске)
     locked: true
   awn-create:
     type: awn.datetime

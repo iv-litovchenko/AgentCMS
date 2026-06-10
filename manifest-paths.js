@@ -79,6 +79,29 @@ function stripTopicPrefix(name) {
   return raw.trim();
 }
 
+/** Slug ноды: имя файла темы или папки области (без .md). */
+function getManifestSlugFromRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  if (isAreaManifestRelPath(normalized)) {
+    const dir = path.posix.dirname(normalized);
+    if (!dir || dir === ".") return stripTopicPrefix(base);
+    return stripTopicPrefix(path.posix.basename(dir));
+  }
+  return stripTopicPrefix(base);
+}
+
+/** Отображаемое имя: awn-name, иначе slug. Пустые и служебные значения → slug. */
+function resolveNodeDisplayName(awnNameRaw, slug) {
+  const awnName = String(awnNameRaw || "").trim();
+  const slugLabel = String(slug || "").trim();
+  if (!awnName) return slugLabel;
+  const reginfoStem = stripTopicPrefix(AREA_MANIFEST_FILE);
+  if (awnName.toLowerCase() === reginfoStem.toLowerCase()) return slugLabel;
+  if (awnName === "_REGINFO") return slugLabel;
+  return awnName;
+}
+
 function toAreaFolderName(rawName) {
   return cleanManifestName(stripTopicPrefix(rawName)) || null;
 }
@@ -600,6 +623,8 @@ module.exports = {
   MANIFEST_MD_RE,
   cleanManifestName,
   stripTopicPrefix,
+  getManifestSlugFromRel,
+  resolveNodeDisplayName,
   stripStoragePrefix,
   toAreaFolderName,
   toTopicFileName,
