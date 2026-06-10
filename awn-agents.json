@@ -1,19 +1,6 @@
 {
   "agents": [
     {
-      "id": "medcenteragent",
-      "path": "/Users/macbook/Desktop/MedCenterAgent",
-      "environment": "local",
-      "active": true,
-      "default": true
-    },
-    {
-      "id": "mosconstagent",
-      "path": "/Users/macbook/Desktop/MosconstAgent",
-      "environment": "local",
-      "active": true
-    },
-    {
       "id": "documentation",
       "path": "workspaces/Documentation",
       "environment": "local",

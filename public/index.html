@@ -841,16 +841,6 @@
                 </nav>
                 <div class="workspace-path-crumbs-actions">
                   <button
-                    id="workspace-pin-panel-btn"
-                    class="workspace-pin-panel-btn workspace-share-link-btn"
-                    type="button"
-                    disabled
-                    title="Зафиксировать панель (скоро)"
-                    aria-label="Зафиксировать панель (скоро)"
-                  >
-                    Зафиксировать панель
-                  </button>
-                  <button
                     id="workspace-gdrive-sync-btn"
                     class="workspace-gdrive-sync-btn workspace-toolbar-labeled-btn"
                     type="button"
@@ -1582,6 +1572,22 @@
           <div class="modal-message" id="create-node-modal-title">Создать тему</div>
           <button id="create-node-cancel-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
+        <div id="create-node-root-wrap" class="create-node-root-wrap hidden">
+          <div id="create-node-reserved-wrap" class="create-node-reserved-wrap hidden">
+            <div class="popover-label create-node-reserved-label">Служебные папки workspace</div>
+            <div class="create-node-reserved-actions">
+              <button id="create-node-kit-scaffold-btn" class="create-node-action-btn create-node-action-btn--service hidden" type="button" title="Правила, справочники и служебные темы агента.">
+                <span class="create-node-scaffold-title">Создать awn-agent-kit</span>
+                <span class="create-node-scaffold-hint">Правила, справочники и служебные темы агента.</span>
+              </button>
+              <button id="create-node-container-scaffold-btn" class="create-node-action-btn create-node-action-btn--container hidden" type="button" title="Области и темы рабочего контента агента.">
+                <span class="create-node-scaffold-title">Создать awn-container</span>
+                <span class="create-node-scaffold-hint" id="create-node-container-scaffold-hint">Области и темы рабочего контента агента.</span>
+              </button>
+            </div>
+          </div>
+          <hr id="create-node-root-divider" class="create-node-divider create-node-root-divider hidden" />
+        </div>
         <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
           <div class="popover-label">Справочники</div>
           <div id="create-node-catalog-actions" class="create-node-catalog-actions">
@@ -1632,10 +1638,6 @@
             </div>
             <p class="slug-field-hint">Генерируется транслитом; можно открепить и ввести вручную.</p>
           </div>
-          <label id="create-node-vault-option-wrap" class="create-node-vault-option hidden">
-            <input id="create-node-vault-option" type="checkbox" checked />
-            <span id="create-node-vault-option-label">Создать в awn-vault</span>
-          </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
           <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (_reg-info.md)">Подхватить (область)</button>
@@ -1768,7 +1770,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название, описание и опция Vault (<code>awn-vault</code>) сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
+        <p class="agents-registry-hint">Платформа хранит список агентов: порядок, среду, активность и «по умолчанию». Workspace задаётся при создании или добавлении. Название и описание сохраняются в <code>awn-agent.json</code>; аватар — в слоте превью корневой области.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -1799,7 +1801,6 @@
               <span>Некорректный путь</span>
             </li>
           </ul>
-          <p class="agents-registry-vault-footnote">* <code>awn-vault</code> скрыта в дереве, содержимое показывается у корня.</p>
         </div>
       </div>
     </div>
@@ -1807,7 +1808,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code>, <code>t.{имя}/t.README.md</code> и <code>awn-agent-system/</code>. Название агента берётся из имени папки.</p>
+        <p class="agents-registry-hint">Укажите папку workspace — в ней будут созданы <code>awn-agent.json</code> и <code>t.{имя}/t.README.md</code>. Папки <code>awn-agent-kit</code> и <code>awn-container</code> можно создать из меню (кнопка + у Root). Название агента берётся из имени папки.</p>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace</span>
           <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent.agent" spellcheck="false" autocomplete="off" />

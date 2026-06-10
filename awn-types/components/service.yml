@@ -1,0 +1,5 @@
+id: service
+name: Служебная область
+kind: type
+extends: awn.area
+description: Корень awn-agent-kit — служебные темы и компоненты системы

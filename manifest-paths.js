@@ -9,8 +9,8 @@ const path = require("path");
 
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const AREA_MANIFEST_FILE = "_reg-info.md";
-/** Заголовок служебной области; файл: {agentSystemFolder}/_reg-info.md */
-const SERVICE_AREA_NAME = "Служебное";
+/** awn-name корня awn-agent-kit ({agentSystemFolder}/_reg-info.md) */
+const SERVICE_AREA_NAME = "Служебные темы и компоненты системы";
 
 const BUNDLE_CONTENT_FILE = "content.md";
 const BUNDLE_TABULAR_FILE = "content.csv";
@@ -319,7 +319,7 @@ function normalizeHistoryTargetRelPath(targetRelPath) {
 /**
  * Путь внутри History относительно темы:
  * - манифест темы → Тема.md
- * - файл в awn-storage/* → content/juijui.md (без awn-vault и без awn-storage/Тема)
+ * - файл в awn-storage/* → content/juijui.md (без префикса awn-storage/Тема)
  * - файл рядом с манифестом → todo.md
  */
 function getHistoryRelativeTargetPath(manifestRelPath, targetRelPath) {
