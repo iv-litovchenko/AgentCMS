@@ -81,6 +81,7 @@ const {
   applyAwnSchemaToConfig,
   getTopicSchemaPayload
 } = require("./awn-types-loader");
+const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
@@ -4553,6 +4554,22 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
   return files;
 }
 
+async function rewriteMarkdownLinksForRename(options = {}) {
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) return { filesUpdated: 0, linksUpdated: 0, files: [] };
+  try {
+    return await rewriteAgentMarkdownLinks(agentRoot, options);
+  } catch (error) {
+    console.error("Failed to rewrite markdown links:", error);
+    return {
+      filesUpdated: 0,
+      linksUpdated: 0,
+      files: [],
+      error: String(error.message || error)
+    };
+  }
+}
+
 async function classifyStoragePathResult(normalized, subfolder, mode, source) {
   const escaped = subfolder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -5778,10 +5795,28 @@ async function handleApiForAgent(req, res, url) {
 
       const content = await fs.readFile(nextAbsolute, "utf-8");
 
+      const oldRel = stripAgentContentPrefixFromRelPath(normalized);
+      const newRel = stripAgentContentPrefixFromRelPath(nextRelPath);
+      let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+      if (isAreaManifestRelPath(normalized) && !parsePartFolderManifestRel(normalized)) {
+        const oldFolder = path.dirname(normalized).replace(/\\/g, "/");
+        const newFolder = path.dirname(nextRelPath).replace(/\\/g, "/");
+        if (oldFolder && newFolder && oldFolder !== newFolder) {
+          linkRewrite = await rewriteMarkdownLinksForRename({
+            prefixMappings: [{ oldPrefix: oldFolder, newPrefix: newFolder }]
+          });
+        }
+      } else if (oldRel && newRel && oldRel !== newRel) {
+        linkRewrite = await rewriteMarkdownLinksForRename({
+          exactMappings: [{ oldRel, newRel }]
+        });
+      }
+
       return sendJson(res, 200, {
-        path: stripAgentContentPrefixFromRelPath(nextRelPath),
+        path: newRel,
         title,
-        content
+        content,
+        linkRewrite
       });
     } catch (error) {
       return sendRenameError(res, error);
@@ -6733,7 +6768,19 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const content = await fs.readFile(nextAbsolute, "utf-8");
-      return sendJson(res, 200, { file: nextRelPath, content });
+      let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+      const oldWorkspaceRel = await resolveExternalFileWorkspaceRel(relPath, normalizedRelFile);
+      const newWorkspaceRel = await resolveExternalFileWorkspaceRel(relPath, nextRelPath);
+      if (
+        oldWorkspaceRel &&
+        newWorkspaceRel &&
+        oldWorkspaceRel.replace(/\\/g, "/") !== newWorkspaceRel.replace(/\\/g, "/")
+      ) {
+        linkRewrite = await rewriteMarkdownLinksForRename({
+          exactMappings: [{ oldRel: oldWorkspaceRel, newRel: newWorkspaceRel }]
+        });
+      }
+      return sendJson(res, 200, { file: nextRelPath, content, linkRewrite });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";
       if (code === "ENOENT") return sendJson(res, 404, { error: "External file not found" });
@@ -7427,10 +7474,42 @@ async function handleApiForAgent(req, res, url) {
         }
       }
 
+      let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+      if (currentAbsolute !== nextAbsolute) {
+        const exactMappings = [];
+        const oldAssetRel = manifestRelFromNodeAbsolute(currentAbsolute);
+        const newAssetRel = manifestRelFromNodeAbsolute(nextAbsolute);
+        if (oldAssetRel && newAssetRel && oldAssetRel !== newAssetRel) {
+          exactMappings.push({ oldRel: oldAssetRel, newRel: newAssetRel });
+        }
+        const oldSidecarRel = toMediaSidecarRelativePath(normalizedRelFile);
+        const newSidecarRel = toMediaSidecarRelativePath(nextRelFile);
+        if (oldSidecarRel && newSidecarRel && oldSidecarRel !== newSidecarRel) {
+          const oldSidecarAbs = path.join(folderAbsolute, oldSidecarRel);
+          const newSidecarAbs = path.join(folderAbsolute, newSidecarRel);
+          const oldSidecarWorkspaceRel = manifestRelFromNodeAbsolute(oldSidecarAbs);
+          const newSidecarWorkspaceRel = manifestRelFromNodeAbsolute(newSidecarAbs);
+          if (
+            oldSidecarWorkspaceRel &&
+            newSidecarWorkspaceRel &&
+            oldSidecarWorkspaceRel !== newSidecarWorkspaceRel
+          ) {
+            exactMappings.push({
+              oldRel: oldSidecarWorkspaceRel,
+              newRel: newSidecarWorkspaceRel
+            });
+          }
+        }
+        if (exactMappings.length) {
+          linkRewrite = await rewriteMarkdownLinksForRename({ exactMappings });
+        }
+      }
+
       return sendJson(res, 200, {
         file: nextRelFile,
         sidecar: sidecarRelPath ? sidecarRelPath.replace(/\\/g, "/") : "",
-        content
+        content,
+        linkRewrite
       });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";

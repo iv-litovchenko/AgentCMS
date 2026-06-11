@@ -10085,6 +10085,14 @@ function insertTextAtEditorCursor(text) {
   });
 }
 
+function notifyMarkdownLinkRewrite(linkRewrite) {
+  const linksUpdated = Number(linkRewrite?.linksUpdated) || 0;
+  const filesUpdated = Number(linkRewrite?.filesUpdated) || 0;
+  if (!linksUpdated) return;
+  const filesPart = filesUpdated ? ` в ${filesUpdated} файлах` : "";
+  showToast(`Обновлено markdown-ссылок: ${linksUpdated}${filesPart}`, "success");
+}
+
 function canInsertDocContentBlocks() {
   if (!activePath || activeSystemFile) return false;
   if (isCurrentModeReadOnly()) return false;
@@ -27444,6 +27452,7 @@ async function saveContent() {
       }
       updateActiveButton();
       syncAppRouteToUrl({ replace: true });
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
     }
 
     if (deferDescriptionContentBuild) {
@@ -27471,6 +27480,7 @@ async function saveContent() {
       rerenderExternalListViewBody();
       syncAppRouteToUrl({ replace: true });
       showToast("Переименовано", "success");
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
     }
 
     if (shouldRenameMediaSidecar) {
@@ -27501,6 +27511,7 @@ async function saveContent() {
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
       showToast("Файл переименован", "success");
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
     }
 
     if (shouldRenameMediaMarkdown) {
@@ -27530,6 +27541,7 @@ async function saveContent() {
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
       showToast("Файл переименован", "success");
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
     }
 
     const saveUrl = buildApiUrl(
