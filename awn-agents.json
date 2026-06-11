@@ -15,7 +15,8 @@
     },
     {
       "path": "workspaces/test8",
-      "environment": "local"
+      "environment": "local",
+      "orchestrator": true
     }
   ]
 }

@@ -8,6 +8,12 @@ fields:
     type: awn.url
     title: Превью
     description: Путь к файлу в Assets/Preview/ (заполняется при загрузке превью)
+  awn-emoji:
+    type: awn.string
+    title: Эмодзи
+    description: Показывается вместо иконки, если превью не задано
+    hint: Один символ emoji
+    format: "🎯"
   awn-name:
     type: awn.string
     title: Имя
@@ -45,7 +51,7 @@ fields:
   awn-main:
     type: awn.boolean
     title: На главной
-    description: Показывать workspace в блоке «Фокус» на главной странице
+    description: Показывать в блоке «Фокус» на главной странице
     default: false
   awn-category:
     type: awn.string
@@ -61,12 +67,12 @@ fields:
     title: Цвет
     description: Цвет метки в-панели
   awn-version:
-    type: awn.string
+    type: awn.integer
     title: Версия
-    description: Семантическая версия; патч увеличивается автоматически при сохранении
-    hint: Мажор.минор.патч
-    format: 0.0.1
-    default: "0.0.1"
+    description: Счётчик сохранений; увеличивается автоматически при каждом сохранении
+    hint: "1"
+    format: "1"
+    default: 1
     locked: true
   awn-sort:
     type: awn.integer

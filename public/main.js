@@ -2136,6 +2136,86 @@ function getAgentPickerInitials(agent) {
   return name.slice(0, 2).toUpperCase();
 }
 
+function normalizeAwnEmoji(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("ru", { granularity: "grapheme" });
+    const first = [...segmenter.segment(text)][0];
+    return first?.segment || text;
+  }
+  return [...text][0] || text;
+}
+
+function resolveAwnEmoji(source) {
+  if (!source) return "";
+  if (typeof source === "string") return normalizeAwnEmoji(source);
+  const raw =
+    source["awn-emoji"] ??
+    source.awnEmoji ??
+    source.awnProps?.["awn-emoji"] ??
+    "";
+  return normalizeAwnEmoji(raw);
+}
+
+function createPreviewFallbackNode({ emoji = "", fallbackText = "?", emojiClass, initialsClass }) {
+  const node = document.createElement("span");
+  if (emoji) {
+    node.className = emojiClass;
+    node.textContent = emoji;
+    node.setAttribute("aria-hidden", "true");
+  } else {
+    node.className = initialsClass;
+    node.textContent = fallbackText;
+  }
+  return node;
+}
+
+function mountPreviewOrFallback(container, {
+  previewUrl = "",
+  emoji = "",
+  fallbackText = "?",
+  emojiClass,
+  initialsClass,
+  nodePath = "",
+  iconClass = ""
+}) {
+  const mountFallback = () => {
+    container.replaceChildren();
+    if (emoji) {
+      container.appendChild(
+        createPreviewFallbackNode({ emoji, fallbackText, emojiClass, initialsClass })
+      );
+      return;
+    }
+    if (nodePath) {
+      const icon = createNodeCoverFallbackElement({
+        nodePath,
+        emojiClass,
+        iconClass
+      });
+      container.appendChild(icon);
+      return;
+    }
+    container.appendChild(
+      createPreviewFallbackNode({ emoji: "", fallbackText, emojiClass, initialsClass })
+    );
+  };
+
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = mountFallback;
+    img.src = previewUrl;
+    container.replaceChildren();
+    container.appendChild(img);
+    return;
+  }
+
+  mountFallback();
+}
+
 function isAgentRegistryActive(agent) {
   return agent?.active !== false;
 }
@@ -2208,6 +2288,35 @@ function appendFocusPropRows(propsNode, awnProps, keys = FOCUS_AWN_KEYS) {
   }
 }
 
+function isFocusItemActive(focusItem) {
+  if (activeSystemFile || !activePath || !focusItem?.nodePath) return false;
+  return (
+    normalizeMenuNodePath(getResolvedNodePath(activePath)) ===
+    normalizeMenuNodePath(focusItem.nodePath)
+  );
+}
+
+function syncFocusPanelActiveState() {
+  const resolvedActive = normalizeMenuNodePath(getResolvedNodePath(activePath || ""));
+
+  for (const chip of document.querySelectorAll(".agent-focus-chip[data-focus-path]")) {
+    const isActive =
+      !activeSystemFile &&
+      Boolean(resolvedActive) &&
+      normalizeMenuNodePath(chip.dataset.focusPath || "") === resolvedActive;
+    chip.classList.toggle("is-active", isActive);
+    chip.setAttribute("aria-current", isActive ? "page" : "false");
+  }
+
+  for (const item of document.querySelectorAll(".agent-focus-item[data-focus-path]")) {
+    const isActive =
+      !activeSystemFile &&
+      Boolean(resolvedActive) &&
+      normalizeMenuNodePath(item.dataset.focusPath || "") === resolvedActive;
+    item.classList.toggle("is-active", isActive);
+  }
+}
+
 function createFocusItem(focusItem, variant = "landing") {
   const agent =
     agentsCache.find((entry) => entry.id === focusItem.agentId) || {
@@ -2225,6 +2334,11 @@ function createFocusItem(focusItem, variant = "landing") {
     chip.type = "button";
     chip.className = "agent-focus-chip";
     chip.setAttribute("role", "listitem");
+    if (nodePath) chip.dataset.focusPath = nodePath;
+    if (isFocusItemActive(focusItem)) {
+      chip.classList.add("is-active");
+      chip.setAttribute("aria-current", "page");
+    }
     if (!registryActive) chip.classList.add("is-registry-off");
     chip.title = nodePath || label;
     chip.setAttribute("aria-label", registryActive ? `Открыть ${label}` : `${label} — агент неактивен`);
@@ -2247,6 +2361,8 @@ function createFocusItem(focusItem, variant = "landing") {
   const item = document.createElement("article");
   item.className = "agent-focus-item";
   item.setAttribute("role", "listitem");
+  if (nodePath) item.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) item.classList.add("is-active");
 
   const head = document.createElement("button");
   head.type = "button";
@@ -2260,26 +2376,18 @@ function createFocusItem(focusItem, variant = "landing") {
 
   const media = document.createElement("span");
   media.className = "agent-focus-item-media";
-  const previewUrl = getRegistryAgentPreviewUrl(agent);
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.onerror = () => {
-      media.replaceChildren();
-      const fallback = document.createElement("span");
-      fallback.className = "agent-focus-item-fallback";
-      fallback.textContent = getAgentPickerInitials({ name: label, id: focusItem.agentId });
-      media.appendChild(fallback);
-    };
-    img.src = previewUrl;
-    media.appendChild(img);
-  } else {
-    const fallback = document.createElement("span");
-    fallback.className = "agent-focus-item-fallback";
-    fallback.textContent = getAgentPickerInitials({ name: label, id: focusItem.agentId });
-    media.appendChild(fallback);
-  }
+  const nodeEmoji = resolveAwnEmoji(awnProps);
+  const agentEmoji = resolveAwnEmoji(agent.awnProps);
+  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji: nodeEmoji || agentEmoji,
+    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+    emojiClass: "agent-focus-item-emoji",
+    initialsClass: "agent-focus-item-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-focus-media"
+  });
 
   const titleWrap = document.createElement("span");
   titleWrap.className = "agent-focus-item-title-wrap";
@@ -2355,30 +2463,18 @@ function resolveFocusPreviewUrl(rawUrl, agentId) {
   return appendCacheBuster(appendAgentToApiUrl(url, agentId));
 }
 
-function createFocusThumbCell(previewUrl, fallbackText, sizeClass = "") {
+function createFocusThumbCell(previewUrl, fallbackText, sizeClass = "", emoji = "", nodePath = "") {
   const media = document.createElement("span");
   media.className = `agent-focus-table-thumb${sizeClass ? ` ${sizeClass}` : ""}`;
-
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.onerror = () => {
-      media.replaceChildren();
-      const fallback = document.createElement("span");
-      fallback.className = "agent-focus-table-fallback";
-      fallback.textContent = fallbackText;
-      media.appendChild(fallback);
-    };
-    img.src = previewUrl;
-    media.appendChild(img);
-  } else {
-    const fallback = document.createElement("span");
-    fallback.className = "agent-focus-table-fallback";
-    fallback.textContent = fallbackText;
-    media.appendChild(fallback);
-  }
-
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji,
+    fallbackText,
+    emojiClass: "agent-focus-table-emoji",
+    initialsClass: "agent-focus-table-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-focus-table"
+  });
   return media;
 }
 
@@ -2476,7 +2572,9 @@ function createLandingFocusTableRow(focusItem, columns) {
         getRegistryAgentPreviewUrl(agent);
       const thumb = createFocusThumbCell(
         agentPreviewUrl,
-        getAgentPickerInitials({ name: focusItem.agentName, id: focusItem.agentId })
+        getAgentPickerInitials({ name: focusItem.agentName, id: focusItem.agentId }),
+        "",
+        resolveAwnEmoji(agent.awnProps)
       );
       td.appendChild(
         createFocusTableEntityCell(
@@ -2489,7 +2587,10 @@ function createLandingFocusTableRow(focusItem, columns) {
       const nodePreviewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
       const thumb = createFocusThumbCell(
         nodePreviewUrl,
-        getAgentPickerInitials({ name: label, id: focusItem.agentId })
+        getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+        "",
+        resolveAwnEmoji(awnProps),
+        nodePath
       );
       td.appendChild(createFocusTableEntityCell(thumb, label, nodePath));
     } else {
@@ -2670,10 +2771,12 @@ function createAgentPickerAgentButton(agent, avatarSize = 42) {
 }
 
 function createAgentPickerFallback(agent, avatarSize) {
+  const emoji = resolveAwnEmoji(agent);
   const fallback = document.createElement("span");
-  fallback.className = "agents-picker-avatar-fallback";
+  fallback.className = emoji ? "agents-picker-avatar-emoji" : "agents-picker-avatar-fallback";
   fallback.style.setProperty("--picker-avatar-size", `${avatarSize}px`);
-  fallback.textContent = getAgentPickerInitials(agent);
+  fallback.textContent = emoji || getAgentPickerInitials(agent);
+  if (emoji) fallback.setAttribute("aria-hidden", "true");
   return fallback;
 }
 
@@ -2864,10 +2967,11 @@ async function appendCreatedAgentToRegistry(discovered) {
   }
 
   const agents = [
-    ...base.map(({ path, environment, default: isDefault, active, name, comment }) => ({
+    ...base.map(({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
       path,
       environment: environment || "local",
       default: Boolean(isDefault),
+      orchestrator: Boolean(isOrchestrator),
       active: active !== false,
       name: name ?? "",
       comment: comment ?? ""
@@ -2989,10 +3093,12 @@ function createAppLandingCreateAgentCard() {
 
 function createAppLandingAgentCard(agent) {
   const registryActive = isAgentRegistryActive(agent);
+  const isOrchestrator = agent.orchestrator === true;
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "app-landing-agent-card";
   if (!registryActive) btn.classList.add("is-registry-off");
+  if (isOrchestrator) btn.classList.add("is-orchestrator");
   const label = agent.name || agent.id;
   btn.title = registryActive
     ? `Открыть ${label}`
@@ -3005,26 +3111,13 @@ function createAppLandingAgentCard(agent) {
   const media = document.createElement("div");
   media.className = "app-landing-agent-card-media";
 
-  const previewUrl = getRegistryAgentPreviewUrl(agent);
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.onerror = () => {
-      media.replaceChildren();
-      const fallback = document.createElement("span");
-      fallback.className = "app-landing-agent-card-fallback";
-      fallback.textContent = getAgentPickerInitials(agent);
-      media.appendChild(fallback);
-    };
-    img.src = previewUrl;
-    media.appendChild(img);
-  } else {
-    const fallback = document.createElement("span");
-    fallback.className = "app-landing-agent-card-fallback";
-    fallback.textContent = getAgentPickerInitials(agent);
-    media.appendChild(fallback);
-  }
+  mountPreviewOrFallback(media, {
+    previewUrl: getRegistryAgentPreviewUrl(agent),
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "app-landing-agent-card-emoji",
+    initialsClass: "app-landing-agent-card-fallback"
+  });
 
   const body = document.createElement("div");
   body.className = "app-landing-agent-card-body";
@@ -3040,6 +3133,14 @@ function createAppLandingAgentCard(agent) {
   nameNode.className = "app-landing-agent-card-name";
   nameNode.textContent = label;
   nameRow.append(statusDot, nameNode);
+
+  if (isOrchestrator) {
+    const orchestratorBadge = document.createElement("span");
+    orchestratorBadge.className = "app-landing-agent-orchestrator-badge";
+    orchestratorBadge.textContent = "Оркестратор";
+    orchestratorBadge.setAttribute("aria-hidden", "true");
+    nameRow.appendChild(orchestratorBadge);
+  }
 
   const idNode = document.createElement("span");
   idNode.className = "app-landing-agent-card-id";
@@ -3130,6 +3231,7 @@ function syncLandingAgentsViewUi() {
 
 function createAppLandingOrbitBubble(agent, index, total) {
   const registryActive = isAgentRegistryActive(agent);
+  const isOrchestrator = agent.orchestrator === true;
   const label = agent.name || agent.id;
   const layout = getOrbitBubbleLayout(index, total, agent.id);
 
@@ -3146,27 +3248,22 @@ function createAppLandingOrbitBubble(agent, index, total) {
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = `app-landing-orbit-bubble${registryActive ? " is-active" : " is-inactive"}`;
+  btn.className = `app-landing-orbit-bubble${registryActive ? " is-active" : " is-inactive"}${
+    isOrchestrator ? " is-orchestrator" : ""
+  }`;
   btn.title = registryActive ? `Открыть ${label}` : `${label} — неактивен`;
   btn.setAttribute("aria-label", registryActive ? `Открыть агента ${label}` : `Агент ${label} неактивен`);
 
   const avatar = document.createElement("span");
   avatar.className = "app-landing-orbit-bubble-avatar";
 
-  const previewUrl = getRegistryAgentPreviewUrl(agent);
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.onerror = () => {
-      avatar.replaceChildren();
-      avatar.textContent = getAgentPickerInitials(agent);
-    };
-    img.src = previewUrl;
-    avatar.appendChild(img);
-  } else {
-    avatar.textContent = getAgentPickerInitials(agent);
-  }
+  mountPreviewOrFallback(avatar, {
+    previewUrl: getRegistryAgentPreviewUrl(agent),
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "app-landing-orbit-bubble-emoji",
+    initialsClass: "app-landing-orbit-bubble-initials"
+  });
 
   const nameNode = document.createElement("span");
   nameNode.className = "app-landing-orbit-bubble-label";
@@ -3403,12 +3500,14 @@ function openAgentsRegistryModal() {
       name: agent.name || agent.id,
       comment: agent.comment || "",
       default: Boolean(agent.default),
+      orchestrator: Boolean(agent.orchestrator),
       active: agent.active !== false,
       manifestFound: Boolean(agent.manifestFound),
       folderExists: agent.folderExists !== false,
       hasPreview: Boolean(agent.hasPreview),
       previewUrl: agent.previewUrl || null,
-      previewRel: agent.previewRel || null
+      previewRel: agent.previewRel || null,
+      awnProps: agent.awnProps && typeof agent.awnProps === "object" ? { ...agent.awnProps } : {}
     }));
   renderAgentsRegistryList();
   agentsRegistryModalNode?.classList.remove("hidden");
@@ -3717,6 +3816,9 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].manifestFound = true;
   agentsRegistryDraft[index].name = manifest.name || agentsRegistryDraft[index].name;
   agentsRegistryDraft[index].comment = manifest.comment || "";
+  if (manifest.awnProps && typeof manifest.awnProps === "object") {
+    agentsRegistryDraft[index].awnProps = { ...manifest.awnProps };
+  }
 }
 
 function getRegistryAgentPreviewUrl(agent) {
@@ -3743,9 +3845,27 @@ function updateRegistryRowPreview(row, agent) {
 
   const previewUrl = getRegistryAgentPreviewUrl(agent);
   const hasImage = Boolean(previewUrl);
+  const emoji = resolveAwnEmoji(agent);
+  const placeholder = previewSlot.querySelector(".agents-registry-preview-placeholder");
 
   previewSlot.classList.toggle("has-image", hasImage);
+  previewSlot.classList.toggle("has-emoji", !hasImage && Boolean(emoji));
   previewSlot.title = hasImage ? "Нажмите, чтобы заменить аватар" : "Загрузить аватар";
+
+  let emojiNode = previewSlot.querySelector(".agents-registry-preview-emoji");
+  if (!hasImage && emoji) {
+    if (!emojiNode) {
+      emojiNode = document.createElement("span");
+      emojiNode.className = "agents-registry-preview-emoji";
+      emojiNode.setAttribute("aria-hidden", "true");
+      previewSlot.insertBefore(emojiNode, placeholder);
+    }
+    emojiNode.textContent = emoji;
+    placeholder?.classList.add("hidden");
+  } else {
+    emojiNode?.remove();
+    placeholder?.classList.remove("hidden");
+  }
 
   let img = previewSlot.querySelector(".agents-registry-preview-thumb");
   if (hasImage) {
@@ -3754,12 +3874,12 @@ function updateRegistryRowPreview(row, agent) {
       img.className = "agents-registry-preview-thumb";
       img.alt = "";
       img.draggable = false;
-      const placeholder = previewSlot.querySelector(".agents-registry-preview-placeholder");
       previewSlot.insertBefore(img, placeholder);
     }
     img.onerror = () => {
       img.remove();
       previewSlot.classList.remove("has-image");
+      updateRegistryRowPreview(row, agent);
     };
     img.src = previewUrl;
   } else if (img) {
@@ -3990,6 +4110,7 @@ function renderAgentsRegistryList() {
     const row = document.createElement("div");
     row.className = "agents-registry-row";
     if (agent.active === false) row.classList.add("is-inactive");
+    if (agent.orchestrator) row.classList.add("is-orchestrator");
     row.dataset.registryIndex = String(index);
 
     const mainRow = document.createElement("div");
@@ -4048,6 +4169,32 @@ function renderAgentsRegistryList() {
     pathInput.disabled = true;
     pathInput.setAttribute("aria-disabled", "true");
     pathField.append(pathLabelRow, pathInput);
+
+    const orchestratorWrap = document.createElement("div");
+    orchestratorWrap.className = "agents-registry-field agents-registry-orchestrator-field";
+    const orchestratorTitle = document.createElement("span");
+    orchestratorTitle.textContent = "Орк.";
+    const orchestratorLabel = document.createElement("label");
+    orchestratorLabel.className = "agents-registry-orchestrator";
+    orchestratorLabel.title = "Агент-оркестратор — координирует остальные workspace";
+    const orchestratorInput = document.createElement("input");
+    orchestratorInput.type = "radio";
+    orchestratorInput.name = "agents-registry-orchestrator";
+    orchestratorInput.checked = Boolean(agent.orchestrator);
+    orchestratorInput.setAttribute("aria-label", "Оркестратор");
+    orchestratorInput.addEventListener("change", () => {
+      if (!orchestratorInput.checked) return;
+      setAgentsRegistryDraftOrchestrator(index);
+    });
+    orchestratorLabel.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setAgentsRegistryDraftOrchestrator(index);
+    });
+    const orchestratorText = document.createElement("span");
+    orchestratorText.setAttribute("aria-hidden", "true");
+    orchestratorLabel.append(orchestratorInput, orchestratorText);
+    orchestratorWrap.append(orchestratorTitle, orchestratorLabel);
 
     const commentInput = document.createElement("textarea");
     commentInput.className = "agents-registry-comment-input";
@@ -4139,7 +4286,7 @@ function renderAgentsRegistryList() {
     const detailsRow = document.createElement("div");
     detailsRow.className = "agents-registry-details-row";
     detailsRow.dataset.layout = "content-path";
-    detailsRow.append(pathField);
+    detailsRow.append(pathField, orchestratorWrap);
 
     const rowContent = document.createElement("div");
     rowContent.className = "agents-registry-row-content";
@@ -4267,6 +4414,28 @@ function isAgentPathAlreadyInDraft(pathValue) {
   return agentsRegistryDraft.some((item) => normalizeRegistryPathKey(item.path) === key);
 }
 
+function setAgentsRegistryDraftOrchestrator(index) {
+  if (index < 0 || index >= agentsRegistryDraft.length) return;
+  for (const item of agentsRegistryDraft) item.orchestrator = false;
+  agentsRegistryDraft[index].orchestrator = true;
+  renderAgentsRegistryList();
+}
+
+function syncAgentsRegistryOrchestratorFromForm() {
+  if (!agentsRegistryListNode) return;
+  let selectedIndex = -1;
+  agentsRegistryDraft.forEach((agent, index) => {
+    const row = agentsRegistryListNode.querySelector(
+      `.agents-registry-row[data-registry-index="${index}"]`
+    );
+    const input = row?.querySelector('input[name="agents-registry-orchestrator"]');
+    if (input?.checked) selectedIndex = index;
+  });
+  agentsRegistryDraft.forEach((agent, index) => {
+    agent.orchestrator = index === selectedIndex;
+  });
+}
+
 function applyDiscoverAgentToDraft(discovered) {
   const entry = {
     id: discovered.id,
@@ -4281,7 +4450,8 @@ function applyDiscoverAgentToDraft(discovered) {
     previewUrl: null,
     previewRel: discovered.previewRel || discovered.manifest?.preview || null,
     active: true,
-    default: agentsRegistryDraft.length === 0
+    default: agentsRegistryDraft.length === 0,
+    orchestrator: false
   };
 
   if (isAgentPathAlreadyInDraft(entry.path)) {
@@ -4387,6 +4557,7 @@ function closeAgentDiscoverModal() {
 
 async function saveAgentsRegistryDraft() {
   if (!agentsRegistrySaveBtn) return;
+  syncAgentsRegistryOrchestratorFromForm();
   agentsRegistrySaveBtn.disabled = true;
   agentsRegistrySaveBtn.textContent = "Сохраняю...";
 
@@ -4397,10 +4568,11 @@ async function saveAgentsRegistryDraft() {
       body: JSON.stringify({
         agents: agentsRegistryDraft
           .filter((agent) => agent.folderExists !== false)
-          .map(({ path, environment, default: isDefault, active, name, comment }) => ({
+          .map(({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
             path,
             environment,
             default: isDefault,
+            orchestrator: Boolean(isOrchestrator),
             active: active !== false,
             name: name ?? "",
             comment: comment ?? ""
@@ -15307,6 +15479,7 @@ let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
   "awn-preview",
+  "awn-emoji",
   "awn-name",
   "awn-status",
   "awn-type",
@@ -15366,7 +15539,7 @@ const PROPS_FIELD_META = {
   },
   "awn-version": {
     label: "Версия",
-    hint: "Семантическая версия, например 0.0.1"
+    hint: "Счётчик сохранений"
   },
   "awn-sort": {
     label: "Сортировка",
@@ -15375,6 +15548,10 @@ const PROPS_FIELD_META = {
   "awn-preview": {
     label: "Превью",
     hint: "Изображение в Assets/Preview/ (загрузка через миниатюру)"
+  },
+  "awn-emoji": {
+    label: "Эмодзи",
+    hint: "Показывается вместо иконки, если превью не задано"
   },
   tags: {
     label: "Теги",
@@ -17160,7 +17337,7 @@ function parsePropsYaml(text) {
       continue;
     }
 
-    if (/^-?\d+(?:\.\d+)?$/.test(rest)) {
+    if (/^-?\d+(?:\.\d+)?$/.test(rest) && !/^\d+\.\d+\.\d+(?:[-+].*)?$/.test(rest)) {
       entries.push({ key, kind: "number", value: Number(rest) });
       index += 1;
       continue;
@@ -18734,6 +18911,26 @@ function createPropsFormTextValueControl(entry, meta, { locked = false } = {}) {
     meta.format ? meta.format : entry.kind === "array" ? "a, b, c" : meta.hint || "—";
   if (meta.hint) input.title = meta.hint;
   bindPropsFormLockedState(input, locked);
+  if (normalizePropsKey(entry.key) === "awn-emoji") {
+    input.addEventListener("input", () => {
+      readPropsFormIntoEntries();
+      syncYamlFromPropsForm();
+      const nodePath = getPropsContextPath();
+      document.querySelectorAll(".props-form-preview-thumb-wrap").forEach((thumbWrap) => {
+        if (thumbWrap.dataset.hasPreview === "1") return;
+        const previewEntry = propsFormEntries.find(
+          (item) => normalizePropsKey(item.key) === "awn-preview"
+        );
+        populatePreviewThumbWrap(
+          thumbWrap,
+          buildPreviewUiFromPath(getPropsEntryDisplayValue(previewEntry), nodePath),
+          thumbWrap.dataset.overviewTitle || "Превью",
+          nodePath
+        );
+      });
+      void refreshNodeCoverThumbInPlace();
+    });
+  }
   wrap.appendChild(input);
   return wrap;
 }
@@ -18918,6 +19115,12 @@ function shouldRenderPropsFormNow() {
   if (!propsFormFieldsNode) return false;
   if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return false;
   return getDocAsideTab() === "props";
+}
+
+function shouldRefreshPropsFormFromYaml() {
+  if (!propsFormFieldsNode) return false;
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) return false;
+  return !propsRawYamlVisible;
 }
 
 function isPropsLibrariesReadyForActiveNode(nodePath = getResolvedNodePath(activePath)) {
@@ -19368,11 +19571,19 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
     img.alt = title ? `Превью: ${title}` : "Превью";
     img.src = imageUrl;
     img.draggable = false;
+    img.onerror = () => {
+      populatePreviewThumbWrap(thumbWrap, null, title, nodePath);
+    };
     thumbWrap.appendChild(img);
   } else {
-    const placeholder = createNodeCoverIconElement(nodePath);
-    placeholder.classList.add("node-overview-thumb-placeholder");
-    thumbWrap.appendChild(placeholder);
+    thumbWrap.appendChild(
+      createNodeCoverFallbackElement({
+        nodePath,
+        emoji: getPropsFormAwnEmoji(nodePath),
+        emojiClass: "node-overview-thumb-emoji",
+        iconClass: "node-overview-thumb-placeholder"
+      })
+    );
   }
 
   const actions = document.createElement("div");
@@ -19604,7 +19815,7 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     propsInputNode.classList.add("hidden");
     setPropsYamlToggleLabel("Показать YAML");
   }
-  if (shouldRenderPropsFormNow()) {
+  if (shouldRefreshPropsFormFromYaml()) {
     renderPropsForm();
   }
 }
@@ -20860,11 +21071,63 @@ function getNodeCoverIconKind(nodePath) {
   return "file";
 }
 
+function getPropsFormAwnEmoji(nodePath = getPropsContextPath()) {
+  const fromEntries = propsFormEntries.find(
+    (entry) => normalizePropsKey(entry.key) === "awn-emoji"
+  );
+  if (fromEntries) {
+    const value = resolveAwnEmoji(getPropsEntryDisplayValue(fromEntries));
+    if (value) return value;
+  }
+  if (String(getPropsContextPath() || "") === String(nodePath || "")) {
+    for (const entry of parsePropsYaml(propsInputNode.value || "")) {
+      if (normalizePropsKey(entry.key) !== "awn-emoji") continue;
+      const value = resolveAwnEmoji(entry.value);
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
+function createNodeCoverFallbackElement({
+  nodePath,
+  emoji = "",
+  emojiClass = "node-cover-emoji",
+  iconClass = ""
+}) {
+  if (emoji) {
+    const node = document.createElement("span");
+    node.className = emojiClass;
+    node.textContent = emoji;
+    node.setAttribute("aria-hidden", "true");
+    return node;
+  }
+  const icon = createNodeCoverIconElement(nodePath);
+  icon.classList.add("node-cover-icon--fallback");
+  if (iconClass) {
+    for (const cls of String(iconClass).split(/\s+/)) {
+      if (cls) icon.classList.add(cls);
+    }
+  }
+  return icon;
+}
+
 function createNodeCoverIconElement(nodePath) {
   const icon = document.createElement("span");
   icon.className = `node-cover-icon node-cover-icon--${getNodeCoverIconKind(nodePath)}`;
   icon.setAttribute("aria-hidden", "true");
   return icon;
+}
+
+function appendMenuCardCoverFallback(cover, entry) {
+  cover.appendChild(
+    createNodeCoverFallbackElement({
+      nodePath: entry.path,
+      emoji: resolveAwnEmoji(entry.awnEmoji),
+      emojiClass: "menu-card-cover-emoji",
+      iconClass: "menu-card-cover-icon"
+    })
+  );
 }
 
 function populateOverviewThumbWrap(thumbWrap, preview, title, nodePath = activePath) {
@@ -25166,7 +25429,8 @@ function findMenuNodeByPath(node, targetPath) {
         sections: [],
         color: item.color || null,
         hasPreview: Boolean(item.hasPreview),
-        previewUrl: item.previewUrl || null
+        previewUrl: item.previewUrl || null,
+        awnEmoji: item.awnEmoji || null
       };
     }
   }
@@ -25180,7 +25444,8 @@ function findMenuNodeByPath(node, targetPath) {
         sections: [],
         color: item.color || null,
         hasPreview: Boolean(item.hasPreview),
-        previewUrl: item.previewUrl || null
+        previewUrl: item.previewUrl || null,
+        awnEmoji: item.awnEmoji || null
       };
     }
   }
@@ -25429,6 +25694,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
       status: node.status || null,
       hasPreview: Boolean(node.hasPreview),
       previewUrl: node.previewUrl || null,
+      awnEmoji: node.awnEmoji || null,
       tags: Array.isArray(node.tags) ? node.tags : [],
       category: node.category || null,
       isFolder: true,
@@ -25462,6 +25728,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
         status: child.entry.status || null,
         hasPreview: Boolean(child.entry.hasPreview),
         previewUrl: child.entry.previewUrl || null,
+        awnEmoji: child.entry.awnEmoji || null,
         tags: Array.isArray(child.entry.tags) ? child.entry.tags : [],
         category: child.entry.category || null,
         isFolder: false
@@ -26209,9 +26476,7 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
       previewNode.src = appendAgentToApiUrl(entry.previewUrl);
       cover.appendChild(previewNode);
     } else if (!systemFile) {
-      const icon = createNodeCoverIconElement(entry.path);
-      icon.classList.add("menu-card-cover-icon");
-      cover.appendChild(icon);
+      appendMenuCardCoverFallback(cover, entry);
     }
     openBtn.appendChild(cover);
 
@@ -26232,6 +26497,11 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
       previewNode.draggable = false;
       previewNode.src = appendAgentToApiUrl(entry.previewUrl);
       cover.appendChild(previewNode);
+      openBtn.appendChild(cover);
+    } else if (!systemFile) {
+      const cover = document.createElement("div");
+      cover.className = "menu-card-cover";
+      appendMenuCardCoverFallback(cover, entry);
       openBtn.appendChild(cover);
     }
 
@@ -27129,6 +27399,7 @@ function updateActiveButton() {
     const name = normalizeSystemFileName(card.dataset.systemFile || "");
     card.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
   }
+  syncFocusPanelActiveState();
   syncMenuPinBranchUi();
 }
 
@@ -28115,6 +28386,7 @@ async function saveContent() {
       }
       syncTitleFieldsFromNode(activePath);
       syncAppRouteToUrl({ replace: true });
+      void refreshAllFocusPanels();
       saveSucceeded = true;
       showToast("Сохранено", "success");
       return;
@@ -29429,25 +29701,18 @@ function createHome2TopicCard(entry) {
   const media = document.createElement("div");
   media.className = "home2-topic-card-media";
 
-  if (entry.hasPreview && entry.previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.src = appendCacheBuster(appendAgentToApiUrl(entry.previewUrl));
-    img.onerror = () => {
-      media.replaceChildren();
-      const fallback = document.createElement("span");
-      fallback.className = "home2-topic-card-fallback";
-      fallback.textContent = getAgentPickerInitials({ name: entry.label });
-      media.appendChild(fallback);
-    };
-    media.appendChild(img);
-  } else {
-    const fallback = document.createElement("span");
-    fallback.className = "home2-topic-card-fallback";
-    fallback.textContent = getAgentPickerInitials({ name: entry.label });
-    media.appendChild(fallback);
-  }
+  mountPreviewOrFallback(media, {
+    previewUrl:
+      entry.hasPreview && entry.previewUrl
+        ? appendCacheBuster(appendAgentToApiUrl(entry.previewUrl))
+        : "",
+    emoji: resolveAwnEmoji(entry.awnEmoji),
+    fallbackText: getAgentPickerInitials({ name: entry.label }),
+    emojiClass: "home2-topic-card-emoji",
+    initialsClass: "home2-topic-card-fallback",
+    nodePath: entry.path,
+    iconClass: "node-cover-icon--in-home2-media"
+  });
 
   const body = document.createElement("div");
   body.className = "home2-topic-card-body";

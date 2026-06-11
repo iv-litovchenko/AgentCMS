@@ -79,6 +79,7 @@ const WORKSPACE_AWN_PROP_KEYS = [
   "awn-category",
   "awn-tags",
   "awn-color",
+  "awn-emoji",
   "awn-version",
   "awn-create",
   "awn-update",
@@ -101,7 +102,6 @@ function shouldSkipFocusWalkDir(name) {
   if (!name) return true;
   if (FOCUS_WALK_SKIP_DIRS.has(String(name).toLowerCase())) return true;
   if (shouldSkipScanDir(name)) return true;
-  if (isStorageFolderName(name)) return true;
   if (String(name).toLowerCase() === "history") return true;
   return false;
 }
@@ -650,6 +650,7 @@ function normalizeAgentEntry(entry, index = 0) {
     environment: normalizeAgentEnvironment(entry.environment),
     comment: "",
     default: Boolean(entry.default),
+    orchestrator: Boolean(entry.orchestrator),
     active: true,
     folderExists: isWorkspaceDirectoryExisting(rootAbsolute)
   };
@@ -672,9 +673,10 @@ function loadRegistrySync() {
 
   if (agents.length < rawEntries.length) {
     const payload = {
-      agents: agents.map(({ path: agentPath, environment, default: isDefault }) => {
+      agents: agents.map(({ path: agentPath, environment, default: isDefault, orchestrator: isOrchestrator }) => {
         const item = { path: agentPath, environment };
         if (isDefault) item.default = true;
+        if (isOrchestrator) item.orchestrator = true;
         return item;
       })
     };
@@ -723,6 +725,7 @@ function getAgentsPublicList() {
       comment,
       default: isDefault,
       active,
+      orchestrator,
       manifestFound,
       status,
       previewRel,
@@ -738,6 +741,7 @@ function getAgentsPublicList() {
       status: status || "",
       default: isDefault,
       active: normalizeAgentActive(active),
+      orchestrator: orchestrator === true,
       manifestFound: Boolean(manifestFound),
       folderExists: folderExists !== false,
       previewRel: previewRel || null,
@@ -786,6 +790,7 @@ function saveAgentsRegistry(rawAgents) {
   const seen = new Set();
   const normalized = [];
   let defaultAssigned = false;
+  let orchestratorAssigned = false;
 
   rawAgents.forEach((entry, index) => {
     const agentPath = assertSafeAgentPath(entry?.path || "./Workspaces");
@@ -822,16 +827,20 @@ function saveAgentsRegistry(rawAgents) {
       : normalizeAgentActive(entry?.active);
     const wantsDefault = Boolean(entry?.default);
     const isDefault = wantsDefault && isActive && !defaultAssigned;
+    const wantsOrchestrator = Boolean(entry?.orchestrator);
+    const isOrchestrator = wantsOrchestrator && !orchestratorAssigned;
 
     normalized.push({
       id,
       path: agentPath,
       environment: normalizeAgentEnvironment(entry?.environment),
       active: isActive,
-      default: isDefault
+      default: isDefault,
+      orchestrator: isOrchestrator
     });
 
     if (isDefault) defaultAssigned = true;
+    if (isOrchestrator) orchestratorAssigned = true;
   });
 
   if (!normalized.some((agent) => normalizeAgentActive(agent.active))) {
@@ -845,9 +854,10 @@ function saveAgentsRegistry(rawAgents) {
 
   const registryPath = getAgentsRegistryPathSync();
   const payload = {
-    agents: normalized.map(({ path: agentPath, environment, default: isDefault }) => {
+    agents: normalized.map(({ path: agentPath, environment, default: isDefault, orchestrator: isOrchestrator }) => {
       const item = { path: agentPath, environment };
       if (isDefault) item.default = true;
+      if (isOrchestrator) item.orchestrator = true;
       return item;
     })
   };

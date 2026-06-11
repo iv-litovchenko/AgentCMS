@@ -949,40 +949,58 @@ function upsertFrontmatterScalar(frontmatter, key, value) {
   return nextLines.join("\n");
 }
 
-function bumpAwnPatchVersion(version) {
-  const raw = String(version ?? "").trim().replace(/^["']|["']$/g, "");
-  const match = raw.match(/^(\d+)\.(\d+)\.(\d+)(?:-.+)?$/);
-  if (!match) return "0.0.1";
-  return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
+function parseAwnVersionNumber(value) {
+  const raw = String(value ?? "").trim().replace(/^["']|["']$/g, "");
+  if (!raw) return 0;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  const semver = raw.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (semver) return Number(semver[3]);
+  return 0;
 }
 
-function applyAwnVersionToFrontmatter(frontmatter, { isFirstSave = false } = {}) {
+function bumpAwnVersion(version) {
+  return String(Math.max(1, parseAwnVersionNumber(version) + 1));
+}
+
+function applyAwnVersionToFrontmatter(frontmatter, { diskFrontmatter = "" } = {}) {
   let next = String(frontmatter || "");
-  const current = getYamlScalar(next, "awn-version");
-  if (isEmptyAwnTimestampValue(current) || isFirstSave) {
-    return upsertFrontmatterScalar(next, "awn-version", "0.0.1");
+  const payloadVersion = getYamlScalar(next, "awn-version");
+  const diskVersion = getYamlScalar(diskFrontmatter, "awn-version");
+  const baseVersion = !isEmptyAwnTimestampValue(diskVersion)
+    ? diskVersion
+    : payloadVersion;
+  if (isEmptyAwnTimestampValue(baseVersion)) {
+    return upsertFrontmatterScalar(next, "awn-version", "1");
   }
-  return upsertFrontmatterScalar(next, "awn-version", bumpAwnPatchVersion(current));
+  return upsertFrontmatterScalar(next, "awn-version", bumpAwnVersion(baseVersion));
 }
 
-function applyAwnTimestampsToFrontmatter(frontmatter) {
-  const now = new Date().toISOString();
+function mergePersistedAwnCreateFromDisk(frontmatter, diskFrontmatter) {
   let next = String(frontmatter || "");
+  const payloadCreated = getYamlScalar(next, "awn-create");
+  if (!isEmptyAwnTimestampValue(payloadCreated)) return next;
+  const diskCreated = getYamlScalar(diskFrontmatter, "awn-create");
+  if (isEmptyAwnTimestampValue(diskCreated)) return next;
+  return upsertFrontmatterScalar(next, "awn-create", diskCreated);
+}
+
+function applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter = "" } = {}) {
+  const now = new Date().toISOString();
+  let next = mergePersistedAwnCreateFromDisk(frontmatter, diskFrontmatter);
   const created = getYamlScalar(next, "awn-create");
-  const isFirstSave = isEmptyAwnTimestampValue(created);
-  if (isFirstSave) {
+  if (isEmptyAwnTimestampValue(created)) {
     next = upsertFrontmatterScalar(next, "awn-create", now);
   }
   next = upsertFrontmatterScalar(next, "awn-update", now);
-  next = applyAwnVersionToFrontmatter(next, { isFirstSave });
+  next = applyAwnVersionToFrontmatter(next, { diskFrontmatter });
   return next;
 }
 
-function applyAwnTimestampsToMarkdownContent(content) {
+function applyAwnTimestampsToMarkdownContent(content, diskFrontmatter = "") {
   const text = String(content ?? "");
   if (!/^---\r?\n/.test(text)) return text;
   const { frontmatter, body } = splitNodeFrontmatter(text);
-  const nextFrontmatter = applyAwnTimestampsToFrontmatter(frontmatter);
+  const nextFrontmatter = applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter });
   return joinNodeFrontmatter(nextFrontmatter, body);
 }
 
@@ -3775,18 +3793,21 @@ async function resolveFolderDisplayTitle(dirAbsolute, relativePath, child = null
 async function readNodeMenuMetaForNodeRel(nodeRelPath) {
   try {
     const { frontmatter } = await readNodeFrontmatterContent(nodeRelPath);
+    const awnEmoji = getYamlScalar(frontmatter, "awn-emoji");
     return {
       color: extractColorFromPropsYaml(frontmatter),
       tags: extractTagsFromProps(frontmatter),
       category: extractCategoryFromProps(frontmatter, nodeRelPath),
-      status: extractStatusFromProps(frontmatter)
+      status: extractStatusFromProps(frontmatter),
+      awnEmoji: awnEmoji || null
     };
   } catch {
     return {
       color: null,
       tags: [],
       category: inferCategoryFromNodePath(nodeRelPath),
-      status: null
+      status: null,
+      awnEmoji: null
     };
   }
 }
@@ -3807,6 +3828,7 @@ async function enrichMenuNodeItem(nodeRelPath) {
     tags: meta.tags,
     category: meta.category,
     status: meta.status || null,
+    awnEmoji: meta.awnEmoji || null,
     ...previewMeta
   };
 }
@@ -5892,7 +5914,9 @@ async function handleApiForAgent(req, res, url) {
       if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
       if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
 
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      const raw = (await readNodeManifestRaw(absolute)) ?? "";
+      const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
       await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, stampedContent);
       if (canonicalRelPath !== String(relPath).replace(/\\/g, "/")) {
         const legacyAbsolute = normalizeWorkspacePath(relPath);
@@ -6176,8 +6200,8 @@ async function handleApiForAgent(req, res, url) {
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
-      const { body } = splitNodeFrontmatter(raw);
-      const stampedFrontmatter = applyAwnTimestampsToFrontmatter(content);
+      const { frontmatter: diskFrontmatter, body } = splitNodeFrontmatter(raw);
+      const stampedFrontmatter = applyAwnTimestampsToFrontmatter(content, { diskFrontmatter });
       const nextContent = joinNodeFrontmatter(stampedFrontmatter, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
@@ -6437,7 +6461,9 @@ async function handleApiForAgent(req, res, url) {
 
       const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
       const targetRelPath = manifestRelFromNodeAbsolute(fileAbsolute);
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      const raw = await fs.readFile(fileAbsolute, "utf-8").catch(() => "");
+      const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
       await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content: stampedContent });
     } catch (error) {
@@ -6771,7 +6797,9 @@ async function handleApiForAgent(req, res, url) {
       if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
 
       await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      const raw = await fs.readFile(fileAbsolute, "utf-8").catch(() => "");
+      const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
       await fs.writeFile(fileAbsolute, stampedContent, "utf-8");
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content: stampedContent });
     } catch (error) {
@@ -7450,7 +7478,9 @@ async function handleApiForAgent(req, res, url) {
 
       const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
       const targetRelPath = manifestRelFromNodeAbsolute(sidecarAbsolute);
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content);
+      const raw = await fs.readFile(sidecarAbsolute, "utf-8").catch(() => "");
+      const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
+      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
       await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
 
       return sendJson(res, 200, {

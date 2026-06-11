@@ -1,20 +1,18 @@
 ---
 awn-preview: ""
 awn-emoji: ""
-awn-name: екек
+awn-name: ""
 awn-status: 🟡 Черновик
-awn-type: awn.sidecar
-awn-create: "2026-06-11T01:25"
-awn-update: 2026-06-11T07:25:14.627Z
+awn-type: awn.topic
+awn-create: "2026-06-11T01:14"
+awn-update: 2026-06-11T07:22:11.754Z
 awn-description: ""
 awn-main: true
 awn-category: ""
 awn-tags: []
 awn-color: "#000000"
-awn-version: 0.0.2
+awn-version: 0.0.6
 awn-sort: 0
-awn-mime: ""
-awn-size: 0
 ---
 
--
+body
