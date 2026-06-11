@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.70" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.71" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
+    <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
   <body class="app-booting">
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
@@ -520,11 +521,64 @@
                 </div>
                 <span id="app-landing-focus-count" class="agent-focus-count" aria-hidden="true"></span>
               </div>
+              <div id="app-landing-focus-toolbar" class="agent-focus-toolbar hidden">
+                <span id="app-landing-focus-filter-count" class="agent-focus-toolbar-count"></span>
+                <div class="agent-focus-toolbar-controls">
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Статус</span>
+                    <select id="app-landing-focus-filter-status" class="agent-focus-toolbar-select" aria-label="Фильтр по статусу">
+                      <option value="">Все</option>
+                      <option value="🟢 Открыта">🟢 Открыта</option>
+                      <option value="🟡 Черновик">🟡 Черновик</option>
+                      <option value="🔴 Закрыта">🔴 Закрыта</option>
+                    </select>
+                  </label>
+                  <div class="agent-focus-toolbar-field agent-focus-toolbar-field--types">
+                    <span class="agent-focus-toolbar-label">Тип</span>
+                    <div id="app-landing-focus-filter-type-wrap" class="agent-focus-type-filter">
+                      <button
+                        id="app-landing-focus-filter-type-btn"
+                        type="button"
+                        class="agent-focus-type-filter-btn"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="app-landing-focus-filter-type-panel"
+                      >Все типы</button>
+                      <div
+                        id="app-landing-focus-filter-type-panel"
+                        class="agent-focus-type-filter-panel hidden"
+                        role="group"
+                        aria-label="Фильтр по типу"
+                      ></div>
+                    </div>
+                  </div>
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Сортировка</span>
+                    <select id="app-landing-focus-sort" class="agent-focus-toolbar-select" aria-label="Сортировка">
+                      <option value="topic">Тема</option>
+                      <option value="agent">Агент</option>
+                      <option value="awn-status">Статус</option>
+                      <option value="awn-type">Тип</option>
+                      <option value="awn-create">Создан</option>
+                      <option value="awn-update">Изменён</option>
+                    </select>
+                  </label>
+                  <button
+                    id="app-landing-focus-sort-dir"
+                    type="button"
+                    class="agent-focus-toolbar-sort-dir"
+                    title="Направление сортировки"
+                    aria-label="Направление сортировки"
+                  >↑</button>
+                </div>
+              </div>
               <div class="agent-focus-table-wrap">
-                <table class="agent-focus-table" aria-describedby="app-landing-focus-title">
-                  <thead id="app-landing-focus-head"></thead>
-                  <tbody id="app-landing-focus-list"></tbody>
-                </table>
+                <div class="agent-focus-table-scroll">
+                  <table class="agent-focus-table" aria-describedby="app-landing-focus-title">
+                    <thead id="app-landing-focus-head"></thead>
+                    <tbody id="app-landing-focus-list"></tbody>
+                  </table>
+                </div>
               </div>
             </section>
           </div>
@@ -2113,11 +2167,12 @@
 
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
+    <script src="/vendor/highlight.min.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.196"></script>
+    <script src="/main.js?v=0.5.197"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

@@ -6,10 +6,6 @@
       "default": true
     },
     {
-      "path": "workspaces/Php",
-      "environment": "local"
-    },
-    {
       "path": "workspaces/Test",
       "environment": "local"
     },
@@ -17,6 +13,10 @@
       "path": "workspaces/test8",
       "environment": "local",
       "orchestrator": true
+    },
+    {
+      "path": "workspaces/php",
+      "environment": "local"
     }
   ]
 }

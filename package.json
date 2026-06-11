@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "mcp": "node mcp-server/index.js",
-    "postinstall": "mkdir -p public/vendor && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js",
+    "postinstall": "mkdir -p public/vendor && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/vendor/highlight-github.min.css",
     "desktop": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
@@ -17,6 +17,7 @@
   "dependencies": {
     "@toast-ui/editor": "^3.2.2",
     "electron-updater": "^6.6.2",
+    "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.1",
     "mermaid": "^11.15.0"
   },

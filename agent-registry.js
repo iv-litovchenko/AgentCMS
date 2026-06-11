@@ -110,9 +110,16 @@ function shouldSkipFocusMdFileName(name) {
   const base = String(name || "");
   const lower = base.toLowerCase();
   if (!lower.endsWith(".md")) return true;
-  if (lower.endsWith(".sidecar.md")) return true;
   if (lower.endsWith(".mdback")) return true;
   return false;
+}
+
+function focusEntrySlugFromFileName(fileName) {
+  let slug = String(fileName || "").replace(/\.md$/i, "");
+  if (slug.toLowerCase().endsWith(".sidecar")) {
+    slug = slug.slice(0, -".sidecar".length);
+  }
+  return slug;
 }
 
 function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
@@ -140,7 +147,7 @@ function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
       const { frontmatter } = splitFrontmatter(content);
       if (!getYamlBoolean(frontmatter, "awn-main")) continue;
 
-      const slug = entry.name.replace(/\.md$/i, "");
+      const slug = focusEntrySlugFromFileName(entry.name);
       let name = getYamlScalar(frontmatter, "awn-name") || "";
       if (!String(name).trim()) name = slug;
 

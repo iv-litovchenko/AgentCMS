@@ -25,6 +25,14 @@ const appLandingFocusNode = document.getElementById("app-landing-focus");
 const appLandingFocusListNode = document.getElementById("app-landing-focus-list");
 const appLandingFocusHeadNode = document.getElementById("app-landing-focus-head");
 const appLandingFocusCountNode = document.getElementById("app-landing-focus-count");
+const appLandingFocusToolbarNode = document.getElementById("app-landing-focus-toolbar");
+const appLandingFocusFilterCountNode = document.getElementById("app-landing-focus-filter-count");
+const appLandingFocusFilterStatusNode = document.getElementById("app-landing-focus-filter-status");
+const appLandingFocusFilterTypeWrapNode = document.getElementById("app-landing-focus-filter-type-wrap");
+const appLandingFocusFilterTypeBtnNode = document.getElementById("app-landing-focus-filter-type-btn");
+const appLandingFocusFilterTypePanelNode = document.getElementById("app-landing-focus-filter-type-panel");
+const appLandingFocusSortNode = document.getElementById("app-landing-focus-sort");
+const appLandingFocusSortDirNode = document.getElementById("app-landing-focus-sort-dir");
 const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
 const sidebarFocusNode = document.getElementById("sidebar-focus");
@@ -2232,6 +2240,284 @@ function getAgentsForLandingGrid() {
 let globalFocusItemsCache = [];
 let agentFocusItemsCache = [];
 
+const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
+const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
+
+let landingFocusFilter = { status: "", types: [] };
+let landingFocusSort = { key: "topic", dir: "asc" };
+
+function normalizeLandingFocusTypeFilter(raw) {
+  if (Array.isArray(raw)) {
+    return [...new Set(raw.map((value) => String(value ?? "").trim()).filter(Boolean))];
+  }
+  const legacy = String(raw ?? "").trim();
+  return legacy ? [legacy] : [];
+}
+
+function getLandingFocusSelectedTypes() {
+  return normalizeLandingFocusTypeFilter(landingFocusFilter.types);
+}
+
+function formatLandingFocusTypeFilterLabel(types = getLandingFocusSelectedTypes()) {
+  if (!types.length) return "Все типы";
+  if (types.length === 1) return types[0];
+  return `${types.length} типов`;
+}
+
+function loadLandingFocusUiState() {
+  try {
+    const filterRaw = readStorageItem(LANDING_FOCUS_FILTER_STORAGE_KEY);
+    if (filterRaw) {
+      const parsed = JSON.parse(filterRaw);
+      const types = normalizeLandingFocusTypeFilter(parsed?.types ?? parsed?.type);
+      landingFocusFilter = {
+        status: String(parsed?.status ?? "").trim(),
+        types
+      };
+    }
+  } catch {
+    landingFocusFilter = { status: "", types: [] };
+  }
+
+  try {
+    const sortRaw = readStorageItem(LANDING_FOCUS_SORT_STORAGE_KEY);
+    if (sortRaw) {
+      const parsed = JSON.parse(sortRaw);
+      const key = String(parsed?.key ?? "topic").trim();
+      const dir = String(parsed?.dir ?? "asc").trim().toLowerCase();
+      landingFocusSort = {
+        key: key || "topic",
+        dir: dir === "desc" ? "desc" : "asc"
+      };
+    }
+  } catch {
+    landingFocusSort = { key: "topic", dir: "asc" };
+  }
+}
+
+function saveLandingFocusUiState() {
+  writeStorageItem(LANDING_FOCUS_FILTER_STORAGE_KEY, JSON.stringify(landingFocusFilter));
+  writeStorageItem(LANDING_FOCUS_SORT_STORAGE_KEY, JSON.stringify(landingFocusSort));
+}
+
+function getFocusItemStatus(item) {
+  return String(item?.awnProps?.["awn-status"] ?? "").trim();
+}
+
+function getFocusItemType(item) {
+  return String(item?.awnType || item?.awnProps?.["awn-type"] || "").trim();
+}
+
+function filterLandingFocusItems(items) {
+  const statusFilter = String(landingFocusFilter.status || "").trim();
+  const typeFilters = getLandingFocusSelectedTypes();
+  const typeFilterSet = typeFilters.length ? new Set(typeFilters) : null;
+  return items.filter((item) => {
+    if (statusFilter && getFocusItemStatus(item) !== statusFilter) return false;
+    if (typeFilterSet && !typeFilterSet.has(getFocusItemType(item))) return false;
+    return true;
+  });
+}
+
+function getLandingFocusSortValue(item, key) {
+  switch (key) {
+    case "agent":
+      return item.agentName || item.agentId || "";
+    case "topic":
+      return item.name || item.nodePath || "";
+    case "awn-status":
+      return getFocusItemStatus(item);
+    case "awn-type":
+      return getFocusItemType(item);
+    case "awn-create":
+      return String(item?.awnProps?.["awn-create"] ?? "").trim();
+    case "awn-update":
+      return String(item?.awnProps?.["awn-update"] ?? "").trim();
+    default:
+      return item.name || item.nodePath || "";
+  }
+}
+
+function sortLandingFocusItems(items) {
+  const key = landingFocusSort.key || "topic";
+  const dir = landingFocusSort.dir === "desc" ? -1 : 1;
+  const isDateKey = key === "awn-create" || key === "awn-update";
+  return [...items].sort((left, right) => {
+    const leftValue = getLandingFocusSortValue(left, key);
+    const rightValue = getLandingFocusSortValue(right, key);
+    if (isDateKey) {
+      const leftTime = Date.parse(leftValue) || 0;
+      const rightTime = Date.parse(rightValue) || 0;
+      return (leftTime - rightTime) * dir;
+    }
+    return String(leftValue).localeCompare(String(rightValue), "ru", { sensitivity: "base" }) * dir;
+  });
+}
+
+function getProcessedLandingFocusItems() {
+  return sortLandingFocusItems(filterLandingFocusItems(globalFocusItemsCache));
+}
+
+function setLandingFocusTypeFilterOpen(open) {
+  if (!appLandingFocusFilterTypePanelNode || !appLandingFocusFilterTypeBtnNode) return;
+  const isOpen = Boolean(open);
+  appLandingFocusFilterTypePanelNode.classList.toggle("hidden", !isOpen);
+  appLandingFocusFilterTypeBtnNode.setAttribute("aria-expanded", isOpen ? "true" : "false");
+}
+
+function syncLandingFocusTypeFilterButtonLabel() {
+  if (!appLandingFocusFilterTypeBtnNode) return;
+  appLandingFocusFilterTypeBtnNode.textContent = formatLandingFocusTypeFilterLabel();
+}
+
+function syncLandingFocusFilterTypePanel() {
+  if (!appLandingFocusFilterTypePanelNode) return;
+
+  const availableTypes = new Set();
+  for (const item of globalFocusItemsCache) {
+    const type = getFocusItemType(item);
+    if (type) availableTypes.add(type);
+  }
+
+  const selected = new Set(getLandingFocusSelectedTypes());
+  landingFocusFilter.types = [...selected].filter((type) => availableTypes.has(type));
+
+  appLandingFocusFilterTypePanelNode.replaceChildren();
+
+  const head = document.createElement("div");
+  head.className = "agent-focus-type-filter-panel-head";
+
+  const title = document.createElement("span");
+  title.className = "agent-focus-type-filter-panel-title";
+  title.textContent = "Типы записей";
+
+  const resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.className = "agent-focus-type-filter-reset-btn";
+  resetBtn.textContent = "Все";
+  resetBtn.title = "Показать все типы";
+  resetBtn.addEventListener("click", () => {
+    landingFocusFilter.types = [];
+    saveLandingFocusUiState();
+    syncLandingFocusFilterTypePanel();
+    syncLandingFocusTypeFilterButtonLabel();
+    renderGlobalFocusPanel();
+  });
+
+  head.append(title, resetBtn);
+  appLandingFocusFilterTypePanelNode.appendChild(head);
+
+  const list = document.createElement("div");
+  list.className = "agent-focus-type-filter-panel-list";
+
+  for (const type of [...availableTypes].sort((a, b) => a.localeCompare(b, "ru"))) {
+    const label = document.createElement("label");
+    label.className = "agent-focus-type-filter-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = type;
+    input.checked = selected.has(type);
+    input.addEventListener("change", () => {
+      const next = new Set(getLandingFocusSelectedTypes());
+      if (input.checked) next.add(type);
+      else next.delete(type);
+      landingFocusFilter.types = [...next];
+      saveLandingFocusUiState();
+      syncLandingFocusTypeFilterButtonLabel();
+      renderGlobalFocusPanel();
+    });
+
+    const text = document.createElement("span");
+    text.textContent = type;
+    text.title = type;
+    label.append(input, text);
+    list.appendChild(label);
+  }
+
+  if (!availableTypes.size) {
+    const empty = document.createElement("p");
+    empty.className = "agent-focus-type-filter-empty";
+    empty.textContent = "Нет типов в списке";
+    list.appendChild(empty);
+  }
+
+  appLandingFocusFilterTypePanelNode.appendChild(list);
+  syncLandingFocusTypeFilterButtonLabel();
+}
+
+function syncLandingFocusToolbarUi() {
+  if (!appLandingFocusToolbarNode) return;
+
+  const hasItems = globalFocusItemsCache.length > 0;
+  appLandingFocusToolbarNode.classList.toggle("hidden", !hasItems);
+
+  if (appLandingFocusFilterStatusNode) {
+    appLandingFocusFilterStatusNode.value = landingFocusFilter.status || "";
+  }
+  syncLandingFocusFilterTypePanel();
+  if (appLandingFocusSortNode) {
+    appLandingFocusSortNode.value = landingFocusSort.key || "topic";
+  }
+  if (appLandingFocusSortDirNode) {
+    appLandingFocusSortDirNode.textContent = landingFocusSort.dir === "asc" ? "↑" : "↓";
+  }
+
+  const processed = getProcessedLandingFocusItems();
+  const total = globalFocusItemsCache.length;
+  const shown = processed.length;
+  if (appLandingFocusFilterCountNode) {
+    appLandingFocusFilterCountNode.textContent =
+      shown === total ? `${total} записей` : `${shown} из ${total}`;
+  }
+}
+
+function bindLandingFocusToolbar() {
+  if (!appLandingFocusToolbarNode || appLandingFocusToolbarNode.dataset.bound === "1") return;
+  appLandingFocusToolbarNode.dataset.bound = "1";
+
+  loadLandingFocusUiState();
+
+  appLandingFocusFilterStatusNode?.addEventListener("change", () => {
+    landingFocusFilter.status = appLandingFocusFilterStatusNode.value || "";
+    saveLandingFocusUiState();
+    renderGlobalFocusPanel();
+  });
+
+  appLandingFocusFilterTypeBtnNode?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = appLandingFocusFilterTypePanelNode?.classList.contains("hidden");
+    document.querySelectorAll(".agent-focus-type-filter-panel").forEach((node) => {
+      if (node !== appLandingFocusFilterTypePanelNode) node.classList.add("hidden");
+    });
+    setLandingFocusTypeFilterOpen(willOpen);
+  });
+
+  if (!document.body.dataset.landingFocusTypeFilterBound) {
+    document.body.dataset.landingFocusTypeFilterBound = "1";
+    document.addEventListener("click", (event) => {
+      if (!appLandingFocusFilterTypeWrapNode?.contains(event.target)) {
+        setLandingFocusTypeFilterOpen(false);
+      }
+    });
+  }
+
+  appLandingFocusSortNode?.addEventListener("change", () => {
+    landingFocusSort.key = appLandingFocusSortNode.value || "topic";
+    saveLandingFocusUiState();
+    renderGlobalFocusPanel();
+  });
+
+  appLandingFocusSortDirNode?.addEventListener("click", () => {
+    landingFocusSort.dir = landingFocusSort.dir === "asc" ? "desc" : "asc";
+    if (appLandingFocusSortDirNode) {
+      appLandingFocusSortDirNode.textContent = landingFocusSort.dir === "asc" ? "↑" : "↓";
+    }
+    saveLandingFocusUiState();
+    renderGlobalFocusPanel();
+  });
+}
+
 const FOCUS_AWN_KEYS = [
   "awn-status",
   "awn-description",
@@ -2511,7 +2797,10 @@ function createFocusTableValueCell(key, value) {
     swatch.className = "agent-focus-prop-color";
     swatch.style.backgroundColor = value;
     swatch.setAttribute("aria-hidden", "true");
-    td.append(swatch, document.createTextNode(value));
+    const text = document.createElement("span");
+    text.className = "agent-focus-table-value-text";
+    text.textContent = value;
+    td.append(swatch, text);
     return td;
   }
 
@@ -2605,19 +2894,44 @@ function createLandingFocusTableRow(focusItem, columns) {
   return row;
 }
 
+function syncLandingFocusTableColgroup(table, columns) {
+  if (!table || !Array.isArray(columns) || !columns.length) return;
+  const existing = table.querySelector("colgroup");
+  if (existing) existing.remove();
+
+  const colgroup = document.createElement("colgroup");
+  const propColumns = columns.filter((columnId) => columnId !== "agent" && columnId !== "topic");
+  const propWidth = propColumns.length ? 64 / propColumns.length : 0;
+
+  for (const columnId of columns) {
+    const col = document.createElement("col");
+    if (columnId === "agent" || columnId === "topic") {
+      col.style.width = "18%";
+    } else if (propWidth > 0) {
+      col.style.width = `${propWidth}%`;
+    }
+    colgroup.appendChild(col);
+  }
+
+  table.insertBefore(colgroup, table.firstChild);
+}
+
 function renderLandingFocusTable(items) {
   if (!appLandingFocusNode || !appLandingFocusListNode) return;
 
   appLandingFocusListNode.replaceChildren();
   if (appLandingFocusHeadNode) appLandingFocusHeadNode.replaceChildren();
 
-  if (!items.length) {
+  if (!globalFocusItemsCache.length) {
     appLandingFocusNode.classList.add("hidden");
     return;
   }
 
   appLandingFocusNode.classList.remove("hidden");
-  const columns = getLandingFocusTableColumns(items);
+  const columnSource = items.length ? items : globalFocusItemsCache;
+  const columns = getLandingFocusTableColumns(columnSource);
+  const focusTable = appLandingFocusListNode.closest(".agent-focus-table");
+  syncLandingFocusTableColgroup(focusTable, columns);
 
   if (appLandingFocusHeadNode) {
     const headRow = document.createElement("tr");
@@ -2628,6 +2942,17 @@ function renderLandingFocusTable(items) {
       headRow.appendChild(th);
     }
     appLandingFocusHeadNode.appendChild(headRow);
+  }
+
+  if (!items.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.className = "agent-focus-table-empty";
+    cell.colSpan = Math.max(columns.length, 1);
+    cell.textContent = "Нет записей по выбранным фильтрам";
+    row.appendChild(cell);
+    appLandingFocusListNode.appendChild(row);
+    return;
   }
 
   for (const focusItem of items) {
@@ -2649,12 +2974,19 @@ function renderFocusPanel(panelNode, listNode, items, variant) {
 }
 
 function renderGlobalFocusPanel() {
+  syncLandingFocusToolbarUi();
+  const processed = getProcessedLandingFocusItems();
   if (appLandingFocusCountNode) {
-    const count = globalFocusItemsCache.length;
-    appLandingFocusCountNode.textContent = count ? String(count) : "";
-    appLandingFocusCountNode.classList.toggle("hidden", count === 0);
+    const total = globalFocusItemsCache.length;
+    const shown = processed.length;
+    appLandingFocusCountNode.textContent = total
+      ? shown === total
+        ? String(total)
+        : `${shown}/${total}`
+      : "";
+    appLandingFocusCountNode.classList.toggle("hidden", total === 0);
   }
-  renderLandingFocusTable(globalFocusItemsCache);
+  renderLandingFocusTable(processed);
 }
 
 function renderAgentFocusPanels() {
@@ -23589,7 +23921,161 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+const CODE_PREVIEW_EXTENSION_MAP = {
+  sql: "sql",
+  mysql: "sql",
+  psql: "sql",
+  php: "php",
+  js: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  ts: "typescript",
+  jsx: "javascript",
+  tsx: "typescript",
+  json: "json",
+  yml: "yaml",
+  yaml: "yaml",
+  css: "css",
+  scss: "scss",
+  less: "less",
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
+  py: "python",
+  rb: "ruby",
+  go: "go",
+  rs: "rust",
+  java: "java",
+  kt: "kotlin",
+  swift: "swift",
+  c: "c",
+  h: "c",
+  cpp: "cpp",
+  hpp: "cpp",
+  cs: "csharp",
+  xml: "xml",
+  html: "xml",
+  htm: "xml",
+  toml: "toml",
+  ini: "ini",
+  dockerfile: "dockerfile",
+  makefile: "makefile"
+};
+
+const HIGHLIGHT_LANGUAGE_ALIASES = {
+  js: "javascript",
+  ts: "typescript",
+  py: "python",
+  rb: "ruby",
+  yml: "yaml",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  md: "markdown",
+  plaintext: "plaintext",
+  text: "plaintext",
+  txt: "plaintext"
+};
+
 let markdownItInstance = null;
+
+function getHighlightJs() {
+  return typeof window.hljs === "object" && window.hljs ? window.hljs : null;
+}
+
+function normalizeHighlightLanguage(language) {
+  const raw = String(language || "")
+    .trim()
+    .toLowerCase()
+    .split(/[?:#]/)[0];
+  if (!raw) return "";
+  return HIGHLIGHT_LANGUAGE_ALIASES[raw] || raw;
+}
+
+function getCodePreviewLanguage(filePath) {
+  const normalized = String(filePath || "")
+    .replace(/\\/g, "/")
+    .trim()
+    .toLowerCase();
+  if (!normalized || normalized.endsWith(".md")) return "";
+  const ext = normalized.includes(".") ? normalized.split(".").pop() : "";
+  return CODE_PREVIEW_EXTENSION_MAP[ext] || "";
+}
+
+function highlightCodeString(source, language) {
+  const hljs = getHighlightJs();
+  const text = String(source ?? "");
+  if (!hljs) return escapeHtml(text);
+
+  const lang = normalizeHighlightLanguage(language);
+  if (lang && hljs.getLanguage(lang)) {
+    try {
+      return hljs.highlight(text, { language: lang }).value;
+    } catch {
+      return escapeHtml(text);
+    }
+  }
+
+  try {
+    return hljs.highlightAuto(text).value;
+  } catch {
+    return escapeHtml(text);
+  }
+}
+
+function renderCodePreviewHtml(source, language) {
+  const lang = normalizeHighlightLanguage(language);
+  const langClass = lang ? `language-${escapeHtml(lang)} hljs` : "hljs";
+  return `<pre><code class="${langClass}">${highlightCodeString(source, lang)}</code></pre>`;
+}
+
+function applySyntaxHighlighting(root, { nodePath } = {}) {
+  if (!root) return;
+  const hljs = getHighlightJs();
+  if (!hljs) return;
+
+  const fallbackLang = getCodePreviewLanguage(nodePath || getActiveTitleEditorPath());
+
+  for (const pre of root.querySelectorAll("pre:not(.mermaid)")) {
+    let code = pre.querySelector("code");
+    if (!code) {
+      const text = pre.textContent || "";
+      code = document.createElement("code");
+      if (fallbackLang) code.className = `language-${fallbackLang}`;
+      pre.textContent = "";
+      pre.appendChild(code);
+      code.textContent = text;
+    }
+
+    if (code.classList.contains("hljs") || code.dataset.highlighted === "yes") continue;
+    if (code.querySelector("[class*='hljs-']")) {
+      code.classList.add("hljs");
+      continue;
+    }
+
+    let lang = "";
+    for (const cls of code.classList) {
+      const match = cls.match(/^language-(.+)$/);
+      if (match) {
+        lang = normalizeHighlightLanguage(match[1]);
+        break;
+      }
+    }
+    if (!lang && fallbackLang) lang = fallbackLang;
+
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
+      } else {
+        code.innerHTML = hljs.highlightAuto(code.textContent).value;
+      }
+      code.classList.add("hljs");
+      code.dataset.highlighted = "yes";
+    } catch {
+      // keep plain text
+    }
+  }
+}
 
 function getMarkdownIt() {
   if (markdownItInstance) return markdownItInstance;
@@ -23599,7 +24085,8 @@ function getMarkdownIt() {
     html: true,
     linkify: true,
     breaks: true,
-    typographer: false
+    typographer: false,
+    highlight: (source, language) => highlightCodeString(source, language)
   });
 
   if (typeof window.markdownItGitHubAlerts === "function") {
@@ -23722,20 +24209,25 @@ function getMarkdownIt() {
 }
 
 function renderMarkdownToHtml(markdown, { nodePath } = {}) {
-  const md = getMarkdownIt();
+  const sourcePath = nodePath || getActiveTitleEditorPath() || getActiveNodeApiPath();
   const source = normalizeMarkdownLinkDestinations(String(markdown || ""));
+  const codeLang = getCodePreviewLanguage(sourcePath);
+  if (codeLang) {
+    return renderCodePreviewHtml(source, codeLang);
+  }
 
+  const md = getMarkdownIt();
   if (!md) {
-    return `<pre>${escapeHtml(source)}</pre>`;
+    return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
   }
 
   try {
     return md.render(source, {
-      nodePath: nodePath || getActiveNodeApiPath(),
+      nodePath: sourcePath,
       headingSlugCounts: new Map()
     });
   } catch (error) {
-    return `<pre>${escapeHtml(source)}</pre>`;
+    return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
   }
 }
 
@@ -23774,7 +24266,9 @@ async function typesetMarkdownDiagrams(rootNode) {
 
 function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
   if (!element) return;
-  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath });
+  const resolvedNodePath = nodePath || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
+  applySyntaxHighlighting(element, { nodePath: resolvedNodePath });
   void typesetMarkdownDiagrams(element);
   enhanceMarkdownPreviewImages(element);
 }
@@ -23896,7 +24390,9 @@ function enhanceMarkdownPreviewImages(root) {
 }
 
 function renderPreviewFromEditor() {
-  setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value);
+  setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, {
+    nodePath: getActiveTitleEditorPath()
+  });
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
   }
@@ -28346,6 +28842,7 @@ async function saveContent() {
       applyMediaSidecarContentUi(data.content || "");
       await refreshMediaCache();
       refreshEditorViewContent();
+      void refreshAllFocusPanels();
       saveSucceeded = true;
       showToast("Sidecar сохранён", "success");
       return;
@@ -34249,3 +34746,4 @@ appLandingCreateModalNode?.addEventListener("click", (event) => {
 initNodeWorkspaceDomainSelect();
 initAgentAwnTypesToolbar();
 initAgentGitToolbar();
+bindLandingFocusToolbar();
