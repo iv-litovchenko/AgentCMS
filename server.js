@@ -203,6 +203,8 @@ const {
   assertSafeAgentPath,
   refreshAgentsFromDisk,
   runWithAgent,
+  collectAllFocusEntries,
+  collectAgentFocusEntries,
   getAgentKitFolder,
   getAgentContainerFolder,
   isAgentKitFolderEntryName,
@@ -947,14 +949,32 @@ function upsertFrontmatterScalar(frontmatter, key, value) {
   return nextLines.join("\n");
 }
 
+function bumpAwnPatchVersion(version) {
+  const raw = String(version ?? "").trim().replace(/^["']|["']$/g, "");
+  const match = raw.match(/^(\d+)\.(\d+)\.(\d+)(?:-.+)?$/);
+  if (!match) return "0.0.1";
+  return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
+}
+
+function applyAwnVersionToFrontmatter(frontmatter, { isFirstSave = false } = {}) {
+  let next = String(frontmatter || "");
+  const current = getYamlScalar(next, "awn-version");
+  if (isEmptyAwnTimestampValue(current) || isFirstSave) {
+    return upsertFrontmatterScalar(next, "awn-version", "0.0.1");
+  }
+  return upsertFrontmatterScalar(next, "awn-version", bumpAwnPatchVersion(current));
+}
+
 function applyAwnTimestampsToFrontmatter(frontmatter) {
   const now = new Date().toISOString();
   let next = String(frontmatter || "");
   const created = getYamlScalar(next, "awn-create");
-  if (isEmptyAwnTimestampValue(created)) {
+  const isFirstSave = isEmptyAwnTimestampValue(created);
+  if (isFirstSave) {
     next = upsertFrontmatterScalar(next, "awn-create", now);
   }
   next = upsertFrontmatterScalar(next, "awn-update", now);
+  next = applyAwnVersionToFrontmatter(next, { isFirstSave });
   return next;
 }
 
@@ -3337,6 +3357,41 @@ async function getAgentPreviewMeta(agent) {
   } catch {
     return { hasPreview: false, previewUrl: null };
   }
+}
+
+async function enrichFocusItems(items) {
+  return Promise.all(
+    items.map(async (item) => {
+      const agent = resolveAgent(item.agentId);
+      if (!agent) return { ...item, agentPreviewUrl: null, nodePreviewUrl: null };
+
+      let agentPreviewUrl = null;
+      let nodePreviewUrl = null;
+      try {
+        const agentPreview = await getAgentPreviewMeta(agent);
+        agentPreviewUrl = agentPreview.previewUrl || null;
+      } catch {
+        // no agent preview
+      }
+
+      if (item.nodePath) {
+        try {
+          await runWithAgent(agent.id, async () => {
+            const nodePreview = await getNodePreviewMeta(item.nodePath);
+            nodePreviewUrl = nodePreview.previewUrl || null;
+          });
+        } catch {
+          // no node preview
+        }
+      }
+
+      return {
+        ...item,
+        agentPreviewUrl,
+        nodePreviewUrl
+      };
+    })
+  );
 }
 
 function stripAssetsPathPrefix(relPath) {
@@ -8072,6 +8127,34 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read image",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/focus") {
+    const agentId = String(url.searchParams.get("agent") || "").trim();
+    try {
+      let items = [];
+      if (agentId) {
+        const agent = resolveAgent(agentId);
+        if (!agent || agent.folderExists === false) {
+          return sendJson(res, 200, { items: [] });
+        }
+        items = collectAgentFocusEntries(agent).map((entry) => ({
+          agentId: agent.id,
+          agentName: agent.name || agent.id,
+          agentPath: agent.path,
+          agentActive: agent.active !== false,
+          ...entry
+        }));
+      } else {
+        items = collectAllFocusEntries();
+      }
+      return sendJson(res, 200, { items: await enrichFocusItems(items) });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load focus items",
         details: String(error?.message || error)
       });
     }

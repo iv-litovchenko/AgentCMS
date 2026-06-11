@@ -66,6 +66,120 @@ function getYamlScalar(frontmatter, key) {
   return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
+function getYamlBoolean(frontmatter, key) {
+  const raw = getYamlScalar(frontmatter, key);
+  if (!raw) return false;
+  const value = String(raw).trim().toLowerCase();
+  return value === "true" || value === "yes" || value === "1";
+}
+
+const WORKSPACE_AWN_PROP_KEYS = [
+  "awn-status",
+  "awn-description",
+  "awn-category",
+  "awn-tags",
+  "awn-color",
+  "awn-version",
+  "awn-create",
+  "awn-update",
+  "awn-type"
+];
+
+function extractWorkspaceAwnProps(frontmatter) {
+  const props = {};
+  for (const key of WORKSPACE_AWN_PROP_KEYS) {
+    const raw = getYamlScalar(frontmatter, key);
+    if (!raw || raw === "[]" || raw === '""' || raw === "''") continue;
+    props[key] = raw;
+  }
+  return props;
+}
+
+const FOCUS_WALK_SKIP_DIRS = new Set(["node_modules", ".git"]);
+
+function shouldSkipFocusWalkDir(name) {
+  if (!name) return true;
+  if (FOCUS_WALK_SKIP_DIRS.has(String(name).toLowerCase())) return true;
+  if (shouldSkipScanDir(name)) return true;
+  if (isStorageFolderName(name)) return true;
+  if (String(name).toLowerCase() === "history") return true;
+  return false;
+}
+
+function shouldSkipFocusMdFileName(name) {
+  const base = String(name || "");
+  const lower = base.toLowerCase();
+  if (!lower.endsWith(".md")) return true;
+  if (lower.endsWith(".sidecar.md")) return true;
+  if (lower.endsWith(".mdback")) return true;
+  return false;
+}
+
+function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirAbsolute, entry.name);
+    const relativePath = prefix ? `${prefix}/${entry.name}`.replace(/\\/g, "/") : entry.name;
+
+    if (entry.isDirectory()) {
+      if (shouldSkipFocusWalkDir(entry.name)) continue;
+      walkFocusMdFilesSync(fullPath, relativePath, acc);
+      continue;
+    }
+
+    if (!entry.isFile() || shouldSkipFocusMdFileName(entry.name)) continue;
+
+    try {
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const { frontmatter } = splitFrontmatter(content);
+      if (!getYamlBoolean(frontmatter, "awn-main")) continue;
+
+      const slug = entry.name.replace(/\.md$/i, "");
+      let name = getYamlScalar(frontmatter, "awn-name") || "";
+      if (!String(name).trim()) name = slug;
+
+      acc.push({
+        nodePath: relativePath.replace(/\\/g, "/"),
+        name: String(name).trim() || slug,
+        awnType: getYamlScalar(frontmatter, "awn-type") || "",
+        awnProps: extractWorkspaceAwnProps(frontmatter)
+      });
+    } catch {
+      // skip unreadable files
+    }
+  }
+}
+
+function collectAgentFocusEntries(agent) {
+  const items = [];
+  if (!agent?.rootAbsolute || agent.folderExists === false) return items;
+  walkFocusMdFilesSync(agent.rootAbsolute, "", items);
+  return items;
+}
+
+function collectAllFocusEntries() {
+  const items = [];
+  for (const agent of agents) {
+    if (agent.folderExists === false) continue;
+    for (const entry of collectAgentFocusEntries(agent)) {
+      items.push({
+        agentId: agent.id,
+        agentName: agent.name || agent.id,
+        agentPath: agent.path,
+        agentActive: normalizeAgentActive(agent.active),
+        ...entry
+      });
+    }
+  }
+  return items;
+}
+
 function formatYamlScalar(value) {
   const text = String(value ?? "");
   if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
@@ -123,11 +237,15 @@ function normalizeWorkspaceManifest(raw, workspaceRootAbsolute) {
   const comment = getYamlScalar(raw.frontmatter, "awn-description") || "";
   const status = getYamlScalar(raw.frontmatter, "awn-status") || "";
   const preview = getYamlScalar(raw.frontmatter, "awn-preview") || "";
+  const main = getYamlBoolean(raw.frontmatter, "awn-main");
+  const awnProps = extractWorkspaceAwnProps(raw.frontmatter);
   return {
     name: String(name).trim() || folderName,
     comment: String(comment).trim(),
     status: String(status).trim(),
-    preview: String(preview).trim()
+    preview: String(preview).trim(),
+    main,
+    awnProps
   };
 }
 
@@ -484,6 +602,8 @@ function enrichAgentEntry(entry) {
     comment: manifest?.comment || entry.comment || "",
     status: manifest?.status || "",
     active: activeFromStatus,
+    awnMain: manifest?.main === true,
+    awnProps: manifest?.awnProps || {},
     hasPreview: Boolean(findAgentWorkspacePreviewAbsoluteSync(entry.rootAbsolute)),
     previewRel: manifest?.preview || null
   };
@@ -606,7 +726,9 @@ function getAgentsPublicList() {
       manifestFound,
       status,
       previewRel,
-      folderExists
+      folderExists,
+      awnMain,
+      awnProps
     }) => ({
       id,
       name,
@@ -618,7 +740,9 @@ function getAgentsPublicList() {
       active: normalizeAgentActive(active),
       manifestFound: Boolean(manifestFound),
       folderExists: folderExists !== false,
-      previewRel: previewRel || null
+      previewRel: previewRel || null,
+      awnMain: awnMain === true,
+      awnProps: awnProps && typeof awnProps === "object" ? awnProps : {}
     })
   );
 }
@@ -1132,5 +1256,7 @@ module.exports = {
   updateWorkspaceReginfoFields,
   assertSafeAgentPath,
   refreshAgentsFromDisk,
-  runWithAgent
+  runWithAgent,
+  collectAllFocusEntries,
+  collectAgentFocusEntries
 };

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.55" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.62" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
   </head>
   <body class="app-booting">
@@ -258,6 +258,14 @@
           </div>
         </section>
 
+        <section id="sidebar-focus" class="sidebar-slab sidebar-slab-focus agent-focus-panel agent-focus-panel--sidebar hidden" aria-label="Фокус">
+          <div class="agent-focus-head agent-focus-head--compact">
+            <h3 class="agent-focus-title">Фокус</h3>
+            <p class="agent-focus-sub">awn-main</p>
+          </div>
+          <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
+        </section>
+
         <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
           <div class="menu-view-wrap menu-tools-row">
             <div class="menu-view-toggle menu-tools-view-cluster" role="tablist" aria-label="Режим отображения меню">
@@ -508,6 +516,21 @@
               </button>
             </div>
             <p id="app-landing-hint" class="app-landing-hint hidden" role="status"></p>
+            <section id="app-landing-focus" class="app-landing-focus agent-focus-panel agent-focus-panel--landing hidden" aria-labelledby="app-landing-focus-title">
+              <div class="agent-focus-head agent-focus-head--compact">
+                <div class="agent-focus-head-main">
+                  <h3 id="app-landing-focus-title" class="agent-focus-title">Фокус</h3>
+                  <p class="agent-focus-sub">awn-main · быстрый навигатор</p>
+                </div>
+                <span id="app-landing-focus-count" class="agent-focus-count" aria-hidden="true"></span>
+              </div>
+              <div class="agent-focus-table-wrap">
+                <table class="agent-focus-table" aria-describedby="app-landing-focus-title">
+                  <thead id="app-landing-focus-head"></thead>
+                  <tbody id="app-landing-focus-list"></tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </section>
       </main>
@@ -593,6 +616,13 @@
               <p class="home-card-text">Медиа, документы и превью.</p>
             </article>
           </div>
+          <section id="home-focus" class="agent-focus-panel agent-focus-panel--home hidden" aria-labelledby="home-focus-title">
+            <div class="agent-focus-head">
+              <h3 id="home-focus-title" class="agent-focus-title">Фокус</h3>
+              <p class="agent-focus-sub">Быстрый навигатор по темам с <code>awn-main: true</code> в этом workspace</p>
+            </div>
+            <div id="home-focus-list" class="agent-focus-list" role="list"></div>
+          </section>
           <div id="agent-dashboard-stats" class="agent-dashboard-stats" aria-live="polite"></div>
           <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте схему</p>
         </div>
@@ -2091,7 +2121,7 @@
     <script src="/vendor/toastui-editor-all.min.js"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.180"></script>
+    <script src="/main.js?v=0.5.184"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

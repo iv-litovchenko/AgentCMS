@@ -21,6 +21,14 @@ const agentGitBtn = document.getElementById("agent-git-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
+const appLandingFocusNode = document.getElementById("app-landing-focus");
+const appLandingFocusListNode = document.getElementById("app-landing-focus-list");
+const appLandingFocusHeadNode = document.getElementById("app-landing-focus-head");
+const appLandingFocusCountNode = document.getElementById("app-landing-focus-count");
+const homeFocusNode = document.getElementById("home-focus");
+const homeFocusListNode = document.getElementById("home-focus-list");
+const sidebarFocusNode = document.getElementById("sidebar-focus");
+const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
@@ -2141,6 +2149,451 @@ function getAgentsForLandingGrid() {
   return getRegistryAgentsForUi();
 }
 
+let globalFocusItemsCache = [];
+let agentFocusItemsCache = [];
+
+const FOCUS_AWN_KEYS = [
+  "awn-status",
+  "awn-description",
+  "awn-category",
+  "awn-tags",
+  "awn-color",
+  "awn-version",
+  "awn-type",
+  "awn-create",
+  "awn-update"
+];
+
+function formatFocusPropLabel(key) {
+  const meta = PROPS_FIELD_META[key];
+  if (meta?.label) return meta.label;
+  return String(key || "").replace(/^awn-/, "").replace(/-/g, " ");
+}
+
+function formatFocusPropValue(key, value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (key === "awn-color" && /^#[0-9a-f]{3,8}$/i.test(text)) {
+    return text;
+  }
+  return text;
+}
+
+function appendFocusPropRows(propsNode, awnProps, keys = FOCUS_AWN_KEYS) {
+  for (const key of keys) {
+    const value = formatFocusPropValue(key, awnProps[key] ?? "");
+    if (!value) continue;
+
+    const row = document.createElement("div");
+    row.className = "agent-focus-prop";
+
+    const dt = document.createElement("dt");
+    dt.className = "agent-focus-prop-key";
+    dt.textContent = formatFocusPropLabel(key);
+
+    const dd = document.createElement("dd");
+    dd.className = "agent-focus-prop-value";
+    if (key === "awn-color") {
+      const swatch = document.createElement("span");
+      swatch.className = "agent-focus-prop-color";
+      swatch.style.backgroundColor = value;
+      swatch.setAttribute("aria-hidden", "true");
+      dd.append(swatch, document.createTextNode(value));
+    } else {
+      dd.textContent = value;
+    }
+
+    row.append(dt, dd);
+    propsNode.appendChild(row);
+  }
+}
+
+function createFocusItem(focusItem, variant = "landing") {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName,
+      path: focusItem.agentPath
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || focusItem.agentName || focusItem.agentId;
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+
+  if (variant === "sidebar") {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "agent-focus-chip";
+    chip.setAttribute("role", "listitem");
+    if (!registryActive) chip.classList.add("is-registry-off");
+    chip.title = nodePath || label;
+    chip.setAttribute("aria-label", registryActive ? `Открыть ${label}` : `${label} — агент неактивен`);
+
+    const statusDot = document.createElement("span");
+    statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
+    statusDot.setAttribute("aria-hidden", "true");
+
+    const nameNode = document.createElement("span");
+    nameNode.className = "agent-focus-chip-name";
+    nameNode.textContent = label;
+
+    chip.append(statusDot, nameNode);
+    chip.addEventListener("click", () => {
+      void openFocusItem(focusItem);
+    });
+    return chip;
+  }
+
+  const item = document.createElement("article");
+  item.className = "agent-focus-item";
+  item.setAttribute("role", "listitem");
+
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "agent-focus-item-head";
+  if (!registryActive) head.classList.add("is-registry-off");
+  head.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
+  head.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
+  );
+
+  const media = document.createElement("span");
+  media.className = "agent-focus-item-media";
+  const previewUrl = getRegistryAgentPreviewUrl(agent);
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      media.replaceChildren();
+      const fallback = document.createElement("span");
+      fallback.className = "agent-focus-item-fallback";
+      fallback.textContent = getAgentPickerInitials({ name: label, id: focusItem.agentId });
+      media.appendChild(fallback);
+    };
+    img.src = previewUrl;
+    media.appendChild(img);
+  } else {
+    const fallback = document.createElement("span");
+    fallback.className = "agent-focus-item-fallback";
+    fallback.textContent = getAgentPickerInitials({ name: label, id: focusItem.agentId });
+    media.appendChild(fallback);
+  }
+
+  const titleWrap = document.createElement("span");
+  titleWrap.className = "agent-focus-item-title-wrap";
+
+  const nameRow = document.createElement("span");
+  nameRow.className = "agent-focus-item-name-row";
+
+  const statusDot = document.createElement("span");
+  statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
+  statusDot.setAttribute("aria-hidden", "true");
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "agent-focus-item-name";
+  nameNode.textContent = label;
+
+  const metaNode = document.createElement("span");
+  metaNode.className = "agent-focus-item-meta";
+  metaNode.textContent = nodePath || focusItem.awnType || "workspace";
+
+  nameRow.append(statusDot, nameNode);
+  titleWrap.append(nameRow, metaNode);
+  head.append(media, titleWrap);
+  head.addEventListener("click", () => {
+    void openFocusItem(focusItem);
+  });
+
+  const props = document.createElement("dl");
+  props.className = "agent-focus-props";
+  appendFocusPropRows(props, awnProps);
+
+  if (props.childElementCount > 0) {
+    item.append(head, props);
+  } else {
+    item.append(head);
+  }
+  return item;
+}
+
+async function openFocusItem(focusItem) {
+  const agent = agentsCache.find((entry) => entry.id === focusItem?.agentId);
+  if (!agent || !isAgentRegistryActive(agent)) {
+    showToast("Агент выключен — включите в реестре (⚙)", "error");
+    return;
+  }
+
+  const nodePath = String(focusItem?.nodePath || "").trim();
+  const label = focusItem?.name || getLabelFromPath(nodePath) || agent.name || agent.id;
+
+  try {
+    if (activeAgentId !== agent.id) {
+      await switchActiveAgent(agent.id);
+    } else if (!appLandingPaneNode?.classList.contains("hidden")) {
+      hideAppLandingView();
+      showHomeView();
+    }
+    if (nodePath && nodePath !== "_registration.md") {
+      await openNodeFromMenu(label, nodePath);
+    } else {
+      showAgentHomeView();
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Не удалось открыть: ${message}` : "Не удалось открыть", "error");
+  }
+}
+
+function resolveFocusPreviewUrl(rawUrl, agentId) {
+  const url = String(rawUrl || "").trim();
+  if (!url) return null;
+  if (url.startsWith("/api/agents/workspace-preview")) {
+    return appendCacheBuster(url);
+  }
+  return appendCacheBuster(appendAgentToApiUrl(url, agentId));
+}
+
+function createFocusThumbCell(previewUrl, fallbackText, sizeClass = "") {
+  const media = document.createElement("span");
+  media.className = `agent-focus-table-thumb${sizeClass ? ` ${sizeClass}` : ""}`;
+
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      media.replaceChildren();
+      const fallback = document.createElement("span");
+      fallback.className = "agent-focus-table-fallback";
+      fallback.textContent = fallbackText;
+      media.appendChild(fallback);
+    };
+    img.src = previewUrl;
+    media.appendChild(img);
+  } else {
+    const fallback = document.createElement("span");
+    fallback.className = "agent-focus-table-fallback";
+    fallback.textContent = fallbackText;
+    media.appendChild(fallback);
+  }
+
+  return media;
+}
+
+function createFocusTableEntityCell(thumb, title, sub = "") {
+  const wrap = document.createElement("div");
+  wrap.className = "agent-focus-table-entity";
+
+  const copy = document.createElement("div");
+  copy.className = "agent-focus-table-entity-copy";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "agent-focus-table-entity-title";
+  titleNode.textContent = title;
+  copy.appendChild(titleNode);
+
+  if (sub) {
+    const subNode = document.createElement("span");
+    subNode.className = "agent-focus-table-entity-sub";
+    subNode.textContent = sub;
+    copy.appendChild(subNode);
+  }
+
+  wrap.append(thumb, copy);
+  return wrap;
+}
+
+function createFocusTableValueCell(key, value) {
+  const td = document.createElement("td");
+  td.className = "agent-focus-table-value";
+  td.dataset.field = key;
+
+  if (key === "awn-color" && value) {
+    const swatch = document.createElement("span");
+    swatch.className = "agent-focus-prop-color";
+    swatch.style.backgroundColor = value;
+    swatch.setAttribute("aria-hidden", "true");
+    td.append(swatch, document.createTextNode(value));
+    return td;
+  }
+
+  td.textContent = value || "—";
+  return td;
+}
+
+function getLandingFocusTableColumns(items) {
+  const propCols = FOCUS_AWN_KEYS.filter((key) =>
+    items.some((item) => formatFocusPropValue(key, item.awnProps?.[key]))
+  );
+  return ["agent", "topic", ...propCols];
+}
+
+function getLandingFocusColumnLabel(columnId) {
+  if (columnId === "agent") return "Агент";
+  if (columnId === "topic") return "Тема";
+  return formatFocusPropLabel(columnId);
+}
+
+function createLandingFocusTableRow(focusItem, columns) {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName,
+      path: focusItem.agentPath
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || focusItem.agentName || focusItem.agentId;
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+
+  const row = document.createElement("tr");
+  row.className = "agent-focus-table-row";
+  if (!registryActive) row.classList.add("is-registry-off");
+  row.tabIndex = 0;
+  row.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
+
+  const open = () => {
+    void openFocusItem(focusItem);
+  };
+  row.addEventListener("click", open);
+  row.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      open();
+    }
+  });
+
+  for (const columnId of columns) {
+    const td = document.createElement("td");
+    td.className = "agent-focus-table-cell";
+    td.dataset.column = columnId;
+
+    if (columnId === "agent") {
+      const agentPreviewUrl =
+        resolveFocusPreviewUrl(focusItem.agentPreviewUrl, focusItem.agentId) ||
+        getRegistryAgentPreviewUrl(agent);
+      const thumb = createFocusThumbCell(
+        agentPreviewUrl,
+        getAgentPickerInitials({ name: focusItem.agentName, id: focusItem.agentId })
+      );
+      td.appendChild(
+        createFocusTableEntityCell(
+          thumb,
+          focusItem.agentName || focusItem.agentId,
+          focusItem.agentId
+        )
+      );
+    } else if (columnId === "topic") {
+      const nodePreviewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+      const thumb = createFocusThumbCell(
+        nodePreviewUrl,
+        getAgentPickerInitials({ name: label, id: focusItem.agentId })
+      );
+      td.appendChild(createFocusTableEntityCell(thumb, label, nodePath));
+    } else {
+      const value = formatFocusPropValue(columnId, awnProps[columnId] ?? "");
+      row.appendChild(createFocusTableValueCell(columnId, value));
+      continue;
+    }
+
+    row.appendChild(td);
+  }
+
+  return row;
+}
+
+function renderLandingFocusTable(items) {
+  if (!appLandingFocusNode || !appLandingFocusListNode) return;
+
+  appLandingFocusListNode.replaceChildren();
+  if (appLandingFocusHeadNode) appLandingFocusHeadNode.replaceChildren();
+
+  if (!items.length) {
+    appLandingFocusNode.classList.add("hidden");
+    return;
+  }
+
+  appLandingFocusNode.classList.remove("hidden");
+  const columns = getLandingFocusTableColumns(items);
+
+  if (appLandingFocusHeadNode) {
+    const headRow = document.createElement("tr");
+    for (const columnId of columns) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.textContent = getLandingFocusColumnLabel(columnId);
+      headRow.appendChild(th);
+    }
+    appLandingFocusHeadNode.appendChild(headRow);
+  }
+
+  for (const focusItem of items) {
+    appLandingFocusListNode.appendChild(createLandingFocusTableRow(focusItem, columns));
+  }
+}
+
+function renderFocusPanel(panelNode, listNode, items, variant) {
+  if (!panelNode || !listNode) return;
+  listNode.replaceChildren();
+  if (!items.length) {
+    panelNode.classList.add("hidden");
+    return;
+  }
+  panelNode.classList.remove("hidden");
+  for (const focusItem of items) {
+    listNode.appendChild(createFocusItem(focusItem, variant));
+  }
+}
+
+function renderGlobalFocusPanel() {
+  if (appLandingFocusCountNode) {
+    const count = globalFocusItemsCache.length;
+    appLandingFocusCountNode.textContent = count ? String(count) : "";
+    appLandingFocusCountNode.classList.toggle("hidden", count === 0);
+  }
+  renderLandingFocusTable(globalFocusItemsCache);
+}
+
+function renderAgentFocusPanels() {
+  renderFocusPanel(homeFocusNode, homeFocusListNode, agentFocusItemsCache, "home");
+  renderFocusPanel(sidebarFocusNode, sidebarFocusListNode, agentFocusItemsCache, "sidebar");
+}
+
+async function loadGlobalFocusItems() {
+  try {
+    const response = await fetch("/api/agents/focus");
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    globalFocusItemsCache = Array.isArray(data.items) ? data.items : [];
+  } catch {
+    globalFocusItemsCache = [];
+  }
+  renderGlobalFocusPanel();
+}
+
+async function loadAgentFocusItems(agentId = activeAgentId) {
+  if (!agentId) {
+    agentFocusItemsCache = [];
+    renderAgentFocusPanels();
+    return;
+  }
+  try {
+    const response = await fetch(`/api/agents/focus?agent=${encodeURIComponent(agentId)}`);
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    agentFocusItemsCache = Array.isArray(data.items) ? data.items : [];
+  } catch {
+    agentFocusItemsCache = [];
+  }
+  renderAgentFocusPanels();
+}
+
+async function refreshAllFocusPanels() {
+  await Promise.all([loadGlobalFocusItems(), loadAgentFocusItems(activeAgentId)]);
+}
+
 function getAgentsForPickerGrid() {
   return [...agentsCache].sort((a, b) => {
     const aOn = isAgentRegistryActive(a) ? 1 : 0;
@@ -2805,6 +3258,7 @@ function renderAppLandingAgents() {
   appLandingAgentsNode.appendChild(createItem);
 
   renderAppLandingOrbit();
+  void loadGlobalFocusItems();
   syncLandingAgentsViewUi();
 }
 
@@ -2880,6 +3334,7 @@ async function switchActiveAgent(nextAgentId) {
     if (isAgentWorkspaceCanvasVisible()) {
       applyAgentWorkspaceCanvasUi();
     }
+    void loadAgentFocusItems(activeAgentId);
     updateDocumentTitle();
     updateBreadcrumbsForActiveMode();
   } finally {
@@ -14858,6 +15313,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-create",
   "awn-update",
   "awn-description",
+  "awn-main",
   "awn-category",
   "awn-tags",
   "awn-color",
@@ -14891,6 +15347,10 @@ const PROPS_FIELD_META = {
   "awn-description": {
     label: "Описание",
     hint: "Краткое назначение темы для агента"
+  },
+  "awn-main": {
+    label: "На главной",
+    hint: "Показывать workspace в блоке «Фокус» на главной странице"
   },
   "awn-status": {
     label: "Статус",
@@ -27786,6 +28246,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
     if (showToastOnSuccess) {
       showToast("YAML сохранен", "success");
     }
+    void refreshAllFocusPanels();
   } catch (error) {
     showToast("Ошибка YAML", "error");
     throw error;
@@ -30990,6 +31451,9 @@ function showAppLandingView(hint = "") {
   syncAppHomeButton();
   updateBreadcrumbsForActiveMode();
   updateWorkspaceShareLinkButton();
+  agentFocusItemsCache = [];
+  renderAgentFocusPanels();
+  void loadGlobalFocusItems();
   syncAppRouteToUrl({ replace: true });
 }
 
@@ -31024,6 +31488,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   syncAppHomeButton();
   updateBreadcrumbsForActiveMode();
   applyAgentWorkspaceCanvasUi();
+  void loadAgentFocusItems();
   syncAppRouteToUrl({ replace: true });
 }
 

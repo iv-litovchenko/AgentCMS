@@ -42,6 +42,11 @@ fields:
     type: awn.text
     title: Описание
     description: Краткое назначение для агента
+  awn-main:
+    type: awn.boolean
+    title: На главной
+    description: Показывать workspace в блоке «Фокус» на главной странице
+    default: false
   awn-category:
     type: awn.string
     title: Категория
@@ -58,10 +63,11 @@ fields:
   awn-version:
     type: awn.string
     title: Версия
-    description: Семантическая версия
+    description: Семантическая версия; патч увеличивается автоматически при сохранении
     hint: Мажор.минор.патч
     format: 0.0.1
     default: "0.0.1"
+    locked: true
   awn-sort:
     type: awn.integer
     title: Сортировка

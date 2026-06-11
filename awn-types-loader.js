@@ -143,6 +143,7 @@ const FALLBACK_BASE_FIELD_ORDER = [
   "awn-create",
   "awn-update",
   "awn-description",
+  "awn-main",
   "awn-category",
   "awn-tags",
   "awn-color",
