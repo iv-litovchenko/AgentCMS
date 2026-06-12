@@ -567,6 +567,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "scripts",
   "artefacts",
   "inbox",
+  "quick-notes",
   "references",
   "node-preview",
   "graph",
@@ -5072,6 +5073,7 @@ const NODE_VIEW_SURFACE = {
   todo: "document",
   external: "browser",
   inbox: "browser",
+  "quick-notes": "browser",
   references: "browser",
   media: "browser",
   temp: "browser",
@@ -5182,6 +5184,7 @@ const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "med
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
+const NODE_WORKSPACE_DOMAIN_QUICK_NOTES = "quick-notes";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
 const NODE_WORKSPACE_DOMAIN_SCRIPTS = "scripts";
 const NODE_WORKSPACE_DOMAIN_TODO = "todo";
@@ -5193,6 +5196,7 @@ const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
   { value: "settings", label: "Настройки", branch: true },
+  { value: "quick-notes", label: "Быстрые заметки", branch: true },
   { value: "inbox", label: "Входящие", branch: true },
   { value: "references", label: "Источники", branch: true },
   { value: "artefacts", label: "Артефакты", branch: true },
@@ -5209,6 +5213,7 @@ const AREA_BLOCKED_CONTENT_MODES = new Set([
   "media",
   "temp",
   "inbox",
+  "quick-notes",
   "references",
   "artefacts"
 ]);
@@ -5216,11 +5221,12 @@ const AREA_BLOCKED_CONTENT_MODES = new Set([
 const AREA_BLOCKED_WORKSPACE_DOMAINS = new Set([
   NODE_WORKSPACE_DOMAIN_MEMORY,
   NODE_WORKSPACE_DOMAIN_INBOX,
+  NODE_WORKSPACE_DOMAIN_QUICK_NOTES,
   NODE_WORKSPACE_DOMAIN_REFERENCES,
   NODE_WORKSPACE_DOMAIN_ARTEFACTS
 ]);
 
-const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "inbox", "references", "artefacts"];
+const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "quick-notes", "inbox", "references", "artefacts"];
 
 const nodeConfigCacheByPath = new Map();
 
@@ -5229,6 +5235,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
+  if (mode === "quick-notes") return NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
   if (mode === "scripts") return NODE_WORKSPACE_DOMAIN_SCRIPTS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
   if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
@@ -5246,6 +5253,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_OVERVIEW ||
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
     domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
     domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
@@ -5458,9 +5466,10 @@ let externalListRenderToken = 0;
 let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
 let activeExternalSectionFolder = null;
-const FLAT_STORAGE_SECTION_MODES = new Set(["scripts", "inbox", "artefacts"]);
+const FLAT_STORAGE_SECTION_MODES = new Set(["scripts", "quick-notes", "inbox", "artefacts"]);
 const activeFlatStorageSectionFolder = {
   scripts: null,
+  "quick-notes": null,
   inbox: null,
   artefacts: null
 };
@@ -5557,6 +5566,7 @@ const modeContentCache = {
   external: "",
   tabular: "",
   inbox: "",
+  "quick-notes": "",
   references: "",
   artefacts: "",
   media: "",
@@ -5993,7 +6003,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (!mode || mode === "graph") return false;
   if (isAreaContentModeBlocked(mode, nodePath ?? getResolvedNodePath(activePath))) return false;
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return true;
-  if (mode === "inbox" || mode === "references" || mode === "artefacts" || mode === "scripts" || mode === "todo") {
+  if (mode === "inbox" || mode === "quick-notes" || mode === "references" || mode === "artefacts" || mode === "scripts" || mode === "todo") {
     return true;
   }
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
@@ -6144,6 +6154,7 @@ function getContentModeLabel(mode) {
     if (match) return match.label;
   }
   if (mode === "inbox") return "Входящие";
+  if (mode === "quick-notes") return "Быстрые заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
@@ -6159,6 +6170,7 @@ function getNodeDefaultLandingDomainLabel(mode) {
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
   if (
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
     domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
@@ -6902,6 +6914,12 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("inbox");
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES) {
+    nodeMemoryViewActive = true;
+    nodeSettingsViewActive = false;
+    setContentMode("quick-notes");
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_SCRIPTS) {
     nodeMemoryViewActive = false;
     nodeSettingsViewActive = false;
@@ -6960,11 +6978,12 @@ function applyNodeWorkspaceViewUi() {
   const artefactsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const inboxDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_INBOX;
+  const quickNotesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
-  nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain;
+  nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain || quickNotesDomain;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain || quickNotesDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-todo", todoDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
@@ -8746,6 +8765,7 @@ function isCurrentModeReadOnly() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "temp" ||
@@ -8787,6 +8807,7 @@ function isCurrentModeListTemplate() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     (activeContentMode === "media" && !mediaSidecarEditing) ||
@@ -8888,6 +8909,7 @@ function getNamedStorageBundleRel(relPath, bundleFileName) {
 
 const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
 const PASTED_ASSETS_SUBDIR = "pasted";
@@ -8900,6 +8922,7 @@ const STORAGE_SUBFOLDER_TEMP = "temp";
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
+  "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_ASSETS,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
@@ -9039,6 +9062,7 @@ const CONTENT_MODE_TITLE_LABELS = {
   external: "Content",
   tabular: "Таблица",
   inbox: "Входящие",
+  "quick-notes": "Быстрые заметки",
   references: "Источники",
   media: "Медиа",
   scripts: "Скрипты",
@@ -9145,6 +9169,7 @@ function getStorageListBreadcrumbPath(overrides = {}) {
     case "media":
       return null;
     case "inbox":
+    case "quick-notes":
     case "references":
     case "scripts":
     case "artefacts":
@@ -9215,6 +9240,7 @@ function getListViewTitleByMode() {
     return isTabularSourceEditing() ? "Табличная — исходник CSV" : "Табличная (CSV)";
   }
   if (activeContentMode === "inbox") return `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
+  if (activeContentMode === "quick-notes") return `Быстрые заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
   if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
   if (activeContentMode === "media") return `Медиа и документы (${STORAGE_SUBFOLDER_ASSETS})`;
   if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
@@ -13780,6 +13806,7 @@ function renderExternalListViewBody(container) {
 function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "scripts") return "Разделы скриптов";
   if (mode === "inbox") return "Разделы входящих";
+  if (mode === "quick-notes") return "Разделы быстрых заметок";
   if (mode === "artefacts") return "Разделы артефактов";
   return "Разделы";
 }
@@ -15054,6 +15081,7 @@ function renderMediaEmpty(container, message = "Файлы не найдены")
 
 const STORAGE_FOLDER_LABELS = {
   inbox: STORAGE_SUBFOLDER_INBOX,
+  "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
@@ -15073,7 +15101,7 @@ function getStorageFolderEmptyMessage(mode = activeContentMode) {
 }
 
 function isFlatStorageListMode(mode = activeContentMode) {
-  return mode === "inbox" || mode === "references" || mode === "scripts" || mode === "artefacts" || mode === "temp";
+  return mode === "inbox" || mode === "quick-notes" || mode === "references" || mode === "scripts" || mode === "artefacts" || mode === "temp";
 }
 
 function isFlatStorageListSourceToggleMode(mode = activeContentMode) {
@@ -18781,6 +18809,11 @@ function getDocAsideMiniDocSpec() {
         title: "Входящие",
         items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_INBOX}/`)}`]
       };
+    case "quick-notes":
+      return {
+        title: "Быстрые заметки",
+        items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_QUICK_NOTES}/`)}`]
+      };
     case "references":
       return {
         title: "Источники",
@@ -20865,6 +20898,7 @@ function isEditorSaveTrackingActive() {
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
     activeContentMode === "inbox" ||
+    activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "temp"
@@ -23723,6 +23757,7 @@ function applyModeUi() {
     showMediaControls ||
     showTabularControls ||
     activeContentMode === "inbox" ||
+    activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "temp" ||
@@ -23810,6 +23845,7 @@ function applyModeUi() {
       activeContentMode === "scripts" ||
       activeContentMode === "temp" ||
       activeContentMode === "inbox" ||
+      activeContentMode === "quick-notes" ||
       activeContentMode === "references" ||
       activeContentMode === "artefacts"
   );
@@ -28029,6 +28065,7 @@ async function selectFile(label, filePath) {
     modeContentCache.internal = "";
     modeContentCache.external = "";
     modeContentCache.inbox = "";
+    modeContentCache["quick-notes"] = "";
     modeContentCache.references = "";
     modeContentCache.artefacts = "";
     modeContentCache.media = "";
@@ -28242,6 +28279,21 @@ async function loadContentByMode(options = {}) {
       );
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения входящих: ${error.message}`;
+      renderListViewContent();
+      fileContentInputNode.readOnly = true;
+    }
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
+  if (activeContentMode === "quick-notes") {
+    try {
+      await loadFlatStorageSectionContent(
+        "quick-notes",
+        activeContentMode === "quick-notes" ? preserveFlatStorageSectionFolder : null
+      );
+    } catch (error) {
+      fileContentInputNode.value = `Ошибка чтения быстрых заметок: ${error.message}`;
       renderListViewContent();
       fileContentInputNode.readOnly = true;
     }
@@ -32275,6 +32327,7 @@ function clearEditorState(message = "") {
   modeContentCache.internal = "";
   modeContentCache.external = "";
   modeContentCache.inbox = "";
+  modeContentCache["quick-notes"] = "";
   modeContentCache.references = "";
   modeContentCache.artefacts = "";
   modeContentCache.media = "";

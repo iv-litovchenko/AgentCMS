@@ -49,6 +49,7 @@ const {
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_SCRIPTS,
@@ -1304,6 +1305,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   }
   if (mode === "inbox") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_INBOX);
+  }
+  if (mode === "quick-notes") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_QUICK_NOTES);
   }
   if (mode === "references") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_REFERENCES);
@@ -4844,6 +4848,9 @@ async function classifySearchResult(relPath) {
   const storageInbox = await classifyStoragePathForMode(normalized, "inbox", "Входящие");
   if (storageInbox) return storageInbox;
 
+  const storageQuickNotes = await classifyStoragePathForMode(normalized, "quick-notes", "Быстрые заметки");
+  if (storageQuickNotes) return storageQuickNotes;
+
   const storageMedia = await classifyStoragePathForMode(normalized, "media", "Медиа");
   if (storageMedia) return storageMedia;
 
@@ -4874,6 +4881,7 @@ async function classifySearchResult(relPath) {
     { mode: "artefacts", source: "Артефакты" },
     { mode: "temp", source: "Временные файлы" },
     { mode: "inbox", source: "Входящие" },
+    { mode: "quick-notes", source: "Быстрые заметки" },
     { mode: "media", source: "Медиа" },
     { mode: "references", source: "Источники" }
   ]) {
@@ -6628,6 +6636,7 @@ async function handleApiForAgent(req, res, url) {
       if (
         storageFolder !== STORAGE_SUBFOLDER_SCRIPTS &&
         storageFolder !== STORAGE_SUBFOLDER_INBOX &&
+        storageFolder !== STORAGE_SUBFOLDER_QUICK_NOTES &&
         storageFolder !== STORAGE_SUBFOLDER_ARTEFACTS
       ) {
         return sendJson(res, 400, { error: "Sections are not supported for this folder" });
