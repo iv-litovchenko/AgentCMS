@@ -6,16 +6,7 @@
       "default": true
     },
     {
-      "path": "workspaces/Test",
-      "environment": "local"
-    },
-    {
-      "path": "workspaces/test8",
-      "environment": "local",
-      "orchestrator": true
-    },
-    {
-      "path": "workspaces/php",
+      "path": "workspaces/agent-todo",
       "environment": "local"
     }
   ]

@@ -7897,6 +7897,32 @@ body.app-locked {
   animation: agent-preview-orbit 20s ease-in-out infinite;
 }
 
+.agent-preview-openable {
+  cursor: pointer;
+}
+
+.sidebar-agent-avatar-block .agent-preview-openable:hover .agent-preview-frame,
+.sidebar-agent-avatar-block .agent-preview-openable:focus-visible .agent-preview-frame {
+  box-shadow:
+    inset 0 0 0 2px rgba(99, 102, 241, 0.45),
+    inset 0 0 24px rgba(99, 102, 241, 0.18);
+}
+
+.sidebar-agent-avatar-block .agent-preview-placeholder.agent-preview-openable:hover,
+.sidebar-agent-avatar-block .agent-preview-placeholder.agent-preview-openable:focus-visible {
+  border-color: rgba(99, 102, 241, 0.55);
+  background-color: #eef2ff;
+}
+
+.agent-preview-openable:focus {
+  outline: none;
+}
+
+.agent-preview-openable:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 2px;
+}
+
 @keyframes agent-preview-frame-glow {
   0% {
     box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.12);

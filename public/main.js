@@ -1793,13 +1793,52 @@ function syncNodeDescriptionHintUi() {
     "ниже — полный текст (кнопка «Читать все»).";
 }
 
+function openSelectedAgentWorkspaceView() {
+  if (!activeAgentId || !agentViewSelect) return;
+  const view = String(agentViewSelect.value || agentWorkspaceView || "").trim();
+  if (!view) return;
+  const option = agentViewSelect.selectedOptions[0];
+  if (option?.disabled) return;
+  setAgentWorkspaceView(view);
+}
+
+function syncAgentPreviewOpenUi() {
+  const canOpen = Boolean(activeAgentId && agentViewSelect);
+  const view = String(agentViewSelect?.value || agentWorkspaceView || "dashboard").trim();
+  const option = agentViewSelect?.querySelector(`option[value="${view}"]`);
+  const openable = canOpen && view && option && !option.disabled;
+  const viewLabel = String(option?.textContent || "").trim();
+  const openHint = viewLabel ? `Открыть: ${viewLabel}` : "Открыть вид workspace";
+  const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
+
+  for (const node of [agentPreviewWrapNode, agentPreviewPlaceholderNode]) {
+    if (!node) continue;
+    const isInteractive = openable && (node === agentPreviewWrapNode ? previewVisible : !previewVisible);
+    node.classList.toggle("agent-preview-openable", isInteractive);
+    if (isInteractive) {
+      node.setAttribute("role", "button");
+      node.tabIndex = 0;
+      node.setAttribute("aria-label", openHint);
+      node.title = node === agentPreviewPlaceholderNode ? `${openHint} (превью не задано)` : openHint;
+    } else {
+      node.classList.remove("agent-preview-openable");
+      node.removeAttribute("role");
+      node.removeAttribute("tabindex");
+      node.removeAttribute("aria-label");
+      if (node === agentPreviewWrapNode) {
+        node.title = "Превью агента";
+      } else {
+        const agent = getActiveAgentMeta();
+        const label = String(agent?.name || agent?.id || "").trim();
+        node.title = label ? `Превью не задано — ${label}` : "Превью не задано";
+      }
+    }
+  }
+}
+
 function syncAgentPreviewPlaceholder() {
   if (!agentPreviewPlaceholderNode) return;
-  const agent = getActiveAgentMeta();
-  const label = String(agent?.name || agent?.id || "").trim();
-  agentPreviewPlaceholderNode.title = label
-    ? `Превью не задано — ${label}`
-    : "Превью не задано";
+  syncAgentPreviewOpenUi();
 }
 
 function syncAgentPreview(previewMeta = null) {
@@ -1838,12 +1877,14 @@ function syncAgentPreview(previewMeta = null) {
     } else if (alreadyLoaded && !agentPreviewWrapNode.classList.contains("is-revealed")) {
       agentPreviewWrapNode.classList.add("is-revealed");
     }
+    syncAgentPreviewOpenUi();
     return;
   }
 
   agentPreviewWrapNode.classList.add("hidden");
   agentPreviewWrapNode.classList.remove("is-revealed");
   agentPreviewThumbNode.removeAttribute("src");
+  syncAgentPreviewOpenUi();
 }
 
 let fileHistoryModalContext = null;
@@ -29121,6 +29162,7 @@ function syncAgentWorkspaceViewButtons() {
   if (option && !option.disabled) {
     agentViewSelect.value = agentWorkspaceView;
   }
+  syncAgentPreviewOpenUi();
 }
 
 function isAgentWorkspaceCanvasVisible() {
@@ -34149,6 +34191,17 @@ agentViewSelect?.addEventListener("change", () => {
   }
   setAgentWorkspaceView(view);
 });
+
+function handleAgentPreviewOpenActivate(event) {
+  if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+  if (event.type === "keydown") event.preventDefault();
+  openSelectedAgentWorkspaceView();
+}
+
+agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
+agentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
+agentPreviewPlaceholderNode?.addEventListener("click", handleAgentPreviewOpenActivate);
+agentPreviewPlaceholderNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 
 agentGitBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("git");
