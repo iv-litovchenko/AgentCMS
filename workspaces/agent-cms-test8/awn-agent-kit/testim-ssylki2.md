@@ -1,0 +1,18 @@
+---
+awn-preview: ""
+awn-emoji: 🦞
+awn-name: Тестим ссылки2
+awn-status: 🟡 Черновик
+awn-type: awn.topic
+awn-create: "2026-06-11T01:14"
+awn-update: 2026-06-11T07:41:27.821Z
+awn-description: ""
+awn-main: true
+awn-category: ""
+awn-tags: []
+awn-color: "#000000"
+awn-version: 14
+awn-sort: 0
+---
+
+x

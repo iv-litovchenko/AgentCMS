@@ -1,0 +1,38 @@
+# Транзакции
+
+```php
+<?php
+declare(strict_types=1);
+
+$pdo->beginTransaction();
+
+try {
+    $pdo->prepare('UPDATE accounts SET balance = balance - :amount WHERE id = :from')
+        ->execute(['amount' => 100, 'from' => 1]);
+
+    $pdo->prepare('UPDATE accounts SET balance = balance + :amount WHERE id = :to')
+        ->execute(['amount' => 100, 'to' => 2]);
+
+    $pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
+```
+
+## Savepoints (InnoDB)
+
+```php
+$pdo->beginTransaction();
+$pdo->exec('SAVEPOINT sp1');
+// ...
+$pdo->exec('ROLLBACK TO sp1');
+$pdo->commit();
+```
+
+## Советы
+
+- Держите транзакции короткими.
+- Не смешивайте DDL и DML в одной транзакции на MySQL без нужды.

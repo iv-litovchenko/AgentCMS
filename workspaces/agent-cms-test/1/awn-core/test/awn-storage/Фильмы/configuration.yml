@@ -1,0 +1,53 @@
+awn_schema:
+  topic:
+    fields:
+      genreауц:
+        type: awn.color
+        title: Жанацур
+      field_1:
+        type: awn.color
+      field_2:
+        type: awn.number
+        title: ауцау
+      field_3:
+        type: awn.link
+  record:
+    fields:
+      directorпку:
+        type: string
+        title: Режиссёр
+      пку:
+        type: string
+        title: пукпку
+      field_1:
+        type: enum
+      field_2:
+        type: link
+      field_3:
+        type: string
+      field_4:
+        type: string
+  record_category:
+    fields:
+      field_1:
+        type: awn.string
+        title: Cat - 1
+      field_2:
+        type: awn.string
+        title: Cat - 3
+      field_3:
+        type: awn.string
+        title: Cat - 2
+  media_category:
+    fields:
+      field_1:
+        type: awn.string
+        title: Cat Media - 1
+      field_2:
+        type: awn.string
+        title: Cat Media - 2
+  sidecar:
+    fields:
+      field_1:
+        type: awn.string
+        title: TEST_sidecar
