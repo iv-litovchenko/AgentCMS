@@ -104,7 +104,7 @@ function getPublicDir() {
 }
 
 function getPublicImagesDir() {
-  return path.join(getProjectRoot(), "workspaces", "Documentation", "images");
+  return path.join(getProjectRoot(), "workspaces", docsRegistry.DOCS_AGENT_FOLDER, "images");
 }
 
 const PUBLIC_IMAGE_EXTENSIONS = new Set([
@@ -6213,6 +6213,10 @@ async function handleApiForAgent(req, res, url) {
       const nextContent = joinNodeFrontmatter(stampedFrontmatter, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
+      const normalizedRelPath = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      if (normalizedRelPath === AREA_MANIFEST_FILE || normalizedRelPath === "_reg-info.md") {
+        refreshAgentsFromDisk();
+      }
       return sendJson(res, 200, { path: relPath, content: stampedFrontmatter, fullContent: nextContent });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save properties", details: String(error.message || error) });
@@ -8200,6 +8204,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents") {
+    refreshAgentsFromDisk();
     const agents = await Promise.all(
       getAgentsPublicList().map(async (agent) => {
         try {

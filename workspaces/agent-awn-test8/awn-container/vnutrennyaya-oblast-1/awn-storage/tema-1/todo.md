@@ -1,3 +1,0 @@
-* [ ] task one
-* [ ] task two
-* [ ] ---

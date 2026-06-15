@@ -1,12 +1,20 @@
 {
   "agents": [
     {
-      "path": "workspaces/Documentation",
+      "path": "workspaces/agent-cms-php",
       "environment": "local",
       "default": true
     },
     {
-      "path": "workspaces/agent-todo",
+      "path": "workspaces/agent-cms-test8",
+      "environment": "local"
+    },
+    {
+      "path": "workspaces/agent-cms-test",
+      "environment": "local"
+    },
+    {
+      "path": "workspaces/agent-cms-docs",
       "environment": "local"
     }
   ]

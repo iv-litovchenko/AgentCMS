@@ -21021,6 +21021,12 @@ button.node-navigation-memory-title:focus-visible {
   opacity: 0.72;
 }
 
+.agents-registry-row.is-missing-folder {
+  opacity: 0.82;
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
 .agents-registry-row.is-inactive .agents-registry-readonly-value {
   color: #64748b;
 }
@@ -21128,6 +21134,13 @@ button.node-navigation-memory-title:focus-visible {
 .agents-registry-create-path-field.is-invalid input {
   border-color: #ef4444;
   box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.18);
+}
+
+.agents-registry-create-footnote {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #94a3b8;
 }
 
 .agents-registry-create-error {

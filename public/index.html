@@ -588,7 +588,7 @@
       <div id="app-landing-create-modal" class="modal-overlay hidden">
         <div class="modal-card agents-registry-create-card app-landing-create-card">
           <div class="modal-message">Создать агента</div>
-          <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> (только в нижнем регистре, например <code>my-agent</code>, не <code>My-Agent</code>). В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
+          <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> с префиксом <code>agent-</code>. В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
           <label class="agents-registry-field agents-registry-create-field">
             <span>Название агента</span>
             <input id="app-landing-create-name-input" type="text" placeholder="Мой агент" spellcheck="false" autocomplete="off" required />
@@ -599,7 +599,8 @@
           </label>
           <label class="agents-registry-field agents-registry-create-path-field">
             <span>Workspace (ID в имени папки)</span>
-            <input id="app-landing-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent" spellcheck="false" autocomplete="off" />
+            <input id="app-landing-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/agent-my-project" spellcheck="false" autocomplete="off" />
+            <p class="agents-registry-create-footnote">Название папки — только в нижнем регистре.</p>
           </label>
           <div class="modal-actions">
             <button id="app-landing-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -1995,7 +1996,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> (только в нижнем регистре, например <code>my-agent</code>, не <code>My-Agent</code>). В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
+        <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> с префиксом <code>agent-</code>. В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
         <label class="agents-registry-field agents-registry-create-field">
           <span>Название агента</span>
           <input id="agents-registry-create-name-input" type="text" placeholder="Мой агент" spellcheck="false" autocomplete="off" required />
@@ -2006,7 +2007,8 @@
         </label>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace (ID в имени папки)</span>
-          <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-agent" spellcheck="false" autocomplete="off" />
+          <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/agent-my-project" spellcheck="false" autocomplete="off" />
+          <p class="agents-registry-create-footnote">Название папки — только в нижнем регистре.</p>
         </label>
         <div class="modal-actions">
           <button id="agents-registry-create-cancel-btn" class="save-btn" type="button">Отмена</button>

@@ -430,7 +430,7 @@ const userDocsVersionSelectNode = document.getElementById("user-docs-version-sel
 const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
 const DEFAULT_DOC_VERSION = "0.0.1";
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
-const DOCUMENTATION_AGENT_ID = "documentation";
+const DOCUMENTATION_AGENT_ID = "agent-cms-docs";
 const userDocsCacheByVersion = Object.create(null);
 let userDocsVersion = DEFAULT_DOC_VERSION;
 let docsMetaCache = null;
@@ -2174,7 +2174,7 @@ async function refreshAgentPreviewAfterFileChange(agentPath) {
 }
 
 function getSelectableAgents() {
-  return agentsCache.filter((agent) => agent.active !== false);
+  return agentsCache.filter((agent) => agent.active !== false && agent.folderExists !== false);
 }
 
 let agentsPickerIsOpen = false;
@@ -2270,13 +2270,13 @@ function isAgentRegistryActive(agent) {
   return agent?.active !== false;
 }
 
-/** Агенты реестра для UI: порядок из awn-agents.json, без записей без папки на диске. */
+/** Агенты реестра для UI: полный список из awn-agents.json, включая записи без папки на диске. */
 function getRegistryAgentsForUi() {
-  return agentsCache.filter((agent) => agent.folderExists !== false);
+  return agentsCache;
 }
 
 function getAgentsForLandingGrid() {
-  return getRegistryAgentsForUi();
+  return agentsCache.filter((agent) => agent.folderExists !== false);
 }
 
 let globalFocusItemsCache = [];
@@ -3313,7 +3313,7 @@ function openAppLandingCreateModal() {
     appLandingCreateDescriptionInputNode.value = "";
   }
   if (appLandingCreatePathInputNode) {
-    appLandingCreatePathInputNode.value = "./workspaces/";
+    appLandingCreatePathInputNode.value = "./workspaces/agent-";
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
   appLandingCreateModalNode.classList.remove("hidden");
@@ -3950,7 +3950,7 @@ function getWorkspaceFolderNameFromPath(rawPath) {
 
 const CREATE_AGENT_NAME_MAX_LENGTH = 120;
 const CREATE_AGENT_DESCRIPTION_MAX_LENGTH = 2000;
-const CREATE_AGENT_ID_FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
+const CREATE_AGENT_ID_FOLDER_RE = /^agent-[a-z0-9][a-z0-9_-]*$/;
 
 function getCreateAgentNameError(rawName) {
   const name = String(rawName || "").trim();
@@ -3976,13 +3976,13 @@ function getCreateAgentWorkspacePathError(rawPath) {
   const folderName = getWorkspaceFolderNameFromPath(trimmedPath);
   if (!folderName) return "Укажите путь workspace";
   if (folderName === "workspaces" || folderName === "Workspaces") {
-    return "Укажите ID агента в имени последней папки (например ./workspaces/my-agent)";
+    return "Укажите ID агента в имени последней папки (например ./workspaces/agent-my-project)";
   }
   if (folderName !== folderName.toLowerCase()) {
     return `ID агента (имя папки) «${folderName}» должен быть в нижнем регистре`;
   }
   if (!CREATE_AGENT_ID_FOLDER_RE.test(folderName)) {
-    return "ID агента (имя папки): латиница, цифры, дефис и подчёркивание; начинается с буквы или цифры";
+    return "ID агента (имя папки): префикс agent-, затем латиница, цифры, дефис и подчёркивание";
   }
   return null;
 }
@@ -4138,6 +4138,7 @@ function updateAgentsRegistryPathStatusNode(node, result) {
 
 function syncRegistryRowActions(row, pathState) {
   if (!row) return;
+  row.classList.toggle("is-missing-folder", pathState === "missing");
   const activeBtn = row.querySelector(".agents-registry-active-btn");
   const deleteBtn = row.querySelector(".agents-registry-delete-btn");
   const isMissing = pathState === "missing";
@@ -4373,8 +4374,6 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
       ? pathsSnapshot
       : agentsRegistryDraft.map((agent) => normalizeRegistryPathKey(agent.path));
 
-  const missingFolderIndexes = [];
-
   agentsRegistryDraft.forEach((agent, index) => {
     const expectedPath = snapshot[index];
     const currentPath = normalizeRegistryPathKey(agent.path);
@@ -4384,27 +4383,15 @@ function applyAgentsRegistryPathValidationResults(results, pathsSnapshot = null)
     const statusNode = agentsRegistryListNode.querySelector(
       `.agents-registry-row[data-registry-index="${index}"] .agents-registry-path-dot`
     );
-    if (result?.valid && result.exists === false) {
-      missingFolderIndexes.push(index);
-      return;
-    }
     if (!statusNode) return;
     if (result) {
+      agentsRegistryDraft[index].folderExists = result.exists !== false;
       applyManifestToRegistryDraft(index, result);
       updateAgentsRegistryPathStatusNode(statusNode, result);
       return;
     }
     updateAgentsRegistryPathStatusNode(statusNode, { status: "checking" });
   });
-
-  if (missingFolderIndexes.length > 0) {
-    missingFolderIndexes
-      .sort((left, right) => right - left)
-      .forEach((index) => agentsRegistryDraft.splice(index, 1));
-    renderAgentsRegistryList();
-    scheduleAgentsRegistryPathValidation();
-    return;
-  }
 
   syncRegistryRowMetaFromDraft();
 }
@@ -4717,7 +4704,7 @@ function openAgentsRegistryCreateModal() {
     agentsRegistryCreateDescriptionInputNode.value = "";
   }
   if (agentsRegistryCreatePathInputNode) {
-    agentsRegistryCreatePathInputNode.value = "./workspaces/";
+    agentsRegistryCreatePathInputNode.value = "./workspaces/agent-";
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
   agentsRegistryCreateModalNode.classList.remove("hidden");
@@ -4838,7 +4825,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование _registration.md (awn.workspace)…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование папок agent-* с _registration.md (awn.workspace)…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -4865,7 +4852,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">_registration.md (awn.workspace) не найден</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Папки agent-* с _registration.md (awn.workspace) не найдены</div>`;
     return;
   }
 
@@ -4940,9 +4927,8 @@ async function saveAgentsRegistryDraft() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        agents: agentsRegistryDraft
-          .filter((agent) => agent.folderExists !== false)
-          .map(({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
+        agents: agentsRegistryDraft.map(
+          ({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
             path,
             environment,
             default: isDefault,
@@ -4950,7 +4936,8 @@ async function saveAgentsRegistryDraft() {
             active: active !== false,
             name: name ?? "",
             comment: comment ?? ""
-          }))
+          })
+        )
       })
     });
     if (!response.ok) {
@@ -29099,6 +29086,10 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
       activeLabel = resolveNodeDisplayName(nextStoredAwnName, getNodeSlugFromPath(activePath));
       replaceActiveMenuLabel(activeLabel, activePath);
       try {
+        if (isAgentRootIndexPath(activePath)) {
+          await loadAgents();
+          renderAgentSelect();
+        }
         await refreshMenu({ agentId: activeAgentId });
       } catch {
         // menu will resync on next open
@@ -33831,12 +33822,12 @@ function appendComponentsIdeasGallery(container, images) {
 
   const gallery = document.createElement("div");
   gallery.className = "components-ideas-gallery";
-  gallery.setAttribute("aria-label", "Изображения из workspaces/Documentation/images");
+  gallery.setAttribute("aria-label", "Изображения из workspaces/agent-cms-docs/images");
 
   if (!images.length) {
     const empty = document.createElement("p");
     empty.className = "components-ideas-gallery-empty";
-    empty.textContent = "Папка workspaces/Documentation/images пуста — положите сюда .png, .jpg, .webp …";
+    empty.textContent = "Папка workspaces/agent-cms-docs/images пуста — положите сюда .png, .jpg, .webp …";
     gallery.appendChild(empty);
     container.appendChild(gallery);
     return;

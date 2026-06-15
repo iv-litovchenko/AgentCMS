@@ -408,6 +408,9 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
   }
 ];
+const AGENT_FOLDER_PREFIX = "agent-";
+const AGENT_FOLDER_NAME_RE = /^agent-[a-z0-9][a-z0-9_-]*$/;
+
 const SKIP_SCAN_DIRS = new Set([
   "node_modules",
   ".git",
@@ -418,6 +421,11 @@ const SKIP_SCAN_DIRS = new Set([
   "Trash",
   "vendor"
 ]);
+
+function isAgentFolderName(name) {
+  const folderName = String(name || "").trim().toLowerCase();
+  return AGENT_FOLDER_NAME_RE.test(folderName);
+}
 
 let projectRoot = null;
 let agents = [];
@@ -631,7 +639,9 @@ function normalizeAgentActive(raw) {
 function pickDefaultAgentId(agentList) {
   const activeAgents = agentList.filter((agent) => normalizeAgentActive(agent.active));
   const pool = activeAgents.length > 0 ? activeAgents : agentList;
-  return pool.find((agent) => agent.default)?.id || pool[0]?.id || "main";
+  const existingPool = pool.filter((agent) => agent.folderExists !== false);
+  const targetPool = existingPool.length > 0 ? existingPool : pool;
+  return targetPool.find((agent) => agent.default)?.id || targetPool[0]?.id || "main";
 }
 
 function deriveAgentIdFromPath(agentPath, fallbackIndex = 0) {
@@ -675,20 +685,7 @@ function loadRegistrySync() {
 
   const raw = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
   const rawEntries = Array.isArray(raw.agents) ? raw.agents : [];
-  const normalized = rawEntries.map((entry, index) => normalizeAgentEntry(entry, index));
-  agents = normalized.filter((agent) => agent.id && agent.folderExists !== false);
-
-  if (agents.length < rawEntries.length) {
-    const payload = {
-      agents: agents.map(({ path: agentPath, environment, default: isDefault, orchestrator: isOrchestrator }) => {
-        const item = { path: agentPath, environment };
-        if (isDefault) item.default = true;
-        if (isOrchestrator) item.orchestrator = true;
-        return item;
-      })
-    };
-    fs.writeFileSync(registryPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
-  }
+  agents = rawEntries.map((entry, index) => normalizeAgentEntry(entry, index)).filter((agent) => agent.id);
 
   if (agents.length === 0) {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
@@ -803,9 +800,8 @@ function saveAgentsRegistry(rawAgents) {
     const agentPath = assertSafeAgentPath(entry?.path || "./Workspaces");
     const absolute = resolveAgentRootAbsolute(agentPath);
     const directoryState = resolveExistingWorkspaceDirectory(absolute);
-    if (!directoryState.exists) return;
-    const workspaceAbsolute = directoryState.absolute;
-    const manifest = readWorkspaceManifestSync(workspaceAbsolute);
+    const workspaceAbsolute = directoryState.exists ? directoryState.absolute : absolute;
+    const manifest = directoryState.exists ? readWorkspaceManifestSync(workspaceAbsolute) : null;
 
     if (
       directoryState.exists &&
@@ -946,7 +942,11 @@ function validateAgentWorkspacePaths(rawPaths) {
 }
 
 function getDefaultDiscoverRoots(extraRoots = []) {
-  const roots = [projectRoot, path.join(projectRoot, "Workspaces")];
+  const roots = [
+    path.join(projectRoot, "workspaces"),
+    path.join(projectRoot, "Workspaces"),
+    projectRoot
+  ];
   const home = process.env.HOME || process.env.USERPROFILE;
   if (home) {
     roots.push(path.join(home, "Desktop"));
@@ -974,36 +974,44 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
   }
 
   if (isWorkspaceReginfoAtPath(dirAbsolute)) {
-    let key = path.normalize(dirAbsolute);
-    try {
-      key = fs.realpathSync.native(dirAbsolute);
-    } catch {
-      // keep normalized
-    }
-    if (!seen.has(key)) {
-      seen.add(key);
-      const manifest = readWorkspaceManifestSync(dirAbsolute);
-      const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(dirAbsolute);
-      const folderName = path.basename(dirAbsolute);
-      results.push({
-        path: toRegistryPath(dirAbsolute),
-        absolute: key,
-        manifestFound: Boolean(manifest),
-        manifest: manifest || null,
-        name: manifest?.name || folderName,
-        comment: manifest?.comment || "",
-        id: slugifyAgentId(folderName, results.length),
-        hasPreview: Boolean(previewAbsolute),
-        previewRel: manifest?.preview || null
-      });
+    const folderName = path.basename(dirAbsolute);
+    if (isAgentFolderName(folderName)) {
+      let key = path.normalize(dirAbsolute);
+      try {
+        key = fs.realpathSync.native(dirAbsolute);
+      } catch {
+        // keep normalized
+      }
+      if (!seen.has(key)) {
+        seen.add(key);
+        const manifest = readWorkspaceManifestSync(dirAbsolute);
+        const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(dirAbsolute);
+        results.push({
+          path: toRegistryPath(dirAbsolute),
+          absolute: key,
+          manifestFound: Boolean(manifest),
+          manifest: manifest || null,
+          name: manifest?.name || folderName,
+          comment: manifest?.comment || "",
+          id: slugifyAgentId(folderName, results.length),
+          hasPreview: Boolean(previewAbsolute),
+          previewRel: manifest?.preview || null
+        });
+      }
     }
   }
 
   if (depth >= maxDepth) return;
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (shouldSkipScanDir(entry.name)) continue;
+  const childDirs = entries.filter((entry) => entry.isDirectory() && !shouldSkipScanDir(entry.name));
+  childDirs.sort((left, right) => {
+    const leftIsAgent = isAgentFolderName(left.name);
+    const rightIsAgent = isAgentFolderName(right.name);
+    if (leftIsAgent !== rightIsAgent) return leftIsAgent ? -1 : 1;
+    return String(left.name).localeCompare(String(right.name), "ru");
+  });
+
+  for (const entry of childDirs) {
     scanForAgentManifests(path.join(dirAbsolute, entry.name), depth + 1, maxDepth, results, seen);
   }
 }
@@ -1047,6 +1055,11 @@ function createAgentWorkspace(options = {}) {
   const folderName = path.basename(workspaceAbsolute);
   if (folderName !== folderName.toLowerCase()) {
     throw new Error(`Название папки «${folderName}» должно быть в нижнем регистре`);
+  }
+  if (!isAgentFolderName(folderName)) {
+    throw new Error(
+      `Папка агента должна начинаться с «${AGENT_FOLDER_PREFIX}» (например ${AGENT_FOLDER_PREFIX}my-project), сейчас: «${folderName}»`
+    );
   }
 
   if (fs.existsSync(workspaceAbsolute)) {
