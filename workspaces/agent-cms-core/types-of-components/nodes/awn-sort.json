@@ -1,0 +1,10 @@
+{
+  "order": [
+    "_base",
+    "workspace",
+    "areas",
+    "topic",
+    "record",
+    "comments"
+  ]
+}

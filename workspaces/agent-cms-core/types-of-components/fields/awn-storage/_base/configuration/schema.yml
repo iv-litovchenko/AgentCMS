@@ -1,0 +1,51 @@
+id: awn.field-def
+name: Мета-свойства поля
+description: Мета-свойства определения поля в awn-types (блок fields)
+properties:
+  type:
+    title: Тип данных
+    description: Тип из awn-types/fields/ (awn.string, awn.enum, awn.url, awn.array…)
+    required: true
+  title:
+    title: Название
+    description: Подпись поля в форме «Свойства»
+    required: true
+  description:
+    title: Описание
+    description: Развёрнутое пояснение для схемы и документации
+    type: awn.text
+  hint:
+    title: Подсказка
+    description: Краткая подсказка в UI (placeholder, title)
+    type: awn.string
+  required:
+    type: awn.boolean
+    title: Обязательное
+    description: Поле должно быть заполнено
+    default: false
+  locked:
+    type: awn.boolean
+    title: Заблокированное
+    description: Только чтение в форме (системное или вычисляемое значение)
+    default: false
+  format:
+    title: Формат
+    description: Пример или шаблон заполнения (0.0.1, YYYY-MM-DD)
+    type: awn.string
+  default:
+    title: По умолчанию
+    description: Значение при создании новой записи
+    type: awn.string
+  enum:
+    title: Варианты
+    description: Список значений для type enum
+    type: awn.array
+  items:
+    title: Элемент списка
+    description: Тип элементов для type array (awn.string, awn.link…)
+    type: awn.string
+  scope:
+    title: Область файлов
+    description: Для type file — откуда выбирать (all, external, media)
+    type: awn.enum
+    enum: [all, external, media]

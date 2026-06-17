@@ -1,10 +1,11 @@
 {
   "order": [
-    "Ноды",
-    "Поля",
-    "Блоки",
-    "Виды",
     "MCP",
-    "Skills"
+    "Skills",
+    "_base",
+    "nodes",
+    "fields",
+    "blocks",
+    "views"
   ]
 }

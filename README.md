@@ -28,7 +28,7 @@ cd mcp-server && npm install
 
 ## Документация
 
-- Пользовательская: `workspaces/agent-cms-docs/user-docs*.md` (кнопка **DOC** в UI)
+- Пользовательская: `workspaces/agent-cms-core/documentations/user-docs*.md` (кнопка **DOC** в UI)
 - Примеры UI: `documentation/examples/`
 - Типы свойств темы: `documentation/examples/6/`
 

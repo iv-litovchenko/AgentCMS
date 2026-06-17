@@ -104,7 +104,7 @@ function getPublicDir() {
 }
 
 function getPublicImagesDir() {
-  return path.join(getProjectRoot(), "workspaces", docsRegistry.DOCS_AGENT_FOLDER, "images");
+  return docsRegistry.getPublicImagesDir();
 }
 
 const PUBLIC_IMAGE_EXTENSIONS = new Set([

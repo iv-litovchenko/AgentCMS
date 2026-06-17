@@ -430,7 +430,8 @@ const userDocsVersionSelectNode = document.getElementById("user-docs-version-sel
 const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
 const DEFAULT_DOC_VERSION = "0.0.1";
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
-const DOCUMENTATION_AGENT_ID = "agent-cms-docs";
+const DOCUMENTATION_AGENT_ID = "agent-cms-core";
+const DOCUMENTATION_TOPIC_DIR = "documentations";
 const userDocsCacheByVersion = Object.create(null);
 let userDocsVersion = DEFAULT_DOC_VERSION;
 let docsMetaCache = null;
@@ -1078,8 +1079,16 @@ function buildDocumentationApiUrl(apiPath, params = {}) {
   return buildApiUrl(apiPath, params, DOCUMENTATION_AGENT_ID);
 }
 
+function resolveDocumentationTopicPath(relPath) {
+  const rel = String(relPath || "").replace(/^\/+/, "");
+  if (!rel) return DOCUMENTATION_TOPIC_DIR;
+  return rel.startsWith(`${DOCUMENTATION_TOPIC_DIR}/`) ? rel : `${DOCUMENTATION_TOPIC_DIR}/${rel}`;
+}
+
 async function fetchDocumentationTopicMarkdown(topicPath) {
-  const response = await fetch(buildDocumentationApiUrl("/api/file", { path: topicPath }));
+  const response = await fetch(buildDocumentationApiUrl("/api/file", {
+    path: resolveDocumentationTopicPath(topicPath)
+  }));
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
   return String(data.content || "");
@@ -33822,12 +33831,12 @@ function appendComponentsIdeasGallery(container, images) {
 
   const gallery = document.createElement("div");
   gallery.className = "components-ideas-gallery";
-  gallery.setAttribute("aria-label", "Изображения из workspaces/agent-cms-docs/images");
+  gallery.setAttribute("aria-label", "Изображения из workspaces/agent-cms-core/documentations/images");
 
   if (!images.length) {
     const empty = document.createElement("p");
     empty.className = "components-ideas-gallery-empty";
-    empty.textContent = "Папка workspaces/agent-cms-docs/images пуста — положите сюда .png, .jpg, .webp …";
+    empty.textContent = "Папка workspaces/agent-cms-core/documentations/images пуста — положите сюда .png, .jpg, .webp …";
     gallery.appendChild(empty);
     container.appendChild(gallery);
     return;

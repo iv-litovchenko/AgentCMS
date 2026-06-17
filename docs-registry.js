@@ -14,8 +14,10 @@ const mcpByVersion = {
   "0.0.1": () => require("./docs/mcp-0.0.1")
 };
 
-const DOCS_AGENT_FOLDER = "agent-cms-docs";
-const USER_DOCS_DIR = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER);
+const DOCS_AGENT_FOLDER = "agent-cms-core";
+const DOCS_TOPIC_DIR = "documentations";
+const USER_DOCS_DIR = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER, DOCS_TOPIC_DIR);
+const PUBLIC_IMAGES_DIR = path.join(USER_DOCS_DIR, "images");
 const DOCUMENTATION_AGENT_ID = DOCS_AGENT_FOLDER;
 
 function normalizeDocVersion(version) {
@@ -65,15 +67,30 @@ function getDocsMeta() {
   };
 }
 
+function getPublicImagesDir() {
+  return PUBLIC_IMAGES_DIR;
+}
+
+function resolveDocumentationTopicPath(relPath) {
+  const rel = String(relPath || "").replace(/^\/+/, "");
+  if (!rel) return DOCS_TOPIC_DIR;
+  return rel.startsWith(`${DOCS_TOPIC_DIR}/`) ? rel : `${DOCS_TOPIC_DIR}/${rel}`;
+}
+
 module.exports = {
   DOC_VERSIONS,
   DEFAULT_DOC_VERSION,
   DOCUMENTATION_AGENT_ID,
   DOCS_AGENT_FOLDER,
+  DOCS_TOPIC_DIR,
+  USER_DOCS_DIR,
+  PUBLIC_IMAGES_DIR,
   normalizeDocVersion,
   getApiDocs,
   getMcpDocs,
   getUserDocsMarkdown,
   getDocsMeta,
-  getVersionOptionLabel
+  getVersionOptionLabel,
+  getPublicImagesDir,
+  resolveDocumentationTopicPath
 };

@@ -1,0 +1,5 @@
+awn_schema:
+  topic:
+    fields:
+      field_1:
+        type: awn.string
