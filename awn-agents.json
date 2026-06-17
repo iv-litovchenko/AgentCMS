@@ -16,6 +16,10 @@
     {
       "path": "workspaces/agent-cms-docs",
       "environment": "local"
+    },
+    {
+      "path": "workspaces/agent-cms-core",
+      "environment": "local"
     }
   ]
 }
