@@ -1381,6 +1381,7 @@ function getResolvedNodePath(nodePath = activePath) {
 const MENU_LINK_DRAG_MIME = "application/x-awn-menu-link";
 const MENU_LINK_DRAG_SELECTOR =
   ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path], .system-file-item[data-system-file]";
+const MENU_LINK_DRAG_SOURCE_SELECTOR = ".menu-item[data-path], .menu-folder[data-path]";
 
 function getWikilinkTargetFromNodePath(nodePath) {
   const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
@@ -6422,12 +6423,20 @@ function getAwnStatusTone(status) {
   return "default";
 }
 
+function extractAwnStatusEmoji(status) {
+  const label = String(status || "").trim();
+  if (!label) return "";
+  const match = label.match(/^\p{Extended_Pictographic}/u);
+  return match ? match[0] : "";
+}
+
 function createMenuTreeStatusBadge(status) {
   const label = String(status || "").trim();
-  if (!label) return null;
+  const emoji = extractAwnStatusEmoji(label);
+  if (!emoji) return null;
   const badge = document.createElement("span");
   badge.className = `menu-tree-status menu-tree-status--${getAwnStatusTone(label)}`;
-  badge.textContent = label;
+  badge.textContent = emoji;
   badge.title = `Статус: ${label}`;
   badge.setAttribute("aria-label", `Статус: ${label}`);
   return badge;
@@ -7321,18 +7330,60 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   return wrap;
 }
 
+function createMenuTreeTypeIcon(host) {
+  const icon = document.createElement("span");
+  icon.className = "menu-tree-type-icon";
+  icon.setAttribute("aria-hidden", "true");
+
+  if (host.classList.contains("menu-folder-agent-root")) {
+    icon.classList.add("menu-tree-type-icon--agent");
+    icon.textContent = "🤖";
+    return icon;
+  }
+  if (host.classList.contains("menu-folder-container-root")) {
+    icon.classList.add("menu-tree-type-icon--container");
+    icon.textContent = "📦";
+    return icon;
+  }
+  if (host.classList.contains("menu-folder-service-root")) {
+    return null;
+  }
+  if (host.classList.contains("menu-folder--adopt")) {
+    icon.classList.add("menu-tree-type-icon--folder", "menu-tree-type-icon--folder-adopt");
+    return icon;
+  }
+  if (host.classList.contains("menu-folder")) {
+    icon.classList.add("menu-tree-type-icon--folder");
+    return icon;
+  }
+  if (host.classList.contains("menu-item")) {
+    icon.classList.add("menu-tree-type-icon--file");
+    return icon;
+  }
+  return null;
+}
+
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
   host.replaceChildren();
+  host.classList.remove("has-menu-tree-status");
+
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
-  const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
-  if (markers) labelWrap.appendChild(markers);
   const nameNode = document.createElement("span");
   nameNode.className = nameClass;
   nameNode.textContent = labelText;
-  labelWrap.appendChild(nameNode);
   const statusBadge = createMenuTreeStatusBadge(source?.status);
-  if (statusBadge) labelWrap.appendChild(statusBadge);
+  const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
+
+  if (statusBadge) {
+    host.classList.add("has-menu-tree-status");
+    labelWrap.appendChild(statusBadge);
+    const typeIcon = createMenuTreeTypeIcon(host);
+    if (typeIcon) labelWrap.appendChild(typeIcon);
+  }
+
+  labelWrap.appendChild(nameNode);
+  if (markers) labelWrap.appendChild(markers);
   host.appendChild(labelWrap);
 }
 
@@ -11303,7 +11354,7 @@ function setupEditorAsideSelectionCapture() {
       if (!canInsertDocContentBlocks()) return;
       if (
         event.target.closest(
-          ".doc-block-btn, .doc-link-btn, .awn-wysiwyg-link-picker-item, .menu-item[data-path], .menu-card-body[data-path]"
+          ".doc-block-btn, .awn-wysiwyg-link-picker-item, .menu-item[data-path], .menu-card-body[data-path]"
         )
       ) {
         captureEditorInsertSelection();
@@ -11354,8 +11405,6 @@ function scheduleDocOutlineRefresh() {
   if (getDocAsideTab() !== "outline") return;
   requestAnimationFrame(() => renderDocOutline());
 }
-
-const MENU_INSERT_LINK_SELECTOR = ".menu-item[data-path], .menu-card-body[data-path]";
 
 function resolveWysiwygMarkdownSelection(markdown, selection) {
   const text = String(markdown || "");
@@ -18480,8 +18529,30 @@ function collectDocLinkLibraryGroups() {
 }
 
 function bindDocLinkLibraryItem(btn, item) {
-  btn.draggable = false;
-  delete btn.dataset.linkDragHint;
+  btn.draggable = true;
+  btn.addEventListener("dragstart", (event) => {
+    event.stopPropagation();
+    const markdownLink = getMarkdownLinkForLibraryItem(item);
+    if (!markdownLink) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData(
+      MENU_LINK_DRAG_MIME,
+      JSON.stringify({
+        path: item.path || item.nodePath || "",
+        label: item.label,
+        wikilink: markdownLink,
+        markdownLink
+      })
+    );
+    event.dataTransfer.setData("text/plain", markdownLink);
+    btn.classList.add("is-dragging-menu-link");
+  });
+  btn.addEventListener("dragend", () => {
+    btn.classList.remove("is-dragging-menu-link");
+  });
 }
 
 function filterDocLinkLibraryItems(items, query = docLinksSearchQuery) {
@@ -18517,7 +18588,7 @@ function ensureDocLinksSearchUi() {
 
     const hint = document.createElement("p");
     hint.className = "doc-links-search-hint";
-    hint.textContent = "Нажмите — вставит markdown-ссылку. Поиск находит и служебные файлы.";
+    hint.textContent = "Перетащите в редактор для ссылки. Поиск находит и служебные файлы.";
 
     wrap.appendChild(input);
     wrap.appendChild(hint);
@@ -18525,6 +18596,10 @@ function ensureDocLinksSearchUi() {
   }
 
   docLinksSearchInputNode = wrap.querySelector("#doc-links-search") || docLinksSearchInputNode;
+  const hintNode = wrap.querySelector(".doc-links-search-hint");
+  if (hintNode) {
+    hintNode.textContent = "Перетащите в редактор для ссылки. Поиск находит и служебные файлы.";
+  }
 }
 
 function syncDocLinksSearchUi({ disabled = false } = {}) {
@@ -18590,10 +18665,6 @@ function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
     btn.append(title, meta, insert);
     applyNodeColorVars(btn, item.color);
     bindDocLinkLibraryItem(btn, item);
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      insertMarkdownAtEditorCursor(getMarkdownLinkForLibraryItem(item));
-    });
 
     li.appendChild(btn);
     list.appendChild(li);
@@ -27589,9 +27660,13 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  root.querySelectorAll(MENU_LINK_DRAG_SELECTOR).forEach((btn) => {
-    btn.draggable = false;
-    delete btn.dataset.linkDragHint;
+  root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach((btn) => {
+    btn.draggable = true;
+    if (!btn.dataset.linkDragHint) {
+      btn.dataset.linkDragHint = "1";
+      const hint = "Перетащите в редактор для ссылки";
+      btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
+    }
   });
 }
 
@@ -27737,45 +27812,83 @@ function setupMenuSortDragDrop() {
   });
 }
 
+let menuLinkDragBtn = null;
+
 function setupMenuLinkDragToEditor() {
-  enableMenuLinkDragSources(getMenuQueryRoot());
+  if (!menuNode || menuNode.dataset.linkDragBound === "1") return;
+  menuNode.dataset.linkDragBound = "1";
+
+  menuNode.addEventListener("dragstart", (event) => {
+    if (event.target.closest(".menu-sort-handle")) return;
+    const linkBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
+    if (!linkBtn) return;
+
+    const nodePath = normalizeMenuNodePath(linkBtn.dataset.path);
+    if (!nodePath) return;
+
+    const label = resolveMenuEntryLabel(nodePath);
+    const markdownLink = buildMarkdownFileLink(nodePath, label);
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData(
+      MENU_LINK_DRAG_MIME,
+      JSON.stringify({ path: nodePath, label, wikilink: markdownLink, markdownLink })
+    );
+    event.dataTransfer.setData("text/plain", markdownLink);
+    menuLinkDragBtn = linkBtn;
+    linkBtn.classList.add("is-dragging-menu-link");
+  });
+
+  menuNode.addEventListener("dragend", () => {
+    if (!menuLinkDragBtn) return;
+    menuLinkDragBtn.classList.remove("is-dragging-menu-link");
+    menuLinkDragBtn = null;
+  });
 }
 
 function setupEditorMenuLinkDrop() {
-  if (editorSurfaceNode) {
-    editorSurfaceNode.classList.remove("is-menu-link-drop-target");
-  }
-}
+  const targets = [
+    editorSurfaceNode,
+    editorCodeWrapNode,
+    editorWysiwygWrapNode,
+    fileContentInputNode,
+    fileContentPreviewNode
+  ].filter(Boolean);
+  if (!targets.length || editorSurfaceNode?.dataset.menuLinkDropBound === "1") return;
+  if (editorSurfaceNode) editorSurfaceNode.dataset.menuLinkDropBound = "1";
 
-function setupMenuInsertLinkClickBehavior() {
-  if (!menuNode || menuNode.dataset.insertLinkClickBound === "1") return;
-  menuNode.dataset.insertLinkClickBound = "1";
-  menuNode.addEventListener(
-    "mousedown",
-    (event) => {
+  const setDropTarget = (active) => {
+    editorSurfaceNode?.classList.toggle("is-menu-link-drop-target", active);
+  };
+
+  for (const target of targets) {
+    target.addEventListener("dragover", (event) => {
+      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
       if (!canInsertDocContentBlocks()) return;
-      if (event.altKey || event.metaKey || event.ctrlKey) return;
-      if (!event.target.closest(MENU_INSERT_LINK_SELECTOR)) return;
-      captureEditorInsertSelection();
-    },
-    true
-  );
-  menuNode.addEventListener(
-    "click",
-    (event) => {
-      if (!canInsertDocContentBlocks()) return;
-      if (event.altKey || event.metaKey || event.ctrlKey) return;
-      const btn = event.target.closest(MENU_INSERT_LINK_SELECTOR);
-      if (!btn?.dataset?.path) return;
-      const nodePath = normalizeMenuNodePath(btn.dataset.path);
-      if (!nodePath || !isNodeMdPath(nodePath)) return;
       event.preventDefault();
-      event.stopImmediatePropagation();
-      const label = resolveMenuEntryLabel(nodePath);
-      insertMarkdownAtEditorCursor(buildMarkdownFileLink(nodePath, label));
-    },
-    true
-  );
+      event.dataTransfer.dropEffect = "copy";
+      setDropTarget(true);
+    });
+
+    target.addEventListener("dragleave", (event) => {
+      if (!editorSurfaceNode?.contains(event.relatedTarget)) {
+        setDropTarget(false);
+      }
+    });
+
+    target.addEventListener("drop", (event) => {
+      setDropTarget(false);
+      if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+      const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
+      const linkText = payload?.markdownLink || payload?.wikilink;
+      if (!linkText) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (editorViewMode === "source" && fileContentInputNode) {
+        fileContentInputNode.focus();
+      }
+      insertMarkdownAtEditorCursor(linkText);
+    });
+  }
 }
 
 function renderMenu(menu, agentId = activeAgentId, options = {}) {
@@ -34125,7 +34238,6 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupMenuLinkDragToEditor();
 setupEditorMenuLinkDrop();
-setupMenuInsertLinkClickBehavior();
 setupEditorAsideSelectionCapture();
 window.addEventListener("popstate", () => {
   suspendAppRouteSync();

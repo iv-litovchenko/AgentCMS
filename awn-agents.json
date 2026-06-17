@@ -1,21 +1,13 @@
 {
   "agents": [
     {
-      "path": "workspaces/agent-cms-php",
-      "environment": "local",
-      "default": true
-    },
-    {
-      "path": "workspaces/agent-cms-test8",
+      "path": "workspaces/agent-cms-core",
       "environment": "local"
     },
     {
       "path": "workspaces/agent-cms-test",
-      "environment": "local"
-    },
-    {
-      "path": "workspaces/agent-cms-core",
-      "environment": "local"
+      "environment": "local",
+      "default": true
     }
   ]
 }
