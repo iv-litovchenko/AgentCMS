@@ -2075,7 +2075,7 @@ async function resolveAgentSubfolderAbsolute(agentRootAbsolute, folderName) {
   return absolute;
 }
 
-async function buildAgentMenu(agentRootAbsolute) {
+async function buildAgentMenu(agentRootAbsolute, options = {}) {
   if (!(await dirExists(agentRootAbsolute))) {
     return {
       title: path.basename(agentRootAbsolute),
@@ -2089,7 +2089,7 @@ async function buildAgentMenu(agentRootAbsolute) {
   }
 
   await ensureWorkspaceRootIndex(agentRootAbsolute);
-  const menu = dedupeReservedRootMenuSections(await listNodeMdFiles(agentRootAbsolute));
+  const menu = dedupeReservedRootMenuSections(await listNodeMdFiles(agentRootAbsolute, "", 0, options));
   const kitFolder = getAgentKitFolder();
   const containerFolder = getAgentContainerFolder();
   let serviceTree = null;
@@ -2098,7 +2098,7 @@ async function buildAgentMenu(agentRootAbsolute) {
   const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder);
   if (kitAbsolute) {
     serviceTree = await normalizeServiceMenuTree(
-      await listNodeMdFiles(kitAbsolute, kitFolder, 0),
+      await listNodeMdFiles(kitAbsolute, kitFolder, 0, options),
       kitAbsolute
     );
   }
@@ -2106,7 +2106,7 @@ async function buildAgentMenu(agentRootAbsolute) {
   const containerAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, containerFolder);
   if (containerAbsolute) {
     containerTree = await normalizeContainerMenuTree(
-      await listNodeMdFiles(containerAbsolute, containerFolder, 0),
+      await listNodeMdFiles(containerAbsolute, containerFolder, 0, options),
       containerAbsolute
     );
   }
@@ -2211,7 +2211,7 @@ function dedupeGitRepoReservedSections(sections, gitRootRel) {
   });
 }
 
-async function enrichGitRepoMenuNode(node, gitRootAbsolute, gitRootRel) {
+async function enrichGitRepoMenuNode(node, gitRootAbsolute, gitRootRel, options = {}) {
   if (!node?.hasGitSelf || !gitRootRel) return node;
 
   const kitFolder = getAgentKitFolder();
@@ -2221,7 +2221,7 @@ async function enrichGitRepoMenuNode(node, gitRootAbsolute, gitRootRel) {
     if (await dirExists(kitAbsolute)) {
       const kitRel = `${gitRootRel}/${kitFolder}`.replace(/\\/g, "/");
       serviceTree = await normalizeServiceMenuTree(
-        await listNodeMdFiles(kitAbsolute, kitRel, 0),
+        await listNodeMdFiles(kitAbsolute, kitRel, 0, options),
         kitAbsolute
       );
     }
@@ -3856,6 +3856,12 @@ async function readMenuSortOrder(dirAbsolute) {
   }
 }
 
+function getMenuSortSlugFromFolderRel(folderRel) {
+  const normalized = String(folderRel || "").replace(/\\/g, "/").trim();
+  if (!normalized || normalized === ".") return "";
+  return stripTopicPrefix(path.posix.basename(normalized));
+}
+
 async function appendMenuSortOrderEntry(dirAbsolute, sortKey) {
   const key = String(sortKey || "").trim();
   if (!key || !dirAbsolute) return;
@@ -3864,6 +3870,42 @@ async function appendMenuSortOrderEntry(dirAbsolute, sortKey) {
   order.push(key);
   const sortPath = path.join(dirAbsolute, MENU_SORT_FILE);
   await fs.writeFile(sortPath, `${JSON.stringify({ order }, null, 2)}\n`, "utf-8");
+}
+
+async function updateMenuSortOrderSlug(dirAbsolute, oldSlug, newSlug, legacyKeys = []) {
+  const oldKey = String(oldSlug || "").trim();
+  const newKey = String(newSlug || "").trim();
+  if (!dirAbsolute || !newKey || oldKey === newKey) return;
+
+  const order = await readMenuSortOrder(dirAbsolute);
+  if (!order?.length) return;
+
+  const replaceKeys = new Set(
+    [oldKey, ...legacyKeys.map((key) => String(key || "").trim())].filter(Boolean)
+  );
+  if (!replaceKeys.size) return;
+
+  let changed = false;
+  const nextOrder = order.map((entry) => {
+    const key = String(entry || "").trim();
+    if (replaceKeys.has(key)) {
+      changed = true;
+      return newKey;
+    }
+    return key;
+  });
+  if (!changed) return;
+
+  const seen = new Set();
+  const dedupedOrder = nextOrder.filter((key) => {
+    const normalized = String(key || "").trim();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+
+  const sortPath = path.join(dirAbsolute, MENU_SORT_FILE);
+  await fs.writeFile(sortPath, `${JSON.stringify({ order: dedupedOrder }, null, 2)}\n`, "utf-8");
 }
 
 async function resolveExistingWorkspaceDirAbsolute(folderPathRaw) {
@@ -4312,7 +4354,37 @@ function isServiceAreaRootManifestRel(relPath) {
   return String(relPath || "").replace(/\\/g, "/") === serviceRoot.replace(/\\/g, "/");
 }
 
-async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
+async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers) {
+  const areaBasename = await resolveExistingAreaManifestBasename(fullPath);
+  const indexPath = areaBasename
+    ? path.join(relativePath, areaBasename).replace(/\\/g, "/")
+    : null;
+  const folderTitle = indexPath
+    ? await readNodeDisplayLabelForManifestRel(indexPath)
+    : await resolveFolderDisplayTitle(fullPath, relativePath, null);
+
+  return {
+    title: folderTitle,
+    folderPath: relativePath,
+    menuDepthLimited: true,
+    indexPath,
+    sections: [],
+    items: [],
+    menuOrder: await readMenuSortOrder(fullPath),
+    ...markers,
+    hasGit: markers.hasGitSelf,
+    hasObsidian: markers.hasObsidianSelf,
+    hasAgent: markers.hasAgentSelf,
+    hasSkill: markers.hasSkillSelf,
+    hasGitSelf: markers.hasGitSelf,
+    hasObsidianSelf: markers.hasObsidianSelf,
+    hasAgentSelf: markers.hasAgentSelf,
+    hasSkillSelf: markers.hasSkillSelf
+  };
+}
+
+async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
+  const maxDepth = Number.isFinite(options.maxDepth) ? options.maxDepth : null;
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const folders = [];
   const files = [];
@@ -4341,11 +4413,19 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
           continue;
         }
         if (isContainerFolderName(entry.name)) {
-          nestedContainerTree = await normalizeNestedContainerMenuTree(
-            await listNodeMdFiles(fullPath, relativePath, depth + 1),
-            fullPath,
-            relativePath
-          );
+          const childDepth = depth + 1;
+          if (maxDepth !== null && childDepth >= maxDepth) {
+            nestedContainerTree = {
+              ...(await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, await readFolderWorkspaceMarkers(fullPath))),
+              containerTree: null
+            };
+          } else {
+            nestedContainerTree = await normalizeNestedContainerMenuTree(
+              await listNodeMdFiles(fullPath, relativePath, childDepth, options),
+              fullPath,
+              relativePath
+            );
+          }
           continue;
         }
       }
@@ -4358,7 +4438,14 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
         continue;
       }
 
-      const child = await listNodeMdFiles(fullPath, relativePath, depth + 1);
+      const childDepth = depth + 1;
+      if (maxDepth !== null && childDepth >= maxDepth) {
+        const markers = await readFolderWorkspaceMarkers(fullPath);
+        folders.push(await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers));
+        continue;
+      }
+
+      const child = await listNodeMdFiles(fullPath, relativePath, childDepth, options);
       const hasNodes = Boolean(
         child.indexPath ||
         child.items.length > 0 ||
@@ -4486,7 +4573,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0) {
   };
 
   if (isGitRepoRootMenu && prefix) {
-    return enrichGitRepoMenuNode(baseNode, dirPath, prefix);
+    return enrichGitRepoMenuNode(baseNode, dirPath, prefix, options);
   }
 
   return baseNode;
@@ -5536,7 +5623,11 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/menu") {
     try {
-      const menu = await buildAgentMenu(getAgentRoot());
+      const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
+      const maxDepth = Number.isFinite(maxDepthRaw)
+        ? Math.min(20, Math.max(1, Math.floor(maxDepthRaw)))
+        : 7;
+      const menu = await buildAgentMenu(getAgentRoot(), { maxDepth });
       return sendJson(res, 200, menu);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read Workspaces menu", details: String(error.message || error) });
@@ -5809,6 +5900,16 @@ async function handleApiForAgent(req, res, url) {
 
         const currentFolderAbsolute = path.dirname(absolute);
         const currentFolderName = path.basename(currentFolderAbsolute);
+        const oldAreaSortSlug = getMenuSortSlugFromFolderRel(folderRelPath);
+        let oldAreaSortLegacyKeys = [];
+        try {
+          const legacyLabel = await readNodeDisplayLabelForManifestRel(normalized);
+          if (legacyLabel && legacyLabel !== oldAreaSortSlug) {
+            oldAreaSortLegacyKeys = [legacyLabel];
+          }
+        } catch {
+          // ignore
+        }
         const targetFolderName = isStorageFolderName(currentFolderName)
           ? toStorageFolderName(title)
           : toAreaFolderName(title);
@@ -5823,6 +5924,12 @@ async function handleApiForAgent(req, res, url) {
         }
 
         await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
+        await updateMenuSortOrderSlug(
+          parentAbsolutePath,
+          oldAreaSortSlug,
+          stripTopicPrefix(targetFolderName),
+          oldAreaSortLegacyKeys
+        );
 
         const targetFolderRelPath =
           parentRelPath && parentRelPath !== "."
@@ -5839,6 +5946,16 @@ async function handleApiForAgent(req, res, url) {
 
         const nextName = toNodeFileName(title);
         if (!nextName) return sendJson(res, 400, { error: "Invalid file name" });
+        const oldTopicSortSlug = getManifestSlugFromRel(normalized);
+        let oldTopicSortLegacyKeys = [];
+        try {
+          const legacyLabel = await readNodeDisplayLabelForManifestRel(normalized);
+          if (legacyLabel && legacyLabel !== oldTopicSortSlug) {
+            oldTopicSortLegacyKeys = [legacyLabel];
+          }
+        } catch {
+          // ignore
+        }
         const targetAbsolute = path.join(dirAbsolute, nextName);
         const targetRelPath =
           !dirRelPath || dirRelPath === "."
@@ -5873,6 +5990,12 @@ async function handleApiForAgent(req, res, url) {
           if (oldNamedStorageAbsolute && newNamedStorageAbsolute && oldNamedStorageAbsolute !== newNamedStorageAbsolute) {
             await renameIfExists(oldNamedStorageAbsolute, newNamedStorageAbsolute);
           }
+          await updateMenuSortOrderSlug(
+            dirAbsolute,
+            oldTopicSortSlug,
+            stripTopicPrefix(nextName),
+            oldTopicSortLegacyKeys
+          );
           nextRelPath = targetRelPath;
           nextAbsolute = targetAbsolute;
         }
@@ -7797,7 +7920,7 @@ async function handleApiForAgent(req, res, url) {
             ? `${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
             : `${parentRel}/${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
-        await appendMenuSortOrderEntry(folderAbsolute, areaName);
+        await appendMenuSortOrderEntry(folderAbsolute, folderName);
 
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),
@@ -7914,6 +8037,11 @@ async function handleApiForAgent(req, res, url) {
           }
           await fs.rename(parentAbsolute, targetFolderAbsolute);
           areaFolderAbsolute = targetFolderAbsolute;
+          await updateMenuSortOrderSlug(
+            parentDirAbsolute,
+            stripTopicPrefix(currentFolderName),
+            stripTopicPrefix(targetFolderName)
+          );
           const parentFolderRel = path.dirname(areaFolderRel).replace(/\\/g, "/");
           areaFolderRel =
             parentFolderRel && parentFolderRel !== "."
@@ -7944,7 +8072,7 @@ async function handleApiForAgent(req, res, url) {
         await ensureManifestStorageSlotDir(createdRel);
         await appendMenuSortOrderEntry(
           path.dirname(areaFolderAbsolute),
-          title
+          targetFolderName
         );
 
         return sendJson(res, 200, {
@@ -7986,7 +8114,7 @@ async function handleApiForAgent(req, res, url) {
           : path.join(folderName, AREA_MANIFEST_FILE);
         const createdRel = createdPath.replace(/\\/g, "/");
         await ensureManifestStorageSlotDir(createdRel);
-        await appendMenuSortOrderEntry(parentAbsolute, areaTitle);
+        await appendMenuSortOrderEntry(parentAbsolute, folderName);
 
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),

@@ -8,6 +8,18 @@
       "path": "workspaces/agent-cms-test",
       "environment": "local",
       "default": true
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-english",
+      "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-mosconst",
+      "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-medcenter",
+      "environment": "local"
     }
   ]
 }

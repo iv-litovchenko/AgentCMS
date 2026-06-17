@@ -8739,6 +8739,58 @@ body.app-locked {
   cursor: not-allowed;
 }
 
+.menu-context-menu-btn:not(:disabled):hover,
+.menu-context-menu-status-btn:hover {
+  background: var(--panel-soft);
+}
+
+.menu-context-menu-separator {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+  list-style: none;
+}
+
+.menu-context-menu-status-group {
+  list-style: none;
+}
+
+.menu-context-menu-status-label {
+  padding: 4px 10px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.menu-context-menu-status-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-context-menu-status-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-context-menu-status-btn.is-active {
+  background: #eef2ff;
+  color: #1e3a8a;
+}
+
 .menu-settings-popover-title {
   margin: 0 0 8px;
   font-size: 11px;
@@ -8777,6 +8829,27 @@ body.app-locked {
 .menu-settings-option span {
   flex: 1;
   min-width: 0;
+}
+
+.menu-settings-option--number {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-settings-option--number input[type="number"] {
+  width: 56px;
+  height: auto;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  color: #334155;
+  background: #fff;
+  cursor: text;
+  flex-shrink: 0;
 }
 
 .menu-flat-list {

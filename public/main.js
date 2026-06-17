@@ -77,6 +77,7 @@ const menuContextMenuNode = document.getElementById("menu-context-menu");
 const menuContextMenuListNode = document.getElementById("menu-context-menu-list");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
 const menuTreePadSortIndexesNode = document.getElementById("menu-tree-pad-sort-indexes");
+const menuTreeMaxDepthNode = document.getElementById("menu-tree-max-depth");
 const agentViewSelect = document.getElementById("agent-view-select");
 const agentMap3PaneNode = document.getElementById("agent-map3-pane");
 const agentMap3StatsNode = document.getElementById("agent-map3-stats");
@@ -5169,6 +5170,9 @@ const NODE_CONFIG_HEADER = "# Agent CMS — конфигурация\n";
 const NODE_CONFIG_DEFAULT_LANDING_KEY = "default_landing_mode";
 const CARDS_PREVIEW_ONLY_STORAGE_KEY = "agentcms.cardsPreviewOnly.v1";
 const MENU_TREE_SETTINGS_STORAGE_KEY = "agentcms.menuTreeSettings.v1";
+const MENU_TREE_MAX_DEPTH_DEFAULT = 7;
+const MENU_TREE_MAX_DEPTH_MIN = 1;
+const MENU_TREE_MAX_DEPTH_MAX = 20;
 const PINNED_MENU_FOLDER_STORAGE_KEY = "agentcms.pinnedMenuFolder.v1";
 const AGENT_GRAPH_SETTINGS_STORAGE_KEY = "agentcms.agentGraphSettings.v1";
 const SIDEBAR_WIDTH_STORAGE_KEY = "agentcms.sidebarWidth.v1";
@@ -6291,11 +6295,18 @@ function loadMenuTreeSettingsByAgent() {
   }
 }
 
+function normalizeMenuTreeMaxDepth(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return MENU_TREE_MAX_DEPTH_DEFAULT;
+  return Math.min(MENU_TREE_MAX_DEPTH_MAX, Math.max(MENU_TREE_MAX_DEPTH_MIN, Math.floor(parsed)));
+}
+
 function getMenuTreeSettings(agentId = activeAgentId) {
   const stored = menuTreeSettingsByAgent[agentId] || {};
   return {
     showEmptyFolders: stored.showEmptyFolders !== false,
-    padSortIndexes: Boolean(stored.padSortIndexes)
+    padSortIndexes: Boolean(stored.padSortIndexes),
+    maxDepth: normalizeMenuTreeMaxDepth(stored.maxDepth ?? MENU_TREE_MAX_DEPTH_DEFAULT)
   };
 }
 
@@ -6350,6 +6361,9 @@ function applyMenuTreeSettingsUi(agentId = activeAgentId) {
   }
   if (menuTreePadSortIndexesNode) {
     menuTreePadSortIndexesNode.checked = settings.padSortIndexes;
+  }
+  if (menuTreeMaxDepthNode) {
+    menuTreeMaxDepthNode.value = String(settings.maxDepth);
   }
 }
 
@@ -6466,6 +6480,89 @@ const MENU_CONTEXT_MENU_ACTIONS = {
 
 const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["container"]);
 
+const MENU_AWN_STATUS_OPTIONS = ["🟢 Открыта", "🟡 Черновик", "🔴 Закрыта"];
+
+function getMenuAwnStatusOptions() {
+  const fieldDef = awnTypesCache?.types?.["awn.base"]?.fields?.["awn-status"];
+  const fromSchema = Array.isArray(fieldDef?.enum) ? fieldDef.enum.filter(Boolean) : [];
+  return fromSchema.length ? fromSchema : MENU_AWN_STATUS_OPTIONS;
+}
+
+function canShowMenuContextStatusPicker(nodePath) {
+  const path = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  return Boolean(path && isNodeMdPath(path) && !isPartNodePath(path));
+}
+
+function resolveMenuNodeStatus(nodePath, agentId = activeAgentId) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  if (!normalized) return "";
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return "";
+  const entry = collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }).find(
+    (item) => normalizeMenuNodePath(item.path) === normalized
+  );
+  return String(entry?.status || "").trim();
+}
+
+function upsertAwnStatusInPropsYaml(content, nextStatus) {
+  const entries = parsePropsYaml(content || "");
+  const normalizedKey = "awn-status";
+  const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
+  const nextEntry = { key: normalizedKey, kind: "string", value: nextStatus };
+  if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
+  else entries.push(nextEntry);
+  return stringifyPropsYaml(entries);
+}
+
+async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgentId) {
+  const apiPath = getResolvedNodePath(nodePath);
+  if (!apiPath || !canShowMenuContextStatusPicker(apiPath)) return;
+
+  const getResponse = await fetch(buildApiUrl("/api/file/properties", { path: apiPath }, agentId));
+  if (!getResponse.ok) {
+    const errorData = await getResponse.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+  }
+  const current = await getResponse.json();
+  const stampedContent = upsertAwnStatusInPropsYaml(current.content || "", nextStatus);
+
+  const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: apiPath, content: stampedContent })
+  });
+  if (!saveResponse.ok) {
+    const errorData = await saveResponse.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${saveResponse.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  const saved = await saveResponse.json();
+
+  const normalizedApiPath = normalizeMenuNodePath(apiPath);
+  const normalizedActivePath = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  if (normalizedActivePath && normalizedActivePath === normalizedApiPath) {
+    setPropsYamlContent(saved.content || stampedContent, { preserveRawMode: propsRawYamlVisible });
+    if (
+      activeContentMode === "description" ||
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE
+    ) {
+      const { body } = splitFrontmatter(modeContentCache.description || "");
+      modeContentCache.description = joinFrontmatter(saved.content || stampedContent, body);
+    }
+    renderPropsForm();
+    renderNodeOverview();
+  }
+
+  try {
+    await refreshMenu({ agentId });
+  } catch {
+    // menu will resync on next open
+  }
+  void refreshAllFocusPanels();
+}
+
 function getMenuContextMenuActions(kind, nodePath, agentId = activeAgentId) {
   const actions = MENU_CONTEXT_MENU_ACTIONS[kind] || [];
   if (kind !== "area") return actions;
@@ -6513,7 +6610,56 @@ function positionMenuContextMenu(clientX, clientY) {
   menuContextMenuNode.style.visibility = "";
 }
 
-function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId) {
+function appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId = activeAgentId) {
+  if (!menuContextMenuListNode || !canShowMenuContextStatusPicker(nodePath)) return;
+
+  const options = getMenuAwnStatusOptions();
+  const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
+  const hasActions = menuContextMenuListNode.childElementCount > 0;
+
+  if (hasActions) {
+    const separator = document.createElement("li");
+    separator.className = "menu-context-menu-separator";
+    separator.setAttribute("role", "separator");
+    menuContextMenuListNode.appendChild(separator);
+  }
+
+  const group = document.createElement("li");
+  group.className = "menu-context-menu-status-group";
+  group.setAttribute("role", "none");
+
+  const label = document.createElement("div");
+  label.className = "menu-context-menu-status-label";
+  label.textContent = "Статус";
+  group.appendChild(label);
+
+  const list = document.createElement("ul");
+  list.className = "menu-context-menu-status-list";
+  list.setAttribute("role", "group");
+  list.setAttribute("aria-label", "Статус");
+
+  for (const option of options) {
+    const item = document.createElement("li");
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-status-btn";
+    btn.dataset.status = option;
+    btn.textContent = option;
+    btn.setAttribute("role", "menuitemradio");
+    const isActive = option === activeStatus;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-checked", isActive ? "true" : "false");
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  group.appendChild(list);
+  menuContextMenuListNode.appendChild(group);
+}
+
+function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId, currentStatus = "") {
   if (!menuContextMenuListNode) return;
   menuContextMenuListNode.replaceChildren();
   const actions = getMenuContextMenuActions(kind, nodePath, agentId);
@@ -6534,6 +6680,7 @@ function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId) {
     item.appendChild(btn);
     menuContextMenuListNode.appendChild(item);
   }
+  appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId);
 }
 
 function handleMenuContextMenuAction(actionId) {
@@ -6552,6 +6699,25 @@ function handleMenuContextMenuAction(actionId) {
   }
 }
 
+async function handleMenuContextMenuStatusAction(nextStatus) {
+  const state = menuContextMenuState;
+  if (!state) return;
+  const options = getMenuAwnStatusOptions();
+  const normalizedStatus = normalizeEnumDisplayValue(nextStatus, options);
+  if (!normalizedStatus || !options.includes(normalizedStatus)) return;
+
+  const currentStatus = normalizeEnumDisplayValue(state.status || resolveMenuNodeStatus(state.path), options);
+  closeMenuContextMenu();
+  if (normalizedStatus === currentStatus) return;
+
+  try {
+    await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeAgentId);
+    showToast(`Статус: ${normalizedStatus}`, "success");
+  } catch (error) {
+    showToast(`Ошибка статуса: ${error.message}`, "error");
+  }
+}
+
 function openMenuContextMenu(event, target) {
   if (!menuContextMenuNode || !menuContextMenuListNode) return;
   const path = normalizeMenuNodePath(target.dataset.path);
@@ -6562,13 +6728,15 @@ function openMenuContextMenu(event, target) {
   event.stopPropagation();
   closeMenuSettingsPopover();
 
+  const status = resolveMenuNodeStatus(path, activeAgentId);
   menuContextMenuState = {
     path,
     kind,
     label: getLabelFromPath(path),
+    status,
     target
   };
-  renderMenuContextMenuItems(kind, path, activeAgentId);
+  renderMenuContextMenuItems(kind, path, activeAgentId, status);
   positionMenuContextMenu(event.clientX, event.clientY);
 }
 
@@ -6578,9 +6746,23 @@ function handleMenuContextMenuEvent(event) {
   openMenuContextMenu(event, target);
 }
 
+function getMenuSortSlugFromFolderEntry(entry) {
+  const folderPath = String(entry?.folderPath || "").replace(/\\/g, "/").trim();
+  if (folderPath && folderPath !== ".") {
+    const parts = folderPath.split("/").filter(Boolean);
+    if (parts.length) return stripTopicPrefix(parts[parts.length - 1]);
+  }
+  if (entry?.indexPath) return getNodeSlugFromPath(entry.indexPath);
+  return "";
+}
+
+function getMenuSortSlugFromItemEntry(entry) {
+  if (entry?.path) return getNodeSlugFromPath(entry.path);
+  return "";
+}
+
 function getMenuTreeFolderSortKey(node) {
-  if (!node) return "";
-  return node.title || (node.indexPath ? getLabelFromPath(node.indexPath) : "");
+  return getMenuSortSlugFromFolderEntry(node);
 }
 
 function markMenuSectionSortRow(sectionNode, node) {
@@ -6591,7 +6773,7 @@ function markMenuSectionSortRow(sectionNode, node) {
   }
   const sectionRow = sectionNode.querySelector(":scope > .menu-section-row");
   if (sectionRow) {
-    sectionRow.dataset.sortName = node.title || "";
+    sectionRow.dataset.sortName = getMenuTreeFolderSortKey(node);
   }
 }
 
@@ -6632,17 +6814,53 @@ function prepareMenuSectionForSortContainer(sectionNode, node) {
   }
 }
 
+function menuFolderHasTopicItems(node) {
+  if ((node?.items?.length ?? 0) > 0) return true;
+  return getMenuRepoServiceItems(node).length > 0;
+}
+
+function menuFolderHasTopicContent(node) {
+  if (!node) return false;
+  if (node.serviceTree || node.containerTree) return true;
+  if (menuFolderHasTopicItems(node)) return true;
+  return (node.sections || []).some((section) => menuFolderHasTopicContent(section));
+}
+
+function isMenuFolderWithoutTopics(node) {
+  if (!node) return false;
+  if (node.empty || node.menuDepthLimited) return true;
+  if (node.serviceTree || node.containerTree) return false;
+  if (!node.indexPath && node.folderPath) return !menuFolderHasTopicContent(node);
+  return !menuFolderHasTopicContent(node);
+}
+
+function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
+  if (!node || getMenuTreeSettings(agentId).showEmptyFolders) return node;
+
+  const sections = (node.sections || [])
+    .map((section) => pruneMenuTreeByFolderVisibility(section, agentId))
+    .filter((section) => shouldShowMenuTreeFolder(section, agentId));
+
+  return {
+    ...node,
+    sections,
+    containerTree: node.containerTree
+      ? pruneMenuTreeByFolderVisibility({ title: "", ...node.containerTree }, agentId)
+      : node.containerTree,
+    serviceTree: node.serviceTree
+      ? pruneMenuTreeByFolderVisibility({ title: "", ...node.serviceTree }, agentId)
+      : node.serviceTree
+  };
+}
+
+function isMenuTreeDepthAtLimit(depth, agentId = activeAgentId) {
+  return depth >= getMenuTreeSettings(agentId).maxDepth;
+}
+
 function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   if (!node) return false;
   if (getMenuTreeSettings(agentId).showEmptyFolders) return true;
-  if (node.empty) return false;
-  if (node.serviceTree || node.containerTree) return true;
-  if (node.indexPath || (node.items?.length > 0) || getMenuRepoServiceItems(node).length > 0) return true;
-  return getOrderedMenuChildren(node).some((child) => {
-    if (child.kind === "item") return true;
-    if (child.kind === "folder") return child.entry && shouldShowMenuTreeFolder(child.entry, agentId);
-    return true;
-  });
+  return !isMenuFolderWithoutTopics(node);
 }
 
 function getVisibleMenuChildren(node, agentId = activeAgentId, parentSectionPath = ".", depth = 0) {
@@ -25936,7 +26154,11 @@ function nodeMatchesQuery(value, queryLower) {
 }
 
 function filterMenuTree(node, queryLower, agentId = activeAgentId) {
-  if (!queryLower) return node;
+  if (!node) return null;
+
+  if (!queryLower) {
+    return pruneMenuTreeByFolderVisibility(node, agentId);
+  }
 
   const filteredSections = [];
   for (const section of node.sections || []) {
@@ -25955,7 +26177,8 @@ function filterMenuTree(node, queryLower, agentId = activeAgentId) {
     ? filterMenuTree({ title: CONTAINER_SECTION_LABEL, ...node.containerTree }, queryLower, agentId)
     : null;
   const selfMatch = nodeMatchesQuery(node.title, queryLower);
-  const keepEmptyFolder = node.empty && getMenuTreeSettings(agentId).showEmptyFolders;
+  const keepEmptyFolder =
+    isMenuFolderWithoutTopics(node) && getMenuTreeSettings(agentId).showEmptyFolders;
 
   if (
     selfMatch ||
@@ -25993,17 +26216,35 @@ function compareMenuPathsNatural(aPath, bPath) {
   return aParts.length - bParts.length;
 }
 
+function getMenuFolderSortIdentity(entry) {
+  return String(entry?.folderPath || entry?.indexPath || "").replace(/\\/g, "/");
+}
+
+function getMenuItemSortIdentity(entry) {
+  return normalizeMenuNodePath(entry?.path || "");
+}
+
 function getOrderedMenuChildren(node) {
   if (!node) return [];
   const sections = (node.sections || []).filter(Boolean);
   const items = (node.items || []).filter(Boolean);
   const order = Array.isArray(node.menuOrder) ? node.menuOrder : null;
-  const sectionMap = new Map(
-    sections.filter((entry) => entry.title).map((entry) => [entry.title, entry])
-  );
-  const itemMap = new Map(
-    items.filter((entry) => entry.label).map((entry) => [entry.label, entry])
-  );
+  const sectionBySlug = new Map();
+  const sectionByTitle = new Map();
+  for (const entry of sections) {
+    if (!entry.title) continue;
+    sectionByTitle.set(entry.title, entry);
+    const slug = getMenuSortSlugFromFolderEntry(entry);
+    if (slug) sectionBySlug.set(slug, entry);
+  }
+  const itemBySlug = new Map();
+  const itemByLabel = new Map();
+  for (const entry of items) {
+    if (!entry.label) continue;
+    itemByLabel.set(entry.label, entry);
+    const slug = getMenuSortSlugFromItemEntry(entry);
+    if (slug) itemBySlug.set(slug, entry);
+  }
   const orderedFolders = [];
   const orderedItems = [];
   const usedSections = new Set();
@@ -26011,27 +26252,33 @@ function getOrderedMenuChildren(node) {
 
   if (order?.length) {
     for (const name of order) {
-      if (sectionMap.has(name) && !usedSections.has(name)) {
-        const entry = sectionMap.get(name);
-        if (entry) {
-          orderedFolders.push({ kind: "folder", entry });
-          usedSections.add(name);
-        }
-      } else if (itemMap.has(name) && !usedItems.has(name)) {
-        const entry = itemMap.get(name);
-        if (entry) {
-          orderedItems.push({ kind: "item", entry });
-          usedItems.add(name);
-        }
+      const sectionEntry = sectionBySlug.get(name) || sectionByTitle.get(name);
+      const sectionIdentity = sectionEntry ? getMenuFolderSortIdentity(sectionEntry) : "";
+      if (sectionEntry && sectionIdentity && !usedSections.has(sectionIdentity)) {
+        orderedFolders.push({ kind: "folder", entry: sectionEntry });
+        usedSections.add(sectionIdentity);
+        continue;
+      }
+      const itemEntry = itemBySlug.get(name) || itemByLabel.get(name);
+      const itemIdentity = itemEntry ? getMenuItemSortIdentity(itemEntry) : "";
+      if (itemEntry && itemIdentity && !usedItems.has(itemIdentity)) {
+        orderedItems.push({ kind: "item", entry: itemEntry });
+        usedItems.add(itemIdentity);
       }
     }
   }
 
   const remainingSections = sections
-    .filter((entry) => entry.title && !usedSections.has(entry.title))
+    .filter((entry) => {
+      const identity = getMenuFolderSortIdentity(entry);
+      return entry.title && identity && !usedSections.has(identity);
+    })
     .sort((a, b) => String(a.title).localeCompare(String(b.title), "ru"));
   const remainingItems = items
-    .filter((entry) => entry.label && !usedItems.has(entry.label))
+    .filter((entry) => {
+      const identity = getMenuItemSortIdentity(entry);
+      return entry.label && identity && !usedItems.has(identity);
+    })
     .sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"));
 
   // Области (папки) всегда выше тем (файлов), даже если в awn-sort.json порядок смешан.
@@ -26153,7 +26400,7 @@ function appendRepoServiceMenuItems(container, repoServiceItems, parentMenuNode,
   for (const item of items) {
     const itemRow = document.createElement("div");
     itemRow.className = "menu-item-row menu-item-row--repo-service";
-    itemRow.dataset.sortName = item.label;
+    itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -26657,8 +26904,8 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   refreshMenuSortDecorations(agentId);
 }
 
-function getGitRepoWorkspaceMenuNode(node) {
-  return {
+function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
+  const workspaceNode = {
     title: node?.title || "",
     sections: node?.sections || [],
     items: node?.items || [],
@@ -26669,6 +26916,7 @@ function getGitRepoWorkspaceMenuNode(node) {
     repoItems: [],
     repoServiceItems: []
   };
+  return pruneMenuTreeByFolderVisibility(workspaceNode, agentId);
 }
 
 function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
@@ -26785,7 +27033,12 @@ function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, age
   const body = document.createElement("div");
   body.className = "tree-children menu-container-body";
   body.dataset.sortFolder = containerPrefix;
-  renderContainerTreeBody(containerTree, body, agentId, containerPrefix);
+  renderContainerTreeBody(
+    pruneMenuTreeByFolderVisibility({ title: "", ...containerTree }, agentId),
+    body,
+    agentId,
+    containerPrefix
+  );
   wrap.appendChild(body);
 
   parentEl.appendChild(wrap);
@@ -26855,12 +27108,12 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
   clearMenuContainerSection(parentEl);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  let treeToRender = containerTree;
+  let treeToRender = pruneMenuTreeByFolderVisibility(
+    { title: getContainerRootMenuTitle(agentId), ...containerTree },
+    agentId
+  );
   if (queryLower) {
-    treeToRender = filterMenuTree(
-      { title: getContainerRootMenuTitle(agentId), ...containerTree },
-      queryLower
-    );
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
     if (!treeToRender) return;
   }
 
@@ -27346,6 +27599,7 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
 
 function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeAgentId) {
   if (!node || !parentEl) return;
+  if (depth > 0 && !shouldShowMenuTreeFolder(node, agentId)) return;
   const searchActive = menuSearchQuery.trim().length > 0;
   const sectionNode = createSectionNode(node.title, depth);
   const sectionFolderPath = resolveSectionFolderPath(node, parentSectionPath, depth);
@@ -27382,11 +27636,13 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
   const hasNestedContainer = nestedContainerChildren.length > 0;
   const hasNonContainer = visibleChildren.length > 0;
   const hasRepoService = repoServiceItems.length > 0;
+  const depthLimited = Boolean(node.menuDepthLimited) || isMenuTreeDepthAtLimit(depth, agentId);
+  const canExpandChildren = !depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId);
 
   if (node.title) {
     const hasContent = isGitRepoMenuNode
       ? getGitRepoMenuHasContent(node, agentId, sectionFolderPath, depth)
-      : hasNestedContainer || hasNonContainer || hasRepoService;
+      : canExpandChildren && (hasNestedContainer || hasNonContainer || hasRepoService);
     const isCollapsedEffective =
       searchActive || isRootFolder ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
@@ -27547,7 +27803,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
     if (!isCollapsed) {
       renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth, parentMenuNode, agentId);
     }
-  } else if (!isCollapsed && (hasNestedContainer || hasNonContainer || hasRepoService)) {
+  } else if (!isCollapsed && canExpandChildren && (hasNestedContainer || hasNonContainer || hasRepoService)) {
     const childrenNode = document.createElement("div");
     childrenNode.className = "tree-children";
 
@@ -27585,7 +27841,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
           const item = child.entry;
           const itemRow = document.createElement("div");
           itemRow.className = "menu-item-row";
-          itemRow.dataset.sortName = item.label;
+          itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
 
           const btn = document.createElement("button");
           btn.type = "button";
@@ -32962,6 +33218,7 @@ function renderMenuTreeChildInto(
   agentId = activeAgentId,
   insertBefore = null
 ) {
+  if (child.kind === "folder" && !shouldShowMenuTreeFolder(child.entry, agentId)) return null;
   if (child.kind === "folder") {
     const wrapper = document.createElement("div");
     renderTree(child.entry, wrapper, depth, parentSectionPath, parentMenuNode, agentId);
@@ -32975,7 +33232,7 @@ function renderMenuTreeChildInto(
   const item = child.entry;
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row";
-  itemRow.dataset.sortName = item.label;
+  itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -33146,7 +33403,8 @@ function withPreservedMenuScroll(run) {
 }
 
 async function fetchMenuData(agentId = activeAgentId) {
-  const response = await fetch(buildApiUrl("/api/menu", {}, agentId));
+  const { maxDepth } = getMenuTreeSettings(agentId);
+  const response = await fetch(buildApiUrl("/api/menu", { maxDepth: String(maxDepth) }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
@@ -34686,6 +34944,13 @@ document.getElementById("menu")?.addEventListener(
 menuNode?.addEventListener("contextmenu", handleMenuContextMenuEvent);
 
 menuContextMenuListNode?.addEventListener("click", (event) => {
+  const statusBtn = event.target.closest(".menu-context-menu-status-btn");
+  if (statusBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleMenuContextMenuStatusAction(statusBtn.dataset.status);
+    return;
+  }
   const btn = event.target.closest(".menu-context-menu-btn");
   if (!btn || btn.disabled) return;
   event.preventDefault();
@@ -34717,6 +34982,13 @@ menuTreePadSortIndexesNode?.addEventListener("change", () => {
     renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }
+});
+
+menuTreeMaxDepthNode?.addEventListener("change", () => {
+  const maxDepth = normalizeMenuTreeMaxDepth(menuTreeMaxDepthNode.value);
+  menuTreeMaxDepthNode.value = String(maxDepth);
+  saveMenuTreeSettings(activeAgentId, { maxDepth });
+  void refreshMenu({ agentId: activeAgentId, menuOnly: true });
 });
 
 agentGraphShowPreviewsNode?.addEventListener("change", () => {
