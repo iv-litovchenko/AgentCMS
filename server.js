@@ -1543,6 +1543,7 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
+    if (entry.isDirectory() && shouldSkipDirectoryListing(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -1576,6 +1577,7 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "") {
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
+    if (shouldSkipDirectoryListing(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
@@ -1595,6 +1597,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
       const nested = await collectMarkdownFiles(absolute, relative);
       files.push(...nested);
       continue;
@@ -1631,6 +1634,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
       files.push(...(await collectNonMarkdownFiles(absolute, relative)));
       continue;
     }
@@ -1767,6 +1771,7 @@ async function collectMediaFilesStructured(
     const relPath = relative.replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
       items.push({
         path: `${relPath}/`,
         name: entry.name,
@@ -2020,6 +2025,7 @@ async function collectMediaEntriesByType(folderAbsolute, prefix = "", grouped = 
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
       const bucket = grouped.get("Folders") || [];
       bucket.push(`${relative}/`.replace(/\\/g, "/"));
       grouped.set("Folders", bucket);
@@ -2098,7 +2104,7 @@ async function appendPrefixedWorkspaceManifestCandidates(candidates, normalized,
   }
 
   for (const entry of rootEntries) {
-    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    if (!entry.isDirectory() || shouldSkipDirectoryListing(entry.name)) continue;
     const prefixed = `${entry.name}/${normalized}`.replace(/\\/g, "/");
     if (seen.has(prefixed)) continue;
     seen.add(prefixed);
@@ -2393,6 +2399,24 @@ function sendRenameError(res, error) {
 }
 
 const VISIBLE_DOT_MENU_ENTRIES = new Set([".awn-framework"]);
+const MENU_SKIP_DIRS = new Set([
+  "node_modules",
+  "vendor",
+  "dist",
+  "out",
+  "build",
+  ".cache",
+  "tmp",
+  "temp",
+  ".idea",
+  ".vscode",
+  "coverage",
+  ".nyc_output",
+  "__pycache__",
+  ".venv",
+  "venv",
+  "target"
+]);
 const MENU_SORT_FILE = "awn-sort.json";
 const PARTS_FOLDER = "_Parts";
 async function resolveExistingAreaManifestBasename(dirAbsolute) {
@@ -2460,6 +2484,15 @@ async function resolveNodeManifestRelForContainer(containerRelDir) {
 
 function isHiddenMenuEntry(name) {
   return name.startsWith(".") && !VISIBLE_DOT_MENU_ENTRIES.has(name);
+}
+
+function shouldSkipMenuDirectory(name) {
+  return MENU_SKIP_DIRS.has(String(name || "").toLowerCase());
+}
+
+function shouldSkipDirectoryListing(name) {
+  if (isHiddenMenuEntry(name)) return true;
+  return shouldSkipMenuDirectory(name);
 }
 
 function isPartsFolderName(name) {
@@ -4529,6 +4562,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     const relativePath = path.join(prefix, entry.name).replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
+      if (shouldSkipMenuDirectory(entry.name)) continue;
       if (isStorageFolderName(entry.name)) continue;
 
       if (isGitRepoRoot && prefix) {
@@ -4783,7 +4817,7 @@ async function findNodePathInDirectory(dirAbsolute) {
   try {
     const entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.isDirectory() && !isStorageFolderName(entry.name)) {
+      if (entry.isDirectory() && !isStorageFolderName(entry.name) && !shouldSkipDirectoryListing(entry.name)) {
         const areaManifest = path.join(dirAbsolute, entry.name, AREA_MANIFEST_FILE);
         if (await nodePathExists(areaManifest)) {
           return relDir
@@ -4812,7 +4846,7 @@ function shouldSkipSearchDirectory(name) {
   return (
     normalized === STORAGE_SUBFOLDER_PREVIEW ||
     name === ".obsidian" ||
-    name === "node_modules"
+    shouldSkipDirectoryListing(name)
   );
 }
 
