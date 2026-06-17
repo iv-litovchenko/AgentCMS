@@ -23490,6 +23490,420 @@ function renderNavigationTodoPart(todoData) {
   return createNavigationMemoryPanel("todo", "TODO", wrap);
 }
 
+const COMMENT_AUTHOR_STORAGE_KEY = "yamlcms.commentAuthor";
+const COMMENT_AVATAR_TONES = ["blue", "violet", "green", "slate"];
+
+function getStoredCommentAuthor() {
+  try {
+    return String(localStorage.getItem(COMMENT_AUTHOR_STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function storeCommentAuthor(author) {
+  const value = String(author || "").trim();
+  if (!value) return;
+  try {
+    localStorage.setItem(COMMENT_AUTHOR_STORAGE_KEY, value);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getCommentAuthorInitials(author) {
+  const parts = String(author || "").trim().split(/[\s_.-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  const one = parts[0] || "?";
+  return one.slice(0, 2).toUpperCase();
+}
+
+function getCommentAvatarTone(author) {
+  const text = String(author || "");
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash + text.charCodeAt(index) * (index + 1)) % COMMENT_AVATAR_TONES.length;
+  }
+  return COMMENT_AVATAR_TONES[hash] || "slate";
+}
+
+function buildFileCommentsApiParams(context) {
+  const params = { mode: context.mode || "description" };
+  if (context.path) params.path = context.path;
+  if (context.file) params.file = context.file;
+  if (context.name) params.name = context.name;
+  return params;
+}
+
+async function fetchFileComments(context, agentId = activeAgentId) {
+  const response = await fetch(
+    buildApiUrl("/api/file/comments", buildFileCommentsApiParams(context), agentId)
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function postFileComment(context, body, author, agentId = activeAgentId, replyTo = null) {
+  const response = await fetch(buildApiUrl("/api/file/comments", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...buildFileCommentsApiParams(context),
+      body,
+      author,
+      replyTo: replyTo || null
+    })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+function buildCommentThreadTree(comments) {
+  const items = Array.isArray(comments) ? comments : [];
+  const byId = new Map();
+  const roots = [];
+
+  for (const comment of items) {
+    byId.set(comment.id, { ...comment, replies: [] });
+  }
+
+  for (const comment of items) {
+    const node = byId.get(comment.id);
+    const parentId = String(comment.replyTo || "").trim();
+    if (parentId && byId.has(parentId)) {
+      byId.get(parentId).replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  const sortDesc = (left, right) => right.id.localeCompare(left.id);
+  const sortAsc = (left, right) => left.id.localeCompare(right.id);
+  for (const root of roots) {
+    root.replies.sort(sortAsc);
+  }
+  roots.sort(sortDesc);
+  return roots;
+}
+
+function createNodeCommentReplyComposer(parentComment, handlers = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "node-comment-reply-composer";
+
+  const field = document.createElement("textarea");
+  field.className = "node-comments-input node-comment-reply-input";
+  field.rows = 2;
+  field.placeholder = `Ответ @${parentComment.author || "guest"}…`;
+  field.setAttribute("aria-label", `Ответ на комментарий ${parentComment.author || "guest"}`);
+
+  const actions = document.createElement("div");
+  actions.className = "node-comment-reply-actions";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "node-comment-reply-cancel";
+  cancelBtn.textContent = "Отмена";
+
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "button";
+  submitBtn.className = "node-comments-submit";
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Ответить";
+
+  const syncSubmit = () => {
+    submitBtn.disabled = !String(field.value || "").trim();
+  };
+
+  field.addEventListener("input", syncSubmit);
+  cancelBtn.addEventListener("click", () => {
+    wrap.remove();
+    handlers.onClose?.();
+  });
+  submitBtn.addEventListener("click", () => {
+    const body = String(field.value || "").trim();
+    if (!body) return;
+    handlers.onSubmit?.(body, wrap);
+  });
+  field.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelBtn.click();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!submitBtn.disabled) submitBtn.click();
+    }
+  });
+
+  actions.append(cancelBtn, submitBtn);
+  wrap.append(field, actions);
+  queueMicrotask(() => field.focus());
+  return wrap;
+}
+
+function renderNodeCommentThreadItem(comment, handlers = {}) {
+  const item = document.createElement("li");
+  item.className = "node-comment";
+  if (comment.replyTo) item.classList.add("node-comment--reply");
+
+  const avatar = createNodeCommentAvatar(
+    getCommentAuthorInitials(comment.author),
+    getCommentAvatarTone(comment.author)
+  );
+
+  const main = document.createElement("article");
+  main.className = "node-comment-main";
+
+  const commentHead = document.createElement("header");
+  commentHead.className = "node-comment-head";
+
+  const author = document.createElement("strong");
+  author.className = "node-comment-author";
+  author.textContent = comment.author || "guest";
+
+  const time = document.createElement("time");
+  time.className = "node-comment-time";
+  time.textContent = comment.label || comment.id || "";
+  time.dateTime = comment.created || comment.id || "";
+
+  commentHead.append(author, time);
+
+  const body = document.createElement("div");
+  body.className = "node-comment-body";
+  body.textContent = comment.body || "";
+
+  const foot = document.createElement("footer");
+  foot.className = "node-comment-foot";
+
+  const replyBtn = document.createElement("button");
+  replyBtn.type = "button";
+  replyBtn.className = "node-comment-action";
+  replyBtn.textContent = comment.replies?.length ? `Ответить · ${comment.replies.length}` : "Ответить";
+  if (typeof handlers.onReply === "function") {
+    replyBtn.addEventListener("click", () => handlers.onReply(comment, item, main));
+  } else {
+    replyBtn.disabled = true;
+    replyBtn.title = "Скоро";
+  }
+
+  const reactBtn = document.createElement("button");
+  reactBtn.type = "button";
+  reactBtn.className = "node-comment-action";
+  reactBtn.disabled = true;
+  reactBtn.title = "Скоро";
+  reactBtn.textContent = "👍 0";
+
+  foot.append(replyBtn, reactBtn);
+  main.append(commentHead, body, foot);
+  item.append(avatar, main);
+
+  const replies = Array.isArray(comment.replies) ? comment.replies : [];
+  if (replies.length) {
+    const repliesList = document.createElement("ol");
+    repliesList.className = "node-comment-replies";
+    for (const reply of replies) {
+      repliesList.appendChild(renderNodeCommentThreadItem(reply, handlers));
+    }
+    item.appendChild(repliesList);
+  }
+
+  return item;
+}
+
+async function createNodeCommentsBlock(options = {}) {
+  const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
+  const agentId = options.agentId || activeAgentId;
+  const context = {
+    mode: options.mode || "description",
+    path: options.manifestPath || options.path || "",
+    file: options.file || null,
+    name: options.name || null
+  };
+
+  const section = document.createElement("section");
+  section.className = "node-comments";
+  section.setAttribute("aria-label", "Комментарии");
+
+  const head = createNavigationSectionHead("Комментарии");
+
+  const count = document.createElement("span");
+  count.className = "node-comments-count";
+  count.textContent = "0";
+
+  head.append(count);
+
+  const composer = document.createElement("div");
+  composer.className = "node-comments-composer";
+
+  const composerAvatar = createNodeCommentAvatar("Вы", "green");
+
+  const composerMain = document.createElement("div");
+  composerMain.className = "node-comments-composer-main";
+
+  const composerBox = document.createElement("div");
+  composerBox.className = "node-comments-composer-box";
+
+  const composerField = document.createElement("textarea");
+  composerField.className = "node-comments-input";
+  composerField.rows = 3;
+  composerField.placeholder = `Комментарий к «${nodeTitle}»…`;
+  composerField.setAttribute("aria-label", "Новый комментарий");
+
+  const composerActions = document.createElement("div");
+  composerActions.className = "node-comments-composer-actions";
+
+  const composerHint = document.createElement("span");
+  composerHint.className = "node-comments-composer-hint";
+  composerHint.textContent = "Markdown · @упоминания · скоро";
+
+  const composerSubmit = document.createElement("button");
+  composerSubmit.type = "button";
+  composerSubmit.className = "node-comments-submit";
+  composerSubmit.disabled = true;
+  composerSubmit.textContent = "Комментировать";
+
+  composerActions.append(composerHint, composerSubmit);
+  composerBox.append(composerField, composerActions);
+  composerMain.appendChild(composerBox);
+  composer.append(composerAvatar, composerMain);
+
+  const thread = document.createElement("ol");
+  thread.className = "node-comments-thread";
+
+  section.append(head, composer, thread);
+
+  const syncSubmitState = () => {
+    composerSubmit.disabled = !String(composerField.value || "").trim();
+  };
+
+  composerField.addEventListener("input", syncSubmitState);
+
+  let activeReplyComposer = null;
+
+  const closeActiveReplyComposer = () => {
+    activeReplyComposer?.remove();
+    activeReplyComposer = null;
+  };
+
+  const submitComment = async (body, replyTo = null) => {
+    let author = getStoredCommentAuthor();
+    if (!author) {
+      author = window.prompt("Ваше имя для комментария:", "")?.trim() || "";
+      if (!author) return false;
+      storeCommentAuthor(author);
+    }
+    await postFileComment(context, body, author, agentId, replyTo);
+    return true;
+  };
+
+  const commentHandlers = {
+    onReply(parentComment, itemNode, mainNode) {
+      closeActiveReplyComposer();
+      const composerNode = createNodeCommentReplyComposer(parentComment, {
+        onClose: () => {
+          if (activeReplyComposer === composerNode) activeReplyComposer = null;
+        },
+        onSubmit: (body, wrap) => {
+          void (async () => {
+            const submitBtn = wrap.querySelector(".node-comments-submit");
+            const field = wrap.querySelector("textarea");
+            if (submitBtn) submitBtn.disabled = true;
+            if (field) field.disabled = true;
+            try {
+              const saved = await submitComment(body, parentComment.id);
+              if (!saved) return;
+              closeActiveReplyComposer();
+              await refreshComments();
+              showToast("Ответ сохранён", "success");
+            } catch (error) {
+              showToast(`Не удалось сохранить ответ: ${error.message}`, "error");
+              if (submitBtn) submitBtn.disabled = false;
+              if (field) field.disabled = false;
+            }
+          })();
+        }
+      });
+      activeReplyComposer = composerNode;
+      mainNode.appendChild(composerNode);
+    }
+  };
+
+  const renderComments = (comments) => {
+    thread.replaceChildren();
+    const items = Array.isArray(comments) ? comments : [];
+    count.textContent = String(items.length);
+    if (items.length === 0) return;
+    const tree = buildCommentThreadTree(items);
+    for (const comment of tree) {
+      thread.appendChild(renderNodeCommentThreadItem(comment, commentHandlers));
+    }
+  };
+
+  const refreshComments = async () => {
+    closeActiveReplyComposer();
+    const loading = document.createElement("li");
+    loading.className = "node-comments-empty";
+    loading.textContent = "Загрузка…";
+    thread.replaceChildren(loading);
+    try {
+      const data = await fetchFileComments(context, agentId);
+      renderComments(data.comments);
+    } catch (error) {
+      loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
+    }
+  };
+
+  composerSubmit.addEventListener("click", () => {
+    void (async () => {
+      const body = String(composerField.value || "").trim();
+      if (!body) return;
+      closeActiveReplyComposer();
+      composerSubmit.disabled = true;
+      composerField.disabled = true;
+      try {
+        const saved = await submitComment(body);
+        if (!saved) return;
+        composerField.value = "";
+        await refreshComments();
+        showToast("Комментарий сохранён", "success");
+      } catch (error) {
+        showToast(`Не удалось сохранить комментарий: ${error.message}`, "error");
+      } finally {
+        composerField.disabled = false;
+        syncSubmitState();
+      }
+    })();
+  });
+
+  composerField.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!composerSubmit.disabled) composerSubmit.click();
+    }
+  });
+
+  await refreshComments();
+  return section;
+}
+
+function createNodeCommentAvatar(initials, tone = "slate") {
+  const avatar = document.createElement("span");
+  avatar.className = `node-comment-avatar node-comment-avatar--${tone}`;
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = initials;
+  return avatar;
+}
+
 const NODE_COMMENTS_PLACEHOLDER_SAMPLES = [
   {
     author: "ivan_dev",
@@ -23513,14 +23927,6 @@ const NODE_COMMENTS_PLACEHOLDER_SAMPLES = [
     body: "Согласовано: эту тему используем как базу для онбординга новых разработчиков."
   }
 ];
-
-function createNodeCommentAvatar(initials, tone = "slate") {
-  const avatar = document.createElement("span");
-  avatar.className = `node-comment-avatar node-comment-avatar--${tone}`;
-  avatar.setAttribute("aria-hidden", "true");
-  avatar.textContent = initials;
-  return avatar;
-}
 
 function renderNodeCommentsPlaceholderBlock(options = {}) {
   const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
@@ -23637,6 +24043,12 @@ function renderNodeCommentsPlaceholderBlock(options = {}) {
   return section;
 }
 
+async function appendNodeCommentsBlockToContainer(container, options = {}) {
+  if (!container) return;
+  const block = await createNodeCommentsBlock(options);
+  container.appendChild(block);
+}
+
 async function renderNodeNavigation() {
   if (!nodeOverviewContentNode || !activePath) return;
 
@@ -23737,6 +24149,15 @@ async function renderNodeNavigation() {
 
   if (panelsWrap.children.length) {
     hub.appendChild(panelsWrap);
+  }
+
+  if (getActiveNodeApiPath()) {
+    await appendNodeCommentsBlockToContainer(hub, {
+      manifestPath: getActiveNodeApiPath(),
+      nodeTitle: heroTitle,
+      mode: "description"
+    });
+    if (isStale()) return;
   }
 
   if (isStale()) return;
@@ -24030,6 +24451,15 @@ async function renderNodeOverview() {
   fragment.appendChild(
     createOverviewAccordionSection("todo", "✅ TODO", todoBlock, { defaultOpen: todoHasContent })
   );
+
+  if (getActiveNodeApiPath()) {
+    await appendNodeCommentsBlockToContainer(fragment, {
+      manifestPath: getActiveNodeApiPath(),
+      nodeTitle: title,
+      mode: "description"
+    });
+    if (isStale()) return;
+  }
 
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);

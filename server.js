@@ -68,8 +68,12 @@ const {
   STORAGE_ROOT_FOLDER,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
+  getCommentsDirRel,
   buildHistoryVersionFileName,
+  buildCommentFileName,
   isHistoryVersionFileName,
+  isCommentFileName,
+  formatCommentTimestampLabel,
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath
 } = require("./manifest-paths");
@@ -788,6 +792,129 @@ async function readHistoryVersionFile({ manifestRelPath, targetRelPath, version 
     }
   }
   return null;
+}
+
+function formatYamlScalar(value) {
+  const text = String(value ?? "");
+  if (/^[a-zA-Z0-9_\-@.]+$/.test(text)) return text;
+  return JSON.stringify(text);
+}
+
+function parseCommentFileContent(rawContent) {
+  const { frontmatter, body } = splitNodeFrontmatter(rawContent);
+  return {
+    author: getYamlScalar(frontmatter, "awn-author") || "guest",
+    created: getYamlScalar(frontmatter, "awn-created") || "",
+    replyTo: getYamlScalar(frontmatter, "awn-reply-to") || "",
+    body: String(body || "").trim()
+  };
+}
+
+async function readCommentsFromDir(commentsDirRel) {
+  const commentsDirAbsolute = normalizeWorkspacePath(commentsDirRel);
+  if (!commentsDirAbsolute) return [];
+
+  let entries;
+  try {
+    entries = await fs.readdir(commentsDirAbsolute, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    throw error;
+  }
+
+  const comments = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !isCommentFileName(entry.name)) continue;
+    const commentAbsolute = path.join(commentsDirAbsolute, entry.name);
+    let content = "";
+    try {
+      content = await fs.readFile(commentAbsolute, "utf-8");
+    } catch {
+      continue;
+    }
+    const parsed = parseCommentFileContent(content);
+    comments.push({
+      id: entry.name,
+      label: formatCommentTimestampLabel(entry.name),
+      relPath: `${commentsDirRel}/${entry.name}`.replace(/\\/g, "/"),
+      author: parsed.author,
+      created: parsed.created,
+      replyTo: parsed.replyTo || null,
+      body: parsed.body
+    });
+  }
+
+  comments.sort((left, right) => right.id.localeCompare(left.id));
+  return comments;
+}
+
+async function listFileComments({ manifestRelPath, mode, file, systemName }) {
+  const commentsManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  const relativeTarget = commentsManifestRel && targetRelPath
+    ? getHistoryRelativeTargetPath(commentsManifestRel, targetRelPath)
+    : "";
+  if (!commentsManifestRel || !targetRelPath) {
+    return { manifestPath: commentsManifestRel, target: relativeTarget, comments: [] };
+  }
+
+  const commentsDirRel = getCommentsDirRel(commentsManifestRel, targetRelPath);
+  const comments = await readCommentsFromDir(commentsDirRel);
+
+  return { manifestPath: commentsManifestRel, target: relativeTarget, comments };
+}
+
+async function createFileComment({ manifestRelPath, mode, file, systemName, body, author, replyTo }) {
+  const commentsManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  if (!commentsManifestRel || !targetRelPath) {
+    throw new Error("Invalid comment target");
+  }
+
+  const text = String(body || "").trim();
+  if (!text) throw new Error("Comment body is required");
+
+  const commentAuthor = String(author || "guest").trim() || "guest";
+  const created = new Date().toISOString();
+  const commentsDirRel = getCommentsDirRel(commentsManifestRel, targetRelPath);
+  const commentsDirAbsolute = normalizeWorkspacePath(commentsDirRel);
+  if (!commentsDirAbsolute) throw new Error("Invalid comments directory");
+
+  const parentId = String(replyTo || "").trim();
+  if (parentId) {
+    if (!isCommentFileName(parentId)) throw new Error("Invalid reply target");
+    const parentAbsolute = path.join(commentsDirAbsolute, parentId);
+    try {
+      await fs.access(parentAbsolute);
+    } catch {
+      throw new Error("Reply target comment not found");
+    }
+  }
+
+  const frontmatterLines = [
+    `awn-author: ${formatYamlScalar(commentAuthor)}`,
+    `awn-created: ${created}`
+  ];
+  if (parentId) frontmatterLines.push(`awn-reply-to: ${formatYamlScalar(parentId)}`);
+  const content = joinNodeFrontmatter(frontmatterLines.join("\n"), text);
+
+  const fileName = buildCommentFileName();
+  const commentRelPath = `${commentsDirRel}/${fileName}`.replace(/\\/g, "/");
+  const commentAbsolute = normalizeWorkspacePath(commentRelPath);
+  if (!commentAbsolute) throw new Error("Invalid comment path");
+
+  await fs.mkdir(commentsDirAbsolute, { recursive: true });
+  await fs.writeFile(commentAbsolute, content, "utf-8");
+
+  return {
+    id: fileName,
+    label: formatCommentTimestampLabel(fileName),
+    relPath: commentRelPath,
+    author: commentAuthor,
+    created,
+    replyTo: parentId || null,
+    body: text
+  };
 }
 
 async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
@@ -6162,6 +6289,71 @@ async function handleApiForAgent(req, res, url) {
       if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "History version not found" });
       return sendJson(res, 500, {
         error: "Failed to restore history version",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/comments") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const mode = String(url.searchParams.get("mode") || "description").trim();
+    const file = url.searchParams.get("file") || "";
+    const systemName = url.searchParams.get("name") || "";
+
+    try {
+      const payload = await listFileComments({ manifestRelPath, mode, file, systemName });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        target: payload.target,
+        manifestPath: payload.manifestPath,
+        comments: payload.comments
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list file comments",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/comments") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const mode = String(payload.mode || "description").trim();
+      const file = payload.file || "";
+      const systemName = payload.name || "";
+      const body = String(payload.body || "").trim();
+      const author = String(payload.author || "guest").trim() || "guest";
+      const replyTo = String(payload.replyTo || "").trim() || null;
+      if (!body) return sendJson(res, 400, { error: "Comment body is required" });
+
+      const comment = await createFileComment({
+        manifestRelPath,
+        mode,
+        file,
+        systemName,
+        body,
+        author,
+        replyTo
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        target: getHistoryRelativeTargetPath(
+          await resolveHistoryManifestRel({ manifestRelPath, mode, systemName }),
+          await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName })
+        ),
+        comment
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to create file comment",
         details: String(error && error.message ? error.message : error)
       });
     }

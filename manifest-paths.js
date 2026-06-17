@@ -43,7 +43,9 @@ const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "preview";
 const STORAGE_SUBFOLDER_TEMP = "temp";
 const STORAGE_SUBFOLDER_HISTORY = "history";
+const STORAGE_SUBFOLDER_COMMENTS = "comments";
 const HISTORY_VERSION_SUFFIX = ".mdback";
+const COMMENT_FILE_SUFFIX = ".md";
 const LEGACY_HISTORY_VERSION_SUFFIX = ".md.back";
 
 const STORAGE_SLOT_LAYER_FOLDERS = [
@@ -387,6 +389,50 @@ function getHistoryVersionDirRel(manifestRelPath, targetRelPath) {
   return `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${relativeTarget}`;
 }
 
+function getCommentsDirRel(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
+  if (!slotDir || !relativeTarget) return "";
+  return `${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${relativeTarget}`;
+}
+
+function buildCommentFileName(date = new Date()) {
+  return `${formatHistoryVersionTimestamp(date)}${COMMENT_FILE_SUFFIX}`;
+}
+
+function isCommentFileName(fileName) {
+  const raw = String(fileName || "");
+  if (!raw.endsWith(COMMENT_FILE_SUFFIX) || raw.length <= COMMENT_FILE_SUFFIX.length) return false;
+  const stem = raw.slice(0, -COMMENT_FILE_SUFFIX.length);
+  return /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3}$/.test(stem);
+}
+
+function parseCommentFileTimestamp(fileName) {
+  const raw = String(fileName || "");
+  if (!isCommentFileName(raw)) return null;
+  const stamp = raw.slice(0, -COMMENT_FILE_SUFFIX.length);
+  const match = stamp.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{1,3})$/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, millisecond = "0"] = match;
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+    Number(millisecond)
+  );
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatCommentTimestampLabel(fileName) {
+  const date = parseCommentFileTimestamp(fileName);
+  if (!date) return String(fileName || "");
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function formatHistoryVersionTimestamp(date = new Date()) {
   const value = date instanceof Date ? date : new Date(date);
   const pad = (num) => String(num).padStart(2, "0");
@@ -645,7 +691,9 @@ module.exports = {
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
+  STORAGE_SUBFOLDER_COMMENTS,
   HISTORY_VERSION_SUFFIX,
+  COMMENT_FILE_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
   STORAGE_SUBFOLDER_BY_MODE,
   STORAGE_FOLDER_NAME,
@@ -692,8 +740,13 @@ module.exports = {
   getNamedStorageBundleRel,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
+  getCommentsDirRel,
   buildHistoryVersionFileName,
+  buildCommentFileName,
   isHistoryVersionFileName,
+  isCommentFileName,
+  parseCommentFileTimestamp,
+  formatCommentTimestampLabel,
   parseHistoryVersionTimestamp,
   formatHistoryVersionTimestampLabel,
   normalizeHistoryTargetRelPath,
