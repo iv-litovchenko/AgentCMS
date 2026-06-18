@@ -1814,14 +1814,25 @@ body.app-locked {
   gap: 18px;
 }
 
-.app-landing-agent-item--create-in-groups {
-  max-width: min(320px, 100%);
+.app-landing-agents:not(.is-grouped-layout) .app-landing-orchestrator-section {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
 }
 
 .app-landing-manage-btn.is-active {
   border-color: #6366f1;
   background: #eef2ff;
   color: #4338ca;
+}
+
+.app-landing-create-agent-btn {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.app-landing-create-agent-btn:hover {
+  border-color: #818cf8;
+  background: #eef2ff;
 }
 
 .app-landing-groups {
@@ -1894,7 +1905,7 @@ body.app-locked {
   background-image: var(--group-bg-image);
   background-size: cover;
   background-position: center;
-  opacity: 0.38;
+  opacity: 0.82;
 }
 
 .app-landing-group-section.has-background::after {
@@ -1902,11 +1913,11 @@ body.app-locked {
 }
 
 .app-landing-group-section.has-background.is-group-appearance-light::after {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.46);
 }
 
 .app-landing-group-section.has-background.is-group-appearance-dark::after {
-  background: rgba(15, 23, 42, 0.58);
+  background: rgba(15, 23, 42, 0.36);
 }
 
 .app-landing-group-section.has-background > * {
@@ -2015,6 +2026,47 @@ body.app-locked {
     0 2px 8px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: #f8fafc;
+}
+
+.app-landing-orchestrator-section {
+  border: none;
+  background: transparent;
+  padding: 0 0 6px;
+  gap: 12px;
+}
+
+.app-landing-orchestrator-head {
+  justify-content: center;
+}
+
+.app-landing-orchestrator-title-badge {
+  width: auto;
+  min-width: min(320px, 100%);
+  max-width: 100%;
+  justify-content: center;
+  text-align: center;
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 100%);
+  color: #b45309;
+  box-shadow:
+    0 1px 2px rgba(180, 83, 9, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.app-landing-orchestrator-agents,
+.app-landing-orchestrator-section .app-landing-group-agents {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-landing-orchestrator-agent-wrap {
+  width: min(320px, 100%);
+  flex: 0 1 auto;
+}
+
+.app-landing-orchestrator-agent-wrap .app-landing-agent-card {
+  width: 100%;
 }
 
 .app-landing-group-appearance-btn {
@@ -2138,6 +2190,12 @@ body.app-locked {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
+}
+
+.app-landing-group-agents.app-landing-orchestrator-agents {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .app-landing-group-agent-wrap {
