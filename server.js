@@ -1794,23 +1794,28 @@ async function collectMediaFilesStructured(
 
     if (isAreaManifestFileName(entry.name)) {
       let displayName = "";
+      let status = null;
       try {
         const raw = await fs.readFile(absolute, "utf-8");
         const { frontmatter } = splitNodeFrontmatter(raw);
+        const props = parseFrontmatterProps(frontmatter);
         const folderSlug =
           path.posix.basename(path.posix.dirname(relPath)) ||
           path.posix.basename(relPath).replace(/\.md$/i, "");
         displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", folderSlug);
+        status =
+          getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
       } catch {
         // manifest may be unreadable
       }
-      sectionManifests.push({ path: relPath, displayName });
+      sectionManifests.push({ path: relPath, displayName, status });
       continue;
     }
 
     const ext = path.extname(entry.name).toLowerCase();
     let size = 0;
     let displayName = "";
+    let status = null;
     try {
       const stat = await fs.stat(absolute);
       size = stat.size;
@@ -1821,10 +1826,13 @@ async function collectMediaFilesStructured(
           try {
             const sidecarRaw = await fs.readFile(sidecarAbsolute, "utf-8");
             const { frontmatter } = splitNodeFrontmatter(sidecarRaw);
+            const props = parseFrontmatterProps(frontmatter);
             displayName = resolveNodeDisplayName(
               getYamlScalar(frontmatter, "awn-name") || "",
               entry.name
             );
+            status =
+              getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
           } catch {
             // sidecar may not exist yet
           }
@@ -1838,6 +1846,7 @@ async function collectMediaFilesStructured(
       path: relPath,
       name: entry.name,
       displayName,
+      status,
       group: classifyMediaGroup(ext),
       isFolder: false,
       size,
@@ -4254,6 +4263,84 @@ async function resolveGitRepoRootAbsolute(startAbsolute) {
   return null;
 }
 
+const LARGE_FILE_DEFAULT_MIN_BYTES = 45 * 1024 * 1024;
+const LARGE_FILE_SCAN_SKIP_DIRS = new Set([
+  ".git",
+  "node_modules",
+  ".obsidian",
+  "vendor",
+  ".cache",
+  "__pycache__",
+  ".venv",
+  "venv"
+]);
+
+function shouldSkipLargeFileScanDirectory(name) {
+  const lower = String(name || "").toLowerCase();
+  if (LARGE_FILE_SCAN_SKIP_DIRS.has(lower)) return true;
+  if (isHiddenMenuEntry(name)) return true;
+  return false;
+}
+
+function formatBytesLabel(bytes) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+async function collectLargeFilesInDir(dirAbsolute, prefix, minBytes, results) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const absolute = path.join(dirAbsolute, entry.name);
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+    if (entry.isDirectory()) {
+      if (shouldSkipLargeFileScanDirectory(entry.name)) continue;
+      await collectLargeFilesInDir(absolute, relative, minBytes, results);
+      continue;
+    }
+
+    if (!entry.isFile()) continue;
+
+    try {
+      const stat = await fs.stat(absolute);
+      if (stat.size >= minBytes) {
+        results.push({ path: relative, size: stat.size });
+      }
+    } catch {
+      // skip unreadable files
+    }
+  }
+}
+
+async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTES) {
+  const agentRoot = getAgentRoot();
+  const results = [];
+  await collectLargeFilesInDir(agentRoot, "", minBytes, results);
+  results.sort((left, right) => right.size - left.size || left.path.localeCompare(right.path));
+  const totalSize = results.reduce((sum, item) => sum + item.size, 0);
+  return {
+    threshold: minBytes,
+    thresholdMb: minBytes / (1024 * 1024),
+    count: results.length,
+    totalSize,
+    totalSizeLabel: formatBytesLabel(totalSize),
+    files: results.map((item) => ({
+      path: item.path,
+      size: item.size,
+      sizeLabel: formatBytesLabel(item.size)
+    }))
+  };
+}
+
 async function buildAgentGitStatus() {
   const agentRoot = getAgentRoot();
   const repoAbsolute = await resolveGitRepoRootAbsolute(agentRoot);
@@ -5808,6 +5895,20 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read git status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/large-files") {
+    try {
+      const minMbRaw = Number(url.searchParams.get("minMb") || 45);
+      const minMb = Number.isFinite(minMbRaw) ? Math.max(1, minMbRaw) : 45;
+      const report = await buildAgentLargeFilesReport(minMb * 1024 * 1024);
+      return sendJson(res, 200, report);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan large files",
         details: String(error.message || error)
       });
     }

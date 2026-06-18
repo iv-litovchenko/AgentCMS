@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.71" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.74" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -213,6 +213,13 @@
                     type="button"
                     title="Git-репозиторий — изменения в workspace"
                     aria-label="Git-репозиторий"
+                  ></button>
+                  <button
+                    id="agent-large-files-btn"
+                    class="agents-manage-btn agent-large-files-btn"
+                    type="button"
+                    title="Крупные файлы — список файлов больше 45 МБ"
+                    aria-label="Крупные файлы"
                   ></button>
                 </div>
               </div>
@@ -685,6 +692,25 @@
 
       <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд 2 агента">
         <div id="home2-content" class="home2-content"></div>
+      </main>
+
+      <main id="agent-large-files-pane" class="agent-canvas-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
+        <div class="agent-canvas-head agent-large-files-head">
+          <div class="agent-large-files-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Крупные файлы</h2>
+            <p class="agent-canvas-lead">
+              Все файлы в workspace, размер которых превышает 45 МБ, с путями относительно корня агента.
+            </p>
+          </div>
+          <div class="agent-large-files-head-actions">
+            <div id="agent-large-files-stats" class="agent-large-files-stats" aria-live="polite"></div>
+            <button id="agent-large-files-refresh-btn" class="agent-large-files-refresh-btn" type="button" title="Повторить сканирование">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-large-files-content" class="agent-large-files-content"></div>
       </main>
 
       <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
@@ -2203,7 +2229,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.198"></script>
+    <script src="/main.js?v=0.5.204"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

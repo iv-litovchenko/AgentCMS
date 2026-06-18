@@ -16,8 +16,13 @@ const agentGitPaneNode = document.getElementById("agent-git-pane");
 const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
+const agentLargeFilesPaneNode = document.getElementById("agent-large-files-pane");
+const agentLargeFilesContentNode = document.getElementById("agent-large-files-content");
+const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
+const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
+const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
@@ -7432,6 +7437,48 @@ function createGitMarkerSvg() {
   return svg;
 }
 
+function createLargeFilesMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const doc = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  doc.setAttribute("x", "5");
+  doc.setAttribute("y", "3");
+  doc.setAttribute("width", "14");
+  doc.setAttribute("height", "18");
+  doc.setAttribute("rx", "2");
+  doc.setAttribute("fill", "none");
+  doc.setAttribute("stroke", "currentColor");
+  doc.setAttribute("stroke-width", "1.8");
+  svg.appendChild(doc);
+
+  for (const y of [8, 11.5, 15]) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", "8");
+    line.setAttribute("y1", String(y));
+    line.setAttribute("x2", "16");
+    line.setAttribute("y2", String(y));
+    line.setAttribute("stroke", "currentColor");
+    line.setAttribute("stroke-width", "1.6");
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("opacity", y === 15 ? "1" : "0.55");
+    svg.appendChild(line);
+  }
+
+  const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  bar.setAttribute("x", "8");
+  bar.setAttribute("y", "14.2");
+  bar.setAttribute("width", "8");
+  bar.setAttribute("height", "2.8");
+  bar.setAttribute("rx", "1");
+  bar.setAttribute("fill", "currentColor");
+  svg.appendChild(bar);
+
+  return svg;
+}
+
 function createObsidianMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -7600,8 +7647,8 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
     if (typeIcon) labelWrap.appendChild(typeIcon);
   }
 
-  labelWrap.appendChild(nameNode);
   if (markers) labelWrap.appendChild(markers);
+  labelWrap.appendChild(nameNode);
   host.appendChild(labelWrap);
 }
 
@@ -9349,6 +9396,7 @@ function getHomeBreadcrumbPath() {
 const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard2: "Дашборд 2",
   git: "Git-репозиторий",
+  "large-files": "Крупные файлы",
   map: "Карта",
   map2: "Карта 2",
   map3: "Карта 3",
@@ -9586,7 +9634,8 @@ function parseFlatListItems(text) {
 function normalizeMediaSectionManifestEntry(item) {
   return {
     path: String(item?.path || "").replace(/\\/g, "/"),
-    displayName: String(item?.displayName || "").trim()
+    displayName: String(item?.displayName || "").trim(),
+    status: String(item?.status || "").trim()
   };
 }
 
@@ -11143,6 +11192,47 @@ function normalizeMarkdownLinkDestinations(markdown) {
   return normalized;
 }
 
+function compactDataUriPayload(uri) {
+  const raw = String(uri || "").trim();
+  const match = raw.match(/^(data:image\/[a-zA-Z0-9+.-]+;base64,)([\s\S]*)$/i);
+  if (!match) return raw;
+  const compact = `${match[1]}${match[2].replace(/\s+/g, "")}`;
+  if (!/^data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+$/i.test(compact)) return raw;
+  return compact;
+}
+
+function normalizeEmbeddedDataUriMarkdown(markdown) {
+  let source = String(markdown || "");
+
+  source = source.replace(
+    /!\[([^\]]*)\]\(\s*(data:image\/[a-zA-Z0-9+.-]+;base64,)([\s\S]*?)\)/gi,
+    (match, alt, prefix, body) => {
+      const compact = compactDataUriPayload(`${prefix}${body}`);
+      return compact.startsWith("data:image/") ? `![${alt}](${compact})` : match;
+    }
+  );
+
+  source = source.replace(
+    /<img\b([^>]*?)\bsrc=(["'])\s*(data:image\/[a-zA-Z0-9+.-]+;base64,)([\s\S]*?)\2([^>]*)>/gi,
+    (match, before, quote, prefix, body, after) => {
+      const compact = compactDataUriPayload(`${prefix}${body}`);
+      if (!compact.startsWith("data:image/")) return match;
+      return `<img${before}src=${quote}${compact}${quote}${after}>`;
+    }
+  );
+
+  source = source.replace(
+    /(?:^|\n)\s*(data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\s]+)\s*(?=\n|$)/gi,
+    (match, uri) => {
+      const compact = compactDataUriPayload(uri);
+      if (!compact.startsWith("data:image/")) return match;
+      return `\n![](${compact})\n`;
+    }
+  );
+
+  return source;
+}
+
 function buildMarkdownAttachmentRef(relativeAssetsPath) {
   const normalized = String(relativeAssetsPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
@@ -11721,6 +11811,237 @@ function insertMarkdownAtEditorCursor(text) {
   insertTextAtEditorCursor(snippet);
   scheduleDocOutlineRefresh();
   return true;
+}
+
+const HIGHLIGHT_TONE_SET = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
+const HIGHLIGHT_TONE_OPTIONS = [
+  { tone: "yellow", label: "Жёлтый" },
+  { tone: "red", label: "Красный" },
+  { tone: "green", label: "Зелёный" },
+  { tone: "blue", label: "Синий" },
+  { tone: "gray", label: "Серый" },
+  { tone: "orange", label: "Оранжевый" },
+  { tone: "purple", label: "Фиолетовый" }
+];
+const HIGHLIGHT_MARKDOWN_REGEX = /==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/gi;
+const HIGHLIGHT_HTML_REGEX = /<mark\s+class="md-highlight\s+md-highlight--([a-z]+)"[^>]*>([\s\S]*?)<\/mark>/gi;
+let editorHighlightTone = "yellow";
+let wysiwygHighlightToolbarRefs = null;
+
+function normalizeHighlightTone(tone) {
+  const value = String(tone || "yellow").toLowerCase();
+  return HIGHLIGHT_TONE_SET.has(value) ? value : "yellow";
+}
+
+function buildHighlightMarkdown(inner, tone = "yellow") {
+  const text = String(inner ?? "");
+  const safeTone = normalizeHighlightTone(tone);
+  if (safeTone === "yellow") return `==${text}==`;
+  return `=={${safeTone}}${text}==`;
+}
+
+function convertHighlightMarkdownToHtml(markdown) {
+  return String(markdown || "").replace(HIGHLIGHT_MARKDOWN_REGEX, (match, tone, inner) => {
+    const toneClass = normalizeHighlightTone(tone);
+    return `<mark class="md-highlight md-highlight--${toneClass}">${inner}</mark>`;
+  });
+}
+
+function convertHighlightHtmlToMarkdown(content) {
+  return String(content || "").replace(HIGHLIGHT_HTML_REGEX, (match, tone, inner) => {
+    const safeTone = normalizeHighlightTone(tone);
+    return safeTone === "yellow" ? `==${inner}==` : `=={${safeTone}}${inner}==`;
+  });
+}
+
+function getEditorSelectionSlice() {
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    const editor = wysiwygEditorInstance;
+    const current = String(editor.getMarkdown() || "");
+    const selection =
+      cloneWysiwygMarkdownSelection(editor.getSelection?.()) || lastWysiwygMarkdownSelection;
+    const { start, end } = resolveWysiwygMarkdownSelection(current, selection);
+    return { text: current.slice(start, end), start, end };
+  }
+  if (!fileContentInputNode) return { text: "", start: 0, end: 0 };
+  const start =
+    fileContentInputNode.selectionStart ??
+    lastSourceEditorSelection?.start ??
+    fileContentInputNode.value.length;
+  const end = fileContentInputNode.selectionEnd ?? lastSourceEditorSelection?.end ?? start;
+  return { text: fileContentInputNode.value.slice(start, end), start, end };
+}
+
+function replaceEditorSelectionText(replacement) {
+  const snippet = String(replacement || "");
+  if (!snippet) return false;
+  if (!canInsertDocContentBlocks()) {
+    showToast("Выделение доступно только в режиме редактирования", "error");
+    return false;
+  }
+
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    return insertMarkdownAtWysiwygCursor(snippet);
+  }
+
+  return withPreservedEditorScroll(() => {
+    const saved = lastSourceEditorSelection;
+    const start =
+      saved?.start ?? fileContentInputNode.selectionStart ?? fileContentInputNode.value.length;
+    const end = saved?.end ?? fileContentInputNode.selectionEnd ?? start;
+    const before = fileContentInputNode.value.slice(0, start);
+    const after = fileContentInputNode.value.slice(end);
+    fileContentInputNode.value = `${before}${snippet}${after}`;
+    const cursor = start + snippet.length;
+    fileContentInputNode.selectionStart = cursor;
+    fileContentInputNode.selectionEnd = cursor;
+    lastSourceEditorSelection = { start: cursor, end: cursor };
+    fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+    fileContentInputNode.focus({ preventScroll: true });
+    syncSaveButtonLamp();
+    return true;
+  });
+}
+
+function setEditorHighlightTone(tone) {
+  const safeTone = normalizeHighlightTone(tone);
+  editorHighlightTone = safeTone;
+  const swatch = wysiwygHighlightToolbarRefs?.swatch;
+  if (swatch) {
+    swatch.className = `awn-wysiwyg-highlight-swatch awn-wysiwyg-highlight-swatch--${safeTone}`;
+  }
+}
+
+function applyEditorTextHighlight(tone = editorHighlightTone) {
+  const safeTone = normalizeHighlightTone(tone);
+  setEditorHighlightTone(safeTone);
+  const { text } = getEditorSelectionSlice();
+  const wrapped = buildHighlightMarkdown(text || "текст", safeTone);
+  const ok = replaceEditorSelectionText(wrapped);
+  if (ok) {
+    scheduleDocOutlineRefresh();
+  }
+  return ok;
+}
+
+function closeWysiwygHighlightPopover() {
+  const popover = wysiwygHighlightToolbarRefs?.popover;
+  const menuBtn = wysiwygHighlightToolbarRefs?.menuBtn;
+  popover?.classList.add("hidden");
+  menuBtn?.setAttribute("aria-expanded", "false");
+}
+
+function buildWysiwygHighlightToolbarItem() {
+  const wrap = document.createElement("div");
+  wrap.className = "awn-wysiwyg-highlight-toolbar";
+
+  const mainBtn = document.createElement("button");
+  mainBtn.type = "button";
+  mainBtn.className = "awn-wysiwyg-highlight-main-btn";
+  mainBtn.title = "Выделить текст";
+  mainBtn.setAttribute("aria-label", "Выделить текст");
+  mainBtn.innerHTML = `
+    <span class="awn-wysiwyg-highlight-swatch awn-wysiwyg-highlight-swatch--yellow" aria-hidden="true"></span>
+    <span class="awn-wysiwyg-highlight-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 11-6 6v3h3l6-6" />
+        <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+      </svg>
+    </span>
+  `;
+
+  const menuBtn = document.createElement("button");
+  menuBtn.type = "button";
+  menuBtn.className = "awn-wysiwyg-highlight-menu-btn";
+  menuBtn.title = "Цвет выделения";
+  menuBtn.setAttribute("aria-label", "Цвет выделения");
+  menuBtn.setAttribute("aria-haspopup", "menu");
+  menuBtn.setAttribute("aria-expanded", "false");
+  menuBtn.innerHTML = `
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  `;
+
+  const popover = document.createElement("div");
+  popover.className = "awn-wysiwyg-highlight-popover hidden";
+  popover.setAttribute("role", "menu");
+  popover.setAttribute("aria-label", "Цвет выделения");
+  popover.innerHTML = HIGHLIGHT_TONE_OPTIONS.map(
+    ({ tone, label }) => `
+      <button
+        type="button"
+        class="awn-wysiwyg-highlight-tone-btn"
+        role="menuitem"
+        data-highlight-tone="${tone}"
+        title="${label}"
+        aria-label="${label}"
+      >
+        <span class="awn-wysiwyg-highlight-tone-swatch awn-wysiwyg-highlight-tone-swatch--${tone}"></span>
+      </button>
+    `
+  ).join("");
+
+  wrap.append(mainBtn, menuBtn, popover);
+
+  const bindHighlightToolbar = () => {
+    if (wrap.dataset.awnBound === "1") return;
+    wrap.dataset.awnBound = "1";
+
+    const captureSelection = (event) => {
+      event.preventDefault();
+      captureWysiwygMarkdownSelection();
+    };
+
+    mainBtn.addEventListener("mousedown", captureSelection);
+    menuBtn.addEventListener("mousedown", captureSelection);
+    popover.addEventListener("mousedown", captureSelection);
+
+    mainBtn.addEventListener("click", () => {
+      applyEditorTextHighlight(editorHighlightTone);
+    });
+
+    menuBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const shouldOpen = popover.classList.contains("hidden");
+      closeWysiwygHighlightPopover();
+      if (shouldOpen) {
+        popover.classList.remove("hidden");
+        menuBtn.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    popover.addEventListener("click", (event) => {
+      const toneBtn = event.target.closest(".awn-wysiwyg-highlight-tone-btn");
+      if (!toneBtn) return;
+      applyEditorTextHighlight(toneBtn.dataset.highlightTone || "yellow");
+      closeWysiwygHighlightPopover();
+    });
+  };
+
+  wysiwygHighlightToolbarRefs = {
+    wrap,
+    mainBtn,
+    menuBtn,
+    popover,
+    swatch: mainBtn.querySelector(".awn-wysiwyg-highlight-swatch")
+  };
+
+  return {
+    name: "awnHighlight",
+    el: wrap,
+    onMounted: () => {
+      bindHighlightToolbar();
+    },
+    onUpdated: ({ disabled }) => {
+      mainBtn.disabled = Boolean(disabled);
+      menuBtn.disabled = Boolean(disabled);
+      popover.querySelectorAll(".awn-wysiwyg-highlight-tone-btn").forEach((btn) => {
+        btn.disabled = Boolean(disabled);
+      });
+      if (disabled) closeWysiwygHighlightPopover();
+    }
+  };
 }
 
 async function uploadMediaAttachment(
@@ -23039,8 +23360,23 @@ function buildNavigationPathTree(items, folderLabels = new Map()) {
   return root;
 }
 
+function resolveNavigationItemStatus(item) {
+  const direct = String(item?.status || "").trim();
+  if (direct) return direct;
+  const props = Array.isArray(item?.props) ? item.props : [];
+  return String(getPropsEntryValueByKey(props, "awn-status") || "").trim();
+}
+
+function appendNavBookTocStatusBadge(parent, status) {
+  const badge = createMenuTreeStatusBadge(status);
+  if (!badge) return;
+  badge.classList.add("nav-book-toc-status");
+  parent.appendChild(badge);
+}
+
 function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
+  const folderStatuses = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
 
@@ -23059,7 +23395,9 @@ function prepareNavigationExternalItems(files, folders = []) {
       const props = Array.isArray(item.props) ? item.props : [];
       const awnName = getPropsEntryValueByKey(props, "awn-name");
       const title = String(item.title || "").trim();
+      const status = resolveNavigationItemStatus(item);
       folderLabels.set(folderKey, title || resolveNodeDisplayName(awnName, segment));
+      if (status) folderStatuses.set(folderKey, status);
       if (folderKey) folderPaths.add(folderKey);
       continue;
     }
@@ -23072,20 +23410,34 @@ function prepareNavigationExternalItems(files, folders = []) {
       path,
       name: item.name,
       parent: item.parent,
-      title: title || resolveNodeDisplayName(awnName, slug)
+      title: title || resolveNodeDisplayName(awnName, slug),
+      status: resolveNavigationItemStatus(item)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       folderPaths.add(ancestor);
     }
   }
 
-  return { contentFiles, folderLabels, folderPaths };
+  return { contentFiles, folderLabels, folderStatuses, folderPaths };
 }
 
-function prepareNavigationMediaItems(groups) {
+function prepareNavigationMediaItems(groups, sectionManifests = []) {
   const folderLabels = new Map();
+  const folderStatuses = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
+
+  for (const manifest of sectionManifests) {
+    const path = String(manifest?.path || "").replace(/\\/g, "/");
+    if (!isSectionReadmePath(path)) continue;
+    const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    const segment = folderKey.split("/").pop() || folderKey;
+    const title = String(manifest.displayName || "").trim();
+    const status = resolveNavigationItemStatus(manifest);
+    folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
+    if (status) folderStatuses.set(folderKey, status);
+    if (folderKey) folderPaths.add(folderKey);
+  }
 
   for (const [groupName, items] of Object.entries(groups || {})) {
     if (!Array.isArray(items)) continue;
@@ -23103,7 +23455,9 @@ function prepareNavigationMediaItems(groups) {
         const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
         const segment = folderKey.split("/").pop() || folderKey;
         const title = String(item.displayName || "").trim();
+        const status = resolveNavigationItemStatus(item);
         folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
+        if (status) folderStatuses.set(folderKey, status);
         if (folderKey) folderPaths.add(folderKey);
         continue;
       }
@@ -23116,7 +23470,8 @@ function prepareNavigationMediaItems(groups) {
         path,
         name: baseName,
         group: item.group || groupName,
-        title
+        title,
+        status: resolveNavigationItemStatus(item)
       });
       for (const ancestor of collectNavigationFolderAncestors(path)) {
         folderPaths.add(ancestor);
@@ -23124,7 +23479,7 @@ function prepareNavigationMediaItems(groups) {
     }
   }
 
-  return { contentFiles, folderLabels, folderPaths };
+  return { contentFiles, folderLabels, folderStatuses, folderPaths };
 }
 
 function ensureNavigationTreeFolders(root, folderPaths, folderLabels) {
@@ -23179,6 +23534,10 @@ function populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, fold
   folderText.className = "nav-book-toc-folder-text";
   folderText.textContent = label;
   folderLabel.append(folderIcon, folderText);
+  const folderStatuses = options.folderStatuses;
+  if (folderStatuses instanceof Map && folderNode.folderPath) {
+    appendNavBookTocStatusBadge(folderLabel, folderStatuses.get(folderNode.folderPath));
+  }
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
@@ -23193,6 +23552,7 @@ function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
 
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
+  const folderStatuses = handlers.folderStatuses || new Map();
   const onFolderClick = handlers.onFolderClick || openExternalSectionFromOverview;
   const onFileClick =
     handlers.onFileClick || ((item) => openMemoryModeFromOverview("external", item.path));
@@ -23218,7 +23578,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const folderIcon = document.createElement("span");
     folderIcon.className = "nav-book-toc-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
-    populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels);
+    populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
+      folderStatuses
+    });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -23229,7 +23591,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
-    appendNavigationBookTocList(subList, folderNode, depth + 1, { ...handlers, folderLabels });
+    appendNavigationBookTocList(subList, folderNode, depth + 1, { ...handlers, folderLabels, folderStatuses });
     folderItem.appendChild(subList);
     parentList.appendChild(folderItem);
   }
@@ -23253,6 +23615,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     leaders.setAttribute("aria-hidden", "true");
 
     link.append(createNavBookTocLinkIcon({ branch: true }), text, leaders);
+    appendNavBookTocStatusBadge(link, item.status);
     link.addEventListener("click", (event) => {
       event.stopPropagation();
       onFileClick(item);
@@ -23263,7 +23626,12 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
   }
 }
 
-function renderNavigationExternalBookToc(items, folderLabels = new Map(), folderPaths = new Set()) {
+function renderNavigationExternalBookToc(
+  items,
+  folderLabels = new Map(),
+  folderPaths = new Set(),
+  folderStatuses = new Map()
+) {
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc";
   nav.setAttribute("aria-label", "Оглавление многофайловой памяти");
@@ -23272,14 +23640,14 @@ function renderNavigationExternalBookToc(items, folderLabels = new Map(), folder
   list.className = "nav-book-toc-list nav-book-toc-list--root";
   const tree = buildNavigationPathTree(items, folderLabels);
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
-  appendNavigationBookTocList(list, tree, 0, { folderLabels });
+  appendNavigationBookTocList(list, tree, 0, { folderLabels, folderStatuses });
   nav.appendChild(list);
   return nav;
 }
 
 function renderNavigationExternalPart(externalData) {
   const nonMarkdownFiles = Array.isArray(externalData.nonMarkdownFiles) ? externalData.nonMarkdownFiles : [];
-  const { contentFiles, folderLabels, folderPaths } = prepareNavigationExternalItems(
+  const { contentFiles, folderLabels, folderStatuses, folderPaths } = prepareNavigationExternalItems(
     externalData.files || [],
     externalData.folders || []
   );
@@ -23293,7 +23661,7 @@ function renderNavigationExternalPart(externalData) {
   body.className = "node-navigation-external";
   appendNavigationExternalNonMdNotice(body, nonMarkdownFiles);
   if (mdItems.length || folderPaths.size > 0) {
-    body.appendChild(renderNavigationExternalBookToc(mdItems, folderLabels, folderPaths));
+    body.appendChild(renderNavigationExternalBookToc(mdItems, folderLabels, folderPaths, folderStatuses));
   }
   return createNavigationMemoryPanel("external", "Многофайловая память", body);
 }
@@ -23421,7 +23789,10 @@ function appendNavigationMediaImageStrip(parent, items, nodePath) {
 
 function renderNavigationMediaPart(mediaData) {
   const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
-  const { contentFiles, folderLabels, folderPaths } = prepareNavigationMediaItems(groups);
+  const { contentFiles, folderLabels, folderStatuses, folderPaths } = prepareNavigationMediaItems(
+    groups,
+    mediaData?.sectionManifests || []
+  );
 
   if (!contentFiles.length && folderPaths.size === 0) {
     return null;
@@ -23446,6 +23817,7 @@ function renderNavigationMediaPart(mediaData) {
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
   appendNavigationBookTocList(list, tree, 0, {
     folderLabels,
+    folderStatuses,
     onFolderClick: openMediaSectionFromOverview,
     onFileClick: (item) => openMediaFileFromOverview(item.path)
   });
@@ -25021,6 +25393,32 @@ function getMarkdownIt() {
     return defaultHeadingOpen(tokens, idx, options, env, self);
   };
 
+  markdownItInstance.inline.ruler.before("link", "md_highlight", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x3d /* = */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x3d) return false;
+
+    const match = state.src.slice(start).match(/^==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/i);
+    if (!match) return false;
+
+    if (!silent) {
+      const token = state.push("md_highlight", "", 0);
+      token.content = match[2];
+      token.meta = { tone: String(match[1] || "yellow").toLowerCase() };
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  markdownItInstance.renderer.rules.md_highlight = (tokens, idx) => {
+    const token = tokens[idx];
+    const tone = String(token.meta?.tone || "yellow").toLowerCase();
+    const allowed = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
+    const toneClass = allowed.has(tone) ? tone : "yellow";
+    return `<mark class="md-highlight md-highlight--${toneClass}">${escapeHtml(token.content)}</mark>`;
+  };
+
   markdownItInstance.inline.ruler.before("link", "wikilink", (state, silent) => {
     const start = state.pos;
     if (state.src.charCodeAt(start) !== 0x5b /* [ */) return false;
@@ -25056,7 +25454,9 @@ function getMarkdownIt() {
 
 function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   const sourcePath = nodePath || getActiveTitleEditorPath() || getActiveNodeApiPath();
-  const source = normalizeMarkdownLinkDestinations(String(markdown || ""));
+  const source = normalizeMarkdownLinkDestinations(
+    normalizeEmbeddedDataUriMarkdown(String(markdown || ""))
+  );
   const codeLang = getCodePreviewLanguage(sourcePath);
   if (codeLang) {
     return renderCodePreviewHtml(source, codeLang);
@@ -25736,6 +26136,7 @@ function destroyWysiwygEditor() {
   }
   lastWysiwygMarkdownSelection = null;
   pendingWysiwygInsertSelection = null;
+  wysiwygHighlightToolbarRefs = null;
   if (editorWysiwygWrapNode) {
     editorWysiwygWrapNode.innerHTML = "";
   }
@@ -25743,7 +26144,8 @@ function destroyWysiwygEditor() {
 
 function normalizeWysiwygExportedMarkdown(markdown) {
   // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
-  let normalized = String(markdown || "").replace(/\\([\\`*_~\-])/g, "$1");
+  let normalized = convertHighlightHtmlToMarkdown(String(markdown || ""));
+  normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
   normalized = normalized.replace(
     /!\[([^\]]*)\]\(((?:https?:\/\/[^/]+)?\/api\/media\/file[^)]+)\)/g,
     (match, alt, url) => {
@@ -25761,7 +26163,10 @@ function normalizeWysiwygExportedMarkdown(markdown) {
 }
 
 function normalizeWysiwygImportedMarkdown(markdown, nodePath = activePath) {
-  return String(markdown || "").replace(
+  const withHighlights = convertHighlightMarkdownToHtml(
+    normalizeEmbeddedDataUriMarkdown(String(markdown || ""))
+  );
+  return withHighlights.replace(
     /!\[([^\]]*)\]\(([^)\n]+)(?:\s+"[^"]*")?\)/g,
     (match, alt, src) => {
       const resolved = resolveMarkdownAssetSrc(src, nodePath);
@@ -25801,7 +26206,8 @@ function initWysiwygEditor() {
         ["hr", "quote"],
         ["ul", "ol", "task"],
         ["table", "link", "image"],
-        ["code", "codeblock"]
+        ["code", "codeblock"],
+        [buildWysiwygHighlightToolbarItem()]
       ],
       initialValue: normalizeWysiwygImportedMarkdown(fileContentInputNode.value || "")
     });
@@ -29996,7 +30402,7 @@ function loadAgentWorkspaceView() {
 }
 
 function saveAgentWorkspaceView(view) {
-  if (view === "git" || view === "awn-types") return;
+  if (view === "git" || view === "awn-types" || view === "large-files") return;
   try {
     localStorage.setItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY, view);
   } catch {
@@ -30005,7 +30411,7 @@ function saveAgentWorkspaceView(view) {
 }
 
 function resetGitWorkspaceViewToDefault() {
-  if (agentWorkspaceView !== "git" && agentWorkspaceView !== "awn-types") return;
+  if (agentWorkspaceView !== "git" && agentWorkspaceView !== "awn-types" && agentWorkspaceView !== "large-files") return;
   agentWorkspaceView = loadAgentWorkspaceView();
 }
 
@@ -30028,6 +30434,7 @@ function applyAgentWorkspaceCanvasUi() {
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
+  agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentAwnTypesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "awn-types");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
@@ -30052,6 +30459,8 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentDashboard2View();
   } else if (agentWorkspaceView === "git") {
     void renderAgentGitView();
+  } else if (agentWorkspaceView === "large-files") {
+    void renderAgentLargeFilesView();
   } else if (agentWorkspaceView === "awn-types") {
     void renderAgentAwnTypesView();
   } else if (agentWorkspaceView === "map") {
@@ -30079,6 +30488,7 @@ function applyAgentWorkspaceCanvasUi() {
   }
 
   syncAgentGitToolbarUi();
+  syncAgentLargeFilesToolbarUi();
   syncAgentAwnTypesToolbarUi();
   updateDocumentTitle();
 }
@@ -30088,6 +30498,7 @@ function setAgentWorkspaceView(view) {
     view !== "dashboard" &&
     view !== "dashboard2" &&
     view !== "git" &&
+    view !== "large-files" &&
     view !== "awn-types" &&
     view !== "map" &&
     view !== "map2" &&
@@ -30915,6 +31326,22 @@ function syncAgentGitToolbarUi() {
   agentGitBtn?.classList.toggle("is-active", agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible());
 }
 
+function initAgentLargeFilesToolbar() {
+  if (!agentLargeFilesBtn) return;
+  agentLargeFilesBtn.replaceChildren();
+  const icon = createLargeFilesMarkerSvg();
+  icon.classList.add("agent-large-files-btn-icon");
+  agentLargeFilesBtn.appendChild(icon);
+  syncAgentLargeFilesToolbarUi();
+}
+
+function syncAgentLargeFilesToolbarUi() {
+  agentLargeFilesBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "large-files" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
 async function fetchAgentGitStatus() {
   const response = await fetch(buildApiUrl("/api/git/status"));
   if (!response.ok) {
@@ -31088,6 +31515,101 @@ async function renderAgentGitView() {
     errorNode.className = "agent-git-empty is-alert";
     errorNode.textContent = `Не удалось загрузить git status: ${error.message}`;
     agentGitContentNode.appendChild(errorNode);
+  }
+}
+
+async function fetchAgentLargeFiles() {
+  const response = await fetch(buildApiUrl("/api/agent/large-files", { minMb: 45 }));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderAgentLargeFilesStatChip(label, value, tone = "") {
+  const chip = document.createElement("span");
+  chip.className = `agent-large-files-stat-chip${tone ? ` is-${tone}` : ""}`;
+  chip.innerHTML = `<strong>${escapeHtml(String(value))}</strong> ${escapeHtml(label)}`;
+  return chip;
+}
+
+async function renderAgentLargeFilesView() {
+  if (!agentLargeFilesContentNode) return;
+
+  agentLargeFilesContentNode.replaceChildren();
+  if (agentLargeFilesStatsNode) agentLargeFilesStatsNode.replaceChildren();
+
+  const loading = document.createElement("p");
+  loading.className = "agent-large-files-empty";
+  loading.textContent = "Сканирование workspace…";
+  agentLargeFilesContentNode.appendChild(loading);
+
+  try {
+    const data = await fetchAgentLargeFiles();
+    agentLargeFilesContentNode.replaceChildren();
+
+    if (agentLargeFilesStatsNode) {
+      agentLargeFilesStatsNode.append(
+        renderAgentLargeFilesStatChip("файлов", data.count ?? 0, data.count ? "total" : ""),
+        renderAgentLargeFilesStatChip("суммарно", data.totalSizeLabel || formatFileSize(data.totalSize || 0))
+      );
+    }
+
+    const shell = document.createElement("div");
+    shell.className = "agent-large-files-shell";
+
+    const meta = document.createElement("p");
+    meta.className = "agent-large-files-meta-line";
+    meta.textContent = `Порог: ${data.thresholdMb ?? 45} МБ · сортировка по размеру (убывание)`;
+    shell.appendChild(meta);
+
+    const files = Array.isArray(data.files) ? data.files : [];
+    if (!files.length) {
+      const empty = document.createElement("div");
+      empty.className = "agent-large-files-empty-state";
+      empty.innerHTML = `
+        <p class="agent-large-files-empty-title">Крупных файлов не найдено</p>
+        <p class="agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? 45} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
+      `;
+      shell.appendChild(empty);
+    } else {
+      const list = document.createElement("ul");
+      list.className = "agent-large-files-list";
+
+      for (const item of files) {
+        const row = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "agent-large-files-row";
+        btn.title = item.path;
+
+        const sizeNode = document.createElement("span");
+        sizeNode.className = "agent-large-files-size";
+        sizeNode.textContent = item.sizeLabel || formatFileSize(item.size);
+
+        const pathNode = document.createElement("span");
+        pathNode.className = "agent-large-files-path";
+        pathNode.textContent = item.path;
+
+        btn.append(sizeNode, pathNode);
+        btn.addEventListener("click", () => {
+          void revealWorkspacePath(item.path);
+        });
+        row.appendChild(btn);
+        list.appendChild(row);
+      }
+
+      shell.appendChild(list);
+    }
+
+    agentLargeFilesContentNode.appendChild(shell);
+  } catch (error) {
+    agentLargeFilesContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-large-files-empty is-alert";
+    errorNode.textContent = `Не удалось просканировать workspace: ${error.message}`;
+    agentLargeFilesContentNode.appendChild(errorNode);
   }
 }
 
@@ -33104,6 +33626,7 @@ function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
   home2PaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
+  agentLargeFilesPaneNode?.classList.add("hidden");
   agentAwnTypesPaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
@@ -35061,9 +35584,19 @@ agentGitBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("git");
 });
 
+agentLargeFilesBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("large-files");
+});
+
 agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
     void renderAgentGitView();
+  }
+});
+
+agentLargeFilesRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "large-files") {
+    void renderAgentLargeFilesView();
   }
 });
 
@@ -35496,11 +36029,19 @@ document.addEventListener("click", (event) => {
   closeWorkspaceLinksMenuPopover();
 });
 
+document.addEventListener("click", (event) => {
+  const popover = wysiwygHighlightToolbarRefs?.popover;
+  if (!popover || popover.classList.contains("hidden")) return;
+  if (event.target.closest(".awn-wysiwyg-highlight-toolbar")) return;
+  closeWysiwygHighlightPopover();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeMenuContextMenu();
   closeMenuSettingsPopover();
   closeWorkspaceLinksMenuPopover();
+  closeWysiwygHighlightPopover();
 });
 sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SIDEBAR_WIDTH_STEP));
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
@@ -35720,4 +36261,5 @@ appLandingCreateModalNode?.addEventListener("click", (event) => {
 initNodeWorkspaceDomainSelect();
 initAgentAwnTypesToolbar();
 initAgentGitToolbar();
+initAgentLargeFilesToolbar();
 bindLandingFocusToolbar();
