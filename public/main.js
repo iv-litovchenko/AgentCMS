@@ -24862,7 +24862,13 @@ function getNavBookTocFileIcon(item) {
   return getDocumentIcon(ext);
 }
 
-function populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, { context = "navigation" } = {}) {
+function populateNavBookTocFolderLabel(
+  folderLabel,
+  folderIcon,
+  folderNode,
+  folderLabels,
+  { context = "navigation", folderStatuses } = {}
+) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
   const isUnregistered = folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels);
   folderLabel.title = isUnregistered
@@ -24882,7 +24888,6 @@ function populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, fold
   folderText.className = "nav-book-toc-folder-text";
   folderText.textContent = label;
   folderLabel.append(folderIcon, folderText);
-  const folderStatuses = options.folderStatuses;
   if (folderStatuses instanceof Map && folderNode.folderPath) {
     appendNavBookTocStatusBadge(folderLabel, folderStatuses.get(folderNode.folderPath));
   }
