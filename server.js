@@ -192,6 +192,11 @@ const {
   getDefaultAgentId,
   getAgentsPublicList,
   saveAgentsRegistry,
+  getAgentsGroupsPublic,
+  saveAgentsGroups,
+  writeGroupBackgroundFile,
+  removeGroupBackground,
+  readGroupBackgroundFile,
   validateAgentWorkspacePaths,
   discoverAgentManifests,
   createAgentWorkspace,
@@ -8860,6 +8865,113 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to save agents registry",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/groups") {
+    refreshAgentsFromDisk();
+    return sendJson(res, 200, getAgentsGroupsPublic());
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agents/groups") {
+    try {
+      refreshAgentsFromDisk();
+      const payload = await readJsonBody(req);
+      const data = saveAgentsGroups(payload?.groups, payload?.ungrouped);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save agent groups",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/groups/background") {
+    const groupId = String(url.searchParams.get("groupId") || "").trim();
+    if (!groupId) return sendJson(res, 400, { error: "Missing groupId query parameter" });
+    try {
+      refreshAgentsFromDisk();
+      const file = readGroupBackgroundFile(groupId);
+      if (!file) return sendJson(res, 404, { error: "Background not found" });
+      res.writeHead(200, {
+        "Content-Type": file.mime,
+        "Cache-Control": "no-store"
+      });
+      res.end(file.content);
+      return;
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read group background",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/groups/background") {
+    try {
+      refreshAgentsFromDisk();
+      const payload = await readJsonBody(req, 12_000_000);
+      const groupId = String(payload?.groupId || "").trim();
+      if (!groupId) return sendJson(res, 400, { error: "Missing groupId" });
+      const isUngrouped = groupId === "__ungrouped__";
+      if (
+        !isUngrouped &&
+        !getAgentsGroupsPublic().groups.some((group) => group.id === groupId)
+      ) {
+        return sendJson(res, 404, { error: "Group not found" });
+      }
+
+      const data = payload?.data;
+      const fileName = payload?.fileName;
+      const mimeType = payload?.mimeType;
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing image data" });
+
+      let previewExt = resolveNodePreviewExtension(mimeType, fileName);
+      if (previewExt === ".jpeg") previewExt = ".jpg";
+      if (previewExt === ".webp" || !previewExt) {
+        const ext = path.extname(String(fileName || "")).toLowerCase();
+        if (ext === ".webp") previewExt = ".webp";
+      }
+      if (!previewExt || ![".jpg", ".png", ".gif", ".webp"].includes(previewExt)) {
+        return sendJson(res, 400, {
+          error: "Invalid background format",
+          details: "Allowed formats: JPG, PNG, GIF, WEBP"
+        });
+      }
+
+      const buffer = Buffer.from(data, "base64");
+      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      if (buffer.length > 10 * 1024 * 1024) return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
+      if (previewExt !== ".webp" && !validatePreviewImageBufferByExt(buffer, previewExt)) {
+        return sendJson(res, 400, {
+          error: "Invalid image file",
+          details: "File content does not match the selected image format"
+        });
+      }
+
+      const saved = writeGroupBackgroundFile(groupId, buffer, previewExt);
+      return sendJson(res, 200, saved);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to upload group background",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/agents/groups/background") {
+    const groupId = String(url.searchParams.get("groupId") || "").trim();
+    if (!groupId) return sendJson(res, 400, { error: "Missing groupId query parameter" });
+    try {
+      refreshAgentsFromDisk();
+      const saved = removeGroupBackground(groupId);
+      return sendJson(res, 200, saved);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to delete group background",
         details: String(error?.message || error)
       });
     }

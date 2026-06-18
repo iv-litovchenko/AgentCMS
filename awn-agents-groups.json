@@ -1,0 +1,32 @@
+{
+  "groups": [
+    {
+      "id": "platform",
+      "title": "Работа",
+      "agentIds": [
+        "agent-medcenter",
+        "agent-mosconst",
+        "agent-career"
+      ],
+      "background": "awn-agents-groups/platform.png",
+      "appearance": "dark"
+    },
+    {
+      "id": "образование",
+      "title": "Образование",
+      "agentIds": [
+        "agent-english",
+        "agent-atlas"
+      ]
+    },
+    {
+      "id": "текущее",
+      "title": "Текущее",
+      "agentIds": [
+        "agent-focus",
+        "agent-inbox",
+        "agent-ideas"
+      ]
+    }
+  ]
+}

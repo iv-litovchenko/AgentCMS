@@ -484,6 +484,16 @@
                   </button>
                   <button
                     type="button"
+                    id="app-landing-view-groups-btn"
+                    class="app-landing-view-toggle-btn"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="app-landing-groups"
+                  >
+                    Группы
+                  </button>
+                  <button
+                    type="button"
                     id="app-landing-view-orbit-btn"
                     class="app-landing-view-toggle-btn"
                     role="tab"
@@ -499,6 +509,98 @@
               </div>
             </header>
             <div id="app-landing-agents" class="app-landing-agents" role="list"></div>
+            <div id="app-landing-groups" class="app-landing-groups hidden" aria-hidden="true">
+              <div class="app-landing-groups-toolbar">
+                <p class="app-landing-groups-note">Группы хранятся в <code>awn-agents-groups.json</code>. Перетащите за ⠿ группы и агентов внутри группы.</p>
+                <button id="app-landing-groups-create-btn" class="app-landing-groups-create-btn" type="button">
+                  + Создать группу
+                </button>
+              </div>
+              <div id="app-landing-groups-content" class="app-landing-groups-content"></div>
+            </div>
+            <div id="app-landing-groups-create-modal" class="modal-overlay hidden">
+              <div class="modal-card agents-registry-create-card app-landing-group-create-card">
+                <div class="modal-message">Создать группу</div>
+                <p class="agents-registry-hint">Группа сохранится в <code>awn-agents-groups.json</code>. Агентов можно добавить после создания.</p>
+                <label class="agents-registry-field agents-registry-create-field">
+                  <span>Название группы</span>
+                  <input
+                    id="app-landing-group-create-name-input"
+                    type="text"
+                    placeholder="Например: Работа"
+                    spellcheck="false"
+                    autocomplete="off"
+                    required
+                  />
+                </label>
+                <div class="modal-actions">
+                  <button id="app-landing-group-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+                  <button id="app-landing-group-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
+                </div>
+              </div>
+            </div>
+            <div id="app-landing-group-bg-modal" class="modal-overlay hidden">
+              <div class="modal-card app-landing-group-bg-modal-card">
+                <div id="app-landing-group-bg-modal-title" class="modal-message">Фон группы</div>
+                <section class="preview-upload app-landing-group-bg-modal-upload">
+                  <div class="preview-upload-card">
+                    <div
+                      id="app-landing-group-bg-zone"
+                      class="preview-upload-zone"
+                      tabindex="0"
+                      role="button"
+                      aria-label="Загрузить фон группы"
+                    >
+                      <input
+                        id="app-landing-group-bg-file-input"
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.gif,image/jpeg,image/png,image/gif"
+                        hidden
+                      />
+                      <div id="app-landing-group-bg-placeholder" class="preview-upload-placeholder">
+                        <span class="preview-upload-icon" aria-hidden="true">🖼</span>
+                        <p class="preview-upload-title">Загрузите фон группы</p>
+                        <p class="preview-upload-hint">JPG, PNG или GIF · клик или перетащите файл</p>
+                        <button
+                          id="app-landing-group-bg-paste-btn"
+                          type="button"
+                          class="preview-action-btn preview-action-paste"
+                        >
+                          Вставить из буфера
+                        </button>
+                      </div>
+                      <img id="app-landing-group-bg-image" class="preview-image hidden" alt="Фон группы" />
+                    </div>
+                    <div id="app-landing-group-bg-actions" class="preview-upload-actions hidden">
+                      <button
+                        id="app-landing-group-bg-paste-actions-btn"
+                        type="button"
+                        class="preview-action-btn preview-action-paste"
+                      >
+                        Вставить из буфера
+                      </button>
+                      <button
+                        id="app-landing-group-bg-replace-btn"
+                        type="button"
+                        class="preview-action-btn preview-action-replace"
+                      >
+                        Заменить
+                      </button>
+                      <button
+                        id="app-landing-group-bg-remove-btn"
+                        type="button"
+                        class="preview-action-btn preview-action-remove"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+                </section>
+                <div class="modal-actions">
+                  <button id="app-landing-group-bg-close-btn" class="save-btn" type="button">Закрыть</button>
+                </div>
+              </div>
+            </div>
             <div id="app-landing-orbit" class="app-landing-orbit hidden" aria-hidden="true">
               <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
               <div class="app-landing-orbit-hub" aria-hidden="true">
@@ -1059,6 +1161,16 @@
                       </ul>
                     </div>
                   </div>
+                  <button
+                    id="workspace-print-btn"
+                    class="workspace-print-btn workspace-toolbar-labeled-btn"
+                    type="button"
+                    disabled
+                    title="Печать — скоро"
+                    aria-label="Печать — скоро"
+                  >
+                    <span class="workspace-toolbar-btn-label">Печать</span>
+                  </button>
                   <button
                     id="workspace-reveal-folder-btn"
                     class="workspace-reveal-folder-btn hidden"

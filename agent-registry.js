@@ -43,6 +43,10 @@ const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
 const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
+const AWN_AGENTS_GROUPS_FILE = "awn-agents-groups.json";
+const AWN_AGENTS_GROUPS_ASSETS_DIR = "awn-agents-groups";
+const UNGROUPED_GROUP_ID = "__ungrouped__";
+const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
 const AWN_AUTOINCREMENT_ID_FILE = "awn-autoincrement-id.json";
 
@@ -309,6 +313,270 @@ function getAgentsRegistryPathSync() {
   return path.join(projectRoot, AWN_AGENTS_REGISTRY_FILE);
 }
 
+function getAgentsGroupsPathSync() {
+  return path.join(projectRoot, AWN_AGENTS_GROUPS_FILE);
+}
+
+function getAgentsGroupsAssetsDirSync() {
+  return path.join(projectRoot, AWN_AGENTS_GROUPS_ASSETS_DIR);
+}
+
+function sanitizeAgentsGroupId(raw) {
+  return slugifyAgentId(String(raw || "").trim(), 0);
+}
+
+function findGroupBackgroundAbsolute(groupId) {
+  const safeId = sanitizeAgentsGroupId(groupId);
+  if (!safeId) return null;
+  const dir = getAgentsGroupsAssetsDirSync();
+  for (const ext of GROUP_BACKGROUND_EXTS) {
+    const absolute = path.join(dir, `${safeId}${ext}`);
+    if (fs.existsSync(absolute)) return absolute;
+  }
+  return null;
+}
+
+function getGroupBackgroundPublicUrl(groupId) {
+  if (!findGroupBackgroundAbsolute(groupId)) return null;
+  return `/api/agents/groups/background?groupId=${encodeURIComponent(String(groupId || ""))}`;
+}
+
+function normalizeGroupBackgroundRel(rawBackground, groupId) {
+  const rel = String(rawBackground || "").trim().replace(/\\/g, "/");
+  if (!rel) return null;
+  const safeId = sanitizeAgentsGroupId(groupId);
+  const base = path.posix.basename(rel);
+  if (!base.startsWith(`${safeId}.`)) return null;
+  const absolute = path.join(projectRoot, AWN_AGENTS_GROUPS_ASSETS_DIR, base);
+  if (!absolute.startsWith(getAgentsGroupsAssetsDirSync())) return null;
+  return fs.existsSync(absolute) ? `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${base}` : null;
+}
+
+function clearGroupBackgroundFiles(groupId) {
+  const safeId = sanitizeAgentsGroupId(groupId);
+  if (!safeId) return;
+  const dir = getAgentsGroupsAssetsDirSync();
+  for (const ext of GROUP_BACKGROUND_EXTS) {
+    const absolute = path.join(dir, `${safeId}${ext}`);
+    if (fs.existsSync(absolute)) {
+      fs.unlinkSync(absolute);
+    }
+  }
+}
+
+function normalizeUngroupedSection(raw) {
+  let background = normalizeGroupBackgroundRel(raw?.background, UNGROUPED_GROUP_ID);
+  if (!background) {
+    const absolute = findGroupBackgroundAbsolute(UNGROUPED_GROUP_ID);
+    if (absolute) {
+      background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${path.basename(absolute)}`;
+    }
+  }
+  return {
+    background: background || null,
+    appearance: raw?.appearance === "dark" ? "dark" : "light"
+  };
+}
+
+function setGroupBackgroundOnCache(groupId, background) {
+  if (String(groupId) === UNGROUPED_GROUP_ID) {
+    if (!agentsGroupsCache.ungrouped) {
+      agentsGroupsCache.ungrouped = normalizeUngroupedSection(null);
+    }
+    if (background) agentsGroupsCache.ungrouped.background = background;
+    else delete agentsGroupsCache.ungrouped.background;
+    return;
+  }
+  const target = agentsGroupsCache?.groups?.find((group) => group.id === String(groupId));
+  if (target) {
+    if (background) target.background = background;
+    else delete target.background;
+  }
+}
+
+function persistAgentsGroupsCacheToDisk() {
+  const payload = {
+    groups: agentsGroupsCache.groups.map(({ id, title, agentIds, background, appearance }) => {
+      const item = { id, title, agentIds };
+      if (background) item.background = background;
+      if (appearance === "dark") item.appearance = "dark";
+      return item;
+    })
+  };
+  const ungrouped = agentsGroupsCache.ungrouped || normalizeUngroupedSection(null);
+  const ungroupedItem = {};
+  if (ungrouped.background) ungroupedItem.background = ungrouped.background;
+  if (ungrouped.appearance === "dark") ungroupedItem.appearance = "dark";
+  if (Object.keys(ungroupedItem).length) payload.ungrouped = ungroupedItem;
+  fs.writeFileSync(getAgentsGroupsPathSync(), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+}
+
+function writeGroupBackgroundFile(groupId, buffer, ext) {
+  const safeId = sanitizeAgentsGroupId(groupId);
+  if (!safeId) throw new Error("Некорректный id группы");
+  if (!GROUP_BACKGROUND_EXTS.includes(String(ext || "").toLowerCase())) {
+    throw new Error("Недопустимое расширение фона");
+  }
+  const dir = getAgentsGroupsAssetsDirSync();
+  fs.mkdirSync(dir, { recursive: true });
+  clearGroupBackgroundFiles(safeId);
+  const normalizedExt = ext.toLowerCase() === ".jpeg" ? ".jpg" : ext.toLowerCase();
+  const fileName = `${safeId}${normalizedExt}`;
+  const absolute = path.join(dir, fileName);
+  fs.writeFileSync(absolute, buffer);
+  const background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${fileName}`;
+  setGroupBackgroundOnCache(groupId, background);
+  persistAgentsGroupsCacheToDisk();
+  return {
+    background,
+    backgroundUrl: getGroupBackgroundPublicUrl(groupId)
+  };
+}
+
+function removeGroupBackground(groupId) {
+  const safeId = sanitizeAgentsGroupId(groupId);
+  if (!safeId) throw new Error("Некорректный id группы");
+  clearGroupBackgroundFiles(safeId);
+  setGroupBackgroundOnCache(groupId, null);
+  persistAgentsGroupsCacheToDisk();
+  return { background: null, backgroundUrl: null };
+}
+
+function readGroupBackgroundFile(groupId) {
+  const absolute = findGroupBackgroundAbsolute(groupId);
+  if (!absolute) return null;
+  const ext = path.extname(absolute).toLowerCase();
+  const mime =
+    ext === ".png"
+      ? "image/png"
+      : ext === ".gif"
+        ? "image/gif"
+        : ext === ".webp"
+          ? "image/webp"
+          : "image/jpeg";
+  return {
+    absolute,
+    content: fs.readFileSync(absolute),
+    mime
+  };
+}
+
+function getKnownAgentIdsSet() {
+  return new Set(agents.map((agent) => agent.id));
+}
+
+function normalizeAgentsGroupEntry(raw, index, knownAgentIds) {
+  const id = slugifyAgentId(raw?.id || raw?.title, index);
+  if (id === UNGROUPED_GROUP_ID) return null;
+  const title = String(raw?.title || raw?.name || id).trim() || id;
+  const agentIds = Array.isArray(raw?.agentIds)
+    ? [...new Set(raw.agentIds.map((value) => String(value || "").trim()).filter(Boolean))]
+    : [];
+  const validAgentIds = agentIds.filter((agentId) => knownAgentIds.has(agentId));
+  let background = normalizeGroupBackgroundRel(raw?.background, id);
+  if (!background) {
+    const absolute = findGroupBackgroundAbsolute(id);
+    if (absolute) {
+      background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${path.basename(absolute)}`;
+    }
+  }
+  const appearance = raw?.appearance === "dark" ? "dark" : "light";
+  return { id, title, agentIds: validAgentIds, background, appearance };
+}
+
+function loadAgentsGroupsSync() {
+  const filePath = getAgentsGroupsPathSync();
+  const knownAgentIds = getKnownAgentIdsSet();
+  if (!fs.existsSync(filePath)) {
+    agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
+    return agentsGroupsCache;
+  }
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    const seen = new Set();
+    const groups = (Array.isArray(raw?.groups) ? raw.groups : [])
+      .map((entry, index) => normalizeAgentsGroupEntry(entry, index, knownAgentIds))
+      .filter((group) => {
+        if (!group?.id || seen.has(group.id)) return false;
+        seen.add(group.id);
+        return true;
+      });
+    agentsGroupsCache = {
+      groups,
+      ungrouped: normalizeUngroupedSection(raw?.ungrouped)
+    };
+    return agentsGroupsCache;
+  } catch {
+    agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
+    return agentsGroupsCache;
+  }
+}
+
+function getAgentsGroupsPublic() {
+  if (!agentsGroupsCache) loadAgentsGroupsSync();
+  const ungrouped = agentsGroupsCache.ungrouped || normalizeUngroupedSection(null);
+  return {
+    groups: agentsGroupsCache.groups.map(({ id, title, agentIds, background, appearance }) => ({
+      id,
+      title,
+      agentIds: [...agentIds],
+      background: background || null,
+      backgroundUrl: getGroupBackgroundPublicUrl(id),
+      appearance: appearance === "dark" ? "dark" : "light"
+    })),
+    ungrouped: {
+      background: ungrouped.background || null,
+      backgroundUrl: ungrouped.background ? getGroupBackgroundPublicUrl(UNGROUPED_GROUP_ID) : null,
+      appearance: ungrouped.appearance === "dark" ? "dark" : "light"
+    }
+  };
+}
+
+function saveAgentsGroups(rawGroups, rawUngrouped) {
+  if (!Array.isArray(rawGroups)) {
+    throw new Error("groups должен быть массивом");
+  }
+
+  const knownAgentIds = getKnownAgentIdsSet();
+  const usedAgentIds = new Set();
+  const seenGroupIds = new Set();
+  const normalized = [];
+
+  rawGroups.forEach((entry, index) => {
+    const group = normalizeAgentsGroupEntry(entry, index, knownAgentIds);
+    if (!group) return;
+    if (seenGroupIds.has(group.id)) {
+      throw new Error(`Дублирующийся id группы: ${group.id}`);
+    }
+    seenGroupIds.add(group.id);
+
+    const uniqueAgentIds = [];
+    for (const agentId of group.agentIds) {
+      if (usedAgentIds.has(agentId)) continue;
+      usedAgentIds.add(agentId);
+      uniqueAgentIds.push(agentId);
+    }
+
+    normalized.push({
+      id: group.id,
+      title: group.title,
+      agentIds: uniqueAgentIds,
+      background: group.background || null,
+      appearance: group.appearance === "dark" ? "dark" : "light"
+    });
+  });
+
+  const ungrouped =
+    rawUngrouped !== undefined
+      ? normalizeUngroupedSection(rawUngrouped)
+      : agentsGroupsCache?.ungrouped || normalizeUngroupedSection(null);
+
+  agentsGroupsCache = { groups: normalized, ungrouped };
+  persistAgentsGroupsCacheToDisk();
+  return getAgentsGroupsPublic();
+}
+
 function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
@@ -429,6 +697,7 @@ function isAgentFolderName(name) {
 
 let projectRoot = null;
 let agents = [];
+let agentsGroupsCache = null;
 let defaultAgentId = "main";
 
 function resolveAgentRootAbsolute(rawPath) {
@@ -692,6 +961,7 @@ function loadRegistrySync() {
     agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true, folderExists: true })];
   }
   defaultAgentId = pickDefaultAgentId(agents);
+  loadAgentsGroupsSync();
 }
 
 function init(rootDir) {
@@ -1259,6 +1529,7 @@ module.exports = {
   WORKSPACE_AWN_TYPE,
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
+  AWN_AGENTS_GROUPS_FILE,
   AWN_DEPENDENCIES_FILE,
   AWN_AUTOINCREMENT_ID_FILE,
   isAwnDependenciesFileName,
@@ -1270,6 +1541,12 @@ module.exports = {
   getAgentsPublicList,
   createSystemCatalogNodeSync,
   saveAgentsRegistry,
+  getAgentsGroupsPublic,
+  saveAgentsGroups,
+  writeGroupBackgroundFile,
+  removeGroupBackground,
+  readGroupBackgroundFile,
+  clearGroupBackgroundFiles,
   validateAgentWorkspacePaths,
   discoverAgentManifests,
   createAgentWorkspace,

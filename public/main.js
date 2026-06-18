@@ -45,7 +45,27 @@ const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
+const appLandingViewGroupsBtn = document.getElementById("app-landing-view-groups-btn");
 const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
+const appLandingGroupsNode = document.getElementById("app-landing-groups");
+const appLandingGroupsContentNode = document.getElementById("app-landing-groups-content");
+const appLandingGroupsCreateBtn = document.getElementById("app-landing-groups-create-btn");
+const appLandingGroupCreateModalNode = document.getElementById("app-landing-groups-create-modal");
+const appLandingGroupCreateNameInputNode = document.getElementById("app-landing-group-create-name-input");
+const appLandingGroupCreateCancelBtn = document.getElementById("app-landing-group-create-cancel-btn");
+const appLandingGroupCreateSubmitBtn = document.getElementById("app-landing-group-create-submit-btn");
+const appLandingGroupBgModalNode = document.getElementById("app-landing-group-bg-modal");
+const appLandingGroupBgModalTitleNode = document.getElementById("app-landing-group-bg-modal-title");
+const appLandingGroupBgZoneNode = document.getElementById("app-landing-group-bg-zone");
+const appLandingGroupBgFileInputNode = document.getElementById("app-landing-group-bg-file-input");
+const appLandingGroupBgPlaceholderNode = document.getElementById("app-landing-group-bg-placeholder");
+const appLandingGroupBgImageNode = document.getElementById("app-landing-group-bg-image");
+const appLandingGroupBgActionsNode = document.getElementById("app-landing-group-bg-actions");
+const appLandingGroupBgPasteBtn = document.getElementById("app-landing-group-bg-paste-btn");
+const appLandingGroupBgPasteActionsBtn = document.getElementById("app-landing-group-bg-paste-actions-btn");
+const appLandingGroupBgReplaceBtn = document.getElementById("app-landing-group-bg-replace-btn");
+const appLandingGroupBgRemoveBtn = document.getElementById("app-landing-group-bg-remove-btn");
+const appLandingGroupBgCloseBtn = document.getElementById("app-landing-group-bg-close-btn");
 const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
@@ -149,6 +169,7 @@ const workspaceLinksMenuItems = Array.from(
   document.querySelectorAll("#workspace-links-menu-popover .workspace-links-menu-item")
 );
 const workspaceGdriveSyncBtn = document.getElementById("workspace-gdrive-sync-btn");
+const workspacePrintBtn = document.getElementById("workspace-print-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
@@ -823,6 +844,7 @@ function updateWorkspaceShareLinkButton() {
   const actionsEnabled = WORKSPACE_SHARE_ACTIONS_ENABLED && inWorkspace;
 
   workspaceLinksMenuWrap?.classList.toggle("hidden", !inWorkspace);
+  workspacePrintBtn?.classList.toggle("hidden", !inWorkspace);
 
   for (const item of workspaceLinksMenuItems) {
     item.disabled = !actionsEnabled;
@@ -3552,6 +3574,935 @@ function createAppLandingAgentCard(agent) {
   return btn;
 }
 
+let landingAgentsGroupsCache = [];
+let landingAgentsUngroupedCache = {
+  id: "__ungrouped__",
+  title: "Без группы",
+  background: null,
+  backgroundUrl: null,
+  appearance: "light"
+};
+let landingGroupBackgroundModalGroupId = null;
+
+const LANDING_UNGROUPED_GROUP_ID = "__ungrouped__";
+
+function mapLandingUngroupedFromApi(ungrouped) {
+  return {
+    id: LANDING_UNGROUPED_GROUP_ID,
+    title: "Без группы",
+    background: ungrouped?.background || null,
+    backgroundUrl: ungrouped?.backgroundUrl || null,
+    appearance: normalizeLandingGroupAppearance(ungrouped?.appearance)
+  };
+}
+
+function getLandingGroupMeta(groupId) {
+  if (groupId === LANDING_UNGROUPED_GROUP_ID) return landingAgentsUngroupedCache;
+  return landingAgentsGroupsCache.find((item) => item.id === groupId) || null;
+}
+
+function applyLandingGroupMetaBackground(groupId, saved) {
+  const target = getLandingGroupMeta(groupId);
+  if (!target) return null;
+  target.background = saved?.background || null;
+  target.backgroundUrl = saved?.backgroundUrl || null;
+  return target;
+}
+
+function getLandingGroupBackgroundModalGroup() {
+  if (!landingGroupBackgroundModalGroupId) return null;
+  return getLandingGroupMeta(landingGroupBackgroundModalGroupId);
+}
+
+function renderLandingGroupBackgroundModalUi(group = getLandingGroupBackgroundModalGroup()) {
+  if (!appLandingGroupBgZoneNode) return;
+  const hasImage = Boolean(group?.backgroundUrl);
+  appLandingGroupBgImageNode?.classList.toggle("hidden", !hasImage);
+  appLandingGroupBgPlaceholderNode?.classList.toggle("hidden", hasImage);
+  appLandingGroupBgActionsNode?.classList.toggle("hidden", !hasImage);
+  appLandingGroupBgZoneNode.classList.toggle("has-image", hasImage);
+  appLandingGroupBgZoneNode.title = hasImage ? "Нажмите, чтобы заменить фон" : "Загрузить фон группы";
+
+  if (hasImage && appLandingGroupBgImageNode) {
+    appLandingGroupBgImageNode.onerror = () => {
+      renderLandingGroupBackgroundModalUi({ ...(group || {}), backgroundUrl: null });
+    };
+    appLandingGroupBgImageNode.src = appendCacheBuster(group.backgroundUrl);
+  } else {
+    appLandingGroupBgImageNode?.removeAttribute("src");
+  }
+}
+
+function refreshLandingGroupBackgroundBtn(groupId) {
+  const section = appLandingGroupsContentNode?.querySelector(
+    `.app-landing-group-section[data-group-id="${CSS.escape(String(groupId))}"]`
+  );
+  const btn = section?.querySelector(".app-landing-group-bg-open-btn");
+  const group = getLandingGroupMeta(groupId);
+  if (!section || !group) return;
+
+  if (group.backgroundUrl) {
+    applyLandingGroupSectionBackground(section, group);
+    if (!section.querySelector(".app-landing-group-appearance-btn")) {
+      const head = section.querySelector(".app-landing-group-head");
+      const bgBtn = head?.querySelector(".app-landing-group-bg-open-btn");
+      if (head && bgBtn) {
+        head.insertBefore(createLandingGroupAppearanceBtn(group), bgBtn.nextSibling);
+      }
+    }
+  } else {
+    applyLandingGroupSectionBackground(section, group);
+    section.querySelector(".app-landing-group-appearance-btn")?.remove();
+  }
+
+  if (btn) {
+    const hasBg = Boolean(group.backgroundUrl);
+    btn.textContent = hasBg ? "Фон ✓" : "Фон";
+    btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
+  }
+}
+
+function openLandingGroupBackgroundModal(group) {
+  if (!appLandingGroupBgModalNode || !group?.id) return;
+  landingGroupBackgroundModalGroupId = group.id;
+  const fresh = getLandingGroupBackgroundModalGroup() || group;
+  if (appLandingGroupBgModalTitleNode) {
+    const label = fresh.id === LANDING_UNGROUPED_GROUP_ID ? fresh.title : `«${fresh.title || fresh.id}»`;
+    appLandingGroupBgModalTitleNode.textContent = `Фон ${fresh.id === LANDING_UNGROUPED_GROUP_ID ? "секции" : "группы"} ${label}`;
+  }
+  renderLandingGroupBackgroundModalUi(fresh);
+  appLandingGroupBgModalNode.classList.remove("hidden");
+}
+
+function closeLandingGroupBackgroundModal() {
+  landingGroupBackgroundModalGroupId = null;
+  appLandingGroupBgModalNode?.classList.add("hidden");
+  appLandingGroupBgZoneNode?.classList.remove("is-uploading", "drag-over");
+}
+
+async function handleLandingGroupBackgroundUpload(file) {
+  const group = getLandingGroupBackgroundModalGroup();
+  if (!file || !group?.id) return;
+  if (!isAllowedPreviewFile(file)) {
+    showToast("Допустимы только JPG, PNG и GIF", "error");
+    return;
+  }
+
+  appLandingGroupBgZoneNode?.classList.add("is-uploading");
+  try {
+    const saved = await uploadLandingGroupBackground(group.id, file);
+    const target = applyLandingGroupMetaBackground(group.id, saved);
+    renderLandingGroupBackgroundModalUi(target || group);
+    refreshLandingGroupBackgroundBtn(group.id);
+    showToast("Фон группы сохранён", "success");
+  } catch (error) {
+    showToast(`Не удалось загрузить фон: ${error.message}`, "error");
+  } finally {
+    appLandingGroupBgZoneNode?.classList.remove("is-uploading");
+  }
+}
+
+async function pasteLandingGroupBackgroundFromClipboard() {
+  try {
+    const file = await readPreviewFileFromClipboard();
+    if (!file) {
+      showToast("В буфере нет изображения", "error");
+      return;
+    }
+    await handleLandingGroupBackgroundUpload(file);
+  } catch (error) {
+    const message =
+      error?.name === "NotAllowedError"
+        ? "Нет доступа к буферу обмена. Разрешите доступ в браузере."
+        : error?.message || "Не удалось вставить изображение";
+    showToast(message, "error");
+  }
+}
+
+async function removeLandingGroupBackgroundFromModal() {
+  const group = getLandingGroupBackgroundModalGroup();
+  if (!group?.id) return;
+
+  appLandingGroupBgZoneNode?.classList.add("is-uploading");
+  try {
+    await removeLandingGroupBackground(group.id);
+    const target = applyLandingGroupMetaBackground(group.id, { background: null, backgroundUrl: null });
+    renderLandingGroupBackgroundModalUi(target || group);
+    refreshLandingGroupBackgroundBtn(group.id);
+    showToast("Фон удалён", "success");
+  } catch (error) {
+    showToast(`Не удалось удалить фон: ${error.message}`, "error");
+  } finally {
+    appLandingGroupBgZoneNode?.classList.remove("is-uploading");
+  }
+}
+
+function createLandingGroupBackgroundBtn(group) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-group-bg-open-btn";
+  const hasBg = Boolean(group.backgroundUrl);
+  btn.textContent = hasBg ? "Фон ✓" : "Фон";
+  btn.title = hasBg ? "Изменить фон группы" : "Загрузить фон группы";
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openLandingGroupBackgroundModal(group);
+  });
+  return btn;
+}
+
+function setupLandingGroupBackgroundModal() {
+  if (!appLandingGroupBgModalNode || appLandingGroupBgModalNode.dataset.bound === "1") return;
+  appLandingGroupBgModalNode.dataset.bound = "1";
+
+  appLandingGroupBgZoneNode?.addEventListener("click", (event) => {
+    if (event.target.closest(".preview-action-paste")) return;
+    appLandingGroupBgFileInputNode?.click();
+  });
+
+  appLandingGroupBgZoneNode?.addEventListener("keydown", (event) => {
+    if (event.target.closest(".preview-action-paste")) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      appLandingGroupBgFileInputNode?.click();
+    }
+  });
+
+  appLandingGroupBgFileInputNode?.addEventListener("change", () => {
+    const file = appLandingGroupBgFileInputNode.files?.[0];
+    appLandingGroupBgFileInputNode.value = "";
+    if (file) void handleLandingGroupBackgroundUpload(file);
+  });
+
+  appLandingGroupBgZoneNode?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    appLandingGroupBgZoneNode.classList.add("drag-over");
+  });
+  appLandingGroupBgZoneNode?.addEventListener("dragleave", () => {
+    appLandingGroupBgZoneNode.classList.remove("drag-over");
+  });
+  appLandingGroupBgZoneNode?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    appLandingGroupBgZoneNode.classList.remove("drag-over");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) void handleLandingGroupBackgroundUpload(file);
+  });
+
+  appLandingGroupBgPasteBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    void pasteLandingGroupBackgroundFromClipboard();
+  });
+  appLandingGroupBgPasteActionsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    void pasteLandingGroupBackgroundFromClipboard();
+  });
+  appLandingGroupBgReplaceBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    appLandingGroupBgFileInputNode?.click();
+  });
+  appLandingGroupBgRemoveBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void removeLandingGroupBackgroundFromModal();
+  });
+  appLandingGroupBgCloseBtn?.addEventListener("click", closeLandingGroupBackgroundModal);
+  appLandingGroupBgModalNode.addEventListener("click", (event) => {
+    if (event.target === appLandingGroupBgModalNode) closeLandingGroupBackgroundModal();
+  });
+}
+
+function slugifyLandingGroupId(raw, fallbackIndex = 0) {
+  const cleaned = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}_-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return cleaned || `group-${fallbackIndex + 1}`;
+}
+
+function normalizeLandingGroupAppearance(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
+function mapLandingGroupFromApi(group) {
+  return {
+    id: String(group?.id || ""),
+    title: String(group?.title || group?.id || "").trim(),
+    agentIds: Array.isArray(group?.agentIds) ? [...group.agentIds] : [],
+    background: group?.background || null,
+    backgroundUrl: group?.backgroundUrl || null,
+    appearance: normalizeLandingGroupAppearance(group?.appearance)
+  };
+}
+
+async function loadLandingAgentsGroups() {
+  const response = await fetch("/api/agents/groups");
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  landingAgentsGroupsCache = Array.isArray(data.groups) ? data.groups.map(mapLandingGroupFromApi) : [];
+  landingAgentsUngroupedCache = mapLandingUngroupedFromApi(data.ungrouped);
+  return landingAgentsGroupsCache;
+}
+
+async function saveLandingAgentsGroups() {
+  const response = await fetch("/api/agents/groups", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      groups: landingAgentsGroupsCache,
+      ungrouped: {
+        background: landingAgentsUngroupedCache.background,
+        appearance: landingAgentsUngroupedCache.appearance
+      }
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  landingAgentsGroupsCache = Array.isArray(data.groups) ? data.groups.map(mapLandingGroupFromApi) : [];
+  landingAgentsUngroupedCache = mapLandingUngroupedFromApi(data.ungrouped);
+  return landingAgentsGroupsCache;
+}
+
+
+async function uploadLandingGroupBackground(groupId, file) {
+  if (!groupId) throw new Error("Группа не задана");
+  if (!isAllowedPreviewFile(file)) {
+    throw new Error("Допустимы только JPG, PNG и GIF");
+  }
+  const data = await readFileAsBase64(file);
+  const response = await fetch("/api/agents/groups/background", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      groupId,
+      data,
+      fileName: file.name,
+      mimeType: file.type
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function removeLandingGroupBackground(groupId) {
+  const response = await fetch(`/api/agents/groups/background?groupId=${encodeURIComponent(groupId)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function openAppLandingGroupCreateModal() {
+  if (!appLandingGroupCreateModalNode) return;
+  if (appLandingGroupCreateNameInputNode) appLandingGroupCreateNameInputNode.value = "";
+  appLandingGroupCreateModalNode.classList.remove("hidden");
+  window.setTimeout(() => appLandingGroupCreateNameInputNode?.focus(), 0);
+}
+
+function closeAppLandingGroupCreateModal() {
+  appLandingGroupCreateModalNode?.classList.add("hidden");
+  if (appLandingGroupCreateSubmitBtn) {
+    appLandingGroupCreateSubmitBtn.disabled = false;
+    appLandingGroupCreateSubmitBtn.textContent = "Создать";
+  }
+}
+
+async function submitAppLandingGroupCreate() {
+  if (!appLandingGroupCreateSubmitBtn || !appLandingGroupCreateNameInputNode) return;
+  const trimmed = String(appLandingGroupCreateNameInputNode.value || "").trim();
+  if (!trimmed) {
+    showToast("Укажите название группы", "error");
+    appLandingGroupCreateNameInputNode.focus();
+    return;
+  }
+
+  appLandingGroupCreateSubmitBtn.disabled = true;
+  appLandingGroupCreateSubmitBtn.textContent = "Создание…";
+
+  try {
+    if (!landingAgentsGroupsCache.length) {
+      await loadLandingAgentsGroups().catch(() => {});
+    }
+
+    const baseId = slugifyLandingGroupId(trimmed, landingAgentsGroupsCache.length);
+    let id = baseId;
+    let suffix = 2;
+    while (landingAgentsGroupsCache.some((group) => group.id === id)) {
+      id = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+
+    landingAgentsGroupsCache.push({
+      id,
+      title: trimmed,
+      agentIds: [],
+      background: null,
+      backgroundUrl: null,
+      appearance: "light"
+    });
+    await saveLandingAgentsGroups();
+    closeAppLandingGroupCreateModal();
+    setLandingAgentsView("groups");
+    await renderAppLandingGroups();
+    showToast("Группа создана", "success");
+  } catch (error) {
+    await loadLandingAgentsGroups().catch(() => {});
+    showToast(`Не удалось создать группу: ${error.message}`, "error");
+  } finally {
+    appLandingGroupCreateSubmitBtn.disabled = false;
+    appLandingGroupCreateSubmitBtn.textContent = "Создать";
+  }
+}
+
+function getAssignedLandingAgentGroupMap(groups = landingAgentsGroupsCache) {
+  const assigned = new Map();
+  for (const group of groups) {
+    for (const agentId of group.agentIds || []) {
+      assigned.set(agentId, group.id);
+    }
+  }
+  return assigned;
+}
+
+function buildLandingGroupsLayout(agents, groups = landingAgentsGroupsCache) {
+  const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+  const assigned = getAssignedLandingAgentGroupMap(groups);
+  const grouped = groups.map((group) => ({
+    ...group,
+    agents: (group.agentIds || []).map((agentId) => agentById.get(agentId)).filter(Boolean)
+  }));
+  const ungrouped = agents.filter((agent) => !assigned.has(agent.id));
+  return { grouped, ungrouped };
+}
+
+function createLandingGroupAddSelect(group) {
+  const wrap = document.createElement("div");
+  wrap.className = "app-landing-group-add-wrap";
+
+  const select = document.createElement("select");
+  select.className = "app-landing-group-add-select";
+  select.setAttribute("aria-label", `Добавить агента в группу ${group.title}`);
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "+ Добавить агента";
+  select.appendChild(placeholder);
+
+  const assigned = getAssignedLandingAgentGroupMap();
+  const addable = getAgentsForLandingGrid().filter((agent) => {
+    if ((group.agentIds || []).includes(agent.id)) return false;
+    const currentGroupId = assigned.get(agent.id);
+    return !currentGroupId;
+  });
+
+  for (const agent of addable) {
+    const option = document.createElement("option");
+    option.value = agent.id;
+    option.textContent = agent.name || agent.id;
+    select.appendChild(option);
+  }
+
+  if (addable.length === 0) {
+    select.disabled = true;
+    placeholder.textContent = "Нет доступных агентов";
+  }
+
+  select.addEventListener("change", () => {
+    const agentId = String(select.value || "").trim();
+    if (!agentId) return;
+    void (async () => {
+      const target = landingAgentsGroupsCache.find((item) => item.id === group.id);
+      if (!target) return;
+      if (!target.agentIds.includes(agentId)) {
+        for (const item of landingAgentsGroupsCache) {
+          item.agentIds = (item.agentIds || []).filter((id) => id !== agentId);
+        }
+        target.agentIds.push(agentId);
+      }
+      try {
+        await saveLandingAgentsGroups();
+        renderAppLandingGroups();
+        showToast("Агент добавлен в группу", "success");
+      } catch (error) {
+        showToast(`Не удалось сохранить группы: ${error.message}`, "error");
+        await loadLandingAgentsGroups().catch(() => {});
+        renderAppLandingGroups();
+      }
+    })();
+  });
+
+  wrap.appendChild(select);
+  return wrap;
+}
+
+function createLandingGroupAppearanceBtn(group) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-group-appearance-btn";
+
+  const syncBtn = (appearance) => {
+    const isDark = appearance === "dark";
+    btn.textContent = isDark ? "☀ Светлый фон" : "🌙 Тёмный фон";
+    btn.title = isDark
+      ? "Переключить на светлое оформление (для ярких изображений)"
+      : "Переключить на оформление для тёмного фонового изображения";
+  };
+
+  syncBtn(normalizeLandingGroupAppearance(group.appearance));
+
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void (async () => {
+      const target = getLandingGroupMeta(group.id);
+      if (!target) return;
+      const next = normalizeLandingGroupAppearance(target.appearance) === "dark" ? "light" : "dark";
+      target.appearance = next;
+      try {
+        await saveLandingAgentsGroups();
+        const section = appLandingGroupsContentNode?.querySelector(
+          `.app-landing-group-section[data-group-id="${CSS.escape(String(group.id))}"]`
+        );
+        if (section) applyLandingGroupSectionBackground(section, target);
+        syncBtn(next);
+        showToast("Оформление группы сохранено", "success");
+      } catch (error) {
+        showToast(`Не удалось сохранить оформление: ${error.message}`, "error");
+        await loadLandingAgentsGroups().catch(() => {});
+        renderAppLandingGroups();
+      }
+    })();
+  });
+
+  return btn;
+}
+
+function applyLandingGroupSectionBackground(section, group) {
+  if (!section || !group?.backgroundUrl) {
+    section?.classList.remove(
+      "has-background",
+      "is-group-appearance-light",
+      "is-group-appearance-dark"
+    );
+    section?.style.removeProperty("--group-bg-image");
+    return;
+  }
+
+  const appearance = normalizeLandingGroupAppearance(group.appearance);
+  section.classList.add("has-background");
+  section.classList.toggle("is-group-appearance-light", appearance === "light");
+  section.classList.toggle("is-group-appearance-dark", appearance === "dark");
+  section.style.setProperty("--group-bg-image", `url("${appendCacheBuster(group.backgroundUrl)}")`);
+}
+
+function renderAppLandingGroupSection(group) {
+  const isUngrouped = group.id === LANDING_UNGROUPED_GROUP_ID;
+  const isReadonly = group.readonly === true || isUngrouped;
+  const section = document.createElement("section");
+  section.className = "app-landing-group-section";
+  if (isReadonly) section.classList.add("is-readonly");
+  else section.classList.add("app-landing-group-section--sortable");
+  section.dataset.groupId = group.id;
+  applyLandingGroupSectionBackground(section, group);
+
+  const head = document.createElement("header");
+  head.className = "app-landing-group-head";
+
+  if (!isReadonly) {
+    const sortHandle = document.createElement("button");
+    sortHandle.type = "button";
+    sortHandle.className = "menu-sort-handle app-landing-group-sort-handle";
+    sortHandle.draggable = true;
+    sortHandle.title = "Перетащить для сортировки";
+    sortHandle.setAttribute("aria-label", "Перетащить для сортировки");
+    sortHandle.textContent = "⠿";
+    sortHandle.addEventListener("mousedown", (event) => event.stopPropagation());
+    head.appendChild(sortHandle);
+  }
+
+  if (isReadonly) {
+    const titleNode = document.createElement("h3");
+    titleNode.className = "app-landing-group-title-input";
+    titleNode.style.border = "0";
+    titleNode.style.background = "transparent";
+    titleNode.style.padding = "0";
+    titleNode.textContent = group.title || "Без группы";
+    head.appendChild(titleNode);
+  } else {
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "app-landing-group-title-input";
+    titleInput.value = group.title || group.id;
+    titleInput.setAttribute("aria-label", "Название группы");
+    titleInput.addEventListener("change", () => {
+      void (async () => {
+        const target = landingAgentsGroupsCache.find((item) => item.id === group.id);
+        if (!target) return;
+        const nextTitle = String(titleInput.value || "").trim();
+        if (!nextTitle) {
+          titleInput.value = target.title;
+          return;
+        }
+        target.title = nextTitle;
+        try {
+          await saveLandingAgentsGroups();
+          showToast("Группа сохранена", "success");
+        } catch (error) {
+          showToast(`Не удалось сохранить группы: ${error.message}`, "error");
+          titleInput.value = target.title;
+        }
+      })();
+    });
+    head.appendChild(titleInput);
+  }
+
+  const countNode = document.createElement("span");
+  countNode.className = "app-landing-group-count";
+  countNode.textContent = `${group.agents.length} агентов`;
+  head.appendChild(countNode);
+
+  if (!isReadonly) {
+    head.appendChild(createLandingGroupAddSelect(group));
+  }
+
+  if (!isReadonly || isUngrouped) {
+    head.appendChild(createLandingGroupBackgroundBtn(group));
+    if (group.backgroundUrl) {
+      head.appendChild(createLandingGroupAppearanceBtn(group));
+    }
+  }
+
+  if (!isReadonly) {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "app-landing-group-delete-btn";
+    deleteBtn.textContent = "Удалить";
+    deleteBtn.addEventListener("click", () => {
+      void (async () => {
+        landingAgentsGroupsCache = landingAgentsGroupsCache.filter((item) => item.id !== group.id);
+        try {
+          await removeLandingGroupBackground(group.id).catch(() => {});
+          await saveLandingAgentsGroups();
+          renderAppLandingGroups();
+          showToast("Группа удалена", "success");
+        } catch (error) {
+          showToast(`Не удалось сохранить группы: ${error.message}`, "error");
+          await loadLandingAgentsGroups().catch(() => {});
+          renderAppLandingGroups();
+        }
+      })();
+    });
+    head.appendChild(deleteBtn);
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "app-landing-group-agents";
+  if (!isReadonly) grid.dataset.groupId = group.id;
+
+  if (!group.agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-group-empty";
+    empty.textContent = isReadonly
+      ? "Все агенты распределены по группам."
+      : "В группе пока нет агентов — выберите их в списке «Добавить агента».";
+    grid.appendChild(empty);
+  } else {
+    for (const agent of group.agents) {
+      const wrap = document.createElement("div");
+      wrap.className = "app-landing-group-agent-wrap";
+      if (!isReadonly) {
+        wrap.classList.add("app-landing-group-agent-wrap--sortable");
+        wrap.dataset.agentId = agent.id;
+
+        const sortHandle = document.createElement("button");
+        sortHandle.type = "button";
+        sortHandle.className = "menu-sort-handle app-landing-group-agent-sort-handle";
+        sortHandle.draggable = true;
+        sortHandle.title = "Перетащить для сортировки";
+        sortHandle.setAttribute("aria-label", "Перетащить для сортировки");
+        sortHandle.textContent = "⠿";
+        sortHandle.addEventListener("mousedown", (event) => event.stopPropagation());
+        wrap.appendChild(sortHandle);
+      }
+
+      if (!isReadonly) {
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "app-landing-group-agent-remove";
+        removeBtn.title = "Убрать из группы";
+        removeBtn.setAttribute("aria-label", `Убрать ${agent.name || agent.id} из группы`);
+        removeBtn.textContent = "×";
+        removeBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void (async () => {
+            const target = landingAgentsGroupsCache.find((item) => item.id === group.id);
+            if (!target) return;
+            target.agentIds = (target.agentIds || []).filter((id) => id !== agent.id);
+            try {
+              await saveLandingAgentsGroups();
+              renderAppLandingGroups();
+            } catch (error) {
+              showToast(`Не удалось сохранить группы: ${error.message}`, "error");
+              await loadLandingAgentsGroups().catch(() => {});
+              renderAppLandingGroups();
+            }
+          })();
+        });
+        wrap.appendChild(removeBtn);
+      }
+
+      wrap.appendChild(createAppLandingAgentCard(agent));
+      grid.appendChild(wrap);
+    }
+  }
+
+  section.append(head, grid);
+  return section;
+}
+
+let landingGroupsSortDragSection = null;
+let landingGroupAgentsSortDragWrap = null;
+
+function collectLandingGroupsSortOrder() {
+  if (!appLandingGroupsContentNode) return [];
+  return Array.from(
+    appLandingGroupsContentNode.querySelectorAll(".app-landing-group-section--sortable")
+  )
+    .map((section) => section.dataset.groupId)
+    .filter(Boolean);
+}
+
+async function persistLandingGroupsSortOrder() {
+  const order = collectLandingGroupsSortOrder();
+  if (!order.length) return;
+
+  const byId = new Map(landingAgentsGroupsCache.map((group) => [group.id, group]));
+  const reordered = order.map((id) => byId.get(id)).filter(Boolean);
+  for (const group of landingAgentsGroupsCache) {
+    if (!reordered.some((item) => item.id === group.id)) reordered.push(group);
+  }
+
+  landingAgentsGroupsCache = reordered;
+  try {
+    await saveLandingAgentsGroups();
+    showToast("Порядок групп сохранён", "success");
+  } catch (error) {
+    showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
+    await loadLandingAgentsGroups().catch(() => {});
+    renderAppLandingGroups();
+  }
+}
+
+function collectLandingGroupAgentsSortOrder(grid) {
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll(".app-landing-group-agent-wrap--sortable"))
+    .map((wrap) => wrap.dataset.agentId)
+    .filter(Boolean);
+}
+
+async function persistLandingGroupAgentsSortOrder(groupId, grid) {
+  const order = collectLandingGroupAgentsSortOrder(grid);
+  if (!groupId || !order.length) return;
+
+  const target = landingAgentsGroupsCache.find((item) => item.id === groupId);
+  if (!target) return;
+
+  const existing = Array.isArray(target.agentIds) ? target.agentIds : [];
+  const reordered = order.filter((id) => existing.includes(id));
+  for (const id of existing) {
+    if (!reordered.includes(id)) reordered.push(id);
+  }
+  target.agentIds = reordered;
+
+  try {
+    await saveLandingAgentsGroups();
+    showToast("Порядок агентов сохранён", "success");
+  } catch (error) {
+    showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
+    await loadLandingAgentsGroups().catch(() => {});
+    renderAppLandingGroups();
+  }
+}
+
+function getLandingGroupAgentsSortGrid(wrap) {
+  return wrap?.closest(".app-landing-group-agents[data-group-id]") || null;
+}
+
+function shouldInsertLandingGroupAgentBefore(targetWrap, event) {
+  const rect = targetWrap.getBoundingClientRect();
+  const offsetY = event.clientY - rect.top;
+  const offsetX = event.clientX - rect.left;
+  return offsetY < rect.height * 0.5 || (offsetY <= rect.height * 0.75 && offsetX < rect.width * 0.5);
+}
+
+function setupLandingGroupsSortDragDrop() {
+  const container = appLandingGroupsContentNode;
+  if (!container || container.dataset.sortBound === "1") return;
+  container.dataset.sortBound = "1";
+
+  container.addEventListener("dragstart", (event) => {
+    const agentHandle = event.target.closest(".app-landing-group-agent-sort-handle");
+    if (agentHandle) {
+      const wrap = agentHandle.closest(".app-landing-group-agent-wrap--sortable");
+      if (!wrap) {
+        event.preventDefault();
+        return;
+      }
+      landingGroupAgentsSortDragWrap = wrap;
+      wrap.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", wrap.dataset.agentId || "");
+      return;
+    }
+
+    const handle = event.target.closest(".app-landing-group-sort-handle");
+    if (!handle) return;
+    const section = handle.closest(".app-landing-group-section--sortable");
+    if (!section) {
+      event.preventDefault();
+      return;
+    }
+    landingGroupsSortDragSection = section;
+    section.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", section.dataset.groupId || "");
+  });
+
+  container.addEventListener("dragover", (event) => {
+    if (landingGroupAgentsSortDragWrap) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      const targetWrap = event.target.closest(".app-landing-group-agent-wrap--sortable");
+      if (!targetWrap || targetWrap === landingGroupAgentsSortDragWrap) return;
+
+      const dragGrid = getLandingGroupAgentsSortGrid(landingGroupAgentsSortDragWrap);
+      const targetGrid = getLandingGroupAgentsSortGrid(targetWrap);
+      if (!dragGrid || dragGrid !== targetGrid) return;
+
+      const insertBefore = shouldInsertLandingGroupAgentBefore(targetWrap, event);
+      if (insertBefore) dragGrid.insertBefore(landingGroupAgentsSortDragWrap, targetWrap);
+      else dragGrid.insertBefore(landingGroupAgentsSortDragWrap, targetWrap.nextSibling);
+      return;
+    }
+
+    if (!landingGroupsSortDragSection) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const targetSection = event.target.closest(".app-landing-group-section--sortable");
+    if (!targetSection || targetSection === landingGroupsSortDragSection) return;
+
+    const rect = targetSection.getBoundingClientRect();
+    const insertBefore = event.clientY < rect.top + rect.height / 2;
+    if (insertBefore) container.insertBefore(landingGroupsSortDragSection, targetSection);
+    else container.insertBefore(landingGroupsSortDragSection, targetSection.nextSibling);
+  });
+
+  container.addEventListener("drop", (event) => {
+    event.preventDefault();
+    if (landingGroupAgentsSortDragWrap) {
+      const grid = getLandingGroupAgentsSortGrid(landingGroupAgentsSortDragWrap);
+      const groupId = grid?.dataset.groupId || "";
+      landingGroupAgentsSortDragWrap.classList.remove("is-dragging");
+      landingGroupAgentsSortDragWrap = null;
+      if (grid && groupId) void persistLandingGroupAgentsSortOrder(groupId, grid);
+      return;
+    }
+
+    if (!landingGroupsSortDragSection) return;
+    landingGroupsSortDragSection.classList.remove("is-dragging");
+    landingGroupsSortDragSection = null;
+    void persistLandingGroupsSortOrder();
+  });
+
+  container.addEventListener("dragend", () => {
+    if (landingGroupAgentsSortDragWrap) {
+      landingGroupAgentsSortDragWrap.classList.remove("is-dragging");
+      landingGroupAgentsSortDragWrap = null;
+    }
+    if (landingGroupsSortDragSection) {
+      landingGroupsSortDragSection.classList.remove("is-dragging");
+      landingGroupsSortDragSection = null;
+    }
+  });
+}
+
+async function renderAppLandingGroups() {
+  if (!appLandingGroupsContentNode) return;
+
+  appLandingGroupsContentNode.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "app-landing-groups-loading";
+  loading.textContent = "Загрузка групп…";
+  appLandingGroupsContentNode.appendChild(loading);
+
+  try {
+    await loadLandingAgentsGroups();
+    appLandingGroupsContentNode.replaceChildren();
+
+    const agents = getAgentsForLandingGrid();
+    const { grouped, ungrouped } = buildLandingGroupsLayout(agents, landingAgentsGroupsCache);
+
+    if (!grouped.length) {
+      const empty = document.createElement("p");
+      empty.className = "app-landing-group-empty";
+      empty.textContent = "Групп пока нет. Нажмите «Создать группу», чтобы разложить агентов по категориям.";
+      appLandingGroupsContentNode.appendChild(empty);
+    } else {
+      for (const group of grouped) {
+        appLandingGroupsContentNode.appendChild(renderAppLandingGroupSection(group));
+      }
+    }
+
+    if (ungrouped.length || landingAgentsUngroupedCache.backgroundUrl) {
+      appLandingGroupsContentNode.appendChild(
+        renderAppLandingGroupSection({
+          ...landingAgentsUngroupedCache,
+          agents: ungrouped,
+          agentIds: ungrouped.map((agent) => agent.id),
+          readonly: true
+        })
+      );
+    }
+
+    if (landingGroupBackgroundModalGroupId) {
+      const modalGroup = getLandingGroupMeta(landingGroupBackgroundModalGroupId);
+      if (modalGroup) {
+        if (appLandingGroupBgModalTitleNode) {
+          const label =
+            modalGroup.id === LANDING_UNGROUPED_GROUP_ID
+              ? modalGroup.title
+              : `«${modalGroup.title || modalGroup.id}»`;
+          appLandingGroupBgModalTitleNode.textContent = `Фон ${
+            modalGroup.id === LANDING_UNGROUPED_GROUP_ID ? "секции" : "группы"
+          } ${label}`;
+        }
+        renderLandingGroupBackgroundModalUi(modalGroup);
+      } else {
+        closeLandingGroupBackgroundModal();
+      }
+    }
+  } catch (error) {
+    appLandingGroupsContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "app-landing-groups-error";
+    errorNode.textContent = `Не удалось загрузить группы: ${error.message}`;
+    appLandingGroupsContentNode.appendChild(errorNode);
+  }
+}
+
 function hashAgentIdForOrbit(id) {
   let hash = 2166136261;
   for (let i = 0; i < id.length; i += 1) {
@@ -3564,7 +4515,7 @@ function hashAgentIdForOrbit(id) {
 function getLandingAgentsView() {
   try {
     const saved = localStorage.getItem(LANDING_AGENTS_VIEW_KEY);
-    if (saved === "orbit" || saved === "grid") return saved;
+    if (saved === "orbit" || saved === "grid" || saved === "groups") return saved;
   } catch {
     // ignore
   }
@@ -3572,7 +4523,7 @@ function getLandingAgentsView() {
 }
 
 function setLandingAgentsView(view) {
-  const next = view === "orbit" ? "orbit" : "grid";
+  const next = view === "orbit" || view === "groups" ? view : "grid";
   localStorage.setItem(LANDING_AGENTS_VIEW_KEY, next);
   syncLandingAgentsViewUi();
 }
@@ -3599,24 +4550,34 @@ function getOrbitBubbleLayout(index, total, agentId) {
 function syncLandingAgentsViewUi() {
   const view = getLandingAgentsView();
   const isOrbit = view === "orbit";
+  const isGroups = view === "groups";
 
   appLandingPaneNode?.classList.toggle("is-screensaver", isOrbit);
-  appLandingAgentsNode?.classList.toggle("hidden", isOrbit);
+  appLandingAgentsNode?.classList.toggle("hidden", isOrbit || isGroups);
+  appLandingGroupsNode?.classList.toggle("hidden", !isGroups);
+  appLandingGroupsNode?.setAttribute("aria-hidden", isGroups ? "false" : "true");
   appLandingOrbitNode?.classList.toggle("hidden", !isOrbit);
   appLandingOrbitNode?.setAttribute("aria-hidden", isOrbit ? "false" : "true");
 
-  appLandingViewGridBtn?.classList.toggle("is-active", !isOrbit);
+  appLandingViewGridBtn?.classList.toggle("is-active", view === "grid");
+  appLandingViewGroupsBtn?.classList.toggle("is-active", isGroups);
   appLandingViewOrbitBtn?.classList.toggle("is-active", isOrbit);
-  appLandingViewGridBtn?.setAttribute("aria-selected", isOrbit ? "false" : "true");
+  appLandingViewGridBtn?.setAttribute("aria-selected", view === "grid" ? "true" : "false");
+  appLandingViewGroupsBtn?.setAttribute("aria-selected", isGroups ? "true" : "false");
   appLandingViewOrbitBtn?.setAttribute("aria-selected", isOrbit ? "true" : "false");
 
   const subNode = document.querySelector(".app-landing-sub");
   if (subNode) {
     subNode.textContent = isOrbit
       ? "Кружки в воздухе — выберите workspace"
-      : "Каждый агент — отдельный workspace с темами, памятью и файлами";
+      : isGroups
+        ? "Распределите агентов по группам — настройки в awn-agents-groups.json"
+        : "Каждый агент — отдельный workspace с темами, памятью и файлами";
   }
 
+  if (isGroups) {
+    void renderAppLandingGroups();
+  }
 }
 
 function createAppLandingOrbitBubble(agent, index, total) {
@@ -4550,15 +5511,15 @@ function renderAgentsRegistryList() {
     const orchestratorWrap = document.createElement("div");
     orchestratorWrap.className = "agents-registry-field agents-registry-orchestrator-field";
     const orchestratorTitle = document.createElement("span");
-    orchestratorTitle.textContent = "Орк.";
+    orchestratorTitle.textContent = "Оркестратор";
     const orchestratorLabel = document.createElement("label");
     orchestratorLabel.className = "agents-registry-orchestrator";
-    orchestratorLabel.title = "Агент-оркестратор — координирует остальные workspace";
+    orchestratorLabel.title = "Главный агент — координирует остальные workspace";
     const orchestratorInput = document.createElement("input");
     orchestratorInput.type = "radio";
     orchestratorInput.name = "agents-registry-orchestrator";
     orchestratorInput.checked = Boolean(agent.orchestrator);
-    orchestratorInput.setAttribute("aria-label", "Оркестратор");
+    orchestratorInput.setAttribute("aria-label", "Главный агент");
     orchestratorInput.addEventListener("change", () => {
       if (!orchestratorInput.checked) return;
       setAgentsRegistryDraftOrchestrator(index);
@@ -4569,6 +5530,7 @@ function renderAgentsRegistryList() {
       setAgentsRegistryDraftOrchestrator(index);
     });
     const orchestratorText = document.createElement("span");
+    orchestratorText.textContent = "Главный агент";
     orchestratorText.setAttribute("aria-hidden", "true");
     orchestratorLabel.append(orchestratorInput, orchestratorText);
     orchestratorWrap.append(orchestratorTitle, orchestratorLabel);
@@ -35501,6 +36463,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 });
 
 setupMenuSortDragDrop();
+setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
 setupEditorMenuLinkDrop();
 setupEditorAsideSelectionCapture();
@@ -36242,7 +37205,25 @@ appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
 });
 
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
+appLandingViewGroupsBtn?.addEventListener("click", () => setLandingAgentsView("groups"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
+appLandingGroupsCreateBtn?.addEventListener("click", () => {
+  openAppLandingGroupCreateModal();
+});
+appLandingGroupCreateCancelBtn?.addEventListener("click", closeAppLandingGroupCreateModal);
+appLandingGroupCreateSubmitBtn?.addEventListener("click", () => {
+  void submitAppLandingGroupCreate();
+});
+appLandingGroupCreateNameInputNode?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void submitAppLandingGroupCreate();
+  }
+});
+appLandingGroupCreateModalNode?.addEventListener("click", (event) => {
+  if (event.target === appLandingGroupCreateModalNode) closeAppLandingGroupCreateModal();
+});
+setupLandingGroupBackgroundModal();
 appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
 appLandingCreateCancelBtn?.addEventListener("click", closeAppLandingCreateModal);
 appLandingCreateSubmitBtn?.addEventListener("click", () => {

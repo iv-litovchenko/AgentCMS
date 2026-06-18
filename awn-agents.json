@@ -36,6 +36,10 @@
     {
       "path": "/Users/macbook/Desktop/agent-career",
       "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-atlas",
+      "environment": "local"
     }
   ]
 }
