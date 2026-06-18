@@ -1,5 +1,5 @@
 ---
-awn-preview: assets/preview/4d93b664-29a3-4953-b71f-e3dad2d25368.png
+awn-preview: awn-storage/_registration/assets/preview/4d93b664-29a3-4953-b71f-e3dad2d25368.png
 awn-emoji: ""
 awn-name: "[Agent CMS] Core"
 awn-status: 🟢 Открыта

@@ -1,6 +1,10 @@
 const fs = require("fs/promises");
 const path = require("path");
-const { parseStorageAssetsRef } = require("./manifest-paths");
+const {
+  STORAGE_ROOT_FOLDER,
+  parseStorageAssetsRef,
+  getNamedStorageSlotDirRel
+} = require("./manifest-paths");
 const {
   resolveMarkdownHrefToWorkspaceRel,
   getWikilinkTargetFromRel
@@ -93,23 +97,60 @@ function buildWikilinkIndex(mdFiles) {
   return index;
 }
 
+function workspacePathExistsInSet(fileSet, relPath) {
+  const lower = normalizeLinkPath(relPath).toLowerCase();
+  if (!lower) return true;
+  if (fileSet.has(lower)) return true;
+
+  if (new RegExp(`^${STORAGE_ROOT_FOLDER}/`, "i").test(lower)) {
+    for (const file of fileSet) {
+      if (file === lower || file.endsWith(`/${lower}`)) return true;
+    }
+  }
+
+  return false;
+}
+
 function workspaceFileExists(fileSet, relPath) {
   const norm = normalizeLinkPath(relPath);
   if (!norm) return true;
 
-  const lower = norm.toLowerCase();
-  if (fileSet.has(lower)) return true;
+  if (workspacePathExistsInSet(fileSet, norm)) return true;
 
   const assetsRef = parseStorageAssetsRef(norm);
-  if (assetsRef?.workspacePath && fileSet.has(assetsRef.workspacePath.toLowerCase())) {
+  if (assetsRef?.workspacePath && workspacePathExistsInSet(fileSet, assetsRef.workspacePath)) {
     return true;
   }
 
+  const lower = norm.toLowerCase();
   if (!/\.[a-z0-9]{1,8}$/i.test(norm)) {
     if (fileSet.has(`${lower}.md`)) return true;
   }
 
   return false;
+}
+
+function resolveHrefToWorkspaceRel(sourceRel, pathPart) {
+  const normalizedSource = normalizeLinkPath(sourceRel);
+  const href = String(pathPart || "").trim().split("#")[0].split("?")[0].trim();
+  if (!href) return null;
+
+  const hrefClean = href.replace(/^\.\//, "");
+  if (/^assets\//i.test(hrefClean)) {
+    const slotInsideStorage = normalizedSource.match(
+      new RegExp(`^(.*?/${STORAGE_ROOT_FOLDER}/[^/]+)(?:/|$)`, "i")
+    );
+    if (slotInsideStorage) {
+      return normalizeLinkPath(`${slotInsideStorage[1]}/${hrefClean}`);
+    }
+
+    const slotDir = getNamedStorageSlotDirRel(normalizedSource);
+    if (slotDir) {
+      return normalizeLinkPath(`${slotDir}/${hrefClean}`);
+    }
+  }
+
+  return resolveMarkdownHrefToWorkspaceRel(href, normalizedSource);
 }
 
 function wikilinkTargetExists(target, wikiIndex) {
@@ -178,7 +219,7 @@ function inspectHref(href, sourceRel, context, meta, issues) {
     return;
   }
 
-  const resolved = resolveMarkdownHrefToWorkspaceRel(pathPart, sourceRel);
+  const resolved = resolveHrefToWorkspaceRel(sourceRel, pathPart);
   if (!resolved) return;
 
   if (!workspaceFileExists(context.fileSet, resolved)) {

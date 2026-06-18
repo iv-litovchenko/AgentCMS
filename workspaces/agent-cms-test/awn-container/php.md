@@ -1,5 +1,5 @@
 ---
-awn-preview: assets/preview/20260617113521.png
+awn-preview: awn-storage/php/assets/preview/20260617113521.png
 awn-emoji: ""
 awn-name: PHP
 awn-status: 🟢 Открыта

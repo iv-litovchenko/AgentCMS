@@ -12603,12 +12603,13 @@ function normalizeEmbeddedDataUriMarkdown(markdown) {
 }
 
 function buildDocumentRelativeStorageRef(layerFolder, relativePath, nodePath) {
-  const contextPath = nodePath || getMarkdownAssetSourcePath() || getActiveNodeApiPath();
-  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath || contextPath));
-  if (!manifestPath) return "";
+  const fromPath = getMarkdownAssetSourcePath(nodePath);
+  const manifestPath = resolveManifestPathForNodeApi(
+    getResolvedNodePath(activePath || getActiveNodeApiPath())
+  );
+  if (!manifestPath || !fromPath) return "";
   const targetWorkspacePath = buildStorageLayerRef(manifestPath, layerFolder, relativePath);
   if (!targetWorkspacePath) return "";
-  const fromPath = getMarkdownAssetSourcePath(contextPath);
   const href = relativizeWorkspacePath(fromPath, targetWorkspacePath);
   if (!href) return "";
   return href
@@ -12621,11 +12622,21 @@ function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath) {
   return buildDocumentRelativeStorageRef(STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath, nodePath);
 }
 
+function isStorageLayerEditorPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  if (!normalized) return false;
+  if (normalized.includes(`/${STORAGE_ROOT_FOLDER}/`)) return true;
+  if (normalized.endsWith(`/${BUNDLE_CONTENT_FILE}`)) return true;
+  if (normalized.endsWith(`/${BUNDLE_TABULAR_FILE}`)) return true;
+  return false;
+}
+
 function getMarkdownAssetSourcePath(nodePath) {
-  const basePath = nodePath || activePath;
-  const contextPath = getPropsContextPath(basePath);
-  if (contextPath) return contextPath;
-  return getCurrentEditorLinkBasePath() || getResolvedNodePath(getActiveTitleEditorPath()) || "";
+  if (nodePath) {
+    const normalized = String(nodePath).replace(/\\/g, "/").trim();
+    if (normalized && isStorageLayerEditorPath(normalized)) return normalized;
+  }
+  return getPropsContextPath() || getResolvedNodePath(activePath) || "";
 }
 
 function isLoadableImageDisplayUrl(src) {
@@ -19196,25 +19207,32 @@ function isMediaCategoryContentPath(nodePath) {
 }
 
 function getPropsContextPath(nodePath = activePath) {
-  const base = getResolvedNodePath(nodePath);
-  if (!base) return "";
+  const manifestBase = getResolvedNodePath(activePath);
 
-  if (activeContentMode === "external" && activeExternalFilePath) {
+  if (manifestBase && activeContentMode === "external" && activeExternalFilePath) {
     const rel = String(activeExternalFilePath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(base, "external")}/${rel}`.replace(/\/+/g, "/");
+    return `${getNodeStorageSubfolderPath(manifestBase, "external")}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (activeContentMode === "media" && activeMediaMarkdownPath) {
+  if (manifestBase && activeContentMode === "media" && activeMediaMarkdownPath) {
     const rel = String(activeMediaMarkdownPath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(base, "media")}/${rel}`.replace(/\/+/g, "/");
+    return `${getNodeStorageSubfolderPath(manifestBase, "media")}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (activeContentMode === "media" && activeMediaSidecarPath) {
+  if (manifestBase && activeContentMode === "media" && activeMediaSidecarPath) {
     const rel = String(activeMediaSidecarPath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(base, "media")}/${rel}`.replace(/\/+/g, "/");
+    return `${getNodeStorageSubfolderPath(manifestBase, "media")}/${rel}`.replace(/\/+/g, "/");
   }
 
-  return base;
+  if (manifestBase && activeContentMode === "internal") {
+    return resolveNodeSidecarRelPath(manifestBase, "content");
+  }
+
+  if (manifestBase && activeContentMode === "tabular" && isTabularSourceEditing()) {
+    return resolveNodeSidecarRelPath(manifestBase, "tabular");
+  }
+
+  return getResolvedNodePath(nodePath) || manifestBase || "";
 }
 
 function resolveAwnTypeForContext(nodePath = activePath) {

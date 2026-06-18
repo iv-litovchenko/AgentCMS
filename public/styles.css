@@ -11133,7 +11133,7 @@ body.app-locked {
 
 .doc-props-aside .doc-aside-preview-block .props-form-preview-thumb-wrap {
   width: 100%;
-  min-height: 80px;
+  min-height: 150px;
   max-height: none;
   height: auto;
   border-radius: 10px;
@@ -15179,7 +15179,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .doc-props-aside .props-form-preview-thumb-wrap {
   width: 100%;
-  min-height: 80px;
+  min-height: 150px;
   max-height: none;
   height: auto;
   border-radius: 10px;
@@ -15188,12 +15188,38 @@ button.node-navigation-memory-title:focus-visible {
 .doc-props-aside .props-form-preview-thumb-wrap.node-overview-thumb-wrap {
   flex: none;
   width: 100%;
-  height: 80px;
+  height: 150px;
   max-height: none;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
-  min-height: 80px;
+  min-height: 150px;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap.node-overview-thumb-wrap[data-has-preview="1"] {
+  height: auto;
+  min-height: 0;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap > .node-overview-thumb,
+.doc-props-aside .props-form-preview-thumb-wrap > .broken-image-placeholder {
+  align-self: stretch;
+  width: 100%;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb-action {
+  flex-shrink: 0;
+}
+
+.doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb-edit-icon svg {
+  display: block;
 }
 
 .doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb,
@@ -15204,7 +15230,9 @@ button.node-navigation-memory-title:focus-visible {
 .doc-props-aside .props-form-preview-thumb-wrap .node-overview-thumb {
   width: 100%;
   height: auto;
-  object-fit: contain;
+  max-width: 100%;
+  object-fit: initial;
+  display: block;
 }
 
 .doc-props-aside .props-preview-field--preview {
