@@ -18202,6 +18202,14 @@ button.node-navigation-memory-title:focus-visible {
   color: #64748b;
 }
 
+.media-dashboard-preview.is-clickable {
+  cursor: pointer;
+}
+
+.media-dashboard-preview.is-clickable:hover {
+  background: #e2e8f0;
+}
+
 .media-dashboard-filename {
   font-weight: 600;
   color: #0f172a;
@@ -18317,6 +18325,11 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 12px;
   font-weight: 600;
   word-break: break-word;
+  cursor: pointer;
+}
+
+.media-file-name:hover {
+  color: var(--accent, #2563eb);
 }
 
 .media-image-path,
@@ -21811,5 +21824,191 @@ button.node-navigation-memory-title:focus-visible {
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.document-viewer-card {
+  width: min(960px, 96vw);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.document-viewer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.document-viewer-heading {
+  min-width: 0;
+}
+
+.document-viewer-heading .modal-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-viewer-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.document-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.document-viewer-body {
+  position: relative;
+  min-height: min(70vh, 640px);
+  max-height: min(78vh, 760px);
+  overflow: auto;
+  background: #f8fafc;
+}
+
+.document-viewer-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.document-viewer-iframe {
+  display: block;
+  width: 100%;
+  min-height: min(70vh, 640px);
+  border: 0;
+  background: #fff;
+}
+
+.document-viewer-content {
+  padding: 16px 20px 24px;
+}
+
+.document-viewer-content--docx {
+  background: #fff;
+  color: #0f172a;
+  line-height: 1.55;
+}
+
+.document-viewer-content--docx p {
+  margin: 0 0 0.75em;
+}
+
+.document-viewer-content--docx table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+}
+
+.document-viewer-content--docx td,
+.document-viewer-content--docx th {
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.document-viewer-content--text {
+  padding: 0;
+}
+
+.document-viewer-text {
+  margin: 0;
+  padding: 16px 20px 24px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #0f172a;
+  background: #fff;
+}
+
+.document-viewer-sheet-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.document-viewer-sheet-tab {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.document-viewer-sheet-tab.is-active {
+  background: var(--accent, #2563eb);
+  border-color: transparent;
+  color: #fff;
+}
+
+.document-viewer-sheet-wrap {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.document-viewer-sheet-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.document-viewer-sheet-wrap td,
+.document-viewer-sheet-wrap th {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.document-viewer-sheet-wrap tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.document-viewer-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 240px;
+  padding: 24px;
+  text-align: center;
+}
+
+.document-viewer-fallback-lead {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.document-viewer-fallback-note {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+body.document-viewer-open {
+  overflow: hidden;
 }
 

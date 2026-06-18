@@ -1263,7 +1263,7 @@
                 <button id="create-media-section-btn" class="external-create-section-btn hidden" type="button" title="Создать раздел">
                   + Раздел
                 </button>
-                <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.zip,.md,.txt" multiple hidden />
+                <input id="media-upload-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.md,.txt" multiple hidden />
                 <button
                   id="media-upload-btn"
                   class="media-upload-btn hidden"
@@ -2047,6 +2047,27 @@
       </div>
     </div>
 
+    <div id="document-viewer-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="document-viewer-title">
+      <div class="modal-card document-viewer-card">
+        <div class="document-viewer-header">
+          <div class="document-viewer-heading">
+            <div class="modal-message" id="document-viewer-title">Документ</div>
+            <p id="document-viewer-meta" class="document-viewer-meta"></p>
+          </div>
+          <div class="document-viewer-toolbar">
+            <button id="document-viewer-external-btn" class="ghost-btn" type="button">В новой вкладке</button>
+            <button id="document-viewer-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+          </div>
+        </div>
+        <div id="document-viewer-body" class="document-viewer-body">
+          <div id="document-viewer-loading" class="document-viewer-loading">Загрузка…</div>
+          <iframe id="document-viewer-iframe" class="document-viewer-iframe hidden" title="Просмотр документа"></iframe>
+          <div id="document-viewer-content" class="document-viewer-content hidden"></div>
+          <div id="document-viewer-fallback" class="document-viewer-fallback hidden"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="file-history-modal" class="modal-overlay hidden">
       <div class="modal-card file-history-card">
         <div class="md-showcase-header">
@@ -2177,9 +2198,12 @@
     <script src="/vendor/highlight.min.js"></script>
     <script src="/vendor/mermaid.min.js"></script>
     <script src="/vendor/toastui-editor-all.min.js"></script>
+    <script src="/vendor/mammoth.browser.min.js"></script>
+    <script src="/vendor/xlsx.full.min.js"></script>
+    <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.197"></script>
+    <script src="/main.js?v=0.5.198"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

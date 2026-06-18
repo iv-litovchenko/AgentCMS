@@ -14667,6 +14667,46 @@ function openMediaAssetExternal(filePath) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+function getMediaAssetFileName(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return "";
+  const parts = normalized.split("/").filter(Boolean);
+  return parts[parts.length - 1] || normalized;
+}
+
+const MEDIA_DOCUMENT_PREVIEW_EXTENSIONS = new Set([
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".txt"
+]);
+
+function isMediaDocumentPreviewCandidate(fileName) {
+  const ext = window.DocumentViewer?.getExtension?.(fileName) || "";
+  return MEDIA_DOCUMENT_PREVIEW_EXTENSIONS.has(ext);
+}
+
+function openMediaAsset(filePath, nodePath = activePath) {
+  const fileName = getMediaAssetFileName(filePath);
+  const url = buildMediaAssetUrl(filePath, nodePath);
+  if (!url) return;
+
+  if (isMediaDocumentPreviewCandidate(fileName) && window.DocumentViewer?.open) {
+    void window.DocumentViewer.open({
+      url,
+      fileName,
+      onExternal: () => openMediaAssetExternal(filePath)
+    });
+    return;
+  }
+
+  openMediaAssetExternal(filePath);
+}
+
 function getRevealMediaFileLabel() {
   const platform = window.desktopApp?.platform;
   if (platform === "darwin") return "Показать в Finder";
@@ -14890,12 +14930,12 @@ function createMediaOpenButton(item) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "media-action-btn media-action-btn-icon-only";
-  btn.title = "Открыть файл";
-  btn.setAttribute("aria-label", "Открыть файл");
+  btn.title = "Просмотр / открыть файл";
+  btn.setAttribute("aria-label", "Просмотр / открыть файл");
   btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_OPEN));
   btn.addEventListener("click", (event) => {
     guardMediaActionClick(event, () => {
-      openMediaAssetExternal(item.path);
+      openMediaAsset(item.path);
     });
   });
   return btn;
@@ -15344,6 +15384,15 @@ function renderMediaUsageDashboard(container) {
     } else {
       preview.classList.add("is-fallback");
       preview.textContent = getMediaDashboardTypeIcon(item);
+      if (item.group === "Documents" && isMediaDocumentPreviewCandidate(item.name)) {
+        preview.classList.add("is-clickable");
+        preview.title = "Просмотр";
+        preview.addEventListener("click", (event) => {
+          guardMediaActionClick(event, () => {
+            openMediaAsset(item.path);
+          });
+        });
+      }
     }
     previewCell.appendChild(preview);
 
@@ -15501,6 +15550,11 @@ function renderMediaFileRows(container, items, { icon = "📄", showSize = true 
     const nameNode = document.createElement("div");
     nameNode.className = "media-file-name";
     nameNode.textContent = String(item.displayName || "").trim() || item.name;
+    nameNode.addEventListener("click", (event) => {
+      guardMediaActionClick(event, () => {
+        openMediaAsset(item.path);
+      });
+    });
 
     const pathNode = document.createElement("div");
     pathNode.className = "media-file-path";
@@ -20043,7 +20097,7 @@ async function openPropsFileTarget(fileRef) {
   await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
   if (parsed.mode === "media") {
     setContentMode("media");
-    openMediaAssetExternal(parsed.file);
+    openMediaAsset(parsed.file);
     return;
   }
   setContentMode("external");
