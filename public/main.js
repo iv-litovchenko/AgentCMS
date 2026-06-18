@@ -527,6 +527,7 @@ const BUNDLE_CONTENT_FILE = "content.md";
 const BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set(["AGENTS.md", ROOT_SYSTEM_TODO_FILE, "README.md"]);
 const PREVIEW_FILE_BASENAME = "preview";
@@ -1886,8 +1887,9 @@ function syncAgentPreviewOpenUi() {
   }
 }
 
-function syncAgentPreviewPlaceholder() {
+function syncAgentPreviewPlaceholder({ broken = false } = {}) {
   if (!agentPreviewPlaceholderNode) return;
+  agentPreviewPlaceholderNode.classList.toggle("agent-preview-placeholder--broken", broken);
   syncAgentPreviewOpenUi();
 }
 
@@ -1895,7 +1897,6 @@ function syncAgentPreview(previewMeta = null) {
   if (!agentPreviewThumbNode || !agentPreviewWrapNode) return;
 
   const agent = getActiveAgentMeta();
-  syncAgentPreviewPlaceholder();
   const hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
   const previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
 
@@ -1903,7 +1904,8 @@ function syncAgentPreview(previewMeta = null) {
     updateAgentPreviewCache(previewMeta);
   }
 
-  if (hasPreview && previewUrl) {
+  if (hasPreview && previewUrl && !isBrokenImageSrc(previewUrl, activePath)) {
+    syncAgentPreviewPlaceholder({ broken: false });
     const nextSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
     const currentSrc = agentPreviewThumbNode.getAttribute("src") || "";
     const srcChanged = currentSrc !== nextSrc;
@@ -1917,10 +1919,12 @@ function syncAgentPreview(previewMeta = null) {
       agentPreviewWrapNode.classList.add("hidden");
       agentPreviewWrapNode.classList.remove("is-revealed");
       agentPreviewThumbNode.removeAttribute("src");
+      syncAgentPreviewPlaceholder({ broken: true });
     };
     agentPreviewThumbNode.onload = () => {
       agentPreviewThumbNode.onerror = null;
       agentPreviewWrapNode.classList.add("is-revealed");
+      syncAgentPreviewPlaceholder({ broken: false });
     };
     if (srcChanged) {
       agentPreviewThumbNode.src = nextSrc;
@@ -1934,6 +1938,7 @@ function syncAgentPreview(previewMeta = null) {
   agentPreviewWrapNode.classList.add("hidden");
   agentPreviewWrapNode.classList.remove("is-revealed");
   agentPreviewThumbNode.removeAttribute("src");
+  syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
   syncAgentPreviewOpenUi();
 }
 
@@ -12606,6 +12611,79 @@ function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath = getActiveNode
     .join("/");
 }
 
+function isShortTopicAssetRef(path) {
+  const raw = String(path || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!raw || /^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/") || raw.startsWith("/")) {
+    return false;
+  }
+  return /^assets\//i.test(raw);
+}
+
+function getMarkdownAssetSourcePath(nodePath) {
+  const basePath = nodePath || activePath;
+  const contextPath = getPropsContextPath(basePath);
+  if (contextPath) return contextPath;
+  return getCurrentEditorLinkBasePath() || getResolvedNodePath(getActiveTitleEditorPath()) || "";
+}
+
+function isLoadableImageDisplayUrl(src) {
+  const raw = String(src || "").trim();
+  if (!raw) return false;
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return true;
+  return raw.startsWith("/api/");
+}
+
+function resolveStorageAssetsRefToApiUrl(assetsRef) {
+  if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) return "";
+  return appendAgentToApiUrl(
+    buildApiUrl("/api/media/file", {
+      path: assetsRef.manifestRelPath,
+      file: assetsRef.mediaFile
+    })
+  );
+}
+
+function isBrokenImageSrc(src, nodePath) {
+  const trimmed = String(src || "").trim();
+  if (!trimmed || trimmed === BROKEN_IMAGE_PLACEHOLDER_SRC) return false;
+  if (/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return false;
+  if (isShortTopicAssetRef(trimmed)) return true;
+  const resolved = resolveMarkdownAssetSrc(trimmed, nodePath);
+  return !isLoadableImageDisplayUrl(resolved);
+}
+
+function createBrokenImagePlaceholder({ label = "Изображение не найдено", className = "" } = {}) {
+  const img = document.createElement("img");
+  img.src = BROKEN_IMAGE_PLACEHOLDER_SRC;
+  img.alt = label;
+  img.title = label;
+  img.draggable = false;
+  img.className = ["broken-image-placeholder", className].filter(Boolean).join(" ");
+  return img;
+}
+
+function applyBrokenImagePlaceholder(img, label = "Изображение не найдено") {
+  if (!(img instanceof HTMLImageElement) || img.dataset.brokenPlaceholder === "1") return;
+  img.dataset.brokenPlaceholder = "1";
+  img.src = BROKEN_IMAGE_PLACEHOLDER_SRC;
+  img.alt = label || img.alt || "Изображение не найдено";
+  img.title = img.alt;
+  img.classList.add("broken-image-placeholder", "markdown-image-missing");
+}
+
+function bindMarkdownPreviewImageFallback(img, nodePath) {
+  if (!(img instanceof HTMLImageElement) || img.dataset.brokenPlaceholder === "1") return;
+  const src = img.getAttribute("src") || "";
+  const sourcePath = getMarkdownAssetSourcePath(nodePath);
+  if (isBrokenImageSrc(src, sourcePath)) {
+    applyBrokenImagePlaceholder(img);
+    return;
+  }
+  img.addEventListener("error", () => applyBrokenImagePlaceholder(img), { once: true });
+}
+
 function resolveMarkdownAssetSrc(src, nodePath) {
   const raw = String(src || "").trim();
   if (!raw) return raw;
@@ -12614,13 +12692,15 @@ function resolveMarkdownAssetSrc(src, nodePath) {
 
   const relFile = raw.replace(/\\/g, "/");
   const assetsRef = parseStorageAssetsRef(relFile);
-  if (assetsRef?.manifestRelPath && assetsRef.mediaFile) {
-    return appendAgentToApiUrl(
-      buildApiUrl("/api/media/file", {
-        path: assetsRef.manifestRelPath,
-        file: assetsRef.mediaFile
-      })
-    );
+  const directUrl = resolveStorageAssetsRefToApiUrl(assetsRef);
+  if (directUrl) return directUrl;
+
+  const sourceRel = getMarkdownAssetSourcePath(nodePath);
+  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(relFile, sourceRel);
+  if (workspaceRel) {
+    const docAssetsRef = parseStorageAssetsRef(workspaceRel);
+    const docUrl = resolveStorageAssetsRefToApiUrl(docAssetsRef);
+    if (docUrl) return docUrl;
   }
 
   return raw;
@@ -14632,6 +14712,57 @@ function pruneActiveExternalSectionFolder() {
   if (!exists) activeExternalSectionFolder = null;
 }
 
+function getExternalItemContextPath(item, nodePath = activePath) {
+  const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const base = getResolvedNodePath(nodePath);
+  if (!rel) return getNodeStorageSubfolderPath(base, "external");
+  return `${getNodeStorageSubfolderPath(base, "external")}/${rel}`.replace(/\/+/g, "/");
+}
+
+function resolveExternalItemPreviewUi(item, nodePath = activePath) {
+  const previewPath = getPropsEntryValueByKey(item.props, "awn-preview");
+  const contextPath = getExternalItemContextPath(item, nodePath);
+  if (previewPath) return buildPreviewUiFromPath(previewPath, contextPath);
+  if (item.hasPreview && item.previewUrl) {
+    return { imageUrl: item.previewUrl, previewPath: "" };
+  }
+  return null;
+}
+
+function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
+  const preview = resolveExternalItemPreviewUi(item);
+  if (!preview) return false;
+
+  if (preview.broken) {
+    parent.appendChild(
+      createBrokenImagePlaceholder({ label: "Превью не найдено", className })
+    );
+    return true;
+  }
+
+  const rawUrl = String(preview.imageUrl || "").trim();
+  if (!rawUrl) return false;
+
+  const imageUrl =
+    /^https?:\/\//i.test(rawUrl) || rawUrl.startsWith("/api/")
+      ? appendCacheBuster(appendAgentToApiUrl(rawUrl))
+      : appendCacheBuster(rawUrl);
+
+  const img = document.createElement("img");
+  img.className = className;
+  img.alt = "";
+  img.loading = "lazy";
+  img.draggable = false;
+  img.src = imageUrl;
+  img.onerror = () => {
+    parent.replaceChildren(
+      createBrokenImagePlaceholder({ label: "Превью не найдено", className })
+    );
+  };
+  parent.appendChild(img);
+  return true;
+}
+
 function getExternalMdItems() {
   return externalFilesCache
     .map((item) => ({
@@ -15173,15 +15304,7 @@ function appendExternalTableSchemaCell(row, column, item) {
 
   if (column.key === "awn-preview") {
     cell.className = "external-table-cover-cell";
-    if (item.hasPreview && item.previewUrl) {
-      const img = document.createElement("img");
-      img.className = "external-table-cover-thumb";
-      img.alt = "";
-      img.loading = "lazy";
-      img.draggable = false;
-      img.src = appendCacheBuster(appendAgentToApiUrl(item.previewUrl));
-      cell.appendChild(img);
-    } else {
+    if (!appendExternalItemPreviewThumb(cell, item, { className: "external-table-cover-thumb" })) {
       cell.textContent = "—";
     }
     row.appendChild(cell);
@@ -15299,15 +15422,11 @@ function createExternalCard(item) {
 
   const cover = document.createElement("div");
   cover.className = "external-card-image";
-  if (item.hasPreview && item.previewUrl) {
-    const img = document.createElement("img");
-    img.className = "external-card-cover-img";
-    img.alt = "";
-    img.loading = "lazy";
-    img.draggable = false;
-    img.src = appendCacheBuster(appendAgentToApiUrl(item.previewUrl));
-    cover.appendChild(img);
-  } else {
+  if (
+    !appendExternalItemPreviewThumb(cover, item, {
+      className: "external-card-cover-img"
+    })
+  ) {
     const icon = createNodeCoverIconElement(getActiveNodeApiPath());
     icon.classList.add("external-card-cover-icon");
     cover.appendChild(icon);
@@ -21928,14 +22047,19 @@ function resolveAwnPreviewDisplayUrl(previewPath, nodePath = activePath) {
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
   if (raw.startsWith("/api/")) return appendCacheBuster(appendAgentToApiUrl(raw));
-  return appendCacheBuster(appendAgentToApiUrl(resolveMarkdownAssetSrc(raw, nodePath)));
+  if (isShortTopicAssetRef(raw) || isBrokenImageSrc(raw, nodePath)) return "";
+  const resolved = resolveMarkdownAssetSrc(raw, nodePath);
+  if (!isLoadableImageDisplayUrl(resolved)) return "";
+  return appendCacheBuster(resolved.startsWith("/api/") ? appendAgentToApiUrl(resolved) : resolved);
 }
 
 function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
+  if (preview?.broken) return "";
   if (preview?.imageUrl) {
     const raw = String(preview.imageUrl).trim();
     if (!raw) return "";
     if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
+    if (!isLoadableImageDisplayUrl(raw)) return "";
     return appendCacheBuster(appendAgentToApiUrl(raw));
   }
   const previewPath = String(preview?.previewPath || "").trim();
@@ -21943,9 +22067,14 @@ function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
 }
 
 function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
-  const imageUrl = resolveAwnPreviewDisplayUrl(previewPath, nodePath);
-  if (!imageUrl) return null;
-  return { imageUrl, previewPath: String(previewPath || "").trim() };
+  const trimmed = String(previewPath || "").trim();
+  if (!trimmed) return null;
+  if (isShortTopicAssetRef(trimmed) || isBrokenImageSrc(trimmed, nodePath)) {
+    return { broken: true, previewPath: trimmed };
+  }
+  const imageUrl = resolveAwnPreviewDisplayUrl(trimmed, nodePath);
+  if (!imageUrl) return { broken: true, previewPath: trimmed };
+  return { imageUrl, previewPath: trimmed };
 }
 
 function syncPropsPreviewDomValue(previewValue) {
@@ -21986,9 +22115,18 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
     img.src = imageUrl;
     img.draggable = false;
     img.onerror = () => {
-      populatePreviewThumbWrap(thumbWrap, null, title, nodePath);
+      populatePreviewThumbWrap(
+        thumbWrap,
+        { broken: true, previewPath: preview?.previewPath || "" },
+        title,
+        nodePath
+      );
     };
     thumbWrap.appendChild(img);
+  } else if (preview?.broken) {
+    thumbWrap.appendChild(
+      createBrokenImagePlaceholder({ label: "Превью не найдено", className: "node-overview-thumb" })
+    );
   } else {
     thumbWrap.appendChild(
       createNodeCoverFallbackElement({
@@ -23976,13 +24114,25 @@ function closeTabularSourceEditor() {
   updateBreadcrumbsForActiveMode();
 }
 
-async function fetchNodeOverviewPreview() {
-  if (!activePath) return null;
+async function fetchNodeOverviewPreview(nodePath = activePath, entries = null) {
+  if (!nodePath) return null;
+
+  const resolvedEntries =
+    entries || (propsFormEntries.length ? propsFormEntries : parsePropsYaml(propsInputNode.value || ""));
+  const previewPath = getPropsEntryValueByKey(resolvedEntries, "awn-preview");
+  if (previewPath) {
+    return buildPreviewUiFromPath(previewPath, nodePath);
+  }
+
   try {
-    const response = await fetch(buildApiUrl("/api/preview", { path: getActiveNodeApiPath() }));
+    const response = await fetch(buildApiUrl("/api/preview", { path: getOverviewNodeApiPath(nodePath) }));
     if (!response.ok) return null;
     const data = await response.json();
-    return data?.exists && data?.imageUrl ? data : null;
+    if (!data?.exists || !data?.imageUrl) return null;
+    return {
+      imageUrl: appendAgentToApiUrl(data.imageUrl),
+      previewPath: String(data.file || "").trim()
+    };
   } catch {
     return null;
   }
@@ -25863,7 +26013,7 @@ async function renderNodeNavigation() {
           emptyExternal,
           emptyTabular,
           fetchTodoForOverview(nodePath),
-          fetchNodeOverviewPreview(),
+          fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath)
         ]
       : [
@@ -25871,7 +26021,7 @@ async function renderNodeNavigation() {
           fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          fetchNodeOverviewPreview(),
+          fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath)
         ]
   );
@@ -26720,7 +26870,14 @@ function getMarkdownIt() {
     const token = tokens[idx];
     const srcIndex = token.attrIndex("src");
     if (srcIndex >= 0) {
-      token.attrs[srcIndex][1] = resolveMarkdownAssetSrc(token.attrs[srcIndex][1], env?.nodePath);
+      const rawSrc = token.attrs[srcIndex][1];
+      const sourcePath = getMarkdownAssetSourcePath(env?.nodePath);
+      if (isBrokenImageSrc(rawSrc, sourcePath)) {
+        token.attrs[srcIndex][1] = BROKEN_IMAGE_PLACEHOLDER_SRC;
+        token.attrJoin("class", "broken-image-placeholder markdown-image-missing");
+      } else {
+        token.attrs[srcIndex][1] = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
+      }
     }
     return defaultImage(tokens, idx, options, env, self);
   };
@@ -26986,6 +27143,11 @@ function enhanceMarkdownPreviewImages(root) {
   initPreviewImageExpand(root);
   initPreviewWikilinkNavigation(root);
   classifyPreviewImagesAuto(root);
+  const nodePath = getActiveTitleEditorPath();
+  root.querySelectorAll("img").forEach((img) => {
+    if (img.src?.includes("image-missing.svg")) return;
+    bindMarkdownPreviewImageFallback(img, nodePath);
+  });
 }
 
 function renderPreviewFromEditor() {
@@ -27516,15 +27678,22 @@ function normalizeWysiwygExportedMarkdown(markdown) {
 }
 
 function normalizeWysiwygImportedMarkdown(markdown, nodePath = activePath) {
+  const editorPath = getMarkdownAssetSourcePath(nodePath) || nodePath;
   const withHighlights = convertHighlightMarkdownToHtml(
     normalizeEmbeddedDataUriMarkdown(String(markdown || ""))
   );
   return withHighlights.replace(
     /!\[([^\]]*)\]\(([^)\n]+)(?:\s+"[^"]*")?\)/g,
     (match, alt, src) => {
-      const resolved = resolveMarkdownAssetSrc(src, nodePath);
-      if (!resolved || resolved === src) return match;
-      return `![${alt}](${resolved})`;
+      if (isBrokenImageSrc(src, editorPath)) {
+        const label = escapeHtml(String(alt || "Изображение не найдено"));
+        return `<img src="${BROKEN_IMAGE_PLACEHOLDER_SRC}" alt="${label}" title="${label}" class="broken-image-placeholder markdown-image-missing" draggable="false" />`;
+      }
+      const resolved = resolveMarkdownAssetSrc(src, editorPath);
+      if (resolved && isLoadableImageDisplayUrl(resolved)) {
+        return `![${alt}](${resolved})`;
+      }
+      return match;
     }
   );
 }
