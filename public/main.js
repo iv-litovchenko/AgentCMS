@@ -20,9 +20,14 @@ const agentLargeFilesPaneNode = document.getElementById("agent-large-files-pane"
 const agentLargeFilesContentNode = document.getElementById("agent-large-files-content");
 const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
 const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
+const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pane");
+const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
+const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
+const agentBrokenLinksRefreshBtn = document.getElementById("agent-broken-links-refresh-btn");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
+const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
@@ -1164,6 +1169,11 @@ async function loadAgents() {
   const deferRouteSync = route.type === "node" || route.type === "systemFile";
   if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
+  }
+  try {
+    await loadLandingAgentsGroups();
+  } catch {
+    landingAgentsGroupsCache = [];
   }
   renderAgentSelect();
   updateWorkspaceShareLinkButton();
@@ -3277,6 +3287,48 @@ function getActiveAgentLabel() {
   return getActiveAgentMeta()?.name || "";
 }
 
+function formatAgentSelectLabel(agent, groupTitle = "") {
+  const registryActive = isAgentRegistryActive(agent);
+  const name = agent.name || agent.id;
+  const label = registryActive ? name : `${name} (выкл.)`;
+  const prefix = String(groupTitle || "").trim();
+  return prefix ? `${prefix} | ${label}` : label;
+}
+
+function createAgentSelectOption(agent, groupTitle = "") {
+  const option = document.createElement("option");
+  option.value = agent.id;
+  option.textContent = formatAgentSelectLabel(agent, groupTitle);
+  option.disabled = !isAgentRegistryActive(agent);
+  return option;
+}
+
+function renderAgentSelectGrouped(agents) {
+  const { orchestrator } = splitLandingOrchestratorAgent(agents);
+  const { grouped, ungrouped } = buildLandingGroupsLayout(agents, landingAgentsGroupsCache);
+
+  if (orchestrator) {
+    agentSelectNode.appendChild(createAgentSelectOption(orchestrator, "Оркестратор"));
+  }
+
+  for (const group of grouped) {
+    const groupTitle = group.title || group.id;
+    for (const agent of group.agents || []) {
+      agentSelectNode.appendChild(createAgentSelectOption(agent, groupTitle));
+    }
+  }
+
+  for (const agent of ungrouped) {
+    agentSelectNode.appendChild(createAgentSelectOption(agent));
+  }
+}
+
+function renderAgentSelectFlat(agents) {
+  for (const agent of agents) {
+    agentSelectNode.appendChild(createAgentSelectOption(agent));
+  }
+}
+
 function renderAgentSelect() {
   if (!agentSelectNode) return;
 
@@ -3298,13 +3350,10 @@ function renderAgentSelect() {
     return;
   }
 
-  for (const agent of agents) {
-    const option = document.createElement("option");
-    const registryActive = isAgentRegistryActive(agent);
-    option.value = agent.id;
-    option.textContent = registryActive ? agent.name || agent.id : `${agent.name || agent.id} (выкл.)`;
-    option.disabled = !registryActive;
-    agentSelectNode.appendChild(option);
+  if (landingAgentsGroupsCache.length > 0) {
+    renderAgentSelectGrouped(agents);
+  } else {
+    renderAgentSelectFlat(agents);
   }
 
   agentSelectNode.disabled = false;
@@ -4544,6 +4593,7 @@ function afterLandingGroupsChanged() {
     void renderAppLandingGroups();
   }
   refreshLandingAgentsListIfVisible();
+  renderAgentSelect();
 }
 
 function hashAgentIdForOrbit(id) {
@@ -4955,6 +5005,7 @@ async function renderAppLandingAgents() {
   renderAppLandingOrbit();
   void loadGlobalFocusItems();
   syncLandingAgentsViewUi();
+  renderAgentSelect();
 }
 
 function setAppLandingHint(message = "", { alert = false } = {}) {
@@ -8688,6 +8739,48 @@ function createLargeFilesMarkerSvg() {
   return svg;
 }
 
+function createBrokenLinksMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const left = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  left.setAttribute(
+    "d",
+    "M7 8.5c0-2.2 1.8-4 4-4s4 1.8 4 4v2.2l1.4 2.8H5.6L7 10.7V8.5z"
+  );
+  left.setAttribute("fill", "none");
+  left.setAttribute("stroke", "currentColor");
+  left.setAttribute("stroke-width", "1.8");
+  left.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(left);
+
+  const right = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  right.setAttribute(
+    "d",
+    "M13 8.5c0-2.2 1.8-4 4-4s4 1.8 4 4v2.2l1.4 2.8h-8.8L13 10.7V8.5z"
+  );
+  right.setAttribute("fill", "none");
+  right.setAttribute("stroke", "currentColor");
+  right.setAttribute("stroke-width", "1.8");
+  right.setAttribute("stroke-linejoin", "round");
+  right.setAttribute("opacity", "0.45");
+  svg.appendChild(right);
+
+  const breakLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  breakLine.setAttribute("x1", "11");
+  breakLine.setAttribute("y1", "6");
+  breakLine.setAttribute("x2", "13");
+  breakLine.setAttribute("y2", "18");
+  breakLine.setAttribute("stroke", "currentColor");
+  breakLine.setAttribute("stroke-width", "2");
+  breakLine.setAttribute("stroke-linecap", "round");
+  svg.appendChild(breakLine);
+
+  return svg;
+}
+
 function createObsidianMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -10469,6 +10562,76 @@ function getNamedStorageBundleRel(relPath, bundleFileName) {
   return `${getNamedStorageBundleDirRel(relPath)}/${bundleFileName}`;
 }
 
+function buildStorageLayerRef(manifestRelPath, layerFolder, relativePath) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel || rel.includes("..")) return "";
+  const layer = getStorageSubfolderForMode(layerFolder) || String(layerFolder || "").trim();
+  if (!layer) return "";
+  const slotDir = getNamedStorageSlotDirRel(getResolvedNodePath(manifestRelPath));
+  if (!slotDir) return "";
+  return `${slotDir}/${layer}/${rel}`;
+}
+
+function parseStorageLayerRef(workspaceRelPath) {
+  const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return null;
+
+  const match = normalized.match(new RegExp(`^(.*)/${STORAGE_ROOT_FOLDER}/([^/]+)/([^/]+)/(.+)$`, "i"));
+  if (!match) return null;
+
+  const containerPrefix = String(match[1] || "").replace(/\/$/, "");
+  const rawSlotKey = match[2];
+  const layer = getStorageSubfolderForMode(match[3]) || match[3];
+  const relativePath = match[4];
+  const slotKey = String(rawSlotKey || "").trim();
+  if (!slotKey || !layer || !relativePath) return null;
+
+  const manifestCandidates = [];
+  const withPrefix = (rel) => {
+    const value = String(rel || "").replace(/\\/g, "/");
+    if (!containerPrefix || containerPrefix === ".") return value;
+    return `${containerPrefix}/${value}`;
+  };
+  manifestCandidates.push(withPrefix(`${slotKey}.md`));
+  if (slotKey === "_registration" || slotKey === "_reginfo") {
+    manifestCandidates.push(withPrefix(AREA_MANIFEST_FILE));
+    manifestCandidates.push(withPrefix(`${slotKey}/${AREA_MANIFEST_FILE}`));
+  }
+
+  const slotDir = containerPrefix
+    ? `${containerPrefix}/${STORAGE_ROOT_FOLDER}/${rawSlotKey}`
+    : `${STORAGE_ROOT_FOLDER}/${rawSlotKey}`;
+
+  return {
+    workspacePath: normalized,
+    slotDir,
+    slotKey,
+    layer,
+    relativePath,
+    manifestCandidates: [...new Set(manifestCandidates)]
+  };
+}
+
+function pickManifestRelFromStorageLayerRef(parsed) {
+  if (!parsed?.manifestCandidates?.length) return null;
+  const preferred = parsed.manifestCandidates.find(
+    (candidate) =>
+      candidate.split("/").pop()?.toLowerCase() === `${parsed.slotKey.toLowerCase()}.md`
+  );
+  return preferred || parsed.manifestCandidates[0];
+}
+
+function parseStorageAssetsRef(workspaceRelPath) {
+  const parsed = parseStorageLayerRef(workspaceRelPath);
+  if (!parsed || parsed.layer !== STORAGE_SUBFOLDER_ASSETS) return null;
+  return {
+    manifestRelPath: pickManifestRelFromStorageLayerRef(parsed),
+    mediaFile: parsed.relativePath,
+    workspacePath: parsed.workspacePath,
+    slotDir: parsed.slotDir
+  };
+}
+
 const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
@@ -10606,6 +10769,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard2: "Дашборд 2",
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
+  "broken-links": "Битые ссылки",
   map: "Карта",
   map2: "Карта 2",
   map3: "Карта 3",
@@ -12357,17 +12521,6 @@ function buildMediaAssetUrl(filePath, nodePath = activePath) {
   return buildApiUrl("/api/media/file", { path: getResolvedNodePath(nodePath), file: filePath });
 }
 
-function stripAssetsPathPrefix(relPath) {
-  let rel = String(relPath || "").replace(/\\/g, "/");
-  const prefixes = [`${STORAGE_SUBFOLDER_ASSETS}/`];
-  for (const prefix of prefixes) {
-    if (rel.startsWith(prefix)) return rel.slice(prefix.length);
-    const lower = prefix.toLowerCase();
-    if (rel.toLowerCase().startsWith(lower)) return rel.slice(prefix.length);
-  }
-  return rel;
-}
-
 function encodeMarkdownPathSegment(segment) {
   const value = String(segment || "");
   if (!value) return value;
@@ -12442,14 +12595,15 @@ function normalizeEmbeddedDataUriMarkdown(markdown) {
   return source;
 }
 
-function buildMarkdownAttachmentRef(relativeAssetsPath) {
-  const normalized = String(relativeAssetsPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized || normalized.includes("..")) return "";
-  const encoded = normalized
+function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath = getActiveNodeApiPath()) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return "";
+  const ref = buildStorageLayerRef(manifestPath, STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath);
+  if (!ref) return "";
+  return ref
     .split("/")
     .map((segment) => encodeMarkdownPathSegment(segment))
     .join("/");
-  return `${STORAGE_SUBFOLDER_ASSETS}/${encoded}`;
 }
 
 function resolveMarkdownAssetSrc(src, nodePath) {
@@ -12458,33 +12612,18 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
   if (raw.startsWith("/api/")) return appendAgentToApiUrl(raw);
 
-  let relFile = raw.replace(/\\/g, "/");
-  const serviceFolder = getActiveAgentKitFolder();
-  const servicePrefix = serviceFolder ? `${serviceFolder}/` : "";
-
-  if (serviceFolder && relFile.toLowerCase().startsWith(servicePrefix.toLowerCase())) {
-    const tail = relFile.slice(servicePrefix.length);
-    let serviceAsset = tail;
-    serviceAsset = stripAssetsPathPrefix(serviceAsset);
-    if (!serviceAsset.includes("..")) {
-      const serviceManifest = getServiceRootManifestPath();
-      if (serviceManifest) {
-        return appendAgentToApiUrl(
-          buildApiUrl("/api/media/file", { path: serviceManifest, file: serviceAsset })
-        );
-      }
-    }
+  const relFile = raw.replace(/\\/g, "/");
+  const assetsRef = parseStorageAssetsRef(relFile);
+  if (assetsRef?.manifestRelPath && assetsRef.mediaFile) {
+    return appendAgentToApiUrl(
+      buildApiUrl("/api/media/file", {
+        path: assetsRef.manifestRelPath,
+        file: assetsRef.mediaFile
+      })
+    );
   }
 
-  const resolvedNodePath = getResolvedNodePath(nodePath || activePath);
-  if (!resolvedNodePath) return raw;
-
-  relFile = stripAssetsPathPrefix(relFile);
-  if (relFile.includes("..")) return raw;
-
-  return appendAgentToApiUrl(
-    buildApiUrl("/api/media/file", { path: resolvedNodePath, file: relFile })
-  );
+  return raw;
 }
 
 function getAttachmentAltText(fileName) {
@@ -12494,8 +12633,8 @@ function getAttachmentAltText(fileName) {
   return alt.replace(/[[\]]/g, "").trim() || "image";
 }
 
-function buildMarkdownImageSnippet(relativeAssetsPath, altText) {
-  const ref = buildMarkdownAttachmentRef(relativeAssetsPath);
+function buildMarkdownImageSnippet(relativeAssetsPath, altText, nodePath = getActiveNodeApiPath()) {
+  const ref = buildMarkdownAttachmentRef(relativeAssetsPath, nodePath);
   if (!ref) return "";
   const alt = String(altText || getAttachmentAltText(relativeAssetsPath)).replace(/[[\]]/g, "");
   return `\n![${alt}](${ref})\n`;
@@ -13315,7 +13454,7 @@ async function insertUploadedAttachmentIntoEditor(file) {
     const markdown = buildMarkdownImageSnippet(relativeFile, getAttachmentAltText(file.name));
     insertTextAtEditorCursor(markdown);
 
-    showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}`, "success");
+    showToast(`Изображение сохранено в ${buildStorageLayerRef(getResolvedNodePath(activePath), STORAGE_SUBFOLDER_ASSETS, `${PASTED_ASSETS_SUBDIR}/`)}`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -20635,9 +20774,9 @@ function getDocAsideMiniDocSpec() {
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
-          "Картинки в тексте: <code>![alt](Assets/Pasted/…)</code>",
+          "Картинки в тексте: <code>![alt]({слот}/assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
-          `Вставка из буфера → ${formatMiniDocPathHint("Assets/Pasted/YYYYMMDDHHmmss.ext")}`
+          `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
         ]
       };
     case "internal":
@@ -21432,27 +21571,27 @@ function buildContentRecordWikilink(relativePath) {
   return buildContentRecordMarkdownLink(relativePath);
 }
 
-function buildPropsFileRef(subfolder, relativePath) {
-  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  return rel ? `${subfolder}/${rel}` : "";
+function buildPropsFileRef(subfolder, relativePath, nodePath = activePath) {
+  const manifestPath = getResolvedNodePath(nodePath);
+  if (!manifestPath) return "";
+  return buildStorageLayerRef(manifestPath, subfolder, relativePath);
 }
 
 function parsePropsFileRef(value) {
   const raw = String(value || "").trim().replace(/\\/g, "/");
   if (!raw) return null;
-  if (raw.startsWith(`${STORAGE_SUBFOLDER_CONTENT}/`)) {
-    return {
-      mode: "external",
-      file: raw.slice(STORAGE_SUBFOLDER_CONTENT.length + 1)
-    };
+
+  const parsed = parseStorageLayerRef(raw);
+  if (parsed) {
+    if (parsed.layer === STORAGE_SUBFOLDER_CONTENT) {
+      return { mode: "external", file: parsed.relativePath };
+    }
+    if (parsed.layer === STORAGE_SUBFOLDER_ASSETS) {
+      return { mode: "media", file: parsed.relativePath };
+    }
   }
-  if (raw.startsWith(`${STORAGE_SUBFOLDER_ASSETS}/`)) {
-    return {
-      mode: "media",
-      file: raw.slice(STORAGE_SUBFOLDER_ASSETS.length + 1)
-    };
-  }
-  return { mode: "external", file: raw };
+
+  return null;
 }
 
 function parsePropsWikilinkTarget(wikilink) {
@@ -27443,7 +27582,7 @@ function initWysiwygEditor() {
         if (!relativeFile) throw new Error("Upload response missing file path");
         callback(buildMediaAssetUrl(relativeFile), getAttachmentAltText(normalizedFile.name || file.name));
         syncSourceFromWysiwygEditor();
-        showToast(`Изображение сохранено в ${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}`, "success");
+        showToast(`Изображение сохранено в ${buildStorageLayerRef(getResolvedNodePath(activePath), STORAGE_SUBFOLDER_ASSETS, `${PASTED_ASSETS_SUBDIR}/`)}`, "success");
         void refreshMediaListIfVisible();
       })
       .catch((error) => {
@@ -31611,7 +31750,7 @@ function loadAgentWorkspaceView() {
 }
 
 function saveAgentWorkspaceView(view) {
-  if (view === "git" || view === "awn-types" || view === "large-files") return;
+  if (view === "git" || view === "awn-types" || view === "large-files" || view === "broken-links") return;
   try {
     localStorage.setItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY, view);
   } catch {
@@ -31620,7 +31759,14 @@ function saveAgentWorkspaceView(view) {
 }
 
 function resetGitWorkspaceViewToDefault() {
-  if (agentWorkspaceView !== "git" && agentWorkspaceView !== "awn-types" && agentWorkspaceView !== "large-files") return;
+  if (
+    agentWorkspaceView !== "git" &&
+    agentWorkspaceView !== "awn-types" &&
+    agentWorkspaceView !== "large-files" &&
+    agentWorkspaceView !== "broken-links"
+  ) {
+    return;
+  }
   agentWorkspaceView = loadAgentWorkspaceView();
 }
 
@@ -31644,6 +31790,7 @@ function applyAgentWorkspaceCanvasUi() {
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
+  agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
   agentAwnTypesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "awn-types");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
@@ -31670,6 +31817,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentGitView();
   } else if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
+  } else if (agentWorkspaceView === "broken-links") {
+    void renderAgentBrokenLinksView();
   } else if (agentWorkspaceView === "awn-types") {
     void renderAgentAwnTypesView();
   } else if (agentWorkspaceView === "map") {
@@ -31698,6 +31847,7 @@ function applyAgentWorkspaceCanvasUi() {
 
   syncAgentGitToolbarUi();
   syncAgentLargeFilesToolbarUi();
+  syncAgentBrokenLinksToolbarUi();
   syncAgentAwnTypesToolbarUi();
   updateDocumentTitle();
 }
@@ -31708,6 +31858,7 @@ function setAgentWorkspaceView(view) {
     view !== "dashboard2" &&
     view !== "git" &&
     view !== "large-files" &&
+    view !== "broken-links" &&
     view !== "awn-types" &&
     view !== "map" &&
     view !== "map2" &&
@@ -32551,6 +32702,22 @@ function syncAgentLargeFilesToolbarUi() {
   );
 }
 
+function initAgentBrokenLinksToolbar() {
+  if (!agentBrokenLinksBtn) return;
+  agentBrokenLinksBtn.replaceChildren();
+  const icon = createBrokenLinksMarkerSvg();
+  icon.classList.add("agent-broken-links-btn-icon");
+  agentBrokenLinksBtn.appendChild(icon);
+  syncAgentBrokenLinksToolbarUi();
+}
+
+function syncAgentBrokenLinksToolbarUi() {
+  agentBrokenLinksBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "broken-links" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
 async function fetchAgentGitStatus() {
   const response = await fetch(buildApiUrl("/api/git/status"));
   if (!response.ok) {
@@ -32819,6 +32986,154 @@ async function renderAgentLargeFilesView() {
     errorNode.className = "agent-large-files-empty is-alert";
     errorNode.textContent = `Не удалось просканировать workspace: ${error.message}`;
     agentLargeFilesContentNode.appendChild(errorNode);
+  }
+}
+
+async function fetchAgentBrokenLinks() {
+  const response = await fetch(buildApiUrl("/api/agent/broken-links"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderAgentBrokenLinksStatChip(label, value, tone = "") {
+  const chip = document.createElement("span");
+  chip.className = `agent-broken-links-stat-chip${tone ? ` is-${tone}` : ""}`;
+  chip.innerHTML = `<strong>${escapeHtml(String(value))}</strong> ${escapeHtml(label)}`;
+  return chip;
+}
+
+function formatBrokenLinkLocation(issue) {
+  const parts = [issue.location || "body"];
+  if (issue.field) parts.push(issue.field);
+  if (issue.line) parts.push(`строка ${issue.line}`);
+  return parts.join(" · ");
+}
+
+async function renderAgentBrokenLinksView() {
+  if (!agentBrokenLinksContentNode) return;
+
+  agentBrokenLinksContentNode.replaceChildren();
+  if (agentBrokenLinksStatsNode) agentBrokenLinksStatsNode.replaceChildren();
+
+  const loading = document.createElement("p");
+  loading.className = "agent-broken-links-empty";
+  loading.textContent = "Проверка ссылок в workspace…";
+  agentBrokenLinksContentNode.appendChild(loading);
+
+  try {
+    const data = await fetchAgentBrokenLinks();
+    agentBrokenLinksContentNode.replaceChildren();
+
+    if (agentBrokenLinksStatsNode) {
+      agentBrokenLinksStatsNode.append(
+        renderAgentBrokenLinksStatChip("битых", data.count ?? 0, data.count ? "total" : ""),
+        renderAgentBrokenLinksStatChip("markdown", data.scanned?.markdown ?? 0),
+        renderAgentBrokenLinksStatChip("content.csv", data.scanned?.csv ?? 0)
+      );
+    }
+
+    const shell = document.createElement("div");
+    shell.className = "agent-broken-links-shell";
+
+    const meta = document.createElement("p");
+    meta.className = "agent-broken-links-meta-line";
+    meta.textContent = `Проверены YAML-шапки, тело .md и content.csv · всего файлов: ${data.scanned?.files ?? 0}`;
+    shell.appendChild(meta);
+
+    const issues = Array.isArray(data.issues) ? data.issues : [];
+    if (!issues.length) {
+      const empty = document.createElement("div");
+      empty.className = "agent-broken-links-empty-state";
+      empty.innerHTML = `
+        <p class="agent-broken-links-empty-title">Битых ссылок не найдено</p>
+        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>content.csv</code> указывают на существующие файлы и wikilink-цели.</p>
+      `;
+      shell.appendChild(empty);
+    } else {
+      const list = document.createElement("ul");
+      list.className = "agent-broken-links-list";
+
+      for (const issue of issues) {
+        const row = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "agent-broken-links-row";
+        btn.title = `Открыть ${issue.sourcePath}`;
+
+        const badge = document.createElement("span");
+        badge.className = `agent-broken-links-badge is-${issue.kind || "file"}`;
+        badge.textContent = issue.kind || "file";
+
+        const main = document.createElement("span");
+        main.className = "agent-broken-links-main";
+
+        const linkNode = document.createElement("span");
+        linkNode.className = "agent-broken-links-link";
+        linkNode.textContent = issue.link;
+
+        const resolvedNode = document.createElement("span");
+        resolvedNode.className = "agent-broken-links-resolved";
+        resolvedNode.textContent = issue.resolvedPath || issue.message || "не найдено";
+
+        const sourceNode = document.createElement("span");
+        sourceNode.className = "agent-broken-links-source";
+        sourceNode.textContent = `${issue.sourcePath} · ${formatBrokenLinkLocation(issue)}`;
+
+        main.append(linkNode, resolvedNode, sourceNode);
+        btn.append(badge, main);
+        btn.addEventListener("click", () => {
+          void openWorkspaceInspectorPath(issue.sourcePath);
+        });
+        row.appendChild(btn);
+        list.appendChild(row);
+      }
+
+      shell.appendChild(list);
+    }
+
+    agentBrokenLinksContentNode.appendChild(shell);
+  } catch (error) {
+    agentBrokenLinksContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-broken-links-empty is-alert";
+    errorNode.textContent = `Не удалось проверить ссылки: ${error.message}`;
+    agentBrokenLinksContentNode.appendChild(errorNode);
+  }
+}
+
+async function openWorkspaceInspectorPath(relPath) {
+  const normalized = normalizeMenuNodePath(String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, ""));
+  if (!normalized) return;
+
+  const label = getLabelFromPath(normalized);
+
+  try {
+    if (isGitRepoLooseFilePath(normalized)) {
+      await selectRepoLooseFile(label, normalized);
+      return;
+    }
+
+    if (findMenuNodeInAgentMenu(currentMenuData, normalized)) {
+      await openNodeFromMenu(label, normalized);
+      return;
+    }
+
+    if (isNodeManifestPath(normalized) || isAreaManifestFileName(normalized.split("/").pop() || "")) {
+      await openNodeFromMenu(label, normalized);
+      return;
+    }
+
+    if (/\.md$/i.test(normalized)) {
+      await openNodeFromMenu(label, normalized);
+      return;
+    }
+
+    await selectRepoLooseFile(label, normalized);
+  } catch (error) {
+    showToast(`Не удалось открыть файл: ${error.message}`, "error");
   }
 }
 
@@ -34836,6 +35151,7 @@ function hideAllAgentCanvasPanes() {
   home2PaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
+  agentBrokenLinksPaneNode?.classList.add("hidden");
   agentAwnTypesPaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
@@ -36798,6 +37114,10 @@ agentLargeFilesBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("large-files");
 });
 
+agentBrokenLinksBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("broken-links");
+});
+
 agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
     void renderAgentGitView();
@@ -36807,6 +37127,12 @@ agentGitRefreshBtn?.addEventListener("click", () => {
 agentLargeFilesRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
+  }
+});
+
+agentBrokenLinksRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "broken-links") {
+    void renderAgentBrokenLinksView();
   }
 });
 
@@ -37491,4 +37817,5 @@ initNodeWorkspaceDomainSelect();
 initAgentAwnTypesToolbar();
 initAgentGitToolbar();
 initAgentLargeFilesToolbar();
+initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();

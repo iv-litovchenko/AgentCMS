@@ -39,6 +39,7 @@ const {
   getNamedStorageBundleRelCandidates,
   listBundleFileNameCandidates,
   resolveManifestRelFromStorageBundlePath,
+  parseStorageAssetsRef,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
@@ -87,6 +88,7 @@ const {
   getTopicSchemaPayload
 } = require("./awn-types-loader");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
+const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
@@ -3596,24 +3598,12 @@ async function enrichFocusItems(items) {
   );
 }
 
-function stripAssetsPathPrefix(relPath) {
-  let rel = String(relPath || "").replace(/\\/g, "/");
-  const prefixes = [`${STORAGE_SUBFOLDER_ASSETS}/`];
-  for (const prefix of prefixes) {
-    if (rel.startsWith(prefix)) return rel.slice(prefix.length);
-    const lower = prefix.toLowerCase();
-    if (rel.toLowerCase().startsWith(lower)) return rel.slice(prefix.length);
-  }
-  return rel;
-}
 
 async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
   const previewValue = String(previewRaw || "").trim();
   if (!previewValue) {
     return { hasPreview: false, previewUrl: null, previewFile: null };
   }
-
-  const normalizedPath = String(nodeRelativePath || "").replace(/\\/g, "/");
 
   if (/^https?:\/\//i.test(previewValue)) {
     return {
@@ -3631,13 +3621,18 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
     };
   }
 
-  const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
+  const assetsRef = parseStorageAssetsRef(previewValue);
+  if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(assetsRef.manifestRelPath);
   const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
   if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
     return { hasPreview: false, previewUrl: null, previewFile: null };
   }
 
-  const relFile = normalizeRelativeFilePath(stripAssetsPathPrefix(previewValue));
+  const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
   if (!relFile) {
     return { hasPreview: false, previewUrl: null, previewFile: null };
   }
@@ -3663,7 +3658,7 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
 
   return {
     hasPreview: true,
-    previewUrl: `/api/media/file?path=${encodeURIComponent(normalizedPath)}&file=${encodeURIComponent(relFile)}`,
+    previewUrl: `/api/media/file?path=${encodeURIComponent(assetsRef.manifestRelPath)}&file=${encodeURIComponent(relFile)}`,
     previewFile: path.basename(relFile)
   };
 }
@@ -5914,6 +5909,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan large files",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/broken-links") {
+    try {
+      const report = await buildAgentBrokenLinksReport(getAgentRoot());
+      return sendJson(res, 200, report);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan broken links",
         details: String(error.message || error)
       });
     }

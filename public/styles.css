@@ -8597,6 +8597,219 @@ body.app-locked {
   }
 }
 
+.sidebar-slab-agent .agent-broken-links-btn {
+  flex: 0 0 28px;
+  color: #dc2626;
+}
+
+.sidebar-slab-agent .agent-broken-links-btn:hover {
+  color: #b91c1c;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.sidebar-slab-agent .agent-broken-links-btn.is-active {
+  border-color: #dc2626;
+  background: #fef2f2;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+.agent-broken-links-btn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-broken-links-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agent-broken-links-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.agent-broken-links-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-broken-links-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-broken-links-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.agent-broken-links-stat-chip strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.agent-broken-links-stat-chip.is-total strong {
+  color: #dc2626;
+}
+
+.agent-broken-links-refresh-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agent-broken-links-refresh-btn:hover {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.agent-broken-links-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.agent-broken-links-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-broken-links-meta-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.agent-broken-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-broken-links-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-broken-links-row:hover {
+  border-color: #fca5a5;
+  background: #fff7f7;
+}
+
+.agent-broken-links-badge {
+  align-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.agent-broken-links-badge.is-wikilink {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.agent-broken-links-badge.is-asset {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.agent-broken-links-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-broken-links-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.agent-broken-links-resolved {
+  font-size: 12px;
+  color: #b91c1c;
+  word-break: break-word;
+}
+
+.agent-broken-links-source {
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.agent-broken-links-empty,
+.agent-broken-links-empty-state {
+  margin: 0;
+  padding: 18px 0;
+  color: var(--muted);
+}
+
+.agent-broken-links-empty.is-alert {
+  color: #b91c1c;
+}
+
+.agent-broken-links-empty-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.agent-broken-links-empty-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .agent-broken-links-head {
+    flex-direction: column;
+  }
+
+  .agent-broken-links-head-actions {
+    width: 100%;
+  }
+}
+
 .sidebar-slab-agent .sidebar-agent-controls {
   display: flex;
   align-items: center;
@@ -8622,7 +8835,8 @@ body.app-locked {
 .sidebar-slab-agent .agents-manage-btn,
 .sidebar-slab-agent .agent-awn-types-btn,
 .sidebar-slab-agent .agent-git-btn,
-.sidebar-slab-agent .agent-large-files-btn {
+.sidebar-slab-agent .agent-large-files-btn,
+.sidebar-slab-agent .agent-broken-links-btn {
   flex: 0 0 28px;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
@@ -8631,7 +8845,8 @@ body.app-locked {
 .sidebar-slab-agent .agents-manage-btn:focus-visible,
 .sidebar-slab-agent .agent-awn-types-btn:focus-visible,
 .sidebar-slab-agent .agent-git-btn:focus-visible,
-.sidebar-slab-agent .agent-large-files-btn:focus-visible {
+.sidebar-slab-agent .agent-large-files-btn:focus-visible,
+.sidebar-slab-agent .agent-broken-links-btn:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);

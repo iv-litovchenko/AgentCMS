@@ -177,7 +177,6 @@
                   >
                     ≡
                   </button>
-                  <button id="agents-manage-btn" class="agents-manage-btn" type="button" title="Реестр агентов" aria-label="Реестр агентов">⚙</button>
                 </div>
               </div>
               <div class="sidebar-agent-row sidebar-agent-row--view">
@@ -220,6 +219,13 @@
                     type="button"
                     title="Крупные файлы — список файлов больше 45 МБ"
                     aria-label="Крупные файлы"
+                  ></button>
+                  <button
+                    id="agent-broken-links-btn"
+                    class="agents-manage-btn agent-broken-links-btn"
+                    type="button"
+                    title="Битые ссылки — проверка ссылок в YAML, markdown и content.csv"
+                    aria-label="Битые ссылки"
                   ></button>
                 </div>
               </div>
@@ -826,6 +832,25 @@
           </div>
         </div>
         <div id="agent-large-files-content" class="agent-large-files-content"></div>
+      </main>
+
+      <main id="agent-broken-links-pane" class="agent-canvas-pane agent-broken-links-pane hidden" aria-label="Битые ссылки workspace">
+        <div class="agent-canvas-head agent-broken-links-head">
+          <div class="agent-broken-links-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Битые ссылки</h2>
+            <p class="agent-canvas-lead">
+              Проверка ссылок на документы и файлы в YAML-шапке, теле markdown и <code>content.csv</code>.
+            </p>
+          </div>
+          <div class="agent-broken-links-head-actions">
+            <div id="agent-broken-links-stats" class="agent-broken-links-stats" aria-live="polite"></div>
+            <button id="agent-broken-links-refresh-btn" class="agent-broken-links-refresh-btn" type="button" title="Повторить проверку">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-broken-links-content" class="agent-broken-links-content"></div>
       </main>
 
       <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">

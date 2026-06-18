@@ -522,6 +522,69 @@ function stripStoragePrefix(name) {
   return String(name || "").trim();
 }
 
+function buildStorageLayerRef(manifestRelPath, layerFolder, relativePath) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel || rel.includes("..")) return "";
+  const layer = normalizeStorageSubfolderName(layerFolder) || String(layerFolder || "").trim();
+  if (!layer || !isAllowedStorageSubfolderName(layer)) return "";
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  if (!slotDir) return "";
+  return `${slotDir}/${layer}/${rel}`;
+}
+
+function parseStorageLayerRef(workspaceRelPath) {
+  const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return null;
+
+  const match = normalized.match(
+    new RegExp(`^(.*)/${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/([^/]+)/(.+)$`, "i")
+  );
+  if (!match) return null;
+
+  const containerPrefix = String(match[1] || "").replace(/\/$/, "");
+  const rawSlotKey = match[2];
+  const layer = normalizeStorageSubfolderName(match[3]);
+  const relativePath = match[4];
+  const slotKey = stripStoragePrefix(rawSlotKey);
+
+  if (!rawSlotKey || !layer || !relativePath || !isAllowedStorageSubfolderName(layer)) return null;
+
+  const manifestCandidates = [];
+  appendManifestCandidatesForStorageKey(manifestCandidates, containerPrefix, slotKey);
+
+  const slotDir = containerPrefix
+    ? `${containerPrefix}/${STORAGE_ROOT_FOLDER}/${rawSlotKey}`
+    : `${STORAGE_ROOT_FOLDER}/${rawSlotKey}`;
+
+  return {
+    workspacePath: normalized,
+    slotDir,
+    slotKey,
+    layer,
+    relativePath,
+    manifestCandidates: [...new Set(manifestCandidates.filter((candidate) => isManifestMdRelPath(candidate)))]
+  };
+}
+
+function pickManifestRelFromStorageLayerRef(parsed) {
+  if (!parsed?.manifestCandidates?.length) return null;
+  const preferred = parsed.manifestCandidates.find(
+    (candidate) => path.posix.basename(candidate).toLowerCase() === `${parsed.slotKey.toLowerCase()}.md`
+  );
+  return preferred || parsed.manifestCandidates[0];
+}
+
+function parseStorageAssetsRef(workspaceRelPath) {
+  const parsed = parseStorageLayerRef(workspaceRelPath);
+  if (!parsed || parsed.layer !== STORAGE_SUBFOLDER_ASSETS) return null;
+  return {
+    manifestRelPath: pickManifestRelFromStorageLayerRef(parsed),
+    mediaFile: parsed.relativePath,
+    workspacePath: parsed.workspacePath,
+    slotDir: parsed.slotDir
+  };
+}
+
 function resolveManifestRelFromStorageBundlePath(normalized) {
   const rel = String(normalized || "").replace(/\\/g, "/");
   const match = rel.match(
@@ -738,6 +801,10 @@ module.exports = {
   getNamedStorageSlotDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
+  buildStorageLayerRef,
+  parseStorageLayerRef,
+  parseStorageAssetsRef,
+  pickManifestRelFromStorageLayerRef,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,

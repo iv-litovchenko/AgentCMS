@@ -19,6 +19,7 @@ const {
   joinAreaManifestRel,
   getServiceAreaManifestRel,
   SERVICE_AREA_NAME,
+  parseStorageAssetsRef,
   toAreaFolderName,
   toTopicFileName,
   isAreaManifestFileName,
@@ -781,28 +782,18 @@ function getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute) {
   return path.join(getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute), STORAGE_SUBFOLDER_ASSETS);
 }
 
-function stripAssetsPathPrefix(relPath) {
-  let rel = String(relPath || "").replace(/\\/g, "/");
-  const prefix = `${STORAGE_SUBFOLDER_ASSETS}/`;
-  if (rel.startsWith(prefix)) return rel.slice(prefix.length);
-  const lowerPrefix = prefix.toLowerCase();
-  if (rel.toLowerCase().startsWith(lowerPrefix)) return rel.slice(lowerPrefix.length);
-  return rel;
-}
-
 function resolveWorkspaceManifestPreviewAbsoluteSync(workspaceRootAbsolute, previewRel) {
   const previewValue = String(previewRel || "").trim();
   if (!previewValue || /^https?:\/\//i.test(previewValue)) return null;
 
-  let relFile = stripAssetsPathPrefix(previewValue).replace(/^(\.\.[\/\\])+/, "").replace(/\\/g, "/");
-  if (!relFile || relFile.startsWith("..")) return null;
+  const assetsRef = parseStorageAssetsRef(previewValue);
+  if (!assetsRef?.workspacePath) return null;
 
-  const assetsDir = getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute);
-  const fileAbsolute = path.resolve(assetsDir, relFile);
-  if (!fileAbsolute.startsWith(path.resolve(assetsDir))) return null;
+  const absolute = path.resolve(workspaceRootAbsolute, assetsRef.workspacePath);
+  if (!absolute.startsWith(path.resolve(workspaceRootAbsolute))) return null;
 
   try {
-    if (fs.existsSync(fileAbsolute) && fs.statSync(fileAbsolute).isFile()) return fileAbsolute;
+    if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) return absolute;
   } catch {
     // not found
   }
