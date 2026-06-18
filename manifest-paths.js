@@ -537,7 +537,7 @@ function parseStorageLayerRef(workspaceRelPath) {
   if (!normalized || normalized.includes("..")) return null;
 
   const match = normalized.match(
-    new RegExp(`^(.*)/${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/([^/]+)/(.+)$`, "i")
+    new RegExp(`^(?:(.*?)/)?${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/([^/]+)/(.+)$`, "i")
   );
   if (!match) return null;
 

@@ -10581,7 +10581,9 @@ function parseStorageLayerRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return null;
 
-  const match = normalized.match(new RegExp(`^(.*)/${STORAGE_ROOT_FOLDER}/([^/]+)/([^/]+)/(.+)$`, "i"));
+  const match = normalized.match(
+    new RegExp(`^(?:(.*?)/)?${STORAGE_ROOT_FOLDER}/([^/]+)/([^/]+)/(.+)$`, "i")
+  );
   if (!match) return null;
 
   const containerPrefix = String(match[1] || "").replace(/\/$/, "");
@@ -12600,25 +12602,23 @@ function normalizeEmbeddedDataUriMarkdown(markdown) {
   return source;
 }
 
-function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath = getActiveNodeApiPath()) {
-  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+function buildDocumentRelativeStorageRef(layerFolder, relativePath, nodePath) {
+  const contextPath = nodePath || getMarkdownAssetSourcePath() || getActiveNodeApiPath();
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath || contextPath));
   if (!manifestPath) return "";
-  const ref = buildStorageLayerRef(manifestPath, STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath);
-  if (!ref) return "";
-  return ref
+  const targetWorkspacePath = buildStorageLayerRef(manifestPath, layerFolder, relativePath);
+  if (!targetWorkspacePath) return "";
+  const fromPath = getMarkdownAssetSourcePath(contextPath);
+  const href = relativizeWorkspacePath(fromPath, targetWorkspacePath);
+  if (!href) return "";
+  return href
     .split("/")
     .map((segment) => encodeMarkdownPathSegment(segment))
     .join("/");
 }
 
-function isShortTopicAssetRef(path) {
-  const raw = String(path || "")
-    .trim()
-    .replace(/\\/g, "/");
-  if (!raw || /^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/") || raw.startsWith("/")) {
-    return false;
-  }
-  return /^assets\//i.test(raw);
+function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath) {
+  return buildDocumentRelativeStorageRef(STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath, nodePath);
 }
 
 function getMarkdownAssetSourcePath(nodePath) {
@@ -12649,7 +12649,6 @@ function isBrokenImageSrc(src, nodePath) {
   const trimmed = String(src || "").trim();
   if (!trimmed || trimmed === BROKEN_IMAGE_PLACEHOLDER_SRC) return false;
   if (/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return false;
-  if (isShortTopicAssetRef(trimmed)) return true;
   const resolved = resolveMarkdownAssetSrc(trimmed, nodePath);
   return !isLoadableImageDisplayUrl(resolved);
 }
@@ -12722,8 +12721,11 @@ function getAttachmentAltText(fileName) {
   return alt.replace(/[[\]]/g, "").trim() || "image";
 }
 
-function buildMarkdownImageSnippet(relativeAssetsPath, altText, nodePath = getActiveNodeApiPath()) {
-  const ref = buildMarkdownAttachmentRef(relativeAssetsPath, nodePath);
+function buildMarkdownImageSnippet(relativeAssetsPath, altText, nodePath) {
+  const ref = buildMarkdownAttachmentRef(
+    relativeAssetsPath,
+    nodePath || getMarkdownAssetSourcePath() || getActiveNodeApiPath()
+  );
   if (!ref) return "";
   const alt = String(altText || getAttachmentAltText(relativeAssetsPath)).replace(/[[\]]/g, "");
   return `\n![${alt}](${ref})\n`;
@@ -16559,7 +16561,7 @@ async function resolveMediaAbsolutePath(item, { quiet = false } = {}) {
 }
 
 function buildMediaLinkPath(item) {
-  return buildMarkdownAttachmentRef(item?.path);
+  return buildMarkdownAttachmentRef(item?.path, getMarkdownAssetSourcePath() || getActiveNodeApiPath());
 }
 
 async function copyMediaPathText(text, successMessage) {
@@ -16921,7 +16923,15 @@ function countMediaFileUsage(item, corpus) {
   if (!corpus) return 0;
   const path = String(item.path || "").toLowerCase();
   const name = String(item.name || "").toLowerCase();
-  const assetRef = buildMarkdownAttachmentRef(item.path).toLowerCase();
+  const assetRef = buildMarkdownAttachmentRef(
+    item.path,
+    getMarkdownAssetSourcePath() || getActiveNodeApiPath()
+  ).toLowerCase();
+  const legacyFullRef = buildStorageLayerRef(
+    resolveManifestPathForNodeApi(getResolvedNodePath(activePath)),
+    STORAGE_SUBFOLDER_ASSETS,
+    item.path
+  )?.toLowerCase() || "";
   const base = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
   let count = 0;
   const bump = (token) => {
@@ -16931,6 +16941,8 @@ function countMediaFileUsage(item, corpus) {
   bump(path);
   bump(name);
   bump(assetRef);
+  bump(legacyFullRef);
+  bump(`assets/${path}`.toLowerCase());
   bump(base);
   return count;
 }
@@ -21699,13 +21711,11 @@ function buildContentRecordWikilink(relativePath) {
   return buildContentRecordMarkdownLink(relativePath);
 }
 
-function buildPropsFileRef(subfolder, relativePath, nodePath = activePath) {
-  const manifestPath = getResolvedNodePath(nodePath);
-  if (!manifestPath) return "";
-  return buildStorageLayerRef(manifestPath, subfolder, relativePath);
+function buildPropsFileRef(subfolder, relativePath, nodePath) {
+  return buildDocumentRelativeStorageRef(subfolder, relativePath, nodePath || getPropsContextPath());
 }
 
-function parsePropsFileRef(value) {
+function parsePropsFileRef(value, nodePath = activePath) {
   const raw = String(value || "").trim().replace(/\\/g, "/");
   if (!raw) return null;
 
@@ -21716,6 +21726,18 @@ function parsePropsFileRef(value) {
     }
     if (parsed.layer === STORAGE_SUBFOLDER_ASSETS) {
       return { mode: "media", file: parsed.relativePath };
+    }
+  }
+
+  const sourceRel = getMarkdownAssetSourcePath(nodePath);
+  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(raw, sourceRel);
+  if (workspaceRel) {
+    const layerParsed = parseStorageLayerRef(workspaceRel);
+    if (layerParsed?.layer === STORAGE_SUBFOLDER_CONTENT) {
+      return { mode: "external", file: layerParsed.relativePath };
+    }
+    if (layerParsed?.layer === STORAGE_SUBFOLDER_ASSETS) {
+      return { mode: "media", file: layerParsed.relativePath };
     }
   }
 
@@ -21755,7 +21777,7 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
             label,
             wikilink: buildContentRecordMarkdownLink(relativePath),
             markdownLink: buildContentRecordMarkdownLink(relativePath),
-            fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath)
+            fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_CONTENT, relativePath, getPropsContextPath())
           });
         }
       }
@@ -21776,7 +21798,7 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
               relativePath,
               label: item.name || relativePath.split("/").pop() || relativePath,
               group: groupName,
-              fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath),
+              fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath, getPropsContextPath()),
               icon: getMediaIconForItem(item)
             });
           }
@@ -21888,7 +21910,7 @@ async function openPropsLinkTarget(linkValue) {
 }
 
 async function openPropsFileTarget(fileRef) {
-  const parsed = parsePropsFileRef(fileRef);
+  const parsed = parsePropsFileRef(fileRef, getPropsContextPath());
   if (!parsed?.file || !activePath) return;
 
   await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
@@ -22056,7 +22078,7 @@ function resolveAwnPreviewDisplayUrl(previewPath, nodePath = activePath) {
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
   if (raw.startsWith("/api/")) return appendCacheBuster(appendAgentToApiUrl(raw));
-  if (isShortTopicAssetRef(raw) || isBrokenImageSrc(raw, nodePath)) return "";
+  if (isBrokenImageSrc(raw, nodePath)) return "";
   const resolved = resolveMarkdownAssetSrc(raw, nodePath);
   if (!isLoadableImageDisplayUrl(resolved)) return "";
   return appendCacheBuster(resolved.startsWith("/api/") ? appendAgentToApiUrl(resolved) : resolved);
@@ -22078,7 +22100,7 @@ function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
 function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
   const trimmed = String(previewPath || "").trim();
   if (!trimmed) return null;
-  if (isShortTopicAssetRef(trimmed) || isBrokenImageSrc(trimmed, nodePath)) {
+  if (isBrokenImageSrc(trimmed, nodePath)) {
     return { broken: true, previewPath: trimmed };
   }
   const imageUrl = resolveAwnPreviewDisplayUrl(trimmed, nodePath);
@@ -27292,7 +27314,11 @@ async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
     const relativeFile = payload?.file;
     if (!relativeFile) throw new Error("Upload response missing file path");
 
-    const previewRef = buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativeFile);
+    const previewRef = buildPropsFileRef(
+      STORAGE_SUBFOLDER_ASSETS,
+      relativeFile,
+      getPropsContextPath()
+    );
     await setPropsPreviewValue(previewRef, { save: true, showToastOnSuccess: false });
     showToast("Превью сохранено", "success");
     await refreshPreviewUiAfterChange();
@@ -27784,7 +27810,10 @@ function normalizeWysiwygExportedMarkdown(markdown) {
       try {
         const parsed = new URL(url, window.location.origin);
         const relFile = decodeURIComponent(parsed.searchParams.get("file") || "");
-        const ref = buildMarkdownAttachmentRef(relFile);
+        const ref = buildMarkdownAttachmentRef(
+          relFile,
+          getMarkdownAssetSourcePath() || getActiveNodeApiPath()
+        );
         return ref ? `![${alt}](${ref})` : match;
       } catch {
         return match;
