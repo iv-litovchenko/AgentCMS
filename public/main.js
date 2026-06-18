@@ -69,6 +69,7 @@ const appLandingGroupBgRemoveBtn = document.getElementById("app-landing-group-bg
 const appLandingGroupBgCloseBtn = document.getElementById("app-landing-group-bg-close-btn");
 const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
+const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-attention");
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitCreateBtn = document.getElementById("app-landing-orbit-create-btn");
 const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
@@ -4622,7 +4623,9 @@ function syncLandingAgentsViewUi() {
   }
 }
 
-function createAppLandingOrbitBubble(agent, index, total) {
+const ORBIT_LINK_CENTER = { x: 50, y: 48 };
+
+function createAppLandingOrbitBubble(agent, index, total, share) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
   const label = agent.name || agent.id;
@@ -4630,7 +4633,9 @@ function createAppLandingOrbitBubble(agent, index, total) {
 
   const item = document.createElement("div");
   item.className = "app-landing-orbit-item";
+  if (isOrchestrator) item.classList.add("app-landing-orbit-item--orchestrator");
   item.setAttribute("role", "listitem");
+  item.dataset.agentId = agent.id;
   item.style.setProperty("--orbit-x", `${layout.x}%`);
   item.style.setProperty("--orbit-y", `${layout.y}%`);
   item.style.setProperty("--orbit-size", `${layout.size}px`);
@@ -4638,14 +4643,26 @@ function createAppLandingOrbitBubble(agent, index, total) {
   item.style.setProperty("--orbit-delay", `${layout.delay}s`);
   item.style.setProperty("--orbit-float-x", `${layout.floatX}px`);
   item.style.setProperty("--orbit-float-y", `${layout.floatY}px`);
+  if (share?.color) item.style.setProperty("--orbit-attention-color", share.color);
 
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = `app-landing-orbit-bubble${registryActive ? " is-active" : " is-inactive"}${
     isOrchestrator ? " is-orchestrator" : ""
   }`;
-  btn.title = registryActive ? `Открыть ${label}` : `${label} — неактивен`;
-  btn.setAttribute("aria-label", registryActive ? `Открыть агента ${label}` : `Агент ${label} неактивен`);
+  btn.title = registryActive
+    ? isOrchestrator
+      ? `Оркестратор · ${label}`
+      : `Открыть ${label}`
+    : `${label} — неактивен`;
+  btn.setAttribute(
+    "aria-label",
+    registryActive
+      ? isOrchestrator
+        ? `Оркестратор ${label}`
+        : `Открыть агента ${label}`
+      : `Агент ${label} неактивен`
+  );
 
   const avatar = document.createElement("span");
   avatar.className = "app-landing-orbit-bubble-avatar";
@@ -4658,11 +4675,21 @@ function createAppLandingOrbitBubble(agent, index, total) {
     initialsClass: "app-landing-orbit-bubble-initials"
   });
 
+  btn.append(avatar);
+
+  if (isOrchestrator) {
+    const badge = document.createElement("span");
+    badge.className = "app-landing-orbit-orchestrator-badge";
+    badge.textContent = "Оркестратор";
+    badge.setAttribute("aria-hidden", "true");
+    btn.appendChild(badge);
+  }
+
   const nameNode = document.createElement("span");
   nameNode.className = "app-landing-orbit-bubble-label";
+  if (isOrchestrator) nameNode.classList.add("is-orchestrator");
   nameNode.textContent = label;
 
-  btn.append(avatar);
   btn.addEventListener("click", () => {
     if (!registryActive) {
       showToast("Агент выключен — включите в реестре (⚙)", "error");
@@ -4671,11 +4698,30 @@ function createAppLandingOrbitBubble(agent, index, total) {
     selectAgentOption(agent.id);
   });
 
-  item.append(btn, nameNode);
+  const children = [btn, nameNode];
+
+  if (share) {
+    const attentionWrap = document.createElement("div");
+    attentionWrap.className = "app-landing-orbit-bubble-attention";
+    attentionWrap.setAttribute("aria-hidden", "true");
+
+    const track = document.createElement("div");
+    track.className = "app-landing-orbit-attention-track app-landing-orbit-bubble-attention-track";
+
+    const fill = document.createElement("span");
+    fill.className = "app-landing-orbit-attention-fill";
+    fill.style.width = `${share.percent}%`;
+    fill.style.backgroundColor = share.color;
+
+    track.appendChild(fill);
+    attentionWrap.appendChild(track);
+    children.push(attentionWrap);
+  }
+
+  item.append(...children);
+  bindOrbitAttentionHover(item, agent.id);
   return item;
 }
-
-const ORBIT_LINK_CENTER = { x: 50, y: 48 };
 
 function renderAppLandingOrbitLinks(agents) {
   if (!appLandingOrbitLinksNode) return;
@@ -4704,6 +4750,7 @@ function renderAppLandingOrbitLinks(agents) {
 function renderAppLandingOrbit() {
   if (!appLandingOrbitBubblesNode) return;
   appLandingOrbitBubblesNode.replaceChildren();
+  clearOrbitAttentionHighlight();
 
   const agents = getAgentsForLandingGrid();
   if (agents.length === 0) {
@@ -4711,14 +4758,138 @@ function renderAppLandingOrbit() {
     empty.className = "app-landing-orbit-empty";
     empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
     appLandingOrbitBubblesNode.appendChild(empty);
+    renderAppLandingOrbitAttention([]);
     return;
   }
 
+  const shares = buildMockAgentAttentionShares(agents);
+  const shareByAgentId = new Map(shares.map((share) => [share.agent.id, share]));
+
   agents.forEach((agent, index) => {
-    appLandingOrbitBubblesNode.appendChild(createAppLandingOrbitBubble(agent, index, agents.length));
+    appLandingOrbitBubblesNode.appendChild(
+      createAppLandingOrbitBubble(agent, index, agents.length, shareByAgentId.get(agent.id))
+    );
   });
 
   renderAppLandingOrbitLinks(agents);
+  renderAppLandingOrbitAttention(shares);
+}
+
+const ORBIT_ATTENTION_PALETTE = [
+  "#818cf8",
+  "#fbbf24",
+  "#34d399",
+  "#f472b6",
+  "#22d3ee",
+  "#c084fc",
+  "#fb7185",
+  "#a3e635"
+];
+
+function getOrbitAttentionColor(agentId) {
+  return ORBIT_ATTENTION_PALETTE[hashAgentIdForOrbit(String(agentId || "")) % ORBIT_ATTENTION_PALETTE.length];
+}
+
+function buildMockAgentAttentionShares(agents) {
+  if (!Array.isArray(agents) || !agents.length) return [];
+
+  const weighted = agents.map((agent) => ({
+    agent,
+    weight: 14 + (hashAgentIdForOrbit(agent.id) % 86)
+  }));
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const shares = weighted.map((item) => ({
+    agent: item.agent,
+    percent: totalWeight ? Math.round((item.weight / totalWeight) * 100) : 0,
+    color: getOrbitAttentionColor(item.agent.id)
+  }));
+
+  const drift = 100 - shares.reduce((sum, item) => sum + item.percent, 0);
+  if (drift && shares.length) shares[0].percent += drift;
+
+  return shares.sort((a, b) => b.percent - a.percent);
+}
+
+function bindOrbitAttentionHover(node, agentId) {
+  if (!node || !agentId) return;
+
+  node.addEventListener("mouseenter", () => {
+    setOrbitAttentionHighlight(agentId);
+  });
+  node.addEventListener("mouseleave", () => {
+    setOrbitAttentionHighlight(null);
+  });
+  node.addEventListener("focusin", () => {
+    setOrbitAttentionHighlight(agentId);
+  });
+  node.addEventListener("focusout", (event) => {
+    if (!node.contains(event.relatedTarget)) {
+      setOrbitAttentionHighlight(null);
+    }
+  });
+}
+
+function setOrbitAttentionHighlight(agentId) {
+  const hasHighlight = Boolean(agentId);
+
+  appLandingOrbitBubblesNode
+    ?.querySelectorAll(".app-landing-orbit-item[data-agent-id]")
+    .forEach((item) => {
+      const isMatch = item.dataset.agentId === agentId;
+      item.classList.toggle("is-attention-highlighted", hasHighlight && isMatch);
+      item.classList.toggle("is-attention-dimmed", hasHighlight && !isMatch);
+    });
+
+  appLandingOrbitAttentionNode
+    ?.querySelectorAll(".app-landing-orbit-attention-stack-segment[data-agent-id]")
+    .forEach((segment) => {
+      const isMatch = segment.dataset.agentId === agentId;
+      segment.classList.toggle("is-highlighted", hasHighlight && isMatch);
+      segment.classList.toggle("is-dimmed", hasHighlight && !isMatch);
+    });
+}
+
+function clearOrbitAttentionHighlight() {
+  setOrbitAttentionHighlight(null);
+}
+
+function renderAppLandingOrbitAttention(shares) {
+  if (!appLandingOrbitAttentionNode) return;
+  appLandingOrbitAttentionNode.replaceChildren();
+  clearOrbitAttentionHighlight();
+
+  if (!Array.isArray(shares) || !shares.length) {
+    appLandingOrbitAttentionNode.classList.add("hidden");
+    return;
+  }
+
+  appLandingOrbitAttentionNode.classList.remove("hidden");
+
+  const stackedBar = document.createElement("div");
+  stackedBar.className = "app-landing-orbit-attention-stack";
+  stackedBar.setAttribute("role", "img");
+  stackedBar.setAttribute(
+    "aria-label",
+    shares.map((item) => `${item.agent.name || item.agent.id}: ${item.percent}%`).join(", ")
+  );
+
+  for (const item of shares) {
+    if (item.percent <= 0) continue;
+
+    const segment = document.createElement("button");
+    segment.type = "button";
+    segment.className = "app-landing-orbit-attention-stack-segment";
+    segment.dataset.agentId = item.agent.id;
+    segment.style.width = `${item.percent}%`;
+    segment.style.setProperty("--orbit-attention-color", item.color);
+    segment.style.backgroundColor = item.color;
+    segment.title = `${item.agent.name || item.agent.id} — ${item.percent}%`;
+    segment.setAttribute("aria-label", segment.title);
+    bindOrbitAttentionHover(segment, item.agent.id);
+    stackedBar.appendChild(segment);
+  }
+
+  appLandingOrbitAttentionNode.append(stackedBar);
 }
 
 async function renderAppLandingAgents() {
@@ -4730,7 +4901,7 @@ async function renderAppLandingAgents() {
     appLandingAgentsNode.classList.remove("is-grouped-layout");
     const empty = document.createElement("p");
     empty.className = "app-landing-empty";
-    empty.textContent = "Нет агентов. Нажмите «+ Создать агента» или «Реестр».";
+    empty.textContent = "Нет агентов. Нажмите «+ Добавить агента» или «Реестр».";
     appLandingAgentsNode.appendChild(empty);
   } else {
     try {

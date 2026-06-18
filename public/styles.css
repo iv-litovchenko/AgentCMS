@@ -710,6 +710,14 @@ body.app-locked {
   color: rgba(226, 232, 240, 0.82);
 }
 
+.app-landing-hero-tagline {
+  margin: 4px auto 0;
+  max-width: 520px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(203, 213, 225, 0.72);
+}
+
 .app-landing-body {
   flex: 1;
   min-width: 0;
@@ -2391,6 +2399,14 @@ body.app-locked {
   color: rgba(226, 232, 240, 0.76);
 }
 
+.app-landing-orbit-hub-tagline {
+  margin: 0;
+  max-width: 22em;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(203, 213, 225, 0.68);
+}
+
 .app-landing-orbit-bubbles {
   position: absolute;
   inset: 0;
@@ -2415,6 +2431,18 @@ body.app-locked {
 
 .app-landing-orbit-item:hover {
   z-index: 20;
+}
+
+.app-landing-orbit-item.is-attention-highlighted {
+  z-index: 24;
+}
+
+.app-landing-orbit-item.is-attention-dimmed {
+  opacity: 0.58;
+}
+
+.app-landing-orbit-item.is-attention-dimmed .app-landing-orbit-bubble {
+  filter: grayscale(0.35);
 }
 
 .app-landing-orbit-bubble {
@@ -2516,6 +2544,70 @@ body.app-locked {
   color: #64748b;
 }
 
+.app-landing-orbit-item--orchestrator {
+  z-index: 12;
+}
+
+.app-landing-orbit-bubble.is-orchestrator {
+  border-color: rgba(245, 158, 11, 0.72);
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.app-landing-orbit-bubble.is-orchestrator.is-active {
+  border-color: rgba(251, 191, 36, 0.95);
+  box-shadow:
+    0 0 0 5px rgba(245, 158, 11, 0.3),
+    0 0 32px rgba(245, 158, 11, 0.48),
+    0 12px 32px rgba(2, 6, 23, 0.42);
+}
+
+.app-landing-orbit-bubble.is-orchestrator.is-inactive {
+  border-color: rgba(245, 158, 11, 0.42);
+  opacity: 0.82;
+}
+
+.app-landing-orbit-orchestrator-badge {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.28);
+}
+
+.app-landing-orbit-bubble-label.is-orchestrator {
+  border-color: rgba(245, 158, 11, 0.62);
+  background: rgba(255, 251, 235, 0.96);
+  color: #b45309;
+}
+
+.app-landing-orbit-bubble-attention {
+  width: min(calc(var(--orbit-size, 72px) + 40px), 100%);
+  pointer-events: none;
+}
+
+.app-landing-orbit-bubble-attention-track {
+  height: 5px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+}
+
+.app-landing-orbit-item.is-attention-highlighted .app-landing-orbit-bubble-attention-track {
+  box-shadow:
+    0 0 0 1px var(--orbit-attention-color, rgba(129, 140, 248, 0.55)),
+    0 0 12px color-mix(in srgb, var(--orbit-attention-color, #818cf8) 42%, transparent);
+}
+
 .app-landing-orbit-create-btn {
   position: absolute;
   right: 18px;
@@ -2533,6 +2625,75 @@ body.app-locked {
   cursor: pointer;
   backdrop-filter: blur(6px);
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.app-landing-orbit-attention {
+  position: absolute;
+  left: 18px;
+  right: 78px;
+  bottom: 18px;
+  z-index: 8;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.app-landing-orbit-attention-stack {
+  display: flex;
+  width: 100%;
+  height: 12px;
+  overflow: visible;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.app-landing-orbit-attention-stack-segment {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    opacity 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.app-landing-orbit-attention-stack-segment.is-highlighted {
+  transform: scaleY(1.35);
+  filter: saturate(1.2) brightness(1.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 0 16px color-mix(in srgb, var(--orbit-attention-color, #818cf8) 55%, transparent);
+  z-index: 1;
+}
+
+.app-landing-orbit-attention-stack-segment.is-dimmed {
+  opacity: 0.34;
+  filter: saturate(0.65);
+}
+
+.app-landing-orbit-attention-stack-segment:focus-visible {
+  outline: 2px solid rgba(199, 210, 254, 0.85);
+  outline-offset: 2px;
+}
+
+.app-landing-orbit-attention-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  overflow: hidden;
+}
+
+.app-landing-orbit-attention-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .app-landing-orbit-create-btn:hover {
@@ -2711,6 +2872,11 @@ body.app-locked {
   color: rgba(226, 232, 240, 0.84);
 }
 
+.app-landing-pane.is-screensaver .app-landing-orbit-hub-tagline {
+  font-size: 12px;
+  color: rgba(203, 213, 225, 0.78);
+}
+
 .app-landing-pane.is-screensaver .app-landing-orbit {
   min-height: calc(100vh - 220px);
   border-radius: 20px;
@@ -2770,12 +2936,6 @@ body.app-locked {
   text-transform: uppercase;
   color: #b45309;
   background: rgba(245, 158, 11, 0.14);
-}
-
-.app-landing-orbit-bubble.is-orchestrator {
-  box-shadow:
-    0 0 0 2px rgba(245, 158, 11, 0.55),
-    0 8px 24px rgba(245, 158, 11, 0.18);
 }
 
 .app-landing-agent-card--create {
