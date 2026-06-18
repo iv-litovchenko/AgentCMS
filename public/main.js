@@ -12666,6 +12666,14 @@ function createBrokenImagePlaceholder({ label = "Изображение не н�
 
 function applyBrokenImagePlaceholder(img, label = "Изображение не найдено") {
   if (!(img instanceof HTMLImageElement) || img.dataset.brokenPlaceholder === "1") return;
+  const currentSrc = img.getAttribute("src") || "";
+  if (
+    currentSrc &&
+    currentSrc !== BROKEN_IMAGE_PLACEHOLDER_SRC &&
+    !img.dataset.originalSrc
+  ) {
+    img.dataset.originalSrc = currentSrc;
+  }
   img.dataset.brokenPlaceholder = "1";
   img.src = BROKEN_IMAGE_PLACEHOLDER_SRC;
   img.alt = label || img.alt || "Изображение не найдено";
@@ -12675,12 +12683,13 @@ function applyBrokenImagePlaceholder(img, label = "Изображение не �
 
 function bindMarkdownPreviewImageFallback(img, nodePath) {
   if (!(img instanceof HTMLImageElement) || img.dataset.brokenPlaceholder === "1") return;
-  const src = img.getAttribute("src") || "";
+  const src = img.getAttribute("data-original-src") || img.getAttribute("src") || "";
   const sourcePath = getMarkdownAssetSourcePath(nodePath);
   if (isBrokenImageSrc(src, sourcePath)) {
     applyBrokenImagePlaceholder(img);
     return;
   }
+  if (!img.dataset.originalSrc && src) img.dataset.originalSrc = src;
   img.addEventListener("error", () => applyBrokenImagePlaceholder(img), { once: true });
 }
 
@@ -26873,8 +26882,7 @@ function getMarkdownIt() {
       const rawSrc = token.attrs[srcIndex][1];
       const sourcePath = getMarkdownAssetSourcePath(env?.nodePath);
       if (isBrokenImageSrc(rawSrc, sourcePath)) {
-        token.attrs[srcIndex][1] = BROKEN_IMAGE_PLACEHOLDER_SRC;
-        token.attrJoin("class", "broken-image-placeholder markdown-image-missing");
+        token.attrSet("data-original-src", rawSrc);
       } else {
         token.attrs[srcIndex][1] = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
       }
@@ -27643,6 +27651,7 @@ function teardownWysiwygLinkPopupEnhancementObserver() {
 
 function destroyWysiwygEditor() {
   teardownWysiwygLinkPopupEnhancementObserver();
+  teardownWysiwygBrokenImageFallbacks();
   wysiwygEditorResizeObserver?.disconnect();
   wysiwygEditorResizeObserver = null;
   if (wysiwygEditorInstance) {
@@ -27657,9 +27666,117 @@ function destroyWysiwygEditor() {
   }
 }
 
+function restoreBrokenImagePathsInExportedMarkdown(markdown) {
+  let result = String(markdown || "");
+  if (!editorWysiwygWrapNode || !/image-missing\.svg/i.test(result)) return result;
+
+  const images = editorWysiwygWrapNode.querySelectorAll(
+    'img[data-original-src][data-broken-placeholder="1"]'
+  );
+  for (const img of images) {
+    const original = img.getAttribute("data-original-src") || "";
+    if (!original) continue;
+    const alt = img.getAttribute("alt") || "";
+    const escAlt = alt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(
+      new RegExp(`!\\[${escAlt}\\]\\(\\/image-missing\\.svg\\)`, "g"),
+      `![${alt}](${original})`
+    );
+    result = result.replace(
+      new RegExp(`!\\[${escAlt}\\]\\([^)\\n]*image-missing\\.svg[^)\\n]*\\)`, "gi"),
+      `![${alt}](${original})`
+    );
+  }
+
+  return result.replace(/!\[([^\]]*)\]\(\/image-missing\.svg\)/g, (match, alt) => {
+    const img = [...images].find(
+      (node) => (node.getAttribute("alt") || "") === alt && node.dataset.originalSrc
+    );
+    const original = img?.getAttribute("data-original-src") || "";
+    return original ? `![${alt}](${original})` : match;
+  });
+}
+
+function getWysiwygEditorImageRoots() {
+  if (!editorWysiwygWrapNode) return [];
+  return [
+    ...editorWysiwygWrapNode.querySelectorAll(".toastui-editor-contents"),
+    ...editorWysiwygWrapNode.querySelectorAll(".ProseMirror")
+  ];
+}
+
+function syncWysiwygEditorImages(nodePath = getActiveTitleEditorPath()) {
+  const editorPath = getMarkdownAssetSourcePath(nodePath) || nodePath;
+  for (const root of getWysiwygEditorImageRoots()) {
+    root.querySelectorAll("img").forEach((img) => {
+      if (img.dataset.brokenPlaceholder === "1" && img.dataset.originalSrc) return;
+
+      let original = img.dataset.originalSrc || "";
+      const currentSrc = img.getAttribute("src") || "";
+      if (!original && currentSrc && !currentSrc.includes("image-missing.svg")) {
+        if (!currentSrc.startsWith("/api/") && !/^https?:\/\//i.test(currentSrc) && !/^data:/i.test(currentSrc)) {
+          original = currentSrc;
+          img.dataset.originalSrc = original;
+        }
+      }
+
+      if (!original) {
+        if (currentSrc && isBrokenImageSrc(currentSrc, editorPath)) {
+          applyBrokenImagePlaceholder(img);
+        } else if (currentSrc && !currentSrc.includes("image-missing.svg")) {
+          img.addEventListener("error", () => applyBrokenImagePlaceholder(img), { once: true });
+        }
+        return;
+      }
+
+      if (isBrokenImageSrc(original, editorPath)) {
+        applyBrokenImagePlaceholder(img);
+        return;
+      }
+
+      const resolved = resolveMarkdownAssetSrc(original, editorPath);
+      if (!isLoadableImageDisplayUrl(resolved)) {
+        applyBrokenImagePlaceholder(img);
+        return;
+      }
+
+      img.classList.remove("broken-image-placeholder", "markdown-image-missing");
+      delete img.dataset.brokenPlaceholder;
+      const displayUrl = appendAgentToApiUrl(resolved);
+      if (img.getAttribute("src") !== displayUrl) {
+        img.src = displayUrl;
+      }
+      img.onerror = () => applyBrokenImagePlaceholder(img);
+    });
+  }
+}
+
+let wysiwygImageFallbackObserver = null;
+
+function setupWysiwygBrokenImageFallbacks() {
+  wysiwygImageFallbackObserver?.disconnect();
+  if (!editorWysiwygWrapNode) return;
+  const schedule = () => requestAnimationFrame(() => syncWysiwygEditorImages());
+  schedule();
+  wysiwygImageFallbackObserver = new MutationObserver(schedule);
+  wysiwygImageFallbackObserver.observe(editorWysiwygWrapNode, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["src"]
+  });
+}
+
+function teardownWysiwygBrokenImageFallbacks() {
+  wysiwygImageFallbackObserver?.disconnect();
+  wysiwygImageFallbackObserver = null;
+}
+
 function normalizeWysiwygExportedMarkdown(markdown) {
   // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
-  let normalized = convertHighlightHtmlToMarkdown(String(markdown || ""));
+  let normalized = restoreBrokenImagePathsInExportedMarkdown(
+    convertHighlightHtmlToMarkdown(String(markdown || ""))
+  );
   normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
   normalized = normalized.replace(
     /!\[([^\]]*)\]\(((?:https?:\/\/[^/]+)?\/api\/media\/file[^)]+)\)/g,
@@ -27677,25 +27794,8 @@ function normalizeWysiwygExportedMarkdown(markdown) {
   return normalized;
 }
 
-function normalizeWysiwygImportedMarkdown(markdown, nodePath = activePath) {
-  const editorPath = getMarkdownAssetSourcePath(nodePath) || nodePath;
-  const withHighlights = convertHighlightMarkdownToHtml(
-    normalizeEmbeddedDataUriMarkdown(String(markdown || ""))
-  );
-  return withHighlights.replace(
-    /!\[([^\]]*)\]\(([^)\n]+)(?:\s+"[^"]*")?\)/g,
-    (match, alt, src) => {
-      if (isBrokenImageSrc(src, editorPath)) {
-        const label = escapeHtml(String(alt || "Изображение не найдено"));
-        return `<img src="${BROKEN_IMAGE_PLACEHOLDER_SRC}" alt="${label}" title="${label}" class="broken-image-placeholder markdown-image-missing" draggable="false" />`;
-      }
-      const resolved = resolveMarkdownAssetSrc(src, editorPath);
-      if (resolved && isLoadableImageDisplayUrl(resolved)) {
-        return `![${alt}](${resolved})`;
-      }
-      return match;
-    }
-  );
+function normalizeWysiwygImportedMarkdown(markdown) {
+  return convertHighlightMarkdownToHtml(normalizeEmbeddedDataUriMarkdown(String(markdown || "")));
 }
 
 function syncSourceFromWysiwygEditor() {
@@ -27774,6 +27874,7 @@ function initWysiwygEditor() {
   requestAnimationFrame(() => {
     bindWysiwygSelectionCapture();
     setupWysiwygLinkPopupEnhancement();
+    setupWysiwygBrokenImageFallbacks();
     syncEditorFillMinHeightCssVar();
   });
 }
