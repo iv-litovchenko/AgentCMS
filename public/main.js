@@ -45,6 +45,7 @@ const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn");
+const appLandingCreateAgentBtn = document.getElementById("app-landing-create-agent-btn");
 const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
 const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
 const appLandingGroupsNode = document.getElementById("app-landing-groups");
@@ -3471,38 +3472,6 @@ async function submitAppLandingCreate() {
   }
 }
 
-function createAppLandingCreateAgentCard() {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "app-landing-agent-card app-landing-agent-card--create";
-  btn.title = "Создать нового агента";
-  btn.setAttribute("aria-label", "Создать агента");
-
-  const media = document.createElement("div");
-  media.className = "app-landing-agent-card-media";
-  const icon = document.createElement("span");
-  icon.className = "app-landing-agent-card-create-icon";
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "+";
-  media.appendChild(icon);
-
-  const body = document.createElement("div");
-  body.className = "app-landing-agent-card-body";
-
-  const nameNode = document.createElement("span");
-  nameNode.className = "app-landing-agent-card-name";
-  nameNode.textContent = "Создать агента";
-
-  const idNode = document.createElement("span");
-  idNode.className = "app-landing-agent-card-id app-landing-agent-card-create-sub";
-  idNode.textContent = "Новый workspace";
-
-  body.append(nameNode, idNode);
-  btn.append(media, body);
-  btn.addEventListener("click", openCreateAgentFromLanding);
-  return btn;
-}
-
 function createAppLandingAgentCard(agent) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
@@ -3572,6 +3541,41 @@ function createAppLandingAgentCard(agent) {
     selectAgentOption(agent.id);
   });
   return btn;
+}
+
+function isOrchestratorAgent(agent) {
+  return agent?.orchestrator === true;
+}
+
+function splitLandingOrchestratorAgent(agents) {
+  const orchestrator = agents.find(isOrchestratorAgent) || null;
+  const rest = orchestrator ? agents.filter((agent) => !isOrchestratorAgent(agent)) : agents;
+  return { orchestrator, rest };
+}
+
+function renderAppLandingOrchestratorSection(agent) {
+  const section = document.createElement("section");
+  section.className =
+    "app-landing-group-section app-landing-orchestrator-section is-display-only is-readonly";
+
+  const head = document.createElement("header");
+  head.className = "app-landing-group-head app-landing-orchestrator-head";
+
+  const titleNode = document.createElement("h3");
+  titleNode.className = "app-landing-group-title-badge app-landing-orchestrator-title-badge";
+  titleNode.textContent = "Оркестратор";
+  head.appendChild(titleNode);
+
+  const grid = document.createElement("div");
+  grid.className = "app-landing-group-agents app-landing-orchestrator-agents";
+
+  const wrap = document.createElement("div");
+  wrap.className = "app-landing-group-agent-wrap app-landing-orchestrator-agent-wrap";
+  wrap.appendChild(createAppLandingAgentCard(agent));
+  grid.appendChild(wrap);
+
+  section.append(head, grid);
+  return section;
 }
 
 let landingAgentsGroupsCache = [];
@@ -3981,13 +3985,16 @@ function getAssignedLandingAgentGroupMap(groups = landingAgentsGroupsCache) {
 }
 
 function buildLandingGroupsLayout(agents, groups = landingAgentsGroupsCache) {
-  const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+  const layoutAgents = agents.filter((agent) => !isOrchestratorAgent(agent));
+  const agentById = new Map(layoutAgents.map((agent) => [agent.id, agent]));
   const assigned = getAssignedLandingAgentGroupMap(groups);
   const grouped = groups.map((group) => ({
     ...group,
-    agents: (group.agentIds || []).map((agentId) => agentById.get(agentId)).filter(Boolean)
+    agents: (group.agentIds || [])
+      .map((agentId) => agentById.get(agentId))
+      .filter((agent) => agent && !isOrchestratorAgent(agent))
   }));
-  const ungrouped = agents.filter((agent) => !assigned.has(agent.id));
+  const ungrouped = layoutAgents.filter((agent) => !assigned.has(agent.id));
   return { grouped, ungrouped };
 }
 
@@ -4006,6 +4013,7 @@ function createLandingGroupAddSelect(group) {
 
   const assigned = getAssignedLandingAgentGroupMap();
   const addable = getAgentsForLandingGrid().filter((agent) => {
+    if (isOrchestratorAgent(agent)) return false;
     if ((group.agentIds || []).includes(agent.id)) return false;
     const currentGroupId = assigned.get(agent.id);
     return !currentGroupId;
@@ -4722,7 +4730,7 @@ async function renderAppLandingAgents() {
     appLandingAgentsNode.classList.remove("is-grouped-layout");
     const empty = document.createElement("p");
     empty.className = "app-landing-empty";
-    empty.textContent = "Нет агентов. Нажмите «Реестр» и добавьте workspace.";
+    empty.textContent = "Нет агентов. Нажмите «+ Создать агента» или «Реестр».";
     appLandingAgentsNode.appendChild(empty);
   } else {
     try {
@@ -4731,11 +4739,18 @@ async function renderAppLandingAgents() {
       landingAgentsGroupsCache = [];
     }
 
+    const agents = getAgentsForLandingGrid();
+    const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
+
+    if (orchestrator) {
+      appLandingAgentsNode.appendChild(renderAppLandingOrchestratorSection(orchestrator));
+    }
+
     const hasGroups = landingAgentsGroupsCache.length > 0;
 
     if (hasGroups) {
       appLandingAgentsNode.classList.add("is-grouped-layout");
-      const { grouped, ungrouped } = buildLandingGroupsLayout(agents, landingAgentsGroupsCache);
+      const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
 
       for (const group of grouped) {
         appLandingAgentsNode.appendChild(renderAppLandingGroupSection(group, { editable: false }));
@@ -4754,27 +4769,15 @@ async function renderAppLandingAgents() {
           )
         );
       }
-
-      const createItem = document.createElement("div");
-      createItem.className = "app-landing-agent-item app-landing-agent-item--create-in-groups";
-      createItem.setAttribute("role", "listitem");
-      createItem.appendChild(createAppLandingCreateAgentCard());
-      appLandingAgentsNode.appendChild(createItem);
     } else {
       appLandingAgentsNode.classList.remove("is-grouped-layout");
-      for (const agent of agents) {
+      for (const agent of rest) {
         const item = document.createElement("div");
         item.className = "app-landing-agent-item";
         item.setAttribute("role", "listitem");
         item.appendChild(createAppLandingAgentCard(agent));
         appLandingAgentsNode.appendChild(item);
       }
-
-      const createItem = document.createElement("div");
-      createItem.className = "app-landing-agent-item";
-      createItem.setAttribute("role", "listitem");
-      createItem.appendChild(createAppLandingCreateAgentCard());
-      appLandingAgentsNode.appendChild(createItem);
     }
   }
 
@@ -37280,6 +37283,7 @@ appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
 appLandingSettingsBtn?.addEventListener("click", openAgentsSettingsView);
+appLandingCreateAgentBtn?.addEventListener("click", openCreateAgentFromLanding);
 appLandingGroupsCreateBtn?.addEventListener("click", () => {
   openAppLandingGroupCreateModal();
 });

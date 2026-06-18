@@ -17,7 +17,8 @@
       "agentIds": [
         "agent-english",
         "agent-atlas"
-      ]
+      ],
+      "background": "awn-agents-groups/образование.png"
     },
     {
       "id": "текущее",
@@ -27,6 +28,16 @@
         "agent-inbox",
         "agent-ideas"
       ]
+    },
+    {
+      "id": "хобби",
+      "title": "Хобби",
+      "agentIds": [
+        "agent-crypto",
+        "agent-cms-core",
+        "agent-cms-test"
+      ]
     }
-  ]
+  ],
+  "enabled": true
 }
