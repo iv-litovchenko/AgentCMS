@@ -44,8 +44,8 @@ const sidebarFocusNode = document.getElementById("sidebar-focus");
 const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
+const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn");
 const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
-const appLandingViewGroupsBtn = document.getElementById("app-landing-view-groups-btn");
 const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
 const appLandingGroupsNode = document.getElementById("app-landing-groups");
 const appLandingGroupsContentNode = document.getElementById("app-landing-groups-content");
@@ -3694,6 +3694,7 @@ async function handleLandingGroupBackgroundUpload(file) {
     const target = applyLandingGroupMetaBackground(group.id, saved);
     renderLandingGroupBackgroundModalUi(target || group);
     refreshLandingGroupBackgroundBtn(group.id);
+    refreshLandingAgentsListIfVisible();
     showToast("Фон группы сохранён", "success");
   } catch (error) {
     showToast(`Не удалось загрузить фон: ${error.message}`, "error");
@@ -3729,6 +3730,7 @@ async function removeLandingGroupBackgroundFromModal() {
     const target = applyLandingGroupMetaBackground(group.id, { background: null, backgroundUrl: null });
     renderLandingGroupBackgroundModalUi(target || group);
     refreshLandingGroupBackgroundBtn(group.id);
+    refreshLandingAgentsListIfVisible();
     showToast("Фон удалён", "success");
   } catch (error) {
     showToast(`Не удалось удалить фон: ${error.message}`, "error");
@@ -3956,8 +3958,8 @@ async function submitAppLandingGroupCreate() {
     });
     await saveLandingAgentsGroups();
     closeAppLandingGroupCreateModal();
-    setLandingAgentsView("groups");
-    await renderAppLandingGroups();
+    setLandingAgentsView("settings");
+    afterLandingGroupsChanged();
     showToast("Группа создана", "success");
   } catch (error) {
     await loadLandingAgentsGroups().catch(() => {});
@@ -4035,12 +4037,12 @@ function createLandingGroupAddSelect(group) {
       }
       try {
         await saveLandingAgentsGroups();
-        renderAppLandingGroups();
+        afterLandingGroupsChanged();
         showToast("Агент добавлен в группу", "success");
       } catch (error) {
         showToast(`Не удалось сохранить группы: ${error.message}`, "error");
         await loadLandingAgentsGroups().catch(() => {});
-        renderAppLandingGroups();
+        afterLandingGroupsChanged();
       }
     })();
   });
@@ -4078,11 +4080,12 @@ function createLandingGroupAppearanceBtn(group) {
         );
         if (section) applyLandingGroupSectionBackground(section, target);
         syncBtn(next);
+        refreshLandingAgentsListIfVisible();
         showToast("Оформление группы сохранено", "success");
       } catch (error) {
         showToast(`Не удалось сохранить оформление: ${error.message}`, "error");
         await loadLandingAgentsGroups().catch(() => {});
-        renderAppLandingGroups();
+        afterLandingGroupsChanged();
       }
     })();
   });
@@ -4108,13 +4111,16 @@ function applyLandingGroupSectionBackground(section, group) {
   section.style.setProperty("--group-bg-image", `url("${appendCacheBuster(group.backgroundUrl)}")`);
 }
 
-function renderAppLandingGroupSection(group) {
+function renderAppLandingGroupSection(group, { editable = true } = {}) {
   const isUngrouped = group.id === LANDING_UNGROUPED_GROUP_ID;
-  const isReadonly = group.readonly === true || isUngrouped;
+  const isReadonly = !editable || group.readonly === true || isUngrouped;
   const section = document.createElement("section");
   section.className = "app-landing-group-section";
   if (isReadonly) section.classList.add("is-readonly");
   else section.classList.add("app-landing-group-section--sortable");
+  if (!editable) {
+    section.classList.add("is-display-only");
+  }
   section.dataset.groupId = group.id;
   applyLandingGroupSectionBackground(section, group);
 
@@ -4135,10 +4141,12 @@ function renderAppLandingGroupSection(group) {
 
   if (isReadonly) {
     const titleNode = document.createElement("h3");
-    titleNode.className = "app-landing-group-title-input";
-    titleNode.style.border = "0";
-    titleNode.style.background = "transparent";
-    titleNode.style.padding = "0";
+    titleNode.className = editable ? "app-landing-group-title-input" : "app-landing-group-title-badge";
+    if (editable) {
+      titleNode.style.border = "0";
+      titleNode.style.background = "transparent";
+      titleNode.style.padding = "0";
+    }
     titleNode.textContent = group.title || "Без группы";
     head.appendChild(titleNode);
   } else {
@@ -4169,16 +4177,18 @@ function renderAppLandingGroupSection(group) {
     head.appendChild(titleInput);
   }
 
-  const countNode = document.createElement("span");
-  countNode.className = "app-landing-group-count";
-  countNode.textContent = `${group.agents.length} агентов`;
-  head.appendChild(countNode);
+  if (editable) {
+    const countNode = document.createElement("span");
+    countNode.className = "app-landing-group-count";
+    countNode.textContent = `${group.agents.length} агентов`;
+    head.appendChild(countNode);
+  }
 
   if (!isReadonly) {
     head.appendChild(createLandingGroupAddSelect(group));
   }
 
-  if (!isReadonly || isUngrouped) {
+  if (editable && (!isReadonly || isUngrouped)) {
     head.appendChild(createLandingGroupBackgroundBtn(group));
     if (group.backgroundUrl) {
       head.appendChild(createLandingGroupAppearanceBtn(group));
@@ -4196,12 +4206,12 @@ function renderAppLandingGroupSection(group) {
         try {
           await removeLandingGroupBackground(group.id).catch(() => {});
           await saveLandingAgentsGroups();
-          renderAppLandingGroups();
+          afterLandingGroupsChanged();
           showToast("Группа удалена", "success");
         } catch (error) {
           showToast(`Не удалось сохранить группы: ${error.message}`, "error");
           await loadLandingAgentsGroups().catch(() => {});
-          renderAppLandingGroups();
+          afterLandingGroupsChanged();
         }
       })();
     });
@@ -4253,11 +4263,11 @@ function renderAppLandingGroupSection(group) {
             target.agentIds = (target.agentIds || []).filter((id) => id !== agent.id);
             try {
               await saveLandingAgentsGroups();
-              renderAppLandingGroups();
+              afterLandingGroupsChanged();
             } catch (error) {
               showToast(`Не удалось сохранить группы: ${error.message}`, "error");
               await loadLandingAgentsGroups().catch(() => {});
-              renderAppLandingGroups();
+              afterLandingGroupsChanged();
             }
           })();
         });
@@ -4302,7 +4312,7 @@ async function persistLandingGroupsSortOrder() {
   } catch (error) {
     showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
     await loadLandingAgentsGroups().catch(() => {});
-    renderAppLandingGroups();
+    afterLandingGroupsChanged();
   }
 }
 
@@ -4333,7 +4343,7 @@ async function persistLandingGroupAgentsSortOrder(groupId, grid) {
   } catch (error) {
     showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
     await loadLandingAgentsGroups().catch(() => {});
-    renderAppLandingGroups();
+    afterLandingGroupsChanged();
   }
 }
 
@@ -4462,18 +4472,21 @@ async function renderAppLandingGroups() {
       appLandingGroupsContentNode.appendChild(empty);
     } else {
       for (const group of grouped) {
-        appLandingGroupsContentNode.appendChild(renderAppLandingGroupSection(group));
+        appLandingGroupsContentNode.appendChild(renderAppLandingGroupSection(group, { editable: true }));
       }
     }
 
     if (ungrouped.length || landingAgentsUngroupedCache.backgroundUrl) {
       appLandingGroupsContentNode.appendChild(
-        renderAppLandingGroupSection({
-          ...landingAgentsUngroupedCache,
-          agents: ungrouped,
-          agentIds: ungrouped.map((agent) => agent.id),
-          readonly: true
-        })
+        renderAppLandingGroupSection(
+          {
+            ...landingAgentsUngroupedCache,
+            agents: ungrouped,
+            agentIds: ungrouped.map((agent) => agent.id),
+            readonly: true
+          },
+          { editable: true }
+        )
       );
     }
 
@@ -4503,6 +4516,27 @@ async function renderAppLandingGroups() {
   }
 }
 
+function isAgentsSettingsViewActive() {
+  return getLandingAgentsView() === "settings";
+}
+
+function openAgentsSettingsView() {
+  setLandingAgentsView("settings");
+}
+
+function refreshLandingAgentsListIfVisible() {
+  if (getLandingAgentsView() === "grid") {
+    void renderAppLandingAgents();
+  }
+}
+
+function afterLandingGroupsChanged() {
+  if (isAgentsSettingsViewActive()) {
+    void renderAppLandingGroups();
+  }
+  refreshLandingAgentsListIfVisible();
+}
+
 function hashAgentIdForOrbit(id) {
   let hash = 2166136261;
   for (let i = 0; i < id.length; i += 1) {
@@ -4515,7 +4549,8 @@ function hashAgentIdForOrbit(id) {
 function getLandingAgentsView() {
   try {
     const saved = localStorage.getItem(LANDING_AGENTS_VIEW_KEY);
-    if (saved === "orbit" || saved === "grid" || saved === "groups") return saved;
+    if (saved === "orbit") return "orbit";
+    if (saved === "settings" || saved === "groups") return "settings";
   } catch {
     // ignore
   }
@@ -4523,7 +4558,7 @@ function getLandingAgentsView() {
 }
 
 function setLandingAgentsView(view) {
-  const next = view === "orbit" || view === "groups" ? view : "grid";
+  const next = view === "orbit" ? "orbit" : view === "settings" ? "settings" : "grid";
   localStorage.setItem(LANDING_AGENTS_VIEW_KEY, next);
   syncLandingAgentsViewUi();
 }
@@ -4550,32 +4585,31 @@ function getOrbitBubbleLayout(index, total, agentId) {
 function syncLandingAgentsViewUi() {
   const view = getLandingAgentsView();
   const isOrbit = view === "orbit";
-  const isGroups = view === "groups";
+  const isSettings = view === "settings";
 
   appLandingPaneNode?.classList.toggle("is-screensaver", isOrbit);
-  appLandingAgentsNode?.classList.toggle("hidden", isOrbit || isGroups);
-  appLandingGroupsNode?.classList.toggle("hidden", !isGroups);
-  appLandingGroupsNode?.setAttribute("aria-hidden", isGroups ? "false" : "true");
+  appLandingAgentsNode?.classList.toggle("hidden", isOrbit || isSettings);
+  appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
+  appLandingGroupsNode?.setAttribute("aria-hidden", isSettings ? "false" : "true");
   appLandingOrbitNode?.classList.toggle("hidden", !isOrbit);
   appLandingOrbitNode?.setAttribute("aria-hidden", isOrbit ? "false" : "true");
 
   appLandingViewGridBtn?.classList.toggle("is-active", view === "grid");
-  appLandingViewGroupsBtn?.classList.toggle("is-active", isGroups);
   appLandingViewOrbitBtn?.classList.toggle("is-active", isOrbit);
   appLandingViewGridBtn?.setAttribute("aria-selected", view === "grid" ? "true" : "false");
-  appLandingViewGroupsBtn?.setAttribute("aria-selected", isGroups ? "true" : "false");
   appLandingViewOrbitBtn?.setAttribute("aria-selected", isOrbit ? "true" : "false");
+  appLandingSettingsBtn?.classList.toggle("is-active", isSettings);
 
   const subNode = document.querySelector(".app-landing-sub");
   if (subNode) {
     subNode.textContent = isOrbit
       ? "Кружки в воздухе — выберите workspace"
-      : isGroups
+      : isSettings
         ? "Распределите агентов по группам — настройки в awn-agents-groups.json"
         : "Каждый агент — отдельный workspace с темами, памятью и файлами";
   }
 
-  if (isGroups) {
+  if (isSettings) {
     void renderAppLandingGroups();
   }
 }
@@ -4679,31 +4713,70 @@ function renderAppLandingOrbit() {
   renderAppLandingOrbitLinks(agents);
 }
 
-function renderAppLandingAgents() {
+async function renderAppLandingAgents() {
   if (!appLandingAgentsNode) return;
   appLandingAgentsNode.replaceChildren();
 
   const agents = getAgentsForLandingGrid();
   if (agents.length === 0) {
+    appLandingAgentsNode.classList.remove("is-grouped-layout");
     const empty = document.createElement("p");
     empty.className = "app-landing-empty";
     empty.textContent = "Нет агентов. Нажмите «Реестр» и добавьте workspace.";
     appLandingAgentsNode.appendChild(empty);
   } else {
-    for (const agent of agents) {
-      const item = document.createElement("div");
-      item.className = "app-landing-agent-item";
-      item.setAttribute("role", "listitem");
-      item.appendChild(createAppLandingAgentCard(agent));
-      appLandingAgentsNode.appendChild(item);
+    try {
+      await loadLandingAgentsGroups();
+    } catch {
+      landingAgentsGroupsCache = [];
+    }
+
+    const hasGroups = landingAgentsGroupsCache.length > 0;
+
+    if (hasGroups) {
+      appLandingAgentsNode.classList.add("is-grouped-layout");
+      const { grouped, ungrouped } = buildLandingGroupsLayout(agents, landingAgentsGroupsCache);
+
+      for (const group of grouped) {
+        appLandingAgentsNode.appendChild(renderAppLandingGroupSection(group, { editable: false }));
+      }
+
+      if (ungrouped.length || landingAgentsUngroupedCache.backgroundUrl) {
+        appLandingAgentsNode.appendChild(
+          renderAppLandingGroupSection(
+            {
+              ...landingAgentsUngroupedCache,
+              agents: ungrouped,
+              agentIds: ungrouped.map((agent) => agent.id),
+              readonly: true
+            },
+            { editable: false }
+          )
+        );
+      }
+
+      const createItem = document.createElement("div");
+      createItem.className = "app-landing-agent-item app-landing-agent-item--create-in-groups";
+      createItem.setAttribute("role", "listitem");
+      createItem.appendChild(createAppLandingCreateAgentCard());
+      appLandingAgentsNode.appendChild(createItem);
+    } else {
+      appLandingAgentsNode.classList.remove("is-grouped-layout");
+      for (const agent of agents) {
+        const item = document.createElement("div");
+        item.className = "app-landing-agent-item";
+        item.setAttribute("role", "listitem");
+        item.appendChild(createAppLandingAgentCard(agent));
+        appLandingAgentsNode.appendChild(item);
+      }
+
+      const createItem = document.createElement("div");
+      createItem.className = "app-landing-agent-item";
+      createItem.setAttribute("role", "listitem");
+      createItem.appendChild(createAppLandingCreateAgentCard());
+      appLandingAgentsNode.appendChild(createItem);
     }
   }
-
-  const createItem = document.createElement("div");
-  createItem.className = "app-landing-agent-item";
-  createItem.setAttribute("role", "listitem");
-  createItem.appendChild(createAppLandingCreateAgentCard());
-  appLandingAgentsNode.appendChild(createItem);
 
   renderAppLandingOrbit();
   void loadGlobalFocusItems();
@@ -37205,8 +37278,8 @@ appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
 });
 
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
-appLandingViewGroupsBtn?.addEventListener("click", () => setLandingAgentsView("groups"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
+appLandingSettingsBtn?.addEventListener("click", openAgentsSettingsView);
 appLandingGroupsCreateBtn?.addEventListener("click", () => {
   openAppLandingGroupCreateModal();
 });

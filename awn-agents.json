@@ -40,6 +40,15 @@
     {
       "path": "/Users/macbook/Desktop/agent-atlas",
       "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-crypto",
+      "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/Desktop/agent-aya",
+      "environment": "local",
+      "orchestrator": true
     }
   ]
 }
