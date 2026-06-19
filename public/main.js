@@ -1959,20 +1959,11 @@ function getAgentTodoSidebarPreviewMarkdown(raw = "") {
   if (!text) return "";
 
   const dividerMatch = text.match(/^[\t ]*-{3,}[\t ]*$(?:\r?\n|$)/m);
-  let excerpt = dividerMatch ? text.slice(0, dividerMatch.index).trim() : text;
-
-  const maxLines = 5;
-  const lines = excerpt.split(/\r?\n/);
-  if (lines.length > maxLines) {
-    excerpt = `${lines.slice(0, maxLines).join("\n").trim()}\n\n…`;
+  if (dividerMatch) {
+    return text.slice(0, dividerMatch.index).trim();
   }
 
-  const maxChars = 320;
-  if (excerpt.length > maxChars) {
-    excerpt = `${excerpt.slice(0, maxChars).trim()}…`;
-  }
-
-  return excerpt;
+  return text;
 }
 
 async function syncAgentTodoPreview() {
