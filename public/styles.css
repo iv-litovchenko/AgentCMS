@@ -9267,6 +9267,49 @@ body.app-locked {
   margin-top: 0;
 }
 
+.menu-agent-stats {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.menu-agent-stats.hidden {
+  display: none;
+}
+
+.menu-agent-stat {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.menu-agent-stat-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-agent-stat-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #64748b;
+}
+
 .sidebar-resize-bar {
   grid-column: 2;
   grid-row: 2 / 3;

@@ -1,6 +1,7 @@
 const sidebarWidthDecreaseBtn = document.getElementById("sidebar-width-decrease-btn");
 const sidebarWidthIncreaseBtn = document.getElementById("sidebar-width-increase-btn");
 const menuNode = document.getElementById("menu");
+const menuAgentStatsNode = document.getElementById("menu-agent-stats");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
@@ -30835,6 +30836,78 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
   if (agentId === activeAgentId && getDocAsideTab() === "links") {
     renderDocLinksLibrary();
   }
+
+  if (agentId === activeAgentId) {
+    void syncMenuAgentStats(menu);
+  }
+}
+
+let menuAgentStatsSeq = 0;
+
+async function fetchAgentWorkspaceStats() {
+  const response = await fetch(buildApiUrl("/api/agent/workspace-stats"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderMenuAgentStatsContent({ counts, workspace = null, loading = false } = {}) {
+  if (!menuAgentStatsNode) return;
+
+  const items = [
+    { value: String(counts?.total ?? 0), label: "тем" },
+    { value: String(counts?.folders ?? 0), label: "контейнеров" },
+    {
+      value: loading ? "…" : workspace?.fileCount == null ? "—" : String(workspace.fileCount),
+      label: "файлов"
+    },
+    {
+      value: loading ? "…" : workspace?.totalSizeLabel || "—",
+      label: "размер"
+    }
+  ];
+
+  menuAgentStatsNode.replaceChildren();
+  for (const item of items) {
+    const chip = document.createElement("div");
+    chip.className = "menu-agent-stat";
+    chip.innerHTML = `
+      <span class="menu-agent-stat-value">${escapeHtml(item.value)}</span>
+      <span class="menu-agent-stat-label">${escapeHtml(item.label)}</span>
+    `;
+    menuAgentStatsNode.appendChild(chip);
+  }
+}
+
+function hideMenuAgentStats() {
+  menuAgentStatsSeq += 1;
+  menuAgentStatsNode?.classList.add("hidden");
+  menuAgentStatsNode?.replaceChildren();
+}
+
+async function syncMenuAgentStats(menu = currentMenuData) {
+  if (!menuAgentStatsNode) return;
+
+  if (!activeAgentId) {
+    hideMenuAgentStats();
+    return;
+  }
+
+  const seq = ++menuAgentStatsSeq;
+  const counts = countAgentMenuNodes(menu);
+  menuAgentStatsNode.classList.remove("hidden");
+  renderMenuAgentStatsContent({ counts, loading: true });
+
+  try {
+    const workspace = await fetchAgentWorkspaceStats();
+    if (seq !== menuAgentStatsSeq) return;
+    renderMenuAgentStatsContent({ counts, workspace });
+  } catch {
+    if (seq !== menuAgentStatsSeq) return;
+    renderMenuAgentStatsContent({ counts, workspace: null });
+  }
 }
 
 function getWorkspacesTreeChildren(agentId = activeAgentId) {
@@ -35583,6 +35656,7 @@ function showAppLandingView(hint = "") {
   syncLandingAgentsViewUi();
   updateLandingSearchPlaceholder();
   showMenuNoAgentPlaceholder();
+  hideMenuAgentStats();
   syncAgentPreview();
   hideAgentTodoPreview();
   setAppLandingHint(hint, { alert: Boolean(hint) });

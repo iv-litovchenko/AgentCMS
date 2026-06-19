@@ -4334,6 +4334,47 @@ async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTE
   };
 }
 
+async function collectWorkspaceStatsInDir(dirAbsolute, stats) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const absolute = path.join(dirAbsolute, entry.name);
+    if (entry.isDirectory()) {
+      if (shouldSkipLargeFileScanDirectory(entry.name)) continue;
+      stats.folderCount += 1;
+      await collectWorkspaceStatsInDir(absolute, stats);
+      continue;
+    }
+
+    if (!entry.isFile()) continue;
+
+    try {
+      const stat = await fs.stat(absolute);
+      stats.totalBytes += stat.size;
+      stats.fileCount += 1;
+    } catch {
+      // skip unreadable files
+    }
+  }
+}
+
+async function buildAgentWorkspaceStats() {
+  const agentRoot = getAgentRoot();
+  const stats = { totalBytes: 0, fileCount: 0, folderCount: 0 };
+  await collectWorkspaceStatsInDir(agentRoot, stats);
+  return {
+    totalBytes: stats.totalBytes,
+    totalSizeLabel: formatBytesLabel(stats.totalBytes),
+    fileCount: stats.fileCount,
+    folderCount: stats.folderCount
+  };
+}
+
 async function buildAgentGitStatus() {
   const agentRoot = getAgentRoot();
   const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
@@ -5915,6 +5956,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan broken links",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-stats") {
+    try {
+      const stats = await buildAgentWorkspaceStats();
+      return sendJson(res, 200, stats);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace stats",
         details: String(error.message || error)
       });
     }
