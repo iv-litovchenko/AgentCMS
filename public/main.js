@@ -116,6 +116,9 @@ const agentMap3StatsNode = document.getElementById("agent-map3-stats");
 const agentMap3ViewportNode = document.getElementById("agent-map3-viewport");
 const agentMap3BoardNode = document.getElementById("agent-map3-board");
 const agentPreviewPlaceholderNode = document.getElementById("agent-preview-placeholder");
+const agentTodoPreviewWrapNode = document.getElementById("agent-todo-preview-wrap");
+const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
+const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
 const agentTablePaneNode = document.getElementById("agent-table-pane");
 const agentTableContentNode = document.getElementById("agent-table-content");
 const agentTableStatsNode = document.getElementById("agent-table-stats");
@@ -1940,6 +1943,70 @@ function syncAgentPreview(previewMeta = null) {
   agentPreviewThumbNode.removeAttribute("src");
   syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
   syncAgentPreviewOpenUi();
+}
+
+let agentTodoPreviewSeq = 0;
+
+function hideAgentTodoPreview() {
+  agentTodoPreviewWrapNode?.classList.add("hidden");
+  if (agentTodoPreviewBodyNode) {
+    agentTodoPreviewBodyNode.innerHTML = "";
+  }
+}
+
+function getAgentTodoSidebarPreviewMarkdown(raw = "") {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+
+  const dividerMatch = text.match(/^[\t ]*-{3,}[\t ]*$(?:\r?\n|$)/m);
+  let excerpt = dividerMatch ? text.slice(0, dividerMatch.index).trim() : text;
+
+  const maxLines = 5;
+  const lines = excerpt.split(/\r?\n/);
+  if (lines.length > maxLines) {
+    excerpt = `${lines.slice(0, maxLines).join("\n").trim()}\n\n…`;
+  }
+
+  const maxChars = 320;
+  if (excerpt.length > maxChars) {
+    excerpt = `${excerpt.slice(0, maxChars).trim()}…`;
+  }
+
+  return excerpt;
+}
+
+async function syncAgentTodoPreview() {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode) return;
+
+  const seq = ++agentTodoPreviewSeq;
+  const meta = getSystemFileCacheEntry(ROOT_SYSTEM_TODO_FILE);
+  const shouldShow = Boolean(activeAgentId && meta?.exists && !meta?.empty);
+
+  if (!shouldShow) {
+    hideAgentTodoPreview();
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
+    if (seq !== agentTodoPreviewSeq) return;
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+
+    const data = await response.json();
+    if (seq !== agentTodoPreviewSeq) return;
+
+    const content = String(data.content || "").trim();
+    if (!content) {
+      hideAgentTodoPreview();
+      return;
+    }
+
+    setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(content));
+    agentTodoPreviewWrapNode.classList.remove("hidden");
+  } catch {
+    if (seq !== agentTodoPreviewSeq) return;
+    hideAgentTodoPreview();
+  }
 }
 
 let fileHistoryModalContext = null;
@@ -30872,6 +30939,7 @@ async function loadSystemFiles(options = {}) {
   } else {
     renderSystemFiles(systemFilesCache);
   }
+  void syncAgentTodoPreview();
 }
 
 function updateActiveButton() {
@@ -33124,8 +33192,8 @@ async function renderAgentGitView() {
       const empty = document.createElement("div");
       empty.className = "agent-git-empty-state";
       empty.innerHTML = `
-        <p class="agent-git-empty-title">Git-репозиторий не найден</p>
-        <p class="agent-git-empty-text">В workspace агента нет каталога <code>.git</code>. Инициализируйте репозиторий в корне workspace или во вложенной папке.</p>
+        <p class="agent-git-empty-title">Отсутствует репозиторий</p>
+        <p class="agent-git-empty-text">В корне workspace агента нет каталога <code>.git</code>. Git-проверка не выполняется — инициализируйте репозиторий в корне агента.</p>
       `;
       agentGitContentNode.appendChild(empty);
       return;
@@ -35525,6 +35593,7 @@ function showAppLandingView(hint = "") {
   updateLandingSearchPlaceholder();
   showMenuNoAgentPlaceholder();
   syncAgentPreview();
+  hideAgentTodoPreview();
   setAppLandingHint(hint, { alert: Boolean(hint) });
   updateActiveButton();
   syncAppHomeButton();
@@ -37423,10 +37492,18 @@ function handleAgentPreviewOpenActivate(event) {
   openSelectedAgentWorkspaceView();
 }
 
+function openAgentTodoPreviewForEdit() {
+  void selectSystemFile(ROOT_SYSTEM_TODO_FILE);
+}
+
 agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 agentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
+agentTodoPreviewEditBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  openAgentTodoPreviewForEdit();
+});
 
 agentGitBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("git");

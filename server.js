@@ -2617,7 +2617,7 @@ async function revealWorkspaceRelativePath(relPath, options = {}) {
 
   let absolute = null;
   if (options.repoFile) {
-    const repoAbsolute = await resolveGitRepoRootAbsolute(getAgentRoot());
+    const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
     if (!repoAbsolute) {
       const error = new Error("Git repository not found");
       error.code = "INVALID_PATH";
@@ -4248,17 +4248,10 @@ async function runGitInRepo(repoAbsolute, args) {
   return String(stdout || "");
 }
 
-async function resolveGitRepoRootAbsolute(startAbsolute) {
-  let current = path.resolve(String(startAbsolute || ""));
-  const stopRoot = path.resolve(getProjectRoot());
-  while (current) {
-    if (await folderHasGitRepo(current)) {
-      return current;
-    }
-    if (current === stopRoot) break;
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
+async function resolveAgentRootGitRepoAbsolute() {
+  const agentRoot = getAgentRoot();
+  if (await folderHasGitRepo(agentRoot)) {
+    return agentRoot;
   }
   return null;
 }
@@ -4343,10 +4336,11 @@ async function buildAgentLargeFilesReport(minBytes = LARGE_FILE_DEFAULT_MIN_BYTE
 
 async function buildAgentGitStatus() {
   const agentRoot = getAgentRoot();
-  const repoAbsolute = await resolveGitRepoRootAbsolute(agentRoot);
+  const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
   if (!repoAbsolute) {
     return {
       isRepo: false,
+      missingRootRepo: true,
       repoPath: null,
       repoRel: null,
       branch: "",
