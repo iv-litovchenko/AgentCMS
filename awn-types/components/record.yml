@@ -3,4 +3,5 @@ name: Запись
 kind: type
 extends: awn.base
 description: Запись по умолчанию — элемент в awn-storage/*/content/ (расширяется в configuration.yml темы)
+mixins: [awn.mixin.attachments]
 fields:

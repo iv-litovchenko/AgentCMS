@@ -1725,6 +1725,127 @@ body.app-locked {
   color: #64748b;
 }
 
+.app-landing-platform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-top: 8px;
+  padding: 16px 18px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f9ff 100%);
+}
+
+.app-landing-platform.hidden {
+  display: none;
+}
+
+.app-landing-platform-head {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.app-landing-platform-title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.app-landing-platform-lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.app-landing-platform-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.app-landing-platform-open-btn,
+.app-landing-platform-migrate-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.app-landing-platform-open-btn {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.app-landing-platform-open-btn:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.app-landing-platform-migrate-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.app-landing-platform-migrate-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.app-landing-platform-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.app-landing-platform-section {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.app-landing-platform-section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.app-landing-platform-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-landing-platform-link {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.app-landing-platform-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
 .app-landing-header {
   display: flex;
   align-items: flex-start;
@@ -3024,12 +3145,7 @@ body.app-locked {
   border-radius: 999px;
 }
 
-.app-landing-agent-dot.is-active {
-  background: #22c55e;
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
-}
-
-.app-landing-agent-dot.is-inactive {
+.app-landing-agent-dot.is-disabled {
   background: #cbd5e1;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
 }
@@ -11342,6 +11458,95 @@ body.app-locked {
   border-top: 0;
 }
 
+.doc-props-aside .doc-aside-preview-block {
+  margin-bottom: 12px;
+}
+
+.doc-props-aside .doc-aside-attachments-block {
+  margin: 0 0 12px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.doc-props-aside .doc-aside-attachments-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.doc-props-aside .doc-aside-attachments-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.doc-props-aside .doc-aside-attachments-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.doc-props-aside .doc-aside-attachments-legend-item {
+  font-size: 10px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.doc-props-aside .doc-aside-attachments-legend-item.is-in-body {
+  color: #059669;
+}
+
+.doc-props-aside .doc-aside-attachments-legend-item.is-unlinked {
+  color: #94a3b8;
+}
+
+.doc-props-aside .doc-aside-attachments-path-variant,
+.doc-props-aside .doc-aside-attachments-variant-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.doc-props-aside .doc-aside-attachments-variant-label {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.doc-props-aside .doc-aside-attachments-variant-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  background: #fff;
+  padding: 2px 8px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #475569;
+  cursor: pointer;
+}
+
+.doc-props-aside .doc-aside-attachments-variant-btn.is-active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.doc-props-aside .doc-aside-attachments-head.is-simple-ui .doc-aside-attachments-legend-item--extended-only,
+.doc-props-aside .doc-aside-attachments-head.is-simple-ui .doc-aside-attachments-path-variant--extended-only {
+  display: none;
+}
+
+.doc-props-aside #props-attachments-block .props-form-value-wrap--attachments {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .doc-props-aside .doc-aside-preview-block .props-form-preview-thumb-wrap {
   width: 100%;
   min-height: 150px;
@@ -12929,6 +13134,10 @@ body.app-locked {
 
 .doc-slab-path.is-node-memory {
   background: #fef2f2;
+}
+
+.doc-slab-path.is-node-media {
+  background: #ecfeff;
 }
 
 .doc-slab-path.is-node-scripts {
@@ -14684,6 +14893,10 @@ button.node-navigation-memory-title:focus-visible {
   border-bottom-color: #fde68a;
 }
 
+.doc-slab-path.is-node-media .workspace-path-crumbs-block {
+  border-bottom-color: #a5f3fc;
+}
+
 .doc-slab-path.is-node-overview .workspace-path-crumbs-block {
   border-bottom-color: #bbf7d0;
 }
@@ -15388,6 +15601,370 @@ button.node-navigation-memory-title:focus-visible {
   width: 100%;
 }
 
+.doc-props-aside .props-form-field--attachments .props-form-value-wrap--attachments {
+  width: 100%;
+}
+
+.doc-props-aside .props-form-attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.doc-props-aside .props-form-attachment-path-line {
+  font-size: 10px;
+  line-height: 1.25;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-props-aside .props-form-attachment-path-line--full {
+  color: #64748b;
+}
+
+.doc-props-aside .props-form-attachment-path-line--short {
+  color: #2563eb;
+}
+
+.doc-props-aside .props-form-attachment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  transition: border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.doc-props-aside .props-form-attachment-item.is-in-body {
+  border: 1px solid rgba(16, 185, 129, 0.42);
+  background: rgba(16, 185, 129, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.06);
+  cursor: grab;
+}
+
+.doc-props-aside .props-form-attachment-item.is-unlinked {
+  border: 1px dashed rgba(148, 163, 184, 0.55);
+  background: rgba(248, 250, 252, 0.96);
+  cursor: grab;
+}
+
+.doc-props-aside .props-form-attachment-item:active {
+  cursor: grabbing;
+}
+
+.doc-props-aside .props-form-attachment-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.doc-props-aside .props-form-attachment-preview {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.doc-props-aside .props-form-attachment-item.is-in-body .props-form-attachment-preview {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.doc-props-aside .props-form-attachment-item.is-unlinked .props-form-attachment-preview {
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.doc-props-aside .props-form-attachment-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  display: block;
+}
+
+.doc-props-aside .props-form-attachment-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.doc-props-aside .props-form-attachment-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doc-props-aside .props-form-attachment-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  color: #0f172a;
+}
+
+.doc-props-aside .props-form-attachment-item.is-unlinked .props-form-attachment-name {
+  font-weight: 500;
+  color: #475569;
+}
+
+.doc-props-aside .props-form-attachment-storage-name {
+  font-size: 10px;
+  line-height: 1.25;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-props-aside .props-form-attachment-status {
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  margin-top: 2px;
+}
+
+.doc-props-aside .props-form-attachment-item.is-in-body .props-form-attachment-status {
+  color: #059669;
+  font-weight: 600;
+}
+
+.doc-props-aside .props-form-attachment-item.is-unlinked .props-form-attachment-status {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.doc-props-aside .props-form-attachment-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.doc-props-aside .props-form-attachment-item--compact .props-form-attachment-actions {
+  align-self: start;
+}
+
+.doc-props-aside .props-form-attachment-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.doc-props-aside .props-form-attachment-action {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  color: #334155;
+}
+
+.doc-props-aside .props-form-attachment-item.is-in-body .props-form-attachment-action {
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.doc-props-aside .props-form-attachment-action:hover {
+  background: #fff;
+  border-color: rgba(100, 116, 139, 0.45);
+}
+
+.doc-props-aside .props-form-attachment-action--remove:hover {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  flex-direction: unset;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-thumb,
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-body {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  -webkit-line-clamp: unset;
+  font-weight: 600;
+}
+
+.doc-props-aside .props-form-attachment-status--dot {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  margin-top: 0;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple.is-in-body .props-form-attachment-status--dot {
+  color: #059669;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple.is-unlinked .props-form-attachment-status--dot {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple .props-form-attachment-actions {
+  align-self: center;
+}
+
+.attachment-sidecar-modal-card {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.attachment-sidecar-modal-path {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  word-break: break-all;
+}
+
+.attachment-sidecar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.attachment-sidecar-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.attachment-sidecar-field-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #0f172a;
+  background: #fff;
+}
+
+.attachment-sidecar-field-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.doc-props-aside .props-form-attachments-upload {
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed var(--border-subtle, rgba(127, 127, 127, 0.35));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+}
+
+.doc-props-aside .props-form-attachments-upload.is-dragover,
+.doc-props-aside .props-form-attachments-upload:hover {
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.doc-props-aside .props-form-attachments-upload.is-uploading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.doc-props-aside .props-form-attachments-orphans {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle, rgba(127, 127, 127, 0.25));
+}
+
+.doc-props-aside .props-form-attachments-orphans-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #888);
+}
+
+.doc-props-aside .props-form-attachments-orphans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doc-props-aside .props-form-attachment-item--orphan {
+  border-style: dashed;
+  opacity: 0.92;
+}
+
+.doc-props-aside .props-form-attachment-item--orphan .props-form-attachment-status--dot {
+  color: var(--text-muted, #888);
+}
+
+.doc-props-aside .props-form-attachment-action--register:hover {
+  color: var(--accent, #2563eb);
+}
+
+.doc-props-aside .props-form-attachments-list.is-dragover-register {
+  outline: 1px dashed var(--accent, #2563eb);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
 .doc-props-aside .props-form-preview-thumb-wrap {
   width: 100%;
   min-height: 150px;
@@ -15686,16 +16263,145 @@ button.node-navigation-memory-title:focus-visible {
   color: #64748b;
 }
 
-.doc-props-aside .props-form-tags-list {
+.doc-props-aside .props-form-catalog-warn {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #b45309;
+}
+
+.doc-props-aside .props-form-color-custom-wrap {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 140px;
+  margin-top: 6px;
+}
+
+.doc-props-aside .props-form-color-custom-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.doc-props-aside .props-form-color-custom {
+  width: 100%;
+}
+
+.doc-props-aside .props-form-catalog-add {
+  margin-top: 8px;
+}
+
+.doc-props-aside .props-form-catalog-add-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.doc-props-aside .props-form-catalog-add-toggle:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.doc-props-aside .props-form-catalog-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.doc-props-aside .props-form-catalog-add-form.hidden {
+  display: none;
+}
+
+.doc-props-aside .props-form-catalog-add-hint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.doc-props-aside .props-form-catalog-add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.doc-props-aside .props-form-catalog-add-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.doc-props-aside .props-form-catalog-add-save,
+.doc-props-aside .props-form-catalog-add-cancel {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.doc-props-aside .props-form-catalog-add-save {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.doc-props-aside .props-form-catalog-add-cancel {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+}
+
+.doc-props-aside .props-form-tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
   overflow: auto;
   padding: 6px 8px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 6px;
   background: #fff;
+}
+
+.doc-props-aside .props-form-catalog-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-props-aside .props-form-catalog-group-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding-top: 2px;
+}
+
+.doc-props-aside .props-form-tags-extra-wrap {
+  margin-top: 6px;
+}
+
+.doc-props-aside .props-form-tags-extra-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.doc-props-aside .props-form-tags-extra {
+  width: 100%;
+  font-size: 12px;
 }
 
 .doc-props-aside .props-form-tag-option {

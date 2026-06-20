@@ -32,6 +32,7 @@ const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
 const homeHintNode = document.getElementById("home-hint");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
+const appLandingPlatformNode = document.getElementById("app-landing-platform");
 const appLandingFocusNode = document.getElementById("app-landing-focus");
 const appLandingFocusListNode = document.getElementById("app-landing-focus-list");
 const appLandingFocusHeadNode = document.getElementById("app-landing-focus-head");
@@ -39,6 +40,10 @@ const appLandingFocusCountNode = document.getElementById("app-landing-focus-coun
 const appLandingFocusToolbarNode = document.getElementById("app-landing-focus-toolbar");
 const appLandingFocusFilterCountNode = document.getElementById("app-landing-focus-filter-count");
 const appLandingFocusFilterStatusNode = document.getElementById("app-landing-focus-filter-status");
+const appLandingFocusFilterCategoryNode = document.getElementById("app-landing-focus-filter-category");
+const appLandingFocusFilterTagNode = document.getElementById("app-landing-focus-filter-tag");
+const appLandingFocusFilterOwnerNode = document.getElementById("app-landing-focus-filter-owner");
+const appLandingFocusFilterPriorityNode = document.getElementById("app-landing-focus-filter-priority");
 const appLandingFocusFilterTypeWrapNode = document.getElementById("app-landing-focus-filter-type-wrap");
 const appLandingFocusFilterTypeBtnNode = document.getElementById("app-landing-focus-filter-type-btn");
 const appLandingFocusFilterTypePanelNode = document.getElementById("app-landing-focus-filter-type-panel");
@@ -186,6 +191,13 @@ const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
 const titleEditorBlockNode = document.getElementById("title-editor-block");
 const propsPreviewBlockNode = document.getElementById("props-preview-block");
+const propsAttachmentsBlockNode = document.getElementById("props-attachments-block");
+const attachmentSidecarModalNode = document.getElementById("attachment-sidecar-modal");
+const attachmentSidecarModalPathNode = document.getElementById("attachment-sidecar-modal-path");
+const attachmentSidecarNameInputNode = document.getElementById("attachment-sidecar-name-input");
+const attachmentSidecarDescriptionInputNode = document.getElementById("attachment-sidecar-description-input");
+const attachmentSidecarCancelBtn = document.getElementById("attachment-sidecar-cancel-btn");
+const attachmentSidecarSaveBtn = document.getElementById("attachment-sidecar-save-btn");
 const docBodyGridNode = document.getElementById("doc-body-grid");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
@@ -537,6 +549,16 @@ const MENU_TREE_VISIBLE_SYSTEM_MD = new Set(["AGENTS.md", ROOT_SYSTEM_TODO_FILE,
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-container";
+const PLATFORM_AGENT_ID = "platform";
+const PLATFORM_KIT_FOLDER = "catalog";
+
+function isPlatformAgentId(agentId) {
+  return String(agentId || "").trim() === PLATFORM_AGENT_ID;
+}
+
+function isPlatformAgent(agent) {
+  return agent?.virtual === true || isPlatformAgentId(agent?.id);
+}
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
 const SERVICE_AREA_NAME = "Служебные темы и компоненты системы";
 const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
@@ -1251,10 +1273,12 @@ function getAgentMeta(agentId = activeAgentId) {
 }
 
 function getActiveAgentKitFolder(agentId = activeAgentId) {
+  if (isPlatformAgentId(agentId)) return PLATFORM_KIT_FOLDER;
   return AGENT_KIT_FOLDER_DEFAULT;
 }
 
 function getActiveAgentContainerFolder(agentId = activeAgentId) {
+  if (isPlatformAgentId(agentId)) return null;
   return CONTAINER_FOLDER_DEFAULT;
 }
 
@@ -1263,7 +1287,10 @@ function getCreateModalAgentId() {
 }
 
 function isKitFolderEntryName(name) {
-  return String(name || "").toLowerCase() === AGENT_KIT_FOLDER_DEFAULT.toLowerCase();
+  const lower = String(name || "").toLowerCase();
+  if (lower === AGENT_KIT_FOLDER_DEFAULT.toLowerCase()) return true;
+  if (lower === PLATFORM_KIT_FOLDER.toLowerCase()) return true;
+  return false;
 }
 
 function isContainerFolderEntryName(name) {
@@ -2386,11 +2413,15 @@ function isAgentRegistryActive(agent) {
 
 /** Агенты реестра для UI: полный список из awn-agents.json, включая записи без папки на диске. */
 function getRegistryAgentsForUi() {
-  return agentsCache;
+  return agentsCache.filter((agent) => agent.registryEditable !== false && !isPlatformAgent(agent));
 }
 
 function getAgentsForLandingGrid() {
-  return agentsCache.filter((agent) => agent.folderExists !== false);
+  return agentsCache.filter((agent) => agent.folderExists !== false && !isPlatformAgent(agent));
+}
+
+function getPlatformAgentForLanding() {
+  return agentsCache.find(isPlatformAgent) || null;
 }
 
 let globalFocusItemsCache = [];
@@ -2399,7 +2430,7 @@ let agentFocusItemsCache = [];
 const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
 const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
 
-let landingFocusFilter = { status: "", types: [] };
+let landingFocusFilter = { status: "", types: [], category: "", tag: "", owner: "", priority: "" };
 let landingFocusSort = { key: "topic", dir: "asc" };
 
 function normalizeLandingFocusTypeFilter(raw) {
@@ -2428,11 +2459,15 @@ function loadLandingFocusUiState() {
       const types = normalizeLandingFocusTypeFilter(parsed?.types ?? parsed?.type);
       landingFocusFilter = {
         status: String(parsed?.status ?? "").trim(),
-        types
+        types,
+        category: String(parsed?.category ?? "").trim(),
+        tag: String(parsed?.tag ?? "").trim(),
+        owner: String(parsed?.owner ?? "").trim(),
+        priority: String(parsed?.priority ?? "").trim()
       };
     }
   } catch {
-    landingFocusFilter = { status: "", types: [] };
+    landingFocusFilter = { status: "", types: [], category: "", tag: "", owner: "", priority: "" };
   }
 
   try {
@@ -2464,13 +2499,35 @@ function getFocusItemType(item) {
   return String(item?.awnType || item?.awnProps?.["awn-type"] || "").trim();
 }
 
+function getFocusItemTags(item) {
+  const raw = item?.awnProps?.["awn-tags"];
+  if (Array.isArray(raw)) return raw.map((tag) => String(tag).trim()).filter(Boolean);
+  return String(raw || "")
+    .split(",")
+    .map((tag) => tag.trim().replace(/^#+/, ""))
+    .filter(Boolean);
+}
+
+function getFocusItemCatalogRaw(item, key) {
+  return String(item?.awnProps?.[key] ?? "").trim();
+}
+
 function filterLandingFocusItems(items) {
   const statusFilter = String(landingFocusFilter.status || "").trim();
   const typeFilters = getLandingFocusSelectedTypes();
   const typeFilterSet = typeFilters.length ? new Set(typeFilters) : null;
+  const categoryFilter = String(landingFocusFilter.category || "").trim();
+  const tagFilter = String(landingFocusFilter.tag || "").trim();
+  const ownerFilter = String(landingFocusFilter.owner || "").trim();
+  const priorityFilter = String(landingFocusFilter.priority || "").trim();
+
   return items.filter((item) => {
     if (statusFilter && getFocusItemStatus(item) !== statusFilter) return false;
     if (typeFilterSet && !typeFilterSet.has(getFocusItemType(item))) return false;
+    if (categoryFilter && getFocusItemCatalogRaw(item, "awn-category") !== categoryFilter) return false;
+    if (ownerFilter && getFocusItemCatalogRaw(item, "awn-owner") !== ownerFilter) return false;
+    if (priorityFilter && getFocusItemCatalogRaw(item, "awn-priority") !== priorityFilter) return false;
+    if (tagFilter && !getFocusItemTags(item).includes(tagFilter)) return false;
     return true;
   });
 }
@@ -2602,6 +2659,64 @@ function syncLandingFocusFilterTypePanel() {
   syncLandingFocusTypeFilterButtonLabel();
 }
 
+function syncLandingFocusCatalogFilterOptions() {
+  const specs = [
+    { node: appLandingFocusFilterCategoryNode, key: "awn-category", filterKey: "category" },
+    { node: appLandingFocusFilterTagNode, key: "awn-tags", filterKey: "tag", tags: true },
+    { node: appLandingFocusFilterOwnerNode, key: "awn-owner", filterKey: "owner" },
+    { node: appLandingFocusFilterPriorityNode, key: "awn-priority", filterKey: "priority" }
+  ];
+
+  for (const spec of specs) {
+    if (!spec.node) continue;
+    const current = String(landingFocusFilter[spec.filterKey] || "").trim();
+    const values = new Map();
+
+    for (const item of globalFocusItemsCache) {
+      if (spec.tags) {
+        for (const tag of getFocusItemTags(item)) {
+          if (!tag) continue;
+          const label = getFocusPropDisplayValue(item, "awn-tags")
+            .split(",")
+            .map((part) => part.trim())
+            .find((part) => part.includes(tag) || part === tag);
+          values.set(tag, label || tag);
+        }
+        continue;
+      }
+      const raw = getFocusItemCatalogRaw(item, spec.key);
+      if (!raw) continue;
+      values.set(raw, getFocusPropDisplayValue(item, spec.key) || raw);
+    }
+
+    spec.node.replaceChildren();
+    const allOption = document.createElement("option");
+    allOption.value = "";
+    allOption.textContent = "Все";
+    spec.node.appendChild(allOption);
+
+    for (const [value, label] of [...values.entries()].sort((a, b) =>
+      String(a[1]).localeCompare(String(b[1]), "ru")
+    )) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label === value ? label : `${label} (${value})`;
+      if (value === current) option.selected = true;
+      spec.node.appendChild(option);
+    }
+
+    if (current && !values.has(current)) {
+      const legacy = document.createElement("option");
+      legacy.value = current;
+      legacy.textContent = current;
+      legacy.selected = true;
+      spec.node.appendChild(legacy);
+    } else {
+      spec.node.value = current;
+    }
+  }
+}
+
 function syncLandingFocusToolbarUi() {
   if (!appLandingFocusToolbarNode) return;
 
@@ -2611,6 +2726,7 @@ function syncLandingFocusToolbarUi() {
   if (appLandingFocusFilterStatusNode) {
     appLandingFocusFilterStatusNode.value = landingFocusFilter.status || "";
   }
+  syncLandingFocusCatalogFilterOptions();
   syncLandingFocusFilterTypePanel();
   if (appLandingFocusSortNode) {
     appLandingFocusSortNode.value = landingFocusSort.key || "topic";
@@ -2639,6 +2755,19 @@ function bindLandingFocusToolbar() {
     saveLandingFocusUiState();
     renderGlobalFocusPanel();
   });
+
+  for (const [node, key] of [
+    [appLandingFocusFilterCategoryNode, "category"],
+    [appLandingFocusFilterTagNode, "tag"],
+    [appLandingFocusFilterOwnerNode, "owner"],
+    [appLandingFocusFilterPriorityNode, "priority"]
+  ]) {
+    node?.addEventListener("change", () => {
+      landingFocusFilter[key] = node.value || "";
+      saveLandingFocusUiState();
+      renderGlobalFocusPanel();
+    });
+  }
 
   appLandingFocusFilterTypeBtnNode?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -2678,6 +2807,8 @@ const FOCUS_AWN_KEYS = [
   "awn-status",
   "awn-description",
   "awn-category",
+  "awn-owner",
+  "awn-priority",
   "awn-tags",
   "awn-color",
   "awn-version",
@@ -2701,9 +2832,16 @@ function formatFocusPropValue(key, value) {
   return text;
 }
 
-function appendFocusPropRows(propsNode, awnProps, keys = FOCUS_AWN_KEYS) {
+function getFocusPropDisplayValue(focusItem, key) {
+  const fromCatalog = focusItem?.catalogDisplay?.[key];
+  if (fromCatalog) return String(fromCatalog).trim();
+  return formatFocusPropValue(key, focusItem?.awnProps?.[key] ?? "");
+}
+
+function appendFocusPropRows(propsNode, focusItem, keys = FOCUS_AWN_KEYS) {
+  const awnProps = focusItem?.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
   for (const key of keys) {
-    const value = formatFocusPropValue(key, awnProps[key] ?? "");
+    const value = getFocusPropDisplayValue(focusItem, key);
     if (!value) continue;
 
     const row = document.createElement("div");
@@ -2716,9 +2854,14 @@ function appendFocusPropRows(propsNode, awnProps, keys = FOCUS_AWN_KEYS) {
     const dd = document.createElement("dd");
     dd.className = "agent-focus-prop-value";
     if (key === "awn-color") {
+      const swatchHex =
+        String(focusItem?.catalogDisplay?.["awn-color-hex"] || "").trim() ||
+        (/^#[0-9a-f]{3,8}$/i.test(String(focusItem?.awnProps?.[key] || "").trim())
+          ? String(focusItem.awnProps[key]).trim()
+          : "");
       const swatch = document.createElement("span");
       swatch.className = "agent-focus-prop-color";
-      swatch.style.backgroundColor = value;
+      if (swatchHex) swatch.style.backgroundColor = swatchHex;
       swatch.setAttribute("aria-hidden", "true");
       dd.append(swatch, document.createTextNode(value));
     } else {
@@ -2759,6 +2902,13 @@ function syncFocusPanelActiveState() {
   }
 }
 
+function appendDisabledRegistryAgentDot(parent) {
+  const statusDot = document.createElement("span");
+  statusDot.className = "app-landing-agent-dot is-disabled";
+  statusDot.setAttribute("aria-hidden", "true");
+  parent.appendChild(statusDot);
+}
+
 function createFocusItem(focusItem, variant = "landing") {
   const agent =
     agentsCache.find((entry) => entry.id === focusItem.agentId) || {
@@ -2785,15 +2935,12 @@ function createFocusItem(focusItem, variant = "landing") {
     chip.title = nodePath || label;
     chip.setAttribute("aria-label", registryActive ? `Открыть ${label}` : `${label} — агент неактивен`);
 
-    const statusDot = document.createElement("span");
-    statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
-    statusDot.setAttribute("aria-hidden", "true");
-
     const nameNode = document.createElement("span");
     nameNode.className = "agent-focus-chip-name";
     nameNode.textContent = label;
 
-    chip.append(statusDot, nameNode);
+    if (!registryActive) appendDisabledRegistryAgentDot(chip);
+    chip.append(nameNode);
     chip.addEventListener("click", () => {
       void openFocusItem(focusItem);
     });
@@ -2837,10 +2984,6 @@ function createFocusItem(focusItem, variant = "landing") {
   const nameRow = document.createElement("span");
   nameRow.className = "agent-focus-item-name-row";
 
-  const statusDot = document.createElement("span");
-  statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
-  statusDot.setAttribute("aria-hidden", "true");
-
   const nameNode = document.createElement("span");
   nameNode.className = "agent-focus-item-name";
   nameNode.textContent = label;
@@ -2849,7 +2992,8 @@ function createFocusItem(focusItem, variant = "landing") {
   metaNode.className = "agent-focus-item-meta";
   metaNode.textContent = nodePath || focusItem.awnType || "workspace";
 
-  nameRow.append(statusDot, nameNode);
+  if (!registryActive) appendDisabledRegistryAgentDot(nameRow);
+  nameRow.append(nameNode);
   titleWrap.append(nameRow, metaNode);
   head.append(media, titleWrap);
   head.addEventListener("click", () => {
@@ -2858,7 +3002,7 @@ function createFocusItem(focusItem, variant = "landing") {
 
   const props = document.createElement("dl");
   props.className = "agent-focus-props";
-  appendFocusPropRows(props, awnProps);
+  appendFocusPropRows(props, focusItem);
 
   if (props.childElementCount > 0) {
     item.append(head, props);
@@ -2943,15 +3087,20 @@ function createFocusTableEntityCell(thumb, title, sub = "") {
   return wrap;
 }
 
-function createFocusTableValueCell(key, value) {
+function createFocusTableValueCell(key, value, focusItem = null) {
   const td = document.createElement("td");
   td.className = "agent-focus-table-value";
   td.dataset.field = key;
 
   if (key === "awn-color" && value) {
+    const swatchHex =
+      String(focusItem?.catalogDisplay?.["awn-color-hex"] || "").trim() ||
+      (/^#[0-9a-f]{3,8}$/i.test(String(focusItem?.awnProps?.["awn-color"] || "").trim())
+        ? String(focusItem.awnProps["awn-color"]).trim()
+        : "");
     const swatch = document.createElement("span");
     swatch.className = "agent-focus-prop-color";
-    swatch.style.backgroundColor = value;
+    if (swatchHex) swatch.style.backgroundColor = swatchHex;
     swatch.setAttribute("aria-hidden", "true");
     const text = document.createElement("span");
     text.className = "agent-focus-table-value-text";
@@ -2966,7 +3115,7 @@ function createFocusTableValueCell(key, value) {
 
 function getLandingFocusTableColumns(items) {
   const propCols = FOCUS_AWN_KEYS.filter((key) =>
-    items.some((item) => formatFocusPropValue(key, item.awnProps?.[key]))
+    items.some((item) => getFocusPropDisplayValue(item, key))
   );
   return ["agent", "topic", ...propCols];
 }
@@ -3039,8 +3188,8 @@ function createLandingFocusTableRow(focusItem, columns) {
       );
       td.appendChild(createFocusTableEntityCell(thumb, label, nodePath));
     } else {
-      const value = formatFocusPropValue(columnId, awnProps[columnId] ?? "");
-      row.appendChild(createFocusTableValueCell(columnId, value));
+      const value = getFocusPropDisplayValue(focusItem, columnId);
+      row.appendChild(createFocusTableValueCell(columnId, value, focusItem));
       continue;
     }
 
@@ -3354,7 +3503,10 @@ function getActiveAgentLabel() {
 function formatAgentSelectLabel(agent, groupTitle = "") {
   const registryActive = isAgentRegistryActive(agent);
   const name = agent.name || agent.id;
-  const label = registryActive ? name : `${name} (выкл.)`;
+  let label = registryActive ? name : `${name} (выкл.)`;
+  if (isPlatformAgent(agent)) {
+    label = `${name} — глобальные справочники`;
+  }
   const prefix = String(groupTitle || "").trim();
   return prefix ? `${prefix} | ${label}` : label;
 }
@@ -3368,8 +3520,14 @@ function createAgentSelectOption(agent, groupTitle = "") {
 }
 
 function renderAgentSelectGrouped(agents) {
-  const { orchestrator } = splitLandingOrchestratorAgent(agents);
-  const { grouped, ungrouped } = buildLandingGroupsLayout(agents, landingAgentsGroupsCache);
+  const platformAgents = agents.filter(isPlatformAgent);
+  const workspaceAgents = agents.filter((agent) => !isPlatformAgent(agent));
+  const { orchestrator } = splitLandingOrchestratorAgent(workspaceAgents);
+  const { grouped, ungrouped } = buildLandingGroupsLayout(workspaceAgents, landingAgentsGroupsCache);
+
+  for (const agent of platformAgents) {
+    agentSelectNode.appendChild(createAgentSelectOption(agent, "Платформа"));
+  }
 
   if (orchestrator) {
     agentSelectNode.appendChild(createAgentSelectOption(orchestrator, "Оркестратор"));
@@ -3586,6 +3744,125 @@ async function submitAppLandingCreate() {
   }
 }
 
+async function runPlatformCatalogMigration(preset = "") {
+  try {
+    const url = preset
+      ? `/api/platform/catalogs/migrate?preset=${encodeURIComponent(preset)}`
+      : "/api/platform/catalogs/migrate";
+    const response = await fetch(url, { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    if (preset) {
+      showToast(`${preset}: +${data.addedCount || 0}, всего ${data.total || 0}`, "success");
+    } else {
+      const parts = Object.entries(data.results || {})
+        .filter(([, result]) => result?.addedCount)
+        .map(([key, result]) => `${key} +${result.addedCount}`);
+      showToast(parts.length ? parts.join(" · ") : "Новых значений не найдено", "success");
+    }
+    if (activeAgentId) await loadAgentCatalogs(activeAgentId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Миграция: ${message}` : "Ошибка миграции", "error");
+  }
+}
+
+async function runPlatformTagsMigration() {
+  return runPlatformCatalogMigration("tags");
+}
+
+async function openPlatformIndexItem(relativePath) {
+  const platform = getPlatformAgentForLanding();
+  if (!platform) return;
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return;
+  selectAgentOption(platform.id);
+  await openNodeFromMenu(getLabelFromPath(normalized), normalized);
+}
+
+async function renderAppLandingPlatformSection() {
+  if (!appLandingPlatformNode) return;
+  appLandingPlatformNode.replaceChildren();
+  const platform = getPlatformAgentForLanding();
+  if (!platform) {
+    appLandingPlatformNode.classList.add("hidden");
+    return;
+  }
+  appLandingPlatformNode.classList.remove("hidden");
+
+  const head = document.createElement("header");
+  head.className = "app-landing-platform-head";
+  const title = document.createElement("h3");
+  title.id = "app-landing-platform-title";
+  title.className = "app-landing-platform-title";
+  title.textContent = "Платформа";
+  const lead = document.createElement("p");
+  lead.className = "app-landing-platform-lead";
+  lead.textContent = "Глобальные справочники и конфигурация платформы";
+  head.append(title, lead);
+
+  const actions = document.createElement("div");
+  actions.className = "app-landing-platform-actions";
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "app-landing-platform-open-btn";
+  openBtn.textContent = "Открыть справочники";
+  openBtn.addEventListener("click", () => selectAgentOption(platform.id));
+  const migrateBtn = document.createElement("button");
+  migrateBtn.type = "button";
+  migrateBtn.className = "app-landing-platform-migrate-btn";
+  migrateBtn.textContent = "Собрать справочники";
+  migrateBtn.title = "Добавить в global CSV значения из frontmatter всех workspace";
+  migrateBtn.addEventListener("click", () => void runPlatformCatalogMigration());
+  actions.append(openBtn, migrateBtn);
+  appLandingPlatformNode.append(head, actions);
+
+  try {
+    const response = await fetch("/api/platform/index");
+    if (!response.ok) return;
+    const index = await response.json();
+    const sections = Array.isArray(index?.sections) ? index.sections : [];
+    if (!sections.length) return;
+
+    const grid = document.createElement("div");
+    grid.className = "app-landing-platform-sections";
+
+    for (const section of sections) {
+      const items = Array.isArray(section.items) ? section.items : [];
+      if (!items.length) continue;
+
+      const block = document.createElement("section");
+      block.className = "app-landing-platform-section";
+
+      const sectionTitle = document.createElement("h4");
+      sectionTitle.className = "app-landing-platform-section-title";
+      sectionTitle.textContent =
+        section.title === "Catalogs" ? "Справочники" : section.title || "Раздел";
+      block.appendChild(sectionTitle);
+
+      const list = document.createElement("div");
+      list.className = "app-landing-platform-section-items";
+
+      for (const item of items) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "app-landing-platform-link";
+        btn.textContent = item.label || item.path || "—";
+        btn.title = item.path || "";
+        btn.addEventListener("click", () => void openPlatformIndexItem(item.path));
+        list.appendChild(btn);
+      }
+
+      block.appendChild(list);
+      grid.appendChild(block);
+    }
+
+    appLandingPlatformNode.appendChild(grid);
+  } catch {
+    // index optional
+  }
+}
+
 function createAppLandingAgentCard(agent) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
@@ -3620,14 +3897,11 @@ function createAppLandingAgentCard(agent) {
   const nameRow = document.createElement("div");
   nameRow.className = "app-landing-agent-card-name-row";
 
-  const statusDot = document.createElement("span");
-  statusDot.className = `app-landing-agent-dot ${registryActive ? "is-active" : "is-inactive"}`;
-  statusDot.setAttribute("aria-label", registryActive ? "активен" : "неактивен");
-
   const nameNode = document.createElement("span");
   nameNode.className = "app-landing-agent-card-name";
   nameNode.textContent = label;
-  nameRow.append(statusDot, nameNode);
+  if (!registryActive) appendDisabledRegistryAgentDot(nameRow);
+  nameRow.append(nameNode);
 
   if (isOrchestrator) {
     const orchestratorBadge = document.createElement("span");
@@ -5007,6 +5281,7 @@ function renderAppLandingOrbitAttention(shares) {
 }
 
 async function renderAppLandingAgents() {
+  await renderAppLandingPlatformSection();
   if (!appLandingAgentsNode) return;
   appLandingAgentsNode.replaceChildren();
 
@@ -6392,7 +6667,7 @@ const MODE_GROUPS = [
     title: "Файлы",
     icon: "📎",
     modes: [
-      { id: "media", label: "Медиа и документы" },
+      { id: "media", label: "Медиа" },
       { id: "temp", label: "Временные файлы" }
     ]
   }
@@ -6537,7 +6812,6 @@ const NODE_MEMORY_MODE_IDS = new Set([
   "external-db",
   "references",
   "volume",
-  "media",
   "temp"
 ]);
 const NODE_MEMORY_SUB_MODE_IDS = new Set([
@@ -6547,16 +6821,16 @@ const NODE_MEMORY_SUB_MODE_IDS = new Set([
   "tabular",
   "external-db",
   "volume",
-  "media",
   "temp"
 ]);
 const NODE_SETTINGS_CLOSE_MODES = new Set(["description"]);
-const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "media", "temp"]);
+const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "temp"]);
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
 const NODE_WORKSPACE_DOMAIN_QUICK_NOTES = "quick-notes";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
+const NODE_WORKSPACE_DOMAIN_MEDIA = "media";
 const NODE_WORKSPACE_DOMAIN_SCRIPTS = "scripts";
 const NODE_WORKSPACE_DOMAIN_TODO = "todo";
 const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
@@ -6572,6 +6846,7 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "references", label: "Источники", branch: true },
   { value: "artefacts", label: "Артефакты", branch: true },
   { value: "memory", label: "Память (данные)", branch: true },
+  { value: "media", label: "Медиа (документы)", branch: true },
   { value: "scripts", label: "Скрипты", branch: true },
   { value: "todo", label: "TODO", branch: true },
   { value: "overview", label: "Обзор" }
@@ -6591,13 +6866,14 @@ const AREA_BLOCKED_CONTENT_MODES = new Set([
 
 const AREA_BLOCKED_WORKSPACE_DOMAINS = new Set([
   NODE_WORKSPACE_DOMAIN_MEMORY,
+  NODE_WORKSPACE_DOMAIN_MEDIA,
   NODE_WORKSPACE_DOMAIN_INBOX,
   NODE_WORKSPACE_DOMAIN_QUICK_NOTES,
   NODE_WORKSPACE_DOMAIN_REFERENCES,
   NODE_WORKSPACE_DOMAIN_ARTEFACTS
 ]);
 
-const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "quick-notes", "inbox", "references", "artefacts"];
+const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "media", "quick-notes", "inbox", "references", "artefacts"];
 
 const nodeConfigCacheByPath = new Map();
 
@@ -6611,6 +6887,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
   if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
   if (mode === "artefacts") return NODE_WORKSPACE_DOMAIN_ARTEFACTS;
+  if (mode === "media") return NODE_WORKSPACE_DOMAIN_MEDIA;
   if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return NODE_WORKSPACE_DOMAIN_MEMORY;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
@@ -6626,6 +6903,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
     domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
     domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
+    domain === NODE_WORKSPACE_DOMAIN_MEDIA ||
     domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
@@ -7545,7 +7823,8 @@ function getNodeDefaultLandingDomainLabel(mode) {
     domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
-    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS
+    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS ||
+    domain === NODE_WORKSPACE_DOMAIN_MEDIA
   ) {
     return domainLabel;
   }
@@ -8553,6 +8832,12 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("artefacts");
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_MEDIA) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    setContentMode("media");
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -8565,6 +8850,7 @@ function applyNodeWorkspaceViewUi() {
   const overviewDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_OVERVIEW;
   const settingsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
+  const mediaDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEDIA;
   const scriptsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SCRIPTS;
   const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
   const referencesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_REFERENCES;
@@ -8577,6 +8863,7 @@ function applyNodeWorkspaceViewUi() {
   nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain || quickNotesDomain;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain || quickNotesDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-media", mediaDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-todo", todoDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
@@ -8634,6 +8921,7 @@ function handleWorkspaceCloseClick() {
 function syncWorkspaceCloseButtonsVisibility() {
   const settingsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SETTINGS;
   const memoryDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY;
+  const mediaDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEDIA;
   const scriptsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SCRIPTS;
   const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
   const mediaSidecarEditing = isMediaAssetEditing();
@@ -8643,6 +8931,7 @@ function syncWorkspaceCloseButtonsVisibility() {
     externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memoryDomain && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
+    (mediaDomain && activeContentMode === "media") ||
     (scriptsDomain && activeContentMode === "scripts") ||
     (todoDomain && activeContentMode === "todo");
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
@@ -9982,14 +10271,23 @@ function syncCreateNodeReservedFoldersUi() {
   syncCreateNodeContainerTargetUi();
 }
 
-const SERVICE_CATALOG_FOLDER = "catalog";
+const SERVICE_CATALOG_FOLDER = "taxonomies";
+const LEGACY_SERVICE_CATALOG_FOLDER = "catalog";
 const SERVICE_CATALOG_PRESET_FILES = {
   categories: "categories",
-  tags: "tags"
+  tags: "tags",
+  statuses: "statuses",
+  users: "users",
+  priorities: "priorities",
+  colors: "colors"
 };
 const SERVICE_CATALOG_PRESET_LABELS = {
   categories: "Категории",
-  tags: "Теги"
+  tags: "Теги",
+  statuses: "Статусы",
+  users: "Пользователи",
+  priorities: "Приоритеты",
+  colors: "Палитра"
 };
 const SERVICE_DOC_PRESET_FILES = {
   agent: "agent",
@@ -10055,7 +10353,7 @@ function getCatalogPresetManifestCandidates(serviceFolder, preset) {
   const fileName = SERVICE_CATALOG_PRESET_FILES[preset];
   if (!serviceFolder || !fileName) return [];
   const stems = [fileName, String(preset || "").trim()];
-  const folders = [SERVICE_CATALOG_FOLDER, ""];
+  const folders = [SERVICE_CATALOG_FOLDER, LEGACY_SERVICE_CATALOG_FOLDER, ""];
   const paths = [];
   for (const folder of folders) {
     for (const stem of stems) {
@@ -10585,32 +10883,33 @@ function getManifestContainerDirRel(relPath) {
   return normalized.slice(0, slash);
 }
 
-function getWorkspaceFolderStorageKey() {
-  const agent = getActiveAgentMeta();
-  const agentPath = String(agent?.path || "").trim();
-  if (!agentPath) return "";
-  const parts = agentPath.replace(/\\/g, "/").split("/").filter(Boolean);
-  return parts[parts.length - 1] || "";
-}
-
-function getManifestStorageKey(relPath) {
-  return getManifestNamedSlotKey(relPath);
+function getStorageContainerPrefixRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  const marker = `/${STORAGE_ROOT_FOLDER}/`;
+  const idx = normalized.toLowerCase().indexOf(marker.toLowerCase());
+  if (idx >= 0) {
+    return normalized.slice(0, idx);
+  }
+  return getManifestContainerDirRel(normalized);
 }
 
 function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  const lower = base.toLowerCase();
+  if (lower.endsWith(".sidecar.md")) return "";
   if (isAreaManifestFileName(base)) {
     return stripTopicPrefix(base);
   }
-  if (MANIFEST_MD_RE.test(base) && !isExcludedMenuTopicMd(base)) {
+  if (/\.md$/i.test(base) && !isExcludedMenuTopicMd(base)) {
     return stripTopicPrefix(base);
   }
   return "";
 }
 
 function getNamedStorageSlotDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
+  const containerDir = getStorageContainerPrefixRel(relPath);
   const slotKey = getManifestNamedSlotKey(relPath);
   if (!slotKey) return "";
   const slotDir = `${STORAGE_ROOT_FOLDER}/${slotKey}`;
@@ -10626,12 +10925,24 @@ function getNamedStorageBundleRel(relPath, bundleFileName) {
   return `${getNamedStorageBundleDirRel(relPath)}/${bundleFileName}`;
 }
 
-function buildStorageLayerRef(manifestRelPath, layerFolder, relativePath) {
+function getWorkspaceFolderStorageKey() {
+  const agent = getActiveAgentMeta();
+  const agentPath = String(agent?.path || "").trim();
+  if (!agentPath) return "";
+  const parts = agentPath.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts[parts.length - 1] || "";
+}
+
+function getManifestStorageKey(relPath) {
+  return getManifestNamedSlotKey(relPath);
+}
+
+function buildStorageLayerRef(contextRelPath, layerFolder, relativePath) {
   const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel || rel.includes("..")) return "";
   const layer = getStorageSubfolderForMode(layerFolder) || String(layerFolder || "").trim();
   if (!layer) return "";
-  const slotDir = getNamedStorageSlotDirRel(getResolvedNodePath(manifestRelPath));
+  const slotDir = getNamedStorageSlotDirRel(contextRelPath);
   if (!slotDir) return "";
   return `${slotDir}/${layer}/${rel}`;
 }
@@ -10702,20 +11013,146 @@ const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
+const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
 const PASTED_ASSETS_SUBDIR = "pasted";
 const PREVIEW_ASSETS_SUBDIR = "preview";
+const ATTACHMENTS_ASSETS_SUBDIR = "attachments";
+const ATTACHMENTS_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|svg)$/i;
+const ATTACHMENT_INSERT_PATH_VARIANT_KEY = "agentcms.attachmentInsertPathVariant.v1";
+const ATTACHMENT_UI_VARIANT_KEY = "agentcms.attachmentUiVariant.v1";
+const ATTACHMENT_PATH_VARIANT = {
+  full: "full",
+  short: "short"
+};
+const ATTACHMENT_UI_VARIANT = {
+  simple: "simple",
+  extended: "extended"
+};
+
+function getPropsAttachmentInsertPathVariant() {
+  const stored = localStorage.getItem(ATTACHMENT_INSERT_PATH_VARIANT_KEY);
+  if (stored === ATTACHMENT_PATH_VARIANT.full) return ATTACHMENT_PATH_VARIANT.full;
+  return ATTACHMENT_PATH_VARIANT.short;
+}
+
+function setPropsAttachmentInsertPathVariant(variant) {
+  const next =
+    variant === ATTACHMENT_PATH_VARIANT.short
+      ? ATTACHMENT_PATH_VARIANT.short
+      : ATTACHMENT_PATH_VARIANT.full;
+  localStorage.setItem(ATTACHMENT_INSERT_PATH_VARIANT_KEY, next);
+  return next;
+}
+
+function formatAttachmentPathForVariant(path, variant = getPropsAttachmentInsertPathVariant()) {
+  const canonical = normalizeAttachmentRefForCompare(path) || String(path || "").trim();
+  if (!canonical) return "";
+  if (variant === ATTACHMENT_PATH_VARIANT.short) {
+    const mediaRel = resolveAttachmentMediaRelPath(canonical);
+    return mediaRel || canonical;
+  }
+  return canonical;
+}
+
+function formatInlineAssetPathForEditor(path) {
+  const raw = String(path || "").trim();
+  if (!raw) return "";
+  if (/^assets\//i.test(raw) || /^(pasted|preview|attachments)\//i.test(raw)) {
+    return raw.replace(/^\/+/, "");
+  }
+  const canonical = toCanonicalAssetsUploadRef(raw, PASTED_ASSETS_SUBDIR);
+  return canonical ? formatAttachmentPathForVariant(canonical) : raw;
+}
+
+function getPropsAttachmentUiVariant() {
+  return localStorage.getItem(ATTACHMENT_UI_VARIANT_KEY) === ATTACHMENT_UI_VARIANT.extended
+    ? ATTACHMENT_UI_VARIANT.extended
+    : ATTACHMENT_UI_VARIANT.simple;
+}
+
+function setPropsAttachmentUiVariant(variant) {
+  const next =
+    variant === ATTACHMENT_UI_VARIANT.extended
+      ? ATTACHMENT_UI_VARIANT.extended
+      : ATTACHMENT_UI_VARIANT.simple;
+  localStorage.setItem(ATTACHMENT_UI_VARIANT_KEY, next);
+  return next;
+}
+
+function isPropsAttachmentUiExtended() {
+  return getPropsAttachmentUiVariant() === ATTACHMENT_UI_VARIANT.extended;
+}
+
+function createAttachmentVariantToggleRow({
+  label,
+  ariaLabel,
+  options,
+  activeId,
+  onSelect,
+  extraClass = ""
+}) {
+  const row = document.createElement("div");
+  row.className = `doc-aside-attachments-variant-row${extraClass ? ` ${extraClass}` : ""}`;
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", ariaLabel);
+
+  const rowLabel = document.createElement("span");
+  rowLabel.className = "doc-aside-attachments-variant-label";
+  rowLabel.textContent = label;
+  row.appendChild(rowLabel);
+
+  for (const option of options) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "doc-aside-attachments-variant-btn";
+    btn.textContent = option.label;
+    btn.title = option.hint || option.label;
+    btn.dataset.variant = option.id;
+    btn.classList.toggle("is-active", activeId === option.id);
+    btn.addEventListener("click", () => onSelect(option.id, row));
+    row.appendChild(btn);
+  }
+
+  return row;
+}
+
+function rerenderPropsAttachmentsListFromWrap(wrap, { locked = false } = {}) {
+  if (!wrap) return;
+  const paths = getPropsAttachmentsPathsFromWrap(wrap);
+  renderPropsAttachmentsList(wrap, paths, { locked });
+  refreshPropsAttachmentsUsageState();
+  void refreshPropsAttachmentsOrphans(wrap, { locked });
+}
+
+function syncPropsAttachmentsHeadUi(head) {
+  if (!head) return;
+  const extended = isPropsAttachmentUiExtended();
+  head.classList.toggle("is-extended-ui", extended);
+  head.classList.toggle("is-simple-ui", !extended);
+}
 const STORAGE_SUBFOLDER_SCRIPTS = "scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "preview";
 const STORAGE_SUBFOLDER_TEMP = "temp";
+
+function buildAssetsUploadRef(manifestRelPath, assetsSubdir, fileName) {
+  const subdir = String(assetsSubdir || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const file = String(fileName || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!subdir || !file || subdir.includes("..") || file.includes("..")) return "";
+  return buildStorageLayerRef(manifestRelPath, STORAGE_SUBFOLDER_ASSETS, `${subdir}/${file}`);
+}
+
+function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
+  return buildAssetsUploadRef(manifestRelPath, layer, fileName);
+}
 
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
-  media: STORAGE_SUBFOLDER_ASSETS,
+  media: STORAGE_SUBFOLDER_MEDIA,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
   temp: STORAGE_SUBFOLDER_TEMP
@@ -10732,7 +11169,7 @@ function getFlatStorageSectionFolderName(mode) {
 const AGENT_MAP3_LAYER_KEYS = [
   { key: BUNDLE_CONTENT_FILE, label: "Память" },
   { key: BUNDLE_CONFIG_FILE, label: "Конфиг" },
-  { key: STORAGE_SUBFOLDER_ASSETS, label: "Файлы" },
+  { key: STORAGE_SUBFOLDER_MEDIA, label: "Файлы" },
   { key: STORAGE_SUBFOLDER_CONTENT, label: "Контент" }
 ];
 
@@ -10749,7 +11186,7 @@ const AGENT_STORAGE_LAYER_ORDER = [
   STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_REFERENCES,
-  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_TEMP,
@@ -10946,7 +11383,7 @@ function getNodeMemoryListBreadcrumbPath(nodePath) {
   const collapsed = [];
   for (const part of parts) {
     if (part === STORAGE_ROOT_FOLDER) continue;
-    if (part === STORAGE_SUBFOLDER_CONTENT || part === STORAGE_SUBFOLDER_ASSETS) continue;
+    if (part === STORAGE_SUBFOLDER_CONTENT || part === STORAGE_SUBFOLDER_MEDIA) continue;
     collapsed.push(part);
   }
   return collapsed.join("/");
@@ -11035,7 +11472,7 @@ function getListViewTitleByMode() {
   if (activeContentMode === "inbox") return `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
   if (activeContentMode === "quick-notes") return `Быстрые заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
   if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
-  if (activeContentMode === "media") return `Медиа и документы (${STORAGE_SUBFOLDER_ASSETS})`;
+  if (activeContentMode === "media") return `Медиа (${STORAGE_SUBFOLDER_MEDIA})`;
   if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
   if (activeContentMode === "artefacts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
   if (activeContentMode === "temp") return "Временные файлы";
@@ -12584,7 +13021,11 @@ const MEDIA_VIEW_SELECT_NODES = [
 
 function buildMediaAssetUrl(filePath, nodePath = activePath) {
   if (!nodePath || !filePath) return "";
-  return buildApiUrl("/api/media/file", { path: getResolvedNodePath(nodePath), file: filePath });
+  return buildApiUrl("/api/media/file", {
+    path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
+    contextPath: getPropsContextPath(nodePath) || getUploadStorageContextPath(),
+    file: filePath
+  });
 }
 
 function encodeMarkdownPathSegment(segment) {
@@ -12663,11 +13104,9 @@ function normalizeEmbeddedDataUriMarkdown(markdown) {
 
 function buildDocumentRelativeStorageRef(layerFolder, relativePath, nodePath) {
   const fromPath = getMarkdownAssetSourcePath(nodePath);
-  const manifestPath = resolveManifestPathForNodeApi(
-    getResolvedNodePath(activePath || getActiveNodeApiPath())
-  );
-  if (!manifestPath || !fromPath) return "";
-  const targetWorkspacePath = buildStorageLayerRef(manifestPath, layerFolder, relativePath);
+  const contextPath = getPropsContextPath(nodePath) || getUploadStorageContextPath();
+  if (!contextPath || !fromPath) return "";
+  const targetWorkspacePath = buildStorageLayerRef(contextPath, layerFolder, relativePath);
   if (!targetWorkspacePath) return "";
   const href = relativizeWorkspacePath(fromPath, targetWorkspacePath);
   if (!href) return "";
@@ -12679,6 +13118,74 @@ function buildDocumentRelativeStorageRef(layerFolder, relativePath, nodePath) {
 
 function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath) {
   return buildDocumentRelativeStorageRef(STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath, nodePath);
+}
+
+function getUploadStorageContextPath() {
+  return getPropsContextPath() || getResolvedNodePath(activePath || getActiveNodeApiPath());
+}
+
+function getUploadManifestRelPath() {
+  return getUploadStorageContextPath();
+}
+
+function toCanonicalAssetsUploadRef(value, assetsSubdir = PASTED_ASSETS_SUBDIR) {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+
+  const directAssets = parseStorageAssetsRef(raw);
+  if (directAssets?.workspacePath) return directAssets.workspacePath;
+
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) {
+    return raw;
+  }
+
+  const contextPath = getUploadStorageContextPath();
+  if (!contextPath) return raw;
+
+  if (/^assets\//i.test(raw)) {
+    const rel = raw.replace(/^assets\//i, "");
+    const slash = rel.indexOf("/");
+    if (slash > 0) {
+      const subdir = rel.slice(0, slash);
+      const fileName = rel.slice(slash + 1);
+      if (
+        (subdir === PASTED_ASSETS_SUBDIR ||
+          subdir === PREVIEW_ASSETS_SUBDIR ||
+          subdir === ATTACHMENTS_ASSETS_SUBDIR) &&
+        fileName
+      ) {
+        return buildAssetsUploadRef(contextPath, subdir, fileName);
+      }
+    }
+  }
+
+  if (/^(pasted|preview|attachments)\//i.test(raw)) {
+    const slash = raw.indexOf("/");
+    const subdir = raw.slice(0, slash);
+    const fileName = raw.slice(slash + 1);
+    if (fileName) return buildAssetsUploadRef(contextPath, subdir, fileName);
+  }
+
+  const sourceRel = getMarkdownAssetSourcePath();
+  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(raw, sourceRel);
+  if (workspaceRel) {
+    const resolvedAssets = parseStorageAssetsRef(workspaceRel);
+    if (resolvedAssets?.workspacePath) return resolvedAssets.workspacePath;
+  }
+
+  const fileName = raw.includes("/") ? raw.split("/").pop() : raw;
+  if (!fileName) return raw;
+
+  let subdir = assetsSubdir;
+  if (/\/preview\//i.test(raw) || /^preview\//i.test(raw)) {
+    subdir = PREVIEW_ASSETS_SUBDIR;
+  } else if (/\/pasted\//i.test(raw) || /^pasted\//i.test(raw)) {
+    subdir = PASTED_ASSETS_SUBDIR;
+  } else if (/\/attachments\//i.test(raw) || /^attachments\//i.test(raw)) {
+    subdir = ATTACHMENTS_ASSETS_SUBDIR;
+  }
+
+  return buildAssetsUploadRef(contextPath, subdir, fileName);
 }
 
 function isStorageLayerEditorPath(relPath) {
@@ -12769,6 +13276,20 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   if (raw.startsWith("/api/")) return appendAgentToApiUrl(raw);
 
   const relFile = raw.replace(/\\/g, "/");
+  if (/^assets\//i.test(relFile) || /^(pasted|preview|attachments)\//i.test(relFile)) {
+    const subdir = /preview/i.test(relFile)
+      ? PREVIEW_ASSETS_SUBDIR
+      : /attachments/i.test(relFile)
+        ? ATTACHMENTS_ASSETS_SUBDIR
+        : PASTED_ASSETS_SUBDIR;
+    const canonical = toCanonicalAssetsUploadRef(relFile, subdir);
+    if (canonical) {
+      const shortAssetsRef = parseStorageAssetsRef(canonical);
+      const shortUrl = resolveStorageAssetsRefToApiUrl(shortAssetsRef);
+      if (shortUrl) return shortUrl;
+    }
+  }
+
   const assetsRef = parseStorageAssetsRef(relFile);
   const directUrl = resolveStorageAssetsRefToApiUrl(assetsRef);
   if (directUrl) return directUrl;
@@ -12791,13 +13312,12 @@ function getAttachmentAltText(fileName) {
   return alt.replace(/[[\]]/g, "").trim() || "image";
 }
 
-function buildMarkdownImageSnippet(relativeAssetsPath, altText, nodePath) {
-  const ref = buildMarkdownAttachmentRef(
-    relativeAssetsPath,
-    nodePath || getMarkdownAssetSourcePath() || getActiveNodeApiPath()
-  );
+function buildMarkdownImageSnippet(relativeFile, altText, nodePath, workspaceRef = "") {
+  const canonical = toCanonicalAssetsUploadRef(workspaceRef || relativeFile, PASTED_ASSETS_SUBDIR);
+  if (!canonical || /^\/api\//.test(canonical)) return "";
+  const ref = formatInlineAssetPathForEditor(canonical);
   if (!ref) return "";
-  const alt = String(altText || getAttachmentAltText(relativeAssetsPath)).replace(/[[\]]/g, "");
+  const alt = String(altText || getAttachmentAltText(relativeFile)).replace(/[[\]]/g, "");
   return `\n![${alt}](${ref})\n`;
 }
 
@@ -12861,6 +13381,25 @@ function buildInlineAttachmentFileName(file, recordSlug = getInlineAttachmentRec
 function buildPastedAttachmentFileName(file) {
   const ext = getImageAttachmentExtension(file);
   return `${buildAttachmentTimestamp()}${ext}`;
+}
+
+function getAttachmentStorageExtension(file) {
+  const name = String(file?.name || "").toLowerCase();
+  if (ATTACHMENTS_IMAGE_EXT_RE.test(name)) {
+    return getImageAttachmentExtension(file);
+  }
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot) : "";
+}
+
+function buildAttachmentsStorageFileName(file) {
+  const original = String(file?.name || "file");
+  const ext = getAttachmentStorageExtension(file);
+  const base = ext && original.toLowerCase().endsWith(ext.toLowerCase())
+    ? original.slice(0, -ext.length)
+    : original.replace(/\.[^.]+$/, "");
+  const slug = transliterateDisplayToSlug(base) || "file";
+  return `${slug}-${buildAttachmentTimestamp()}${ext}`;
 }
 
 async function normalizeImageAttachmentFile(file, { pasted = false } = {}) {
@@ -13555,7 +14094,13 @@ function buildWysiwygHighlightToolbarItem() {
 
 async function uploadMediaAttachment(
   file,
-  { nodePath = getActiveNodeApiPath(), subdir = null, inlinePaste = false, pastedNaming = false } = {}
+  {
+    nodePath = getActiveNodeApiPath(),
+    subdir = null,
+    inlinePaste = false,
+    pastedNaming = false,
+    fileName: preferredFileName = null
+  } = {}
 ) {
   if (!file) return null;
   if (!nodePath) {
@@ -13570,13 +14115,17 @@ async function uploadMediaAttachment(
         : null);
   const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: usePastedNaming });
   const data = await readFileAsBase64(normalizedFile);
+  const uploadManifestPath = getUploadStorageContextPath();
+  const uploadNodePath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   const response = await fetch(buildApiUrl("/api/media/file"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
+      path: uploadNodePath,
+      contextPath: uploadManifestPath,
       data,
       fileName:
+        preferredFileName ||
         normalizedFile.name ||
         (usePastedNaming
           ? buildPastedAttachmentFileName(normalizedFile)
@@ -13612,10 +14161,16 @@ async function insertUploadedAttachmentIntoEditor(file) {
     const relativeFile = payload?.file;
     if (!relativeFile) throw new Error("Upload response missing file path");
 
-    const markdown = buildMarkdownImageSnippet(relativeFile, getAttachmentAltText(file.name));
+    const markdown = buildMarkdownImageSnippet(
+      relativeFile,
+      getAttachmentAltText(file.name),
+      null,
+      payload?.workspaceRef || payload?.assetsFile
+    );
     insertTextAtEditorCursor(markdown);
 
-    showToast(`Изображение сохранено в ${buildStorageLayerRef(getResolvedNodePath(activePath), STORAGE_SUBFOLDER_ASSETS, `${PASTED_ASSETS_SUBDIR}/`)}`, "success");
+    const slotDir = getNamedStorageSlotDirRel(getUploadStorageContextPath());
+    showToast(`Изображение сохранено в ${slotDir}/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -13626,7 +14181,7 @@ async function uploadMediaFileFromPicker(file) {
   if (!file || !activePath) return;
   try {
     await uploadMediaAttachment(file);
-    showToast(`Файл сохранён в ${STORAGE_SUBFOLDER_ASSETS}`, "success");
+    showToast(`Файл сохранён в ${STORAGE_SUBFOLDER_MEDIA}`, "success");
     await refreshMediaListIfVisible();
   } catch (error) {
     showToast(`Ошибка загрузки: ${error.message}`, "error");
@@ -13851,7 +14406,7 @@ function syncMediaListSectionHead(sectionFolder) {
   title.className = "media-section-folder-title";
 
   if (!sectionFolder) {
-    title.textContent = `📋 ${MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_ASSETS] || "Медиа"}`;
+    title.textContent = `📋 ${MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_MEDIA] || "Медиа"}`;
   } else {
     const label = formatMemoryListSectionHeadLabel(sectionFolder);
     title.textContent = `📁 ${label}`;
@@ -13981,7 +14536,7 @@ function getMemoryContentRelativePath(parts, endIndex) {
     (part, index) => index <= endIndex && part === STORAGE_SUBFOLDER_CONTENT
   );
   const assetsIndex = parts.findIndex(
-    (part, index) => index <= endIndex && part === STORAGE_SUBFOLDER_ASSETS
+    (part, index) => index <= endIndex && part === STORAGE_SUBFOLDER_MEDIA
   );
   const rootIndex = contentIndex >= 0 ? contentIndex : assetsIndex;
   if (rootIndex < 0 || endIndex <= rootIndex) return "";
@@ -14097,7 +14652,7 @@ function invalidateMenuDisplayLabelMap() {
 
 const MEMORY_SUBFOLDER_BREADCRUMB_LABELS = {
   [STORAGE_SUBFOLDER_CONTENT]: "Контент",
-  [STORAGE_SUBFOLDER_ASSETS]: "Медиа"
+  [STORAGE_SUBFOLDER_MEDIA]: "Медиа"
 };
 
 function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
@@ -17317,7 +17872,7 @@ const STORAGE_FOLDER_LABELS = {
   references: STORAGE_SUBFOLDER_REFERENCES,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
-  media: STORAGE_SUBFOLDER_ASSETS,
+  media: STORAGE_SUBFOLDER_MEDIA,
   temp: STORAGE_SUBFOLDER_TEMP,
   external: STORAGE_SUBFOLDER_CONTENT
 };
@@ -17829,6 +18384,7 @@ function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
   const paths = [];
   for (const fileName of Object.values(SERVICE_CATALOG_PRESET_FILES)) {
     paths.push(`${kitFolder}/${SERVICE_CATALOG_FOLDER}/${fileName}.md`);
+    paths.push(`${kitFolder}/${LEGACY_SERVICE_CATALOG_FOLDER}/${fileName}.md`);
     paths.push(`${kitFolder}/${fileName}.md`);
   }
   for (const fileName of Object.values(SERVICE_DOC_PRESET_FILES)) {
@@ -18085,6 +18641,8 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-description",
   "awn-main",
   "awn-category",
+  "awn-owner",
+  "awn-priority",
   "awn-tags",
   "awn-color",
   "awn-version",
@@ -18128,11 +18686,19 @@ const PROPS_FIELD_META = {
   },
   "awn-category": {
     label: "Категория",
-    hint: "Категория или группа записи"
+    hint: "Из справочника: общие (платформа) + локальные (агент)"
+  },
+  "awn-owner": {
+    label: "Владелец",
+    hint: "Из справочника пользователей (общие + агент)"
+  },
+  "awn-priority": {
+    label: "Приоритет",
+    hint: "Уровень важности из справочника priorities"
   },
   "awn-tags": {
     label: "Теги",
-    hint: "Метки для поиска и фильтрации"
+    hint: "Общие и локальные теги; свои — через поле «Свои теги»"
   },
   "awn-version": {
     label: "Версия",
@@ -18144,7 +18710,15 @@ const PROPS_FIELD_META = {
   },
   "awn-preview": {
     label: "Превью",
-    hint: "Изображение в Assets/Preview/ (загрузка через миниатюру)"
+    hint: "Изображение в assets/preview/ (загрузка через миниатюру)"
+  },
+  "awn-attachments": {
+    label: "Вложения",
+    hint: "Файлы в assets/attachments/; список в шапке, в папке без записи — блок снизу"
+  },
+  "awn-color": {
+    label: "Цвет",
+    hint: "Палитра платформы или свой hex"
   },
   "awn-emoji": {
     label: "Эмодзи",
@@ -18206,6 +18780,163 @@ async function loadAgentCatalogs(agentId = activeAgentId) {
   })();
 
   return agentCatalogsLoadPromise;
+}
+
+const PROPS_FIELD_CATALOG_PRESET = {
+  "awn-category": "categories",
+  "awn-tags": "tags",
+  "awn-status": "statuses",
+  "awn-owner": "users",
+  "awn-priority": "priorities",
+  "awn-color": "colors"
+};
+
+function getPropsCatalogAddScopeLabel() {
+  return activeAgentId === PLATFORM_AGENT_ID ? "глобальный справочник" : "локальный справочник агента";
+}
+
+function applyCatalogItemToPropsEntry(fieldKey, preset, itemId) {
+  const normalizedKey = normalizePropsKey(fieldKey);
+  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
+  if (index < 0 || !itemId) return;
+
+  const entry = propsFormEntries[index];
+  if (preset === "tags") {
+    const current =
+      entry.kind === "array" && Array.isArray(entry.value)
+        ? entry.value.map((item) => String(item).replace(/^#+/, "").trim()).filter(Boolean)
+        : String(entry.value || "")
+            .split(",")
+            .map((item) => item.trim().replace(/^#+/, ""))
+            .filter(Boolean);
+    if (!current.includes(itemId)) current.push(itemId);
+    propsFormEntries[index] = { ...entry, kind: "array", value: current };
+    return;
+  }
+
+  propsFormEntries[index] = { ...entry, kind: "string", value: itemId };
+}
+
+async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
+  const response = await fetch(buildApiUrl("/api/agent/catalogs/items", {}, activeAgentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      preset,
+      id: values.id || "",
+      label: values.label || "",
+      color: values.color || "",
+      email: values.email || ""
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+
+  applyCatalogItemToPropsEntry(fieldKey, preset, data.item?.id);
+  syncYamlFromPropsForm();
+  await loadAgentCatalogs(activeAgentId);
+  showToast(`Добавлено в ${getPropsCatalogAddScopeLabel()}: ${data.item?.label || data.item?.id}`, "success");
+  return data;
+}
+
+function createPropsFormCatalogAddPanel(preset, fieldKey, { locked = false } = {}) {
+  const panel = document.createElement("div");
+  panel.className = "props-form-catalog-add";
+  if (locked) return panel;
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "props-form-catalog-add-toggle";
+  toggleBtn.textContent = "+ В справочник";
+  toggleBtn.title = `Добавить запись в ${getPropsCatalogAddScopeLabel()}`;
+
+  const form = document.createElement("div");
+  form.className = "props-form-catalog-add-form hidden";
+
+  const hint = document.createElement("p");
+  hint.className = "props-form-catalog-add-hint";
+  hint.textContent = `Будет сохранено в ${getPropsCatalogAddScopeLabel()}.`;
+  form.appendChild(hint);
+
+  const fields = [];
+  if (preset === "tags") {
+    fields.push({ name: "label", label: "Новый тег", placeholder: "my-tag" });
+  } else if (preset === "colors") {
+    fields.push({ name: "label", label: "Название", placeholder: "Blue" });
+    fields.push({ name: "color", label: "Hex", placeholder: "#2563eb" });
+  } else {
+    fields.push({ name: "label", label: "Название", placeholder: "Новая запись" });
+  }
+
+  const inputs = {};
+  for (const field of fields) {
+    const label = document.createElement("label");
+    label.className = "props-form-catalog-add-field";
+    const caption = document.createElement("span");
+    caption.textContent = field.label;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "props-form-value props-form-catalog-add-input";
+    input.placeholder = field.placeholder;
+    input.dataset.field = field.name;
+    inputs[field.name] = input;
+    label.append(caption, input);
+    form.appendChild(label);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "props-form-catalog-add-actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "props-form-catalog-add-save";
+  saveBtn.textContent = "Добавить";
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "props-form-catalog-add-cancel";
+  cancelBtn.textContent = "Отмена";
+
+  const setOpen = (open) => {
+    form.classList.toggle("hidden", !open);
+    toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  toggleBtn.addEventListener("click", () => {
+    setOpen(form.classList.contains("hidden"));
+  });
+  cancelBtn.addEventListener("click", () => {
+    setOpen(false);
+    for (const input of Object.values(inputs)) input.value = "";
+  });
+  saveBtn.addEventListener("click", () => {
+    void (async () => {
+      saveBtn.disabled = true;
+      try {
+        const values = Object.fromEntries(
+          Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])
+        );
+        await submitPropsCatalogAdd(preset, fieldKey, values);
+        for (const input of Object.values(inputs)) input.value = "";
+        setOpen(false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        showToast(message ? `Справочник: ${message}` : "Не удалось добавить", "error");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    })();
+  });
+
+  actions.append(saveBtn, cancelBtn);
+  form.appendChild(actions);
+  panel.append(toggleBtn, form);
+  return panel;
+}
+
+function appendPropsFormCatalogAddControl(wrap, preset, fieldKey, options = {}) {
+  if (options.locked) return;
+  wrap.appendChild(createPropsFormCatalogAddPanel(preset, fieldKey, options));
 }
 
 const TOPIC_SCHEMA_TARGETS = [
@@ -19255,14 +19986,11 @@ function isMediaCategoryContentPath(nodePath) {
   if (
     (normalized.toLowerCase().endsWith("/_registration.md") ||
       normalized.toLowerCase().endsWith("/_reg-info.md")) &&
-    /\/assets\//i.test(normalized)
+    /\/media\//i.test(normalized)
   ) {
     return true;
   }
-  return (
-    /\/assets\/categories\/[^/]+\.md$/i.test(normalized) ||
-    /\/awn-storage\/[^/]+\/content\/[^/]+\.md$/i.test(normalized)
-  );
+  return /\/media\/categories\/[^/]+\.md$/i.test(normalized);
 }
 
 function getPropsContextPath(nodePath = activePath) {
@@ -19414,12 +20142,13 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
+  "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (assets/attachments/)",
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
   "awn.record": "Запись в awn-storage/*/content/ (расширяется в configuration.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
-  "awn.media.category": "Категория медиа — справочник для группировки файлов в assets",
+  "awn.media.category": "Категория медиа — справочник для группировки файлов в media",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
 };
 
@@ -20991,9 +21720,9 @@ function getDocAsideMiniDocSpec() {
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
-          "Картинки в тексте: <code>![alt]({слот}/assets/pasted/…)</code>",
+          "Картинки в тексте: <code>![alt](assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
-          `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
+          `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
         ]
       };
     case "internal":
@@ -21026,10 +21755,10 @@ function getDocAsideMiniDocSpec() {
       };
     case "media":
       return {
-        title: "Медиа и документы",
+        title: "Медиа",
         items: [
-          `Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/`)}`,
-          `Вставка в текст → ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`,
+          `Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_MEDIA}/`)}`,
+          `Вставка в текст → ${formatMiniDocPathHint(`${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`,
           "Имя файла — метка времени"
         ]
       };
@@ -21284,6 +22013,133 @@ function syncDocAsideTabAvailability() {
   syncDocAsideUi(getDocAsideTabAvailability());
 }
 
+function hasPropsAttachmentsField() {
+  return Boolean(getPropsFieldDef("awn-attachments"));
+}
+
+function findPropsAttachmentsEntry() {
+  const index = propsFormEntries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === "awn-attachments"
+  );
+  if (index >= 0) return { entry: propsFormEntries[index], index };
+  if (!hasPropsAttachmentsField()) return null;
+  return { entry: { key: "awn-attachments", kind: "array", value: [] }, index: -1 };
+}
+
+function mergePropsAttachmentsIntoEntries(entries) {
+  const key = "awn-attachments";
+  const withoutAttachments = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
+  if (!hasPropsAttachmentsField()) {
+    return ensureStandardPropsEntries(withoutAttachments);
+  }
+
+  const attachmentsWrap = propsAttachmentsBlockNode?.querySelector(
+    '.props-form-value-wrap[data-widget="attachments"]'
+  );
+  if (!attachmentsWrap) {
+    const existing = entries.find((entry) => normalizePropsKey(entry.key) === key);
+    if (existing) withoutAttachments.push(existing);
+    return ensureStandardPropsEntries(withoutAttachments);
+  }
+
+  const paths = getPropsAttachmentsPathsFromWrap(attachmentsWrap);
+  const nextEntry = { key, kind: "array", value: paths };
+  return ensureStandardPropsEntries([...withoutAttachments, nextEntry]);
+}
+
+function renderPropsAttachmentsBlock() {
+  if (!propsAttachmentsBlockNode) return;
+
+  const attachmentsSpec = findPropsAttachmentsEntry();
+  propsAttachmentsBlockNode.replaceChildren();
+
+  if (!attachmentsSpec || propsRawYamlVisible || !hasPropsAttachmentsField()) {
+    propsAttachmentsBlockNode.classList.add("hidden");
+    return;
+  }
+
+  propsAttachmentsBlockNode.classList.remove("hidden");
+  const meta = getPropsFieldMeta("awn-attachments");
+  const readOnly = isPropsFormReadOnly();
+
+  const head = document.createElement("div");
+  head.className = "doc-aside-attachments-head";
+
+  const title = document.createElement("h4");
+  title.className = "doc-aside-attachments-title";
+  title.textContent = meta.label || "Вложения";
+  if (meta.hint) title.title = meta.hint;
+  head.appendChild(title);
+
+  const legend = document.createElement("div");
+  legend.className = "doc-aside-attachments-legend";
+  legend.innerHTML =
+    '<span class="doc-aside-attachments-legend-item is-in-body">● в тексте</span>' +
+    '<span class="doc-aside-attachments-legend-item is-unlinked">○ не вставлено</span>' +
+    '<span class="doc-aside-attachments-legend-item doc-aside-attachments-legend-item--extended-only">🖼 встроить · 🔗 ссылка · ↻ ⚙</span>';
+  head.appendChild(legend);
+
+  const uiVariantRow = createAttachmentVariantToggleRow({
+    label: "Вид:",
+    ariaLabel: "Вид списка вложений",
+    options: [
+      { id: ATTACHMENT_UI_VARIANT.simple, label: "Простой", hint: "Превью, имя, ↵ и ×" },
+      {
+        id: ATTACHMENT_UI_VARIANT.extended,
+        label: "Расширенный",
+        hint: "Sidecar, замена файла, два типа вставки"
+      }
+    ],
+    activeId: getPropsAttachmentUiVariant(),
+    extraClass: "doc-aside-attachments-ui-variant",
+    onSelect: (id, row) => {
+      setPropsAttachmentUiVariant(id);
+      row.querySelectorAll(".doc-aside-attachments-variant-btn").forEach((node) => {
+        node.classList.toggle("is-active", node.dataset.variant === id);
+      });
+      syncPropsAttachmentsHeadUi(head);
+      const wrap = propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments");
+      rerenderPropsAttachmentsListFromWrap(wrap, { locked: readOnly });
+    }
+  });
+  head.appendChild(uiVariantRow);
+
+  const pathVariantRow = createAttachmentVariantToggleRow({
+    label: "Путь:",
+    ariaLabel: "Формат пути при вставке",
+    options: [
+      {
+        id: ATTACHMENT_PATH_VARIANT.short,
+        label: "Короткий",
+        hint: "assets/pasted/…, assets/attachments/…"
+      },
+      {
+        id: ATTACHMENT_PATH_VARIANT.full,
+        label: "Полный",
+        hint: "awn-container/…/assets/pasted/…"
+      }
+    ],
+    activeId: getPropsAttachmentInsertPathVariant(),
+    extraClass: "doc-aside-attachments-path-variant doc-aside-attachments-path-variant--extended-only",
+    onSelect: (id, row) => {
+      setPropsAttachmentInsertPathVariant(id);
+      row.querySelectorAll(".doc-aside-attachments-variant-btn").forEach((node) => {
+        node.classList.toggle("is-active", node.dataset.variant === id);
+      });
+      const wrap = propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments");
+      rerenderPropsAttachmentsListFromWrap(wrap, { locked: readOnly });
+    }
+  });
+  head.appendChild(pathVariantRow);
+
+  syncPropsAttachmentsHeadUi(head);
+  propsAttachmentsBlockNode.append(head);
+  propsAttachmentsBlockNode.appendChild(
+    createPropsFormAttachmentsControl(attachmentsSpec.entry, meta, { locked: readOnly })
+  );
+  refreshPropsAttachmentsUsageState();
+}
+
 function findPropsPreviewEntry() {
   const index = propsFormEntries.findIndex(
     (entry) => normalizePropsKey(entry.key) === "awn-preview"
@@ -21350,6 +22206,7 @@ function renderPropsForm() {
   if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
   renderPropsPreviewBlock();
+  renderPropsAttachmentsBlock();
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
   propsFormFieldsNode.classList.toggle("is-readonly", readOnly);
@@ -21403,7 +22260,7 @@ function renderPropsForm() {
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
     const entryKey = normalizePropsKey(entry.key);
-    if (entryKey === "awn-preview" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
+    if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
       standardEntries.push({ entry, index });
     } else {
@@ -21454,13 +22311,19 @@ const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
   if (normalized === "awn-preview") return "preview";
+  if (normalized === "awn-attachments") return "attachments";
   if (normalized === "awn-category") return "catalog-category";
   if (normalized === "awn-tags") return "catalog-tags";
+  if (normalized === "awn-status") return "catalog-status";
+  if (normalized === "awn-owner") return "catalog-users";
+  if (normalized === "awn-priority") return "catalog-priorities";
+  if (normalized === "awn-color") return "catalog-colors";
 
   const typeId = resolveFieldTypeId(fieldDef?.type || "");
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry = registry[typeId];
-  const widget = String(registryEntry?.widget || "").trim();
+  const widget = String(fieldDef?.widget || registryEntry?.widget || "").trim();
+  if (widget === "attachments") return "attachments";
 
   if (typeId === "awn.enum" || widget === "select") return "select";
   if (typeId === "awn.boolean" || widget === "toggle") return "boolean";
@@ -21477,7 +22340,34 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
 }
 
 function getAgentCatalogPreset(preset) {
-  return agentCatalogsCache?.[preset] || { exists: false, title: preset, items: [] };
+  return agentCatalogsCache?.[preset] || { exists: false, title: preset, items: [], groups: null };
+}
+
+function getCatalogGroups(catalog) {
+  if (catalog?.groups?.global || catalog?.groups?.agent) {
+    return catalog.groups;
+  }
+  const items = catalog?.items || [];
+  return {
+    global: { title: "Общие", items: items.filter((item) => item.scope !== "agent") },
+    agent: { title: "Агент", items: items.filter((item) => item.scope === "agent") }
+  };
+}
+
+function appendPropsFormCatalogTagOptions(list, items, selected, locked) {
+  for (const item of items) {
+    const label = document.createElement("label");
+    label.className = "props-form-tag-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = item.id;
+    checkbox.checked = selected.has(item.id);
+    checkbox.disabled = locked;
+    const caption = document.createElement("span");
+    caption.textContent = item.label || `#${item.id}`;
+    label.append(checkbox, caption);
+    list.appendChild(label);
+  }
 }
 
 function appendPropsFormSelectOption(select, value, label, { selected = false } = {}) {
@@ -21661,8 +22551,14 @@ function createPropsFormSelectControl(entry, meta, options, { locked = false, pl
 function createPropsFormCatalogCategoryControl(entry, meta, { locked = false } = {}) {
   const catalog = getAgentCatalogPreset("categories");
   const wrap = createPropsFormValueWrap("catalog-category");
-  if (!catalog.exists) {
-    wrap.appendChild(createPropsFormCatalogMissingNote("Справочник «Категории» не создан"));
+  const items = catalog.items || [];
+  const fieldKey = entry.key || "awn-category";
+
+  if (!catalog.exists && !items.length) {
+    wrap.appendChild(
+      createPropsFormCatalogMissingNote("Справочник «Категории» ещё не создан — добавьте первую запись")
+    );
+    appendPropsFormCatalogAddControl(wrap, "categories", fieldKey, { locked });
     return wrap;
   }
 
@@ -21670,19 +22566,16 @@ function createPropsFormCatalogCategoryControl(entry, meta, { locked = false } =
   select.className = "props-form-value props-form-value--select";
   const currentValue = getPropsEntryDisplayValue(entry);
   appendPropsFormSelectOption(select, "", "— не выбрано —");
-  for (const item of catalog.items || []) {
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.textContent = item.label || item.id;
-    if (item.color) option.dataset.color = item.color;
-    if (currentValue && (item.id === currentValue || item.label === currentValue)) {
-      option.selected = true;
-    }
-    select.appendChild(option);
+
+  const groups = getCatalogGroups(catalog);
+  appendPropsFormSelectGroup(select, groups.global.title, groups.global.items, currentValue);
+  if (groups.agent.items.length) {
+    appendPropsFormSelectGroup(select, groups.agent.title, groups.agent.items, currentValue);
   }
+
   if (
     currentValue &&
-    !(catalog.items || []).some((item) => item.id === currentValue || item.label === currentValue)
+    !items.some((item) => item.id === currentValue || item.label === currentValue)
   ) {
     appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне справочника)`, {
       selected: true
@@ -21690,14 +22583,27 @@ function createPropsFormCatalogCategoryControl(entry, meta, { locked = false } =
   }
   bindPropsFormLockedState(select, locked);
   wrap.appendChild(select);
+  appendPropsFormCatalogAddControl(wrap, "categories", fieldKey, { locked });
   return wrap;
 }
+
+const CATALOG_LOOKUP_PRESET_LABELS = {
+  statuses: "Статусы",
+  users: "Пользователи",
+  priorities: "Приоритеты"
+};
 
 function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {}) {
   const catalog = getAgentCatalogPreset("tags");
   const wrap = createPropsFormValueWrap("catalog-tags");
-  if (!catalog.exists) {
-    wrap.appendChild(createPropsFormCatalogMissingNote("Справочник «Теги» не создан"));
+  const items = catalog.items || [];
+  const fieldKey = entry.key || "awn-tags";
+
+  if (!catalog.exists && !items.length) {
+    wrap.appendChild(
+      createPropsFormCatalogMissingNote("Справочник «Теги» ещё не создан — добавьте первый тег")
+    );
+    appendPropsFormCatalogAddControl(wrap, "tags", fieldKey, { locked });
     return wrap;
   }
 
@@ -21710,27 +22616,206 @@ function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {})
           .filter(Boolean)
   );
 
+  const knownIds = new Set(items.map((item) => item.id));
+  const extraTags = [...selected].filter((id) => !knownIds.has(id));
+
   const list = document.createElement("div");
   list.className = "props-form-tags-list";
-  const items = catalog.items || [];
+  const groups = getCatalogGroups(catalog);
+
   if (!items.length) {
     list.appendChild(createPropsFormCatalogMissingNote("Справочник пуст"));
   } else {
-    for (const item of items) {
-      const label = document.createElement("label");
-      label.className = "props-form-tag-option";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = item.id;
-      checkbox.checked = selected.has(item.id);
-      checkbox.disabled = locked;
-      const caption = document.createElement("span");
-      caption.textContent = item.label || `#${item.id}`;
-      label.append(checkbox, caption);
-      list.appendChild(label);
+    if (groups.global.items.length) {
+      const globalGroup = document.createElement("div");
+      globalGroup.className = "props-form-catalog-group";
+      const globalTitle = document.createElement("div");
+      globalTitle.className = "props-form-catalog-group-title";
+      globalTitle.textContent = groups.global.title;
+      globalGroup.appendChild(globalTitle);
+      appendPropsFormCatalogTagOptions(globalGroup, groups.global.items, selected, locked);
+      list.appendChild(globalGroup);
+    }
+    if (groups.agent.items.length) {
+      const agentGroup = document.createElement("div");
+      agentGroup.className = "props-form-catalog-group";
+      const agentTitle = document.createElement("div");
+      agentTitle.className = "props-form-catalog-group-title";
+      agentTitle.textContent = groups.agent.title;
+      agentGroup.appendChild(agentTitle);
+      appendPropsFormCatalogTagOptions(agentGroup, groups.agent.items, selected, locked);
+      list.appendChild(agentGroup);
     }
   }
   wrap.appendChild(list);
+
+  const extraWrap = document.createElement("div");
+  extraWrap.className = "props-form-tags-extra-wrap";
+  const extraLabel = document.createElement("label");
+  extraLabel.className = "props-form-tags-extra-label";
+  extraLabel.textContent = extraTags.length ? "Другие теги" : "Свои теги (через запятую)";
+  const extraInput = document.createElement("input");
+  extraInput.type = "text";
+  extraInput.className = "props-form-value props-form-tags-extra";
+  extraInput.placeholder = "custom, local";
+  extraInput.value = extraTags.join(", ");
+  extraInput.disabled = locked;
+  extraLabel.appendChild(extraInput);
+  extraWrap.appendChild(extraLabel);
+  if (extraTags.length) {
+    const warn = document.createElement("p");
+    warn.className = "props-form-catalog-warn";
+    warn.textContent =
+      extraTags.length === 1
+        ? `Тег «${extraTags[0]}» вне справочника`
+        : `Теги вне справочника: ${extraTags.join(", ")}`;
+    extraWrap.appendChild(warn);
+  }
+  wrap.appendChild(extraWrap);
+
+  appendPropsFormCatalogAddControl(wrap, "tags", fieldKey, { locked });
+  return wrap;
+}
+
+function createPropsFormCatalogLookupControl(
+  entry,
+  meta,
+  preset,
+  widget,
+  { locked = false, enumFallback = [] } = {}
+) {
+  const catalog = getAgentCatalogPreset(preset);
+  const wrap = createPropsFormValueWrap(widget);
+  const items = catalog.items || [];
+  const fieldKey = entry.key || "";
+
+  if (!catalog.exists && !items.length) {
+    if (enumFallback.length) {
+      return createPropsFormSelectControl(entry, meta, enumFallback, { locked });
+    }
+    wrap.appendChild(
+      createPropsFormCatalogMissingNote(
+        `Справочник «${CATALOG_LOOKUP_PRESET_LABELS[preset] || preset}» ещё не создан — добавьте первую запись`
+      )
+    );
+    appendPropsFormCatalogAddControl(wrap, preset, fieldKey, { locked });
+    return wrap;
+  }
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select";
+  const currentValue = getPropsEntryDisplayValue(entry);
+  appendPropsFormSelectOption(select, "", "— не выбрано —");
+
+  const groups = getCatalogGroups(catalog);
+  const appendLookupGroup = (groupItems) => {
+    for (const item of groupItems) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label || item.id;
+      if (currentValue && (item.id === currentValue || item.label === currentValue)) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    }
+  };
+
+  appendLookupGroup(groups.global.items);
+  if (groups.agent.items.length) appendLookupGroup(groups.agent.items);
+
+  if (currentValue && !items.some((item) => item.id === currentValue || item.label === currentValue)) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне справочника)`, {
+      selected: true
+    });
+  } else if (currentValue && enumFallback.includes(currentValue) && !items.length) {
+    appendPropsFormSelectOption(select, currentValue, currentValue, { selected: true });
+  }
+
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+  appendPropsFormCatalogAddControl(wrap, preset, fieldKey, { locked });
+  return wrap;
+}
+
+function createPropsFormCatalogStatusControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const enumFallback = Array.isArray(fieldDef?.enum) ? fieldDef.enum : [];
+  return createPropsFormCatalogLookupControl(entry, meta, "statuses", "catalog-status", {
+    locked,
+    enumFallback
+  });
+}
+
+function createPropsFormCatalogUsersControl(entry, meta, { locked = false } = {}) {
+  return createPropsFormCatalogLookupControl(entry, meta, "users", "catalog-users", { locked });
+}
+
+function createPropsFormCatalogPrioritiesControl(entry, meta, { locked = false } = {}) {
+  return createPropsFormCatalogLookupControl(entry, meta, "priorities", "catalog-priorities", { locked });
+}
+
+function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {}) {
+  const catalog = getAgentCatalogPreset("colors");
+  const wrap = createPropsFormValueWrap("catalog-colors");
+  const items = catalog.items || [];
+  const currentValue = getPropsEntryDisplayValue(entry);
+  const fieldKey = entry.key || "awn-color";
+  const isHex = (value) => /^#[0-9a-f]{3,8}$/i.test(String(value || "").trim());
+
+  if (!catalog.exists && !items.length) {
+    const fallback = createPropsFormTypedInputControl(entry, meta, "color", { locked });
+    appendPropsFormCatalogAddControl(fallback, "colors", fieldKey, { locked });
+    return fallback;
+  }
+
+  const matchedItem = items.find(
+    (item) => item.id === currentValue || item.color === currentValue || item.label === currentValue
+  );
+  const customHex = matchedItem ? "" : isHex(currentValue) ? currentValue : "";
+
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select";
+  appendPropsFormSelectOption(select, "", "— не выбрано —");
+
+  const groups = getCatalogGroups(catalog);
+  const appendColorGroup = (groupItems) => {
+    for (const item of groupItems) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.color ? `${item.label || item.id} (${item.color})` : item.label || item.id;
+      if (item.color) option.dataset.color = item.color;
+      if (matchedItem && matchedItem.id === item.id) option.selected = true;
+      select.appendChild(option);
+    }
+  };
+
+  appendColorGroup(groups.global.items);
+  if (groups.agent.items.length) appendColorGroup(groups.agent.items);
+
+  if (currentValue && !matchedItem && !customHex) {
+    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне справочника)`, {
+      selected: true
+    });
+  }
+
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+
+  const customWrap = document.createElement("label");
+  customWrap.className = "props-form-color-custom-wrap";
+  const customLabel = document.createElement("span");
+  customLabel.className = "props-form-color-custom-label";
+  customLabel.textContent = "Свой hex";
+  const customInput = document.createElement("input");
+  customInput.type = "text";
+  customInput.className = "props-form-value props-form-color-custom";
+  customInput.placeholder = "#2563eb";
+  customInput.value = customHex;
+  customInput.disabled = locked;
+  customWrap.append(customLabel, customInput);
+  wrap.appendChild(customWrap);
+
+  appendPropsFormCatalogAddControl(wrap, "colors", fieldKey, { locked });
   return wrap;
 }
 
@@ -21801,7 +22886,7 @@ function parsePropsFileRef(value, nodePath = activePath) {
     if (parsed.layer === STORAGE_SUBFOLDER_CONTENT) {
       return { mode: "external", file: parsed.relativePath };
     }
-    if (parsed.layer === STORAGE_SUBFOLDER_ASSETS) {
+    if (parsed.layer === STORAGE_SUBFOLDER_MEDIA) {
       return { mode: "media", file: parsed.relativePath };
     }
   }
@@ -21813,7 +22898,7 @@ function parsePropsFileRef(value, nodePath = activePath) {
     if (layerParsed?.layer === STORAGE_SUBFOLDER_CONTENT) {
       return { mode: "external", file: layerParsed.relativePath };
     }
-    if (layerParsed?.layer === STORAGE_SUBFOLDER_ASSETS) {
+    if (layerParsed?.layer === STORAGE_SUBFOLDER_MEDIA) {
       return { mode: "media", file: layerParsed.relativePath };
     }
   }
@@ -21875,7 +22960,7 @@ async function ensurePropsLibrariesLoaded(nodePath = getResolvedNodePath(activeP
               relativePath,
               label: item.name || relativePath.split("/").pop() || relativePath,
               group: groupName,
-              fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_ASSETS, relativePath, getPropsContextPath()),
+              fileRef: buildPropsFileRef(STORAGE_SUBFOLDER_MEDIA, relativePath, getPropsContextPath()),
               icon: getMediaIconForItem(item)
             });
           }
@@ -22104,7 +23189,7 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   }
   if (scope === "all" || scope === "media") {
     groups.push({
-      label: `Медиа (${STORAGE_SUBFOLDER_ASSETS}/)`,
+      label: `Медиа (${STORAGE_SUBFOLDER_MEDIA}/)`,
       items: mediaFiles.map((item) => ({
         value: item.fileRef,
         label: `${item.icon || "📎"} ${item.label}`
@@ -22117,7 +23202,7 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   manual.type = "text";
   manual.className = "props-form-value props-form-file-manual";
   manual.dataset.fileManual = "1";
-  manual.placeholder = `${STORAGE_SUBFOLDER_CONTENT}/note.md или ${STORAGE_SUBFOLDER_ASSETS}/image.png`;
+  manual.placeholder = `${STORAGE_SUBFOLDER_CONTENT}/note.md или ${STORAGE_SUBFOLDER_ASSETS}/attachments/image.png`;
   manual.value = select.value || currentValue;
   if (meta.hint) manual.title = meta.hint;
 
@@ -22291,6 +23376,980 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
   thumbWrap.appendChild(actions);
 }
 
+function parsePropsAttachmentsValue(entry) {
+  if (entry?.kind === "array" && Array.isArray(entry.value)) {
+    return entry.value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  const raw = String(entry?.value || "").trim();
+  if (!raw) return [];
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      // fall through
+    }
+  }
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function syncPropsAttachmentsHiddenInput(wrap, paths) {
+  const hidden = wrap.querySelector(".props-form-attachments-value");
+  if (hidden) hidden.value = JSON.stringify(paths);
+}
+
+function getPropsAttachmentsPathsFromWrap(wrap) {
+  const hidden = wrap.querySelector(".props-form-attachments-value");
+  try {
+    const parsed = JSON.parse(hidden?.value || "[]");
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function syncPropsAttachmentsEntryFromWrap(wrap) {
+  const paths = getPropsAttachmentsPathsFromWrap(wrap);
+  absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+  propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
+  const key = "awn-attachments";
+  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const base = index >= 0 ? propsFormEntries[index] : { key, kind: "array", value: [] };
+  const nextEntry = { ...base, key, kind: "array", value: paths };
+  if (index >= 0) propsFormEntries[index] = nextEntry;
+  else propsFormEntries.push(nextEntry);
+  syncYamlFromPropsForm();
+  syncSaveButtonLamp();
+}
+
+function buildAttachmentMarkdownSnippet(path, { mode = "embed", label = "", pathVariant = null } = {}) {
+  const canonical = toCanonicalAssetsUploadRef(path, ATTACHMENTS_ASSETS_SUBDIR);
+  if (!canonical) return "";
+  const href = formatAttachmentPathForVariant(
+    canonical,
+    pathVariant || getPropsAttachmentInsertPathVariant()
+  );
+  const fileName = canonical.split("/").pop() || "file";
+  const displayLabel =
+    String(label || "").trim() ||
+    getAttachmentDisplayLabelFromPath(path) ||
+    getAttachmentAltText(fileName);
+  const safeLabel = displayLabel.replace(/[[\]]/g, "");
+  if (mode === "embed" && ATTACHMENTS_IMAGE_EXT_RE.test(fileName)) {
+    return `\n![${safeLabel}](${href})\n`.trim();
+  }
+  return `[${safeLabel}](${href})`;
+}
+
+function resolveAttachmentMediaRelPath(path) {
+  const raw = String(path || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  if (/^assets\//i.test(raw)) return raw.replace(/^\/+/, "");
+  if (/^attachments\//i.test(raw)) return `${STORAGE_SUBFOLDER_ASSETS}/${raw.replace(/^\/+/, "")}`;
+  const canonical = normalizeAttachmentRefForCompare(raw);
+  const assetsRef = parseStorageAssetsRef(canonical || raw);
+  if (assetsRef?.mediaFile) return `${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
+  const assetsIdx = raw.toLowerCase().indexOf("/assets/");
+  if (assetsIdx >= 0) {
+    return raw.slice(assetsIdx + 1).replace(/^\/+/, "");
+  }
+  return raw.replace(/^assets\//i, "");
+}
+
+const attachmentSidecarMetaCache = new Map();
+let attachmentSidecarModalPath = null;
+
+function invalidateAttachmentSidecarMeta(path) {
+  attachmentSidecarMetaCache.delete(String(path || ""));
+}
+
+function getAttachmentDisplayLabelFromPath(path, meta = null) {
+  const fromMeta = String(meta?.name || "").trim();
+  if (fromMeta) return fromMeta;
+  const cached = attachmentSidecarMetaCache.get(String(path || ""));
+  if (cached?.name) return cached.name;
+  const fileName = String(path || "").split("/").pop() || "";
+  return getAttachmentAltText(fileName);
+}
+
+function buildAttachmentSidecarApiParams(mediaRel) {
+  return {
+    path: resolveManifestPathForNodeApi(getResolvedNodePath(activePath)),
+    contextPath: getUploadStorageContextPath(),
+    file: mediaRel
+  };
+}
+
+async function fetchAttachmentSidecarMeta(path) {
+  const key = String(path || "");
+  if (attachmentSidecarMetaCache.has(key)) {
+    return attachmentSidecarMetaCache.get(key);
+  }
+  const mediaRel = resolveAttachmentMediaRelPath(path);
+  if (!mediaRel) return null;
+  if (!getUploadStorageContextPath()) return null;
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/media/sidecar", buildAttachmentSidecarApiParams(mediaRel))
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    const entries = parsePropsYaml(splitFrontmatter(data.content || "").frontmatter);
+    const meta = {
+      name: getPropsEntryValueByKey(entries, "awn-name"),
+      description: getPropsEntryValueByKey(entries, "awn-description"),
+      mediaRel,
+      sourceFile: data.sourceFile || mediaRel,
+      content: data.content || "",
+      exists: Boolean(data.exists)
+    };
+    attachmentSidecarMetaCache.set(key, meta);
+    return meta;
+  } catch {
+    return null;
+  }
+}
+
+function buildAttachmentSidecarContent(originalFileName, existingContent = "") {
+  const now = new Date().toISOString();
+  const displayName = String(originalFileName || "").trim();
+  if (existingContent.trim()) {
+    const { frontmatter, body } = splitFrontmatter(existingContent);
+    const entries = parsePropsYaml(frontmatter);
+    const map = new Map(entries.map((entry) => [entry.key, entry]));
+    if (displayName) {
+      map.set("awn-name", { key: "awn-name", kind: "string", value: displayName });
+    }
+    if (!map.has("awn-type")) {
+      map.set("awn-type", { key: "awn-type", kind: "string", value: "awn.sidecar" });
+    }
+    if (!map.has("awn-create")) {
+      map.set("awn-create", { key: "awn-create", kind: "string", value: now });
+    }
+    map.set("awn-update", { key: "awn-update", kind: "string", value: now });
+    return joinFrontmatter(stringifyPropsYaml([...map.values()]), body);
+  }
+  const lines = [
+    "awn-type: awn.sidecar",
+    displayName ? `awn-name: ${formatYamlScalar(displayName)}` : 'awn-name: ""',
+    'awn-description: ""',
+    `awn-create: ${now}`,
+    `awn-update: ${now}`
+  ];
+  return joinFrontmatter(lines.join("\n"), "");
+}
+
+async function ensureAttachmentSidecar(path, originalFileName) {
+  const mediaRel = resolveAttachmentMediaRelPath(path);
+  if (!mediaRel || !getUploadStorageContextPath()) return;
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/media/sidecar", buildAttachmentSidecarApiParams(mediaRel))
+    );
+    const data = response.ok ? await response.json() : null;
+    if (data?.exists && data.content?.trim()) {
+      invalidateAttachmentSidecarMeta(path);
+      return;
+    }
+    const content = buildAttachmentSidecarContent(originalFileName, data?.content || "");
+    const saveResponse = await fetch(buildApiUrl("/api/media/sidecar"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...buildAttachmentSidecarApiParams(mediaRel), content })
+    });
+    if (!saveResponse.ok) {
+      throw new Error("Failed to save sidecar");
+    }
+    invalidateAttachmentSidecarMeta(path);
+  } catch {
+    // Sidecar is optional metadata — upload still succeeds.
+  }
+}
+
+async function saveAttachmentSidecarProps(path, { name, description }) {
+  const mediaRel = resolveAttachmentMediaRelPath(path);
+  if (!mediaRel || !getUploadStorageContextPath()) throw new Error("Не удалось определить путь");
+
+  let existingContent = "";
+  const response = await fetch(
+    buildApiUrl("/api/media/sidecar", buildAttachmentSidecarApiParams(mediaRel))
+  );
+  if (response.ok) {
+    const data = await response.json();
+    existingContent = data.content || "";
+  }
+
+  const { frontmatter, body } = splitFrontmatter(existingContent);
+  const entries = parsePropsYaml(frontmatter);
+  const map = new Map(entries.map((entry) => [entry.key, entry]));
+  map.set("awn-type", { key: "awn-type", kind: "string", value: "awn.sidecar" });
+  map.set("awn-name", { key: "awn-name", kind: "string", value: String(name || "").trim() });
+  map.set("awn-description", {
+    key: "awn-description",
+    kind: "string",
+    value: String(description || "").trim()
+  });
+  if (!map.has("awn-create")) {
+    map.set("awn-create", { key: "awn-create", kind: "string", value: new Date().toISOString() });
+  }
+  map.set("awn-update", { key: "awn-update", kind: "string", value: new Date().toISOString() });
+  const content = joinFrontmatter(stringifyPropsYaml([...map.values()]), body);
+
+  const saveResponse = await fetch(buildApiUrl("/api/media/sidecar"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...buildAttachmentSidecarApiParams(mediaRel), content })
+  });
+  if (!saveResponse.ok) {
+    const errorData = await saveResponse.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+  }
+  invalidateAttachmentSidecarMeta(path);
+}
+
+function closeAttachmentSidecarModal() {
+  attachmentSidecarModalPath = null;
+  attachmentSidecarModalNode?.classList.add("hidden");
+}
+
+async function openAttachmentSidecarPropsModal(path) {
+  if (!attachmentSidecarModalNode) return;
+  attachmentSidecarModalPath = path;
+  const mediaRel = resolveAttachmentMediaRelPath(path);
+  if (attachmentSidecarModalPathNode) {
+    attachmentSidecarModalPathNode.textContent = mediaRel || path;
+  }
+  const meta = (await fetchAttachmentSidecarMeta(path)) || {};
+  if (attachmentSidecarNameInputNode) {
+    attachmentSidecarNameInputNode.value =
+      meta.name || getAttachmentDisplayLabelFromPath(path) || "";
+  }
+  if (attachmentSidecarDescriptionInputNode) {
+    attachmentSidecarDescriptionInputNode.value = meta.description || "";
+  }
+  attachmentSidecarModalNode.classList.remove("hidden");
+  attachmentSidecarNameInputNode?.focus();
+  attachmentSidecarNameInputNode?.select();
+}
+
+async function hydrateAttachmentItemLabels(wrap) {
+  if (!wrap) return;
+  const items = wrap.querySelectorAll(".props-form-attachment-item");
+  await Promise.all(
+    [...items].map(async (item) => {
+      const path = item.dataset.path || "";
+      const meta = await fetchAttachmentSidecarMeta(path);
+      const nameNode = item.querySelector(".props-form-attachment-name");
+      if (!nameNode) return;
+      const label = getAttachmentDisplayLabelFromPath(path, meta);
+      nameNode.textContent = label;
+      nameNode.title = meta?.description ? `${label}\n${meta.description}` : path;
+    })
+  );
+}
+
+function normalizeAttachmentRefForCompare(path) {
+  return toCanonicalAssetsUploadRef(path, ATTACHMENTS_ASSETS_SUBDIR);
+}
+
+function isAttachmentsEditorRef(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  if (/\/attachments\//i.test(raw) || /^attachments\//i.test(raw)) return true;
+  const canonical = normalizeAttachmentRefForCompare(raw);
+  return Boolean(canonical && /\/attachments\//i.test(canonical));
+}
+
+function collectEditorAttachmentRefsSet() {
+  const content = getEditorContentValue() || "";
+  const refs = new Set();
+  if (!content.trim()) return refs;
+
+  const markdownLinkRe = /!?\[[^\]]*\]\(([^)"'\s]+)\)/g;
+  let match;
+  while ((match = markdownLinkRe.exec(content))) {
+    const href = match[1];
+    if (!isAttachmentsEditorRef(href)) continue;
+    const canonical = normalizeAttachmentRefForCompare(href);
+    if (canonical) refs.add(canonical);
+  }
+
+  const htmlImgRe = /<img[^>]+src=["']([^"']+)["']/gi;
+  while ((match = htmlImgRe.exec(content))) {
+    const href = match[1];
+    if (!isAttachmentsEditorRef(href)) continue;
+    const canonical = normalizeAttachmentRefForCompare(href);
+    if (canonical) refs.add(canonical);
+  }
+
+  return refs;
+}
+
+function isAttachmentReferencedInEditorBody(path, usedRefs = null) {
+  const canonical = normalizeAttachmentRefForCompare(path);
+  if (!canonical) return false;
+  const refs = usedRefs || collectEditorAttachmentRefsSet();
+  if (refs.has(canonical)) return true;
+
+  const fileName = canonical.split("/").pop();
+  if (!fileName) return false;
+  for (const ref of refs) {
+    if (ref.split("/").pop() === fileName) return true;
+  }
+  return false;
+}
+
+function formatPropsAttachmentStatusLabel(inBody, { simple = false } = {}) {
+  if (simple) return inBody ? "●" : "○";
+  return inBody ? "В тексте" : "Не вставлено";
+}
+
+function syncPropsAttachmentItemUsageState(item, inBody) {
+  item.classList.toggle("is-in-body", inBody);
+  item.classList.toggle("is-unlinked", !inBody);
+  const status = item.querySelector(".props-form-attachment-status");
+  if (!status) return;
+  const simple = item.classList.contains("props-form-attachment-item--simple");
+  status.textContent = formatPropsAttachmentStatusLabel(inBody, { simple });
+  status.title = inBody ? "В тексте" : "Не вставлено";
+}
+
+function refreshPropsAttachmentsUsageState() {
+  if (!propsAttachmentsBlockNode || propsAttachmentsBlockNode.classList.contains("hidden")) return;
+  const wrap = propsAttachmentsBlockNode.querySelector(".props-form-value-wrap--attachments");
+  if (!wrap) return;
+
+  const usedRefs = collectEditorAttachmentRefsSet();
+  wrap.querySelectorAll(".props-form-attachment-item").forEach((item) => {
+    const path = item.dataset.path || "";
+    const inBody = isAttachmentReferencedInEditorBody(path, usedRefs);
+    syncPropsAttachmentItemUsageState(item, inBody);
+  });
+}
+
+function insertAttachmentIntoEditor(path, mode = "embed") {
+  void (async () => {
+    const meta = await fetchAttachmentSidecarMeta(path);
+    const snippet = buildAttachmentMarkdownSnippet(path, {
+      mode,
+      label: getAttachmentDisplayLabelFromPath(path, meta)
+    });
+    if (!snippet) return;
+    const markdown = snippet.startsWith("\n") ? snippet : `\n${snippet}\n`;
+    insertMarkdownAtEditorCursor(markdown);
+    refreshPropsAttachmentsUsageState();
+  })();
+}
+
+function replaceAttachmentRefInEditor(oldPath, newPath) {
+  const oldCanonical = normalizeAttachmentRefForCompare(oldPath);
+  const newCanonical = normalizeAttachmentRefForCompare(newPath);
+  if (!oldCanonical || !newCanonical || oldCanonical === newCanonical) return;
+
+  const replaceInText = (text) => {
+    let next = String(text || "");
+    if (next.includes(oldCanonical)) {
+      next = next.split(oldCanonical).join(newCanonical);
+    }
+    const oldFile = oldCanonical.split("/").pop();
+    const newFile = newCanonical.split("/").pop();
+    if (oldFile && newFile && oldFile !== newFile) {
+      next = next.split(oldFile).join(newFile);
+    }
+    return next;
+  };
+
+  if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
+    const next = replaceInText(normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown()));
+    wysiwygEditorInstance.setMarkdown(normalizeWysiwygImportedMarkdown(next), false);
+    syncSourceFromWysiwygEditor();
+  } else {
+    fileContentInputNode.value = replaceInText(fileContentInputNode.value);
+  }
+  refreshPropsAttachmentsUsageState();
+  syncSaveButtonLamp();
+}
+
+async function uploadPropsAttachmentFile(file, wrap, { addToList = true, originalDisplayName = null } = {}) {
+  const storageFileName = buildAttachmentsStorageFileName(file);
+  const payload = await uploadMediaAttachment(file, {
+    subdir: ATTACHMENTS_ASSETS_SUBDIR,
+    fileName: storageFileName
+  });
+  const ref = toCanonicalAssetsUploadRef(
+    payload?.workspaceRef || payload?.assetsFile || `${ATTACHMENTS_ASSETS_SUBDIR}/${payload?.file}`,
+    ATTACHMENTS_ASSETS_SUBDIR
+  );
+  if (!ref) throw new Error("Не удалось получить путь к файлу");
+  await ensureAttachmentSidecar(ref, originalDisplayName || file.name);
+  if (addToList) {
+    const paths = getPropsAttachmentsPathsFromWrap(wrap);
+    if (!paths.includes(ref)) paths.push(ref);
+    syncPropsAttachmentsHiddenInput(wrap, paths);
+    renderPropsAttachmentsList(wrap, paths);
+    syncPropsAttachmentsEntryFromWrap(wrap);
+  }
+  return ref;
+}
+
+async function replacePropsAttachmentFile(oldPath, file, wrap) {
+  const oldMeta = await fetchAttachmentSidecarMeta(oldPath);
+  const newRef = await uploadPropsAttachmentFile(file, wrap, {
+    addToList: false,
+    originalDisplayName: oldMeta?.name || file.name
+  });
+  const paths = getPropsAttachmentsPathsFromWrap(wrap);
+  const nextPaths = paths.map((itemPath) => (itemPath === oldPath ? newRef : itemPath));
+  syncPropsAttachmentsHiddenInput(wrap, nextPaths);
+  renderPropsAttachmentsList(wrap, nextPaths);
+  syncPropsAttachmentsEntryFromWrap(wrap);
+  replaceAttachmentRefInEditor(oldPath, newRef);
+  invalidateAttachmentSidecarMeta(oldPath);
+  return newRef;
+}
+
+function createPropsAttachmentActionButton(className, title, label, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = className;
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  btn.textContent = label;
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  return btn;
+}
+
+function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = false } = {}) {
+  const item = document.createElement("div");
+  item.className = "props-form-attachment-item props-form-attachment-item--simple";
+  item.classList.toggle("is-in-body", inBody);
+  item.classList.toggle("is-unlinked", !inBody);
+  item.dataset.path = path;
+  if (!locked) item.draggable = true;
+
+  const fileName = path.split("/").pop() || path;
+  const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
+
+  if (isImage) {
+    const img = document.createElement("img");
+    img.className = "props-form-attachment-thumb";
+    img.src = resolveMarkdownAssetSrc(path, getPropsContextPath());
+    img.alt = fileName;
+    img.draggable = false;
+    item.appendChild(img);
+  } else {
+    const icon = document.createElement("span");
+    icon.className = "props-form-attachment-icon";
+    icon.textContent = "📎";
+    item.appendChild(icon);
+  }
+
+  const body = document.createElement("div");
+  body.className = "props-form-attachment-body";
+
+  const status = document.createElement("span");
+  status.className = "props-form-attachment-status props-form-attachment-status--dot";
+  status.textContent = formatPropsAttachmentStatusLabel(inBody, { simple: true });
+  status.title = inBody ? "В тексте" : "Не вставлено";
+  body.appendChild(status);
+
+  const name = document.createElement("span");
+  name.className = "props-form-attachment-name";
+  name.textContent = getAttachmentDisplayLabelFromPath(path);
+  name.title = path;
+  body.appendChild(name);
+
+  item.appendChild(body);
+
+  if (!locked) {
+    const actions = document.createElement("div");
+    actions.className = "props-form-attachment-actions";
+
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--insert",
+        "Вставить в текст",
+        "↵",
+        () => insertAttachmentIntoEditor(path, isImage ? "embed" : "link")
+      )
+    );
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--remove",
+        "Убрать из списка",
+        "×",
+        () => {
+          const next = getPropsAttachmentsPathsFromWrap(wrap).filter((itemPath) => itemPath !== path);
+          syncPropsAttachmentsHiddenInput(wrap, next);
+          renderPropsAttachmentsList(wrap, next, { locked });
+          syncPropsAttachmentsEntryFromWrap(wrap);
+        }
+      )
+    );
+    item.appendChild(actions);
+
+    item.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData(
+        "text/plain",
+        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
+      );
+      event.dataTransfer.effectAllowed = "copy";
+    });
+  }
+
+  return item;
+}
+
+function createPropsAttachmentItemExtended(path, wrap, { locked = false, inBody = false } = {}) {
+  const item = document.createElement("div");
+  item.className = "props-form-attachment-item";
+  item.classList.toggle("is-in-body", inBody);
+  item.classList.toggle("is-unlinked", !inBody);
+  item.dataset.path = path;
+  if (!locked) item.draggable = true;
+
+  const fileName = path.split("/").pop() || path;
+  const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
+
+  const main = document.createElement("div");
+  main.className = "props-form-attachment-main";
+
+  const preview = document.createElement("div");
+  preview.className = "props-form-attachment-preview";
+
+  if (isImage) {
+    const img = document.createElement("img");
+    img.className = "props-form-attachment-thumb";
+    img.src = resolveMarkdownAssetSrc(path, getPropsContextPath());
+    img.alt = fileName;
+    img.draggable = false;
+    preview.appendChild(img);
+  } else {
+    const icon = document.createElement("span");
+    icon.className = "props-form-attachment-icon";
+    icon.textContent = "📎";
+    preview.appendChild(icon);
+  }
+  main.appendChild(preview);
+
+  const body = document.createElement("div");
+  body.className = "props-form-attachment-body";
+
+  const name = document.createElement("span");
+  name.className = "props-form-attachment-name";
+  name.textContent = getAttachmentDisplayLabelFromPath(path);
+  name.title = path;
+  body.appendChild(name);
+
+  const storageName = document.createElement("span");
+  storageName.className = "props-form-attachment-storage-name";
+  storageName.textContent = fileName;
+  storageName.title = "Имя файла на диске (транслит)";
+  body.appendChild(storageName);
+
+  const pathFull = document.createElement("span");
+  pathFull.className = "props-form-attachment-path-line props-form-attachment-path-line--full";
+  pathFull.textContent = formatAttachmentPathForVariant(path, ATTACHMENT_PATH_VARIANT.full);
+  pathFull.title = "Полный путь";
+  body.appendChild(pathFull);
+
+  const pathShort = document.createElement("span");
+  pathShort.className = "props-form-attachment-path-line props-form-attachment-path-line--short";
+  pathShort.textContent = formatAttachmentPathForVariant(path, ATTACHMENT_PATH_VARIANT.short);
+  pathShort.title = "Короткий путь";
+  body.appendChild(pathShort);
+
+  const status = document.createElement("span");
+  status.className = "props-form-attachment-status";
+  status.textContent = inBody ? "В тексте" : "Не вставлено";
+  body.appendChild(status);
+
+  main.appendChild(body);
+  item.appendChild(main);
+
+  if (!locked) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "props-form-attachment-toolbar";
+
+    if (isImage) {
+      toolbar.appendChild(
+        createPropsAttachmentActionButton(
+          "props-form-attachment-action props-form-attachment-action--embed",
+          "Вставить как изображение",
+          "🖼",
+          () => insertAttachmentIntoEditor(path, "embed")
+        )
+      );
+    }
+    toolbar.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--link",
+        "Вставить как ссылку",
+        "🔗",
+        () => insertAttachmentIntoEditor(path, "link")
+      )
+    );
+
+    const replaceInput = document.createElement("input");
+    replaceInput.type = "file";
+    replaceInput.hidden = true;
+    replaceInput.addEventListener("change", () => {
+      const nextFile = replaceInput.files?.[0];
+      replaceInput.value = "";
+      if (!nextFile) return;
+      void replacePropsAttachmentFile(path, nextFile, wrap)
+        .then(() => showToast(`Файл заменён: ${nextFile.name}`, "success"))
+        .catch((error) => showToast(`Ошибка: ${error.message}`, "error"));
+    });
+
+    const replaceBtn = createPropsAttachmentActionButton(
+      "props-form-attachment-action props-form-attachment-action--replace",
+      "Заменить файл",
+      "↻",
+      () => replaceInput.click()
+    );
+    toolbar.appendChild(replaceBtn);
+    toolbar.appendChild(replaceInput);
+
+    toolbar.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--props",
+        "Свойства sidecar (awn-name, awn-description)",
+        "⚙",
+        () => void openAttachmentSidecarPropsModal(path)
+      )
+    );
+
+    toolbar.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--remove",
+        "Убрать из списка",
+        "×",
+        () => {
+          const next = getPropsAttachmentsPathsFromWrap(wrap).filter((itemPath) => itemPath !== path);
+          syncPropsAttachmentsHiddenInput(wrap, next);
+          renderPropsAttachmentsList(wrap, next, { locked });
+          syncPropsAttachmentsEntryFromWrap(wrap);
+        }
+      )
+    );
+
+    item.appendChild(toolbar);
+
+    item.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData(
+        "text/plain",
+        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
+      );
+      event.dataTransfer.effectAllowed = "copy";
+    });
+  }
+
+  return item;
+}
+
+function buildRegisteredAttachmentsCompareSet(paths) {
+  const set = new Set();
+  for (const itemPath of paths) {
+    const canonical = normalizeAttachmentRefForCompare(itemPath);
+    if (canonical) set.add(canonical);
+    const fileName = String(itemPath || "").split("/").pop();
+    if (fileName) set.add(`__basename__:${fileName.toLowerCase()}`);
+  }
+  return set;
+}
+
+function isRegisteredAttachmentPath(path, registeredSet) {
+  const canonical = normalizeAttachmentRefForCompare(path);
+  if (canonical && registeredSet.has(canonical)) return true;
+  const fileName = String(path || "").split("/").pop();
+  return Boolean(fileName && registeredSet.has(`__basename__:${fileName.toLowerCase()}`));
+}
+
+function buildPropsAttachmentsListApiParams() {
+  return {
+    path: resolveManifestPathForNodeApi(getResolvedNodePath(activePath)),
+    contextPath: getUploadStorageContextPath()
+  };
+}
+
+async function fetchPropsAttachmentFolderFiles() {
+  const params = buildPropsAttachmentsListApiParams();
+  if (!params.contextPath) return [];
+  try {
+    const response = await fetch(buildApiUrl("/api/media/attachments", params));
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data.files) ? data.files : [];
+  } catch {
+    return [];
+  }
+}
+
+function addPropsAttachmentPathToWrap(wrap, path, { locked = false } = {}) {
+  const ref = normalizeAttachmentRefForCompare(path) || String(path || "").trim();
+  if (!ref) return false;
+  const paths = getPropsAttachmentsPathsFromWrap(wrap);
+  const registered = buildRegisteredAttachmentsCompareSet(paths);
+  if (isRegisteredAttachmentPath(ref, registered)) return false;
+  paths.push(ref);
+  syncPropsAttachmentsHiddenInput(wrap, paths);
+  renderPropsAttachmentsList(wrap, paths, { locked });
+  syncPropsAttachmentsEntryFromWrap(wrap);
+  void refreshPropsAttachmentsOrphans(wrap, { locked });
+  return true;
+}
+
+function createPropsAttachmentOrphanItem(path, wrap, { locked = false } = {}) {
+  const item = document.createElement("div");
+  item.className =
+    "props-form-attachment-item props-form-attachment-item--simple props-form-attachment-item--orphan is-unlinked";
+  item.dataset.path = path;
+  if (!locked) item.draggable = true;
+
+  const fileName = path.split("/").pop() || path;
+  const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
+
+  if (isImage) {
+    const img = document.createElement("img");
+    img.className = "props-form-attachment-thumb";
+    img.src = resolveMarkdownAssetSrc(path, getPropsContextPath());
+    img.alt = fileName;
+    img.draggable = false;
+    item.appendChild(img);
+  } else {
+    const icon = document.createElement("span");
+    icon.className = "props-form-attachment-icon";
+    icon.textContent = "📎";
+    item.appendChild(icon);
+  }
+
+  const body = document.createElement("div");
+  body.className = "props-form-attachment-body";
+
+  const status = document.createElement("span");
+  status.className = "props-form-attachment-status props-form-attachment-status--dot";
+  status.textContent = "◌";
+  status.title = "Файл в папке, не в YAML-шапке";
+  body.appendChild(status);
+
+  const name = document.createElement("span");
+  name.className = "props-form-attachment-name";
+  name.textContent = getAttachmentDisplayLabelFromPath(path);
+  name.title = path;
+  body.appendChild(name);
+
+  item.appendChild(body);
+
+  if (!locked) {
+    const actions = document.createElement("div");
+    actions.className = "props-form-attachment-actions";
+
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--register",
+        "Добавить в список (YAML-шапка)",
+        "+",
+        () => {
+          if (addPropsAttachmentPathToWrap(wrap, path, { locked })) {
+            showToast(`Добавлено в список: ${getAttachmentDisplayLabelFromPath(path)}`, "success");
+          }
+        }
+      )
+    );
+    actions.appendChild(
+      createPropsAttachmentActionButton(
+        "props-form-attachment-action props-form-attachment-action--insert",
+        "Вставить в текст",
+        "↵",
+        () => insertAttachmentIntoEditor(path, isImage ? "embed" : "link")
+      )
+    );
+    item.appendChild(actions);
+
+    item.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData(
+        "text/plain",
+        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
+      );
+      event.dataTransfer.setData(
+        "application/x-agentcms-attachment-ref",
+        normalizeAttachmentRefForCompare(path) || path
+      );
+      event.dataTransfer.effectAllowed = "copy";
+    });
+  }
+
+  return item;
+}
+
+async function refreshPropsAttachmentsOrphans(wrap, { locked = false } = {}) {
+  if (!wrap) return;
+  const section = wrap.querySelector(".props-form-attachments-orphans");
+  const list = wrap.querySelector(".props-form-attachments-orphans-list");
+  if (!section || !list) return;
+
+  const registered = buildRegisteredAttachmentsCompareSet(getPropsAttachmentsPathsFromWrap(wrap));
+  const folderFiles = await fetchPropsAttachmentFolderFiles();
+  const orphans = folderFiles
+    .map((file) => file.workspaceRef || file.mediaRel || file.name)
+    .filter((path) => path && !isRegisteredAttachmentPath(path, registered));
+
+  list.replaceChildren();
+  if (!orphans.length) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  section.classList.remove("hidden");
+  for (const path of orphans) {
+    list.appendChild(createPropsAttachmentOrphanItem(path, wrap, { locked }));
+  }
+  void hydrateAttachmentItemLabels(wrap);
+}
+
+function renderPropsAttachmentsList(wrap, paths, { locked = false } = {}) {
+  const list = wrap.querySelector(".props-form-attachments-list");
+  if (!list) return;
+  const usedRefs = collectEditorAttachmentRefsSet();
+  const extended = isPropsAttachmentUiExtended();
+  list.classList.toggle("props-form-attachments-list--simple", !extended);
+  list.classList.toggle("props-form-attachments-list--extended", extended);
+  list.replaceChildren();
+
+  for (const path of paths) {
+    const inBody = isAttachmentReferencedInEditorBody(path, usedRefs);
+    const item = extended
+      ? createPropsAttachmentItemExtended(path, wrap, { locked, inBody })
+      : createPropsAttachmentItemSimple(path, wrap, { locked, inBody });
+    list.appendChild(item);
+  }
+
+  void hydrateAttachmentItemLabels(wrap);
+  void refreshPropsAttachmentsOrphans(wrap, { locked });
+}
+
+function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("attachments");
+  wrap.classList.add("props-form-value-wrap--attachments");
+
+  const paths = parsePropsAttachmentsValue(entry);
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "props-form-value props-form-attachments-value";
+  hidden.value = JSON.stringify(paths);
+  hidden.dataset.field = "value";
+  if (locked) hidden.disabled = true;
+  wrap.appendChild(hidden);
+
+  const list = document.createElement("div");
+  list.className = "props-form-attachments-list";
+  wrap.appendChild(list);
+
+  if (!locked) {
+    const uploadZone = document.createElement("div");
+    uploadZone.className = "props-form-attachments-upload";
+    uploadZone.tabIndex = 0;
+    uploadZone.textContent = "+ Прикрепить файл";
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.hidden = true;
+    input.multiple = true;
+
+    const handleFiles = async (files) => {
+      uploadZone.classList.add("is-uploading");
+      for (const file of files) {
+        try {
+          await uploadPropsAttachmentFile(file, wrap);
+          showToast(`Файл прикреплён: ${file.name}`, "success");
+        } catch (error) {
+          showToast(`Ошибка: ${error.message}`, "error");
+        }
+      }
+      uploadZone.classList.remove("is-uploading");
+      input.value = "";
+    };
+
+    uploadZone.addEventListener("click", () => input.click());
+    uploadZone.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      input.click();
+    });
+    uploadZone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      uploadZone.classList.add("is-dragover");
+    });
+    uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("is-dragover"));
+    uploadZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      uploadZone.classList.remove("is-dragover");
+      const files = event.dataTransfer?.files ? [...event.dataTransfer.files] : [];
+      if (files.length) void handleFiles(files);
+    });
+    input.addEventListener("change", () => {
+      if (input.files?.length) void handleFiles([...input.files]);
+    });
+
+    wrap.append(uploadZone, input);
+  }
+
+  const orphansSection = document.createElement("div");
+  orphansSection.className = "props-form-attachments-orphans hidden";
+
+  const orphansTitle = document.createElement("h5");
+  orphansTitle.className = "props-form-attachments-orphans-title";
+  orphansTitle.textContent = "В папке, не в списке";
+  orphansTitle.title =
+    "Файлы в assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
+  orphansSection.appendChild(orphansTitle);
+
+  const orphansList = document.createElement("div");
+  orphansList.className = "props-form-attachments-orphans-list";
+  orphansSection.appendChild(orphansList);
+  wrap.appendChild(orphansSection);
+
+  if (!locked) {
+    const registeredList = wrap.querySelector(".props-form-attachments-list");
+    registeredList?.addEventListener("dragover", (event) => {
+      const types = event.dataTransfer?.types || [];
+      if (
+        !types.includes("application/x-agentcms-attachment-ref") &&
+        !types.includes("text/plain")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      registeredList.classList.add("is-dragover-register");
+    });
+    registeredList?.addEventListener("dragleave", () =>
+      registeredList.classList.remove("is-dragover-register")
+    );
+    registeredList?.addEventListener("drop", (event) => {
+      registeredList.classList.remove("is-dragover-register");
+      const ref =
+        event.dataTransfer?.getData("application/x-agentcms-attachment-ref") ||
+        event.dataTransfer?.getData("text/plain");
+      if (!ref || !isAttachmentsEditorRef(ref)) return;
+      event.preventDefault();
+      if (addPropsAttachmentPathToWrap(wrap, ref, { locked })) {
+        showToast(`Добавлено в список: ${getAttachmentDisplayLabelFromPath(ref)}`, "success");
+      }
+    });
+  }
+
+  renderPropsAttachmentsList(wrap, paths, { locked });
+  return wrap;
+}
+
 function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
   const wrap = createPropsFormValueWrap("preview");
   wrap.classList.add("props-form-value-wrap--preview");
@@ -22339,6 +24398,18 @@ function createPropsFormValueControl(entry, meta) {
   if (widget === "catalog-tags") {
     return createPropsFormCatalogTagsControl(entry, meta, { locked });
   }
+  if (widget === "catalog-status") {
+    return createPropsFormCatalogStatusControl(entry, meta, { locked });
+  }
+  if (widget === "catalog-users") {
+    return createPropsFormCatalogUsersControl(entry, meta, { locked });
+  }
+  if (widget === "catalog-priorities") {
+    return createPropsFormCatalogPrioritiesControl(entry, meta, { locked });
+  }
+  if (widget === "catalog-colors") {
+    return createPropsFormCatalogColorsControl(entry, meta, { locked });
+  }
   if (widget === "link") {
     return createPropsFormLinkControl(entry, meta, { locked });
   }
@@ -22361,6 +24432,9 @@ function createPropsFormValueControl(entry, meta) {
   }
   if (widget === "preview") {
     return createPropsFormPreviewControl(entry, meta, { locked });
+  }
+  if (widget === "attachments") {
+    return createPropsFormAttachmentsControl(entry, meta, { locked });
   }
   if (widget === "url") {
     return createPropsFormTypedInputControl(entry, meta, "url", { locked });
@@ -22389,14 +24463,23 @@ function readPropsFormValueFromControl(valueWrap) {
     const hidden = valueWrap.querySelector(".props-form-preview-value");
     return hidden?.value ?? "";
   }
+  if (widget === "attachments") {
+    return getPropsAttachmentsPathsFromWrap(valueWrap).join(", ");
+  }
   if (widget === "boolean") {
     const checkbox = valueWrap.querySelector('input[type="checkbox"]');
     return checkbox?.checked ? "true" : "false";
   }
   if (widget === "catalog-tags") {
-    return [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
+    const fromCheckboxes = [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
       .map((input) => input.value)
-      .join(", ");
+      .filter(Boolean);
+    const extra = valueWrap.querySelector(".props-form-tags-extra");
+    const extraTags = String(extra?.value || "")
+      .split(",")
+      .map((item) => item.trim().replace(/^#+/, ""))
+      .filter(Boolean);
+    return [...new Set([...fromCheckboxes, ...extraTags])].join(", ");
   }
   if (widget === "link") {
     const select = valueWrap.querySelector("select");
@@ -22412,7 +24495,20 @@ function readPropsFormValueFromControl(valueWrap) {
     const selectValue = String(select?.value || "").trim();
     return manualValue || selectValue;
   }
-  if (widget === "select" || widget === "catalog-category") {
+  if (widget === "catalog-colors") {
+    const custom = valueWrap.querySelector(".props-form-color-custom");
+    const customValue = String(custom?.value || "").trim();
+    if (customValue) return customValue;
+    const select = valueWrap.querySelector("select");
+    return String(select?.value || "").trim();
+  }
+  if (
+    widget === "select" ||
+    widget === "catalog-category" ||
+    widget === "catalog-status" ||
+    widget === "catalog-users" ||
+    widget === "catalog-priorities"
+  ) {
     const select = valueWrap.querySelector("select");
     return select?.value ?? "";
   }
@@ -22423,9 +24519,11 @@ function readPropsFormValueFromControl(valueWrap) {
 function createPropsFormFieldRow(entry, index) {
   const meta = getPropsFieldMeta(entry.key);
   const isPreviewField = normalizePropsKey(entry.key) === "awn-preview";
+  const isAttachmentsField = normalizePropsKey(entry.key) === "awn-attachments";
   const row = document.createElement("div");
   row.className = "props-form-row props-form-field props-form-field--compact";
   if (isPreviewField) row.classList.add("props-form-field--preview");
+  if (isAttachmentsField) row.classList.add("props-form-field--attachments");
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
@@ -22456,9 +24554,14 @@ function createPropsFormFieldRow(entry, index) {
     row.append(head, valueControl);
   }
 
+  const catalogWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
   const needsCatalog =
-    resolvePropsFieldWidget(entry.key, meta.fieldDef) === "catalog-category" ||
-    resolvePropsFieldWidget(entry.key, meta.fieldDef) === "catalog-tags";
+    catalogWidget === "catalog-category" ||
+    catalogWidget === "catalog-tags" ||
+    catalogWidget === "catalog-status" ||
+    catalogWidget === "catalog-users" ||
+    catalogWidget === "catalog-priorities" ||
+    catalogWidget === "catalog-colors";
   if (needsCatalog && !agentCatalogsCache && activeAgentId) {
     loadAgentCatalogs(activeAgentId);
   }
@@ -22513,6 +24616,7 @@ function readPropsFormIntoEntries() {
   });
 
   propsFormEntries = mergePropsPreviewIntoEntries(nextEntries);
+  propsFormEntries = mergePropsAttachmentsIntoEntries(propsFormEntries);
 }
 
 function togglePropsRawYaml() {
@@ -24124,7 +26228,7 @@ function renderOverviewMediaLink(mediaData, nodePath = activePath) {
 
   const linkTitle = document.createElement("span");
   linkTitle.className = "node-overview-media-link-title";
-  linkTitle.textContent = "Медиа и документы";
+  linkTitle.textContent = "Медиа";
 
   const linkDesc = document.createElement("span");
   linkDesc.className = "node-overview-media-link-desc";
@@ -24809,12 +26913,12 @@ function appendNavigationExternalNonMdNotice(container, nonMarkdownFiles) {
 
   if (items.length === 1) {
     notice.textContent = examples
-      ? `В каталоге найден файл не в формате Markdown: ${examples}. Он не отображается в многофайловой памяти — используйте «Медиа и документы».`
-      : "В каталоге найден файл не в формате Markdown. Он не отображается в многофайловой памяти — используйте «Медиа и документы».";
+      ? `В каталоге найден файл не в формате Markdown: ${examples}. Он не отображается в многофайловой памяти — используйте «Медиа».`
+      : "В каталоге найден файл не в формате Markdown. Он не отображается в многофайловой памяти — используйте «Медиа».";
   } else {
     notice.textContent = examples
-      ? `В каталоге найдено ${items.length} файлов не в формате .md (например: ${examples}${suffix}). Они не отображаются в многофайловой памяти — используйте «Медиа и документы».`
-      : `В каталоге найдено ${items.length} файлов не в формате .md. Они не отображаются в многофайловой памяти — используйте «Медиа и документы».`;
+      ? `В каталоге найдено ${items.length} файлов не в формате .md (например: ${examples}${suffix}). Они не отображаются в многофайловой памяти — используйте «Медиа».`
+      : `В каталоге найдено ${items.length} файлов не в формате .md. Они не отображаются в многофайловой памяти — используйте «Медиа».`;
   }
 
   container.appendChild(notice);
@@ -25434,7 +27538,7 @@ function renderNavigationMediaPart(mediaData) {
   });
   nav.appendChild(list);
   body.appendChild(nav);
-  return createNavigationMemoryPanel("media", "Медиа и документы", body);
+  return createNavigationMemoryPanel("media", "Медиа", body);
 }
 
 function splitNavigationManifestAtHorizontalRule(content) {
@@ -27374,7 +29478,7 @@ async function refreshPreviewUiAfterChange() {
 async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
   if (!activePath || !file) return;
   if (!isAllowedPreviewFile(file)) {
-    showToast(`Допустимы только JPG, PNG и GIF (${STORAGE_SUBFOLDER_ASSETS}/${PREVIEW_ASSETS_SUBDIR}/)`, "error");
+    showToast(`Допустимы только JPG, PNG и GIF (${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PREVIEW_ASSETS_SUBDIR}/)`, "error");
     return;
   }
 
@@ -27391,10 +29495,9 @@ async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
     const relativeFile = payload?.file;
     if (!relativeFile) throw new Error("Upload response missing file path");
 
-    const previewRef = buildPropsFileRef(
-      STORAGE_SUBFOLDER_ASSETS,
-      relativeFile,
-      getPropsContextPath()
+    const previewRef = toCanonicalAssetsUploadRef(
+      payload?.workspaceRef || payload?.assetsFile || `${PREVIEW_ASSETS_SUBDIR}/${relativeFile}`,
+      PREVIEW_ASSETS_SUBDIR
     );
     await setPropsPreviewValue(previewRef, { save: true, showToastOnSuccess: false });
     showToast("Превью сохранено", "success");
@@ -27887,14 +29990,38 @@ function normalizeWysiwygExportedMarkdown(markdown) {
       try {
         const parsed = new URL(url, window.location.origin);
         const relFile = decodeURIComponent(parsed.searchParams.get("file") || "");
-        const ref = buildMarkdownAttachmentRef(
-          relFile,
-          getMarkdownAssetSourcePath() || getActiveNodeApiPath()
-        );
-        return ref ? `![${alt}](${ref})` : match;
+        const ref = toCanonicalAssetsUploadRef(relFile, PASTED_ASSETS_SUBDIR);
+        const formatted = ref ? formatInlineAssetPathForEditor(ref) : "";
+        return formatted ? `![${alt}](${formatted})` : match;
       } catch {
         return match;
       }
+    }
+  );
+  normalized = normalized.replace(
+    /!\[([^\]]*)\]\(([^)\s"#]+)(?:\s+"[^"]*")?\)/g,
+    (match, alt, url) => {
+      const trimmed = String(url || "").trim();
+      if (!trimmed || /^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return match;
+      if (/^awn-storage\//i.test(trimmed)) return match;
+      if (trimmed.startsWith("/api/")) return match;
+      const looksLikeInlineAsset =
+        /\/assets\/(pasted|preview|attachments)\//i.test(trimmed) ||
+        /^(\.\.\/)+/.test(trimmed) ||
+        /^assets\//i.test(trimmed) ||
+        /^pasted\//i.test(trimmed) ||
+        /^preview\//i.test(trimmed) ||
+        /^attachments\//i.test(trimmed);
+      if (!looksLikeInlineAsset) return match;
+      const subdir = /preview/i.test(trimmed)
+        ? PREVIEW_ASSETS_SUBDIR
+        : /attachments/i.test(trimmed)
+          ? ATTACHMENTS_ASSETS_SUBDIR
+          : PASTED_ASSETS_SUBDIR;
+      const canonical = toCanonicalAssetsUploadRef(trimmed, subdir);
+      if (!canonical) return match;
+      const formatted = formatInlineAssetPathForEditor(canonical);
+      return formatted && formatted !== trimmed ? `![${alt}](${formatted})` : match;
     }
   );
   return normalized;
@@ -27960,9 +30087,24 @@ function initWysiwygEditor() {
       .then(({ payload, normalizedFile }) => {
         const relativeFile = payload?.file;
         if (!relativeFile) throw new Error("Upload response missing file path");
-        callback(buildMediaAssetUrl(relativeFile), getAttachmentAltText(normalizedFile.name || file.name));
+        const displayUrl = payload?.imageUrl
+          ? appendAgentToApiUrl(payload.imageUrl)
+          : resolveStorageAssetsRefToApiUrl(
+              parseStorageAssetsRef(
+                payload?.workspaceRef ||
+                  buildAssetsUploadRef(
+                    resolveManifestPathForNodeApi(getResolvedNodePath(activePath)),
+                    PASTED_ASSETS_SUBDIR,
+                    relativeFile
+                  )
+              )
+            );
+        callback(displayUrl, getAttachmentAltText(normalizedFile.name || file.name));
         syncSourceFromWysiwygEditor();
-        showToast(`Изображение сохранено в ${buildStorageLayerRef(getResolvedNodePath(activePath), STORAGE_SUBFOLDER_ASSETS, `${PASTED_ASSETS_SUBDIR}/`)}`, "success");
+        const slotDir = getNamedStorageSlotDirRel(
+          resolveManifestPathForNodeApi(getResolvedNodePath(activePath))
+        );
+        showToast(`Изображение сохранено в ${slotDir}/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`, "success");
         void refreshMediaListIfVisible();
       })
       .catch((error) => {
@@ -27974,6 +30116,7 @@ function initWysiwygEditor() {
     if (editorViewMode !== "wysiwyg") return;
     syncSourceFromWysiwygEditor();
     syncSaveButtonLamp();
+    refreshPropsAttachmentsUsageState();
   });
 
   syncSaveButtonLamp();
@@ -34710,13 +36853,17 @@ const AGENT_TABLE_SORT_KEYS = new Set([
 
 function agentTableRowMatchesQuery(row, query) {
   if (!query) return true;
+  const tagLabels = Array.isArray(row.tagsDisplay) ? row.tagsDisplay : row.tags;
   const haystack = [
     row.label,
     row.displayPath,
     row.slotKey,
     row.slotDir,
     row.category,
-    ...(Array.isArray(row.tags) ? row.tags : [])
+    row.status,
+    row.owner,
+    row.priority,
+    ...(Array.isArray(tagLabels) ? tagLabels : [])
   ]
     .filter(Boolean)
     .join(" ")
@@ -35109,7 +37256,10 @@ async function renderAgentTableView() {
       { key: "slotDir", label: `Слот ${STORAGE_FOLDER_NAME}` },
       { key: "layerPresent", label: "Слои" },
       { key: null, label: "Превью" },
+      { key: null, label: "Статус" },
       { key: null, label: "Категория" },
+      { key: null, label: "Владелец" },
+      { key: null, label: "Приоритет" },
       { key: null, label: "Теги" },
       { key: "manifestUpdatedAt", label: "Манифест" }
     ];
@@ -35215,14 +37365,29 @@ async function renderAgentTableView() {
       previewCell.textContent = row.hasPreview ? "Да" : "—";
       tr.appendChild(previewCell);
 
+      const statusCell = document.createElement("td");
+      statusCell.className = "agent-table-cell";
+      statusCell.textContent = row.status || "—";
+      tr.appendChild(statusCell);
+
       const categoryCell = document.createElement("td");
       categoryCell.className = "agent-table-cell";
       categoryCell.textContent = row.category || "—";
       tr.appendChild(categoryCell);
 
+      const ownerCell = document.createElement("td");
+      ownerCell.className = "agent-table-cell";
+      ownerCell.textContent = row.owner || "—";
+      tr.appendChild(ownerCell);
+
+      const priorityCell = document.createElement("td");
+      priorityCell.className = "agent-table-cell";
+      priorityCell.textContent = row.priority || "—";
+      tr.appendChild(priorityCell);
+
       const tagsCell = document.createElement("td");
       tagsCell.className = "agent-table-cell agent-table-cell--tags";
-      const tags = Array.isArray(row.tags) ? row.tags : [];
+      const tags = Array.isArray(row.tagsDisplay) ? row.tagsDisplay : Array.isArray(row.tags) ? row.tags : [];
       if (tags.length) {
         for (const tag of tags.slice(0, 4)) {
           const chip = document.createElement("span");
@@ -35918,7 +38083,7 @@ function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
 }
 
 function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
-  if (type === "catalog" || type === "service-doc") {
+  if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
     return getActiveAgentKitFolder(agentId) || ".";
   }
   const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
@@ -36250,7 +38415,7 @@ function patchMenuTreeInsertCreatedChild({
   agentId = activeAgentId
 }) {
   if (!canIncrementalMenuPatch()) return false;
-  if (type === "manifest" || type === "catalog" || type === "service-doc") return false;
+  if (type === "manifest" || type === "catalog" || type === "taxonomy" || type === "service-doc") return false;
 
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -36409,7 +38574,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
   try {
     if (canIncrementalMenuPatch()) {
       withPreservedMenuScroll(() => {
-        if (type === "catalog" || type === "service-doc") {
+        if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
           patched = patchServiceMenuAfterCreate(agentId);
         } else if (type === "container-root") {
           patched = patchContainerMenuAfterCreate(agentId);
@@ -36623,7 +38788,7 @@ async function createNode(type, options = {}) {
   const displayName = createNameInputNode?.value?.trim() ?? "";
   const slug = getCreateSlugInputValue();
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
-  if (!displayName && type !== "manifest" && type !== "catalog" && type !== "service-doc") {
+  if (!displayName && type !== "manifest" && type !== "catalog" && type !== "taxonomy" && type !== "service-doc") {
     showToast("Введите название", "error");
     return;
   }
@@ -36642,7 +38807,7 @@ async function createNode(type, options = {}) {
       displayName: type === "manifest" ? displayName || folderLabel : displayName,
       slug: type === "folder" || type === "file" || isManifestAdopt ? slug : ""
     };
-    if (type === "catalog" || type === "service-doc") {
+    if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
       payload.preset = options.preset || name;
       payload.parentPath = getActiveAgentKitFolder(agentId) || createTargetParentPath;
     }
@@ -36664,7 +38829,7 @@ async function createNode(type, options = {}) {
     closeCreateNodeModal();
     await applyMenuUpdateAfterCreate({ createdPath: data.createdPath, type, agentId });
     const createdLabel =
-      type === "catalog"
+      type === "catalog" || type === "taxonomy"
         ? `Справочник «${SERVICE_CATALOG_PRESET_LABELS[data.preset] || data.preset || "catalog"}» создан`
         : type === "service-doc"
           ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.md)`
@@ -37645,6 +39810,7 @@ fileContentInputNode.addEventListener("input", () => {
   }
   applySourceEditorAutoHeightUi();
   syncSaveButtonLamp();
+  refreshPropsAttachmentsUsageState();
 });
 
 fileContentInputNode.addEventListener("scroll", syncEditorLineNumbersScroll);
@@ -37779,6 +39945,25 @@ document.addEventListener("keydown", (event) => {
 nodeWorkspaceCloseBtn?.addEventListener("click", handleWorkspaceCloseClick);
 confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
 confirmOkBtn.addEventListener("click", () => closeConfirm(true));
+attachmentSidecarCancelBtn?.addEventListener("click", () => closeAttachmentSidecarModal());
+attachmentSidecarModalNode?.addEventListener("click", (event) => {
+  if (event.target === attachmentSidecarModalNode) closeAttachmentSidecarModal();
+});
+attachmentSidecarSaveBtn?.addEventListener("click", () => {
+  const path = attachmentSidecarModalPath;
+  if (!path) return;
+  void saveAttachmentSidecarProps(path, {
+    name: attachmentSidecarNameInputNode?.value || "",
+    description: attachmentSidecarDescriptionInputNode?.value || ""
+  })
+    .then(async () => {
+      closeAttachmentSidecarModal();
+      showToast("Свойства вложения сохранены", "success");
+      const wrap = propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments");
+      if (wrap) await hydrateAttachmentItemLabels(wrap);
+    })
+    .catch((error) => showToast(`Ошибка: ${error.message}`, "error"));
+});
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));
 createFolderBtn?.addEventListener("click", () => createNode("folder"));
 createFileBtn?.addEventListener("click", () => createNode("file"));

@@ -8,7 +8,7 @@ module.exports = {
     "Актуальная справка по коду server.js (июнь 2026). В UI: select «0.0.1 — актуальная».",
     "JSON-ответы, UTF-8. ?version=0.0.1 по умолчанию; 0.0.0 — предыдущий снимок.",
     "Контекст агента ?agent=<id>: все маршруты, кроме /api/agents*, /api/docs*, /api/mcp-docs*, /api/user-docs*, /api/public/images.",
-    "path — путь к _registration.md; file — путь в content/ или assets/."
+    "path — путь к _registration.md; file — путь в content/ или media/."
   ],
   groups: [
     {
@@ -445,7 +445,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media",
-          description: "Файлы assets, группы по типу.",
+          description: "Файлы media, группы по типу.",
           query: ["path"],
           body: null,
           response: "{ exists, files, content, groups }"
@@ -453,7 +453,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media/file",
-          description: "Скачать бинарный файл из assets.",
+          description: "Скачать бинарный файл из media.",
           query: ["path", "file"],
           body: null,
           response: "Binary (Content-Type по расширению)"
@@ -461,7 +461,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/media/file",
-          description: "Загрузить файл в assets (base64).",
+          description: "Загрузить файл в media (base64).",
           query: [],
           body: "{ path, data, fileName?, mimeType? }",
           response: "{ file, imageUrl }"

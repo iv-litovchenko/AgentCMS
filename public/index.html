@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent CMS</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.74" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.75" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -116,7 +116,7 @@
               <select id="content-search-scope" class="content-search-scope" aria-label="Область поиска">
                 <option value="filename">В названии файла</option>
                 <option value="content" selected>В содержимом</option>
-                <option value="tags" disabled>В тэгах</option>
+                <option value="tags">В тэгах</option>
               </select>
               <input
                 id="content-search-input"
@@ -467,6 +467,7 @@
                   <select id="app-landing-search-scope" class="app-landing-search-scope" aria-label="Область поиска">
                     <option value="content">Содержимое</option>
                     <option value="filename">Имя файла</option>
+                    <option value="tags">Теги</option>
                   </select>
                   <input
                     id="app-landing-search-input"
@@ -488,6 +489,8 @@
               </div>
               <div id="app-landing-search-agents" class="app-landing-search-agents" role="group" aria-label="Агенты для поиска"></div>
             </section>
+
+            <section id="app-landing-platform" class="app-landing-platform hidden" aria-labelledby="app-landing-platform-title"></section>
 
             <header class="app-landing-header">
               <div class="app-landing-header-copy">
@@ -701,6 +704,30 @@
                       ></div>
                     </div>
                   </div>
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Категория</span>
+                    <select id="app-landing-focus-filter-category" class="agent-focus-toolbar-select" aria-label="Фильтр по категории">
+                      <option value="">Все</option>
+                    </select>
+                  </label>
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Тег</span>
+                    <select id="app-landing-focus-filter-tag" class="agent-focus-toolbar-select" aria-label="Фильтр по тегу">
+                      <option value="">Все</option>
+                    </select>
+                  </label>
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Владелец</span>
+                    <select id="app-landing-focus-filter-owner" class="agent-focus-toolbar-select" aria-label="Фильтр по владельцу">
+                      <option value="">Все</option>
+                    </select>
+                  </label>
+                  <label class="agent-focus-toolbar-field">
+                    <span class="agent-focus-toolbar-label">Приоритет</span>
+                    <select id="app-landing-focus-filter-priority" class="agent-focus-toolbar-select" aria-label="Фильтр по приоритету">
+                      <option value="">Все</option>
+                    </select>
+                  </label>
                   <label class="agent-focus-toolbar-field">
                     <span class="agent-focus-toolbar-label">Сортировка</span>
                     <select id="app-landing-focus-sort" class="agent-focus-toolbar-select" aria-label="Сортировка">
@@ -1345,7 +1372,6 @@
                     <option value="external" data-memory-driver="external">Многофайловая</option>
                     <option value="internal" data-memory-driver="internal">Однофайловая</option>
                     <option value="tabular" data-memory-driver="tabular">Табличная</option>
-                    <option value="media">Медиа и документы</option>
                     <option value="volume" disabled>Рассуждения (volume)</option>
                     <option value="temp" disabled>Временные файлы</option>
                   </select>
@@ -1795,6 +1821,7 @@
                 <div class="doc-aside-panel-scroll">
                   <section class="doc-aside-fields-card" aria-label="Свойства документа">
                     <section id="props-preview-block" class="doc-aside-preview-block hidden" aria-label="Превью"></section>
+                    <section id="props-attachments-block" class="doc-aside-attachments-block hidden" aria-label="Вложения"></section>
                     <section id="title-editor-block" class="doc-aside-title-block doc-slab doc-slab-title hidden" aria-label="Название документа">
                       <label class="doc-aside-title-label" for="title-input">Отображаемое имя (awn-name)</label>
                       <div class="title-row">
@@ -1974,6 +2001,10 @@
           <div id="create-node-catalog-actions" class="create-node-catalog-actions">
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="categories">Категории</button>
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="tags" title="Список #tag, как в Obsidian">Теги</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="statuses">Статусы</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="users">Пользователи</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="priorities">Приоритеты</button>
+            <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="colors">Палитра</button>
           </div>
         </div>
         <div id="create-node-service-docs-wrap" class="create-node-service-docs-wrap hidden">
@@ -2240,6 +2271,25 @@
       </div>
     </div>
 
+    <div id="attachment-sidecar-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="attachment-sidecar-modal-title">
+      <div class="modal-card attachment-sidecar-modal-card">
+        <div class="modal-message" id="attachment-sidecar-modal-title">Свойства вложения</div>
+        <p class="attachment-sidecar-modal-path" id="attachment-sidecar-modal-path"></p>
+        <label class="attachment-sidecar-field">
+          <span class="attachment-sidecar-field-label">awn-name</span>
+          <input id="attachment-sidecar-name-input" class="attachment-sidecar-field-input" type="text" autocomplete="off" />
+        </label>
+        <label class="attachment-sidecar-field">
+          <span class="attachment-sidecar-field-label">awn-description</span>
+          <textarea id="attachment-sidecar-description-input" class="attachment-sidecar-field-input attachment-sidecar-field-textarea" rows="3"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button id="attachment-sidecar-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="attachment-sidecar-save-btn" class="save-btn" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
     <div id="document-viewer-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="document-viewer-title">
       <div class="modal-card document-viewer-card">
         <div class="document-viewer-header">
@@ -2396,7 +2446,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.204"></script>
+    <script src="/main.js?v=0.5.212"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

@@ -33,13 +33,19 @@ const {
   getNamedStorageBundleRel,
   getNamedStorageBundleDirRel,
   getManifestContainerDirRel,
+  getStorageContainerPrefixRel,
   getManifestNamedSlotKey,
+  isStorageAssetsInlineSubfolder,
   getNamedStorageSlotDirRel,
   listManifestStorageSlotDirRelCandidates,
   getNamedStorageBundleRelCandidates,
   listBundleFileNameCandidates,
   resolveManifestRelFromStorageBundlePath,
   parseStorageAssetsRef,
+  parseStorageSlotInlineRef,
+  buildAssetsUploadRef,
+  buildStorageLayerRef,
+  buildSlotInlineUploadRef,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
@@ -52,7 +58,9 @@ const {
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_ATTACHMENTS,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_PREVIEW,
@@ -89,6 +97,14 @@ const {
 } = require("./awn-types-loader");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
+const { getMergedCatalogsPayload, getCatalogLookupMaps, resolveCatalogPropValue, resolveCatalogTagsList } = require("./catalog-loader");
+const {
+  migrateDiscoveredTagsToGlobal,
+  migrateDiscoveredPresetToGlobal,
+  migrateDiscoveredCatalogsToGlobal,
+  MIGRATABLE_PRESETS
+} = require("./catalog-migration");
+const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
@@ -217,6 +233,8 @@ const {
   runWithAgent,
   collectAllFocusEntries,
   collectAgentFocusEntries,
+  getActiveAgentId,
+  isPlatformAgentId,
   getAgentKitFolder,
   getAgentContainerFolder,
   isAgentKitFolderEntryName,
@@ -700,17 +718,29 @@ async function resolveExternalFileWorkspaceRel(manifestRelPath, relFile) {
 }
 
 async function resolveMediaSidecarWorkspaceRel(manifestRelPath, relFile) {
-  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
-  if (!nodeAbsolute) return null;
+  const context = await resolveApiStorageContext(manifestRelPath);
+  if (!context) return null;
   const normalizedRelFile = normalizeRelativeFilePath(relFile);
   if (!normalizedRelFile) return null;
   const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
   if (!sidecarRelPath) return null;
-  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-  if (!folderAbsolute) return null;
-  const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
-  if (!sidecarAbsolute.startsWith(folderAbsolute)) return null;
-  return manifestRelFromNodeAbsolute(sidecarAbsolute);
+
+  const assetsFolder = await getAssetsFolderAbsolute(context.absolute);
+  if (assetsFolder) {
+    const sidecarAbsolute = path.join(assetsFolder, sidecarRelPath);
+    if (sidecarAbsolute.startsWith(assetsFolder)) {
+      return manifestRelFromNodeAbsolute(sidecarAbsolute);
+    }
+  }
+
+  const mediaFolder = await getMediaFolderAbsolute(context.absolute);
+  if (mediaFolder) {
+    const sidecarAbsolute = path.join(mediaFolder, sidecarRelPath);
+    if (sidecarAbsolute.startsWith(mediaFolder)) {
+      return manifestRelFromNodeAbsolute(sidecarAbsolute);
+    }
+  }
+  return null;
 }
 
 async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName }) {
@@ -1453,7 +1483,7 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
     return path.join(storageRoot, STORAGE_SUBFOLDER_REFERENCES);
   }
   if (mode === "media") {
-    return path.join(storageRoot, STORAGE_SUBFOLDER_ASSETS);
+    return path.join(storageRoot, STORAGE_SUBFOLDER_MEDIA);
   }
   if (mode === "node-preview") {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, (rel) => {
@@ -2031,11 +2061,96 @@ async function writeStorageSectionReadme(
 async function getMediaFolderAbsolute(nodeAbsolute, options = {}) {
   const folderAbsolute = await resolveNodeSubfolderAbsolute(
     nodeAbsolute,
+    STORAGE_SUBFOLDER_MEDIA,
+    options
+  );
+  if (!folderAbsolute || !folderAbsolute.startsWith(getAgentRoot())) return null;
+  return folderAbsolute;
+}
+
+async function getAssetsFolderAbsolute(nodeAbsolute, options = {}) {
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(
+    nodeAbsolute,
     STORAGE_SUBFOLDER_ASSETS,
     options
   );
   if (!folderAbsolute || !folderAbsolute.startsWith(getAgentRoot())) return null;
   return folderAbsolute;
+}
+
+function isInlineAssetsUploadSubdir(subdir) {
+  return isStorageAssetsInlineSubfolder(String(subdir || "").split("/")[0]);
+}
+
+async function resolveInlineAssetsFolderAbsolute(nodeAbsolute, subdir, options = {}) {
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute, options);
+  if (!assetsFolder) return null;
+  return resolveMediaTargetFolderAbsolute(assetsFolder, subdir, options);
+}
+
+async function listStorageAttachmentFiles(storageContext) {
+  const files = [];
+  const seen = new Set();
+
+  async function appendFolderFiles(folderAbsolute, buildRef, buildMediaRel) {
+    if (!folderAbsolute) return;
+    let entries = [];
+    try {
+      entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile() || entry.name.startsWith(".")) continue;
+      if (entry.name.toLowerCase().endsWith(".sidecar.md")) continue;
+      const workspaceRef = buildRef(entry.name);
+      if (!workspaceRef || seen.has(workspaceRef)) continue;
+      seen.add(workspaceRef);
+      files.push({
+        name: entry.name,
+        mediaRel: buildMediaRel(entry.name),
+        workspaceRef
+      });
+    }
+  }
+
+  const attachmentsFolder = await resolveInlineAssetsFolderAbsolute(
+    storageContext.absolute,
+    STORAGE_SUBFOLDER_ATTACHMENTS
+  );
+  await appendFolderFiles(
+    attachmentsFolder,
+    (fileName) => buildAssetsUploadRef(storageContext.rel, STORAGE_SUBFOLDER_ATTACHMENTS, fileName),
+    (fileName) =>
+      `${STORAGE_SUBFOLDER_ASSETS}/${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`.replace(/\\/g, "/")
+  );
+
+  const mediaFolder = await getMediaFolderAbsolute(storageContext.absolute);
+  if (mediaFolder) {
+    const legacyAttachmentsFolder = path.join(mediaFolder, STORAGE_SUBFOLDER_ATTACHMENTS);
+    try {
+      const stat = await fs.stat(legacyAttachmentsFolder);
+      if (stat.isDirectory()) {
+        await appendFolderFiles(
+          legacyAttachmentsFolder,
+          (fileName) =>
+            buildStorageLayerRef(
+              storageContext.rel,
+              STORAGE_SUBFOLDER_MEDIA,
+              `${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`
+            ),
+          (fileName) =>
+            `${STORAGE_SUBFOLDER_MEDIA}/${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`.replace(/\\/g, "/")
+        );
+      }
+    } catch {
+      // ignore missing legacy folder
+    }
+  }
+
+  files.sort((left, right) => left.name.localeCompare(right.name, "ru"));
+  return files;
 }
 
 async function collectMediaEntriesByType(folderAbsolute, prefix = "", grouped = new Map()) {
@@ -2170,6 +2285,21 @@ async function resolveApiManifestAbsolute(relPath) {
   const absolute = normalizeWorkspacePath(resolvedRelPath);
   if (!absolute || !isManifestMdAbsolute(absolute)) return null;
   return absolute;
+}
+
+async function resolveApiStorageContextAbsolute(relPath) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const absolute = normalizeWorkspacePath(resolvedRelPath);
+  if (!absolute) return null;
+  const base = path.basename(absolute).toLowerCase();
+  if (!base.endsWith(".md") || base.endsWith(".sidecar.md")) return null;
+  return absolute;
+}
+
+async function resolveApiStorageContext(relPath) {
+  const absolute = await resolveApiStorageContextAbsolute(relPath);
+  if (!absolute) return null;
+  return { absolute, rel: manifestRelFromNodeAbsolute(absolute) };
 }
 
 function manifestRelFromNodeAbsolute(nodeAbsolute) {
@@ -2995,6 +3125,7 @@ function getManifestDisplayPathForTable(manifestPath, label, kind) {
 
 async function buildAgentWorkspaceTable() {
   const layout = await buildAgentStorageLayout();
+  const lookup = await getAgentCatalogLookupMaps();
   const rows = [];
 
   for (const container of layout.containers || []) {
@@ -3005,6 +3136,22 @@ async function buildAgentWorkspaceTable() {
         getNodePreviewMeta(manifestPath),
         statNodeFileMeta(normalizeWorkspacePath(manifestPath))
       ]);
+
+      const categoryLabel = lookup?.categories
+        ? resolveCatalogPropValue(lookup.categories, meta.category)
+        : meta.category;
+      const statusLabel = lookup?.statuses
+        ? resolveCatalogPropValue(lookup.statuses, meta.status)
+        : meta.status;
+      const ownerLabel = lookup?.users
+        ? resolveCatalogPropValue(lookup.users, meta.owner)
+        : meta.owner;
+      const priorityLabel = lookup?.priorities
+        ? resolveCatalogPropValue(lookup.priorities, meta.priority)
+        : meta.priority;
+      const tagsDisplay = lookup?.tags
+        ? resolveCatalogTagsList(lookup.tags, meta.tags)
+        : meta.tags;
 
       rows.push({
         manifestPath,
@@ -3020,7 +3167,11 @@ async function buildAgentWorkspaceTable() {
         previewUrl: previewMeta?.previewUrl || null,
         color: meta.color,
         tags: meta.tags,
-        category: meta.category,
+        tagsDisplay,
+        category: categoryLabel,
+        status: statusLabel,
+        owner: ownerLabel,
+        priority: priorityLabel,
         manifestUpdatedAt: manifestStat?.updatedAt || null
       });
     }
@@ -3116,7 +3267,7 @@ async function buildAgentTimeline(limit = 150) {
       });
     }
 
-    const assetsAbs = normalizeWorkspacePath(`${slotDirRel}/${STORAGE_SUBFOLDER_ASSETS}`);
+    const assetsAbs = normalizeWorkspacePath(`${slotDirRel}/${STORAGE_SUBFOLDER_MEDIA}`);
     const newestAsset = await findNewestFileMetaInDir(assetsAbs);
     if (newestAsset?.updatedAt) {
       events.push({
@@ -3125,7 +3276,7 @@ async function buildAgentTimeline(limit = 150) {
         kind: entry.kind,
         displayPath: getManifestDisplayPathForTable(manifestPath, label, entry.kind),
         fileKind: "media",
-        fileLabel: `${STORAGE_SUBFOLDER_ASSETS}/${newestAsset.name}`,
+        fileLabel: `${STORAGE_SUBFOLDER_MEDIA}/${newestAsset.name}`,
         relPath: newestAsset.relPath,
         updatedAt: newestAsset.updatedAt,
         size: newestAsset.size
@@ -3203,7 +3354,7 @@ async function resolveNodeStorageFileAbsolute(nodeAbsolute, fileName, options = 
 
 async function getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderName) {
   const canonical = normalizeStorageSubfolderName(subfolderName);
-  if (!canonical || canonical.toLowerCase() === STORAGE_SUBFOLDER_PREVIEW.toLowerCase()) {
+  if (!canonical) {
     return null;
   }
   const manifestRel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
@@ -3564,6 +3715,32 @@ async function getAgentPreviewMeta(agent) {
 }
 
 async function enrichFocusItems(items) {
+  const lookupCache = new Map();
+
+  async function getLookupForAgent(agentId) {
+    if (lookupCache.has(agentId)) return lookupCache.get(agentId);
+    const agent = resolveAgent(agentId);
+    if (!agent || isPlatformAgentId(agent.id)) {
+      lookupCache.set(agentId, null);
+      return null;
+    }
+    let serviceAbsolute = null;
+    try {
+      await runWithAgent(agent.id, async () => {
+        const kitFolder = getAgentKitFolder();
+        if (kitFolder) {
+          serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), kitFolder);
+        }
+      });
+    } catch {
+      lookupCache.set(agentId, null);
+      return null;
+    }
+    const lookup = await getCatalogLookupMaps(getProjectRoot(), serviceAbsolute);
+    lookupCache.set(agentId, lookup);
+    return lookup;
+  }
+
   return Promise.all(
     items.map(async (item) => {
       const agent = resolveAgent(item.agentId);
@@ -3589,10 +3766,45 @@ async function enrichFocusItems(items) {
         }
       }
 
+      const lookup = await getLookupForAgent(item.agentId);
+      const awnProps = item.awnProps && typeof item.awnProps === "object" ? { ...item.awnProps } : {};
+      const catalogDisplay = {};
+      if (lookup) {
+        if (awnProps["awn-category"]) {
+          catalogDisplay["awn-category"] = resolveCatalogPropValue(lookup.categories, awnProps["awn-category"]);
+        }
+        if (awnProps["awn-status"]) {
+          catalogDisplay["awn-status"] = resolveCatalogPropValue(lookup.statuses, awnProps["awn-status"]);
+        }
+        if (awnProps["awn-owner"]) {
+          catalogDisplay["awn-owner"] = resolveCatalogPropValue(lookup.users, awnProps["awn-owner"]);
+        }
+        if (awnProps["awn-priority"]) {
+          catalogDisplay["awn-priority"] = resolveCatalogPropValue(lookup.priorities, awnProps["awn-priority"]);
+        }
+        if (awnProps["awn-tags"]) {
+          catalogDisplay["awn-tags"] = resolveCatalogTagsList(lookup.tags, awnProps["awn-tags"]).join(", ");
+        }
+        if (awnProps["awn-color"]) {
+          const colorRaw = String(awnProps["awn-color"]).trim();
+          const colorItem = lookup.colors.find(
+            (entry) => entry.id === colorRaw || entry.color === colorRaw
+          );
+          if (colorItem) {
+            catalogDisplay["awn-color"] = colorItem.label || colorRaw;
+            if (colorItem.color) catalogDisplay["awn-color-hex"] = colorItem.color;
+          } else if (/^#[0-9a-f]{3,8}$/i.test(colorRaw)) {
+            catalogDisplay["awn-color"] = colorRaw;
+            catalogDisplay["awn-color-hex"] = colorRaw;
+          }
+        }
+      }
+
       return {
         ...item,
         agentPreviewUrl,
-        nodePreviewUrl
+        nodePreviewUrl,
+        catalogDisplay
       };
     })
   );
@@ -3622,45 +3834,124 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
   }
 
   const assetsRef = parseStorageAssetsRef(previewValue);
-  if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
+  if (assetsRef?.manifestRelPath && assetsRef.mediaFile) {
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(assetsRef.manifestRelPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+    if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+      const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
+      if (relFile) {
+        const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+        if (folderAbsolute) {
+          const fileAbsolute = path.join(folderAbsolute, relFile);
+          if (fileAbsolute.startsWith(folderAbsolute)) {
+            try {
+              const stat = await fs.stat(fileAbsolute);
+              if (stat.isFile()) {
+                return {
+                  hasPreview: true,
+                  previewUrl: `/api/media/file?path=${encodeURIComponent(assetsRef.manifestRelPath)}&file=${encodeURIComponent(relFile)}`,
+                  previewFile: path.basename(relFile)
+                };
+              }
+            } catch {
+              // fall through to inline preview ref
+            }
+          }
+        }
+      }
+    }
   }
 
-  const resolvedRelPath = await resolveExistingWorkspaceRelPath(assetsRef.manifestRelPath);
-  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
-  if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
+  const inlineRef = parseStorageSlotInlineRef(previewValue);
+  if (inlineRef?.manifestRelPath && inlineRef.layer === STORAGE_SUBFOLDER_PREVIEW && inlineRef.relativePath) {
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(inlineRef.manifestRelPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+    if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+      const fileAbsolute = await resolveSlotInlineFileAbsolute(
+        nodeAbsolute,
+        inlineRef.layer,
+        inlineRef.relativePath
+      );
+      if (fileAbsolute) {
+        try {
+          const stat = await fs.stat(fileAbsolute);
+          if (stat.isFile()) {
+            return {
+              hasPreview: true,
+              previewUrl: `/api/media/file?path=${encodeURIComponent(inlineRef.manifestRelPath)}&file=${encodeURIComponent(inlineRef.slotLayerFile)}`,
+              previewFile: path.basename(inlineRef.relativePath)
+            };
+          }
+        } catch {
+          // fall through
+        }
+      }
+    }
   }
 
-  const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
-  if (!relFile) {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
+  return { hasPreview: false, previewUrl: null, previewFile: null };
+}
+
+async function resolveSlotInlineFileAbsolute(nodeAbsolute, layer, relativePath, { create = false } = {}) {
+  const folderAbsolute = await resolveInlineAssetsFolderAbsolute(nodeAbsolute, layer, { create });
+  if (!folderAbsolute) return null;
+  const relFile = normalizeRelativeFilePath(relativePath);
+  if (!relFile) return null;
+  const fileAbsolute = path.join(folderAbsolute, relFile);
+  const folderResolved = path.resolve(folderAbsolute);
+  const fileResolved = path.resolve(fileAbsolute);
+  if (fileResolved !== folderResolved && !fileResolved.startsWith(`${folderResolved}${path.sep}`)) {
+    return null;
+  }
+  return fileAbsolute;
+}
+
+async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
+  const normalized = normalizeRelativeFilePath(relFile);
+  if (!normalized) return null;
+
+  const assetsFromFullPath = parseStorageAssetsRef(normalized);
+  if (assetsFromFullPath?.workspacePath) {
+    const fileAbsolute = normalizeWorkspacePath(assetsFromFullPath.workspacePath);
+    if (fileAbsolute) return fileAbsolute;
+  }
+
+  const inlineFromFullPath = parseStorageSlotInlineRef(normalized);
+  if (inlineFromFullPath?.manifestRelPath && inlineFromFullPath.relativePath) {
+    const manifestAbsolute = normalizeWorkspacePath(inlineFromFullPath.manifestRelPath);
+    if (manifestAbsolute) {
+      const legacyFile = await resolveSlotInlineFileAbsolute(
+        manifestAbsolute,
+        inlineFromFullPath.layer,
+        inlineFromFullPath.relativePath
+      );
+      if (legacyFile) return legacyFile;
+    }
+  }
+
+  const relUnderAssets = normalized.replace(/^assets\//i, "");
+  const firstSegment = relUnderAssets.split("/")[0];
+  if (isInlineAssetsUploadSubdir(firstSegment)) {
+    const assetsFolder = await resolveInlineAssetsFolderAbsolute(nodeAbsolute, firstSegment);
+    if (assetsFolder) {
+      const tail = relUnderAssets.includes("/") ? relUnderAssets.slice(relUnderAssets.indexOf("/") + 1) : relUnderAssets;
+      const fileAbsolute = path.join(assetsFolder, tail);
+      if (fileAbsolute.startsWith(assetsFolder)) return fileAbsolute;
+    }
+  }
+
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute);
+  if (assetsFolder) {
+    const fileAbsolute = path.join(assetsFolder, relUnderAssets);
+    if (fileAbsolute.startsWith(assetsFolder) && (await fileExists(fileAbsolute))) return fileAbsolute;
   }
 
   const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-  if (!folderAbsolute) {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
-  }
+  if (!folderAbsolute) return null;
 
-  const fileAbsolute = path.join(folderAbsolute, relFile);
-  if (!fileAbsolute.startsWith(folderAbsolute)) {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
-  }
-
-  try {
-    const stat = await fs.stat(fileAbsolute);
-    if (!stat.isFile()) {
-      return { hasPreview: false, previewUrl: null, previewFile: null };
-    }
-  } catch {
-    return { hasPreview: false, previewUrl: null, previewFile: null };
-  }
-
-  return {
-    hasPreview: true,
-    previewUrl: `/api/media/file?path=${encodeURIComponent(assetsRef.manifestRelPath)}&file=${encodeURIComponent(relFile)}`,
-    previewFile: path.basename(relFile)
-  };
+  const fileAbsolute = path.join(folderAbsolute, normalized);
+  if (!fileAbsolute.startsWith(folderAbsolute)) return null;
+  return fileAbsolute;
 }
 
 async function getNodePreviewMeta(nodeRelativePath) {
@@ -3702,243 +3993,41 @@ function extractStatusFromProps(content) {
   return scalar || null;
 }
 
-function getServiceCatalogManifestRel(preset) {
-  const scaffold = findCatalogScaffold(preset);
-  if (!scaffold) return null;
-  return path.posix.join(DEFAULT_SERVICE_CATALOG_FOLDER, toTopicFileName(scaffold.fileName));
+function extractOwnerFromProps(content) {
+  const props = parseFrontmatterProps(content);
+  const fromProps = getFrontmatterPropValue(props, "awn-owner");
+  if (fromProps) return fromProps;
+  return getYamlScalar(content, "awn-owner") || null;
 }
 
-function parseMarkdownTableBody(body) {
-  const lines = String(body || "").split("\n");
-  let headers = null;
-  const rows = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("|")) continue;
-    const cells = trimmed
-      .split("|")
-      .map((cell) => cell.trim())
-      .filter((cell, index, all) => index > 0 && index < all.length - 1);
-    if (!cells.length) continue;
-    const isSeparator = cells.every((cell) => /^:?-{3,}:?$/.test(cell));
-    if (isSeparator) continue;
-    if (!headers) {
-      headers = cells.map((cell) => cell.toLowerCase());
-      continue;
-    }
-    rows.push(cells);
-  }
-  return { headers, rows };
+function extractPriorityFromProps(content) {
+  const props = parseFrontmatterProps(content);
+  const fromProps = getFrontmatterPropValue(props, "awn-priority");
+  if (fromProps) return fromProps;
+  return getYamlScalar(content, "awn-priority") || null;
 }
 
-function parseCategoryTableItems(body) {
-  const { headers, rows } = parseMarkdownTableBody(body);
-  if (!headers?.length) return [];
-  const idIdx = headers.findIndex((h) => ["id", "slug", "код", "code"].includes(h));
-  const labelIdx = headers.findIndex((h) => ["label", "name", "title", "название"].includes(h));
-  const colorIdx = headers.findIndex((h) => h === "color" || h === "цвет");
-  return rows
-    .map((cells) => {
-      const id = String(cells[idIdx >= 0 ? idIdx : 0] || "").trim();
-      const label = String(cells[labelIdx >= 0 ? labelIdx : 1] || id).trim();
-      const color = colorIdx >= 0 ? String(cells[colorIdx] || "").trim() : "";
-      if (!id) return null;
-      return { id, label, color: color || null };
-    })
-    .filter(Boolean);
-}
-
-function parseCategoryCsvItems(csv) {
-  const columns = (csv?.columns || []).map((cell) => String(cell).trim().toLowerCase());
-  const rows = Array.isArray(csv?.rows) ? csv.rows : [];
-  if (!columns.length) return [];
-  const idIdx = columns.findIndex((h) => ["id", "slug", "код", "code"].includes(h));
-  const labelIdx = columns.findIndex((h) => ["label", "name", "title", "название"].includes(h));
-  const colorIdx = columns.findIndex((h) => h === "color" || h === "цвет");
-  return rows
-    .map((cells) => {
-      const id = String(cells[idIdx >= 0 ? idIdx : 0] || "").trim();
-      const label = String(cells[labelIdx >= 0 ? labelIdx : 1] || id).trim();
-      const color = colorIdx >= 0 ? String(cells[colorIdx] || "").trim() : "";
-      if (!id) return null;
-      return { id, label, color: color || null };
-    })
-    .filter(Boolean);
-}
-
-function parseTagsCsvItems(csv) {
-  const columns = (csv?.columns || []).map((cell) => String(cell).trim().toLowerCase());
-  const rows = Array.isArray(csv?.rows) ? csv.rows : [];
-  if (!columns.length) return [];
-  const tagIdx = columns.findIndex((h) => ["tag", "id", "name", "тег"].includes(h));
-  const colIdx = tagIdx >= 0 ? tagIdx : 0;
-  const tags = new Set();
-  for (const cells of rows) {
-    const raw = String(cells[colIdx] || "").trim().replace(/^#+/, "");
-    if (raw) tags.add(raw);
-  }
-  return [...tags]
-    .sort((a, b) => a.localeCompare(b, "ru"))
-    .map((id) => ({ id, label: `#${id}` }));
-}
-
-function parseTagsBodyItems(body) {
-  const tags = new Set();
-  for (const line of String(body || "").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("# ")) continue;
-    if (trimmed.startsWith("#")) {
-      trimmed
-        .split(/\s+/)
-        .map((part) => part.trim())
-        .filter((part) => part.startsWith("#") && part.length > 1)
-        .forEach((part) => tags.add(part.replace(/^#+/, "")));
-      continue;
-    }
-    const bullet = trimmed.match(/^[-*]\s+#?([^\s#]+)/);
-    if (bullet) tags.add(bullet[1].trim());
-  }
-  return [...tags]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, "ru"))
-    .map((id) => ({ id, label: `#${id}` }));
-}
-
-async function readServiceCatalogFileBody(serviceAbsolute, manifestRel, bundleFileName = BUNDLE_CONTENT_FILE) {
-  const contentRel = path.posix.join(namedStorageBundleDirRel(manifestRel), bundleFileName);
-  const contentAbs = path.join(serviceAbsolute, contentRel);
+async function getAgentCatalogLookupMaps() {
+  const serviceFolder = getAgentKitFolder();
+  if (!serviceFolder) return null;
   try {
-    const raw = await fs.readFile(contentAbs, "utf-8");
-    if (bundleFileName === BUNDLE_TABULAR_FILE) return raw;
-    const { body } = splitNodeFrontmatter(raw);
-    return body;
+    const serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
+    return getCatalogLookupMaps(getProjectRoot(), serviceAbsolute);
   } catch {
-    return "";
+    return null;
   }
-}
-
-async function readServiceCatalogCsv(serviceAbsolute, manifestRel) {
-  const raw = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_TABULAR_FILE);
-  if (!String(raw || "").trim()) return { columns: [], rows: [] };
-  return parseCsvText(raw);
-}
-
-async function listCategoryCatalogItems(serviceAbsolute, manifestRel) {
-  const contentDirRel = path.posix.join(namedStorageBundleDirRel(manifestRel), STORAGE_SUBFOLDER_CONTENT);
-  const contentDirAbs = path.join(serviceAbsolute, contentDirRel);
-  const items = [];
-
-  try {
-    const entries = await fs.readdir(contentDirAbs, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
-      if (entry.name.toLowerCase() === AREA_MANIFEST_FILE.toLowerCase()) continue;
-      const fileRel = path.posix.join(contentDirRel, entry.name);
-      const fileAbs = path.join(serviceAbsolute, fileRel);
-      const raw = await fs.readFile(fileAbs, "utf-8");
-      const { frontmatter } = splitNodeFrontmatter(raw);
-      const baseName = entry.name.replace(/\.md$/i, "");
-      const id = getYamlScalar(frontmatter, "awn-slug") || baseName;
-      const label = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", baseName);
-      const color = getYamlScalar(frontmatter, "awn-color") || null;
-      if (!id) continue;
-      items.push({ id, label, color, path: fileRel });
-    }
-  } catch {
-    // fall back to content.md table
-  }
-
-  if (items.length) {
-    return items.sort((a, b) => a.label.localeCompare(b.label, "ru"));
-  }
-
-  const csv = await readServiceCatalogCsv(serviceAbsolute, manifestRel);
-  const fromCsv = parseCategoryCsvItems(csv);
-  if (fromCsv.length) return fromCsv;
-
-  const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
-  return parseCategoryTableItems(body);
-}
-
-async function listTagsCatalogItems(serviceAbsolute, manifestRel) {
-  const csv = await readServiceCatalogCsv(serviceAbsolute, manifestRel);
-  const fromCsv = parseTagsCsvItems(csv);
-  if (fromCsv.length) return fromCsv;
-
-  const body = await readServiceCatalogFileBody(serviceAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
-  const fromBody = parseTagsBodyItems(body);
-  if (fromBody.length) return fromBody;
-
-  const contentDirRel = path.posix.join(namedStorageBundleDirRel(manifestRel), STORAGE_SUBFOLDER_CONTENT);
-  const contentDirAbs = path.join(serviceAbsolute, contentDirRel);
-  const tags = new Set();
-  try {
-    const entries = await fs.readdir(contentDirAbs, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
-      const baseName = entry.name.replace(/\.md$/i, "");
-      if (baseName) tags.add(baseName);
-    }
-  } catch {
-    return [];
-  }
-  return [...tags]
-    .sort((a, b) => a.localeCompare(b, "ru"))
-    .map((id) => ({ id, label: `#${id}` }));
-}
-
-async function loadAgentCatalogPreset(serviceAbsolute, preset) {
-  const scaffold = findCatalogScaffold(preset);
-  if (!scaffold) {
-    return { preset, exists: false, title: preset, items: [] };
-  }
-  const manifestRel = getServiceCatalogManifestRel(preset);
-  if (!manifestRel) {
-    return { preset, exists: false, title: scaffold.title, items: [] };
-  }
-  const manifestAbs = path.join(serviceAbsolute, manifestRel);
-  try {
-    await fs.access(manifestAbs);
-  } catch {
-    return { preset, exists: false, title: scaffold.title, manifestRel, items: [] };
-  }
-
-  const items =
-    preset === "categories"
-      ? await listCategoryCatalogItems(serviceAbsolute, manifestRel)
-      : preset === "tags"
-        ? await listTagsCatalogItems(serviceAbsolute, manifestRel)
-        : [];
-
-  return {
-    preset,
-    exists: true,
-    title: scaffold.title,
-    manifestRel,
-    items
-  };
 }
 
 async function getAgentCatalogsPayload() {
+  if (isPlatformAgentId(getActiveAgentId())) {
+    return getMergedCatalogsPayload(getProjectRoot(), null, { globalOnly: true });
+  }
   const serviceFolder = getAgentKitFolder();
-  if (!serviceFolder) {
-    return {
-      categories: { preset: "categories", exists: false, title: "Категории", items: [] },
-      tags: { preset: "tags", exists: false, title: "Теги", items: [] }
-    };
+  let serviceAbsolute = null;
+  if (serviceFolder) {
+    serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
   }
-  const serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
-  if (!serviceAbsolute) {
-    return {
-      categories: { preset: "categories", exists: false, title: "Категории", items: [] },
-      tags: { preset: "tags", exists: false, title: "Теги", items: [] }
-    };
-  }
-  const [categories, tags] = await Promise.all([
-    loadAgentCatalogPreset(serviceAbsolute, "categories"),
-    loadAgentCatalogPreset(serviceAbsolute, "tags")
-  ]);
-  return { categories, tags };
+  return getMergedCatalogsPayload(getProjectRoot(), serviceAbsolute);
 }
 
 async function readNodeDisplayLabelForManifestRel(manifestRel) {
@@ -3978,6 +4067,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       tags: extractTagsFromProps(frontmatter),
       category: extractCategoryFromProps(frontmatter, nodeRelPath),
       status: extractStatusFromProps(frontmatter),
+      owner: extractOwnerFromProps(frontmatter),
+      priority: extractPriorityFromProps(frontmatter),
       awnEmoji: awnEmoji || null
     };
   } catch {
@@ -3986,6 +4077,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       tags: [],
       category: inferCategoryFromNodePath(nodeRelPath),
       status: null,
+      owner: null,
+      priority: null,
       awnEmoji: null
     };
   }
@@ -5812,6 +5905,8 @@ async function searchByTags(query, limit = 30) {
 
   const relFiles = await collectNodeMdFiles(getAgentRoot());
   const qLower = trimmed.toLowerCase();
+  const lookup = await getAgentCatalogLookupMaps();
+  const tagMap = lookup?.tags;
   const results = [];
 
   for (const relPath of relFiles) {
@@ -5825,15 +5920,23 @@ async function searchByTags(query, limit = 30) {
     if (!propsContent.trim()) continue;
 
     const tags = extractTagsFromProps(propsContent);
-    const matchingTags = tags.filter((tag) => tag.toLowerCase().includes(qLower));
+    const matchingTags = tags.filter((tag) => {
+      const label = tagMap?.get(tag) || tag;
+      return tag.toLowerCase().includes(qLower) || String(label).toLowerCase().includes(qLower);
+    });
     if (matchingTags.length === 0) continue;
+
+    const snippetTags = matchingTags.map((tag) => {
+      const label = tagMap?.get(tag);
+      return label && label !== tag ? `${label} (#${tag})` : `#${tag}`;
+    });
 
     results.push({
       nodePath: relPath,
       mode: "description",
       source: "Тэги",
       filePath: relPath,
-      snippet: matchingTags.join(", "),
+      snippet: snippetTags.join(", "),
       matchCount: matchingTags.length
     });
 
@@ -5864,7 +5967,7 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 
   for (const agentId of ids) {
     const agent = resolveAgent(agentId);
-    if (!agent) continue;
+    if (!agent || isPlatformAgentId(agent.id)) continue;
 
     try {
       const data = await runWithAgent(agentId, () =>
@@ -6690,6 +6793,50 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/agent/catalogs/items") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+
+      const payload = await readJsonBody(req);
+      const preset = String(payload?.preset || "").trim().toLowerCase();
+      if (!preset) return sendJson(res, 400, { error: "Missing preset" });
+
+      const serviceFolder = getAgentKitFolder();
+      let serviceAbsolute = null;
+      if (serviceFolder) {
+        serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
+      }
+
+      const result = await addCatalogItemForAgentContext({
+        projectRoot: getProjectRoot(),
+        serviceAbsolute,
+        isPlatform: isPlatformAgentId(getActiveAgentId()),
+        preset,
+        item: {
+          id: payload?.id,
+          label: payload?.label,
+          color: payload?.color,
+          email: payload?.email
+        }
+      });
+
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : "";
+      if (code === "EINVAL") {
+        return sendJson(res, 400, { error: String(error.message || "Invalid catalog item") });
+      }
+      if (code === "EEXIST") {
+        return sendJson(res, 409, { error: String(error.message || "Catalog item already exists") });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to add catalog item",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/file/properties") {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
@@ -7439,14 +7586,15 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req, 12_000_000);
       const relPath = payload.path;
+      const contextRel = payload.contextPath || relPath;
       const data = payload.data;
       const fileName = payload.fileName;
       const mimeType = payload.mimeType;
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
 
-      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      const storageContext = await resolveApiStorageContext(contextRel);
+      if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
       const buffer = Buffer.from(data, "base64");
       if (!buffer.length) return sendJson(res, 400, { error: "Empty file data" });
@@ -7454,14 +7602,22 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: "File is too large (max 10 MB)" });
       }
 
-      const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
-      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
-
       const subdir = normalizeRelativeFilePath(String(payload.subdir || "").trim());
       const createSubdir = Boolean(payload.createSubdir);
-      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, {
-        create: createSubdir
-      });
+      const isInlineUpload = isInlineAssetsUploadSubdir(subdir);
+
+      let targetFolder = null;
+      if (isInlineUpload) {
+        targetFolder = await resolveInlineAssetsFolderAbsolute(storageContext.absolute, subdir, {
+          create: createSubdir || true
+        });
+      } else {
+        const folderAbsolute = await getMediaFolderAbsolute(storageContext.absolute, { create: true });
+        if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
+        targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, {
+          create: createSubdir
+        });
+      }
       if (!targetFolder) {
         return sendJson(res, 400, {
           error: subdir ? "Target section not found" : "Invalid media folder path"
@@ -7477,25 +7633,36 @@ async function handleApiForAgent(req, res, url) {
         }
         const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "image";
         const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, `${safeBase}${imageExt}`);
-        if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
+        if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
           return sendJson(res, 400, { error: "Invalid media file path" });
         }
         await fs.writeFile(targetAbsolute, buffer);
-        storedRelFile = path.relative(folderAbsolute, targetAbsolute).replace(/\\/g, "/");
+        storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
       } else {
         const safeName = sanitizeMediaFileName(fileName);
         if (!safeName) return sendJson(res, 400, { error: "Invalid file name" });
         const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, safeName);
-        if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
+        if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
           return sendJson(res, 400, { error: "Invalid media file path" });
         }
         await fs.writeFile(targetAbsolute, buffer);
-        storedRelFile = path.relative(folderAbsolute, targetAbsolute).replace(/\\/g, "/");
+        storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
       }
+
+      const assetsRelFile = isInlineUpload
+        ? `${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${storedRelFile}`
+        : subdir
+          ? `${subdir}/${storedRelFile}`
+          : storedRelFile;
+      const workspaceRef = isInlineUpload
+        ? buildAssetsUploadRef(storageContext.rel, subdir, storedRelFile)
+        : undefined;
 
       return sendJson(res, 200, {
         file: storedRelFile,
-        imageUrl: `/api/media/file?path=${encodeURIComponent(relPath)}&file=${encodeURIComponent(storedRelFile)}`
+        assetsFile: assetsRelFile,
+        workspaceRef,
+        imageUrl: `/api/media/file?path=${encodeURIComponent(relPath)}&contextPath=${encodeURIComponent(storageContext.rel)}&file=${encodeURIComponent(assetsRelFile)}`
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to upload media file", details: String(error.message || error) });
@@ -7504,21 +7671,19 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/media/file") {
     const relPath = url.searchParams.get("path");
+    const contextPath = url.searchParams.get("contextPath");
     const relFile = url.searchParams.get("file");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
-    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+    const storageContext = await resolveApiStorageContext(contextPath || relPath);
+    if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-    if (!folderAbsolute) return sendJson(res, 404, { error: "Media folder not found" });
-
-    const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
-    if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
+    const fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    if (!fileAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
     try {
       const stat = await fs.stat(fileAbsolute);
@@ -7923,29 +8088,50 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/media/attachments") {
+    const relPath = url.searchParams.get("path");
+    const contextPath = url.searchParams.get("contextPath") || relPath;
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    const storageContext = await resolveApiStorageContext(contextPath);
+    if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
+
+    try {
+      const files = await listStorageAttachmentFiles(storageContext);
+      return sendJson(res, 200, { files });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list attachment files",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/media/sidecar") {
     const relPath = url.searchParams.get("path");
+    const contextPath = url.searchParams.get("contextPath");
     const relFile = url.searchParams.get("file");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
 
-    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
-    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+    const storageContext = await resolveApiStorageContext(contextPath || relPath);
+    if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
     const normalizedRelFile = normalizeRelativeFilePath(relFile);
     if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
+    const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+    if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
+
+    const relUnderAssets = normalizedRelFile.replace(/^assets\//i, "");
+    const sidecarRelPath = toMediaSidecarRelativePath(relUnderAssets);
     if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-    if (!folderAbsolute) return sendJson(res, 404, { error: "Media folder not found" });
-
-    const mediaAbsolute = path.join(folderAbsolute, normalizedRelFile);
-    if (!mediaAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
-
-    const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
-    if (!sidecarAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid sidecar file path" });
+    const assetsFolder = await getAssetsFolderAbsolute(storageContext.absolute);
+    const sidecarAbsolute = assetsFolder ? path.join(assetsFolder, sidecarRelPath) : null;
+    if (!sidecarAbsolute || !sidecarAbsolute.startsWith(assetsFolder)) {
+      return sendJson(res, 400, { error: "Invalid sidecar file path" });
+    }
 
     try {
       const mediaStat = await fs.stat(mediaAbsolute);
@@ -7976,6 +8162,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
+      const contextPath = payload.contextPath || relPath;
       const relFile = payload.file;
       const content = typeof payload.content === "string" ? payload.content : null;
 
@@ -7983,33 +8170,34 @@ async function handleApiForAgent(req, res, url) {
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
-      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      const storageContext = await resolveApiStorageContext(contextPath);
+      if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
 
-      const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
+      const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
+      if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
+
+      const relUnderAssets = normalizedRelFile.replace(/^assets\//i, "");
+      const sidecarRelPath = toMediaSidecarRelativePath(relUnderAssets);
       if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
 
-      const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-      if (!folderAbsolute) return sendJson(res, 404, { error: "Media folder not found" });
+      const assetsFolder = await getAssetsFolderAbsolute(storageContext.absolute);
+      if (!assetsFolder) return sendJson(res, 404, { error: "Assets folder not found" });
 
-      const mediaAbsolute = path.join(folderAbsolute, normalizedRelFile);
-      if (!mediaAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid media file path" });
-
-      const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
-      if (!sidecarAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid sidecar file path" });
+      const sidecarAbsolute = path.join(assetsFolder, sidecarRelPath);
+      if (!sidecarAbsolute.startsWith(assetsFolder)) return sendJson(res, 400, { error: "Invalid sidecar file path" });
 
       const mediaStat = await fs.stat(mediaAbsolute);
       if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
 
-      const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
+      const historyManifest = storageContext.rel;
       const targetRelPath = manifestRelFromNodeAbsolute(sidecarAbsolute);
       const raw = await fs.readFile(sidecarAbsolute, "utf-8").catch(() => "");
       const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
       const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
-      await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
+      await writeWorkspaceTextFileWithHistory(historyManifest, targetRelPath, stampedContent);
 
       return sendJson(res, 200, {
         sourceFile: normalizedRelFile.replace(/\\/g, "/"),
@@ -8340,14 +8528,14 @@ async function handleApiForAgent(req, res, url) {
           : "";
       const serviceFolder = getAgentKitFolder();
 
-      if (type === "catalog" || type === "service-doc") {
+      if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
         if (!serviceFolder) {
           return sendJson(res, 400, { error: "Service folder is not configured for this agent" });
         }
         if (parentRelPath !== serviceFolder) {
           return sendJson(res, 400, {
             error:
-              type === "catalog"
+              type === "catalog" || type === "taxonomy"
                 ? "Catalog presets can only be created in the service folder root"
                 : "Service docs can only be created in the service folder root"
           });
@@ -8355,10 +8543,15 @@ async function handleApiForAgent(req, res, url) {
 
         const preset = String(payload.preset || name || "").trim().toLowerCase();
         const scaffold =
-          type === "catalog" ? findCatalogScaffold(preset) : findServiceDocScaffold(preset);
+          type === "catalog" || type === "taxonomy"
+            ? findCatalogScaffold(preset)
+            : findServiceDocScaffold(preset);
         if (!scaffold) {
           return sendJson(res, 400, {
-            error: type === "catalog" ? "Unknown catalog preset" : "Unknown service doc preset"
+            error:
+              type === "catalog" || type === "taxonomy"
+                ? "Unknown catalog preset"
+                : "Unknown service doc preset"
           });
         }
 
@@ -8367,7 +8560,7 @@ async function handleApiForAgent(req, res, url) {
 
         try {
           const createdFile =
-            type === "catalog"
+            type === "catalog" || type === "taxonomy"
               ? createSystemCatalogNodeSync(serviceAbsolute, preset)
               : createSystemServiceDocSync(serviceAbsolute, preset);
           const createdPath = path.join(serviceFolder, createdFile).replace(/\\/g, "/");
@@ -8376,7 +8569,10 @@ async function handleApiForAgent(req, res, url) {
           const code = error && error.code ? String(error.code) : "";
           if (code === "EEXIST") {
             return sendJson(res, 409, {
-              error: type === "catalog" ? "Catalog node already exists" : "Service doc already exists"
+              error:
+                type === "catalog" || type === "taxonomy"
+                  ? "Catalog node already exists"
+                  : "Service doc already exists"
             });
           }
           if (code === "EINVAL") {
@@ -8640,6 +8836,69 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/docs") {
     const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
     return sendJson(res, 200, docsRegistry.getApiDocs(version));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/index") {
+    try {
+      const indexPath = path.join(getProjectRoot(), "data/index.json");
+      const raw = await fs.readFile(indexPath, "utf-8");
+      return sendJson(res, 200, JSON.parse(raw));
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { sections: [] });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to load platform index",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/catalogs") {
+    try {
+      const payload = await getMergedCatalogsPayload(getProjectRoot(), null, { globalOnly: true });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load platform catalogs",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/catalogs/migrate-tags") {
+    try {
+      const result = await migrateDiscoveredTagsToGlobal(getProjectRoot());
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to migrate tags",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/catalogs/migrate") {
+    try {
+      const preset = String(url.searchParams.get("preset") || "").trim();
+      if (preset) {
+        if (!MIGRATABLE_PRESETS.includes(preset)) {
+          return sendJson(res, 400, {
+            error: "Unsupported preset",
+            presets: MIGRATABLE_PRESETS
+          });
+        }
+        const result = await migrateDiscoveredPresetToGlobal(getProjectRoot(), preset);
+        return sendJson(res, 200, result);
+      }
+      const results = await migrateDiscoveredCatalogsToGlobal(getProjectRoot());
+      return sendJson(res, 200, { presets: MIGRATABLE_PRESETS, results });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to migrate catalogs",
+        details: String(error?.message || error)
+      });
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/mcp-docs") {
@@ -9044,7 +9303,7 @@ async function handleApi(req, res, url) {
 
     if (agentIds.length === 0) {
       agentIds = getAgentsPublicList()
-        .filter((agent) => agent.active !== false)
+        .filter((agent) => agent.active !== false && !isPlatformAgentId(agent.id))
         .map((agent) => agent.id);
     } else {
       agentIds = agentIds.filter((agentId) => resolveAgent(agentId));

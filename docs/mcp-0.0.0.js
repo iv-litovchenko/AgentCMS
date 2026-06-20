@@ -7,7 +7,7 @@ module.exports = {
   notes: [
     "MCP-сервер — обёртка над HTTP API Agent CMS. Перед запуском поднимите CMS: npm start (по умолчанию http://localhost:3000).",
     "Переменные: AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (id агента для ?agent=). Старые YAMLCMS_* тоже поддерживаются.",
-    "path — путь к _registration.md ноды; file — путь к .md внутри content/ или файлу в assets/.",
+    "path — путь к _registration.md ноды; file — путь к .md внутри content/ или файлу в media/.",
     "Установка: cd mcp-server && npm install. Запуск вручную: node mcp-server/index.js (stdio)."
   ],
   cursorConfig: {

@@ -12,6 +12,7 @@ const {
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_MEDIA,
   getManifestNamedSlotKey,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
@@ -27,6 +28,11 @@ const {
   isStorageFolderName
 } = require("./manifest-paths");
 const { buildDefaultFrontmatter } = require("./awn-types-loader");
+const {
+  PLATFORM_KIT_FOLDER,
+  isPlatformAgentId,
+  buildPlatformAgentEntry
+} = require("./platform-agent");
 
 const agentContext = new AsyncLocalStorage();
 
@@ -82,6 +88,8 @@ const WORKSPACE_AWN_PROP_KEYS = [
   "awn-status",
   "awn-description",
   "awn-category",
+  "awn-owner",
+  "awn-priority",
   "awn-tags",
   "awn-color",
   "awn-emoji",
@@ -587,7 +595,7 @@ const DEFAULT_CONTAINER_FOLDER = "awn-container";
 
 function isAgentKitFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
-  return lower === DEFAULT_AGENT_KIT_FOLDER.toLowerCase();
+  return lower === DEFAULT_AGENT_KIT_FOLDER.toLowerCase() || lower === PLATFORM_KIT_FOLDER.toLowerCase();
 }
 
 function isContainerFolderEntryName(name) {
@@ -600,8 +608,13 @@ function isReservedAgentRootFolderEntryName(name) {
 }
 
 
-/** Общая папка справочников внутри awn-agent-kit */
-const DEFAULT_SERVICE_CATALOG_FOLDER = "catalog";
+/** Папка справочников внутри awn-agent-kit (workspace-агенты) */
+const WORKSPACE_TAXONOMY_FOLDER = "taxonomies";
+/** Старое имя папки — для обратной совместимости */
+const LEGACY_WORKSPACE_TAXONOMY_FOLDER = "catalog";
+/** Подпапка справочников у platform-агента (data/catalog/catalog/) */
+const PLATFORM_GLOBAL_TAXONOMY_FOLDER = "catalog";
+const DEFAULT_SERVICE_CATALOG_FOLDER = WORKSPACE_TAXONOMY_FOLDER;
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
     preset: "categories",
@@ -610,7 +623,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv` (табличная память).\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv`. Глобальные категории — в `data/catalog/catalog/categories.md`.\n",
     content:
       "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
@@ -621,8 +634,49 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv` (табличная память).\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv`. Глобальные теги — в `data/catalog/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
+  },
+  {
+    preset: "statuses",
+    kind: "catalog",
+    fileName: "statuses",
+    title: "Статусы",
+    bundleFile: BUNDLE_TABULAR_FILE,
+    manifest:
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `data/catalog/catalog/statuses.md`, данные в `awn-storage/statuses/content.csv`.\n",
+    content:
+      "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\n"
+  },
+  {
+    preset: "users",
+    kind: "catalog",
+    fileName: "users",
+    title: "Пользователи",
+    bundleFile: BUNDLE_TABULAR_FILE,
+    manifest:
+      "# Пользователи\n\nСправочник для `awn-owner`. Данные — в `awn-storage/users/content.csv`.\n",
+    content: "id,label,email\nme,Я,me@local\n"
+  },
+  {
+    preset: "priorities",
+    kind: "catalog",
+    fileName: "priorities",
+    title: "Приоритеты",
+    bundleFile: BUNDLE_TABULAR_FILE,
+    manifest:
+      "# Приоритеты\n\nСправочник для `awn-priority`. Данные — в `awn-storage/priorities/content.csv`.\n",
+    content: "id,label,sort\nlow,Низкий,1\nmedium,Средний,2\nhigh,Высокий,3\n"
+  },
+  {
+    preset: "colors",
+    kind: "catalog",
+    fileName: "colors",
+    title: "Палитра",
+    bundleFile: BUNDLE_TABULAR_FILE,
+    manifest:
+      "# Палитра\n\nBrand-цвета для `awn-color`. Данные — в `awn-storage/colors/content.csv`.\n",
+    content: "id,label,color\nslate,Slate,#64748b\nblue,Blue,#2563eb\nviolet,Violet,#7c3aed\n"
   },
   {
     preset: "schemas",
@@ -779,7 +833,7 @@ function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
 }
 
 function getAgentWorkspacePreviewAssetsDirSync(workspaceRootAbsolute) {
-  return path.join(getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute), STORAGE_SUBFOLDER_ASSETS);
+  return path.join(getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute), STORAGE_SUBFOLDER_MEDIA);
 }
 
 function resolveWorkspaceManifestPreviewAbsoluteSync(workspaceRootAbsolute, previewRel) {
@@ -885,10 +939,18 @@ function enrichAgentEntry(entry) {
 }
 
 function getAgentKitFolder() {
+  const store = agentContext.getStore();
+  if (store?.agentId && isPlatformAgentId(store.agentId)) {
+    return PLATFORM_KIT_FOLDER;
+  }
   return DEFAULT_AGENT_KIT_FOLDER;
 }
 
 function getAgentContainerFolder() {
+  const store = agentContext.getStore();
+  if (store?.agentId && isPlatformAgentId(store.agentId)) {
+    return null;
+  }
   return DEFAULT_CONTAINER_FOLDER;
 }
 
@@ -969,6 +1031,9 @@ function getAgentRoot() {
 
 function resolveAgent(agentId) {
   const id = String(agentId || defaultAgentId).trim();
+  if (isPlatformAgentId(id)) {
+    return enrichAgentEntry(buildPlatformAgentEntry(projectRoot));
+  }
   return agents.find((agent) => agent.id === id) || null;
 }
 
@@ -981,7 +1046,7 @@ function getActiveAgentId() {
 }
 
 function getAgentsPublicList() {
-  return agents.map(
+  const list = agents.map(
     ({
       id,
       name,
@@ -1011,9 +1076,35 @@ function getAgentsPublicList() {
       folderExists: folderExists !== false,
       previewRel: previewRel || null,
       awnMain: awnMain === true,
-      awnProps: awnProps && typeof awnProps === "object" ? awnProps : {}
+      awnProps: awnProps && typeof awnProps === "object" ? awnProps : {},
+      virtual: false,
+      registryEditable: true
     })
   );
+
+  const platform = enrichAgentEntry(buildPlatformAgentEntry(projectRoot));
+  if (platform.folderExists !== false) {
+    list.unshift({
+      id: platform.id,
+      name: platform.name,
+      path: platform.path,
+      environment: "platform",
+      comment: platform.comment || "",
+      status: platform.status || "",
+      default: false,
+      active: true,
+      orchestrator: false,
+      manifestFound: Boolean(platform.manifestFound),
+      folderExists: true,
+      previewRel: platform.previewRel || null,
+      awnMain: false,
+      awnProps: platform.awnProps || {},
+      virtual: true,
+      registryEditable: false
+    });
+  }
+
+  return list;
 }
 
 function slugifyAgentId(raw, fallbackIndex = 0) {
@@ -1509,6 +1600,9 @@ module.exports = {
   isReservedAgentRootFolderEntryName,
   getAgentKitFolder,
   getAgentContainerFolder,
+  WORKSPACE_TAXONOMY_FOLDER,
+  LEGACY_WORKSPACE_TAXONOMY_FOLDER,
+  PLATFORM_GLOBAL_TAXONOMY_FOLDER,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   findCatalogScaffold,
@@ -1556,5 +1650,6 @@ module.exports = {
   refreshAgentsFromDisk,
   runWithAgent,
   collectAllFocusEntries,
-  collectAgentFocusEntries
+  collectAgentFocusEntries,
+  isPlatformAgentId
 };

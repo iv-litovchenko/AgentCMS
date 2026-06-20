@@ -20,6 +20,18 @@
       ]
     },
     {
+      "title": "Справочники",
+      "items": [
+        { "label": "Теги", "path": "catalog/tags.md" },
+        { "label": "Категории", "path": "catalog/categories.md" },
+        { "label": "Статусы", "path": "catalog/statuses.md" },
+        { "label": "Пользователи", "path": "catalog/users.md" },
+        { "label": "Приоритеты", "path": "catalog/priorities.md" },
+        { "label": "Палитра", "path": "catalog/colors.md" },
+        { "label": "Схемы", "path": "catalog/schemas.md" }
+      ]
+    },
+    {
       "title": "Settings",
       "items": [
         { "label": "Global Settings", "path": "settings/global.yaml" }

@@ -3,6 +3,7 @@ const path = require("path");
 const {
   STORAGE_ROOT_FOLDER,
   parseStorageAssetsRef,
+  parseStorageSlotInlineRef,
   getNamedStorageSlotDirRel
 } = require("./manifest-paths");
 const {
@@ -117,6 +118,11 @@ function workspaceFileExists(fileSet, relPath) {
 
   if (workspacePathExistsInSet(fileSet, norm)) return true;
 
+  const inlineRef = parseStorageSlotInlineRef(norm);
+  if (inlineRef?.workspacePath && workspacePathExistsInSet(fileSet, inlineRef.workspacePath)) {
+    return true;
+  }
+
   const assetsRef = parseStorageAssetsRef(norm);
   if (assetsRef?.workspacePath && workspacePathExistsInSet(fileSet, assetsRef.workspacePath)) {
     return true;
@@ -136,7 +142,7 @@ function resolveHrefToWorkspaceRel(sourceRel, pathPart) {
   if (!href) return null;
 
   const hrefClean = href.replace(/^\.\//, "");
-  if (/^assets\//i.test(hrefClean)) {
+  if (/^(assets|media|pasted|preview|attachments)\//i.test(hrefClean)) {
     const slotInsideStorage = normalizedSource.match(
       new RegExp(`^(.*?/${STORAGE_ROOT_FOLDER}/[^/]+)(?:/|$)`, "i")
     );
@@ -201,6 +207,23 @@ function inspectHref(href, sourceRel, context, meta, issues) {
   const hashIndex = raw.indexOf("#");
   const pathPart = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw;
   if (!pathPart) return;
+
+  const inlineRef = parseStorageSlotInlineRef(pathPart);
+  if (inlineRef?.workspacePath) {
+    if (!workspaceFileExists(context.fileSet, inlineRef.workspacePath)) {
+      pushIssue(issues, {
+        sourcePath: sourceRel,
+        location: meta.location,
+        field: meta.field || null,
+        line: meta.line || null,
+        kind: "asset",
+        link: raw,
+        resolvedPath: inlineRef.workspacePath,
+        message: "Файл вложения не найден"
+      });
+    }
+    return;
+  }
 
   const assetsRef = parseStorageAssetsRef(pathPart);
   if (assetsRef?.workspacePath) {

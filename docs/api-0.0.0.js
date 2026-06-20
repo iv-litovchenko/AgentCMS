@@ -416,7 +416,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media",
-          description: "Файлы assets, группы по типу.",
+          description: "Файлы media, группы по типу.",
           query: ["path"],
           body: null,
           response: "{ exists, files, content, groups }"
@@ -424,7 +424,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/media/file",
-          description: "Скачать бинарный файл из assets.",
+          description: "Скачать бинарный файл из media.",
           query: ["path", "file"],
           body: null,
           response: "Binary (Content-Type по расширению)"
@@ -432,7 +432,7 @@ module.exports = {
         {
           method: "POST",
           path: "/api/media/file",
-          description: "Загрузить файл в assets (base64).",
+          description: "Загрузить файл в media (base64).",
           query: [],
           body: "{ path, data, fileName?, mimeType? }",
           response: "{ file, imageUrl }"

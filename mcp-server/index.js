@@ -5,7 +5,7 @@ import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 
 const nodePath = z.string().min(1).describe("Path to _registration.md, e.g. 05 Хобби/MyArea/_registration.md");
-const extFile = z.string().min(1).describe("Relative path inside content/ or assets/");
+const extFile = z.string().min(1).describe("Relative path inside content/ or media/");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -49,11 +49,36 @@ function createServer() {
     "Search workspace.",
     z.object({
       query: z.string().min(1),
-      scope: z.enum(["content", "filename", "description"]).optional(),
+      scope: z.enum(["content", "filename", "description", "tags"]).optional(),
       limit: z.number().int().min(1).max(100).optional()
     }),
     ({ query, scope, limit }) =>
       client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
+  );
+
+  reg("list_platform_catalogs", "Global platform catalogs (tags, categories, statuses, …).", z.object({}), () =>
+    client.get("/api/platform/catalogs", {}, { agentScope: false })
+  );
+
+  reg("list_agent_catalogs", "Merged global + local catalogs for current agent.", z.object({}), () =>
+    client.get("/api/agent/catalogs")
+  );
+
+  reg("get_platform_index", "Platform navigation index from data/index.json.", z.object({}), () =>
+    client.get("/api/platform/index", {}, { agentScope: false })
+  );
+
+  reg(
+    "add_catalog_item",
+    "Add item to agent-local or platform-global catalog CSV.",
+    z.object({
+      preset: z.enum(["tags", "categories", "statuses", "users", "priorities", "colors"]),
+      id: z.string().optional(),
+      label: z.string().optional(),
+      color: z.string().optional(),
+      email: z.string().optional()
+    }),
+    (payload) => client.post("/api/agent/catalogs/items", payload)
   );
 
   reg("read_node_description", "Read _registration.md.", z.object({ path: nodePath }), ({ path }) =>
@@ -168,7 +193,7 @@ function createServer() {
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
   );
 
-  reg("list_media", "List assets/.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_media", "List media/.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/media", { path })
   );
 

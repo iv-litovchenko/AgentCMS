@@ -9,7 +9,7 @@ module.exports = {
     "Актуальная справка по mcp-server/index.js. В UI: select «0.0.1 — актуальная».",
     "Обёртка над HTTP API. Перед запуском MCP: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.1 (по умолчанию). 0.0.0 — предыдущий снимок.",
-    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _registration.md; file → content/ / assets/.",
+    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy). path → _registration.md; file → content/ / media/.",
     "25 tools — полный список ниже."
   ],
   cursorConfig: {
@@ -201,7 +201,7 @@ module.exports = {
       tools: [
         {
           name: "list_media",
-          description: "Файлы assets/.",
+          description: "Файлы media/.",
           parameters: "path",
           http: "GET /api/media"
         },

@@ -57,6 +57,14 @@ fields:
     type: awn.string
     title: Категория
     description: Категория или группа записи
+  awn-owner:
+    type: awn.string
+    title: Владелец
+    description: Автор или ответственный (из справочника users)
+  awn-priority:
+    type: awn.string
+    title: Приоритет
+    description: Уровень важности (из справочника priorities)
   awn-tags:
     type: awn.array
     title: Теги

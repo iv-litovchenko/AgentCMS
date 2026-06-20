@@ -37,10 +37,13 @@ const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
+const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
 const STORAGE_SUBFOLDER_SCRIPTS = "scripts";
 const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
+const STORAGE_SUBFOLDER_ATTACHMENTS = "attachments";
 const STORAGE_SUBFOLDER_PREVIEW = "preview";
+const STORAGE_SUBFOLDER_PASTED = "pasted";
 const STORAGE_SUBFOLDER_TEMP = "temp";
 const STORAGE_SUBFOLDER_HISTORY = "history";
 const STORAGE_SUBFOLDER_COMMENTS = "comments";
@@ -53,11 +56,17 @@ const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
-  STORAGE_SUBFOLDER_TEMP,
-  STORAGE_SUBFOLDER_PREVIEW
+  STORAGE_SUBFOLDER_TEMP
+];
+
+const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
+  STORAGE_SUBFOLDER_PASTED,
+  STORAGE_SUBFOLDER_PREVIEW,
+  STORAGE_SUBFOLDER_ATTACHMENTS
 ];
 
 const STORAGE_SUBFOLDER_BY_MODE = {
@@ -65,7 +74,7 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   inbox: STORAGE_SUBFOLDER_INBOX,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
-  media: STORAGE_SUBFOLDER_ASSETS,
+  media: STORAGE_SUBFOLDER_MEDIA,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
   temp: STORAGE_SUBFOLDER_TEMP
@@ -251,22 +260,19 @@ function isExternalSectionReadmeRelPath(relPath) {
   return /\/content\//i.test(normalized);
 }
 
-/** Описание подкаталога в assets: …/assets/{section}/_registration.md */
+/** Описание подкаталога в media: …/media/{section}/_registration.md */
 function isMediaSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   if (!isAreaManifestRelPathSuffix(normalized)) return false;
-  return /\/assets\//i.test(normalized);
+  return /\/media\//i.test(normalized);
 }
 
-/** Справочник категорий медиа: …/assets/categories/{slug}.md или awn-storage/{ключ}/content/{slug}.md */
+/** Справочник категорий медиа: …/media/categories/{slug}.md */
 function isMediaCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   const lower = normalized.toLowerCase();
   if (lower.endsWith(".sidecar.md")) return false;
-  return (
-    /\/assets\/categories\/[^/]+\.md$/i.test(normalized) ||
-    /\/awn-storage\/[^/]+\/content\/[^/]+\.md$/i.test(normalized)
-  );
+  return /\/media\/categories\/[^/]+\.md$/i.test(normalized);
 }
 
 function getServiceAreaManifestRel(serviceFolderRel) {
@@ -292,10 +298,30 @@ function getManifestContainerDirRel(relPath) {
   return dir;
 }
 
+/** Префикс контейнера для awn-storage/{slot}: всё до /awn-storage/, не dirname файла. */
+function getStorageContainerPrefixRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  const marker = `/${STORAGE_ROOT_FOLDER}/`;
+  const idx = normalized.toLowerCase().indexOf(marker.toLowerCase());
+  if (idx >= 0) {
+    return normalized.slice(0, idx);
+  }
+  if (isAreaManifestRelPath(normalized) || isTopicManifestRelPath(normalized)) {
+    return getManifestContainerDirRel(normalized);
+  }
+  return getManifestContainerDirRel(normalized);
+}
+
 function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = path.posix.basename(normalized);
-  if (isAreaManifestFileName(base) || isTopicManifestFileName(base)) {
+  const lower = base.toLowerCase();
+  if (lower.endsWith(".sidecar.md")) return "";
+  if (isAreaManifestFileName(base)) {
+    return stripTopicPrefix(base);
+  }
+  if (/\.md$/i.test(base) && !isExcludedMenuTopicMdFileName(base)) {
     return stripTopicPrefix(base);
   }
   return "";
@@ -327,7 +353,7 @@ function appendManifestCandidatesForStorageKey(manifestCandidates, containerPref
 }
 
 function getNamedStorageSlotDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
+  const containerDir = getStorageContainerPrefixRel(relPath);
   const slotKey = getManifestNamedSlotKey(relPath);
   if (!slotKey) return "";
   const slotDir = `${STORAGE_ROOT_FOLDER}/${slotKey}`;
@@ -585,6 +611,41 @@ function parseStorageAssetsRef(workspaceRelPath) {
   };
 }
 
+function buildAssetsUploadRef(contextRelPath, assetsSubdir, fileName) {
+  const subdir = String(assetsSubdir || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const file = String(fileName || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!subdir || !file || subdir.includes("..") || file.includes("..")) return "";
+  return buildStorageLayerRef(contextRelPath, STORAGE_SUBFOLDER_ASSETS, `${subdir}/${file}`);
+}
+
+function parseStorageSlotInlineRef(workspaceRelPath) {
+  const parsed = parseStorageAssetsRef(workspaceRelPath);
+  if (!parsed?.mediaFile) return null;
+  const parts = String(parsed.mediaFile).replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  const layer = normalizeStorageSubfolderName(parts[0]);
+  if (layer !== STORAGE_SUBFOLDER_PASTED && layer !== STORAGE_SUBFOLDER_PREVIEW) return null;
+  const relativePath = parts.slice(1).join("/");
+  if (!relativePath) return null;
+  return {
+    manifestRelPath: parsed.manifestRelPath,
+    layer,
+    relativePath,
+    workspacePath: parsed.workspacePath,
+    slotDir: parsed.slotDir,
+    slotLayerFile: `${layer}/${relativePath}`
+  };
+}
+
+function isStorageAssetsInlineSubfolder(name) {
+  const canonical = normalizeStorageSubfolderName(name);
+  return STORAGE_ASSETS_INLINE_SUBFOLDERS.includes(canonical);
+}
+
+function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
+  return buildAssetsUploadRef(manifestRelPath, layer, fileName);
+}
+
 function resolveManifestRelFromStorageBundlePath(normalized) {
   const rel = String(normalized || "").replace(/\\/g, "/");
   const match = rel.match(
@@ -748,11 +809,15 @@ module.exports = {
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
+  STORAGE_SUBFOLDER_PASTED,
+  STORAGE_SUBFOLDER_ATTACHMENTS,
+  STORAGE_ASSETS_INLINE_SUBFOLDERS,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,
   HISTORY_VERSION_SUFFIX,
@@ -797,13 +862,18 @@ module.exports = {
   isMediaCategoryContentRelPath,
   joinAreaManifestRel,
   getManifestContainerDirRel,
+  getStorageContainerPrefixRel,
   getManifestNamedSlotKey,
+  isStorageAssetsInlineSubfolder,
   getNamedStorageSlotDirRel,
   getNamedStorageBundleDirRel,
   getNamedStorageBundleRel,
   buildStorageLayerRef,
   parseStorageLayerRef,
   parseStorageAssetsRef,
+  parseStorageSlotInlineRef,
+  buildAssetsUploadRef,
+  buildSlotInlineUploadRef,
   pickManifestRelFromStorageLayerRef,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
