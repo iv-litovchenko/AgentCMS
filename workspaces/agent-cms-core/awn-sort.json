@@ -1,7 +1,7 @@
 {
   "order": [
-    "Документация",
-    "Компоненты (типы)",
-    "Тесты"
+    "documentations",
+    "types-of-components",
+    "agent-groups"
   ]
 }

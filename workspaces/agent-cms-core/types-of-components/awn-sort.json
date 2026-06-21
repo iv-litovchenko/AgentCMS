@@ -6,6 +6,7 @@
     "nodes",
     "fields",
     "blocks",
-    "views"
+    "views",
+    "slots"
   ]
 }
