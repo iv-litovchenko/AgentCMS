@@ -30349,6 +30349,7 @@ function applyModeUi() {
     updateBreadcrumbsForActiveMode();
   }
   syncSaveButtonLamp();
+  window.AgentDiscussPanel?.sync?.();
 }
 
 function escapeHtml(value) {
@@ -37264,6 +37265,9 @@ async function openWorkspaceInspectorPath(relPath) {
     showToast(`Не удалось открыть файл: ${error.message}`, "error");
   }
 }
+
+window.showToast = showToast;
+window.openWorkspaceInspectorPath = openWorkspaceInspectorPath;
 
 async function revealWorkspacePath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");

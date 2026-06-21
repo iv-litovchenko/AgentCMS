@@ -191,6 +191,25 @@ list_mentions({ mentionHandle?, afterId?, limit? })
 
 После triage «→ в Диалог» и ответа агента через MCP — hook: если у inbox item есть `awn-telegram-chat-id`, отправить excerpt ответа в Telegram. Требует хранить chat_id в frontmatter inbox при приёме из бота.
 
+### 6.6 Discuss Panel (панель обсуждения справа)
+
+**Статус:** MVP в UI (2026-06-21) — `public/discuss-panel.js`, кнопка 💬 в шапке.
+
+**Зачем:** отдельная колонка справа от центра (не Inbox/Thread/Comments): собрать **мульti-контекст** (темы, записи из меню drag-and-drop) и вести сессию обсуждения с агентом.
+
+**MVP (сделано):**
+- Toggle 💬, resize, localStorage на агента
+- Контекст-чипы: DnD из меню, «+ Текущий», открыть / удалить
+- Composer + локальный лог сообщений
+- **→ Cursor** — копирует context + message в буфер
+
+**Дальше:**
+- `POST/GET /api/agent/discuss` — persist на диск (`awn-storage/_system/discuss/`)
+- MCP: `read_discuss_session`, `append_discuss_message`
+- SSE: ответы агента в панель
+- Drop из Inbox / overview cards
+- Optional LLM в браузере (7.1) — только если нужен мозг без Cursor
+
 ---
 
 ## Фаза 7 · опционально / долгий горизонт

@@ -1918,6 +1918,50 @@
             </aside>
           </section>
         </main>
+
+        <aside id="discuss-aside" class="discuss-aside" aria-label="Панель обсуждения">
+          <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели обсуждения" tabindex="0"></div>
+          <header class="discuss-aside-head">
+            <div class="discuss-aside-head-main">
+              <h2 class="discuss-aside-title">Обсуждение</h2>
+              <p class="discuss-aside-sub">Контекст для агента · перетащите из меню</p>
+            </div>
+          </header>
+
+          <section class="discuss-context-section" aria-label="Контекст обсуждения">
+            <div class="discuss-context-head">
+              <span class="discuss-context-label">Контекст</span>
+              <button id="discuss-add-current-btn" class="discuss-context-add-btn" type="button" title="Добавить открытый документ">+ Текущий</button>
+            </div>
+            <div
+              id="discuss-context-dropzone"
+              class="discuss-context-dropzone"
+              data-discuss-dropzone="context"
+            >
+              <ul id="discuss-context-list" class="discuss-context-list"></ul>
+              <p id="discuss-context-hint" class="discuss-context-hint">Перетащите тему, область или запись из меню слева</p>
+            </div>
+          </section>
+
+          <section id="discuss-messages-wrap" class="discuss-messages-wrap" aria-label="Сообщения">
+            <ul id="discuss-messages-list" class="discuss-messages-list"></ul>
+            <p id="discuss-messages-empty" class="discuss-messages-empty">Пока нет сообщений</p>
+          </section>
+
+          <footer class="discuss-composer">
+            <textarea
+              id="discuss-composer-input"
+              class="discuss-composer-input"
+              rows="3"
+              placeholder="Напишите агенту…"
+              aria-label="Сообщение агенту"
+            ></textarea>
+            <div class="discuss-composer-actions">
+              <button id="discuss-send-btn" class="discuss-composer-btn discuss-composer-btn--primary" type="button">Отправить</button>
+              <button id="discuss-clear-btn" class="discuss-composer-btn discuss-composer-btn--ghost" type="button" title="Очистить чат">Очистить</button>
+            </div>
+          </footer>
+        </aside>
         </div>
       </section>
 
@@ -2452,7 +2496,8 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.219"></script>
+    <script src="/main.js?v=0.5.222"></script>
+    <script src="/discuss-panel.js?v=0.5.223"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

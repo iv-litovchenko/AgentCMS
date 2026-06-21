@@ -1,3 +1,7 @@
+---
+awn-status: in-progress
+---
+
 # Вопрос — match vs switch
 
 Нужно ли в новом коде всегда использовать `match` вместо `switch`?
