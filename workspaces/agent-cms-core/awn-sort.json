@@ -2,6 +2,7 @@
   "order": [
     "documentations",
     "types-of-components",
-    "agent-groups"
+    "agent-groups",
+    "ideasmd"
   ]
 }

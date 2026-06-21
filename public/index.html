@@ -1332,6 +1332,7 @@
                     <option value="settings">|- Настройки</option>
                     <option value="quick-notes">|- Быстрые заметки</option>
                     <option value="inbox">|- Входящие</option>
+                    <option value="thread">|- Диалог</option>
                     <option value="references">|- Источники</option>
                     <option value="artefacts">|- Артефакты</option>
                     <option value="memory">|- Память (данные)</option>
@@ -1682,6 +1683,8 @@
                 <div id="editor-wysiwyg-wrap" class="editor-wysiwyg-wrap hidden"></div>
                 <div id="file-content-preview" class="file-content-preview hidden"></div>
               </div>
+              <section id="external-file-comments-block" class="external-file-comments hidden" aria-label="Комментарии к файлу"></section>
+              <section id="media-file-comments-block" class="media-file-comments hidden" aria-label="Комментарии к медиафайлу"></section>
               <section id="preview-upload-block" class="preview-upload hidden">
                 <div class="preview-upload-card">
                   <div id="preview-upload-zone" class="preview-upload-zone" tabindex="0" role="button" aria-label="Загрузить изображение превью">
@@ -1736,6 +1739,9 @@
               </section>
               <section id="node-overview-block" class="node-overview hidden" aria-label="Обзор">
                 <div id="node-overview-content" class="node-overview-content"></div>
+              </section>
+              <section id="node-thread-block" class="node-thread hidden" aria-label="Диалог">
+                <div id="node-thread-content" class="node-thread-content"></div>
               </section>
             </div>
               </section>
@@ -2446,7 +2452,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
-    <script src="/main.js?v=0.5.212"></script>
+    <script src="/main.js?v=0.5.219"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

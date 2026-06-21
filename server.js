@@ -56,6 +56,7 @@ const {
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
@@ -78,6 +79,7 @@ const {
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
+  getThreadDirRel,
   buildHistoryVersionFileName,
   buildCommentFileName,
   isHistoryVersionFileName,
@@ -843,12 +845,69 @@ function formatYamlScalar(value) {
   return JSON.stringify(text);
 }
 
+const COMMENT_MENTION_HANDLE_RE = /[a-zA-Z0-9_\-\.\u0400-\u04FF]+/;
+
+function extractCommentMentions(body) {
+  const re = /@([a-zA-Z0-9_\-\.\u0400-\u04FF]+)/g;
+  const found = new Set();
+  let match;
+  while ((match = re.exec(String(body || ""))) !== null) {
+    const handle = String(match[1] || "").trim();
+    if (handle) found.add(handle);
+  }
+  return [...found];
+}
+
+function parseCommentMentions(frontmatter) {
+  const raw = getYamlScalar(frontmatter, "awn-mentions");
+  if (!raw) return [];
+  return String(raw)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeMentionHandle(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^\w\-\.\u0400-\u04FF]/g, "")
+    .slice(0, 48)
+    .toLowerCase();
+}
+
+function commentMentionsHandle(comment, handle) {
+  const normalized = normalizeMentionHandle(handle);
+  if (!normalized || !comment) return false;
+  const mentions = Array.isArray(comment.mentions) ? comment.mentions : extractCommentMentions(comment.body || "");
+  return mentions.some((mention) => normalizeMentionHandle(mention) === normalized);
+}
+
+function parseCommentReactionsUp(frontmatter) {
+  const raw = getYamlScalar(frontmatter, "awn-reactions-up");
+  if (!raw) return [];
+  return String(raw)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatCommentReactionAuthor(author) {
+  return normalizeMentionHandle(author) || "guest";
+}
+
 function parseCommentFileContent(rawContent) {
   const { frontmatter, body } = splitNodeFrontmatter(rawContent);
+  const storedMentions = parseCommentMentions(frontmatter);
+  const bodyMentions = extractCommentMentions(body);
+  const mentions = [...new Set([...storedMentions, ...bodyMentions])];
+  const reactionsUp = parseCommentReactionsUp(frontmatter);
   return {
     author: getYamlScalar(frontmatter, "awn-author") || "guest",
     created: getYamlScalar(frontmatter, "awn-created") || "",
     replyTo: getYamlScalar(frontmatter, "awn-reply-to") || "",
+    mentions,
+    reactionsUp,
     body: String(body || "").trim()
   };
 }
@@ -883,6 +942,9 @@ async function readCommentsFromDir(commentsDirRel) {
       author: parsed.author,
       created: parsed.created,
       replyTo: parsed.replyTo || null,
+      mentions: parsed.mentions,
+      reactionsUp: parsed.reactionsUp,
+      reactionsUpCount: parsed.reactionsUp.length,
       body: parsed.body
     });
   }
@@ -934,11 +996,13 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
     }
   }
 
+  const mentions = extractCommentMentions(text);
   const frontmatterLines = [
     `awn-author: ${formatYamlScalar(commentAuthor)}`,
     `awn-created: ${created}`
   ];
   if (parentId) frontmatterLines.push(`awn-reply-to: ${formatYamlScalar(parentId)}`);
+  if (mentions.length) frontmatterLines.push(`awn-mentions: ${formatYamlScalar(mentions.join(", "))}`);
   const content = joinNodeFrontmatter(frontmatterLines.join("\n"), text);
 
   const fileName = buildCommentFileName();
@@ -956,7 +1020,776 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
     author: commentAuthor,
     created,
     replyTo: parentId || null,
+    mentions,
+    reactionsUp: [],
+    reactionsUpCount: 0,
     body: text
+  };
+}
+
+async function resolveCommentFileAbsolute({ manifestRelPath, mode, file, systemName, commentId }) {
+  const commentsManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  if (!commentsManifestRel || !targetRelPath) throw new Error("Invalid comment target");
+
+  const safeId = String(commentId || "").trim();
+  if (!isCommentFileName(safeId)) throw new Error("Invalid comment id");
+
+  const commentsDirRel = getCommentsDirRel(commentsManifestRel, targetRelPath);
+  const commentsDirAbsolute = normalizeWorkspacePath(commentsDirRel);
+  if (!commentsDirAbsolute) throw new Error("Invalid comments directory");
+
+  const fileAbsolute = path.join(commentsDirAbsolute, safeId);
+  if (!fileAbsolute.startsWith(commentsDirAbsolute)) throw new Error("Invalid comment path");
+
+  try {
+    await fs.access(fileAbsolute);
+  } catch {
+    throw new Error("Comment not found");
+  }
+
+  return { commentsDirAbsolute, fileAbsolute, relPath: safeId, commentsDirRel };
+}
+
+async function toggleCommentReaction({ manifestRelPath, mode, file, systemName, commentId, reaction, author }) {
+  const reactionKey = String(reaction || "up").trim().toLowerCase();
+  if (reactionKey !== "up") throw new Error("Unsupported reaction");
+
+  const commentAuthor = formatCommentReactionAuthor(author || "guest");
+  const { fileAbsolute, relPath, commentsDirRel } = await resolveCommentFileAbsolute({
+    manifestRelPath,
+    mode,
+    file,
+    systemName,
+    commentId
+  });
+
+  const raw = await fs.readFile(fileAbsolute, "utf-8");
+  const { frontmatter, body } = splitNodeFrontmatter(raw);
+  const reactionsUp = parseCommentReactionsUp(frontmatter);
+  const index = reactionsUp.indexOf(commentAuthor);
+  let active = false;
+  if (index >= 0) {
+    reactionsUp.splice(index, 1);
+  } else {
+    reactionsUp.push(commentAuthor);
+    active = true;
+  }
+
+  let nextFrontmatter = frontmatter;
+  if (reactionsUp.length) {
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-reactions-up", reactionsUp.join(", "));
+  } else {
+    nextFrontmatter = String(nextFrontmatter || "")
+      .replace(/^awn-reactions-up:.*\n?/m, "")
+      .trim();
+  }
+
+  await fs.writeFile(fileAbsolute, joinNodeFrontmatter(nextFrontmatter, body), "utf-8");
+
+  const parsed = parseCommentFileContent(joinNodeFrontmatter(nextFrontmatter, body));
+  return {
+    id: relPath,
+    relPath: `${commentsDirRel}/${relPath}`.replace(/\\/g, "/"),
+    reactionsUp: parsed.reactionsUp,
+    reactionsUpCount: parsed.reactionsUp.length,
+    activeForAuthor: active
+  };
+}
+
+async function buildTopicMentionSummary(manifestRelPath, mentionHandle, afterId = "") {
+  const handle = normalizeMentionHandle(mentionHandle);
+  if (!handle) return { count: 0, unread: 0, latestId: null };
+
+  const { comments } = await listFileComments({ manifestRelPath, mode: "description" });
+  const matching = comments.filter((comment) => commentMentionsHandle(comment, handle));
+  const after = String(afterId || "").trim();
+  const unread = after
+    ? matching.filter((comment) => comment.id > after).length
+    : matching.length;
+
+  return {
+    count: matching.length,
+    unread,
+    latestId: matching[0]?.id || null
+  };
+}
+
+function parseThreadMessageContent(rawContent) {
+  const { frontmatter, body } = splitNodeFrontmatter(rawContent);
+  const roleRaw = String(getYamlScalar(frontmatter, "awn-role") || "user").trim().toLowerCase();
+  return {
+    role: roleRaw === "agent" ? "agent" : "user",
+    author: getYamlScalar(frontmatter, "awn-author") || "guest",
+    created: getYamlScalar(frontmatter, "awn-created") || "",
+    linkedFiles: getYamlScalar(frontmatter, "awn-linked-files") || "",
+    body: String(body || "").trim()
+  };
+}
+
+function parseInboxItemContent(rawContent) {
+  const { frontmatter, body } = splitNodeFrontmatter(rawContent);
+  const statusRaw = String(getYamlScalar(frontmatter, "awn-status") || "new").trim().toLowerCase();
+  const status =
+    statusRaw === "done" || statusRaw === "in-progress" || statusRaw === "new" ? statusRaw : "new";
+  return {
+    status,
+    source: getYamlScalar(frontmatter, "awn-source") || "",
+    author: getYamlScalar(frontmatter, "awn-author") || "",
+    created: getYamlScalar(frontmatter, "awn-created") || "",
+    body: String(body || "").trim()
+  };
+}
+
+const INBOX_BODY_MAX_LENGTH = 50000;
+
+function sanitizeInboxIntakeBody(body) {
+  let text = String(body || "")
+    .replace(/^\uFEFF/, "")
+    .trim();
+  if (text.startsWith("---")) {
+    const end = text.indexOf("\n---", 3);
+    if (end !== -1) text = text.slice(end + 4).trim();
+  }
+  text = text.replace(/\0/g, "");
+  if (text.length > INBOX_BODY_MAX_LENGTH) {
+    text = `${text.slice(0, INBOX_BODY_MAX_LENGTH)}\n\n[… текст обрезан]`;
+  }
+  return text;
+}
+
+function wrapInboxBodyForThread(body, meta = {}) {
+  const clean = sanitizeInboxIntakeBody(body);
+  const source = String(meta.source || "").trim();
+  const sourceNote = source ? ` · ${source}` : "";
+  return `> **Входящее**${sourceNote}\n\n${clean}`.trim();
+}
+
+async function buildTopicChannelSignature(manifestRelPath, watch = "thread,inbox", scope = {}) {
+  const channels = new Set(
+    String(watch || "")
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const parts = {};
+
+  if (channels.has("inbox")) {
+    const inbox = await listInboxItems(manifestRelPath);
+    parts.inbox = {
+      pending: Number(inbox.pending) || 0,
+      total: Array.isArray(inbox.items) ? inbox.items.length : 0,
+      latest: inbox.items[0]?.path || null
+    };
+  }
+
+  if (channels.has("thread")) {
+    const thread = await listTopicThread({
+      manifestRelPath,
+      mode: scope.mode,
+      file: scope.file,
+      systemName: scope.systemName
+    });
+    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+    const last = messages.length ? messages[messages.length - 1] : null;
+    parts.thread = {
+      count: messages.length,
+      lastId: last?.id || null,
+      lastRole: last?.role || null
+    };
+  }
+
+  return JSON.stringify(parts);
+}
+
+async function streamTopicChannelEvents(req, res, manifestRelPath, watch, scope = {}) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+  res.write(": connected\n\n");
+
+  let closed = false;
+  req.on("close", () => {
+    closed = true;
+  });
+
+  let lastSig = "";
+  const tick = async () => {
+    if (closed) return;
+    try {
+      const sig = await buildTopicChannelSignature(manifestRelPath, watch, scope);
+      if (sig !== lastSig) {
+        lastSig = sig;
+        res.write(`event: update\ndata: ${sig}\n\n`);
+      } else {
+        res.write("event: ping\ndata: {}\n\n");
+      }
+    } catch (error) {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({ message: String(error?.message || error) })}\n\n`
+      );
+    }
+  };
+
+  await tick();
+  const interval = setInterval(() => {
+    void tick();
+  }, 2500);
+
+  const reconnectTimer = setTimeout(() => {
+    if (!closed) {
+      res.write("event: reconnect\ndata: {}\n\n");
+      res.end();
+    }
+    clearInterval(interval);
+  }, 300000);
+
+  req.on("close", () => {
+    clearInterval(interval);
+    clearTimeout(reconnectTimer);
+  });
+}
+
+async function collectAgentTopicManifestPaths() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const entries = collectManifestEntriesFromMenu(menu, []);
+  if (menu.serviceTree) collectManifestEntriesFromMenu(menu.serviceTree, entries);
+  if (menu.containerTree) collectManifestEntriesFromMenu(menu.containerTree, entries);
+  return [
+    ...new Set(
+      entries
+        .filter((entry) => entry.kind === "topic")
+        .map((entry) => String(entry.manifestPath || "").replace(/\\/g, "/"))
+        .filter(Boolean)
+    )
+  ].slice(0, 120);
+}
+
+async function buildAgentChannelSignature() {
+  const paths = await collectAgentTopicManifestPaths();
+  const batch = await buildIntakeBatchSummary(paths);
+  const digest = {};
+  for (const [path, summary] of Object.entries(batch.summaries || {})) {
+    digest[path] = {
+      i: Number(summary?.inbox?.pending) || 0,
+      t: summary?.thread?.lastMessageId || null,
+      m: Number(summary?.mentions?.unread) || 0
+    };
+  }
+  return JSON.stringify({
+    topics: paths.length,
+    totals: batch.totals,
+    digest
+  });
+}
+
+async function streamAgentChannelEvents(req, res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+  res.write(": connected\n\n");
+
+  let closed = false;
+  req.on("close", () => {
+    closed = true;
+  });
+
+  let lastSig = "";
+  const tick = async () => {
+    if (closed) return;
+    try {
+      const sig = await buildAgentChannelSignature();
+      if (sig !== lastSig) {
+        lastSig = sig;
+        res.write(`event: update\ndata: ${sig}\n\n`);
+      } else {
+        res.write("event: ping\ndata: {}\n\n");
+      }
+    } catch (error) {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({ message: String(error?.message || error) })}\n\n`
+      );
+    }
+  };
+
+  await tick();
+  const interval = setInterval(() => {
+    void tick();
+  }, 2500);
+
+  const reconnectTimer = setTimeout(() => {
+    if (!closed) {
+      res.write("event: reconnect\ndata: {}\n\n");
+      res.end();
+    }
+    clearInterval(interval);
+  }, 300000);
+
+  req.on("close", () => {
+    clearInterval(interval);
+    clearTimeout(reconnectTimer);
+  });
+}
+
+function upsertYamlScalarLine(frontmatter, key, value) {
+  const line = `${key}: ${formatYamlScalar(value)}`;
+  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*$`, "m");
+  const trimmed = String(frontmatter || "").trim();
+  if (pattern.test(trimmed)) {
+    return trimmed.replace(pattern, line);
+  }
+  return trimmed ? `${trimmed}\n${line}` : line;
+}
+
+async function readThreadMessagesFromDir(threadDirRel) {
+  const threadDirAbsolute = normalizeWorkspacePath(threadDirRel);
+  if (!threadDirAbsolute) return [];
+
+  let entries;
+  try {
+    entries = await fs.readdir(threadDirAbsolute, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    throw error;
+  }
+
+  const messages = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !isCommentFileName(entry.name)) continue;
+    const messageAbsolute = path.join(threadDirAbsolute, entry.name);
+    let content = "";
+    try {
+      content = await fs.readFile(messageAbsolute, "utf-8");
+    } catch {
+      continue;
+    }
+    const parsed = parseThreadMessageContent(content);
+    messages.push({
+      id: entry.name,
+      label: formatCommentTimestampLabel(entry.name),
+      relPath: `${threadDirRel}/${entry.name}`.replace(/\\/g, "/"),
+      role: parsed.role,
+      author: parsed.author,
+      created: parsed.created,
+      linkedFiles: parsed.linkedFiles || null,
+      body: parsed.body
+    });
+  }
+
+  messages.sort((left, right) => left.id.localeCompare(right.id));
+  return messages;
+}
+
+async function resolveThreadTarget({ manifestRelPath, mode, file, systemName }) {
+  const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
+  const manifestPath = historyManifestRel || manifestRelPath;
+  const hasFileScope = Boolean(String(file || "").trim() || String(systemName || "").trim());
+
+  if (!hasFileScope) {
+    const threadDirRel = getThreadDirRel(manifestPath);
+    return {
+      manifestPath,
+      target: null,
+      threadDirRel: threadDirRel || "",
+      scope: "topic"
+    };
+  }
+
+  const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
+  if (!targetRelPath) {
+    const threadDirRel = getThreadDirRel(manifestPath);
+    return {
+      manifestPath,
+      target: null,
+      threadDirRel: threadDirRel || "",
+      scope: "topic"
+    };
+  }
+
+  const relativeTarget = getHistoryRelativeTargetPath(manifestPath, targetRelPath);
+  const threadDirRel = getThreadDirRel(manifestPath, targetRelPath);
+  return {
+    manifestPath,
+    target: relativeTarget || null,
+    threadDirRel: threadDirRel || "",
+    scope: "element"
+  };
+}
+
+async function listTopicThread({ manifestRelPath, mode, file, systemName } = {}) {
+  const resolved = await resolveThreadTarget({ manifestRelPath, mode, file, systemName });
+  if (!resolved.threadDirRel) {
+    return {
+      manifestPath: resolved.manifestPath,
+      target: resolved.target,
+      scope: resolved.scope,
+      threadDir: "",
+      messages: []
+    };
+  }
+  const messages = await readThreadMessagesFromDir(resolved.threadDirRel);
+  return {
+    manifestPath: resolved.manifestPath,
+    target: resolved.target,
+    scope: resolved.scope,
+    threadDir: resolved.threadDirRel,
+    messages
+  };
+}
+
+async function appendTopicThreadMessage({
+  manifestRelPath,
+  body,
+  role,
+  author,
+  linkedFiles,
+  mode,
+  file,
+  systemName
+}) {
+  const resolved = await resolveThreadTarget({ manifestRelPath, mode, file, systemName });
+  const threadDirRel = resolved.threadDirRel;
+  if (!threadDirRel) throw new Error("Invalid thread target");
+
+  const text = String(body || "").trim();
+  if (!text) throw new Error("Message body is required");
+
+  const messageRole = String(role || "user").trim().toLowerCase() === "agent" ? "agent" : "user";
+  const messageAuthor = String(author || (messageRole === "agent" ? "agent" : "guest")).trim() || "guest";
+  const created = new Date().toISOString();
+  const threadDirAbsolute = normalizeWorkspacePath(threadDirRel);
+  if (!threadDirAbsolute) throw new Error("Invalid thread directory");
+
+  const frontmatterLines = [
+    `awn-role: ${formatYamlScalar(messageRole)}`,
+    `awn-author: ${formatYamlScalar(messageAuthor)}`,
+    `awn-created: ${created}`
+  ];
+  const linked = String(linkedFiles || "").trim();
+  if (linked) frontmatterLines.push(`awn-linked-files: ${formatYamlScalar(linked)}`);
+  const content = joinNodeFrontmatter(frontmatterLines.join("\n"), text);
+
+  const fileName = buildCommentFileName();
+  const messageRelPath = `${threadDirRel}/${fileName}`.replace(/\\/g, "/");
+  const messageAbsolute = normalizeWorkspacePath(messageRelPath);
+  if (!messageAbsolute) throw new Error("Invalid thread message path");
+
+  await fs.mkdir(threadDirAbsolute, { recursive: true });
+  await fs.writeFile(messageAbsolute, content, "utf-8");
+
+  return {
+    id: fileName,
+    label: formatCommentTimestampLabel(fileName),
+    relPath: messageRelPath,
+    role: messageRole,
+    author: messageAuthor,
+    created,
+    linkedFiles: linked || null,
+    body: text
+  };
+}
+
+async function listInboxItems(manifestRelPath) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) throw new Error("Invalid file path");
+
+  const inboxAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX);
+  if (!inboxAbsolute) {
+    return { manifestPath: manifestRelPath, exists: false, items: [], pending: 0 };
+  }
+
+  const inboxDirRel = path
+    .relative(getAgentRoot(), inboxAbsolute)
+    .replace(/\\/g, "/");
+
+  const files = await collectMarkdownFiles(inboxAbsolute);
+  const items = [];
+
+  for (const file of files) {
+    const relPath = String(file.relativePath || "").replace(/\\/g, "/");
+    if (!relPath) continue;
+    const fileAbsolute = path.join(inboxAbsolute, relPath);
+    if (!fileAbsolute.startsWith(getAgentRoot())) continue;
+    let raw = "";
+    try {
+      raw = await fs.readFile(fileAbsolute, "utf-8");
+    } catch {
+      continue;
+    }
+    const parsed = parseInboxItemContent(raw);
+    const preview = parsed.body.replace(/\s+/g, " ").trim().slice(0, 160);
+    items.push({
+      path: relPath.replace(/\\/g, "/"),
+      relPath: `${inboxDirRel}/${relPath}`.replace(/\\/g, "/"),
+      status: parsed.status,
+      source: parsed.source,
+      author: parsed.author,
+      created: parsed.created,
+      preview,
+      body: parsed.body
+    });
+  }
+
+  items.sort((left, right) => right.path.localeCompare(left.path));
+  const pending = items.filter((item) => item.status !== "done").length;
+
+  return {
+    manifestPath: manifestRelPath,
+    exists: true,
+    inboxDir: inboxDirRel,
+    items,
+    pending
+  };
+}
+
+async function readInboxItem(manifestRelPath, inboxRelFile) {
+  const { inboxAbsolute, fileAbsolute, relPath } = await resolveInboxFileAbsolute(
+    manifestRelPath,
+    inboxRelFile
+  );
+  const inboxDirRel = path.relative(getAgentRoot(), inboxAbsolute).replace(/\\/g, "/");
+  const raw = await fs.readFile(fileAbsolute, "utf-8");
+  const parsed = parseInboxItemContent(raw);
+  const preview = parsed.body.replace(/\s+/g, " ").trim().slice(0, 160);
+
+  return {
+    manifestPath: manifestRelPath,
+    inboxDir: inboxDirRel,
+    item: {
+      path: relPath,
+      relPath: `${inboxDirRel}/${relPath}`.replace(/\\/g, "/"),
+      status: parsed.status,
+      source: parsed.source,
+      author: parsed.author,
+      created: parsed.created,
+      preview,
+      body: parsed.body
+    }
+  };
+}
+
+async function resolveInboxFileAbsolute(manifestRelPath, inboxRelFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) throw new Error("Invalid file path");
+
+  const inboxAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX);
+  if (!inboxAbsolute) throw new Error("Inbox folder not found");
+
+  const safeRel = normalizeHistoryTargetRelPath(inboxRelFile);
+  if (!safeRel || safeRel.includes("..")) throw new Error("Invalid inbox file path");
+
+  const fileAbsolute = path.join(inboxAbsolute, safeRel);
+  if (!fileAbsolute.startsWith(inboxAbsolute)) throw new Error("Invalid inbox file path");
+
+  try {
+    await fs.access(fileAbsolute);
+  } catch {
+    throw new Error("Inbox file not found");
+  }
+
+  return { nodeAbsolute, inboxAbsolute, fileAbsolute, relPath: safeRel };
+}
+
+async function triageInboxItem({ manifestRelPath, file, action, status }) {
+  const { nodeAbsolute, inboxAbsolute, fileAbsolute, relPath } = await resolveInboxFileAbsolute(
+    manifestRelPath,
+    file
+  );
+
+  const raw = await fs.readFile(fileAbsolute, "utf-8");
+  const { frontmatter, body } = splitNodeFrontmatter(raw);
+  const parsed = parseInboxItemContent(raw);
+  const nextAction = String(action || "").trim().toLowerCase();
+
+  if (nextAction === "to-thread") {
+    const threadBody = wrapInboxBodyForThread(String(body || "").trim() || parsed.body, {
+      source: parsed.source
+    });
+    const message = await appendTopicThreadMessage({
+      manifestRelPath,
+      body: threadBody,
+      role: "user",
+      author: parsed.author || "inbox"
+    });
+    let nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-status", "done");
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-triaged-at", new Date().toISOString());
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-thread-ref", message.id);
+    await fs.writeFile(fileAbsolute, joinNodeFrontmatter(nextFrontmatter, body), "utf-8");
+    return { action: nextAction, file: relPath, status: "done", threadMessage: message };
+  }
+
+  if (nextAction === "to-content") {
+    const contentAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT, {
+      create: true
+    });
+    if (!contentAbsolute) throw new Error("Content folder unavailable");
+
+    const baseName = path.basename(relPath);
+    let targetAbsolute = path.join(contentAbsolute, baseName);
+    if (!targetAbsolute.startsWith(contentAbsolute)) throw new Error("Invalid content target");
+
+    if (await fileExists(targetAbsolute)) {
+      const stamp = buildCommentFileName().replace(/\.md$/i, "");
+      const altName = `${path.basename(baseName, ".md")}-${stamp}.md`;
+      targetAbsolute = path.join(contentAbsolute, altName);
+    }
+
+    await fs.mkdir(contentAbsolute, { recursive: true });
+    let nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-status", "done");
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-triaged-at", new Date().toISOString());
+    const movedContent = joinNodeFrontmatter(nextFrontmatter, body);
+    await fs.writeFile(targetAbsolute, movedContent, "utf-8");
+    await fs.rm(fileAbsolute, { force: true });
+
+    const contentRel = path.relative(getAgentRoot(), targetAbsolute).replace(/\\/g, "/");
+    return { action: nextAction, file: relPath, status: "done", contentPath: contentRel };
+  }
+
+  if (nextAction === "mark-done" || nextAction === "set-status") {
+    const nextStatusRaw = String(status || "done").trim().toLowerCase();
+    const nextStatus =
+      nextStatusRaw === "done" || nextStatusRaw === "in-progress" || nextStatusRaw === "new"
+        ? nextStatusRaw
+        : "done";
+    let nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-status", nextStatus);
+    if (nextStatus === "done") {
+      nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-triaged-at", new Date().toISOString());
+    }
+    await fs.writeFile(fileAbsolute, joinNodeFrontmatter(nextFrontmatter, body), "utf-8");
+    return { action: nextAction, file: relPath, status: nextStatus };
+  }
+
+  throw new Error("Unknown inbox triage action");
+}
+
+async function buildTopicIntakeSummary(manifestRelPath, options = {}) {
+  const inbox = await listInboxItems(manifestRelPath);
+  const thread = await listTopicThread({ manifestRelPath });
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  const lastMessage = messages.length ? messages[messages.length - 1] : null;
+  const mentionHandle = String(options.mentionHandle || "").trim();
+  const mentions = mentionHandle
+    ? await buildTopicMentionSummary(
+        manifestRelPath,
+        mentionHandle,
+        String(options.mentionAfterId || "").trim()
+      )
+    : { count: 0, unread: 0, latestId: null };
+  return {
+    path: manifestRelPath,
+    inbox: {
+      exists: Boolean(inbox.exists),
+      pending: Number(inbox.pending) || 0,
+      total: Array.isArray(inbox.items) ? inbox.items.length : 0
+    },
+    thread: {
+      count: messages.length,
+      lastMessageId: lastMessage?.id || null,
+      lastMessageAt: lastMessage?.created || null,
+      lastMessageRole: lastMessage?.role || null
+    },
+    mentions
+  };
+}
+
+async function buildIntakeBatchSummary(paths, options = {}) {
+  const uniquePaths = [
+    ...new Set(
+      (Array.isArray(paths) ? paths : [])
+        .map((item) => String(item || "").trim().replace(/\\/g, "/"))
+        .filter(Boolean)
+    )
+  ].slice(0, 120);
+
+  const summaries = {};
+  let inboxPending = 0;
+  let threadMessages = 0;
+  let mentionUnread = 0;
+  const mentionHandle = String(options.mentionHandle || "").trim();
+  const mentionAfterIds =
+    options.mentionAfterIds && typeof options.mentionAfterIds === "object"
+      ? options.mentionAfterIds
+      : {};
+
+  for (const manifestRelPath of uniquePaths) {
+    try {
+      const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+      if (!nodeAbsolute) continue;
+      const summary = await buildTopicIntakeSummary(manifestRelPath, {
+        mentionHandle,
+        mentionAfterId: mentionAfterIds[manifestRelPath] || ""
+      });
+      summaries[manifestRelPath] = summary;
+      inboxPending += Number(summary?.inbox?.pending) || 0;
+      threadMessages += Number(summary?.thread?.count) || 0;
+      mentionUnread += Number(summary?.mentions?.unread) || 0;
+    } catch {
+      // skip invalid or unreadable paths
+    }
+  }
+
+  return {
+    summaries,
+    totals: {
+      topics: Object.keys(summaries).length,
+      inboxPending,
+      threadMessages,
+      mentionUnread
+    }
+  };
+}
+
+async function createInboxItem({ manifestRelPath, title, body, source, author }) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) throw new Error("Invalid file path");
+
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX, {
+    create: true
+  });
+  if (!folderAbsolute) throw new Error("Inbox folder unavailable");
+
+  const { display, diskSlug } = resolveContentItemNames({ title: title || "Входящее", slug: title });
+  const fileTitle = display || "Входящее";
+  if (!diskSlug) throw new Error("Invalid file name");
+
+  const fileName = await resolveUniqueExternalFileName(folderAbsolute, diskSlug);
+  if (!fileName) throw new Error("Invalid file name");
+
+  const created = new Date().toISOString();
+  const frontmatterLines = [
+    "awn-status: new",
+    `awn-source: ${formatYamlScalar(source || "ui")}`,
+    `awn-created: ${created}`
+  ];
+  const itemAuthor = String(author || "").trim();
+  if (itemAuthor) frontmatterLines.push(`awn-author: ${formatYamlScalar(itemAuthor)}`);
+
+  const textBody = sanitizeInboxIntakeBody(String(body || "").trim() || `# ${fileTitle}\n`);
+  const content = joinNodeFrontmatter(frontmatterLines.join("\n"), textBody);
+
+  const fileAbsolute = path.join(folderAbsolute, fileName);
+  await fs.writeFile(fileAbsolute, content, "utf-8");
+
+  const relPath = path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/");
+  const inboxDirRel = path.relative(getAgentRoot(), folderAbsolute).replace(/\\/g, "/");
+
+  return {
+    path: relPath,
+    relPath: `${inboxDirRel}/${relPath}`.replace(/\\/g, "/"),
+    status: "new",
+    source: source || "ui",
+    author: itemAuthor,
+    created,
+    preview: textBody.replace(/\s+/g, " ").trim().slice(0, 160),
+    body: textBody
   };
 }
 
@@ -1475,6 +2308,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   }
   if (mode === "inbox") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_INBOX);
+  }
+  if (mode === "thread") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_THREAD);
   }
   if (mode === "quick-notes") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_QUICK_NOTES);
@@ -6657,6 +7493,255 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to create file comment",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/comments/reaction") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const mode = String(payload.mode || "description").trim();
+      const file = payload.file || "";
+      const systemName = payload.name || "";
+      const commentId = String(payload.commentId || payload.id || "").trim();
+      const reaction = String(payload.reaction || "up").trim();
+      const author = String(payload.author || "guest").trim() || "guest";
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!commentId) return sendJson(res, 400, { error: "Missing comment id" });
+
+      const result = await toggleCommentReaction({
+        manifestRelPath,
+        mode,
+        file,
+        systemName,
+        commentId,
+        reaction,
+        author
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        mode,
+        file: file || null,
+        systemName: systemName || null,
+        commentId,
+        reaction,
+        ...result
+      });
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (/not found/i.test(message)) {
+        return sendJson(res, 404, { error: message });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to toggle comment reaction",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/thread") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await listTopicThread({
+        manifestRelPath,
+        mode: url.searchParams.get("mode") || "description",
+        file: url.searchParams.get("file") || "",
+        systemName: url.searchParams.get("name") || ""
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list thread messages",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/thread") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const body = String(payload.body || "").trim();
+      const role = String(payload.role || "user").trim();
+      const author = String(payload.author || "").trim();
+      const linkedFiles = String(payload.linkedFiles || "").trim();
+      const mode = String(payload.mode || "description").trim();
+      const file = payload.file || "";
+      const systemName = payload.name || "";
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!body) return sendJson(res, 400, { error: "Message body is required" });
+
+      const message = await appendTopicThreadMessage({
+        manifestRelPath,
+        body,
+        role,
+        author,
+        linkedFiles,
+        mode,
+        file,
+        systemName
+      });
+      const threadPayload = await listTopicThread({
+        manifestRelPath,
+        mode,
+        file,
+        systemName
+      });
+      return sendJson(res, 200, {
+        path: manifestRelPath,
+        target: threadPayload.target,
+        scope: threadPayload.scope,
+        message
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to append thread message",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/inbox") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await listInboxItems(manifestRelPath);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list inbox items",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/inbox/item") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const file = url.searchParams.get("file") || "";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!file) return sendJson(res, 400, { error: "Missing file query parameter" });
+    try {
+      const payload = await readInboxItem(manifestRelPath, file);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (/not found/i.test(message)) {
+        return sendJson(res, 404, { error: message });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to read inbox item",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/channels/stream") {
+    const scope = String(url.searchParams.get("scope") || "").trim().toLowerCase();
+    if (scope === "agent") {
+      try {
+        await streamAgentChannelEvents(req, res);
+        return;
+      } catch (error) {
+        return sendJson(res, 500, {
+          error: "Failed to open agent channel stream",
+          details: String(error && error.message ? error.message : error)
+        });
+      }
+    }
+
+    const manifestRelPath = url.searchParams.get("path") || "";
+    const watch = url.searchParams.get("watch") || "thread,inbox";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+      await streamTopicChannelEvents(req, res, manifestRelPath, watch, {
+        mode: url.searchParams.get("mode") || "",
+        file: url.searchParams.get("file") || "",
+        systemName: url.searchParams.get("name") || ""
+      });
+      return;
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to open channel stream",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/inbox/triage") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const file = payload.file || "";
+      const action = payload.action || "";
+      const status = payload.status || "";
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!file) return sendJson(res, 400, { error: "Missing inbox file" });
+      if (!action) return sendJson(res, 400, { error: "Missing triage action" });
+
+      const result = await triageInboxItem({ manifestRelPath, file, action, status });
+      return sendJson(res, 200, { path: manifestRelPath, ...result });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to triage inbox item",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/inbox/create") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = payload.path || "";
+      const title = String(payload.title || payload.name || "").trim();
+      const body = String(payload.body || "").trim();
+      const source = String(payload.source || "ui").trim();
+      const author = String(payload.author || "").trim();
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+
+      const item = await createInboxItem({ manifestRelPath, title, body, source, author });
+      return sendJson(res, 200, { path: manifestRelPath, item });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to create inbox item",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/topic/intake") {
+    const manifestRelPath = url.searchParams.get("path") || "";
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await buildTopicIntakeSummary(manifestRelPath, {
+        mentionHandle: url.searchParams.get("mentionHandle") || "",
+        mentionAfterId: url.searchParams.get("mentionAfterId") || ""
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic intake summary",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/intake/batch") {
+    try {
+      const payload = await readJsonBody(req);
+      const paths = Array.isArray(payload.paths) ? payload.paths : [];
+      const batch = await buildIntakeBatchSummary(paths, {
+        mentionHandle: payload.mentionHandle || "",
+        mentionAfterIds: payload.mentionAfterIds || {}
+      });
+      return sendJson(res, 200, batch);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read intake batch summary",
         details: String(error && error.message ? error.message : error)
       });
     }

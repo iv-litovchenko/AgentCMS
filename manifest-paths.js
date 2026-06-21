@@ -35,6 +35,7 @@ const WORKSPACE_MENU_EXCLUDED_TOPIC_MD = new Set([
 
 const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
@@ -54,6 +55,7 @@ const LEGACY_HISTORY_VERSION_SUFFIX = ".md.back";
 const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
@@ -72,6 +74,7 @@ const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
+  thread: STORAGE_SUBFOLDER_THREAD,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_MEDIA,
@@ -420,6 +423,15 @@ function getCommentsDirRel(manifestRelPath, targetRelPath) {
   const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
   if (!slotDir || !relativeTarget) return "";
   return `${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${relativeTarget}`;
+}
+
+function getThreadDirRel(manifestRelPath, targetRelPath = null) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  if (!slotDir) return "";
+  if (!targetRelPath) return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}`;
+  const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
+  if (!relativeTarget) return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}`;
+  return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}/${relativeTarget}`;
 }
 
 function buildCommentFileName(date = new Date()) {
@@ -807,6 +819,7 @@ module.exports = {
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
@@ -878,6 +891,7 @@ module.exports = {
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
+  getThreadDirRel,
   buildHistoryVersionFileName,
   buildCommentFileName,
   isHistoryVersionFileName,

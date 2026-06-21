@@ -221,10 +221,14 @@ const graphViewContentNode = document.getElementById("graph-view-content");
 const mindmapViewBarNode = document.getElementById("mindmap-view-bar");
 const nodeNavigationSubsectionSelectNode = document.getElementById("node-navigation-subsection-select");
 const editorSurfaceNode = document.querySelector(".editor-surface");
+const externalFileCommentsBlockNode = document.getElementById("external-file-comments-block");
+const mediaFileCommentsBlockNode = document.getElementById("media-file-comments-block");
 const listViewTitleNode = document.getElementById("list-view-title");
 const listViewContentNode = document.getElementById("list-view-content");
 const nodeOverviewBlockNode = document.getElementById("node-overview-block");
 const nodeOverviewContentNode = document.getElementById("node-overview-content");
+const nodeThreadBlockNode = document.getElementById("node-thread-block");
+const nodeThreadContentNode = document.getElementById("node-thread-content");
 const docSlabMainNode = document.querySelector(".doc-slab-main");
 const workspaceBodyNode = document.querySelector(".workspace-body");
 const workspacePaneNode = document.querySelector(".workspace-pane");
@@ -629,6 +633,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "scripts",
   "artefacts",
   "inbox",
+  "thread",
   "quick-notes",
   "references",
   "node-preview",
@@ -2067,6 +2072,38 @@ function syncFileHistoryButtonVisibility() {
   if (!fileHistoryBtn) return;
   const saveVisible = !saveContentBtn?.classList.contains("hidden") || !saveSystemFileBtn?.classList.contains("hidden");
   fileHistoryBtn.classList.toggle("hidden", !saveVisible || !isFileHistoryAvailable());
+}
+
+let fileElementThreadBtn = null;
+
+function ensureFileElementThreadButton() {
+  if (fileElementThreadBtn) return fileElementThreadBtn;
+  if (!fileHistoryBtn?.parentElement) return null;
+
+  fileElementThreadBtn = document.createElement("button");
+  fileElementThreadBtn.type = "button";
+  fileElementThreadBtn.id = "file-element-thread-btn";
+  fileElementThreadBtn.className = "file-element-thread-btn workspace-toolbar-labeled-btn hidden";
+  fileElementThreadBtn.title = "Диалог по этому файлу";
+  fileElementThreadBtn.setAttribute("aria-label", "Диалог по файлу");
+  fileElementThreadBtn.innerHTML = `
+    <span class="workspace-toolbar-btn-icon" aria-hidden="true">💬</span>
+    <span class="workspace-toolbar-btn-label">Диалог</span>
+  `;
+  fileElementThreadBtn.addEventListener("click", () => {
+    if (activeExternalFilePath) {
+      openElementThreadDialog(activeExternalFilePath, "external");
+    }
+  });
+  fileHistoryBtn.insertAdjacentElement("afterend", fileElementThreadBtn);
+  return fileElementThreadBtn;
+}
+
+function syncFileElementThreadButtonVisibility() {
+  const btn = ensureFileElementThreadButton();
+  if (!btn) return;
+  const visible = isExternalFileEditing() && Boolean(activeExternalFilePath) && Boolean(activePath);
+  btn.classList.toggle("hidden", !visible);
 }
 
 function closeFileHistoryModal() {
@@ -6702,6 +6739,7 @@ function getOverviewModeGroups() {
 const NODE_OVERVIEW_MODE = "overview";
 const NODE_NAVIGATION_MODE = "navigation";
 const NODE_MINDMAP_MODE = "mindmap";
+const NODE_THREAD_MODE = "thread";
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
 const NODE_VIEW_SURFACE = {
@@ -6716,6 +6754,7 @@ const NODE_VIEW_SURFACE = {
   todo: "document",
   external: "browser",
   inbox: "browser",
+  thread: "thread",
   "quick-notes": "browser",
   references: "browser",
   media: "browser",
@@ -6828,6 +6867,7 @@ const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "tem
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
+const NODE_WORKSPACE_DOMAIN_THREAD = "thread";
 const NODE_WORKSPACE_DOMAIN_QUICK_NOTES = "quick-notes";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
 const NODE_WORKSPACE_DOMAIN_MEDIA = "media";
@@ -6843,6 +6883,7 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "settings", label: "Настройки", branch: true },
   { value: "quick-notes", label: "Быстрые заметки", branch: true },
   { value: "inbox", label: "Входящие", branch: true },
+  { value: "thread", label: "Диалог", branch: true },
   { value: "references", label: "Источники", branch: true },
   { value: "artefacts", label: "Артефакты", branch: true },
   { value: "memory", label: "Память (данные)", branch: true },
@@ -6882,6 +6923,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
+  if (mode === NODE_THREAD_MODE) return NODE_WORKSPACE_DOMAIN_THREAD;
   if (mode === "quick-notes") return NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
   if (mode === "scripts") return NODE_WORKSPACE_DOMAIN_SCRIPTS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
@@ -6901,6 +6943,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_OVERVIEW ||
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
     domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
     domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
     domain === NODE_WORKSPACE_DOMAIN_MEDIA ||
@@ -7203,6 +7246,22 @@ let externalFoldersCache = [];
 let tabularDataCache = { columns: [], rows: [], rowCount: 0 };
 let activeMemorySummary = null;
 let nodeOverviewRenderSeq = 0;
+let nodeThreadRenderSeq = 0;
+let inboxItemsMetaCache = [];
+let inboxPendingCount = 0;
+const topicIntakeCacheByPath = new Map();
+const INBOX_PENDING_ONLY_STORAGE_KEY = "agentcms.inboxPendingOnly.v1";
+const THREAD_LAST_SEEN_STORAGE_PREFIX = "agentcms.threadLastSeen.v1:";
+let inboxPendingOnlyFilter = localStorage.getItem(INBOX_PENDING_ONLY_STORAGE_KEY) === "1";
+let nodeThreadRefreshOnFocus = null;
+let nodeInboxRefreshOnPoll = null;
+let activeThreadScope = null;
+const CHANNEL_POLL_INTERVAL_MS = 20000;
+let channelPollTimer = null;
+let menuIntakeSeq = 0;
+const CHANNEL_AUTO_POLL_INTERVAL_MS = 20000;
+let channelAutoPollTimer = null;
+let menuIntakeFetchSeq = 0;
 let activeExternalFilePath = null;
 let pendingDirectExternalFile = null;
 let activeMediaSidecarSourcePath = null;
@@ -7803,6 +7862,7 @@ function getContentModeLabel(mode) {
     if (match) return match.label;
   }
   if (mode === "inbox") return "Входящие";
+  if (mode === NODE_THREAD_MODE) return "Диалог";
   if (mode === "quick-notes") return "Быстрые заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "todo") return "TODO";
@@ -7819,6 +7879,7 @@ function getNodeDefaultLandingDomainLabel(mode) {
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
   if (
     domain === NODE_WORKSPACE_DOMAIN_INBOX ||
+    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
     domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
     domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
@@ -8583,6 +8644,10 @@ async function openNodeNavigation(label, filePath) {
 }
 
 async function openNodeFromMenu(label, filePath, options = {}) {
+  const nextPath = normalizeMenuNodePath(filePath);
+  if (nextPath !== normalizeMenuNodePath(activePath)) {
+    clearActiveThreadScope();
+  }
   if (isGitRepoLooseFilePath(filePath)) {
     await selectRepoLooseFile(label, filePath, { skipRouteSync: true });
     if (!options.skipRouteSync) {
@@ -8729,10 +8794,35 @@ function initNodeWorkspaceDomainSelect() {
     ...NODE_WORKSPACE_DOMAIN_SPECS.map(({ value, label, branch }) => {
       const option = document.createElement("option");
       option.value = value;
-      option.textContent = getWorkspaceDomainDisplayLabel(label, branch);
+      const baseLabel = getWorkspaceDomainDisplayLabel(label, branch);
+      option.textContent = baseLabel;
+      option.dataset.baseLabel = baseLabel;
       return option;
     })
   );
+}
+
+function syncTopicIntakeDomainLabels() {
+  if (!nodeWorkspaceDomainSelectNode || !activePath) return;
+  const manifestPath = getActiveNodeApiPath();
+  const intake = topicIntakeCacheByPath.get(manifestPath) || null;
+
+  const inboxOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="inbox"]');
+  if (inboxOption) {
+    const base = inboxOption.dataset.baseLabel || inboxOption.textContent;
+    const pending = Number(intake?.inbox?.pending) || 0;
+    inboxOption.textContent = pending > 0 ? `${base} · ${pending}` : base;
+  }
+
+  const threadOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="thread"]');
+  if (threadOption) {
+    const base = threadOption.dataset.baseLabel || threadOption.textContent;
+    const count = Number(intake?.thread?.count) || 0;
+    const unread = getThreadUnreadCount(manifestPath, intake);
+    if (unread > 0) threadOption.textContent = `${base} · ${unread} нов.`;
+    else if (count > 0) threadOption.textContent = `${base} · ${count}`;
+    else threadOption.textContent = base;
+  }
 }
 
 function syncNodeWorkspaceDomainSelect() {
@@ -8748,6 +8838,7 @@ function syncNodeWorkspaceDomainSelect() {
   } else {
     nodeWorkspaceDomainSelectNode.value = domain;
   }
+  syncTopicIntakeDomainLabels();
 }
 
 async function applyNodeWorkspaceDomainChange(domain) {
@@ -8784,6 +8875,12 @@ async function applyNodeWorkspaceDomainChange(domain) {
     nodeMemoryViewActive = true;
     nodeSettingsViewActive = false;
     setContentMode("inbox");
+    return;
+  }
+  if (domain === NODE_WORKSPACE_DOMAIN_THREAD) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    setContentMode(NODE_THREAD_MODE);
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES) {
@@ -8857,6 +8954,7 @@ function applyNodeWorkspaceViewUi() {
   const artefactsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_ARTEFACTS;
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const inboxDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_INBOX;
+  const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_THREAD;
   const quickNotesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
@@ -8869,6 +8967,7 @@ function applyNodeWorkspaceViewUi() {
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-thread", threadDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
   nodeNavigationPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !navigationDomain);
@@ -8876,6 +8975,7 @@ function applyNodeWorkspaceViewUi() {
   nodeSettingsPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !settingsDomain);
   nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !memoryDomain);
   syncNodeWorkspaceDomainSelect();
+  void refreshTopicIntakeForActivePath();
   if (
     isAreaNodePath() &&
     (AREA_BLOCKED_WORKSPACE_DOMAINS.has(getNodeWorkspaceDomain()) ||
@@ -10708,7 +10808,7 @@ function applyContentModeState(mode) {
   if (mode === "todo" && WYSIWYG_EDITOR_ENABLED) {
     editorViewMode = "wysiwyg";
   }
-  if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE) {
+  if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_THREAD_MODE) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
   } else if (NODE_SETTINGS_MODE_IDS.has(mode)) {
@@ -10746,6 +10846,7 @@ async function applyContentModeChange() {
   } else {
     applyModeUi();
   }
+  syncChannelLiveUpdates();
 }
 
 function isMediaSidecarEditing() {
@@ -10757,6 +10858,7 @@ function isCurrentModeWithoutContentEditor() {
   return (
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
     activeContentMode === "configs" ||
@@ -10782,6 +10884,7 @@ function isCurrentModeReadOnly() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
@@ -10790,6 +10893,7 @@ function isCurrentModeReadOnly() {
     activeContentMode === "scripts" ||
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph"
   );
@@ -10824,6 +10928,7 @@ function isCurrentModeListTemplate() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
@@ -11011,6 +11116,7 @@ function parseStorageAssetsRef(workspaceRelPath) {
 
 const STORAGE_SUBFOLDER_CONTENT = "content";
 const STORAGE_SUBFOLDER_INBOX = "inbox";
+const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
@@ -11150,6 +11256,7 @@ function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
+  thread: STORAGE_SUBFOLDER_THREAD,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_MEDIA,
@@ -11469,7 +11576,10 @@ function getListViewTitleByMode() {
   if (activeContentMode === "tabular") {
     return isTabularSourceEditing() ? "Табличная — исходник CSV" : "Табличная (CSV)";
   }
-  if (activeContentMode === "inbox") return `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
+  if (activeContentMode === "inbox") {
+    const base = `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
+    return inboxPendingCount > 0 ? `${base} · ${inboxPendingCount} необработ.` : base;
+  }
   if (activeContentMode === "quick-notes") return `Быстрые заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
   if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
   if (activeContentMode === "media") return `Медиа (${STORAGE_SUBFOLDER_MEDIA})`;
@@ -16782,6 +16892,12 @@ function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
     });
   }
 
+  if (mode === "inbox") {
+    mountInboxTriageToolbar(container);
+    renderInboxTriageItems(container, getInboxTriageItemsForSection(sectionFolder));
+    return;
+  }
+
   if (childSections.length === 0 && items.length === 0) {
     if (!readmeExists) return;
     renderListEmptyMessage(container, `В разделе «${sectionFolder}» пока нет элементов`);
@@ -16811,9 +16927,25 @@ function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
   }
 }
 
+function getInboxTriageItemsForSection(sectionFolder = null) {
+  const items = Array.isArray(inboxItemsMetaCache) ? inboxItemsMetaCache : [];
+  if (!sectionFolder) return items;
+  const prefix = String(sectionFolder).replace(/\\/g, "/").replace(/\/$/, "");
+  if (!prefix) return items;
+  return items.filter((item) => {
+    const itemPath = String(item.path || "").replace(/\\/g, "/");
+    return itemPath === prefix || itemPath.startsWith(`${prefix}/`);
+  });
+}
+
 function renderFlatStorageAllItemsView(container, mode) {
   if (!activeStorageFolderExists) {
     renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
+    return;
+  }
+  if (mode === "inbox") {
+    mountInboxTriageToolbar(container);
+    renderInboxTriageItems(container, getInboxTriageItemsForSection(null));
     return;
   }
   const items = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null);
@@ -17905,7 +18037,7 @@ function isListViewWithSourceToggleMode(mode = activeContentMode) {
 
 function isWorkspaceRefreshAvailable() {
   if (!activePath || activeSystemFile) return false;
-  if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) return true;
+  if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_THREAD_MODE) return true;
   if (isFlatStorageListMode()) return true;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
   if (activeContentMode === "media" && !isMediaAssetEditing()) return true;
@@ -25293,10 +25425,12 @@ function isEditorSaveTrackingActive() {
     isNodeCanvasViewMode() ||
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
     activeContentMode === "inbox" ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
@@ -27633,6 +27767,9 @@ function renderNavigationTodoPart(todoData) {
 
 const COMMENT_AUTHOR_STORAGE_KEY = "yamlcms.commentAuthor";
 const COMMENT_AVATAR_TONES = ["blue", "violet", "green", "slate"];
+const COMMENT_MENTION_HANDLE_PATTERN = "[a-zA-Z0-9_\\-.\\u0400-\\u04FF]";
+const COMMENT_MENTION_RE = new RegExp(`@(${COMMENT_MENTION_HANDLE_PATTERN}+)`, "g");
+const COMMENT_MENTION_TRIGGER_RE = new RegExp(`(?:^|\\s)@(${COMMENT_MENTION_HANDLE_PATTERN}*)$`);
 
 function getStoredCommentAuthor() {
   try {
@@ -27650,6 +27787,10 @@ function storeCommentAuthor(author) {
   } catch {
     // ignore storage errors
   }
+}
+
+function resolveDialogAuthor() {
+  return getStoredCommentAuthor() || "Вы";
 }
 
 function getCommentAuthorInitials(author) {
@@ -27676,6 +27817,314 @@ function buildFileCommentsApiParams(context) {
   return params;
 }
 
+function buildThreadApiParams(context) {
+  const params = { path: context.path || "" };
+  if (context.mode) params.mode = context.mode;
+  if (context.file) params.file = context.file;
+  if (context.name) params.name = context.name;
+  return params;
+}
+
+function getActiveThreadRequestContext() {
+  const base = {
+    path: getActiveNodeApiPath(),
+    mode: "description",
+    file: null,
+    name: null
+  };
+  if (!activeThreadScope) return base;
+  return {
+    ...base,
+    mode: activeThreadScope.mode || "external",
+    file: activeThreadScope.file || null,
+    name: activeThreadScope.name || null
+  };
+}
+
+function clearActiveThreadScope() {
+  activeThreadScope = null;
+}
+
+function openElementThreadDialog(filePath, mode = "external") {
+  const file = String(filePath || "").trim();
+  if (!file || !activePath) return;
+  activeThreadScope = { mode, file, name: null };
+  void applyNodeWorkspaceDomainChange(NODE_WORKSPACE_DOMAIN_THREAD);
+}
+
+function slugifyCommentMentionHandle(text) {
+  return String(text || "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^\w\-\.\u0400-\u04FF]/g, "")
+    .slice(0, 48);
+}
+
+function collectCommentMentionCandidates(options = {}) {
+  const agentId = options.agentId || activeAgentId;
+  const extraAuthors = Array.isArray(options.authors) ? options.authors : [];
+  const candidates = new Map();
+
+  const addCandidate = (handle, label, meta = {}) => {
+    const key = slugifyCommentMentionHandle(handle);
+    if (!key || candidates.has(key)) return;
+    candidates.set(key, { handle: key, label: label || key, ...meta });
+  };
+
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (menu) {
+    for (const entry of collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })) {
+      if (!entry.path) continue;
+      const label = entry.label || entry.displayPath || getLabelFromPath(entry.path);
+      addCandidate(label, label, { path: entry.path, kind: "topic" });
+      addCandidate(getLabelFromPath(entry.path), label, { path: entry.path, kind: "topic" });
+    }
+  }
+
+  for (const author of extraAuthors) {
+    addCandidate(author, author, { kind: "author" });
+  }
+
+  addCandidate(resolveDialogAuthor(), resolveDialogAuthor(), { kind: "author" });
+
+  return [...candidates.values()].sort((left, right) =>
+    left.label.localeCompare(right.label, "ru")
+  );
+}
+
+function extractCommentMentions(body) {
+  const found = new Set();
+  const re = new RegExp(COMMENT_MENTION_RE.source, "g");
+  let match;
+  while ((match = re.exec(String(body || ""))) !== null) {
+    const handle = String(match[1] || "").trim();
+    if (handle) found.add(handle);
+  }
+  return [...found];
+}
+
+const COMMENT_MENTION_SEEN_STORAGE_PREFIX = "agentcms.commentMentionsSeen.v1:";
+
+function commentMentionsUser(comment, userHandle) {
+  if (!userHandle || !comment) return false;
+  const mentions = Array.isArray(comment.mentions)
+    ? comment.mentions
+    : extractCommentMentions(comment.body || "");
+  return mentions.some((mention) => slugifyCommentMentionHandle(mention) === userHandle);
+}
+
+function getCommentMentionSeenStorageKey(context) {
+  const filePart = context.file ? `:${context.file}` : "";
+  return `${COMMENT_MENTION_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${context.path}:${context.mode}${filePart}`;
+}
+
+function getLastSeenMentionCommentId(context) {
+  try {
+    return String(localStorage.getItem(getCommentMentionSeenStorageKey(context)) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function markCommentMentionsSeen(context, commentId) {
+  const id = String(commentId || "").trim();
+  if (!id) return;
+  try {
+    localStorage.setItem(getCommentMentionSeenStorageKey(context), id);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function countUnreadCommentMentions(comments, userHandle, context) {
+  if (!userHandle) return 0;
+  const lastSeen = getLastSeenMentionCommentId(context);
+  let count = 0;
+  for (const comment of comments) {
+    if (commentMentionsUser(comment, userHandle) && (!lastSeen || comment.id > lastSeen)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function markAllCommentMentionsSeen(context, comments) {
+  const items = Array.isArray(comments) ? comments : [];
+  if (!items.length) return;
+  markCommentMentionsSeen(context, items[0].id);
+}
+
+function renderCommentBodyWithMentions(container, text, mentionLookup = new Map()) {
+  container.replaceChildren();
+  const source = String(text || "");
+  if (!source) return;
+
+  const re = new RegExp(COMMENT_MENTION_RE.source, "g");
+  let lastIndex = 0;
+  let match;
+
+  while ((match = re.exec(source)) !== null) {
+    if (match.index > lastIndex) {
+      container.appendChild(document.createTextNode(source.slice(lastIndex, match.index)));
+    }
+
+    const handle = match[1];
+    const candidate = mentionLookup.get(handle);
+    if (candidate?.path) {
+      const linkBtn = document.createElement("button");
+      linkBtn.type = "button";
+      linkBtn.className = "node-comment-mention node-comment-mention--link";
+      linkBtn.textContent = match[0];
+      linkBtn.title = candidate.label || handle;
+      linkBtn.addEventListener("click", () => {
+        void openNodeFromMenu(candidate.label || getLabelFromPath(candidate.path), candidate.path);
+      });
+      container.appendChild(linkBtn);
+    } else {
+      const span = document.createElement("span");
+      span.className = "node-comment-mention";
+      span.textContent = match[0];
+      span.title = `Упоминание ${handle}`;
+      container.appendChild(span);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < source.length) {
+    container.appendChild(document.createTextNode(source.slice(lastIndex)));
+  }
+}
+
+function buildCommentMentionLookup(candidates) {
+  const lookup = new Map();
+  for (const candidate of candidates) {
+    lookup.set(candidate.handle, candidate);
+  }
+  return lookup;
+}
+
+function attachCommentMentionAutocomplete(textarea, getCandidates) {
+  let popup = null;
+  let activeIndex = 0;
+  let mentionStart = -1;
+
+  const closePopup = () => {
+    popup?.remove();
+    popup = null;
+    activeIndex = 0;
+    mentionStart = -1;
+  };
+
+  const insertMention = (handle) => {
+    const value = textarea.value;
+    const cursor = textarea.selectionStart;
+    const before = value.slice(0, mentionStart);
+    const after = value.slice(cursor);
+    const insert = `@${handle} `;
+    textarea.value = `${before}${insert}${after}`;
+    const pos = before.length + insert.length;
+    textarea.setSelectionRange(pos, pos);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    closePopup();
+    textarea.focus();
+  };
+
+  const renderPopup = (items) => {
+    closePopup();
+    if (!items.length) return;
+
+    popup = document.createElement("div");
+    popup.className = "node-comment-mention-popup";
+    popup.setAttribute("role", "listbox");
+
+    items.slice(0, 8).forEach((item, index) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "node-comment-mention-option";
+      if (index === activeIndex) btn.classList.add("is-active");
+      btn.textContent = `@${item.handle}`;
+      btn.title = item.label;
+      btn.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        insertMention(item.handle);
+      });
+      popup.appendChild(btn);
+    });
+
+    const host = textarea.closest(".node-comments-composer-box") || textarea.parentElement;
+    host?.appendChild(popup);
+  };
+
+  const updateFromCursor = () => {
+    const pos = textarea.selectionStart;
+    const prefix = textarea.value.slice(0, pos);
+    const match = prefix.match(COMMENT_MENTION_TRIGGER_RE);
+    if (!match) {
+      closePopup();
+      return;
+    }
+
+    mentionStart = pos - match[0].length + (match[0].startsWith(" ") ? 1 : 0);
+    const query = String(match[1] || "").toLowerCase();
+    const candidates = getCandidates().filter((candidate) => {
+      const handle = candidate.handle.toLowerCase();
+      const label = String(candidate.label || "").toLowerCase();
+      return !query || handle.startsWith(query) || label.includes(query);
+    });
+
+    if (!candidates.length) {
+      closePopup();
+      return;
+    }
+
+    activeIndex = Math.min(activeIndex, candidates.length - 1);
+    renderPopup(candidates);
+  };
+
+  textarea.addEventListener("input", () => {
+    activeIndex = 0;
+    updateFromCursor();
+  });
+
+  textarea.addEventListener("keydown", (event) => {
+    if (!popup) return;
+    const options = [...popup.querySelectorAll(".node-comment-mention-option")];
+    if (!options.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, options.length - 1);
+      options.forEach((node, index) => node.classList.toggle("is-active", index === activeIndex));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      options.forEach((node, index) => node.classList.toggle("is-active", index === activeIndex));
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === "Tab") {
+      const active = options[activeIndex];
+      if (active) {
+        event.preventDefault();
+        insertMention(active.textContent.replace(/^@/, ""));
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      closePopup();
+    }
+  });
+
+  textarea.addEventListener("blur", () => {
+    window.setTimeout(closePopup, 150);
+  });
+}
+
 async function fetchFileComments(context, agentId = activeAgentId) {
   const response = await fetch(
     buildApiUrl("/api/file/comments", buildFileCommentsApiParams(context), agentId)
@@ -27693,6 +28142,30 @@ async function postFileComment(context, body, author, agentId = activeAgentId, r
       body,
       author,
       replyTo: replyTo || null
+    })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+async function postCommentReaction(context, commentId, author, agentId = activeAgentId, reaction = "up") {
+  const response = await fetch(buildApiUrl("/api/file/comments/reaction", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...buildFileCommentsApiParams(context),
+      commentId,
+      author,
+      reaction
     })
   });
   if (!response.ok) {
@@ -27734,6 +28207,964 @@ function buildCommentThreadTree(comments) {
   }
   roots.sort(sortDesc);
   return roots;
+}
+
+async function fetchTopicThread(context, agentId = activeAgentId) {
+  const params =
+    typeof context === "string"
+      ? { path: context }
+      : buildThreadApiParams(context || getActiveThreadRequestContext());
+  const response = await fetch(buildApiUrl("/api/thread", params, agentId));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function postTopicThreadMessage(context, body, options = {}, agentId = activeAgentId) {
+  const threadContext =
+    typeof context === "string"
+      ? { path: context }
+      : buildThreadApiParams(context || getActiveThreadRequestContext());
+  const response = await fetch(buildApiUrl("/api/thread", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...threadContext,
+      body,
+      role: options.role || "user",
+      author: options.author || "",
+      linkedFiles: options.linkedFiles || ""
+    })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+async function fetchInboxItems(manifestPath, agentId = activeAgentId) {
+  const response = await fetch(
+    buildApiUrl("/api/inbox", { path: manifestPath }, agentId)
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function postInboxTriage(manifestPath, file, action, status = "", agentId = activeAgentId) {
+  const response = await fetch(buildApiUrl("/api/inbox/triage", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: manifestPath, file, action, status })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+async function fetchTopicIntake(manifestPath, agentId = activeAgentId) {
+  const response = await fetch(
+    buildApiUrl("/api/topic/intake", { path: manifestPath }, agentId)
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function fetchIntakeBatch(manifestPaths, agentId = activeAgentId) {
+  const mentionHandle = slugifyCommentMentionHandle(getStoredCommentAuthor());
+  const mentionAfterIds = {};
+  if (mentionHandle) {
+    for (const manifestPath of manifestPaths) {
+      const seen = getLastSeenMentionCommentId({
+        path: manifestPath,
+        mode: "description",
+        file: null
+      });
+      if (seen) mentionAfterIds[manifestPath] = seen;
+    }
+  }
+  const response = await fetch(buildApiUrl("/api/intake/batch", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      paths: manifestPaths,
+      mentionHandle: mentionHandle || undefined,
+      mentionAfterIds: mentionHandle ? mentionAfterIds : undefined
+    })
+  });
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+function collectMenuTopicManifestApiPaths(menu, agentId = activeAgentId) {
+  return [
+    ...new Set(
+      collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })
+        .map((entry) => entry.path)
+        .filter((path) => path && isNodeMdPath(path) && !isPartNodePath(path))
+        .map((path) => resolveManifestPathForNodeApi(path))
+        .filter(Boolean)
+    )
+  ];
+}
+
+function countGlobalThreadUnread(summaries) {
+  let count = 0;
+  for (const [manifestPath, intake] of Object.entries(summaries || {})) {
+    count += getThreadUnreadCount(manifestPath, intake);
+  }
+  return count;
+}
+
+function countGlobalMentionUnread(summaries) {
+  let count = 0;
+  for (const intake of Object.values(summaries || {})) {
+    count += Number(intake?.mentions?.unread) || 0;
+  }
+  return count;
+}
+
+function upsertMenuIntakeBadges(host, intake, manifestPath) {
+  const pending = Number(intake?.inbox?.pending) || 0;
+  const unread = getThreadUnreadCount(manifestPath, intake);
+  const mentionUnread = Number(intake?.mentions?.unread) || 0;
+  let badgesEl = host.querySelector(".menu-intake-badges");
+
+  if (!pending && !unread && !mentionUnread) {
+    badgesEl?.remove();
+    host.classList.remove("has-menu-intake-badges");
+    return;
+  }
+
+  if (!badgesEl) {
+    badgesEl = document.createElement("span");
+    badgesEl.className = "menu-intake-badges";
+    const labelWrap = host.querySelector(".menu-folder-label");
+    if (labelWrap) labelWrap.appendChild(badgesEl);
+    else host.appendChild(badgesEl);
+  }
+
+  badgesEl.replaceChildren();
+  if (pending > 0) {
+    const inboxBadge = document.createElement("span");
+    inboxBadge.className = "menu-intake-badge menu-intake-badge--inbox";
+    inboxBadge.textContent = String(pending);
+    inboxBadge.title = `${pending} необработ. во входящих`;
+    inboxBadge.setAttribute("aria-label", inboxBadge.title);
+    badgesEl.appendChild(inboxBadge);
+  }
+  if (unread > 0) {
+    const threadBadge = document.createElement("span");
+    threadBadge.className = "menu-intake-badge menu-intake-badge--thread";
+    threadBadge.textContent = unread > 1 ? String(unread) : "нов.";
+    threadBadge.title = unread > 1 ? `${unread} новых в диалоге` : "Новое сообщение агента";
+    threadBadge.setAttribute("aria-label", threadBadge.title);
+    badgesEl.appendChild(threadBadge);
+  }
+  if (mentionUnread > 0) {
+    const mentionBadge = document.createElement("span");
+    mentionBadge.className = "menu-intake-badge menu-intake-badge--mention";
+    mentionBadge.textContent = mentionUnread > 1 ? String(mentionUnread) : "@";
+    mentionBadge.title =
+      mentionUnread > 1 ? `${mentionUnread} новых @упоминаний` : "Новое @упоминание";
+    mentionBadge.setAttribute("aria-label", mentionBadge.title);
+    badgesEl.appendChild(mentionBadge);
+  }
+  host.classList.add("has-menu-intake-badges");
+}
+
+function syncMenuIntakeBadges(agentId = activeAgentId) {
+  const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  if (!root) return;
+
+  for (const host of root.querySelectorAll(
+    ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path]"
+  )) {
+    const nodePath = normalizeMenuNodePath(host.dataset.path || "");
+    if (!nodePath || !isNodeMdPath(nodePath) || isPartNodePath(nodePath)) {
+      host.querySelector(".menu-intake-badges")?.remove();
+      host.classList.remove("has-menu-intake-badges");
+      continue;
+    }
+    const manifestPath = resolveManifestPathForNodeApi(nodePath);
+    const intake = topicIntakeCacheByPath.get(manifestPath) || null;
+    upsertMenuIntakeBadges(host, intake, manifestPath);
+  }
+}
+
+async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeAgentId) {
+  const seq = ++menuIntakeSeq;
+  const paths = collectMenuTopicManifestApiPaths(menu, agentId);
+  if (!paths.length) {
+    if (agentId === activeAgentId) syncMenuIntakeBadges(agentId);
+    return null;
+  }
+
+  try {
+    const data = await fetchIntakeBatch(paths, agentId);
+    if (seq !== menuIntakeSeq) return null;
+
+    for (const [manifestPath, intake] of Object.entries(data.summaries || {})) {
+      topicIntakeCacheByPath.set(manifestPath, intake);
+    }
+
+    if (agentId === activeAgentId) {
+      syncTopicIntakeDomainLabels();
+      if (activeContentMode === "inbox" && listViewTitleNode) {
+        listViewTitleNode.textContent = getListViewTitleByMode();
+      }
+    }
+
+    syncMenuIntakeBadges(agentId);
+
+    return {
+      inboxPending: Number(data.totals?.inboxPending) || 0,
+      threadUnread: countGlobalThreadUnread(data.summaries),
+      mentionUnread: countGlobalMentionUnread(data.summaries)
+    };
+  } catch {
+    return null;
+  }
+}
+
+function stopChannelAutoPoll() {
+  if (channelPollTimer) {
+    clearInterval(channelPollTimer);
+    channelPollTimer = null;
+  }
+}
+
+let channelEventSource = null;
+
+function stopChannelEventStream() {
+  if (channelEventSource) {
+    channelEventSource.close();
+    channelEventSource = null;
+  }
+}
+
+function syncChannelAutoPoll() {
+  stopChannelAutoPoll();
+  if (document.hidden || !activePath) return;
+
+  if (activeContentMode === NODE_THREAD_MODE) {
+    channelPollTimer = setInterval(() => {
+      if (document.hidden || activeContentMode !== NODE_THREAD_MODE || !activePath) return;
+      nodeThreadRefreshOnFocus?.();
+    }, CHANNEL_POLL_INTERVAL_MS);
+    return;
+  }
+
+  if (activeContentMode === "inbox") {
+    channelPollTimer = setInterval(() => {
+      if (document.hidden || activeContentMode !== "inbox" || !activePath) return;
+      nodeInboxRefreshOnPoll?.();
+    }, CHANNEL_POLL_INTERVAL_MS);
+  }
+}
+
+function syncChannelLiveUpdates() {
+  stopChannelEventStream();
+  stopChannelAutoPoll();
+  if (document.hidden || !activeAgentId) return;
+
+  if (typeof EventSource === "undefined") {
+    syncChannelAutoPoll();
+    channelPollTimer = setInterval(() => {
+      if (document.hidden || !activeAgentId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+      if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+    }, CHANNEL_POLL_INTERVAL_MS);
+    return;
+  }
+
+  try {
+    channelEventSource = new EventSource(buildApiUrl("/api/channels/stream", { scope: "agent" }));
+    channelEventSource.addEventListener("update", () => {
+      if (document.hidden || !activeAgentId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+      if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+    });
+    channelEventSource.addEventListener("reconnect", () => {
+      stopChannelEventStream();
+      if (!document.hidden && activeAgentId) syncChannelLiveUpdates();
+    });
+    channelEventSource.onerror = () => {
+      stopChannelEventStream();
+      syncChannelAutoPoll();
+      channelPollTimer = setInterval(() => {
+        if (document.hidden || !activeAgentId) return;
+        void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+        if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+        if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+      }, CHANNEL_POLL_INTERVAL_MS);
+    };
+  } catch {
+    syncChannelAutoPoll();
+  }
+}
+
+let externalFileCommentsRenderSeq = 0;
+let mediaFileCommentsRenderSeq = 0;
+
+async function syncExternalFileCommentsBlock() {
+  const host = externalFileCommentsBlockNode;
+  if (!host) return;
+
+  if (!isExternalFileEditing() || !activePath || !activeExternalFilePath) {
+    host.classList.add("hidden");
+    host.replaceChildren();
+    return;
+  }
+
+  host.classList.remove("hidden");
+  const seq = ++externalFileCommentsRenderSeq;
+  const filePath = activeExternalFilePath;
+  const title = getLabelFromPath(filePath) || filePath.split("/").pop() || "файл";
+
+  host.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "external-file-comments-loading";
+  loading.textContent = "Загрузка комментариев…";
+  host.appendChild(loading);
+
+  try {
+    await appendNodeCommentsBlockToContainer(host, {
+      manifestPath: getActiveNodeApiPath(),
+      nodeTitle: title,
+      mode: "external",
+      file: filePath
+    });
+    if (seq !== externalFileCommentsRenderSeq) return;
+    loading.remove();
+  } catch (error) {
+    if (seq !== externalFileCommentsRenderSeq) return;
+    loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
+  }
+}
+
+async function syncMediaFileCommentsBlock() {
+  const host = mediaFileCommentsBlockNode;
+  if (!host) return;
+
+  if (!isMediaAssetEditing() || !activePath || !activeMediaSidecarSourcePath) {
+    host.classList.add("hidden");
+    host.replaceChildren();
+    return;
+  }
+
+  host.classList.remove("hidden");
+  const seq = ++mediaFileCommentsRenderSeq;
+  const filePath = activeMediaSidecarSourcePath;
+  const title = getLabelFromPath(filePath) || filePath.split("/").pop() || "медиа";
+
+  host.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "media-file-comments-loading";
+  loading.textContent = "Загрузка комментариев…";
+  host.appendChild(loading);
+
+  try {
+    await appendNodeCommentsBlockToContainer(host, {
+      manifestPath: getActiveNodeApiPath(),
+      nodeTitle: title,
+      mode: "media",
+      file: filePath
+    });
+    if (seq !== mediaFileCommentsRenderSeq) return;
+    loading.remove();
+  } catch (error) {
+    if (seq !== mediaFileCommentsRenderSeq) return;
+    loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
+  }
+}
+
+async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
+  if (!activePath) return null;
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) return null;
+  try {
+    const intake = await fetchTopicIntake(manifestPath, agentId);
+    topicIntakeCacheByPath.set(manifestPath, intake);
+    inboxPendingCount = Number(intake?.inbox?.pending) || 0;
+    syncTopicIntakeDomainLabels();
+    if (activeContentMode === "inbox" && listViewTitleNode) {
+      listViewTitleNode.textContent = getListViewTitleByMode();
+    }
+    syncMenuIntakeBadges(agentId);
+    return intake;
+  } catch {
+    return null;
+  }
+}
+
+function getThreadLastSeenStorageKey(manifestPath) {
+  return `${THREAD_LAST_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${manifestPath}`;
+}
+
+function getThreadLastSeenId(manifestPath) {
+  try {
+    return String(localStorage.getItem(getThreadLastSeenStorageKey(manifestPath)) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function markThreadLastSeen(manifestPath, messageId) {
+  const id = String(messageId || "").trim();
+  if (!id) return;
+  try {
+    localStorage.setItem(getThreadLastSeenStorageKey(manifestPath), id);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getThreadUnreadCount(manifestPath, intake) {
+  if (!intake?.thread?.lastMessageId) return 0;
+  if (intake.thread.lastMessageRole !== "agent") return 0;
+  const lastSeen = getThreadLastSeenId(manifestPath);
+  if (!lastSeen) return 1;
+  return intake.thread.lastMessageId !== lastSeen ? 1 : 0;
+}
+
+async function postInboxCreate(manifestPath, payload = {}, agentId = activeAgentId) {
+  const response = await fetch(buildApiUrl("/api/inbox/create", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: manifestPath,
+      title: payload.title || "",
+      body: payload.body || "",
+      source: payload.source || "ui",
+      author: payload.author || resolveDialogAuthor()
+    })
+  });
+  if (!response.ok) {
+    let details = `Request failed with ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) details = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(details);
+  }
+  return response.json();
+}
+
+function mountInboxTriageToolbar(container) {
+  const toolbar = document.createElement("div");
+  toolbar.className = "inbox-triage-toolbar";
+
+  const filterLabel = document.createElement("label");
+  filterLabel.className = "inbox-triage-filter";
+  const filterInput = document.createElement("input");
+  filterInput.type = "checkbox";
+  filterInput.checked = inboxPendingOnlyFilter;
+  filterInput.addEventListener("change", () => {
+    inboxPendingOnlyFilter = filterInput.checked;
+    try {
+      localStorage.setItem(INBOX_PENDING_ONLY_STORAGE_KEY, inboxPendingOnlyFilter ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+    rerenderFlatStorageListViewBody("inbox");
+  });
+  const filterText = document.createElement("span");
+  filterText.textContent = "Только необработанные";
+  filterLabel.append(filterInput, filterText);
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "inbox-triage-btn inbox-triage-btn--primary";
+  addBtn.textContent = "＋ Во входящие";
+  addBtn.addEventListener("click", () => {
+    void (async () => {
+      addBtn.disabled = true;
+      try {
+        await postInboxCreate(getActiveNodeApiPath(), {
+          title: "Входящее",
+          body: "",
+          source: "ui"
+        });
+        showToast("Запись добавлена во входящие", "success");
+        await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+        await refreshTopicIntakeForActivePath();
+      } catch (error) {
+        showToast(`Не удалось создать: ${error.message}`, "error");
+      } finally {
+        addBtn.disabled = false;
+      }
+    })();
+  });
+
+  toolbar.append(filterLabel, addBtn);
+  container.appendChild(toolbar);
+}
+
+async function loadInboxSectionContent(preserveSectionFolder = null) {
+  const data = await fetchInboxItems(getActiveNodeApiPath());
+  inboxItemsMetaCache = Array.isArray(data.items) ? data.items : [];
+  inboxPendingCount = Number(data.pending) || 0;
+  activeStorageFolderExists = Boolean(data.exists);
+  modeContentCache.inbox = inboxItemsMetaCache.map((item) => item.path).join("\n");
+  void refreshTopicIntakeForActivePath();
+  if (!activeStorageFolderExists) {
+    fileContentInputNode.value = getStorageFolderMissingMessage("inbox");
+    applyModeUi();
+    renderListViewContent();
+    nodeInboxRefreshOnPoll = () => {
+      void loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+    };
+    return;
+  }
+  fileContentInputNode.value = modeContentCache.inbox;
+  const sectionToRestore =
+    preserveSectionFolder ||
+    activeFlatStorageSectionFolder.inbox ||
+    getActiveFlatStorageSectionParentForCreate("inbox");
+  if (sectionToRestore) {
+    activeFlatStorageSectionFolder.inbox = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
+    pruneActiveFlatStorageSectionFolder("inbox");
+  }
+  applyModeUi();
+  renderListViewContent();
+  nodeInboxRefreshOnPoll = () => {
+    void loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+  };
+}
+
+function getInboxStatusLabel(status) {
+  if (status === "done") return "разобрано";
+  if (status === "in-progress") return "в работе";
+  return "новое";
+}
+
+function renderInboxTriageItems(container, items) {
+  const visibleItems = inboxPendingOnlyFilter
+    ? items.filter((item) => item.status !== "done")
+    : items;
+
+  if (!visibleItems.length) {
+    renderListEmptyMessage(
+      container,
+      inboxPendingOnlyFilter
+        ? "Нет необработанных входящих"
+        : getStorageFolderEmptyMessage("inbox")
+    );
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "inbox-triage-list";
+
+  for (const item of visibleItems) {
+    const li = document.createElement("li");
+    li.className = "inbox-triage-item";
+    if (item.status === "done") li.classList.add("is-done");
+
+    const head = document.createElement("div");
+    head.className = "inbox-triage-head";
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "inbox-triage-path";
+    pathNode.textContent = item.path;
+
+    const statusNode = document.createElement("span");
+    statusNode.className = `inbox-triage-status inbox-triage-status--${item.status || "new"}`;
+    statusNode.textContent = getInboxStatusLabel(item.status);
+
+    head.append(pathNode, statusNode);
+    li.appendChild(head);
+
+    const metaParts = [];
+    if (item.source) metaParts.push(item.source);
+    if (item.author) metaParts.push(item.author);
+    if (item.created) metaParts.push(item.created);
+    if (metaParts.length) {
+      const meta = document.createElement("div");
+      meta.className = "inbox-triage-meta";
+      meta.textContent = metaParts.join(" · ");
+      li.appendChild(meta);
+    }
+
+    if (item.preview) {
+      const preview = document.createElement("p");
+      preview.className = "inbox-triage-preview";
+      preview.textContent = item.preview;
+      li.appendChild(preview);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "inbox-triage-actions";
+
+    const toThreadBtn = document.createElement("button");
+    toThreadBtn.type = "button";
+    toThreadBtn.className = "inbox-triage-btn";
+    toThreadBtn.textContent = "→ в Диалог";
+    toThreadBtn.disabled = item.status === "done";
+    toThreadBtn.addEventListener("click", () => {
+      void (async () => {
+        toThreadBtn.disabled = true;
+        try {
+          await postInboxTriage(getActiveNodeApiPath(), item.path, "to-thread");
+          showToast("Перенесено в диалог — открываю…", "success");
+          await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+          await refreshTopicIntakeForActivePath();
+          clearActiveThreadScope();
+          if (nodeWorkspaceDomainSelectNode) {
+            nodeWorkspaceDomainSelectNode.value = NODE_WORKSPACE_DOMAIN_THREAD;
+          }
+          await applyNodeWorkspaceDomainChange(NODE_WORKSPACE_DOMAIN_THREAD);
+        } catch (error) {
+          showToast(`Не удалось перенести: ${error.message}`, "error");
+          toThreadBtn.disabled = item.status === "done";
+        }
+      })();
+    });
+
+    const inProgressBtn = document.createElement("button");
+    inProgressBtn.type = "button";
+    inProgressBtn.className = "inbox-triage-btn";
+    inProgressBtn.textContent = "В работе";
+    inProgressBtn.disabled = item.status === "done" || item.status === "in-progress";
+    inProgressBtn.addEventListener("click", () => {
+      void (async () => {
+        inProgressBtn.disabled = true;
+        try {
+          await postInboxTriage(getActiveNodeApiPath(), item.path, "set-status", "in-progress");
+          showToast("Статус: в работе", "success");
+          await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+          await refreshTopicIntakeForActivePath();
+        } catch (error) {
+          showToast(`Не удалось обновить: ${error.message}`, "error");
+          inProgressBtn.disabled = item.status === "done" || item.status === "in-progress";
+        }
+      })();
+    });
+
+    const toContentBtn = document.createElement("button");
+    toContentBtn.type = "button";
+    toContentBtn.className = "inbox-triage-btn";
+    toContentBtn.textContent = "→ в Память";
+    toContentBtn.disabled = item.status === "done";
+    toContentBtn.addEventListener("click", () => {
+      void (async () => {
+        toContentBtn.disabled = true;
+        try {
+          await postInboxTriage(getActiveNodeApiPath(), item.path, "to-content");
+          showToast("Перенесено в память", "success");
+          await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+          await refreshTopicIntakeForActivePath();
+        } catch (error) {
+          showToast(`Не удалось перенести: ${error.message}`, "error");
+          toContentBtn.disabled = item.status === "done";
+        }
+      })();
+    });
+
+    const doneBtn = document.createElement("button");
+    doneBtn.type = "button";
+    doneBtn.className = "inbox-triage-btn";
+    doneBtn.textContent = "✓ Разобрано";
+    doneBtn.disabled = item.status === "done";
+    doneBtn.addEventListener("click", () => {
+      void (async () => {
+        doneBtn.disabled = true;
+        try {
+          await postInboxTriage(getActiveNodeApiPath(), item.path, "mark-done");
+          showToast("Отмечено как разобрано", "success");
+          await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
+          await refreshTopicIntakeForActivePath();
+        } catch (error) {
+          showToast(`Не удалось обновить: ${error.message}`, "error");
+          doneBtn.disabled = item.status === "done";
+        }
+      })();
+    });
+
+    actions.append(toThreadBtn, inProgressBtn, toContentBtn, doneBtn);
+    li.appendChild(actions);
+    list.appendChild(li);
+  }
+
+  container.appendChild(list);
+}
+
+function formatThreadMessageLabel(message) {
+  if (message?.label) return message.label;
+  if (message?.created) {
+    try {
+      return new Date(message.created).toLocaleString("ru-RU");
+    } catch {
+      return message.created;
+    }
+  }
+  return message?.id || "";
+}
+
+async function openExternalMemoryFileFromThread(filePath) {
+  const relFile = String(filePath || "").trim();
+  if (!relFile || !activePath) return;
+  setContentMode("external");
+  await openExternalFile(relFile);
+}
+
+async function renderNodeThread() {
+  if (!nodeThreadContentNode || !activePath) return;
+
+  const renderSeq = ++nodeThreadRenderSeq;
+  const isStale = () =>
+    renderSeq !== nodeThreadRenderSeq || activeContentMode !== NODE_THREAD_MODE || !nodeThreadContentNode;
+
+  const manifestPath = getActiveNodeApiPath();
+  const threadContext = getActiveThreadRequestContext();
+  const nodeTitle = activeLabel || getLabelFromPath(activePath) || "тема";
+  const isElementScope = Boolean(activeThreadScope?.file);
+  const scopeLabel = isElementScope
+    ? getLabelFromPath(activeThreadScope.file) || activeThreadScope.file
+    : null;
+
+  nodeThreadContentNode.replaceChildren();
+
+  const head = document.createElement("div");
+  head.className = "node-thread-head";
+  const title = document.createElement("h3");
+  title.className = "node-thread-head-title";
+  title.textContent = isElementScope
+    ? `Диалог · ${scopeLabel}`
+    : `Диалог · ${nodeTitle}`;
+
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.className = "node-thread-refresh-btn";
+  refreshBtn.textContent = "Обновить";
+  refreshBtn.title = "Подтянуть новые ответы агента (live-обновление ~2.5 с)";
+
+  head.append(title, refreshBtn);
+
+  const hint = document.createElement("p");
+  hint.className = "node-thread-hint";
+  hint.textContent = isElementScope
+    ? `Диалог по файлу «${scopeLabel}» в теме «${nodeTitle}». Агент отвечает через MCP — лента обновляется автоматически.`
+    : "Запишите сообщение здесь — агент в Cursor прочитает и ответит через MCP. Лента обновляется автоматически.";
+
+  if (isElementScope) {
+    const scopeBar = document.createElement("div");
+    scopeBar.className = "node-thread-scope-bar";
+    const scopeNote = document.createElement("span");
+    scopeNote.className = "node-thread-scope-note";
+    scopeNote.textContent = `Файл: ${activeThreadScope.file}`;
+    const backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "node-thread-scope-back";
+    backBtn.textContent = "← Диалог по теме";
+    backBtn.addEventListener("click", () => {
+      clearActiveThreadScope();
+      void renderNodeThread();
+    });
+    scopeBar.append(scopeNote, backBtn);
+    nodeThreadContentNode.append(head, hint, scopeBar);
+  } else {
+    nodeThreadContentNode.append(head, hint);
+  }
+
+  const section = document.createElement("section");
+  section.className = "node-comments node-thread-panel";
+
+  const composer = document.createElement("div");
+  composer.className = "node-comments-composer";
+
+  const composerAvatar = createNodeCommentAvatar("Вы", "green");
+
+  const composerMain = document.createElement("div");
+  composerMain.className = "node-comments-composer-main";
+
+  const composerBox = document.createElement("div");
+  composerBox.className = "node-comments-composer-box";
+
+  const composerField = document.createElement("textarea");
+  composerField.className = "node-comments-input";
+  composerField.rows = 4;
+  composerField.placeholder = "Сообщение для агента…";
+  composerField.setAttribute("aria-label", "Новое сообщение в диалоге");
+
+  const composerActions = document.createElement("div");
+  composerActions.className = "node-comments-composer-actions";
+
+  const composerHint = document.createElement("span");
+  composerHint.className = "node-comments-composer-hint";
+  composerHint.textContent = "Markdown · Ctrl/Cmd+Enter";
+
+  const composerSubmit = document.createElement("button");
+  composerSubmit.type = "button";
+  composerSubmit.className = "node-comments-submit";
+  composerSubmit.disabled = true;
+  composerSubmit.textContent = "Отправить";
+
+  composerActions.append(composerHint, composerSubmit);
+  composerBox.append(composerField, composerActions);
+  composerMain.appendChild(composerBox);
+  composer.append(composerAvatar, composerMain);
+
+  const thread = document.createElement("ol");
+  thread.className = "node-comments-thread";
+
+  section.append(composer, thread);
+  nodeThreadContentNode.appendChild(section);
+
+  const syncSubmitState = () => {
+    composerSubmit.disabled = !String(composerField.value || "").trim();
+  };
+  composerField.addEventListener("input", syncSubmitState);
+  composerField.addEventListener("change", syncSubmitState);
+  composerField.addEventListener("keyup", syncSubmitState);
+
+  const renderMessages = (messages) => {
+    thread.replaceChildren();
+    const items = Array.isArray(messages) ? messages : [];
+    if (!items.length) {
+      const empty = document.createElement("li");
+      empty.className = "node-comments-empty";
+      empty.textContent = "Диалог пуст — напишите первое сообщение.";
+      thread.appendChild(empty);
+      return;
+    }
+    for (const message of items) {
+      const item = document.createElement("li");
+      item.className = "node-comment node-thread-message";
+      if (message.role === "agent") item.classList.add("node-thread-message--agent");
+
+      const avatarTone = message.role === "agent" ? "violet" : "green";
+      const avatarLabel = message.role === "agent" ? "AI" : (message.author || "Вы").slice(0, 2);
+      const avatar = createNodeCommentAvatar(avatarLabel, avatarTone);
+
+      const main = document.createElement("div");
+      main.className = "node-comment-main";
+
+      const commentHead = document.createElement("div");
+      commentHead.className = "node-comment-head";
+
+      const author = document.createElement("span");
+      author.className = "node-comment-author";
+      author.textContent = message.role === "agent" ? (message.author || "Агент") : (message.author || "Вы");
+
+      const time = document.createElement("time");
+      time.className = "node-comment-time";
+      time.textContent = formatThreadMessageLabel(message);
+
+      commentHead.append(author, time);
+
+      const body = document.createElement("div");
+      body.className = "node-comment-body node-thread-body";
+      body.textContent = message.body || "";
+
+      main.append(commentHead, body);
+
+      if (message.linkedFiles) {
+        const foot = document.createElement("div");
+        foot.className = "node-comment-foot";
+        for (const filePath of String(message.linkedFiles).split(",").map((s) => s.trim()).filter(Boolean)) {
+          const linkBtn = document.createElement("button");
+          linkBtn.type = "button";
+          linkBtn.className = "inbox-triage-btn node-thread-file-link";
+          linkBtn.textContent = `📄 ${filePath}`;
+          linkBtn.title = filePath;
+          linkBtn.addEventListener("click", () => {
+            void openExternalMemoryFileFromThread(filePath);
+          });
+          foot.appendChild(linkBtn);
+        }
+        main.appendChild(foot);
+      }
+
+      item.append(avatar, main);
+      thread.appendChild(item);
+    }
+  };
+
+  const refreshThread = async () => {
+    const loading = document.createElement("li");
+    loading.className = "node-comments-empty";
+    loading.textContent = "Загрузка…";
+    thread.replaceChildren(loading);
+    try {
+      const data = await fetchTopicThread(threadContext);
+      if (isStale()) return;
+      renderMessages(data.messages);
+      const items = Array.isArray(data.messages) ? data.messages : [];
+      if (items.length) {
+        markThreadLastSeen(manifestPath, items[items.length - 1].id);
+      }
+      await refreshTopicIntakeForActivePath();
+    } catch (error) {
+      if (isStale()) return;
+      loading.textContent = `Не удалось загрузить диалог: ${error.message}`;
+    }
+  };
+
+  refreshBtn.addEventListener("click", () => {
+    void refreshThread();
+  });
+  nodeThreadRefreshOnFocus = () => {
+    void refreshThread();
+  };
+
+  composerSubmit.addEventListener("click", () => {
+    void (async () => {
+      const body = String(composerField.value || "").trim();
+      if (!body) return;
+      if (!manifestPath) {
+        showToast("Не удалось определить тему для диалога", "error");
+        return;
+      }
+      composerSubmit.disabled = true;
+      composerField.disabled = true;
+      try {
+        const author = resolveDialogAuthor();
+        storeCommentAuthor(author);
+        await postTopicThreadMessage(threadContext, body, { role: "user", author });
+        composerField.value = "";
+        if (!isStale()) {
+          await refreshThread();
+        }
+        await refreshTopicIntakeForActivePath();
+        showToast("Сообщение сохранено", "success");
+      } catch (error) {
+        showToast(`Не удалось сохранить: ${error.message}`, "error");
+      } finally {
+        if (!isStale()) {
+          composerField.disabled = false;
+          syncSubmitState();
+        }
+      }
+    })();
+  });
+
+  composerField.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!composerSubmit.disabled) composerSubmit.click();
+    }
+  });
+
+  await refreshThread();
 }
 
 function createNodeCommentReplyComposer(parentComment, handlers = {}) {
@@ -27796,6 +29227,9 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
   const item = document.createElement("li");
   item.className = "node-comment";
   if (comment.replyTo) item.classList.add("node-comment--reply");
+  if (handlers.myHandle && commentMentionsUser(comment, handlers.myHandle)) {
+    item.classList.add("node-comment--mentions-me");
+  }
 
   const avatar = createNodeCommentAvatar(
     getCommentAuthorInitials(comment.author),
@@ -27821,7 +29255,7 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 
   const body = document.createElement("div");
   body.className = "node-comment-body";
-  body.textContent = comment.body || "";
+  renderCommentBodyWithMentions(body, comment.body || "", handlers.mentionLookup);
 
   const foot = document.createElement("footer");
   foot.className = "node-comment-foot";
@@ -27839,10 +29273,22 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 
   const reactBtn = document.createElement("button");
   reactBtn.type = "button";
-  reactBtn.className = "node-comment-action";
-  reactBtn.disabled = true;
-  reactBtn.title = "Скоро";
-  reactBtn.textContent = "👍 0";
+  reactBtn.className = "node-comment-action node-comment-reaction";
+  const reactionCount =
+    Number(comment.reactionsUpCount) ||
+    (Array.isArray(comment.reactionsUp) ? comment.reactionsUp.length : 0);
+  const myReactionKey = slugifyCommentMentionHandle(getStoredCommentAuthor());
+  const reactionsUp = Array.isArray(comment.reactionsUp) ? comment.reactionsUp : [];
+  if (myReactionKey && reactionsUp.some((entry) => slugifyCommentMentionHandle(entry) === myReactionKey)) {
+    reactBtn.classList.add("is-active");
+  }
+  reactBtn.textContent = reactionCount > 0 ? `👍 ${reactionCount}` : "👍";
+  reactBtn.title = "Нравится";
+  if (typeof handlers.onReaction === "function") {
+    reactBtn.addEventListener("click", () => handlers.onReaction(comment, reactBtn));
+  } else {
+    reactBtn.disabled = true;
+  }
 
   foot.append(replyBtn, reactBtn);
   main.append(commentHead, body, foot);
@@ -27881,7 +29327,29 @@ async function createNodeCommentsBlock(options = {}) {
   count.className = "node-comments-count";
   count.textContent = "0";
 
-  head.append(count);
+  const mentionBadge = document.createElement("span");
+  mentionBadge.className = "node-comments-mention-badge hidden";
+  mentionBadge.setAttribute("aria-label", "Новые упоминания");
+
+  head.append(count, mentionBadge);
+
+  const myHandle = slugifyCommentMentionHandle(getStoredCommentAuthor());
+  let latestComments = [];
+
+  const updateMentionBadge = (comments) => {
+    latestComments = Array.isArray(comments) ? comments : [];
+    const unread = countUnreadCommentMentions(latestComments, myHandle, context);
+    mentionBadge.classList.toggle("hidden", unread <= 0);
+    mentionBadge.textContent = unread > 0 ? `@ ${unread}` : "";
+    mentionBadge.title = unread > 0 ? `${unread} новых упоминаний` : "";
+  };
+
+  const acknowledgeMentions = () => {
+    markAllCommentMentionsSeen(context, latestComments);
+    updateMentionBadge(latestComments);
+  };
+
+  head.addEventListener("click", acknowledgeMentions);
 
   const composer = document.createElement("div");
   composer.className = "node-comments-composer";
@@ -27899,13 +29367,14 @@ async function createNodeCommentsBlock(options = {}) {
   composerField.rows = 3;
   composerField.placeholder = `Комментарий к «${nodeTitle}»…`;
   composerField.setAttribute("aria-label", "Новый комментарий");
+  composerField.addEventListener("focus", acknowledgeMentions);
 
   const composerActions = document.createElement("div");
   composerActions.className = "node-comments-composer-actions";
 
   const composerHint = document.createElement("span");
   composerHint.className = "node-comments-composer-hint";
-  composerHint.textContent = "Markdown · @упоминания · скоро";
+  composerHint.textContent = "Markdown · @упоминания · ↑↓ Enter";
 
   const composerSubmit = document.createElement("button");
   composerSubmit.type = "button";
@@ -27923,6 +29392,10 @@ async function createNodeCommentsBlock(options = {}) {
 
   section.append(head, composer, thread);
 
+  let mentionCandidates = collectCommentMentionCandidates({ agentId });
+  const mentionLookup = () => buildCommentMentionLookup(mentionCandidates);
+  attachCommentMentionAutocomplete(composerField, () => mentionCandidates);
+
   const syncSubmitState = () => {
     composerSubmit.disabled = !String(composerField.value || "").trim();
   };
@@ -27937,17 +29410,29 @@ async function createNodeCommentsBlock(options = {}) {
   };
 
   const submitComment = async (body, replyTo = null) => {
-    let author = getStoredCommentAuthor();
-    if (!author) {
-      author = window.prompt("Ваше имя для комментария:", "")?.trim() || "";
-      if (!author) return false;
-      storeCommentAuthor(author);
-    }
+    const author = resolveDialogAuthor();
+    storeCommentAuthor(author);
     await postFileComment(context, body, author, agentId, replyTo);
     return true;
   };
 
   const commentHandlers = {
+    myHandle,
+    mentionLookup: mentionLookup(),
+    onReaction(comment, button) {
+      void (async () => {
+        button.disabled = true;
+        try {
+          const author = resolveDialogAuthor();
+          storeCommentAuthor(author);
+          await postCommentReaction(context, comment.id, author, agentId);
+          await refreshComments();
+        } catch (error) {
+          showToast(`Не удалось поставить реакцию: ${error.message}`, "error");
+          button.disabled = false;
+        }
+      })();
+    },
     onReply(parentComment, itemNode, mainNode) {
       closeActiveReplyComposer();
       const composerNode = createNodeCommentReplyComposer(parentComment, {
@@ -27976,6 +29461,10 @@ async function createNodeCommentsBlock(options = {}) {
       });
       activeReplyComposer = composerNode;
       mainNode.appendChild(composerNode);
+      const replyField = composerNode.querySelector("textarea");
+      if (replyField) {
+        attachCommentMentionAutocomplete(replyField, () => mentionCandidates);
+      }
     }
   };
 
@@ -27983,6 +29472,10 @@ async function createNodeCommentsBlock(options = {}) {
     thread.replaceChildren();
     const items = Array.isArray(comments) ? comments : [];
     count.textContent = String(items.length);
+    updateMentionBadge(items);
+    const authors = items.map((item) => item.author).filter(Boolean);
+    mentionCandidates = collectCommentMentionCandidates({ agentId, authors });
+    commentHandlers.mentionLookup = mentionLookup();
     if (items.length === 0) return;
     const tree = buildCommentThreadTree(items);
     for (const comment of tree) {
@@ -28631,11 +30124,14 @@ function applyModeUi() {
   const configsMode = activeContentMode === "configs";
   const overviewMode = activeContentMode === NODE_OVERVIEW_MODE;
   const navigationMode = activeContentMode === NODE_NAVIGATION_MODE;
+  const threadMode = activeContentMode === NODE_THREAD_MODE;
   const overviewLikeMode = overviewMode || navigationMode;
   const titleVisible = isCurrentModeTitleEditable();
   const forceEditOnly = activeContentMode === "env";
   const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
+  void syncExternalFileCommentsBlock();
+  void syncMediaFileCommentsBlock();
   if (titleVisible || mediaSidecarEditing) {
     syncTitleInputEditableState();
   }
@@ -28650,10 +30146,12 @@ function applyModeUi() {
   const hideSaveDeleteInToolbar =
     canvasMode ||
     overviewLikeMode ||
+    threadMode ||
     showExternalControls ||
     showMediaControls ||
     showTabularControls ||
     activeContentMode === "inbox" ||
+    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
@@ -28665,6 +30163,7 @@ function applyModeUi() {
     graphMode ||
     (!activePath && !activeSystemFile) ||
     (overviewLikeMode && !showWorkspaceRefresh) ||
+    (threadMode && !showWorkspaceRefresh) ||
     (hideSaveDeleteInToolbar &&
       !showExternalControls &&
       !showMediaControls &&
@@ -28700,6 +30199,7 @@ function applyModeUi() {
     (listTemplate && !listViewWithSourceToggle) ||
     previewMode ||
     overviewLikeMode ||
+    threadMode ||
     canvasMode ||
     (hideContentEditor && !canvasMode && !listViewWithSourceToggle);
   const showTabularSourceEditor = activeContentMode === "tabular" && isTabularSourceEditing();
@@ -28717,7 +30217,7 @@ function applyModeUi() {
   if (configsMode) renderNodeSettingsEditor();
   editorSurfaceNode?.classList.toggle(
     "hidden",
-    previewMode || canvasMode || overviewLikeMode || showListView || topicSchemaMode || configsMode
+    previewMode || canvasMode || overviewLikeMode || threadMode || showListView || topicSchemaMode || configsMode
   );
   previewUploadBlockNode?.classList.toggle("hidden", !previewMode);
   graphViewBlockNode?.classList.toggle("hidden", !canvasMode);
@@ -28726,6 +30226,7 @@ function applyModeUi() {
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode);
+  nodeThreadBlockNode?.classList.toggle("hidden", !threadMode);
   const containerOverview =
     overviewMode && isContainerNodePath(getResolvedNodePath(activePath));
   applyNodeWorkspaceViewUi();
@@ -28754,6 +30255,7 @@ function applyModeUi() {
   saveContentBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar);
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
   syncFileHistoryButtonVisibility();
+  syncFileElementThreadButtonVisibility();
   yamlPanelNode.classList.toggle("hidden", !showDocAside);
   docBodyGridNode?.classList.toggle("has-props-aside", showDocAside);
   syncDocAsideUi({
@@ -28800,6 +30302,10 @@ function applyModeUi() {
     return;
   } else if (navigationMode) {
     void renderNodeNavigation();
+    syncSaveButtonLamp();
+    return;
+  } else if (threadMode) {
+    void renderNodeThread();
     syncSaveButtonLamp();
     return;
   } else if (listTemplate) {
@@ -32996,7 +34502,7 @@ async function fetchAgentWorkspaceStats() {
   return response.json();
 }
 
-function renderMenuAgentStatsContent({ counts, workspace = null, loading = false } = {}) {
+function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = null, loading = false } = {}) {
   if (!menuAgentStatsNode) return;
 
   const items = [
@@ -33011,6 +34517,21 @@ function renderMenuAgentStatsContent({ counts, workspace = null, loading = false
       label: "размер"
     }
   ];
+
+  if (!loading && intakeTotals) {
+    const inboxPending = Number(intakeTotals.inboxPending) || 0;
+    const threadUnread = Number(intakeTotals.threadUnread) || 0;
+    const mentionUnread = Number(intakeTotals.mentionUnread) || 0;
+    if (inboxPending > 0) {
+      items.push({ value: String(inboxPending), label: "входящ." });
+    }
+    if (threadUnread > 0) {
+      items.push({ value: String(threadUnread), label: "диалог" });
+    }
+    if (mentionUnread > 0) {
+      items.push({ value: String(mentionUnread), label: "@упом." });
+    }
+  }
 
   menuAgentStatsNode.replaceChildren();
   for (const item of items) {
@@ -33044,9 +34565,13 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   renderMenuAgentStatsContent({ counts, loading: true });
 
   try {
-    const workspace = await fetchAgentWorkspaceStats();
+    const [workspace, intakeTotals] = await Promise.all([
+      fetchAgentWorkspaceStats().catch(() => null),
+      refreshMenuIntakeSummary(menu, activeAgentId).catch(() => null)
+    ]);
     if (seq !== menuAgentStatsSeq) return;
-    renderMenuAgentStatsContent({ counts, workspace });
+    renderMenuAgentStatsContent({ counts, workspace, intakeTotals });
+    syncChannelLiveUpdates();
   } catch {
     if (seq !== menuAgentStatsSeq) return;
     renderMenuAgentStatsContent({ counts, workspace: null });
@@ -33407,6 +34932,13 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
+  if (activeContentMode === NODE_THREAD_MODE) {
+    fileContentInputNode.value = "";
+    void renderNodeThread();
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
   if (activeContentMode === NODE_MINDMAP_MODE) {
     fileContentInputNode.value = "";
     applyModeUi();
@@ -33514,8 +35046,7 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "inbox") {
     try {
-      await loadFlatStorageSectionContent(
-        "inbox",
+      await loadInboxSectionContent(
         activeContentMode === "inbox" ? preserveFlatStorageSectionFolder : null
       );
     } catch (error) {
@@ -38935,10 +40466,6 @@ async function deleteNode() {
 }
 
 async function init() {
-  if (window.agentAppLock?.whenUnlocked) {
-    await window.agentAppLock.whenUnlocked();
-  }
-
   const splashStartedAt = Date.now();
   const finishSplash = () => {
     const elapsed = Date.now() - splashStartedAt;
@@ -38957,10 +40484,17 @@ async function init() {
     if (location.hash === "#graph") {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
     }
+
+    // Сразу убираем splash — иначе «Загружаем важное…» перекрывает форму входа.
+    finishSplash();
+
+    if (window.agentAppLock?.whenUnlocked) {
+      await window.agentAppLock.whenUnlocked();
+    }
+
     await loadAgents();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
-    finishSplash();
 
     const bootRoute = parseAppRoute(location.pathname);
     if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
@@ -38987,7 +40521,10 @@ async function init() {
 }
 
 function hideAppSplash() {
-  if (!appSplashNode) return;
+  if (!appSplashNode) {
+    document.body.classList.remove("app-booting");
+    return;
+  }
   document.body.classList.remove("app-booting");
   appSplashNode.classList.add("app-splash--hide");
   window.setTimeout(() => {
@@ -40038,6 +41575,9 @@ topicSchemaFieldsNode?.addEventListener("input", handleTopicSchemaFieldsInput);
 topicSchemaFieldsNode?.addEventListener("change", handleTopicSchemaFieldsInput);
 topicSchemaFieldsNode?.addEventListener("click", handleTopicSchemaFieldsClick);
 nodeWorkspaceDomainSelectNode?.addEventListener("change", () => {
+  if (nodeWorkspaceDomainSelectNode.value === NODE_WORKSPACE_DOMAIN_THREAD) {
+    clearActiveThreadScope();
+  }
   void applyNodeWorkspaceDomainChange(nodeWorkspaceDomainSelectNode.value);
 });
 nodeDefaultLandingBtn?.addEventListener("click", () => {
@@ -40463,6 +42003,22 @@ appLandingCreateModalNode?.addEventListener("click", (event) => {
 });
 
 initNodeWorkspaceDomainSelect();
+if (!window.__agentCmsThreadFocusBound) {
+  window.__agentCmsThreadFocusBound = true;
+  window.addEventListener("focus", () => {
+    if (activeContentMode !== NODE_THREAD_MODE || !activePath) return;
+    nodeThreadRefreshOnFocus?.();
+  });
+  document.addEventListener("visibilitychange", () => {
+    syncChannelLiveUpdates();
+    if (document.hidden) return;
+    if (activeContentMode === NODE_THREAD_MODE && activePath) {
+      nodeThreadRefreshOnFocus?.();
+    } else if (activeContentMode === "inbox" && activePath) {
+      nodeInboxRefreshOnPoll?.();
+    }
+  });
+}
 initAgentAwnTypesToolbar();
 initAgentGitToolbar();
 initAgentLargeFilesToolbar();

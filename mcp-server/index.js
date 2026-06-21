@@ -193,6 +193,132 @@ function createServer() {
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
   );
 
+  reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: nodePath }), ({ path }) =>
+    client.get("/api/inbox", { path })
+  );
+
+  reg(
+    "read_inbox_item",
+    "Read a single inbox item with full body and metadata.",
+    z.object({ path: nodePath, file: z.string().min(1) }),
+    ({ path, file }) => client.get("/api/inbox/item", { path, file })
+  );
+
+  reg(
+    "triage_inbox_item",
+    "Triage inbox item: to-thread, to-content, mark-done, set-status.",
+    z.object({
+      path: nodePath,
+      file: z.string().min(1),
+      action: z.enum(["to-thread", "to-content", "mark-done", "set-status"]),
+      status: z.enum(["new", "in-progress", "done"]).optional()
+    }),
+    ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
+  );
+
+  reg("read_thread", "Read topic dialogue thread messages.", z.object({
+    path: nodePath,
+    mode: z.string().optional(),
+    file: z.string().optional(),
+    name: z.string().optional()
+  }), ({ path, mode, file, name }) =>
+    client.get("/api/thread", { path, mode, file, name })
+  );
+
+  reg(
+    "append_thread",
+    "Append message to topic dialogue thread.",
+    z.object({
+      path: nodePath,
+      body: z.string().min(1),
+      role: z.enum(["user", "agent"]).optional(),
+      author: z.string().optional(),
+      linkedFiles: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
+      client.post("/api/thread", { path, body, role, author, linkedFiles, mode, file, name })
+  );
+
+  reg("get_topic_intake", "Inbox pending + thread summary for a topic.", z.object({ path: nodePath }), ({ path }) =>
+    client.get("/api/topic/intake", { path })
+  );
+
+  reg(
+    "get_intake_batch",
+    "Batch inbox/thread summary for multiple topics.",
+    z.object({ paths: z.array(nodePath).min(1).max(120) }),
+    ({ paths }) => client.post("/api/intake/batch", { paths })
+  );
+
+  reg(
+    "create_inbox_item",
+    "Create inbox intake note for a topic.",
+    z.object({
+      path: nodePath,
+      title: z.string().optional(),
+      body: z.string().optional(),
+      source: z.string().optional(),
+      author: z.string().optional()
+    }),
+    ({ path, title, body, source, author }) =>
+      client.post("/api/inbox/create", { path, title, body, source, author })
+  );
+
+  reg(
+    "list_comments",
+    "List human discussion comments on a node or file (Overview/Navigation scope).",
+    z.object({
+      path: nodePath,
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/file/comments", { path, mode, file, name })
+  );
+
+  reg(
+    "append_comment",
+    "Append a comment to node/file discussion thread.",
+    z.object({
+      path: nodePath,
+      body: z.string().min(1),
+      author: z.string().optional(),
+      replyTo: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, author, replyTo, mode, file, name }) =>
+      client.post("/api/file/comments", { path, body, author, replyTo, mode, file, name })
+  );
+
+  reg(
+    "toggle_comment_reaction",
+    "Toggle 👍 reaction on a comment.",
+    z.object({
+      path: nodePath,
+      commentId: z.string().min(1),
+      author: z.string().optional(),
+      reaction: z.enum(["up"]).optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, commentId, author, reaction, mode, file, name }) =>
+      client.post("/api/file/comments/reaction", {
+        path,
+        commentId,
+        author,
+        reaction: reaction || "up",
+        mode,
+        file,
+        name
+      })
+  );
+
   reg("list_media", "List media/.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/media", { path })
   );

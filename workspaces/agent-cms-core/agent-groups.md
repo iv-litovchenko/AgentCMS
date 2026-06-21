@@ -23,6 +23,7 @@ awn-attachments: []
 layers:
   content:    { kind: collection,  ui: memory,      label: "Контент" }
   inbox:      { kind: intake,       ui: inbox,        label: "Входящие" }
+  thread:     { kind: dialogue,     ui: thread,       label: "Диалог" }
   media:      { kind: repository,    ui: media,        label: "Медиа" }
   assets:     { kind: inline,       ui: —,            label: "Ресурсы файла" }
   scripts:    { kind: executable,   ui: scripts,      label: "Скрипты" }
