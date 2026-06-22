@@ -54,4 +54,5 @@ _base.md + awn-storage/_base/configuration/schema.yml   ← awn.component
 | Блоки | [blocks/](blocks/_registration.md) | `awn.block.base` |
 | Виды | [views/](views/_registration.md) | `awn.view.base` |
 
-Runtime по-прежнему читает `awn-types/` в корне репозитория; этот каталог — эталон для framework.
+Runtime по-прежнему читает `awn-types/` в корне репозитория; эталон — здесь.  
+См. также [runtime/](../runtime/loaders.md), [integrations/](../integrations/_registration.md), [catalog/](../catalog/overview.md).

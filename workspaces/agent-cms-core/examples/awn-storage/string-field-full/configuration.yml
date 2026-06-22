@@ -1,0 +1,14 @@
+awn_schema:
+  record:
+    fields:
+      demo_string:
+        type: awn.string
+        title: Демо-строка
+        hint: Короткая однострочная строка
+        description: Кастомное поле из configuration.yml темы
+        required: false
+      demo_subtitle:
+        type: awn.string
+        title: Подзаголовок
+        hint: Второе string-поле для сравнения
+        format: "пример формата"

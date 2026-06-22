@@ -1,0 +1,16 @@
+{
+  "name": "@agent-cms/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent CMS runtime core — loaders, manifest, schema resolution, field handlers",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./manifest": "./manifest/index.js",
+    "./loaders/types": "./loaders/types/index.js",
+    "./loaders/fields": "./loaders/fields/index.js",
+    "./loaders/blocks": "./loaders/blocks/index.js",
+    "./catalog": "./catalog/index.js",
+    "./agents": "./agents/index.js"
+  }
+}

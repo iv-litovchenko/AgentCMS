@@ -124,7 +124,9 @@ const agentMap3BoardNode = document.getElementById("agent-map3-board");
 const agentPreviewPlaceholderNode = document.getElementById("agent-preview-placeholder");
 const agentTodoPreviewWrapNode = document.getElementById("agent-todo-preview-wrap");
 const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
+const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
+const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 140;
 const agentTablePaneNode = document.getElementById("agent-table-pane");
 const agentTableContentNode = document.getElementById("agent-table-content");
 const agentTableStatsNode = document.getElementById("agent-table-stats");
@@ -1982,9 +1984,46 @@ let agentTodoPreviewSeq = 0;
 
 function hideAgentTodoPreview() {
   agentTodoPreviewWrapNode?.classList.add("hidden");
+  agentTodoPreviewWrapNode?.classList.remove("is-expanded");
+  agentTodoPreviewExpandBtn?.classList.add("hidden");
   if (agentTodoPreviewBodyNode) {
     agentTodoPreviewBodyNode.innerHTML = "";
   }
+}
+
+function isAgentTodoPreviewExpanded() {
+  return Boolean(agentTodoPreviewWrapNode?.classList.contains("is-expanded"));
+}
+
+function syncAgentTodoPreviewExpandButton() {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !agentTodoPreviewExpandBtn) return;
+
+  if (isAgentTodoPreviewExpanded()) {
+    agentTodoPreviewExpandBtn.textContent = "Свернуть";
+    agentTodoPreviewExpandBtn.classList.remove("hidden");
+    return;
+  }
+
+  const overflows =
+    agentTodoPreviewBodyNode.scrollHeight > AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX + 1;
+  if (overflows) {
+    agentTodoPreviewExpandBtn.textContent = "Развернуть всё";
+    agentTodoPreviewExpandBtn.classList.remove("hidden");
+  } else {
+    agentTodoPreviewExpandBtn.classList.add("hidden");
+  }
+}
+
+function scheduleAgentTodoPreviewExpandSync() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => syncAgentTodoPreviewExpandButton());
+  });
+}
+
+function toggleAgentTodoPreviewExpand() {
+  if (!agentTodoPreviewWrapNode) return;
+  agentTodoPreviewWrapNode.classList.toggle("is-expanded");
+  syncAgentTodoPreviewExpandButton();
 }
 
 function getAgentTodoSidebarPreviewMarkdown(raw = "") {
@@ -2026,7 +2065,8 @@ async function syncAgentTodoPreview() {
     }
 
     setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(content));
-    agentTodoPreviewWrapNode.classList.remove("hidden");
+    agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
+    scheduleAgentTodoPreviewExpandSync();
   } catch {
     if (seq !== agentTodoPreviewSeq) return;
     hideAgentTodoPreview();
@@ -41274,6 +41314,10 @@ agentPreviewPlaceholderNode?.addEventListener("keydown", handleAgentPreviewOpenA
 agentTodoPreviewEditBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   openAgentTodoPreviewForEdit();
+});
+agentTodoPreviewExpandBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAgentTodoPreviewExpand();
 });
 
 agentGitBtn?.addEventListener("click", () => {
