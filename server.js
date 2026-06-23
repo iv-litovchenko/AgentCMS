@@ -3143,7 +3143,7 @@ async function resolveApiStorageContextAbsolute(relPath) {
   const absolute = normalizeWorkspacePath(resolvedRelPath);
   if (!absolute) return null;
   const base = path.basename(absolute).toLowerCase();
-  if (!base.endsWith(".md") || base.endsWith(".sidecar.md")) return null;
+  if (!base.endsWith(".md")) return null;
   return absolute;
 }
 
@@ -3404,6 +3404,7 @@ const MENU_SORT_FILE = "sort.json";
 const PARTS_FOLDER = "_Parts";
 
 const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
+const SERVICE_MENU_LEAF_TYPES = new Set(["service-doc", "catalog", "taxonomy"]);
 
 async function readManifestMenuMeta(manifestRel) {
   try {
@@ -3420,21 +3421,25 @@ async function readManifestMenuMeta(manifestRel) {
 async function shouldRenderMenuChildAsTopicItem(child) {
   const manifestRel = child?.indexPath;
   if (!manifestRel) return false;
-  const { type } = await readManifestMenuMeta(manifestRel);
-  if (type !== "topic") return false;
   if ((child.sections || []).length > 0) return false;
   if ((child.items || []).length > 0) return false;
   if (child.containerTree) return false;
-  return true;
+  if (isSystemReferenceManifestRel(manifestRel)) return true;
+  const { type } = await readManifestMenuMeta(manifestRel);
+  if (type === "topic" || SERVICE_MENU_LEAF_TYPES.has(type)) return true;
+  return false;
 }
 
 async function isTreeMenuManifestRel(manifestRel) {
   const normalized = String(manifestRel || "").replace(/\\/g, "/");
   if (!normalized || !isManifestMdRelPath(normalized)) return false;
+  if (isSystemReferenceManifestRel(normalized)) return true;
   const { kind, type } = await readManifestMenuMeta(normalized);
   if (kind === "service") return false;
   if (kind === "tree") return true;
   if (TREE_MENU_TYPES.has(type)) return true;
+  if (SERVICE_MENU_LEAF_TYPES.has(type)) return true;
+  if (type === "service") return true;
   return !type;
 }
 
@@ -4720,10 +4725,25 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
     if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) continue;
     const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
     if (!relFile) continue;
-    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-    if (!folderAbsolute) continue;
-    const fileAbsolute = path.join(folderAbsolute, relFile);
-    if (!fileAbsolute.startsWith(folderAbsolute)) continue;
+
+    let fileAbsolute = null;
+    if (assetsRef.workspacePath) {
+      const candidateAbsolute = normalizeWorkspacePath(assetsRef.workspacePath);
+      if (candidateAbsolute && (await fileExists(candidateAbsolute))) {
+        fileAbsolute = candidateAbsolute;
+      }
+    }
+    if (!fileAbsolute) {
+      fileAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile);
+    }
+    if (!fileAbsolute) {
+      fileAbsolute = await resolveUploadedMediaFileAbsolute(
+        nodeAbsolute,
+        `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${relFile}`
+      );
+    }
+    if (!fileAbsolute) continue;
+
     try {
       const stat = await fs.stat(fileAbsolute);
       if (!stat.isFile()) continue;
@@ -4846,7 +4866,13 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
 async function getNodePreviewMeta(nodeRelativePath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
   const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
-  if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) {
+  if (!nodeAbsolute) {
+    return { hasPreview: false, previewUrl: null, previewFile: null };
+  }
+
+  const isManifest = isManifestMdAbsolute(nodeAbsolute);
+  const storageContextAbsolute = isManifest ? null : await resolveApiStorageContextAbsolute(nodeRelativePath);
+  if (!isManifest && !storageContextAbsolute) {
     return { hasPreview: false, previewUrl: null, previewFile: null };
   }
 
@@ -4979,9 +5005,10 @@ async function readNodePropsColorForNodeRel(nodeRelPath) {
 
 async function enrichMenuNodeItem(nodeRelPath) {
   const normalizedPath = String(nodeRelPath || "").replace(/\\/g, "/");
-  const [meta, previewMeta] = await Promise.all([
+  const [meta, previewMeta, menuMeta] = await Promise.all([
     readNodeMenuMetaForNodeRel(normalizedPath),
-    getNodePreviewMeta(normalizedPath)
+    getNodePreviewMeta(normalizedPath),
+    readManifestMenuMeta(normalizedPath)
   ]);
   return {
     color: meta.color,
@@ -4989,6 +5016,7 @@ async function enrichMenuNodeItem(nodeRelPath) {
     category: meta.category,
     status: meta.status || null,
     awnEmoji: meta.awnEmoji || null,
+    awnTreeType: menuMeta.type || null,
     ...previewMeta
   };
 }
@@ -9144,7 +9172,10 @@ async function handleApiForAgent(req, res, url) {
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(nodeAbsolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
+    const isManifest = isManifestMdAbsolute(nodeAbsolute);
+    if (!isManifest && !(await resolveApiStorageContextAbsolute(relPath))) {
+      return sendJson(res, 400, { error: "Invalid file path" });
+    }
 
     const previewMeta = await getNodePreviewMeta(relPath);
     if (!previewMeta.hasPreview || !previewMeta.previewUrl) {

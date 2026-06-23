@@ -599,6 +599,24 @@ function countManifestFolderDepthUnderContainer(normalized, containerFolder = "c
   return segments.length;
 }
 
+function countManifestFolderDepthFromWorkspaceRoot(normalized) {
+  const parts = String(normalized || "").replace(/\\/g, "/").replace(/^\/+/, "").split("/").filter(Boolean);
+  if (!parts.length) return 0;
+  const last = parts[parts.length - 1].toLowerCase();
+  if (last === MANIFEST_FILE.toLowerCase()) return Math.max(0, parts.length - 1);
+  return parts.length;
+}
+
+function normalizeDeclaredManifestTreeType(typeRaw) {
+  const raw = String(typeRaw || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "awn.topic" || raw === "topic") return "topic";
+  if (raw === "awn.area" || raw === "area" || raw === "awn.workspace" || raw === "workspace") {
+    return "area";
+  }
+  return null;
+}
+
 /** Infer awn-type from workspace-relative path (no form state). */
 function inferAwnTypeFromRelPath(relPath, options = {}) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
@@ -622,12 +640,18 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     if (options.isAgentRoot) return "awn.workspace";
     if (options.isContainerRoot) return "awn.area";
 
+    const declared = normalizeDeclaredManifestTreeType(
+      options.declaredTreeType || options.explicitType
+    );
+    if (declared === "topic") return "awn.topic";
+    if (declared === "area") return "awn.area";
+
     const containerFolder = options.containerFolder || "container";
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
       return folderDepth >= 2 ? "awn.topic" : "awn.area";
     }
-    return "awn.area";
+    return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2 ? "awn.topic" : "awn.area";
   }
 
   return "awn.record";
