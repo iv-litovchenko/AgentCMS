@@ -332,7 +332,8 @@ function appendManifestCandidatesForStorageKey(manifestCandidates, containerPref
 }
 
 function getNamedStorageSlotDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
+  const ownerRel = resolveOwningManifestRelFromNodePath(relPath);
+  const containerDir = getManifestContainerDirRel(ownerRel);
   if (!containerDir) return STORAGE_ROOT_FOLDER;
   return `${containerDir}/${STORAGE_ROOT_FOLDER}`;
 }
@@ -570,11 +571,74 @@ function pickManifestRelFromStorageLayerRef(parsed) {
   return parsed?.manifestCandidates?.[0] || null;
 }
 
+function resolveOwningManifestRelFromNodePath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  const base = path.posix.basename(normalized);
+  if (isManifestFileName(base)) return normalized;
+  const storageMarker = `/${STORAGE_ROOT_FOLDER}/`;
+  const idx = normalized.toLowerCase().indexOf(storageMarker.toLowerCase());
+  if (idx >= 0) {
+    const prefix = normalized.slice(0, idx).replace(/\/$/, "");
+    return prefix ? `${prefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
+  }
+  return normalized;
+}
+
+function countManifestFolderDepthUnderContainer(normalized, containerFolder = "container") {
+  const container = String(containerFolder || "container").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!container) return null;
+  const marker = `${container}/`;
+  const idx = normalized.toLowerCase().indexOf(marker.toLowerCase());
+  if (idx < 0) return null;
+  const after = normalized.slice(idx + marker.length);
+  const segments = after.split("/").filter(Boolean);
+  if (!segments.length) return 0;
+  const last = segments[segments.length - 1].toLowerCase();
+  if (last === MANIFEST_FILE.toLowerCase()) return Math.max(0, segments.length - 1);
+  return segments.length;
+}
+
+/** Infer awn-type from workspace-relative path (no form state). */
+function inferAwnTypeFromRelPath(relPath, options = {}) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "awn.file";
+  const fileName = normalized.split("/").filter(Boolean).pop() || "";
+  const lower = fileName.toLowerCase();
+
+  if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
+  if (isMediaCategoryContentRelPath(normalized)) return "awn.media.category";
+  if (isRecordCategoryContentRelPath(normalized)) return "awn.record.category";
+  if (isExternalSectionReadmeRelPath(normalized)) return "awn.record.category";
+  if (isMediaSectionReadmeRelPath(normalized)) return "awn.media.category";
+
+  const isStorageContentFile =
+    options.contentMode === "external" || /\/storage\/content\//i.test(normalized);
+  if (isStorageContentFile && !isManifestFileName(fileName)) {
+    return "awn.record";
+  }
+
+  if (isManifestFileName(fileName)) {
+    if (options.isAgentRoot) return "awn.workspace";
+    if (options.isContainerRoot) return "awn.area";
+
+    const containerFolder = options.containerFolder || "container";
+    const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
+    if (folderDepth !== null) {
+      return folderDepth >= 2 ? "awn.topic" : "awn.area";
+    }
+    return "awn.area";
+  }
+
+  return "awn.record";
+}
+
 function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return [];
 
-  const context = String(contextManifestRelPath || MANIFEST_FILE)
+  const context = resolveOwningManifestRelFromNodePath(contextManifestRelPath || MANIFEST_FILE);
+  const rawContext = String(contextManifestRelPath || MANIFEST_FILE)
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
 
@@ -591,6 +655,10 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   if (/^storage\//i.test(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
+    if (/\/storage\/content\//i.test(rawContext)) {
+      const legacyNested = `${containerDir}/storage/content/storage/${normalized.replace(/^storage\//i, "")}`;
+      add(legacyNested);
+    }
   }
 
   if (/^assets\//i.test(normalized)) {
@@ -621,7 +689,41 @@ function parseStorageAssetsRef(workspaceRelPath) {
   };
 }
 
-function buildAssetsUploadRef(contextRelPath, assetsSubdir, fileName) {
+function buildAssetsUploadRef(_contextRelPath, assetsSubdir, fileName) {
+  const subdir = String(assetsSubdir || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const file = String(fileName || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!subdir || !file || subdir.includes("..") || file.includes("..")) return "";
+  return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${file}`;
+}
+
+function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+  const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return "";
+
+  if (/^storage\/assets\//i.test(normalized)) return normalized;
+
+  if (/^assets\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${normalized}`;
+  }
+
+  if (/^(pasted|preview|attachments)\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${normalized}`;
+  }
+
+  const assetsRef = parseStorageAssetsRef(normalized);
+  if (assetsRef?.mediaFile) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
+  }
+
+  const storageAssetsIdx = normalized.toLowerCase().indexOf("/storage/assets/");
+  if (storageAssetsIdx >= 0) {
+    return normalized.slice(storageAssetsIdx + 1);
+  }
+
+  return normalized;
+}
+
+function buildAssetsWorkspaceRef(contextRelPath, assetsSubdir, fileName) {
   const subdir = String(assetsSubdir || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   const file = String(fileName || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!subdir || !file || subdir.includes("..") || file.includes("..")) return "";
@@ -873,11 +975,16 @@ module.exports = {
   getNamedStorageBundleRel,
   buildStorageLayerRef,
   parseStorageLayerRef,
+  resolveOwningManifestRelFromNodePath,
+  countManifestFolderDepthUnderContainer,
+  inferAwnTypeFromRelPath,
   listStorageAssetsRefPathCandidates,
   parseStorageAssetsRefInContext,
   parseStorageAssetsRef,
   parseStorageSlotInlineRef,
   buildAssetsUploadRef,
+  buildAssetsWorkspaceRef,
+  normalizeNodeAssetsStorageRef,
   buildSlotInlineUploadRef,
   pickManifestRelFromStorageLayerRef,
   getHistoryRelativeTargetPath,

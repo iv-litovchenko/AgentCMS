@@ -21,7 +21,8 @@ const {
   isRecordCategoryContentRelPath,
   isExternalSectionReadmeRelPath,
   isMediaSectionReadmeRelPath,
-  isMediaCategoryContentRelPath
+  isMediaCategoryContentRelPath,
+  inferAwnTypeFromRelPath
 } = require("./manifest-paths");
 
 const TYPE_FILE_RE = YAML_FILE_RE;
@@ -194,42 +195,7 @@ function loadAgentTypes(agentRoot, projectRoot) {
 }
 
 function inferAwnTypeFromPath(relPath, options = {}) {
-  const normalized = String(relPath || "").replace(/\\/g, "/");
-  const fileName = normalized.split("/").filter(Boolean).pop() || "";
-  const lower = fileName.toLowerCase();
-
-  if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
-
-  if (isMediaCategoryContentRelPath(normalized)) {
-    return "awn.media.category";
-  }
-
-  if (isRecordCategoryContentRelPath(normalized)) {
-    return "awn.record.category";
-  }
-
-  if (isExternalSectionReadmeRelPath(normalized)) {
-    return "awn.record.category";
-  }
-
-  if (isMediaSectionReadmeRelPath(normalized)) {
-    return "awn.media.category";
-  }
-
-  if (options.contentMode === "external" || /\/Content\//i.test(normalized)) {
-    return "awn.record";
-  }
-
-  if (isAreaManifestFileName(fileName)) {
-    if (options.isAgentRoot) return "awn.workspace";
-    return "awn.area";
-  }
-
-  if (isTopicManifestFileName(fileName, { isAgentRoot: options.isAgentRoot })) {
-    return "awn.topic";
-  }
-
-  return "awn.record";
+  return inferAwnTypeFromRelPath(relPath, options);
 }
 
 function extractFileBaseName(relPath) {
@@ -244,6 +210,20 @@ function extractFileBaseName(relPath) {
   return fileName;
 }
 
+function normalizeAwnTypeName(typeName) {
+  const raw = String(typeName || "").trim();
+  if (!raw) return "";
+  if (/^awn\./i.test(raw)) return raw;
+  const aliases = {
+    area: "awn.area",
+    topic: "awn.topic",
+    workspace: "awn.workspace",
+    record: "awn.record",
+    service: "service"
+  };
+  return aliases[raw.toLowerCase()] || raw;
+}
+
 function buildDefaultFrontmatter(typeName, options = {}) {
   const {
     name = "",
@@ -252,11 +232,13 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     agentRoot = null,
     typeDef: typeDefOverride = null
   } = options;
+  const resolvedTypeName = normalizeAwnTypeName(typeName);
   const resolvedProjectRoot = projectRoot || process.cwd();
   const resolvedAgentRoot = agentRoot || "";
   const typesMap = types || loadAgentTypes(resolvedAgentRoot, resolvedProjectRoot);
   const typeDef =
-    typeDefOverride || resolveTypeDefinition(typeName, new Map(Object.entries(typesMap)));
+    typeDefOverride ||
+    resolveTypeDefinition(resolvedTypeName, new Map(Object.entries(typesMap)));
   const fields = typeDef?.fields || {};
 
   const lines = [];
@@ -274,7 +256,7 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     seen.add(key);
 
     if (key === "awn-type") {
-      lines.push(`awn-type: ${typeName}`);
+      lines.push(`awn-type: ${resolvedTypeName}`);
       continue;
     }
     if (key === "awn-name" && name) {

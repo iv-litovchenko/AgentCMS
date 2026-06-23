@@ -44,9 +44,12 @@ const {
   listBundleFileNameCandidates,
   resolveManifestRelFromStorageBundlePath,
   parseStorageAssetsRef,
+  resolveOwningManifestRelFromNodePath,
   listStorageAssetsRefPathCandidates,
   parseStorageSlotInlineRef,
   buildAssetsUploadRef,
+  buildAssetsWorkspaceRef,
+  normalizeNodeAssetsStorageRef,
   buildStorageLayerRef,
   buildSlotInlineUploadRef,
   BUNDLE_BODY_FILE,
@@ -2428,7 +2431,7 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
-    if (entry.isDirectory() && shouldSkipDirectoryListing(entry.name)) continue;
+    if (entry.isDirectory() && shouldSkipExternalMemoryDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -2462,7 +2465,7 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "") {
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
-    if (shouldSkipDirectoryListing(entry.name)) continue;
+    if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
@@ -2482,7 +2485,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
-      if (shouldSkipDirectoryListing(entry.name)) continue;
+      if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
       const nested = await collectMarkdownFiles(absolute, relative);
       files.push(...nested);
       continue;
@@ -2656,7 +2659,7 @@ async function collectMediaFilesStructured(
     const relPath = relative.replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
-      if (shouldSkipDirectoryListing(entry.name)) continue;
+      if (shouldSkipDirectoryListing(entry.name) || shouldSkipExternalMemoryDirectory(entry.name)) continue;
       items.push({
         path: `${relPath}/`,
         name: entry.name,
@@ -3129,6 +3132,12 @@ async function resolveApiManifestAbsolute(relPath) {
   return absolute;
 }
 
+async function resolveApiNodeFrontmatterAbsolute(relPath) {
+  const manifestAbsolute = await resolveApiManifestAbsolute(relPath);
+  if (manifestAbsolute) return manifestAbsolute;
+  return resolveApiStorageContextAbsolute(relPath);
+}
+
 async function resolveApiStorageContextAbsolute(relPath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
   const absolute = normalizeWorkspacePath(resolvedRelPath);
@@ -3503,6 +3512,16 @@ function shouldSkipMenuDirectory(name) {
 function shouldSkipDirectoryListing(name) {
   if (isHiddenMenuEntry(name)) return true;
   return shouldSkipMenuDirectory(name);
+}
+
+function shouldSkipExternalMemoryDirectory(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return true;
+  if (isStorageFolderName(name)) return true;
+  if (lower === STORAGE_SUBFOLDER_ASSETS) return true;
+  if (lower === STORAGE_SUBFOLDER_CONTENT) return true;
+  if (lower === STORAGE_SUBFOLDER_MEDIA) return true;
+  return shouldSkipDirectoryListing(name);
 }
 
 function isPartsFolderName(name) {
@@ -4671,6 +4690,7 @@ async function enrichFocusItems(items) {
 
 async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
   const previewValue = String(previewRaw || "").trim();
+  const contextRelPath = resolveOwningManifestRelFromNodePath(nodeRelativePath);
   if (!previewValue) {
     return { hasPreview: false, previewUrl: null, previewFile: null };
   }
@@ -4691,7 +4711,7 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
     };
   }
 
-  const candidates = listStorageAssetsRefPathCandidates(previewValue, nodeRelativePath);
+  const candidates = listStorageAssetsRefPathCandidates(previewValue, contextRelPath);
   for (const candidate of candidates) {
     const assetsRef = parseStorageAssetsRef(candidate);
     if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) continue;
@@ -4784,14 +4804,16 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
     }
   }
 
-  const relUnderAssets = normalized.replace(/^assets\//i, "");
+  const relUnderAssets = normalized
+    .replace(/^storage\/assets\//i, "")
+    .replace(/^assets\//i, "");
   const firstSegment = relUnderAssets.split("/")[0];
   if (isInlineAssetsUploadSubdir(firstSegment)) {
     const assetsFolder = await resolveInlineAssetsFolderAbsolute(nodeAbsolute, firstSegment);
     if (assetsFolder) {
       const tail = relUnderAssets.includes("/") ? relUnderAssets.slice(relUnderAssets.indexOf("/") + 1) : relUnderAssets;
       const fileAbsolute = path.join(assetsFolder, tail);
-      if (fileAbsolute.startsWith(assetsFolder)) return fileAbsolute;
+      if (fileAbsolute.startsWith(assetsFolder) && (await fileExists(fileAbsolute))) return fileAbsolute;
     }
   }
 
@@ -4799,6 +4821,18 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
   if (assetsFolder) {
     const fileAbsolute = path.join(assetsFolder, relUnderAssets);
     if (fileAbsolute.startsWith(assetsFolder) && (await fileExists(fileAbsolute))) return fileAbsolute;
+  }
+
+  const nodeRel = manifestRelFromNodeAbsolute(nodeAbsolute);
+  if (nodeRel && /^preview\//i.test(relUnderAssets)) {
+    const fileName = relUnderAssets.split("/").pop();
+    const ownerRel = resolveOwningManifestRelFromNodePath(nodeRel);
+    const ownerContainer = getManifestContainerDirRel(ownerRel);
+    if (ownerContainer && fileName) {
+      const legacyRef = `${ownerContainer}/storage/content/storage/assets/preview/${fileName}`;
+      const legacyAbsolute = normalizeWorkspacePath(legacyRef);
+      if (legacyAbsolute && (await fileExists(legacyAbsolute))) return legacyAbsolute;
+    }
   }
 
   const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
@@ -6308,9 +6342,18 @@ async function resolveMarkdownLinkAwnType(relPath, meta) {
     }
   }
 
+  const containerFolder = getAgentContainerFolder();
+  const containerRootRel = containerFolder
+    ? `${containerFolder}/${MANIFEST_FILE}`.replace(/\\/g, "/")
+    : null;
   const inferred = inferAwnTypeFromPath(normalized, {
     contentMode: meta?.mode === "external" ? "external" : undefined,
-    isAgentRoot: await isWorkspaceRootManifestRel(normalized)
+    isAgentRoot: await isWorkspaceRootManifestRel(normalized),
+    isContainerRoot: Boolean(
+      containerRootRel &&
+        normalized.toLowerCase() === containerRootRel.toLowerCase()
+    ),
+    containerFolder: containerFolder || "container"
   });
 
   let awnType = explicitType || inferred;
@@ -7959,7 +8002,7 @@ async function handleApiForAgent(req, res, url) {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
-    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
     try {
@@ -7984,7 +8027,7 @@ async function handleApiForAgent(req, res, url) {
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
 
-      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";

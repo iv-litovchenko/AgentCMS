@@ -1562,6 +1562,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     return rel.manifest;
   }
 
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
   fs.writeFileSync(
     manifestPath,
     joinNodeFrontmatter(

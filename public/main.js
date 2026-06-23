@@ -1254,7 +1254,15 @@ function isTopicManifestFileName(fileName, options = {}) {
 }
 
 function isTopicManifestPath(nodePath) {
-  return isNodeManifestPath(nodePath);
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  if (!isNodeManifestPath(normalized)) return false;
+  if (isAgentRootIndexPath(normalized)) return false;
+  const containerFolder = getActiveAgentContainerFolder();
+  if (containerFolder && normalized.startsWith(`${containerFolder}/`)) {
+    const rel = normalized.slice(containerFolder.length + 1);
+    return rel.split("/").filter(Boolean).length > 2;
+  }
+  return !isAreaNodePath(normalized);
 }
 
 function isNodeMdPath(nodePath) {
@@ -10345,7 +10353,11 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
   if (createNodeKitScaffoldBtn) {
     createNodeKitScaffoldBtn.disabled = kitExists;
     createNodeKitScaffoldBtn.setAttribute("aria-disabled", kitExists ? "true" : "false");
-    createNodeKitScaffoldBtn.title = kitExists ? "awn-agent-kit уже создан" : KIT_ROOT_HINT;
+    createNodeKitScaffoldBtn.title = kitExists
+      ? `${AGENT_KIT_FOLDER_DEFAULT} уже создан`
+      : KIT_ROOT_HINT;
+    const kitTitleNode = createNodeKitScaffoldBtn.querySelector(".create-node-scaffold-title");
+    if (kitTitleNode) kitTitleNode.textContent = `Создать ${AGENT_KIT_FOLDER_DEFAULT}`;
   }
   if (createNodeContainerScaffoldBtn) {
     const containerHint = showNestedGitContainerScaffold
@@ -10354,8 +10366,12 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
     createNodeContainerScaffoldBtn.disabled = containerExists;
     createNodeContainerScaffoldBtn.setAttribute("aria-disabled", containerExists ? "true" : "false");
     createNodeContainerScaffoldBtn.title = containerExists
-      ? "awn-container уже создан"
+      ? `${CONTAINER_FOLDER_DEFAULT} уже создан`
       : containerHint;
+    const containerTitleNode = createNodeContainerScaffoldBtn.querySelector(".create-node-scaffold-title");
+    if (containerTitleNode) {
+      containerTitleNode.textContent = `Создать ${CONTAINER_FOLDER_DEFAULT}`;
+    }
   }
 }
 
@@ -10505,6 +10521,8 @@ function getCatalogPresetManifestCandidates(serviceFolder, preset) {
       if (!stem) continue;
       const rel = folder ? `${folder}/${stem}.md` : `${stem}.md`;
       paths.push(`${serviceFolder}/${rel}`.replace(/\/+/g, "/"));
+      const relFolder = folder ? `${folder}/${stem}/manifest.md` : `${stem}/manifest.md`;
+      paths.push(`${serviceFolder}/${relFolder}`.replace(/\/+/g, "/"));
     }
   }
   return paths;
@@ -10522,7 +10540,8 @@ function isCatalogPresetPresent(agentId, preset) {
 function getServiceDocManifestCandidates(serviceFolder, preset) {
   const fileName = SERVICE_DOC_PRESET_FILES[preset];
   if (!serviceFolder || !fileName) return [];
-  return [`${serviceFolder}/${fileName}.md`.replace(/\/+/g, "/")];
+  const base = `${serviceFolder}/${fileName}`.replace(/\/+/g, "/");
+  return [`${base}.md`, `${base}/manifest.md`];
 }
 
 function isServiceDocPresetPresent(agentId, preset) {
@@ -11056,7 +11075,8 @@ function getManifestNamedSlotKey(relPath) {
 }
 
 function getNamedStorageSlotDirRel(relPath) {
-  const containerDir = getManifestContainerDirRel(relPath);
+  const ownerRel = resolveOwningManifestRelFromNodePath(relPath);
+  const containerDir = getManifestContainerDirRel(ownerRel);
   if (!containerDir) return STORAGE_ROOT_FOLDER;
   return `${containerDir}/${STORAGE_ROOT_FOLDER}`;
 }
@@ -11148,11 +11168,26 @@ function parseStorageAssetsRef(workspaceRelPath) {
   };
 }
 
+function resolveOwningManifestRelFromNodePath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  const base = normalized.split("/").filter(Boolean).pop() || "";
+  if (isAreaManifestFileName(base)) return normalized;
+  const storageMarker = `/${STORAGE_ROOT_FOLDER}/`;
+  const idx = normalized.toLowerCase().indexOf(storageMarker.toLowerCase());
+  if (idx >= 0) {
+    const prefix = normalized.slice(0, idx).replace(/\/$/, "");
+    return prefix ? `${prefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
+  }
+  return normalized;
+}
+
 function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return [];
 
-  const context = String(contextManifestRelPath || MANIFEST_FILE)
+  const context = resolveOwningManifestRelFromNodePath(contextManifestRelPath || MANIFEST_FILE);
+  const rawContext = String(contextManifestRelPath || MANIFEST_FILE)
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
 
@@ -11169,6 +11204,10 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   if (/^storage\//i.test(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
+    if (/\/storage\/content\//i.test(rawContext)) {
+      const legacyNested = `${containerDir}/storage/content/storage/${normalized.replace(/^storage\//i, "")}`;
+      add(legacyNested);
+    }
   }
 
   if (/^assets\//i.test(normalized)) {
@@ -11220,21 +11259,16 @@ function setPropsAttachmentInsertPathVariant(variant) {
 function formatAttachmentPathForVariant(path, variant = getPropsAttachmentInsertPathVariant()) {
   const canonical = normalizeAttachmentRefForCompare(path) || String(path || "").trim();
   if (!canonical) return "";
-  if (variant === ATTACHMENT_PATH_VARIANT.short) {
-    const mediaRel = resolveAttachmentMediaRelPath(canonical);
-    return mediaRel || canonical;
-  }
-  return canonical;
+  return normalizeNodeAssetsStorageRef(canonical);
 }
 
 function formatInlineAssetPathForEditor(path) {
   const raw = String(path || "").trim();
   if (!raw) return "";
-  if (/^assets\//i.test(raw) || /^(pasted|preview|attachments)\//i.test(raw)) {
-    return raw.replace(/^\/+/, "");
-  }
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) return raw;
+  if (/^storage\/assets\//i.test(raw)) return raw.replace(/^\/+/, "");
   const canonical = toCanonicalAssetsUploadRef(raw, PASTED_ASSETS_SUBDIR);
-  return canonical ? formatAttachmentPathForVariant(canonical) : raw;
+  return normalizeNodeAssetsStorageRef(canonical) || canonical || raw;
 }
 
 function getPropsAttachmentUiVariant() {
@@ -11308,11 +11342,38 @@ const STORAGE_SUBFOLDER_ARTEFACTS = "artefacts";
 const STORAGE_SUBFOLDER_PREVIEW = "preview";
 const STORAGE_SUBFOLDER_TEMP = "temp";
 
-function buildAssetsUploadRef(manifestRelPath, assetsSubdir, fileName) {
+function buildAssetsUploadRef(_manifestRelPath, assetsSubdir, fileName) {
   const subdir = String(assetsSubdir || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   const file = String(fileName || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!subdir || !file || subdir.includes("..") || file.includes("..")) return "";
-  return buildStorageLayerRef(manifestRelPath, STORAGE_SUBFOLDER_ASSETS, `${subdir}/${file}`);
+  return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${file}`;
+}
+
+function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+  const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return "";
+
+  if (/^storage\/assets\//i.test(normalized)) return normalized;
+
+  if (/^assets\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${normalized}`;
+  }
+
+  if (/^(pasted|preview|attachments)\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${normalized}`;
+  }
+
+  const assetsRef = parseStorageAssetsRef(normalized);
+  if (assetsRef?.mediaFile) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
+  }
+
+  const storageAssetsIdx = normalized.toLowerCase().indexOf("/storage/assets/");
+  if (storageAssetsIdx >= 0) {
+    return normalized.slice(storageAssetsIdx + 1);
+  }
+
+  return normalized;
 }
 
 function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
@@ -13308,15 +13369,21 @@ function toCanonicalAssetsUploadRef(value, assetsSubdir = PASTED_ASSETS_SUBDIR) 
   const raw = String(value || "").trim().replace(/\\/g, "/");
   if (!raw) return "";
 
+  if (/^storage\/assets\//i.test(raw)) {
+    return normalizeNodeAssetsStorageRef(raw);
+  }
+
   const directAssets = parseStorageAssetsRef(raw);
-  if (directAssets?.workspacePath) return directAssets.workspacePath;
+  if (directAssets?.workspacePath) {
+    return normalizeNodeAssetsStorageRef(directAssets.workspacePath);
+  }
 
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) {
     return raw;
   }
 
   const contextPath = getUploadStorageContextPath();
-  if (!contextPath) return raw;
+  if (!contextPath) return normalizeNodeAssetsStorageRef(raw) || raw;
 
   if (/^assets\//i.test(raw)) {
     const rel = raw.replace(/^assets\//i, "");
@@ -13346,11 +13413,13 @@ function toCanonicalAssetsUploadRef(value, assetsSubdir = PASTED_ASSETS_SUBDIR) 
   const workspaceRel = resolveMarkdownHrefToWorkspaceRel(raw, sourceRel);
   if (workspaceRel) {
     const resolvedAssets = parseStorageAssetsRef(workspaceRel);
-    if (resolvedAssets?.workspacePath) return resolvedAssets.workspacePath;
+    if (resolvedAssets?.workspacePath) {
+      return normalizeNodeAssetsStorageRef(resolvedAssets.workspacePath);
+    }
   }
 
   const fileName = raw.includes("/") ? raw.split("/").pop() : raw;
-  if (!fileName) return raw;
+  if (!fileName) return normalizeNodeAssetsStorageRef(raw) || raw;
 
   let subdir = assetsSubdir;
   if (/\/preview\//i.test(raw) || /^preview\//i.test(raw)) {
@@ -13374,11 +13443,8 @@ function isStorageLayerEditorPath(relPath) {
 }
 
 function getMarkdownAssetSourcePath(nodePath) {
-  if (nodePath) {
-    const normalized = String(nodePath).replace(/\\/g, "/").trim();
-    if (normalized && isStorageLayerEditorPath(normalized)) return normalized;
-  }
-  return getPropsContextPath() || getResolvedNodePath(activePath) || "";
+  const raw = nodePath || getPropsContextPath() || getResolvedNodePath(activePath) || "";
+  return resolveOwningManifestRelFromNodePath(raw);
 }
 
 function isLoadableImageDisplayUrl(src) {
@@ -14435,7 +14501,7 @@ function collectMediaSectionFolderPaths() {
     if (!item.isFolder) continue;
     const folderPath = String(item.path || "").replace(/\\/g, "/").replace(/\/$/, "");
     for (const built of collectFolderPathAncestors(folderPath)) {
-      folderPaths.add(built);
+      addMemorySectionFolderPath(folderPaths, built);
     }
   }
   for (const groupItems of Object.values(mediaFilesCache)) {
@@ -14443,7 +14509,7 @@ function collectMediaSectionFolderPaths() {
     for (const item of groupItems) {
       if (item.isFolder || !isMediaContentFileItem(item)) continue;
       for (const ancestor of collectNavigationFolderAncestors(item.path)) {
-        folderPaths.add(ancestor);
+        addMemorySectionFolderPath(folderPaths, ancestor);
       }
     }
   }
@@ -14453,6 +14519,7 @@ function collectMediaSectionFolderPaths() {
 function mapMemorySectionFolderPaths(folderPaths) {
   const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
   return Array.from(folderPaths)
+    .filter((folderPath) => !isMemorySectionInfrastructureFolderPath(folderPath))
     .map((folderPath) => {
       const segments = folderPath.split("/").filter(Boolean);
       return {
@@ -14675,6 +14742,49 @@ function isBreadcrumbStorageInfrastructureSegment(part) {
     lower === BUNDLE_CONFIG_FILE.toLowerCase() ||
     lower === ".env"
   );
+}
+
+function isMemorySectionInfrastructureFolderPath(folderPath) {
+  const normalized = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  if (!normalized) return false;
+  const parts = normalized.split("/").filter(Boolean);
+  if (!parts.length) return false;
+
+  if (parts[0].toLowerCase() === STORAGE_ROOT_FOLDER.toLowerCase()) return true;
+  if (parts[0].toLowerCase() === STORAGE_SUBFOLDER_ASSETS.toLowerCase()) return true;
+
+  const root = parts[0].toLowerCase();
+  if (
+    parts.length === 1 &&
+    (root === PREVIEW_ASSETS_SUBDIR.toLowerCase() ||
+      root === PASTED_ASSETS_SUBDIR.toLowerCase() ||
+      root === ATTACHMENTS_ASSETS_SUBDIR.toLowerCase())
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isMemorySectionInfrastructureFilePath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  if (!normalized) return false;
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length <= 1) {
+    return isMemorySectionInfrastructureFolderPath(parts[0] || "");
+  }
+  let built = "";
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    built = built ? `${built}/${parts[i]}` : parts[i];
+    if (isMemorySectionInfrastructureFolderPath(built)) return true;
+  }
+  return false;
+}
+
+function addMemorySectionFolderPath(folderPaths, folderPath) {
+  const normalized = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  if (!normalized || isMemorySectionInfrastructureFolderPath(normalized)) return;
+  folderPaths.add(normalized);
 }
 
 function getMemorySectionDisplayLabel(folderPath) {
@@ -15455,18 +15565,18 @@ function getExternalUserSections() {
     const normalized = normalizeListItem(raw);
     if (!normalized.isFolder) continue;
     const folderPath = String(normalized.path || "").replace(/\/$/, "");
-    if (folderPath) folderPaths.add(folderPath);
+    addMemorySectionFolderPath(folderPaths, folderPath);
   }
 
   for (const folder of externalFoldersCache) {
     const folderPath = String(folder.path || "").replace(/\\/g, "/").replace(/\/$/, "");
     if (!folderPath) continue;
-    folderPaths.add(folderPath);
+    addMemorySectionFolderPath(folderPaths, folderPath);
     const parts = folderPath.split("/").filter(Boolean);
     let built = "";
     for (const part of parts) {
       built = built ? `${built}/${part}` : part;
-      folderPaths.add(built);
+      addMemorySectionFolderPath(folderPaths, built);
     }
   }
 
@@ -15477,15 +15587,15 @@ function getExternalUserSections() {
     let built = "";
     for (const part of parts) {
       built = built ? `${built}/${part}` : part;
-      folderPaths.add(built);
+      addMemorySectionFolderPath(folderPaths, built);
     }
   }
 
   for (const file of externalFilesCache) {
     const path = String(file.relativePath || "").replace(/\\/g, "/");
-    if (!path || isSectionReadmePath(path)) continue;
+    if (!path || isSectionReadmePath(path) || isMemorySectionInfrastructureFilePath(path)) continue;
     for (const ancestor of collectNavigationFolderAncestors(path)) {
-      folderPaths.add(ancestor);
+      addMemorySectionFolderPath(folderPaths, ancestor);
     }
   }
 
@@ -16728,19 +16838,22 @@ function getFlatStorageUserSections(mode) {
   for (const item of getFlatStorageNormalizedItems(mode)) {
     if (item.isFolder) {
       const folderPath = String(item.path || "").replace(/\/$/, "");
-      if (folderPath) folderPaths.add(folderPath);
+      addMemorySectionFolderPath(folderPaths, folderPath);
       continue;
     }
-    const parts = String(item.path || "").split("/").filter(Boolean);
+    const path = String(item.path || "").replace(/\\/g, "/");
+    if (isMemorySectionInfrastructureFilePath(path)) continue;
+    const parts = path.split("/").filter(Boolean);
     if (parts.length <= 1) continue;
     let built = "";
     for (let i = 0; i < parts.length - 1; i += 1) {
       built = built ? `${built}/${parts[i]}` : parts[i];
-      folderPaths.add(built);
+      addMemorySectionFolderPath(folderPaths, built);
     }
   }
 
   return Array.from(folderPaths)
+    .filter((folderPath) => !isMemorySectionInfrastructureFolderPath(folderPath))
     .map((folderPath) => {
       const segments = folderPath.split("/").filter(Boolean);
       return {
@@ -18582,11 +18695,15 @@ function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
   const paths = [];
   for (const fileName of Object.values(SERVICE_CATALOG_PRESET_FILES)) {
     paths.push(`${kitFolder}/${SERVICE_CATALOG_FOLDER}/${fileName}.md`);
+    paths.push(`${kitFolder}/${SERVICE_CATALOG_FOLDER}/${fileName}/manifest.md`);
     paths.push(`${kitFolder}/${LEGACY_SERVICE_CATALOG_FOLDER}/${fileName}.md`);
+    paths.push(`${kitFolder}/${LEGACY_SERVICE_CATALOG_FOLDER}/${fileName}/manifest.md`);
     paths.push(`${kitFolder}/${fileName}.md`);
+    paths.push(`${kitFolder}/${fileName}/manifest.md`);
   }
   for (const fileName of Object.values(SERVICE_DOC_PRESET_FILES)) {
     paths.push(`${kitFolder}/${fileName}.md`);
+    paths.push(`${kitFolder}/${fileName}/manifest.md`);
   }
   return paths.map((item) => normalizeMenuNodePath(item));
 }
@@ -18908,11 +19025,11 @@ const PROPS_FIELD_META = {
   },
   "awn-preview": {
     label: "Превью",
-    hint: "Изображение в assets/preview/ (загрузка через миниатюру)"
+    hint: "storage/assets/preview/ (загрузка через миниатюру)"
   },
   "awn-attachments": {
     label: "Вложения",
-    hint: "Файлы в assets/attachments/; список в шапке, в папке без записи — блок снизу"
+    hint: "storage/assets/attachments/; список в шапке, в папке без записи — блок снизу"
   },
   "awn-color": {
     label: "Цвет",
@@ -18947,6 +19064,11 @@ async function loadAwnTypes(agentId = activeAgentId) {
       enrichTopicSchemaCacheFromTypes(cache);
     }
     if (getDocAsideTab() === "blocks") renderDocContentBlocks();
+    if (shouldRefreshPropsFormFromYaml()) {
+      absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+      syncYamlFromPropsForm();
+      renderPropsForm();
+    }
     return awnTypesCache;
   } catch {
     awnTypesCache = null;
@@ -19262,6 +19384,12 @@ function normalizeTopicSchemaState(raw) {
 
 function resolveTopicManifestFromBundlePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const storageMarker = `/${STORAGE_ROOT_FOLDER}/`;
+  const storageIdx = normalized.toLowerCase().indexOf(storageMarker.toLowerCase());
+  if (storageIdx >= 0) {
+    const prefix = normalized.slice(0, storageIdx).replace(/\/$/, "");
+    return prefix ? `${prefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
+  }
   const match = normalized.match(new RegExp(`^(.*)/${STORAGE_SLOT_REGEX}(?:/|$)`));
   if (!match) return null;
   const prefix = match[1] || "";
@@ -20220,37 +20348,115 @@ function getPropsContextPath(nodePath = activePath) {
   return getResolvedNodePath(nodePath) || manifestBase || "";
 }
 
-function resolveAwnTypeForContext(nodePath = activePath) {
-  const normalized = String(getPropsContextPath(nodePath) || "").replace(/\\/g, "/");
+function normalizeAwnTypeName(typeName) {
+  const raw = String(typeName || "").trim();
+  if (!raw) return "";
+  if (/^awn\./i.test(raw)) return raw;
+  const aliases = {
+    area: "awn.area",
+    topic: "awn.topic",
+    workspace: "awn.workspace",
+    record: "awn.record",
+    service: "service"
+  };
+  return aliases[raw.toLowerCase()] || raw;
+}
+
+function getPropertiesApiPath() {
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) return "";
+
+  if (
+    activeContentMode === "description" ||
+    activeContentMode === NODE_OVERVIEW_MODE ||
+    activeContentMode === NODE_NAVIGATION_MODE
+  ) {
+    return manifestPath;
+  }
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    return getPropsContextPath();
+  }
+
+  if (isMediaAssetEditing()) {
+    return getPropsContextPath();
+  }
+
+  return getPropsContextPath() || manifestPath;
+}
+
+function countManifestFolderDepthUnderContainer(normalized, containerFolder = getActiveAgentContainerFolder()) {
+  const container = String(containerFolder || "container").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!container) return null;
+  const marker = `${container}/`;
+  const idx = normalized.toLowerCase().indexOf(marker.toLowerCase());
+  if (idx < 0) return null;
+  const after = normalized.slice(idx + marker.length);
+  const segments = after.split("/").filter(Boolean);
+  if (!segments.length) return 0;
+  const last = segments[segments.length - 1].toLowerCase();
+  if (last === "manifest.md") return Math.max(0, segments.length - 1);
+  return segments.length;
+}
+
+function inferAwnTypeFromRelPath(relPath, options = {}) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "awn.file";
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
   const lower = fileName.toLowerCase();
 
-  if (activeContentMode === "media" && (activeMediaSidecarPath || lower.endsWith(".sidecar.md"))) {
-    return "awn.sidecar";
-  }
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
   if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
   if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
-  if (activeContentMode === "media" && activeMediaMarkdownPath && isSectionReadmePath(activeMediaMarkdownPath)) {
-    return "awn.media.category";
-  }
-  if (activeContentMode === "external" && activeExternalFilePath && isSectionReadmePath(activeExternalFilePath)) {
+  if (isSectionReadmePath(normalized) && /\/storage\/content\//i.test(normalized)) {
     return "awn.record.category";
   }
-  if (/\/Content\//i.test(normalized)) return "awn.record";
-  if (activeContentMode === "external" && activeExternalFilePath) {
+  if (isSectionReadmePath(normalized) && /\/storage\/media\//i.test(normalized)) {
+    return "awn.media.category";
+  }
+
+  const isStorageContentFile =
+    options.contentMode === "external" || /\/storage\/content\//i.test(normalized);
+  if (isStorageContentFile && !isNodeManifestPath(normalized)) {
     return "awn.record";
   }
+
   if (isNodeManifestPath(normalized)) {
-    if (isAgentRootIndexPath(normalized)) return "awn.workspace";
+    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return "awn.workspace";
+    if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) return "awn.area";
+    if (isAgentSystemRootIndexPath(normalized)) return "awn.area";
+    if (isTopicManifestPath(normalized)) return "awn.topic";
+    if (isAreaNodePath(normalized)) return "awn.area";
+    const containerFolder = options.containerFolder || getActiveAgentContainerFolder();
+    const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
+    if (folderDepth !== null) {
+      return folderDepth >= 2 ? "awn.topic" : "awn.area";
+    }
     return "awn.area";
   }
-  if (isTopicManifestPath(normalized)) return "awn.topic";
+
   return "awn.record";
 }
 
+function resolveAwnTypeForContext(nodePath = activePath) {
+  const manifestPath = String(getResolvedNodePath(nodePath) || "").replace(/\\/g, "/");
+  const propsTarget = String(getPropertiesApiPath() || manifestPath).replace(/\\/g, "/");
+  const typeOptions = {
+    contentMode: activeContentMode,
+    containerFolder: getActiveAgentContainerFolder(),
+    isAgentRoot: isAgentRootIndexPath(manifestPath),
+    isContainerRoot: isAgentContainerRootIndexPath(manifestPath)
+  };
+
+  if (propsTarget && propsTarget !== manifestPath) {
+    return inferAwnTypeFromRelPath(propsTarget, typeOptions);
+  }
+
+  return inferAwnTypeFromRelPath(manifestPath, typeOptions);
+}
+
 function getActiveAwnTypeDef(typeName = null) {
-  const resolvedType = typeName || resolveAwnTypeForContext();
+  const resolvedType = normalizeAwnTypeName(typeName || resolveAwnTypeForContext());
   const cache = getTopicSchemaCache();
   const target = typeName
     ? resolveAwnSchemaTargetForType(resolvedType)
@@ -20736,20 +20942,9 @@ function ensureAwnContextDefaults(entries) {
     if (entry?.key) map.set(entry.key, entry);
   }
 
-  const inferredType = resolveAwnTypeForContext();
-  if (inferredType) {
-    map.set("awn-type", { key: "awn-type", kind: "string", value: inferredType });
-  }
-
-  const nodePath = getPropsContextPath(activePath) || activeExternalFilePath || activeMediaSidecarPath;
-  if (nodePath) {
-    const fileName = String(nodePath).split("/").filter(Boolean).pop() || "";
-    let baseName = fileName;
-    if (baseName.toLowerCase().endsWith(".sidecar.md")) {
-      baseName = baseName.slice(0, -".sidecar.md".length);
-    } else if (baseName.toLowerCase().endsWith(".md")) {
-      baseName = baseName.slice(0, -3);
-    }
+  const nextType = resolveAwnTypeForContext(activePath);
+  if (nextType) {
+    map.set("awn-type", { key: "awn-type", kind: "string", value: nextType });
   }
 
   return [...map.values()];
@@ -23645,16 +23840,13 @@ function buildAttachmentMarkdownSnippet(path, { mode = "embed", label = "", path
 function resolveAttachmentMediaRelPath(path) {
   const raw = String(path || "").trim().replace(/\\/g, "/");
   if (!raw) return "";
+  const storageRef = normalizeNodeAssetsStorageRef(raw);
+  if (/^storage\/assets\//i.test(storageRef)) {
+    return storageRef.replace(/^storage\/assets\//i, "assets/");
+  }
   if (/^assets\//i.test(raw)) return raw.replace(/^\/+/, "");
   if (/^attachments\//i.test(raw)) return `${STORAGE_SUBFOLDER_ASSETS}/${raw.replace(/^\/+/, "")}`;
-  const canonical = normalizeAttachmentRefForCompare(raw);
-  const assetsRef = parseStorageAssetsRef(canonical || raw);
-  if (assetsRef?.mediaFile) return `${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
-  const assetsIdx = raw.toLowerCase().indexOf("/assets/");
-  if (assetsIdx >= 0) {
-    return raw.slice(assetsIdx + 1).replace(/^\/+/, "");
-  }
-  return raw.replace(/^assets\//i, "");
+  return storageRef.replace(/^storage\/assets\//i, "assets/") || raw.replace(/^assets\//i, "");
 }
 
 const attachmentSidecarMetaCache = new Map();
@@ -24566,7 +24758,13 @@ function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
   thumbWrap.setAttribute("role", locked ? "img" : "button");
   const previewPath = hidden.value;
   const title = meta.label || "Превью";
-  populatePreviewThumbWrap(thumbWrap, buildPreviewUiFromPath(previewPath), title, getPropsContextPath());
+  const propsContext = getPropsContextPath();
+  populatePreviewThumbWrap(
+    thumbWrap,
+    buildPreviewUiFromPath(previewPath, propsContext),
+    title,
+    propsContext
+  );
 
   if (!locked) {
     thumbWrap.addEventListener("click", () => {
@@ -26032,6 +26230,7 @@ function getNodeCoverIconKind(nodePath) {
   const resolved = getResolvedNodePath(nodePath);
   if (isAgentRootIndexPath(resolved)) return "agent-root";
   if (isPartNodePath(resolved)) return "file";
+  if (isTopicManifestPath(resolved)) return "file";
   if (isNodeManifestPath(resolved)) return "folder";
   return "file";
 }
@@ -27234,7 +27433,7 @@ function collectNavigationFolderAncestors(filePath) {
   let built = "";
   for (const segment of segments) {
     built = built ? `${built}/${segment}` : segment;
-    paths.push(built);
+    if (!isMemorySectionInfrastructureFolderPath(built)) paths.push(built);
   }
   return paths;
 }
@@ -27253,6 +27452,7 @@ function buildNavigationPathTree(items, folderLabels = new Map()) {
     let builtPath = "";
     for (const segment of segments) {
       builtPath = builtPath ? `${builtPath}/${segment}` : segment;
+      if (isMemorySectionInfrastructureFolderPath(builtPath)) continue;
       if (!cursor.folders.has(segment)) {
         cursor.folders.set(segment, {
           label: folderLabels.get(builtPath) || segment,
@@ -27292,7 +27492,7 @@ function prepareNavigationExternalItems(files, folders = []) {
 
   for (const item of folders) {
     const folderPath = String(item.path || "").replace(/\\/g, "/").replace(/\/$/, "");
-    if (folderPath) folderPaths.add(folderPath);
+    addMemorySectionFolderPath(folderPaths, folderPath);
   }
 
   for (const item of files) {
@@ -27301,6 +27501,7 @@ function prepareNavigationExternalItems(files, folders = []) {
 
     if (isSectionReadmePath(path)) {
       const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+      if (isMemorySectionInfrastructureFolderPath(folderKey)) continue;
       const segment = folderKey.split("/").pop() || folderKey;
       const props = Array.isArray(item.props) ? item.props : [];
       const awnName = getPropsEntryValueByKey(props, "awn-name");
@@ -27308,9 +27509,11 @@ function prepareNavigationExternalItems(files, folders = []) {
       const status = resolveNavigationItemStatus(item);
       folderLabels.set(folderKey, title || resolveNodeDisplayName(awnName, segment));
       if (status) folderStatuses.set(folderKey, status);
-      if (folderKey) folderPaths.add(folderKey);
+      if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
       continue;
     }
+
+    if (isMemorySectionInfrastructureFilePath(path)) continue;
 
     const slug = String(item.name || path.split("/").pop() || "").replace(/\.md$/i, "");
     const props = Array.isArray(item.props) ? item.props : [];
@@ -27324,7 +27527,7 @@ function prepareNavigationExternalItems(files, folders = []) {
       status: resolveNavigationItemStatus(item)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
-      folderPaths.add(ancestor);
+      addMemorySectionFolderPath(folderPaths, ancestor);
     }
   }
 
@@ -27346,7 +27549,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
     const status = resolveNavigationItemStatus(manifest);
     folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
     if (status) folderStatuses.set(folderKey, status);
-    if (folderKey) folderPaths.add(folderKey);
+    if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
   }
 
   for (const [groupName, items] of Object.entries(groups || {})) {
@@ -27357,22 +27560,24 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
 
       if (item.isFolder) {
         const folderPath = path.replace(/\/$/, "");
-        if (folderPath) folderPaths.add(folderPath);
+        addMemorySectionFolderPath(folderPaths, folderPath);
         continue;
       }
 
       if (isSectionReadmePath(path)) {
         const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+        if (isMemorySectionInfrastructureFolderPath(folderKey)) continue;
         const segment = folderKey.split("/").pop() || folderKey;
         const title = String(item.displayName || "").trim();
         const status = resolveNavigationItemStatus(item);
         folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
         if (status) folderStatuses.set(folderKey, status);
-        if (folderKey) folderPaths.add(folderKey);
+        if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
         continue;
       }
 
       if (path.toLowerCase().endsWith(".sidecar.md")) continue;
+      if (isMemorySectionInfrastructureFilePath(path)) continue;
 
       const baseName = item.name || path.split("/").pop() || path;
       const title = String(item.displayName || "").trim() || baseName;
@@ -27384,7 +27589,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
         status: resolveNavigationItemStatus(item)
       });
       for (const ancestor of collectNavigationFolderAncestors(path)) {
-        folderPaths.add(ancestor);
+        addMemorySectionFolderPath(folderPaths, ancestor);
       }
     }
   }
@@ -27394,6 +27599,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
 
 function ensureNavigationTreeFolders(root, folderPaths, folderLabels) {
   for (const folderPath of folderPaths) {
+    if (isMemorySectionInfrastructureFolderPath(folderPath)) continue;
     const segments = String(folderPath || "").split("/").filter(Boolean);
     if (!segments.length) continue;
     let cursor = root;
@@ -32242,13 +32448,6 @@ function getNodeDisplayPath(nodePath) {
     return stripAgentContentPrefixFromRelPath(folderPath || getAgentTreeTitle());
   }
 
-  if (isTopicManifestPath(normalized)) {
-    const folderPath = getFolderPathFromManifest(normalized);
-    const label = getLabelFromPath(normalized);
-    const displayFolder = stripAgentContentPrefixFromRelPath(folderPath || "");
-    return displayFolder ? `${displayFolder}/${label}` : label;
-  }
-
   return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
 }
 
@@ -32275,11 +32474,6 @@ function getNodeRoutePath(nodePath) {
 
   if (isNodeManifestPath(normalized) || isTopicManifestPath(normalized)) {
     const folderPath = getFolderPathFromManifest(normalized);
-    if (isTopicManifestPath(normalized)) {
-      const label = getLabelFromPath(normalized);
-      const displayFolder = stripAgentContentPrefixFromRelPath(folderPath || "");
-      return displayFolder ? `${displayFolder}/${label}` : label;
-    }
     return stripAgentContentPrefixFromRelPath(folderPath || "");
   }
 
@@ -35935,7 +36129,7 @@ async function loadPropertiesForActivePath() {
     return;
   }
   try {
-    const response = await fetch(buildApiUrl("/api/file/properties", { path: getActiveNodeApiPath() }));
+    const response = await fetch(buildApiUrl("/api/file/properties", { path: getPropertiesApiPath() }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     setPropsYamlContent(data.content || "");
@@ -35970,7 +36164,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
     const response = await fetch(buildApiUrl("/api/file/properties"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: getActiveNodeApiPath(), content })
+      body: JSON.stringify({ path: getPropertiesApiPath(), content })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -40573,6 +40767,9 @@ function formatCreateNodeErrorMessage(message) {
     return "Служебная папка уже создана";
   }
   if (/Failed to create node/i.test(text) && /ENOENT/i.test(text)) {
+    if (/agent-kit|service folder|service-doc|catalog|taxonomy/i.test(text)) {
+      return "Не удалось создать служебный файл — обновите меню (F5) и повторите";
+    }
     return `Папка ${AGENT_KIT_FOLDER_DEFAULT} ещё не создана — обновите меню (F5) и повторите`;
   }
   if (/Catalog node already exists/i.test(text)) {
