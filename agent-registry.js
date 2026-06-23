@@ -590,8 +590,9 @@ function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
-const DEFAULT_AGENT_KIT_FOLDER = "awn-agent-kit";
-const DEFAULT_CONTAINER_FOLDER = "awn-container";
+const DEFAULT_AGENT_KIT_FOLDER = "agent-kit";
+const DEFAULT_AGENT_CONTAINER_FOLDER = "container";
+const DEFAULT_CONTAINER_FOLDER = "container";
 
 function isAgentKitFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();

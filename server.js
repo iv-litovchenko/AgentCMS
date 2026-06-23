@@ -8,12 +8,14 @@ const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const {
+  MANIFEST_FILE,
   AREA_MANIFEST_FILE,
   AREA_MANIFEST_CANDIDATES,
   TOPIC_MANIFEST_RE,
   isAreaManifestFileName,
   isTopicManifestFileName,
   isAreaManifestRelPath,
+  isManifestMdRelPath,
   isManifestMdAbsolute,
   joinAreaManifestRel,
   getServiceAreaManifestRel,
@@ -42,10 +44,12 @@ const {
   listBundleFileNameCandidates,
   resolveManifestRelFromStorageBundlePath,
   parseStorageAssetsRef,
+  listStorageAssetsRefPathCandidates,
   parseStorageSlotInlineRef,
   buildAssetsUploadRef,
   buildStorageLayerRef,
   buildSlotInlineUploadRef,
+  BUNDLE_BODY_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
@@ -76,6 +80,8 @@ const {
   getStorageRootDirRel,
   getStorageFolderRegexAlternation,
   STORAGE_ROOT_FOLDER,
+  CONFIGURATION_ROOT_FOLDER,
+  isConfigurationFolderName,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
@@ -3151,24 +3157,10 @@ async function resolveApiManifestContext(relPath) {
 async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
   const prefixNorm = String(prefix || "").replace(/\\/g, "/").replace(/\/$/, "");
   const directAbsolute = prefixNorm
-    ? path.join(dirAbsolute, prefixNorm, AREA_MANIFEST_FILE)
-    : path.join(dirAbsolute, AREA_MANIFEST_FILE);
+    ? path.join(dirAbsolute, prefixNorm, MANIFEST_FILE)
+    : path.join(dirAbsolute, MANIFEST_FILE);
   if (await nodePathExists(directAbsolute)) {
-    return prefixNorm ? `${prefixNorm}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
-  }
-
-  const workspaceKey = path.basename(dirAbsolute);
-  const preferredFolder = toAreaFolderName(workspaceKey);
-  if (preferredFolder) {
-    const preferredRel = prefixNorm
-      ? `${prefixNorm}/${preferredFolder}/${AREA_MANIFEST_FILE}`
-      : `${preferredFolder}/${AREA_MANIFEST_FILE}`;
-    const legacyAbsolute = prefixNorm
-      ? path.join(dirAbsolute, prefixNorm, preferredFolder, AREA_MANIFEST_FILE)
-      : path.join(dirAbsolute, preferredFolder, AREA_MANIFEST_FILE);
-    if (await nodePathExists(legacyAbsolute)) {
-      return preferredRel.replace(/\\/g, "/");
-    }
+    return prefixNorm ? `${prefixNorm}/${MANIFEST_FILE}` : MANIFEST_FILE;
   }
   return null;
 }
@@ -3176,17 +3168,11 @@ async function resolveRootAreaManifestRel(dirAbsolute, prefix = "") {
 async function ensureWorkspaceRootIndex(dirAbsolute) {
   if (!(await dirExists(dirAbsolute))) return;
   const workspaceKey = path.basename(dirAbsolute);
-  const rootManifestAbsolute = path.join(dirAbsolute, AREA_MANIFEST_FILE);
+  const rootManifestAbsolute = path.join(dirAbsolute, MANIFEST_FILE);
   if (await fileExists(rootManifestAbsolute)) return;
 
-  const legacyFolder = toAreaFolderName(workspaceKey);
-  if (legacyFolder) {
-    const legacyManifestAbsolute = path.join(dirAbsolute, legacyFolder, AREA_MANIFEST_FILE);
-    if (await fileExists(legacyManifestAbsolute)) return;
-  }
-
   await fs.writeFile(rootManifestAbsolute, `# ${workspaceKey}\n`, "utf-8");
-  await ensureManifestStorageSlotDir(AREA_MANIFEST_FILE);
+  await ensureManifestStorageSlotDir(MANIFEST_FILE);
 }
 
 async function resolveAgentSubfolderAbsolute(agentRootAbsolute, folderName) {
@@ -3405,8 +3391,44 @@ const MENU_SKIP_DIRS = new Set([
   "venv",
   "target"
 ]);
-const MENU_SORT_FILE = "awn-sort.json";
+const MENU_SORT_FILE = "sort.json";
 const PARTS_FOLDER = "_Parts";
+
+const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
+
+async function readManifestMenuMeta(manifestRel) {
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(manifestRel);
+    const kind = String(getYamlScalar(frontmatter, "kind") || "").trim();
+    const typeRaw = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+    const type = typeRaw.startsWith("awn.") ? typeRaw.slice(4) : typeRaw;
+    return { kind, type };
+  } catch {
+    return { kind: "", type: "" };
+  }
+}
+
+async function shouldRenderMenuChildAsTopicItem(child) {
+  const manifestRel = child?.indexPath;
+  if (!manifestRel) return false;
+  const { type } = await readManifestMenuMeta(manifestRel);
+  if (type !== "topic") return false;
+  if ((child.sections || []).length > 0) return false;
+  if ((child.items || []).length > 0) return false;
+  if (child.containerTree) return false;
+  return true;
+}
+
+async function isTreeMenuManifestRel(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  if (!normalized || !isManifestMdRelPath(normalized)) return false;
+  const { kind, type } = await readManifestMenuMeta(normalized);
+  if (kind === "service") return false;
+  if (kind === "tree") return true;
+  if (TREE_MENU_TYPES.has(type)) return true;
+  return !type;
+}
+
 async function resolveExistingAreaManifestBasename(dirAbsolute) {
   for (const name of AREA_MANIFEST_CANDIDATES) {
     const candidate = path.join(dirAbsolute, name);
@@ -4669,59 +4691,56 @@ async function resolveAwnPreviewFieldMeta(nodeRelativePath, previewRaw) {
     };
   }
 
-  const assetsRef = parseStorageAssetsRef(previewValue);
-  if (assetsRef?.manifestRelPath && assetsRef.mediaFile) {
+  const candidates = listStorageAssetsRefPathCandidates(previewValue, nodeRelativePath);
+  for (const candidate of candidates) {
+    const assetsRef = parseStorageAssetsRef(candidate);
+    if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) continue;
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(assetsRef.manifestRelPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
-    if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
-      const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
-      if (relFile) {
-        const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-        if (folderAbsolute) {
-          const fileAbsolute = path.join(folderAbsolute, relFile);
-          if (fileAbsolute.startsWith(folderAbsolute)) {
-            try {
-              const stat = await fs.stat(fileAbsolute);
-              if (stat.isFile()) {
-                return {
-                  hasPreview: true,
-                  previewUrl: `/api/media/file?path=${encodeURIComponent(assetsRef.manifestRelPath)}&file=${encodeURIComponent(relFile)}`,
-                  previewFile: path.basename(relFile)
-                };
-              }
-            } catch {
-              // fall through to inline preview ref
-            }
-          }
-        }
-      }
+    if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) continue;
+    const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
+    if (!relFile) continue;
+    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+    if (!folderAbsolute) continue;
+    const fileAbsolute = path.join(folderAbsolute, relFile);
+    if (!fileAbsolute.startsWith(folderAbsolute)) continue;
+    try {
+      const stat = await fs.stat(fileAbsolute);
+      if (!stat.isFile()) continue;
+      return {
+        hasPreview: true,
+        previewUrl: `/api/media/file?path=${encodeURIComponent(assetsRef.manifestRelPath)}&file=${encodeURIComponent(relFile)}`,
+        previewFile: path.basename(relFile)
+      };
+    } catch {
+      // try next candidate
     }
   }
 
-  const inlineRef = parseStorageSlotInlineRef(previewValue);
-  if (inlineRef?.manifestRelPath && inlineRef.layer === STORAGE_SUBFOLDER_PREVIEW && inlineRef.relativePath) {
+  for (const candidate of candidates) {
+    const inlineRef = parseStorageSlotInlineRef(candidate);
+    if (!inlineRef?.manifestRelPath || inlineRef.layer !== STORAGE_SUBFOLDER_PREVIEW || !inlineRef.relativePath) {
+      continue;
+    }
     const resolvedRelPath = await resolveExistingWorkspaceRelPath(inlineRef.manifestRelPath);
     const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
-    if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
-      const fileAbsolute = await resolveSlotInlineFileAbsolute(
-        nodeAbsolute,
-        inlineRef.layer,
-        inlineRef.relativePath
-      );
-      if (fileAbsolute) {
-        try {
-          const stat = await fs.stat(fileAbsolute);
-          if (stat.isFile()) {
-            return {
-              hasPreview: true,
-              previewUrl: `/api/media/file?path=${encodeURIComponent(inlineRef.manifestRelPath)}&file=${encodeURIComponent(inlineRef.slotLayerFile)}`,
-              previewFile: path.basename(inlineRef.relativePath)
-            };
-          }
-        } catch {
-          // fall through
-        }
-      }
+    if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) continue;
+    const fileAbsolute = await resolveSlotInlineFileAbsolute(
+      nodeAbsolute,
+      inlineRef.layer,
+      inlineRef.relativePath
+    );
+    if (!fileAbsolute) continue;
+    try {
+      const stat = await fs.stat(fileAbsolute);
+      if (!stat.isFile()) continue;
+      return {
+        hasPreview: true,
+        previewUrl: `/api/media/file?path=${encodeURIComponent(inlineRef.manifestRelPath)}&file=${encodeURIComponent(inlineRef.slotLayerFile)}`,
+        previewFile: path.basename(inlineRef.relativePath)
+      };
+    } catch {
+      // try next candidate
     }
   }
 
@@ -4871,8 +4890,7 @@ async function readNodeDisplayLabelForManifestRel(manifestRel) {
   const slug = getManifestSlugFromRel(normalized);
   try {
     const { frontmatter } = await readNodeFrontmatterContent(normalized);
-    const awnName = getYamlScalar(frontmatter, "awn-name") || "";
-    return resolveNodeDisplayName(awnName, slug);
+    return resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", slug);
   } catch {
     return slug;
   }
@@ -5621,6 +5639,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     if (entry.isDirectory()) {
       if (shouldSkipMenuDirectory(entry.name)) continue;
       if (isStorageFolderName(entry.name)) continue;
+      if (isConfigurationFolderName(entry.name)) continue;
 
       if (isGitRepoRoot && prefix) {
         if (isPartsFolderName(entry.name)) {
@@ -5659,11 +5678,23 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
       const childDepth = depth + 1;
       if (maxDepth !== null && childDepth >= maxDepth) {
         const markers = await readFolderWorkspaceMarkers(fullPath);
-        folders.push(await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers));
+        const shell = await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers);
+        if (await shouldRenderMenuChildAsTopicItem(shell)) {
+          files.push({
+            label: shell.title,
+            path: shell.indexPath,
+            ...(await enrichMenuNodeItem(shell.indexPath))
+          });
+        } else {
+          folders.push(shell);
+        }
         continue;
       }
 
       const child = await listNodeMdFiles(fullPath, relativePath, childDepth, options);
+      if (child.indexPath && !(await isTreeMenuManifestRel(child.indexPath))) {
+        child.indexPath = null;
+      }
       const hasNodes = Boolean(
         child.indexPath ||
         child.items.length > 0 ||
@@ -5676,6 +5707,15 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
       const folderTitle = await resolveFolderDisplayTitle(fullPath, relativePath, child);
 
       if (hasNodes) {
+        if (await shouldRenderMenuChildAsTopicItem(child)) {
+          files.push({
+            label: folderTitle,
+            path: child.indexPath,
+            ...(await enrichMenuNodeItem(child.indexPath))
+          });
+          continue;
+        }
+
         folders.push({
           title: folderTitle,
           folderPath: relativePath,
@@ -5728,17 +5768,6 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
       repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
       continue;
     }
-
-    if (entry.isFile() && isTopicManifestFileName(entry.name, { isAgentRoot: !prefix })) {
-      const nodeRelPath = relativePath.replace(/\\/g, "/");
-      const menuItem = {
-        label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
-        path: nodeRelPath,
-        ...(await enrichMenuNodeItem(nodeRelPath))
-      };
-      files.push(menuItem);
-      continue;
-    }
   }
 
   if (!prefix) {
@@ -5748,6 +5777,10 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     if (areaBasename) {
       indexPath = path.join(prefix, areaBasename).replace(/\\/g, "/");
     }
+  }
+
+  if (indexPath && !(await isTreeMenuManifestRel(indexPath))) {
+    indexPath = null;
   }
 
   folders.sort((a, b) => a.title.localeCompare(b.title, "ru"));
@@ -5883,7 +5916,7 @@ async function findNodePathInDirectory(dirAbsolute) {
         }
       }
       if (entry.isFile() && isTopicManifestFileName(entry.name)) {
-        return relDir ? `${relDir}/${entry.name}`.replace(/\\/g, "/") : entry.name;
+        continue;
       }
     }
     return null;
@@ -9537,7 +9570,7 @@ async function handleApiForAgent(req, res, url) {
 
         const folderName = isKit ? getAgentKitFolder() : getAgentContainerFolder();
         const areaName = isKit ? SERVICE_AREA_NAME : CONTAINER_AREA_NAME;
-        const areaType = isKit ? "service" : "awn.area";
+        const areaType = isKit ? "service" : "area";
 
         if (!folderName) {
           return sendJson(res, 400, {
@@ -9730,7 +9763,7 @@ async function handleApiForAgent(req, res, url) {
           // continue
         }
 
-        const manifestFrontmatter = buildDefaultFrontmatter("awn.area", {
+        const manifestFrontmatter = buildDefaultFrontmatter("area", {
           name: title,
           agentRoot: getAgentRoot(),
           projectRoot: getProjectRoot()
@@ -9771,7 +9804,7 @@ async function handleApiForAgent(req, res, url) {
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
         const areaTitle = displayName || stripTopicPrefix(folderName);
-        const areaFrontmatter = buildDefaultFrontmatter("awn.area", {
+        const areaFrontmatter = buildDefaultFrontmatter("area", {
           name: areaTitle,
           agentRoot: getAgentRoot(),
           projectRoot: getProjectRoot()
@@ -9797,35 +9830,37 @@ async function handleApiForAgent(req, res, url) {
 
       const displayName = String(payload.displayName || "").trim() || String(name || "").trim();
       const diskSlug = resolveNodeDiskSlugFromPayload(payload);
-      const partFileName = toNodeFileName(diskSlug);
-      if (!partFileName) return sendJson(res, 400, { error: "Invalid topic name" });
+      const folderName = toFolderName(diskSlug);
+      if (!folderName) return sendJson(res, 400, { error: "Invalid topic name" });
 
-      const partFileAbsolute = path.join(parentAbsolute, partFileName);
+      const folderAbsolute = path.join(parentAbsolute, folderName);
       try {
-        await fs.access(partFileAbsolute);
+        await fs.access(folderAbsolute);
         return sendJson(res, 409, { error: "Topic already exists" });
       } catch {
         // continue
       }
 
-      const fileFrontmatter = buildDefaultFrontmatter("awn.topic", {
-        name: displayName || stripTopicPrefix(partFileName),
+      await fs.mkdir(folderAbsolute, { recursive: false });
+      const manifestAbsolute = path.join(folderAbsolute, MANIFEST_FILE);
+      const fileFrontmatter = buildDefaultFrontmatter("topic", {
+        name: displayName || stripTopicPrefix(folderName),
         agentRoot: getAgentRoot(),
         projectRoot: getProjectRoot()
       });
       await fs.writeFile(
-        partFileAbsolute,
+        manifestAbsolute,
         joinNodeFrontmatter(fileFrontmatter, ""),
         "utf-8"
       );
 
       const createdPath =
         parentPathResolved && parentPathResolved !== "."
-          ? path.join(parentPathResolved, partFileName)
-          : partFileName;
+          ? path.join(parentPathResolved, folderName, MANIFEST_FILE)
+          : path.join(folderName, MANIFEST_FILE);
       const createdRel = createdPath.replace(/\\/g, "/");
       await ensureManifestStorageSlotDir(createdRel);
-      await appendMenuSortOrderEntry(parentAbsolute, stripTopicPrefix(partFileName));
+      await appendMenuSortOrderEntry(parentAbsolute, folderName);
       return sendJson(res, 200, {
         createdPath: toMenuDisplayCreatedPath(createdRel),
         type: "file"
@@ -10151,7 +10186,7 @@ async function handleApi(req, res, url) {
       const manifest = readWorkspaceManifestSync(absolute);
       if (!manifest) {
         return sendJson(res, 400, {
-          error: `В «${agentPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`
+          error: `В «${agentPath}» нет ${MANIFEST_FILE} с type: workspace`
         });
       }
 
@@ -10209,7 +10244,7 @@ async function handleApi(req, res, url) {
       const manifest = readWorkspaceManifestSync(absolute);
       if (!manifest) {
         return sendJson(res, 400, {
-          error: `В «${agentPath}» нет ${AREA_MANIFEST_FILE} с awn-type: ${WORKSPACE_AWN_TYPE}`
+          error: `В «${agentPath}» нет ${MANIFEST_FILE} с type: workspace`
         });
       }
 

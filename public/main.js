@@ -536,15 +536,15 @@ function writeStorageItem(key, value) {
 
 const ACTIVE_AGENT_STORAGE_KEY = "agentcms.activeAgent.v1";
 const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
-const AREA_MANIFEST_FILE = "_registration.md";
-const LEGACY_AREA_MANIFEST_FILE = "_reg-info.md";
-const STORAGE_ROOT_FOLDER = "awn-storage";
-const TOPIC_MANIFEST_RE = /^[^./\\]+\.md$/i;
+const MANIFEST_FILE = "manifest.md";
+const AREA_MANIFEST_FILE = MANIFEST_FILE;
+const STORAGE_ROOT_FOLDER = "storage";
+const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["_registration.md", "_reg-info.md", "agents.md", "todo.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "STRUCTURE.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
-const STORAGE_FOLDER_REGEX = "awn-storage/[^/]+";
-const STORAGE_SLOT_REGEX = "awn-storage/([^/]+)";
+const STORAGE_FOLDER_REGEX = "storage/[^/]+";
+const STORAGE_SLOT_REGEX = "storage/([^/]+)";
 const BUNDLE_CONTENT_FILE = "content.md";
 const BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
@@ -553,8 +553,8 @@ const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set(["AGENTS.md", ROOT_SYSTEM_TODO_FILE, "README.md"]);
 const PREVIEW_FILE_BASENAME = "preview";
-const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
-const CONTAINER_FOLDER_DEFAULT = "awn-container";
+const AGENT_KIT_FOLDER_DEFAULT = "agent-kit";
+const CONTAINER_FOLDER_DEFAULT = "container";
 const PLATFORM_AGENT_ID = "platform";
 const PLATFORM_KIT_FOLDER = "catalog";
 
@@ -569,6 +569,8 @@ function isPlatformAgent(agent) {
 const SERVICE_AREA_NAME = "Служебные темы и компоненты системы";
 const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
 const CONTAINER_SECTION_LABEL = "Контейнер";
+const CONFIGURATION_SECTION_LABEL = "Configuration";
+const CONFIGURATION_ROOT_FOLDER = "configuration";
 const KIT_ROOT_HINT = "Правила, справочники и служебные темы агента.";
 const CONTAINER_ROOT_HINT = "Области и темы рабочего контента агента.";
 const CONTAINER_ROOT_HINT_GIT =
@@ -1224,11 +1226,7 @@ function stripStoragePrefix(name) {
 }
 
 function isAreaManifestFileName(fileName) {
-  const lower = String(fileName || "").toLowerCase();
-  return (
-    lower === AREA_MANIFEST_FILE.toLowerCase() ||
-    lower === LEGACY_AREA_MANIFEST_FILE.toLowerCase()
-  );
+  return String(fileName || "").toLowerCase() === MANIFEST_FILE.toLowerCase();
 }
 
 function isExcludedMenuTopicMd(fileName, options = {}) {
@@ -1256,8 +1254,7 @@ function isTopicManifestFileName(fileName, options = {}) {
 }
 
 function isTopicManifestPath(nodePath) {
-  const fileName = String(nodePath || "").split("/").filter(Boolean).pop() || "";
-  return isTopicManifestFileName(fileName);
+  return isNodeManifestPath(nodePath);
 }
 
 function isNodeMdPath(nodePath) {
@@ -8642,9 +8639,17 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): папка {Name}/_registration.md — без драйверов памяти. */
+/** Область (Space): manifest на уровне workspace или корень kit/container — без драйверов памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
-  return isContainerNodePath(nodePath);
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!isNodeManifestPath(normalized)) return false;
+  if (isPartNodePath(normalized)) return false;
+  if (isAgentRootIndexPath(normalized)) return false;
+  if (isAgentContainerRootIndexPath(normalized)) return true;
+  if (isAgentContainerNodePath(normalized)) return false;
+  if (isAgentSystemRootIndexPath(normalized)) return true;
+  if (isServiceNodePath(normalized)) return false;
+  return isContainerNodePath(normalized);
 }
 
 function isAreaContentModeBlocked(mode, nodePath = getResolvedNodePath(activePath)) {
@@ -10143,7 +10148,7 @@ function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
   if (!normalized) return false;
   const base = normalized.split("/").filter(Boolean).pop() || "";
   if (isAreaManifestFileName(base)) return false;
-  if (base.toLowerCase() === "awn-sort.json") return false;
+  if (base.toLowerCase() === "sort.json") return false;
   const parentFolder = normalized.includes("/")
     ? normalized.slice(0, normalized.lastIndexOf("/"))
     : ".";
@@ -11042,24 +11047,18 @@ function getStorageContainerPrefixRel(relPath) {
 function getManifestNamedSlotKey(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
   const base = normalized.slice(normalized.lastIndexOf("/") + 1);
-  const lower = base.toLowerCase();
-  if (lower.endsWith(".sidecar.md")) return "";
   if (isAreaManifestFileName(base)) {
-    return stripTopicPrefix(base);
-  }
-  if (/\.md$/i.test(base) && !isExcludedMenuTopicMd(base)) {
-    return stripTopicPrefix(base);
+    const dir = getManifestContainerDirRel(normalized);
+    if (!dir) return "";
+    return dir.slice(dir.lastIndexOf("/") + 1);
   }
   return "";
 }
 
 function getNamedStorageSlotDirRel(relPath) {
-  const containerDir = getStorageContainerPrefixRel(relPath);
-  const slotKey = getManifestNamedSlotKey(relPath);
-  if (!slotKey) return "";
-  const slotDir = `${STORAGE_ROOT_FOLDER}/${slotKey}`;
-  if (!containerDir) return slotDir;
-  return `${containerDir}/${slotDir}`;
+  const containerDir = getManifestContainerDirRel(relPath);
+  if (!containerDir) return STORAGE_ROOT_FOLDER;
+  return `${containerDir}/${STORAGE_ROOT_FOLDER}`;
 }
 
 function getNamedStorageBundleDirRel(relPath) {
@@ -11096,41 +11095,36 @@ function parseStorageLayerRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return null;
 
-  const match = normalized.match(
-    new RegExp(`^(?:(.*?)/)?${STORAGE_ROOT_FOLDER}/([^/]+)/([^/]+)/(.+)$`, "i")
+  let containerPrefix = "";
+  let layer = "";
+  let relativePath = "";
+
+  const rootMatch = normalized.match(
+    new RegExp(`^${STORAGE_ROOT_FOLDER}/([^/]+)/(.+)$`, "i")
   );
-  if (!match) return null;
-
-  const containerPrefix = String(match[1] || "").replace(/\/$/, "");
-  const rawSlotKey = match[2];
-  const layer = getStorageSubfolderForMode(match[3]) || match[3];
-  const relativePath = match[4];
-  const slotKey = String(rawSlotKey || "").trim();
-  if (!slotKey || !layer || !relativePath) return null;
-
-  const manifestCandidates = [];
-  const withPrefix = (rel) => {
-    const value = String(rel || "").replace(/\\/g, "/");
-    if (!containerPrefix || containerPrefix === ".") return value;
-    return `${containerPrefix}/${value}`;
-  };
-  manifestCandidates.push(withPrefix(`${slotKey}.md`));
-  if (slotKey === "_registration" || slotKey === "_reginfo") {
-    manifestCandidates.push(withPrefix(AREA_MANIFEST_FILE));
-    manifestCandidates.push(withPrefix(`${slotKey}/${AREA_MANIFEST_FILE}`));
+  if (rootMatch) {
+    layer = getStorageSubfolderForMode(rootMatch[1]) || rootMatch[1];
+    relativePath = rootMatch[2];
+  } else {
+    const match = normalized.match(
+      new RegExp(`^(.*?)/${STORAGE_ROOT_FOLDER}/([^/]+)/(.+)$`, "i")
+    );
+    if (!match) return null;
+    containerPrefix = String(match[1] || "").replace(/\/$/, "");
+    layer = getStorageSubfolderForMode(match[2]) || match[2];
+    relativePath = match[3];
   }
+  if (!layer || !relativePath) return null;
 
-  const slotDir = containerPrefix
-    ? `${containerPrefix}/${STORAGE_ROOT_FOLDER}/${rawSlotKey}`
-    : `${STORAGE_ROOT_FOLDER}/${rawSlotKey}`;
+  const manifestRel = containerPrefix ? `${containerPrefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
 
   return {
     workspacePath: normalized,
-    slotDir,
-    slotKey,
+    slotDir: containerPrefix ? `${containerPrefix}/${STORAGE_ROOT_FOLDER}` : STORAGE_ROOT_FOLDER,
+    slotKey: containerPrefix ? containerPrefix.slice(containerPrefix.lastIndexOf("/") + 1) : "",
     layer,
     relativePath,
-    manifestCandidates: [...new Set(manifestCandidates)]
+    manifestCandidates: [manifestRel]
   };
 }
 
@@ -11152,6 +11146,38 @@ function parseStorageAssetsRef(workspaceRelPath) {
     workspacePath: parsed.workspacePath,
     slotDir: parsed.slotDir
   };
+}
+
+function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRelPath) {
+  const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return [];
+
+  const context = String(contextManifestRelPath || MANIFEST_FILE)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+
+  const candidates = [];
+  const seen = new Set();
+  const add = (value, { first = false } = {}) => {
+    const item = String(value || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!item || item.includes("..") || seen.has(item)) return;
+    seen.add(item);
+    if (first) candidates.unshift(item);
+    else candidates.push(item);
+  };
+
+  if (/^storage\//i.test(normalized)) {
+    const containerDir = getManifestContainerDirRel(context);
+    if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
+  }
+
+  if (/^assets\//i.test(normalized)) {
+    const slotDir = getNamedStorageSlotDirRel(context);
+    if (slotDir) add(`${slotDir}/${normalized}`, { first: true });
+  }
+
+  add(normalized);
+  return candidates;
 }
 
 const STORAGE_SUBFOLDER_CONTENT = "content";
@@ -13426,6 +13452,15 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   if (raw.startsWith("/api/")) return appendAgentToApiUrl(raw);
 
   const relFile = raw.replace(/\\/g, "/");
+  const sourceRel = getMarkdownAssetSourcePath(nodePath);
+  if (/^(storage|assets)\//i.test(relFile)) {
+    for (const candidate of listStorageAssetsRefPathCandidates(relFile, sourceRel)) {
+      const contextualRef = parseStorageAssetsRef(candidate);
+      const contextualUrl = resolveStorageAssetsRefToApiUrl(contextualRef);
+      if (contextualUrl) return contextualUrl;
+    }
+  }
+
   if (/^assets\//i.test(relFile) || /^(pasted|preview|attachments)\//i.test(relFile)) {
     const subdir = /preview/i.test(relFile)
       ? PREVIEW_ASSETS_SUBDIR
@@ -13444,7 +13479,6 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   const directUrl = resolveStorageAssetsRefToApiUrl(assetsRef);
   if (directUrl) return directUrl;
 
-  const sourceRel = getMarkdownAssetSourcePath(nodePath);
   const workspaceRel = resolveMarkdownHrefToWorkspaceRel(relFile, sourceRel);
   if (workspaceRel) {
     const docAssetsRef = parseStorageAssetsRef(workspaceRel);
@@ -14627,15 +14661,7 @@ function isSectionReadmePath(filePath) {
 
 function isSectionReadmeSegmentName(segment) {
   const normalized = String(segment || "").trim().toLowerCase();
-  if (!normalized) return false;
-  const areaManifestStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "").toLowerCase();
-  const legacyManifestStem = LEGACY_AREA_MANIFEST_FILE.replace(/\.md$/i, "").toLowerCase();
-  return (
-    normalized === AREA_MANIFEST_FILE.toLowerCase() ||
-    normalized === LEGACY_AREA_MANIFEST_FILE.toLowerCase() ||
-    normalized === areaManifestStem ||
-    normalized === legacyManifestStem
-  );
+  return normalized === MANIFEST_FILE.toLowerCase() || normalized === "manifest";
 }
 
 function isBreadcrumbStorageInfrastructureSegment(part) {
@@ -32135,17 +32161,15 @@ function resolveNodeDisplayName(awnNameRaw, slug) {
   const awnName = String(awnNameRaw || "").trim();
   const slugLabel = String(slug || "").trim();
   if (!awnName) return slugLabel;
-  const areaManifestStem = AREA_MANIFEST_FILE.replace(/\.md$/i, "");
-  const legacyManifestStem = LEGACY_AREA_MANIFEST_FILE.replace(/\.md$/i, "");
-  if (awnName.toLowerCase() === areaManifestStem.toLowerCase()) return slugLabel;
-  if (awnName.toLowerCase() === legacyManifestStem.toLowerCase()) return slugLabel;
-  if (awnName === "_REGISTRATION" || awnName === "_REGINFO") return slugLabel;
+  if (awnName.toLowerCase() === "manifest") return slugLabel;
   return awnName;
 }
 
 function getNodeDisplayTitleFromFrontmatter(filePath, frontmatter = "") {
   const slug = getNodeSlugFromPath(filePath);
-  const awnName = getYamlScalarFromFrontmatter(frontmatter, "awn-name");
+  const awnName =
+    getYamlScalarFromFrontmatter(frontmatter, "name") ||
+    getYamlScalarFromFrontmatter(frontmatter, "awn-name");
   return resolveNodeDisplayName(awnName, slug);
 }
 
@@ -33092,6 +33116,72 @@ function clearMenuContainerSection(parentEl) {
   parentEl?.querySelectorAll(".menu-container-section").forEach((node) => node.remove());
 }
 
+function clearMenuConfigurationSection(parentEl) {
+  parentEl?.querySelectorAll(".menu-configuration-section").forEach((node) => node.remove());
+}
+
+function isConfigurationTreeCollapsed() {
+  return localStorage.getItem("agentcms.configurationTree.collapsed.v1") === "1";
+}
+
+function toggleConfigurationTreeCollapsed() {
+  const next = !isConfigurationTreeCollapsed();
+  localStorage.setItem("agentcms.configurationTree.collapsed.v1", next ? "1" : "0");
+  renderMenuTree(activeAgentId);
+}
+
+function renderConfigurationTreeBody(configurationTree, body, agentId = activeAgentId) {
+  if (!configurationTree || !body) return;
+  const parentNode = { title: CONFIGURATION_SECTION_LABEL, ...configurationTree };
+  const visibleChildren = getVisibleMenuChildren(parentNode, agentId, CONFIGURATION_ROOT_FOLDER, 0);
+  for (const child of visibleChildren) {
+    renderMenuTreeChildInto(child, body, 1, CONFIGURATION_ROOT_FOLDER, parentNode, agentId);
+  }
+}
+
+function renderConfigurationSection(configurationTree, parentEl, agentId = activeAgentId) {
+  if (!configurationTree || !parentEl) return;
+  clearMenuConfigurationSection(parentEl);
+
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  let treeToRender = { title: CONFIGURATION_SECTION_LABEL, ...configurationTree };
+  if (queryLower) {
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+    if (!treeToRender) return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "menu-configuration-section";
+
+  const headRow = document.createElement("div");
+  headRow.className = "menu-folder-row menu-configuration-head";
+
+  const visibleChildren = getVisibleMenuChildren(treeToRender, agentId, CONFIGURATION_ROOT_FOLDER, 0);
+  const hasContent = visibleChildren.length > 0;
+  const collapsed = queryLower ? false : isConfigurationTreeCollapsed();
+
+  headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleConfigurationTreeCollapsed));
+
+  const title = document.createElement("h3");
+  title.className = "menu-configuration-title";
+  title.textContent = CONFIGURATION_SECTION_LABEL;
+  title.title = "Служебный слой: node-types, fields, skills — не editorial tree";
+  if (hasContent) title.addEventListener("click", toggleConfigurationTreeCollapsed);
+  headRow.appendChild(title);
+  wrap.appendChild(headRow);
+
+  if (!collapsed && hasContent) {
+    const body = document.createElement("div");
+    body.className = "tree-children menu-configuration-body";
+    body.dataset.sortFolder = CONFIGURATION_ROOT_FOLDER;
+    renderConfigurationTreeBody(treeToRender, body, agentId);
+    wrap.appendChild(body);
+  }
+
+  insertMenuReservedNode(parentEl, wrap, "configuration");
+  normalizeMenuReservedSectionsOrder(parentEl);
+}
+
 function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, parentSectionPath = ".") {
   const parentNode = { title: "", ...serviceTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, parentSectionPath, 0);
@@ -33444,15 +33534,16 @@ function normalizeMenuReservedSectionsOrder(parentEl) {
   if (!parentEl) return;
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
-  if (!kit && !container) return;
+  const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
+  if (!kit && !container && !configuration) return;
 
-  const reserved = new Set([kit, container].filter(Boolean));
+  const reserved = new Set([kit, container, configuration].filter(Boolean));
   let insertRef = parentEl.firstChild;
   while (insertRef && reserved.has(insertRef)) {
     insertRef = insertRef.nextSibling;
   }
 
-  [kit, container].filter(Boolean).forEach((node) => {
+  [kit, container, configuration].filter(Boolean).forEach((node) => {
     parentEl.insertBefore(node, insertRef);
   });
 
@@ -33481,11 +33572,19 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
+  const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
   const showKit = Boolean(kit && hasVisibleKitSection(menu, agentId));
   const showContainer = Boolean(container && hasVisibleContainerSection(menu, agentId));
+  const showConfiguration = Boolean(configuration && hasVisibleConfigurationSection(menu));
   const showWorkspace = hasVisibleWorkspaceRootTreeContent(menu, agentId);
 
-  const workspaceAnchor = showContainer ? container : showKit ? kit : null;
+  const workspaceAnchor = showConfiguration
+    ? configuration
+    : showContainer
+      ? container
+      : showKit
+        ? kit
+        : null;
   if (workspaceAnchor && showWorkspace) {
     workspaceAnchor.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
   }
@@ -33521,8 +33620,19 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     }
     return;
   }
+  const configurationSection = parentEl.querySelector(":scope > .menu-configuration-section");
+  if (slot === "configuration") {
+    if (containerSection) {
+      containerSection.insertAdjacentElement("afterend", node);
+    } else if (kitSection) {
+      kitSection.insertAdjacentElement("afterend", node);
+    } else {
+      parentEl.insertBefore(node, parentEl.firstChild);
+    }
+    return;
+  }
   if (slot === "divider") {
-    const anchor = containerSection || kitSection;
+    const anchor = configurationSection || containerSection || kitSection;
     if (anchor) {
       anchor.insertAdjacentElement("afterend", node);
     } else {
@@ -33544,6 +33654,7 @@ function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
   const tree = { title: getAgentTreeTitle(agentId), ...menu };
   delete tree.serviceTree;
   delete tree.containerTree;
+  delete tree.configurationTree;
   delete tree.workspaceMissing;
   return tree;
 }
@@ -33566,6 +33677,10 @@ function hasVisibleKitSection(menu, agentId = activeAgentId) {
   return Boolean(menu?.serviceTree && shouldShowServiceSectionInMenu(agentId));
 }
 
+function hasVisibleConfigurationSection(menu) {
+  return Boolean(menu?.configurationTree);
+}
+
 function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId) {
   if (!parentEl) return;
 
@@ -33579,6 +33694,12 @@ function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId)
     renderContainerSection(menu.containerTree, parentEl, agentId);
   } else {
     clearMenuContainerSection(parentEl);
+  }
+
+  if (menu?.configurationTree) {
+    renderConfigurationSection(menu.configurationTree, parentEl, agentId);
+  } else {
+    clearMenuConfigurationSection(parentEl);
   }
 
   clearMenuReservedDivider(parentEl);
