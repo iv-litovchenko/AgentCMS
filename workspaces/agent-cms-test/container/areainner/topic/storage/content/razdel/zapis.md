@@ -1,0 +1,21 @@
+---
+awn-preview: storage/assets/preview/20260623200451.png
+awn-emoji: ""
+awn-name: Запись
+awn-status: 🟡 Черновик
+awn-type: awn.record
+awn-create: "2026-06-23T23:04"
+awn-update: 2026-06-23T20:05:35.575Z
+awn-description: ""
+awn-main: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-tags: []
+awn-color: "#000000"
+awn-version: 4
+awn-sort: ""
+awn-attachments: []
+---
+
+![20260623200455](storage/assets/pasted/20260623200455.png)
