@@ -1,2 +1,3 @@
-[Тема А](../vnshenyaya-oblast-1/tema-a.md)
-[Тема Б](../vnshenyaya-oblast-1/tema-b.md)
+[Тест картинок](../../test-kartinok/manifest.md)
+[Тест файлов](../../test-faylov/manifest.md)
+[PHP](../../php/manifest.md)
