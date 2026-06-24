@@ -3882,6 +3882,13 @@ function collectManifestEntriesFromMenu(menu, acc = []) {
   return acc;
 }
 
+function collectAllMenuManifestEntries(menu) {
+  const manifests = collectManifestEntriesFromMenu(menu, []);
+  if (menu?.serviceTree) collectManifestEntriesFromMenu(menu.serviceTree, manifests);
+  if (menu?.containerTree) collectManifestEntriesFromMenu(menu.containerTree, manifests);
+  return manifests;
+}
+
 async function buildAgentStorageLayout() {
   const menu = await buildAgentMenu(getAgentRoot());
   const manifests = collectManifestEntriesFromMenu(menu, []);
@@ -4089,12 +4096,251 @@ async function findNewestFileMetaInDir(dirAbsolute) {
   return { name: newest.name, relPath: rel, updatedAt: newest.updatedAt, size: newest.size };
 }
 
+function shouldSkipTimelineScanDirectory(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return true;
+  if (lower === STORAGE_SUBFOLDER_HISTORY) return true;
+  if (lower === "history") return true;
+  return shouldSkipDirectoryListing(name);
+}
+
+async function findNewestFileMetaInDirRecursive(dirAbsolute) {
+  if (!dirAbsolute || !(await isExistingDirectory(dirAbsolute))) return null;
+
+  let newest = null;
+
+  async function walk(currentAbsolute, relPrefix = "") {
+    let entries = [];
+    try {
+      entries = await fs.readdir(currentAbsolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const absolute = path.join(currentAbsolute, entry.name);
+      const relative = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) {
+        if (shouldSkipTimelineScanDirectory(entry.name)) continue;
+        await walk(absolute, relative.replace(/\\/g, "/"));
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      const stat = await statNodeFileMeta(absolute);
+      if (!stat?.updatedAt) continue;
+      if (!newest || Date.parse(stat.updatedAt) > Date.parse(newest.updatedAt)) {
+        newest = {
+          name: entry.name,
+          relPath: path.relative(getAgentRoot(), absolute).replace(/\\/g, "/"),
+          updatedAt: stat.updatedAt,
+          size: stat.size
+        };
+      }
+    }
+  }
+
+  await walk(dirAbsolute);
+  return newest;
+}
+
+const TIMELINE_PREVIEW_IMAGE_PATTERN = /\.(png|jpe?g|gif|webp)$/i;
+
+function isTimelinePreviewImageFileName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower || lower.endsWith(".sidecar.md")) return false;
+  return TIMELINE_PREVIEW_IMAGE_PATTERN.test(lower);
+}
+
+async function findNewestPreviewImageMetaInDirRecursive(dirAbsolute) {
+  if (!dirAbsolute || !(await isExistingDirectory(dirAbsolute))) return null;
+
+  let newest = null;
+
+  async function walk(currentAbsolute) {
+    let entries = [];
+    try {
+      entries = await fs.readdir(currentAbsolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const absolute = path.join(currentAbsolute, entry.name);
+
+      if (entry.isDirectory()) {
+        if (shouldSkipTimelineScanDirectory(entry.name)) continue;
+        await walk(absolute);
+        continue;
+      }
+
+      if (!entry.isFile() || !isTimelinePreviewImageFileName(entry.name)) continue;
+      const stat = await statNodeFileMeta(absolute);
+      if (!stat?.updatedAt) continue;
+      if (!newest || Date.parse(stat.updatedAt) > Date.parse(newest.updatedAt)) {
+        newest = {
+          name: entry.name,
+          absolute,
+          relPath: path.relative(getAgentRoot(), absolute).replace(/\\/g, "/"),
+          updatedAt: stat.updatedAt,
+          size: stat.size
+        };
+      }
+    }
+  }
+
+  await walk(dirAbsolute);
+  return newest;
+}
+
+async function resolvePreviewFileAbsoluteFromManifest(manifestPath, previewRaw) {
+  const previewValue = String(previewRaw || "").trim();
+  if (!previewValue || /^https?:\/\//i.test(previewValue) || previewValue.startsWith("/api/")) {
+    return null;
+  }
+
+  const candidates = listStorageAssetsRefPathCandidates(previewValue, manifestPath);
+  for (const candidate of candidates) {
+    const assetsRef = parseStorageAssetsRef(candidate);
+    if (assetsRef?.manifestRelPath && assetsRef.mediaFile) {
+      const resolvedRelPath = await resolveExistingWorkspaceRelPath(assetsRef.manifestRelPath);
+      const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+      if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) continue;
+      const relFile = normalizeRelativeFilePath(assetsRef.mediaFile);
+      if (!relFile) continue;
+
+      let fileAbsolute = null;
+      if (assetsRef.workspacePath) {
+        const candidateAbsolute = normalizeWorkspacePath(assetsRef.workspacePath);
+        if (candidateAbsolute && (await fileExists(candidateAbsolute))) {
+          fileAbsolute = candidateAbsolute;
+        }
+      }
+      if (!fileAbsolute) {
+        fileAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile);
+      }
+      if (!fileAbsolute) {
+        fileAbsolute = await resolveUploadedMediaFileAbsolute(
+          nodeAbsolute,
+          `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${relFile}`
+        );
+      }
+      if (fileAbsolute) return fileAbsolute;
+    }
+
+    const inlineRef = parseStorageSlotInlineRef(candidate);
+    if (!inlineRef?.manifestRelPath || inlineRef.layer !== STORAGE_SUBFOLDER_PREVIEW || !inlineRef.relativePath) {
+      continue;
+    }
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(inlineRef.manifestRelPath);
+    const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+    if (!nodeAbsolute || !isManifestMdAbsolute(nodeAbsolute)) continue;
+    const fileAbsolute = await resolveSlotInlineFileAbsolute(
+      nodeAbsolute,
+      inlineRef.layer,
+      inlineRef.relativePath
+    );
+    if (fileAbsolute) return fileAbsolute;
+  }
+
+  return null;
+}
+
+async function buildNodePreviewTimelineEvent(manifestPath, label, kind) {
+  const candidates = [];
+
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(manifestPath);
+    const previewRaw = getYamlScalar(frontmatter, "awn-preview");
+    const previewMeta = await resolveAwnPreviewFieldMeta(manifestPath, previewRaw);
+    const fileAbsolute = await resolvePreviewFileAbsoluteFromManifest(manifestPath, previewRaw);
+    if (previewMeta?.hasPreview && previewMeta.previewUrl && fileAbsolute) {
+      const stat = await statNodeFileMeta(fileAbsolute);
+      if (stat?.updatedAt) {
+        candidates.push({
+          previewUrl: previewMeta.previewUrl,
+          previewFile: previewMeta.previewFile || path.basename(fileAbsolute),
+          relPath: path.relative(getAgentRoot(), fileAbsolute).replace(/\\/g, "/"),
+          updatedAt: stat.updatedAt,
+          size: stat.size
+        });
+      }
+    }
+  } catch {
+    // ignore preview read errors
+  }
+
+  const nodeAbsolute = normalizeWorkspacePath(manifestPath);
+  if (nodeAbsolute) {
+    const assetsAbsolute = await getNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_ASSETS);
+    const previewDir = assetsAbsolute ? path.join(assetsAbsolute, STORAGE_SUBFOLDER_PREVIEW) : null;
+    const newestPreview = await findNewestPreviewImageMetaInDirRecursive(previewDir);
+    if (newestPreview) {
+      const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
+      const relFile = storageRoot
+        ? path.relative(storageRoot, newestPreview.absolute).replace(/\\/g, "/")
+        : newestPreview.name;
+      candidates.push({
+        previewUrl: `/api/media/file?path=${encodeURIComponent(manifestPath)}&file=${encodeURIComponent(relFile)}`,
+        previewFile: newestPreview.name,
+        relPath: newestPreview.relPath,
+        updatedAt: newestPreview.updatedAt,
+        size: newestPreview.size
+      });
+    }
+
+    for (const previewFolderAbsolute of await listNodePreviewFoldersAbsolute(nodeAbsolute)) {
+      const legacyPreview = await findPreviewImageAbsolute(previewFolderAbsolute);
+      if (!legacyPreview) continue;
+      const stat = await statNodeFileMeta(legacyPreview);
+      if (!stat?.updatedAt) continue;
+      const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
+      const relFile = storageRoot
+        ? path.relative(storageRoot, legacyPreview).replace(/\\/g, "/")
+        : path.basename(legacyPreview);
+      candidates.push({
+        previewUrl: `/api/media/file?path=${encodeURIComponent(manifestPath)}&file=${encodeURIComponent(relFile)}`,
+        previewFile: path.basename(legacyPreview),
+        relPath: path.relative(getAgentRoot(), legacyPreview).replace(/\\/g, "/"),
+        updatedAt: stat.updatedAt,
+        size: stat.size
+      });
+    }
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  const best = candidates[0];
+  return {
+    manifestPath,
+    label,
+    kind,
+    displayPath: getManifestDisplayPathForTable(manifestPath, label, kind),
+    fileKind: "preview",
+    fileLabel: best.previewFile,
+    relPath: best.relPath,
+    updatedAt: best.updatedAt,
+    size: best.size,
+    previewUrl: best.previewUrl,
+    previewFile: best.previewFile
+  };
+}
+
+const TIMELINE_SLOT_FOLDER_TRACKS = [
+  { subfolder: STORAGE_SUBFOLDER_CONTENT, fileKind: "external", label: "Content" },
+  { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
+  { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
+  { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
+  { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
+  { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" }
+];
+
 async function buildAgentTimeline(limit = 150) {
   const menu = await buildAgentMenu(getAgentRoot());
-  const manifests = collectManifestEntriesFromMenu(menu, []);
-  if (menu.serviceTree) {
-    collectManifestEntriesFromMenu(menu.serviceTree, manifests);
-  }
+  const manifests = collectAllMenuManifestEntries(menu);
 
   const events = [];
   const storageOpts = getStoragePathOptions();
@@ -4133,27 +4379,13 @@ async function buildAgentTimeline(limit = 150) {
       });
     }
 
-    const slotAbs = normalizeWorkspacePath(slotDirRel);
-    for (const previewName of PREVIEW_FILE_NAMES) {
-      const previewAbs = slotAbs ? path.join(slotAbs, previewName) : null;
-      const stat = await statNodeFileMeta(previewAbs);
-      if (!stat?.updatedAt) continue;
-      events.push({
-        manifestPath,
-        label,
-        kind: entry.kind,
-        displayPath: getManifestDisplayPathForTable(manifestPath, label, entry.kind),
-        fileKind: "preview",
-        fileLabel: `Превью (${previewName})`,
-        relPath: `${slotDirRel}/${previewName}`.replace(/\\/g, "/"),
-        updatedAt: stat.updatedAt,
-        size: stat.size
-      });
-    }
+    const previewEvent = await buildNodePreviewTimelineEvent(manifestPath, label, entry.kind);
+    if (previewEvent) events.push(previewEvent);
 
     const assetsAbs = normalizeWorkspacePath(`${slotDirRel}/${STORAGE_SUBFOLDER_MEDIA}`);
-    const newestAsset = await findNewestFileMetaInDir(assetsAbs);
+    const newestAsset = await findNewestFileMetaInDirRecursive(assetsAbs);
     if (newestAsset?.updatedAt) {
+      const isImage = isTimelinePreviewImageFileName(newestAsset.name);
       events.push({
         manifestPath,
         label,
@@ -4163,8 +4395,34 @@ async function buildAgentTimeline(limit = 150) {
         fileLabel: `${STORAGE_SUBFOLDER_MEDIA}/${newestAsset.name}`,
         relPath: newestAsset.relPath,
         updatedAt: newestAsset.updatedAt,
-        size: newestAsset.size
+        size: newestAsset.size,
+        ...(isImage
+          ? {
+              previewUrl: `/api/media/file?path=${encodeURIComponent(manifestPath)}&file=${encodeURIComponent(`${STORAGE_SUBFOLDER_MEDIA}/${newestAsset.name}`)}`,
+              previewFile: newestAsset.name
+            }
+          : {})
       });
+    }
+
+    const nodeAbsolute = normalizeWorkspacePath(manifestPath);
+    if (nodeAbsolute) {
+      for (const folderTrack of TIMELINE_SLOT_FOLDER_TRACKS) {
+        const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderTrack.subfolder);
+        const newestFolderFile = await findNewestFileMetaInDirRecursive(folderAbsolute);
+        if (!newestFolderFile?.updatedAt) continue;
+        events.push({
+          manifestPath,
+          label,
+          kind: entry.kind,
+          displayPath: getManifestDisplayPathForTable(manifestPath, label, entry.kind),
+          fileKind: folderTrack.fileKind,
+          fileLabel: `${folderTrack.label}/${newestFolderFile.name}`,
+          relPath: newestFolderFile.relPath,
+          updatedAt: newestFolderFile.updatedAt,
+          size: newestFolderFile.size
+        });
+      }
     }
   }
 
