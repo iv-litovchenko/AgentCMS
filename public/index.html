@@ -308,16 +308,16 @@
         <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
           <div class="menu-view-wrap menu-tools-row">
             <div class="menu-view-toggle menu-tools-view-cluster" role="tablist" aria-label="Режим отображения меню">
-              <button id="menu-view-tree-btn" class="menu-view-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
+              <button id="menu-view-tree-btn" class="menu-view-btn menu-tools-action-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
                 <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
               </button>
-              <button id="menu-view-flat-btn" class="menu-view-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
+              <button id="menu-view-flat-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
                 <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
               </button>
-              <button id="menu-view-cards-btn" class="menu-view-btn" type="button" data-menu-view="cards" data-tooltip="Карточки" aria-label="Карточки">
+              <button id="menu-view-cards-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="cards" data-tooltip="Карточки" aria-label="Карточки">
                 <span class="menu-view-btn-icon" aria-hidden="true">🗂️</span>
               </button>
-              <button id="menu-view-bookmarks-btn" class="menu-view-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
+              <button id="menu-view-bookmarks-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
                 <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
               </button>
             </div>
@@ -402,13 +402,23 @@
               </button>
             </div>
             <div class="menu-search-wrap">
-              <input
-                id="menu-search-input"
-                class="menu-search-input"
-                type="text"
-                placeholder="Поиск тем по дереву..."
-                autocomplete="off"
-              />
+              <label class="menu-search-bar" for="menu-search-input">
+                <span class="menu-search-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20l-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input
+                  id="menu-search-input"
+                  class="menu-search-input"
+                  type="search"
+                  placeholder="Поиск тем по дереву..."
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Поиск тем по дереву"
+                />
+              </label>
             </div>
             <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
               <label class="menu-cards-filter" for="menu-cards-preview-only">
