@@ -1,9 +1,12 @@
 const fs = require("fs");
 const path = require("path");
-const { listYamlFilesSync, loadYamlFileSync } = require("./awn-yaml-utils");
+const {
+  getActiveComponents,
+  loadComponentRegistry
+} = require("./components-loader");
 
 const BLOCKS_GROUPS_FILE = "groups.yml";
-const TYPES_BLOCKS_DIR = path.join("awn-types", "blocks");
+const { getComponentsAbsolute } = require("./platform-sources");
 
 const FALLBACK_BLOCK_GROUPS = [
   {
@@ -29,29 +32,20 @@ function resolveBlocksContext(agentRoot = "", projectRoot = process.cwd()) {
   };
 }
 
-function resolveSystemBlocksDir(projectRoot) {
-  return path.join(projectRoot, TYPES_BLOCKS_DIR);
-}
-
-function resolveAgentBlocksDir(agentRoot) {
-  if (!agentRoot) return "";
-  return path.join(agentRoot, "awn-types", "blocks");
-}
-
 function unescapeBlockTemplate(value) {
   return String(value || "")
     .replace(/\\n/g, "\n")
     .replace(/\\t/g, "\t");
 }
 
-function normalizeBlockDef(parsed, filePath) {
-  const rawId = String(parsed?.id || parsed?.name || "").trim();
+function normalizeBlockDef(schema, component) {
+  const rawId = String(schema?.id || component?.runtimeId || "").trim();
   if (!rawId) return null;
   const id = rawId.startsWith("awn.") ? rawId : `awn.block.${rawId}`;
-  const name = String(parsed?.name || parsed?.label || id).trim();
-  const group = String(parsed?.group || "misc").trim();
-  const sort = Number(parsed?.sort) || 0;
-  const template = unescapeBlockTemplate(parsed?.template || parsed?.text || "");
+  const name = String(schema?.name || component?.name || id).trim();
+  const group = String(schema?.group || "misc").trim();
+  const sort = Number(schema?.sort) || 0;
+  const template = unescapeBlockTemplate(schema?.template || schema?.text || "");
   if (!template) return null;
 
   return {
@@ -60,33 +54,19 @@ function normalizeBlockDef(parsed, filePath) {
     kind: "block",
     group,
     sort,
-    description: parsed?.description || "",
-    icon: String(parsed?.icon || parsed?.emoji || "").trim(),
-    template
+    description: schema?.description || component?.description || "",
+    icon: String(schema?.icon || schema?.emoji || "").trim(),
+    template,
+    componentId: component?.id || null
   };
 }
 
-function loadBlockGroupsFromDirectory(blocksDir) {
-  const registry = {};
-  if (!fs.existsSync(blocksDir)) return registry;
-
-  for (const filePath of listYamlFilesSync(blocksDir)) {
-    const fileName = path.basename(filePath);
-    if (fileName === BLOCKS_GROUPS_FILE) continue;
-
-    const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
-    const block = normalizeBlockDef(parsed, filePath);
-    if (block) registry[block.id] = block;
-  }
-
-  return registry;
-}
-
-function loadBlockGroupMeta(blocksDir) {
-  const groupsPath = path.join(blocksDir, BLOCKS_GROUPS_FILE);
+function loadBlockGroupMeta(componentsRoot) {
+  const groupsPath = path.join(componentsRoot, "markdown-blocks", BLOCKS_GROUPS_FILE);
   if (!fs.existsSync(groupsPath)) {
     return { groupOrder: [], groupNames: {} };
   }
+  const { loadYamlFileSync } = require("./awn-yaml-utils");
   const parsed = loadYamlFileSync(groupsPath, { idKey: "id", nameKey: "name" });
   const groupOrder = Array.isArray(parsed.groupOrder)
     ? parsed.groupOrder.map((item) => String(item).trim()).filter(Boolean)
@@ -131,27 +111,30 @@ function buildBlockGroups(blocksById, meta) {
         description: block.description,
         icon: block.icon || "",
         text: block.template,
-        template: block.template
+        template: block.template,
+        componentId: block.componentId || null
       }))
   }));
 }
 
+function loadBlocksFromComponents(projectRoot, agentRoot) {
+  const blocksById = {};
+  const components = getActiveComponents(projectRoot, agentRoot, "block");
+
+  for (const component of components) {
+    if (component.id.endsWith("/_base")) continue;
+    const schema = component.mergedSchema || component.schema || {};
+    const block = normalizeBlockDef(schema, component);
+    if (block) blocksById[block.id] = block;
+  }
+
+  return blocksById;
+}
+
 function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveBlocksContext(agentRoot, projectRoot);
-  const systemDir = resolveSystemBlocksDir(root);
-  const agentDir = resolveAgentBlocksDir(agent);
-
-  const blocksById = loadBlockGroupsFromDirectory(systemDir);
-  let meta = loadBlockGroupMeta(systemDir);
-
-  if (agentDir && fs.existsSync(agentDir)) {
-    const agentBlocks = loadBlockGroupsFromDirectory(agentDir);
-    for (const [id, def] of Object.entries(agentBlocks)) {
-      blocksById[id] = def;
-    }
-    const agentMeta = loadBlockGroupMeta(agentDir);
-    if (agentMeta.groupOrder.length) meta = agentMeta;
-  }
+  const blocksById = loadBlocksFromComponents(root, agent);
+  const meta = loadBlockGroupMeta(getComponentsAbsolute(root));
 
   if (!Object.keys(blocksById).length) {
     return { blockRegistry: {}, blockGroups: FALLBACK_BLOCK_GROUPS };

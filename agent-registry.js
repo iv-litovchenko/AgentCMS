@@ -33,6 +33,12 @@ const {
   isPlatformAgentId,
   buildPlatformAgentEntry
 } = require("./platform-agent");
+const {
+  AGENT_CMS_CORE_REL,
+  getAgentsGroupsJsonAbsolute,
+  getAgentsGroupsAssetsAbsolute,
+  toAgentsGroupsBackgroundRel
+} = require("./platform-sources");
 
 const agentContext = new AsyncLocalStorage();
 
@@ -50,8 +56,6 @@ const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
 const AWN_AGENTS_REGISTRY_FILE = "awn-agents.json";
-const AWN_AGENTS_GROUPS_FILE = "awn-agents-groups.json";
-const AWN_AGENTS_GROUPS_ASSETS_DIR = "awn-agents-groups";
 const UNGROUPED_GROUP_ID = "__ungrouped__";
 const GROUP_BACKGROUND_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const AWN_DEPENDENCIES_FILE = "awn-dependencies.json";
@@ -323,11 +327,11 @@ function getAgentsRegistryPathSync() {
 }
 
 function getAgentsGroupsPathSync() {
-  return path.join(projectRoot, AWN_AGENTS_GROUPS_FILE);
+  return getAgentsGroupsJsonAbsolute(projectRoot || process.cwd());
 }
 
 function getAgentsGroupsAssetsDirSync() {
-  return path.join(projectRoot, AWN_AGENTS_GROUPS_ASSETS_DIR);
+  return getAgentsGroupsAssetsAbsolute(projectRoot || process.cwd());
 }
 
 function sanitizeAgentsGroupId(raw) {
@@ -356,9 +360,10 @@ function normalizeGroupBackgroundRel(rawBackground, groupId) {
   const safeId = sanitizeAgentsGroupId(groupId);
   const base = path.posix.basename(rel);
   if (!base.startsWith(`${safeId}.`)) return null;
-  const absolute = path.join(projectRoot, AWN_AGENTS_GROUPS_ASSETS_DIR, base);
-  if (!absolute.startsWith(getAgentsGroupsAssetsDirSync())) return null;
-  return fs.existsSync(absolute) ? `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${base}` : null;
+  const assetsDir = getAgentsGroupsAssetsDirSync();
+  const absolute = path.join(assetsDir, base);
+  if (!absolute.startsWith(assetsDir)) return null;
+  return fs.existsSync(absolute) ? toAgentsGroupsBackgroundRel(base) : null;
 }
 
 function clearGroupBackgroundFiles(groupId) {
@@ -378,7 +383,7 @@ function normalizeUngroupedSection(raw) {
   if (!background) {
     const absolute = findGroupBackgroundAbsolute(UNGROUPED_GROUP_ID);
     if (absolute) {
-      background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${path.basename(absolute)}`;
+      background = toAgentsGroupsBackgroundRel(path.basename(absolute));
     }
   }
   return {
@@ -433,7 +438,7 @@ function writeGroupBackgroundFile(groupId, buffer, ext) {
   const fileName = `${safeId}${normalizedExt}`;
   const absolute = path.join(dir, fileName);
   fs.writeFileSync(absolute, buffer);
-  const background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${fileName}`;
+  const background = toAgentsGroupsBackgroundRel(fileName);
   setGroupBackgroundOnCache(groupId, background);
   persistAgentsGroupsCacheToDisk();
   return {
@@ -486,7 +491,7 @@ function normalizeAgentsGroupEntry(raw, index, knownAgentIds) {
   if (!background) {
     const absolute = findGroupBackgroundAbsolute(id);
     if (absolute) {
-      background = `${AWN_AGENTS_GROUPS_ASSETS_DIR}/${path.basename(absolute)}`;
+      background = toAgentsGroupsBackgroundRel(path.basename(absolute));
     }
   }
   const appearance = raw?.appearance === "dark" ? "dark" : "light";
@@ -613,7 +618,7 @@ function isReservedAgentRootFolderEntryName(name) {
 const WORKSPACE_TAXONOMY_FOLDER = "taxonomies";
 /** Старое имя папки — для обратной совместимости */
 const LEGACY_WORKSPACE_TAXONOMY_FOLDER = "catalog";
-/** Подпапка справочников у platform-агента (data/catalog/catalog/) */
+/** Подпапка справочников у platform-агента (workspaces/agent-cms-core/catalog/) */
 const PLATFORM_GLOBAL_TAXONOMY_FOLDER = "catalog";
 const DEFAULT_SERVICE_CATALOG_FOLDER = WORKSPACE_TAXONOMY_FOLDER;
 const SYSTEM_REFERENCE_SCAFFOLDS = [
@@ -624,7 +629,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv`. Глобальные категории — в `data/catalog/catalog/categories.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `storage/categories/content.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
     content:
       "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
@@ -635,7 +640,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv`. Глобальные теги — в `data/catalog/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `storage/tags/content.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
@@ -645,7 +650,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `data/catalog/catalog/statuses.md`, данные в `awn-storage/statuses/content.csv`.\n",
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `storage/statuses/content.csv`.\n",
     content:
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\n"
   },
@@ -1616,7 +1621,7 @@ module.exports = {
   WORKSPACE_AWN_TYPE,
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
-  AWN_AGENTS_GROUPS_FILE,
+  AGENT_CMS_CORE_REL,
   AWN_DEPENDENCIES_FILE,
   AWN_AUTOINCREMENT_ID_FILE,
   isAwnDependenciesFileName,

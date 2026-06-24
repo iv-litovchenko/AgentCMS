@@ -6,7 +6,7 @@ awn-status: 🟡 Черновик
 awn-type: awn.area
 awn-create: "2026-06-21T18:00"
 awn-update: 2026-06-21T18:00:00.000Z
-awn-description: Связь с глобальными справочниками платформы (data/catalog)
+awn-description: Глобальные справочники платформы (единый источник в agent-cms-core)
 awn-main: false
 awn-category: ""
 awn-tags: []
@@ -17,16 +17,14 @@ awn-sort: ""
 
 # Catalog
 
-Глобальные enum-справочники **не живут** в `agent-cms-core` — отдельный workspace:
+Глобальные enum-справочники платформы:
 
 ```
-data/catalog/
-├── _registration.md          awn.workspace «Платформа»
-└── catalog/
-    ├── tags.md
-    ├── categories.md
-    ├── statuses.md
-    └── storage/{topic}/content.csv
+workspaces/agent-cms-core/catalog/
+├── tags/manifest.md
+├── categories/manifest.md
+├── statuses/manifest.md
+└── {topic}/storage/content.csv
 ```
 
 Подробнее — [overview.md](overview.md).

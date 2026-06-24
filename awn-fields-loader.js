@@ -1,13 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const { listYamlFilesSync, loadYamlFileSync } = require("./awn-yaml-utils");
-
-const FIELD_DEF_FILE = "field-def.yml";
-const LEGACY_FIELDS_DIR = "awn-fields";
-const TYPES_FIELDS_DIR = path.join("awn-types", "fields");
-const TYPES_COMPONENTS_DIR = path.join("awn-types", "components");
-const TYPES_FIELD_DEF_FILE = path.join(TYPES_COMPONENTS_DIR, FIELD_DEF_FILE);
-const LEGACY_TYPES_FIELD_DEF_FILE = path.join("awn-types", FIELD_DEF_FILE);
+const {
+  getActiveComponents,
+  loadFieldDefFromComponents
+} = require("./components-loader");
 
 const MDBASE_STORAGE = {
   string: "string",
@@ -72,46 +68,24 @@ function resolveFieldsContext(agentRoot = "", projectRoot = process.cwd()) {
   };
 }
 
-function resolveSystemFieldsDir(projectRoot) {
-  const primary = path.join(projectRoot, TYPES_FIELDS_DIR);
-  if (fs.existsSync(primary)) return primary;
-  return path.join(projectRoot, LEGACY_FIELDS_DIR);
-}
-
-function resolveAgentFieldsDir(agentRoot) {
-  if (!agentRoot) return "";
-  return path.join(agentRoot, "awn-types", "fields");
-}
-
-function resolveFieldDefPath(projectRoot) {
-  const candidates = [
-    path.join(projectRoot, TYPES_FIELD_DEF_FILE),
-    path.join(projectRoot, LEGACY_TYPES_FIELD_DEF_FILE),
-    path.join(projectRoot, LEGACY_FIELDS_DIR, FIELD_DEF_FILE)
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return path.join(projectRoot, TYPES_FIELD_DEF_FILE);
-}
-
-function normalizeFieldTypeDef(parsed) {
-  const rawId = String(parsed?.id || parsed?.name || "").trim();
+function normalizeFieldTypeDef(schema, component) {
+  const rawId = String(schema?.id || component?.runtimeId || "").trim();
   if (!rawId) return null;
   const id = resolveFieldTypeId(rawId);
-  const name = String(parsed?.name || parsed?.label || id).trim();
+  const name = String(schema?.name || component?.name || id).trim();
   const field = {
     id,
     name,
     kind: "field",
-    storage: resolveFieldStorage(parsed),
-    mdbase: parsed.mdbase || id.replace(/^awn\./, ""),
-    widget: parsed.widget || "input",
-    description: parsed.description || ""
+    storage: resolveFieldStorage(schema),
+    mdbase: schema?.mdbase || id.replace(/^awn\./, ""),
+    widget: schema?.widget || "input",
+    description: schema?.description || component?.description || "",
+    componentId: component?.id || null
   };
-  if (parsed.format) field.format = parsed.format;
-  if (Array.isArray(parsed.settings)) {
-    field.settings = parsed.settings.map((item) => String(item).trim()).filter(Boolean);
+  if (schema?.format) field.format = schema.format;
+  if (Array.isArray(schema?.settings)) {
+    field.settings = schema.settings.map((item) => String(item).trim()).filter(Boolean);
   } else {
     const idSuffix = id.replace(/^awn\./, "");
     if (idSuffix === "enum") field.settings = [...DEFAULT_FIELD_SETTINGS, "enum"];
@@ -122,47 +96,24 @@ function normalizeFieldTypeDef(parsed) {
   return field;
 }
 
-function loadFieldTypesFromDirectory(fieldsDir) {
+function loadFieldsFromComponents(projectRoot, agentRoot) {
   const registry = {};
-  if (!fs.existsSync(fieldsDir)) return registry;
+  const components = getActiveComponents(projectRoot, agentRoot, "field");
 
-  for (const filePath of listYamlFilesSync(fieldsDir)) {
-    const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
-    const field = normalizeFieldTypeDef(parsed);
+  for (const component of components) {
+    if (component.id.endsWith("/_base")) continue;
+    const schema = component.mergedSchema || component.schema || {};
+    const field = normalizeFieldTypeDef(schema, component);
     if (field) registry[field.id] = field;
   }
 
   return registry;
 }
 
-function loadFieldDefSchema(projectRoot = process.cwd()) {
-  const schemaPath = resolveFieldDefPath(projectRoot);
-  if (!fs.existsSync(schemaPath)) return null;
-  const parsed = loadYamlFileSync(schemaPath, { idKey: "id", nameKey: "name" });
-  if (!parsed?.properties || typeof parsed.properties !== "object") return null;
-  const id = String(parsed.id || parsed.name || "awn.field-def").trim();
-  return {
-    id,
-    name: parsed.name || "Мета-свойства поля",
-    description: parsed.description || "",
-    properties: parsed.properties
-  };
-}
-
 function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveFieldsContext(agentRoot, projectRoot);
-  const systemDir = resolveSystemFieldsDir(root);
-  const agentDir = resolveAgentFieldsDir(agent);
-
-  const registry = loadFieldTypesFromDirectory(systemDir);
-  if (agentDir && fs.existsSync(agentDir)) {
-    const agentRegistry = loadFieldTypesFromDirectory(agentDir);
-    for (const [id, def] of Object.entries(agentRegistry)) {
-      registry[id] = def;
-    }
-  }
-
-  const fieldDefSchema = loadFieldDefSchema(root);
+  const registry = loadFieldsFromComponents(root, agent);
+  const fieldDefSchema = loadFieldDefFromComponents(root, agent);
 
   if (!Object.keys(registry).length) {
     return {
@@ -182,15 +133,14 @@ function getFieldRegistry(agentRoot = "", projectRoot = process.cwd()) {
   return loadAgentFields(agentRoot, projectRoot).fieldRegistry;
 }
 
-function getFieldDefSchema(projectRoot = process.cwd()) {
-  return loadFieldDefSchema(projectRoot);
+function getFieldDefSchema(projectRoot = process.cwd(), agentRoot = "") {
+  return loadFieldDefFromComponents(projectRoot, agentRoot);
 }
 
 module.exports = {
   loadAgentFields,
   getFieldRegistry,
   getFieldDefSchema,
-  loadFieldDefSchema,
   resolveFieldTypeId,
   resolveFieldStorage,
   FALLBACK_FIELD_TYPES

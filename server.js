@@ -116,6 +116,8 @@ const {
   MIGRATABLE_PRESETS
 } = require("./catalog-migration");
 const { addCatalogItemForAgentContext } = require("./catalog-items");
+const { getPlatformIndexAbsolute } = require("./platform-sources");
+const { getComponentsPayload } = require("./components-loader");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
@@ -7954,6 +7956,19 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/components") {
+    try {
+      const agentRoot = getAgentRoot() || "";
+      const payload = getComponentsPayload(getProjectRoot(), agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load components",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/awn-types") {
     try {
       const agentRoot = getAgentRoot();
@@ -10034,7 +10049,7 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/platform/index") {
     try {
-      const indexPath = path.join(getProjectRoot(), "data/index.json");
+      const indexPath = getPlatformIndexAbsolute(getProjectRoot());
       const raw = await fs.readFile(indexPath, "utf-8");
       return sendJson(res, 200, JSON.parse(raw));
     } catch (error) {

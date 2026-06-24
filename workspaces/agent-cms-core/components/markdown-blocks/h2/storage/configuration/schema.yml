@@ -1,0 +1,11 @@
+id: awn.block.h2
+path-id: markdown-blocks/h2
+kind: block
+group: structure
+sort: 1
+icon: "2️⃣"
+description: Раздел второго уровня
+template: |
+  ## Заголовок
+
+  Текст раздела.

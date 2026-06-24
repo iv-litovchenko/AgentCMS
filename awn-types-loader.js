@@ -24,6 +24,11 @@ const {
   isMediaCategoryContentRelPath,
   inferAwnTypeFromRelPath
 } = require("./manifest-paths");
+const { getComponentsAbsolute } = require("./platform-sources");
+const {
+  loadRecordTypesFromComponents,
+  getComponentsPayload
+} = require("./components-loader");
 
 const TYPE_FILE_RE = YAML_FILE_RE;
 
@@ -167,16 +172,9 @@ function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
 }
 
 function loadAgentTypes(agentRoot, projectRoot) {
-  const systemDir = path.join(projectRoot, "awn-types");
-  const agentDir = path.join(agentRoot, "awn-types");
+  const rawTypes = loadRecordTypesFromComponents(projectRoot, agentRoot);
+  const merged = new Map(Object.entries(rawTypes));
 
-  const systemTypes = loadTypesFromDirectory(systemDir);
-  const agentTypes = loadTypesFromDirectory(agentDir);
-
-  const merged = new Map(systemTypes);
-  for (const [name, def] of agentTypes) {
-    merged.set(name, def);
-  }
   if (merged.has("awn.base") && !merged.has("awn.mixin.base")) {
     merged.set("awn.mixin.base", merged.get("awn.base"));
   }
@@ -362,6 +360,7 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   const { fieldDefSchema } = loadAgentFields(agentRoot, projectRoot);
   return {
     specVersion: "0.2.2",
+    components: getComponentsPayload(projectRoot, agentRoot),
     fieldRegistry: getFieldRegistry(agentRoot, projectRoot),
     baseFieldOrder: getBaseFieldOrder(agentRoot, projectRoot),
     fieldDefSchema: fieldDefSchema || null,

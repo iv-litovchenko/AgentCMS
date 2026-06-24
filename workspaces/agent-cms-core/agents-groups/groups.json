@@ -1,0 +1,42 @@
+{
+  "groups": [
+    {
+      "id": "platform",
+      "title": "Работа",
+      "agentIds": [
+        "agent-medcenter",
+        "agent-mosconst",
+        "agent-career"
+      ],
+      "background": "workspaces/agent-cms-core/agents-groups/platform.png",
+      "appearance": "dark"
+    },
+    {
+      "id": "образование",
+      "title": "Образование",
+      "agentIds": [
+        "agent-english",
+        "agent-atlas"
+      ],
+      "background": "workspaces/agent-cms-core/agents-groups/образование.png"
+    },
+    {
+      "id": "текущее",
+      "title": "Текущее",
+      "agentIds": [
+        "agent-focus",
+        "agent-inbox",
+        "agent-ideas"
+      ]
+    },
+    {
+      "id": "хобби",
+      "title": "Хобби",
+      "agentIds": [
+        "agent-crypto",
+        "agent-cms-core",
+        "agent-cms-test"
+      ]
+    }
+  ]
+}

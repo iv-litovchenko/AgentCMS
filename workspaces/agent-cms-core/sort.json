@@ -1,6 +1,7 @@
 {
   "order": [
     "platform-map",
+    "components",
     "examples",
     "documentations",
     "types-of-components",

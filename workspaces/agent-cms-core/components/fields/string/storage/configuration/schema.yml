@@ -1,0 +1,13 @@
+id: awn.string
+path-id: fields/string
+kind: field
+extends: awn.field-def
+widget: input
+storage: string
+mdbase: string
+description: Короткая строка
+settings:
+  - hint
+  - required
+  - default
+  - format

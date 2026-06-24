@@ -1,0 +1,16 @@
+version: 1
+source: agent-cms-core/components
+marker: manifest.md
+marker-field: "type: component"
+active:
+  - frames/_base
+  - frames/topic
+  - frames/area
+  - fields/_base
+  - fields/string
+  - markdown-blocks/_base
+  - markdown-blocks/h2
+  - agents/agent
+  - agents/groups
+  - taxonomies/_base
+  - taxonomies/tags

@@ -1,8 +1,0 @@
-id: awn.block.h2
-name: Заголовок H2
-kind: block
-group: structure
-sort: 1
-icon: "2️⃣"
-description: Раздел второго уровня
-template: "\n## Заголовок\n\nТекст раздела.\n\n"

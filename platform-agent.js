@@ -1,7 +1,7 @@
-const path = require("path");
+const { AGENT_CMS_CORE_REL, getPlatformAgentRootAbsolute: resolvePlatformRoot } = require("./platform-sources");
 
 const PLATFORM_AGENT_ID = "platform";
-const PLATFORM_AGENT_PATH = "./data/catalog";
+const PLATFORM_AGENT_PATH = `./${AGENT_CMS_CORE_REL.replace(/\\/g, "/")}`;
 const PLATFORM_KIT_FOLDER = "catalog";
 const PLATFORM_AGENT_NAME = "Платформа";
 
@@ -10,7 +10,7 @@ function isPlatformAgentId(agentId) {
 }
 
 function getPlatformAgentRootAbsolute(projectRoot) {
-  return path.join(projectRoot, "data/catalog");
+  return resolvePlatformRoot(projectRoot);
 }
 
 function buildPlatformAgentEntry(projectRoot) {

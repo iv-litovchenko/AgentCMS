@@ -5097,7 +5097,7 @@ function syncLandingAgentsViewUi() {
     subNode.textContent = isOrbit
       ? "Кружки в воздухе — выберите workspace"
       : isSettings
-        ? "Распределите агентов по группам — настройки в awn-agents-groups.json"
+        ? "Распределите агентов по группам — настройки в workspaces/agent-cms-core/agents-groups/groups.json"
         : "Каждый агент — отдельный workspace с темами, памятью и файлами";
   }
 
@@ -38302,7 +38302,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   if (!awnTypesCache?.types) {
     renderListEmptyMessage(
       containerNode,
-      "Не удалось загрузить типы. Проверьте, что сервер запущен и папка awn-types/ доступна."
+      "Не удалось загрузить типы. Проверьте workspaces/agent-cms-core/components/ и /api/components."
     );
     return;
   }
@@ -38311,9 +38311,9 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   note.className = "agent-awn-types-note";
   note.innerHTML =
     '<h3 class="agent-awn-types-note-title">Системные схемы полей frontmatter</h3>' +
-    "<p><strong>Компоненты</strong> — <code>awn-types/components/</code> (типы записей, <code>mixins/</code>). " +
-    "Типы полей — <code>awn-types/fields/</code>. Блоки редактора — <code>awn-types/blocks/</code>. " +
-    "Мета-схема поля — <code>awn-types/components/field-def.yml</code>. " +
+    "<p><strong>Компоненты</strong> — <code>workspaces/agent-cms-core/components/</code> (manifest + schema.yml). " +
+    "Типы полей — <code>components/fields/</code>. Блоки — <code>components/markdown-blocks/</code>. " +
+    "Мета-схема поля — <code>components/fields/_base/schema.yml</code>. " +
     "Доп. поля темы — <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.</p>" +
     "<p><strong>kind:</strong> <code>base</code> / <code>mixin</code> / <code>type</code> — записи; " +
     "<code>field</code> — значения в frontmatter; <code>block</code> — вставки в тело Markdown.</p>";
@@ -38370,7 +38370,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     defSection.innerHTML =
       '<header class="agent-awn-types-section-head">' +
       '<h3 class="agent-awn-types-section-title">Мета-свойства поля</h3>' +
-      '<p class="agent-awn-types-section-sub">Что можно указать у каждого поля в <code>awn-types</code> → <code>fields</code></p>' +
+      '<p class="agent-awn-types-section-sub">Что можно указать у каждого поля в <code>components/types/fields</code></p>' +
       "</header>";
 
     const tableWrap = document.createElement("div");

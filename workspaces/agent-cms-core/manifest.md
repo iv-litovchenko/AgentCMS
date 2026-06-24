@@ -49,9 +49,10 @@ agent-cms-core/                         awn.workspace
 
 | Workspace | Код в репозитории |
 |-----------|-------------------|
-| `types-of-components/` | `awn-types/` (пока runtime читает отсюда) |
+| `components/` | `components-loader.js` → `/api/components` |
 | `runtime/` | `server.js`, `*-loader.js`, `manifest-paths.js` |
 | `integrations/` | `mcp-server/`, hooks |
-| `catalog/` | `data/catalog/` (отдельный workspace) |
+| `catalog/` | глобальные справочники платформы |
+| `agents-groups/` | группы на landing-экране |
 
 Подробное дерево — [platform-map.md](platform-map.md).

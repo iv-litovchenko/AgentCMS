@@ -1,8 +1,0 @@
-{
-  "order": [
-    "packages-layout",
-    "manifest-paths",
-    "loaders",
-    "server-api"
-  ]
-}

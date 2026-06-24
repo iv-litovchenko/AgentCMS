@@ -16,7 +16,9 @@ const {
   toTopicFileName
 } = require("./manifest-paths");
 
-const GLOBAL_CATALOG_DIR = "data/catalog";
+const { AGENT_CMS_CORE_REL } = require("./platform-sources");
+
+const GLOBAL_CATALOG_DIR = AGENT_CMS_CORE_REL;
 const CATALOG_GROUP_LABELS = {
   global: "Общие",
   agent: "Агент"

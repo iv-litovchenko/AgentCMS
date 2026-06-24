@@ -1,0 +1,10 @@
+id: agents/groups
+runtime-id: agents.groups
+extends: agents/agent
+instance-file: awn-agents-groups.json
+instance-target: data/agents-groups/
+fields:
+  - title
+  - agentIds
+  - background
+  - appearance

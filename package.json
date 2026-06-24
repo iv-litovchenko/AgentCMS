@@ -39,11 +39,8 @@
       "public/**/*",
       "*.js",
       "docs/**/*",
-      "awn-types/**/*",
       "mcp-server/**/*",
       "awn-agents.json",
-      "awn-agents-groups.json",
-      "awn-agents-groups/**/*",
       "workspaces/**/*",
       "package.json"
     ],
