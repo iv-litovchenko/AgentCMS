@@ -22,7 +22,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.base` |
-| **Схема** | `storage/_base/configuration/schema.yml` |
+| **Схема** | `awn-storage/_base/configuration/schema.yml` |
 | **kind** | `base` |
 | **extends** | — |
 
@@ -30,4 +30,4 @@ awn-sort: ""
 
 `awn-name`, `awn-status`, `awn-type`, `awn-create`, `awn-update`, `awn-description`, `awn-preview`, `awn-emoji`, `awn-main`, `awn-tags`, `awn-color`, `awn-version`, `awn-sort`…
 
-Полный список — в `storage/_base/configuration/schema.yml`.
+Полный список — в `awn-storage/_base/configuration/schema.yml`.

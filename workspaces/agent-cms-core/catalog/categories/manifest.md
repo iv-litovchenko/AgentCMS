@@ -8,4 +8,4 @@ tags: [system, catalog, global]
 
 Глобальный справочник категорий платформы. Данные — в `awn-storage/categories/content.csv`.
 
-Workspace-агенты могут дополнять список локальным справочником в `awn-agent-kit/catalog/categories.md`.
+Workspace-агенты могут дополнять список локальным справочником в `awn-awn-agent-kit/catalog/categories.md`.

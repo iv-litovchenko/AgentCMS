@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.block.table` |
-| **Схема** | `storage/table/configuration/schema.yml` |
+| **Схема** | `awn-storage/table/configuration/schema.yml` |
 | **group** | content |
 
 GFM-таблица с редактируемыми ячейками.

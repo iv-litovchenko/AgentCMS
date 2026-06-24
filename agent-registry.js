@@ -595,18 +595,27 @@ function isAwnDependenciesFileName(fileName) {
   const base = String(fileName || "").trim().toLowerCase();
   return base === AWN_DEPENDENCIES_FILE.toLowerCase();
 }
-const DEFAULT_AGENT_KIT_FOLDER = "agent-kit";
-const DEFAULT_AGENT_CONTAINER_FOLDER = "container";
-const DEFAULT_CONTAINER_FOLDER = "container";
+const DEFAULT_AGENT_KIT_FOLDER = "awn-agent-kit";
+const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
+const DEFAULT_AGENT_CONTAINER_FOLDER = "awn-container";
+const DEFAULT_CONTAINER_FOLDER = "awn-container";
+const LEGACY_CONTAINER_FOLDER = "container";
 
 function isAgentKitFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
-  return lower === DEFAULT_AGENT_KIT_FOLDER.toLowerCase() || lower === PLATFORM_KIT_FOLDER.toLowerCase();
+  return (
+    lower === DEFAULT_AGENT_KIT_FOLDER.toLowerCase() ||
+    lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase() ||
+    lower === PLATFORM_KIT_FOLDER.toLowerCase()
+  );
 }
 
 function isContainerFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
-  return lower === DEFAULT_CONTAINER_FOLDER.toLowerCase();
+  return (
+    lower === DEFAULT_CONTAINER_FOLDER.toLowerCase() ||
+    lower === LEGACY_CONTAINER_FOLDER.toLowerCase()
+  );
 }
 
 function isReservedAgentRootFolderEntryName(name) {
@@ -629,7 +638,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `storage/categories/content.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
     content:
       "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
@@ -640,7 +649,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `storage/tags/content.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
@@ -650,7 +659,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `storage/statuses/content.csv`.\n",
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `awn-storage/statuses/content.csv`.\n",
     content:
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\n"
   },

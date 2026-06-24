@@ -1,5 +1,5 @@
 ---
-awn-preview: storage/assets/preview/20260623192851.png
+awn-preview: awn-storage/assets/preview/20260623192851.png
 awn-emoji: ""
 awn-name: "[Agent CMS] Test"
 awn-status: 🟢 Открыта
@@ -18,7 +18,7 @@ awn-sort: ""
 awn-attachments: []
 ---
 
-![20260620211717](storage/assets/pasted/20260620211717.png)
-![20260620195847](storage/assets/pasted/20260620195847.png)
-![20260620194707](storage/assets/pasted/20260620194707.png)
-![20260620195642](storage/assets/pasted/20260620195642.png)
+![20260620211717](awn-storage/assets/pasted/20260620211717.png)
+![20260620195847](awn-storage/assets/pasted/20260620195847.png)
+![20260620194707](awn-storage/assets/pasted/20260620194707.png)
+![20260620195642](awn-storage/assets/pasted/20260620195642.png)

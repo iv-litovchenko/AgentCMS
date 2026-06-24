@@ -21,9 +21,9 @@ awn-sort: ""
 
 ```
 {component}.md
-storage/{component}/configuration/schema.yml
+awn-storage/{component}/configuration/schema.yml
 ```
 
-- **Базовый класс:** [base.md](base.md) · `storage/_base/configuration/schema.yml`
-- **Группы палитры:** `storage/groups/configuration/schema.yml`
+- **Базовый класс:** [base.md](base.md) · `awn-storage/_base/configuration/schema.yml`
+- **Группы палитры:** `awn-storage/groups/configuration/schema.yml`
 - Порядок — `awn-sort.json`

@@ -19,4 +19,4 @@ awn-sort: ""
 
 Тип справочника platform catalog — не данные, а **spec**.
 
-Данные: `workspaces/agent-cms-core/catalog/storage/*/content.csv`
+Данные: `workspaces/agent-cms-core/catalog/awn-storage/*/content.csv`

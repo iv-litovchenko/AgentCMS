@@ -21,8 +21,8 @@ awn-sort: ""
 |---|---|
 | **id** | `awn.topic` |
 | **extends** | `awn.base` |
-| **Схема** | `storage/topic/configuration/schema.yml` |
+| **Схема** | `awn-storage/topic/configuration/schema.yml` |
 
-Тема — **файл** `*.md` в `storage/…` (не папка).
+Тема — **файл** `*.md` в `awn-storage/…` (не папка).
 
 Отличие от **area**: area = папка + `_registration.md`, topic = один markdown-манифест.

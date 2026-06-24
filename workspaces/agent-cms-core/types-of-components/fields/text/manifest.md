@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.text` |
-| **Схема** | `storage/text/configuration/schema.yml` |
+| **Схема** | `awn-storage/text/configuration/schema.yml` |
 | **kind** | `field` |
 
 Многострочный текст / textarea / markdown snippet.

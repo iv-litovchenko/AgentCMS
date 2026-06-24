@@ -22,7 +22,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.component` |
-| **Схема** | `storage/_base/configuration/schema.yml` |
+| **Схема** | `awn-storage/_base/configuration/schema.yml` |
 | **extends** | — |
 
 ## Свойства класса
@@ -41,4 +41,4 @@ awn-sort: ""
 | Блоки | `blocks/` | `awn.block.base` |
 | Виды | `views/` | `awn.view.base` (черновик) |
 
-Этот файл — документация; machine — в `storage/_base/configuration/schema.yml`.
+Этот файл — документация; machine — в `awn-storage/_base/configuration/schema.yml`.

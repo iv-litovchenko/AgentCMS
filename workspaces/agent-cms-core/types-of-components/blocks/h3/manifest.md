@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.block.h3` |
-| **Схема** | `storage/h3/configuration/schema.yml` |
+| **Схема** | `awn-storage/h3/configuration/schema.yml` |
 | **group** | headings |
 
 Вставка `### Заголовок`.

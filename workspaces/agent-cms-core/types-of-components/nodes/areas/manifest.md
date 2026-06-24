@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.area` |
-| **Схема** | `storage/areas/configuration/schema.yml` |
+| **Схема** | `awn-storage/areas/configuration/schema.yml` |
 | **extends** | `awn.base` |
 
 Область (категория): **папка** с `_registration.md` внутри `container` или корня агента.

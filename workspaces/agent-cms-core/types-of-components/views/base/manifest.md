@@ -22,7 +22,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.view.base` (план) |
-| **Схема** | `storage/_base/configuration/schema.yml` (добавить) |
+| **Схема** | `awn-storage/_base/configuration/schema.yml` (добавить) |
 | **kind** | `view` |
 
 Примеры наследников: dashboard, table, map, graph, timeline, kanban.

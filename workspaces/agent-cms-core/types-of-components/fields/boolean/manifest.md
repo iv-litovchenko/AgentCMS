@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.boolean` |
-| **Схема** | `storage/boolean/configuration/schema.yml` |
+| **Схема** | `awn-storage/boolean/configuration/schema.yml` |
 | **kind** | `field` |
 
 Логическое значение. UI: checkbox / toggle.

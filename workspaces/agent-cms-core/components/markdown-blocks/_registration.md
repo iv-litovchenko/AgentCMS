@@ -6,4 +6,4 @@ awn-description: Блоки палитры редактора — каждый �
 
 # markdown-blocks
 
-Область блоков редактора. Каждый блок — топик с `storage/configuration/schema.yml`.
+Область блоков редактора. Каждый блок — топик с `awn-storage/configuration/schema.yml`.

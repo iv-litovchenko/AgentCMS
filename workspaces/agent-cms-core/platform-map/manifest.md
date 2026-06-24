@@ -40,11 +40,11 @@ awn-sort: ""
 ```
 types-of-components/
 ├── _base.md                    awn.component
-├── storage/_base/configuration/schema.yml
+├── awn-storage/_base/configuration/schema.yml
 │
 ├── nodes/                      типы документов
 │   ├── _base, workspace, areas, topic, record, comments
-│   └── storage/{slot}/configuration/schema.yml
+│   └── awn-storage/{slot}/configuration/schema.yml
 ├── fields/                     примитивы полей
 ├── blocks/                     блоки редактора
 ├── views/                      представления UI
@@ -84,7 +84,7 @@ types-of-components/
 Не дублирует данные. Указывает на workspace **`data/catalog/`**:
 
 - tags, categories, statuses, users, priorities, colors, schemas
-- данные: `catalog/storage/{topic}/content.csv`
+- данные: `catalog/awn-storage/{topic}/content.csv`
 
 ---
 

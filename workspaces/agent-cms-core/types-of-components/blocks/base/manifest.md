@@ -22,9 +22,9 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.block.base` |
-| **Схема** | `storage/_base/configuration/schema.yml` |
+| **Схема** | `awn-storage/_base/configuration/schema.yml` |
 | **kind** | `block-meta` |
 
 Общие свойства блока редактора: `id`, `name`, `description`, `group`, `icon`, `markdown`…
 
-Группы палитры — `storage/groups/configuration/schema.yml`.
+Группы палитры — `awn-storage/groups/configuration/schema.yml`.

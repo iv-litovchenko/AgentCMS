@@ -20,9 +20,9 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.record` |
-| **Схема** | `storage/record/configuration/schema.yml` |
+| **Схема** | `awn-storage/record/configuration/schema.yml` |
 | **extends** | `awn.base` |
 
-Запись по умолчанию — элемент в `storage/<тема>/content/`.
+Запись по умолчанию — элемент в `awn-storage/<тема>/content/`.
 
 Расширяется схемой темы через `configuration.yml`.

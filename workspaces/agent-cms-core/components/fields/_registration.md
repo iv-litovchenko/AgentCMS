@@ -6,4 +6,4 @@ awn-description: Типы полей frontmatter — каждое поле эт�
 
 # fields
 
-Область типов полей. Каждое поле — топик с `storage/configuration/schema.yml`.
+Область типов полей. Каждое поле — топик с `awn-storage/configuration/schema.yml`.

@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.string` |
-| **Схема** | `storage/string/configuration/schema.yml` |
+| **Схема** | `awn-storage/string/configuration/schema.yml` |
 | **kind** | `field` |
 
 Короткая однострочная строка. UI: text input.

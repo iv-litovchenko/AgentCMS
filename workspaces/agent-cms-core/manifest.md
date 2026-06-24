@@ -1,5 +1,5 @@
 ---
-awn-preview: storage/assets/preview/4d93b664-29a3-4953-b71f-e3dad2d25368.png
+awn-preview: awn-storage/assets/preview/4d93b664-29a3-4953-b71f-e3dad2d25368.png
 awn-emoji: ""
 awn-name: "[Agent CMS] Platform core"
 awn-status: 🟢 Открыта
@@ -42,8 +42,8 @@ agent-cms-core/                         awn.workspace
 | Слой | Файл | Назначение |
 |------|------|------------|
 | Human | `{name}.md` | манифест топика, frontmatter |
-| Machine | `storage/{name}/configuration/schema.yml` | схема типа / конфиг |
-| Data | `storage/{name}/content/` | записи, черновики, CSV |
+| Machine | `awn-storage/{name}/configuration/schema.yml` | схема типа / конфиг |
+| Data | `awn-storage/{name}/content/` | записи, черновики, CSV |
 
 ## Связь с кодом
 

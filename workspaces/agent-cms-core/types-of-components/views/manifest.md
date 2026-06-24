@@ -19,5 +19,5 @@ awn-sort: ""
 
 Способы **отображения** данных агента: dashboard, table, map, graph, timeline…
 
-- **Базовый класс:** [base.md](base.md) · `storage/_base/configuration/schema.yml` (черновик)
+- **Базовый класс:** [base.md](base.md) · `awn-storage/_base/configuration/schema.yml` (черновик)
 - Конкретные виды — добавлять по мере реализации в UI.

@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.block.h2` |
-| **Схема** | `storage/h2/configuration/schema.yml` |
+| **Схема** | `awn-storage/h2/configuration/schema.yml` |
 | **group** | headings |
 
 Вставка `## Заголовок` в тело markdown.

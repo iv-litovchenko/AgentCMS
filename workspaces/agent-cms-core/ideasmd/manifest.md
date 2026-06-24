@@ -66,7 +66,7 @@ Body (JSON): {
 - Логировать source + IP в meta (опционально `awn-webhook-id` в frontmatter).
 - MCP-обёртка: `create_inbox_item` уже есть; webhook — для внешних систем без MCP.
 
-**Проверка:** curl с секретом → запись в `storage/<topic>/inbox/` → оранжевый бейдж → triage в UI.
+**Проверка:** curl с секретом → запись в `awn-storage/<topic>/inbox/` → оранжевый бейдж → triage в UI.
 
 ---
 
@@ -105,7 +105,7 @@ Telegram Bot API
 **Mapping (конфиг в агенте):**
 
 ```yaml
-# storage/_/configuration/inbox-sources.yml (черновик)
+# awn-storage/_/configuration/inbox-sources.yml (черновик)
 telegram:
   secret: env:TELEGRAM_BOT_SECRET
   chats:
@@ -204,7 +204,7 @@ list_mentions({ mentionHandle?, afterId?, limit? })
 - **→ Cursor** — копирует context + message в буфер
 
 **Дальше:**
-- `POST/GET /api/agent/discuss` — persist на диск (`storage/_system/discuss/`)
+- `POST/GET /api/agent/discuss` — persist на диск (`awn-storage/_system/discuss/`)
 - MCP: `read_discuss_session`, `append_discuss_message`
 - SSE: ответы агента в панель
 - Drop из Inbox / overview cards

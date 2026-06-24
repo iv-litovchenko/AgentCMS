@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.block.tasks` |
-| **Схема** | `storage/task/configuration/schema.yml` |
+| **Схема** | `awn-storage/task/configuration/schema.yml` |
 | **group** | content |
 
 Чеклист `- [ ]` / `- [x]` (GFM task list).

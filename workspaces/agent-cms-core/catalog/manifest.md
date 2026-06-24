@@ -24,7 +24,7 @@ workspaces/agent-cms-core/catalog/
 ├── tags/manifest.md
 ├── categories/manifest.md
 ├── statuses/manifest.md
-└── {topic}/storage/content.csv
+└── {topic}/awn-storage/content.csv
 ```
 
 Подробнее — [overview.md](overview.md).

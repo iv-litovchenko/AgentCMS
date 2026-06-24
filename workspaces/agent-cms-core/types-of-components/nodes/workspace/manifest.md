@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.workspace` |
-| **Схема** | `storage/workspace/configuration/schema.yml` |
+| **Схема** | `awn-storage/workspace/configuration/schema.yml` |
 | **extends** | `awn.base` |
 
 Корневой манифест агента: `_registration.md` в папке workspace (`agent-*`).

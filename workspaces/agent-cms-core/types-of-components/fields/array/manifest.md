@@ -20,7 +20,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.array` |
-| **Схема** | `storage/array/configuration/schema.yml` |
+| **Схема** | `awn-storage/array/configuration/schema.yml` |
 | **kind** | `field` |
 
 YAML-массив. Элементы задаются `items` в схеме поля.

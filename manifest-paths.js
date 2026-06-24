@@ -1,7 +1,7 @@
 /**
  * Конвенции workspace (без legacy):
  * - Tree-нода: {slug}/manifest.md
- * - Данные: {slug}/storage/
+ * - Данные: {slug}/awn-storage/
  * - Slug = имя папки; display name — frontmatter `awn-name:`
  */
 const path = require("path");
@@ -11,7 +11,23 @@ const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const AREA_MANIFEST_CANDIDATES = [MANIFEST_FILE];
 
-const STORAGE_ROOT_FOLDER = "storage";
+const STORAGE_ROOT_FOLDER = "awn-storage";
+const LEGACY_STORAGE_ROOT_FOLDER = "storage";
+const STORAGE_ROOT_FOLDER_NAMES = [STORAGE_ROOT_FOLDER, LEGACY_STORAGE_ROOT_FOLDER];
+
+function getStorageRootPathPrefixPattern() {
+  return `(?:${STORAGE_ROOT_FOLDER_NAMES.map((folder) => escapeRegex(folder)).join("|")})`;
+}
+
+const STORAGE_ROOT_PATH_PREFIX_RE = new RegExp(`^${getStorageRootPathPrefixPattern()}/`, "i");
+
+function isStorageRootRelativePath(relPath) {
+  return STORAGE_ROOT_PATH_PREFIX_RE.test(String(relPath || "").replace(/\\/g, "/"));
+}
+
+function stripStorageRootPrefix(relPath) {
+  return String(relPath || "").replace(/\\/g, "/").replace(STORAGE_ROOT_PATH_PREFIX_RE, "");
+}
 /** Служебный слой Neos-like: node-types, fields — не в меню контента */
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const SERVICE_AREA_NAME = "Служебные темы и компоненты";
@@ -141,7 +157,8 @@ function toStorageFolderName(rawName) {
 }
 
 function isStorageFolderName(name) {
-  return String(name || "").toLowerCase() === STORAGE_ROOT_FOLDER.toLowerCase();
+  const lower = String(name || "").toLowerCase();
+  return STORAGE_ROOT_FOLDER_NAMES.some((folder) => lower === folder.toLowerCase());
 }
 
 function isConfigurationFolderName(name) {
@@ -174,7 +191,8 @@ function isExcludedMenuTopicMdFileName(name, options = {}) {
 }
 
 function getStorageFolderRegexAlternation() {
-  return `${escapeRegex(STORAGE_ROOT_FOLDER)}/[^/]+`;
+  const alts = STORAGE_ROOT_FOLDER_NAMES.map((folder) => escapeRegex(folder)).join("|");
+  return `(?:${alts})/[^/]+`;
 }
 
 function listBundleFileNameCandidates(bundleFileName) {
@@ -251,7 +269,7 @@ function normalizeManifestRelPath(relPath) {
 function isRecordCategoryContentRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   return (
-    /\/storage\/categories\/content\/[^/]+\.md$/i.test(normalized) ||
+    /\/(?:awn-storage|storage)\/categories\/content\/[^/]+\.md$/i.test(normalized) ||
     /\/content\/categories\/[^/]+\.md$/i.test(normalized)
   );
 }
@@ -585,8 +603,8 @@ function resolveOwningManifestRelFromNodePath(nodePath) {
   return normalized;
 }
 
-function countManifestFolderDepthUnderContainer(normalized, containerFolder = "container") {
-  const container = String(containerFolder || "container").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+function countManifestFolderDepthUnderContainer(normalized, containerFolder = "awn-container") {
+  const container = String(containerFolder || "awn-container").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   if (!container) return null;
   const marker = `${container}/`;
   const idx = normalized.toLowerCase().indexOf(marker.toLowerCase());
@@ -646,7 +664,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     if (declared === "topic") return "awn.topic";
     if (declared === "area") return "awn.area";
 
-    const containerFolder = options.containerFolder || "container";
+    const containerFolder = options.containerFolder || "awn-container";
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
       return folderDepth >= 2 ? "awn.topic" : "awn.area";
@@ -676,12 +694,14 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
     else candidates.push(item);
   };
 
-  if (/^storage\//i.test(normalized)) {
+  if (isStorageRootRelativePath(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
-    if (/\/storage\/content\//i.test(rawContext)) {
-      const legacyNested = `${containerDir}/storage/content/storage/${normalized.replace(/^storage\//i, "")}`;
+    if (/(?:\/awn-storage\/|\/storage\/)(?:content)\//i.test(rawContext)) {
+      const legacyNested = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNested);
+      const legacyNestedOld = `${containerDir}/storage/content/storage/${stripStorageRootPrefix(normalized)}`;
+      add(legacyNestedOld);
     }
   }
 
@@ -724,7 +744,7 @@ function normalizeNodeAssetsStorageRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
 
-  if (/^storage\/assets\//i.test(normalized)) return normalized;
+  if (/^(?:awn-storage|storage)\/assets\//i.test(normalized)) return normalized;
 
   if (/^assets\//i.test(normalized)) {
     return `${STORAGE_ROOT_FOLDER}/${normalized}`;
@@ -739,7 +759,10 @@ function normalizeNodeAssetsStorageRef(workspaceRelPath) {
     return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
   }
 
-  const storageAssetsIdx = normalized.toLowerCase().indexOf("/storage/assets/");
+  const storageAssetsIdx = Math.max(
+    normalized.toLowerCase().indexOf("/awn-storage/assets/"),
+    normalized.toLowerCase().indexOf("/storage/assets/")
+  );
   if (storageAssetsIdx >= 0) {
     return normalized.slice(storageAssetsIdx + 1);
   }
@@ -912,6 +935,10 @@ function resolvePartFolderSidecarBaseRel() {
 module.exports = {
   MANIFEST_FILE,
   STORAGE_ROOT_FOLDER,
+  LEGACY_STORAGE_ROOT_FOLDER,
+  STORAGE_ROOT_FOLDER_NAMES,
+  isStorageRootRelativePath,
+  stripStorageRootPrefix,
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
   STORAGE_PREFIX: STORAGE_ROOT_FOLDER,

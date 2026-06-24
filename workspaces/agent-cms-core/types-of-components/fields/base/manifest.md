@@ -22,7 +22,7 @@ awn-sort: ""
 | | |
 |---|---|
 | **id** | `awn.field-def` |
-| **Схема** | `storage/_base/configuration/schema.yml` |
+| **Схема** | `awn-storage/_base/configuration/schema.yml` |
 | **kind** | `field-def` |
 
 Общие ключи: `id`, `name`, `description`, `type`, `required`, `default`, `ui`…
