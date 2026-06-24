@@ -183,20 +183,19 @@
                 <div class="sidebar-agent-view-controls">
                   <div id="agent-view-select-wrap" class="agent-view-select-wrap">
                     <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
-                    <option value="dashboard" selected>Дашборд</option>
-                    <option value="dashboard2">Дашборд 2</option>
-                    <option value="map">Карта</option>
-                    <option value="map2">Карта 2</option>
-                    <option value="map3">Карта 3</option>
-                    <option value="registry" disabled>Реестр (скоро)</option>
-                    <option value="schema">Схема</option>
-                    <option value="vault">Каталог</option>
-                    <option value="graph">Граф</option>
+                    <option value="dashboard" selected>Главная</option>
+                    <option value="dashboard2">Дашборд</option>
+                    <option value="graph">Граф связей</option>
+                    <option value="map2">Структура</option>
                     <option value="table">Таблица</option>
-                    <option value="storage">Хранилище</option>
+                    <option value="vault">Каталог</option>
+                    <option value="schema">Карта</option>
                     <option value="timeline">Лента</option>
-                    <option value="timeline-axis">Timeline</option>
-                    <option value="timeline-vertical">Timeline ↓</option>
+                    <option value="map" hidden>Карта</option>
+                    <option value="map3" hidden>Карта 3</option>
+                    <option value="storage" hidden>Хранилище</option>
+                    <option value="timeline-axis" hidden>Timeline</option>
+                    <option value="timeline-vertical" hidden>Timeline ↓</option>
                   </select>
                   </div>
                   <button
@@ -226,6 +225,13 @@
                     type="button"
                     title="Битые ссылки — проверка ссылок в YAML, markdown и content.csv"
                     aria-label="Битые ссылки"
+                  ></button>
+                  <button
+                    id="agent-registry-btn"
+                    class="agents-manage-btn agent-registry-btn is-soon"
+                    type="button"
+                    title="Реестр (скоро)"
+                    aria-label="Реестр (скоро)"
                   ></button>
                 </div>
               </div>
@@ -497,8 +503,6 @@
               <div id="app-landing-search-agents" class="app-landing-search-agents" role="group" aria-label="Агенты для поиска"></div>
             </section>
 
-            <section id="app-landing-platform" class="app-landing-platform hidden" aria-labelledby="app-landing-platform-title"></section>
-
             <header class="app-landing-header">
               <div class="app-landing-header-copy">
                 <h3 id="app-landing-agents-title" class="app-landing-title">Выберите агента</h3>
@@ -764,6 +768,8 @@
                 </div>
               </div>
             </section>
+
+            <section id="app-landing-platform" class="app-landing-platform hidden" aria-labelledby="app-landing-platform-title"></section>
           </div>
         </section>
       </main>
@@ -792,7 +798,7 @@
         </div>
       </div>
 
-      <main id="home-pane" class="home-pane agent-canvas-pane hidden" aria-label="Дашборд агента">
+      <main id="home-pane" class="home-pane agent-canvas-pane hidden" aria-label="Главная агента">
         <div class="home-pane-bg" aria-hidden="true"></div>
         <div class="home-pane-inner">
           <div class="home-hero">
@@ -862,22 +868,22 @@
         </div>
       </main>
 
-      <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд 2 агента">
+      <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд агента">
         <div id="home2-content" class="home2-content"></div>
       </main>
 
       <main id="agent-large-files-pane" class="agent-canvas-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
         <div class="agent-canvas-head agent-large-files-head">
-          <div class="agent-large-files-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Крупные файлы</h2>
             <p class="agent-canvas-lead">
               Все файлы в workspace, размер которых превышает 45 МБ, с путями относительно корня агента.
             </p>
           </div>
-          <div class="agent-large-files-head-actions">
-            <div id="agent-large-files-stats" class="agent-large-files-stats" aria-live="polite"></div>
-            <button id="agent-large-files-refresh-btn" class="agent-large-files-refresh-btn" type="button" title="Повторить сканирование">
+          <div class="agent-canvas-head-aside agent-large-files-head-actions">
+            <div id="agent-large-files-stats" class="agent-workspace-stats agent-large-files-stats" aria-live="polite"></div>
+            <button id="agent-large-files-refresh-btn" class="agent-workspace-refresh-btn agent-large-files-refresh-btn" type="button" title="Повторить сканирование">
               Обновить
             </button>
           </div>
@@ -887,16 +893,16 @@
 
       <main id="agent-broken-links-pane" class="agent-canvas-pane agent-broken-links-pane hidden" aria-label="Битые ссылки workspace">
         <div class="agent-canvas-head agent-broken-links-head">
-          <div class="agent-broken-links-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Битые ссылки</h2>
             <p class="agent-canvas-lead">
               Проверка ссылок на документы и файлы в YAML-шапке, теле markdown и <code>content.csv</code>.
             </p>
           </div>
-          <div class="agent-broken-links-head-actions">
-            <div id="agent-broken-links-stats" class="agent-broken-links-stats" aria-live="polite"></div>
-            <button id="agent-broken-links-refresh-btn" class="agent-broken-links-refresh-btn" type="button" title="Повторить проверку">
+          <div class="agent-canvas-head-aside agent-broken-links-head-actions">
+            <div id="agent-broken-links-stats" class="agent-workspace-stats agent-broken-links-stats" aria-live="polite"></div>
+            <button id="agent-broken-links-refresh-btn" class="agent-workspace-refresh-btn agent-broken-links-refresh-btn" type="button" title="Повторить проверку">
               Обновить
             </button>
           </div>
@@ -906,16 +912,16 @@
 
       <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
         <div class="agent-canvas-head agent-git-head">
-          <div class="agent-git-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Git-репозиторий</h2>
             <p class="agent-canvas-lead">
               Несохранённые изменения, индекс и последние коммиты в git-репозитории workspace.
             </p>
           </div>
-          <div class="agent-git-head-actions">
-            <div id="agent-git-stats" class="agent-git-stats" aria-live="polite"></div>
-            <button id="agent-git-refresh-btn" class="agent-git-refresh-btn" type="button" title="Обновить статус git">
+          <div class="agent-canvas-head-aside agent-git-head-actions">
+            <div id="agent-git-stats" class="agent-workspace-stats agent-git-stats" aria-live="polite"></div>
+            <button id="agent-git-refresh-btn" class="agent-workspace-refresh-btn agent-git-refresh-btn" type="button" title="Обновить статус git">
               Обновить
             </button>
           </div>
@@ -925,17 +931,26 @@
 
       <main id="agent-awn-types-pane" class="agent-canvas-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
         <div class="agent-canvas-head">
-          <p class="agent-canvas-eyebrow">Workspace</p>
-          <h2 class="agent-canvas-title">Типы YAML</h2>
-          <p class="agent-canvas-lead">
-            Системные схемы полей frontmatter. Типы записей — в <code>awn-types/components/</code> (read-only).
-            Дополнительные поля темы — в <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.
-          </p>
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Типы YAML</h2>
+            <p class="agent-canvas-lead">
+              Системные схемы полей frontmatter. Типы записей — в <code>awn-types/components/</code> (read-only).
+              Дополнительные поля темы — в <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.
+            </p>
+          </div>
         </div>
         <div id="agent-awn-types-content" class="agent-awn-types-content"></div>
       </main>
 
       <main id="agent-map-pane" class="agent-canvas-pane agent-map-pane hidden" aria-label="Карта агента">
+        <div class="agent-canvas-head agent-map-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Карта</h2>
+            <p class="agent-canvas-lead">Обзор областей и тем workspace — клик по узлу открывает тему в дереве.</p>
+          </div>
+        </div>
         <div id="agent-map-stage" class="agent-map-stage">
           <svg id="agent-map-links" class="agent-map-links" aria-hidden="true"></svg>
           <div id="agent-map-zones" class="agent-map-zones"></div>
@@ -947,29 +962,31 @@
         </div>
       </main>
 
-      <main id="agent-map2-pane" class="agent-canvas-pane agent-map2-pane hidden" aria-label="Схема workspace">
-        <div class="agent-map2-head">
-          <div class="agent-map2-head-copy">
+      <main id="agent-map2-pane" class="agent-canvas-pane agent-map2-pane hidden" aria-label="Структура workspace">
+        <div class="agent-canvas-head agent-canvas-head--compact agent-map2-head">
+          <div class="agent-canvas-head-copy agent-map2-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Схема</h2>
-            <p class="agent-map2-lead">
+            <h2 class="agent-canvas-title">Структура</h2>
+            <p class="agent-canvas-lead">
               Жёсткие связи — физическая структура папок на диске. Мягкие — ссылки между темами через поля (появятся позже).
             </p>
           </div>
-          <div id="agent-map2-stats" class="agent-map2-stats" aria-live="polite"></div>
+          <div class="agent-canvas-head-aside agent-map2-head-aside">
+            <div id="agent-map2-stats" class="agent-workspace-stats agent-map2-stats" aria-live="polite"></div>
+            <aside class="agent-map2-legend" aria-label="Типы связей">
+              <div class="agent-map2-legend-item">
+                <span class="agent-map2-legend-line agent-map2-legend-line--hard" aria-hidden="true"></span>
+                <span>Жёсткая — папка содержит тему</span>
+              </div>
+              <div class="agent-map2-legend-item">
+                <span class="agent-map2-legend-line agent-map2-legend-line--soft" aria-hidden="true"></span>
+                <span>Мягкая — поле ссылается на тему</span>
+              </div>
+              <div class="agent-map2-legend-note">Мягкие связи пока не заданы в данных агента.</div>
+            </aside>
+          </div>
         </div>
-        <div id="agent-map2-board" class="agent-map2-board">
-          <aside class="agent-map2-legend" aria-label="Типы связей">
-            <div class="agent-map2-legend-item">
-              <span class="agent-map2-legend-line agent-map2-legend-line--hard" aria-hidden="true"></span>
-              <span>Жёсткая — папка содержит тему</span>
-            </div>
-            <div class="agent-map2-legend-item">
-              <span class="agent-map2-legend-line agent-map2-legend-line--soft" aria-hidden="true"></span>
-              <span>Мягкая — поле ссылается на тему</span>
-            </div>
-            <div class="agent-map2-legend-note">Мягкие связи пока не заданы в данных агента.</div>
-          </aside>
+        <div id="agent-map2-content" class="agent-map2-content">
           <div id="agent-map2-viewport" class="agent-map2-viewport">
             <div id="agent-map2-canvas" class="agent-map2-canvas">
               <svg id="agent-map2-links" class="agent-map2-links" aria-hidden="true"></svg>
@@ -980,75 +997,75 @@
       </main>
 
       <main id="agent-map3-pane" class="agent-canvas-pane agent-map3-pane hidden" aria-label="Карта awn-storage">
-        <div class="agent-map3-head">
-          <div class="agent-map3-head-copy">
+        <div class="agent-canvas-head agent-map3-head">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Карта awn-storage</h2>
-            <p class="agent-map3-lead">
+            <p class="agent-canvas-lead">
               Контейнеры на диске: у области слот <code>_</code>, у каждой темы — свой слот в общем
               <code>awn-storage/</code>. Цветные точки — заполненные слои (память, конфиг, файлы).
             </p>
           </div>
-          <div id="agent-map3-stats" class="agent-map3-stats" aria-live="polite"></div>
+          <div id="agent-map3-stats" class="agent-workspace-stats agent-map3-stats" aria-live="polite"></div>
         </div>
         <div id="agent-map3-viewport" class="agent-map3-viewport">
           <div id="agent-map3-board" class="agent-map3-board"></div>
         </div>
       </main>
 
-      <main id="agent-schema-pane" class="agent-canvas-pane agent-schema-pane hidden" aria-label="Схема workspace">
+      <main id="agent-schema-pane" class="agent-canvas-pane agent-schema-pane hidden" aria-label="Карта workspace">
         <div class="agent-canvas-head">
-          <p class="agent-canvas-eyebrow">Workspace</p>
-          <h2 class="agent-canvas-title">Схема</h2>
-          <p class="agent-canvas-lead">Иерархия папок и манифестов <code>*.md</code> текущего агента.</p>
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Карта</h2>
+            <p class="agent-canvas-lead">Иерархия папок и манифестов <code>*.md</code> текущего агента.</p>
+          </div>
         </div>
         <div id="agent-schema-content" class="agent-schema-content"></div>
       </main>
 
       <main id="agent-vault-pane" class="agent-canvas-pane agent-vault-pane hidden" aria-label="Каталог workspace">
-        <div class="agent-vault-wrap">
-          <header class="agent-vault-head">
-            <div class="agent-vault-head-copy">
-              <p class="agent-canvas-eyebrow">Workspace</p>
-              <h2 class="agent-vault-title">Каталог</h2>
-              <p class="agent-vault-sub">Все папки и темы с превью — поиск по названию, фильтры по категориям и тегам (скоро)</p>
-            </div>
-            <div id="agent-vault-stats" class="agent-vault-stats" aria-live="polite"></div>
-          </header>
-
-          <div class="agent-vault-toolbar">
-            <div class="agent-vault-search-wrap">
-              <input
-                id="agent-vault-search"
-                class="agent-vault-search"
-                type="search"
-                placeholder="Поиск по названию или пути..."
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </div>
-            <div class="agent-vault-filters">
-              <select id="agent-vault-category-select" class="agent-vault-select" disabled title="Скоро" aria-label="Категории">
-                <option>Все категории</option>
-              </select>
-              <select id="agent-vault-tag-select" class="agent-vault-select" disabled title="Скоро" aria-label="Теги">
-                <option>Все теги</option>
-              </select>
-            </div>
+        <header class="agent-canvas-head agent-vault-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Каталог</h2>
+            <p class="agent-canvas-lead">Все папки и темы с превью — поиск по названию, фильтры по категориям и тегам (скоро)</p>
           </div>
+          <div id="agent-vault-stats" class="agent-workspace-stats agent-vault-stats" aria-live="polite"></div>
+        </header>
 
-          <div id="agent-vault-grid" class="agent-vault-grid"></div>
-          <div id="agent-vault-empty" class="agent-vault-empty hidden">Ничего не найдено. Измените поиск.</div>
+        <div class="agent-vault-toolbar">
+          <div class="agent-vault-search-wrap">
+            <input
+              id="agent-vault-search"
+              class="agent-vault-search"
+              type="search"
+              placeholder="Поиск по названию или пути..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="agent-vault-filters">
+            <select id="agent-vault-category-select" class="agent-vault-select" disabled title="Скоро" aria-label="Категории">
+              <option>Все категории</option>
+            </select>
+            <select id="agent-vault-tag-select" class="agent-vault-select" disabled title="Скоро" aria-label="Теги">
+              <option>Все теги</option>
+            </select>
+          </div>
         </div>
+
+        <div id="agent-vault-grid" class="agent-vault-grid"></div>
+        <div id="agent-vault-empty" class="agent-vault-empty hidden">Ничего не найдено. Измените поиск.</div>
       </main>
 
-      <main id="agent-graph-pane" class="agent-canvas-pane agent-graph-pane hidden" aria-label="Граф workspace">
+      <main id="agent-graph-pane" class="agent-canvas-pane agent-graph-pane hidden" aria-label="Граф связей workspace">
         <div class="agent-canvas-head agent-canvas-head--compact agent-graph-head">
-          <div class="agent-graph-head-copy">
+          <div class="agent-canvas-head-copy agent-graph-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Граф</h2>
+            <h2 class="agent-canvas-title">Граф связей</h2>
           </div>
-          <div class="agent-graph-head-actions">
+          <div class="agent-canvas-head-aside agent-graph-head-actions">
             <label class="agent-graph-setting" for="agent-graph-show-previews">
               <input id="agent-graph-show-previews" type="checkbox" checked />
               <span>Превью на темах</span>
@@ -1065,14 +1082,14 @@
 
       <main id="agent-table-pane" class="agent-canvas-pane agent-table-pane hidden" aria-label="Таблица workspace">
         <div class="agent-canvas-head agent-table-head">
-          <div class="agent-table-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Таблица</h2>
             <p class="agent-canvas-lead">
               Плоский список манифестов: путь, слот <code>awn-storage</code>, слои памяти, превью и метаданные.
             </p>
           </div>
-          <div id="agent-table-stats" class="agent-table-stats" aria-live="polite"></div>
+          <div id="agent-table-stats" class="agent-workspace-stats agent-table-stats" aria-live="polite"></div>
         </div>
         <div class="agent-table-toolbar">
           <input
@@ -1089,29 +1106,39 @@
 
       <main id="agent-storage-pane" class="agent-canvas-pane agent-storage-pane hidden" aria-label="Хранилище workspace">
         <div class="agent-canvas-head agent-storage-head">
-          <div class="agent-storage-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Хранилище</h2>
             <p class="agent-canvas-lead">
               Слоты <code>awn-storage/&lt;имя&gt;/</code> в папке манифеста: область «Иван» → <code>Иван/awn-storage/_/</code>, тема → <code>…/Кристина/</code>.
             </p>
           </div>
-          <div id="agent-storage-stats" class="agent-storage-stats" aria-live="polite"></div>
+          <div id="agent-storage-stats" class="agent-workspace-stats agent-storage-stats" aria-live="polite"></div>
         </div>
         <div id="agent-storage-content" class="agent-storage-content"></div>
       </main>
 
       <main id="agent-timeline-pane" class="agent-canvas-pane agent-timeline-pane hidden" aria-label="Лента workspace">
         <div class="agent-canvas-head agent-timeline-head">
-          <div class="agent-timeline-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Лента</h2>
             <p class="agent-canvas-lead">
-              Лента по дням: недавние изменения манифестов, Content/Config и слотов <code>awn-storage</code>.
-              Для оси «когда» — <strong>Timeline</strong> или вертикальная лента <strong>Timeline ↓</strong>.
+              Последние правки по workspace: манифесты, <code>content/</code>, скрипты и слоты
+              <code>awn-storage</code>. Сверху — самое свежее.
             </p>
           </div>
-          <div id="agent-timeline-stats" class="agent-timeline-stats" aria-live="polite"></div>
+          <div class="agent-canvas-head-aside agent-timeline-head-actions">
+            <div id="agent-timeline-stats" class="agent-workspace-stats agent-timeline-stats" aria-live="polite"></div>
+            <button
+              id="agent-timeline-refresh-btn"
+              type="button"
+              class="agent-workspace-refresh-btn agent-timeline-refresh-btn"
+              title="Обновить ленту"
+            >
+              Обновить
+            </button>
+          </div>
         </div>
         <div id="agent-timeline-content" class="agent-timeline-content"></div>
       </main>
@@ -1122,14 +1149,14 @@
         aria-label="Timeline workspace"
       >
         <div class="agent-canvas-head agent-timeline-axis-head">
-          <div class="agent-timeline-axis-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Timeline</h2>
             <p class="agent-canvas-lead">
               Ось времени: когда что менялось в манифестах и слотах <code>awn-storage</code>. Слева — раньше, справа — позже.
             </p>
           </div>
-          <div id="agent-timeline-axis-stats" class="agent-timeline-axis-stats" aria-live="polite"></div>
+          <div id="agent-timeline-axis-stats" class="agent-workspace-stats agent-timeline-axis-stats" aria-live="polite"></div>
         </div>
         <div id="agent-timeline-axis-content" class="agent-timeline-axis-content"></div>
       </main>
@@ -1140,14 +1167,14 @@
         aria-label="Timeline вертикальный"
       >
         <div class="agent-canvas-head agent-timeline-vertical-head">
-          <div class="agent-timeline-vertical-head-copy">
+          <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Timeline ↓</h2>
             <p class="agent-canvas-lead">
               Вертикальная ось: сверху раньше, снизу позже. События вдоль линии времени — прокрутка вниз.
             </p>
           </div>
-          <div id="agent-timeline-vertical-stats" class="agent-timeline-vertical-stats" aria-live="polite"></div>
+          <div id="agent-timeline-vertical-stats" class="agent-workspace-stats agent-timeline-vertical-stats" aria-live="polite"></div>
         </div>
         <div id="agent-timeline-vertical-content" class="agent-timeline-vertical-content"></div>
       </main>
