@@ -6178,24 +6178,40 @@ body.app-locked {
 }
 
 .agent-map2-head {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .agent-map2-head-copy {
   min-width: 0;
 }
 
-.agent-map2-head-aside {
+.agent-map2-head-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  flex-shrink: 0;
-  max-width: min(300px, 42%);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .agent-map2-stats {
   justify-content: flex-end;
+}
+
+.agent-map2-legend--inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.agent-map2-legend--inline .agent-map2-legend-item {
+  font-size: 11px;
+  color: #475569;
 }
 
 .agent-map2-legend {
@@ -6260,17 +6276,23 @@ body.app-locked {
 .agent-map2-viewport {
   width: 100%;
   height: 100%;
-  min-height: min(720px, calc(100vh - 220px));
-  overflow: auto;
+  min-height: min(720px, calc(100vh - 170px));
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
   background:
     radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08), transparent 42%),
     linear-gradient(180deg, #0f172a 0%, #111827 100%);
 }
 
+.agent-map2-viewport.is-panning {
+  cursor: grabbing;
+}
+
 .agent-map2-canvas {
   position: relative;
-  min-width: 100%;
-  min-height: 100%;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .agent-map2-links {
@@ -6416,9 +6438,8 @@ body.app-locked {
     align-items: stretch;
   }
 
-  .agent-map2-head-aside {
-    align-items: stretch;
-    max-width: none;
+  .agent-map2-head-actions {
+    justify-content: flex-start;
   }
 
   .agent-map2-stats {
@@ -14005,6 +14026,14 @@ body.app-locked {
   gap: 20px;
 }
 
+.node-navigation-props {
+  margin: 0;
+}
+
+.node-navigation-props.node-overview-props {
+  padding: 0;
+}
+
 .node-navigation-hero {
   display: flex;
   flex-wrap: wrap;
@@ -19565,6 +19594,11 @@ button.node-navigation-memory-title:focus-visible {
   color: var(--text);
   word-break: break-word;
   background: var(--panel);
+}
+
+.node-overview-meta-table td.is-empty {
+  color: var(--muted);
+  font-style: italic;
 }
 
 .node-overview-excerpt {

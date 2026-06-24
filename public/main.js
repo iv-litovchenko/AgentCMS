@@ -160,6 +160,7 @@ const agentMap2ViewportNode = document.getElementById("agent-map2-viewport");
 const agentMap2CanvasNode = document.getElementById("agent-map2-canvas");
 const agentMap2LinksNode = document.getElementById("agent-map2-links");
 const agentMap2NodesNode = document.getElementById("agent-map2-nodes");
+const agentMap2ControlsNode = document.getElementById("agent-map2-controls");
 const agentSchemaPaneNode = document.getElementById("agent-schema-pane");
 const agentSchemaContentNode = document.getElementById("agent-schema-content");
 const topicSchemaPanelNode = document.getElementById("topic-schema-panel");
@@ -6875,6 +6876,7 @@ let agentWorkspaceView = loadAgentWorkspaceView();
 let agentVaultSearchQuery = "";
 let agentMapLinksResizeObserver = null;
 let agentMap2LinksResizeObserver = null;
+let agentMap2PanZoomCleanup = null;
 const menuCacheByAgent = new Map();
 const manifestTreeTypeByPath = new Map();
 
@@ -11651,10 +11653,14 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
 /** Скрыты из селектора видов workspace, но доступны в коде (renderAgentStorageView и т.д.). */
 const HIDDEN_AGENT_WORKSPACE_VIEWS = new Set(["storage", "map", "map3", "timeline-axis", "timeline-vertical"]);
 
+/** Видны в селекторе, но временно недоступны для выбора. */
+const DISABLED_AGENT_WORKSPACE_VIEWS = new Set(["map2"]);
+
 function normalizeVisibleAgentWorkspaceView(view) {
   const normalized = String(view || "").trim();
   if (normalized === "timeline-horizontal") return "timeline";
   if (normalized === "timeline-axis" || normalized === "timeline-vertical") return "timeline";
+  if (DISABLED_AGENT_WORKSPACE_VIEWS.has(normalized)) return "dashboard";
   if (HIDDEN_AGENT_WORKSPACE_VIEWS.has(normalized)) return "dashboard";
   return normalized;
 }
@@ -26598,6 +26604,75 @@ function saveOverviewAccordionOpenState(groupId, isOpen) {
   }
 }
 
+function resolveNodeOverviewPropsEntries() {
+  if (propsFormEntries.length || propsFormHiddenEntries.length) {
+    return mergePropsFormEntries();
+  }
+  return normalizePropsEntries(parsePropsYaml(propsInputNode.value || ""));
+}
+
+function getPropsEntryOverviewDisplayValue(entry) {
+  if (!entry) return "—";
+  if (entry.kind === "null" || entry.value === null) return "—";
+  if (entry.kind === "bool") return entry.value ? "true" : "false";
+  if (entry.kind === "array") {
+    const text = (entry.value || []).map(String).filter((part) => part.trim()).join(", ");
+    return text || "—";
+  }
+  if (entry.kind === "number") return String(entry.value);
+  const text = String(entry.value ?? "").trim();
+  return text || "—";
+}
+
+function collectNodeOverviewMetaItems(entries) {
+  const map = new Map();
+  for (const entry of normalizePropsEntries(entries)) {
+    if (entry?.key) map.set(entry.key, entry);
+  }
+
+  const items = [];
+  const seen = new Set();
+
+  const pushKey = (key) => {
+    if (!key || seen.has(key) || !map.has(key)) return;
+    seen.add(key);
+    items.push({ key, value: getPropsEntryOverviewDisplayValue(map.get(key)) });
+  };
+
+  for (const key of getStandardPropsFieldKeys()) {
+    pushKey(key);
+  }
+  for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
+    pushKey(key);
+  }
+
+  return items;
+}
+
+function renderNodeOverviewPropsTable(metaItems) {
+  if (!metaItems.length) return null;
+
+  const metaSection = document.createElement("section");
+  metaSection.className = "node-overview-props";
+  const metaTable = document.createElement("table");
+  metaTable.className = "node-overview-meta-table";
+  const tbody = document.createElement("tbody");
+  for (const item of metaItems) {
+    const row = document.createElement("tr");
+    const keyCell = document.createElement("th");
+    keyCell.scope = "row";
+    keyCell.textContent = item.key;
+    const valCell = document.createElement("td");
+    valCell.textContent = item.value;
+    if (item.value === "—") valCell.classList.add("is-empty");
+    row.append(keyCell, valCell);
+    tbody.appendChild(row);
+  }
+  metaTable.appendChild(tbody);
+  metaSection.appendChild(metaTable);
+  return metaSection;
+}
+
 function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true } = {}) {
   const details = document.createElement("details");
   details.className = "node-overview-fold";
@@ -30374,9 +30449,7 @@ async function renderNodeNavigation() {
   const nodePath = getResolvedNodePath(activePath);
   const childEntries = getNavigationSubsectionEntries();
   const isArea = isAreaNodePath(nodePath);
-  const entries = propsFormEntries.length
-    ? propsFormEntries
-    : parsePropsYaml(propsInputNode.value || "");
+  const entries = resolveNodeOverviewPropsEntries();
   const heroTitle = getOverviewTitleFromProps(entries);
 
   const emptyInternal = { exists: false, content: "", path: null };
@@ -30425,6 +30498,12 @@ async function renderNodeNavigation() {
       propEntries: entries
     })
   );
+
+  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
+  if (propsSection) {
+    propsSection.classList.add("node-navigation-props");
+    hub.appendChild(propsSection);
+  }
 
   const slotStrip = renderNodeSlotStrip(slotStripGroups);
   if (slotStrip) hub.appendChild(slotStrip);
@@ -30495,9 +30574,7 @@ async function renderNodeOverview() {
     if (isStale()) return;
   }
 
-  const entries = propsFormEntries.length
-    ? propsFormEntries
-    : parsePropsYaml(propsInputNode.value || "");
+  const entries = resolveNodeOverviewPropsEntries();
   const manifestRaw = modeContentCache.description || "";
   const title = getOverviewTitleFromProps(entries);
   const desc = getOverviewDescription(manifestRaw, entries);
@@ -30580,46 +30657,8 @@ async function renderNodeOverview() {
   hero.append(thumbWrap, head);
   fragment.appendChild(hero);
 
-  const metaKeysUsed = new Set([...OVERVIEW_HERO_PROP_KEYS]);
-  const metaItems = [];
-  for (const key of OVERVIEW_META_PROP_KEYS) {
-    const value = getPropsEntryValueByKey(entries, key);
-    if (value) {
-      metaItems.push({ key, value });
-      metaKeysUsed.add(key);
-    }
-  }
-  for (const entry of entries) {
-    if (!entry.key || metaKeysUsed.has(entry.key)) continue;
-    if (OVERVIEW_HERO_PROP_KEYS.has(entry.key)) continue;
-    const value = getPropsEntryDisplayValue(entry);
-    if (!value) continue;
-    metaItems.push({ key: entry.key, value });
-    if (metaItems.length >= 12) break;
-  }
-
-  if (metaItems.length) {
-    const metaSection = document.createElement("section");
-    metaSection.className = "node-overview-props";
-    const metaTable = document.createElement("table");
-    metaTable.className = "node-overview-meta-table";
-    const tbody = document.createElement("tbody");
-    for (const item of metaItems) {
-      const row = document.createElement("tr");
-      const keyCell = document.createElement("th");
-      keyCell.scope = "row";
-      keyCell.textContent = item.key;
-      const valCell = document.createElement("td");
-      valCell.textContent = item.value;
-      row.append(keyCell, valCell);
-      tbody.appendChild(row);
-    }
-    metaTable.appendChild(tbody);
-    metaSection.appendChild(metaTable);
-    fragment.appendChild(
-      createOverviewAccordionSection("properties", "📋 Свойства", metaSection, { defaultOpen: true })
-    );
-  }
+  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
+  if (propsSection) fragment.appendChild(propsSection);
 
   if (excerpt) {
     const excerptBlock = document.createElement("section");
@@ -37353,6 +37392,121 @@ function renderAgentMap2Stats(data) {
   }
 }
 
+function destroyAgentMap2PanZoom() {
+  if (agentMap2PanZoomCleanup) {
+    agentMap2PanZoomCleanup();
+    agentMap2PanZoomCleanup = null;
+  }
+}
+
+function attachAgentMap2PanZoom(layoutWidth, layoutHeight, onTransform = () => {}) {
+  destroyAgentMap2PanZoom();
+
+  const viewport = agentMap2ViewportNode;
+  const canvas = agentMap2CanvasNode;
+  if (!viewport || !canvas) return;
+
+  const state = {
+    scale: 1,
+    tx: 0,
+    ty: 0,
+    panning: false,
+    panStartX: 0,
+    panStartY: 0,
+    panOriginTx: 0,
+    panOriginTy: 0
+  };
+
+  const applyTransform = () => {
+    canvas.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+    onTransform();
+  };
+
+  const fitToView = () => {
+    const rect = viewport.getBoundingClientRect();
+    if (!rect.width || !rect.height || !layoutWidth || !layoutHeight) return;
+    const padding = 40;
+    const scaleX = (rect.width - padding * 2) / layoutWidth;
+    const scaleY = (rect.height - padding * 2) / layoutHeight;
+    state.scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.15), 2.5);
+    state.tx = (rect.width - layoutWidth * state.scale) / 2;
+    state.ty = Math.max(24, (rect.height - layoutHeight * state.scale) / 2);
+    applyTransform();
+  };
+
+  const onWheel = (event) => {
+    event.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    const mx = event.clientX - rect.left;
+    const my = event.clientY - rect.top;
+    const factor = event.deltaY > 0 ? 0.92 : 1.08;
+    const nextScale = Math.min(2.5, Math.max(0.15, state.scale * factor));
+    state.tx = mx - ((mx - state.tx) * nextScale) / state.scale;
+    state.ty = my - ((my - state.ty) * nextScale) / state.scale;
+    state.scale = nextScale;
+    applyTransform();
+  };
+
+  const onMouseMove = (event) => {
+    if (!state.panning) return;
+    state.tx = state.panOriginTx + (event.clientX - state.panStartX);
+    state.ty = state.panOriginTy + (event.clientY - state.panStartY);
+    applyTransform();
+  };
+
+  const onMouseUp = () => {
+    if (!state.panning) return;
+    state.panning = false;
+    viewport.classList.remove("is-panning");
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+  };
+
+  const onMouseDown = (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest(".agent-map2-node")) return;
+    state.panning = true;
+    state.panStartX = event.clientX;
+    state.panStartY = event.clientY;
+    state.panOriginTx = state.tx;
+    state.panOriginTy = state.ty;
+    viewport.classList.add("is-panning");
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    event.preventDefault();
+  };
+
+  const onDblClick = (event) => {
+    if (event.target.closest(".agent-map2-node")) return;
+    fitToView();
+  };
+
+  viewport.addEventListener("wheel", onWheel, { passive: false });
+  viewport.addEventListener("mousedown", onMouseDown);
+  viewport.addEventListener("dblclick", onDblClick);
+
+  const getViewportContext = () => ({
+    wrap: viewport,
+    svg: viewport,
+    state,
+    fitToView,
+    applyTransform
+  });
+
+  const detachControls = attachGraphControlHandlers(agentMap2ControlsNode, getViewportContext);
+
+  agentMap2PanZoomCleanup = () => {
+    viewport.removeEventListener("wheel", onWheel);
+    viewport.removeEventListener("mousedown", onMouseDown);
+    viewport.removeEventListener("dblclick", onDblClick);
+    onMouseUp();
+    detachControls();
+    canvas.style.transform = "";
+  };
+
+  fitToView();
+}
+
 function bindAgentMap2LinksObserver(onRefresh) {
   if (!agentMap2ViewportNode || typeof ResizeObserver === "undefined") return;
   if (agentMap2LinksResizeObserver) {
@@ -37537,6 +37691,7 @@ function renderAgentMap2View() {
   if (!agentMap2CanvasNode || !agentMap2NodesNode) return;
 
   if (!currentMenuData) {
+    destroyAgentMap2PanZoom();
     agentMap2CanvasNode.style.width = "";
     agentMap2CanvasNode.style.height = "";
     agentMap2NodesNode.innerHTML = `<div class="agent-map2-empty">Дерево агента ещё не загружено</div>`;
@@ -37547,6 +37702,7 @@ function renderAgentMap2View() {
 
   const mapData = buildAgentMap2Data(currentMenuData);
   if (mapData.nodes.length <= 1) {
+    destroyAgentMap2PanZoom();
     agentMap2CanvasNode.style.width = "";
     agentMap2CanvasNode.style.height = "";
     agentMap2NodesNode.innerHTML = `<div class="agent-map2-empty">В workspace пока нет тем для схемы</div>`;
@@ -37571,6 +37727,7 @@ function renderAgentMap2View() {
   };
 
   bindAgentMap2LinksObserver(refreshLinks);
+  attachAgentMap2PanZoom(layout.canvasWidth, layout.canvasHeight, refreshLinks);
   requestAnimationFrame(() => {
     refreshLinks();
     requestAnimationFrame(refreshLinks);
@@ -38297,14 +38454,14 @@ function createHome2TopicCard(entry) {
 }
 
 function getAgentSchemaNodeKindLabel(entry) {
-  if (entry?.isFolder || isAreaNodePath(entry?.path)) return "Область";
+  if (isAreaNodePath(entry?.path)) return "Область";
   return "Тема";
 }
 
 function createAgentSchemaNodeButton(entry) {
   const row = document.createElement("button");
   row.type = "button";
-  const isArea = Boolean(entry.isFolder || isAreaNodePath(entry.path));
+  const isArea = isAreaNodePath(entry.path);
   row.className = `agent-schema-node${isArea ? " is-folder is-area" : " is-topic"}`;
 
   const kind = document.createElement("span");
@@ -38328,21 +38485,44 @@ function createAgentSchemaNodeButton(entry) {
 
 function createAgentSchemaItemLi(entry) {
   const li = document.createElement("li");
-  const isArea = Boolean(entry.isFolder || isAreaNodePath(entry.path));
+  const isArea = isAreaNodePath(entry.path);
   li.className = `agent-schema-item${isArea ? " is-area" : " is-topic"}`;
   li.appendChild(createAgentSchemaNodeButton(entry));
   return li;
 }
 
+function shouldHideAgentSchemaTreeNode(path) {
+  return isAgentRootIndexPath(path);
+}
+
 function walkAgentSchemaMenu(node, parentUl) {
   const children = getOrderedMenuChildren(node);
+
+  const appendAgentSchemaChild = (child) => {
+    if (child.kind === "folder") {
+      walkAgentSchemaMenu(child.entry, parentUl);
+      return;
+    }
+    if (shouldHideAgentSchemaTreeNode(child.entry.path)) return;
+    parentUl.appendChild(
+      createAgentSchemaItemLi({
+        path: child.entry.path,
+        label: child.entry.label || getLabelFromPath(child.entry.path),
+        displayPath: getNodeDisplayPath(child.entry.path)
+      })
+    );
+  };
+
+  if (node.indexPath && shouldHideAgentSchemaTreeNode(node.indexPath)) {
+    for (const child of children) appendAgentSchemaChild(child);
+    return;
+  }
 
   if (node.indexPath) {
     const li = createAgentSchemaItemLi({
       path: node.indexPath,
       label: getLabelFromPath(node.indexPath),
-      displayPath: getNodeDisplayPath(node.indexPath),
-      isFolder: true
+      displayPath: getNodeDisplayPath(node.indexPath)
     });
 
     const childUl = document.createElement("ul");
@@ -38351,13 +38531,12 @@ function walkAgentSchemaMenu(node, parentUl) {
     for (const child of children) {
       if (child.kind === "folder") {
         walkAgentSchemaMenu(child.entry, childUl);
-      } else {
+      } else if (!shouldHideAgentSchemaTreeNode(child.entry.path)) {
         childUl.appendChild(
           createAgentSchemaItemLi({
             path: child.entry.path,
             label: child.entry.label || getLabelFromPath(child.entry.path),
-            displayPath: getNodeDisplayPath(child.entry.path),
-            isFolder: isNodeManifestPath(child.entry.path) && !isPartNodePath(child.entry.path)
+            displayPath: getNodeDisplayPath(child.entry.path)
           })
         );
       }
@@ -38370,20 +38549,7 @@ function walkAgentSchemaMenu(node, parentUl) {
     return;
   }
 
-  for (const child of children) {
-    if (child.kind === "folder") {
-      walkAgentSchemaMenu(child.entry, parentUl);
-    } else {
-      parentUl.appendChild(
-        createAgentSchemaItemLi({
-          path: child.entry.path,
-          label: child.entry.label || getLabelFromPath(child.entry.path),
-          displayPath: getNodeDisplayPath(child.entry.path),
-          isFolder: isNodeManifestPath(child.entry.path) && !isPartNodePath(child.entry.path)
-        })
-      );
-    }
-  }
+  for (const child of children) appendAgentSchemaChild(child);
 }
 
 function getSortedAwnTypesList(typesMap) {

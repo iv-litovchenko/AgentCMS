@@ -186,7 +186,7 @@
                     <option value="dashboard" selected>Главная</option>
                     <option value="dashboard2">Дашборд</option>
                     <option value="graph">Граф связей</option>
-                    <option value="map2">Структура</option>
+                    <option value="map2" disabled>Структура</option>
                     <option value="table">Таблица</option>
                     <option value="vault">Каталог</option>
                     <option value="schema">Карта</option>
@@ -967,23 +967,24 @@
           <div class="agent-canvas-head-copy agent-map2-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Структура</h2>
-            <p class="agent-canvas-lead">
-              Жёсткие связи — физическая структура папок на диске. Мягкие — ссылки между темами через поля (появятся позже).
-            </p>
           </div>
-          <div class="agent-canvas-head-aside agent-map2-head-aside">
-            <div id="agent-map2-stats" class="agent-workspace-stats agent-map2-stats" aria-live="polite"></div>
-            <aside class="agent-map2-legend" aria-label="Типы связей">
+          <div class="agent-canvas-head-aside agent-map2-head-actions">
+            <aside class="agent-map2-legend agent-map2-legend--inline" aria-label="Типы связей">
               <div class="agent-map2-legend-item">
                 <span class="agent-map2-legend-line agent-map2-legend-line--hard" aria-hidden="true"></span>
-                <span>Жёсткая — папка содержит тему</span>
+                <span>Жёсткая</span>
               </div>
               <div class="agent-map2-legend-item">
                 <span class="agent-map2-legend-line agent-map2-legend-line--soft" aria-hidden="true"></span>
-                <span>Мягкая — поле ссылается на тему</span>
+                <span>Мягкая</span>
               </div>
-              <div class="agent-map2-legend-note">Мягкие связи пока не заданы в данных агента.</div>
             </aside>
+            <div id="agent-map2-stats" class="agent-workspace-stats agent-map2-stats" aria-live="polite"></div>
+            <div id="agent-map2-controls" class="external-graph-controls external-graph-controls--head" aria-label="Масштаб структуры">
+              <button type="button" class="external-graph-control-btn" data-action="zoom-in" title="Приблизить">+</button>
+              <button type="button" class="external-graph-control-btn" data-action="zoom-out" title="Отдалить">−</button>
+              <button type="button" class="external-graph-control-btn" data-action="reset" title="Сбросить вид">⟲</button>
+            </div>
           </div>
         </div>
         <div id="agent-map2-content" class="agent-map2-content">
