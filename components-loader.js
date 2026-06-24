@@ -2,10 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
 const { getComponentsAbsolute, COMPONENTS_REL } = require("./platform-sources");
+const { STORAGE_ROOT_FOLDER, LEGACY_STORAGE_ROOT_FOLDER } = require("./manifest-paths");
 
 const MANIFEST_FILE = "manifest.md";
 const SCHEMA_CANDIDATES = [
-  ["storage", "configuration", "schema.yml"],
+  [STORAGE_ROOT_FOLDER, "configuration", "schema.yml"],
+  [LEGACY_STORAGE_ROOT_FOLDER, "configuration", "schema.yml"],
   ["schema.yml"]
 ];
 
@@ -59,6 +61,10 @@ function inferRegistryKind(relPath, schema) {
   return schemaKind || "unknown";
 }
 
+function schemaRuntimeId(schema) {
+  return String(schema?.["runtime-id"] || schema?.id || "").trim();
+}
+
 function parseTopicManifest(manifestPath, componentsRoot) {
   if (!fs.existsSync(manifestPath)) return null;
   const raw = fs.readFileSync(manifestPath, "utf-8");
@@ -97,7 +103,7 @@ function parseTopicManifest(manifestPath, componentsRoot) {
     awnStatus,
     runtimeId:
       getYamlScalar(frontmatter, "runtime-id") ||
-      String(schema?.id || "").trim() ||
+      schemaRuntimeId(schema) ||
       "",
     extendsPath:
       legacyExtends && legacyExtends !== "null" ? legacyExtends.replace(/\\/g, "/") : null,
@@ -185,7 +191,7 @@ function isRegistryTopic(topic) {
 function buildRuntimeIdIndex(byPath) {
   const byRuntimeId = new Map();
   for (const topic of byPath.values()) {
-    const runtimeId = topic.runtimeId || topic.schema?.id;
+    const runtimeId = topic.runtimeId || schemaRuntimeId(topic.schema);
     if (runtimeId) byRuntimeId.set(String(runtimeId), topic);
   }
   return byRuntimeId;
@@ -286,7 +292,7 @@ function getComponentsPayload(projectRoot = process.cwd(), agentRoot = "") {
 function resolveRuntimeId(topic) {
   return (
     String(topic.runtimeId || "").trim() ||
-    String(topic.mergedSchema?.id || "").trim() ||
+    schemaRuntimeId(topic.mergedSchema) ||
     topic.id
   );
 }

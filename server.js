@@ -5085,7 +5085,7 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
   }
 
   const relUnderAssets = normalized
-    .replace(/^storage\/assets\//i, "")
+    .replace(/^(?:awn-storage|storage)\/assets\//i, "")
     .replace(/^assets\//i, "");
   const firstSegment = relUnderAssets.split("/")[0];
   if (isInlineAssetsUploadSubdir(firstSegment)) {
@@ -5109,9 +5109,14 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
     const ownerRel = resolveOwningManifestRelFromNodePath(nodeRel);
     const ownerContainer = getManifestContainerDirRel(ownerRel);
     if (ownerContainer && fileName) {
-      const legacyRef = `${ownerContainer}/storage/content/storage/assets/preview/${fileName}`;
-      const legacyAbsolute = normalizeWorkspacePath(legacyRef);
-      if (legacyAbsolute && (await fileExists(legacyAbsolute))) return legacyAbsolute;
+      const legacyRefs = [
+        `${ownerContainer}/awn-storage/content/awn-storage/assets/preview/${fileName}`,
+        `${ownerContainer}/storage/content/storage/assets/preview/${fileName}`
+      ];
+      for (const legacyRef of legacyRefs) {
+        const legacyAbsolute = normalizeWorkspacePath(legacyRef);
+        if (legacyAbsolute && (await fileExists(legacyAbsolute))) return legacyAbsolute;
+      }
     }
   }
 

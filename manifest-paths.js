@@ -555,15 +555,16 @@ function parseStorageLayerRef(workspaceRelPath) {
   let layer = "";
   let relativePath = "";
 
+  const storageRootPattern = getStorageRootPathPrefixPattern().replace(/\/$/, "");
   const rootMatch = normalized.match(
-    new RegExp(`^${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/(.+)$`, "i")
+    new RegExp(`^${storageRootPattern}/([^/]+)/(.+)$`, "i")
   );
   if (rootMatch) {
     layer = normalizeStorageSubfolderName(rootMatch[1]);
     relativePath = rootMatch[2];
   } else {
     const match = normalized.match(
-      new RegExp(`^(.*?)/${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)/(.+)$`, "i")
+      new RegExp(`^(.*?)/${storageRootPattern}/([^/]+)/(.+)$`, "i")
     );
     if (!match) return null;
     containerPrefix = String(match[1] || "").replace(/\/$/, "");
@@ -594,10 +595,13 @@ function resolveOwningManifestRelFromNodePath(nodePath) {
   if (!normalized) return "";
   const base = path.posix.basename(normalized);
   if (isManifestFileName(base)) return normalized;
-  const storageMarker = `/${STORAGE_ROOT_FOLDER}/`;
-  const idx = normalized.toLowerCase().indexOf(storageMarker.toLowerCase());
-  if (idx >= 0) {
-    const prefix = normalized.slice(0, idx).replace(/\/$/, "");
+  const normalizedLower = normalized.toLowerCase();
+  const storageMarkerIdx = Math.max(
+    normalizedLower.indexOf(`/${STORAGE_ROOT_FOLDER}/`),
+    normalizedLower.indexOf(`/${LEGACY_STORAGE_ROOT_FOLDER}/`)
+  );
+  if (storageMarkerIdx >= 0) {
+    const prefix = normalized.slice(0, storageMarkerIdx).replace(/\/$/, "");
     return prefix ? `${prefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
   }
   return normalized;

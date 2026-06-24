@@ -1,17 +1,17 @@
 ---
-awn-preview: awn-storage/assets/preview/20260617113521.png
+awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-emoji: ""
 awn-name: PHP
 awn-status: 🟢 Открыта
 awn-type: awn.topic
 awn-create: "2026-06-09T02:18"
-awn-update: 2026-06-24T07:12:57.486Z
+awn-update: 2026-06-24T20:25:40.838Z
 awn-description: ""
 awn-main: true
 awn-category: ""
 awn-tags: []
 awn-color: "#000000"
-awn-version: 8
+awn-version: 9
 awn-sort: ""
 ---
 
