@@ -9948,6 +9948,84 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  async function adoptExistingFolderWithManifest({
+    parentAbsolute,
+    parentPathResolved,
+    payload,
+    name,
+    nodeKind
+  }) {
+    const responseType = nodeKind === "topic" ? "topic-manifest" : "manifest";
+    const currentFolderName = path.basename(parentAbsolute);
+    const displayName = String(payload.displayName || "").trim();
+    const title =
+      displayName ||
+      String(name || stripTopicPrefix(currentFolderName)).trim() ||
+      currentFolderName;
+    const diskSlug = resolveNodeDiskSlugFromPayload(payload);
+    const targetFolderName = toFolderName(diskSlug);
+    if (!targetFolderName) {
+      return { error: "Invalid folder name", status: 400 };
+    }
+
+    let targetFolderAbsolute = parentAbsolute;
+    let targetFolderRel =
+      parentPathResolved && parentPathResolved !== "."
+        ? parentPathResolved
+        : currentFolderName;
+
+    if (targetFolderName !== currentFolderName) {
+      const parentDirAbsolute = path.dirname(parentAbsolute);
+      const renamedFolderAbsolute = path.join(parentDirAbsolute, targetFolderName);
+      try {
+        await fs.access(renamedFolderAbsolute);
+        return { error: "Folder with this name already exists", status: 409 };
+      } catch {
+        // Target does not exist, continue.
+      }
+      await fs.rename(parentAbsolute, renamedFolderAbsolute);
+      targetFolderAbsolute = renamedFolderAbsolute;
+      await updateMenuSortOrderSlug(
+        parentDirAbsolute,
+        stripTopicPrefix(currentFolderName),
+        stripTopicPrefix(targetFolderName)
+      );
+      const parentFolderRel = path.dirname(targetFolderRel).replace(/\\/g, "/");
+      targetFolderRel =
+        parentFolderRel && parentFolderRel !== "."
+          ? path.join(parentFolderRel, targetFolderName).replace(/\\/g, "/")
+          : targetFolderName;
+    }
+
+    const manifestAbsolute = path.join(targetFolderAbsolute, AREA_MANIFEST_FILE);
+    try {
+      await fs.access(manifestAbsolute);
+      return { error: "Node manifest already exists in this folder", status: 409 };
+    } catch {
+      // continue
+    }
+
+    const manifestFrontmatter = buildDefaultFrontmatter(nodeKind === "topic" ? "topic" : "area", {
+      name: title,
+      agentRoot: getAgentRoot(),
+      projectRoot: getProjectRoot()
+    });
+    await fs.writeFile(
+      manifestAbsolute,
+      joinNodeFrontmatter(manifestFrontmatter, ""),
+      "utf-8"
+    );
+
+    const createdRel = `${targetFolderRel}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+    await ensureManifestStorageSlotDir(createdRel);
+    await appendMenuSortOrderEntry(path.dirname(targetFolderAbsolute), targetFolderName);
+
+    return {
+      createdPath: toMenuDisplayCreatedPath(createdRel),
+      type: responseType
+    };
+  }
+
   if (req.method === "POST" && url.pathname === "/api/node/create") {
     try {
       const payload = await readJsonBody(req);
@@ -9961,6 +10039,7 @@ async function handleApiForAgent(req, res, url) {
         type !== "folder" &&
         type !== "file" &&
         type !== "manifest" &&
+        type !== "topic-manifest" &&
         type !== "catalog" &&
         type !== "service-doc" &&
         type !== "container-root" &&
@@ -10034,7 +10113,7 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      if (type === "folder" || type === "file" || type === "manifest") {
+      if (type === "folder" || type === "file" || type === "manifest" || type === "topic-manifest") {
         parentPathResolved = await resolveGitRepoCreateParentPath(parentPathResolved);
       }
 
@@ -10123,75 +10202,20 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 404, { error: "Parent folder not found" });
       }
 
-      if (type === "manifest") {
-        const currentFolderName = path.basename(parentAbsolute);
-        const displayName = String(payload.displayName || "").trim();
-        const title =
-          displayName ||
-          String(name || stripTopicPrefix(currentFolderName)).trim() ||
-          currentFolderName;
-        const diskSlug = resolveNodeDiskSlugFromPayload(payload);
-        const targetFolderName = toFolderName(diskSlug);
-        if (!targetFolderName) return sendJson(res, 400, { error: "Invalid folder name" });
-
-        let areaFolderAbsolute = parentAbsolute;
-        let areaFolderRel =
-          parentPathResolved && parentPathResolved !== "."
-            ? parentPathResolved
-            : currentFolderName;
-
-        if (targetFolderName !== currentFolderName) {
-          const parentDirAbsolute = path.dirname(parentAbsolute);
-          const targetFolderAbsolute = path.join(parentDirAbsolute, targetFolderName);
-          try {
-            await fs.access(targetFolderAbsolute);
-            return sendJson(res, 409, { error: "Folder with this name already exists" });
-          } catch {
-            // Target does not exist, continue.
-          }
-          await fs.rename(parentAbsolute, targetFolderAbsolute);
-          areaFolderAbsolute = targetFolderAbsolute;
-          await updateMenuSortOrderSlug(
-            parentDirAbsolute,
-            stripTopicPrefix(currentFolderName),
-            stripTopicPrefix(targetFolderName)
-          );
-          const parentFolderRel = path.dirname(areaFolderRel).replace(/\\/g, "/");
-          areaFolderRel =
-            parentFolderRel && parentFolderRel !== "."
-              ? path.join(parentFolderRel, targetFolderName).replace(/\\/g, "/")
-              : targetFolderName;
-        }
-
-        const manifestAbsolute = path.join(areaFolderAbsolute, AREA_MANIFEST_FILE);
-        try {
-          await fs.access(manifestAbsolute);
-          return sendJson(res, 409, { error: "Node manifest already exists in this folder" });
-        } catch {
-          // continue
-        }
-
-        const manifestFrontmatter = buildDefaultFrontmatter("area", {
-          name: title,
-          agentRoot: getAgentRoot(),
-          projectRoot: getProjectRoot()
+      if (type === "manifest" || type === "topic-manifest") {
+        const adoptResult = await adoptExistingFolderWithManifest({
+          parentAbsolute,
+          parentPathResolved,
+          payload,
+          name,
+          nodeKind: type === "topic-manifest" ? "topic" : "area"
         });
-        await fs.writeFile(
-          manifestAbsolute,
-          joinNodeFrontmatter(manifestFrontmatter, ""),
-          "utf-8"
-        );
-
-        const createdRel = `${areaFolderRel}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
-        await ensureManifestStorageSlotDir(createdRel);
-        await appendMenuSortOrderEntry(
-          path.dirname(areaFolderAbsolute),
-          targetFolderName
-        );
-
+        if (adoptResult.error) {
+          return sendJson(res, adoptResult.status || 400, { error: adoptResult.error });
+        }
         return sendJson(res, 200, {
-          createdPath: toMenuDisplayCreatedPath(createdRel),
-          type: "manifest"
+          createdPath: adoptResult.createdPath,
+          type: adoptResult.type
         });
       }
 

@@ -10617,6 +10617,28 @@ function isCreateParentInsideAreaOutsideContainer(parentPath, agentId = getCreat
   return isFolderPathInsideEstablishedArea(normalized);
 }
 
+function isCreateAdoptFolderContext() {
+  return createModalAdoptFolder && createModalBaseParentPath !== ".";
+}
+
+function isCreateAdoptInsideEstablishedArea() {
+  return isCreateAdoptFolderContext() && isFolderPathInsideEstablishedArea(createModalBaseParentPath);
+}
+
+function getCreateAdoptFolderPath() {
+  return normalizeCreateParentPath(createModalBaseParentPath || ".");
+}
+
+function resolveCreateNodeParentPath(type) {
+  if (
+    isCreateAdoptFolderContext() &&
+    (type === "manifest" || type === "topic-manifest")
+  ) {
+    return getCreateAdoptFolderPath();
+  }
+  return createTargetParentPath;
+}
+
 function shouldOfferCreateInContainerCheckbox(agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
   if (isServiceNodePath(normalized)) return false;
@@ -10987,7 +11009,8 @@ function isContainerSubfolderCreateParent(parentPath) {
 }
 
 function syncCreateNodeActionsUi() {
-  const showManifestOption = createModalAdoptFolder && createModalBaseParentPath !== ".";
+  const showManifestOption = isCreateAdoptFolderContext();
+  const adoptInsideArea = isCreateAdoptInsideEstablishedArea();
   const serviceRoot = isServiceRootCreateParent(createModalBaseParentPath);
   const serviceSubfolder = isServiceSubfolderCreateParent(createModalBaseParentPath);
   const inServiceTree = serviceRoot || serviceSubfolder;
@@ -10998,6 +11021,27 @@ function syncCreateNodeActionsUi() {
   createManifestBtn?.classList.toggle("hidden", !showManifestOption);
   createFolderBtn?.classList.toggle("hidden", showManifestOption);
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
+  if (createManifestBtn && showManifestOption) {
+    createManifestBtn.classList.toggle("create-node-action-btn--primary", !adoptInsideArea);
+  }
+  if (createFileBtn) {
+    if (showManifestOption && adoptInsideArea) {
+      createFileBtn.classList.remove("hidden");
+      createFileBtn.textContent = "Подхватить (тема)";
+      createFileBtn.title = `Подхватить папку как тему (${AREA_MANIFEST_FILE})`;
+      createFileBtn.classList.add("create-node-action-btn--primary");
+    } else if (showManifestOption) {
+      createFileBtn.classList.add("hidden");
+      createFileBtn.textContent = "Файл (тема)";
+      createFileBtn.title = "Новый файл темы (*.md)";
+      createFileBtn.classList.remove("create-node-action-btn--primary");
+    } else {
+      createFileBtn.classList.remove("hidden");
+      createFileBtn.textContent = "Файл (тема)";
+      createFileBtn.title = "Новый файл темы (*.md)";
+      createFileBtn.classList.remove("create-node-action-btn--primary");
+    }
+  }
   const atWorkspaceRoot = createModalBaseParentPath === ".";
   const showRootReserved = shouldShowReservedFoldersInCreateModal(getCreateModalAgentId());
   const showNestedGitContainerScaffold = shouldShowNestedGitContainerScaffold(getCreateModalAgentId());
@@ -11029,8 +11073,10 @@ function applyCreateNodeTargetPath() {
 function updateCreateNodeModalContext(parentPath) {
   const label = formatCreateParentLabel(parentPath);
   if (createNodeModalTitleNode) {
-    if (createModalAdoptFolder && createModalBaseParentPath !== ".") {
-      createNodeModalTitleNode.textContent = `Папка «${label}» — без области`;
+    if (isCreateAdoptFolderContext()) {
+      createNodeModalTitleNode.textContent = isCreateAdoptInsideEstablishedArea()
+        ? `Папка «${label}» — без темы`
+        : `Папка «${label}» — без области`;
     } else {
       createNodeModalTitleNode.textContent = `Создать в «${label}»`;
     }
@@ -42630,7 +42676,7 @@ function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentI
   }
   const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
   let parentFolder = ".";
-  if (type === "manifest") {
+  if (type === "manifest" || type === "topic-manifest") {
     parentFolder = manifestFolder;
   } else if (type === "folder") {
     const parts = manifestFolder.split("/").filter(Boolean);
@@ -43135,7 +43181,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
           if (!patched) {
             patched = patchMenuTreeAtFolder(parentFolder, agentId);
           }
-          if (patched && type === "manifest") {
+          if (patched && (type === "manifest" || type === "topic-manifest")) {
             const adoptFolder = normalizeMenuPatchFolderPath(
               getFolderPathFromManifest(normalizeMenuNodePath(createdPath)),
               agentId
@@ -43325,30 +43371,30 @@ async function createNode(type, options = {}) {
   }
 
   if (createModalEmptyFolder && type === "folder") {
-    type = "manifest";
+    type = isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "manifest";
   }
 
   const displayName = createNameInputNode?.value?.trim() ?? "";
   const slug = getCreateSlugInputValue();
   const folderLabel = formatCreateParentLabel(createModalBaseParentPath);
-  if (!displayName && type !== "manifest" && type !== "catalog" && type !== "taxonomy" && type !== "service-doc") {
+  if (!displayName && type !== "manifest" && type !== "topic-manifest" && type !== "catalog" && type !== "taxonomy" && type !== "service-doc") {
     showToast("Введите название", "error");
     return;
   }
-  const isManifestAdopt =
-    type === "manifest" && createModalAdoptFolder && createModalBaseParentPath !== ".";
-  if ((type === "folder" || type === "file" || isManifestAdopt) && !slug) {
+  const isManifestAdopt = type === "manifest" && isCreateAdoptFolderContext();
+  const isTopicManifestAdopt = type === "topic-manifest" && isCreateAdoptFolderContext();
+  if ((type === "folder" || type === "file" || isManifestAdopt || isTopicManifestAdopt) && !slug) {
     showToast("Введите slug (имя на диске)", "error");
     return;
   }
 
   try {
     const payload = {
-      parentPath: createTargetParentPath,
+      parentPath: resolveCreateNodeParentPath(type),
       type,
-      name: type === "manifest" ? folderLabel : displayName || folderLabel,
-      displayName: type === "manifest" ? displayName || folderLabel : displayName,
-      slug: type === "folder" || type === "file" || isManifestAdopt ? slug : ""
+      name: type === "manifest" || type === "topic-manifest" ? folderLabel : displayName || folderLabel,
+      displayName: type === "manifest" || type === "topic-manifest" ? displayName || folderLabel : displayName,
+      slug: type === "folder" || type === "file" || isManifestAdopt || isTopicManifestAdopt ? slug : ""
     };
     if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
       payload.preset = options.preset || name;
@@ -43377,7 +43423,9 @@ async function createNode(type, options = {}) {
         : type === "service-doc"
           ? `«${SERVICE_DOC_PRESET_LABELS[data.preset] || data.preset}» создан (${SERVICE_DOC_PRESET_FILES[data.preset] || ""}.md)`
           : type === "manifest"
-          ? `Область создана (${AREA_MANIFEST_FILE})`
+          ? `Область подхвачена (${AREA_MANIFEST_FILE})`
+          : type === "topic-manifest"
+            ? `Тема подхвачена (${AREA_MANIFEST_FILE})`
           : type === "folder"
             ? "Папка-область создана"
             : "Файл (тема) создан";
@@ -44530,7 +44578,9 @@ attachmentSidecarSaveBtn?.addEventListener("click", () => {
 });
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));
 createFolderBtn?.addEventListener("click", () => createNode("folder"));
-createFileBtn?.addEventListener("click", () => createNode("file"));
+createFileBtn?.addEventListener("click", () => {
+  createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "file");
+});
 createNodeCatalogActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-catalog-preset]");
   if (!button || button.disabled) return;
