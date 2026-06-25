@@ -6,4 +6,4 @@ tags: [system, catalog, global]
 
 # Пользователи
 
-Справочник для поля `awn-owner`. Данные — в `awn-storage/users/content.csv`.
+Справочник для поля `awn-owner`. Данные — в `awn-storage/users/memory.csv`.

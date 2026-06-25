@@ -345,7 +345,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category" },
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
-  { id: "awn.memory", label: "Память темы", hint: "content.md, todo, конфиги" },
+  { id: "awn.memory", label: "Память темы", hint: "memory.md, todo, конфиги" },
   { id: "awn.system", label: "Системные", hint: "AGENTS.md, TODO.md" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
 ];
@@ -590,8 +590,8 @@ const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
-const BUNDLE_CONTENT_FILE = "content.md";
-const BUNDLE_TABULAR_FILE = "content.csv";
+const BUNDLE_CONTENT_FILE = "memory.md";
+const BUNDLE_TABULAR_FILE = "memory.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
@@ -11544,9 +11544,11 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   if (isStorageRootRelativePath(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
-    if (/(?:\/awn-storage\/|\/storage\/)(?:content)\//i.test(rawContext)) {
-      const legacyNested = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
-      add(legacyNested);
+    if (/(?:\/awn-storage\/|\/storage\/)(?:memory|content)\//i.test(rawContext)) {
+      const legacyNested = `${containerDir}/awn-storage/memory/awn-storage/${stripStorageRootPrefix(normalized)}`;
+      add(legacyNested, { first: false });
+      const legacyNestedContent = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
+      add(legacyNestedContent);
       const legacyNestedOld = `${containerDir}/storage/content/storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNestedOld);
     }
@@ -11561,7 +11563,8 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   return candidates;
 }
 
-const STORAGE_SUBFOLDER_CONTENT = "content";
+const STORAGE_SUBFOLDER_MEMORY = "memory";
+const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
@@ -11746,7 +11749,7 @@ const AGENT_MAP3_LAYER_KEYS = [
   { key: BUNDLE_CONTENT_FILE, label: "Память" },
   { key: BUNDLE_CONFIG_FILE, label: "Конфиг" },
   { key: STORAGE_SUBFOLDER_MEDIA, label: "Файлы" },
-  { key: STORAGE_SUBFOLDER_CONTENT, label: "Контент" }
+  { key: STORAGE_SUBFOLDER_CONTENT, label: "Память" }
 ];
 
 let agentMap3RequestId = 0;
@@ -11801,8 +11804,8 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
   const resolved = String(getResolvedNodePath(nodePath) || "");
   const partBase = resolvePartFolderSidecarBaseRel(resolved);
   const suffixByKind = {
-    content: ".content.md",
-    tabular: ".content.csv",
+    content: ".memory.md",
+    tabular: ".memory.csv",
     todo: ".todo.md",
     preview: ".preview",
     config: ".configuration.yml"
@@ -13615,11 +13618,35 @@ const MEDIA_VIEW_SELECT_NODES = [
   { id: "other", label: "Прочее", icon: "📎", group: "Other" }
 ];
 
+function getMediaStorageContextPath(nodePath = activePath) {
+  const manifestBase = getResolvedNodePath(nodePath);
+  if (!manifestBase) return "";
+  return getNodeStorageSubfolderPath(manifestBase, "media");
+}
+
+function resolveMediaAssetContextPath(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    if (activeEntryOverviewContext.memoryKind === "media") {
+      return manifestPath;
+    }
+    if (!isEntryOverviewMemoryTocRoot(activeEntryOverviewContext)) {
+      const relPath = String(activeEntryOverviewContext.relPath || "").replace(/\\/g, "/");
+      if (/\.md$/i.test(relPath)) return relPath;
+      return manifestPath;
+    }
+  }
+
+  return getPropsContextPath(nodePath) || manifestPath || getUploadStorageContextPath();
+}
+
 function buildMediaAssetUrl(filePath, nodePath = activePath) {
   if (!nodePath || !filePath) return "";
+  const manifestBase = getResolvedNodePath(nodePath);
   return buildApiUrl("/api/media/file", {
-    path: resolveManifestPathForNodeApi(getResolvedNodePath(nodePath)),
-    contextPath: getPropsContextPath(nodePath) || getUploadStorageContextPath(),
+    path: resolveManifestPathForNodeApi(manifestBase),
+    contextPath: resolveMediaAssetContextPath(nodePath),
     file: filePath
   });
 }
@@ -14975,7 +15002,7 @@ function syncExternalListSectionHead(sectionFolder) {
   title.className = "media-section-folder-title";
 
   if (!sectionFolder) {
-    title.textContent = `📋 ${MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_CONTENT] || "Контент"}`;
+    title.textContent = `📋 ${MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_CONTENT] || "Память"}`;
   } else {
     const label = formatMemoryListSectionHeadLabel(sectionFolder);
     title.textContent = `📁 ${label}`;
@@ -15301,7 +15328,7 @@ function invalidateMenuDisplayLabelMap() {
 }
 
 const MEMORY_SUBFOLDER_BREADCRUMB_LABELS = {
-  [STORAGE_SUBFOLDER_CONTENT]: "Контент",
+  [STORAGE_SUBFOLDER_CONTENT]: "Память",
   [STORAGE_SUBFOLDER_MEDIA]: "Медиа"
 };
 
@@ -15388,6 +15415,34 @@ function buildSectionReadmeContent(title, awnType = "awn.record.category") {
     return `---\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
   }
   return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+}
+
+async function buildSectionReadmeContentWithSchema(title, awnType = "awn.record.category", nodePath = activePath) {
+  if (!awnType) return buildSectionReadmeContent(title, null);
+  const safeTitle = String(title || "Раздел").trim() || "Раздел";
+  const manifestPath = getTopicSchemaManifestPath(nodePath);
+  const schemaTarget = resolveAwnSchemaTargetForType(awnType);
+  if (!manifestPath || !schemaTarget) {
+    return buildSectionReadmeContent(safeTitle, awnType);
+  }
+  try {
+    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    const cache = await loadTopicSchemaForManifest(manifestPath);
+    const mergedType = cache?.merged?.[schemaTarget];
+    if (!mergedType?.fields || !Object.keys(mergedType.fields).length) {
+      return buildSectionReadmeContent(safeTitle, awnType);
+    }
+    let entries = applyTypeSchemaToEntries(
+      [{ key: "awn-type", kind: "string", value: awnType }],
+      awnType
+    );
+    const nameIndex = entries.findIndex((entry) => normalizePropsKey(entry.key) === "awn-name");
+    if (nameIndex >= 0) entries[nameIndex] = { ...entries[nameIndex], value: safeTitle };
+    else entries.unshift({ key: "awn-name", kind: "string", value: safeTitle });
+    return `---\n${stringifyPropsYaml(entries)}\n---\n\n> Описание раздела.\n`;
+  } catch {
+    return buildSectionReadmeContent(safeTitle, awnType);
+  }
 }
 
 function externalSectionReadmeExists(sectionFolder) {
@@ -17781,7 +17836,8 @@ const MEDIA_DOCUMENT_PREVIEW_EXTENSIONS = new Set([
   ".xlsx",
   ".ppt",
   ".pptx",
-  ".txt"
+  ".txt",
+  ".md"
 ]);
 
 function isMediaDocumentPreviewCandidate(fileName) {
@@ -17790,6 +17846,13 @@ function isMediaDocumentPreviewCandidate(fileName) {
 }
 
 function openMediaAsset(filePath, nodePath = activePath) {
+  const normalizedPath = String(filePath || "").replace(/\\/g, "/");
+  if (isSectionReadmePath(normalizedPath)) {
+    const sectionFolder = normalizedPath.slice(0, normalizedPath.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    void openMediaSectionReadme(normalizedPath, sectionFolder);
+    return;
+  }
+
   const fileName = getMediaAssetFileName(filePath);
   const url = buildMediaAssetUrl(filePath, nodePath);
   if (!url) return;
@@ -18509,7 +18572,7 @@ function renderMediaUsageDashboard(container) {
     nameCell.className = "media-dashboard-cell-name";
     const nameMain = document.createElement("div");
     nameMain.className = "media-dashboard-filename";
-    nameMain.textContent = item.name;
+    nameMain.textContent = item.displayName || item.name;
     const nameMeta = document.createElement("div");
     nameMeta.className = "media-dashboard-filemeta";
     nameMeta.textContent = `${item.typeLabel}${item.size ? ` · ${formatFileSize(item.size)}` : ""}`;
@@ -18552,14 +18615,20 @@ const STORAGE_FOLDER_LABELS = {
   external: STORAGE_SUBFOLDER_CONTENT
 };
 
+function getStorageFolderDisplayLabel(mode = activeContentMode) {
+  const label = getContentModeLabel(mode);
+  if (label && label !== mode) return label;
+  return STORAGE_FOLDER_LABELS[mode] || label || "";
+}
+
 function getStorageFolderMissingMessage(mode = activeContentMode) {
-  const folder = STORAGE_FOLDER_LABELS[mode];
-  return folder ? `Папка ${folder} не найдена` : "Папка не найдена";
+  const label = getStorageFolderDisplayLabel(mode);
+  return label ? `Папка «${label}» не найдена` : "Папка не найдена";
 }
 
 function getStorageFolderEmptyMessage(mode = activeContentMode) {
-  const folder = STORAGE_FOLDER_LABELS[mode];
-  return folder ? `Папка ${folder} пуста` : "Список пуст";
+  const label = getStorageFolderDisplayLabel(mode);
+  return label ? `Папка «${label}» пуста` : "Список пуст";
 }
 
 function isFlatStorageListMode(mode = activeContentMode) {
@@ -19280,16 +19349,21 @@ async function openMediaSidecar(mediaFilePath, options = {}) {
   mediaSidecarOpenInFlight = normalizedPath;
   try {
     const response = await fetch(
-      buildApiUrl("/api/media/sidecar", { path: getActiveNodeApiPath(), file: mediaFilePath })
+      buildApiUrl("/api/media/sidecar", buildTopicMediaSidecarApiParams(mediaFilePath))
     );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Request failed with ${response.status}`);
     }
     const data = await response.json();
-    enableMediaSidecarEditor(data.sourceFile, data.sidecar, data.content || "", options);
+    const content =
+      data.exists || String(data.content || "").trim()
+        ? data.content || ""
+        : buildDefaultMediaSidecarContent(data.sourceFile || mediaFilePath);
+    enableMediaSidecarEditor(data.sourceFile, data.sidecar, content, options);
   } catch (error) {
-    showToast("Ошибка открытия sidecar", "error");
+    const details = error?.message ? `: ${error.message}` : "";
+    showToast(`Ошибка открытия sidecar${details}`, "error");
   } finally {
     if (mediaSidecarOpenInFlight === normalizedPath) {
       mediaSidecarOpenInFlight = null;
@@ -20807,11 +20881,11 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
   if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
   if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
-  if (isSectionReadmePath(normalized) && /\/(?:awn-storage|storage)\/content\//i.test(normalized)) {
-    return "awn.record.category";
-  }
-  if (isSectionReadmePath(normalized) && /\/(?:awn-storage|storage)\/media\//i.test(normalized)) {
+  if (isSectionReadmePath(normalized) && /\/media\//i.test(normalized)) {
     return "awn.media.category";
+  }
+  if (isSectionReadmePath(normalized) && /\/content\//i.test(normalized)) {
+    return "awn.record.category";
   }
 
   const isStorageContentFile =
@@ -20961,7 +21035,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
-  "awn.record": "Запись в awn-storage/*/content/ (расширяется в configuration.yml темы)",
+  "awn.record": "Запись в awn-storage/*/memory/ (расширяется в configuration.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
   "awn.media.category": "Категория медиа — справочник для группировки файлов в media",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
@@ -21353,7 +21427,8 @@ function ensureAwnContextDefaults(entries) {
     if (entry?.key) map.set(entry.key, entry);
   }
 
-  const nextType = resolveAwnTypeForContext(activePath);
+  const existingType = normalizeAwnTypeName(map.get("awn-type")?.value);
+  const nextType = existingType || normalizeAwnTypeName(resolveAwnTypeForContext(activePath));
   if (nextType) {
     map.set("awn-type", { key: "awn-type", kind: "string", value: nextType });
   }
@@ -22511,7 +22586,7 @@ function getDocAsideMiniDocSpec() {
         "Первая строка — заголовки колонок",
         "Текст с запятой — в кавычках <code>\"…\"</code>",
         "Кавычка внутри поля — <code>\"\"</code>",
-        `Файл: ${formatMiniDocPathHint("content.csv")}`
+        `Файл: ${formatMiniDocPathHint("memory.csv")}`
       ],
       example: "name,role,status\nИван,admin,active\nМария,\"user, guest\",pending"
     };
@@ -22551,7 +22626,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Табличная память",
         items: [
-          `Данные в ${formatMiniDocPathHint("content.csv")}`,
+          `Данные в ${formatMiniDocPathHint("memory.csv")}`,
           "Кнопка «Исходник CSV» — правка текста",
           "Колонки через <code>,</code>, строки через Enter"
         ],
@@ -24284,6 +24359,26 @@ function buildAttachmentSidecarApiParams(mediaRel) {
   };
 }
 
+function buildTopicMediaSidecarApiParams(mediaFilePath, nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  return {
+    path: manifestPath,
+    contextPath: manifestPath,
+    file: String(mediaFilePath || "").replace(/\\/g, "/")
+  };
+}
+
+function buildDefaultMediaSidecarContent(sourceFilePath) {
+  const fileName = String(sourceFilePath || "").split("/").pop() || "Медиа";
+  const dot = fileName.lastIndexOf(".");
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const safeName = String(base || "Медиа").trim() || "Медиа";
+  const quotedName = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeName)
+    ? `"${safeName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+    : safeName;
+  return `---\nawn-type: awn.sidecar\nawn-name: ${quotedName}\n---\n\n`;
+}
+
 async function fetchAttachmentSidecarMeta(path) {
   const key = String(path || "");
   if (attachmentSidecarMetaCache.has(key)) {
@@ -25627,7 +25722,7 @@ async function ensureExternalSectionReadme(readmePath, sectionFolder) {
     body: JSON.stringify({
       path: getActiveNodeApiPath(),
       file: readmePath,
-      content: buildSectionReadmeContent(sectionLabel)
+      content: await buildSectionReadmeContentWithSchema(sectionLabel, "awn.record.category")
     })
   });
   if (!response.ok) {
@@ -25657,7 +25752,7 @@ async function ensureMediaSectionReadme(readmePath, sectionFolder) {
     body: JSON.stringify({
       path: getActiveNodeApiPath(),
       file: readmePath,
-      content: buildSectionReadmeContent(sectionLabel, "awn.media.category")
+      content: await buildSectionReadmeContentWithSchema(sectionLabel, "awn.media.category")
     })
   });
   if (!response.ok) {
@@ -26822,12 +26917,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   const hero = document.createElement("div");
   hero.className = "node-navigation-hero";
 
-  const metaPanel = buildNavigationHeroMetaPanel(options.meta, nodePath, {
-    showWorkspaceMarkers: options.showWorkspaceMarkers !== false
-  });
-
-  const body = document.createElement("div");
-  body.className = "node-navigation-hero-body";
+  const main = document.createElement("div");
+  main.className = "node-navigation-hero-main";
 
   const thumbWrap =
     options.thumbWrap ||
@@ -26836,8 +26927,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       thumbClass: options.thumbClass
     });
 
-  const head = document.createElement("div");
-  head.className = "node-navigation-hero-head";
+  const identity = document.createElement("div");
+  identity.className = "node-navigation-hero-identity";
 
   const titleNode = document.createElement("h2");
   titleNode.className = "node-navigation-hero-title";
@@ -26847,24 +26938,53 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = options.pathLabel || formatNodeHeroSlugLabel(nodePath);
 
-  if (options.onEditClick) {
-    const headTop = document.createElement("div");
-    headTop.className = "node-navigation-hero-head-top";
-    headTop.append(titleNode, createNodeOverviewEditButton(options.onEditClick, options.editLabel));
-    head.append(headTop, pathNode);
-  } else {
-    head.append(titleNode, pathNode);
+  identity.append(titleNode, pathNode);
+
+  const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
+  if (datesPanel.childElementCount > 0) {
+    identity.appendChild(datesPanel);
   }
+
+  if (options.showWorkspaceMarkers !== false) {
+    identity.appendChild(createNavigationHeroMarkersRow(nodePath));
+  }
+
   if (options.typeLabel) {
     const typeNode = document.createElement("span");
     typeNode.className = `node-entry-overview-kind${
       options.kindClass ? ` node-entry-overview-kind--${options.kindClass}` : ""
     }`;
     typeNode.textContent = options.typeLabel;
-    head.appendChild(typeNode);
+    identity.appendChild(typeNode);
   }
-  body.append(thumbWrap, head);
-  hero.append(body, metaPanel);
+
+  const actions = document.createElement("div");
+  actions.className = "node-navigation-hero-actions";
+  if (options.onEditClick) {
+    actions.appendChild(createNodeOverviewEditButton(options.onEditClick, options.editLabel));
+  }
+
+  main.append(thumbWrap, identity, actions);
+  hero.appendChild(main);
+
+  if (options.showWorkspaceMarkers !== false) {
+    const footer = document.createElement("div");
+    footer.className = "node-navigation-hero-footer";
+
+    const blurb = document.createElement("p");
+    blurb.className = "node-navigation-hero-footer-blurb";
+    blurb.textContent =
+      "Краткое описание темы или заметка редактора. Здесь может быть аннотация, статус работы или ссылка на связанный документ — пока это заглушка для макета.";
+
+    const footerNote = document.createElement("p");
+    footerNote.className = "node-navigation-hero-footer-note";
+    footerNote.textContent =
+      "Второй уровень футера: маркеры области, тип записи, теги или другие метки — тоже заглушка.";
+
+    footer.append(blurb, footerNote);
+    hero.appendChild(footer);
+  }
+
   return hero;
 }
 
@@ -27731,14 +27851,20 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = []) {
 }
 
 function appendNavigationHeroMetaRow(panel, label, value) {
-  const dt = document.createElement("dt");
-  dt.className = "node-navigation-hero-meta-label";
-  dt.textContent = label;
-  const dd = document.createElement("dd");
-  dd.className = "node-navigation-hero-meta-value";
+  const chip = document.createElement("div");
+  chip.className = "node-navigation-hero-meta-chip";
+
+  const labelNode = document.createElement("span");
+  labelNode.className = "node-navigation-hero-meta-label";
+  labelNode.textContent = label;
+
+  const valueNode = document.createElement("span");
+  valueNode.className = "node-navigation-hero-meta-value";
   const text = String(value ?? "").trim();
-  dd.textContent = text || "—";
-  panel.append(dt, dd);
+  valueNode.textContent = text || "—";
+
+  chip.append(labelNode, valueNode);
+  panel.appendChild(chip);
 }
 
 function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
@@ -27786,10 +27912,15 @@ function createNavigationHeroMarkerSlot({ id, caption, active, createSvg, titleA
 }
 
 function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
+  const markersRow = createNavigationHeroMarkersRow(nodePath);
+  if (markersRow) panel.appendChild(markersRow);
+}
+
+function createNavigationHeroMarkersRow(nodePath) {
   const markers = getFolderWorkspaceMarkersForNode(nodePath);
 
-  const dd = document.createElement("dd");
-  dd.className = "node-navigation-hero-meta-value node-navigation-hero-meta-markers";
+  const markersRow = document.createElement("div");
+  markersRow.className = "node-navigation-hero-meta-markers";
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-hero-marker-slots";
@@ -27848,11 +27979,11 @@ function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
   block.className = "node-navigation-hero-marker-block";
   block.append(wrap, kindRow);
 
-  dd.appendChild(block);
-  panel.appendChild(dd);
+  markersRow.appendChild(block);
+  return markersRow;
 }
 
-function buildNavigationHeroMetaPanel(meta, nodePath = activePath, options = {}) {
+function buildNavigationHeroDatesPanel(meta, nodePath = activePath) {
   recordNodeLastViewed(nodePath);
 
   const createdIso = meta?.manifest?.createdAt || meta?.folder?.createdAt;
@@ -27869,11 +28000,18 @@ function buildNavigationHeroMetaPanel(meta, nodePath = activePath, options = {})
     ["Последний просмотр", lastViewedIso ? formatNodeMetaDateTime(lastViewedIso) : null]
   ];
 
-  const panel = document.createElement("dl");
-  panel.className = "node-navigation-hero-meta";
+  const panel = document.createElement("div");
+  panel.className = "node-navigation-hero-meta node-navigation-hero-dates";
+  panel.setAttribute("role", "group");
+  panel.setAttribute("aria-label", "Даты записи");
   for (const [label, value] of rows) {
     appendNavigationHeroMetaRow(panel, label, value);
   }
+  return panel;
+}
+
+function buildNavigationHeroMetaPanel(meta, nodePath = activePath, options = {}) {
+  const panel = buildNavigationHeroDatesPanel(meta, nodePath);
   if (options.showWorkspaceMarkers !== false) {
     appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath);
   }
@@ -29316,9 +29454,9 @@ function buildEntryOverviewMediaAssetItem(context, navigationIndex = null) {
   };
 }
 
-function createEntryOverviewMediaAssetShowcase(context, assetKind) {
+function createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath = activePath) {
   const relativePath = String(context.relativePath || "");
-  const assetUrl = appendCacheBuster(buildMediaAssetUrl(relativePath));
+  const assetUrl = appendCacheBuster(buildMediaAssetUrl(relativePath, nodePath));
   const showcase = document.createElement("div");
   showcase.className = `node-entry-overview-media-asset-showcase is-kind-${assetKind}`;
 
@@ -29388,35 +29526,37 @@ function createEntryOverviewMediaAssetShowcase(context, assetKind) {
 function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex = null) {
   const assetKind = getEntryOverviewMediaAssetKind(context.relativePath);
   const mediaItem = buildEntryOverviewMediaAssetItem(context, navigationIndex);
+  const nodePath = activePath;
   const panel = document.createElement("section");
-  panel.className = `node-entry-overview-media-asset node-entry-overview-media-asset--${assetKind}`;
+  panel.className = `node-entry-overview-media-asset node-entry-overview-media-asset--${assetKind} node-navigation-hero`;
 
-  panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind));
-
-  const foot = document.createElement("div");
-  foot.className = "node-entry-overview-media-asset-foot";
+  panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath));
 
   const main = document.createElement("div");
-  main.className = "node-entry-overview-media-asset-main";
+  main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
+
+  const identity = document.createElement("div");
+  identity.className = "node-navigation-hero-identity";
 
   const kindBadge = document.createElement("span");
-  kindBadge.className = "node-entry-overview-media-asset-kind";
+  kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
   kindBadge.textContent = `${getEntryOverviewMediaAssetKindIcon(assetKind)} ${getEntryOverviewMediaAssetKindLabel(assetKind)}`;
 
   const titleNode = document.createElement("h2");
-  titleNode.className = "node-entry-overview-media-asset-title";
+  titleNode.className = "node-navigation-hero-title";
   titleNode.textContent = title;
 
-  const titleRow = document.createElement("div");
-  titleRow.className = "node-entry-overview-media-asset-title-row";
-  titleRow.append(
-    titleNode,
-    createNodeOverviewEditButton(() => openEntryOverviewEdit(context))
-  );
-
   const pathNode = document.createElement("p");
-  pathNode.className = "node-entry-overview-media-asset-path";
+  pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = formatEntryOverviewHeroPathLabel(entries, context.relativePath);
+
+  identity.append(kindBadge, titleNode, pathNode);
+
+  const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
+  if (datesPanel.childElementCount > 0) {
+    datesPanel.classList.add("node-entry-overview-media-asset-dates");
+    identity.appendChild(datesPanel);
+  }
 
   const metaLineParts = [mediaItem.name];
   if (mediaItem.ext) metaLineParts.push(mediaItem.ext.replace(/^\./, "").toUpperCase());
@@ -29424,20 +29564,15 @@ function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, n
   const metaLine = document.createElement("p");
   metaLine.className = "node-entry-overview-media-asset-meta-line";
   metaLine.textContent = metaLineParts.join(" · ");
-
-  main.append(kindBadge, titleRow, pathNode, metaLine);
+  identity.appendChild(metaLine);
 
   const actions = document.createElement("div");
-  actions.className = "node-entry-overview-media-asset-actions";
+  actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";
+  actions.appendChild(createNodeOverviewEditButton(() => openEntryOverviewEdit(context)));
   appendMediaItemActionButtons(actions, mediaItem);
 
-  const datesPanel = buildNavigationHeroMetaPanel(nodeMeta, context.relPath, {
-    showWorkspaceMarkers: false
-  });
-  datesPanel.classList.add("node-entry-overview-media-asset-dates");
-
-  foot.append(main, actions, datesPanel);
-  panel.appendChild(foot);
+  main.append(identity, actions);
+  panel.appendChild(main);
   return panel;
 }
 
@@ -38172,8 +38307,7 @@ async function saveContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: getActiveNodeApiPath(),
-          file: activeMediaSidecarSourcePath,
+          ...buildTopicMediaSidecarApiParams(activeMediaSidecarSourcePath),
           content
         })
       });
@@ -39844,7 +39978,7 @@ async function renderAgentBrokenLinksView() {
       agentBrokenLinksStatsNode.append(
         renderAgentBrokenLinksStatChip("битых", data.count ?? 0, data.count ? "total" : ""),
         renderAgentBrokenLinksStatChip("markdown", data.scanned?.markdown ?? 0),
-        renderAgentBrokenLinksStatChip("content.csv", data.scanned?.csv ?? 0)
+        renderAgentBrokenLinksStatChip("memory.csv", data.scanned?.csv ?? 0)
       );
     }
 
@@ -39853,7 +39987,7 @@ async function renderAgentBrokenLinksView() {
 
     const meta = document.createElement("p");
     meta.className = "agent-broken-links-meta-line";
-    meta.textContent = `Проверены YAML-шапки, тело .md и content.csv · всего файлов: ${data.scanned?.files ?? 0}`;
+    meta.textContent = `Проверены YAML-шапки, тело .md и memory.csv · всего файлов: ${data.scanned?.files ?? 0}`;
     shell.appendChild(meta);
 
     const issues = Array.isArray(data.issues) ? data.issues : [];
@@ -39862,7 +39996,7 @@ async function renderAgentBrokenLinksView() {
       empty.className = "agent-broken-links-empty-state";
       empty.innerHTML = `
         <p class="agent-broken-links-empty-title">Битых ссылок не найдено</p>
-        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>content.csv</code> указывают на существующие файлы и wikilink-цели.</p>
+        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>memory.csv</code> указывают на существующие файлы и wikilink-цели.</p>
       `;
       shell.appendChild(empty);
     } else {
@@ -41206,8 +41340,8 @@ function getTimelineEventSubtitle(event) {
 
   if (fileKind === "manifest") return "manifest.md";
   if (fileKind === "preview") return event?.previewFile || fileName;
-  if (fileKind === "content") return BUNDLE_CONTENT_FILE || "content.md";
-  if (fileKind === "tabular") return BUNDLE_TABULAR_FILE || "content.csv";
+  if (fileKind === "content") return BUNDLE_CONTENT_FILE || "memory.md";
+  if (fileKind === "tabular") return BUNDLE_TABULAR_FILE || "memory.csv";
   if (fileKind === "config") return "configuration.yml";
 
   const rel = String(event?.relPath || "").replace(/\\/g, "/");

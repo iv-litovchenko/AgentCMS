@@ -26,13 +26,13 @@ awn-sort: ""
 
 | Топик | Данные |
 |-------|--------|
-| `tags.md` | `awn-storage/tags/content.csv` |
-| `categories.md` | `awn-storage/categories/content.csv` |
-| `statuses.md` | `awn-storage/statuses/content.csv` |
-| `users.md` | `awn-storage/users/content.csv` |
-| `priorities.md` | `awn-storage/priorities/content.csv` |
-| `colors.md` | `awn-storage/colors/content.csv` |
-| `schemas.md` | `awn-storage/schemas/content.md` |
+| `tags.md` | `awn-storage/tags/memory.csv` |
+| `categories.md` | `awn-storage/categories/memory.csv` |
+| `statuses.md` | `awn-storage/statuses/memory.csv` |
+| `users.md` | `awn-storage/users/memory.csv` |
+| `priorities.md` | `awn-storage/priorities/memory.csv` |
+| `colors.md` | `awn-storage/colors/memory.csv` |
+| `schemas.md` | `awn-storage/schemas/memory.md` |
 
 ## Использование в агентах
 

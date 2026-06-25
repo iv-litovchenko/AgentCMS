@@ -4,7 +4,8 @@
     ".docx": "docx",
     ".xls": "xlsx",
     ".xlsx": "xlsx",
-    ".txt": "text"
+    ".txt": "text",
+    ".md": "text"
   };
 
   const FALLBACK_EXTENSIONS = new Set([".doc", ".ppt", ".pptx"]);

@@ -6,4 +6,4 @@ tags: [system, catalog, global]
 
 # Приоритеты
 
-Справочник для поля `awn-priority`. Данные — в `awn-storage/priorities/content.csv`.
+Справочник для поля `awn-priority`. Данные — в `awn-storage/priorities/memory.csv`.

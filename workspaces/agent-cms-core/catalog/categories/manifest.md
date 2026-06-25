@@ -6,6 +6,6 @@ tags: [system, catalog, global]
 
 # Категории
 
-Глобальный справочник категорий платформы. Данные — в `awn-storage/categories/content.csv`.
+Глобальный справочник категорий платформы. Данные — в `awn-storage/categories/memory.csv`.
 
 Workspace-агенты могут дополнять список локальным справочником в `awn-awn-agent-kit/catalog/categories.md`.

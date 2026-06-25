@@ -638,7 +638,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/content.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/memory.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
     content:
       "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
   },
@@ -649,7 +649,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/content.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/memory.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
@@ -659,7 +659,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `awn-storage/statuses/content.csv`.\n",
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `awn-storage/statuses/memory.csv`.\n",
     content:
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\n"
   },
@@ -670,7 +670,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Пользователи",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Пользователи\n\nСправочник для `awn-owner`. Данные — в `awn-storage/users/content.csv`.\n",
+      "# Пользователи\n\nСправочник для `awn-owner`. Данные — в `awn-storage/users/memory.csv`.\n",
     content: "id,label,email\nme,Я,me@local\n"
   },
   {
@@ -680,7 +680,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Приоритеты",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Приоритеты\n\nСправочник для `awn-priority`. Данные — в `awn-storage/priorities/content.csv`.\n",
+      "# Приоритеты\n\nСправочник для `awn-priority`. Данные — в `awn-storage/priorities/memory.csv`.\n",
     content: "id,label,sort\nlow,Низкий,1\nmedium,Средний,2\nhigh,Высокий,3\n"
   },
   {
@@ -690,7 +690,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Палитра",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Палитра\n\nBrand-цвета для `awn-color`. Данные — в `awn-storage/colors/content.csv`.\n",
+      "# Палитра\n\nBrand-цвета для `awn-color`. Данные — в `awn-storage/colors/memory.csv`.\n",
     content: "id,label,color\nslate,Slate,#64748b\nblue,Blue,#2563eb\nviolet,Violet,#7c3aed\n"
   },
   {
@@ -699,7 +699,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "schemas",
     title: "Схемы",
     manifest:
-      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `awn-storage/schemas/content.md`.\n",
+      "# Схемы\n\nОпределения типов и полей для тем workspace. Данные — в `awn-storage/schemas/memory.md`.\n",
     content:
       "# Схемы\n\n## node.default\n\nБазовые поля темы: `title`, `tags`, `color`, `priority`, `owner`, `status`.\n"
   },

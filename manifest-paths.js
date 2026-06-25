@@ -33,8 +33,12 @@ const CONFIGURATION_ROOT_FOLDER = "configuration";
 const SERVICE_AREA_NAME = "Служебные темы и компоненты";
 
 const BUNDLE_BODY_FILE = "body.md";
-const BUNDLE_CONTENT_FILE = "content.md";
-const BUNDLE_TABULAR_FILE = "content.csv";
+const BUNDLE_MEMORY_FILE = "memory.md";
+const BUNDLE_TABULAR_FILE = "memory.csv";
+const LEGACY_BUNDLE_CONTENT_FILE = "content.md";
+const LEGACY_BUNDLE_TABULAR_FILE = "content.csv";
+/** @deprecated use BUNDLE_MEMORY_FILE */
+const BUNDLE_CONTENT_FILE = BUNDLE_MEMORY_FILE;
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
@@ -49,7 +53,10 @@ const WORKSPACE_MENU_EXCLUDED_MD = new Set([
   "STRUCTURE.md"
 ]);
 
-const STORAGE_SUBFOLDER_CONTENT = "content";
+const STORAGE_SUBFOLDER_MEMORY = "memory";
+const LEGACY_STORAGE_SUBFOLDER_CONTENT = "content";
+/** @deprecated use STORAGE_SUBFOLDER_MEMORY */
+const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
@@ -69,7 +76,7 @@ const HISTORY_VERSION_SUFFIX = ".mdback";
 const COMMENT_FILE_SUFFIX = ".md";
 
 const STORAGE_SLOT_LAYER_FOLDERS = [
-  STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_MEMORY,
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
@@ -89,7 +96,7 @@ const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
 ];
 
 const STORAGE_SUBFOLDER_BY_MODE = {
-  external: STORAGE_SUBFOLDER_CONTENT,
+  external: STORAGE_SUBFOLDER_MEMORY,
   inbox: STORAGE_SUBFOLDER_INBOX,
   thread: STORAGE_SUBFOLDER_THREAD,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
@@ -198,8 +205,12 @@ function getStorageFolderRegexAlternation() {
 function listBundleFileNameCandidates(bundleFileName) {
   const canonical = String(bundleFileName || "").trim();
   if (!canonical) return [];
-  if (canonical.toLowerCase() === BUNDLE_CONTENT_FILE.toLowerCase()) {
-    return [BUNDLE_BODY_FILE, BUNDLE_CONTENT_FILE];
+  const lower = canonical.toLowerCase();
+  if (lower === BUNDLE_MEMORY_FILE.toLowerCase() || lower === LEGACY_BUNDLE_CONTENT_FILE.toLowerCase()) {
+    return [BUNDLE_MEMORY_FILE, LEGACY_BUNDLE_CONTENT_FILE, BUNDLE_BODY_FILE];
+  }
+  if (lower === BUNDLE_TABULAR_FILE.toLowerCase() || lower === LEGACY_BUNDLE_TABULAR_FILE.toLowerCase()) {
+    return [BUNDLE_TABULAR_FILE, LEGACY_BUNDLE_TABULAR_FILE];
   }
   return [canonical];
 }
@@ -213,6 +224,9 @@ function getNamedStorageBundleRelCandidates(relPath, bundleFileName) {
 function normalizeStorageSubfolderName(name) {
   const raw = String(name || "").trim();
   if (!raw) return "";
+  if (raw === LEGACY_STORAGE_SUBFOLDER_CONTENT || raw.toLowerCase() === LEGACY_STORAGE_SUBFOLDER_CONTENT) {
+    return STORAGE_SUBFOLDER_MEMORY;
+  }
   for (const canonical of STORAGE_SLOT_LAYER_FOLDERS) {
     if (raw === canonical || raw.toLowerCase() === canonical.toLowerCase()) return canonical;
   }
@@ -225,7 +239,11 @@ function getStorageSubfolderForMode(mode) {
 
 function listStorageSubfolderNameCandidates(folderName) {
   const canonical = normalizeStorageSubfolderName(folderName);
-  return canonical ? [canonical] : [];
+  if (!canonical) return [];
+  if (canonical === STORAGE_SUBFOLDER_MEMORY) {
+    return [STORAGE_SUBFOLDER_MEMORY, LEGACY_STORAGE_SUBFOLDER_CONTENT];
+  }
+  return [canonical];
 }
 
 function isAllowedStorageSubfolderName(name) {
@@ -277,7 +295,7 @@ function isRecordCategoryContentRelPath(relPath) {
 function isExternalSectionReadmeRelPath(relPath) {
   const normalized = normalizeManifestRelPath(relPath);
   if (!isAreaManifestRelPathSuffix(normalized)) return false;
-  return /\/content\//i.test(normalized);
+  return /\/(?:memory|content)\//i.test(normalized);
 }
 
 function isMediaSectionReadmeRelPath(relPath) {
@@ -506,8 +524,10 @@ function formatHistoryVersionTimestampLabel(fileName) {
 
 function resolveBundleFileMode(fileNameLower) {
   if (fileNameLower === BUNDLE_BODY_FILE.toLowerCase()) return "internal";
-  if (fileNameLower === BUNDLE_CONTENT_FILE.toLowerCase()) return "internal";
+  if (fileNameLower === BUNDLE_MEMORY_FILE.toLowerCase()) return "internal";
+  if (fileNameLower === LEGACY_BUNDLE_CONTENT_FILE.toLowerCase()) return "internal";
   if (fileNameLower === BUNDLE_TABULAR_FILE.toLowerCase()) return "tabular";
+  if (fileNameLower === LEGACY_BUNDLE_TABULAR_FILE.toLowerCase()) return "tabular";
   if (fileNameLower === BUNDLE_CONFIG_FILE.toLowerCase()) return "configs";
   if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
   if (fileNameLower.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) return "node-preview";
@@ -653,7 +673,8 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   if (isMediaSectionReadmeRelPath(normalized)) return "awn.media.category";
 
   const isStorageContentFile =
-    options.contentMode === "external" || /\/storage\/content\//i.test(normalized);
+    options.contentMode === "external" ||
+    /\/(?:awn-storage|storage)\/(?:memory|content)\//i.test(normalized);
   if (isStorageContentFile && !isManifestFileName(fileName)) {
     return "awn.record";
   }
@@ -701,9 +722,11 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   if (isStorageRootRelativePath(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
-    if (/(?:\/awn-storage\/|\/storage\/)(?:content)\//i.test(rawContext)) {
-      const legacyNested = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
+    if (/(?:\/awn-storage\/|\/storage\/)(?:memory|content)\//i.test(rawContext)) {
+      const legacyNested = `${containerDir}/awn-storage/memory/awn-storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNested);
+      const legacyNestedContent = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
+      add(legacyNestedContent);
       const legacyNestedOld = `${containerDir}/storage/content/storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNestedOld);
     }
@@ -912,8 +935,6 @@ const LEGACY_NODE_MANIFEST_FILES = [];
 const LEGACY_AREA_MANIFEST_FILE = MANIFEST_FILE;
 const LEGACY_AREA_MANIFEST_ALIASES = [];
 const LEGACY_STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
-const LEGACY_BUNDLE_CONTENT_FILE = BUNDLE_CONTENT_FILE;
-const LEGACY_BUNDLE_TABULAR_FILE = BUNDLE_TABULAR_FILE;
 const LEGACY_HISTORY_VERSION_SUFFIX = ".md.back";
 
 function legacyManifestRelToNodeSidecar(relPath, nodeSidecarSuffix) {
@@ -952,8 +973,11 @@ module.exports = {
   AREA_MANIFEST_CANDIDATES,
   TOPIC_MANIFEST_RE,
   BUNDLE_BODY_FILE,
+  BUNDLE_MEMORY_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
+  LEGACY_BUNDLE_CONTENT_FILE,
+  LEGACY_BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
   ROOT_SYSTEM_TODO_FILE,
@@ -962,7 +986,9 @@ module.exports = {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_EXTENSIONS,
   PREVIEW_FILE_NAMES,
+  STORAGE_SUBFOLDER_MEMORY,
   STORAGE_SUBFOLDER_CONTENT,
+  LEGACY_STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
@@ -987,8 +1013,6 @@ module.exports = {
   LEGACY_STORAGE_FOLDER_NAME,
   LEGACY_AREA_MANIFEST_FILE,
   LEGACY_AREA_MANIFEST_ALIASES,
-  LEGACY_BUNDLE_CONTENT_FILE,
-  LEGACY_BUNDLE_TABULAR_FILE,
   MANIFEST_MD_RE,
   cleanManifestName,
   stripTopicPrefix,

@@ -62,6 +62,8 @@ const {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_MEMORY,
+  LEGACY_STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
@@ -584,13 +586,13 @@ function formatYamlScalarForFrontmatter(value) {
 
 function toContentFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.content.md`;
+  if (partBase) return `${partBase}.memory.md`;
   return namedStorageBundleRel(relNodePath, BUNDLE_CONTENT_FILE);
 }
 
 function toTabularFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.content.csv`;
+  if (partBase) return `${partBase}.memory.csv`;
   return namedStorageBundleRel(relNodePath, BUNDLE_TABULAR_FILE);
 }
 
@@ -735,25 +737,18 @@ async function resolveMediaSidecarWorkspaceRel(manifestRelPath, relFile) {
   if (!context) return null;
   const normalizedRelFile = normalizeRelativeFilePath(relFile);
   if (!normalizedRelFile) return null;
-  const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
-  if (!sidecarRelPath) return null;
 
-  const assetsFolder = await getAssetsFolderAbsolute(context.absolute);
-  if (assetsFolder) {
-    const sidecarAbsolute = path.join(assetsFolder, sidecarRelPath);
-    if (sidecarAbsolute.startsWith(assetsFolder)) {
-      return manifestRelFromNodeAbsolute(sidecarAbsolute);
-    }
-  }
+  const mediaAbsolute = await resolveUploadedMediaFileAbsolute(context.absolute, normalizedRelFile);
+  if (!mediaAbsolute) return null;
 
-  const mediaFolder = await getMediaFolderAbsolute(context.absolute);
-  if (mediaFolder) {
-    const sidecarAbsolute = path.join(mediaFolder, sidecarRelPath);
-    if (sidecarAbsolute.startsWith(mediaFolder)) {
-      return manifestRelFromNodeAbsolute(sidecarAbsolute);
-    }
-  }
-  return null;
+  const sidecarAbsolute = await resolveMediaSidecarAbsolute(
+    context.absolute,
+    mediaAbsolute,
+    normalizedRelFile
+  );
+  if (!sidecarAbsolute) return null;
+
+  return manifestRelFromNodeAbsolute(sidecarAbsolute);
 }
 
 async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName }) {
@@ -1831,16 +1826,19 @@ async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName
 
 async function readExistingBundleFile(relNodePath, bundleFileName) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
-  const canonicalRel = namedStorageBundleRel(resolvedRelPath, bundleFileName);
-  const absolute = normalizeWorkspacePath(canonicalRel);
-  if (!absolute) return { path: canonicalRel, content: "", exists: false };
-  try {
-    const content = await fs.readFile(absolute, "utf-8");
-    return { path: canonicalRel, content, exists: true };
-  } catch (error) {
-    if (!error || error.code !== "ENOENT") throw error;
+  for (const name of listBundleFileNameCandidates(bundleFileName)) {
+    const canonicalRel = namedStorageBundleRel(resolvedRelPath, name);
+    const absolute = normalizeWorkspacePath(canonicalRel);
+    if (!absolute) continue;
+    try {
+      const content = await fs.readFile(absolute, "utf-8");
+      return { path: canonicalRel, content, exists: true };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
   }
-  return { path: canonicalRel, content: "", exists: false };
+  const fallback = namedStorageBundleRel(resolvedRelPath, bundleFileName);
+  return { path: fallback, content: "", exists: false };
 }
 
 function getYamlScalar(frontmatter, key) {
@@ -2596,6 +2594,64 @@ function toMediaSidecarRelativePath(mediaRelPath) {
   const base = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
   if (!base) return null;
   return `${dir}${base}.sidecar.md`;
+}
+
+function resolveMediaSidecarAbsoluteFromMediaFile(mediaAbsolute) {
+  if (!mediaAbsolute) return null;
+  const mediaDir = path.resolve(path.dirname(mediaAbsolute));
+  const fileName = path.basename(mediaAbsolute);
+  const dotIndex = fileName.lastIndexOf(".");
+  const stem = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  if (!stem) return null;
+  const sidecarAbsolute = path.join(mediaDir, `${stem}.sidecar.md`);
+  if (path.resolve(path.dirname(sidecarAbsolute)) !== mediaDir) return null;
+  return sidecarAbsolute;
+}
+
+async function isAllowedMediaSidecarAbsolute(nodeAbsolute, sidecarAbsolute) {
+  if (!nodeAbsolute || !sidecarAbsolute) return false;
+  const resolvedSidecar = path.resolve(sidecarAbsolute);
+  const mediaFolder = await getMediaFolderAbsolute(nodeAbsolute);
+  if (mediaFolder && resolvedSidecar.startsWith(path.resolve(mediaFolder))) return true;
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute);
+  if (assetsFolder && resolvedSidecar.startsWith(path.resolve(assetsFolder))) return true;
+  return false;
+}
+
+async function resolveLegacyAssetsSidecarAbsolute(nodeAbsolute, normalizedRelFile) {
+  const relUnderAssets = normalizedRelFile.replace(/^assets\//i, "");
+  const sidecarRelPath = toMediaSidecarRelativePath(relUnderAssets);
+  if (!sidecarRelPath) return null;
+  const assetsFolder = await getAssetsFolderAbsolute(nodeAbsolute);
+  if (!assetsFolder) return null;
+  const sidecarAbsolute = path.join(assetsFolder, sidecarRelPath);
+  if (!sidecarAbsolute.startsWith(assetsFolder)) return null;
+  return sidecarAbsolute;
+}
+
+async function resolveMediaSidecarAbsolute(nodeAbsolute, mediaAbsolute, normalizedRelFile) {
+  const siblingSidecar = resolveMediaSidecarAbsoluteFromMediaFile(mediaAbsolute);
+  if (!siblingSidecar) return null;
+  if (!(await isAllowedMediaSidecarAbsolute(nodeAbsolute, siblingSidecar))) return null;
+
+  try {
+    await fs.access(siblingSidecar);
+    return siblingSidecar;
+  } catch (error) {
+    if (!error || error.code !== "ENOENT") throw error;
+  }
+
+  const legacySidecar = await resolveLegacyAssetsSidecarAbsolute(nodeAbsolute, normalizedRelFile);
+  if (legacySidecar && legacySidecar !== siblingSidecar) {
+    try {
+      await fs.access(legacySidecar);
+      return legacySidecar;
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  return siblingSidecar;
 }
 
 function toMediaRenamedFileName(currentRelFile, rawTitle) {
@@ -3526,7 +3582,7 @@ function shouldSkipExternalMemoryDirectory(name) {
   if (!lower) return true;
   if (isStorageFolderName(name)) return true;
   if (lower === STORAGE_SUBFOLDER_ASSETS) return true;
-  if (lower === STORAGE_SUBFOLDER_CONTENT) return true;
+  if (lower === STORAGE_SUBFOLDER_MEMORY || lower === LEGACY_STORAGE_SUBFOLDER_CONTENT) return true;
   if (lower === STORAGE_SUBFOLDER_MEDIA) return true;
   return shouldSkipDirectoryListing(name);
 }
@@ -4330,7 +4386,7 @@ async function buildNodePreviewTimelineEvent(manifestPath, label, kind) {
 }
 
 const TIMELINE_SLOT_FOLDER_TRACKS = [
-  { subfolder: STORAGE_SUBFOLDER_CONTENT, fileKind: "external", label: "Content" },
+  { subfolder: STORAGE_SUBFOLDER_MEMORY, fileKind: "external", label: "Memory" },
   { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
   { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
@@ -5110,6 +5166,7 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
     const ownerContainer = getManifestContainerDirRel(ownerRel);
     if (ownerContainer && fileName) {
       const legacyRefs = [
+        `${ownerContainer}/awn-storage/memory/awn-storage/assets/preview/${fileName}`,
         `${ownerContainer}/awn-storage/content/awn-storage/assets/preview/${fileName}`,
         `${ownerContainer}/storage/content/storage/assets/preview/${fileName}`
       ];
@@ -9593,15 +9650,15 @@ async function handleApiForAgent(req, res, url) {
     const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
     if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
-    const relUnderAssets = normalizedRelFile.replace(/^assets\//i, "");
-    const sidecarRelPath = toMediaSidecarRelativePath(relUnderAssets);
+    const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
     if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
 
-    const assetsFolder = await getAssetsFolderAbsolute(storageContext.absolute);
-    const sidecarAbsolute = assetsFolder ? path.join(assetsFolder, sidecarRelPath) : null;
-    if (!sidecarAbsolute || !sidecarAbsolute.startsWith(assetsFolder)) {
-      return sendJson(res, 400, { error: "Invalid sidecar file path" });
-    }
+    const sidecarAbsolute = await resolveMediaSidecarAbsolute(
+      storageContext.absolute,
+      mediaAbsolute,
+      normalizedRelFile
+    );
+    if (!sidecarAbsolute) return sendJson(res, 400, { error: "Invalid sidecar file path" });
 
     try {
       const mediaStat = await fs.stat(mediaAbsolute);
@@ -9649,15 +9706,13 @@ async function handleApiForAgent(req, res, url) {
       const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
       if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
-      const relUnderAssets = normalizedRelFile.replace(/^assets\//i, "");
-      const sidecarRelPath = toMediaSidecarRelativePath(relUnderAssets);
+      const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
       if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
 
-      const assetsFolder = await getAssetsFolderAbsolute(storageContext.absolute);
-      if (!assetsFolder) return sendJson(res, 404, { error: "Assets folder not found" });
-
-      const sidecarAbsolute = path.join(assetsFolder, sidecarRelPath);
-      if (!sidecarAbsolute.startsWith(assetsFolder)) return sendJson(res, 400, { error: "Invalid sidecar file path" });
+      const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(mediaAbsolute);
+      if (!sidecarAbsolute || !(await isAllowedMediaSidecarAbsolute(storageContext.absolute, sidecarAbsolute))) {
+        return sendJson(res, 400, { error: "Invalid sidecar file path" });
+      }
 
       const mediaStat = await fs.stat(mediaAbsolute);
       if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
@@ -9719,17 +9774,18 @@ async function handleApiForAgent(req, res, url) {
         }
         await fs.rename(currentAbsolute, nextAbsolute);
 
-        const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
-        const nextSidecarRelPath = toMediaSidecarRelativePath(nextRelFile);
-        if (sidecarRelPath && nextSidecarRelPath) {
-          const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
-          const nextSidecarAbsolute = path.join(folderAbsolute, nextSidecarRelPath);
-          if (sidecarAbsolute.startsWith(folderAbsolute) && nextSidecarAbsolute.startsWith(folderAbsolute)) {
-            try {
-              await fs.rename(sidecarAbsolute, nextSidecarAbsolute);
-            } catch (error) {
-              if (!error || error.code !== "ENOENT") throw error;
-            }
+        const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(currentAbsolute);
+        const nextSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+        if (
+          sidecarAbsolute &&
+          nextSidecarAbsolute &&
+          (await isAllowedMediaSidecarAbsolute(nodeAbsolute, sidecarAbsolute)) &&
+          (await isAllowedMediaSidecarAbsolute(nodeAbsolute, nextSidecarAbsolute))
+        ) {
+          try {
+            await fs.rename(sidecarAbsolute, nextSidecarAbsolute);
+          } catch (error) {
+            if (!error || error.code !== "ENOENT") throw error;
           }
         }
       }
@@ -9737,11 +9793,13 @@ async function handleApiForAgent(req, res, url) {
       const sidecarRelPath = toMediaSidecarRelativePath(nextRelFile);
       let content = "";
       if (sidecarRelPath) {
-        const sidecarAbsolute = path.join(folderAbsolute, sidecarRelPath);
-        try {
-          content = await fs.readFile(sidecarAbsolute, "utf-8");
-        } catch {
-          content = "";
+        const nextSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+        if (nextSidecarAbsolute) {
+          try {
+            content = await fs.readFile(nextSidecarAbsolute, "utf-8");
+          } catch {
+            content = "";
+          }
         }
       }
 
@@ -9753,13 +9811,11 @@ async function handleApiForAgent(req, res, url) {
         if (oldAssetRel && newAssetRel && oldAssetRel !== newAssetRel) {
           exactMappings.push({ oldRel: oldAssetRel, newRel: newAssetRel });
         }
-        const oldSidecarRel = toMediaSidecarRelativePath(normalizedRelFile);
-        const newSidecarRel = toMediaSidecarRelativePath(nextRelFile);
-        if (oldSidecarRel && newSidecarRel && oldSidecarRel !== newSidecarRel) {
-          const oldSidecarAbs = path.join(folderAbsolute, oldSidecarRel);
-          const newSidecarAbs = path.join(folderAbsolute, newSidecarRel);
-          const oldSidecarWorkspaceRel = manifestRelFromNodeAbsolute(oldSidecarAbs);
-          const newSidecarWorkspaceRel = manifestRelFromNodeAbsolute(newSidecarAbs);
+        const oldSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(currentAbsolute);
+        const newSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+        if (oldSidecarAbsolute && newSidecarAbsolute && oldSidecarAbsolute !== newSidecarAbsolute) {
+          const oldSidecarWorkspaceRel = manifestRelFromNodeAbsolute(oldSidecarAbsolute);
+          const newSidecarWorkspaceRel = manifestRelFromNodeAbsolute(newSidecarAbsolute);
           if (
             oldSidecarWorkspaceRel &&
             newSidecarWorkspaceRel &&

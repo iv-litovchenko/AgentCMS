@@ -2,5 +2,5 @@ id: awn.record.category
 name: Категория записи
 kind: type
 extends: awn.base
-description: Справочная категория для группировки записей в content (awn-storage/content/)
+description: Справочная категория для группировки записей в content (awn-storage/memory/)
 fields:
