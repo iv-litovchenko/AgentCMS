@@ -27945,6 +27945,52 @@ function appendNavigationHeroMetaRow(panel, label, value) {
   panel.appendChild(chip);
 }
 
+function extractWorkspaceMarkersFromMenuSource(source) {
+  if (!source) return null;
+  const hasAnyMarkerField =
+    source.hasGitSelf != null ||
+    source.hasGit != null ||
+    source.hasObsidianSelf != null ||
+    source.hasObsidian != null ||
+    source.hasAgentSelf != null ||
+    source.hasAgent != null ||
+    source.hasSkillSelf != null ||
+    source.hasSkill != null;
+  if (!hasAnyMarkerField) return null;
+  return {
+    hasGit: Boolean(source.hasGitSelf ?? source.hasGit),
+    hasObsidian: Boolean(source.hasObsidianSelf ?? source.hasObsidian),
+    hasAgent: Boolean(source.hasAgentSelf ?? source.hasAgent),
+    hasSkill: Boolean(source.hasSkillSelf ?? source.hasSkill)
+  };
+}
+
+function findMenuItemEntryInAgentMenu(menuRoot, targetPath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(targetPath));
+  if (!menuRoot || !normalized) return null;
+
+  function walk(node) {
+    if (!node) return null;
+    for (const item of node.items || []) {
+      if (normalizeMenuNodePath(item.path) === normalized) return item;
+    }
+    for (const item of getMenuRepoServiceItems(node)) {
+      if (normalizeMenuNodePath(item.path) === normalized) return item;
+    }
+    for (const section of node.sections || []) {
+      const hit = walk(section);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  return (
+    walk(menuRoot) ||
+    walk(menuRoot.serviceTree ? { title: "", ...menuRoot.serviceTree } : null) ||
+    walk(menuRoot.containerTree ? { title: "", ...menuRoot.containerTree } : null)
+  );
+}
+
 function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false, hasSkill: false };
@@ -27952,17 +27998,25 @@ function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   const folderRel = normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
   const menuRoot = { title: getAgentTreeTitle(agentId), ...menu };
+
+  const fromMenuItem = extractWorkspaceMarkersFromMenuSource(
+    findMenuItemEntryInAgentMenu(menuRoot, normalized)
+  );
+  if (fromMenuItem) return fromMenuItem;
+
   const source =
     folderRel === "."
       ? menu
       : findMenuSectionInAgentMenu(menuRoot, folderRel) || getMenuTreeNodeByFolderPath(folderRel, agentId);
 
-  return {
-    hasGit: Boolean(source?.hasGitSelf ?? source?.hasGit),
-    hasObsidian: Boolean(source?.hasObsidianSelf ?? source?.hasObsidian),
-    hasAgent: Boolean(source?.hasAgentSelf ?? source?.hasAgent),
-    hasSkill: Boolean(source?.hasSkillSelf ?? source?.hasSkill)
-  };
+  return (
+    extractWorkspaceMarkersFromMenuSource(source) || {
+      hasGit: false,
+      hasObsidian: false,
+      hasAgent: false,
+      hasSkill: false
+    }
+  );
 }
 
 function createNavigationHeroMarkerSlot({ id, caption, active, createSvg, titleActive, titleInactive }) {

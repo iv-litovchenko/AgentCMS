@@ -5804,6 +5804,16 @@ async function readFolderWorkspaceMarkers(dirAbsolute) {
   return { hasGitSelf, hasObsidianSelf, hasAgentSelf, hasSkillSelf };
 }
 
+function withMenuFolderWorkspaceMarkers(markers) {
+  return {
+    ...markers,
+    hasGit: Boolean(markers?.hasGitSelf),
+    hasObsidian: Boolean(markers?.hasObsidianSelf),
+    hasAgent: Boolean(markers?.hasAgentSelf),
+    hasSkill: Boolean(markers?.hasSkillSelf)
+  };
+}
+
 async function resolveWorkspaceDirAbsoluteSimple(folderPathRaw) {
   const normalized = String(folderPathRaw || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return getAgentRoot();
@@ -6067,10 +6077,14 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           files.push({
             label: shell.title,
             path: shell.indexPath,
-            ...(await enrichMenuNodeItem(shell.indexPath))
+            ...(await enrichMenuNodeItem(shell.indexPath)),
+            ...withMenuFolderWorkspaceMarkers(markers)
           });
         } else {
-          folders.push(shell);
+          folders.push({
+            ...shell,
+            ...withMenuFolderWorkspaceMarkers(markers)
+          });
         }
         continue;
       }
@@ -6095,7 +6109,8 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           files.push({
             label: folderTitle,
             path: child.indexPath,
-            ...(await enrichMenuNodeItem(child.indexPath))
+            ...(await enrichMenuNodeItem(child.indexPath)),
+            ...withMenuFolderWorkspaceMarkers(markers)
           });
           continue;
         }
@@ -6104,15 +6119,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           title: folderTitle,
           folderPath: relativePath,
           ...child,
-          ...markers,
-          hasGit: markers.hasGitSelf,
-          hasObsidian: markers.hasObsidianSelf,
-          hasAgent: markers.hasAgentSelf,
-          hasSkill: markers.hasSkillSelf,
-          hasGitSelf: markers.hasGitSelf,
-          hasObsidianSelf: markers.hasObsidianSelf,
-          hasAgentSelf: markers.hasAgentSelf,
-          hasSkillSelf: markers.hasSkillSelf
+          ...withMenuFolderWorkspaceMarkers(markers)
         });
         continue;
       }
