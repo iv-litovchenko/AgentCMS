@@ -276,12 +276,12 @@ module.exports = {
       id: "memory",
       title: "Память",
       description:
-        "Три драйвера: internal — Однофайловая (_.x.content.md), external — Многофайловая (content/), tabular — Табличная (_.x.content.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
+        "Три драйвера: internal — Однофайловая (_.x.memory.md), external — Многофайловая (memory/), tabular — Табличная (_.x.memory.csv). На overview все три доступны всегда; наличие файлов — в drivers.*.exists.",
       endpoints: [
         {
           method: "GET",
           path: "/api/memory/internal",
-          description: "Однофайловая память — один файл _.x.content.md.",
+          description: "Однофайловая память — один файл _.x.memory.md.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, migratedFrom? }"
@@ -305,7 +305,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/memory/tabular",
-          description: "Табличная память — _.x.content.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
+          description: "Табличная память — _.x.memory.csv. Таблица с данными (как Excel) для данных, которые загружаются в контекст за один раз.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, columns[], rows[][], rowCount }"

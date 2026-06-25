@@ -5,7 +5,7 @@ import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 
 const nodePath = z.string().min(1).describe("Path to _registration.md, e.g. 05 Хобби/MyArea/_registration.md");
-const extFile = z.string().min(1).describe("Relative path inside content/ or media/");
+const extFile = z.string().min(1).describe("Relative path inside memory/ or media/");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -123,7 +123,7 @@ function createServer() {
     client.delete("/api/file", { path })
   );
 
-  reg("read_internal_memory", "Read single-file memory (_.node.content.md).", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_internal_memory", "Read single-file memory (_.node.memory.md).", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/memory/internal", { path })
   );
 
@@ -134,27 +134,27 @@ function createServer() {
     ({ path, content }) => client.post("/api/memory/internal", { path, content })
   );
 
-  reg("list_external_memory", "List content/ files.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_external_memory", "List memory/ files.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/external/files", { path })
   );
 
   reg(
     "read_external_memory",
-    "Read content/ .md.",
+    "Read memory/ .md.",
     z.object({ path: nodePath, file: extFile }),
     ({ path, file }) => client.get("/api/external/file", { path, file })
   );
 
   reg(
     "write_external_memory",
-    "Save content/ .md.",
+    "Save memory/ .md.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
 
   reg(
     "create_external_memory",
-    "Create memory note in content/.",
+    "Create memory note in memory/.",
     z.object({ path: nodePath, title: z.string().optional() }),
     ({ path, title }) => client.post("/api/external/file/create", { path, title })
   );

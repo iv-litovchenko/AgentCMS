@@ -23,6 +23,6 @@ awn-sort: ""
 | **Схема** | `awn-storage/record/configuration/schema.yml` |
 | **extends** | `awn.base` |
 
-Запись по умолчанию — элемент в `awn-storage/<тема>/content/`.
+Запись по умолчанию — элемент в `awn-storage/<тема>/memory/`.
 
 Расширяется схемой темы через `configuration.yml`.

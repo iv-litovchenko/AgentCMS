@@ -10586,10 +10586,42 @@ function shouldRedirectCreatesToContainer(agentId = getCreateModalAgentId()) {
   return isAgentContainerFolderPresent(agentId);
 }
 
+function isFolderPathInsideEstablishedArea(folderPath) {
+  let current = normalizeCreateParentPath(folderPath || ".");
+  if (!current || current === ".") return false;
+
+  while (current) {
+    const manifestPath = `${current}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+    if (isAreaNodePath(manifestPath)) return true;
+
+    const parts = current.split("/").filter(Boolean);
+    if (!parts.length) break;
+    parts.pop();
+    current = parts.join("/");
+  }
+  return false;
+}
+
+function isCreateParentInsideAreaOutsideContainer(parentPath, agentId = getCreateModalAgentId()) {
+  const normalized = normalizeCreateParentPath(parentPath || ".");
+  if (!normalized || normalized === ".") return false;
+
+  const containerFolder = getActiveAgentContainerFolder(agentId);
+  if (
+    containerFolder &&
+    (normalized === containerFolder || normalized.startsWith(`${containerFolder}/`))
+  ) {
+    return false;
+  }
+
+  return isFolderPathInsideEstablishedArea(normalized);
+}
+
 function shouldOfferCreateInContainerCheckbox(agentId = getCreateModalAgentId()) {
   const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
   if (isServiceNodePath(normalized)) return false;
   if (isAgentContainerNodePath(normalized)) return false;
+  if (isCreateParentInsideAreaOutsideContainer(normalized, agentId)) return false;
 
   const gitRoot = getGitRepoRootForMenuPath(normalized, agentId);
   if (gitRoot && gitRoot !== ".") {

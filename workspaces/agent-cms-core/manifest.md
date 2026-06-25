@@ -43,7 +43,7 @@ agent-cms-core/                         awn.workspace
 |------|------|------------|
 | Human | `{name}.md` | манифест топика, frontmatter |
 | Machine | `awn-storage/{name}/configuration/schema.yml` | схема типа / конфиг |
-| Data | `awn-storage/{name}/content/` | записи, черновики, CSV |
+| Data | `awn-storage/{name}/memory/` | записи, черновики, CSV |
 
 ## Связь с кодом
 
