@@ -1959,7 +1959,7 @@ const NODE_OVERVIEW_SLOT_MEMORY_SPECS = [
 
 const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "inbox", label: "Входящие", modeId: "inbox" },
-  { id: "quick-notes", label: "Быстрые заметки", modeId: "quick-notes" },
+  { id: "quick-notes", label: "Заметки", modeId: "quick-notes" },
   { id: "references", label: "Источники", modeId: "references" },
   { id: "artefacts", label: "Артефакты", modeId: "artefacts" },
   { id: "scripts", label: "Скрипты", modeId: "scripts" },
@@ -7165,22 +7165,124 @@ const NODE_WORKSPACE_DOMAIN_TODO = "todo";
 const NODE_WORKSPACE_DOMAIN_REFERENCES = "references";
 const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
+const NODE_WORKSPACE_DOMAIN_DATA = "data";
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
-  { value: "settings", label: "Настройки", branch: true },
-  { value: "quick-notes", label: "Быстрые заметки", branch: true },
-  { value: "inbox", label: "Входящие", branch: true },
-  { value: "thread", label: "Диалог", branch: true },
-  { value: "references", label: "Источники", branch: true },
-  { value: "artefacts", label: "Артефакты", branch: true },
-  { value: "memory", label: "Память (данные)", branch: true },
-  { value: "media", label: "Медиа (документы)", branch: true },
-  { value: "scripts", label: "Скрипты", branch: true },
-  { value: "todo", label: "TODO", branch: true },
+  { value: "settings", label: "Настройки" },
+  { value: "data", label: "Данные" },
+  { value: "todo", label: "TODO" },
   { value: "overview", label: "Обзор" }
 ];
+
+const DATA_STORAGE_SLOT_SPECS = [
+  {
+    key: "memory",
+    label: "Память",
+    icon: "🧠",
+    modes: new Set(["external", "internal", "tabular"]),
+    defaultMode: "external",
+    sectionKind: "external"
+  },
+  {
+    key: "inbox",
+    label: "Входящие",
+    icon: "📥",
+    modes: new Set(["inbox"]),
+    defaultMode: "inbox",
+    sectionKind: "flat"
+  },
+  {
+    key: "quick-notes",
+    label: "Заметки",
+    icon: "📝",
+    modes: new Set(["quick-notes"]),
+    defaultMode: "quick-notes",
+    sectionKind: "flat"
+  },
+  {
+    key: "thread",
+    label: "Диалог",
+    icon: "💬",
+    modes: new Set([NODE_THREAD_MODE]),
+    defaultMode: NODE_THREAD_MODE,
+    sectionKind: null
+  },
+  {
+    key: "references",
+    label: "Источники",
+    icon: "🔗",
+    modes: new Set(["references"]),
+    defaultMode: "references",
+    sectionKind: "flat"
+  },
+  {
+    key: "artefacts",
+    label: "Артефакты",
+    icon: "📦",
+    modes: new Set(["artefacts"]),
+    defaultMode: "artefacts",
+    sectionKind: "flat"
+  },
+  {
+    key: "media",
+    label: "Медиа",
+    icon: "🖼",
+    modes: new Set(["media"]),
+    defaultMode: "media",
+    sectionKind: "media"
+  },
+  {
+    key: "scripts",
+    label: "Скрипты",
+    icon: "⚙",
+    modes: new Set(["scripts"]),
+    defaultMode: "scripts",
+    sectionKind: "flat"
+  },
+  {
+    key: "temp",
+    label: "Временные файлы",
+    icon: "🗂️",
+    modes: new Set(["temp"]),
+    defaultMode: "temp",
+    sectionKind: null,
+    disabled: true
+  },
+  {
+    key: "volume",
+    label: "Рассуждения",
+    icon: "💭",
+    modes: new Set(["volume"]),
+    defaultMode: "volume",
+    sectionKind: null,
+    disabled: true
+  }
+];
+
+const DATA_MEMORY_MODE_SPECS = [
+  { mode: "external", label: "Многофайловая", icon: "📂" },
+  { mode: "internal", label: "Однофайловая", icon: "📄" },
+  { mode: "tabular", label: "Табличная", icon: "📊" }
+];
+
+function getDataStorageSlotForMode(mode = activeContentMode) {
+  return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.modes.has(mode)) || null;
+}
+
+function isDataHubContentMode(mode = activeContentMode) {
+  return Boolean(getDataStorageSlotForMode(mode));
+}
+
+function getActiveDataStorageSlot(mode = activeContentMode) {
+  if (getNodeWorkspaceDomain(mode) !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+  return getDataStorageSlotForMode(mode);
+}
+
+function isDataStorageSlotActive(slotKey, mode = activeContentMode) {
+  return getActiveDataStorageSlot(mode)?.key === slotKey;
+}
 
 const AREA_BLOCKED_CONTENT_MODES = new Set([
   "internal",
@@ -7194,24 +7296,16 @@ const AREA_BLOCKED_CONTENT_MODES = new Set([
   "artefacts"
 ]);
 
-const AREA_BLOCKED_WORKSPACE_DOMAINS = new Set([
-  NODE_WORKSPACE_DOMAIN_MEMORY,
-  NODE_WORKSPACE_DOMAIN_MEDIA,
-  NODE_WORKSPACE_DOMAIN_INBOX,
-  NODE_WORKSPACE_DOMAIN_QUICK_NOTES,
-  NODE_WORKSPACE_DOMAIN_REFERENCES,
-  NODE_WORKSPACE_DOMAIN_ARTEFACTS
-]);
+const AREA_BLOCKED_WORKSPACE_DOMAINS = new Set([NODE_WORKSPACE_DOMAIN_DATA]);
 
-const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = ["memory", "media", "quick-notes", "inbox", "references", "artefacts"];
+const AREA_WORKSPACE_DOMAIN_SELECT_VALUES = [NODE_WORKSPACE_DOMAIN_DATA];
 
 const nodeConfigCacheByPath = new Map();
 
 function resolveEntryOverviewWorkspaceDomain() {
   if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE) return null;
   const memoryKind = activeEntryOverviewContext?.memoryKind;
-  if (memoryKind === "media") return NODE_WORKSPACE_DOMAIN_MEDIA;
-  if (memoryKind === "external") return NODE_WORKSPACE_DOMAIN_MEMORY;
+  if (memoryKind === "media" || memoryKind === "external") return NODE_WORKSPACE_DOMAIN_DATA;
   return NODE_WORKSPACE_DOMAIN_NAVIGATION;
 }
 
@@ -7221,15 +7315,8 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_ENTRY_OVERVIEW_MODE && entryOverviewDomain) return entryOverviewDomain;
   if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
-  if (mode === "inbox") return NODE_WORKSPACE_DOMAIN_INBOX;
-  if (mode === NODE_THREAD_MODE) return NODE_WORKSPACE_DOMAIN_THREAD;
-  if (mode === "quick-notes") return NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
-  if (mode === "scripts") return NODE_WORKSPACE_DOMAIN_SCRIPTS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
-  if (mode === "references") return NODE_WORKSPACE_DOMAIN_REFERENCES;
-  if (mode === "artefacts") return NODE_WORKSPACE_DOMAIN_ARTEFACTS;
-  if (mode === "media") return NODE_WORKSPACE_DOMAIN_MEDIA;
-  if (NODE_MEMORY_SUB_MODE_IDS.has(mode)) return NODE_WORKSPACE_DOMAIN_MEMORY;
+  if (getDataStorageSlotForMode(mode)) return NODE_WORKSPACE_DOMAIN_DATA;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
 
@@ -7241,15 +7328,8 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
   return (
     domain === NODE_WORKSPACE_DOMAIN_OVERVIEW ||
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
-    domain === NODE_WORKSPACE_DOMAIN_INBOX ||
-    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
-    domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
-    domain === NODE_WORKSPACE_DOMAIN_MEMORY ||
-    domain === NODE_WORKSPACE_DOMAIN_MEDIA ||
-    domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
+    domain === NODE_WORKSPACE_DOMAIN_DATA ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
-    domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
-    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
   );
 }
@@ -7464,6 +7544,187 @@ const activeFlatStorageSectionFolder = {
   inbox: null,
   artefacts: null
 };
+
+function shouldUseDataHubListShell(mode = activeContentMode) {
+  if (!getDataStorageSlotForMode(mode)) return false;
+  if (mode === NODE_THREAD_MODE || mode === "internal") return false;
+  if (mode === "external" && isExternalFileEditing()) return false;
+  if (mode === "media" && isMediaAssetEditing()) return false;
+  if (mode === "tabular" && isTabularSourceEditing()) return false;
+  return true;
+}
+
+function ensureDataHubShell() {
+  let wrap = listViewContentNode.querySelector(".data-hub-list-view-wrap");
+  if (wrap) {
+    renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    syncStorageSectionsPanelUi();
+    return wrap;
+  }
+  listViewContentNode.innerHTML = "";
+  wrap = document.createElement("div");
+  wrap.className = "data-hub-list-view-wrap";
+
+  const split = document.createElement("div");
+  split.className = "data-hub-list-view-split";
+
+  const slotTree = document.createElement("nav");
+  slotTree.className = "storage-slot-tree media-section-tree";
+  slotTree.setAttribute("aria-label", "Слоты storage");
+  split.appendChild(slotTree);
+
+  const panel = document.createElement("div");
+  panel.className = "data-hub-panel";
+  split.appendChild(panel);
+
+  wrap.appendChild(split);
+  listViewContentNode.appendChild(wrap);
+  renderStorageSlotTree(slotTree);
+  syncStorageSectionsPanelUi();
+  return wrap;
+}
+
+function getListViewMountRoot(mode = activeContentMode) {
+  if (shouldUseDataHubListShell(mode)) {
+    return ensureDataHubShell().querySelector(".data-hub-panel");
+  }
+  return listViewContentNode;
+}
+
+function getDataStorageSlotCount(spec) {
+  const mode = spec.defaultMode;
+  if (spec.key === "memory") {
+    if (activeContentMode === "external" && externalFilesCache.length > 0) {
+      return getExternalSectionFileCounts(null).total;
+    }
+    return null;
+  }
+  if (spec.key === "inbox") {
+    if (activeContentMode === "inbox") {
+      return filterFlatStorageSectionItems(getFlatStorageNormalizedItems("inbox"), null).length;
+    }
+    const intake = topicIntakeCacheByPath.get(getActiveNodeApiPath());
+    const pending = Number(intake?.inbox?.pending) || 0;
+    return pending > 0 ? pending : null;
+  }
+  if (spec.key === "thread") {
+    const intake = topicIntakeCacheByPath.get(getActiveNodeApiPath());
+    const unread = getThreadUnreadCount(getActiveNodeApiPath(), intake);
+    if (unread > 0) return unread;
+    const count = Number(intake?.thread?.count) || 0;
+    return count > 0 ? count : null;
+  }
+  if (spec.sectionKind === "flat" && activeContentMode === mode) {
+    return filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null).length;
+  }
+  if (spec.sectionKind === "media" && activeContentMode === "media") {
+    return getMediaSectionFileCounts(null).total;
+  }
+  return null;
+}
+
+function setActiveDataStorageSlot(spec) {
+  if (!spec || spec.disabled) return;
+  if (spec.key === "thread") clearActiveThreadScope();
+  const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
+  if (activeContentMode === targetMode) {
+    renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
+    return;
+  }
+  setContentMode(targetMode);
+}
+
+function setActiveDataMemoryMode(mode) {
+  if (!DATA_MEMORY_MODE_SPECS.some((item) => item.mode === mode)) return;
+  if (activeContentMode === mode) {
+    renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
+    return;
+  }
+  setContentMode(mode);
+}
+
+function renderStorageSlotTree(container) {
+  if (!container) return;
+  container.replaceChildren();
+
+  const list = document.createElement("div");
+  list.className = "media-section-tree-list storage-slot-tree-list";
+  list.setAttribute("role", "tree");
+  container.appendChild(list);
+
+  const activeSlot = getDataStorageSlotForMode();
+  const sectionFilterActive = isStorageSectionFilterActive();
+  const enabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => !spec.disabled);
+  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.disabled);
+
+  for (const spec of enabledSpecs) {
+    appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive });
+  }
+
+  if (disabledSpecs.length > 0) {
+    const divider = document.createElement("div");
+    divider.className = "media-section-tree-divider storage-slot-tree-divider";
+    divider.setAttribute("role", "presentation");
+    list.appendChild(divider);
+    for (const spec of disabledSpecs) {
+      appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive, disabled: true });
+    }
+  }
+
+  syncDataStorageSlotTreeCounts();
+}
+
+function appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive, disabled = false } = {}) {
+  const isMemorySlot = spec.key === "memory";
+  const isActive =
+    !disabled && !isMemorySlot && activeSlot?.key === spec.key;
+  const count = disabled ? null : getDataStorageSlotCount(spec);
+  const btn = appendMediaSectionTreeItem(list, {
+    icon: spec.icon,
+    label: spec.label,
+    count,
+    isActive: isActive && !sectionFilterActive,
+    onClick: disabled
+      ? () => {}
+      : () => {
+          if (isMemorySlot && activeSlot?.key === "memory" && spec.modes.has(activeContentMode)) {
+            renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
+            return;
+          }
+          setActiveDataStorageSlot(spec);
+        }
+  });
+  btn.dataset.storageSlot = spec.key;
+  btn.classList.add("storage-slot-tree-item");
+  if (isMemorySlot) btn.classList.add("storage-slot-tree-item--group");
+  if (disabled) {
+    btn.disabled = true;
+    btn.classList.add("is-disabled");
+    btn.title = "Скоро";
+  }
+  const badge = btn.querySelector(".media-section-tree-count");
+  if (badge && count !== null) badge.dataset.baseCount = String(count);
+
+  if (isMemorySlot && !disabled) {
+    appendDataMemoryModeTreeItems(list, { sectionFilterActive });
+  }
+}
+
+function appendDataMemoryModeTreeItems(list, { sectionFilterActive = false } = {}) {
+  const memorySlotActive = isDataStorageSlotActive("memory");
+  for (const modeSpec of DATA_MEMORY_MODE_SPECS) {
+    const sectionActive = modeSpec.mode === "external" && sectionFilterActive;
+    const btn = appendMediaSectionTreeItem(list, {
+      icon: modeSpec.icon,
+      label: modeSpec.label,
+      depth: 1,
+      isActive: memorySlotActive && activeContentMode === modeSpec.mode && !sectionActive,
+      onClick: () => setActiveDataMemoryMode(modeSpec.mode)
+    });
+    btn.dataset.memoryMode = modeSpec.mode;
+    btn.classList.add("storage-slot-memory-mode-item");
+  }
+}
 
 function loadStorageSectionsPanelVisible() {
   const raw = readStorageItem(STORAGE_SECTIONS_PANEL_VISIBLE_KEY);
@@ -8162,7 +8423,7 @@ function getContentModeLabel(mode) {
   }
   if (mode === "inbox") return "Входящие";
   if (mode === NODE_THREAD_MODE) return "Диалог";
-  if (mode === "quick-notes") return "Быстрые заметки";
+  if (mode === "quick-notes") return "Заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
@@ -8176,15 +8437,17 @@ function getNodeDefaultLandingDomainLabel(mode) {
   const domainLabel = spec?.label || domain;
   const modeLabel = getContentModeLabel(mode);
   if (domain === NODE_WORKSPACE_DOMAIN_OVERVIEW || domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) return domainLabel;
+  if (domain === NODE_WORKSPACE_DOMAIN_DATA) {
+    const slot = getDataStorageSlotForMode(mode);
+    const slotLabel = slot?.label || domainLabel;
+    if (modeLabel && modeLabel !== slotLabel && modeLabel !== domainLabel) {
+      return `${slotLabel} → ${modeLabel}`;
+    }
+    return slotLabel;
+  }
   if (
-    domain === NODE_WORKSPACE_DOMAIN_INBOX ||
-    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
-    domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES ||
-    domain === NODE_WORKSPACE_DOMAIN_SCRIPTS ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
-    domain === NODE_WORKSPACE_DOMAIN_REFERENCES ||
-    domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS ||
-    domain === NODE_WORKSPACE_DOMAIN_MEDIA
+    domain === NODE_WORKSPACE_DOMAIN_SETTINGS
   ) {
     return domainLabel;
   }
@@ -9121,25 +9384,36 @@ function initNodeWorkspaceDomainSelect() {
 }
 
 function syncTopicIntakeDomainLabels() {
-  if (!nodeWorkspaceDomainSelectNode || !activePath) return;
+  syncDataStorageSlotTreeCounts();
+}
+
+function syncDataStorageSlotTreeCounts() {
+  const tree = listViewContentNode.querySelector(".storage-slot-tree");
+  if (!tree || !activePath) return;
   const manifestPath = getActiveNodeApiPath();
   const intake = topicIntakeCacheByPath.get(manifestPath) || null;
 
-  const inboxOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="inbox"]');
-  if (inboxOption) {
-    const base = inboxOption.dataset.baseLabel || inboxOption.textContent;
+  const inboxBtn = tree.querySelector('.media-section-tree-item[data-storage-slot="inbox"]');
+  if (inboxBtn) {
     const pending = Number(intake?.inbox?.pending) || 0;
-    inboxOption.textContent = pending > 0 ? `${base} · ${pending}` : base;
+    const badge = inboxBtn.querySelector(".media-section-tree-count");
+    if (badge) {
+      badge.textContent = pending > 0 ? `${badge.dataset.baseCount || "0"} · ${pending}` : String(badge.dataset.baseCount || "");
+      badge.classList.toggle("hidden", !badge.textContent);
+    }
   }
 
-  const threadOption = nodeWorkspaceDomainSelectNode.querySelector('option[value="thread"]');
-  if (threadOption) {
-    const base = threadOption.dataset.baseLabel || threadOption.textContent;
+  const threadBtn = tree.querySelector('.media-section-tree-item[data-storage-slot="thread"]');
+  if (threadBtn) {
     const count = Number(intake?.thread?.count) || 0;
     const unread = getThreadUnreadCount(manifestPath, intake);
-    if (unread > 0) threadOption.textContent = `${base} · ${unread} нов.`;
-    else if (count > 0) threadOption.textContent = `${base} · ${count}`;
-    else threadOption.textContent = base;
+    const badge = threadBtn.querySelector(".media-section-tree-count");
+    if (badge) {
+      if (unread > 0) badge.textContent = `${unread} нов.`;
+      else if (count > 0) badge.textContent = String(count);
+      else badge.textContent = badge.dataset.baseCount || "";
+      badge.classList.toggle("hidden", !badge.textContent);
+    }
   }
 }
 
@@ -9194,82 +9468,36 @@ async function applyNodeWorkspaceDomainChange(domain) {
     returnToNodeNavigation();
     return;
   }
-  if (domain === NODE_WORKSPACE_DOMAIN_INBOX) {
+  if (domain === NODE_WORKSPACE_DOMAIN_DATA) {
+    nodeSettingsViewActive = false;
+    if (isDataHubContentMode(activeContentMode)) {
+      nodeMemoryViewActive = Boolean(
+        isDataStorageSlotActive("memory") ||
+          isDataStorageSlotActive("inbox") ||
+          isDataStorageSlotActive("quick-notes") ||
+          isDataStorageSlotActive("references") ||
+          isDataStorageSlotActive("artefacts")
+      );
+      applyNodeWorkspaceViewUi();
+      renderListViewContent();
+      return;
+    }
+    if (
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
+      (activeEntryOverviewContext?.memoryKind === "external" ||
+        activeEntryOverviewContext?.memoryKind === "media")
+    ) {
+      applyNodeWorkspaceViewUi();
+      return;
+    }
     nodeMemoryViewActive = true;
-    nodeSettingsViewActive = false;
-    setContentMode("inbox");
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_THREAD) {
-    nodeMemoryViewActive = false;
-    nodeSettingsViewActive = false;
-    setContentMode(NODE_THREAD_MODE);
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES) {
-    nodeMemoryViewActive = true;
-    nodeSettingsViewActive = false;
-    setContentMode("quick-notes");
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_SCRIPTS) {
-    nodeMemoryViewActive = false;
-    nodeSettingsViewActive = false;
-    setContentMode("scripts");
+    void pickDefaultMemoryMode(activePath).then((memoryMode) => setContentMode(memoryMode));
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_TODO) {
     nodeMemoryViewActive = false;
     nodeSettingsViewActive = false;
     setContentMode("todo");
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_MEMORY) {
-    nodeMemoryViewActive = true;
-    nodeSettingsViewActive = false;
-    if (
-      activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
-      activeEntryOverviewContext?.memoryKind === "external"
-    ) {
-      applyNodeWorkspaceViewUi();
-      return;
-    }
-    if (NODE_MEMORY_SUB_MODE_IDS.has(activeContentMode)) {
-      syncNodeMemoryModeSelect();
-      applyNodeWorkspaceViewUi();
-      return;
-    }
-    const mode = nodeMemoryModeSelectNode?.value;
-    if (mode && NODE_MEMORY_SUB_MODE_IDS.has(mode)) {
-      setContentMode(mode);
-      return;
-    }
-    void pickDefaultMemoryMode(activePath).then((memoryMode) => setContentMode(memoryMode));
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_REFERENCES) {
-    nodeMemoryViewActive = true;
-    nodeSettingsViewActive = false;
-    setContentMode("references");
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_ARTEFACTS) {
-    nodeMemoryViewActive = true;
-    nodeSettingsViewActive = false;
-    setContentMode("artefacts");
-    return;
-  }
-  if (domain === NODE_WORKSPACE_DOMAIN_MEDIA) {
-    nodeMemoryViewActive = false;
-    nodeSettingsViewActive = false;
-    if (
-      activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
-      activeEntryOverviewContext?.memoryKind === "media"
-    ) {
-      applyNodeWorkspaceViewUi();
-      return;
-    }
-    setContentMode("media");
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
@@ -9283,36 +9511,46 @@ function applyNodeWorkspaceViewUi() {
   const workspaceDomain = getNodeWorkspaceDomain();
   const overviewDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_OVERVIEW;
   const settingsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SETTINGS;
-  const memoryDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
-  const mediaDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEDIA;
-  const scriptsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_SCRIPTS;
+  const dataDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_DATA;
+  const memorySlotActive = isDataStorageSlotActive("memory");
+  const mediaSlotActive = isDataStorageSlotActive("media");
+  const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
-  const referencesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_REFERENCES;
-  const artefactsDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_ARTEFACTS;
+  const referencesSlotActive = isDataStorageSlotActive("references");
+  const artefactsSlotActive = isDataStorageSlotActive("artefacts");
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
-  const inboxDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_INBOX;
-  const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_THREAD;
-  const quickNotesDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_QUICK_NOTES;
+  const inboxSlotActive = isDataStorageSlotActive("inbox");
+  const threadSlotActive = isDataStorageSlotActive("thread");
+  const quickNotesSlotActive = isDataStorageSlotActive("quick-notes");
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
-  nodeMemoryViewActive = memoryDomain || referencesDomain || artefactsDomain || inboxDomain || quickNotesDomain;
+  nodeMemoryViewActive =
+    memorySlotActive ||
+    referencesSlotActive ||
+    artefactsSlotActive ||
+    inboxSlotActive ||
+    quickNotesSlotActive;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-memory", memoryDomain || inboxDomain || quickNotesDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-media", mediaDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsDomain);
+  workspacePathHeaderNode?.classList.toggle(
+    "is-node-memory",
+    memorySlotActive || inboxSlotActive || quickNotesSlotActive
+  );
+  workspacePathHeaderNode?.classList.toggle("is-node-media", mediaSlotActive);
+  workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-todo", todoDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-references", referencesDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-references", referencesSlotActive);
+  workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-thread", threadDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-thread", threadSlotActive);
+  workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
   nodeNavigationPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !navigationDomain);
   syncNodeNavigationSubsectionSelect();
   nodeSettingsPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !settingsDomain);
-  nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !memoryDomain);
-  nodeMemoryModeSelectNode?.classList.toggle("hidden", !memoryDomain);
-  nodeMediaPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !mediaDomain);
+  nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !memorySlotActive);
+  nodeMemoryModeSelectNode?.classList.add("hidden");
+  nodeMediaPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !mediaSlotActive);
   syncNodeMemoryEntryViewControls();
   syncNodeWorkspaceDomainSelect();
   void refreshTopicIntakeForActivePath();
@@ -9361,9 +9599,9 @@ function handleWorkspaceCloseClick() {
 
 function syncWorkspaceCloseButtonsVisibility() {
   const settingsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SETTINGS;
-  const memoryDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEMORY;
-  const mediaDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_MEDIA;
-  const scriptsDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_SCRIPTS;
+  const memorySlotActive = isDataStorageSlotActive("memory");
+  const mediaSlotActive = isDataStorageSlotActive("media");
+  const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
   const mediaSidecarEditing = isMediaAssetEditing();
   const externalEditing = isExternalFileEditing();
@@ -9371,9 +9609,9 @@ function syncWorkspaceCloseButtonsVisibility() {
     mediaSidecarEditing ||
     externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
-    (memoryDomain && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
-    (mediaDomain && activeContentMode === "media") ||
-    (scriptsDomain && activeContentMode === "scripts") ||
+    (memorySlotActive && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
+    (mediaSlotActive && activeContentMode === "media") ||
+    (scriptsSlotActive && activeContentMode === "scripts") ||
     (todoDomain && activeContentMode === "todo");
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
@@ -11965,7 +12203,7 @@ const CONTENT_MODE_TITLE_LABELS = {
   external: "Content",
   tabular: "Таблица",
   inbox: "Входящие",
-  "quick-notes": "Быстрые заметки",
+  "quick-notes": "Заметки",
   references: "Источники",
   media: "Медиа",
   scripts: "Скрипты",
@@ -12147,7 +12385,7 @@ function getListViewTitleByMode() {
     const base = `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
     return inboxPendingCount > 0 ? `${base} · ${inboxPendingCount} необработ.` : base;
   }
-  if (activeContentMode === "quick-notes") return `Быстрые заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
+  if (activeContentMode === "quick-notes") return `Заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
   if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
   if (activeContentMode === "media") return `Медиа (${STORAGE_SUBFOLDER_MEDIA})`;
   if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
@@ -15869,12 +16107,16 @@ function renderMediaSectionTree(container) {
 }
 
 function ensureMediaListViewLayout() {
-  const existing = listViewContentNode.querySelector(".media-list-view-wrap");
-  if (!existing || existing.classList.contains("external-list-view-wrap")) {
-    listViewContentNode.innerHTML = "";
-    mountMediaListViewLayout(listViewContentNode);
+  const mountRoot = getListViewMountRoot("media");
+  const existing = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
+  if (!existing) {
+    mountRoot.innerHTML = "";
+    if (!shouldUseDataHubListShell("media")) listViewContentNode.innerHTML = "";
+    mountMediaListViewLayout(mountRoot);
+  } else if (shouldUseDataHubListShell("media")) {
+    renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
   }
-  const wrap = listViewContentNode.querySelector(".media-list-view-wrap");
+  const wrap = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
   if (!wrap) return null;
   ensureMediaListViewMainWrapper();
   renderMediaSectionTree(wrap.querySelector(".media-section-tree"));
@@ -16913,6 +17155,7 @@ function setActiveExternalSectionFolder(folderName, { rerender = true, skipRoute
   }
   activeExternalSectionFolder = next;
   syncExternalSectionTreeActiveState();
+  renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
   if (rerender) rerenderExternalListViewBody();
   updateBreadcrumbsForActiveMode();
   if (!skipRouteSync) syncAppRouteToUrl({ push: true });
@@ -17005,12 +17248,16 @@ function mountExternalListViewLayout(root) {
 }
 
 function ensureExternalListViewLayout() {
-  const existing = listViewContentNode.querySelector(".media-list-view-wrap");
-  if (!existing || !existing.classList.contains("external-list-view-wrap")) {
-    listViewContentNode.innerHTML = "";
-    mountExternalListViewLayout(listViewContentNode);
+  const mountRoot = getListViewMountRoot("external");
+  const existing = mountRoot.querySelector(".media-list-view-wrap.external-list-view-wrap");
+  if (!existing) {
+    mountRoot.innerHTML = "";
+    if (!shouldUseDataHubListShell("external")) listViewContentNode.innerHTML = "";
+    mountExternalListViewLayout(mountRoot);
+  } else if (shouldUseDataHubListShell("external")) {
+    renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
   }
-  const wrap = listViewContentNode.querySelector(".external-list-view-wrap");
+  const wrap = mountRoot.querySelector(".external-list-view-wrap");
   if (!wrap) return null;
   ensureExternalListToolbar(wrap);
   renderExternalSectionTree(wrap.querySelector(".external-section-tree"));
@@ -17317,7 +17564,7 @@ function renderExternalListViewBody(container) {
 function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "scripts") return "Разделы скриптов";
   if (mode === "inbox") return "Разделы входящих";
-  if (mode === "quick-notes") return "Разделы быстрых заметок";
+  if (mode === "quick-notes") return "Разделы заметок";
   if (mode === "artefacts") return "Разделы артефактов";
   return "Разделы";
 }
@@ -17509,11 +17756,17 @@ function mountFlatStorageListViewLayout(root, mode) {
 }
 
 function ensureFlatStorageListViewLayout(mode) {
-  let wrap = listViewContentNode.querySelector(`.flat-storage-list-view-wrap--${mode}`);
+  const mountRoot = getListViewMountRoot(mode);
+  let wrap = mountRoot.querySelector(`.flat-storage-list-view-wrap--${mode}`);
   if (!wrap) {
-    return mountFlatStorageListViewLayout(listViewContentNode, mode);
+    mountRoot.innerHTML = "";
+    if (!shouldUseDataHubListShell(mode)) listViewContentNode.innerHTML = "";
+    return mountFlatStorageListViewLayout(mountRoot, mode);
   }
-  renderFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"));
+  if (shouldUseDataHubListShell(mode)) {
+    renderStorageSlotTree(listViewContentNode.querySelector(".storage-slot-tree"));
+  }
+  renderFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"), mode);
   syncStorageSectionsPanelUi();
   return wrap.querySelector(".flat-storage-list-view-body");
 }
@@ -19012,17 +19265,21 @@ function renderMediaFilteredView(container) {
 function renderListViewContent() {
   closeMediaPathPopover();
   const raw = getListViewRawContent();
+  const useDataHub = shouldUseDataHubListShell();
+  const listMountRoot = useDataHub ? getListViewMountRoot() : listViewContentNode;
   const isMediaListView = activeContentMode === "media" && !isMediaAssetEditing();
   const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();
   const isFlatStorageSectionListView = isFlatStorageSectionMode() && isFlatStorageListMode();
 
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) {
-    listViewContentNode.innerHTML = "";
-    renderTabularTableView(listViewContentNode);
+    if (useDataHub) ensureDataHubShell();
+    listMountRoot.innerHTML = "";
+    if (!useDataHub) listViewContentNode.innerHTML = "";
+    renderTabularTableView(listMountRoot);
     return;
   }
 
-  let listTarget = listViewContentNode;
+  let listTarget = listMountRoot;
   if (isMediaListView) {
     listTarget = ensureMediaListViewLayout();
     listTarget.innerHTML = "";
@@ -19044,8 +19301,10 @@ function renderListViewContent() {
   }
   if (isFlatStorageSectionListView) {
     if (!activeStorageFolderExists) {
-      listViewContentNode.innerHTML = "";
-      renderListEmptyMessage(listViewContentNode, getStorageFolderMissingMessage(activeContentMode));
+      if (useDataHub) ensureDataHubShell();
+      listMountRoot.innerHTML = "";
+      if (!useDataHub) listViewContentNode.innerHTML = "";
+      renderListEmptyMessage(listMountRoot, getStorageFolderMissingMessage(activeContentMode));
       return;
     }
     listTarget = ensureFlatStorageListViewLayout(activeContentMode);
@@ -19054,7 +19313,11 @@ function renderListViewContent() {
     return;
   }
 
-  listViewContentNode.innerHTML = "";
+  if (useDataHub) {
+    listMountRoot.innerHTML = "";
+  } else {
+    listViewContentNode.innerHTML = "";
+  }
 
   if (isFlatStorageListMode()) {
     if (!activeStorageFolderExists) {
@@ -22763,7 +23026,7 @@ function getDocAsideMiniDocSpec() {
       };
     case "quick-notes":
       return {
-        title: "Быстрые заметки",
+        title: "Заметки",
         items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_QUICK_NOTES}/`)}`]
       };
     case "references":
@@ -28818,18 +29081,17 @@ function isMemoryEntryViewSelectAvailable() {
   if (!activePath || isExternalFileEditing() || isMediaAssetEditing() || isMindmapModeActive()) {
     return false;
   }
-  const workspaceDomain = getNodeWorkspaceDomain();
   const kind = getActiveMemoryEntryViewKind();
   if (!kind) return false;
   if (kind === "external") {
     return (
-      workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY &&
+      isDataStorageSlotActive("memory") &&
       (activeContentMode === "external" || activeContentMode === NODE_ENTRY_OVERVIEW_MODE)
     );
   }
   if (kind === "media") {
     return (
-      workspaceDomain === NODE_WORKSPACE_DOMAIN_MEDIA &&
+      isDataStorageSlotActive("media") &&
       (activeContentMode === "media" || activeContentMode === NODE_ENTRY_OVERVIEW_MODE)
     );
   }
@@ -28891,19 +29153,18 @@ function applyMemoryEntryViewChange(memoryKind, value) {
 }
 
 function syncNodeMemoryEntryViewControls() {
-  const workspaceDomain = getNodeWorkspaceDomain();
-  const memoryDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEMORY;
-  const mediaDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_MEDIA;
+  const memorySlotActive = isDataStorageSlotActive("memory");
+  const mediaSlotActive = isDataStorageSlotActive("media");
   const available = isMemoryEntryViewSelectAvailable();
   const kind = getActiveMemoryEntryViewKind();
 
   nodeMemoryEntryViewSelectNode?.classList.toggle(
     "hidden",
-    !available || !memoryDomain || kind !== "external"
+    !available || !memorySlotActive || kind !== "external"
   );
   nodeMediaEntryViewSelectNode?.classList.toggle(
     "hidden",
-    !available || !mediaDomain || kind !== "media"
+    !available || !mediaSlotActive || kind !== "media"
   );
   if (available) syncNodeMemoryEntryViewSelect();
 }
@@ -30548,7 +30809,7 @@ function openElementThreadDialog(filePath, mode = "external") {
   const file = String(filePath || "").trim();
   if (!file || !activePath) return;
   activeThreadScope = { mode, file, name: null };
-  void applyNodeWorkspaceDomainChange(NODE_WORKSPACE_DOMAIN_THREAD);
+  void setContentMode(NODE_THREAD_MODE);
 }
 
 function slugifyCommentMentionHandle(text) {
@@ -31527,10 +31788,7 @@ function renderInboxTriageItems(container, items) {
           await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
           await refreshTopicIntakeForActivePath();
           clearActiveThreadScope();
-          if (nodeWorkspaceDomainSelectNode) {
-            nodeWorkspaceDomainSelectNode.value = NODE_WORKSPACE_DOMAIN_THREAD;
-          }
-          await applyNodeWorkspaceDomainChange(NODE_WORKSPACE_DOMAIN_THREAD);
+          setContentMode(NODE_THREAD_MODE);
         } catch (error) {
           showToast(`Не удалось перенести: ${error.message}`, "error");
           toThreadBtn.disabled = item.status === "done";
@@ -44707,9 +44965,6 @@ topicSchemaFieldsNode?.addEventListener("change", handleTopicSchemaFieldsInput);
 topicSchemaFieldsNode?.addEventListener("click", handleTopicSchemaFieldsClick);
 nodeWorkspaceDomainSelectNode?.addEventListener("change", () => {
   if (workspaceDomainSelectSyncing) return;
-  if (nodeWorkspaceDomainSelectNode.value === NODE_WORKSPACE_DOMAIN_THREAD) {
-    clearActiveThreadScope();
-  }
   void applyNodeWorkspaceDomainChange(nodeWorkspaceDomainSelectNode.value);
 });
 nodeDefaultLandingBtn?.addEventListener("click", () => {
