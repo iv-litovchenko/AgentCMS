@@ -1,5 +1,6 @@
 ---
-awn-status: in-progress
+awn-status: done
+awn-triaged-at: "2026-06-28T16:59:16.237Z"
 ---
 
 # Заметка с доклада — Generators

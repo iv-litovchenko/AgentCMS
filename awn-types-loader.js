@@ -383,24 +383,79 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   };
 }
 
-const AWN_SCHEMA_TARGETS = ["topic", "record", "record_category", "sidecar", "media_category"];
+const TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS = [
+  { id: "slot_memory", slotKey: "memory", typeName: "awn.record", legacyId: "record" },
+  {
+    id: "slot_memory_category",
+    slotKey: "memory",
+    typeName: "awn.record.category",
+    legacyId: "record_category",
+    schemaOnly: true
+  },
+  { id: "slot_inbox", slotKey: "inbox", typeName: "awn.record" },
+  { id: "slot_quick_notes", slotKey: "quick-notes", typeName: "awn.record" },
+  { id: "slot_references", slotKey: "references", typeName: "awn.record" },
+  { id: "slot_artefacts", slotKey: "artefacts", typeName: "awn.record" },
+  { id: "slot_media", slotKey: "media", typeName: "awn.sidecar" },
+  {
+    id: "slot_media_category",
+    slotKey: "media",
+    typeName: "awn.media.category",
+    legacyId: "media_category",
+    schemaOnly: true
+  },
+  { id: "slot_scripts", slotKey: "scripts", typeName: "awn.record" },
+  { id: "slot_repository", slotKey: "repository", typeName: "awn.file" }
+];
+
+const AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS = [
+  ["record", "slot_memory"],
+  ["record_category", "slot_memory_category"],
+  ["media_category", "slot_media_category"]
+];
+
+const AWN_SCHEMA_TARGETS = [
+  "topic",
+  "sidecar",
+  ...TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => item.id)
+];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
   topic: "awn.topic",
-  record: "awn.record",
-  record_category: "awn.record.category",
-  media_category: "awn.media.category",
-  sidecar: "awn.sidecar"
+  sidecar: "awn.sidecar",
+  ...Object.fromEntries(
+    TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => [item.id, item.typeName])
+  )
 };
 
+function emptyAwnSchemaBlock() {
+  return { fields: {} };
+}
+
 function emptyAwnSchema() {
-  return {
-    topic: { fields: {} },
-    record: { fields: {} },
-    record_category: { fields: {} },
-    media_category: { fields: {} },
-    sidecar: { fields: {} }
-  };
+  const result = {};
+  for (const target of AWN_SCHEMA_TARGETS) {
+    result[target] = emptyAwnSchemaBlock();
+  }
+  return result;
+}
+
+function migrateLegacyAwnSchemaTargets(source, result) {
+  for (const [legacyId, modernId] of AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS) {
+    const legacyFields = source?.[legacyId]?.fields;
+    if (!legacyFields || typeof legacyFields !== "object") continue;
+    if (!result[modernId]) result[modernId] = emptyAwnSchemaBlock();
+    if (!Object.keys(result[modernId].fields).length) {
+      result[modernId].fields = { ...legacyFields };
+    }
+  }
+  const legacySidecarFields = source?.sidecar?.fields;
+  if (legacySidecarFields && typeof legacySidecarFields === "object") {
+    if (!result.slot_media) result.slot_media = emptyAwnSchemaBlock();
+    if (!Object.keys(result.slot_media.fields).length) {
+      result.slot_media.fields = { ...legacySidecarFields };
+    }
+  }
 }
 
 function normalizeAwnSchema(raw) {
@@ -416,6 +471,7 @@ function normalizeAwnSchema(raw) {
       result[target].fields = { ...block.fields };
     }
   }
+  migrateLegacyAwnSchemaTargets(source, result);
   return result;
 }
 
@@ -574,5 +630,6 @@ module.exports = {
   resolveMergedTypeForManifest,
   AWN_SCHEMA_TARGETS,
   AWN_SCHEMA_TARGET_TYPE_NAMES,
+  TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS,
   AREA_MANIFEST_FILE
 };

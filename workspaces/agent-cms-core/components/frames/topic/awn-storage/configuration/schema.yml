@@ -9,4 +9,5 @@ storage-slots:
   - references
   - scripts
   - artefacts
+  - repository
 manifest-pattern: "{slug}/manifest.md"

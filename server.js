@@ -73,6 +73,7 @@ const {
   STORAGE_SUBFOLDER_ATTACHMENTS,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
   HISTORY_VERSION_SUFFIX,
@@ -2353,6 +2354,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "artefacts") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_ARTEFACTS);
   }
+  if (mode === "repository") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_REPOSITORY);
+  }
   return nodeAbsolute;
 }
 
@@ -4390,6 +4394,7 @@ const TIMELINE_SLOT_FOLDER_TRACKS = [
   { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
   { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
+  { subfolder: STORAGE_SUBFOLDER_REPOSITORY, fileKind: "repository", label: "Репозиторий" },
   { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
   { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" }
 ];
@@ -6571,6 +6576,9 @@ async function classifySearchResult(relPath) {
   const storageArtefacts = await classifyStoragePathForMode(normalized, "artefacts", "Артефакты");
   if (storageArtefacts) return storageArtefacts;
 
+  const storageRepository = await classifyStoragePathForMode(normalized, "repository", "Репозиторий");
+  if (storageRepository) return storageRepository;
+
   const storageTemp = await classifyStoragePathForMode(normalized, "temp", "Временные файлы");
   if (storageTemp) return storageTemp;
 
@@ -6608,6 +6616,7 @@ async function classifySearchResult(relPath) {
   for (const spec of [
     { mode: "scripts", source: "Скрипты" },
     { mode: "artefacts", source: "Артефакты" },
+    { mode: "repository", source: "Репозиторий" },
     { mode: "temp", source: "Временные файлы" },
     { mode: "inbox", source: "Входящие" },
     { mode: "quick-notes", source: "Быстрые заметки" },

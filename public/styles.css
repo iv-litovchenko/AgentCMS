@@ -5713,6 +5713,21 @@ body.app-locked {
   font-weight: 600;
 }
 
+.topic-schema-target-tab--slot-meta {
+  opacity: 0.82;
+  font-size: 10px;
+}
+
+.storage-slot-tree-row .storage-slot-schema-btn {
+  align-self: center;
+  margin-right: 2px;
+}
+
+.storage-slot-tree-row:hover .storage-slot-schema-btn,
+.storage-slot-tree-row:has(.storage-slot-tree-item.is-active) .storage-slot-schema-btn {
+  opacity: 1;
+}
+
 .topic-schema-base-card {
   border: 1px dashed rgba(148, 163, 184, 0.4);
   border-radius: 8px;
@@ -13715,6 +13730,10 @@ body.app-locked {
   background: #fffbeb;
 }
 
+.doc-slab-path.is-node-repository {
+  background: #f0f9ff;
+}
+
 .doc-slab-path.is-node-overview {
   background: #f0fdf4;
 }
@@ -21577,6 +21596,38 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.node-entry-overview-slot-counters {
+  margin-bottom: 12px;
+}
+
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-active {
+  border-color: #3b82f6;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1e40af;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-active .node-navigation-workspace-counter-value {
+  color: #1d4ed8;
+}
+
+.node-entry-overview-memory-mode-counters {
+  margin-top: 8px;
+}
+
+.node-entry-overview-memory-mode-counter-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.node-entry-overview-memory-mode-counter-list .node-navigation-workspace-counter {
+  min-height: 56px;
+  padding: 8px 6px;
+}
+
+.node-entry-overview-memory-mode-counter-list .node-navigation-workspace-counter-value {
+  font-size: 18px;
 }
 
 .data-hub-panel > .media-list-view-wrap {
