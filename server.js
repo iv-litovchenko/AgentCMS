@@ -62,7 +62,9 @@ const {
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
   STORAGE_SUBFOLDER_CONTENT,
+  STORAGE_SUBFOLDER_MAIN,
   STORAGE_SUBFOLDER_MEMORY,
+  LEGACY_STORAGE_SUBFOLDER_MEMORY,
   LEGACY_STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
@@ -587,13 +589,13 @@ function formatYamlScalarForFrontmatter(value) {
 
 function toContentFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.memory.md`;
+  if (partBase) return `${partBase}.main.md`;
   return namedStorageBundleRel(relNodePath, BUNDLE_CONTENT_FILE);
 }
 
 function toTabularFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
-  if (partBase) return `${partBase}.memory.csv`;
+  if (partBase) return `${partBase}.main.csv`;
   return namedStorageBundleRel(relNodePath, BUNDLE_TABULAR_FILE);
 }
 
@@ -3586,7 +3588,7 @@ function shouldSkipExternalMemoryDirectory(name) {
   if (!lower) return true;
   if (isStorageFolderName(name)) return true;
   if (lower === STORAGE_SUBFOLDER_ASSETS) return true;
-  if (lower === STORAGE_SUBFOLDER_MEMORY || lower === LEGACY_STORAGE_SUBFOLDER_CONTENT) return true;
+  if (lower === STORAGE_SUBFOLDER_MAIN || lower === LEGACY_STORAGE_SUBFOLDER_MEMORY || lower === LEGACY_STORAGE_SUBFOLDER_CONTENT) return true;
   if (lower === STORAGE_SUBFOLDER_MEDIA) return true;
   return shouldSkipDirectoryListing(name);
 }
@@ -4390,7 +4392,7 @@ async function buildNodePreviewTimelineEvent(manifestPath, label, kind) {
 }
 
 const TIMELINE_SLOT_FOLDER_TRACKS = [
-  { subfolder: STORAGE_SUBFOLDER_MEMORY, fileKind: "external", label: "Memory" },
+  { subfolder: STORAGE_SUBFOLDER_MAIN, fileKind: "external", label: "Main" },
   { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
   { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
@@ -5171,7 +5173,8 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
     const ownerContainer = getManifestContainerDirRel(ownerRel);
     if (ownerContainer && fileName) {
       const legacyRefs = [
-        `${ownerContainer}/awn-storage/memory/awn-storage/assets/preview/${fileName}`,
+        `${ownerContainer}/awn-storage/main/awn-storage/assets/preview/${fileName}`,
+        `${ownerContainer}/awn-storage/main/awn-storage/assets/preview/${fileName}`,
         `${ownerContainer}/awn-storage/content/awn-storage/assets/preview/${fileName}`,
         `${ownerContainer}/storage/content/storage/assets/preview/${fileName}`
       ];

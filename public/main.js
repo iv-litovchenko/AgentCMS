@@ -345,7 +345,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category" },
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
-  { id: "awn.memory", label: "Память темы", hint: "memory.md, todo, конфиги" },
+  { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги" },
   { id: "awn.system", label: "Системные", hint: "AGENTS.md, TODO.md" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
 ];
@@ -590,8 +590,8 @@ const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
-const BUNDLE_CONTENT_FILE = "memory.md";
-const BUNDLE_TABULAR_FILE = "memory.csv";
+const BUNDLE_CONTENT_FILE = "main.md";
+const BUNDLE_TABULAR_FILE = "main.csv";
 const BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
@@ -12093,7 +12093,7 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
     if (/(?:\/awn-storage\/|\/storage\/)(?:memory|content)\//i.test(rawContext)) {
-      const legacyNested = `${containerDir}/awn-storage/memory/awn-storage/${stripStorageRootPrefix(normalized)}`;
+      const legacyNested = `${containerDir}/awn-storage/main/awn-storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNested, { first: false });
       const legacyNestedContent = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNestedContent);
@@ -12111,7 +12111,7 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   return candidates;
 }
 
-const STORAGE_SUBFOLDER_MEMORY = "memory";
+const STORAGE_SUBFOLDER_MEMORY = "main";
 const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
@@ -12355,8 +12355,8 @@ function resolveNodeSidecarRelPath(nodePath, kind) {
   const resolved = String(getResolvedNodePath(nodePath) || "");
   const partBase = resolvePartFolderSidecarBaseRel(resolved);
   const suffixByKind = {
-    content: ".memory.md",
-    tabular: ".memory.csv",
+    content: ".main.md",
+    tabular: ".main.csv",
     todo: ".todo.md",
     preview: ".preview",
     config: ".configuration.yml"
@@ -21659,7 +21659,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
-  "awn.record": "Запись в awn-storage/*/memory/ (расширяется в configuration.yml темы)",
+  "awn.record": "Запись в awn-storage/*/main/ (расширяется в configuration.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
   "awn.media.category": "Категория медиа — справочник для группировки файлов в media",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
@@ -23210,7 +23210,7 @@ function getDocAsideMiniDocSpec() {
         "Первая строка — заголовки колонок",
         "Текст с запятой — в кавычках <code>\"…\"</code>",
         "Кавычка внутри поля — <code>\"\"</code>",
-        `Файл: ${formatMiniDocPathHint("memory.csv")}`
+        `Файл: ${formatMiniDocPathHint("main.csv")}`
       ],
       example: "name,role,status\nИван,admin,active\nМария,\"user, guest\",pending"
     };
@@ -23250,7 +23250,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Табличная память",
         items: [
-          `Данные в ${formatMiniDocPathHint("memory.csv")}`,
+          `Данные в ${formatMiniDocPathHint("main.csv")}`,
           "Кнопка «Исходник CSV» — правка текста",
           "Колонки через <code>,</code>, строки через Enter"
         ],
@@ -41006,7 +41006,7 @@ async function renderAgentBrokenLinksView() {
       agentBrokenLinksStatsNode.append(
         renderAgentBrokenLinksStatChip("битых", data.count ?? 0, data.count ? "total" : ""),
         renderAgentBrokenLinksStatChip("markdown", data.scanned?.markdown ?? 0),
-        renderAgentBrokenLinksStatChip("memory.csv", data.scanned?.csv ?? 0)
+        renderAgentBrokenLinksStatChip("main.csv", data.scanned?.csv ?? 0)
       );
     }
 
@@ -41015,7 +41015,7 @@ async function renderAgentBrokenLinksView() {
 
     const meta = document.createElement("p");
     meta.className = "agent-broken-links-meta-line";
-    meta.textContent = `Проверены YAML-шапки, тело .md и memory.csv · всего файлов: ${data.scanned?.files ?? 0}`;
+    meta.textContent = `Проверены YAML-шапки, тело .md и main.csv · всего файлов: ${data.scanned?.files ?? 0}`;
     shell.appendChild(meta);
 
     const issues = Array.isArray(data.issues) ? data.issues : [];
@@ -41024,7 +41024,7 @@ async function renderAgentBrokenLinksView() {
       empty.className = "agent-broken-links-empty-state";
       empty.innerHTML = `
         <p class="agent-broken-links-empty-title">Битых ссылок не найдено</p>
-        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>memory.csv</code> указывают на существующие файлы и wikilink-цели.</p>
+        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>main.csv</code> указывают на существующие файлы и wikilink-цели.</p>
       `;
       shell.appendChild(empty);
     } else {
@@ -42369,8 +42369,8 @@ function getTimelineEventSubtitle(event) {
 
   if (fileKind === "manifest") return "manifest.md";
   if (fileKind === "preview") return event?.previewFile || fileName;
-  if (fileKind === "content") return BUNDLE_CONTENT_FILE || "memory.md";
-  if (fileKind === "tabular") return BUNDLE_TABULAR_FILE || "memory.csv";
+  if (fileKind === "content") return BUNDLE_CONTENT_FILE || "main.md";
+  if (fileKind === "tabular") return BUNDLE_TABULAR_FILE || "main.csv";
   if (fileKind === "config") return "configuration.yml";
 
   const rel = String(event?.relPath || "").replace(/\\/g, "/");
