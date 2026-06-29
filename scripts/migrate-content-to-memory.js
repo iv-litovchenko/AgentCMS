@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Rename legacy memory storage paths in workspaces:
- *   content/     -> memory/
- *   content.md   -> memory.md
- *   content.csv  -> memory.csv
+ *   content/     -> main/
+ *   content.md   -> main.md
+ *   content.csv  -> main.csv
  *   history/content* version dirs likewise
  */
 const fs = require("fs/promises");
@@ -27,15 +27,15 @@ function shouldRenameDirName(name, parentName) {
 }
 
 function targetDirName(name) {
-  if (name === "content") return "memory";
-  if (name === "content.md") return "memory.md";
-  if (name === "content.csv") return "memory.csv";
+  if (name === "content") return "main";
+  if (name === "content.md") return "main.md";
+  if (name === "content.csv") return "main.csv";
   return name;
 }
 
 function targetFileName(name) {
-  if (name === "content.md") return "memory.md";
-  if (name === "content.csv") return "memory.csv";
+  if (name === "content.md") return "main.md";
+  if (name === "content.csv") return "main.csv";
   return name;
 }
 
@@ -102,14 +102,14 @@ async function applyRenames(renames) {
 
 async function patchTextFiles(root) {
   const replacements = [
-    [/awn-storage\/content\//g, "awn-storage/memory/"],
-    [/storage\/content\//g, "storage/memory/"],
-    [/\/content\.md\b/g, "/memory.md"],
-    [/\/content\.csv\b/g, "/memory.csv"],
-    [/`content\.md`/g, "`memory.md`"],
-    [/`content\.csv`/g, "`memory.csv`"],
-    [/\bcontent\.md\b/g, "memory.md"],
-    [/\bcontent\.csv\b/g, "memory.csv"]
+    [/awn-storage\/content\//g, "awn-storage/main/"],
+    [/storage\/content\//g, "storage/main/"],
+    [/\/content\.md\b/g, "/main.md"],
+    [/\/content\.csv\b/g, "/main.csv"],
+    [/`content\.md`/g, "`main.md`"],
+    [/`content\.csv`/g, "`main.csv`"],
+    [/\bcontent\.md\b/g, "main.md"],
+    [/\bcontent\.csv\b/g, "main.csv"]
   ];
   let filesPatched = 0;
 

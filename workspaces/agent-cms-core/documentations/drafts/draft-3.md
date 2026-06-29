@@ -17,8 +17,8 @@ awn-topics/<id> / наверное имеет смысл ID делать как 
 awn-topics/<id>/scripts
 awn-topics/<id>/content/elements
 awn-topics/<id>/x.md  # манифест + назначение (стартовый файл-инструкция типа альтернативыне навазния manifest.md, node.md, slot.md, index.md, main.md, _.md - не знаю как лучше назвать)
-awn-topics/<id>/memory.md
-awn-topics/<id>/memory.csv
+awn-topics/<id>/main.md
+awn-topics/<id>/main.csv
 awn-topics/<id>/config.yml
 awn-topics/<id>/todo.md
 awn-topics/<id>/volume.md (последнее о чем общалис с ИИ в топике на чем остановились - альтернативное названпе trhead.md)
@@ -62,7 +62,7 @@ awn-type: core.topic
 awn-parent_id: 20260501-001-finance
 awn-name: Инвестиции
 awn-created: 2026-06-06T16:00:00
-awn-content-type: mixed  # или "single" (только memory.md), или "elements" (только папка content/)
+awn-content-type: mixed  # или "single" (только main.md), или "elements" (только папка content/)
 
 Пример набора полей для сидел-файлов
 awn-id: 20260606-003-photo

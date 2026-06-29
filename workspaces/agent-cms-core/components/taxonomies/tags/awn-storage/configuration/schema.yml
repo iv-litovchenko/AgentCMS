@@ -3,7 +3,7 @@ runtime-id: taxonomies.tags
 extends: taxonomies/_base
 data-root: data/catalog/catalog
 manifest: tags.md
-storage: awn-storage/tags/memory.csv
+storage: awn-storage/tags/main.csv
 value-fields:
   - id
   - label

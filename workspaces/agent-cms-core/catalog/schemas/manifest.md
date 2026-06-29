@@ -6,4 +6,4 @@ tags: [system, catalog, global]
 
 # Схемы
 
-Определения типов и полей. Данные — в `awn-storage/schemas/memory.md`.
+Определения типов и полей. Данные — в `awn-storage/schemas/main.md`.

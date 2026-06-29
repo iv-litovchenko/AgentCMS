@@ -111,7 +111,7 @@ module.exports = {
       tools: [
         {
           name: "read_internal_memory",
-          description: "Однофайловая память (_.x.memory.md).",
+          description: "Однофайловая память (_.x.main.md).",
           parameters: "path",
           http: "GET /api/memory/internal"
         },

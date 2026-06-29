@@ -337,7 +337,7 @@ shared_scripts:
 │   ├── 01_overview.md
 │   └── 02_instructions.md
 │
-├── 📂 memory/              # 💾 ПАМЯТЬ: RAG-слой, факты, логи, архивы
+├── 📂 main/              # 💾 ПАМЯТЬ: RAG-слой, факты, логи, архивы
 │   ├── facts.md
 │   ├── journal.md
 │   └── archives/
