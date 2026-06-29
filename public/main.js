@@ -7248,7 +7248,7 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "📚",
     modes: new Set(["repository"]),
     defaultMode: "repository",
-    sectionKind: null
+    sectionKind: "flat"
   },
   {
     key: "media",
@@ -7723,13 +7723,12 @@ let externalListRenderToken = 0;
 let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
 let activeExternalSectionFolder = null;
-const FLAT_STORAGE_SECTION_MODES = new Set(["scripts", "quick-notes", "inbox", "artefacts"]);
-const activeFlatStorageSectionFolder = {
-  scripts: null,
-  "quick-notes": null,
-  inbox: null,
-  artefacts: null
-};
+const FLAT_STORAGE_SECTION_MODES = new Set(
+  DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.sectionKind === "flat").map((spec) => spec.defaultMode)
+);
+const activeFlatStorageSectionFolder = Object.fromEntries(
+  [...FLAT_STORAGE_SECTION_MODES].map((mode) => [mode, null])
+);
 
 let activeDataStorageAllItems = false;
 let storageSlotTreeRenderToken = 0;
@@ -7930,9 +7929,6 @@ function getDataStorageSlotCount(spec) {
     if (unread > 0) return unread;
     const count = Number(intake?.thread?.count) || 0;
     return count > 0 ? count : null;
-  }
-  if (spec.key === "repository" && activeContentMode === "repository") {
-    return parseFlatListItems(modeContentCache.repository || "").filter((item) => !item.isFolder).length;
   }
   if (spec.sectionKind === "flat" && activeContentMode === mode) {
     return filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null).length;
@@ -18087,8 +18083,9 @@ function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "scripts") return "Разделы скриптов";
   if (mode === "inbox") return "Разделы входящих";
   if (mode === "quick-notes") return "Разделы заметок";
+  if (mode === "references") return "Разделы источников";
   if (mode === "artefacts") return "Разделы артефактов";
-  if (mode === "repository") return "Репозиторий";
+  if (mode === "repository") return "Разделы репозитория";
   return "Разделы";
 }
 
@@ -39920,15 +39917,10 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "references") {
     try {
-      const response = await fetch(
-        buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder: STORAGE_SUBFOLDER_REFERENCES })
+      await loadFlatStorageSectionContent(
+        "references",
+        activeContentMode === "references" ? preserveFlatStorageSectionFolder : null
       );
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      applyFlatStorageFolderLoadState("references", data);
-      applyModeUi();
-      renderListViewContent();
-      renderPreviewFromEditor();
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения источников: ${error.message}`;
       renderListViewContent();

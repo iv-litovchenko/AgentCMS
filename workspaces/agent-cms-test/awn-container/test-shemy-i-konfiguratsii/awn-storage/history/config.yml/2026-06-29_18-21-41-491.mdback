@@ -1,5 +1,8 @@
 # Agent CMS — конфигурация
 
+awn_ui:
+  default_landing_mode: description
+
 awn_settings:
   field_1: ауц
   field_2: пку

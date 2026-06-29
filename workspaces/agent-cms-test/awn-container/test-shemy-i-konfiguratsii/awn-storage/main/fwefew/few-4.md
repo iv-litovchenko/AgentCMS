@@ -1,0 +1,21 @@
+---
+awn-preview: ""
+awn-emoji: ""
+awn-name: few
+awn-status: draft
+awn-type: awn.record
+awn-create: 2026-06-29T15:22:22.743Z
+awn-update: 2026-06-29T15:22:22.743Z
+awn-description: ""
+awn-main: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-tags: []
+awn-color: ""
+awn-version: 1
+awn-sort: ""
+awn-attachments: []
+---
+
+# few
