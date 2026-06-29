@@ -702,8 +702,28 @@ function countManifestFolderDepthFromWorkspaceRoot(normalized) {
 function normalizeDeclaredManifestTreeType(typeRaw) {
   const raw = String(typeRaw || "").trim().toLowerCase();
   if (!raw) return null;
-  if (raw === "awn.topic" || raw === "topic") return "topic";
-  if (raw === "awn.area" || raw === "area" || raw === "awn.workspace" || raw === "workspace") {
+  if (
+    raw === "awn.topic" ||
+    raw === "topic" ||
+    raw === "awn.page.topic" ||
+    raw.endsWith(".topic")
+  ) {
+    return "topic";
+  }
+  if (
+    raw === "awn.workspace" ||
+    raw === "workspace" ||
+    raw === "awn.page.ws" ||
+    raw.endsWith(".ws")
+  ) {
+    return "workspace";
+  }
+  if (
+    raw === "awn.area" ||
+    raw === "area" ||
+    raw === "awn.page.area" ||
+    raw.endsWith(".area")
+  ) {
     return "area";
   }
   return null;
@@ -1123,6 +1143,7 @@ module.exports = {
   resolveOwningManifestRelFromNodePath,
   countManifestFolderDepthUnderContainer,
   inferAwnTypeFromRelPath,
+  normalizeDeclaredManifestTreeType,
   listStorageAssetsRefPathCandidates,
   parseStorageAssetsRefInContext,
   parseStorageAssetsRef,

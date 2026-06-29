@@ -1,0 +1,7 @@
+id: awn.slot.thread
+name: Thread
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Цепочка сообщений

@@ -1,0 +1,3 @@
+{
+  "order": ["base", "pages", "content", "slots", "fields", "md-blocks"]
+}

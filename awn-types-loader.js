@@ -39,6 +39,7 @@ const {
   loadRecordTypesFromComponents,
   getComponentsPayload
 } = require("./components-loader");
+const { loadPageTypesFromCatalog, getTypeCatalogPayload } = require("./type-catalog-loader");
 const {
   normalizeEnumOptions,
   stringifyEnumOptionsYaml,
@@ -179,10 +180,11 @@ const FALLBACK_BASE_FIELD_ORDER = [
   "awn-sort"
 ];
 
-/** Порядок стандартных awn-* полей — из ключей merged fields в awn.base (components/base.yml). */
+/** Порядок стандартных awn-* полей — из ключей merged fields в awn.page.base / awn.base. */
 function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
   const types = loadAgentTypes(agentRoot, projectRoot);
-  const baseFields = types["awn.base"]?.fields;
+  const baseFields =
+    types["awn.page.base"]?.fields || types["awn.base"]?.fields;
   if (!baseFields || typeof baseFields !== "object") {
     return [...FALLBACK_BASE_FIELD_ORDER];
   }
@@ -191,9 +193,14 @@ function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
 }
 
 function loadAgentTypes(agentRoot, projectRoot) {
-  const rawTypes = loadRecordTypesFromComponents(projectRoot, agentRoot);
+  const catalogTypes = loadPageTypesFromCatalog(projectRoot);
+  const legacyTypes = loadRecordTypesFromComponents(projectRoot, agentRoot);
+  const rawTypes = { ...legacyTypes, ...catalogTypes };
   const merged = new Map(Object.entries(rawTypes));
 
+  if (merged.has("awn.page.base") && !merged.has("awn.base")) {
+    merged.set("awn.base", merged.get("awn.page.base"));
+  }
   if (merged.has("awn.base") && !merged.has("awn.mixin.base")) {
     merged.set("awn.mixin.base", merged.get("awn.base"));
   }
@@ -201,6 +208,27 @@ function loadAgentTypes(agentRoot, projectRoot) {
   const types = {};
   for (const [name, def] of merged) {
     types[name] = resolveTypeDefinition(name, merged);
+  }
+  if (types["awn.page.topic"] && !types["awn.topic"]) {
+    types["awn.topic"] = types["awn.page.topic"];
+  }
+  if (types["awn.page.ws"] && !types["awn.workspace"]) {
+    types["awn.workspace"] = types["awn.page.ws"];
+  }
+  if (types["awn.page.area"] && !types["awn.area"]) {
+    types["awn.area"] = types["awn.page.area"];
+  }
+  if (types["awn.content.record"] && !types["awn.record"]) {
+    types["awn.record"] = types["awn.content.record"];
+  }
+  if (types["awn.content.sidecar"] && !types["awn.sidecar"]) {
+    types["awn.sidecar"] = types["awn.content.sidecar"];
+  }
+  if (types["awn.content.record.category"] && !types["awn.record.category"]) {
+    types["awn.record.category"] = types["awn.content.record.category"];
+  }
+  if (types["awn.page.base"] && !types["awn.base"]) {
+    types["awn.base"] = types["awn.page.base"];
   }
   if (types["awn.topic"] && !types["awn.file"]) {
     types["awn.file"] = types["awn.topic"];
@@ -379,6 +407,7 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   const { fieldDefSchema } = loadAgentFields(agentRoot, projectRoot);
   return {
     specVersion: "0.2.2",
+    typeCatalog: getTypeCatalogPayload(projectRoot, agentRoot),
     components: getComponentsPayload(projectRoot, agentRoot),
     fieldRegistry: getFieldRegistry(agentRoot, projectRoot),
     baseFieldOrder: getBaseFieldOrder(agentRoot, projectRoot),

@@ -5,6 +5,18 @@ const AGENT_CMS_CORE_REL = "workspaces/agent-cms-core";
 
 const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
+/** Домены каталога типов platform core (под areas/types/) */
+const TYPE_CATALOG_REL = "types";
+const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields", "md-blocks"];
+
+function getTypeDomainAbsolute(projectRoot, domain) {
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TYPE_CATALOG_REL, domain);
+}
+
+function getTypeCatalogRootAbsolute(projectRoot) {
+  return getAgentCmsCoreAbsolute(projectRoot);
+}
+
 const CATALOG_KIT_REL = path.join(AGENT_CMS_CORE_REL, "catalog");
 const AGENTS_GROUPS_REL = path.join(AGENT_CMS_CORE_REL, "agents-groups");
 const AGENTS_GROUPS_FILE = "groups.json";
@@ -57,6 +69,8 @@ function toAgentsGroupsBackgroundRel(fileName) {
 module.exports = {
   AGENT_CMS_CORE_REL,
   COMPONENTS_REL,
+  TYPE_CATALOG_REL,
+  TYPE_DOMAINS,
   CATALOG_KIT_REL,
   AGENTS_GROUPS_REL,
   AGENTS_GROUPS_FILE,
@@ -66,6 +80,8 @@ module.exports = {
   getAgentCmsCoreAbsolute,
   getPlatformAgentRootAbsolute,
   getComponentsAbsolute,
+  getTypeDomainAbsolute,
+  getTypeCatalogRootAbsolute,
   getCatalogKitAbsolute,
   getAgentsGroupsJsonAbsolute,
   getAgentsGroupsAssetsAbsolute,

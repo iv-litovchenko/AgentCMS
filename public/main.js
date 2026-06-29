@@ -7068,8 +7068,28 @@ const manifestTreeTypeByPath = new Map();
 function normalizeDeclaredManifestTreeType(typeRaw) {
   const raw = String(typeRaw || "").trim().toLowerCase();
   if (!raw) return null;
-  if (raw === "awn.topic" || raw === "topic") return "topic";
-  if (raw === "awn.area" || raw === "area" || raw === "awn.workspace" || raw === "workspace") {
+  if (
+    raw === "awn.topic" ||
+    raw === "topic" ||
+    raw === "awn.page.topic" ||
+    raw.endsWith(".topic")
+  ) {
+    return "topic";
+  }
+  if (
+    raw === "awn.workspace" ||
+    raw === "workspace" ||
+    raw === "awn.page.ws" ||
+    raw.endsWith(".ws")
+  ) {
+    return "workspace";
+  }
+  if (
+    raw === "awn.area" ||
+    raw === "area" ||
+    raw === "awn.page.area" ||
+    raw.endsWith(".area")
+  ) {
     return "area";
   }
   return null;
@@ -7140,8 +7160,18 @@ const SIDEBAR_WIDTH_MAX = 520;
 const SIDEBAR_WIDTH_STEP = 20;
 const OVERVIEW_ACCORDION_STORAGE_KEY = "agentcms.overviewAccordions.v1";
 const NODE_LAST_VIEWED_STORAGE_KEY = "agentcms.nodeLastViewed.v1";
-const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props"]);
+const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "types-registry"]);
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
+const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
+const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
+const TYPE_CATALOG_DOMAIN_LABELS = {
+  fields: "Поля",
+  "md-blocks": "Блоки Markdown",
+  pages: "Страницы",
+  content: "Контент",
+  slots: "Слоты",
+  base: "База"
+};
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
 const pinnedMenuFolderByAgent = loadPinnedMenuFoldersByAgent();
 const bookmarkedPaths = loadBookmarks();
@@ -20340,6 +20370,8 @@ let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
+let typeCatalogCache = null;
+let typeCatalogLoadPromise = null;
 let agentCatalogsCache = null;
 let agentCatalogsLoadPromise = null;
 let awnTypesSelectedKey = null;
@@ -28902,6 +28934,199 @@ function renderNodeOverviewPropsTable(metaItems) {
   return accordion;
 }
 
+async function loadTypeCatalog() {
+  if (typeCatalogCache) return typeCatalogCache;
+  if (typeCatalogLoadPromise) return typeCatalogLoadPromise;
+  typeCatalogLoadPromise = (async () => {
+    try {
+      let response = await fetch(buildApiUrl("/api/type-catalog", {}, "agent-cms-core"));
+      if (response.ok) {
+        typeCatalogCache = await response.json();
+        return typeCatalogCache;
+      }
+      response = await fetch(buildApiUrl("/api/awn-types", {}, "agent-cms-core"));
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload?.typeCatalog?.browseTypes || payload?.typeCatalog?.types) {
+          typeCatalogCache = payload.typeCatalog;
+          return typeCatalogCache;
+        }
+      }
+      typeCatalogCache = null;
+      return null;
+    } catch {
+      typeCatalogCache = null;
+      return null;
+    } finally {
+      typeCatalogLoadPromise = null;
+    }
+  })();
+  return typeCatalogLoadPromise;
+}
+
+function resolveTypeCatalogOverviewContext(nodePath) {
+  if (!TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return null;
+  const path = String(nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+
+  const domainRules = [
+    [/(^|\/)types\/fields(\/|$)/, "fields"],
+    [/(^|\/)types\/md-blocks(\/|$)/, "md-blocks"],
+    [/(^|\/)types\/pages(\/|$)/, "pages"],
+    [/(^|\/)types\/content(\/|$)/, "content"],
+    [/(^|\/)types\/slots(\/|$)/, "slots"],
+    [/(^|\/)types\/base(\/|$)/, "base"],
+    [/(^|\/)fields(\/|$)/, "fields"],
+    [/(^|\/)md-blocks(\/|$)/, "md-blocks"],
+    [/(^|\/)pages(\/|$)/, "pages"],
+    [/(^|\/)content(\/|$)/, "content"],
+    [/(^|\/)slots(\/|$)/, "slots"],
+    [/(^|\/)base(\/|$)/, "base"],
+    [/(^|\/)types(\/|$)/, "__all__"],
+    [/(^|\/)components\/fields(\/|$)/, "fields"],
+    [/(^|\/)components\/markdown-blocks(\/|$)/, "md-blocks"],
+    [/(^|\/)components\/frames(\/|$)/, "pages"],
+    [/(^|\/)types-of-components(\/|$)/, "__all__"]
+  ];
+
+  for (const [pattern, domain] of domainRules) {
+    if (!pattern.test(path)) continue;
+    if (domain === "__all__") return { domain: null, path, allDomains: true };
+    return { domain, path };
+  }
+  if (/(^|\/)components(\/|$)/.test(path)) return { domain: null, path, allDomains: true };
+
+  // Корень workspace и прочие area — сводный каталог типов платформы
+  return { domain: null, path, allDomains: true };
+}
+
+function filterOverviewTypeCatalogEntries(catalog, context) {
+  const types = Array.isArray(catalog?.browseTypes)
+    ? catalog.browseTypes
+    : Array.isArray(catalog?.types)
+      ? catalog.types
+      : [];
+  if (context.allDomains) {
+    return types.slice().sort((a, b) => {
+      const domainCmp = String(a.domain || "").localeCompare(String(b.domain || ""), "ru");
+      if (domainCmp) return domainCmp;
+      return String(a.name || a.id).localeCompare(String(b.name || b.id), "ru");
+    });
+  }
+  return types
+    .filter((entry) => entry.domain === context.domain)
+    .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "ru"));
+}
+
+function formatTypeCatalogStatusLabel(status) {
+  const raw = String(status || "active").trim().toLowerCase();
+  if (raw === "draft") return "Черновик";
+  if (raw === "disabled") return "Выключен";
+  return "Активен";
+}
+
+function renderNodeOverviewTypeRegistryList(types, context) {
+  const section = document.createElement("section");
+  section.className = "node-overview-types";
+
+  if (!types.length) {
+    const empty = document.createElement("p");
+    empty.className = "node-overview-types-empty";
+    empty.textContent = "Нет зарегистрированных типов в этом домене.";
+    section.appendChild(empty);
+    return section;
+  }
+
+  const table = document.createElement("table");
+  table.className = "node-overview-meta-table node-overview-types-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const label of context.allDomains
+    ? ["Домен", "Имя", "id", "Регистр.", "Статус"]
+    : ["Имя", "id", "extends", "Регистр.", "Статус"]) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = label;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const entry of types) {
+    const row = document.createElement("tr");
+    row.className = "node-overview-types-row";
+    if (entry.catalogFile) {
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.title = `Открыть ${entry.catalogFile}`;
+      row.addEventListener("click", () => {
+        void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+      });
+    }
+
+    const registrableLabel = entry.registrable === false ? "—" : "✓";
+    const cells = context.allDomains
+      ? [
+          TYPE_CATALOG_DOMAIN_LABELS[entry.domain] || entry.domain || "—",
+          entry.name || entry.id,
+          entry.id,
+          registrableLabel,
+          formatTypeCatalogStatusLabel(entry.status)
+        ]
+      : [
+          entry.name || entry.id,
+          entry.id,
+          entry.extends || "—",
+          registrableLabel,
+          formatTypeCatalogStatusLabel(entry.status)
+        ];
+
+    for (const text of cells) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (text === "—") td.classList.add("is-empty");
+      if (text === formatTypeCatalogStatusLabel(entry.status)) {
+        td.classList.add(`is-status-${String(entry.status || "active").trim().toLowerCase()}`);
+      }
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  section.appendChild(table);
+  return section;
+}
+
+function renderNodeOverviewTypeRegistryFold(types, context) {
+  if (!types.length && !context) return null;
+  const domainLabel = context.domain ? TYPE_CATALOG_DOMAIN_LABELS[context.domain] || context.domain : "Platform";
+  const title = context.allDomains ? `Типы · ${types.length}` : `${domainLabel} · ${types.length}`;
+  const list = renderNodeOverviewTypeRegistryList(types, context);
+  const accordion = createOverviewAccordionSection(OVERVIEW_TYPES_ACCORDION_GROUP_ID, title, list, {
+    defaultOpen: types.length > 0
+  });
+  accordion.classList.add("node-overview-types-fold", "node-navigation-types");
+  return accordion;
+}
+
+async function appendNodeOverviewTypeRegistryFold(container, nodePath) {
+  if (!container) return;
+  const context = resolveTypeCatalogOverviewContext(nodePath);
+  if (!context) return;
+  const catalog = typeCatalogCache || (await loadTypeCatalog());
+  if (!catalog) return;
+  const types = filterOverviewTypeCatalogEntries(catalog, context);
+  const fold = renderNodeOverviewTypeRegistryFold(types, context);
+  if (fold) container.appendChild(fold);
+}
+
 function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true } = {}) {
   const details = document.createElement("details");
   details.className = "node-overview-fold";
@@ -32102,6 +32327,8 @@ async function renderEntryOverview() {
     propsSection.classList.add("node-navigation-props");
     hub.appendChild(propsSection);
   }
+  await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
+  if (isStale()) return;
 
   const sectionList = renderEntryOverviewSectionList(context, navigationIndex);
   if (sectionList) hub.appendChild(sectionList);
@@ -34499,6 +34726,8 @@ async function renderNodeNavigation() {
     propsSection.classList.add("node-navigation-props");
     hub.appendChild(propsSection);
   }
+  await appendNodeOverviewTypeRegistryFold(hub, nodePath);
+  if (isStale()) return;
 
   const memoryCounters = buildNodeNavigationMemoryCounterSlots({
     isArea,
@@ -34668,6 +34897,8 @@ async function renderNodeOverview() {
 
   const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
   if (propsSection) fragment.appendChild(propsSection);
+  await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
+  if (isStale()) return;
 
   if (excerpt) {
     const excerptBlock = document.createElement("section");

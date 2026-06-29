@@ -1,0 +1,7 @@
+id: awn.slot.artefacts
+name: Artefacts
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Артефакты и экспорты

@@ -23,19 +23,26 @@ Workspace **agent-cms-core** — эталонная модель платфор�
 ## Карта workspace
 
 ```
-agent-cms-core/                         awn.workspace
+agent-cms-core/                         awn.page.ws
 │
-├── documentations/                     area · документация для людей
-├── types-of-components/                area · онтология (типы, поля, блоки…)
-├── runtime/                            area · исполнение (loaders, API, пути)
-├── integrations/                       area · MCP, hooks, SDK
-├── catalog/                       area · связь с глобальными справочниками
-├── examples/                      area · живые демо (string-field-full)
+├── types/                              area · каталог типов (источник правды)
+│   ├── base/      → awn.entity
+│   ├── pages/     → awn.page.*
+│   ├── content/   → awn.content.*
+│   ├── slots/     → awn.slot.*
+│   ├── fields/    → awn.string …
+│   └── md-blocks/ → awn.block.*
+├── documentations/                     area · документация
+├── runtime/                            area · loaders, API
+├── catalog/                            area · глобальные справочники
+├── examples/                           area · демо
 │
-├── platform-map.md                topic · эта карта (подробнее)
-├── agent-groups.md                     topic · слои storage
-└── ideasmd.md                          topic · backlog продукта
+├── platform-map.md                     topic
+├── agent-groups.md                     topic
+└── ideasmd.md                          topic · backlog
 ```
+
+Legacy (постепенно убираем): `components/`, `types-of-components/`.
 
 ## Паттерн на каждом уровне
 
@@ -49,7 +56,8 @@ agent-cms-core/                         awn.workspace
 
 | Workspace | Код в репозитории |
 |-----------|-------------------|
-| `components/` | `components-loader.js` → `/api/components` |
+| `types/{base,pages,content,slots,fields,md-blocks}/` | `type-catalog-loader.js` → `/api/type-catalog` |
+| `components/` | legacy topic mirror |
 | `runtime/` | `server.js`, `*-loader.js`, `manifest-paths.js` |
 | `integrations/` | `mcp-server/`, hooks |
 | `catalog/` | глобальные справочники платформы |

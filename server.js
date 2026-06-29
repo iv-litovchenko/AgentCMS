@@ -103,7 +103,8 @@ const {
   isCommentFileName,
   formatCommentTimestampLabel,
   formatHistoryVersionTimestampLabel,
-  normalizeHistoryTargetRelPath
+  normalizeHistoryTargetRelPath,
+  normalizeDeclaredManifestTreeType
 } = require("./manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -129,6 +130,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
+const { getTypeCatalogPayload } = require("./type-catalog-loader");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const execFileAsync = promisify(execFile);
@@ -3473,7 +3475,10 @@ async function readManifestMenuMeta(manifestRel) {
     const { frontmatter } = await readNodeFrontmatterContent(manifestRel);
     const kind = String(getYamlScalar(frontmatter, "kind") || "").trim();
     const typeRaw = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
-    const type = typeRaw.startsWith("awn.") ? typeRaw.slice(4) : typeRaw;
+    const treeType = normalizeDeclaredManifestTreeType(typeRaw);
+    const type =
+      treeType ||
+      (typeRaw.startsWith("awn.") ? typeRaw.slice(4) : typeRaw);
     return { kind, type };
   } catch {
     return { kind: "", type: "" };
@@ -8416,6 +8421,18 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { path: memoryRelPath, content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save internal memory", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/type-catalog") {
+    try {
+      const payload = getTypeCatalogPayload(getProjectRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load type catalog",
+        details: String(error.message || error)
+      });
     }
   }
 

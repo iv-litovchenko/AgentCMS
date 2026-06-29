@@ -1,6 +1,10 @@
 const fs = require("fs");
 const path = require("path");
 const {
+  loadBlocksFromCatalog,
+  loadBlockGroupsFromCatalog
+} = require("./type-catalog-loader");
+const {
   getActiveComponents,
   loadComponentRegistry
 } = require("./components-loader");
@@ -133,8 +137,13 @@ function loadBlocksFromComponents(projectRoot, agentRoot) {
 
 function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveBlocksContext(agentRoot, projectRoot);
-  const blocksById = loadBlocksFromComponents(root, agent);
-  const meta = loadBlockGroupMeta(getComponentsAbsolute(root));
+  let blocksById = loadBlocksFromCatalog(root);
+  let meta = loadBlockGroupsFromCatalog(root);
+
+  if (!Object.keys(blocksById).length) {
+    blocksById = loadBlocksFromComponents(root, agent);
+    meta = loadBlockGroupMeta(getComponentsAbsolute(root));
+  }
 
   if (!Object.keys(blocksById).length) {
     return { blockRegistry: {}, blockGroups: FALLBACK_BLOCK_GROUPS };

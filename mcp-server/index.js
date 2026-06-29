@@ -56,6 +56,10 @@ function createServer() {
       client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
   );
 
+  reg("list_type_catalog", "Platform type catalog (pages, fields, md-blocks, content slots).", z.object({}), () =>
+    client.get("/api/type-catalog", {}, { agentScope: false })
+  );
+
   reg("list_components", "Platform component registry (fields, blocks, frames, …).", z.object({}), () =>
     client.get("/api/components", {}, { agentScope: false })
   );

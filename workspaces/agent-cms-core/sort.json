@@ -1,15 +1,17 @@
 {
   "order": [
-    "platform-map",
-    "components",
-    "examples",
+    "types",
     "documentations",
-    "types-of-components",
-    "runtime",
-    "integrations",
     "catalog",
+    "agents",
+    "agents-groups",
+    "platform-map",
     "agent-groups",
     "ideasmd",
-    "delaem"
+    "delaem",
+    "components",
+    "types-of-components",
+    "settings",
+    "workflows"
   ]
 }

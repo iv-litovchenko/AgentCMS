@@ -1,0 +1,12 @@
+id: awn.page.area
+name: Область
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Область (категория) — папка с manifest.md
+fields:
+  awn-color:
+    type: awn.color
+    title: Цвет
+    description: Акцентный цвет области в меню

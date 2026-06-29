@@ -2,10 +2,9 @@
 awn-preview: ""
 awn-emoji: 🧩
 awn-name: Компоненты
-awn-status: 🟡 Черновик
-awn-type: awn.area
-awn-description: Реестр типов платформы — каждый тип это awn.topic (поле, блок, frame)
-awn-main: true
+awn-status: 🔴 Закрыта
+awn-main: false
+awn-description: Legacy — зеркало типов через topics. Источник правды — types/
 awn-tags: [architecture, registry]
 awn-version: 2
 ---

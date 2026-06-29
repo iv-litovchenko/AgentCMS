@@ -1,0 +1,14 @@
+id: awn.content.sidecar
+name: Sidecar
+kind: type
+domain: content
+status: active
+extends: awn.page.base
+description: Метаданные медиафайла (*.sidecar.md)
+fields:
+  awn-mime:
+    type: awn.string
+    title: MIME-тип
+  awn-size:
+    type: awn.integer
+    title: Размер (байт)

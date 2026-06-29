@@ -1,0 +1,77 @@
+id: awn.page.base
+name: База страницы
+kind: base
+domain: pages
+status: active
+extends: awn.entity
+description: Базовые YAML-свойства для узлов дерева и контентных записей
+mixins: [awn.mixin.preview]
+fields:
+  awn-preview:
+    type: awn.url
+    title: Превью
+    description: Путь к файлу в Assets/Preview/
+  awn-emoji:
+    type: awn.string
+    title: Эмодзи
+    description: Показывается вместо иконки, если превью не задано
+  awn-name:
+    type: awn.string
+    name: Имя
+    description: Отображаемое имя в меню
+    locked: true
+  awn-status:
+    type: awn.enum
+    name: Статус
+    enum:
+      - key: open
+        name: 🟢 Открыта
+      - key: draft
+        name: 🟡 Черновик
+      - key: closed
+        name: 🔴 Закрыта
+    default: draft
+  awn-type:
+    type: awn.string
+    name: Tип
+    required: true
+    locked: true
+  awn-create:
+    type: awn.datetime
+    title: Создан
+    locked: true
+  awn-update:
+    type: awn.datetime
+    title: Изменён
+    locked: true
+  awn-description:
+    type: awn.text
+    title: Описание
+  awn-main:
+    type: awn.boolean
+    title: На главной
+    default: false
+  awn-category:
+    type: awn.string
+    title: Категория
+  awn-owner:
+    type: awn.string
+    title: Владелец
+  awn-priority:
+    type: awn.string
+    title: Приоритет
+  awn-tags:
+    type: awn.array
+    name: Теги
+    items: awn.string
+  awn-color:
+    type: awn.color
+    title: Цвет
+  awn-version:
+    type: awn.integer
+    title: Версия
+    default: 1
+    locked: true
+  awn-sort:
+    type: awn.integer
+    title: Сортировка

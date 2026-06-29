@@ -1,0 +1,11 @@
+id: awn.enum-select
+name: Одно значение (из списка) · select
+path-id: fields/enum-select
+kind: field
+extends: awn.field-def
+widget: select
+storage: string
+mdbase: enum
+description: Одно значение из списка — выпадающий select
+settings: [description, hint, required, locked, default, enum]
+status: active

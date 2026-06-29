@@ -5,6 +5,10 @@ const {
   loadFieldDefFromComponents
 } = require("./components-loader");
 const {
+  loadFieldTypesFromCatalog,
+  loadFieldDefFromCatalog
+} = require("./type-catalog-loader");
+const {
   resolveFieldTypeId,
   isEnumFieldTypeId,
   isArrayFieldTypeId
@@ -112,8 +116,13 @@ function loadFieldsFromComponents(projectRoot, agentRoot) {
 
 function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveFieldsContext(agentRoot, projectRoot);
-  const registry = loadFieldsFromComponents(root, agent);
-  const fieldDefSchema = loadFieldDefFromComponents(root, agent);
+  let registry = loadFieldTypesFromCatalog(root);
+  let fieldDefSchema = loadFieldDefFromCatalog(root);
+
+  if (!Object.keys(registry).length) {
+    registry = loadFieldsFromComponents(root, agent);
+    fieldDefSchema = loadFieldDefFromComponents(root, agent);
+  }
 
   if (!Object.keys(registry).length) {
     return {

@@ -2,11 +2,8 @@
 awn-preview: ""
 awn-emoji: ""
 awn-name: Компоненты (типы)
-awn-status: 🟡 Черновик
-awn-type: awn.area
-awn-create: "2026-06-17T11:52"
-awn-update: 2026-06-17T14:30:00.000Z
-awn-description: Каталог компонентов Agent CMS — MD манифест + schema в storage
+awn-status: 🔴 Закрыта
+awn-description: Legacy онтология — заменена на types/
 awn-main: false
 awn-category: ""
 awn-tags: []

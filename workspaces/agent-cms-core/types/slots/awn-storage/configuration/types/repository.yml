@@ -1,0 +1,7 @@
+id: awn.slot.repository
+name: Repository
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Файловый репозиторий топика

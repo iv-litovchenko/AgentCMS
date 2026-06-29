@@ -1,0 +1,9 @@
+id: awn.boolean
+name: Логическое
+kind: field
+storage: bool
+mdbase: boolean
+widget: checkbox
+description: Логическое значение
+settings: [description, hint, required, locked, default]
+status: active
