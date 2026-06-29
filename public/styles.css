@@ -5482,37 +5482,159 @@ body.app-locked {
 .node-config-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 0 16px;
+  gap: 8px;
+  padding: 0 0 12px;
 }
 
 .node-config-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .node-config-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .node-config-lead {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
+  margin: 2px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
   color: var(--muted);
 }
 
 .node-config-fields {
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.node-config-field-row--compact {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.82fr) minmax(0, 1.18fr);
+  align-items: center;
+  gap: 6px 10px;
+  padding: 5px 10px;
+  min-height: 32px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.node-config-field-row--compact:first-child {
+  border-top: 0;
+}
+
+.node-config-field-row--compact.is-tall {
+  align-items: start;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.node-config-field-head {
+  min-width: 0;
+}
+
+.node-config-field-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.node-config-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #334155;
+}
+
+.node-config-field-label.has-field-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.node-config-field-label.is-required::after {
+  content: " *";
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.node-config-field-key {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #94a3b8;
+}
+
+.node-config-field-value {
+  min-width: 0;
+  width: 100%;
+}
+
+.node-config-field-value .props-form-value-wrap {
+  width: 100%;
+}
+
+.node-config-field-value input.props-form-value,
+.node-config-field-value select.props-form-value,
+.node-config-field-value textarea.props-form-value {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.3;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.node-config-field-value input.props-form-value:focus,
+.node-config-field-value select.props-form-value:focus,
+.node-config-field-value textarea.props-form-value:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.node-config-field-value .props-form-value-wrap--boolean {
+  padding: 0;
+}
+
+.node-config-field-value .props-form-bool-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.node-config-field-value .props-form-picker {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
-.node-config-field-row {
+.node-config-field-value .props-form-file-list {
+  margin-top: 0;
+}
+
+.node-config-field-row:not(.node-config-field-row--compact) {
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 8px;
   background: #fff;
@@ -5582,11 +5704,62 @@ body.app-locked {
   color: var(--muted);
 }
 
+.node-config-fields.props-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .node-config-empty,
 .node-config-error {
   margin: 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+.props-form-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.props-form-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface-muted, rgba(127, 127, 127, 0.08));
+}
+
+.props-form-file-item-name {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.props-form-file-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.props-form-file-upload {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-color, rgba(127, 127, 127, 0.35));
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.props-form-file-upload.is-uploading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .node-config-error {
@@ -17982,6 +18155,23 @@ button.node-navigation-memory-title:focus-visible {
   font-weight: 600;
   line-height: 1.25;
   color: #1e293b;
+}
+
+.props-form-field-label.has-field-icon,
+.node-config-field-label.has-field-icon,
+.props-preview-label.has-field-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.field-label-icon {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.field-label-text {
+  min-width: 0;
 }
 
 .doc-props-aside .props-form-field--compact .props-form-field-label {

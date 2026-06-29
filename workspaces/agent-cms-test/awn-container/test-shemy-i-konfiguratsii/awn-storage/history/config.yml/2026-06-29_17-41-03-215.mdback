@@ -1,0 +1,16 @@
+# Agent CMS — конфигурация
+awn_schema: ""
+awn_schema: ""
+param_1: ""
+param_12: 0
+param_22: 0
+
+awn_schema:
+  topic:
+    fields:
+      field_1:
+        type: awn.file
+        name: Файл
+      field_2:
+        type: awn.file
+        name: Файл 2

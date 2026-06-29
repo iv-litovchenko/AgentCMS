@@ -47,14 +47,33 @@ properties:
     title: Элемент списка
     description: Тип элементов для array-* (awn.string, awn.link…)
     type: awn.string
+  multiple:
+    type: awn.boolean
+    title: Несколько файлов
+    description: "false — один файл, true — список файлов"
+    default: false
+  accept:
+    title: Допустимые форматы
+    description: "Расширения или шаблоны через запятую: .pdf, .png, image/*"
+    type: awn.string
+  upload:
+    type: awn.boolean
+    title: Загрузка файлов
+    description: Разрешить загрузку с диска (как у вложений)
+    default: false
+  insertInText:
+    type: awn.boolean
+    title: Вставка в текст
+    description: Кнопка вставки ссылки или изображения в редактор
+    default: false
   scope:
     title: Область файлов
-    description: Для type file — откуда выбирать (all, external, media)
+    description: Где искать файлы при выборе
     type: awn.enum
     enum:
-      - key: all
-        name: all
-      - key: external
-        name: external
-      - key: media
-        name: media
+      - key: topic
+        name: Текущий топик
+      - key: area
+        name: Текущая область
+      - key: system
+        name: Вся система

@@ -1373,7 +1373,7 @@
                     class="node-workspace-domain-select"
                     aria-label="Раздел"
                   >
-                    <option value="navigation">Навигация</option>
+                    <option value="navigation">Обзор</option>
                     <option value="settings">|- Настройки</option>
                     <option value="quick-notes">|- Быстрые заметки</option>
                     <option value="inbox">|- Входящие</option>
@@ -1383,7 +1383,6 @@
                     <option value="memory">|- Память (данные)</option>
                     <option value="scripts">|- Скрипты</option>
                     <option value="todo">|- TODO</option>
-                    <option value="overview">Обзор</option>
                   </select>
                 </div>
                 <div id="node-navigation-path-controls" class="node-navigation-path-controls hidden">
@@ -1394,6 +1393,7 @@
                   >
                     <option value="subsections">Все доступные элементы</option>
                     <option value="mindmap">🗺 Карта тем</option>
+                    <option value="navigation" disabled>Навигация</option>
                   </select>
                 </div>
                 <div id="node-settings-path-controls" class="node-settings-path-controls hidden">
@@ -1705,21 +1705,23 @@
                   <div>
                     <h3 class="node-config-title">Конфигурация темы</h3>
                     <p class="node-config-lead">
-                      Параметры для агента сохраняются в <code>configuration.yml</code>.
-                      Схема полей (<code>awn_schema</code>) и стартовая страница (<code>default_landing_mode</code>) редактируются отдельно.
+                      Значения сохраняются в <code>configuration.yml</code> → <code>awn_settings</code>.
+                      Поля задаются во вкладке «Настройки» редактора схемы полей.
                     </p>
                   </div>
                 </header>
                 <div id="node-config-fields" class="node-config-fields"></div>
-                <p id="node-config-empty" class="node-config-empty hidden">Параметров пока нет — добавьте ключ кнопкой ниже.</p>
-                <footer class="node-config-footer">
-                  <button id="node-config-add-btn" class="node-config-add-btn" type="button">+ Параметр</button>
+                <p id="node-config-empty" class="node-config-empty hidden">
+                  Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
+                </p>
+                <footer class="node-config-footer hidden">
+                  <button id="node-config-add-btn" class="node-config-add-btn hidden" type="button" tabindex="-1" aria-hidden="true">+ Параметр</button>
                 </footer>
               </section>
               <section id="topic-schema-panel" class="topic-schema-panel hidden" aria-label="Схема полей темы">
                 <header class="topic-schema-head">
                   <div>
-                    <h3 class="topic-schema-title">Схема полей темы</h3>
+                    <h3 class="topic-schema-title">📋 Схема полей темы</h3>
                     <p class="topic-schema-lead">
                       Дополнительные поля сохраняются в <code>configuration.yml</code> → <code>awn_schema</code>.
                       Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
@@ -2561,6 +2563,7 @@
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>
+    <script src="/node-config-bundle.js?v=1"></script>
     <script src="/main.js?v=0.5.222"></script>
     <script src="/discuss-panel.js?v=0.5.223"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
