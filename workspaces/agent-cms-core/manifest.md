@@ -6,7 +6,7 @@ awn-status: 🟢 Открыта
 awn-type: awn.workspace
 awn-create: "2026-06-17T11:52"
 awn-update: 2026-06-21T18:00:00.000Z
-awn-description: Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS
+awn-description: "Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS"
 awn-main: false
 awn-category: ""
 awn-tags: []
@@ -14,6 +14,9 @@ awn-color: "#000000"
 awn-version: 5
 awn-sort: ""
 ---
+
+
+
 
 # Platform core
 

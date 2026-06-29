@@ -1,0 +1,14 @@
+id: awn.settings
+name: Настройки
+kind: type
+extends: awn.base
+description: Настройки темы (awn_settings в configuration.yml)
+fields:
+  awn-mask-file:
+    type: awn.string
+    name: Маска файла
+    title: awn-mask file
+    description: "Счётчик {id} хранится в main/id-increment.txt."
+    format: "{YYYY}, {YY}, {MM}, {DD}, {WW}, {id}"
+    locked: true
+    default: ""

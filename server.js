@@ -132,6 +132,14 @@ const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload } = require("./type-catalog-loader");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
+const {
+  AWN_MASK_FILE_KEY,
+  ID_INCREMENT_FILENAME,
+  resolveFileMask,
+  sanitizeMaskRelativePath,
+  displayNameFromMaskPath,
+  maskUsesId
+} = require(path.join(__dirname, "public", "external-file-mask.js"));
 
 const execFileAsync = promisify(execFile);
 
@@ -3043,14 +3051,9 @@ async function listStorageAttachmentFiles(storageContext) {
       if (stat.isDirectory()) {
         await appendFolderFiles(
           legacyAttachmentsFolder,
+          (fileName) => buildAssetsUploadRef(storageContext.rel, STORAGE_SUBFOLDER_ATTACHMENTS, fileName),
           (fileName) =>
-            buildStorageLayerRef(
-              storageContext.rel,
-              STORAGE_SUBFOLDER_MEDIA,
-              `${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`
-            ),
-          (fileName) =>
-            `${STORAGE_SUBFOLDER_MEDIA}/${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`.replace(/\\/g, "/")
+            `${STORAGE_SUBFOLDER_ASSETS}/${STORAGE_SUBFOLDER_ATTACHMENTS}/${fileName}`.replace(/\\/g, "/")
         );
       }
     } catch {
@@ -4714,7 +4717,7 @@ async function resolveUniqueExternalFileName(folderAbsolute, baseName = "Вос�
   let counter = 2;
   while (true) {
     try {
-      await fs.access(path.join(folderAbsolute, candidate));
+      await fs.access(joinFolderRelativePath(folderAbsolute, candidate));
       const stem = firstName.replace(/\.md$/i, "");
       candidate = `${stem}-${counter}.md`;
       counter += 1;
@@ -4722,6 +4725,91 @@ async function resolveUniqueExternalFileName(folderAbsolute, baseName = "Вос�
       return candidate.replace(/\\/g, "/");
     }
   }
+}
+
+function joinFolderRelativePath(folderAbsolute, relativePath) {
+  const root = path.resolve(folderAbsolute);
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return root;
+  const segments = normalized.split("/").filter(Boolean);
+  let current = root;
+  for (const segment of segments) {
+    if (!segment || segment === "." || segment === "..") return null;
+    current = path.join(current, segment);
+  }
+  if (!isPathInsideDirectory(root, current)) return null;
+  return current;
+}
+
+async function readExternalIdIncrement(folderAbsolute) {
+  const incrementAbsolute = path.join(folderAbsolute, ID_INCREMENT_FILENAME);
+  try {
+    const raw = await fs.readFile(incrementAbsolute, "utf-8");
+    const parsed = Number.parseInt(String(raw || "").trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  } catch {
+    // start from zero; first increment yields 1
+  }
+  return 0;
+}
+
+async function writeExternalIdIncrement(folderAbsolute, nextValue) {
+  const incrementAbsolute = path.join(folderAbsolute, ID_INCREMENT_FILENAME);
+  await fs.writeFile(incrementAbsolute, `${Math.max(0, Math.floor(Number(nextValue) || 0))}\n`, "utf-8");
+}
+
+async function allocateExternalIdIncrement(folderAbsolute) {
+  const current = await readExternalIdIncrement(folderAbsolute);
+  const next = current + 1;
+  await writeExternalIdIncrement(folderAbsolute, next);
+  return next;
+}
+
+async function peekNextExternalIdIncrement(folderAbsolute) {
+  const current = await readExternalIdIncrement(folderAbsolute);
+  return current + 1;
+}
+
+async function resolveUniqueMaskRelativePath(folderAbsolute, relativePath) {
+  const normalized = sanitizeMaskRelativePath(relativePath);
+  if (!normalized) return null;
+
+  let candidate = normalized;
+  let counter = 2;
+  while (true) {
+    const absolute = joinFolderRelativePath(folderAbsolute, candidate);
+    if (!absolute) return null;
+    try {
+      await fs.access(absolute);
+      const stem = normalized.replace(/\.md$/i, "");
+      const dir = path.posix.dirname(normalized);
+      const nextStem = `${path.posix.basename(stem)}-${counter}`;
+      candidate = dir && dir !== "." ? `${dir}/${nextStem}.md` : `${nextStem}.md`;
+      counter += 1;
+    } catch {
+      return candidate.replace(/\\/g, "/");
+    }
+  }
+}
+
+async function resolveExternalFileNameFromMask(targetFolder, mask, options = {}) {
+  const template = String(mask || "").trim();
+  if (!template) return null;
+  const incrementRoot = options.incrementRoot || targetFolder;
+  const id = maskUsesId(template)
+    ? options.id ?? (await allocateExternalIdIncrement(incrementRoot))
+    : options.id ?? 1;
+  const relative = resolveFileMask(template, { id, date: options.date || new Date() });
+  return resolveUniqueMaskRelativePath(targetFolder, relative);
+}
+
+async function ensureExternalRelativeParentDirs(folderAbsolute, relativePath) {
+  const normalized = sanitizeMaskRelativePath(relativePath);
+  if (!normalized) return null;
+  const absolute = joinFolderRelativePath(folderAbsolute, normalized);
+  if (!absolute) return null;
+  await fs.mkdir(path.dirname(absolute), { recursive: true });
+  return normalized.replace(/\\/g, "/");
 }
 
 async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
@@ -8829,15 +8917,35 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/external/id-increment") {
+    try {
+      const relPath = url.searchParams.get("path");
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
+
+      const current = await readExternalIdIncrement(folderAbsolute);
+      const next = current + 1;
+      return sendJson(res, 200, { current, next });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read id increment",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/external/file/create") {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
+      const fileMask = String(payload.fileMask || payload.mask || "").trim();
       const { display, diskSlug } = resolveContentItemNames(payload);
-      const title = display || "Воспоминание";
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
-      if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
-      if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
@@ -8851,10 +8959,25 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
       }
 
-      const fileName = await resolveUniqueExternalFileName(targetFolder, diskSlug);
-      if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
+      let fileName = null;
+      let title = display || "Воспоминание";
 
-      const fileAbsolute = path.join(targetFolder, fileName);
+      if (fileMask) {
+        fileName = await resolveExternalFileNameFromMask(targetFolder, fileMask, {
+          incrementRoot: folderAbsolute
+        });
+        if (!fileName) return sendJson(res, 400, { error: "Invalid file mask" });
+        title = display || displayNameFromMaskPath(fileName);
+        await ensureExternalRelativeParentDirs(targetFolder, fileName);
+      } else {
+        if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+        if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
+        fileName = await resolveUniqueExternalFileName(targetFolder, diskSlug);
+        if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
+      }
+
+      const fileAbsolute = joinFolderRelativePath(targetFolder, fileName);
+      if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid external file path" });
       const content = await buildExternalRecordFileContentForManifest(relPath, title);
       await fs.writeFile(fileAbsolute, content, "utf-8");
 

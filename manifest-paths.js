@@ -839,11 +839,37 @@ function buildAssetsUploadRef(_contextRelPath, assetsSubdir, fileName) {
   return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${file}`;
 }
 
-function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+function extractCanonicalInlineAssetsRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+
+  const inlineAssetsMatch = normalized.match(/\/assets\/(pasted|preview|attachments)\/(.+)$/i);
+  if (inlineAssetsMatch?.[1] && inlineAssetsMatch[2]) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${inlineAssetsMatch[1]}/${inlineAssetsMatch[2]}`;
+  }
+
+  const shortSubdirMatch = normalized.match(/(?:^|\/)(pasted|preview|attachments)\/(.+)$/i);
+  if (shortSubdirMatch?.[1] && shortSubdirMatch[2] && !/\/assets\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${shortSubdirMatch[1]}/${shortSubdirMatch[2]}`;
+  }
+
+  return "";
+}
+
+function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+  let normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
 
-  if (/^(?:awn-storage|storage)\/assets\//i.test(normalized)) return normalized;
+  if (/^storage\//i.test(normalized)) {
+    normalized = `${STORAGE_ROOT_FOLDER}/${normalized.replace(/^storage\//i, "")}`;
+  }
+
+  const extracted = extractCanonicalInlineAssetsRef(normalized);
+  if (extracted) return extracted;
+
+  if (/^(?:awn-storage|storage)\/assets\//i.test(normalized)) {
+    return normalized.replace(/^storage\/assets\//i, `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/`);
+  }
 
   if (/^assets\//i.test(normalized)) {
     return `${STORAGE_ROOT_FOLDER}/${normalized}`;
@@ -855,7 +881,12 @@ function normalizeNodeAssetsStorageRef(workspaceRelPath) {
 
   const assetsRef = parseStorageAssetsRef(normalized);
   if (assetsRef?.mediaFile) {
-    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
+    const mediaFile = String(assetsRef.mediaFile).replace(/\\/g, "/");
+    const mediaExtracted =
+      extractCanonicalInlineAssetsRef(mediaFile) ||
+      extractCanonicalInlineAssetsRef(`${STORAGE_SUBFOLDER_ASSETS}/${mediaFile}`);
+    if (mediaExtracted) return mediaExtracted;
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${mediaFile}`;
   }
 
   const storageAssetsIdx = Math.max(
@@ -863,7 +894,9 @@ function normalizeNodeAssetsStorageRef(workspaceRelPath) {
     normalized.toLowerCase().indexOf("/storage/assets/")
   );
   if (storageAssetsIdx >= 0) {
-    return normalized.slice(storageAssetsIdx + 1);
+    const tail = normalized.slice(storageAssetsIdx + 1);
+    const tailExtracted = extractCanonicalInlineAssetsRef(tail);
+    return tailExtracted || tail;
   }
 
   return normalized;

@@ -1,1 +1,1 @@
-![20260618173350](assets/pasted/20260618173350.png)
+![20260618173350](awn-storage/assets/pasted/20260618173350.png)

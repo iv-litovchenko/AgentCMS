@@ -24602,6 +24602,48 @@ button.node-navigation-memory-title:focus-visible {
   flex-shrink: 0;
 }
 
+.create-memory-mask-fieldset {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.create-memory-mask-fieldset .popover-label {
+  margin-bottom: 8px;
+}
+
+.create-memory-mask-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+}
+
+.create-memory-mask-hint code {
+  font-size: 11px;
+}
+
+.create-memory-mask-preview-line {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+}
+
+.create-memory-card.is-mask-mode .create-memory-name-row:not(:first-child) {
+  display: none;
+}
+
+.create-memory-card.is-mask-mode .create-memory-name-row {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.create-memory-card.is-mask-mode .create-memory-name-row .slug-input-wrap {
+  display: none;
+}
+
 .agents-registry-card {
   width: min(820px, 100%);
   max-height: min(calc(100vh - 32px), 900px);

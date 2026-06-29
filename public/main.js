@@ -258,6 +258,8 @@ const createSectionOkBtn = document.getElementById("create-section-ok-btn");
 const CREATE_MEMORY_MAX_COUNT = 5;
 const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
 const createMemoryModalNode = document.getElementById("create-memory-modal");
+const createMemoryCardNode = createMemoryModalNode?.querySelector(".create-memory-card");
+const createMemoryHintNode = createMemoryModalNode?.querySelector(".create-memory-hint");
 const createMemoryNamesListNode = document.getElementById("create-memory-names-list");
 const createMemoryNameInputNodes = createMemoryNamesListNode
   ? [...createMemoryNamesListNode.querySelectorAll(".create-memory-name-input")]
@@ -273,8 +275,11 @@ const createMemorySlugControllers = [];
 const createMemoryAfterListRadio = document.getElementById("create-memory-after-list");
 const createMemoryAfterEditRadio = document.getElementById("create-memory-after-edit");
 const createMemoryAfterRadios = [createMemoryAfterListRadio, createMemoryAfterEditRadio].filter(Boolean);
+const createMemoryMaskFieldsetNode = document.getElementById("create-memory-mask-fieldset");
+const createMemoryMaskPreviewNode = document.getElementById("create-memory-mask-preview");
 const createMemoryCancelBtn = document.getElementById("create-memory-cancel-btn");
 const createMemoryOkBtn = document.getElementById("create-memory-ok-btn");
+let activeCreateMemoryMask = "";
 const editorViewPreviewBtn = document.getElementById("editor-view-preview-btn");
 const editorViewWysiwygBtn = document.getElementById("editor-view-wysiwyg-btn");
 const editorViewSourceBtn = document.getElementById("editor-view-source-btn");
@@ -9169,15 +9174,15 @@ function createMenuTreeStatusBadge(status) {
 function createHeroTitleRow(title, statusRaw = "", options = {}) {
   const row = document.createElement("div");
   row.className = options.rowClass || "node-navigation-hero-title-row";
-  const titleNode = document.createElement("h2");
-  titleNode.className = options.titleClass || "node-navigation-hero-title";
-  titleNode.textContent = title;
-  row.appendChild(titleNode);
   const badge = createMenuTreeStatusBadge(statusRaw);
   if (badge) {
     badge.classList.add(options.statusClass || "node-navigation-hero-status");
     row.appendChild(badge);
   }
+  const titleNode = document.createElement("h2");
+  titleNode.className = options.titleClass || "node-navigation-hero-title";
+  titleNode.textContent = title;
+  row.appendChild(titleNode);
   return row;
 }
 
@@ -12434,33 +12439,13 @@ const PASTED_ASSETS_SUBDIR = "pasted";
 const PREVIEW_ASSETS_SUBDIR = "preview";
 const ATTACHMENTS_ASSETS_SUBDIR = "attachments";
 const ATTACHMENTS_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|svg)$/i;
-const ATTACHMENT_INSERT_PATH_VARIANT_KEY = "agentcms.attachmentInsertPathVariant.v1";
 const ATTACHMENT_UI_VARIANT_KEY = "agentcms.attachmentUiVariant.v1";
-const ATTACHMENT_PATH_VARIANT = {
-  full: "full",
-  short: "short"
-};
 const ATTACHMENT_UI_VARIANT = {
   simple: "simple",
   extended: "extended"
 };
 
-function getPropsAttachmentInsertPathVariant() {
-  const stored = localStorage.getItem(ATTACHMENT_INSERT_PATH_VARIANT_KEY);
-  if (stored === ATTACHMENT_PATH_VARIANT.full) return ATTACHMENT_PATH_VARIANT.full;
-  return ATTACHMENT_PATH_VARIANT.short;
-}
-
-function setPropsAttachmentInsertPathVariant(variant) {
-  const next =
-    variant === ATTACHMENT_PATH_VARIANT.short
-      ? ATTACHMENT_PATH_VARIANT.short
-      : ATTACHMENT_PATH_VARIANT.full;
-  localStorage.setItem(ATTACHMENT_INSERT_PATH_VARIANT_KEY, next);
-  return next;
-}
-
-function formatAttachmentPathForVariant(path, variant = getPropsAttachmentInsertPathVariant()) {
+function formatAttachmentPathForVariant(path) {
   const canonical = normalizeAttachmentRefForCompare(path) || String(path || "").trim();
   if (!canonical) return "";
   return normalizeNodeAssetsStorageRef(canonical);
@@ -12470,7 +12455,9 @@ function formatInlineAssetPathForEditor(path) {
   const raw = String(path || "").trim();
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw) || raw.startsWith("/api/")) return raw;
-  if (STORAGE_ASSETS_PATH_PREFIX_RE.test(raw)) return raw.replace(/^\/+/, "");
+  if (STORAGE_ASSETS_PATH_PREFIX_RE.test(raw)) {
+    return normalizeNodeAssetsStorageRef(raw.replace(/^\/+/, ""));
+  }
   const canonical = toCanonicalAssetsUploadRef(raw, PASTED_ASSETS_SUBDIR);
   return normalizeNodeAssetsStorageRef(canonical) || canonical || raw;
 }
@@ -12554,11 +12541,37 @@ function buildAssetsUploadRef(_manifestRelPath, assetsSubdir, fileName) {
   return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${file}`;
 }
 
-function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+function extractCanonicalInlineAssetsRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+
+  const inlineAssetsMatch = normalized.match(/\/assets\/(pasted|preview|attachments)\/(.+)$/i);
+  if (inlineAssetsMatch?.[1] && inlineAssetsMatch[2]) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${inlineAssetsMatch[1]}/${inlineAssetsMatch[2]}`;
+  }
+
+  const shortSubdirMatch = normalized.match(/(?:^|\/)(pasted|preview|attachments)\/(.+)$/i);
+  if (shortSubdirMatch?.[1] && shortSubdirMatch[2] && !/\/assets\//i.test(normalized)) {
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${shortSubdirMatch[1]}/${shortSubdirMatch[2]}`;
+  }
+
+  return "";
+}
+
+function normalizeNodeAssetsStorageRef(workspaceRelPath) {
+  let normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return "";
 
-  if (STORAGE_ASSETS_PATH_PREFIX_RE.test(normalized)) return normalized;
+  if (/^storage\//i.test(normalized)) {
+    normalized = `${STORAGE_ROOT_FOLDER}/${normalized.replace(/^storage\//i, "")}`;
+  }
+
+  const extracted = extractCanonicalInlineAssetsRef(normalized);
+  if (extracted) return extracted;
+
+  if (STORAGE_ASSETS_PATH_PREFIX_RE.test(normalized)) {
+    return normalized.replace(/^storage\/assets\//i, `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/`);
+  }
 
   if (/^assets\//i.test(normalized)) {
     return `${STORAGE_ROOT_FOLDER}/${normalized}`;
@@ -12570,12 +12583,19 @@ function normalizeNodeAssetsStorageRef(workspaceRelPath) {
 
   const assetsRef = parseStorageAssetsRef(normalized);
   if (assetsRef?.mediaFile) {
-    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${assetsRef.mediaFile}`;
+    const mediaFile = String(assetsRef.mediaFile).replace(/\\/g, "/");
+    const mediaExtracted = extractCanonicalInlineAssetsRef(mediaFile) || extractCanonicalInlineAssetsRef(
+      `${STORAGE_SUBFOLDER_ASSETS}/${mediaFile}`
+    );
+    if (mediaExtracted) return mediaExtracted;
+    return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${mediaFile}`;
   }
 
   const storageAssetsIdx = findStorageAssetsMarkerIndex(normalized);
   if (storageAssetsIdx >= 0) {
-    return normalized.slice(storageAssetsIdx + 1);
+    const tail = normalized.slice(storageAssetsIdx + 1);
+    const tailExtracted = extractCanonicalInlineAssetsRef(tail);
+    return tailExtracted || tail;
   }
 
   return normalized;
@@ -14603,8 +14623,16 @@ function buildDocumentRelativeStorageRef(layerFolder, relativePath, nodePath) {
     .join("/");
 }
 
-function buildMarkdownAttachmentRef(relativeAssetsPath, nodePath) {
-  return buildDocumentRelativeStorageRef(STORAGE_SUBFOLDER_ASSETS, relativeAssetsPath, nodePath);
+function buildMarkdownAttachmentRef(relativeAssetsPath, _nodePath) {
+  const raw = String(relativeAssetsPath || "").trim();
+  if (!raw) return "";
+  const subdir = /attachments/i.test(raw)
+    ? ATTACHMENTS_ASSETS_SUBDIR
+    : /preview/i.test(raw)
+      ? PREVIEW_ASSETS_SUBDIR
+      : PASTED_ASSETS_SUBDIR;
+  const canonical = toCanonicalAssetsUploadRef(raw, subdir);
+  return formatInlineAssetPathForEditor(canonical) || canonical;
 }
 
 function getUploadStorageContextPath() {
@@ -20825,7 +20853,19 @@ function normalizeTopicSchemaState(raw) {
     result.sidecar.fields = { ...source.sidecar.fields };
   }
   migrateLegacyTopicSchemaTargets(source, result);
+  if (result.settings?.fields) {
+    result.settings.fields = ExternalFileMask.stripBuiltinSettingsSchemaFields(result.settings.fields);
+  }
   return result;
+}
+
+function mergeTopicSchemaSettingsFields(fields = {}) {
+  return ExternalFileMask.mergeBuiltinSettingsSchemaFields(fields);
+}
+
+function getAwnMaskFileValueFromSettingsCache(cache = getNodeSettingsCache()) {
+  const entry = (cache?.entries || []).find((item) => item.key === ExternalFileMask.AWN_MASK_FILE_KEY);
+  return ExternalFileMask.normalizeMaskValue(entry?.value ?? "");
 }
 
 function resolveTopicManifestFromBundlePath(nodePath) {
@@ -20901,6 +20941,11 @@ function getNodeSettingsFieldMeta(key, fieldDef) {
 function normalizeNodeSettingsEntryValue(entry, fieldDef) {
   if (!fieldDef) return entry;
   let next = { ...entry, kind: fieldDefToEntryKind(fieldDef), fieldDef };
+  if (next.kind === "string" && Array.isArray(next.value)) {
+    next = { ...next, value: ExternalFileMask.normalizeMaskValue(next.value) };
+  } else if (next.kind === "string" && next.value != null && typeof next.value !== "string") {
+    next = { ...next, value: String(next.value) };
+  }
   if (!Array.isArray(fieldDef.enum) || !fieldDef.enum.length) return next;
 
   const api = awnEnumOptionsApi();
@@ -21010,7 +21055,7 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
   let settingsFields = {};
   try {
     const schemaCache = await loadTopicSchemaForManifest(manifestPath, { force: options.force });
-    settingsFields = schemaCache?.awnSchema?.settings?.fields || {};
+    settingsFields = mergeTopicSchemaSettingsFields(schemaCache?.awnSchema?.settings?.fields || {});
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
   } catch {
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, {});
@@ -21345,7 +21390,9 @@ function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.
 
 function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache = getTopicSchemaCache()) {
   if (!cache) return [];
-  return Object.keys(cache.awnSchema?.[target]?.fields || {});
+  const keys = Object.keys(cache.awnSchema?.[target]?.fields || {});
+  if (target !== "settings") return keys;
+  return keys.filter((key) => !ExternalFileMask.isBuiltinSettingsSchemaKey(key));
 }
 
 function addTopicSchemaField(target = topicSchemaActiveTarget) {
@@ -21368,6 +21415,7 @@ function addTopicSchemaField(target = topicSchemaActiveTarget) {
 }
 
 function removeTopicSchemaField(target, key) {
+  if (target === "settings" && ExternalFileMask.isBuiltinSettingsSchemaKey(key)) return;
   const cache = getTopicSchemaCache();
   if (!cache?.awnSchema?.[target]?.fields) return;
   delete cache.awnSchema[target].fields[key];
@@ -21397,6 +21445,7 @@ function reorderTopicSchemaFields(target, key, direction) {
 }
 
 function renameTopicSchemaField(target, oldKey, newKey) {
+  if (target === "settings" && ExternalFileMask.isBuiltinSettingsSchemaKey(oldKey)) return;
   const cache = getTopicSchemaCache();
   if (!cache?.awnSchema?.[target]?.fields || oldKey === newKey) return;
   const fields = cache.awnSchema[target].fields;
@@ -21449,7 +21498,11 @@ function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
     topicSchemaBaseFieldsNode.textContent = "—";
     return;
   }
-  const parts = Object.entries(base.fields).map(([key, def]) => {
+  const fieldEntries = { ...base.fields };
+  if (target === "settings") {
+    fieldEntries[ExternalFileMask.AWN_MASK_FILE_KEY] = ExternalFileMask.AWN_MASK_FILE_FIELD_DEF;
+  }
+  const parts = Object.entries(fieldEntries).map(([key, def]) => {
     const title = def?.title ? ` (${def.title})` : "";
     const typeLabel = getAwnFieldTypeLabel(def?.type);
     return `${key}${title} · ${typeLabel}`;
@@ -21472,8 +21525,7 @@ function createTopicSchemaSortButton(action, key, { disabled = false, title = ""
 function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   if (!topicSchemaFieldsNode || !topicSchemaEmptyNode) return;
   const target = topicSchemaActiveTarget;
-  const fields = cache?.awnSchema?.[target]?.fields || {};
-  const keys = Object.keys(fields);
+  const keys = getTopicSchemaCustomFieldKeys(target, cache);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
 
   topicSchemaFieldsNode.replaceChildren();
@@ -21484,7 +21536,7 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   topicSchemaEmptyNode.classList.add("hidden");
 
   keys.forEach((key, index) => {
-    const fieldDef = fields[key] || {};
+    const fieldDef = cache?.awnSchema?.[target]?.fields?.[key] || {};
     const expanded = isTopicSchemaFieldExpanded(target, key);
     const row = document.createElement("div");
     row.className = "topic-schema-field-row";
@@ -21694,12 +21746,19 @@ async function saveTopicSchemaContent() {
     readTopicSchemaFieldFromRow(row, cache);
   });
 
+  const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  if (awnSchemaToSave.settings?.fields) {
+    awnSchemaToSave.settings.fields = ExternalFileMask.stripBuiltinSettingsSchemaFields(
+      awnSchemaToSave.settings.fields
+    );
+  }
+
   const response = await fetch(buildApiUrl("/api/file/topic-schema"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       path: manifestPath,
-      awnSchema: normalizeTopicSchemaState(cache.awnSchema)
+      awnSchema: awnSchemaToSave
     })
   });
   if (!response.ok) {
@@ -21728,7 +21787,9 @@ async function saveTopicSchemaContent() {
       const nextState = parseNodeSettingsState(data.content);
       settingsCache.awnSchemaYaml = nextState.awnSchemaYaml;
       settingsCache.defaultLandingMode = nextState.defaultLandingMode;
-      settingsCache.settingsFields = normalizeTopicSchemaState(data.awnSchema)?.settings?.fields || {};
+      settingsCache.settingsFields = mergeTopicSchemaSettingsFields(
+        normalizeTopicSchemaState(data.awnSchema)?.settings?.fields || {}
+      );
       settingsCache.entries = buildNodeSettingsEntriesFromSchema(
         nextState.entries,
         settingsCache.settingsFields
@@ -22089,7 +22150,7 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
-  "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (assets/attachments/)",
+  "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
@@ -23917,7 +23978,7 @@ function getDocAsideMiniDocSpec() {
         items: [
           "Превью в обзоре режется строкой <code>---</code>",
           "Выше — краткий фрагмент, ниже — «Читать все»",
-          "Картинки в тексте: <code>![alt](assets/pasted/…)</code>",
+          "Картинки в тексте: <code>![alt](awn-storage/assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
           `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
         ]
@@ -24308,34 +24369,6 @@ function renderPropsAttachmentsBlock() {
     }
   });
   head.appendChild(uiVariantRow);
-
-  const pathVariantRow = createAttachmentVariantToggleRow({
-    label: "Путь:",
-    ariaLabel: "Формат пути при вставке",
-    options: [
-      {
-        id: ATTACHMENT_PATH_VARIANT.short,
-        label: "Короткий",
-        hint: "assets/pasted/…, assets/attachments/…"
-      },
-      {
-        id: ATTACHMENT_PATH_VARIANT.full,
-        label: "Полный",
-        hint: "awn-container/…/assets/pasted/…"
-      }
-    ],
-    activeId: getPropsAttachmentInsertPathVariant(),
-    extraClass: "doc-aside-attachments-path-variant doc-aside-attachments-path-variant--extended-only",
-    onSelect: (id, row) => {
-      setPropsAttachmentInsertPathVariant(id);
-      row.querySelectorAll(".doc-aside-attachments-variant-btn").forEach((node) => {
-        node.classList.toggle("is-active", node.dataset.variant === id);
-      });
-      const wrap = propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments");
-      rerenderPropsAttachmentsListFromWrap(wrap, { locked: readOnly });
-    }
-  });
-  head.appendChild(pathVariantRow);
 
   syncPropsAttachmentsHeadUi(head);
   propsAttachmentsBlockNode.append(head);
@@ -26048,13 +26081,10 @@ function syncPropsAttachmentsEntryFromWrap(wrap) {
   syncSaveButtonLamp();
 }
 
-function buildAttachmentMarkdownSnippet(path, { mode = "embed", label = "", pathVariant = null } = {}) {
+function buildAttachmentMarkdownSnippet(path, { mode = "embed", label = "" } = {}) {
   const canonical = toCanonicalAssetsUploadRef(path, ATTACHMENTS_ASSETS_SUBDIR);
   if (!canonical) return "";
-  const href = formatAttachmentPathForVariant(
-    canonical,
-    pathVariant || getPropsAttachmentInsertPathVariant()
-  );
+  const href = formatAttachmentPathForVariant(canonical);
   const fileName = canonical.split("/").pop() || "file";
   const displayLabel =
     String(label || "").trim() ||
@@ -26597,17 +26627,11 @@ function createPropsAttachmentItemExtended(path, wrap, { locked = false, inBody 
   storageName.title = "Имя файла на диске (транслит)";
   body.appendChild(storageName);
 
-  const pathFull = document.createElement("span");
-  pathFull.className = "props-form-attachment-path-line props-form-attachment-path-line--full";
-  pathFull.textContent = formatAttachmentPathForVariant(path, ATTACHMENT_PATH_VARIANT.full);
-  pathFull.title = "Полный путь";
-  body.appendChild(pathFull);
-
-  const pathShort = document.createElement("span");
-  pathShort.className = "props-form-attachment-path-line props-form-attachment-path-line--short";
-  pathShort.textContent = formatAttachmentPathForVariant(path, ATTACHMENT_PATH_VARIANT.short);
-  pathShort.title = "Короткий путь";
-  body.appendChild(pathShort);
+  const pathLine = document.createElement("span");
+  pathLine.className = "props-form-attachment-path-line";
+  pathLine.textContent = formatAttachmentPathForVariant(path);
+  pathLine.title = "Путь к файлу";
+  body.appendChild(pathLine);
 
   const status = document.createElement("span");
   status.className = "props-form-attachment-status";
@@ -26953,7 +26977,7 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
   orphansTitle.className = "props-form-attachments-orphans-title";
   orphansTitle.textContent = "В папке, не в списке";
   orphansTitle.title =
-    "Файлы в assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
+    "Файлы в awn-storage/assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
   orphansSection.appendChild(orphansTitle);
 
   const orphansList = document.createElement("div");
@@ -27390,11 +27414,33 @@ function applyNodeManifestBody(rawContent) {
   fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
 }
 
+function normalizePropsEntriesAssetRefs(entries) {
+  return entries.map((entry) => {
+    const key = normalizePropsKey(entry.key);
+    if (key === "awn-preview") {
+      const raw = getPropsEntryValueByKey([entry], key);
+      const normalized = formatInlineAssetPathForEditor(
+        toCanonicalAssetsUploadRef(raw, PREVIEW_ASSETS_SUBDIR)
+      );
+      return normalized ? applyFormValueToEntry(entry, normalized) : entry;
+    }
+    if (key === "awn-attachments" && entry.kind === "array") {
+      const paths = Array.isArray(entry.value) ? entry.value.map(String).filter(Boolean) : [];
+      const normalized = paths
+        .map((itemPath) => normalizeAttachmentRefForCompare(itemPath) || itemPath)
+        .filter(Boolean);
+      return { ...entry, value: normalized };
+    }
+    return entry;
+  });
+}
+
 function flushPropsYamlFromFormBeforeSave() {
   if (propsRawYamlVisible) {
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
   }
   readPropsFormIntoEntries();
+  propsFormEntries = normalizePropsEntriesAssetRefs(propsFormEntries);
   syncYamlFromPropsForm();
 }
 
@@ -27651,6 +27697,64 @@ function resetCreateMemoryNameInputs() {
   for (const controller of createMemorySlugControllers) controller.reset();
 }
 
+function syncCreateMemoryModalMaskUi(mask = activeCreateMemoryMask) {
+  const hasMask = Boolean(String(mask || "").trim());
+  createMemoryCardNode?.classList.toggle("is-mask-mode", hasMask);
+  createMemoryMaskFieldsetNode?.classList.toggle("hidden", !hasMask);
+  if (createMemoryHintNode) {
+    createMemoryHintNode.textContent = hasMask
+      ? "Одна запись по маске. Название необязательно — файл создаётся автоматически."
+      : "До 5 записей за раз. Пустые строки пропускаются.";
+  }
+  if (createMemoryNameInputNodes[0]) {
+    createMemoryNameInputNodes[0].placeholder = hasMask ? "Название (необязательно)" : "Название";
+  }
+  if (hasMask) {
+    for (let index = 1; index < createMemoryNameInputNodes.length; index += 1) {
+      if (createMemoryNameInputNodes[index]) createMemoryNameInputNodes[index].value = "";
+      createMemorySlugControllers[index]?.reset();
+    }
+  }
+  if (!createMemoryMaskPreviewNode) return;
+  if (!hasMask) {
+    createMemoryMaskPreviewNode.textContent = "";
+    return;
+  }
+  createMemoryMaskPreviewNode.textContent = "→ …";
+  void renderCreateMemoryMaskPreview(mask);
+}
+
+async function renderCreateMemoryMaskPreview(mask = activeCreateMemoryMask) {
+  if (!createMemoryMaskPreviewNode || !String(mask || "").trim()) return;
+  let nextId = 1;
+  if (ExternalFileMask.maskUsesId(mask) && activePath) {
+    try {
+      const response = await fetch(
+        buildApiUrl("/api/external/id-increment", { path: getActiveNodeApiPath() })
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (Number.isFinite(Number(data?.next))) nextId = Math.max(1, Math.floor(Number(data.next)));
+      }
+    } catch {
+      // keep default preview id
+    }
+  }
+  if (!createMemoryMaskPreviewNode.isConnected) return;
+  const preview = ExternalFileMask.resolveFileMask(mask, { id: nextId, date: new Date() });
+  createMemoryMaskPreviewNode.textContent = `→ ${preview}`;
+}
+
+async function loadActiveCreateMemoryMask() {
+  if (!activePath) return "";
+  try {
+    const cache = await loadNodeSettingsForManifest(activePath);
+    return getAwnMaskFileValueFromSettingsCache(cache);
+  } catch {
+    return "";
+  }
+}
+
 function getCreateMemoryItems() {
   const items = [];
   for (let index = 0; index < createMemoryNameInputNodes.length; index += 1) {
@@ -27663,6 +27767,10 @@ function getCreateMemoryItems() {
     items.push({ displayName, slug });
   }
   return items.slice(0, CREATE_MEMORY_MAX_COUNT);
+}
+
+function getCreateMemoryMaskName() {
+  return createMemoryNameInputNodes[0]?.value?.trim() || "";
 }
 
 function shouldOpenCreatedMemoryForEdit() {
@@ -27694,10 +27802,12 @@ function setCreateMemoryModalBusy(busy) {
   for (const radio of createMemoryAfterRadios) radio.disabled = busy;
 }
 
-function openCreateMemoryModal() {
+async function openCreateMemoryModal() {
   if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
   resetCreateMemoryNameInputs();
   syncCreateMemoryAfterRadiosFromStorage();
+  activeCreateMemoryMask = await loadActiveCreateMemoryMask();
+  syncCreateMemoryModalMaskUi(activeCreateMemoryMask);
   setCreateMemoryModalBusy(false);
   createMemoryOkBtn.textContent = "Создать";
   createMemoryModalNode.classList.remove("hidden");
@@ -27707,8 +27817,36 @@ function openCreateMemoryModal() {
 function closeCreateMemoryModal() {
   createMemoryModalNode.classList.add("hidden");
   resetCreateMemoryNameInputs();
+  activeCreateMemoryMask = "";
+  syncCreateMemoryModalMaskUi("");
   setCreateMemoryModalBusy(false);
   createMemoryOkBtn.textContent = "Создать";
+}
+
+async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
+  const parentFolder = getActiveExternalSectionParentForCreate();
+  const requestBody = {
+    path: getActiveNodeApiPath(),
+    fileMask
+  };
+  const title = String(displayName || "").trim();
+  if (title) {
+    requestBody.title = title;
+    requestBody.displayName = title;
+  }
+  if (parentFolder) requestBody.parent = parentFolder;
+  const response = await fetch(buildApiUrl("/api/external/file/create"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody)
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  return response.json();
 }
 
 async function createExternalMemoryFile(displayName, slug) {
@@ -27736,6 +27874,31 @@ async function createExternalMemoryFile(displayName, slug) {
 
 async function createExternalMemory() {
   if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
+
+  if (activeCreateMemoryMask) {
+    setCreateMemoryModalBusy(true);
+    createMemoryOkBtn.textContent = "Создаю...";
+    try {
+      const data = await createExternalMemoryFileWithMask(
+        activeCreateMemoryMask,
+        getCreateMemoryMaskName()
+      );
+      persistCreateMemoryAfterChoice();
+      closeCreateMemoryModal();
+      await loadContentByMode();
+      if (data.file && shouldOpenCreatedMemoryForEdit()) {
+        await openExternalFile(data.file);
+      }
+      showToast("Запись создана", "success");
+    } catch (error) {
+      showToast(error?.message || "Ошибка создания записи", "error");
+    } finally {
+      setCreateMemoryModalBusy(false);
+      createMemoryOkBtn.textContent = "Создать";
+    }
+    return;
+  }
+
   const items = getCreateMemoryItems();
   if (!items.length) {
     showToast("Введите хотя бы одно название", "error");
@@ -36459,12 +36622,32 @@ function teardownWysiwygBrokenImageFallbacks() {
   wysiwygImageFallbackObserver = null;
 }
 
-function normalizeWysiwygExportedMarkdown(markdown) {
-  // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
-  let normalized = restoreBrokenImagePathsInExportedMarkdown(
-    convertHighlightHtmlToMarkdown(String(markdown || ""))
-  );
-  normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
+function normalizeMarkdownAssetHref(href) {
+  const trimmed = String(href || "").trim();
+  if (!trimmed || /^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed) || trimmed.startsWith("/api/")) {
+    return trimmed;
+  }
+
+  const looksLikeInlineAsset =
+    /\/assets\/(pasted|preview|attachments)\//i.test(trimmed) ||
+    /^(\.\.\/)+/.test(trimmed) ||
+    /^(?:awn-storage|storage)\//i.test(trimmed) ||
+    /^assets\//i.test(trimmed) ||
+    /^(pasted|preview|attachments)\//i.test(trimmed);
+  if (!looksLikeInlineAsset) return trimmed;
+
+  const subdir = /preview/i.test(trimmed)
+    ? PREVIEW_ASSETS_SUBDIR
+    : /attachments/i.test(trimmed)
+      ? ATTACHMENTS_ASSETS_SUBDIR
+      : PASTED_ASSETS_SUBDIR;
+  const canonical = toCanonicalAssetsUploadRef(trimmed, subdir);
+  if (!canonical) return trimmed;
+  return formatInlineAssetPathForEditor(canonical) || canonical;
+}
+
+function normalizeMarkdownInlineAssetRefs(markdown) {
+  let normalized = String(markdown || "");
   normalized = normalized.replace(
     /!\[([^\]]*)\]\(((?:https?:\/\/[^/]+)?\/api\/media\/file[^)]+)\)/g,
     (match, alt, url) => {
@@ -36482,30 +36665,28 @@ function normalizeWysiwygExportedMarkdown(markdown) {
   normalized = normalized.replace(
     /!\[([^\]]*)\]\(([^)\s"#]+)(?:\s+"[^"]*")?\)/g,
     (match, alt, url) => {
-      const trimmed = String(url || "").trim();
-      if (!trimmed || /^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return match;
-      if (/^awn-storage\//i.test(trimmed)) return match;
-      if (trimmed.startsWith("/api/")) return match;
-      const looksLikeInlineAsset =
-        /\/assets\/(pasted|preview|attachments)\//i.test(trimmed) ||
-        /^(\.\.\/)+/.test(trimmed) ||
-        /^assets\//i.test(trimmed) ||
-        /^pasted\//i.test(trimmed) ||
-        /^preview\//i.test(trimmed) ||
-        /^attachments\//i.test(trimmed);
-      if (!looksLikeInlineAsset) return match;
-      const subdir = /preview/i.test(trimmed)
-        ? PREVIEW_ASSETS_SUBDIR
-        : /attachments/i.test(trimmed)
-          ? ATTACHMENTS_ASSETS_SUBDIR
-          : PASTED_ASSETS_SUBDIR;
-      const canonical = toCanonicalAssetsUploadRef(trimmed, subdir);
-      if (!canonical) return match;
-      const formatted = formatInlineAssetPathForEditor(canonical);
-      return formatted && formatted !== trimmed ? `![${alt}](${formatted})` : match;
+      const formatted = normalizeMarkdownAssetHref(url);
+      return formatted && formatted !== String(url || "").trim() ? `![${alt}](${formatted})` : match;
+    }
+  );
+  normalized = normalized.replace(
+    /(?<!!)\[([^\]]*)\]\(([^)\s"#]+)(?:\s+"[^"]*")?\)/g,
+    (match, label, url) => {
+      if (!isAttachmentsEditorRef(url)) return match;
+      const formatted = normalizeMarkdownAssetHref(url);
+      return formatted && formatted !== String(url || "").trim() ? `[${label}](${formatted})` : match;
     }
   );
   return normalized;
+}
+
+function normalizeWysiwygExportedMarkdown(markdown) {
+  // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
+  let normalized = restoreBrokenImagePathsInExportedMarkdown(
+    convertHighlightHtmlToMarkdown(String(markdown || ""))
+  );
+  normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
+  return normalizeMarkdownInlineAssetRefs(normalized);
 }
 
 function normalizeWysiwygImportedMarkdown(markdown) {
@@ -36613,7 +36794,7 @@ function getEditorContentValue() {
   if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
     return normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
   }
-  return fileContentInputNode.value;
+  return normalizeMarkdownInlineAssetRefs(fileContentInputNode.value);
 }
 
 function updateEditorViewButtonsState() {

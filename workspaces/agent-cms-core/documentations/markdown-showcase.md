@@ -104,7 +104,7 @@ status: draft
 Вставьте изображение в редактор (Source или Edit) — файл сохранится в `_Storage/Assets/Pasted/` и появится ссылка:
 
 ```markdown
-![screenshot](Assets/Pasted/20260608150516.png)
+![screenshot](awn-storage/Assets/Pasted/20260608150516.png)
 ```
 
 Preview автоматически подставит URL `/api/media/file?…`.

@@ -2290,6 +2290,11 @@
             <span>Перейти к редактированию</span>
           </label>
         </fieldset>
+        <fieldset id="create-memory-mask-fieldset" class="create-memory-mask-fieldset hidden">
+          <legend class="popover-label">Создать по маске</legend>
+          <p class="create-memory-mask-hint">Имя файла формируется автоматически. Счётчик <code>{id}</code> хранится в <code>main/id-increment.txt</code>.</p>
+          <p id="create-memory-mask-preview" class="create-memory-mask-preview-line"></p>
+        </fieldset>
         <div class="modal-actions">
           <button id="create-memory-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-memory-ok-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -2562,6 +2567,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=4"></script>
     <script src="/slug-translit.js?v=1"></script>
+    <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/main.js?v=0.5.222"></script>

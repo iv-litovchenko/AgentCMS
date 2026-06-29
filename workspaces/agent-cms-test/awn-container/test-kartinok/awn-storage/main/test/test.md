@@ -18,4 +18,4 @@ awn-sort: ""
 awn-attachments: []
 ---
 
-![20260618174227](assets/pasted/20260618174227.png)
+![20260618174227](awn-storage/assets/pasted/20260618174227.png)

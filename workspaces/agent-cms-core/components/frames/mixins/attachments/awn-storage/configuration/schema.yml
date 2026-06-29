@@ -6,7 +6,7 @@ fields:
   awn-attachments:
     type: awn.array
     name: Вложения
-    description: Файлы в assets/attachments/; в шапке — список, снизу — файлы только в папке
+    description: Файлы в awn-storage/assets/attachments/; в шапке — список, снизу — файлы только в папке
     items: awn.file
     widget: attachments
     scope: media
