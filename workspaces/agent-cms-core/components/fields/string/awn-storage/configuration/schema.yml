@@ -1,4 +1,5 @@
 id: awn.string
+name: Строка
 path-id: fields/string
 kind: field
 extends: awn.field-def

@@ -4,12 +4,16 @@ description: Мета-свойства определения поля в awn-ty
 properties:
   type:
     title: Тип данных
-    description: Тип из awn-types/fields/ (awn.string, awn.enum, awn.url, awn.array…)
+    description: Тип из fields/ (awn.string, awn.enum, awn.array…)
+    required: true
+  name:
+    title: Название
+    description: Подпись поля в форме «Свойства» (человекочитаемое имя)
     required: true
   title:
-    title: Название
-    description: Подпись поля в форме «Свойства»
-    required: true
+    title: Название (legacy)
+    description: Устаревший alias для name — не используйте в новых схемах
+    type: awn.string
   description:
     title: Описание
     description: Развёрнутое пояснение для схемы и документации
@@ -34,18 +38,27 @@ properties:
     type: awn.string
   default:
     title: По умолчанию
-    description: Значение при создании новой записи
+    description: Значение при создании (key для enum, ключи для array)
+    type: awn.string
+  widget:
+    title: Виджет
+    description: "awn.enum: select | radio; awn.array: checkbox | select-multiple"
     type: awn.string
   enum:
     title: Варианты
-    description: Список значений для type enum
-    type: awn.array
+    description: "Список key/name для awn.enum и awn.array (key — в YAML, name — в UI)"
   items:
     title: Элемент списка
-    description: Тип элементов для type array (awn.string, awn.link…)
+    description: Тип элементов для array-* (awn.string, awn.link…)
     type: awn.string
   scope:
     title: Область файлов
     description: Для type file — откуда выбирать (all, external, media)
     type: awn.enum
-    enum: [all, external, media]
+    enum:
+      - key: all
+        name: all
+      - key: external
+        name: external
+      - key: media
+        name: media

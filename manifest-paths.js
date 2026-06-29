@@ -43,8 +43,10 @@ const LEGACY_BUNDLE_TABULAR_FILE = "content.csv";
 const BUNDLE_MEMORY_FILE = BUNDLE_MAIN_FILE;
 /** @deprecated use BUNDLE_MAIN_FILE */
 const BUNDLE_CONTENT_FILE = BUNDLE_MAIN_FILE;
-const BUNDLE_CONFIG_FILE = "configuration.yml";
+const BUNDLE_CONFIG_FILE = "config.yml";
+const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BUNDLE_ENV_FILE = ".env";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const PREVIEW_FILE_BASENAME = "preview";
 const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
@@ -54,6 +56,10 @@ const WORKSPACE_MENU_EXCLUDED_MD = new Set([
   MANIFEST_FILE,
   "agents.md",
   "todo.md",
+  "main.md",
+  "main.csv",
+  "config.yml",
+  "configuration.yml",
   "STRUCTURE.md"
 ]);
 
@@ -230,13 +236,30 @@ function listBundleFileNameCandidates(bundleFileName) {
   ) {
     return [BUNDLE_TABULAR_FILE, LEGACY_BUNDLE_TABULAR_MEMORY_FILE, LEGACY_BUNDLE_TABULAR_FILE];
   }
+  if (
+    lower === BUNDLE_CONFIG_FILE.toLowerCase() ||
+    lower === LEGACY_BUNDLE_CONFIG_FILE.toLowerCase()
+  ) {
+    return [BUNDLE_CONFIG_FILE, LEGACY_BUNDLE_CONFIG_FILE];
+  }
+  if (
+    lower === BUNDLE_TODO_FILE.toLowerCase() ||
+    lower === ROOT_SYSTEM_TODO_FILE.toLowerCase()
+  ) {
+    return [BUNDLE_TODO_FILE, ROOT_SYSTEM_TODO_FILE];
+  }
   return [canonical];
 }
 
 function getNamedStorageBundleRelCandidates(relPath, bundleFileName) {
-  return listBundleFileNameCandidates(bundleFileName).map((name) =>
-    getNamedStorageBundleRel(relPath, name)
-  );
+  const rels = [];
+  for (const name of listBundleFileNameCandidates(bundleFileName)) {
+    const containerDir = getNamedStorageBundleDirRel(relPath);
+    if (containerDir) rels.push(`${containerDir}/${name}`);
+    const legacyDir = getNamedStorageSlotDirRel(relPath);
+    if (legacyDir) rels.push(`${legacyDir}/${name}`);
+  }
+  return [...new Set(rels.filter(Boolean))];
 }
 
 function normalizeStorageSubfolderName(name) {
@@ -396,7 +419,8 @@ function getNamedStorageSlotDirRel(relPath) {
 }
 
 function getNamedStorageBundleDirRel(relPath) {
-  return getNamedStorageSlotDirRel(relPath);
+  const ownerRel = resolveOwningManifestRelFromNodePath(relPath);
+  return getManifestContainerDirRel(ownerRel);
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName) {
@@ -552,7 +576,10 @@ function resolveBundleFileMode(fileNameLower) {
   if (fileNameLower === LEGACY_BUNDLE_TABULAR_MEMORY_FILE.toLowerCase()) return "tabular";
   if (fileNameLower === LEGACY_BUNDLE_TABULAR_FILE.toLowerCase()) return "tabular";
   if (fileNameLower === BUNDLE_CONFIG_FILE.toLowerCase()) return "configs";
+  if (fileNameLower === LEGACY_BUNDLE_CONFIG_FILE.toLowerCase()) return "configs";
   if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
+  if (fileNameLower === ROOT_SYSTEM_TODO_FILE.toLowerCase()) return "todo";
+  if (fileNameLower === BUNDLE_ENV_FILE.toLowerCase()) return "env";
   if (fileNameLower.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) return "node-preview";
   return null;
 }
@@ -859,21 +886,27 @@ function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
 
 function resolveManifestRelFromStorageBundlePath(normalized) {
   const rel = String(normalized || "").replace(/\\/g, "/");
-  const match = rel.match(
+
+  const legacyMatch = rel.match(
     new RegExp(`^(.*)/${escapeRegex(STORAGE_ROOT_FOLDER)}/([^/]+)$`, "i")
   );
-  if (!match) return null;
-  const containerPrefix = match[1] ? match[1].replace(/\/$/, "") : "";
-  const mode = resolveBundleFileMode(match[2].toLowerCase());
+  if (legacyMatch) {
+    const mode = resolveBundleFileMode(legacyMatch[2].toLowerCase());
+    if (mode) {
+      const containerPrefix = legacyMatch[1] ? legacyMatch[1].replace(/\/$/, "") : "";
+      const manifestRel = containerPrefix ? `${containerPrefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
+      return { manifestCandidates: [manifestRel], mode, bundlePath: rel };
+    }
+  }
+
+  const base = path.posix.basename(rel);
+  const mode = resolveBundleFileMode(base.toLowerCase());
   if (!mode) return null;
-
-  const manifestRel = containerPrefix ? `${containerPrefix}/${MANIFEST_FILE}` : MANIFEST_FILE;
-
-  return {
-    manifestCandidates: [manifestRel],
-    mode,
-    bundlePath: rel
-  };
+  const dir = path.posix.dirname(rel);
+  if (!dir || dir === ".") return null;
+  const manifestRel = `${dir}/${MANIFEST_FILE}`;
+  if (!isManifestMdRelPath(manifestRel)) return null;
+  return { manifestCandidates: [manifestRel], mode, bundlePath: rel };
 }
 
 function topicManifestCandidates(nodeBase, parentFolder) {
@@ -1007,7 +1040,9 @@ module.exports = {
   LEGACY_BUNDLE_CONTENT_FILE,
   LEGACY_BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
+  LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_ENV_FILE,
   ROOT_SYSTEM_TODO_FILE,
   normalizeSystemFileRequestName,
   isRootSystemTodoFileName,

@@ -46,6 +46,6 @@ demo_url: "https://example.com/all-field-types"
 | **record** | `Content/All-Field-Types.md` (`rec_*`) |
 | **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
 
-Схема полей: `awn-storage/all-field-types/configuration.yml` → `awn_schema`.
+Схема полей: `config.yml` → `awn_schema`.
 
 Запись с заполненными значениями: [[All-Field-Types]].

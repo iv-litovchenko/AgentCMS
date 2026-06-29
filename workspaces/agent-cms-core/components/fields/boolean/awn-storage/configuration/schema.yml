@@ -1,5 +1,5 @@
 id: awn.boolean
-name: Да/нет
+name: Логическое
 kind: field
 storage: bool
 mdbase: boolean

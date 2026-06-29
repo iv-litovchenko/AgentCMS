@@ -16,18 +16,24 @@ fields:
     format: "🎯"
   awn-name:
     type: awn.string
-    title: Имя
+    name: Имя
     description: Отображаемое имя в меню; пустое — показывается slug (имя файла или папки на диске)
     locked: true
   awn-status:
     type: awn.enum
-    title: Статус
+    name: Статус
     description: Состояние записи
-    enum: [🟢 Открыта, 🟡 Черновик, 🔴 Закрыта]
-    default: 🟡 Черновик
+    enum:
+      - key: open
+        name: 🟢 Открыта
+      - key: draft
+        name: 🟡 Черновик
+      - key: closed
+        name: 🔴 Закрыта
+    default: draft
   awn-type:
     type: awn.string
-    title: Тип
+    name: Тип
     description: Идентификатор типа записи (awn.workspace, awn.area, awn.topic, …)
     hint: awn.workspace, awn.area, awn.topic, awn.record.category…
     required: true
@@ -67,7 +73,7 @@ fields:
     description: Уровень важности (из справочника priorities)
   awn-tags:
     type: awn.array
-    title: Теги
+    name: Теги
     description: Метки для поиска и фильтрации
     items: awn.string
   awn-color:

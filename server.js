@@ -56,6 +56,7 @@ const {
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
+  LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
   ROOT_SYSTEM_TODO_FILE,
   normalizeSystemFileRequestName,
@@ -78,6 +79,8 @@ const {
   STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
+  STORAGE_SUBFOLDER_COMMENTS,
+  STORAGE_SUBFOLDER_BY_MODE,
   HISTORY_VERSION_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
   normalizeStorageSubfolderName,
@@ -1829,13 +1832,12 @@ async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName
 
 async function readExistingBundleFile(relNodePath, bundleFileName) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
-  for (const name of listBundleFileNameCandidates(bundleFileName)) {
-    const canonicalRel = namedStorageBundleRel(resolvedRelPath, name);
-    const absolute = normalizeWorkspacePath(canonicalRel);
+  for (const rel of getNamedStorageBundleRelCandidates(resolvedRelPath, bundleFileName)) {
+    const absolute = normalizeWorkspacePath(rel);
     if (!absolute) continue;
     try {
       const content = await fs.readFile(absolute, "utf-8");
-      return { path: canonicalRel, content, exists: true };
+      return { path: rel, content, exists: true };
     } catch (error) {
       if (!error || error.code !== "ENOENT") throw error;
     }
@@ -2282,11 +2284,11 @@ function extractColorFromPropsYaml(content) {
 }
 
 function toConfigurationFilePath(relNodePath) {
-  return path.join(getNodeStorageRootRel(relNodePath), BUNDLE_CONFIG_FILE).replace(/\\/g, "/");
+  return path.join(getManifestContainerDirRel(relNodePath), BUNDLE_CONFIG_FILE).replace(/\\/g, "/");
 }
 
 function toEnvFilePath(relNodePath) {
-  return path.join(getNodeStorageRootRel(relNodePath), ".env").replace(/\\/g, "/");
+  return path.join(getManifestContainerDirRel(relNodePath), ".env").replace(/\\/g, "/");
 }
 
 function toExternalMarkdownFileName(rawName) {
@@ -3873,16 +3875,21 @@ async function countDirectoryEntries(dirAbsolute) {
 async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
   const layers = {};
   const existsBase = baseAbsolute ? await isExistingDirectory(baseAbsolute) : false;
+  const bundleSearchDirs = [];
+  if (options.containerAbsolute) bundleSearchDirs.push(options.containerAbsolute);
+  if (existsBase) bundleSearchDirs.push(baseAbsolute);
 
   for (const fileName of STORAGE_SLOT_LAYER_FILES) {
     let exists = false;
-    if (existsBase) {
+    for (const dir of bundleSearchDirs) {
+      if (!dir) continue;
       for (const name of listBundleFileNameCandidates(fileName)) {
-        if (await fileExists(path.join(baseAbsolute, name))) {
+        if (await fileExists(path.join(dir, name))) {
           exists = true;
           break;
         }
       }
+      if (exists) break;
     }
     layers[fileName] = { kind: "file", exists };
   }
@@ -3915,6 +3922,101 @@ async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
   }
 
   return { exists: existsBase, layers };
+}
+
+const STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL = (() => {
+  const map = new Map();
+  map.set(STORAGE_SUBFOLDER_MAIN, "memory");
+  for (const [mode, folderName] of Object.entries(STORAGE_SUBFOLDER_BY_MODE)) {
+    if (mode === "external" || mode === "configs") continue;
+    map.set(folderName, mode);
+  }
+  map.set(STORAGE_SUBFOLDER_HISTORY, "history");
+  map.set(STORAGE_SUBFOLDER_COMMENTS, "comments");
+  return map;
+})();
+
+function resolveSlotKeyFromStorageFolderName(rawName) {
+  const canonical = normalizeStorageSubfolderName(rawName);
+  if (!canonical) return null;
+  return STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL.get(canonical) || null;
+}
+
+function isStorageRootBundleLooseFile(fileName) {
+  const lower = String(fileName || "").toLowerCase();
+  const bundleNames = new Set(
+    [
+      ...listBundleFileNameCandidates(BUNDLE_CONTENT_FILE),
+      ...listBundleFileNameCandidates(BUNDLE_TABULAR_FILE),
+      ...listBundleFileNameCandidates(BUNDLE_TODO_FILE),
+      ...listBundleFileNameCandidates(BUNDLE_CONFIG_FILE),
+      ...listBundleFileNameCandidates(ROOT_SYSTEM_TODO_FILE),
+      BUNDLE_BODY_FILE,
+      ".env"
+    ].map((name) => name.toLowerCase())
+  );
+  return bundleNames.has(lower);
+}
+
+async function scanNodeStorageRoot(manifestRelPath) {
+  const normalizedPath = String(manifestRelPath || "").replace(/\\/g, "/");
+  if (!normalizedPath) {
+    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(normalizedPath);
+  if (!nodeAbsolute) {
+    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+  }
+
+  const storageRootAbs = getNodeStorageRootAbsolute(nodeAbsolute);
+  const storageRoot = getNodeStorageRootRel(normalizedPath);
+  const exists = storageRootAbs ? await isExistingDirectory(storageRootAbs) : false;
+  const folders = [];
+  const looseFiles = [];
+  let totalEntries = 0;
+
+  if (exists && storageRootAbs) {
+    const entries = await fs.readdir(storageRootAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      if (entry.isFile()) {
+        if (isStorageRootBundleLooseFile(entry.name)) continue;
+        looseFiles.push(entry.name);
+        totalEntries += 1;
+        continue;
+      }
+      if (!entry.isDirectory()) continue;
+
+      const folderAbsolute = await resolveFolderPathCaseInsensitive(storageRootAbs, entry.name);
+      const entryCount = folderAbsolute ? await countDirectoryEntries(folderAbsolute) : 0;
+      const canonical = normalizeStorageSubfolderName(entry.name);
+      const slotKey = resolveSlotKeyFromStorageFolderName(entry.name);
+      folders.push({
+        name: entry.name,
+        canonical,
+        entryCount,
+        slotKey,
+        matched: Boolean(slotKey)
+      });
+      totalEntries += entryCount;
+    }
+    looseFiles.sort((a, b) => a.localeCompare(b, "ru"));
+    folders.sort((a, b) => {
+      if (a.matched !== b.matched) return a.matched ? -1 : 1;
+      const labelA = a.slotKey || a.name;
+      const labelB = b.slotKey || b.name;
+      return labelA.localeCompare(labelB, "ru");
+    });
+  }
+
+  return {
+    exists,
+    folders,
+    looseFiles,
+    totalEntries,
+    storageRoot
+  };
 }
 
 function collectManifestEntriesFromMenu(menu, acc = []) {
@@ -3978,7 +4080,10 @@ async function buildAgentStorageLayout() {
       knownSlotKeys.add(slotKey.toLowerCase());
       const slotDirRel = getNamedStorageSlotDirRel(entry.manifestPath);
       const slotAbs = normalizeWorkspacePath(slotDirRel);
-      const inspection = await inspectStorageLayersAtAbsolute(slotAbs);
+      const containerAbs = normalizeWorkspacePath(getManifestContainerDirRel(entry.manifestPath));
+      const inspection = await inspectStorageLayersAtAbsolute(slotAbs, {
+        containerAbsolute: containerAbs
+      });
       const label =
         entry.label ||
         (entry.kind === "area"
@@ -4416,13 +4521,14 @@ async function buildAgentTimeline(limit = 150) {
       getManifestNamedSlotKey(manifestPath) ||
       path.posix.basename(manifestPath, path.extname(manifestPath));
 
+    const containerDirRel = getManifestContainerDirRel(manifestPath);
     const tracks = [
       { fileKind: "manifest", fileLabel: "Манифест", rel: manifestPath },
-      { fileKind: "content", fileLabel: BUNDLE_CONTENT_FILE, rel: `${slotDirRel}/${BUNDLE_CONTENT_FILE}` },
-      { fileKind: "tabular", fileLabel: BUNDLE_TABULAR_FILE, rel: `${slotDirRel}/${BUNDLE_TABULAR_FILE}` },
-      { fileKind: "config", fileLabel: BUNDLE_CONFIG_FILE, rel: `${slotDirRel}/${BUNDLE_CONFIG_FILE}` },
+      { fileKind: "content", fileLabel: BUNDLE_CONTENT_FILE, rel: toContentFilePath(manifestPath) },
+      { fileKind: "tabular", fileLabel: BUNDLE_TABULAR_FILE, rel: toTabularFilePath(manifestPath) },
+      { fileKind: "config", fileLabel: BUNDLE_CONFIG_FILE, rel: toNodeConfigFilePath(manifestPath) },
       { fileKind: "todo", fileLabel: path.posix.basename(toTodoFilePath(manifestPath)), rel: toTodoFilePath(manifestPath) },
-      { fileKind: "env", fileLabel: ".env", rel: `${slotDirRel}/.env` }
+      { fileKind: "env", fileLabel: ".env", rel: toEnvFilePath(manifestPath) }
     ];
 
     for (const track of tracks) {
@@ -4539,22 +4645,41 @@ async function resolveNodeSubfolderAbsolute(nodeAbsolute, subfolderName, options
 }
 
 async function ensureNodeStorageFileAbsolute(nodeAbsolute, fileName) {
-  const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
-  await fs.mkdir(storageRoot, { recursive: true });
-  const fileAbsolute = path.join(storageRoot, fileName);
+  const rel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+  const containerAbsolute = normalizeWorkspacePath(getManifestContainerDirRel(rel));
+  const targetDir = containerAbsolute || getNodeStorageRootAbsolute(nodeAbsolute);
+  if (!targetDir) return null;
+  await fs.mkdir(targetDir, { recursive: true });
+  const fileAbsolute = path.join(targetDir, fileName);
   if (!fileAbsolute.startsWith(getAgentRoot())) return null;
   return fileAbsolute;
 }
 
 async function resolveNodeStorageFileAbsolute(nodeAbsolute, fileName, options = {}) {
-  const storagePath = path.join(getNodeStorageRootAbsolute(nodeAbsolute), fileName);
+  const rel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+  const candidates = [];
+  const containerAbsolute = normalizeWorkspacePath(getManifestContainerDirRel(rel));
+  const storageRoot = getNodeStorageRootAbsolute(nodeAbsolute);
+  for (const name of listBundleFileNameCandidates(fileName)) {
+    if (containerAbsolute) candidates.push(path.join(containerAbsolute, name));
+    if (storageRoot) candidates.push(path.join(storageRoot, name));
+  }
+  if (!listBundleFileNameCandidates(fileName).includes(fileName)) {
+    if (containerAbsolute) candidates.push(path.join(containerAbsolute, fileName));
+    if (storageRoot) candidates.push(path.join(storageRoot, fileName));
+  }
+
+  if (!options.create) {
+    for (const candidate of candidates) {
+      if (await fileExists(candidate)) return candidate;
+    }
+  }
 
   if (options.create) {
     return ensureNodeStorageFileAbsolute(nodeAbsolute, fileName);
   }
 
-  if (await fileExists(storagePath)) return storagePath;
-  return storagePath;
+  return candidates[0] || path.join(containerAbsolute || storageRoot || getAgentRoot(), fileName);
 }
 
 async function getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderName) {
@@ -7556,7 +7681,10 @@ async function handleApiForAgent(req, res, url) {
     const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
-    if (!isManifestMdAbsolute(absolute)) return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
+    const isDocumentationTopic = docsRegistry.isDocumentationTopicMdRelPath(canonicalRelPath);
+    if (!isManifestMdAbsolute(absolute) && !isDocumentationTopic) {
+      return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
+    }
 
     const serviceFolder = getAgentKitFolder();
     const serviceManifestRel = serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
@@ -8889,6 +9017,20 @@ async function handleApiForAgent(req, res, url) {
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to create storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage/scan") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const scan = await scanNodeStorageRoot(relPath);
+      return sendJson(res, 200, scan);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan storage root",
+        details: String(error.message || error)
+      });
     }
   }
 

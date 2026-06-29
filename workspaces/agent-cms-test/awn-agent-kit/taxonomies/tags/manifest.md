@@ -6,7 +6,7 @@ awn-type: catalog
 
 # Теги
 
-Список тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/main.csv`. Глобальные теги — в `data/catalog/catalog/tags.md`.
+Список тегов workspace — как `#tag` в Obsidian. Данные — в `main.csv`. Глобальные теги — в `data/catalog/catalog/tags.md`.
 
 Папка справочника агента: `taxonomies/tags.md`.
 

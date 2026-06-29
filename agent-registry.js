@@ -843,7 +843,7 @@ function getAgentWorkspacePreviewBundleDirSync(workspaceRootAbsolute) {
   const manifestRel = resolveWorkspaceRootManifestRelSync(workspaceRootAbsolute);
   return path.join(
     workspaceRootAbsolute,
-    ...getNamedStorageBundleDirRel(manifestRel, { workspaceFolderName: workspaceKey }).split("/")
+    ...getNamedStorageSlotDirRel(manifestRel).split("/")
   );
 }
 

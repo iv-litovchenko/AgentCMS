@@ -84,7 +84,7 @@ types-of-components/
 Не дублирует данные. Указывает на workspace **`data/catalog/`**:
 
 - tags, categories, statuses, users, priorities, colors, schemas
-- данные: `catalog/awn-storage/{topic}/main.csv`
+- данные: `catalog/{topic}/main.csv`
 
 ---
 

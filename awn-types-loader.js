@@ -29,6 +29,15 @@ const {
   loadRecordTypesFromComponents,
   getComponentsPayload
 } = require("./components-loader");
+const {
+  normalizeEnumOptions,
+  stringifyEnumOptionsYaml,
+  getFieldDefDisplayName,
+  isEnumOptionObject,
+  resolveFieldTypeId,
+  resolveFieldWidget,
+  DEFAULT_FIELD_WIDGET
+} = require("./awn-enum-options");
 
 const TYPE_FILE_RE = YAML_FILE_RE;
 
@@ -458,6 +467,40 @@ function migrateLegacyAwnSchemaTargets(source, result) {
   }
 }
 
+function repairFieldDefEnum(fieldDef) {
+  if (!fieldDef || fieldDef.enum === undefined) return;
+  if (Array.isArray(fieldDef.enum)) {
+    fieldDef.enum = normalizeEnumOptions(fieldDef.enum);
+    return;
+  }
+  if (typeof fieldDef.enum !== "object" || !fieldDef.enum) {
+    delete fieldDef.enum;
+    return;
+  }
+  const broken = fieldDef.enum;
+  const legacyKey =
+    broken.key ||
+    broken["- key"] ||
+    Object.entries(broken).find(([name]) => name === "key" || name.endsWith("key"))?.[1];
+  const legacyName = broken.name || broken["- name"] || "";
+  if (legacyKey) {
+    fieldDef.enum = normalizeEnumOptions([{ key: String(legacyKey), name: String(legacyName || legacyKey) }]);
+    return;
+  }
+  delete fieldDef.enum;
+}
+
+function normalizeAwnSchemaFieldMap(fields) {
+  if (!fields || typeof fields !== "object") return fields;
+  const next = { ...fields };
+  for (const key of Object.keys(next)) {
+    if (!next[key] || typeof next[key] !== "object") continue;
+    next[key] = { ...next[key] };
+    repairFieldDefEnum(next[key]);
+  }
+  return next;
+}
+
 function normalizeAwnSchema(raw) {
   const result = emptyAwnSchema();
   if (!raw || typeof raw !== "object") return result;
@@ -468,7 +511,7 @@ function normalizeAwnSchema(raw) {
   for (const target of AWN_SCHEMA_TARGETS) {
     const block = source[target];
     if (block?.fields && typeof block.fields === "object") {
-      result[target].fields = { ...block.fields };
+      result[target].fields = normalizeAwnSchemaFieldMap(block.fields);
     }
   }
   migrateLegacyAwnSchemaTargets(source, result);
@@ -498,7 +541,8 @@ function stringifyFieldDefYaml(fieldDef, indent) {
   const lines = [];
   const pad = " ".repeat(indent);
   if (fieldDef.type) lines.push(`${pad}type: ${fieldDef.type}`);
-  if (fieldDef.title) lines.push(`${pad}title: ${formatYamlScalar(String(fieldDef.title))}`);
+  const displayName = getFieldDefDisplayName(fieldDef);
+  if (displayName) lines.push(`${pad}name: ${formatYamlScalar(displayName)}`);
   if (fieldDef.description) {
     lines.push(`${pad}description: ${formatYamlScalar(String(fieldDef.description))}`);
   }
@@ -506,9 +550,19 @@ function stringifyFieldDefYaml(fieldDef, indent) {
   if (fieldDef.format) lines.push(`${pad}format: ${formatYamlScalar(String(fieldDef.format))}`);
   if (fieldDef.required === true) lines.push(`${pad}required: true`);
   if (fieldDef.locked === true) lines.push(`${pad}locked: true`);
+  const typeId = resolveFieldTypeId(fieldDef.type || "");
+  const widget = resolveFieldWidget(fieldDef);
+  const defaultWidget = DEFAULT_FIELD_WIDGET[typeId] || "";
+  if (widget && widget !== defaultWidget) {
+    lines.push(`${pad}widget: ${formatYamlScalar(widget)}`);
+  }
   if (Array.isArray(fieldDef.enum) && fieldDef.enum.length) {
-    const items = fieldDef.enum.map((item) => formatYamlScalar(String(item))).join(", ");
-    lines.push(`${pad}enum: [${items}]`);
+    if (fieldDef.enum.some(isEnumOptionObject)) {
+      lines.push(...stringifyEnumOptionsYaml(fieldDef.enum, indent));
+    } else {
+      const items = fieldDef.enum.map((item) => formatYamlScalar(String(item))).join(", ");
+      lines.push(`${pad}enum: [${items}]`);
+    }
   }
   if (fieldDef.default !== undefined) {
     if (typeof fieldDef.default === "number" || typeof fieldDef.default === "boolean") {

@@ -6,4 +6,4 @@ tags: [system, catalog, global]
 
 # Палитра
 
-Brand-цвета для `awn-color`. Данные — в `awn-storage/colors/main.csv`.
+Brand-цвета для `awn-color`. Данные — в `main.csv`.

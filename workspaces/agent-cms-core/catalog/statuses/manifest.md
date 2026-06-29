@@ -6,6 +6,6 @@ tags: [system, catalog, global]
 
 # Статусы
 
-Глобальный справочник значений для поля `awn-status`. Данные — в `awn-storage/statuses/main.csv`.
+Глобальный справочник значений для поля `awn-status`. Данные — в `main.csv`.
 
 Колонки: `id` (код), `label` (значение в frontmatter, с emoji).

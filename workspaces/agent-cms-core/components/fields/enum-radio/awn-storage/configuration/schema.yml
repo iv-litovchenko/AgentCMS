@@ -1,0 +1,10 @@
+id: awn.enum-radio
+name: Одно значение (из списка) · radio
+path-id: fields/enum-radio
+kind: field
+extends: awn.field-def
+widget: radio
+storage: string
+mdbase: enum
+description: Одно значение из списка — radio-кнопки
+settings: [description, hint, required, locked, default, enum]

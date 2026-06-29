@@ -4,6 +4,11 @@ const {
   getActiveComponents,
   loadFieldDefFromComponents
 } = require("./components-loader");
+const {
+  resolveFieldTypeId,
+  isEnumFieldTypeId,
+  isArrayFieldTypeId
+} = require("./awn-enum-options");
 
 const MDBASE_STORAGE = {
   string: "string",
@@ -51,14 +56,9 @@ function resolveFieldStorage(parsed) {
   }
   const mdbase = String(parsed?.mdbase || "").trim();
   if (mdbase && MDBASE_STORAGE[mdbase]) return MDBASE_STORAGE[mdbase];
+  const typeId = resolveFieldTypeId(parsed?.id || "");
+  if (isArrayFieldTypeId(typeId)) return "array";
   return "string";
-}
-
-function resolveFieldTypeId(typeId) {
-  const raw = String(typeId || "").trim();
-  if (!raw) return "awn.string";
-  if (raw.startsWith("awn.")) return raw;
-  return `awn.${raw}`;
 }
 
 function resolveFieldsContext(agentRoot = "", projectRoot = process.cwd()) {
@@ -88,8 +88,8 @@ function normalizeFieldTypeDef(schema, component) {
     field.settings = schema.settings.map((item) => String(item).trim()).filter(Boolean);
   } else {
     const idSuffix = id.replace(/^awn\./, "");
-    if (idSuffix === "enum") field.settings = [...DEFAULT_FIELD_SETTINGS, "enum"];
-    else if (idSuffix === "array") field.settings = [...DEFAULT_FIELD_SETTINGS, "items"];
+    if (isEnumFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
+    else if (isArrayFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
     else if (idSuffix === "null") field.settings = ["description", "hint", "locked"];
     else field.settings = [...DEFAULT_FIELD_SETTINGS];
   }

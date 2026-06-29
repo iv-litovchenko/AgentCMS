@@ -15,7 +15,12 @@ const {
   resolveDiscoveredCatalogItem,
   catalogItemKnown
 } = require("./catalog-normalize");
-const { getNamedStorageBundleDirRel, BUNDLE_TABULAR_FILE } = require("./manifest-paths");
+const {
+  getNamedStorageBundleDirRel,
+  getNamedStorageBundleRelCandidates,
+  BUNDLE_TABULAR_FILE,
+  BUNDLE_CONTENT_FILE
+} = require("./manifest-paths");
 
 const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "users", "priorities", "colors"]);
 

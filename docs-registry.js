@@ -77,6 +77,15 @@ function resolveDocumentationTopicPath(relPath) {
   return rel.startsWith(`${DOCS_TOPIC_DIR}/`) ? rel : `${DOCS_TOPIC_DIR}/${rel}`;
 }
 
+function isDocumentationTopicMdRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized.startsWith(`${DOCS_TOPIC_DIR}/`)) return false;
+  if (!normalized.toLowerCase().endsWith(".md")) return false;
+  if (/(?:^|\/)awn-storage\//i.test(normalized)) return false;
+  if (/(?:^|\/)comments\//i.test(normalized)) return false;
+  return true;
+}
+
 module.exports = {
   DOC_VERSIONS,
   DEFAULT_DOC_VERSION,
@@ -92,5 +101,6 @@ module.exports = {
   getDocsMeta,
   getVersionOptionLabel,
   getPublicImagesDir,
-  resolveDocumentationTopicPath
+  resolveDocumentationTopicPath,
+  isDocumentationTopicMdRelPath
 };

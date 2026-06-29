@@ -5,7 +5,7 @@ description: Файлы, прикреплённые к теме или запи�
 fields:
   awn-attachments:
     type: awn.array
-    title: Вложения
+    name: Вложения
     description: Файлы в assets/attachments/; в шапке — список, снизу — файлы только в папке
     items: awn.file
     widget: attachments

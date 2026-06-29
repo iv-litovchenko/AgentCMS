@@ -12,6 +12,7 @@ const {
   BUNDLE_TABULAR_FILE,
   STORAGE_SUBFOLDER_CONTENT,
   getNamedStorageBundleDirRel,
+  getNamedStorageBundleRelCandidates,
   resolveNodeDisplayName,
   toTopicFileName
 } = require("./manifest-paths");
@@ -223,16 +224,18 @@ function namedStorageBundleDirRel(manifestRel) {
 }
 
 async function readServiceCatalogFileBody(catalogAbsolute, manifestRel, bundleFileName = BUNDLE_CONTENT_FILE) {
-  const contentRel = path.posix.join(namedStorageBundleDirRel(manifestRel), bundleFileName);
-  const contentAbs = path.join(catalogAbsolute, contentRel);
-  try {
-    const raw = await fs.readFile(contentAbs, "utf-8");
-    if (bundleFileName === BUNDLE_TABULAR_FILE) return raw;
-    const { body } = splitNodeFrontmatter(raw);
-    return body;
-  } catch {
-    return "";
+  for (const contentRel of getNamedStorageBundleRelCandidates(manifestRel, bundleFileName)) {
+    const contentAbs = path.join(catalogAbsolute, contentRel);
+    try {
+      const raw = await fs.readFile(contentAbs, "utf-8");
+      if (bundleFileName === BUNDLE_TABULAR_FILE) return raw;
+      const { body } = splitNodeFrontmatter(raw);
+      return body;
+    } catch {
+      // try next candidate
+    }
   }
+  return "";
 }
 
 async function readServiceCatalogCsv(catalogAbsolute, manifestRel) {

@@ -586,13 +586,14 @@ function findStorageRootMarkerIndex(relPath) {
 }
 const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "STRUCTURE.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "STRUCTURE.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
 const BUNDLE_CONTENT_FILE = "main.md";
 const BUNDLE_TABULAR_FILE = "main.csv";
-const BUNDLE_CONFIG_FILE = "configuration.yml";
+const BUNDLE_CONFIG_FILE = "config.yml";
+const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
@@ -6880,8 +6881,8 @@ const NODE_SETTINGS_GROUP = {
   icon: "⚙️",
   modes: [
     { id: "description", label: "Инструкция для агента" },
-    { id: "configs", label: "Конфигурация" },
     { id: "topic-schema", label: "Схема полей" },
+    { id: "configs", label: "Настройки" },
     { id: "env", label: ".env" }
   ]
 };
@@ -7185,7 +7186,7 @@ const NODE_WORKSPACE_DOMAIN_DATA = "data";
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Навигация" },
-  { value: "settings", label: "Настройки" },
+  { value: "settings", label: "Конфигурации" },
   { value: "data", label: "Данные" },
   { value: "todo", label: "TODO" },
   { value: "overview", label: "Обзор" }
@@ -7720,6 +7721,128 @@ const activeFlatStorageSectionFolder = {
   artefacts: null
 };
 
+let activeDataStorageAllItems = false;
+let storageSlotTreeRenderToken = 0;
+const storageRootScanCache = new Map();
+
+function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
+  if (manifestPath) storageRootScanCache.delete(manifestPath);
+}
+
+async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { force = false } = {}) {
+  if (!manifestPath) {
+    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+  }
+  if (!force) {
+    const cached = storageRootScanCache.get(manifestPath);
+    if (cached) return cached;
+  }
+  const response = await fetch(buildApiUrl("/api/storage/scan", { path: manifestPath }));
+  if (!response.ok) throw new Error(`Storage scan failed (${response.status})`);
+  const data = await response.json();
+  storageRootScanCache.set(manifestPath, data);
+  return data;
+}
+
+function getStorageFolderNamesForSlotKey(slotKey) {
+  const namesByKey = {
+    memory: ["main", "content", "memory"],
+    inbox: ["inbox"],
+    "quick-notes": ["quick-notes"],
+    references: ["references"],
+    artefacts: ["artefacts"],
+    repository: ["repository"],
+    media: ["media"],
+    scripts: ["scripts"],
+    thread: ["thread"],
+    temp: ["temp"],
+    volume: ["volume"],
+    history: ["history"],
+    comments: ["comments"]
+  };
+  return namesByKey[slotKey] || [];
+}
+
+function findScanFolderForSlotKey(slotKey, folders = []) {
+  const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
+  if (!names.size) return null;
+  return (
+    folders.find((folder) => {
+      const canonical = String(folder.canonical || folder.name || "").toLowerCase();
+      const name = String(folder.name || "").toLowerCase();
+      return names.has(canonical) || names.has(name);
+    }) || null
+  );
+}
+
+function markScanFolderConsumed(consumed, folder) {
+  if (!folder) return;
+  consumed.add(String(folder.canonical || folder.name).toLowerCase());
+  consumed.add(String(folder.name).toLowerCase());
+}
+
+function buildStorageSlotTreeModel(scan = {}) {
+  const folders = scan.exists ? scan.folders || [] : [];
+  const consumed = new Set();
+  const entries = [];
+  const enabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => !spec.disabled);
+  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.disabled);
+
+  for (const spec of enabledSpecs) {
+    const folder = findScanFolderForSlotKey(spec.key, folders);
+    markScanFolderConsumed(consumed, folder);
+    entries.push({ kind: "slot", spec, folder });
+  }
+
+  if (disabledSpecs.length > 0) {
+    entries.push({ kind: "divider", id: "disabled-slots" });
+    for (const spec of disabledSpecs) {
+      const folder = findScanFolderForSlotKey(spec.key, folders);
+      markScanFolderConsumed(consumed, folder);
+      entries.push({ kind: "slot", spec, folder });
+    }
+  }
+
+  const orphans = sortStorageScanFolders(
+    folders.filter((folder) => {
+      const canonical = String(folder.canonical || folder.name).toLowerCase();
+      const name = String(folder.name).toLowerCase();
+      return !consumed.has(canonical) && !consumed.has(name);
+    })
+  );
+
+  if (orphans.length > 0) {
+    entries.push({ kind: "divider", id: "orphan-folders" });
+    for (const folder of orphans) {
+      entries.push({ kind: "orphan", folder });
+    }
+  }
+
+  return entries;
+}
+
+function sortStorageScanFolders(folders = []) {
+  const slotOrder = DATA_STORAGE_SLOT_SPECS.map((spec) => spec.key);
+  return [...folders].sort((a, b) => {
+    if (a.matched !== b.matched) return a.matched ? -1 : 1;
+    const indexA = a.slotKey ? slotOrder.indexOf(a.slotKey) : Number.MAX_SAFE_INTEGER;
+    const indexB = b.slotKey ? slotOrder.indexOf(b.slotKey) : Number.MAX_SAFE_INTEGER;
+    if (indexA !== indexB) return indexA - indexB;
+    return String(a.name || "").localeCompare(String(b.name || ""), "ru");
+  });
+}
+
+function getStorageScanFolderSpec(folder) {
+  if (!folder?.slotKey) return null;
+  return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === folder.slotKey) || null;
+}
+
+function setActiveDataStorageAllItems() {
+  activeDataStorageAllItems = true;
+  refreshStorageSlotTree();
+  renderListViewContent();
+}
+
 function shouldUseDataHubListShell(mode = activeContentMode) {
   if (!getDataStorageSlotForMode(mode)) return false;
   if (mode === NODE_THREAD_MODE || mode === "internal") return false;
@@ -7734,13 +7857,14 @@ function getStorageSlotTreeNode() {
 }
 
 function refreshStorageSlotTree() {
-  renderStorageSlotTree(getStorageSlotTreeNode());
+  invalidateStorageRootScanCache();
+  void renderStorageSlotTree(getStorageSlotTreeNode());
 }
 
 function ensureDataHubShell() {
   let wrap = listViewContentNode.querySelector(".data-hub-list-view-wrap");
   if (wrap) {
-    renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    void renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
     syncStorageSectionsPanelUi();
     return wrap;
   }
@@ -7762,7 +7886,7 @@ function ensureDataHubShell() {
 
   wrap.appendChild(split);
   listViewContentNode.appendChild(wrap);
-  renderStorageSlotTree(slotTree);
+  void renderStorageSlotTree(slotTree);
   syncStorageSectionsPanelUi();
   return wrap;
 }
@@ -7827,6 +7951,7 @@ function setActiveDataStorageSlotFromOverview(spec) {
 
 function setActiveDataStorageSlot(spec) {
   if (!spec || spec.disabled) return;
+  activeDataStorageAllItems = false;
   if (spec.key === "thread") clearActiveThreadScope();
   const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
   if (activeContentMode === targetMode) {
@@ -7853,6 +7978,7 @@ function setActiveDataMemoryModeFromOverview(mode) {
 
 function setActiveDataMemoryMode(mode) {
   if (!DATA_MEMORY_MODE_SPECS.some((item) => item.mode === mode)) return;
+  activeDataStorageAllItems = false;
   if (activeContentMode === mode) {
     refreshStorageSlotTree();
     return;
@@ -7860,10 +7986,105 @@ function setActiveDataMemoryMode(mode) {
   setContentMode(mode);
 }
 
-function renderStorageSlotTree(container) {
+function getDataStorageSlotCountForScan(spec, folder) {
+  const liveCount = getDataStorageSlotCount(spec);
+  if (liveCount !== null) return liveCount;
+  const entryCount = Number(folder?.entryCount) || 0;
+  return entryCount > 0 ? entryCount : null;
+}
+
+function isStorageScanFolderDisabled(folder, spec = null) {
+  if (spec) return Boolean(spec.disabled);
+  if (!folder?.matched) return true;
+  const folderSpec = getStorageScanFolderSpec(folder);
+  return Boolean(folderSpec?.disabled);
+}
+
+function appendStorageSlotTreeItem(
+  list,
+  { spec = null, folder = null },
+  { activeSlot, sectionFilterActive, allItemsActive = false } = {}
+) {
+  const slotKey = spec?.key || folder?.slotKey || null;
+  const isOrphan = !spec && Boolean(folder);
+  const disabled = isStorageScanFolderDisabled(folder, spec);
+  const isMemorySlot = slotKey === "memory";
+  const label = spec?.label || folder?.name || "";
+  const icon = spec?.icon || "📁";
+  const isActive =
+    !disabled &&
+    !allItemsActive &&
+    (isMemorySlot
+      ? isDataStorageSlotActive("memory") && activeContentMode === "external"
+      : activeSlot?.key === slotKey);
+  const count = disabled
+    ? folder?.entryCount > 0
+      ? folder.entryCount
+      : null
+    : spec
+      ? getDataStorageSlotCountForScan(spec, folder)
+      : folder?.entryCount > 0
+        ? folder.entryCount
+        : null;
+  const btn = appendMediaSectionTreeItem(list, {
+    icon,
+    label,
+    count,
+    isActive: isActive && !sectionFilterActive,
+    onClick: disabled
+      ? () => {}
+      : () => {
+          if (!spec) return;
+          if (isMemorySlot) {
+            setActiveDataMemoryMode("external");
+            return;
+          }
+          setActiveDataStorageSlot(spec);
+        }
+  });
+  btn.dataset.storageSlot = slotKey || folder?.name || "";
+  if (isOrphan) btn.dataset.storageOrphan = folder.name;
+  btn.classList.add("storage-slot-tree-item");
+  if (disabled) {
+    btn.disabled = true;
+    btn.classList.add("is-disabled");
+    if (isOrphan) btn.title = "Папка не сопоставлена ни с одним слотом";
+    else if (spec?.disabled) btn.title = "Скоро";
+  }
+  const badge = btn.querySelector(".media-section-tree-count");
+  if (badge && count !== null) badge.dataset.baseCount = String(count);
+
+  if (
+    !disabled &&
+    slotKey &&
+    slotKey !== "thread" &&
+    getTopicSchemaTargetForStorageSlot(slotKey)
+  ) {
+    const row = btn.closest(".media-section-tree-row");
+    row?.appendChild(createStorageSlotSchemaButton(slotKey));
+  }
+}
+
+async function renderStorageSlotTree(container) {
   if (!container) return;
+  const token = ++storageSlotTreeRenderToken;
   container.replaceChildren();
 
+  const loading = document.createElement("div");
+  loading.className = "media-section-tree-loading storage-slot-tree-loading";
+  loading.textContent = "Сканирование awn-storage…";
+  container.appendChild(loading);
+
+  const manifestPath = getActiveNodeApiPath();
+  let scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  try {
+    if (manifestPath) scan = await fetchStorageRootScan(manifestPath);
+  } catch {
+    scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  }
+  if (token !== storageSlotTreeRenderToken || !container.isConnected) return;
+
+  container.replaceChildren();
   const list = document.createElement("div");
   list.className = "media-section-tree-list storage-slot-tree-list";
   list.setAttribute("role", "tree");
@@ -7871,81 +8092,58 @@ function renderStorageSlotTree(container) {
 
   const activeSlot = getDataStorageSlotForMode();
   const sectionFilterActive = isStorageSectionFilterActive();
-  const enabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => !spec.disabled);
-  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.disabled);
+  const allItemsActive = activeDataStorageAllItems;
+  const allCount = Number(scan.totalEntries) || 0;
 
-  for (const spec of enabledSpecs) {
-    appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive });
-  }
+  const allBtn = appendMediaSectionTreeItem(list, {
+    icon: "📋",
+    label: "Все элементы",
+    count: allCount > 0 ? allCount : null,
+    isActive: allItemsActive,
+    onClick: () => setActiveDataStorageAllItems()
+  });
+  allBtn.dataset.storageSlot = "all";
+  allBtn.classList.add("storage-slot-tree-item", "storage-slot-tree-item--all");
 
-  if (disabledSpecs.length > 0) {
-    const divider = document.createElement("div");
-    divider.className = "media-section-tree-divider storage-slot-tree-divider";
-    divider.setAttribute("role", "presentation");
-    list.appendChild(divider);
-    for (const spec of disabledSpecs) {
-      appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive, disabled: true });
+  const divider = document.createElement("div");
+  divider.className = "media-section-tree-divider storage-slot-tree-divider";
+  divider.setAttribute("role", "presentation");
+  list.appendChild(divider);
+
+  const entries = buildStorageSlotTreeModel(scan);
+  if (!scan.exists && entries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "media-section-tree-empty storage-slot-tree-empty";
+    empty.textContent = "Папка awn-storage не найдена";
+    list.appendChild(empty);
+  } else {
+    for (const entry of entries) {
+      if (entry.kind === "divider") {
+        const entryDivider = document.createElement("div");
+        entryDivider.className = "media-section-tree-divider storage-slot-tree-divider";
+        entryDivider.setAttribute("role", "presentation");
+        list.appendChild(entryDivider);
+        continue;
+      }
+      if (entry.kind === "slot") {
+        appendStorageSlotTreeItem(
+          list,
+          { spec: entry.spec, folder: entry.folder },
+          { activeSlot, sectionFilterActive, allItemsActive }
+        );
+        continue;
+      }
+      if (entry.kind === "orphan") {
+        appendStorageSlotTreeItem(
+          list,
+          { folder: entry.folder },
+          { activeSlot, sectionFilterActive, allItemsActive }
+        );
+      }
     }
   }
 
   syncDataStorageSlotTreeCounts();
-}
-
-function appendStorageSlotTreeItem(list, spec, { activeSlot, sectionFilterActive, disabled = false } = {}) {
-  const isMemorySlot = spec.key === "memory";
-  const isActive =
-    !disabled && !isMemorySlot && activeSlot?.key === spec.key;
-  const count = disabled ? null : getDataStorageSlotCount(spec);
-  const btn = appendMediaSectionTreeItem(list, {
-    icon: spec.icon,
-    label: spec.label,
-    count,
-    isActive: isActive && !sectionFilterActive,
-    onClick: disabled
-      ? () => {}
-      : () => {
-          if (isMemorySlot && activeSlot?.key === "memory" && spec.modes.has(activeContentMode)) {
-            refreshStorageSlotTree();
-            return;
-          }
-          setActiveDataStorageSlot(spec);
-        }
-  });
-  btn.dataset.storageSlot = spec.key;
-  btn.classList.add("storage-slot-tree-item");
-  if (isMemorySlot) btn.classList.add("storage-slot-tree-item--group");
-  if (disabled) {
-    btn.disabled = true;
-    btn.classList.add("is-disabled");
-    btn.title = "Скоро";
-  }
-  const badge = btn.querySelector(".media-section-tree-count");
-  if (badge && count !== null) badge.dataset.baseCount = String(count);
-
-  if (isMemorySlot && !disabled) {
-    appendDataMemoryModeTreeItems(list, { sectionFilterActive });
-  }
-
-  if (!disabled && spec.key !== "thread" && getTopicSchemaTargetForStorageSlot(spec.key)) {
-    const row = btn.closest(".media-section-tree-row");
-    row?.appendChild(createStorageSlotSchemaButton(spec.key));
-  }
-}
-
-function appendDataMemoryModeTreeItems(list, { sectionFilterActive = false } = {}) {
-  const memorySlotActive = isDataStorageSlotActive("memory");
-  for (const modeSpec of DATA_MEMORY_MODE_SPECS) {
-    const sectionActive = modeSpec.mode === "external" && sectionFilterActive;
-    const btn = appendMediaSectionTreeItem(list, {
-      icon: modeSpec.icon,
-      label: modeSpec.label,
-      depth: 1,
-      isActive: memorySlotActive && activeContentMode === modeSpec.mode && !sectionActive,
-      onClick: () => setActiveDataMemoryMode(modeSpec.mode)
-    });
-    btn.dataset.memoryMode = modeSpec.mode;
-    btn.classList.add("storage-slot-memory-mode-item");
-  }
 }
 
 function loadStorageSectionsPanelVisible() {
@@ -8886,9 +9084,9 @@ function formatMenuTreeItemLabel(item, parentNode, agentId = activeAgentId) {
 
 function getAwnStatusTone(status) {
   const raw = String(status || "").trim().toLowerCase();
-  if (raw.includes("🔴") || raw.includes("закрыт")) return "closed";
-  if (raw.includes("🟡") || raw.includes("черновик")) return "draft";
-  if (raw.includes("🟢") || raw.includes("открыт")) return "open";
+  if (raw === "closed" || raw.includes("🔴") || raw.includes("закрыт")) return "closed";
+  if (raw === "draft" || raw.includes("🟡") || raw.includes("черновик")) return "draft";
+  if (raw === "open" || raw.includes("🟢") || raw.includes("открыт")) return "open";
   return "default";
 }
 
@@ -8899,16 +9097,60 @@ function extractAwnStatusEmoji(status) {
   return match ? match[0] : "";
 }
 
-function createMenuTreeStatusBadge(status) {
-  const label = String(status || "").trim();
-  const emoji = extractAwnStatusEmoji(label);
+function resolveAwnStatusLabel(rawStatus) {
+  const raw = String(rawStatus || "").trim();
+  if (!raw) return "";
+  const options = getMenuAwnStatusOptions();
+  const api = awnEnumOptionsApi();
+  if (typeof api.resolveEnumDisplayName === "function") {
+    return api.resolveEnumDisplayName(raw, options);
+  }
+  return raw;
+}
+
+function resolveAwnStatusPresentation(rawStatus) {
+  const raw = String(rawStatus || "").trim();
+  if (!raw) return null;
+  const label = resolveAwnStatusLabel(raw);
+  let emoji = extractAwnStatusEmoji(label);
+  if (!emoji) emoji = extractAwnStatusEmoji(raw);
+  const tone = getAwnStatusTone(label || raw);
+  if (!emoji) {
+    const fallbackEmoji = { open: "🟢", draft: "🟡", closed: "🔴" };
+    emoji = fallbackEmoji[tone] || "";
+  }
   if (!emoji) return null;
+  return { label: label || raw, emoji, tone };
+}
+
+function createMenuTreeStatusBadge(status) {
+  const presentation = resolveAwnStatusPresentation(status);
+  if (!presentation) return null;
   const badge = document.createElement("span");
-  badge.className = `menu-tree-status menu-tree-status--${getAwnStatusTone(label)}`;
-  badge.textContent = emoji;
-  badge.title = `Статус: ${label}`;
-  badge.setAttribute("aria-label", `Статус: ${label}`);
+  badge.className = `menu-tree-status menu-tree-status--${presentation.tone}`;
+  badge.textContent = presentation.emoji;
+  badge.title = `Статус: ${presentation.label}`;
+  badge.setAttribute("aria-label", `Статус: ${presentation.label}`);
   return badge;
+}
+
+function createHeroTitleRow(title, statusRaw = "", options = {}) {
+  const row = document.createElement("div");
+  row.className = options.rowClass || "node-navigation-hero-title-row";
+  const titleNode = document.createElement("h2");
+  titleNode.className = options.titleClass || "node-navigation-hero-title";
+  titleNode.textContent = title;
+  row.appendChild(titleNode);
+  const badge = createMenuTreeStatusBadge(statusRaw);
+  if (badge) {
+    badge.classList.add(options.statusClass || "node-navigation-hero-status");
+    row.appendChild(badge);
+  }
+  return row;
+}
+
+function resolveAwnStatusFromPropEntries(entries = []) {
+  return String(getPropsEntryValueByKey(entries, "awn-status") || "").trim();
 }
 
 function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
@@ -8935,12 +9177,26 @@ const MENU_CONTEXT_MENU_ACTIONS = {
 
 const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["container"]);
 
-const MENU_AWN_STATUS_OPTIONS = ["🟢 Открыта", "🟡 Черновик", "🔴 Закрыта"];
+const MENU_AWN_STATUS_OPTIONS = [
+  { key: "open", name: "🟢 Открыта" },
+  { key: "draft", name: "🟡 Черновик" },
+  { key: "closed", name: "🔴 Закрыта" }
+];
 
 function getMenuAwnStatusOptions() {
   const fieldDef = awnTypesCache?.types?.["awn.base"]?.fields?.["awn-status"];
-  const fromSchema = Array.isArray(fieldDef?.enum) ? fieldDef.enum.filter(Boolean) : [];
+  const fromSchema = getEnumOptionsForField(fieldDef);
   return fromSchema.length ? fromSchema : MENU_AWN_STATUS_OPTIONS;
+}
+
+function enumOptionsIncludeKey(options, key) {
+  const api = awnEnumOptionsApi();
+  const normalized = String(key || "").trim();
+  if (!normalized) return false;
+  return options.some((option) => {
+    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    return optionKey === normalized;
+  });
 }
 
 function canShowMenuContextStatusPicker(nodePath) {
@@ -9094,16 +9350,19 @@ function appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId = a
   list.setAttribute("aria-label", "Статус");
 
   for (const option of options) {
+    const api = awnEnumOptionsApi();
+    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
     const item = document.createElement("li");
     item.setAttribute("role", "none");
 
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "menu-context-menu-status-btn";
-    btn.dataset.status = option;
-    btn.textContent = option;
+    btn.dataset.status = optionKey;
+    btn.textContent = optionName;
     btn.setAttribute("role", "menuitemradio");
-    const isActive = option === activeStatus;
+    const isActive = optionKey === activeStatus;
     btn.classList.toggle("is-active", isActive);
     btn.setAttribute("aria-checked", isActive ? "true" : "false");
     item.appendChild(btn);
@@ -9159,7 +9418,7 @@ async function handleMenuContextMenuStatusAction(nextStatus) {
   if (!state) return;
   const options = getMenuAwnStatusOptions();
   const normalizedStatus = normalizeEnumDisplayValue(nextStatus, options);
-  if (!normalizedStatus || !options.includes(normalizedStatus)) return;
+  if (!normalizedStatus || !enumOptionsIncludeKey(options, normalizedStatus)) return;
 
   const currentStatus = normalizeEnumDisplayValue(state.status || resolveMenuNodeStatus(state.path), options);
   closeMenuContextMenu();
@@ -9167,7 +9426,12 @@ async function handleMenuContextMenuStatusAction(nextStatus) {
 
   try {
     await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeAgentId);
-    showToast(`Статус: ${normalizedStatus}`, "success");
+    const api = awnEnumOptionsApi();
+    const label =
+      typeof api.resolveEnumDisplayName === "function"
+        ? api.resolveEnumDisplayName(normalizedStatus, options)
+        : normalizedStatus;
+    showToast(`Статус: ${label}`, "success");
   } catch (error) {
     showToast(`Ошибка статуса: ${error.message}`, "error");
   }
@@ -11970,7 +12234,8 @@ function getNamedStorageSlotDirRel(relPath) {
 }
 
 function getNamedStorageBundleDirRel(relPath) {
-  return getNamedStorageSlotDirRel(relPath);
+  const ownerRel = resolveOwningManifestRelFromNodePath(relPath);
+  return getManifestContainerDirRel(ownerRel);
 }
 
 function getNamedStorageBundleRel(relPath, bundleFileName) {
@@ -16352,7 +16617,7 @@ function ensureMediaListViewLayout() {
     if (!shouldUseDataHubListShell("media")) listViewContentNode.innerHTML = "";
     mountMediaListViewLayout(mountRoot);
   } else if (shouldUseDataHubListShell("media")) {
-    renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    void renderStorageSlotTree(getStorageSlotTreeNode());
   }
   const wrap = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
   if (!wrap) return null;
@@ -17493,7 +17758,7 @@ function ensureExternalListViewLayout() {
     if (!shouldUseDataHubListShell("external")) listViewContentNode.innerHTML = "";
     mountExternalListViewLayout(mountRoot);
   } else if (shouldUseDataHubListShell("external")) {
-    renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    void renderStorageSlotTree(getStorageSlotTreeNode());
   }
   const wrap = mountRoot.querySelector(".external-list-view-wrap");
   if (!wrap) return null;
@@ -18003,7 +18268,7 @@ function ensureFlatStorageListViewLayout(mode) {
     return mountFlatStorageListViewLayout(mountRoot, mode);
   }
   if (shouldUseDataHubListShell(mode)) {
-    renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    void renderStorageSlotTree(getStorageSlotTreeNode());
   }
   renderFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"), mode);
   syncStorageSectionsPanelUi();
@@ -19503,6 +19768,89 @@ function renderMediaFilteredView(container) {
   }
 }
 
+function renderDataHubAllItemsPanel(container, scan) {
+  container.replaceChildren();
+  const entries = buildStorageSlotTreeModel(scan || {});
+  const looseFiles = scan?.looseFiles || [];
+  const root = document.createElement("div");
+  root.className = "data-hub-all-items-view";
+
+  for (const entry of entries) {
+    if (entry.kind === "divider") continue;
+
+    const spec = entry.kind === "slot" ? entry.spec : null;
+    const folder = entry.folder || null;
+    const isOrphan = entry.kind === "orphan";
+    const disabled = isStorageScanFolderDisabled(folder, spec);
+    const folderName =
+      folder?.name || (spec ? getStorageFolderNamesForSlotKey(spec.key)[0] : "") || spec?.key || "";
+    const entryCount = Number(folder?.entryCount) || 0;
+    const icon = spec?.icon || "📁";
+    const label = spec?.label || folder?.name || folderName;
+
+    const section = document.createElement("section");
+    section.className = "list-section data-hub-all-items-section";
+    if (disabled) section.classList.add("is-disabled");
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "list-section-header data-hub-all-items-section-header";
+    header.disabled = disabled;
+    header.textContent = `${icon} ${label}`;
+
+    const meta = document.createElement("span");
+    meta.className = "data-hub-all-items-section-meta";
+    if (folder) {
+      meta.textContent = entryCount > 0 ? `${entryCount} эл.` : "пусто";
+    } else {
+      meta.textContent = "нет на диске";
+    }
+    header.appendChild(meta);
+
+    if (!disabled && spec) {
+      header.addEventListener("click", () => setActiveDataStorageSlot(spec));
+    } else if (isOrphan) {
+      header.title = "Папка не сопоставлена ни с одним слотом";
+    } else if (spec?.disabled) {
+      header.title = "Скоро";
+    }
+
+    section.appendChild(header);
+
+    if (folderName) {
+      const pathNote = document.createElement("div");
+      pathNote.className = "data-hub-all-items-section-path";
+      pathNote.textContent = `${STORAGE_ROOT_FOLDER}/${folderName}/`;
+      section.appendChild(pathNote);
+    }
+
+    root.appendChild(section);
+  }
+
+  if (looseFiles.length > 0) {
+    const section = document.createElement("section");
+    section.className = "list-section data-hub-all-items-section data-hub-all-items-section--loose";
+
+    const header = document.createElement("div");
+    header.className = "list-section-header data-hub-all-items-section-header";
+    header.textContent = `📄 Файлы в корне (${looseFiles.length})`;
+    section.appendChild(header);
+
+    const list = document.createElement("ul");
+    list.className = "data-hub-all-items-loose-list";
+    for (const fileName of looseFiles) {
+      const item = document.createElement("li");
+      item.className = "data-hub-all-items-loose-item";
+      item.textContent = `${STORAGE_ROOT_FOLDER}/${fileName}`;
+      list.appendChild(item);
+    }
+    section.appendChild(list);
+    root.appendChild(section);
+  }
+
+  container.appendChild(root);
+}
+
 function renderListViewContent() {
   closeMediaPathPopover();
   const raw = getListViewRawContent();
@@ -19511,6 +19859,21 @@ function renderListViewContent() {
   const isMediaListView = activeContentMode === "media" && !isMediaAssetEditing();
   const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();
   const isFlatStorageSectionListView = isFlatStorageSectionMode() && isFlatStorageListMode();
+
+  if (useDataHub && activeDataStorageAllItems) {
+    ensureDataHubShell();
+    const panel = getListViewMountRoot();
+    panel.replaceChildren();
+    const loading = document.createElement("div");
+    loading.className = "list-empty data-hub-all-items-loading";
+    loading.textContent = "Сканирование awn-storage…";
+    panel.appendChild(loading);
+    void fetchStorageRootScan().then((scan) => {
+      if (!activeDataStorageAllItems) return;
+      renderDataHubAllItemsPanel(panel, scan);
+    });
+    return;
+  }
 
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) {
     if (useDataHub) ensureDataHubShell();
@@ -20928,6 +21291,67 @@ function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
+const FIELD_TYPE_SELECT_GROUPS = [
+  { label: "Текст", types: ["awn.string", "awn.text", "awn.url"] },
+  { label: "Числа", types: ["awn.integer", "awn.number"] },
+  { label: "Дата и время", types: ["awn.date", "awn.datetime"] },
+  {
+    label: "Выбор значений",
+    types: ["awn.boolean", "awn.enum", "awn.array"]
+  },
+  { label: "Связи и файлы", types: ["awn.link", "awn.file"] },
+  { label: "Другое", types: ["awn.color", "awn.null"] }
+];
+
+function getFieldTypeSelectGroups(registryEntries = []) {
+  const byId = new Map(registryEntries.map((entry) => [entry.id, entry]));
+  const used = new Set();
+  const groups = [];
+
+  for (const spec of FIELD_TYPE_SELECT_GROUPS) {
+    const entries = [];
+    for (const typeId of spec.types) {
+      const resolved = resolveFieldTypeId(typeId);
+      if (!byId.has(resolved) || used.has(resolved)) continue;
+      entries.push(byId.get(resolved));
+      used.add(resolved);
+    }
+    if (entries.length) groups.push({ label: spec.label, entries });
+  }
+
+  const rest = registryEntries.filter((entry) => !used.has(entry.id));
+  if (rest.length) groups.push({ label: "Другие", entries: rest });
+
+  return groups;
+}
+
+function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.string") {
+  if (!select) return;
+  select.replaceChildren();
+
+  for (const group of getFieldTypeSelectGroups(registryEntries)) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    for (const entry of group.entries) {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = getFieldTypeOptionLabel(entry.id, entry.name);
+      optgroup.appendChild(option);
+    }
+    select.appendChild(optgroup);
+  }
+
+  const resolved = resolveFieldTypeId(selectedTypeId || "awn.string");
+  select.value = resolved;
+  if (select.value !== resolved && resolved) {
+    const legacy = document.createElement("option");
+    legacy.value = resolved;
+    legacy.textContent = getFieldTypeOptionLabel(resolved, resolved);
+    legacy.selected = true;
+    select.prepend(legacy);
+  }
+}
+
 function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache = getTopicSchemaCache()) {
   if (!cache) return [];
   return Object.keys(cache.awnSchema?.[target]?.fields || {});
@@ -20944,7 +21368,7 @@ function addTopicSchemaField(target = topicSchemaActiveTarget) {
     index += 1;
     key = `field_${index}`;
   }
-  fields[key] = { type: "awn.string", title: "" };
+  fields[key] = { type: "awn.string", name: "", title: "" };
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
   const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
@@ -21107,22 +21531,16 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     typeSelect.dataset.schemaKey = key;
     typeSelect.dataset.schemaField = "type";
     typeSelect.title = "Тип поля";
-    for (const entry of registryEntries) {
-      const option = document.createElement("option");
-      option.value = entry.id;
-      option.textContent = getFieldTypeOptionLabel(entry.id, entry.name);
-      typeSelect.append(option);
-    }
-    typeSelect.value = resolveFieldTypeId(fieldDef.type || "awn.string");
+    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.string");
 
     const titleInput = document.createElement("input");
     titleInput.type = "text";
     titleInput.className = "topic-schema-inline-input topic-schema-inline-input--title";
-    titleInput.value = fieldDef.title || "";
-    titleInput.placeholder = "название";
+    titleInput.value = getFieldDefDisplayName(fieldDef, key);
+    titleInput.placeholder = "name";
     titleInput.dataset.schemaKey = key;
     titleInput.dataset.schemaField = "title";
-    titleInput.title = "Название поля";
+    titleInput.title = "name (подпись поля)";
 
     const settingsBtn = document.createElement("button");
     settingsBtn.type = "button";
@@ -21184,26 +21602,35 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
   const nextType = resolveFieldTypeId(typeSelect?.value || "awn.string");
-  const allowedSettings = new Set(["type", "title", ...getFieldTypeSettingsKeys(nextType)]);
+  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
 
   fieldDef.type = nextType;
-  fieldDef.title = String(titleInput?.value || "").trim();
+  const nextName = String(titleInput?.value || "").trim();
+  fieldDef.name = nextName;
+  if (nextName) fieldDef.title = nextName;
+  else delete fieldDef.title;
 
   for (const propKey of Object.keys(getFieldDefSchemaProperties())) {
     if (propKey === "type" || propKey === "title") continue;
     if (!allowedSettings.has(propKey)) delete fieldDef[propKey];
   }
 
-  row.querySelectorAll(".topic-schema-setting [data-schema-field]").forEach((control) => {
+  row.querySelectorAll(".topic-schema-enum-options, .topic-schema-setting [data-schema-field]").forEach((control) => {
     const propKey = control.dataset.schemaField;
     if (!propKey || !allowedSettings.has(propKey)) return;
+    if (propKey === "enum" && typeof control.readEnumOptions === "function") {
+      const parsed = control.readEnumOptions();
+      if (shouldPersistFieldDefSetting(propKey, parsed, fieldDef)) fieldDef[propKey] = parsed;
+      else delete fieldDef[propKey];
+      return;
+    }
     const propDef = getFieldTypeSettingPropDef(propKey);
     const parsed = parseFieldDefSettingValue(
       propKey,
       propDef,
       control.type === "checkbox" ? control.checked : control.value
     );
-    if (shouldPersistFieldDefSetting(propKey, parsed)) {
+    if (shouldPersistFieldDefSetting(propKey, parsed, fieldDef)) {
       fieldDef[propKey] = parsed;
     } else {
       delete fieldDef[propKey];
@@ -21271,6 +21698,10 @@ async function saveTopicSchemaContent() {
   if (!manifestPath) throw new Error("Схема полей доступна только для тем");
   const cache = getTopicSchemaCache(manifestPath);
   if (!cache) throw new Error("Схема не загружена");
+
+  topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
+    readTopicSchemaFieldFromRow(row, cache);
+  });
 
   const response = await fetch(buildApiUrl("/api/file/topic-schema"), {
     method: "POST",
@@ -21689,11 +22120,11 @@ const FIELD_TYPE_ICONS = {
   "awn.boolean": "☑️",
   "awn.date": "📅",
   "awn.datetime": "🕒",
-  "awn.enum": "🎛️",
+  "awn.enum": "🔘",
+  "awn.array": "🎛️",
   "awn.null": "⚪",
   "awn.link": "🔗",
   "awn.file": "📎",
-  "awn.array": "📚",
   "awn.string": "🔤",
   "awn.text": "📝",
   "awn.color": "🎨",
@@ -21702,22 +22133,59 @@ const FIELD_TYPE_ICONS = {
   "awn.url": "🌐"
 };
 
+function awnEnumOptionsApi() {
+  return globalThis.AwnEnumOptions || {};
+}
+
 function resolveFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.resolveFieldTypeId === "function") return api.resolveFieldTypeId(typeId);
   const raw = String(typeId || "").trim();
   if (!raw) return "awn.string";
   if (raw.startsWith("awn.")) return raw;
   return `awn.${raw}`;
 }
 
+function isEnumFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isEnumFieldTypeId === "function") return api.isEnumFieldTypeId(typeId);
+  return resolveFieldTypeId(typeId) === "awn.enum";
+}
+
+function isArrayFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isArrayFieldTypeId === "function") return api.isArrayFieldTypeId(typeId);
+  return resolveFieldTypeId(typeId) === "awn.array";
+}
+
+function resolveFieldWidget(fieldDef, registryEntry = null) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.resolveFieldWidget === "function") {
+    return api.resolveFieldWidget(fieldDef, registryEntry);
+  }
+  return String(fieldDef?.widget || registryEntry?.widget || "").trim();
+}
+
+function getFieldDefDisplayName(fieldDef, fallbackKey = "") {
+  const api = awnEnumOptionsApi();
+  if (typeof api.getFieldDefDisplayName === "function") {
+    return api.getFieldDefDisplayName(fieldDef, fallbackKey);
+  }
+  return String(fieldDef?.name ?? fieldDef?.title ?? fallbackKey ?? "").trim();
+}
+
 function getFieldTypeOptionLabel(typeId, name = "") {
   const id = resolveFieldTypeId(typeId);
-  const label = String(name || id).trim();
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry = registry[id];
+  const rawLabel = String(name || entry?.name || entry?.description || id).trim();
+  const label = rawLabel === id && entry?.description ? entry.description : rawLabel;
   const icon = FIELD_TYPE_ICONS[id];
   return icon ? `${icon} ${label}` : label;
 }
 
 function isAwnEnumFieldType(typeId) {
-  return resolveFieldTypeId(typeId) === "awn.enum";
+  return isEnumFieldTypeId(typeId);
 }
 
 function getFieldDefSchemaProperties() {
@@ -21728,13 +22196,15 @@ function getFieldTypeSettingsKeys(typeId) {
   const registry = awnTypesCache?.fieldRegistry || {};
   const entry = registry[resolveFieldTypeId(typeId)];
   if (Array.isArray(entry?.settings) && entry.settings.length) {
-    return entry.settings.filter((key) => key !== "type" && key !== "title");
+    return entry.settings.filter(
+      (key) => key !== "type" && key !== "title" && key !== "name" && key !== "items"
+    );
   }
-  if (resolveFieldTypeId(typeId) === "awn.enum") {
-    return ["description", "hint", "required", "locked", "default", "enum"];
+  if (isEnumFieldTypeId(typeId)) {
+    return ["description", "hint", "required", "locked", "widget", "default", "enum"];
   }
-  if (resolveFieldTypeId(typeId) === "awn.array") {
-    return ["description", "hint", "required", "locked", "default", "items"];
+  if (isArrayFieldTypeId(typeId)) {
+    return ["description", "hint", "required", "locked", "widget", "default", "enum"];
   }
   if (resolveFieldTypeId(typeId) === "awn.null") {
     return ["description", "hint", "locked"];
@@ -21752,7 +22222,13 @@ function isFieldDefBooleanSetting(propKey, propDef = getFieldTypeSettingPropDef(
 }
 
 function formatFieldDefSettingValue(propKey, value) {
+  const api = awnEnumOptionsApi();
   if (propKey === "enum" || propKey === "items") {
+    if (propKey === "enum" && Array.isArray(value)) {
+      if (typeof api.formatEnumOptionsCompactText === "function") {
+        return api.formatEnumOptionsCompactText(value);
+      }
+    }
     return Array.isArray(value) ? value.join(", ") : String(value || "");
   }
   if (isFieldDefBooleanSetting(propKey)) {
@@ -21763,7 +22239,12 @@ function formatFieldDefSettingValue(propKey, value) {
 }
 
 function parseFieldDefSettingValue(propKey, propDef, rawValue) {
+  const api = awnEnumOptionsApi();
   if (propKey === "enum") {
+    if (Array.isArray(rawValue)) return rawValue;
+    if (typeof api.parseEnumOptionsFromCompactText === "function") {
+      return api.parseEnumOptionsFromCompactText(rawValue);
+    }
     return String(rawValue || "")
       .split(",")
       .map((item) => item.trim())
@@ -21781,11 +22262,105 @@ function parseFieldDefSettingValue(propKey, propDef, rawValue) {
   return String(rawValue ?? "").trim();
 }
 
-function shouldPersistFieldDefSetting(propKey, value) {
-  if (propKey === "enum") return Array.isArray(value) && value.length > 0;
+function shouldPersistFieldDefSetting(propKey, value, fieldDef = null) {
+  if (propKey === "widget") {
+    const widget = String(value ?? "").trim();
+    if (!widget || !fieldDef) return Boolean(widget);
+    const typeId = resolveFieldTypeId(fieldDef.type || "");
+    const api = awnEnumOptionsApi();
+    const defaultWidget = api.DEFAULT_FIELD_WIDGET?.[typeId] || "";
+    return Boolean(widget && widget !== defaultWidget);
+  }
+  if (propKey === "enum") {
+    const api = awnEnumOptionsApi();
+    if (Array.isArray(value) && typeof api.normalizeEnumOptions === "function") {
+      return api.normalizeEnumOptions(value).length > 0;
+    }
+    return Array.isArray(value) && value.length > 0;
+  }
   if (propKey === "items") return Boolean(String(value || "").trim());
   if (isFieldDefBooleanSetting(propKey)) return value === true;
   return String(value ?? "").trim().length > 0;
+}
+
+function createTopicSchemaEnumOptionsControl(fieldDef, schemaKey) {
+  const wrap = document.createElement("div");
+  wrap.className = "topic-schema-enum-options";
+  wrap.dataset.schemaKey = schemaKey;
+  wrap.dataset.schemaField = "enum";
+
+  const api = awnEnumOptionsApi();
+  let optionRows =
+    typeof api.normalizeEnumOptions === "function"
+      ? api.normalizeEnumOptions(fieldDef?.enum || [])
+      : Array.isArray(fieldDef?.enum)
+        ? [...fieldDef.enum]
+        : [];
+
+  const readRowsFromDom = () => {
+    const next = [];
+    wrap.querySelectorAll(".topic-schema-enum-options-row").forEach((row) => {
+      const key = String(row.querySelector('[data-enum-part="key"]')?.value || "").trim();
+      const name = String(row.querySelector('[data-enum-part="name"]')?.value || "").trim();
+      if (!key && !name) return;
+      next.push({ key: key || name, name: name || key });
+    });
+    return next;
+  };
+
+  wrap.readEnumOptions = readRowsFromDom;
+
+  const renderRows = () => {
+    wrap.replaceChildren();
+    const hint = document.createElement("p");
+    hint.className = "topic-schema-enum-options-hint";
+    hint.textContent = "key — значение в YAML, name — подпись в UI";
+    wrap.appendChild(hint);
+
+    const list = document.createElement("div");
+    list.className = "topic-schema-enum-options-list";
+    const rows = optionRows.length ? optionRows : [{ key: "", name: "" }];
+
+    for (const option of rows) {
+      const row = document.createElement("div");
+      row.className = "topic-schema-enum-options-row";
+
+      const keyInput = document.createElement("input");
+      keyInput.type = "text";
+      keyInput.className = "topic-schema-inline-input";
+      keyInput.placeholder = "key";
+      keyInput.value = option.key || "";
+      keyInput.dataset.enumPart = "key";
+      keyInput.spellcheck = false;
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "topic-schema-inline-input";
+      nameInput.placeholder = "name";
+      nameInput.value = option.name || "";
+      nameInput.dataset.enumPart = "name";
+
+      row.append(keyInput, nameInput);
+      list.appendChild(row);
+    }
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "topic-schema-enum-options-add";
+    addBtn.textContent = "+ Вариант";
+    addBtn.addEventListener("click", () => {
+      optionRows = readRowsFromDom();
+      optionRows.push({ key: "", name: "" });
+      renderRows();
+      const row = wrap.closest(".topic-schema-field-row");
+      if (row) readTopicSchemaFieldFromRow(row);
+    });
+
+    wrap.append(list, addBtn);
+  };
+
+  renderRows();
+  return wrap;
 }
 
 function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) {
@@ -21809,17 +22384,34 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     control.value = formatFieldDefSettingValue(propKey, fieldDef?.[propKey]);
   } else if (propKey === "items") {
     control = document.createElement("select");
-    const emptyOption = document.createElement("option");
-    emptyOption.value = "";
-    emptyOption.textContent = "—";
-    control.appendChild(emptyOption);
-    for (const entry of getTopicSchemaRegistryEntries()) {
+    populateFieldTypeSelect(control, getTopicSchemaRegistryEntries(), fieldDef?.items || "awn.string");
+  } else if (propKey === "enum") {
+    control = createTopicSchemaEnumOptionsControl(fieldDef, schemaKey);
+    delete label.dataset.schemaField;
+    label.append(caption, control);
+    return label;
+  } else if (propKey === "widget") {
+    control = document.createElement("select");
+    const typeId = resolveFieldTypeId(fieldDef?.type || "");
+    const registry = awnTypesCache?.fieldRegistry || {};
+    const widgetOptions = isEnumFieldTypeId(typeId)
+      ? [
+          ["select", "Select (выпадающий список)"],
+          ["radio", "Radio (кнопки)"]
+        ]
+      : isArrayFieldTypeId(typeId)
+        ? [
+            ["checkbox", "Checkbox (флажки)"],
+            ["select-multiple", "Select multiple (множественный выбор)"]
+          ]
+        : [];
+    for (const [value, text] of widgetOptions) {
       const option = document.createElement("option");
-      option.value = entry.id;
-      option.textContent = getFieldTypeOptionLabel(entry.id, entry.name);
+      option.value = value;
+      option.textContent = text;
       control.append(option);
     }
-    control.value = resolveFieldTypeId(fieldDef?.items || "awn.string");
+    control.value = resolveFieldWidget(fieldDef, registry[typeId]);
   } else if (propKey === "scope") {
     control = document.createElement("select");
     for (const [value, label] of [
@@ -21899,7 +22491,7 @@ function getPropsFieldMetaFromSchema(key) {
   const fieldDef = getPropsFieldDef(key);
   if (!fieldDef) return null;
   return {
-    label: fieldDef.title || key,
+    label: getFieldDefDisplayName(fieldDef, key),
     hint: fieldDef.hint || fieldDef.description || "",
     format: fieldDef.format || "",
     required: Boolean(fieldDef.required),
@@ -21918,7 +22510,7 @@ function fieldDefToEntryKind(fieldDef) {
   if (registryEntry?.kind && registryEntry.kind !== "field") return registryEntry.kind;
   if (typeId === "awn.integer" || typeId === "awn.number") return "number";
   if (typeId === "awn.boolean") return "bool";
-  if (typeId === "awn.array") return "array";
+  if (isArrayFieldTypeId(typeId)) return "array";
   if (typeId === "awn.null") return "null";
   return "string";
 }
@@ -23195,8 +23787,8 @@ function renderDocLinksLibraryContent(options = {}) {
 
 function formatMiniDocPathHint(relativePath) {
   const rel = String(relativePath || "").replace(/^\/+/, "");
-  const slotDir = activePath ? getNamedStorageSlotDirRel(getResolvedNodePath(activePath)) : "";
-  const fullPath = slotDir ? `${slotDir}/${rel}` : `awn-storage/{тема}/${rel}`;
+  const containerDir = activePath ? getNamedStorageBundleDirRel(getResolvedNodePath(activePath)) : "";
+  const fullPath = containerDir ? `${containerDir}/${rel}` : `{тема}/${rel}`;
   return `<code>${fullPath}</code>`;
 }
 
@@ -23833,10 +24425,13 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const typeId = resolveFieldTypeId(fieldDef?.type || "");
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry = registry[typeId];
-  const widget = String(fieldDef?.widget || registryEntry?.widget || "").trim();
+  const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
-  if (typeId === "awn.enum" || widget === "select") return "select";
+  if (isEnumFieldTypeId(typeId)) {
+    if (widget === "radio") return "radio";
+    return "select";
+  }
   if (typeId === "awn.boolean" || widget === "toggle") return "boolean";
   if (typeId === "awn.link" || widget === "link") return "link";
   if (typeId === "awn.file" || widget === "file") return "file";
@@ -23846,7 +24441,15 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (typeId === "awn.date") return "date";
   if (typeId === "awn.datetime") return "datetime";
   if (typeId === "awn.integer" || typeId === "awn.number") return "number";
-  if (typeId === "awn.array") return "array";
+  if (isArrayFieldTypeId(typeId)) {
+    if (widget === "select-multiple") {
+      return getEnumOptionsForField(fieldDef).length ? "select-multiple" : "array";
+    }
+    if (widget === "checkbox") {
+      return getEnumOptionsForField(fieldDef).length ? "enum-checkbox" : "array";
+    }
+    return getEnumOptionsForField(fieldDef).length ? "enum-checkbox" : "array";
+  }
   return "text";
 }
 
@@ -24015,45 +24618,138 @@ function createPropsFormBooleanControl(entry, meta, { locked = false } = {}) {
 }
 
 function normalizeEnumDisplayValue(rawValue, options = []) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.resolveEnumStoredKey === "function") {
+    return api.resolveEnumStoredKey(rawValue, options);
+  }
   const raw = String(rawValue ?? "").trim();
   if (!raw || !Array.isArray(options) || !options.length) return raw;
   if (options.includes(raw)) return raw;
-
-  const squeeze = (value) => String(value).replace(/\s+/g, "").toLowerCase();
-  for (const option of options) {
-    if (squeeze(option) === squeeze(raw)) return option;
-  }
-
-  const enumLabel = (value) => {
-    const text = String(value).trim();
-    const match = text.match(/^\S+\s+(.+)$/);
-    return (match?.[1] || text).trim().toLowerCase();
-  };
-  const rawLabel = enumLabel(raw);
-  for (const option of options) {
-    if (enumLabel(option) === rawLabel) return option;
-  }
-
   return raw;
+}
+
+function getEnumOptionsForField(fieldDef) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.normalizeEnumOptions === "function") {
+    return api.normalizeEnumOptions(fieldDef?.enum || []);
+  }
+  return Array.isArray(fieldDef?.enum) ? fieldDef.enum : [];
 }
 
 function createPropsFormSelectControl(entry, meta, options, { locked = false, placeholder = "—" } = {}) {
   const wrap = createPropsFormValueWrap("select");
   const select = document.createElement("select");
   select.className = "props-form-value props-form-value--select";
-  const currentValue = normalizeEnumDisplayValue(getPropsEntryDisplayValue(entry), options);
+  const normalized = getEnumOptionsForField({ enum: options });
+  const api = awnEnumOptionsApi();
+  const currentKey = normalizeEnumDisplayValue(getPropsEntryDisplayValue(entry), normalized);
   appendPropsFormSelectOption(select, "", placeholder);
-  for (const optionValue of options) {
-    appendPropsFormSelectOption(select, optionValue, optionValue, {
-      selected: optionValue === currentValue
+  for (const option of normalized) {
+    const value = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : option;
+    const label = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : option;
+    appendPropsFormSelectOption(select, value, label, {
+      selected: value === currentKey
     });
   }
-  if (currentValue && !options.includes(currentValue)) {
-    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне списка)`, {
+  if (currentKey && !normalized.some((option) => (api.enumOptionKey ? api.enumOptionKey(option) : option) === currentKey)) {
+    appendPropsFormSelectOption(select, currentKey, `${currentKey} (вне списка)`, {
       selected: true
     });
   }
   if (meta.hint) select.title = meta.hint;
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+  return wrap;
+}
+
+function createPropsFormRadioControl(entry, meta, options, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("radio");
+  wrap.classList.add("props-form-value-wrap--radio");
+  const normalized = getEnumOptionsForField({ enum: options });
+  const api = awnEnumOptionsApi();
+  const currentKey = normalizeEnumDisplayValue(getPropsEntryDisplayValue(entry), normalized);
+  const group = document.createElement("div");
+  group.className = "props-form-radio-list";
+  group.setAttribute("role", "radiogroup");
+
+  for (const option of normalized) {
+    const value = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : option;
+    const labelText = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : option;
+    const label = document.createElement("label");
+    label.className = "props-form-radio-label";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = `props-radio-${entry.key || "field"}`;
+    input.value = value;
+    input.checked = value === currentKey;
+    bindPropsFormLockedState(input, locked);
+    label.append(input, document.createTextNode(labelText));
+    group.appendChild(label);
+  }
+
+  wrap.appendChild(group);
+  return wrap;
+}
+
+function createPropsFormEnumCheckboxControl(entry, meta, options, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("enum-checkbox");
+  wrap.classList.add("props-form-value-wrap--enum-checkbox");
+  const normalized = getEnumOptionsForField({ enum: options });
+  const api = awnEnumOptionsApi();
+  const selectedKeys = new Set(
+    typeof api.normalizeArrayStoredKeys === "function"
+      ? api.normalizeArrayStoredKeys(getPropsEntryDisplayValue(entry), normalized)
+      : String(getPropsEntryDisplayValue(entry) || "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+  );
+
+  const list = document.createElement("div");
+  list.className = "props-form-enum-checkbox-list";
+  for (const option of normalized) {
+    const value = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : option;
+    const labelText = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : option;
+    const label = document.createElement("label");
+    label.className = "props-form-enum-checkbox-label";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = value;
+    input.checked = selectedKeys.has(value);
+    bindPropsFormLockedState(input, locked);
+    label.append(input, document.createTextNode(labelText));
+    list.appendChild(label);
+  }
+
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function createPropsFormSelectMultipleControl(entry, meta, options, { locked = false, placeholder = "—" } = {}) {
+  const wrap = createPropsFormValueWrap("select-multiple");
+  const select = document.createElement("select");
+  select.multiple = true;
+  select.className = "props-form-value props-form-value--select-multiple";
+  const normalized = getEnumOptionsForField({ enum: options });
+  const api = awnEnumOptionsApi();
+  const selectedKeys = new Set(
+    typeof api.normalizeArrayStoredKeys === "function"
+      ? api.normalizeArrayStoredKeys(getPropsEntryDisplayValue(entry), normalized)
+      : []
+  );
+
+  for (const option of normalized) {
+    const value = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : option;
+    const label = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : option;
+    appendPropsFormSelectOption(select, value, label, {
+      selected: selectedKeys.has(value)
+    });
+  }
+
+  if (!normalized.length) {
+    appendPropsFormSelectOption(select, "", placeholder);
+  }
+
   bindPropsFormLockedState(select, locked);
   wrap.appendChild(select);
   return wrap;
@@ -25955,12 +26651,20 @@ function createPropsFormValueControl(entry, meta) {
     return createPropsFormFileControl(entry, meta, { locked });
   }
   if (widget === "select") {
-    const options = Array.isArray(fieldDef?.enum)
-      ? fieldDef.enum
-      : Array.isArray(meta.enum)
-        ? meta.enum
-        : [];
+    const options = getEnumOptionsForField(fieldDef);
     return createPropsFormSelectControl(entry, meta, options, { locked });
+  }
+  if (widget === "radio") {
+    const options = getEnumOptionsForField(fieldDef);
+    return createPropsFormRadioControl(entry, meta, options, { locked });
+  }
+  if (widget === "enum-checkbox") {
+    const options = getEnumOptionsForField(fieldDef);
+    return createPropsFormEnumCheckboxControl(entry, meta, options, { locked });
+  }
+  if (widget === "select-multiple") {
+    const options = getEnumOptionsForField(fieldDef);
+    return createPropsFormSelectMultipleControl(entry, meta, options, { locked });
   }
   if (widget === "boolean") {
     return createPropsFormBooleanControl(entry, meta, { locked });
@@ -26003,6 +26707,22 @@ function readPropsFormValueFromControl(valueWrap) {
   }
   if (widget === "attachments") {
     return getPropsAttachmentsPathsFromWrap(valueWrap).join(", ");
+  }
+  if (widget === "enum-checkbox") {
+    return [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
+      .map((input) => input.value)
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (widget === "select-multiple") {
+    return [...valueWrap.querySelectorAll("select option:checked")]
+      .map((option) => option.value)
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (widget === "radio") {
+    const checked = valueWrap.querySelector('input[type="radio"]:checked');
+    return checked?.value ?? "";
   }
   if (widget === "boolean") {
     const checkbox = valueWrap.querySelector('input[type="checkbox"]');
@@ -27554,6 +28274,22 @@ async function refreshNodeCoverThumbInPlace() {
   );
 }
 
+function createNavigationHeroFooterMeta(nodePath, options = {}) {
+  const settingsChips = createNodeSettingsHeroSlotList(options.settingsSlots || []);
+  const markersRow =
+    options.showWorkspaceMarkers !== false
+      ? createNavigationHeroMarkersRow(nodePath, options)
+      : null;
+
+  if (!settingsChips && !markersRow) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hero-footer-meta";
+  if (settingsChips) wrap.appendChild(settingsChips);
+  if (markersRow) wrap.appendChild(markersRow);
+  return wrap;
+}
+
 function createNavigationHero(preview, title, nodePath = activePath, options = {}) {
   const hero = document.createElement("div");
   hero.className = "node-navigation-hero";
@@ -27571,23 +28307,20 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   const identity = document.createElement("div");
   identity.className = "node-navigation-hero-identity";
 
-  const titleNode = document.createElement("h2");
-  titleNode.className = "node-navigation-hero-title";
-  titleNode.textContent = title;
+  const statusRaw = String(
+    options.status || resolveAwnStatusFromPropEntries(options.propEntries || [])
+  ).trim();
+  const titleRow = createHeroTitleRow(title, statusRaw);
 
   const pathNode = document.createElement("p");
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = options.pathLabel || formatNodeHeroSlugLabel(nodePath);
 
-  identity.append(titleNode, pathNode);
+  identity.append(titleRow, pathNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
   if (datesPanel.childElementCount > 0) {
     identity.appendChild(datesPanel);
-  }
-
-  if (options.showWorkspaceMarkers !== false) {
-    identity.appendChild(createNavigationHeroMarkersRow(nodePath));
   }
 
   if (options.typeLabel) {
@@ -27609,21 +28342,28 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   hero.appendChild(main);
 
   if (options.showWorkspaceMarkers !== false) {
-    const footer = document.createElement("div");
-    footer.className = "node-navigation-hero-footer";
+    const description =
+      String(options.description || "").trim() ||
+      getOverviewDescription(options.descriptionRaw || "", options.propEntries || []);
+    const footerMeta = createNavigationHeroFooterMeta(nodePath, options);
 
-    const blurb = document.createElement("p");
-    blurb.className = "node-navigation-hero-footer-blurb";
-    blurb.textContent =
-      "Краткое описание темы или заметка редактора. Здесь может быть аннотация, статус работы или ссылка на связанный документ — пока это заглушка для макета.";
+    if (description || footerMeta) {
+      const footer = document.createElement("div");
+      footer.className = "node-navigation-hero-footer";
 
-    const footerNote = document.createElement("p");
-    footerNote.className = "node-navigation-hero-footer-note";
-    footerNote.textContent =
-      "Второй уровень футера: маркеры области, тип записи, теги или другие метки — тоже заглушка.";
+      if (description) {
+        const blurb = document.createElement("p");
+        blurb.className = "node-navigation-hero-footer-blurb";
+        blurb.textContent = description;
+        footer.appendChild(blurb);
+      }
 
-    footer.append(blurb, footerNote);
-    hero.appendChild(footer);
+      if (footerMeta) {
+        footer.appendChild(footerMeta);
+      }
+
+      hero.appendChild(footer);
+    }
   }
 
   return hero;
@@ -28207,8 +28947,7 @@ function buildNodeSettingsSlotStatuses({
     );
 
   const slots = [
-    { id: "description", label: "Инструкция для агента", filled: hasDescription, modeId: "description" },
-    { id: "configs", label: "Конфигурация", filled: hasConfigs, modeId: "configs" }
+    { id: "description", label: "Инструкция для агента", filled: hasDescription, modeId: "description" }
   ];
   if (isTopicSchemaModeAvailable(nodePath)) {
     slots.push({
@@ -28218,6 +28957,7 @@ function buildNodeSettingsSlotStatuses({
       modeId: "topic-schema"
     });
   }
+  slots.push({ id: "configs", label: "Настройки", filled: hasConfigs, modeId: "configs" });
   return slots;
 }
 
@@ -28296,19 +29036,7 @@ function handleNodeSlotChipClick(slot) {
   openMemoryModeFromOverview(slot.modeId);
 }
 
-function createNodeSlotStripRow(title, slots = []) {
-  if (!slots.length) return null;
-
-  const row = document.createElement("div");
-  row.className = "node-slot-strip-row";
-
-  const heading = document.createElement("span");
-  heading.className = "node-slot-strip-title";
-  heading.textContent = title;
-
-  const list = document.createElement("ul");
-  list.className = "node-slot-strip-list";
-
+function appendNodeSlotChipItems(list, slots = []) {
   for (const slot of slots) {
     const item = document.createElement("li");
     const btn = document.createElement("button");
@@ -28330,25 +29058,110 @@ function createNodeSlotStripRow(title, slots = []) {
     item.appendChild(btn);
     list.appendChild(item);
   }
+}
+
+function createNodeSlotChipList(slots = [], listClass = "node-slot-strip-list") {
+  if (!slots.length) return null;
+  const list = document.createElement("ul");
+  list.className = listClass;
+  appendNodeSlotChipItems(list, slots);
+  return list;
+}
+
+function createNodeSettingsHeroSlotList(slots = []) {
+  const list = createNodeSlotChipList(slots, "node-navigation-hero-settings-slot-list");
+  if (!list) return null;
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hero-settings-slots";
+  wrap.setAttribute("aria-label", "Настройки темы");
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function createNodeSlotStripRow(title, slots = []) {
+  if (!slots.length) return null;
+
+  const row = document.createElement("div");
+  row.className = "node-slot-strip-row";
+
+  const heading = document.createElement("span");
+  heading.className = "node-slot-strip-title";
+  heading.textContent = title;
+
+  const list = createNodeSlotChipList(slots);
+  if (!list) return null;
 
   row.append(heading, list);
   return row;
 }
 
-function renderNodeSlotStrip(slotGroups = {}) {
+function renderNodeSlotStrip(slotGroups = {}, { includeMemory = true } = {}) {
   const settingsSlots = slotGroups.settings || [];
-  const memorySlots = slotGroups.memory || [];
+  const memorySlots = includeMemory ? slotGroups.memory || [] : [];
   if (!settingsSlots.length && !memorySlots.length) return null;
 
   const wrap = document.createElement("div");
   wrap.className = "node-slot-strip";
-  wrap.setAttribute("aria-label", "Быстрый переход к настройкам и слотам хранилища");
+  wrap.setAttribute(
+    "aria-label",
+    includeMemory
+      ? "Быстрый переход к настройкам и слотам хранилища"
+      : "Быстрый переход к настройкам темы"
+  );
 
   const settingsRow = createNodeSlotStripRow(NODE_SLOT_SETTINGS_ROW_TITLE, settingsSlots);
-  const memoryRow = createNodeSlotStripRow(NODE_SLOT_MEMORY_ROW_TITLE, memorySlots);
+  const memoryRow = includeMemory
+    ? createNodeSlotStripRow(NODE_SLOT_MEMORY_ROW_TITLE, memorySlots)
+    : null;
   if (settingsRow) wrap.appendChild(settingsRow);
   if (memoryRow) wrap.appendChild(memoryRow);
   return wrap;
+}
+
+function buildNodeNavigationMemoryCounterSlots({
+  isArea = false,
+  internalData = null,
+  externalData = null,
+  tabularData = null,
+  mediaData = null,
+  todoData = null,
+  memorySummary = null
+} = {}) {
+  const memorySlots = buildNodeMemorySlotStatuses({
+    isArea,
+    internalData,
+    externalData,
+    tabularData,
+    mediaData,
+    todoData,
+    memorySummary
+  });
+  if (!memorySlots.length) return [];
+
+  const drivers = memorySummary?.drivers || {};
+  const externalFiles = externalData?.files || [];
+  const externalCount = Math.max(externalFiles.length, Number(drivers.external?.count) || 0);
+  const tabularCount = Math.max(Number(tabularData?.rowCount) || 0, Number(drivers.tabular?.rowCount) || 0);
+  const mediaCount = Number(mediaData?.files) || 0;
+  const todoLines = String(todoData?.content || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const countById = {
+    external: externalCount,
+    internal: memorySlots.find((slot) => slot.id === "internal")?.filled ? 1 : 0,
+    tabular: tabularCount,
+    media: mediaCount,
+    todo: todoLines.length
+  };
+
+  return memorySlots.map((slot) => {
+    const count = Number(countById[slot.id]) || 0;
+    const filled = Boolean(slot.filled);
+    const title = filled ? `${slot.label}: ${count}` : `${slot.label}: пусто`;
+    return { ...slot, count, tone: "", title };
+  });
 }
 
 async function fetchFolderViewSummary(manifestPath, folder, agentId = activeAgentId) {
@@ -28453,37 +29266,40 @@ function openWorkspaceModeFromNavigation(modeId) {
   setContentMode(modeId);
 }
 
+function openNodeNavigationCounterSlot(slot) {
+  if (!slot?.modeId) return;
+  if (NODE_SETTINGS_MODE_IDS.has(slot.modeId)) {
+    openSettingsModeFromOverview(slot.modeId);
+    return;
+  }
+  if (slot.modeId === "todo") {
+    openTodoFromOverview();
+    return;
+  }
+  if (slot.modeId === "media") {
+    openNavigationPanelMode("media");
+    return;
+  }
+  openWorkspaceModeFromNavigation(slot.modeId);
+}
+
 function renderNodeNavigationWorkspaceCounterStrip(slots = []) {
   if (!slots.length) return null;
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-workspace-counters";
-  wrap.setAttribute("aria-label", "Счётчики разделов workspace");
+  wrap.setAttribute("aria-label", "Слоты памяти и разделы workspace");
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
 
   for (const slot of slots) {
     const item = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `node-navigation-workspace-counter${slot.filled ? " is-filled" : " is-empty"}${
-      slot.tone ? ` is-${slot.tone}` : ""
-    }`;
-    btn.title = slot.title;
-
-    const count = document.createElement("span");
-    count.className = "node-navigation-workspace-counter-value";
-    count.textContent = String(slot.count);
-
-    const label = document.createElement("span");
-    label.className = "node-navigation-workspace-counter-label";
-    label.textContent = slot.label;
-
-    btn.append(count, label);
-    btn.addEventListener("click", () => openWorkspaceModeFromNavigation(slot.modeId));
-
-    item.appendChild(btn);
+    item.appendChild(
+      renderEntryOverviewWorkspaceCounterButton(slot, {
+        onClick: () => openNodeNavigationCounterSlot(slot)
+      })
+    );
     list.appendChild(item);
   }
 
@@ -28606,12 +29422,12 @@ function createNavigationHeroMarkerSlot({ id, caption, active, createSvg, titleA
   return slot;
 }
 
-function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath) {
-  const markersRow = createNavigationHeroMarkersRow(nodePath);
+function appendNavigationHeroWorkspaceMarkerSlots(panel, nodePath, options = {}) {
+  const markersRow = createNavigationHeroMarkersRow(nodePath, options);
   if (markersRow) panel.appendChild(markersRow);
 }
 
-function createNavigationHeroMarkersRow(nodePath) {
+function createNavigationHeroMarkersRow(nodePath, options = {}) {
   const markers = getFolderWorkspaceMarkersForNode(nodePath);
 
   const markersRow = document.createElement("div");
@@ -28651,28 +29467,9 @@ function createNavigationHeroMarkersRow(nodePath) {
     })
   );
 
-  const kindRow = document.createElement("div");
-  kindRow.className = "node-navigation-hero-kind-terms";
-  kindRow.setAttribute("aria-label", "Тип записи");
-
-  const singleTerm = document.createElement("span");
-  singleTerm.className = "node-navigation-hero-kind-term";
-  singleTerm.textContent = "Одиночка (идея)";
-
-  const separator = document.createElement("span");
-  separator.className = "node-navigation-hero-kind-separator";
-  separator.setAttribute("aria-hidden", "true");
-  separator.textContent = "|";
-
-  const collectionTerm = document.createElement("span");
-  collectionTerm.className = "node-navigation-hero-kind-term";
-  collectionTerm.textContent = "Коллекция (идея)";
-
-  kindRow.append(singleTerm, separator, collectionTerm);
-
   const block = document.createElement("div");
   block.className = "node-navigation-hero-marker-block";
-  block.append(wrap, kindRow);
+  block.appendChild(wrap);
 
   markersRow.appendChild(block);
   return markersRow;
@@ -30071,47 +30868,6 @@ async function renderEntryOverviewDataSlotBar(context, topicPath) {
 
   wrap.appendChild(list);
 
-  if (activeSlotKey === "memory") {
-    const subWrap = document.createElement("div");
-    subWrap.className = "node-entry-overview-memory-mode-counters";
-    subWrap.setAttribute("role", "group");
-    subWrap.setAttribute("aria-label", "Режим памяти");
-
-    const subList = document.createElement("ul");
-    subList.className = "node-navigation-workspace-counter-list node-entry-overview-memory-mode-counter-list";
-
-    for (const modeSpec of DATA_MEMORY_MODE_SPECS) {
-      const item = document.createElement("li");
-      const isExternalActive = modeSpec.mode === "external" && context.memoryKind === "external";
-      const memorySlot = slots.find((entry) => entry.id === "memory");
-      const subSlot = {
-        label: modeSpec.label,
-        count:
-          modeSpec.mode === "external"
-            ? memorySlot?.count || 0
-            : modeSpec.mode === "tabular"
-              ? 0
-              : 0,
-        filled: modeSpec.mode === "external" ? Boolean(memorySlot?.filled) : false,
-        tone: "",
-        title: modeSpec.label
-      };
-      item.appendChild(
-        renderEntryOverviewWorkspaceCounterButton(subSlot, {
-          isActive: isExternalActive,
-          onClick: () => {
-            if (modeSpec.mode === "external") setActiveDataMemoryModeFromOverview("external");
-            else setActiveDataMemoryMode(modeSpec.mode);
-          }
-        })
-      );
-      subList.appendChild(item);
-    }
-
-    subWrap.appendChild(subList);
-    wrap.appendChild(subWrap);
-  }
-
   return wrap;
 }
 
@@ -30558,15 +31314,13 @@ function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, n
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
   kindBadge.textContent = `${getEntryOverviewMediaAssetKindIcon(assetKind)} ${getEntryOverviewMediaAssetKindLabel(assetKind)}`;
 
-  const titleNode = document.createElement("h2");
-  titleNode.className = "node-navigation-hero-title";
-  titleNode.textContent = title;
+  const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries));
 
   const pathNode = document.createElement("p");
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = formatEntryOverviewHeroPathLabel(entries, context.relativePath);
 
-  identity.append(kindBadge, titleNode, pathNode);
+  identity.append(kindBadge, titleRow, pathNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
@@ -33327,6 +34081,8 @@ async function renderNodeNavigation() {
     createNavigationHero(preview, heroTitle, nodePath, {
       meta: nodeMeta,
       propEntries: entries,
+      descriptionRaw: modeContentCache.description || "",
+      settingsSlots: slotStripGroups.settings || [],
       onEditClick: openDescriptionFromOverview
     })
   );
@@ -33337,13 +34093,21 @@ async function renderNodeNavigation() {
     hub.appendChild(propsSection);
   }
 
-  const slotStrip = renderNodeSlotStrip(slotStripGroups);
-  if (slotStrip) hub.appendChild(slotStrip);
-
+  const memoryCounters = buildNodeNavigationMemoryCounterSlots({
+    isArea,
+    internalData,
+    externalData,
+    tabularData,
+    mediaData,
+    todoData
+  });
   const workspaceCounters = isArea ? [] : await buildNodeNavigationWorkspaceCounters(nodePath, { isArea });
   if (isStale()) return;
-  const workspaceCounterStrip = renderNodeNavigationWorkspaceCounterStrip(workspaceCounters);
-  if (workspaceCounterStrip) hub.appendChild(workspaceCounterStrip);
+  const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip([
+    ...memoryCounters,
+    ...workspaceCounters
+  ]);
+  if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
   if (manifestPanel) hub.appendChild(manifestPanel);
@@ -33447,9 +34211,12 @@ async function renderNodeOverview() {
   const headTop = document.createElement("div");
   headTop.className = "node-overview-head-top";
 
-  const titleNode = document.createElement("h2");
-  titleNode.className = "node-overview-title";
-  titleNode.textContent = title;
+  const statusRaw = resolveAwnStatusFromPropEntries(entries);
+  const titleRow = createHeroTitleRow(title, statusRaw, {
+    rowClass: "node-navigation-hero-title-row node-overview-title-row",
+    titleClass: "node-overview-title",
+    statusClass: "node-navigation-hero-status"
+  });
 
   const editManifestBtn = document.createElement("button");
   editManifestBtn.type = "button";
@@ -33471,7 +34238,7 @@ async function renderNodeOverview() {
   headActions.className = "node-overview-head-actions";
   headActions.append(editManifestBtn, revealFolderBtn);
 
-  headTop.append(titleNode, headActions);
+  headTop.append(titleRow, headActions);
   head.appendChild(headTop);
   if (typeLabel) {
     const typeNode = document.createElement("span");
@@ -38460,6 +39227,8 @@ async function selectFile(label, filePath) {
   const nextPath = getResolvedNodePath(filePath);
   if (normalizeMenuNodePath(nextPath) !== normalizeMenuNodePath(activePath)) {
     lastNonTocEntryOverviewContext = null;
+    activeDataStorageAllItems = false;
+    invalidateStorageRootScanCache();
   }
   activePath = nextPath;
   activeLabel = label;

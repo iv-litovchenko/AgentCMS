@@ -1,7 +1,7 @@
 ---
 awn-preview: ""
 awn-emoji: ""
-awn-name: Список
+awn-name: Несколько значений (из списка)
 awn-status: "🟢 Открыта"
 awn-type: awn.topic
 awn-create: "2026-06-23T21:35"
