@@ -3,13 +3,34 @@ const path = require("path");
 
 const YAML_FILE_RE = /\.ya?ml$/i;
 
-/** Простой парсер YAML (плоские объекты + один уровень вложенности) */
+function parseYamlScalar(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw === "true" || raw === "false") return raw === "true";
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1);
+  }
+  return raw;
+}
+
+function nextSignificantYamlLine(lines, startIndex) {
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+    return { line, index, indent: line.match(/^(\s*)/)[1].length, trimmed: line.trim() };
+  }
+  return null;
+}
+
+/** Простой парсер YAML (объекты, вложенность, списки `- item`) */
 function parseTypeYaml(text) {
   const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
   const root = {};
-  const stack = [{ indent: -1, obj: root }];
+  const stack = [{ indent: -1, kind: "object", obj: root }];
 
-  for (const rawLine of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
     if (!rawLine.trim() || rawLine.trim().startsWith("#")) continue;
 
     const indent = rawLine.match(/^(\s*)/)[1].length;
@@ -19,47 +40,91 @@ function parseTypeYaml(text) {
       stack.pop();
     }
 
-    const parent = stack[stack.length - 1].obj;
+    const frame = stack[stack.length - 1];
+
+    if (trimmed.startsWith("- ")) {
+      if (frame.kind !== "array") continue;
+      const itemText = trimmed.slice(2).trim();
+      const targetArray = frame.arr;
+      if (!itemText) {
+        const item = {};
+        targetArray.push(item);
+        stack.push({ indent, kind: "object", obj: item });
+        continue;
+      }
+
+      const itemKv = itemText.match(/^([^:]+):\s*(.*)$/);
+      if (itemKv) {
+        const itemKey = itemKv[1].trim();
+        const itemValue = itemKv[2].trim();
+        const item = {};
+        if (itemValue === "" || itemValue === "|" || itemValue === ">") {
+          item[itemKey] = {};
+          targetArray.push(item);
+          stack.push({ indent, kind: "object", obj: item[itemKey] });
+        } else {
+          item[itemKey] = parseYamlScalar(itemValue);
+          targetArray.push(item);
+          stack.push({ indent, kind: "object", obj: item });
+        }
+        continue;
+      }
+
+      targetArray.push(parseYamlScalar(itemText));
+      continue;
+    }
+
     const kv = trimmed.match(/^([^:]+):\s*(.*)$/);
     if (!kv) continue;
 
     const key = kv[1].trim();
     const value = kv[2].trim();
+    let target = null;
+
+    if (frame.kind === "object") {
+      target = frame.obj;
+    } else if (frame.kind === "array") {
+      const lastItem = frame.arr[frame.arr.length - 1];
+      if (lastItem && typeof lastItem === "object" && !Array.isArray(lastItem)) {
+        target = lastItem;
+      } else {
+        const item = {};
+        frame.arr.push(item);
+        target = item;
+      }
+    } else {
+      continue;
+    }
 
     if (value === "" || value === "|" || value === ">") {
-      const child = {};
-      parent[key] = child;
-      stack.push({ indent, obj: child });
+      const next = nextSignificantYamlLine(lines, lineIndex + 1);
+      if (next && next.indent > indent && next.trimmed.startsWith("- ")) {
+        const arr = [];
+        target[key] = arr;
+        stack.push({ indent, kind: "array", arr, parent: target, parentKey: key });
+      } else {
+        const child = {};
+        target[key] = child;
+        stack.push({ indent, kind: "object", obj: child });
+      }
       continue;
     }
 
     if (value.startsWith("[") && value.endsWith("]")) {
       const inner = value.slice(1, -1).trim();
-      parent[key] = inner
+      target[key] = inner
         ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
         : [];
       continue;
     }
 
-    if (value === "true" || value === "false") {
-      parent[key] = value === "true";
-      continue;
-    }
+    target[key] = parseYamlScalar(value);
+  }
 
-    if (/^-?\d+(?:\.\d+)?$/.test(value)) {
-      parent[key] = Number(value);
-      continue;
+  for (const frame of stack) {
+    if (frame.kind === "array" && frame.parent && frame.parentKey) {
+      frame.parent[frame.parentKey] = frame.arr;
     }
-
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      parent[key] = value.slice(1, -1);
-      continue;
-    }
-
-    parent[key] = value;
   }
 
   return root;
@@ -91,6 +156,7 @@ function loadYamlFileSync(filePath, { idKey = "id", nameKey = "name" } = {}) {
 module.exports = {
   YAML_FILE_RE,
   parseTypeYaml,
+  parseYamlScalar,
   listYamlFilesSync,
   loadYamlFileSync
 };

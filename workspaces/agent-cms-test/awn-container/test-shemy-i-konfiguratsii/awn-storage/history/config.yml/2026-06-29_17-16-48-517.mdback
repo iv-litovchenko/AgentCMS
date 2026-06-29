@@ -1,0 +1,13 @@
+param_1: dwq
+param_2: dwq
+
+awn_schema:
+  topic:
+    fields:
+      field_1:
+        type: awn.enum
+        name: Одно значение
+        widget: radio
+      field_2:
+        type: awn.string
+        name: Строка

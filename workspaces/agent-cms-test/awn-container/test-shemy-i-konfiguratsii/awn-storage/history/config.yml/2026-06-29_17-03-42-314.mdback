@@ -1,0 +1,10 @@
+param_1: null
+param_2: ауц
+
+awn_schema:
+  topic:
+    fields:
+      field_1:
+        type: awn.enum
+        name: Одно значнеие (из списка)
+        required: true
