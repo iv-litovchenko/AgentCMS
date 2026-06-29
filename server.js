@@ -411,7 +411,8 @@ async function sendImageFileResponse(res, fileAbsolute, options = {}) {
   if (!stat.isFile()) return false;
 
   if (options.thumb) {
-    const thumb = await readOrCreateImageThumb(fileAbsolute, getAgentRoot(), options.thumbMax);
+    const thumbRoot = options.thumbCacheRoot || getAgentRoot();
+    const thumb = await readOrCreateImageThumb(fileAbsolute, thumbRoot, options.thumbMax);
     if (thumb) {
       res.writeHead(200, {
         "Content-Type": thumb.contentType,
@@ -11118,13 +11119,16 @@ async function handleApi(req, res, url) {
     const rawPath = url.searchParams.get("path");
     if (!rawPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
-      const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(absolute);
+      const agentPath = assertSafeAgentPath(rawPath);
+      const workspaceAbsolute = resolveAgentRootAbsolute(agentPath);
+      const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(workspaceAbsolute);
       if (!previewAbsolute) return sendJson(res, 404, { error: "Preview not found" });
       const thumb = wantsThumbVariant(url.searchParams);
       const sent = await sendImageFileResponse(res, previewAbsolute, {
         thumb,
         thumbMax: clampThumbMax(url.searchParams.get("max")),
-        cacheControl: "no-cache"
+        cacheControl: "no-cache",
+        thumbCacheRoot: workspaceAbsolute
       });
       if (!sent) return sendJson(res, 404, { error: "Preview not found" });
     } catch (error) {

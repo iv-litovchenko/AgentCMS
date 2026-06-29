@@ -84,7 +84,7 @@ async function readOrCreateImageThumb(sourceAbsolute, agentRoot, maxSize) {
       fit: "inside",
       withoutEnlargement: true
     })
-    .webp({ quality: 82 })
+    .webp({ quality: 88 })
     .toBuffer();
 
   await fs.mkdir(cacheDir, { recursive: true });
