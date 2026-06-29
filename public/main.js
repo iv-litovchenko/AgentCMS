@@ -119,6 +119,7 @@ const menuSettingsPopoverNode = document.getElementById("menu-settings-popover")
 const menuContextMenuNode = document.getElementById("menu-context-menu");
 const menuContextMenuListNode = document.getElementById("menu-context-menu-list");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
+const menuTreeShowActiveTopicsOnlyNode = document.getElementById("menu-tree-show-active-topics-only");
 const menuTreePadSortIndexesNode = document.getElementById("menu-tree-pad-sort-indexes");
 const menuTreeMaxDepthNode = document.getElementById("menu-tree-max-depth");
 const agentViewSelect = document.getElementById("agent-view-select");
@@ -6103,14 +6104,17 @@ function getRegistryAgentPreviewUrl(agent) {
     if (!agent.hasPreview) return null;
     return appendMediaThumbToApiUrl(
       appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id)),
-      MEDIA_THUMB_MAX_PREVIEW
+      MEDIA_THUMB_MAX_AVATAR
     );
   }
   if (agent.hasPreview || agent.previewUrl?.startsWith("/api/agents/workspace-preview")) {
     const url = agent.previewUrl?.startsWith("/api/agents/workspace-preview")
       ? agent.previewUrl
       : `/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`;
-    return appendMediaThumbToApiUrl(appendCacheBuster(url), MEDIA_THUMB_MAX_PREVIEW);
+    return appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(url, agent.id)),
+      MEDIA_THUMB_MAX_AVATAR
+    );
   }
   return null;
 }
@@ -9027,6 +9031,7 @@ function getMenuTreeSettings(agentId = activeAgentId) {
   const stored = menuTreeSettingsByAgent[agentId] || {};
   return {
     showEmptyFolders: stored.showEmptyFolders !== false,
+    showActiveTopicsOnly: Boolean(stored.showActiveTopicsOnly),
     padSortIndexes: Boolean(stored.padSortIndexes),
     maxDepth: normalizeMenuTreeMaxDepth(stored.maxDepth ?? MENU_TREE_MAX_DEPTH_DEFAULT)
   };
@@ -9080,6 +9085,9 @@ function applyMenuTreeSettingsUi(agentId = activeAgentId) {
   const settings = getMenuTreeSettings(agentId);
   if (menuTreeShowEmptyFoldersNode) {
     menuTreeShowEmptyFoldersNode.checked = settings.showEmptyFolders;
+  }
+  if (menuTreeShowActiveTopicsOnlyNode) {
+    menuTreeShowActiveTopicsOnlyNode.checked = settings.showActiveTopicsOnly;
   }
   if (menuTreePadSortIndexesNode) {
     menuTreePadSortIndexesNode.checked = settings.padSortIndexes;
@@ -9622,6 +9630,64 @@ function isMenuFolderWithoutTopics(node) {
   return !menuFolderHasTopicContent(node);
 }
 
+function isMenuTopicActiveStatus(status) {
+  return getAwnStatusTone(status) === "open";
+}
+
+function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId) {
+  if (!node) return false;
+  if (node.empty || node.menuDepthLimited) return false;
+  if ((node.items || []).length > 0) return true;
+  if (getMenuRepoServiceItems(node).length > 0) return true;
+  if ((node.sections || []).some((section) => menuNodeHasVisibleTopicsAfterActiveFilter(section, agentId))) {
+    return true;
+  }
+  if (node.serviceTree && menuNodeHasVisibleTopicsAfterActiveFilter(node.serviceTree, agentId)) return true;
+  if (node.containerTree && menuNodeHasVisibleTopicsAfterActiveFilter(node.containerTree, agentId)) return true;
+  if (node.indexPath && isMenuTopicActiveStatus(node.status)) return true;
+  return false;
+}
+
+function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
+  if (!node || !getMenuTreeSettings(agentId).showActiveTopicsOnly) return node;
+
+  const keepItem = (item) => isMenuTopicActiveStatus(item?.status);
+  const repoServiceItems = getMenuRepoServiceItems(node).filter(keepItem);
+
+  const sections = (node.sections || [])
+    .map((section) => pruneMenuTreeByActiveTopics(section, agentId))
+    .filter((section) => menuNodeHasVisibleTopicsAfterActiveFilter(section, agentId));
+
+  let serviceTree = node.serviceTree
+    ? pruneMenuTreeByActiveTopics({ title: "", ...node.serviceTree }, agentId)
+    : node.serviceTree;
+  let containerTree = node.containerTree
+    ? pruneMenuTreeByActiveTopics({ title: "", ...node.containerTree }, agentId)
+    : node.containerTree;
+
+  if (serviceTree && !menuNodeHasVisibleTopicsAfterActiveFilter(serviceTree, agentId)) {
+    serviceTree = null;
+  }
+  if (containerTree && !menuNodeHasVisibleTopicsAfterActiveFilter(containerTree, agentId)) {
+    containerTree = null;
+  }
+
+  return {
+    ...node,
+    sections,
+    items: (node.items || []).filter(keepItem),
+    repoItems: repoServiceItems,
+    repoServiceItems,
+    serviceTree,
+    containerTree
+  };
+}
+
+function pruneMenuTreeForDisplay(node, agentId = activeAgentId) {
+  if (!node) return node;
+  return pruneMenuTreeByFolderVisibility(pruneMenuTreeByActiveTopics(node, agentId), agentId);
+}
+
 function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
   if (!node || getMenuTreeSettings(agentId).showEmptyFolders) return node;
 
@@ -9647,7 +9713,11 @@ function isMenuTreeDepthAtLimit(depth, agentId = activeAgentId) {
 
 function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   if (!node) return false;
-  if (getMenuTreeSettings(agentId).showEmptyFolders) return true;
+  const settings = getMenuTreeSettings(agentId);
+  if (settings.showActiveTopicsOnly && !menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId)) {
+    return false;
+  }
+  if (settings.showEmptyFolders) return true;
   return !isMenuFolderWithoutTopics(node);
 }
 
@@ -9665,6 +9735,12 @@ function getVisibleMenuChildren(node, agentId = activeAgentId, parentSectionPath
     }
     if (pinnedPath) {
       return isMenuItemInPinnedBranch(child.entry.path, pinnedPath);
+    }
+    if (
+      getMenuTreeSettings(agentId).showActiveTopicsOnly &&
+      !isMenuTopicActiveStatus(child.entry?.status)
+    ) {
+      return false;
     }
     return true;
   });
@@ -14582,9 +14658,10 @@ function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
 }
 
 const MEDIA_THUMB_MAX_SMALL = 160;
-const MEDIA_THUMB_MAX_DEFAULT = 240;
-const MEDIA_THUMB_MAX_GRID = 320;
-const MEDIA_THUMB_MAX_PREVIEW = 200;
+const MEDIA_THUMB_MAX_DEFAULT = 320;
+const MEDIA_THUMB_MAX_GRID = 480;
+const MEDIA_THUMB_MAX_PREVIEW = 640;
+const MEDIA_THUMB_MAX_AVATAR = 640;
 
 function buildMediaThumbUrl(filePath, nodePath = activePath, max = MEDIA_THUMB_MAX_DEFAULT) {
   return buildMediaAssetUrl(filePath, nodePath, { thumb: true, max });
@@ -14598,7 +14675,11 @@ function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_DEFAULT) {
   try {
     const parsed = new URL(raw, window.location.origin);
     const pathname = parsed.pathname.replace(/\/+$/, "");
-    if (!pathname.endsWith("/api/media/file") && !pathname.endsWith("/api/preview/image")) {
+    if (
+      !pathname.endsWith("/api/media/file") &&
+      !pathname.endsWith("/api/preview/image") &&
+      !pathname.endsWith("/api/agents/workspace-preview")
+    ) {
       return raw;
     }
     parsed.searchParams.set("thumb", "1");
@@ -31039,19 +31120,15 @@ function renderNavigationInternalPart(internalData) {
     return null;
   }
 
-  const previewLimit = 2400;
-  const previewSource = content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
-  setMarkdownPreviewHtml(preview, previewSource, { nodePath: getResolvedNodePath(activePath) });
+  setMarkdownPreviewHtml(preview, content, { nodePath: getResolvedNodePath(activePath) });
   body.appendChild(preview);
 
-  if (content.length > previewLimit) {
-    const note = document.createElement("p");
-    note.className = "node-navigation-preview-note";
-    note.textContent = `Показано ${previewLimit.toLocaleString("ru-RU")} из ${content.length.toLocaleString("ru-RU")} символов.`;
-    body.appendChild(note);
-  }
+  const note = document.createElement("p");
+  note.className = "node-navigation-preview-note";
+  note.textContent = `Кол-во символов: ${content.length.toLocaleString("ru-RU")}`;
+  body.appendChild(note);
 
   return createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData);
 }
@@ -38146,7 +38223,7 @@ function filterMenuTree(node, queryLower, agentId = activeAgentId) {
   if (!node) return null;
 
   if (!queryLower) {
-    return pruneMenuTreeByFolderVisibility(node, agentId);
+    return pruneMenuTreeForDisplay(node, agentId);
   }
 
   const filteredSections = [];
@@ -38155,10 +38232,20 @@ function filterMenuTree(node, queryLower, agentId = activeAgentId) {
     if (filteredSection) filteredSections.push(filteredSection);
   }
 
-  const filteredItems = (node.items || []).filter((item) => nodeMatchesQuery(item.label, queryLower));
-  const filteredRepoServiceItems = getMenuRepoServiceItems(node).filter((item) =>
-    nodeMatchesQuery(item.label, queryLower)
-  );
+  const filteredItems = (node.items || []).filter((item) => {
+    if (!nodeMatchesQuery(item.label, queryLower)) return false;
+    if (getMenuTreeSettings(agentId).showActiveTopicsOnly && !isMenuTopicActiveStatus(item.status)) {
+      return false;
+    }
+    return true;
+  });
+  const filteredRepoServiceItems = getMenuRepoServiceItems(node).filter((item) => {
+    if (!nodeMatchesQuery(item.label, queryLower)) return false;
+    if (getMenuTreeSettings(agentId).showActiveTopicsOnly && !isMenuTopicActiveStatus(item.status)) {
+      return false;
+    }
+    return true;
+  });
   const filteredServiceTree = node.serviceTree
     ? filterMenuTree({ title: SERVICE_SECTION_TITLE, ...node.serviceTree }, queryLower, agentId)
     : null;
@@ -38531,8 +38618,10 @@ function collectDirectChildNodeEntries(menuNode) {
   return entries;
 }
 
-function collectRepoRootFlatEntries(node, acc) {
+function collectRepoRootFlatEntries(node, acc, agentId = activeAgentId) {
+  const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
   for (const item of getMenuRepoServiceItems(node)) {
+    if (activeOnly && !isMenuTopicActiveStatus(item?.status)) continue;
     acc.push({
       path: item.path,
       label: getLabelFromPath(item.path),
@@ -38551,69 +38640,77 @@ function collectRepoRootFlatEntries(node, acc) {
 
 function collectFlatMenuEntries(node, acc = [], options = {}) {
   const includeRepoRoot = options.includeRepoRoot !== false;
+  const agentId = options.agentId || activeAgentId;
+  const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
+
   if (node.indexPath) {
-    const displayPath = getNodeDisplayPath(node.indexPath);
-    const normalizedDisplay = stripVaultPrefixFromRelPath(displayPath);
-    const folderPath = stripVaultPrefixFromRelPath(
-      stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(node.indexPath) || "")
-    );
-    const menuMap = getMenuDisplayLabelMap();
-    const mapped =
-      menuMap.get(normalizeMenuNodePath(node.indexPath)) ||
-      menuMap.get(normalizedDisplay) ||
-      (folderPath ? menuMap.get(folderPath) : null);
-    acc.push({
-      path: node.indexPath,
-      label: mapped || String(node.title || "").trim() || getLabelFromPath(node.indexPath),
-      displayPath,
-      color: node.color || null,
-      status: node.status || null,
-      hasPreview: Boolean(node.hasPreview),
-      previewUrl: node.previewUrl || null,
-      awnEmoji: node.awnEmoji || null,
-      tags: Array.isArray(node.tags) ? node.tags : [],
-      category: node.category || null,
-      isFolder: true,
-      hasGit: Boolean(node.hasGitSelf ?? node.hasGit),
-      hasObsidian: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
-      hasAgent: Boolean(node.hasAgentSelf ?? node.hasAgent),
-      hasSkill: Boolean(node.hasSkillSelf ?? node.hasSkill),
-      hasGitSelf: Boolean(node.hasGitSelf ?? node.hasGit),
-      hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
-      hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent),
-      hasSkillSelf: Boolean(node.hasSkillSelf ?? node.hasSkill)
-    });
-  }
-
-  if (node.serviceTree) {
-    collectFlatMenuEntries({ title: "", ...node.serviceTree }, acc, { includeRepoRoot: false });
-  }
-  if (node.containerTree) {
-    collectFlatMenuEntries({ title: "", ...node.containerTree }, acc, { includeRepoRoot: false });
-  }
-
-  for (const child of getOrderedMenuChildren(node)) {
-    if (child.kind === "folder") {
-      collectFlatMenuEntries(child.entry, acc, { includeRepoRoot: false });
-    } else {
+    if (!activeOnly || isMenuTopicActiveStatus(node.status)) {
+      const displayPath = getNodeDisplayPath(node.indexPath);
+      const normalizedDisplay = stripVaultPrefixFromRelPath(displayPath);
+      const folderPath = stripVaultPrefixFromRelPath(
+        stripAgentContentPrefixFromRelPath(getFolderPathFromManifest(node.indexPath) || "")
+      );
+      const menuMap = getMenuDisplayLabelMap();
+      const mapped =
+        menuMap.get(normalizeMenuNodePath(node.indexPath)) ||
+        menuMap.get(normalizedDisplay) ||
+        (folderPath ? menuMap.get(folderPath) : null);
       acc.push({
-        path: child.entry.path,
-        label: resolveMenuEntryLabel(child.entry.path, child.entry.label),
-        displayPath: getNodeDisplayPath(child.entry.path),
-        color: child.entry.color || null,
-        status: child.entry.status || null,
-        hasPreview: Boolean(child.entry.hasPreview),
-        previewUrl: child.entry.previewUrl || null,
-        awnEmoji: child.entry.awnEmoji || null,
-        tags: Array.isArray(child.entry.tags) ? child.entry.tags : [],
-        category: child.entry.category || null,
-        isFolder: false
+        path: node.indexPath,
+        label: mapped || String(node.title || "").trim() || getLabelFromPath(node.indexPath),
+        displayPath,
+        color: node.color || null,
+        status: node.status || null,
+        hasPreview: Boolean(node.hasPreview),
+        previewUrl: node.previewUrl || null,
+        awnEmoji: node.awnEmoji || null,
+        tags: Array.isArray(node.tags) ? node.tags : [],
+        category: node.category || null,
+        isFolder: true,
+        hasGit: Boolean(node.hasGitSelf ?? node.hasGit),
+        hasObsidian: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
+        hasAgent: Boolean(node.hasAgentSelf ?? node.hasAgent),
+        hasSkill: Boolean(node.hasSkillSelf ?? node.hasSkill),
+        hasGitSelf: Boolean(node.hasGitSelf ?? node.hasGit),
+        hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
+        hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent),
+        hasSkillSelf: Boolean(node.hasSkillSelf ?? node.hasSkill)
       });
     }
   }
 
+  const childOptions = { includeRepoRoot: false, agentId };
+
+  if (node.serviceTree) {
+    collectFlatMenuEntries(pruneMenuTreeForDisplay({ title: "", ...node.serviceTree }, agentId), acc, childOptions);
+  }
+  if (node.containerTree) {
+    collectFlatMenuEntries(pruneMenuTreeForDisplay({ title: "", ...node.containerTree }, agentId), acc, childOptions);
+  }
+
+  for (const child of getVisibleMenuChildren(node, agentId)) {
+    if (child.kind === "folder") {
+      collectFlatMenuEntries(child.entry, acc, childOptions);
+      continue;
+    }
+    if (activeOnly && !isMenuTopicActiveStatus(child.entry?.status)) continue;
+    acc.push({
+      path: child.entry.path,
+      label: resolveMenuEntryLabel(child.entry.path, child.entry.label),
+      displayPath: getNodeDisplayPath(child.entry.path),
+      color: child.entry.color || null,
+      status: child.entry.status || null,
+      hasPreview: Boolean(child.entry.hasPreview),
+      previewUrl: child.entry.previewUrl || null,
+      awnEmoji: child.entry.awnEmoji || null,
+      tags: Array.isArray(child.entry.tags) ? child.entry.tags : [],
+      category: child.entry.category || null,
+      isFolder: false
+    });
+  }
+
   if (includeRepoRoot) {
-    collectRepoRootFlatEntries(node, acc);
+    collectRepoRootFlatEntries(node, acc, agentId);
   }
 
   return acc;
@@ -38622,18 +38719,30 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
 function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}) {
   if (!menu) return [];
   const includeHiddenSections = options.includeHiddenSections === true;
-  const childOptions = { includeRepoRoot: false };
+  const childOptions = { includeRepoRoot: false, agentId };
   const baseTree = getWorkspaceRootMenuTreeNode(menu, agentId);
-  const entries = collectFlatMenuEntries(baseTree, [], options.includeRepoRoot === false ? childOptions : {});
+  const entries = collectFlatMenuEntries(
+    baseTree,
+    [],
+    options.includeRepoRoot === false ? childOptions : { ...childOptions, includeRepoRoot: true }
+  );
 
   if (menu.serviceTree && (includeHiddenSections || shouldShowServiceSectionInMenu(agentId))) {
     entries.push(
-      ...collectFlatMenuEntries({ title: "", ...menu.serviceTree }, [], childOptions)
+      ...collectFlatMenuEntries(
+        pruneMenuTreeForDisplay({ title: "", ...menu.serviceTree }, agentId),
+        [],
+        childOptions
+      )
     );
   }
   if (menu.containerTree && (includeHiddenSections || shouldShowContainerSectionInMenu(agentId))) {
     entries.push(
-      ...collectFlatMenuEntries({ title: "", ...menu.containerTree }, [], childOptions)
+      ...collectFlatMenuEntries(
+        pruneMenuTreeForDisplay({ title: "", ...menu.containerTree }, agentId),
+        [],
+        childOptions
+      )
     );
   }
   return entries;
@@ -38870,9 +38979,9 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   clearMenuServiceSection(parentEl);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  let treeToRender = serviceTree;
+  let treeToRender = pruneMenuTreeForDisplay({ title: SERVICE_SECTION_TITLE, ...serviceTree }, agentId);
   if (queryLower) {
-    treeToRender = filterMenuTree({ title: SERVICE_SECTION_TITLE, ...serviceTree }, queryLower);
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
     if (!treeToRender) return;
   }
 
@@ -38973,7 +39082,7 @@ function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
     repoItems: [],
     repoServiceItems: []
   };
-  return pruneMenuTreeByFolderVisibility(workspaceNode, agentId);
+  return pruneMenuTreeForDisplay(workspaceNode, agentId);
 }
 
 function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
@@ -39091,7 +39200,7 @@ function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, age
   body.className = "tree-children menu-container-body";
   body.dataset.sortFolder = containerPrefix;
   renderContainerTreeBody(
-    pruneMenuTreeByFolderVisibility({ title: "", ...containerTree }, agentId),
+    pruneMenuTreeForDisplay({ title: "", ...containerTree }, agentId),
     body,
     agentId,
     containerPrefix
@@ -39165,7 +39274,7 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
   clearMenuContainerSection(parentEl);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  let treeToRender = pruneMenuTreeByFolderVisibility(
+  let treeToRender = pruneMenuTreeForDisplay(
     { title: getContainerRootMenuTitle(agentId), ...containerTree },
     agentId
   );
@@ -48099,6 +48208,16 @@ document.addEventListener("click", (event) => {
 menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
   saveMenuTreeSettings(activeAgentId, {
     showEmptyFolders: Boolean(menuTreeShowEmptyFoldersNode.checked)
+  });
+  if (currentMenuData) {
+    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    updateActiveButton();
+  }
+});
+
+menuTreeShowActiveTopicsOnlyNode?.addEventListener("change", () => {
+  saveMenuTreeSettings(activeAgentId, {
+    showActiveTopicsOnly: Boolean(menuTreeShowActiveTopicsOnlyNode.checked)
   });
   if (currentMenuData) {
     renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
