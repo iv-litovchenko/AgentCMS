@@ -1,0 +1,14 @@
+{
+  "primary-theme@@zero-popup-blur": false,
+  "primary-theme@@interface_status-bar-style": "sb-style-slideout",
+  "primary-theme@@alt-folder-icons": true,
+  "primary-theme@@zero-popup-popdown": false,
+  "primary-theme@@interface_status-bar-item-display": "sb-item-default",
+  "primary-theme@@ribbon_styles": "ribbon-default",
+  "primary-theme@@zero-tab-anim": false,
+  "primary-theme@@colorful-folders_text": true,
+  "primary-theme@@colorful-folders_collapse-indicator": true,
+  "primary-theme@@colorful-folders_background": true,
+  "primary-theme@@colorful-folders_indentation-guide": true,
+  "primary-theme@@colorful-folders_inherit-color": true
+}

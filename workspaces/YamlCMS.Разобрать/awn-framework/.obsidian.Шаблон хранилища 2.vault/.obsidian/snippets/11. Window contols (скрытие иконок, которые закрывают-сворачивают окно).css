@@ -1,0 +1,9 @@
+/* Скрываем кнопки управления окном */
+.window-controls {
+    display: none !important;
+}
+
+/* Скрываем кнопки управления окном */
+.titlebar-button {
+    display: none !important;
+}

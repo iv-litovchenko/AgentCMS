@@ -1,0 +1,18 @@
+/* Скрываем YAML-метаданные в режиме просмотра */
+.dashboard .metadata-container,
+.dashboard .metadata-yaml,
+.dashboard .frontmatter-property,
+.dashboard .inline-metadata {
+    display: none !important;
+}
+
+/* Скрываем строки с метаданными в таблицах Dataview */
+.dashboard .dataview .table-view-meta {
+    display: none !important;
+}
+
+/* Скрываем название файла */
+.dashboard .view-header-title,
+.dashboard .inline-title {
+    display: none !important;
+}

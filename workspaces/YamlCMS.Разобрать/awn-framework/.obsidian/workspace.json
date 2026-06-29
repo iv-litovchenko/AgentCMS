@@ -1,0 +1,648 @@
+{
+  "main": {
+    "id": "9121a5b7f3ca504e",
+    "type": "split",
+    "children": [
+      {
+        "id": "4164f66cef5dffd2",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6d5b33683b0a309d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "04 Templates/Skeleton-Node.template.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Skeleton-Node.template"
+            }
+          },
+          {
+            "id": "3f80a7066a8d8e87",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "02 Components/02 Nodes-types/01 Folders/00 Index.documentation.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "00 Index.documentation"
+            }
+          },
+          {
+            "id": "d8dd6ccbf3bebea3",
+            "type": "leaf",
+            "state": {
+              "type": "FileClassView__Type.Core.Base.Memory",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "FileClassView__Type.Core.Base.Memory"
+            }
+          },
+          {
+            "id": "7f408feb3906b170",
+            "type": "leaf",
+            "state": {
+              "type": "FileClassView__Type.Core.Base.Node",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "FileClassView__Type.Core.Base.Node"
+            }
+          }
+        ],
+        "currentTab": 3
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c445263770ca65f5",
+    "type": "split",
+    "children": [
+      {
+        "id": "00ae85a0e843d71c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f81fa9eb9164f53f",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "c786988bcecee1bb",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "_Content",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "cf133cdb4d98aa90",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          },
+          {
+            "id": "8770118776dd2a2b",
+            "type": "leaf",
+            "state": {
+              "type": "center-panes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "center-panes"
+            }
+          },
+          {
+            "id": "12ecd5bfd11bb960",
+            "type": "leaf",
+            "state": {
+              "type": "notebook-navigator",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "notebook-navigator"
+            }
+          },
+          {
+            "id": "d0493343472ebf1e",
+            "type": "leaf",
+            "state": {
+              "type": "center-panes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "center-panes"
+            }
+          },
+          {
+            "id": "ce71068ac2c0f5a1",
+            "type": "leaf",
+            "state": {
+              "type": "center-panes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "center-panes"
+            }
+          },
+          {
+            "id": "af562d3861a7dc5a",
+            "type": "leaf",
+            "state": {
+              "type": "center-panes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "center-panes"
+            }
+          },
+          {
+            "id": "8f9ba7e50a467d31",
+            "type": "leaf",
+            "state": {
+              "type": "center-panes",
+              "state": {},
+              "icon": "three-horizontal-bars",
+              "title": "Center Panes"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 368.5
+  },
+  "right": {
+    "id": "c450d9bef823a3b2",
+    "type": "split",
+    "children": [
+      {
+        "id": "86f18be54090119b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2ee7a1edccef94d6",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Example/Visualization/07-Obsidian-Charts-example.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для 07-Obsidian-Charts-example"
+            }
+          },
+          {
+            "id": "f73f220b0f292017",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "v3/awn-assistant-ai/core/management.node.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из management.node"
+            }
+          },
+          {
+            "id": "d874e13449b281ce",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "4daccc1a88e3fe0c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "8860c8f99d04b4d7",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "v3/awn-assistant-ai/core/management.node.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура management.node"
+            }
+          },
+          {
+            "id": "36f139fb84d3e6d9",
+            "type": "leaf",
+            "state": {
+              "type": "infranodus-graph-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "infranodus-graph-view"
+            }
+          },
+          {
+            "id": "e948c452ba69b92b",
+            "type": "leaf",
+            "state": {
+              "type": "pw.todo-list",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "pw.todo-list"
+            }
+          },
+          {
+            "id": "ec1c552aa859e6a8",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "SpacedRepIcon",
+              "title": "Очередь заметок на повторение"
+            }
+          },
+          {
+            "id": "8566bf50884e9f09",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_nodes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_nodes"
+            }
+          },
+          {
+            "id": "a3ae122bbab2263d",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_style",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_style"
+            }
+          },
+          {
+            "id": "855ba5c76e8ba8e9",
+            "type": "leaf",
+            "state": {
+              "type": "memochron-calendar",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "memochron-calendar"
+            }
+          },
+          {
+            "id": "0c1a82f90b1ea338",
+            "type": "leaf",
+            "state": {
+              "type": "infranodus-graph-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "infranodus-graph-view"
+            }
+          },
+          {
+            "id": "3d863742d6f1bb62",
+            "type": "leaf",
+            "state": {
+              "type": "pw.todo-list",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "pw.todo-list"
+            }
+          },
+          {
+            "id": "ea77d6eec6f83afe",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "review-queue-list-view"
+            }
+          },
+          {
+            "id": "49265ff3236795e0",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_nodes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_nodes"
+            }
+          },
+          {
+            "id": "f3d716b9b2970697",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_style",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_style"
+            }
+          },
+          {
+            "id": "105e16fbeb0f875e",
+            "type": "leaf",
+            "state": {
+              "type": "memochron-calendar",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "memochron-calendar"
+            }
+          },
+          {
+            "id": "d1871ee0eb5a2847",
+            "type": "leaf",
+            "state": {
+              "type": "infranodus-graph-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "infranodus-graph-view"
+            }
+          },
+          {
+            "id": "7f569bf2682a47ce",
+            "type": "leaf",
+            "state": {
+              "type": "pw.todo-list",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "pw.todo-list"
+            }
+          },
+          {
+            "id": "cb27fade57d94453",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "review-queue-list-view"
+            }
+          },
+          {
+            "id": "cfa343b6727ea0cc",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_nodes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_nodes"
+            }
+          },
+          {
+            "id": "cc048bd5141c3091",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_style",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_style"
+            }
+          },
+          {
+            "id": "64bd7dee3933cdbc",
+            "type": "leaf",
+            "state": {
+              "type": "memochron-calendar",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "memochron-calendar"
+            }
+          },
+          {
+            "id": "28711e2667e17a42",
+            "type": "leaf",
+            "state": {
+              "type": "infranodus-graph-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "infranodus-graph-view"
+            }
+          },
+          {
+            "id": "6f42f90c0fb534db",
+            "type": "leaf",
+            "state": {
+              "type": "pw.todo-list",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "pw.todo-list"
+            }
+          },
+          {
+            "id": "9f13e91d3f2564d3",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "review-queue-list-view"
+            }
+          },
+          {
+            "id": "08f2781058c33b0f",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_nodes",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_nodes"
+            }
+          },
+          {
+            "id": "5662efa3bb2fa7cd",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_style",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "juggl_style"
+            }
+          },
+          {
+            "id": "582c1464a4c125ca",
+            "type": "leaf",
+            "state": {
+              "type": "memochron-calendar",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "memochron-calendar"
+            }
+          },
+          {
+            "id": "771e305f092af57c",
+            "type": "leaf",
+            "state": {
+              "type": "infranodus-graph-view",
+              "state": {},
+              "icon": "infranodus-icon"
+            }
+          },
+          {
+            "id": "3f8747cb3e8efe46",
+            "type": "leaf",
+            "state": {
+              "type": "pw.todo-list",
+              "state": {},
+              "icon": "check-small",
+              "title": "Todo"
+            }
+          },
+          {
+            "id": "91c1dfa32b13665c",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "SpacedRepIcon",
+              "title": "Очередь заметок на повторение"
+            }
+          },
+          {
+            "id": "4c5355c87f93437d",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_nodes",
+              "state": {},
+              "icon": "ag-node-list",
+              "title": "Juggl nodes"
+            }
+          },
+          {
+            "id": "db533ac6317d0651",
+            "type": "leaf",
+            "state": {
+              "type": "juggl_style",
+              "state": {},
+              "icon": "ag-style",
+              "title": "Juggl style"
+            }
+          },
+          {
+            "id": "93ac03b1a4b5b1d6",
+            "type": "leaf",
+            "state": {
+              "type": "memochron-calendar",
+              "state": {},
+              "icon": "calendar-range",
+              "title": "MemoChron calendar"
+            }
+          }
+        ],
+        "currentTab": 34
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "obsidian-excalidraw-plugin:Создать новый чертеж": false,
+      "infranodus-graph-view:InfraNodus Graph View": false,
+      "proletarian-wizard:Open planning": false,
+      "spaced-repetition-ai:Review your flashcards and notes": false,
+      "obsidian-spaced-repetition:Изучать карточки": false,
+      "juggl:Juggl global graph": false,
+      "notebook-navigator:Notebook Navigator": false,
+      "note_uid_generator:Create uid if missing": false
+    }
+  },
+  "active": "93ac03b1a4b5b1d6",
+  "lastOpenFiles": [
+    "SR/memory",
+    "SR/deck.md",
+    "SR",
+    "Новая папка/Без названия.md",
+    "Новая папка/Без названия — копия.md",
+    "05 Vision/mdbase-all.base",
+    "_Content/Без названия.md",
+    "_Content/Без названия 1.md",
+    "Новая папка/awn.settings.md",
+    "awn.documentation.combined.md",
+    "05 Vision/AGENTS.Bases.base",
+    "02 Components/02 Nodes-types/02 Files/00 Index.documentation.md",
+    "02 Components/02 Nodes-types/02 Files/01 Part.documentation.md",
+    "02 Components/02 Nodes-types/02 Files/zzz 02 Vision.documentation.md",
+    "_Configuration/Type.Core.Base.Memory.md",
+    "04 Templates/Skeleton-Node.template.md",
+    "_Configuration/Type.Core.Base.Node.md",
+    "04 Templates/Sidecar.template.md",
+    "04 Templates/00 Index.documentation.md",
+    "04 Templates/Memory.schema.md",
+    "04 Templates/Type.template.md",
+    "04 Templates/Ttttttttttttt.md",
+    "_Configuration/Type.Core.Memory.Base 1.md",
+    "Новая папка/Node.configuration.md",
+    "_Configuration",
+    "Новая папка/awn.settings2.md",
+    "04 Schemes/Type.schema.v4.md",
+    "Новая папка 2/Index.node.md",
+    "Новая папка 2/_Assets/tasks-medknizhki-v2.jpg",
+    "Новая папка 2/_Assets/seo-keywords-target-queries.jpg",
+    "Новая папка 2/_Assets/keywords-main-page-v2.jpg",
+    "Новая папка 2/_Assets/menu-bad-readability.jpg",
+    "Новая папка 2/_Assets/2026-04-28_1704.jpg",
+    "Новая папка 2/_Assets",
+    "Новая папка 2/Assets/menu-bad-readability.jpg",
+    "Новая папка 2/Assets/2026-04-28_1704.jpg",
+    "Новая папка 2/Assets/keywords-main-page-v2.jpg",
+    "Новая папка 2/Assets/seo-keywords-target-queries.jpg",
+    "Новая папка 2/Assets/tasks-medknizhki-v2.jpg",
+    "Новая папка 2/Assets",
+    "Новая папка 2",
+    "_Content",
+    "_Assets",
+    "04 Schemes/Type.schema.v3.md",
+    "04 Schemes/Type.schema.v2.md",
+    "TESTS",
+    "05 Vision/AGENTS.Dashboard.canvas",
+    "AGENTS.Dashboard.canvas",
+    "Dashboards/Vault-atlas.canvas",
+    "v4/AGENTS.Dashboard.canvas",
+    "v4/Без названия.canvas",
+    "v4/Areas/Collections/Без названия.canvas",
+    "Шаблон хранилища 2/Дневник/Статистика/Успехи за последние 30 дней.canvas",
+    "Шаблон хранилища 2/Дневник/Статистика/Статистика и фокус за 2026.canvas",
+    "v3/Шаблон хранилища 2/Дневник/Статистика/Успехи за последние 30 дней.canvas",
+    "v3/Шаблон хранилища 2/Дневник/Статистика/Статистика и фокус за 2026.canvas"
+  ]
+}

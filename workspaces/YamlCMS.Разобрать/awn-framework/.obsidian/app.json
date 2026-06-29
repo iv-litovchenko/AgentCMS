@@ -1,0 +1,16 @@
+{
+  "useMarkdownLinks": true,
+  "showUnsupportedFiles": true,
+  "showLineNumber": false,
+  "showInlineTitle": false,
+  "pdfExportSettings": {
+    "pageSize": "Letter",
+    "landscape": false,
+    "margin": "0",
+    "downscalePercent": 100
+  },
+  "readableLineLength": false,
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "root",
+  "newFileFolderPath": ""
+}

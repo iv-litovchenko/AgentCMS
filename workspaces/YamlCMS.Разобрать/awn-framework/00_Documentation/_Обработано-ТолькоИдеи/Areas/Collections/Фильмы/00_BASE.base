@@ -1,0 +1,11 @@
+views:
+  - type: table
+    name: Таблица
+    filters:
+      and:
+        - file.folder == "Areas/Collections/Фильмы/_date"
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "111"

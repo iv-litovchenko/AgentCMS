@@ -1,0 +1,9 @@
+{
+    "id": "awn-folder-hider",
+    "name": "AWN Folder Hider",
+    "version": "1.0.0",
+    "minAppVersion": "1.6.0",
+    "description": "Скрывает из меню папки по заданным словам в названии",
+    "author": "AWN",
+    "isDesktopOnly": false
+  }

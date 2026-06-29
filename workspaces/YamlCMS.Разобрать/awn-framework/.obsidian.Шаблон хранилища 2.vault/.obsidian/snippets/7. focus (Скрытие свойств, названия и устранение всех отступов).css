@@ -1,0 +1,148 @@
+/* Скрываем YAML-метаданные в режиме просмотра */
+.focus .metadata-container,
+.focus .metadata-yaml,
+.focus .frontmatter-property,
+.focus .inline-metadata {
+    display: none !important;
+}
+
+/* Скрываем строки с метаданными в таблицах Dataview */
+.focus .dataview .table-view-meta {
+    display: none !important;
+}
+
+/* Скрываем название файла */
+.focus .view-header-title,
+.focus .inline-title {
+    display: none !important;
+}
+
+/* Убираем отступы у горизонтальных разделителей */
+.focus .markdown-preview-view hr,
+.focus hr {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 1px !important;
+}
+
+/* Убираем отступы вокруг разделителей в редакторе */
+.focus .cm-line:has(.cm-hr),
+.focus .cm-hr {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 0 !important;
+}
+
+/* Убираем ВСЕ возможные верхние отступы */
+.focus .markdown-reading-view .markdown-preview-view,
+.focus .markdown-source-view.mod-cm6 .cm-content,
+.focus .view-content,
+.focus .markdown-preview-view,
+.focus .workspace-leaf-content[data-type="markdown"] .view-content,
+.focus .cm-content,
+.focus .markdown-preview-sizer,
+.focus .mod-header,
+.focus .view-header {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* Убираем верхние отступы у контейнера контента */
+.focus .workspace-leaf-content[data-type="markdown"] {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* Убираем отступы у самого верхнего элемента */
+.focus .workspace-leaf {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* Убираем заголовок вью полностью */
+.focus .view-header {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Убираем все возможные отступы в редакторе */
+.focus .cm-editor {
+    padding-top: 0 !important;
+}
+
+/* Убираем отступы в предпросмотре на уровне документа */
+.focus .markdown-preview-sizer {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* Убираем все возможные пустые пространства */
+.focus {
+    --header-height: 0px !important;
+    --view-header-height: 0px !important;
+}
+
+/* Убираем границы и разделители */
+.focus .view-header::before {
+    display: none !important;
+}
+
+/* Убираем возможные тени и эффекты */
+.focus .view-header {
+    box-shadow: none !important;
+}
+
+/* Для мобильных устройств - тоже убираем все */
+.focus .workspace-mobile .view-header {
+    display: none !important;
+}
+
+/* Убираем скроллбар сверху если есть */
+.focus .cm-scroller {
+    padding-top: 0 !important;
+}
+
+/* АГРЕССИВНЫЕ ПРАВИЛА ДЛЯ ПОЛНОГО УДАЛЕНИЯ ВСЕГО ЛИШНЕГО */
+
+/* Удаляем ВСЕ что может быть сверху */
+.focus .workspace-leaf-content > .view-content > :first-child,
+.focus .markdown-preview-view > :first-child,
+.focus .cm-content > :first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Специфичное правило для самой первой строки текста */
+.focus .cm-line:first-child,
+.focus .markdown-preview-section > div:first-child > *:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    line-height: 1 !important;
+}
+
+/* Делаем контейнер прилипшим к самому верху */
+.focus .workspace-leaf-content {
+    top: 0 !important;
+}
+
+/* Убираем все трансформации и сдвиги */
+.focus .workspace-leaf {
+    transform: translateY(0) !important;
+}
+
+/* ЯДЕРНОЕ РЕШЕНИЕ - если ничего не помогает */
+.focus body {
+    position: absolute !important;
+    top: 0 !important;
+}
+
+/* Убираем все анимации и переходы для header */
+.focus .view-header {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+}

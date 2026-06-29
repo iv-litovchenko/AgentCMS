@@ -1,0 +1,6 @@
+config/database.local.php
+
+vendor/
+storage/cache/*
+storage/logs/*
+!.gitkeep

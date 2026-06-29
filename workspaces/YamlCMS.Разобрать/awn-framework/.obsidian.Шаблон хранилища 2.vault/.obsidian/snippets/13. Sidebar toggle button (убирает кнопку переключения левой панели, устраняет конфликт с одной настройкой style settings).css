@@ -1,0 +1,4 @@
+/* Скрыть левую кнопку боковой панели */
+.sidebar-toggle-button.mod-left {
+  display: none !important;
+}

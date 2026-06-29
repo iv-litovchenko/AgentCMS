@@ -1,0 +1,302 @@
+{
+  "main": {
+    "id": "31e94debdb977e18",
+    "type": "split",
+    "children": [
+      {
+        "id": "fb0f872a53d2c114",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "095be3db54051c95",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "HEARTBEAT.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "HEARTBEAT"
+            }
+          },
+          {
+            "id": "6a4aa27372e6fa90",
+            "type": "leaf",
+            "state": {
+              "type": "sqlseal-explorer-view",
+              "state": {},
+              "icon": "logo-sqlseal",
+              "title": "SQLSeal Explorer"
+            }
+          },
+          {
+            "id": "9d59da86a1433cd5",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "HEARTBEAT.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "HEARTBEAT"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "57124d25ee9131c9",
+    "type": "split",
+    "children": [
+      {
+        "id": "cecbf986c8b109b4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0f925122d843fc1c",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "637dc866e9bc0ac2",
+            "type": "leaf",
+            "state": {
+              "type": "notebook-navigator",
+              "state": {},
+              "icon": "notebook-navigator",
+              "title": "Notebook Navigator"
+            }
+          },
+          {
+            "id": "bd5623f1f2a671ab",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "81b1451cfb827ba1",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 531.5
+  },
+  "right": {
+    "id": "65aa359b3d6fc6f4",
+    "type": "split",
+    "children": [
+      {
+        "id": "6d23291af0185252",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "68e3acdf9a88ff45",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Areas/Collections/Фильмы/00_BASE.base",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для 00_BASE"
+            }
+          },
+          {
+            "id": "82cbf5e2901423c0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Areas/Collections/Фильмы/00_BASE.base",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из 00_BASE"
+            }
+          },
+          {
+            "id": "b829a0d65341a5e8",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "fa8f657dd994d662",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "6d8fa66a4ae02b70",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Areas/Collections/Фильмы/00_BASE.base",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура 00_BASE"
+            }
+          },
+          {
+            "id": "cd2365309a180a0f",
+            "type": "leaf",
+            "state": {
+              "type": "semantic-search-tab",
+              "state": {},
+              "icon": "search",
+              "title": "Semantic Search"
+            }
+          },
+          {
+            "id": "0e082b409edcbb15",
+            "type": "leaf",
+            "state": {
+              "type": "copilot-tab",
+              "state": {},
+              "icon": "star",
+              "title": "AI"
+            }
+          },
+          {
+            "id": "dfb1f377d0fcb372",
+            "type": "leaf",
+            "state": {
+              "type": "bearings-navigator-view",
+              "state": {},
+              "icon": "radar",
+              "title": "Bearings"
+            }
+          }
+        ],
+        "currentTab": 7
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "obsidian-excalidraw-plugin:Создать новый чертеж": false,
+      "omnisearch:Omnisearch": false,
+      "bbawj-semantic-search:Semantic Search": false,
+      "vector-search:Rebuild vector index": false,
+      "bearings:Open the navigator": false,
+      "bearings:Create relationship": false,
+      "sqlseal:SQLSeal Explorer": false,
+      "notebook-navigator:Notebook Navigator": false
+    }
+  },
+  "active": "0f925122d843fc1c",
+  "lastOpenFiles": [
+    "Без названия.base",
+    "Excalidraw/Drawing 2026-05-15 17.01.37.excalidraw.md",
+    "HEARTBEAT.md",
+    "Excalidraw",
+    "AGENTS.md.md",
+    "AGENTS.Config.md",
+    "00_SPACE-CLASTER-SEROR.node.md",
+    "+SYSTEM/documentation/Todo-and-Thinks-and-ideas.md",
+    "AGENTS.Bases.base",
+    "AGENTS.Dashboard.canvas",
+    "mdbase-all.base",
+    "+SYSTEM/documentation/Thinks-and-ideas.md",
+    "todo.md",
+    "+SYSTEM/Templates/Memory/CUSTOM-TYPE/personal knowledge archive.type.md",
+    "+SYSTEM/Templates/SKELETON.template.md",
+    "AGENTS.Settings.md",
+    "+SYSTEM/Templates/Components/AGENT_SVARM.md",
+    "+SYSTEM/documentation/Grok-class-object.md",
+    "+SYSTEM/Templates/SKELETON.template.configuration.md",
+    "+SYSTEM/Templates/Без названия.md",
+    "+SYSTEM/Templates/SKELETON.template.documentation.md",
+    "+SYSTEM/Templates/Components/02_BASE.template.md",
+    "+SYSTEM/documentation",
+    "+SYSTEM/Templates/Components/01_PART.template.md",
+    "+SYSTEM/Templates/Components/00_SPACE.template.md",
+    "+SYSTEM/Templates/Components/00_ROOT_VAULT_WORKSPACE.md",
+    "+SYSTEM/Templates/Components/00_1_INFO.type.template.md",
+    "+SYSTEM/Templates/Memory/03_ROW.template.md",
+    "+SYSTEM/Templates/Memory/02_NOTE.template.md",
+    "+SYSTEM/Templates/Memory/01_PAGE.template.md",
+    "+SYSTEM/Templates/Memory/CUSTOM-TYPE/LINK.type.template.md",
+    "+SYSTEM/Templates/Memory/CUSTOM-TYPE",
+    "+SYSTEM/assets/Изображение JPEG-4443-9EDC-37-0.jpeg",
+    "+SYSTEM/assets",
+    "+SYSTEM/assets/thumbnails/resized/9ffa48a434c36958f0108bc43283b6a5_86cf658e.webp",
+    "+SYSTEM/assets/thumbnails/resized",
+    "+SYSTEM/assets/thumbnails",
+    "__globalviews.sqlsealconfig",
+    "Resourses/1Maya.png",
+    "Areas/Collections/Без названия.canvas"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "defaultModel": "gpt-4o",
+  "defaultModelDisplayName": "GPT-4o",
+  "openAIApiKey": "",
+  "inlineSeparator": "::",
+  "multilineSeparator": "?",
+  "includeCurrentFile": true,
+  "onboardingStatus": "onboarding-done"
+}

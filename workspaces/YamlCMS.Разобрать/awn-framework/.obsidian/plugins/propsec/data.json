@@ -1,0 +1,88 @@
+{
+  "templatesFolder": "Tests",
+  "schemaMappings": [
+    {
+      "id": "eb1753ba-bb6e-4d86-9f7f-eb037fd6c9ad",
+      "name": "New Schema",
+      "sourceTemplatePath": null,
+      "query": "TESTS/",
+      "enabled": true,
+      "fields": [
+        {
+          "name": "down",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "prev",
+          "type": "object",
+          "required": false,
+          "warn": true,
+          "conditions": [
+            {
+              "field": "up",
+              "operator": "equals",
+              "value": ""
+            }
+          ]
+        }
+      ],
+      "propertyFilter": {
+        "conditions": []
+      }
+    }
+  ],
+  "customTypes": [
+    {
+      "id": "ct_1779142569844_5w5qa9oyl",
+      "name": "fwe",
+      "fields": [
+        {
+          "name": "fewfew",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "fewfe",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "gthhtr",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "ct_1779142596007_1y62cxe32",
+      "name": "6hytyjt",
+      "fields": [
+        {
+          "name": "jyt",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "yuy",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "45",
+          "type": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "warnOnUnknownFields": true,
+  "allowObsidianProperties": true,
+  "validateOnFileOpen": true,
+  "validateOnFileSave": true,
+  "showInStatusBar": true,
+  "colorStatusBarErrors": true,
+  "excludeWarningsFromCount": true,
+  "enablePropertySuggestions": true,
+  "globalExclusions": ""
+}

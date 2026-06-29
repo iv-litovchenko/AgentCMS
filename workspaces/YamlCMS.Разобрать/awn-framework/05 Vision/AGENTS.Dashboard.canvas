@@ -1,0 +1,16 @@
+{
+	"nodes":[
+		{"id":"4979dbead9b004e0","x":88,"y":196,"width":400,"height":400,"type":"group","label":"gttrht"},
+		{"id":"515668c63023d45c","x":-616,"y":400,"width":400,"height":400,"type":"file","file":"Resourses/00_INDEX.node.md"},
+		{"id":"c653fa196a4da9eb","type":"text","text":"htrhtrh","x":-234,"y":-24,"width":250,"height":60},
+		{"id":"5c506b1a06e2483b","type":"file","file":"AGENTS.excalidraw.md","x":-738,"y":120,"width":400,"height":204},
+		{"id":"9e7aca11282ce341","type":"file","file":"Resourses/00_INDEX.node.md","x":-520,"y":480,"width":400,"height":81},
+		{"id":"2c83036ac2fbb271","type":"text","text":"gregrgre","x":-338,"y":317,"width":250,"height":60},
+		{"id":"752cdeb76c953763","type":"file","file":"Areas/Atlas-ITtech/Git.page.md","x":-88,"y":98,"width":400,"height":249,"color":"3"},
+		{"id":"9093fe828650fcb0","x":-46,"y":465,"width":250,"height":60,"type":"text","text":"gregregre"}
+	],
+	"edges":[
+		{"id":"2855fa948fed3acc","fromNode":"752cdeb76c953763","fromSide":"bottom","toNode":"2c83036ac2fbb271","toSide":"top"},
+		{"id":"a93a0e2ebcb70337","fromNode":"5c506b1a06e2483b","fromSide":"top","toNode":"752cdeb76c953763","toSide":"left"}
+	]
+}
