@@ -112,6 +112,9 @@ const {
   loadAgentTypes,
   normalizeAwnSchema,
   applyAwnSchemaToConfig,
+  applyAwnUiToConfig,
+  applyAwnSettingsToConfig,
+  extractDefaultLandingModeFromNodeConfig,
   getTopicSchemaPayload
 } = require("./awn-types-loader");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
@@ -626,13 +629,6 @@ async function readNodeConfigFile(relNodePath) {
   return { path: configRelPath, content: "", exists: false };
 }
 
-function extractDefaultLandingModeFromNodeConfig(content) {
-  const text = String(content || "").replace(/^\uFEFF/, "");
-  const match = text.match(/^default_landing_mode:\s*(?:"([^"]*)"|'([^']*)'|(\S+))\s*$/m);
-  if (!match) return null;
-  const value = String(match[1] || match[2] || match[3] || "").trim();
-  return value || null;
-}
 
 function toTodoFilePath(relNodePath) {
   const partBase = resolvePartFolderSidecarBaseRel(relNodePath);

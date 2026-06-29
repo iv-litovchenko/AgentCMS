@@ -26,6 +26,16 @@ const {
 } = require("./manifest-paths");
 const { getComponentsAbsolute } = require("./platform-sources");
 const {
+  parseNodeConfigBundle,
+  composeNodeConfigBundle,
+  extractSectionYamlText,
+  extractDefaultLandingModeFromNodeConfig,
+  settingsObjectToEntries,
+  settingsEntriesToObject,
+  applyAwnUiToConfig,
+  applyAwnSettingsToConfig
+} = require("./node-config-bundle");
+const {
   loadRecordTypesFromComponents,
   getComponentsPayload
 } = require("./components-loader");
@@ -426,12 +436,14 @@ const AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS = [
 const AWN_SCHEMA_TARGETS = [
   "topic",
   "sidecar",
-  ...TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => item.id)
+  ...TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => item.id),
+  "settings"
 ];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
   topic: "awn.topic",
   sidecar: "awn.sidecar",
+  settings: "awn.settings",
   ...Object.fromEntries(
     TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => [item.id, item.typeName])
   )
@@ -572,6 +584,11 @@ function stringifyFieldDefYaml(fieldDef, indent) {
     }
   }
   if (fieldDef.items) lines.push(`${pad}items: ${fieldDef.items}`);
+  if (fieldDef.scope) lines.push(`${pad}scope: ${formatYamlScalar(String(fieldDef.scope))}`);
+  if (fieldDef.accept) lines.push(`${pad}accept: ${formatYamlScalar(String(fieldDef.accept))}`);
+  if (fieldDef.multiple === true) lines.push(`${pad}multiple: true`);
+  if (fieldDef.upload === true) lines.push(`${pad}upload: true`);
+  if (fieldDef.insertInText === true) lines.push(`${pad}insertInText: true`);
   return lines;
 }
 
@@ -598,40 +615,12 @@ function stringifyAwnSchemaYaml(awnSchema) {
   return hasContent ? lines.join("\n") : "";
 }
 
-function stripAwnSchemaFromConfigText(content) {
-  const text = String(content || "").replace(/^\uFEFF/, "");
-  const lines = text.split(/\r?\n/);
-  const result = [];
-  let skipping = false;
-  let schemaIndent = 0;
-
-  for (const line of lines) {
-    if (!skipping && /^awn_schema:\s*$/.test(line.trim())) {
-      skipping = true;
-      schemaIndent = line.match(/^(\s*)/)[1].length;
-      continue;
-    }
-    if (skipping) {
-      if (!line.trim()) continue;
-      const indent = line.match(/^(\s*)/)[1].length;
-      if (indent <= schemaIndent) {
-        skipping = false;
-        result.push(line);
-      }
-      continue;
-    }
-    result.push(line);
-  }
-
-  return result.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
 function applyAwnSchemaToConfig(content, awnSchema) {
-  const base = stripAwnSchemaFromConfigText(content);
+  const bundle = parseNodeConfigBundle(content);
   const schemaYaml = stringifyAwnSchemaYaml(awnSchema);
-  if (!schemaYaml) return base ? `${base}\n` : "";
-  if (!base) return `${schemaYaml}\n`;
-  return `${base}\n\n${schemaYaml}\n`;
+  bundle.awn_schema = null;
+  bundle.awn_schemaYaml = schemaYaml;
+  return composeNodeConfigBundle(bundle);
 }
 
 function getTopicSchemaPayload(configContent, agentRoot, projectRoot) {
@@ -680,6 +669,14 @@ module.exports = {
   mergeTypeWithTopicSchema,
   stringifyAwnSchemaYaml,
   applyAwnSchemaToConfig,
+  applyAwnUiToConfig,
+  applyAwnSettingsToConfig,
+  extractSectionYamlText,
+  extractDefaultLandingModeFromNodeConfig,
+  parseNodeConfigBundle,
+  composeNodeConfigBundle,
+  settingsObjectToEntries,
+  settingsEntriesToObject,
   getTopicSchemaPayload,
   resolveMergedTypeForManifest,
   AWN_SCHEMA_TARGETS,
