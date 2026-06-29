@@ -14566,6 +14566,8 @@ body.app-locked {
   width: 100%;
   max-width: none;
   background: #0f172a;
+  padding: 25px;
+  box-sizing: border-box;
 }
 
 .node-entry-overview-media-asset-head.node-navigation-hero-main {
@@ -14639,10 +14641,9 @@ body.app-locked {
   width: 100%;
   max-width: 100%;
   height: auto;
-  max-height: min(80vh, 1200px);
   object-fit: contain;
-  object-position: top center;
-  background: #0f172a;
+  object-position: center center;
+  background: transparent;
   cursor: zoom-in;
 }
 
