@@ -1567,7 +1567,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     fs.writeFileSync(
       manifestPath,
       joinNodeFrontmatter(
-        `awn-name: ${scaffold.title}\ntags: [system, catalog]\nawn-type: catalog`,
+        `awn-name: ${scaffold.title}\nawn-tags: [system, catalog]\nawn-type: catalog`,
         scaffold.manifest
       ),
       "utf-8"
@@ -1580,7 +1580,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
   fs.writeFileSync(
     manifestPath,
     joinNodeFrontmatter(
-      `awn-name: ${scaffold.title}\ntags: [system, service]\nawn-type: service-doc`,
+      `awn-name: ${scaffold.title}\nawn-tags: [system, service]\nawn-type: service-doc`,
       scaffold.manifest
     ),
     "utf-8"

@@ -5,7 +5,10 @@ AWN-STATUS: open
 AWN-TITLE: Глаголы (Verbs)
 AWN-CREATED: 2026-05-04
 AWN-UPDATED: 2026-05-04
-TAGS: [english, grammar, verbs]
+awn-tags:
+  - english
+  - grammar
+  - verbs
 ---
 
 # Глаголы (Verbs)

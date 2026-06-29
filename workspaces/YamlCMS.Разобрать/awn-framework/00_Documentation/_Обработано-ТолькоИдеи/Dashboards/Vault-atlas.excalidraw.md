@@ -1,6 +1,10 @@
 ---
 excalidraw-plugin: parsed
-tags: [excalidraw, atlas, dashboard, vault-map]
+awn-tags:
+  - excalidraw
+  - atlas
+  - dashboard
+  - vault-map
 ---
 
 ==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠==

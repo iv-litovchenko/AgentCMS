@@ -5,7 +5,7 @@ domain: pages
 status: active
 extends: awn.entity
 description: Базовые YAML-свойства для узлов дерева и контентных записей
-mixins: [awn.mixin.preview]
+mixins: [awn.mixin.preview, awn.mixin.runtime]
 fields:
   awn-preview:
     type: awn.url

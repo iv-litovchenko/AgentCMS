@@ -2,8 +2,11 @@
 AWN-type: system
 AWN-version: "0.1"
 AWN-created: 2026-04-20
-tags: [awn, decisions, adr]
 aliases: [Architecture Decision Records]
+awn-tags:
+  - awn
+  - decisions
+  - adr
 ---
 
 # Decisions

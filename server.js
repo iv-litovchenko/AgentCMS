@@ -8,6 +8,11 @@ const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const {
+  clampThumbMax,
+  readOrCreateImageThumb,
+  wantsThumbVariant
+} = require("./media-thumbs");
+const {
   MANIFEST_FILE,
   AREA_MANIFEST_FILE,
   AREA_MANIFEST_CANDIDATES,
@@ -59,6 +64,7 @@ const {
   LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_NOTE_FILE,
   normalizeSystemFileRequestName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
@@ -296,6 +302,7 @@ const SYSTEM_FILE_NAMES = [
   AWN_AUTOINCREMENT_ID_FILE,
   AWN_MAP_FILE,
   "docker-compose.yml",
+  ROOT_SYSTEM_NOTE_FILE,
   "README.md",
   ROOT_SYSTEM_TODO_FILE
 ];
@@ -325,7 +332,11 @@ async function resolveExistingSystemFileAbsolute(name) {
   if (!canonical) return null;
   const agentRoot = getAgentRoot();
   const candidates =
-    canonical === ROOT_SYSTEM_TODO_FILE ? [ROOT_SYSTEM_TODO_FILE, "todo.md"] : [canonical];
+    canonical === ROOT_SYSTEM_TODO_FILE
+      ? [ROOT_SYSTEM_TODO_FILE, "todo.md"]
+      : canonical === ROOT_SYSTEM_NOTE_FILE
+        ? [ROOT_SYSTEM_NOTE_FILE, "note.md", "notes.md"]
+        : [canonical];
   for (const candidate of candidates) {
     const absolute = path.join(agentRoot, candidate);
     if (!absolute.startsWith(agentRoot)) continue;
@@ -394,6 +405,33 @@ const MIME_TYPES = {
   ".tar": "application/x-tar",
   ".gz": "application/gzip"
 };
+
+async function sendImageFileResponse(res, fileAbsolute, options = {}) {
+  const stat = await fs.stat(fileAbsolute);
+  if (!stat.isFile()) return false;
+
+  if (options.thumb) {
+    const thumb = await readOrCreateImageThumb(fileAbsolute, getAgentRoot(), options.thumbMax);
+    if (thumb) {
+      res.writeHead(200, {
+        "Content-Type": thumb.contentType,
+        "Cache-Control": "public, max-age=31536000, immutable"
+      });
+      res.end(thumb.buffer);
+      return true;
+    }
+  }
+
+  const content = await fs.readFile(fileAbsolute);
+  const ext = path.extname(fileAbsolute).toLowerCase();
+  const contentType = MIME_TYPES[ext] || "application/octet-stream";
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Cache-Control": options.cacheControl || "no-store"
+  });
+  res.end(content);
+  return true;
+}
 
 const PREVIEW_FILE_NAME_SET = new Set(PREVIEW_FILE_NAMES);
 const NODE_PREVIEW_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
@@ -1857,6 +1895,30 @@ function getYamlScalar(frontmatter, key) {
   const match = text.match(new RegExp(`^${key}:\\s*(.+)$`, "im"));
   if (!match) return "";
   return match[1].trim().replace(/^["']|["']$/g, "");
+}
+
+function getYamlBoolean(frontmatter, key) {
+  const raw = getYamlScalar(frontmatter, key);
+  if (!raw) return false;
+  const value = String(raw).trim().toLowerCase();
+  return value === "true" || value === "yes" || value === "1";
+}
+
+const RUNTIME_LOAD_LABELS = {
+  "on-demand": "По требованию",
+  "session-start": "При старте сессии"
+};
+
+function extractRuntimePropsFromFrontmatter(frontmatter) {
+  const loadRaw = getYamlScalar(frontmatter, "awn-runtime-load") || "on-demand";
+  const runtimeLoad = loadRaw === "session-start" ? "session-start" : "on-demand";
+  return {
+    runtimeLoad,
+    runtimeLoadLabel: RUNTIME_LOAD_LABELS[runtimeLoad] || RUNTIME_LOAD_LABELS["on-demand"],
+    runtimeCron: getYamlBoolean(frontmatter, "awn-runtime-cron"),
+    runtimeCronSchedule: getYamlScalar(frontmatter, "awn-runtime-cron-schedule"),
+    runtimeHeartbeat: getYamlBoolean(frontmatter, "awn-runtime-heartbeat")
+  };
 }
 
 function normalizeFrontmatterPropKey(key) {
@@ -4241,6 +4303,55 @@ async function buildAgentWorkspaceTable() {
 
   rows.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
   return { rows, manifestCount: layout.manifestCount || rows.length };
+}
+
+async function buildAgentRuntimeRegistry() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const entries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
+  const rows = [];
+
+  for (const entry of entries) {
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    if (!manifestPath) continue;
+
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(manifestPath));
+    } catch {
+      frontmatter = "";
+    }
+
+    const awnName = getYamlScalar(frontmatter, "awn-name");
+    const slotKey = getManifestNamedSlotKey(manifestPath);
+    const label = String(entry.label || awnName || slotKey || "").trim() || slotKey;
+    const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
+
+    rows.push({
+      manifestPath,
+      label,
+      displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
+      ...runtime
+    });
+  }
+
+  rows.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
+
+  let sessionStartCount = 0;
+  let cronCount = 0;
+  let heartbeatCount = 0;
+  for (const row of rows) {
+    if (row.runtimeLoad === "session-start") sessionStartCount += 1;
+    if (row.runtimeCron) cronCount += 1;
+    if (row.runtimeHeartbeat) heartbeatCount += 1;
+  }
+
+  return {
+    rows,
+    topicCount: rows.length,
+    sessionStartCount,
+    cronCount,
+    heartbeatCount
+  };
 }
 
 async function findNewestFileMetaInDir(dirAbsolute) {
@@ -7206,24 +7317,30 @@ function extractTagsFromProps(content) {
   const text = String(content || "");
   const lines = text.split("\n");
   let inTagsArray = false;
+  let activeField = "";
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (/^tags:\s*$/i.test(trimmed)) {
+    const blockStart = trimmed.match(/^(?:awn-)?tags:\s*$/i);
+    if (blockStart) {
       inTagsArray = true;
+      activeField = "tags";
       continue;
     }
 
-    if (inTagsArray) {
+    if (inTagsArray && activeField === "tags") {
       const itemMatch = line.match(/^\s*-\s*(.+)$/);
       if (itemMatch) {
         tags.push(itemMatch[1].trim().replace(/^["']|["']$/g, ""));
         continue;
       }
-      if (!/^\s*-/.test(line)) inTagsArray = false;
+      if (!/^\s*-/.test(line)) {
+        inTagsArray = false;
+        activeField = "";
+      }
     }
 
-    const inlineMatch = trimmed.match(/^tags:\s*(.+)$/i);
+    const inlineMatch = trimmed.match(/^(?:awn-)?tags:\s*(.+)$/i);
     if (inlineMatch) {
       const raw = inlineMatch[1].trim();
       if (raw.startsWith("[") && raw.endsWith("]")) {
@@ -7590,6 +7707,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace table",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/runtime-registry") {
+    try {
+      const registry = await buildAgentRuntimeRegistry();
+      return sendJson(res, 200, registry);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read runtime registry",
         details: String(error.message || error)
       });
     }
@@ -9507,17 +9636,12 @@ async function handleApiForAgent(req, res, url) {
     if (!fileAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
     try {
-      const stat = await fs.stat(fileAbsolute);
-      if (!stat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
-
-      const content = await fs.readFile(fileAbsolute);
-      const ext = path.extname(fileAbsolute).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-      res.writeHead(200, {
-        "Content-Type": contentType,
-        "Cache-Control": "no-store"
+      const thumb = wantsThumbVariant(url.searchParams);
+      const sent = await sendImageFileResponse(res, fileAbsolute, {
+        thumb,
+        thumbMax: clampThumbMax(url.searchParams.get("max"))
       });
-      res.end(content);
+      if (!sent) return sendJson(res, 404, { error: "Media file not found" });
     } catch (error) {
       if (error && error.code === "ENOENT") {
         return sendJson(res, 404, { error: "Media file not found" });
@@ -9834,11 +9958,13 @@ async function handleApiForAgent(req, res, url) {
     if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
 
     try {
-      const content = await fs.readFile(imageAbsolute);
-      const ext = path.extname(imageAbsolute).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-      res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-cache" });
-      res.end(content);
+      const thumb = wantsThumbVariant(url.searchParams);
+      const sent = await sendImageFileResponse(res, imageAbsolute, {
+        thumb,
+        thumbMax: clampThumbMax(url.searchParams.get("max")),
+        cacheControl: "no-cache"
+      });
+      if (!sent) return sendJson(res, 404, { error: "Preview image not found" });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read preview image", details: String(error.message || error) });
     }
@@ -10992,14 +11118,15 @@ async function handleApi(req, res, url) {
     const rawPath = url.searchParams.get("path");
     if (!rawPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
-      const absolute = resolveAgentRootAbsolute(rawPath);
       const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(absolute);
       if (!previewAbsolute) return sendJson(res, 404, { error: "Preview not found" });
-      const content = await fs.readFile(previewAbsolute);
-      const ext = path.extname(previewAbsolute).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-      res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-cache" });
-      res.end(content);
+      const thumb = wantsThumbVariant(url.searchParams);
+      const sent = await sendImageFileResponse(res, previewAbsolute, {
+        thumb,
+        thumbMax: clampThumbMax(url.searchParams.get("max")),
+        cacheControl: "no-cache"
+      });
+      if (!sent) return sendJson(res, 404, { error: "Preview not found" });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read workspace preview", details: String(error.message || error) });
     }

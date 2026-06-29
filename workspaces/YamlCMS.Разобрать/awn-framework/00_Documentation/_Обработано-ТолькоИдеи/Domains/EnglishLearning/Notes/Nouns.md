@@ -5,7 +5,10 @@ AWN-STATUS: open
 AWN-TITLE: Существительные (Nouns)
 AWN-CREATED: 2026-05-04
 AWN-UPDATED: 2026-05-04
-TAGS: [english, grammar, nouns]
+awn-tags:
+  - english
+  - grammar
+  - nouns
 ---
 
 # Существительные (Nouns)

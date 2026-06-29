@@ -2,7 +2,7 @@ id: awn.base
 name: База
 kind: base
 description: Базовые YAML-свойства для всех типов записей агента
-mixins: [awn.mixin.preview]
+mixins: [awn.mixin.preview, awn.mixin.runtime]
 fields:
   awn-preview:
     type: awn.url

@@ -1,7 +1,10 @@
 ---
 awn-name: Статусы
 awn-type: catalog
-tags: [system, catalog, global]
+awn-tags:
+  - system
+  - catalog
+  - global
 ---
 
 # Статусы

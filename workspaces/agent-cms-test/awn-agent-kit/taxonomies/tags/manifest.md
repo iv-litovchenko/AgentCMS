@@ -1,7 +1,9 @@
 ---
 awn-name: Теги
-tags: [system, catalog]
 awn-type: catalog
+awn-tags:
+  - system
+  - catalog
 ---
 
 # Теги

@@ -48,6 +48,7 @@ const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BUNDLE_ENV_FILE = ".env";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
+const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
 const PREVIEW_FILE_BASENAME = "preview";
 const PREVIEW_FILE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_BASENAME}${ext}`);
@@ -55,6 +56,8 @@ const PREVIEW_FILE_NAMES = PREVIEW_FILE_EXTENSIONS.map((ext) => `${PREVIEW_FILE_
 const WORKSPACE_MENU_EXCLUDED_MD = new Set([
   MANIFEST_FILE,
   "agents.md",
+  "note.md",
+  "notes.md",
   "todo.md",
   "main.md",
   "main.csv",
@@ -196,6 +199,8 @@ function getStorageRootDirRel(containerDirRel) {
 function normalizeSystemFileRequestName(name) {
   const base = String(name || "").trim();
   if (base.toLowerCase() === "todo.md") return ROOT_SYSTEM_TODO_FILE;
+  if (base.toLowerCase() === "note.md") return ROOT_SYSTEM_NOTE_FILE;
+  if (base.toLowerCase() === "notes.md") return ROOT_SYSTEM_NOTE_FILE;
   return base;
 }
 
@@ -1097,6 +1102,7 @@ module.exports = {
   BUNDLE_TODO_FILE,
   BUNDLE_ENV_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_NOTE_FILE,
   normalizeSystemFileRequestName,
   isRootSystemTodoFileName,
   PREVIEW_FILE_BASENAME,

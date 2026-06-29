@@ -25,6 +25,10 @@ const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pan
 const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
 const agentBrokenLinksRefreshBtn = document.getElementById("agent-broken-links-refresh-btn");
+const agentRuntimeRegistryPaneNode = document.getElementById("agent-runtime-registry-pane");
+const agentRuntimeRegistryContentNode = document.getElementById("agent-runtime-registry-content");
+const agentRuntimeRegistryStatsNode = document.getElementById("agent-runtime-registry-stats");
+const agentRuntimeRegistryRefreshBtn = document.getElementById("agent-runtime-registry-refresh-btn");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
@@ -352,7 +356,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
   { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги" },
-  { id: "awn.system", label: "Системные", hint: "AGENTS.md, TODO.md" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, NOTE.md, TODO.md" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
 ];
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
@@ -386,6 +390,7 @@ const createNodeKitScaffoldBtn = document.getElementById("create-node-kit-scaffo
 const createNodeContainerScaffoldBtn = document.getElementById("create-node-container-scaffold-btn");
 const createNodeRootSystemWrapNode = document.getElementById("create-node-root-system-wrap");
 const createNodeAgentsScaffoldBtn = document.getElementById("create-node-agents-scaffold-btn");
+const createNodeNoteScaffoldBtn = document.getElementById("create-node-note-scaffold-btn");
 const createNodeTodoScaffoldBtn = document.getElementById("create-node-todo-scaffold-btn");
 const createNodeReadmeScaffoldBtn = document.getElementById("create-node-readme-scaffold-btn");
 const createNodeContainerScaffoldHintNode = document.getElementById("create-node-container-scaffold-hint");
@@ -603,7 +608,13 @@ const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
-const MENU_TREE_VISIBLE_SYSTEM_MD = new Set(["AGENTS.md", ROOT_SYSTEM_TODO_FILE, "README.md"]);
+const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
+const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
+  "AGENTS.md",
+  ROOT_SYSTEM_NOTE_FILE,
+  ROOT_SYSTEM_TODO_FILE,
+  "README.md"
+]);
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
@@ -2124,7 +2135,10 @@ function syncAgentPreview(previewMeta = null) {
 
   if (hasPreview && previewUrl && !isBrokenImageSrc(previewUrl, activePath)) {
     syncAgentPreviewPlaceholder({ broken: false });
-    const nextSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    const nextSrc = appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(previewUrl)),
+      MEDIA_THUMB_MAX_PREVIEW
+    );
     const currentSrc = agentPreviewThumbNode.getAttribute("src") || "";
     const srcChanged = currentSrc !== nextSrc;
     const alreadyLoaded = !srcChanged && agentPreviewThumbNode.complete;
@@ -2218,27 +2232,40 @@ function getAgentTodoSidebarPreviewMarkdown(raw = "") {
   return text;
 }
 
+async function fetchAgentSidebarNoteMarkdown() {
+  try {
+    const noteResponse = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_NOTE_FILE }));
+    if (noteResponse.ok) {
+      const data = await noteResponse.json();
+      const content = String(data.content || "").trim();
+      if (content) return content;
+    }
+  } catch {
+    // try legacy fallback below
+  }
+
+  try {
+    const todoResponse = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
+    if (!todoResponse.ok) return "";
+    const data = await todoResponse.json();
+    return String(data.content || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 async function syncAgentTodoPreview() {
-  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode) return;
-
-  const seq = ++agentTodoPreviewSeq;
-  const meta = getSystemFileCacheEntry(ROOT_SYSTEM_TODO_FILE);
-  const shouldShow = Boolean(activeAgentId && meta?.exists && !meta?.empty);
-
-  if (!shouldShow) {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) {
     hideAgentTodoPreview();
     return;
   }
 
+  const seq = ++agentTodoPreviewSeq;
+
   try {
-    const response = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
-    if (seq !== agentTodoPreviewSeq) return;
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-
-    const data = await response.json();
+    const content = await fetchAgentSidebarNoteMarkdown();
     if (seq !== agentTodoPreviewSeq) return;
 
-    const content = String(data.content || "").trim();
     if (!content) {
       hideAgentTodoPreview();
       return;
@@ -6074,13 +6101,16 @@ function getRegistryAgentPreviewUrl(agent) {
     agent.previewUrl?.startsWith("/api/media/file")
   ) {
     if (!agent.hasPreview) return null;
-    return appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id));
+    return appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id)),
+      MEDIA_THUMB_MAX_PREVIEW
+    );
   }
   if (agent.hasPreview || agent.previewUrl?.startsWith("/api/agents/workspace-preview")) {
     const url = agent.previewUrl?.startsWith("/api/agents/workspace-preview")
       ? agent.previewUrl
       : `/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`;
-    return appendCacheBuster(url);
+    return appendMediaThumbToApiUrl(appendCacheBuster(url), MEDIA_THUMB_MAX_PREVIEW);
   }
   return null;
 }
@@ -6972,6 +7002,8 @@ const NODE_THREAD_MODE = "thread";
 
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let activeEntryOverviewContext = null;
+let entryOverviewSearchQuery = "";
+let entryOverviewSearchState = null;
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let lastNonTocEntryOverviewContext = null;
 
@@ -11501,6 +11533,9 @@ function getDefaultSystemFileScaffoldContent(name) {
   if (normalized === "AGENTS.md") {
     return "# Agent\n\n> Инструкции для LLM-агента.\n";
   }
+  if (normalized === ROOT_SYSTEM_NOTE_FILE) {
+    return "# NOTE\n\n> Быстрая заметка workspace.\n\n";
+  }
   if (normalized === ROOT_SYSTEM_TODO_FILE) {
     return "# TODO\n\n- [ ] \n";
   }
@@ -11550,6 +11585,7 @@ function syncCreateNodeRootSystemFilesUi() {
 
   const buttons = [
     [createNodeAgentsScaffoldBtn, "AGENTS.md"],
+    [createNodeNoteScaffoldBtn, ROOT_SYSTEM_NOTE_FILE],
     [createNodeTodoScaffoldBtn, ROOT_SYSTEM_TODO_FILE],
     [createNodeReadmeScaffoldBtn, "README.md"]
   ];
@@ -12046,6 +12082,7 @@ function applyContentModeState(mode) {
   activeContentMode = mode;
   if (mode !== NODE_ENTRY_OVERVIEW_MODE) {
     activeEntryOverviewContext = null;
+    resetEntryOverviewSearch();
   }
   if (isFlatStorageListMode(mode)) {
     activeStorageFolderExists = false;
@@ -12735,6 +12772,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
+  "runtime-registry": "Реестр тем",
   map: "Карта",
   map2: "Структура",
   map3: "Карта 3",
@@ -13346,7 +13384,10 @@ function getGraphNodeRadius(node, degrees, showPreviews = false) {
 
 function resolveGraphPreviewUrl(node) {
   if (!node?.previewUrl) return "";
-  return appendCacheBuster(appendAgentToApiUrl(node.previewUrl));
+  return appendMediaThumbToApiUrl(
+    appendCacheBuster(appendAgentToApiUrl(node.previewUrl)),
+    MEDIA_THUMB_MAX_GRID
+  );
 }
 
 function sanitizeGraphDomId(value) {
@@ -14525,14 +14566,49 @@ function resolveMediaAssetContextPath(nodePath = activePath) {
   return getPropsContextPath(nodePath) || manifestPath || getUploadStorageContextPath();
 }
 
-function buildMediaAssetUrl(filePath, nodePath = activePath) {
+function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
   if (!nodePath || !filePath) return "";
   const manifestBase = getResolvedNodePath(nodePath);
-  return buildApiUrl("/api/media/file", {
+  const params = {
     path: resolveManifestPathForNodeApi(manifestBase),
     contextPath: resolveMediaAssetContextPath(nodePath),
     file: filePath
-  });
+  };
+  if (options.thumb) {
+    params.thumb = "1";
+    params.max = String(options.max ?? MEDIA_THUMB_MAX_DEFAULT);
+  }
+  return buildApiUrl("/api/media/file", params);
+}
+
+const MEDIA_THUMB_MAX_SMALL = 160;
+const MEDIA_THUMB_MAX_DEFAULT = 240;
+const MEDIA_THUMB_MAX_GRID = 320;
+const MEDIA_THUMB_MAX_PREVIEW = 200;
+
+function buildMediaThumbUrl(filePath, nodePath = activePath, max = MEDIA_THUMB_MAX_DEFAULT) {
+  return buildMediaAssetUrl(filePath, nodePath, { thumb: true, max });
+}
+
+function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_DEFAULT) {
+  const raw = String(url || "").trim();
+  if (!raw) return raw;
+  if (/[?&]thumb=1(?:&|$)/.test(raw)) return raw;
+
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    const pathname = parsed.pathname.replace(/\/+$/, "");
+    if (!pathname.endsWith("/api/media/file") && !pathname.endsWith("/api/preview/image")) {
+      return raw;
+    }
+    parsed.searchParams.set("thumb", "1");
+    parsed.searchParams.set("max", String(max));
+    const relative = `${parsed.pathname}${parsed.search}`;
+    return raw.startsWith("http") ? parsed.toString() : relative;
+  } catch {
+    const joiner = raw.includes("?") ? "&" : "?";
+    return `${raw}${joiner}thumb=1&max=${encodeURIComponent(String(max))}`;
+  }
 }
 
 function encodeMarkdownPathSegment(segment) {
@@ -19455,7 +19531,7 @@ function renderMediaUsageDashboard(container) {
       const img = document.createElement("img");
       img.alt = item.name;
       img.loading = "lazy";
-      img.src = buildMediaAssetUrl(item.path);
+      img.src = buildMediaThumbUrl(item.path, activePath, MEDIA_THUMB_MAX_DEFAULT);
       img.addEventListener("error", () => {
         preview.classList.add("is-fallback");
         img.remove();
@@ -19691,7 +19767,7 @@ function renderMediaImagesGrid(container, items) {
     const img = document.createElement("img");
     img.alt = item.name;
     img.loading = "lazy";
-    img.src = buildMediaAssetUrl(item.path);
+    img.src = buildMediaThumbUrl(item.path, activePath, MEDIA_THUMB_MAX_GRID);
     img.addEventListener("error", () => {
       imgWrap.classList.add("media-image-thumb-error");
       img.remove();
@@ -20420,7 +20496,11 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-tags",
   "awn-color",
   "awn-version",
-  "awn-sort"
+  "awn-sort",
+  "awn-runtime-load",
+  "awn-runtime-cron",
+  "awn-runtime-cron-schedule",
+  "awn-runtime-heartbeat"
 ];
 
 function getStandardPropsFieldKeys() {
@@ -20473,6 +20553,22 @@ const PROPS_FIELD_META = {
   "awn-tags": {
     label: "Теги",
     hint: "Общие и локальные теги; свои — через поле «Свои теги»"
+  },
+  "awn-runtime-load": {
+    label: "Загрузка",
+    hint: "По требованию или при старте сессии агента"
+  },
+  "awn-runtime-cron": {
+    label: "Cron",
+    hint: "Участвует в планировщике по расписанию"
+  },
+  "awn-runtime-cron-schedule": {
+    label: "Расписание cron",
+    hint: "Шаблон, быстрый выбор времени или своё cron-выражение (5 полей)"
+  },
+  "awn-runtime-heartbeat": {
+    label: "Сердцебиение",
+    hint: "Участвует в периодическом heartbeat-прогоне"
   },
   "awn-version": {
     label: "Версия",
@@ -22151,6 +22247,8 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
   "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
+  "awn.mixin.runtime":
+    "Миксин runtime — awn-runtime-load, cron и heartbeat для реестра агента",
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
@@ -22214,9 +22312,7 @@ const PROPS_FIELD_ICONS = {
   "awn-preview": "🖼️",
   "awn-attachments": "📎",
   "awn-color": "🎨",
-  "awn-emoji": "😀",
-  tags: "🏷️",
-  title: "📌"
+  "awn-emoji": "😀"
 };
 
 function resolveFieldLabelIcon(typeId, key = "") {
@@ -22746,7 +22842,9 @@ const PROPS_KEY_CANONICAL_ALIASES = {
   "awn-title": "awn-name",
   "awn-desc": "awn-description",
   "awn-created": "awn-create",
-  "awn-updated": "awn-update"
+  "awn-updated": "awn-update",
+  tags: "awn-tags",
+  tag: "awn-tags"
 };
 
 function normalizePropsKey(key) {
@@ -22782,12 +22880,52 @@ function isStandardPropsFieldKey(key) {
   return Boolean(normalized && getStandardPropsFieldKeys().includes(normalized));
 }
 
+function mergePropsEntryValues(existing, incoming) {
+  if (!existing) return incoming;
+  const existingKey = normalizePropsKey(existing.key);
+  const incomingKey = normalizePropsKey(incoming.key);
+  const shouldMergeArrays =
+    existingKey === "awn-tags" ||
+    existing.kind === "array" ||
+    incoming.kind === "array" ||
+    Array.isArray(existing.value) ||
+    Array.isArray(incoming.value);
+  if (!shouldMergeArrays) return incoming;
+
+  const toList = (entry) => {
+    if (Array.isArray(entry.value)) return entry.value.map(String).filter(Boolean);
+    const text = String(getPropsEntryDisplayValue(entry) || "").trim();
+    if (!text || text === "[]") return [];
+    if (text.startsWith("[") && text.endsWith("]")) {
+      return text
+        .slice(1, -1)
+        .split(",")
+        .map((item) => item.trim().replace(/^['"]|['"]$/g, ""))
+        .filter(Boolean);
+    }
+    return text
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const merged = [...new Set([...toList(existing), ...toList(incoming)])];
+  return {
+    ...existing,
+    key: existingKey || existing.key,
+    kind: "array",
+    value: merged
+  };
+}
+
 function normalizePropsEntries(entries) {
   const map = new Map();
   for (const entry of entries) {
     if (!entry?.key) continue;
     const key = normalizePropsKey(entry.key);
-    map.set(key, { ...entry, key });
+    const next = { ...entry, key };
+    const prev = map.get(key);
+    map.set(key, prev ? mergePropsEntryValues(prev, next) : next);
   }
   return [...map.values()];
 }
@@ -24560,6 +24698,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (normalized === "awn-owner") return "catalog-users";
   if (normalized === "awn-priority") return "catalog-priorities";
   if (normalized === "awn-color") return "catalog-colors";
+  if (normalized === "awn-runtime-cron-schedule") return "cron-schedule";
 
   const typeId = resolveFieldTypeId(fieldDef?.type || "");
   const registry = awnTypesCache?.fieldRegistry || {};
@@ -25162,6 +25301,177 @@ function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {
   wrap.appendChild(customWrap);
 
   appendPropsFormCatalogAddControl(wrap, "colors", fieldKey, { locked });
+  return wrap;
+}
+
+const CRON_SCHEDULE_PRESET_CUSTOM = "__custom__";
+const CRON_SCHEDULE_PRESETS = [
+  { id: "", label: "— шаблон —" },
+  { id: "*/15 * * * *", label: "Каждые 15 минут" },
+  { id: "*/30 * * * *", label: "Каждые 30 минут" },
+  { id: "0 * * * *", label: "Каждый час" },
+  { id: "0 9 * * *", label: "Каждый день в 09:00" },
+  { id: "0 9 * * 1-5", label: "По будням в 09:00" },
+  { id: "0 9 * * 1", label: "По понедельникам в 09:00" },
+  { id: "0 0 * * *", label: "Каждый день в полночь" },
+  { id: "0 9 1 * *", label: "1-го числа месяца в 09:00" },
+  { id: CRON_SCHEDULE_PRESET_CUSTOM, label: "Своё выражение…" }
+];
+
+const CRON_DAY_MODES = [
+  { id: "daily", label: "Каждый день", dow: "* * *" },
+  { id: "weekdays", label: "По будням", dow: "* * 1-5" },
+  { id: "monday", label: "Понедельник", dow: "* * 1" },
+  { id: "friday", label: "Пятница", dow: "* * 5" },
+  { id: "sunday", label: "Воскресенье", dow: "* * 0" }
+];
+
+function parseCronTimeOfDay(expression) {
+  const match = String(expression || "")
+    .trim()
+    .match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(.+)$/);
+  if (!match) return null;
+  const minute = Number(match[1]);
+  const hour = Number(match[2]);
+  const dow = match[3].trim();
+  if (!Number.isInteger(minute) || !Number.isInteger(hour)) return null;
+  if (minute < 0 || minute > 59 || hour < 0 || hour > 23) return null;
+  return {
+    minute,
+    hour,
+    dow,
+    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  };
+}
+
+function buildCronFromTimeAndDayMode(timeValue, dayModeId) {
+  const [hourRaw, minuteRaw] = String(timeValue || "09:00").split(":");
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "0 9 * * *";
+  const mode = CRON_DAY_MODES.find((item) => item.id === dayModeId) || CRON_DAY_MODES[0];
+  return `${minute} ${hour} ${mode.dow}`;
+}
+
+function matchCronSchedulePreset(expression) {
+  const expr = String(expression || "").trim();
+  if (!expr) return "";
+  const preset = CRON_SCHEDULE_PRESETS.find((item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id === expr);
+  return preset?.id || CRON_SCHEDULE_PRESET_CUSTOM;
+}
+
+function describeCronScheduleExpression(expression) {
+  const expr = String(expression || "").trim();
+  if (!expr) return "Расписание не задано";
+  const preset = CRON_SCHEDULE_PRESETS.find((item) => item.id === expr);
+  if (preset?.id) return preset.label;
+  const timed = parseCronTimeOfDay(expr);
+  if (timed) {
+    const mode = CRON_DAY_MODES.find((item) => item.dow === timed.dow);
+    if (mode) return `${mode.label.toLowerCase()} в ${timed.time}`;
+    return `В ${timed.time} (${expr})`;
+  }
+  return expr;
+}
+
+function syncPropsFormCronScheduleUi(wrap) {
+  if (!wrap) return;
+  const expressionInput = wrap.querySelector(".props-form-cron-expression");
+  const presetSelect = wrap.querySelector(".props-form-cron-preset");
+  const dayModeSelect = wrap.querySelector(".props-form-cron-day-mode");
+  const timeInput = wrap.querySelector(".props-form-cron-time");
+  const hintNode = wrap.querySelector(".props-form-cron-hint");
+  const expr = String(expressionInput?.value || "").trim();
+
+  if (presetSelect) {
+    presetSelect.value = matchCronSchedulePreset(expr);
+  }
+
+  const timed = parseCronTimeOfDay(expr);
+  if (dayModeSelect && timeInput) {
+    if (timed) {
+      const mode = CRON_DAY_MODES.find((item) => item.dow === timed.dow) || CRON_DAY_MODES[0];
+      dayModeSelect.value = mode.id;
+      timeInput.value = timed.time;
+    }
+  }
+
+  if (hintNode) {
+    hintNode.textContent = describeCronScheduleExpression(expr);
+  }
+}
+
+function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("cron-schedule");
+  wrap.classList.add("props-form-value-wrap--cron-schedule");
+
+  const displayValue = getPropsEntryDisplayValue(entry);
+
+  const quickRow = document.createElement("div");
+  quickRow.className = "props-form-cron-quick";
+
+  const dayModeSelect = document.createElement("select");
+  dayModeSelect.className = "props-form-value props-form-value--select props-form-cron-day-mode";
+  for (const mode of CRON_DAY_MODES) {
+    appendPropsFormSelectOption(dayModeSelect, mode.id, mode.label);
+  }
+
+  const timeInput = document.createElement("input");
+  timeInput.type = "time";
+  timeInput.className = "props-form-value props-form-cron-time";
+  timeInput.step = "60";
+  timeInput.value = "09:00";
+
+  quickRow.append(dayModeSelect, timeInput);
+
+  const presetSelect = document.createElement("select");
+  presetSelect.className = "props-form-value props-form-value--select props-form-cron-preset";
+  for (const preset of CRON_SCHEDULE_PRESETS) {
+    appendPropsFormSelectOption(presetSelect, preset.id, preset.label);
+  }
+
+  const expressionInput = document.createElement("input");
+  expressionInput.type = "text";
+  expressionInput.className = "props-form-value props-form-cron-expression";
+  expressionInput.value = displayValue;
+  expressionInput.placeholder = meta.format || meta.hint || "0 9 * * *";
+  expressionInput.spellcheck = false;
+  if (meta.hint) expressionInput.title = meta.hint;
+
+  const hintNode = document.createElement("p");
+  hintNode.className = "props-form-cron-hint";
+
+  const applyQuickBuilder = () => {
+    if (locked) return;
+    expressionInput.value = buildCronFromTimeAndDayMode(timeInput.value, dayModeSelect.value);
+    syncPropsFormCronScheduleUi(wrap);
+  };
+
+  const applyPreset = () => {
+    if (locked) return;
+    const presetId = presetSelect.value;
+    if (!presetId) return;
+    if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) {
+      expressionInput.focus();
+      syncPropsFormCronScheduleUi(wrap);
+      return;
+    }
+    expressionInput.value = presetId;
+    syncPropsFormCronScheduleUi(wrap);
+  };
+
+  dayModeSelect.addEventListener("change", applyQuickBuilder);
+  timeInput.addEventListener("change", applyQuickBuilder);
+  presetSelect.addEventListener("change", applyPreset);
+  expressionInput.addEventListener("input", () => syncPropsFormCronScheduleUi(wrap));
+
+  bindPropsFormLockedState(dayModeSelect, locked);
+  bindPropsFormLockedState(timeInput, locked);
+  bindPropsFormLockedState(presetSelect, locked);
+  bindPropsFormLockedState(expressionInput, locked);
+
+  wrap.append(quickRow, presetSelect, expressionInput, hintNode);
+  syncPropsFormCronScheduleUi(wrap);
   return wrap;
 }
 
@@ -25909,10 +26219,16 @@ function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
     if (!raw) return "";
     if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
     if (!isLoadableImageDisplayUrl(raw)) return "";
-    return appendCacheBuster(appendAgentToApiUrl(raw));
+    return appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(raw)),
+      MEDIA_THUMB_MAX_PREVIEW
+    );
   }
   const previewPath = String(preview?.previewPath || "").trim();
-  return resolveAwnPreviewDisplayUrl(previewPath, nodePath);
+  return appendMediaThumbToApiUrl(
+    resolveAwnPreviewDisplayUrl(previewPath, nodePath),
+    MEDIA_THUMB_MAX_PREVIEW
+  );
 }
 
 function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
@@ -27084,6 +27400,9 @@ function createPropsFormValueControl(entry, meta) {
   if (widget === "catalog-colors") {
     return createPropsFormCatalogColorsControl(entry, meta, { locked });
   }
+  if (widget === "cron-schedule") {
+    return createPropsFormCronScheduleControl(entry, meta, { locked });
+  }
   if (widget === "link") {
     return createPropsFormLinkControl(entry, meta, { locked });
   }
@@ -27215,6 +27534,10 @@ function readPropsFormValueFromControl(valueWrap) {
     if (customValue) return customValue;
     const select = valueWrap.querySelector("select");
     return String(select?.value || "").trim();
+  }
+  if (widget === "cron-schedule") {
+    const input = valueWrap.querySelector(".props-form-cron-expression");
+    return String(input?.value || "").trim();
   }
   if (
     widget === "select" ||
@@ -27656,9 +27979,9 @@ async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
 
 function syncPropsInputPlaceholder() {
   if (isExternalFileEditing() || isMediaAssetEditing()) {
-    propsInputNode.placeholder = "awn-name: Заметка\ntags:\n  - пример\nawn-status: draft";
+    propsInputNode.placeholder = "awn-name: Заметка\nawn-tags:\n  - пример\nawn-status: draft";
   } else {
-    propsInputNode.placeholder = "awn-name: Название\ntags:\n  - пример\nawn-status: active";
+    propsInputNode.placeholder = "awn-name: Название\nawn-tags:\n  - пример\nawn-status: active";
   }
 }
 
@@ -28873,6 +29196,93 @@ async function refreshNodeCoverThumbInPlace() {
   thumbWrap.setAttribute(
     "aria-label",
     preview?.imageUrl ? "Редактировать превью" : "Загрузить превью"
+  );
+}
+
+const RUNTIME_LOAD_LABELS = {
+  "on-demand": "По требованию",
+  "session-start": "При старте сессии"
+};
+
+function findPropsEntryByKey(entries, key) {
+  const normalizedKey = normalizePropsKey(key);
+  return (entries || []).find((item) => normalizePropsKey(item.key) === normalizedKey) || null;
+}
+
+function readPropsEntryBoolean(entry) {
+  if (!entry || entry.kind === "null") return false;
+  if (entry.kind === "bool") return Boolean(entry.value);
+  const text = String(entry.value ?? "").trim().toLowerCase();
+  return text === "true" || text === "yes" || text === "1" || text === "да";
+}
+
+function extractRuntimePropsFromPropEntries(entries) {
+  const list = normalizePropsEntries(entries || []);
+  const loadEntry = findPropsEntryByKey(list, "awn-runtime-load");
+  const loadRaw = loadEntry
+    ? String(loadEntry.kind === "bool" ? (loadEntry.value ? "true" : "false") : loadEntry.value ?? "")
+        .trim()
+        .toLowerCase()
+    : "on-demand";
+  const runtimeLoad = loadRaw === "session-start" ? "session-start" : "on-demand";
+
+  return {
+    runtimeLoad,
+    runtimeLoadLabel: RUNTIME_LOAD_LABELS[runtimeLoad] || RUNTIME_LOAD_LABELS["on-demand"],
+    runtimeCron: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-cron")),
+    runtimeCronSchedule: String(getPropsEntryValueByKey(list, "awn-runtime-cron-schedule") || "").trim(),
+    runtimeHeartbeat: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-heartbeat"))
+  };
+}
+
+function createNavigationHeroRuntimeSlot({ id, caption, valueText, tone = "neutral", title = "" }) {
+  const slot = document.createElement("span");
+  slot.className = `node-slot-chip node-navigation-runtime-slot node-navigation-runtime-slot--${id} is-tone-${tone}`;
+  if (title) slot.title = title;
+  slot.setAttribute("role", "img");
+  slot.setAttribute("aria-label", `${caption}: ${valueText}`);
+
+  const label = document.createElement("span");
+  label.className = "node-slot-label node-navigation-runtime-slot-label";
+  label.textContent = caption;
+
+  const value = document.createElement("span");
+  value.className = "node-navigation-runtime-slot-value";
+  value.textContent = valueText;
+
+  slot.append(label, value);
+  return slot;
+}
+
+function appendNavigationHeroRuntimeSlots(parent, propEntries) {
+  if (!parent || !Array.isArray(propEntries)) return;
+
+  const runtime = extractRuntimePropsFromPropEntries(propEntries);
+  const cronInfo = formatRuntimeRegistryBoolCell(runtime.runtimeCron, runtime.runtimeCronSchedule);
+  const heartbeatInfo = formatRuntimeRegistryBoolCell(runtime.runtimeHeartbeat);
+
+  parent.append(
+    createNavigationHeroRuntimeSlot({
+      id: "load",
+      caption: "Загрузка",
+      valueText: runtime.runtimeLoadLabel,
+      tone: runtime.runtimeLoad === "session-start" ? "session" : "neutral",
+      title: "awn-runtime-load"
+    }),
+    createNavigationHeroRuntimeSlot({
+      id: "cron",
+      caption: "Крон",
+      valueText: cronInfo.text,
+      tone: cronInfo.tone === "on" ? "on" : "off",
+      title: cronInfo.title || "awn-runtime-cron"
+    }),
+    createNavigationHeroRuntimeSlot({
+      id: "heartbeat",
+      caption: "Сердцебиение",
+      valueText: heartbeatInfo.text,
+      tone: heartbeatInfo.tone === "on" ? "on" : "off",
+      title: "awn-runtime-heartbeat"
+    })
   );
 }
 
@@ -30230,7 +30640,10 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-hero-marker-slots";
-  wrap.setAttribute("aria-label", "Agent, Git, Obsidian и Skill в папке области");
+  wrap.setAttribute(
+    "aria-label",
+    "Agent, Git, Skill и runtime-настройки темы"
+  );
   wrap.append(
     createNavigationHeroMarkerSlot({
       id: "agent",
@@ -30247,12 +30660,6 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       createSvg: createGitMarkerSvg
     }),
     createNavigationHeroMarkerSlot({
-      id: "obsidian",
-      caption: "Obsidian",
-      active: markers.hasObsidian,
-      createSvg: createObsidianMarkerSvg
-    }),
-    createNavigationHeroMarkerSlot({
       id: "skill",
       caption: "Skill",
       active: markers.hasSkill,
@@ -30261,6 +30668,7 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       titleInactive: "SKILL.md: нет в этой папке"
     })
   );
+  appendNavigationHeroRuntimeSlots(wrap, options.propEntries);
 
   const block = document.createElement("div");
   block.className = "node-navigation-hero-marker-block";
@@ -31221,6 +31629,7 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
     entryKind: String(context.entryKind || "awn.record"),
     status: String(context.status || "").trim()
   };
+  resetEntryOverviewSearch();
   if (!applyContentModeState(NODE_ENTRY_OVERVIEW_MODE)) {
     activeEntryOverviewContext = null;
     return;
@@ -31523,6 +31932,151 @@ function appendEntryOverviewTrailSeparator(trail) {
   sep.setAttribute("aria-hidden", "true");
   sep.textContent = "›";
   trail.appendChild(sep);
+}
+
+function resetEntryOverviewSearch() {
+  entryOverviewSearchQuery = "";
+  entryOverviewSearchState = null;
+}
+
+function getEntryOverviewSearchPlaceholder(context) {
+  const kind = context?.memoryKind;
+  if (kind === "media") return "Поиск по медиа...";
+  if (kind === "external") return "Поиск по записям Content...";
+  if (kind === "quick-notes") return "Поиск по быстрым заметкам...";
+  if (kind === "references") return "Поиск по ссылкам...";
+  return "Поиск по оглавлению...";
+}
+
+function createMenuSearchIconNode() {
+  const icon = document.createElement("span");
+  icon.className = "menu-search-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>';
+  return icon;
+}
+
+function createEntryOverviewSearchBar(context) {
+  if (!isDataEntryOverviewMemoryKind(context?.memoryKind)) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-search-wrap menu-search-wrap";
+
+  const inputId = `entry-overview-search-input-${context.memoryKind}`;
+  const label = document.createElement("label");
+  label.className = "menu-search-bar";
+  label.htmlFor = inputId;
+
+  const input = document.createElement("input");
+  input.id = inputId;
+  input.className = "menu-search-input node-entry-overview-search-input";
+  input.type = "search";
+  input.placeholder = getEntryOverviewSearchPlaceholder(context);
+  input.value = entryOverviewSearchQuery;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", getEntryOverviewSearchPlaceholder(context));
+  input.addEventListener("input", (event) => {
+    entryOverviewSearchQuery = event.target.value || "";
+    refreshEntryOverviewListFromSearch();
+  });
+
+  label.append(createMenuSearchIconNode(), input);
+  wrap.appendChild(label);
+  return wrap;
+}
+
+function entryOverviewItemMatchesQuery(item, folderLabels, queryLower) {
+  if (!queryLower) return true;
+  const path = String(item?.path || "").replace(/\\/g, "/");
+  const title = item?.title || item?.displayName || item?.name || "";
+  const fileName = path.split("/").pop() || "";
+  if (nodeMatchesQuery(path, queryLower)) return true;
+  if (nodeMatchesQuery(title, queryLower)) return true;
+  if (nodeMatchesQuery(fileName, queryLower)) return true;
+  for (const ancestor of collectNavigationFolderAncestors(path)) {
+    const label = folderLabels.get(ancestor);
+    if (nodeMatchesQuery(ancestor, queryLower)) return true;
+    if (nodeMatchesQuery(label, queryLower)) return true;
+  }
+  return false;
+}
+
+function filterEntryOverviewNavigationIndex(navigationIndex, queryLower) {
+  if (!navigationIndex || !queryLower) return navigationIndex;
+
+  const folderLabels =
+    navigationIndex.folderLabels instanceof Map ? navigationIndex.folderLabels : new Map();
+  const matchingFiles = (navigationIndex.contentFiles || []).filter((item) =>
+    entryOverviewItemMatchesQuery(item, folderLabels, queryLower)
+  );
+
+  const folderPaths = new Set();
+  for (const folderPath of navigationIndex.folderPaths || []) {
+    const label = folderLabels.get(folderPath);
+    if (nodeMatchesQuery(folderPath, queryLower) || nodeMatchesQuery(label, queryLower)) {
+      addMemorySectionFolderPath(folderPaths, folderPath);
+    }
+  }
+  for (const file of matchingFiles) {
+    for (const ancestor of collectNavigationFolderAncestors(file.path)) {
+      addMemorySectionFolderPath(folderPaths, ancestor);
+    }
+  }
+
+  return {
+    ...navigationIndex,
+    contentFiles: matchingFiles,
+    folderPaths
+  };
+}
+
+function getEntryOverviewFilteredNavigationIndex(navigationIndex) {
+  const queryLower = entryOverviewSearchQuery.trim().toLowerCase();
+  return filterEntryOverviewNavigationIndex(navigationIndex, queryLower);
+}
+
+function refreshEntryOverviewListFromSearch() {
+  const state = entryOverviewSearchState;
+  const hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub");
+  if (!state || !hub) return;
+
+  const filteredIndex = getEntryOverviewFilteredNavigationIndex(state.navigationIndex);
+  hub.querySelector(".node-entry-overview-memory-toc")?.remove();
+  hub.querySelector(".node-entry-overview-section-list")?.remove();
+
+  if (state.isMemoryTocRoot) {
+    const toc = renderEntryOverviewFullMemoryToc(state.context, filteredIndex);
+    if (toc) {
+      const anchor =
+        hub.querySelector(".node-entry-overview-search-wrap") ||
+        hub.querySelector(".node-entry-overview-memory-trail");
+      anchor?.insertAdjacentElement("afterend", toc);
+    }
+    return;
+  }
+
+  const sectionList = renderEntryOverviewSectionList(state.context, filteredIndex);
+  if (!sectionList) return;
+  const anchor =
+    hub.querySelector(".node-entry-overview-section-list-anchor") ||
+    hub.querySelector(".node-navigation-props") ||
+    hub.querySelector(".node-navigation-hero");
+  anchor?.insertAdjacentElement("afterend", sectionList);
+}
+
+function appendEntryOverviewSearchAndLists(hub, context, navigationIndex, options = {}) {
+  const searchBar = createEntryOverviewSearchBar(context);
+  if (searchBar) hub.appendChild(searchBar);
+
+  if (!options.isMemoryTocRoot) return;
+
+  const memoryToc = renderEntryOverviewFullMemoryToc(
+    context,
+    getEntryOverviewFilteredNavigationIndex(navigationIndex)
+  );
+  if (memoryToc) hub.appendChild(memoryToc);
 }
 
 function getEntryOverviewTopicTitle() {
@@ -32178,7 +32732,7 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
     img.alt = item.title || item.name || "";
     img.loading = "lazy";
     img.decoding = "async";
-    img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+    img.src = appendCacheBuster(buildMediaThumbUrl(item.path, nodePath, MEDIA_THUMB_MAX_SMALL));
     img.addEventListener("error", () => {
       preview.classList.add("is-fallback");
       img.remove();
@@ -32239,7 +32793,7 @@ function appendEntryOverviewMediaImageGrid(parent, items, nodePath, onFileClick)
     img.alt = item.title || item.name || "";
     img.loading = "lazy";
     img.decoding = "async";
-    img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+    img.src = appendCacheBuster(buildMediaThumbUrl(item.path, nodePath, MEDIA_THUMB_MAX_SMALL));
     img.addEventListener("error", () => {
       thumb.classList.add("is-fallback");
       img.remove();
@@ -32442,8 +32996,8 @@ async function renderEntryOverview() {
     const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, "Оглавление", topicTitle);
     if (memoryTrail) hub.appendChild(memoryTrail);
 
-    const memoryToc = renderEntryOverviewFullMemoryToc(context, navigationIndex);
-    if (memoryToc) hub.appendChild(memoryToc);
+    entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
+    appendEntryOverviewSearchAndLists(hub, context, navigationIndex, { isMemoryTocRoot: true });
 
     nodeOverviewContentNode.replaceChildren(hub);
     return;
@@ -32472,6 +33026,10 @@ async function renderEntryOverview() {
   const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTitle);
   if (memoryTrail) hub.appendChild(memoryTrail);
 
+  entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
+  const searchBar = createEntryOverviewSearchBar(context);
+  if (searchBar) hub.appendChild(searchBar);
+
   hub.appendChild(
     context.entryKind === "awn.media.asset"
       ? createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex)
@@ -32493,8 +33051,16 @@ async function renderEntryOverview() {
   await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
   if (isStale()) return;
 
-  const sectionList = renderEntryOverviewSectionList(context, navigationIndex);
-  if (sectionList) hub.appendChild(sectionList);
+  const sectionListAnchor = document.createElement("div");
+  sectionListAnchor.className = "node-entry-overview-section-list-anchor hidden";
+  sectionListAnchor.setAttribute("aria-hidden", "true");
+  hub.appendChild(sectionListAnchor);
+
+  const sectionList = renderEntryOverviewSectionList(
+    context,
+    getEntryOverviewFilteredNavigationIndex(navigationIndex)
+  );
+  if (sectionList) sectionListAnchor.insertAdjacentElement("afterend", sectionList);
 
   const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath);
   if (contentPanel) hub.appendChild(contentPanel);
@@ -32717,7 +33283,7 @@ function createNavigationMediaImageThumb(item, nodePath) {
   img.alt = item.name || "";
   img.loading = "lazy";
   img.decoding = "async";
-  img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+  img.src = appendCacheBuster(buildMediaThumbUrl(item.path, nodePath, MEDIA_THUMB_MAX_SMALL));
   img.addEventListener("error", () => {
     btn.classList.add("node-navigation-media-thumb--error");
     img.remove();
@@ -35729,7 +36295,15 @@ function getMarkdownIt() {
       if (isBrokenImageSrc(rawSrc, sourcePath)) {
         token.attrSet("data-original-src", rawSrc);
       } else {
-        token.attrs[srcIndex][1] = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
+        const resolved = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
+        const thumbResolved =
+          env?.useImageThumbs === false
+            ? resolved
+            : appendMediaThumbToApiUrl(resolved, env?.thumbMax || MEDIA_THUMB_MAX_GRID);
+        if (thumbResolved && thumbResolved !== resolved) {
+          token.attrSet("data-full-src", resolved);
+        }
+        token.attrs[srcIndex][1] = thumbResolved;
       }
     }
     return defaultImage(tokens, idx, options, env, self);
@@ -35834,7 +36408,9 @@ function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   try {
     return md.render(source, {
       nodePath: sourcePath,
-      headingSlugCounts: new Map()
+      headingSlugCounts: new Map(),
+      useImageThumbs: true,
+      thumbMax: MEDIA_THUMB_MAX_GRID
     });
   } catch (error) {
     return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
@@ -35971,7 +36547,10 @@ function initPreviewImageLightbox(root) {
     const target = event.target;
     if (!(target instanceof HTMLImageElement)) return;
     if (!target.closest(".img-style-lightbox")) return;
-    openPreviewImageLightbox(target.currentSrc || target.src, target.alt || "");
+    openPreviewImageLightbox(
+      target.dataset.fullSrc || target.currentSrc || target.src,
+      target.alt || ""
+    );
   });
 }
 
@@ -38063,6 +38642,8 @@ function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}
 function normalizeSystemFileName(name) {
   const base = String(name || "").trim();
   if (base.toLowerCase() === "todo.md") return ROOT_SYSTEM_TODO_FILE;
+  if (base.toLowerCase() === "note.md") return ROOT_SYSTEM_NOTE_FILE;
+  if (base.toLowerCase() === "notes.md") return ROOT_SYSTEM_NOTE_FILE;
   return base;
 }
 
@@ -39899,6 +40480,7 @@ async function loadSystemFiles(options = {}) {
       { name: "awn-map.json", exists: false, empty: true },
       { name: "docker-compose.yml", exists: false, empty: true },
       { name: "README.md", exists: false, empty: true },
+      { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true },
       { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true }
     ]);
   }
@@ -41148,7 +41730,15 @@ function loadAgentWorkspaceView() {
 }
 
 function saveAgentWorkspaceView(view) {
-  if (view === "git" || view === "awn-types" || view === "large-files" || view === "broken-links") return;
+  if (
+    view === "git" ||
+    view === "awn-types" ||
+    view === "large-files" ||
+    view === "broken-links" ||
+    view === "runtime-registry"
+  ) {
+    return;
+  }
   try {
     localStorage.setItem(AGENT_WORKSPACE_VIEW_STORAGE_KEY, view);
   } catch {
@@ -41161,7 +41751,8 @@ function resetGitWorkspaceViewToDefault() {
     agentWorkspaceView !== "git" &&
     agentWorkspaceView !== "awn-types" &&
     agentWorkspaceView !== "large-files" &&
-    agentWorkspaceView !== "broken-links"
+    agentWorkspaceView !== "broken-links" &&
+    agentWorkspaceView !== "runtime-registry"
   ) {
     return;
   }
@@ -41196,6 +41787,10 @@ function applyAgentWorkspaceCanvasUi() {
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
+  agentRuntimeRegistryPaneNode?.classList.toggle(
+    "hidden",
+    !showCanvas || agentWorkspaceView !== "runtime-registry"
+  );
   agentAwnTypesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "awn-types");
   agentMapPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map");
   agentMap2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "map2");
@@ -41224,6 +41819,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentLargeFilesView();
   } else if (agentWorkspaceView === "broken-links") {
     void renderAgentBrokenLinksView();
+  } else if (agentWorkspaceView === "runtime-registry") {
+    void renderAgentRuntimeRegistryView();
   } else if (agentWorkspaceView === "awn-types") {
     void renderAgentAwnTypesView();
   } else if (agentWorkspaceView === "map") {
@@ -41253,6 +41850,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentGitToolbarUi();
   syncAgentLargeFilesToolbarUi();
   syncAgentBrokenLinksToolbarUi();
+  syncAgentRegistryToolbarUi();
   syncAgentAwnTypesToolbarUi();
   updateDocumentTitle();
 }
@@ -41264,6 +41862,7 @@ function setAgentWorkspaceView(view) {
     view !== "git" &&
     view !== "large-files" &&
     view !== "broken-links" &&
+    view !== "runtime-registry" &&
     view !== "awn-types" &&
     view !== "map" &&
     view !== "map2" &&
@@ -42267,13 +42866,172 @@ function initAgentRegistryToolbar() {
   agentRegistryBtn.appendChild(icon);
   if (agentRegistryBtn.dataset.bound === "1") return;
   agentRegistryBtn.dataset.bound = "1";
-  agentRegistryBtn.addEventListener("click", handleAgentRegistrySoonClick);
+  agentRegistryBtn.addEventListener("click", handleAgentRegistryClick);
 }
 
-function handleAgentRegistrySoonClick(event) {
+function syncAgentRegistryToolbarUi() {
+  agentRegistryBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "runtime-registry" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
+function handleAgentRegistryClick(event) {
   event.preventDefault();
   event.stopPropagation();
-  showToast("Реестр (скоро)", "info");
+  setAgentWorkspaceView("runtime-registry");
+}
+
+async function fetchAgentRuntimeRegistry() {
+  const response = await fetch(buildApiUrl("/api/agent/runtime-registry"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function formatRuntimeRegistryBoolCell(active, detail = "") {
+  if (!active) {
+    return { text: "—", tone: "off", title: "" };
+  }
+  const schedule = String(detail || "").trim();
+  return {
+    text: schedule ? schedule : "да",
+    tone: "on",
+    title: schedule ? `Cron: ${schedule}` : ""
+  };
+}
+
+async function renderAgentRuntimeRegistryView() {
+  if (!agentRuntimeRegistryContentNode) return;
+
+  agentRuntimeRegistryContentNode.replaceChildren();
+  if (agentRuntimeRegistryStatsNode) agentRuntimeRegistryStatsNode.replaceChildren();
+
+  const loading = document.createElement("p");
+  loading.className = "agent-runtime-registry-empty";
+  loading.textContent = "Загрузка реестра…";
+  agentRuntimeRegistryContentNode.appendChild(loading);
+
+  try {
+    const data = await fetchAgentRuntimeRegistry();
+    agentRuntimeRegistryContentNode.replaceChildren();
+
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+
+    if (agentRuntimeRegistryStatsNode) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(data.topicCount ?? rows.length, "тем"),
+        createAgentWorkspaceStatElement(data.sessionStartCount ?? 0, "при старте", "ok"),
+        createAgentWorkspaceStatElement(data.cronCount ?? 0, "cron", "warn"),
+        createAgentWorkspaceStatElement(data.heartbeatCount ?? 0, "heartbeat", "ok")
+      );
+    }
+
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "agent-runtime-registry-empty-state";
+      empty.innerHTML = `
+        <p class="agent-runtime-registry-empty-title">Тем пока нет</p>
+        <p class="agent-runtime-registry-empty-text">Создайте темы в дереве workspace — они появятся в реестре с полями <code>awn-runtime-*</code>.</p>
+      `;
+      agentRuntimeRegistryContentNode.appendChild(empty);
+      return;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-table-wrap agent-runtime-registry-wrap";
+
+    const table = document.createElement("table");
+    table.className = "agent-table agent-runtime-registry-table";
+    table.setAttribute("aria-label", "Реестр тем workspace");
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const label of ["Тема", "Загрузка", "Крон", "Сердцебиение"]) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.textContent = label;
+      headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "agent-table-row agent-runtime-registry-row";
+      tr.tabIndex = 0;
+      tr.setAttribute("role", "button");
+      tr.title = "Открыть тему";
+
+      const openRow = () => openNodeFromMenu(row.label || getLabelFromPath(row.manifestPath), row.manifestPath);
+      tr.addEventListener("click", openRow);
+      tr.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openRow();
+        }
+      });
+
+      const titleCell = document.createElement("td");
+      titleCell.className = "agent-table-cell agent-table-cell--title";
+      const titleInner = document.createElement("div");
+      titleInner.className = "agent-table-title-inner";
+      const titleText = document.createElement("span");
+      titleText.className = "agent-table-label";
+      titleText.textContent = row.label || row.displayPath || row.manifestPath;
+      titleInner.appendChild(titleText);
+      if (row.displayPath && row.displayPath !== row.label) {
+        const pathHint = document.createElement("span");
+        pathHint.className = "agent-runtime-registry-path";
+        pathHint.textContent = row.displayPath;
+        titleInner.appendChild(pathHint);
+      }
+      titleCell.appendChild(titleInner);
+
+      const loadCell = document.createElement("td");
+      loadCell.className = "agent-table-cell";
+      const loadBadge = document.createElement("span");
+      loadBadge.className = `agent-runtime-registry-badge is-load${
+        row.runtimeLoad === "session-start" ? " is-session-start" : ""
+      }`;
+      loadBadge.textContent = row.runtimeLoadLabel || "По требованию";
+      loadCell.appendChild(loadBadge);
+
+      const cronCell = document.createElement("td");
+      cronCell.className = "agent-table-cell agent-table-cell--mono";
+      const cronInfo = formatRuntimeRegistryBoolCell(row.runtimeCron, row.runtimeCronSchedule);
+      const cronBadge = document.createElement("span");
+      cronBadge.className = `agent-runtime-registry-badge is-bool is-${cronInfo.tone}`;
+      if (cronInfo.title) cronBadge.title = cronInfo.title;
+      cronBadge.textContent = cronInfo.text;
+      cronCell.appendChild(cronBadge);
+
+      const heartbeatCell = document.createElement("td");
+      heartbeatCell.className = "agent-table-cell";
+      const heartbeatInfo = formatRuntimeRegistryBoolCell(row.runtimeHeartbeat);
+      const heartbeatBadge = document.createElement("span");
+      heartbeatBadge.className = `agent-runtime-registry-badge is-bool is-${heartbeatInfo.tone}`;
+      heartbeatBadge.textContent = heartbeatInfo.text;
+      heartbeatCell.appendChild(heartbeatBadge);
+
+      tr.append(titleCell, loadCell, cronCell, heartbeatCell);
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    agentRuntimeRegistryContentNode.appendChild(wrap);
+  } catch (error) {
+    agentRuntimeRegistryContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-runtime-registry-empty is-alert";
+    errorNode.textContent = error?.message || "Не удалось загрузить реестр";
+    agentRuntimeRegistryContentNode.appendChild(errorNode);
+    if (agentRuntimeRegistryStatsNode) agentRuntimeRegistryStatsNode.replaceChildren();
+  }
 }
 
 async function fetchAgentGitStatus() {
@@ -44894,6 +45652,7 @@ function hideAllAgentCanvasPanes() {
   agentGitPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
   agentBrokenLinksPaneNode?.classList.add("hidden");
+  agentRuntimeRegistryPaneNode?.classList.add("hidden");
   agentAwnTypesPaneNode?.classList.add("hidden");
   agentMapPaneNode?.classList.add("hidden");
   agentMap2PaneNode?.classList.add("hidden");
@@ -46859,7 +47618,7 @@ function handleAgentPreviewOpenActivate(event) {
 }
 
 function openAgentTodoPreviewForEdit() {
-  void selectSystemFile(ROOT_SYSTEM_TODO_FILE);
+  void selectSystemFile(ROOT_SYSTEM_NOTE_FILE);
 }
 
 agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
@@ -46885,6 +47644,12 @@ agentLargeFilesBtn?.addEventListener("click", () => {
 
 agentBrokenLinksBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("broken-links");
+});
+
+agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "runtime-registry") {
+    void renderAgentRuntimeRegistryView();
+  }
 });
 
 initAgentRegistryToolbar();
@@ -47162,6 +47927,10 @@ createNodeContainerScaffoldBtn?.addEventListener("click", () => {
 createNodeAgentsScaffoldBtn?.addEventListener("click", () => {
   if (createNodeAgentsScaffoldBtn.disabled) return;
   void createSystemFileScaffold("AGENTS.md");
+});
+createNodeNoteScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeNoteScaffoldBtn.disabled) return;
+  void createSystemFileScaffold(ROOT_SYSTEM_NOTE_FILE);
 });
 createNodeTodoScaffoldBtn?.addEventListener("click", () => {
   if (createNodeTodoScaffoldBtn.disabled) return;

@@ -1,0 +1,31 @@
+id: awn.mixin.runtime
+name: Runtime
+kind: mixin
+description: Участие элемента в реестре агента — загрузка, cron и heartbeat
+fields:
+  awn-runtime-load:
+    type: awn.enum
+    name: Загрузка
+    description: Когда элемент попадает в контекст агента
+    enum:
+      - key: session-start
+        name: При старте сессии
+      - key: on-demand
+        name: По требованию
+    default: on-demand
+  awn-runtime-cron:
+    type: awn.boolean
+    name: Cron
+    description: Участвует в планировщике по расписанию
+    default: false
+  awn-runtime-cron-schedule:
+    type: awn.string
+    name: Расписание cron
+    description: Cron-выражение; используется при awn-runtime-cron true
+    hint: "0 9 * * *"
+    format: "0 9 * * *"
+  awn-runtime-heartbeat:
+    type: awn.boolean
+    name: Сердцебиение
+    description: Участвует в периодическом heartbeat-прогоне
+    default: false

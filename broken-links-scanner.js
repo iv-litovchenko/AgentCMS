@@ -2,6 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const {
   STORAGE_ROOT_FOLDER,
+  STORAGE_SUBFOLDER_REPOSITORY,
   parseStorageAssetsRef,
   parseStorageSlotInlineRef,
   getNamedStorageSlotDirRel
@@ -42,6 +43,14 @@ function shouldSkipScanDirectory(name) {
   return false;
 }
 
+/** Пути внутри awn-storage/repository не сканируем (клоны git и внешние деревья). */
+function isBrokenLinksExcludedScanPath(relPath) {
+  const norm = normalizeLinkPath(relPath).toLowerCase();
+  if (!norm) return false;
+  const marker = `/${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_REPOSITORY}`;
+  return norm.includes(marker) || norm.endsWith(`${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_REPOSITORY}`);
+}
+
 function splitNodeFrontmatter(raw = "") {
   const text = String(raw || "");
   if (!text.startsWith("---")) {
@@ -69,8 +78,10 @@ async function collectWorkspaceFiles(dirAbsolute, prefix = "", files = []) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
 
     if (entry.isDirectory()) {
+      const relativeNorm = relative.replace(/\\/g, "/");
+      if (isBrokenLinksExcludedScanPath(relativeNorm)) continue;
       if (shouldSkipScanDirectory(entry.name)) continue;
-      await collectWorkspaceFiles(absolute, relative.replace(/\\/g, "/"), files);
+      await collectWorkspaceFiles(absolute, relativeNorm, files);
       continue;
     }
 
@@ -210,7 +221,10 @@ function inspectHref(href, sourceRel, context, meta, issues) {
 
   const inlineRef = parseStorageSlotInlineRef(pathPart);
   if (inlineRef?.workspacePath) {
-    if (!workspaceFileExists(context.fileSet, inlineRef.workspacePath)) {
+    if (
+      !isBrokenLinksExcludedScanPath(inlineRef.workspacePath) &&
+      !workspaceFileExists(context.fileSet, inlineRef.workspacePath)
+    ) {
       pushIssue(issues, {
         sourcePath: sourceRel,
         location: meta.location,
@@ -227,7 +241,10 @@ function inspectHref(href, sourceRel, context, meta, issues) {
 
   const assetsRef = parseStorageAssetsRef(pathPart);
   if (assetsRef?.workspacePath) {
-    if (!workspaceFileExists(context.fileSet, assetsRef.workspacePath)) {
+    if (
+      !isBrokenLinksExcludedScanPath(assetsRef.workspacePath) &&
+      !workspaceFileExists(context.fileSet, assetsRef.workspacePath)
+    ) {
       pushIssue(issues, {
         sourcePath: sourceRel,
         location: meta.location,
@@ -244,6 +261,7 @@ function inspectHref(href, sourceRel, context, meta, issues) {
 
   const resolved = resolveHrefToWorkspaceRel(sourceRel, pathPart);
   if (!resolved) return;
+  if (isBrokenLinksExcludedScanPath(resolved)) return;
 
   if (!workspaceFileExists(context.fileSet, resolved)) {
     pushIssue(issues, {
@@ -358,8 +376,13 @@ async function buildAgentBrokenLinksReport(agentRoot) {
 
   const allFiles = await collectWorkspaceFiles(root);
   const fileSet = new Set(allFiles.map((item) => item.toLowerCase()));
-  const mdFiles = allFiles.filter((item) => item.toLowerCase().endsWith(".md"));
-  const csvFiles = allFiles.filter((item) => path.posix.basename(item).toLowerCase() === "content.csv");
+  const mdFiles = allFiles.filter(
+    (item) => item.toLowerCase().endsWith(".md") && !isBrokenLinksExcludedScanPath(item)
+  );
+  const csvFiles = allFiles.filter(
+    (item) =>
+      path.posix.basename(item).toLowerCase() === "content.csv" && !isBrokenLinksExcludedScanPath(item)
+  );
   const wikiIndex = buildWikilinkIndex(mdFiles);
   const context = { fileSet, wikiIndex };
   const issues = [];

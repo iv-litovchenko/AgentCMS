@@ -1,7 +1,10 @@
 ---
 awn-name: Палитра
 awn-type: catalog
-tags: [system, catalog, global]
+awn-tags:
+  - system
+  - catalog
+  - global
 ---
 
 # Палитра

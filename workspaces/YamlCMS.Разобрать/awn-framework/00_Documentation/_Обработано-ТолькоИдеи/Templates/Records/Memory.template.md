@@ -5,7 +5,9 @@ AWN-STATUS: open
 AWN-TITLE: Название записи
 AWN-CREATED: YYYY-MM-DD
 AWN-UPDATED: YYYY-MM-DD
-TAGS: [тег1, тег2]
+awn-tags:
+  - тег1
+  - тег2
 ---
 
 # Название записи

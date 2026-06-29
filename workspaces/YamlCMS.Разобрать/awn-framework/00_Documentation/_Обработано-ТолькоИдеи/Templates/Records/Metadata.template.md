@@ -5,9 +5,11 @@ AWN-STATUS: open
 AWN-TITLE: Название файла
 AWN-CREATED: YYYY-MM-DD
 AWN-UPDATED: YYYY-MM-DD
-TAGS: [тег1, тег2]
 mediaKind: image | audio | video | document
 summary: "Что за файл и зачем в vault."
+awn-tags:
+  - тег1
+  - тег2
 ---
 
 # Название файла

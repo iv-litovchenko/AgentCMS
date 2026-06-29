@@ -15,14 +15,14 @@ AWN-AUTOMATIZATION: false
 AWN-CRON: 0 9 * * *
 AWN-CREATED: YYYY-MM-DD
 AWN-UPDATED: YYYY-MM-DD
-tags:
-  - "-"
 AWN-OWNER: Владелец (родительская нода-компонент или файл)
 AWN-Commands: TODO есть выполнение команд и подкгрузка  skulls
 AWN-View: TODO voice text ... идея - взаимодействие с вненим миром
 AWN-RBAC-ltc: TODO доступ
 AWN-PARENT-RECORD: Не знаю надо или нет?
 AWN-WEBNET-SOURSE: TODO-источник в сети (нужно ли хранить или у себя или ссылка)
+awn-tags:
+  - -
 ---
 # Название ноды
 

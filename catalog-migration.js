@@ -34,22 +34,28 @@ function splitFrontmatter(content) {
 
 function extractTagsFromFrontmatter(frontmatter) {
   const tags = new Set();
-  const arrayMatch = String(frontmatter || "").match(/^awn-tags:\s*\n((?:\s*-\s*.+\n?)+)/im);
-  if (arrayMatch) {
-    for (const line of arrayMatch[1].split("\n")) {
-      const item = line.replace(/^\s*-\s*/, "").trim().replace(/^#+/, "").replace(/^['"]|['"]$/g, "");
-      if (item) tags.add(item);
+  const collectFromBlock = (field) => {
+    const arrayMatch = String(frontmatter || "").match(
+      new RegExp(`^${field}:\\s*\\n((?:\\s*-\\s*.+\\n?)+)`, "im")
+    );
+    if (arrayMatch) {
+      for (const line of arrayMatch[1].split("\n")) {
+        const item = line.replace(/^\s*-\s*/, "").trim().replace(/^#+/, "").replace(/^['"]|['"]$/g, "");
+        if (item) tags.add(item);
+      }
     }
-  }
-  const inline = getYamlScalar(frontmatter, "awn-tags");
-  if (inline && inline !== "[]") {
-    inline
-      .replace(/^\[|\]$/g, "")
-      .split(",")
-      .map((item) => item.trim().replace(/^#+/, "").replace(/^['"]|['"]$/g, ""))
-      .filter(Boolean)
-      .forEach((item) => tags.add(item));
-  }
+    const inline = getYamlScalar(frontmatter, field);
+    if (inline && inline !== "[]") {
+      inline
+        .replace(/^\[|\]$/g, "")
+        .split(",")
+        .map((item) => item.trim().replace(/^#+/, "").replace(/^['"]|['"]$/g, ""))
+        .filter(Boolean)
+        .forEach((item) => tags.add(item));
+    }
+  };
+  collectFromBlock("awn-tags");
+  collectFromBlock("tags");
   return tags;
 }
 

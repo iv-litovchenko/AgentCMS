@@ -11,14 +11,13 @@ awn-main: false
 awn-category: ""
 awn-owner: ""
 awn-priority: ""
-awn-tags: []
+awn-tags:
+  - system
+  - service
 awn-color: ""
 awn-version: 3
 awn-sort: ""
 awn-attachments: []
-tags:
-  - system
-  - service
 ---
 
 # Агент

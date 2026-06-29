@@ -228,10 +228,10 @@
                   ></button>
                   <button
                     id="agent-registry-btn"
-                    class="agents-manage-btn agent-registry-btn is-soon"
+                    class="agents-manage-btn agent-registry-btn"
                     type="button"
-                    title="Реестр (скоро)"
-                    aria-label="Реестр (скоро)"
+                    title="Реестр тем — загрузка, cron и heartbeat"
+                    aria-label="Реестр тем"
                   ></button>
                 </div>
               </div>
@@ -279,15 +279,15 @@
                   id="agent-todo-preview-edit-btn"
                   class="agent-todo-preview-edit-btn"
                   type="button"
-                  title="Редактировать TODO.md"
-                  aria-label="Редактировать TODO.md"
+                  title="Редактировать NOTE.md"
+                  aria-label="Редактировать NOTE.md"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
                 </button>
-                <div class="agent-todo-preview-label">TODO.md (быстрая заметка)</div>
+                <div class="agent-todo-preview-label">NOTE.md (заметки)</div>
                 <div id="agent-todo-preview-body" class="agent-todo-preview-body file-content-preview"></div>
                 <button
                   id="agent-todo-preview-expand-btn"
@@ -918,6 +918,25 @@
           </div>
         </div>
         <div id="agent-broken-links-content" class="agent-broken-links-content"></div>
+      </main>
+
+      <main id="agent-runtime-registry-pane" class="agent-canvas-pane agent-runtime-registry-pane hidden" aria-label="Реестр тем">
+        <div class="agent-canvas-head agent-runtime-registry-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Реестр тем</h2>
+            <p class="agent-canvas-lead">
+              Темы workspace и их участие в runtime: <code>awn-runtime-load</code>, <code>awn-runtime-cron</code>, <code>awn-runtime-heartbeat</code>.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-runtime-registry-head-actions">
+            <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats" aria-live="polite"></div>
+            <button id="agent-runtime-registry-refresh-btn" class="agent-workspace-refresh-btn agent-runtime-registry-refresh-btn" type="button" title="Обновить реестр">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-runtime-registry-content" class="agent-runtime-registry-content"></div>
       </main>
 
       <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
@@ -2090,6 +2109,15 @@
               >
                 <span class="create-node-scaffold-title">Создать AGENTS.md</span>
                 <span class="create-node-scaffold-hint">Инструкции для LLM-агента.</span>
+              </button>
+              <button
+                id="create-node-note-scaffold-btn"
+                class="create-node-action-btn create-node-action-btn--system-md"
+                type="button"
+                title="Создать NOTE.md"
+              >
+                <span class="create-node-scaffold-title">Создать NOTE.md</span>
+                <span class="create-node-scaffold-hint">Быстрая заметка в сайдбаре.</span>
               </button>
               <button
                 id="create-node-todo-scaffold-btn"

@@ -1,7 +1,10 @@
 ---
 awn-name: Категории
 awn-type: catalog
-tags: [system, catalog, global]
+awn-tags:
+  - system
+  - catalog
+  - global
 ---
 
 # Категории
