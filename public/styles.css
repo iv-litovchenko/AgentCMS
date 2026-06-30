@@ -22294,6 +22294,64 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
 }
 
+/* Data hub: плоский layout без вложенной карточки и боковых inset */
+.doc-body-main .doc-slab-content:has(.data-hub-list-view-wrap) {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-height: 0;
+}
+
+.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-head {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-head-center {
+  align-items: flex-start;
+}
+
+.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-title {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-slot-types {
+  text-align: left;
+}
+
+.doc-slab-main .list-view-content:has(> .data-hub-list-view-wrap) {
+  padding: 0;
+}
+
+.doc-slab-main .data-hub-list-view-wrap {
+  gap: 0;
+}
+
+.doc-slab-main .data-hub-list-view-split {
+  border: 0;
+  border-radius: 0;
+}
+
+.doc-slab-main .data-hub-panel > .data-hub-all-items-view {
+  padding: 12px;
+}
+
+.doc-slab-main .data-hub-all-items-grid,
+.doc-slab-main .data-hub-all-items-loose-section {
+  width: 100%;
+  margin: 0;
+}
+
 .storage-slot-tree {
   flex: 0 0 min(168px, 30%);
   max-width: 200px;
