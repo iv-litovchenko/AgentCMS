@@ -435,6 +435,22 @@ module.exports = {
           query: ["path", "folder"],
           body: null,
           response: "{ exists, files, content }"
+        },
+        {
+          method: "GET",
+          path: "/api/storage/file",
+          description: "Прочитать текстовый файл из слота awn-storage (scripts, artefacts, repository, …).",
+          query: ["path", "folder", "file"],
+          body: null,
+          response: "{ folder, file, content, exists }"
+        },
+        {
+          method: "POST",
+          path: "/api/storage/file",
+          description: "Записать текстовый файл в слот (scripts, artefacts, …; main/ — не .md).",
+          query: [],
+          body: "{ path, folder, file, content }",
+          response: "{ folder, file, content, exists: true }"
         }
       ]
     },

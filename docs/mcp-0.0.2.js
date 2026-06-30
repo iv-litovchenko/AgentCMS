@@ -412,6 +412,18 @@ module.exports = {
           description: "Просмотр слоя: inbox, scripts, artefacts, …",
           parameters: "path, folder",
           http: "GET /api/folder/view"
+        },
+        {
+          name: "read_storage_file",
+          description: "Прочитать текстовый файл из слота (scripts, artefacts, repository, …).",
+          parameters: "path, folder, file",
+          http: "GET /api/storage/file"
+        },
+        {
+          name: "write_storage_file",
+          description: "Записать текстовый файл в слот (scripts, artefacts, …; main/ — не .md).",
+          parameters: "path, folder, file, content",
+          http: "POST /api/storage/file"
         }
       ]
     },

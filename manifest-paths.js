@@ -107,6 +107,29 @@ const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_TEMP
 ];
 
+/** Slots where agents may read arbitrary text files via /api/storage/file */
+const STORAGE_FILE_READ_SLOT_FOLDERS = [
+  STORAGE_SUBFOLDER_MAIN,
+  STORAGE_SUBFOLDER_SCRIPTS,
+  STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_REPOSITORY,
+  STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_TEMP,
+  STORAGE_SUBFOLDER_CONFIGURATION
+];
+
+/** Slots where agents may write scripts, exports and other non-markdown artefacts */
+const STORAGE_FILE_WRITE_SLOT_FOLDERS = [
+  STORAGE_SUBFOLDER_SCRIPTS,
+  STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_REPOSITORY,
+  STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ASSETS,
+  STORAGE_SUBFOLDER_TEMP,
+  STORAGE_SUBFOLDER_MAIN
+];
+
 const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
   STORAGE_SUBFOLDER_PASTED,
   STORAGE_SUBFOLDER_PREVIEW,
@@ -300,6 +323,16 @@ function isAllowedStorageSubfolderName(name) {
   if (!raw || /[\\/]/.test(raw) || raw === "." || raw === "..") return false;
   const canonical = normalizeStorageSubfolderName(raw);
   return STORAGE_SLOT_LAYER_FOLDERS.includes(canonical);
+}
+
+function isStorageFileReadSlotName(name) {
+  const canonical = normalizeStorageSubfolderName(name);
+  return STORAGE_FILE_READ_SLOT_FOLDERS.includes(canonical);
+}
+
+function isStorageFileWriteSlotName(name) {
+  const canonical = normalizeStorageSubfolderName(name);
+  return STORAGE_FILE_WRITE_SLOT_FOLDERS.includes(canonical);
 }
 
 function isManifestFileName(name) {
@@ -1133,6 +1166,10 @@ module.exports = {
   HISTORY_VERSION_SUFFIX,
   COMMENT_FILE_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
+  STORAGE_FILE_READ_SLOT_FOLDERS,
+  STORAGE_FILE_WRITE_SLOT_FOLDERS,
+  isStorageFileReadSlotName,
+  isStorageFileWriteSlotName,
   STORAGE_SUBFOLDER_BY_MODE,
   STORAGE_FOLDER_NAME,
   LEGACY_STORAGE_FOLDER_NAME,

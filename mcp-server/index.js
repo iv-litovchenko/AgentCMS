@@ -11,6 +11,14 @@ const nodePath = z
     "Path to manifest.md of topic/area, e.g. awn-container/finansydohody/manifest.md (legacy _registration.md accepted)"
   );
 const extFile = z.string().min(1).describe("File name under awn-storage/main/ or media/, e.g. notes.md");
+const storageSlotFolder = z
+  .string()
+  .min(1)
+  .describe("Storage slot folder: scripts, artefacts, repository, references, assets, temp, main, configuration");
+const storageSlotFile = z
+  .string()
+  .min(1)
+  .describe("Relative file path inside the slot folder, e.g. fetch.py or exports/report.json");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -300,6 +308,20 @@ function createServer() {
     "List inbox/, scripts/, etc.",
     z.object({ path: nodePath, folder: z.string().min(1) }),
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
+  );
+
+  reg(
+    "read_storage_file",
+    "Read text file from storage slot (scripts/, artefacts/, repository/, …).",
+    z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile }),
+    ({ path, folder, file }) => client.get("/api/storage/file", { path, folder, file })
+  );
+
+  reg(
+    "write_storage_file",
+    "Write text file to storage slot (scripts/, artefacts/, repository/, references/, assets/, temp/, main/ non-md).",
+    z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
+    ({ path, folder, file, content }) => client.post("/api/storage/file", { path, folder, file, content })
   );
 
   reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: nodePath }), ({ path }) =>

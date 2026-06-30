@@ -89,10 +89,14 @@ const {
   STORAGE_SUBFOLDER_BY_MODE,
   HISTORY_VERSION_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
+  STORAGE_FILE_READ_SLOT_FOLDERS,
+  STORAGE_FILE_WRITE_SLOT_FOLDERS,
   normalizeStorageSubfolderName,
   getStorageSubfolderForMode,
   listStorageSubfolderNameCandidates,
   isAllowedStorageSubfolderName,
+  isStorageFileReadSlotName,
+  isStorageFileWriteSlotName,
   isStorageFolderName,
   getStorageRootDirRel,
   getStorageFolderRegexAlternation,
@@ -2674,6 +2678,83 @@ function normalizeRelativeFilePath(input) {
   return normalized;
 }
 
+const BLOCKED_STORAGE_FILE_EXTENSIONS = new Set([
+  ".exe",
+  ".dll",
+  ".so",
+  ".dylib",
+  ".bin",
+  ".com",
+  ".msi",
+  ".scr"
+]);
+
+function getStorageFileBaseName(relFile) {
+  const posix = String(relFile || "").replace(/\\/g, "/");
+  const slash = posix.lastIndexOf("/");
+  return slash >= 0 ? posix.slice(slash + 1) : posix;
+}
+
+function isBlockedStorageFileExtension(filename) {
+  const ext = path.extname(String(filename || "")).toLowerCase();
+  if (!ext) return false;
+  return BLOCKED_STORAGE_FILE_EXTENSIONS.has(ext);
+}
+
+function isAllowedHiddenStorageFileName(baseName) {
+  const name = String(baseName || "");
+  if (!name.startsWith(".")) return true;
+  if (name === ".gitkeep") return true;
+  if (name === ".env" || name.startsWith(".env.")) return true;
+  return false;
+}
+
+function validateStorageFileRequest(relFile, storageFolder, { write = false } = {}) {
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile) return { error: "Invalid file path" };
+
+  const baseName = getStorageFileBaseName(normalizedRelFile);
+  if (!baseName || baseName === "." || baseName === "..") return { error: "Invalid file path" };
+  if (!isAllowedHiddenStorageFileName(baseName)) return { error: "Hidden files are not allowed" };
+  if (isBlockedStorageFileExtension(baseName)) return { error: "File extension is not allowed" };
+
+  const canonicalFolder = normalizeStorageSubfolderName(storageFolder);
+  if (write) {
+    if (!isStorageFileWriteSlotName(canonicalFolder)) {
+      return { error: "Writing is not allowed for this storage folder" };
+    }
+    if (canonicalFolder === STORAGE_SUBFOLDER_MAIN && baseName.toLowerCase().endsWith(".md")) {
+      return { error: "Use external memory tools for .md in main/" };
+    }
+  } else if (!isStorageFileReadSlotName(canonicalFolder)) {
+    return { error: "Reading is not allowed for this storage folder" };
+  }
+
+  return { normalizedRelFile, baseName, folder: canonicalFolder };
+}
+
+async function resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile, { create = false } = {}) {
+  const validation = validateStorageFileRequest(relFile, storageFolder, { write: create });
+  if (validation.error) return validation;
+
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, validation.folder, { create });
+  if (!folderAbsolute) {
+    return create
+      ? { error: "Storage folder not found" }
+      : { error: "Storage folder not found", status: 404 };
+  }
+
+  const fileAbsolute = path.join(folderAbsolute, validation.normalizedRelFile);
+  if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) return { error: "Invalid file path" };
+
+  return {
+    folder: validation.folder,
+    normalizedRelFile: validation.normalizedRelFile,
+    folderAbsolute,
+    fileAbsolute
+  };
+}
+
 function toMediaSidecarRelativePath(mediaRelPath) {
   const normalized = normalizeRelativeFilePath(mediaRelPath);
   if (!normalized || normalized.endsWith("/") || normalized.endsWith("\\")) return null;
@@ -4391,7 +4472,8 @@ const SESSION_PATH_HINTS = {
   areaManifest: "manifest.md области внутри awn-container/<slug>/",
   mainNote: "Параметр file в memory tools — .md внутри awn-storage/main/ темы",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
-  storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…"
+  storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
+  storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>"
 };
 
 async function readWorkspaceManifestContent(relPath) {
@@ -9555,6 +9637,69 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save markdown", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage/file") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    const storageFolder = String(url.searchParams.get("folder") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+    if (!storageFolder) return sendJson(res, 400, { error: "Missing folder query parameter" });
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+    const resolved = await resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile);
+    if (resolved.error) {
+      return sendJson(res, resolved.status === 404 ? 404 : 400, { error: resolved.error });
+    }
+
+    try {
+      const content = await fs.readFile(resolved.fileAbsolute, "utf-8");
+      return sendJson(res, 200, {
+        folder: resolved.folder,
+        file: resolved.normalizedRelFile.replace(/\\/g, "/"),
+        content,
+        exists: true
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Storage file not found" });
+      return sendJson(res, 500, { error: "Failed to read storage file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/file") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      const storageFolder = String(payload.folder || "").trim();
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing file path" });
+      if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const resolved = await resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile, { create: true });
+      if (resolved.error) {
+        return sendJson(res, resolved.status === 404 ? 404 : 400, { error: resolved.error });
+      }
+
+      await fs.mkdir(path.dirname(resolved.fileAbsolute), { recursive: true });
+      await fs.writeFile(resolved.fileAbsolute, content, "utf-8");
+      return sendJson(res, 200, {
+        folder: resolved.folder,
+        file: resolved.normalizedRelFile.replace(/\\/g, "/"),
+        content,
+        exists: true
+      });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save storage file", details: String(error.message || error) });
     }
   }
 
