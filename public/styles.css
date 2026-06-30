@@ -16907,7 +16907,8 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-folder-label {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -16936,6 +16937,9 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-folder-text {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-book-toc-folder-icon {
@@ -17078,7 +17082,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-folder-label .nav-book-toc-status {
-  margin-left: 6px;
+  justify-self: end;
 }
 
 .node-navigation-media-groups {

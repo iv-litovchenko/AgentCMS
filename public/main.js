@@ -32974,7 +32974,14 @@ function populateNavBookTocFolderLabel(
   folderText.textContent = label;
   folderLabel.append(folderIcon, folderText);
   if (folderStatuses instanceof Map && folderNode.folderPath) {
-    appendNavBookTocStatusBadge(folderLabel, folderStatuses.get(folderNode.folderPath));
+    const status = folderStatuses.get(folderNode.folderPath);
+    if (status) {
+      const leaders = document.createElement("span");
+      leaders.className = "nav-book-toc-leaders";
+      leaders.setAttribute("aria-hidden", "true");
+      folderLabel.appendChild(leaders);
+      appendNavBookTocStatusBadge(folderLabel, status);
+    }
   }
 }
 
