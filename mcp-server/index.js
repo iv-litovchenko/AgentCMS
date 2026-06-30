@@ -163,6 +163,38 @@ function createServer() {
     ({ path, content }) => client.post("/api/file/topic-schema", { path, content })
   );
 
+  reg("read_node_config", "Read node configuration.yml (awn_settings incl. awn-mask-file for main/).", z.object({ path: nodePath }), ({ path }) =>
+    client.get("/api/file/node-config", { path })
+  );
+
+  reg(
+    "write_node_config",
+    "Save node configuration.yml (awn_settings, awn_ui, awn_schema).",
+    z.object({ path: nodePath, content: z.string() }),
+    ({ path, content }) => client.post("/api/file/node-config", { path, content })
+  );
+
+  reg(
+    "create_external_memory",
+    "Create note in awn-storage/main/. Uses awn-mask-file from node config when fileMask omitted. Placeholders: {YYYY},{YY},{MM},{DD},{WW},{id}.",
+    z.object({
+      path: nodePath,
+      title: z.string().optional(),
+      displayName: z.string().optional(),
+      fileMask: z.string().optional(),
+      parent: z.string().optional()
+    }),
+    ({ path, title, displayName, fileMask, parent }) =>
+      client.post("/api/external/file/create", {
+        path,
+        title,
+        displayName: displayName || title,
+        fileMask,
+        mask: fileMask,
+        parent
+      })
+  );
+
   reg(
     "create_node",
     "Create folder node or part.",
@@ -230,13 +262,6 @@ function createServer() {
     "Save note to awn-storage/main/.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
-  );
-
-  reg(
-    "create_external_memory",
-    "Create new note in awn-storage/main/ with frontmatter.",
-    z.object({ path: nodePath, title: z.string().optional() }),
-    ({ path, title }) => client.post("/api/external/file/create", { path, title })
   );
 
   reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: nodePath }), ({ path }) =>

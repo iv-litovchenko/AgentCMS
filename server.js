@@ -137,6 +137,7 @@ const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload } = require("./type-catalog-loader");
+const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
   AWN_MASK_FILE_KEY,
@@ -144,7 +145,8 @@ const {
   resolveFileMask,
   sanitizeMaskRelativePath,
   displayNameFromMaskPath,
-  maskUsesId
+  maskUsesId,
+  extractAwnMaskFileValue
 } = require(path.join(__dirname, "public", "external-file-mask.js"));
 
 const execFileAsync = promisify(execFile);
@@ -676,6 +678,18 @@ async function readNodeConfigFile(relNodePath) {
   }
 
   return { path: configRelPath, content: "", exists: false };
+}
+
+function extractAwnMaskFileFromNodeConfigContent(content) {
+  const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
+  return extractAwnMaskFileValue(bundle.awn_settings);
+}
+
+async function resolveExternalFileMaskForManifest(manifestRelPath, explicitMask = "") {
+  const trimmed = String(explicitMask || "").trim();
+  if (trimmed) return trimmed;
+  const configFile = await readNodeConfigFile(manifestRelPath);
+  return extractAwnMaskFileFromNodeConfigContent(configFile.content || "");
 }
 
 
@@ -5608,6 +5622,43 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
     if (fileAbsolute.startsWith(assetsFolder) && (await fileExists(fileAbsolute))) return fileAbsolute;
   }
 
+  const mediaBasename = path.basename(String(normalized).replace(/\\/g, "/"));
+  if (mediaBasename) {
+    const mediaFolder = await getMediaFolderAbsolute(nodeAbsolute);
+    if (mediaFolder) {
+      const mediaByName = path.join(mediaFolder, mediaBasename);
+      if (mediaByName.startsWith(mediaFolder) && (await fileExists(mediaByName))) {
+        return mediaByName;
+      }
+    }
+
+    const contentFolder = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+    if (contentFolder) {
+      const mainByName = path.join(contentFolder, mediaBasename);
+      if (mainByName.startsWith(contentFolder) && (await fileExists(mainByName))) {
+        return mainByName;
+      }
+    }
+  }
+
+  const contentFolder = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+  if (contentFolder && /^main\//i.test(normalized)) {
+    const tail = normalized.replace(/^main\//i, "");
+    const fileAbsolute = path.join(contentFolder, tail);
+    if (fileAbsolute.startsWith(contentFolder) && (await fileExists(fileAbsolute))) {
+      return fileAbsolute;
+    }
+  }
+
+  const mediaFolder = await getMediaFolderAbsolute(nodeAbsolute);
+  if (mediaFolder && /^media\//i.test(normalized)) {
+    const tail = normalized.replace(/^media\//i, "");
+    const fileAbsolute = path.join(mediaFolder, tail);
+    if (fileAbsolute.startsWith(mediaFolder) && (await fileExists(fileAbsolute))) {
+      return fileAbsolute;
+    }
+  }
+
   const nodeRel = manifestRelFromNodeAbsolute(nodeAbsolute);
   if (nodeRel && /^preview\//i.test(relUnderAssets)) {
     const fileName = relUnderAssets.split("/").pop();
@@ -5628,11 +5679,14 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
   }
 
   const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
-  if (!folderAbsolute) return null;
+  if (folderAbsolute) {
+    const fileAbsolute = path.join(folderAbsolute, normalized);
+    if (fileAbsolute.startsWith(folderAbsolute) && (await fileExists(fileAbsolute))) {
+      return fileAbsolute;
+    }
+  }
 
-  const fileAbsolute = path.join(folderAbsolute, normalized);
-  if (!fileAbsolute.startsWith(folderAbsolute)) return null;
-  return fileAbsolute;
+  return null;
 }
 
 async function getNodePreviewMeta(nodeRelativePath) {
@@ -8996,11 +9050,14 @@ async function handleApiForAgent(req, res, url) {
     try {
       const configFile = await readNodeConfigFile(manifestCtx.rel);
       const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(configFile.content);
+      const awnMaskFile = extractAwnMaskFileFromNodeConfigContent(configFile.content);
       return sendJson(res, 200, {
         path: configFile.path || configRelPath,
         content: configFile.content,
         exists: configFile.exists,
-        defaultLandingMode
+        defaultLandingMode,
+        awnMaskFile,
+        awnMaskFileKey: AWN_MASK_FILE_KEY
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read node config", details: String(error.message || error) });
@@ -9201,12 +9258,16 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const fileMask = String(payload.fileMask || payload.mask || "").trim();
+      let fileMask = String(payload.fileMask || payload.mask || "").trim();
       const { display, diskSlug } = resolveContentItemNames(payload);
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      if (!fileMask) {
+        fileMask = await resolveExternalFileMaskForManifest(relPath);
+      }
 
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });

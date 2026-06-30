@@ -244,7 +244,7 @@ module.exports = {
           description: "Конфигурация ноды (*.x.configuration.yml).",
           query: ["path"],
           body: null,
-          response: "{ path, content, exists, defaultLandingMode? }"
+          response: "{ path, content, exists, defaultLandingMode?, awnMaskFile?, awnMaskFileKey? }"
         },
         {
           method: "POST",

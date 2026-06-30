@@ -730,7 +730,8 @@ function parseViewRouteTail(tail, view) {
     mediaSectionPath: null,
     mediaListView: null,
     entryOverviewKind: null,
-    entryOverviewToc: false
+    entryOverviewToc: false,
+    dataHubAllSlots: false
   };
   if (!Array.isArray(tail) || tail.length === 0) return result;
 
@@ -755,6 +756,10 @@ function parseViewRouteTail(tail, view) {
     let index = 0;
     while (index < tail.length) {
       const marker = tail[index];
+      if (marker === "slots" && tail.length === 1) {
+        result.dataHubAllSlots = true;
+        break;
+      }
       if (marker === "f" && index + 1 < tail.length) {
         result.resourcePath = tail.slice(index + 1).join("/");
         break;
@@ -814,6 +819,7 @@ function parseAppRoute(pathname = location.pathname) {
   let mediaListView = null;
   let entryOverviewKind = null;
   let entryOverviewToc = false;
+  let dataHubAllSlots = false;
   const vIndex = rest.lastIndexOf("v");
   if (vIndex >= 0 && vIndex < rest.length - 1) {
     const mode = rest[vIndex + 1];
@@ -828,6 +834,7 @@ function parseAppRoute(pathname = location.pathname) {
       mediaListView = parsedTail.mediaListView;
       entryOverviewKind = parsedTail.entryOverviewKind;
       entryOverviewToc = parsedTail.entryOverviewToc;
+      dataHubAllSlots = parsedTail.dataHubAllSlots;
     }
   }
 
@@ -839,7 +846,8 @@ function parseAppRoute(pathname = location.pathname) {
     mediaSectionPath,
     mediaListView,
     entryOverviewKind,
-    entryOverviewToc
+    entryOverviewToc,
+    dataHubAllSlots
   };
   if (!displayPath) {
     return { type: "agentHome", agentId, ...routeFields };
@@ -889,7 +897,9 @@ function buildAppPathFromState() {
 
   if (activeContentMode && APP_ROUTE_VIEW_IDS.has(activeContentMode)) {
     path += `/v/${encodeURIComponent(activeContentMode)}`;
-    if (activeContentMode === "external" && activeExternalFilePath) {
+    if (activeDataStorageAllItems && getDataStorageSlotForMode()) {
+      path += "/slots";
+    } else if (activeContentMode === "external" && activeExternalFilePath) {
       const fileSegments = String(activeExternalFilePath)
         .split("/")
         .filter(Boolean)
@@ -1191,6 +1201,14 @@ async function applyExternalRouteStateFromUrl(route) {
   renderListViewContent();
 }
 
+async function applyDataHubRouteStateFromUrl(route) {
+  if (!route?.dataHubAllSlots) return;
+  if (!getDataStorageSlotForMode(route.view)) return;
+  activeDataStorageAllItems = true;
+  refreshStorageSlotTree();
+  renderListViewContent();
+}
+
 async function applyFlatStorageRouteStateFromUrl(route) {
   if (!isFlatStorageSectionMode(route.view)) return;
   activeFlatStorageSectionFolder[route.view] =
@@ -1266,21 +1284,24 @@ async function applyAppRouteResourceFromUrl(route) {
 
   if (route.view === "media") {
     await applyMediaRouteStateFromUrl(route);
+    await applyDataHubRouteStateFromUrl(route);
     return;
   }
 
   if (route.view === "external") {
     await applyExternalRouteStateFromUrl(route);
+    await applyDataHubRouteStateFromUrl(route);
     return;
   }
 
   if (FLAT_STORAGE_SECTION_MODES.has(route.view)) {
     await applyFlatStorageRouteStateFromUrl(route);
+    await applyDataHubRouteStateFromUrl(route);
     return;
   }
 
   if (route.subView === "source") {
-    if (route.view === "tabular" || route.view === "scripts") {
+    if (route.view === "tabular") {
       setEditorViewMode("source", { skipRouteSync: true });
       refreshEditorViewContent();
       updateBreadcrumbsForActiveMode();
@@ -7024,17 +7045,39 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.media.memory.toc.root": "Оглавление медиа",
   "awn.inbox.toc.root": "Оглавление",
   "awn.quick-notes.toc.root": "Оглавление",
-  "awn.references.toc.root": "Оглавление"
+  "awn.references.toc.root": "Оглавление",
+  "awn.artefacts.toc.root": "Оглавление",
+  "awn.repository.toc.root": "Оглавление",
+  "awn.scripts.toc.root": "Оглавление"
 };
 
-const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set(["inbox", "quick-notes", "references"]);
-const ENTRY_OVERVIEW_ROUTE_KINDS = new Set(["external", "media", "inbox", "quick-notes", "references"]);
+const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
+  "inbox",
+  "quick-notes",
+  "references",
+  "artefacts",
+  "repository",
+  "scripts"
+]);
+const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
+  "external",
+  "media",
+  "inbox",
+  "quick-notes",
+  "references",
+  "artefacts",
+  "repository",
+  "scripts"
+]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.memory.toc.root",
   "awn.media.memory.toc.root",
   "awn.inbox.toc.root",
   "awn.quick-notes.toc.root",
-  "awn.references.toc.root"
+  "awn.references.toc.root",
+  "awn.artefacts.toc.root",
+  "awn.repository.toc.root",
+  "awn.scripts.toc.root"
 ]);
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
@@ -7524,7 +7567,7 @@ function getEntryOverviewMemoryKindForSlot(spec) {
   if (!spec) return null;
   if (spec.key === "memory") return "external";
   if (spec.key === "media") return "media";
-  if (spec.key === "inbox" || spec.key === "quick-notes" || spec.key === "references") return spec.key;
+  if (spec.defaultMode && isFlatEntryOverviewMemoryKind(spec.defaultMode)) return spec.defaultMode;
   return null;
 }
 
@@ -7804,6 +7847,34 @@ const activeFlatStorageSectionFolder = Object.fromEntries(
 let activeDataStorageAllItems = false;
 let storageSlotTreeRenderToken = 0;
 const storageRootScanCache = new Map();
+const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
+
+function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
+  if (!shouldUseDataHubListShell(mode)) return false;
+  if (activeDataStorageAllItems) return true;
+  if (isFlatStorageSectionMode(mode) && isFlatStorageListMode(mode) && !activeStorageFolderExists) return true;
+  return false;
+}
+
+function isDataHubAllSlotsPanelStale() {
+  return !shouldShowDataHubAllSlotsPanel();
+}
+
+function renderDataHubAllItemsPanelLoading(container) {
+  renderDataHubPanelEmptyState(container, {
+    icon: "📋",
+    message: "Сканирование awn-storage…",
+    variant: "loading"
+  });
+}
+
+function loadDataHubAllItemsPanel(container) {
+  renderDataHubAllItemsPanelLoading(container);
+  return fetchStorageRootScan().then((scan) => {
+    if (isDataHubAllSlotsPanelStale()) return;
+    renderDataHubAllItemsPanel(container, scan);
+  });
+}
 
 function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
   if (manifestPath) storageRootScanCache.delete(manifestPath);
@@ -7921,6 +7992,7 @@ function setActiveDataStorageAllItems() {
   activeDataStorageAllItems = true;
   refreshStorageSlotTree();
   renderListViewContent();
+  syncAppRouteToUrl({ replace: true });
 }
 
 function shouldUseDataHubListShell(mode = activeContentMode) {
@@ -8174,7 +8246,7 @@ async function renderStorageSlotTree(container) {
 
   const allBtn = appendMediaSectionTreeItem(list, {
     icon: "📋",
-    label: "Все элементы",
+    label: DATA_HUB_ALL_SLOTS_LABEL,
     count: allCount > 0 ? allCount : null,
     isActive: allItemsActive,
     onClick: () => setActiveDataStorageAllItems()
@@ -10264,7 +10336,6 @@ function syncWorkspaceCloseButtonsVisibility() {
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memorySlotActive && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
     (mediaSlotActive && activeContentMode === "media") ||
-    (scriptsSlotActive && activeContentMode === "scripts") ||
     (todoDomain && activeContentMode === "todo");
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
@@ -14648,7 +14719,7 @@ function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
   const params = {
     path: resolveManifestPathForNodeApi(manifestBase),
     contextPath: resolveMediaAssetContextPath(nodePath),
-    file: filePath
+    file: normalizeMarkdownImageFileRef(filePath)
   };
   if (options.thumb) {
     params.thumb = "1";
@@ -14879,6 +14950,14 @@ function isStorageLayerEditorPath(relPath) {
 
 function getMarkdownAssetSourcePath(nodePath) {
   const propsContext = String(getPropsContextPath() || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const explicit = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+
+  if (
+    explicit &&
+    (explicit.includes(`/${STORAGE_ROOT_FOLDER}/`) || explicit.includes(`/${LEGACY_STORAGE_ROOT_FOLDER}/`))
+  ) {
+    return resolveOwningManifestRelFromNodePath(explicit);
+  }
   if (propsContext) return resolveOwningManifestRelFromNodePath(propsContext);
 
   const raw = String(nodePath || getResolvedNodePath(activePath) || "")
@@ -14894,12 +14973,139 @@ function isLoadableImageDisplayUrl(src) {
   return raw.startsWith("/api/");
 }
 
-function resolveStorageAssetsRefToApiUrl(assetsRef) {
+function resolveStorageAssetsRefToApiUrl(assetsRef, contextManifestRelPath = "") {
   if (!assetsRef?.manifestRelPath || !assetsRef.mediaFile) return "";
+  const ownerManifest = String(contextManifestRelPath || assetsRef.manifestRelPath || "").trim();
+  const params = {
+    path: assetsRef.manifestRelPath,
+    file: normalizeMarkdownImageFileRef(assetsRef.mediaFile)
+  };
+  if (ownerManifest) params.contextPath = ownerManifest;
+  return appendAgentToApiUrl(buildApiUrl("/api/media/file", params));
+}
+
+function normalizeMarkdownImageFileRef(fileRef) {
+  const raw = String(fileRef || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const stack = [];
+  for (const part of raw.split("/")) {
+    if (part === "..") stack.pop();
+    else if (part && part !== ".") stack.push(part);
+  }
+  return stack.join("/");
+}
+
+function parseMarkdownImageApiUrl(src) {
+  const raw = String(src || "").trim();
+  if (!raw.startsWith("/api/")) return null;
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    const pathname = parsed.pathname.replace(/\/+$/, "");
+    if (!pathname.endsWith("/api/media/file")) return null;
+    const path = decodeURIComponent(parsed.searchParams.get("path") || "").trim();
+    const contextPath = decodeURIComponent(parsed.searchParams.get("contextPath") || "").trim();
+    const file = normalizeMarkdownImageFileRef(decodeURIComponent(parsed.searchParams.get("file") || ""));
+    if (!path || !file) return null;
+    return { path, contextPath: contextPath || path, file };
+  } catch {
+    return null;
+  }
+}
+
+function resolveStorageLayerMediaRefToApiUrl(layerRef, contextManifestRelPath = "") {
+  if (!layerRef?.manifestRelPath || !layerRef.relativePath || !layerRef.layer) return "";
+  const fileRef =
+    layerRef.layer === STORAGE_SUBFOLDER_ASSETS
+      ? layerRef.relativePath
+      : `${layerRef.layer}/${layerRef.relativePath}`;
+  const ownerManifest = String(contextManifestRelPath || layerRef.manifestRelPath || "").trim();
+  const params = {
+    path: layerRef.manifestRelPath,
+    file: normalizeMarkdownImageFileRef(fileRef)
+  };
+  if (ownerManifest) params.contextPath = ownerManifest;
+  return appendAgentToApiUrl(buildApiUrl("/api/media/file", params));
+}
+
+function listMarkdownImageFileRefCandidates(fileRef, linkBasePath, contextManifestRelPath) {
+  const normalized = normalizeMarkdownImageFileRef(fileRef);
+  if (!normalized) return [];
+
+  const candidates = [];
+  const seen = new Set();
+  const add = (value) => {
+    const item = normalizeMarkdownImageFileRef(value);
+    if (!item || seen.has(item)) return;
+    seen.add(item);
+    candidates.push(item);
+  };
+
+  add(normalized);
+  const basename = normalized.split("/").pop();
+  if (basename && basename !== normalized) add(basename);
+  if (basename) {
+    add(`${STORAGE_SUBFOLDER_MEDIA}/${basename}`);
+    add(`${STORAGE_SUBFOLDER_CONTENT}/${basename}`);
+    add(`${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/${basename}`);
+    if (!normalized.includes("/")) add(basename);
+  }
+
+  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(normalized, linkBasePath);
+  if (workspaceRel) {
+    const layerParsed = parseStorageLayerRef(workspaceRel);
+    if (layerParsed) {
+      if (layerParsed.layer === STORAGE_SUBFOLDER_ASSETS) add(layerParsed.relativePath);
+      else add(`${layerParsed.layer}/${layerParsed.relativePath}`);
+    }
+    add(workspaceRel);
+  }
+
+  const slotDir = getNamedStorageSlotDirRel(contextManifestRelPath);
+  if (slotDir && basename) {
+    add(`${slotDir}/${STORAGE_SUBFOLDER_MEDIA}/${basename}`);
+    add(`${slotDir}/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/${basename}`);
+    add(`${slotDir}/${STORAGE_SUBFOLDER_CONTENT}/${basename}`);
+  }
+
+  return candidates;
+}
+
+function resolveWorkspaceImageToApiUrl(fileRef, nodePath, options = {}) {
+  const contextManifest = getMarkdownAssetSourcePath(nodePath);
+  const linkBase = options.linkBase || getCurrentEditorLinkBasePath() || contextManifest;
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath) || contextManifest);
+  const contextPath = resolveMediaAssetContextPath(nodePath);
+  if (!manifestPath) return "";
+
+  const candidates = listMarkdownImageFileRefCandidates(fileRef, linkBase, contextManifest);
+  for (const candidate of candidates) {
+    const assetsRef = parseStorageAssetsRef(candidate);
+    if (assetsRef) {
+      const url = resolveStorageAssetsRefToApiUrl(assetsRef, contextManifest);
+      if (url) return url;
+    }
+
+    const layerParsed = parseStorageLayerRef(candidate);
+    if (layerParsed) {
+      const url = resolveStorageLayerMediaRefToApiUrl(
+        {
+          manifestRelPath: pickManifestRelFromStorageLayerRef(layerParsed),
+          layer: layerParsed.layer,
+          relativePath: layerParsed.relativePath
+        },
+        contextManifest
+      );
+      if (url) return url;
+    }
+  }
+
+  const fallbackFile = candidates[0];
+  if (!fallbackFile) return "";
   return appendAgentToApiUrl(
     buildApiUrl("/api/media/file", {
-      path: assetsRef.manifestRelPath,
-      file: assetsRef.mediaFile
+      path: manifestPath,
+      contextPath,
+      file: fallbackFile
     })
   );
 }
@@ -14940,14 +15146,26 @@ function applyBrokenImagePlaceholder(img, label = "Изображение не �
 }
 
 function bindMarkdownPreviewImageFallback(img, nodePath) {
-  if (!(img instanceof HTMLImageElement) || img.dataset.brokenPlaceholder === "1") return;
+  if (!(img instanceof HTMLImageElement)) return;
   const src = img.getAttribute("data-original-src") || img.getAttribute("src") || "";
+  if (!src || src === BROKEN_IMAGE_PLACEHOLDER_SRC) return;
+  if (!img.dataset.originalSrc && src) img.dataset.originalSrc = src;
+
+  const resolved = resolveMarkdownAssetSrc(src, nodePath);
+  if (isLoadableImageDisplayUrl(resolved)) {
+    const displayUrl = appendAgentToApiUrl(resolved);
+    if (img.getAttribute("src") !== displayUrl) img.src = displayUrl;
+    img.classList.remove("broken-image-placeholder", "markdown-image-missing");
+    delete img.dataset.brokenPlaceholder;
+    img.addEventListener("error", () => applyBrokenImagePlaceholder(img), { once: true });
+    return;
+  }
+
   const sourcePath = getMarkdownAssetSourcePath(nodePath);
   if (isBrokenImageSrc(src, sourcePath)) {
     applyBrokenImagePlaceholder(img);
     return;
   }
-  if (!img.dataset.originalSrc && src) img.dataset.originalSrc = src;
   img.addEventListener("error", () => applyBrokenImagePlaceholder(img), { once: true });
 }
 
@@ -14955,14 +15173,23 @@ function resolveMarkdownAssetSrc(src, nodePath) {
   const raw = String(src || "").trim();
   if (!raw) return raw;
   if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
-  if (raw.startsWith("/api/")) return appendAgentToApiUrl(raw);
 
-  const relFile = raw.replace(/\\/g, "/");
+  if (raw.startsWith("/api/")) {
+    const apiRef = parseMarkdownImageApiUrl(raw);
+    if (apiRef) {
+      const repaired = resolveWorkspaceImageToApiUrl(apiRef.file, nodePath);
+      if (repaired) return repaired;
+    }
+    return appendAgentToApiUrl(raw);
+  }
+
+  const relFile = normalizeMarkdownImageFileRef(raw.replace(/\\/g, "/"));
   const sourceRel = getMarkdownAssetSourcePath(nodePath);
+  const linkBase = getCurrentEditorLinkBasePath() || sourceRel;
   if (isStorageRootRelativePath(relFile) || /^assets\//i.test(relFile)) {
     for (const candidate of listStorageAssetsRefPathCandidates(relFile, sourceRel)) {
       const contextualRef = parseStorageAssetsRef(candidate);
-      const contextualUrl = resolveStorageAssetsRefToApiUrl(contextualRef);
+      const contextualUrl = resolveStorageAssetsRefToApiUrl(contextualRef, sourceRel);
       if (contextualUrl) return contextualUrl;
     }
   }
@@ -14976,21 +15203,50 @@ function resolveMarkdownAssetSrc(src, nodePath) {
     const canonical = toCanonicalAssetsUploadRef(relFile, subdir);
     if (canonical) {
       const shortAssetsRef = parseStorageAssetsRef(canonical);
-      const shortUrl = resolveStorageAssetsRefToApiUrl(shortAssetsRef);
+      const shortUrl = resolveStorageAssetsRefToApiUrl(shortAssetsRef, sourceRel);
       if (shortUrl) return shortUrl;
     }
   }
 
   const assetsRef = parseStorageAssetsRef(relFile);
-  const directUrl = resolveStorageAssetsRefToApiUrl(assetsRef);
+  const directUrl = resolveStorageAssetsRefToApiUrl(assetsRef, sourceRel);
   if (directUrl) return directUrl;
 
-  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(relFile, sourceRel);
+  const layerRef = parseStorageLayerRef(relFile);
+  if (layerRef?.layer === STORAGE_SUBFOLDER_MEDIA || layerRef?.layer === STORAGE_SUBFOLDER_CONTENT) {
+    const layerUrl = resolveStorageLayerMediaRefToApiUrl(
+      {
+        manifestRelPath: pickManifestRelFromStorageLayerRef(layerRef),
+        layer: layerRef.layer,
+        relativePath: layerRef.relativePath
+      },
+      sourceRel
+    );
+    if (layerUrl) return layerUrl;
+  }
+
+  const workspaceRel = resolveMarkdownHrefToWorkspaceRel(relFile, linkBase);
   if (workspaceRel) {
     const docAssetsRef = parseStorageAssetsRef(workspaceRel);
-    const docUrl = resolveStorageAssetsRefToApiUrl(docAssetsRef);
+    const docUrl = resolveStorageAssetsRefToApiUrl(docAssetsRef, sourceRel);
     if (docUrl) return docUrl;
+
+    const docLayerRef = parseStorageLayerRef(workspaceRel);
+    if (docLayerRef?.layer === STORAGE_SUBFOLDER_MEDIA || docLayerRef?.layer === STORAGE_SUBFOLDER_CONTENT) {
+      const docLayerUrl = resolveStorageLayerMediaRefToApiUrl(
+        {
+          manifestRelPath: pickManifestRelFromStorageLayerRef(docLayerRef),
+          layer: docLayerRef.layer,
+          relativePath: docLayerRef.relativePath
+        },
+        sourceRel
+      );
+      if (docLayerUrl) return docLayerUrl;
+    }
   }
+
+  const fallbackUrl = resolveWorkspaceImageToApiUrl(relFile, nodePath, { linkBase });
+  if (fallbackUrl) return fallbackUrl;
 
   return raw;
 }
@@ -17114,13 +17370,29 @@ function getExternalItemContextPath(item, nodePath = activePath) {
 }
 
 function resolveExternalItemPreviewUi(item, nodePath = activePath) {
-  const previewPath = getPropsEntryValueByKey(item.props, "awn-preview");
+  const props = Array.isArray(item?.props) ? item.props : [];
+  const previewPath = getPropsEntryValueByKey(props, "awn-preview");
   const contextPath = getExternalItemContextPath(item, nodePath);
   if (previewPath) return buildPreviewUiFromPath(previewPath, contextPath);
-  if (item.hasPreview && item.previewUrl) {
+  if (item?.hasPreview && item?.previewUrl) {
     return { imageUrl: item.previewUrl, previewPath: "" };
   }
   return null;
+}
+
+function resolveNavigationItemPreviewUi(item, nodePath = activePath) {
+  const externalPreview = resolveExternalItemPreviewUi(item, nodePath);
+  if (externalPreview) return externalPreview;
+
+  const path = String(item?.path || "").replace(/\\/g, "/");
+  const group = String(item?.group || "").trim();
+  const ext = String(item?.ext || path.split(".").pop() || "").toLowerCase();
+  const isImage =
+    group === "Images" || /^(?:jpe?g|png|gif|webp|heic|heif|bmp|svg)$/.test(ext.replace(/^\./, ""));
+  if (!path || !isImage) return null;
+
+  const imageUrl = appendCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL));
+  return imageUrl ? { imageUrl, previewPath: path } : null;
 }
 
 function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
@@ -19688,30 +19960,70 @@ function getStorageFolderDisplayLabel(mode = activeContentMode) {
   return STORAGE_FOLDER_LABELS[mode] || label || "";
 }
 
-function getStorageFolderMissingMessage(mode = activeContentMode) {
+function getStorageFolderMissingMessage(mode = activeContentMode, { short = false } = {}) {
+  if (short) return "Папка не найдена на диске";
   const label = getStorageFolderDisplayLabel(mode);
   return label ? `Папка «${label}» не найдена` : "Папка не найдена";
 }
 
-function getStorageFolderEmptyMessage(mode = activeContentMode) {
+function getStorageFolderEmptyMessage(mode = activeContentMode, { short = false } = {}) {
+  if (short) return "Папка пуста";
   const label = getStorageFolderDisplayLabel(mode);
   return label ? `Папка «${label}» пуста` : "Список пуст";
+}
+
+function getDataStorageSlotPathHint(spec) {
+  if (!spec) return "";
+  const folderName = getStorageFolderNamesForSlotKey(spec.key)[0] || spec.key;
+  return `${STORAGE_ROOT_FOLDER}/${folderName}/`;
+}
+
+function isDataHubPanelContainer(container) {
+  return Boolean(container?.closest?.(".data-hub-panel") || container?.classList?.contains("data-hub-panel"));
+}
+
+function renderDataHubPanelEmptyState(container, { icon = "📁", message = "", path = "", variant = "muted" } = {}) {
+  container.replaceChildren();
+  const state = document.createElement("div");
+  state.className = `data-hub-panel-empty-state data-hub-panel-empty-state--${variant}`;
+
+  const iconNode = document.createElement("div");
+  iconNode.className = "data-hub-panel-empty-state-icon";
+  iconNode.textContent = icon;
+  iconNode.setAttribute("aria-hidden", "true");
+  state.appendChild(iconNode);
+
+  if (message) {
+    const text = document.createElement("p");
+    text.className = "data-hub-panel-empty-state-message";
+    text.textContent = message;
+    state.appendChild(text);
+  }
+
+  if (path) {
+    const pathNode = document.createElement("p");
+    pathNode.className = "data-hub-panel-empty-state-path";
+    pathNode.textContent = path;
+    state.appendChild(pathNode);
+  }
+
+  container.appendChild(state);
 }
 
 function isFlatStorageListMode(mode = activeContentMode) {
   return mode === "inbox" || mode === "quick-notes" || mode === "references" || mode === "scripts" || mode === "artefacts" || mode === "repository" || mode === "temp";
 }
 
-function isFlatStorageListSourceToggleMode(mode = activeContentMode) {
-  return mode === "scripts";
+function isFlatStorageListSourceToggleMode() {
+  return false;
 }
 
 function isTabularSourceEditing() {
   return activeContentMode === "tabular" && editorViewMode === "source";
 }
 
-function isListViewWithSourceToggleMode(mode = activeContentMode) {
-  return isFlatStorageListSourceToggleMode(mode);
+function isListViewWithSourceToggleMode() {
+  return false;
 }
 
 function isWorkspaceRefreshAvailable() {
@@ -19754,7 +20066,23 @@ async function refreshWorkspaceContent() {
   }
 }
 
-function renderListEmptyMessage(container, message) {
+function renderListEmptyMessage(container, message, { centeredInDataHub = false } = {}) {
+  if (centeredInDataHub || isDataHubPanelContainer(container)) {
+    const spec = getDataStorageSlotForMode(activeContentMode);
+    const shortMessage =
+      message === getStorageFolderMissingMessage(activeContentMode)
+        ? getStorageFolderMissingMessage(activeContentMode, { short: true })
+        : message === getStorageFolderEmptyMessage(activeContentMode)
+          ? getStorageFolderEmptyMessage(activeContentMode, { short: true })
+          : message;
+    renderDataHubPanelEmptyState(container, {
+      icon: spec?.icon || "📁",
+      message: shortMessage,
+      path: getDataStorageSlotPathHint(spec),
+      variant: shortMessage.includes("не найдена") ? "missing" : "muted"
+    });
+    return;
+  }
   const empty = document.createElement("div");
   empty.className = "list-empty";
   empty.textContent = message;
@@ -19765,9 +20093,7 @@ function applyFlatStorageFolderLoadState(mode, data) {
   activeStorageFolderExists = Boolean(data.exists);
   modeContentCache[mode] = data.content || "";
   if (!activeStorageFolderExists) {
-    fileContentInputNode.value = isFlatStorageListSourceToggleMode(mode)
-      ? getStorageFolderMissingMessage(mode)
-      : "";
+    fileContentInputNode.value = "";
     return;
   }
   fileContentInputNode.value = modeContentCache[mode];
@@ -20006,6 +20332,11 @@ function renderDataHubAllItemsPanel(container, scan) {
   const root = document.createElement("div");
   root.className = "data-hub-all-items-view";
 
+  const grid = document.createElement("div");
+  grid.className = "data-hub-all-items-grid";
+  grid.setAttribute("role", "list");
+  root.appendChild(grid);
+
   for (const entry of entries) {
     if (entry.kind === "divider") continue;
 
@@ -20018,53 +20349,77 @@ function renderDataHubAllItemsPanel(container, scan) {
     const entryCount = Number(folder?.entryCount) || 0;
     const icon = spec?.icon || "📁";
     const label = spec?.label || folder?.name || folderName;
+    const pathHint = folderName ? `${STORAGE_ROOT_FOLDER}/${folderName}/` : "";
+    const hasFolder = Boolean(folder);
+    const isMissing = !hasFolder && !isOrphan;
 
-    const section = document.createElement("section");
-    section.className = "list-section data-hub-all-items-section";
-    if (disabled) section.classList.add("is-disabled");
+    const card = document.createElement("article");
+    card.className = "data-hub-slot-card";
+    card.setAttribute("role", "listitem");
+    if (disabled) card.classList.add("is-disabled");
+    if (isMissing) card.classList.add("is-missing");
+    else if (!entryCount) card.classList.add("is-empty");
+    else card.classList.add("has-items");
 
-    const header = document.createElement("button");
-    header.type = "button";
-    header.className = "list-section-header data-hub-all-items-section-header";
-    header.disabled = disabled;
-    header.textContent = `${icon} ${label}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "data-hub-slot-card-btn";
+    btn.disabled = disabled || isMissing;
 
-    const meta = document.createElement("span");
-    meta.className = "data-hub-all-items-section-meta";
-    if (folder) {
-      meta.textContent = entryCount > 0 ? `${entryCount} эл.` : "пусто";
+    const iconNode = document.createElement("span");
+    iconNode.className = "data-hub-slot-card-icon";
+    iconNode.textContent = icon;
+    iconNode.setAttribute("aria-hidden", "true");
+
+    const body = document.createElement("span");
+    body.className = "data-hub-slot-card-body";
+
+    const title = document.createElement("span");
+    title.className = "data-hub-slot-card-label";
+    title.textContent = label;
+
+    const status = document.createElement("span");
+    status.className = "data-hub-slot-card-status";
+    if (isMissing) {
+      status.textContent = "нет на диске";
+    } else if (entryCount > 0) {
+      status.textContent = `${entryCount} эл.`;
     } else {
-      meta.textContent = "нет на диске";
+      status.textContent = "пусто";
     }
-    header.appendChild(meta);
 
-    if (!disabled && spec) {
-      header.addEventListener("click", () => setActiveDataStorageSlot(spec));
+    body.append(title, status);
+
+    if (pathHint) {
+      const pathNode = document.createElement("span");
+      pathNode.className = "data-hub-slot-card-path";
+      pathNode.textContent = pathHint;
+      body.appendChild(pathNode);
+    }
+
+    btn.append(iconNode, body);
+
+    if (!disabled && spec && hasFolder) {
+      btn.addEventListener("click", () => setActiveDataStorageSlot(spec));
     } else if (isOrphan) {
-      header.title = "Папка не сопоставлена ни с одним слотом";
+      btn.title = "Папка не сопоставлена ни с одним слотом";
     } else if (spec?.disabled) {
-      header.title = "Скоро";
+      btn.title = "Скоро";
+    } else if (isMissing) {
+      btn.title = "Папка не найдена на диске";
     }
 
-    section.appendChild(header);
-
-    if (folderName) {
-      const pathNote = document.createElement("div");
-      pathNote.className = "data-hub-all-items-section-path";
-      pathNote.textContent = `${STORAGE_ROOT_FOLDER}/${folderName}/`;
-      section.appendChild(pathNote);
-    }
-
-    root.appendChild(section);
+    card.appendChild(btn);
+    grid.appendChild(card);
   }
 
   if (looseFiles.length > 0) {
     const section = document.createElement("section");
-    section.className = "list-section data-hub-all-items-section data-hub-all-items-section--loose";
+    section.className = "data-hub-all-items-loose-section";
 
     const header = document.createElement("div");
-    header.className = "list-section-header data-hub-all-items-section-header";
-    header.textContent = `📄 Файлы в корне (${looseFiles.length})`;
+    header.className = "data-hub-all-items-loose-head";
+    header.textContent = `📄 Файлы вне папок (${looseFiles.length})`;
     section.appendChild(header);
 
     const list = document.createElement("ul");
@@ -20091,18 +20446,9 @@ function renderListViewContent() {
   const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();
   const isFlatStorageSectionListView = isFlatStorageSectionMode() && isFlatStorageListMode();
 
-  if (useDataHub && activeDataStorageAllItems) {
+  if (useDataHub && shouldShowDataHubAllSlotsPanel()) {
     ensureDataHubShell();
-    const panel = getListViewMountRoot();
-    panel.replaceChildren();
-    const loading = document.createElement("div");
-    loading.className = "list-empty data-hub-all-items-loading";
-    loading.textContent = "Сканирование awn-storage…";
-    panel.appendChild(loading);
-    void fetchStorageRootScan().then((scan) => {
-      if (!activeDataStorageAllItems) return;
-      renderDataHubAllItemsPanel(panel, scan);
-    });
+    void loadDataHubAllItemsPanel(getListViewMountRoot());
     return;
   }
 
@@ -20136,7 +20482,6 @@ function renderListViewContent() {
   }
   if (isFlatStorageSectionListView) {
     if (!activeStorageFolderExists) {
-      if (useDataHub) ensureDataHubShell();
       listMountRoot.innerHTML = "";
       if (!useDataHub) listViewContentNode.innerHTML = "";
       renderListEmptyMessage(listMountRoot, getStorageFolderMissingMessage(activeContentMode));
@@ -28691,6 +29036,7 @@ function syncGitRepoLooseMdPathHeaderUi() {
 }
 
 function getPropsEntryValueByKey(entries, key) {
+  if (!Array.isArray(entries) || !entries.length) return "";
   const normalizedKey = normalizePropsKey(key);
   const entry = entries.find((item) => normalizePropsKey(item.key) === normalizedKey);
   if (!entry) return "";
@@ -31197,6 +31543,42 @@ function appendNavBookTocStatusBadge(parent, status) {
   parent.appendChild(badge);
 }
 
+function createNavBookTocLinkLeading(item, nodePath = activePath) {
+  const preview = resolveNavigationItemPreviewUi(item, nodePath);
+  if (preview?.imageUrl && !preview.broken) {
+    const previewWrap = document.createElement("span");
+    previewWrap.className = "nav-book-toc-link-preview";
+    if (appendNavigationItemPreviewThumb(previewWrap, item, preview, { className: "nav-book-toc-link-preview-img" })) {
+      return previewWrap;
+    }
+  }
+  return createNavBookTocLinkIcon({ branch: true });
+}
+
+function appendNavigationItemPreviewThumb(parent, item, preview, { className = "" } = {}) {
+  if (!preview || preview.broken) return false;
+
+  const rawUrl = String(preview.imageUrl || "").trim();
+  if (!rawUrl) return false;
+
+  const imageUrl =
+    /^https?:\/\//i.test(rawUrl) || rawUrl.startsWith("/api/")
+      ? appendCacheBuster(appendAgentToApiUrl(rawUrl))
+      : appendCacheBuster(rawUrl);
+
+  const img = document.createElement("img");
+  img.className = className;
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.src = imageUrl;
+  img.addEventListener("error", () => applyBrokenImagePlaceholder(img, "Превью не найдено"), {
+    once: true
+  });
+  parent.appendChild(img);
+  return true;
+}
+
 function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
   const folderStatuses = new Map();
@@ -31237,7 +31619,10 @@ function prepareNavigationExternalItems(files, folders = []) {
       name: item.name,
       parent: item.parent,
       title: title || resolveNodeDisplayName(awnName, slug),
-      status: resolveNavigationItemStatus(item)
+      status: resolveNavigationItemStatus(item),
+      props,
+      hasPreview: Boolean(item.hasPreview),
+      previewUrl: item.previewUrl || null
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       addMemorySectionFolderPath(folderPaths, ancestor);
@@ -31394,9 +31779,7 @@ function isDataEntryOverviewMemoryKind(kind) {
 
 function getEntryOverviewTocRootEntryKind(memoryKind) {
   if (memoryKind === "media") return "awn.media.memory.toc.root";
-  if (memoryKind === "inbox") return "awn.inbox.toc.root";
-  if (memoryKind === "quick-notes") return "awn.quick-notes.toc.root";
-  if (memoryKind === "references") return "awn.references.toc.root";
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) return `awn.${memoryKind}.toc.root`;
   return "awn.memory.toc.root";
 }
 
@@ -31592,13 +31975,9 @@ function getActiveDataEntryViewKind() {
 }
 
 function supportsDataEntryOverview(slotKey) {
-  return (
-    slotKey === "memory" ||
-    slotKey === "media" ||
-    slotKey === "inbox" ||
-    slotKey === "quick-notes" ||
-    slotKey === "references"
-  );
+  const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
+  if (!spec || spec.disabled) return false;
+  return Boolean(getEntryOverviewMemoryKindForSlot(spec));
 }
 
 function isDataEntryViewSelectAvailable() {
@@ -33177,6 +33556,7 @@ function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
+  const nodePath = handlers.nodePath || activePath;
   const onFolderClick = handlers.onFolderClick || openExternalCategoryOverviewFromNavigation;
   const onFileClick =
     handlers.onFileClick || ((item) => openExternalRecordOverviewFromNavigation(item));
@@ -33238,7 +33618,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     leaders.className = "nav-book-toc-leaders";
     leaders.setAttribute("aria-hidden", "true");
 
-    link.append(createNavBookTocLinkIcon({ branch: true }), text, leaders);
+    link.append(createNavBookTocLinkLeading(item, nodePath), text, leaders);
     appendNavBookTocStatusBadge(link, item.status);
     link.addEventListener("click", (event) => {
       event.preventDefault();
@@ -33444,6 +33824,7 @@ function renderNavigationMediaPart(mediaData) {
   appendNavigationBookTocList(list, tree, 0, {
     folderLabels,
     folderStatuses,
+    nodePath,
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   });
@@ -35471,6 +35852,7 @@ async function renderNodeNavigation() {
 
   if (isStale()) return;
 
+  try {
   if (activePath && !propsFormEntries.length && !String(propsInputNode.value || "").trim()) {
     await loadPropertiesForActivePath();
     if (isStale()) return;
@@ -35601,6 +35983,16 @@ async function renderNodeNavigation() {
     hub.appendChild(empty);
   }
   nodeOverviewContentNode.replaceChildren(hub);
+  hideContentLoading({ force: true });
+  } catch (error) {
+    console.error("renderNodeNavigation failed", error);
+    nodeOverviewContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "node-navigation-empty";
+    errorNode.textContent = `Ошибка загрузки навигации: ${error.message || error}`;
+    nodeOverviewContentNode.appendChild(errorNode);
+    hideContentLoading({ force: true });
+  }
 }
 
 async function renderNodeOverview() {
@@ -36373,11 +36765,9 @@ function getMarkdownIt() {
     const srcIndex = token.attrIndex("src");
     if (srcIndex >= 0) {
       const rawSrc = token.attrs[srcIndex][1];
-      const sourcePath = getMarkdownAssetSourcePath(env?.nodePath);
-      if (isBrokenImageSrc(rawSrc, sourcePath)) {
-        token.attrSet("data-original-src", rawSrc);
-      } else {
-        const resolved = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
+      const resolved = resolveMarkdownAssetSrc(rawSrc, env?.nodePath);
+      token.attrSet("data-original-src", rawSrc);
+      if (isLoadableImageDisplayUrl(resolved)) {
         const thumbResolved =
           env?.useImageThumbs === false
             ? resolved
@@ -36535,7 +36925,7 @@ async function typesetMarkdownDiagrams(rootNode) {
 function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
   if (!element) return;
   const resolvedNodePath =
-    nodePath || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+    getPropsContextPath() || nodePath || getActiveTitleEditorPath() || getActiveNodeApiPath();
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
   applySyntaxHighlighting(element, { nodePath: resolvedNodePath });
   void typesetMarkdownDiagrams(element);
@@ -36661,14 +37051,13 @@ function enhanceMarkdownPreviewImages(root) {
   classifyPreviewImagesAuto(root);
   const nodePath = getPropsContextPath() || getActiveTitleEditorPath();
   root.querySelectorAll("img").forEach((img) => {
-    if (img.src?.includes("image-missing.svg")) return;
     bindMarkdownPreviewImageFallback(img, nodePath);
   });
 }
 
 function renderPreviewFromEditor() {
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, {
-    nodePath: getActiveTitleEditorPath()
+    nodePath: getPropsContextPath() || getActiveTitleEditorPath()
   });
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
@@ -37220,8 +37609,6 @@ function syncWysiwygEditorImages(nodePath = getPropsContextPath() || getActiveTi
   const editorPath = getMarkdownAssetSourcePath(nodePath) || nodePath;
   for (const root of getWysiwygEditorImageRoots()) {
     root.querySelectorAll("img").forEach((img) => {
-      if (img.dataset.brokenPlaceholder === "1" && img.dataset.originalSrc) return;
-
       let original = img.dataset.originalSrc || "";
       const currentSrc = img.getAttribute("src") || "";
       if (!original && currentSrc && !currentSrc.includes("image-missing.svg")) {
@@ -37240,12 +37627,7 @@ function syncWysiwygEditorImages(nodePath = getPropsContextPath() || getActiveTi
         return;
       }
 
-      if (isBrokenImageSrc(original, editorPath)) {
-        applyBrokenImagePlaceholder(img);
-        return;
-      }
-
-      const resolved = resolveMarkdownAssetSrc(original, editorPath);
+      const resolved = resolveMarkdownAssetSrc(original, nodePath);
       if (!isLoadableImageDisplayUrl(resolved)) {
         applyBrokenImagePlaceholder(img);
         return;
@@ -37285,26 +37667,42 @@ function teardownWysiwygBrokenImageFallbacks() {
 
 function normalizeMarkdownAssetHref(href) {
   const trimmed = String(href || "").trim();
-  if (!trimmed || /^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed) || trimmed.startsWith("/api/")) {
+  if (!trimmed || /^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) {
     return trimmed;
+  }
+  if (trimmed.startsWith("/api/")) {
+    const apiRef = parseMarkdownImageApiUrl(trimmed);
+    if (!apiRef) return trimmed;
+    const assetsRef = toCanonicalAssetsUploadRef(apiRef.file, PASTED_ASSETS_SUBDIR);
+    if (assetsRef) return formatInlineAssetPathForEditor(assetsRef) || trimmed;
+    const normalized = normalizeMarkdownImageFileRef(apiRef.file);
+    if (/^(?:\.\/|\.\.\/)/.test(trimmed) || /^\.\//.test(apiRef.file)) {
+      return normalized.split("/").pop() || normalized;
+    }
+    return normalized || trimmed;
   }
 
   const looksLikeInlineAsset =
     /\/assets\/(pasted|preview|attachments)\//i.test(trimmed) ||
     /^(\.\.\/)+/.test(trimmed) ||
+    /^(?:\.\/|\.\.\/)/.test(trimmed) ||
     /^(?:awn-storage|storage)\//i.test(trimmed) ||
     /^assets\//i.test(trimmed) ||
-    /^(pasted|preview|attachments)\//i.test(trimmed);
+    /^(pasted|preview|attachments)\//i.test(trimmed) ||
+    /^media\//i.test(trimmed) ||
+    /^main\//i.test(trimmed);
   if (!looksLikeInlineAsset) return trimmed;
 
+  const normalized = normalizeMarkdownImageFileRef(trimmed);
   const subdir = /preview/i.test(trimmed)
     ? PREVIEW_ASSETS_SUBDIR
     : /attachments/i.test(trimmed)
       ? ATTACHMENTS_ASSETS_SUBDIR
       : PASTED_ASSETS_SUBDIR;
-  const canonical = toCanonicalAssetsUploadRef(trimmed, subdir);
-  if (!canonical) return trimmed;
-  return formatInlineAssetPathForEditor(canonical) || canonical;
+  const canonical = toCanonicalAssetsUploadRef(normalized, subdir);
+  if (canonical) return formatInlineAssetPathForEditor(canonical) || canonical;
+  if (/^(?:\.\/|\.\.\/)/.test(trimmed)) return normalized.split("/").pop() || normalized;
+  return normalized || trimmed;
 }
 
 function normalizeMarkdownInlineAssetRefs(markdown) {
@@ -37314,10 +37712,17 @@ function normalizeMarkdownInlineAssetRefs(markdown) {
     (match, alt, url) => {
       try {
         const parsed = new URL(url, window.location.origin);
-        const relFile = decodeURIComponent(parsed.searchParams.get("file") || "");
-        const ref = toCanonicalAssetsUploadRef(relFile, PASTED_ASSETS_SUBDIR);
-        const formatted = ref ? formatInlineAssetPathForEditor(ref) : "";
-        return formatted ? `![${alt}](${formatted})` : match;
+        const relFile = normalizeMarkdownImageFileRef(
+          decodeURIComponent(parsed.searchParams.get("file") || "")
+        );
+        const assetsRef = toCanonicalAssetsUploadRef(relFile, PASTED_ASSETS_SUBDIR);
+        const formatted = assetsRef ? formatInlineAssetPathForEditor(assetsRef) : "";
+        if (formatted) return `![${alt}](${formatted})`;
+        if (relFile && !relFile.startsWith("assets/")) {
+          const basename = relFile.split("/").pop();
+          if (basename) return `![${alt}](${basename})`;
+        }
+        return match;
       } catch {
         return match;
       }

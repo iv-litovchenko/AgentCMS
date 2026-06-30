@@ -12,7 +12,8 @@ module.exports = {
     "path → manifest.md темы/области (напр. awn-container/finansydohody/manifest.md; legacy _registration.md).",
     "file → имя .md в awn-storage/main/ или media/ относительно темы.",
     "Старт сессии: один вызов get_session_context — не делайте grep/curl/ls по репозиторию.",
-    "58 tools — полный список ниже."
+    "60 tools — полный список ниже.",
+    "awn-mask-file (маска имён в main/) — read_node_config → awnMaskFile; create_external_memory подхватывает маску автоматически."
   ],
   cursorConfig: {
     command: "node",
@@ -203,6 +204,18 @@ module.exports = {
           http: "POST /api/file/topic-schema"
         },
         {
+          name: "read_node_config",
+          description: "configuration.yml ноды: awn_settings (awn-mask-file), awn_ui, awn_schema.",
+          parameters: "path",
+          http: "GET /api/file/node-config"
+        },
+        {
+          name: "write_node_config",
+          description: "Сохранить configuration.yml ноды.",
+          parameters: "path, content",
+          http: "POST /api/file/node-config"
+        },
+        {
           name: "create_node",
           description: "Создать область/тему или part.",
           parameters: "parentPath?, type: folder|file, name",
@@ -270,8 +283,8 @@ module.exports = {
         },
         {
           name: "create_external_memory",
-          description: "Создать заметку в main/.",
-          parameters: "path, title?",
+          description: "Создать заметку в main/. Без fileMask — берёт awn-mask-file из node config. Маска: {YYYY},{YY},{MM},{DD},{WW},{id}.",
+          parameters: "path, title?, displayName?, fileMask?, parent?",
           http: "POST /api/external/file/create"
         }
       ]
