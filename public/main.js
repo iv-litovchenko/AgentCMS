@@ -29946,6 +29946,9 @@ function openCreateSectionModal(targetMode = "external") {
     return;
   }
   createSectionTargetMode = targetMode;
+  renameSectionState = null;
+  renameMenuNodeState = null;
+  renameExternalFileState = null;
   createSectionParentFolder =
     targetMode === "media"
       ? getActiveMediaSectionParentForCreate()
