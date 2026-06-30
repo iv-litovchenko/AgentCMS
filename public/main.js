@@ -9520,12 +9520,14 @@ function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
 
 const MENU_CONTEXT_MENU_ACTIONS = {
   area: [
+    { id: "edit", label: "Редактировать" },
     { id: "rename", label: "Переименовать" },
     { id: "move", label: "Переместить" },
     { id: "delete", label: "Удалить" },
     { id: "container", label: "Контейнер", requiresNestedContainer: true }
   ],
   topic: [
+    { id: "edit", label: "Редактировать" },
     { id: "rename", label: "Переименовать" },
     { id: "move", label: "Переместить" },
     { id: "delete", label: "Удалить" },
@@ -9533,7 +9535,7 @@ const MENU_CONTEXT_MENU_ACTIONS = {
   ]
 };
 
-const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["rename", "move", "delete", "container"]);
+const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["edit", "rename", "move", "delete", "container"]);
 
 const MENU_AWN_STATUS_OPTIONS = [
   { key: "open", name: "🟢 Открыта" },
@@ -9795,6 +9797,11 @@ function handleMenuContextMenuAction(actionId) {
   if (!state) return;
   closeMenuContextMenu();
 
+  if (actionId === "edit") {
+    void openNodeFromMenu(state.label || getLabelFromPath(state.path), state.path);
+    return;
+  }
+
   if (actionId === "container") {
     const folderPath = getFolderPathFromManifest(state.path);
     const containerManifest = folderPath
@@ -9821,6 +9828,8 @@ function handleMenuContextMenuAction(actionId) {
   }
 }
 
+const RESOURCE_EDIT_ACTION = { id: "edit", label: "Редактировать" };
+
 const RESOURCE_STANDARD_ACTIONS = [
   { id: "rename", label: "Переименовать" },
   { id: "move", label: "Переместить" },
@@ -9828,9 +9837,9 @@ const RESOURCE_STANDARD_ACTIONS = [
 ];
 
 const RESOURCE_CONTEXT_MENU_ACTIONS = {
-  externalFile: [...RESOURCE_STANDARD_ACTIONS],
-  flatStorageFile: [...RESOURCE_STANDARD_ACTIONS],
-  memorySection: [...RESOURCE_STANDARD_ACTIONS]
+  externalFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
+  flatStorageFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
+  memorySection: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS]
 };
 
 let resourceContextMenuState = null;
@@ -10437,10 +10446,38 @@ function renameModalSubmitLabel() {
   return renameSectionState || renameMenuNodeState || renameExternalFileState ? "Сохранить" : "Создать";
 }
 
+function editFlatStorageFileFromResourceMenu(state) {
+  const mode = state?.mode;
+  const rel = String(state?.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!mode || !rel) return;
+  openFlatStorageRecordOverviewFromNavigation(
+    { path: rel, title: state.label || rel.split("/").pop() || rel },
+    mode
+  );
+}
+
 function handleResourceContextMenuAction(actionId) {
   const state = resourceContextMenuState;
   if (!state) return;
   closeResourceContextMenu();
+
+  if (actionId === "edit" && state.kind === "memorySection" && state.sectionFolder) {
+    const readmePath = getSectionReadmeRelPath(state.sectionFolder);
+    if (typeof state.onReadmeEdit === "function") {
+      state.onReadmeEdit(readmePath, state.sectionFolder);
+    }
+    return;
+  }
+
+  if (actionId === "edit" && state.kind === "externalFile" && state.filePath) {
+    void openExternalFile(state.filePath);
+    return;
+  }
+
+  if (actionId === "edit" && state.kind === "flatStorageFile" && state.filePath) {
+    editFlatStorageFileFromResourceMenu(state);
+    return;
+  }
 
   if (actionId === "rename" && state.kind === "memorySection" && state.sectionFolder) {
     openRenameSectionModal(state);
@@ -29869,7 +29906,7 @@ async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
     }
     rerenderFlatStorageListViewBody(mode);
   }
-  showToast(`Описание раздела: ${readmePath}`, "info");
+  openFlatStorageCategoryOverviewFromNavigation(sectionFolder, mode);
 }
 
 function syncPropsInputPlaceholder() {
@@ -31253,6 +31290,11 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   main.append(thumbWrap, identity, actions);
+  const heroNav = createEntryOverviewSiblingNav({
+    ...(options.entryOverviewNav || {}),
+    variant: "hero"
+  });
+  if (heroNav) hero.appendChild(heroNav);
   hero.appendChild(main);
 
   if (options.showWorkspaceMarkers !== false) {
@@ -33695,7 +33737,87 @@ async function fetchEntryOverviewBody(context) {
   return "";
 }
 
-function renderEntryOverviewContentPart(rawContent, nodePath) {
+function getEntryOverviewManifestItemLabel(item) {
+  return item?.title || item?.displayName || item?.name || item?.path?.split("/").pop() || "";
+}
+
+function createEntryOverviewSiblingNav({
+  prevItem,
+  nextItem,
+  onFileClick,
+  onUpClick,
+  upTitle = "",
+  variant = "manifest"
+} = {}) {
+  if (!prevItem && !nextItem && !onUpClick) return null;
+
+  const nav = document.createElement("div");
+  nav.className =
+    variant === "hero"
+      ? "node-entry-overview-hero-nav"
+      : "node-navigation-manifest-nav";
+  nav.setAttribute("role", "navigation");
+  nav.setAttribute("aria-label", "Навигация по записям раздела");
+
+  if (prevItem) {
+    const prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
+    prevBtn.textContent = "← Предыдущая";
+    prevBtn.title = getEntryOverviewManifestItemLabel(prevItem);
+    prevBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onFileClick?.(prevItem);
+    });
+    nav.appendChild(prevBtn);
+  } else {
+    const spacer = document.createElement("span");
+    spacer.className = "node-navigation-manifest-nav-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    nav.appendChild(spacer);
+  }
+
+  if (onUpClick) {
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.className =
+      "node-navigation-manifest-nav-btn node-navigation-manifest-nav-btn--up node-overview-action-btn";
+    upBtn.textContent = "Наверх";
+    upBtn.title = upTitle || "Оглавление";
+    upBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onUpClick();
+    });
+    nav.appendChild(upBtn);
+  }
+
+  if (nextItem) {
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
+    nextBtn.textContent = "Следующая →";
+    nextBtn.title = getEntryOverviewManifestItemLabel(nextItem);
+    nextBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onFileClick?.(nextItem);
+    });
+    nav.appendChild(nextBtn);
+  } else {
+    const spacer = document.createElement("span");
+    spacer.className = "node-navigation-manifest-nav-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    nav.appendChild(spacer);
+  }
+
+  return nav;
+}
+
+function appendEntryOverviewManifestNavActions(wrap, navOptions = {}) {
+  const nav = createEntryOverviewSiblingNav({ ...navOptions, variant: "manifest" });
+  if (nav) wrap.appendChild(nav);
+}
+
+function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = {}) {
   const { body } = splitFrontmatter(String(rawContent || ""));
   const content = stripAwnDescCallouts(body).trim();
   if (!content) return null;
@@ -33709,6 +33831,8 @@ function renderEntryOverviewContentPart(rawContent, nodePath) {
   preview.className = "node-navigation-preview file-content-preview";
   setMarkdownPreviewHtml(preview, previewText, { nodePath });
   wrap.appendChild(preview);
+
+  appendEntryOverviewManifestNavActions(wrap, navOptions);
 
   if (isTruncated) {
     const actions = document.createElement("div");
@@ -34241,6 +34365,102 @@ function getEntryOverviewSectionFolderPath(context) {
     context.entryKind === "awn.record.category" || context.entryKind === "awn.media.category";
   if (!isCategory || !isSectionReadmePath(relativePath)) return null;
   return relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+}
+
+function getEntryOverviewParentFolderPath(context) {
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath) return "";
+  const isCategory =
+    context.entryKind === "awn.record.category" || context.entryKind === "awn.media.category";
+  if (isCategory && isSectionReadmePath(relativePath)) {
+    return relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+  }
+  const slash = relativePath.lastIndexOf("/");
+  return slash === -1 ? "" : relativePath.slice(0, slash);
+}
+
+function getEntryOverviewSiblingFiles(context, navigationIndex) {
+  if (!navigationIndex || isEntryOverviewMemoryTocRoot(context)) return [];
+
+  const parentFolder = getEntryOverviewParentFolderPath(context);
+  const prefix = parentFolder ? `${parentFolder}/` : "";
+
+  return (navigationIndex.contentFiles || [])
+    .filter((item) => {
+      const path = String(item.path || "").replace(/\\/g, "/");
+      if (!path || isSectionReadmePath(path) || isMemorySectionInfrastructureFilePath(path)) {
+        return false;
+      }
+      if (parentFolder) {
+        if (!path.startsWith(prefix)) return false;
+        const rel = path.slice(prefix.length);
+        return rel && !rel.includes("/");
+      }
+      return !path.includes("/");
+    })
+    .sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
+}
+
+function getEntryOverviewAdjacentSiblings(context, navigationIndex) {
+  const siblings = getEntryOverviewSiblingFiles(context, navigationIndex);
+  const currentPath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const index = siblings.findIndex((item) => String(item.path || "").replace(/\\/g, "/") === currentPath);
+  if (index === -1) return { prev: null, next: null };
+  return {
+    prev: index > 0 ? siblings[index - 1] : null,
+    next: index < siblings.length - 1 ? siblings[index + 1] : null
+  };
+}
+
+function resolveEntryOverviewUpNavigation(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return null;
+
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const isCategory =
+    context.entryKind === "awn.record.category" || context.entryKind === "awn.media.category";
+
+  let parentFolder = "";
+  if (isCategory && isSectionReadmePath(relativePath)) {
+    const folderPath = relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    const slash = folderPath.lastIndexOf("/");
+    parentFolder = slash === -1 ? "" : folderPath.slice(0, slash);
+  } else {
+    parentFolder = getEntryOverviewParentFolderPath(context);
+  }
+
+  if (parentFolder) {
+    return { kind: "folder", folderPath: parentFolder };
+  }
+  return { kind: "toc" };
+}
+
+function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return null;
+
+  const { prev, next } = getEntryOverviewAdjacentSiblings(context, navigationIndex);
+  const upNavigation = resolveEntryOverviewUpNavigation(context);
+  const { onFileClick, onFolderClick } = getEntryOverviewNavigationHandlers(context.memoryKind);
+
+  if (!prev && !next && !upNavigation) return null;
+
+  return {
+    prevItem: prev,
+    nextItem: next,
+    onFileClick,
+    onUpClick: upNavigation
+      ? () => {
+          if (upNavigation.kind === "toc") {
+            openEntryOverviewMemoryTocFromNavigation(context.memoryKind);
+            return;
+          }
+          onFolderClick(upNavigation.folderPath);
+        }
+      : null,
+    upTitle:
+      upNavigation?.kind === "folder"
+        ? upNavigation.folderPath.split("/").pop() || upNavigation.folderPath
+        : "Оглавление"
+  };
 }
 
 function buildEntryOverviewSectionTree(navigationIndex, folderPath) {
@@ -34968,6 +35188,8 @@ async function renderEntryOverview() {
   const searchBar = createEntryOverviewSearchBar(context);
   if (searchBar) hub.appendChild(searchBar);
 
+  const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
+
   hub.appendChild(
     context.entryKind === "awn.media.asset"
       ? createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex)
@@ -34977,7 +35199,8 @@ async function renderEntryOverview() {
           pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath),
           thumbWrap: createEntryOverviewThumbWrap(context, preview, title, entries),
           showWorkspaceMarkers: false,
-          onEditClick: () => openEntryOverviewEdit(context)
+          onEditClick: () => openEntryOverviewEdit(context),
+          entryOverviewNav
         })
   );
 
@@ -35000,7 +35223,7 @@ async function renderEntryOverview() {
   );
   if (sectionList) sectionListAnchor.insertAdjacentElement("afterend", sectionList);
 
-  const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath);
+  const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav);
   if (contentPanel) hub.appendChild(contentPanel);
 
   const attachmentsPanel = renderEntryOverviewAttachmentsPart(entries, rawBody);

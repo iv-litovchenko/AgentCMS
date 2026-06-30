@@ -16846,6 +16846,60 @@ button.node-navigation-memory-title:focus-visible {
   box-shadow: none;
 }
 
+.node-entry-overview-hero-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.node-navigation-manifest-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.node-entry-overview-hero-nav .node-navigation-manifest-nav-btn:first-child,
+.node-navigation-manifest-nav .node-navigation-manifest-nav-btn:first-child {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.node-entry-overview-hero-nav .node-navigation-manifest-nav-btn--up,
+.node-navigation-manifest-nav .node-navigation-manifest-nav-btn--up {
+  justify-self: center;
+  flex: 0 0 auto;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.node-entry-overview-hero-nav .node-navigation-manifest-nav-btn:last-child,
+.node-entry-overview-hero-nav .node-navigation-manifest-nav-spacer:last-child,
+.node-navigation-manifest-nav .node-navigation-manifest-nav-btn:last-child,
+.node-navigation-manifest-nav .node-navigation-manifest-nav-spacer:last-child {
+  justify-self: end;
+  max-width: 100%;
+}
+
+.node-navigation-manifest-nav-spacer {
+  display: block;
+  min-width: 0;
+}
+
+.node-navigation-manifest-nav-btn:not(.node-navigation-manifest-nav-btn--up) {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .node-navigation-manifest-actions {
   display: flex;
   align-items: center;
