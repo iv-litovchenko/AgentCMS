@@ -2701,6 +2701,136 @@ function isBlockedStorageFileExtension(filename) {
   return BLOCKED_STORAGE_FILE_EXTENSIONS.has(ext);
 }
 
+const ALLOWED_SCRIPT_STORAGE_EXTENSIONS = new Set([
+  ".js",
+  ".ts",
+  ".jsx",
+  ".tsx",
+  ".mjs",
+  ".cjs",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".kt",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
+  ".ps1",
+  ".bat",
+  ".cmd",
+  ".md",
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf",
+  ".sql",
+  ".graphql",
+  ".xml",
+  ".html",
+  ".htm",
+  ".css",
+  ".scss",
+  ".less",
+  ".vue",
+  ".svelte",
+  ".php",
+  ".pl",
+  ".r",
+  ".lua",
+  ".swift",
+  ".scala",
+  ".clj"
+]);
+
+function shouldSkipStoragePolicyFileName(fileName, { slotKey } = {}) {
+  const name = String(fileName || "");
+  if (!name || name === ".DS_Store") return true;
+  if (name.startsWith(".")) return true;
+  if (isAreaManifestFileName(name)) return true;
+  if (slotKey === "media" && name.toLowerCase().endsWith(".sidecar.md")) return true;
+  return false;
+}
+
+function getStorageFilePolicyViolationReason(fileName, slotKey) {
+  if (!slotKey || shouldSkipStoragePolicyFileName(fileName, { slotKey })) return null;
+  const baseName = getStorageFileBaseName(fileName);
+  if (isBlockedStorageFileExtension(baseName)) return "blocked-executable";
+
+  const lowerName = baseName.toLowerCase();
+  const ext = path.extname(baseName).toLowerCase();
+
+  switch (slotKey) {
+    case "memory":
+    case "inbox":
+    case "quick-notes":
+    case "references":
+    case "thread":
+      if (!lowerName.endsWith(".md")) return "expected-markdown";
+      return null;
+    case "media":
+      if (!ext) return "unsupported-media-type";
+      if (classifyMediaGroup(ext) === "Other") return "unsupported-media-type";
+      return null;
+    case "scripts":
+      if (!ext) return "expected-script-or-text";
+      if (!ALLOWED_SCRIPT_STORAGE_EXTENSIONS.has(ext)) return "expected-script-or-text";
+      return null;
+    case "artefacts":
+    case "repository":
+    case "temp":
+      return null;
+    default:
+      return null;
+  }
+}
+
+async function scanStorageFolderPolicyViolations(folderAbsolute, slotKey, { maxSamples = 5 } = {}) {
+  if (!folderAbsolute || !slotKey) return { count: 0, samples: [] };
+
+  let count = 0;
+  const samples = [];
+
+  async function walk(dirAbsolute, relPrefix = "") {
+    let entries = [];
+    try {
+      entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const relPath = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (shouldSkipDirectoryListing(entry.name)) continue;
+        await walk(path.join(dirAbsolute, entry.name), relPath.replace(/\\/g, "/"));
+        continue;
+      }
+      if (!entry.isFile()) continue;
+
+      const reason = getStorageFilePolicyViolationReason(entry.name, slotKey);
+      if (!reason) continue;
+      count += 1;
+      if (samples.length < maxSamples) {
+        samples.push({
+          path: relPath.replace(/\\/g, "/"),
+          fileName: entry.name,
+          reason
+        });
+      }
+    }
+  }
+
+  await walk(folderAbsolute);
+  return { count, samples };
+}
+
 function isAllowedHiddenStorageFileName(baseName) {
   const name = String(baseName || "");
   if (!name.startsWith(".")) return true;
@@ -4764,12 +4894,18 @@ async function scanNodeStorageRoot(manifestRelPath) {
       const entryCount = folderAbsolute ? await countDirectoryFiles(folderAbsolute) : 0;
       const canonical = normalizeStorageSubfolderName(entry.name);
       const slotKey = resolveSlotKeyFromStorageFolderName(entry.name);
+      const policy =
+        folderAbsolute && slotKey
+          ? await scanStorageFolderPolicyViolations(folderAbsolute, slotKey)
+          : { count: 0, samples: [] };
       folders.push({
         name: entry.name,
         canonical,
         entryCount,
         slotKey,
-        matched: Boolean(slotKey)
+        matched: Boolean(slotKey),
+        policyViolationCount: policy.count,
+        policyViolations: policy.samples
       });
       totalEntries += entryCount;
     }

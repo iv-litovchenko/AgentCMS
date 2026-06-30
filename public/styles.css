@@ -22099,6 +22099,18 @@ button.node-navigation-memory-title:focus-visible {
   max-width: 100%;
 }
 
+.list-view-slot-policy-warning {
+  font-size: 11px;
+  color: #b45309;
+  text-align: center;
+  line-height: 1.35;
+  max-width: 100%;
+}
+
+.data-hub-panel > .list-view-head .list-view-slot-policy-warning {
+  text-align: left;
+}
+
 .list-view--no-head .list-view-head {
   display: none;
 }
@@ -22361,11 +22373,39 @@ button.node-navigation-memory-title:focus-visible {
   padding: 12px;
   box-sizing: border-box;
   background: var(--panel-2, var(--panel));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .data-hub-list-view-split .storage-slot-tree-list,
 .data-hub-panel .media-section-tree-list {
   padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.storage-tree-policy-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.storage-tree-policy-types {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.storage-tree-policy-warning {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #b45309;
 }
 
 .data-hub-list-view-split > .storage-slot-tree > .storage-slot-tree-loading,

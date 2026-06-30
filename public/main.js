@@ -238,6 +238,7 @@ const externalFileCommentsBlockNode = document.getElementById("external-file-com
 const mediaFileCommentsBlockNode = document.getElementById("media-file-comments-block");
 const listViewTitleNode = document.getElementById("list-view-title");
 const listViewSlotTypesNode = document.getElementById("list-view-slot-types");
+const listViewSlotPolicyWarningNode = document.getElementById("list-view-slot-policy-warning");
 const listViewContentNode = document.getElementById("list-view-content");
 const nodeOverviewBlockNode = document.getElementById("node-overview-block");
 const nodeOverviewContentNode = document.getElementById("node-overview-content");
@@ -8021,6 +8022,7 @@ const activeFlatStorageSectionFolder = Object.fromEntries(
 let activeDataStorageAllItems = false;
 let storageSlotTreeRenderToken = 0;
 const storageRootScanCache = new Map();
+let activeStorageRootScan = null;
 const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
 
 function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
@@ -8050,6 +8052,9 @@ function loadDataHubAllItemsPanel(container) {
 
 function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
   if (manifestPath) storageRootScanCache.delete(manifestPath);
+  if (!manifestPath || manifestPath === getActiveNodeApiPath()) {
+    activeStorageRootScan = null;
+  }
 }
 
 async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { force = false } = {}) {
@@ -8058,12 +8063,16 @@ async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { for
   }
   if (!force) {
     const cached = storageRootScanCache.get(manifestPath);
-    if (cached) return cached;
+    if (cached) {
+      activeStorageRootScan = cached;
+      return cached;
+    }
   }
   const response = await fetch(buildApiUrl("/api/storage/scan", { path: manifestPath }));
   if (!response.ok) throw new Error(`Storage scan failed (${response.status})`);
   const data = await response.json();
   storageRootScanCache.set(manifestPath, data);
+  activeStorageRootScan = data;
   return data;
 }
 
@@ -8495,6 +8504,8 @@ async function renderStorageSlotTree(container) {
       }
     }
   }
+  ensureStorageTreePolicyFooter(container, activeContentMode);
+  syncListViewHead();
 }
 
 function loadStorageSectionsPanelVisible() {
@@ -14114,7 +14125,6 @@ function updateBreadcrumbsForActiveMode(overrides) {
 }
 
 function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
-  if (shouldUseDataHubListShell(mode) && activeDataStorageAllItems) return null;
   const slot = getDataStorageSlotForMode(mode);
   if (!slot || slot.disabled) return null;
   if (slot.key === "memory") {
@@ -14124,20 +14134,171 @@ function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
   return DATA_STORAGE_SLOT_FILE_TYPE_LABELS[slot.key] || null;
 }
 
+function shouldShowStorageSlotPolicyWarning(mode = activeContentMode) {
+  if (!shouldUseDataHubListShell(mode)) return false;
+  if (mode === "internal" || mode === "tabular") return false;
+  if (getDataStorageSlotForMode(mode)?.key === "memory" && mode !== "external") return false;
+  return true;
+}
+
+function getStoragePolicyViolationsForScanFolder(folder) {
+  if (!folder) return null;
+  const count = Number(folder.policyViolationCount) || 0;
+  if (count <= 0) return null;
+  return {
+    count,
+    samples: Array.isArray(folder.policyViolations) ? folder.policyViolations : []
+  };
+}
+
+function getStoragePolicyWarningForUi(mode = activeContentMode) {
+  if (!shouldShowStorageSlotPolicyWarning(mode) || !activeStorageRootScan?.exists) return null;
+
+  if (activeDataStorageAllItems) {
+    const affected = (activeStorageRootScan.folders || [])
+      .map((folder) => ({ folder, violations: getStoragePolicyViolationsForScanFolder(folder) }))
+      .filter((entry) => entry.violations);
+    if (!affected.length) return null;
+    const count = affected.reduce((sum, entry) => sum + entry.violations.count, 0);
+    const sample = affected[0]?.violations?.samples?.[0] || null;
+    return { scope: "all-slots", count, slotCount: affected.length, sample };
+  }
+
+  const slot = getDataStorageSlotForMode(mode);
+  if (!slot) return null;
+  const folder = findScanFolderForSlotKey(slot.key, activeStorageRootScan.folders || []);
+  const violations = getStoragePolicyViolationsForScanFolder(folder);
+  if (!violations) return null;
+  return { scope: "slot", count: violations.count, sample: violations.samples[0] || null, slotKey: slot.key };
+}
+
+function formatStoragePolicyWarningMessage(warning) {
+  if (!warning) return "";
+  const samplePath = warning.sample?.path || warning.sample?.fileName || "";
+  if (warning.scope === "all-slots") {
+    if (warning.count === 1) {
+      return samplePath
+        ? `Найден неразрешённый файл: ${samplePath}`
+        : "Найден неразрешённый файл в одном из слотов";
+    }
+    return samplePath
+      ? `Найдено ${warning.count} неразрешённых файлов в ${warning.slotCount} слотах (напр. ${samplePath})`
+      : `Найдено ${warning.count} неразрешённых файлов в ${warning.slotCount} слотах`;
+  }
+  if (warning.count === 1) {
+    return samplePath ? `Найден неразрешённый файл: ${samplePath}` : "Найден неразрешённый файл";
+  }
+  return samplePath
+    ? `Найдено ${warning.count} неразрешённых файлов (напр. ${samplePath})`
+    : `Найдено ${warning.count} неразрешённых файлов`;
+}
+
+function ensureStorageTreePolicyFooter(container, mode = activeContentMode) {
+  if (!container || !shouldUseDataHubListShell(mode)) return;
+  let footer = container.querySelector(".storage-tree-policy-footer");
+  if (!footer) {
+    footer = document.createElement("div");
+    footer.className = "storage-tree-policy-footer";
+    const typesNode = document.createElement("div");
+    typesNode.className = "storage-tree-policy-types";
+    const warningNode = document.createElement("div");
+    warningNode.className = "storage-tree-policy-warning hidden";
+    footer.append(typesNode, warningNode);
+    container.appendChild(footer);
+  }
+  syncStorageTreePolicyFooter(container, mode);
+}
+
+function syncStorageTreePolicyFooter(container, mode = activeContentMode) {
+  if (!container) return;
+  const footer = container.querySelector(".storage-tree-policy-footer");
+  if (!footer) return;
+
+  const typesNode = footer.querySelector(".storage-tree-policy-types");
+  const warningNode = footer.querySelector(".storage-tree-policy-warning");
+  const isSlotTree = container.classList.contains("storage-slot-tree");
+  const typesLabel = !isSlotTree ? getDataStorageSlotAllowedFileTypesLabel(mode) : null;
+  const warningText = formatStoragePolicyWarningMessage(
+    !isSlotTree || activeDataStorageAllItems ? getStoragePolicyWarningForUi(mode) : null
+  );
+
+  if (typesNode) {
+    if (typesLabel) {
+      typesNode.textContent = `Допустимые типы: ${typesLabel}`;
+      typesNode.classList.remove("hidden");
+    } else {
+      typesNode.textContent = "";
+      typesNode.classList.add("hidden");
+    }
+  }
+
+  if (warningNode) {
+    if (warningText) {
+      warningNode.textContent = warningText;
+      warningNode.classList.remove("hidden");
+    } else {
+      warningNode.textContent = "";
+      warningNode.classList.add("hidden");
+    }
+  }
+}
+
+function syncAllStorageTreePolicyFooters(mode = activeContentMode) {
+  if (!shouldUseDataHubListShell(mode)) return;
+
+  const slotTree = getStorageSlotTreeNode();
+  if (slotTree) syncStorageTreePolicyFooter(slotTree, mode);
+
+  for (const tree of listViewContentNode.querySelectorAll(
+    ".data-hub-panel .media-section-tree.external-section-tree"
+  )) {
+    syncStorageTreePolicyFooter(tree, "external");
+  }
+
+  for (const tree of listViewContentNode.querySelectorAll(
+    ".data-hub-panel .media-section-tree.flat-storage-section-tree"
+  )) {
+    syncStorageTreePolicyFooter(tree, tree.dataset.mode || mode);
+  }
+
+  for (const tree of listViewContentNode.querySelectorAll(
+    ".data-hub-panel .media-section-tree:not(.external-section-tree):not(.flat-storage-section-tree)"
+  )) {
+    syncStorageTreePolicyFooter(tree, "media");
+  }
+}
+
+async function refreshStorageTreePolicyFooters(mode = activeContentMode) {
+  if (!shouldUseDataHubListShell(mode)) return;
+  if (!activeStorageRootScan && getActiveNodeApiPath()) {
+    try {
+      await fetchStorageRootScan();
+    } catch {
+      // ignore scan errors in footer refresh
+    }
+  }
+  syncAllStorageTreePolicyFooters(mode);
+}
+
 function syncListViewHead() {
   if (!listViewTitleNode) return;
   listViewTitleNode.textContent = getListViewTitleByMode();
-  const typesLabel = getDataStorageSlotAllowedFileTypesLabel();
+  const useDataHubHead = shouldUseDataHubListShell();
   if (listViewSlotTypesNode) {
-    if (typesLabel) {
-      listViewSlotTypesNode.textContent = `Допустимые типы файлов: ${typesLabel}`;
+    if (!useDataHubHead && getDataStorageSlotAllowedFileTypesLabel()) {
+      listViewSlotTypesNode.textContent = `Допустимые типы файлов: ${getDataStorageSlotAllowedFileTypesLabel()}`;
       listViewSlotTypesNode.classList.remove("hidden");
     } else {
       listViewSlotTypesNode.textContent = "";
       listViewSlotTypesNode.classList.add("hidden");
     }
   }
+  if (listViewSlotPolicyWarningNode) {
+    listViewSlotPolicyWarningNode.textContent = "";
+    listViewSlotPolicyWarningNode.classList.add("hidden");
+  }
   syncDataHubPanelHeadPlacement();
+  void refreshStorageTreePolicyFooters();
 }
 
 function getListViewTitleByMode() {
@@ -18130,6 +18291,7 @@ function renderMediaSectionTree(container) {
       mediaMode: true
     });
   }
+  ensureStorageTreePolicyFooter(container, "media");
 }
 
 function ensureMediaListViewLayout() {
@@ -19275,6 +19437,7 @@ function renderExternalSectionTree(container) {
       externalMode: true
     });
   }
+  ensureStorageTreePolicyFooter(container, "external");
 }
 
 function mountExternalListViewLayout(root) {
@@ -19803,6 +19966,7 @@ function renderFlatStorageSectionTree(container, mode) {
       storageMode: mode
     });
   }
+  ensureStorageTreePolicyFooter(container, mode);
 }
 
 function mountFlatStorageListViewLayout(root, mode) {
