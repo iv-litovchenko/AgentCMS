@@ -7730,9 +7730,7 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
     if (!memoryKind) return null;
     if (memoryKind === "external") return "memory";
     if (memoryKind === "media") return "media";
-    if (memoryKind === "inbox" || memoryKind === "quick-notes" || memoryKind === "references") {
-      return memoryKind;
-    }
+    if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
     return null;
   }
   return getDataStorageSlotForMode(mode)?.key || null;
@@ -8020,10 +8018,12 @@ const activeFlatStorageSectionFolder = Object.fromEntries(
 );
 
 let activeDataStorageAllItems = false;
-let storageSlotTreeRenderToken = 0;
 const storageRootScanCache = new Map();
+const storageRootScanInflight = new Map();
 let activeStorageRootScan = null;
+const STORAGE_ROOT_SCAN_TIMEOUT_MS = 20000;
 const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
+const entryOverviewSlotCountersCache = new Map();
 
 function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
   if (!shouldUseDataHubListShell(mode)) return false;
@@ -8044,16 +8044,27 @@ function renderDataHubAllItemsPanelLoading(container) {
 
 function loadDataHubAllItemsPanel(container) {
   renderDataHubAllItemsPanelLoading(container);
-  return fetchStorageRootScan().then((scan) => {
-    if (isDataHubAllSlotsPanelStale()) return;
-    renderDataHubAllItemsPanel(container, scan);
-  });
+  return fetchStorageRootScan()
+    .then((scan) => {
+      if (isDataHubAllSlotsPanelStale()) return;
+      renderDataHubAllItemsPanel(container, scan);
+    })
+    .catch(() => {
+      if (isDataHubAllSlotsPanelStale()) return;
+      renderDataHubPanelEmptyState(container, {
+        icon: "⚠",
+        message: "Не удалось просканировать awn-storage",
+        variant: "error"
+      });
+    });
 }
 
 function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
   if (manifestPath) storageRootScanCache.delete(manifestPath);
   if (!manifestPath || manifestPath === getActiveNodeApiPath()) {
     activeStorageRootScan = null;
+    const slotTree = getStorageSlotTreeNode();
+    if (slotTree) delete slotTree.dataset.storageScanManifest;
   }
 }
 
@@ -8067,13 +8078,30 @@ async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { for
       activeStorageRootScan = cached;
       return cached;
     }
+    const inflight = storageRootScanInflight.get(manifestPath);
+    if (inflight) return inflight;
   }
-  const response = await fetch(buildApiUrl("/api/storage/scan", { path: manifestPath }));
-  if (!response.ok) throw new Error(`Storage scan failed (${response.status})`);
-  const data = await response.json();
-  storageRootScanCache.set(manifestPath, data);
-  activeStorageRootScan = data;
-  return data;
+
+  const promise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), STORAGE_ROOT_SCAN_TIMEOUT_MS);
+    try {
+      const response = await fetch(buildApiUrl("/api/storage/scan", { path: manifestPath }), {
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`Storage scan failed (${response.status})`);
+      const data = await response.json();
+      storageRootScanCache.set(manifestPath, data);
+      activeStorageRootScan = data;
+      return data;
+    } finally {
+      clearTimeout(timeoutId);
+      storageRootScanInflight.delete(manifestPath);
+    }
+  })();
+
+  if (!force) storageRootScanInflight.set(manifestPath, promise);
+  return promise;
 }
 
 function getStorageFolderNamesForSlotKey(slotKey) {
@@ -8171,7 +8199,7 @@ function getStorageScanFolderSpec(folder) {
 
 function setActiveDataStorageAllItems() {
   activeDataStorageAllItems = true;
-  refreshStorageSlotTree();
+  syncStorageSlotTreeActiveState(getStorageSlotTreeNode());
   syncListViewHead();
   renderListViewContent();
   syncAppRouteToUrl({ replace: true });
@@ -8192,7 +8220,7 @@ function getStorageSlotTreeNode() {
 
 function refreshStorageSlotTree() {
   invalidateStorageRootScanCache();
-  void renderStorageSlotTree(getStorageSlotTreeNode());
+  void renderStorageSlotTree(getStorageSlotTreeNode(), { force: true });
 }
 
 function getDataHubPanelNode() {
@@ -8239,11 +8267,24 @@ function syncDataHubPanelHeadPlacement() {
   head.classList.toggle("hidden", useDataHub);
 }
 
+function shouldRenderStorageSlotTree(container, manifestPath = getActiveNodeApiPath()) {
+  if (!container) return false;
+  if (container.querySelector(":scope > .storage-slot-tree-loading")) return false;
+  const renderedFor = String(container.dataset.storageScanManifest || "");
+  const nextPath = String(manifestPath || "");
+  return !container.querySelector(":scope > .storage-slot-tree-list") || renderedFor !== nextPath;
+}
+
 function ensureDataHubShell() {
   let wrap = listViewContentNode.querySelector(".data-hub-list-view-wrap");
   if (wrap) {
     ensureDataHubPanelBody(wrap.querySelector(".data-hub-panel"));
-    void renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
+    const slotTree = wrap.querySelector(".storage-slot-tree");
+    if (shouldRenderStorageSlotTree(slotTree)) {
+      void renderStorageSlotTree(slotTree);
+    } else {
+      syncStorageSlotTreeActiveState(slotTree);
+    }
     syncStorageSectionsPanelUi();
     syncDataHubPanelHeadPlacement();
     return wrap;
@@ -8312,7 +8353,7 @@ function setActiveDataStorageSlot(spec) {
   if (spec.key === "thread") clearActiveThreadScope();
   const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
   if (activeContentMode === targetMode) {
-    refreshStorageSlotTree();
+    syncStorageSlotTreeActiveState(getStorageSlotTreeNode());
     renderListViewContent();
     applyModeUi();
     syncAppRouteToUrl({ replace: true });
@@ -8340,7 +8381,7 @@ function setActiveDataMemoryMode(mode) {
   if (!DATA_MEMORY_MODE_SPECS.some((item) => item.mode === mode)) return;
   activeDataStorageAllItems = false;
   if (activeContentMode === mode) {
-    refreshStorageSlotTree();
+    syncStorageSlotTreeActiveState(getStorageSlotTreeNode());
     renderListViewContent();
     applyModeUi();
     syncAppRouteToUrl({ replace: true });
@@ -8359,7 +8400,13 @@ function isStorageScanFolderDisabled(folder, spec = null) {
 function appendStorageSlotTreeItem(
   list,
   { spec = null, folder = null },
-  { activeSlot, sectionFilterActive, allItemsActive = false } = {}
+  {
+    activeSlot,
+    sectionFilterActive,
+    allItemsActive = false,
+    useEntryOverviewNavigation = false,
+    activeSlotKey = null
+  } = {}
 ) {
   const slotKey = spec?.key || folder?.slotKey || null;
   const isOrphan = !spec && Boolean(folder);
@@ -8371,8 +8418,12 @@ function appendStorageSlotTreeItem(
     !disabled &&
     !allItemsActive &&
     (isMemorySlot
-      ? isDataStorageSlotActive("memory") && activeContentMode === "external"
-      : activeSlot?.key === slotKey);
+      ? useEntryOverviewNavigation
+        ? activeSlotKey === "memory"
+        : isDataStorageSlotActive("memory") && activeContentMode === "external"
+      : useEntryOverviewNavigation
+        ? activeSlotKey === slotKey
+        : activeSlot?.key === slotKey);
   const count = disabled
     ? folder?.entryCount > 0
       ? folder.entryCount
@@ -8391,6 +8442,14 @@ function appendStorageSlotTreeItem(
       ? () => {}
       : () => {
           if (!spec) return;
+          if (useEntryOverviewNavigation) {
+            if (isMemorySlot) {
+              setActiveDataMemoryModeFromOverview("external");
+              return;
+            }
+            setActiveDataStorageSlotFromOverview(spec);
+            return;
+          }
           if (isMemorySlot) {
             setActiveDataMemoryMode("external");
             return;
@@ -8421,35 +8480,108 @@ function appendStorageSlotTreeItem(
   }
 }
 
-async function renderStorageSlotTree(container) {
+function syncStorageSlotTreeActiveState(container, { useEntryOverviewNavigation = false } = {}) {
   if (!container) return;
-  const token = ++storageSlotTreeRenderToken;
-  container.replaceChildren();
+  const list = container.querySelector(":scope > .storage-slot-tree-list");
+  if (!list) return;
 
-  const loading = document.createElement("div");
-  loading.className = "media-section-tree-loading storage-slot-tree-loading";
-  loading.textContent = "Сканирование awn-storage…";
-  container.appendChild(loading);
+  const activeSlotKey = useEntryOverviewNavigation
+    ? getDataStorageSlotKeyForEntryView()
+    : getDataStorageSlotForMode()?.key || null;
+  const activeSlot = activeSlotKey
+    ? DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === activeSlotKey) || null
+    : getDataStorageSlotForMode();
+  const sectionFilterActive = useEntryOverviewNavigation ? false : isStorageSectionFilterActive();
+  const allItemsActive = useEntryOverviewNavigation ? false : activeDataStorageAllItems;
 
-  const manifestPath = getActiveNodeApiPath();
-  let scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
-  try {
-    if (manifestPath) scan = await fetchStorageRootScan(manifestPath);
-  } catch {
-    scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  const allBtn = list.querySelector('[data-storage-slot="all"]');
+  if (allBtn) allBtn.classList.toggle("is-active", allItemsActive);
+
+  list.querySelectorAll(".storage-slot-tree-item[data-storage-slot]").forEach((btn) => {
+    const slotKey = btn.dataset.storageSlot;
+    if (!slotKey || slotKey === "all") return;
+    const disabled = btn.disabled || btn.classList.contains("is-disabled");
+    const isMemorySlot = slotKey === "memory";
+    let isActive = false;
+    if (!disabled && !allItemsActive) {
+      if (isMemorySlot) {
+        isActive = useEntryOverviewNavigation
+          ? activeSlotKey === "memory"
+          : isDataStorageSlotActive("memory") && activeContentMode === "external";
+      } else {
+        isActive = useEntryOverviewNavigation
+          ? activeSlotKey === slotKey
+          : activeSlot?.key === slotKey;
+      }
+    }
+    btn.classList.toggle("is-active", isActive && !sectionFilterActive);
+  });
+}
+
+function updateStorageSlotTreeCounts(container, scan = {}) {
+  const list = container?.querySelector(":scope > .storage-slot-tree-list");
+  if (!list) return;
+
+  const allCount = Number(scan.totalEntries) || 0;
+  const allBtn = list.querySelector('[data-storage-slot="all"]');
+  const allBadge = allBtn?.querySelector(".media-section-tree-count");
+  if (allBadge) {
+    allBadge.textContent = allCount > 0 ? String(allCount) : "";
+    allBadge.dataset.baseCount = String(allCount);
   }
-  if (token !== storageSlotTreeRenderToken || !container.isConnected) return;
 
+  const folders = scan.exists ? scan.folders || [] : [];
+  list.querySelectorAll(".storage-slot-tree-item[data-storage-slot]").forEach((btn) => {
+    const slotKey = btn.dataset.storageSlot;
+    if (!slotKey || slotKey === "all") return;
+    const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
+    const folder = findScanFolderForSlotKey(slotKey, folders);
+    const count = spec
+      ? getDataStorageSlotCountForScan(spec, folder)
+      : folder?.entryCount > 0
+        ? folder.entryCount
+        : null;
+    const badge = btn.querySelector(".media-section-tree-count");
+    if (!badge) return;
+    if (count !== null && count > 0) {
+      badge.textContent = String(count);
+      badge.dataset.baseCount = String(count);
+    } else {
+      badge.textContent = "";
+      delete badge.dataset.baseCount;
+    }
+  });
+}
+
+function renderStorageSlotTreeContent(
+  container,
+  scan,
+  { useEntryOverviewNavigation = false, manifestPath = "" } = {}
+) {
   container.replaceChildren();
+  container.dataset.storageScanManifest = String(manifestPath || "");
+
   const list = document.createElement("div");
   list.className = "media-section-tree-list storage-slot-tree-list";
   list.setAttribute("role", "tree");
   container.appendChild(list);
 
-  const activeSlot = getDataStorageSlotForMode();
-  const sectionFilterActive = isStorageSectionFilterActive();
-  const allItemsActive = activeDataStorageAllItems;
+  const activeSlotKey = useEntryOverviewNavigation
+    ? getDataStorageSlotKeyForEntryView()
+    : getDataStorageSlotForMode()?.key || null;
+  const activeSlot = activeSlotKey
+    ? DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === activeSlotKey) || null
+    : getDataStorageSlotForMode();
+  const sectionFilterActive = useEntryOverviewNavigation ? false : isStorageSectionFilterActive();
+  const allItemsActive = useEntryOverviewNavigation ? false : activeDataStorageAllItems;
   const allCount = Number(scan.totalEntries) || 0;
+  const treeItemOptions = {
+    activeSlot,
+    sectionFilterActive,
+    allItemsActive,
+    useEntryOverviewNavigation,
+    activeSlotKey
+  };
 
   const allBtn = appendMediaSectionTreeItem(list, {
     icon: "📋",
@@ -8485,7 +8617,7 @@ async function renderStorageSlotTree(container) {
         appendStorageSlotTreeItem(
           list,
           { spec: entry.spec, folder: entry.folder },
-          { activeSlot, sectionFilterActive, allItemsActive }
+          treeItemOptions
         );
         continue;
       }
@@ -8493,13 +8625,72 @@ async function renderStorageSlotTree(container) {
         appendStorageSlotTreeItem(
           list,
           { folder: entry.folder },
-          { activeSlot, sectionFilterActive, allItemsActive }
+          treeItemOptions
         );
       }
     }
   }
   ensureStorageTreePolicyFooter(container, activeContentMode);
-  syncListViewHead();
+  if (!useEntryOverviewNavigation) syncListViewHead();
+}
+
+async function renderStorageSlotTree(container, options = {}) {
+  if (!container) return;
+  const useEntryOverviewNavigation = Boolean(options.useEntryOverviewNavigation);
+  const manifestPath = options.manifestPath || getActiveNodeApiPath();
+  const force = Boolean(options.force);
+  const connectedAtStart = container.isConnected;
+  const token = (container._storageSlotTreeRenderSeq = (container._storageSlotTreeRenderSeq || 0) + 1);
+
+  const hasList = Boolean(container.querySelector(":scope > .storage-slot-tree-list"));
+  const manifestKey = String(manifestPath || "");
+  const cachedScan = !force ? storageRootScanCache.get(manifestPath) : null;
+
+  if (cachedScan && hasList && container.dataset.storageScanManifest === manifestKey) {
+    syncStorageSlotTreeActiveState(container, { useEntryOverviewNavigation });
+    updateStorageSlotTreeCounts(container, cachedScan);
+    return;
+  }
+
+  if (cachedScan && !hasList) {
+    renderStorageSlotTreeContent(container, cachedScan, { useEntryOverviewNavigation, manifestPath });
+    return;
+  }
+
+  if (!hasList) {
+    container.replaceChildren();
+    const loading = document.createElement("div");
+    loading.className = "media-section-tree-loading storage-slot-tree-loading";
+    loading.textContent = "Сканирование awn-storage…";
+    container.appendChild(loading);
+  }
+
+  let scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  let scanError = null;
+  try {
+    if (manifestPath) scan = await fetchStorageRootScan(manifestPath, { force });
+  } catch (error) {
+    scanError = error;
+    scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  }
+  if (token !== container._storageSlotTreeRenderSeq) return;
+  if (connectedAtStart && !container.isConnected) return;
+
+  if (scanError) {
+    if (!hasList) {
+      container.replaceChildren();
+      const err = document.createElement("div");
+      err.className = "media-section-tree-empty storage-slot-tree-empty";
+      err.textContent =
+        scanError.name === "AbortError"
+          ? "Сканирование awn-storage заняло слишком много времени"
+          : "Не удалось просканировать awn-storage";
+      container.appendChild(err);
+    }
+    return;
+  }
+
+  renderStorageSlotTreeContent(container, scan, { useEntryOverviewNavigation, manifestPath });
 }
 
 function loadStorageSectionsPanelVisible() {
@@ -18372,7 +18563,12 @@ function ensureMediaListViewLayout() {
     if (!shouldUseDataHubListShell("media")) listViewContentNode.innerHTML = "";
     mountMediaListViewLayout(mountRoot);
   } else if (shouldUseDataHubListShell("media")) {
-    void renderStorageSlotTree(getStorageSlotTreeNode());
+    const slotTree = getStorageSlotTreeNode();
+    if (shouldRenderStorageSlotTree(slotTree)) {
+      void renderStorageSlotTree(slotTree);
+    } else {
+      syncStorageSlotTreeActiveState(slotTree);
+    }
   }
   const wrap = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
   if (!wrap) return null;
@@ -19552,7 +19748,12 @@ function ensureExternalListViewLayout() {
     if (!shouldUseDataHubListShell("external")) listViewContentNode.innerHTML = "";
     mountExternalListViewLayout(mountRoot);
   } else if (shouldUseDataHubListShell("external")) {
-    void renderStorageSlotTree(getStorageSlotTreeNode());
+    const slotTree = getStorageSlotTreeNode();
+    if (shouldRenderStorageSlotTree(slotTree)) {
+      void renderStorageSlotTree(slotTree);
+    } else {
+      syncStorageSlotTreeActiveState(slotTree);
+    }
   }
   const wrap = mountRoot.querySelector(".external-list-view-wrap");
   if (!wrap) return null;
@@ -20717,6 +20918,18 @@ function appendMediaItemActionButtons(target, item) {
     createMediaLinkPathButton(item),
     createMediaMoveButton(item),
     createMediaDeleteButton(item)
+  );
+}
+
+function appendEntryOverviewMediaAssetActionButtons(target, item, { onEditClick } = {}) {
+  if (onEditClick) {
+    target.appendChild(createNodeOverviewEditButton(onEditClick));
+  }
+  target.append(
+    createMediaSidecarEditButton(item),
+    createMediaOpenButton(item),
+    createMediaRevealInFinderButton(item),
+    createMediaLinkPathButton(item)
   );
 }
 
@@ -31290,10 +31503,7 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   main.append(thumbWrap, identity, actions);
-  const heroNav = createEntryOverviewSiblingNav({
-    ...(options.entryOverviewNav || {}),
-    variant: "hero"
-  });
+  const heroNav = createEntryOverviewSiblingNav({ ...(options.entryOverviewNav || {}), variant: "hero" });
   if (heroNav) hero.appendChild(heroNav);
   hero.appendChild(main);
 
@@ -31321,6 +31531,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       hero.appendChild(footer);
     }
   }
+
+  appendNavigationHeroProps(hero, options.propEntries || []);
 
   return hero;
 }
@@ -31449,6 +31661,15 @@ function renderNodeOverviewPropsTable(metaItems) {
   );
   accordion.classList.add("node-overview-props-fold");
   return accordion;
+}
+
+function appendNavigationHeroProps(hero, propEntries = []) {
+  if (!hero) return null;
+  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(propEntries));
+  if (!propsSection) return null;
+  propsSection.classList.add("node-navigation-props");
+  hero.appendChild(propsSection);
+  return propsSection;
 }
 
 async function loadTypeCatalog() {
@@ -33753,9 +33974,7 @@ function createEntryOverviewSiblingNav({
 
   const nav = document.createElement("div");
   nav.className =
-    variant === "hero"
-      ? "node-entry-overview-hero-nav"
-      : "node-navigation-manifest-nav";
+    variant === "hero" ? "node-entry-overview-hero-nav" : "node-navigation-manifest-nav";
   nav.setAttribute("role", "navigation");
   nav.setAttribute("aria-label", "Навигация по записям раздела");
 
@@ -33817,7 +34036,7 @@ function appendEntryOverviewManifestNavActions(wrap, navOptions = {}) {
   if (nav) wrap.appendChild(nav);
 }
 
-function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = {}) {
+function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null) {
   const { body } = splitFrontmatter(String(rawContent || ""));
   const content = stripAwnDescCallouts(body).trim();
   if (!content) return null;
@@ -33832,7 +34051,7 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = {}) {
   setMarkdownPreviewHtml(preview, previewText, { nodePath });
   wrap.appendChild(preview);
 
-  appendEntryOverviewManifestNavActions(wrap, navOptions);
+  if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
 
   if (isTruncated) {
     const actions = document.createElement("div");
@@ -34151,7 +34370,7 @@ function getEntryOverviewTopicTitle() {
 }
 
 async function buildEntryOverviewDataSlotCounters(topicPath) {
-  const manifestPath = getActiveNodeApiPath();
+  const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
 
   let intake = topicIntakeCacheByPath.get(manifestPath) || null;
@@ -34168,8 +34387,8 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
   );
   const flatModes = overviewSpecs
-    .map((spec) => spec.key)
-    .filter((key) => key === "quick-notes" || key === "references");
+    .filter((spec) => spec.sectionKind === "flat" && spec.key !== "inbox")
+    .map((spec) => spec.key);
 
   const [externalData, mediaData, ...folderResults] = await Promise.all([
     fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
@@ -34228,6 +34447,135 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
   });
 }
 
+function getEntryOverviewDataSlotBarManifestPath(topicPath) {
+  return resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
+}
+
+function syncEntryOverviewDataSlotBarActiveState(wrap, context) {
+  if (!wrap) return;
+  const activeSlotKey = getDataStorageSlotKeyForEntryView();
+  wrap.querySelectorAll("[data-entry-overview-slot-key]").forEach((btn) => {
+    const isActive = activeSlotKey === btn.dataset.entryOverviewSlotKey;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+}
+
+function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
+  if (!wrap) return;
+  for (const slot of slots) {
+    const btn = wrap.querySelector(`[data-entry-overview-slot-key="${slot.id}"]`);
+    if (!btn) continue;
+    const countNode = btn.querySelector(".node-navigation-workspace-counter-value");
+    if (countNode) countNode.textContent = String(slot.count);
+    btn.title = slot.title;
+    btn.classList.toggle("is-filled", slot.filled);
+    btn.classList.toggle("is-empty", !slot.filled);
+    btn.classList.remove("is-pending", "is-unread");
+    if (slot.tone) btn.classList.add(`is-${slot.tone}`);
+  }
+}
+
+function renderEntryOverviewDataSlotBarContent(wrap, context, slots = []) {
+  const activeSlotKey = getDataStorageSlotKeyForEntryView();
+  wrap.replaceChildren();
+  delete wrap.dataset.loading;
+
+  if (!slots.length) return;
+
+  const list = document.createElement("ul");
+  list.className = "node-navigation-workspace-counter-list";
+  list.setAttribute("role", "tablist");
+
+  for (const slot of slots) {
+    const item = document.createElement("li");
+    const btn = renderEntryOverviewWorkspaceCounterButton(slot, {
+      isActive: activeSlotKey === slot.id,
+      onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
+    });
+    btn.dataset.entryOverviewSlotKey = slot.id;
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  wrap.appendChild(list);
+}
+
+function acquireEntryOverviewDataSlotBar(context, topicPath) {
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+  if (!isDataEntryOverviewMemoryKind(context?.memoryKind)) return null;
+
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(topicPath);
+  const existing = nodeOverviewContentNode?.querySelector(
+    ".node-navigation-hub > .node-entry-overview-slot-counters"
+  );
+  if (
+    existing?.dataset.topicPath === manifestPath &&
+    existing.querySelector(".node-navigation-workspace-counter-list")
+  ) {
+    existing.remove();
+    syncEntryOverviewDataSlotBarActiveState(existing, context);
+    return existing;
+  }
+
+  return renderEntryOverviewDataSlotBar(context, topicPath);
+}
+
+function renderEntryOverviewDataSlotBar(context, topicPath) {
+  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
+  if (!isDataEntryOverviewMemoryKind(context?.memoryKind)) return null;
+
+  const manifestPath = getEntryOverviewDataSlotBarManifestPath(topicPath);
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
+  wrap.setAttribute("aria-label", "Слоты данных");
+  wrap.dataset.topicPath = manifestPath;
+
+  const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath);
+  if (cachedSlots?.length) {
+    renderEntryOverviewDataSlotBarContent(wrap, context, cachedSlots);
+    void refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath);
+  } else {
+    wrap.dataset.loading = "true";
+    void populateEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath);
+  }
+
+  return wrap;
+}
+
+async function populateEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath) {
+  const renderSeq = (wrap._entryOverviewSlotBarSeq = (wrap._entryOverviewSlotBarSeq || 0) + 1);
+  let slots = [];
+  try {
+    slots = await buildEntryOverviewDataSlotCounters(topicPath);
+  } catch {
+    slots = [];
+  }
+  if (renderSeq !== wrap._entryOverviewSlotBarSeq || !wrap.isConnected) return;
+
+  entryOverviewSlotCountersCache.set(manifestPath, slots);
+  if (wrap.querySelector(".node-navigation-workspace-counter-list")) {
+    updateEntryOverviewDataSlotBarCounts(wrap, slots);
+    syncEntryOverviewDataSlotBarActiveState(wrap, context);
+    delete wrap.dataset.loading;
+    return;
+  }
+  renderEntryOverviewDataSlotBarContent(wrap, context, slots);
+}
+
+async function refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath) {
+  const renderSeq = (wrap._entryOverviewSlotBarRefreshSeq = (wrap._entryOverviewSlotBarRefreshSeq || 0) + 1);
+  let slots = [];
+  try {
+    slots = await buildEntryOverviewDataSlotCounters(topicPath);
+  } catch {
+    return;
+  }
+  if (renderSeq !== wrap._entryOverviewSlotBarRefreshSeq || !wrap.isConnected) return;
+  entryOverviewSlotCountersCache.set(manifestPath, slots);
+  updateEntryOverviewDataSlotBarCounts(wrap, slots);
+}
+
 function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onClick } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -34248,38 +34596,6 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   btn.append(count, label);
   btn.addEventListener("click", onClick);
   return btn;
-}
-
-async function renderEntryOverviewDataSlotBar(context, topicPath) {
-  if (getNodeWorkspaceDomain() !== NODE_WORKSPACE_DOMAIN_DATA) return null;
-  if (!isDataEntryOverviewMemoryKind(context?.memoryKind)) return null;
-
-  const slots = await buildEntryOverviewDataSlotCounters(topicPath);
-  if (!slots.length) return null;
-
-  const activeSlotKey = getDataStorageSlotKeyForEntryView();
-  const wrap = document.createElement("div");
-  wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
-  wrap.setAttribute("aria-label", "Слоты данных");
-
-  const list = document.createElement("ul");
-  list.className = "node-navigation-workspace-counter-list";
-  list.setAttribute("role", "tablist");
-
-  for (const slot of slots) {
-    const item = document.createElement("li");
-    item.appendChild(
-      renderEntryOverviewWorkspaceCounterButton(slot, {
-        isActive: activeSlotKey === slot.id,
-        onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
-      })
-    );
-    list.appendChild(item);
-  }
-
-  wrap.appendChild(list);
-
-  return wrap;
 }
 
 function renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTitle) {
@@ -34802,24 +35118,45 @@ function createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath = ac
   return showcase;
 }
 
-function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex = null) {
+function createEntryOverviewMediaAssetPanel(
+  context,
+  title,
+  entries,
+  nodeMeta,
+  navigationIndex = null,
+  { entryOverviewNav = null } = {}
+) {
   const assetKind = getEntryOverviewMediaAssetKind(context.relativePath);
   const mediaItem = buildEntryOverviewMediaAssetItem(context, navigationIndex);
   const nodePath = activePath;
   const panel = document.createElement("section");
   panel.className = `node-entry-overview-media-asset node-entry-overview-media-asset--${assetKind} node-navigation-hero`;
 
+  const heroNav = createEntryOverviewSiblingNav({ ...(entryOverviewNav || {}), variant: "hero" });
+  if (heroNav) panel.appendChild(heroNav);
+
   panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath));
 
   const main = document.createElement("div");
   main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
 
-  const identity = document.createElement("div");
-  identity.className = "node-navigation-hero-identity";
+  const toolbar = document.createElement("div");
+  toolbar.className = "node-entry-overview-media-asset-toolbar";
 
   const kindBadge = document.createElement("span");
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
   kindBadge.textContent = `${getEntryOverviewMediaAssetKindIcon(assetKind)} ${getEntryOverviewMediaAssetKindLabel(assetKind)}`;
+
+  const actions = document.createElement("div");
+  actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";
+  appendEntryOverviewMediaAssetActionButtons(actions, mediaItem, {
+    onEditClick: () => openEntryOverviewEdit(context)
+  });
+
+  toolbar.append(kindBadge, actions);
+
+  const identity = document.createElement("div");
+  identity.className = "node-navigation-hero-identity node-entry-overview-media-asset-identity";
 
   const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries));
 
@@ -34827,7 +35164,7 @@ function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, n
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = formatEntryOverviewHeroPathLabel(entries, context.relativePath);
 
-  identity.append(kindBadge, titleRow, pathNode);
+  identity.append(titleRow, pathNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
@@ -34843,13 +35180,9 @@ function createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, n
   metaLine.textContent = metaLineParts.join(" · ");
   identity.appendChild(metaLine);
 
-  const actions = document.createElement("div");
-  actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";
-  actions.appendChild(createNodeOverviewEditButton(() => openEntryOverviewEdit(context)));
-  appendMediaItemActionButtons(actions, mediaItem);
-
-  main.append(identity, actions);
+  main.append(toolbar, identity);
   panel.appendChild(main);
+  appendNavigationHeroProps(panel, entries);
   return panel;
 }
 
@@ -35148,7 +35481,7 @@ async function renderEntryOverview() {
     hub.className = "node-navigation-hub";
 
     const topicTitle = getEntryOverviewTopicTitle();
-    const slotBar = await renderEntryOverviewDataSlotBar(context, topicPath);
+    const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
     if (isStale()) return;
     if (slotBar) hub.appendChild(slotBar);
     const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, "Оглавление", topicTitle);
@@ -35176,7 +35509,7 @@ async function renderEntryOverview() {
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
 
-  const slotBar = await renderEntryOverviewDataSlotBar(context, topicPath);
+  const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
   if (isStale()) return;
   if (slotBar) hub.appendChild(slotBar);
 
@@ -35185,14 +35518,14 @@ async function renderEntryOverview() {
   if (memoryTrail) hub.appendChild(memoryTrail);
 
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
-  const searchBar = createEntryOverviewSearchBar(context);
-  if (searchBar) hub.appendChild(searchBar);
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
   hub.appendChild(
     context.entryKind === "awn.media.asset"
-      ? createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex)
+      ? createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex, {
+          entryOverviewNav
+        })
       : createNavigationHero(preview, title, context.relPath, {
           meta: nodeMeta,
           propEntries: entries,
@@ -35204,11 +35537,6 @@ async function renderEntryOverview() {
         })
   );
 
-  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
-  if (propsSection) {
-    propsSection.classList.add("node-navigation-props");
-    hub.appendChild(propsSection);
-  }
   await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
   if (isStale()) return;
 
@@ -35230,17 +35558,16 @@ async function renderEntryOverview() {
   if (attachmentsPanel) hub.appendChild(attachmentsPanel);
 
   const topicManifestPath = getActiveNodeApiPath();
+  nodeOverviewContentNode.replaceChildren(hub);
+
   if (topicManifestPath) {
-    await appendNodeCommentsBlockToContainer(hub, {
+    void appendNodeCommentsBlockToContainer(hub, {
       manifestPath: topicManifestPath,
       nodeTitle: title,
       mode: context.memoryKind === "media" ? "media" : "external",
       file: context.relativePath
     });
-    if (isStale()) return;
   }
-
-  nodeOverviewContentNode.replaceChildren(hub);
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
@@ -37614,11 +37941,6 @@ async function renderNodeNavigation() {
     })
   );
 
-  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
-  if (propsSection) {
-    propsSection.classList.add("node-navigation-props");
-    hub.appendChild(propsSection);
-  }
   await appendNodeOverviewTypeRegistryFold(hub, nodePath);
   if (isStale()) return;
 
@@ -37742,6 +38064,9 @@ async function renderNodeOverview() {
   const hero = document.createElement("div");
   hero.className = "node-overview-hero";
 
+  const heroMain = document.createElement("div");
+  heroMain.className = "node-overview-hero-main";
+
   const thumbWrap = createOverviewThumbWrap(preview, title, activePath);
 
   const head = document.createElement("div");
@@ -37795,11 +38120,11 @@ async function renderNodeOverview() {
   const slotStrip = renderNodeSlotStrip(slotStripGroups);
   if (slotStrip) head.appendChild(slotStrip);
 
-  hero.append(thumbWrap, head);
+  heroMain.append(thumbWrap, head);
+  hero.appendChild(heroMain);
+  appendNavigationHeroProps(hero, entries);
   fragment.appendChild(hero);
 
-  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(entries));
-  if (propsSection) fragment.appendChild(propsSection);
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
   if (isStale()) return;
 
