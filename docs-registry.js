@@ -1,17 +1,19 @@
 const path = require("path");
 const fs = require("fs/promises");
 
-const DOC_VERSIONS = ["0.0.0", "0.0.1"];
-const DEFAULT_DOC_VERSION = "0.0.1";
+const DOC_VERSIONS = ["0.0.0", "0.0.1", "0.0.2"];
+const DEFAULT_DOC_VERSION = "0.0.2";
 
 const apiByVersion = {
   "0.0.0": () => require("./docs/api-0.0.0"),
-  "0.0.1": () => require("./docs/api-0.0.1")
+  "0.0.1": () => require("./docs/api-0.0.1"),
+  "0.0.2": () => require("./docs/api-0.0.2")
 };
 
 const mcpByVersion = {
   "0.0.0": () => require("./docs/mcp-0.0.0"),
-  "0.0.1": () => require("./docs/mcp-0.0.1")
+  "0.0.1": () => require("./docs/mcp-0.0.1"),
+  "0.0.2": () => require("./docs/mcp-0.0.2")
 };
 
 const DOCS_AGENT_FOLDER = "agent-cms-core";

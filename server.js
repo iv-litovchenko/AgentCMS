@@ -4355,6 +4355,122 @@ async function buildAgentRuntimeRegistry() {
   };
 }
 
+const SESSION_CONTEXT_API_MAP = {
+  sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
+  menu: "GET /api/menu — дерево тем (manifest.md)",
+  search: "GET /api/search?q=&scope=content|filename|description|tags",
+  runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-*",
+  storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
+  workspaceTable: "GET /api/agent/workspace-table — таблица тем",
+  platformCatalogs: "GET /api/platform/catalogs — глобальные справочники",
+  agentCatalogs: "GET /api/agent/catalogs — справочники агента",
+  manifest: "GET /api/file?path=<manifest.md>",
+  mainNote: "GET /api/external/file?path=<manifest.md>&file=<name.md> — awn-storage/main/",
+  thread: "GET /api/thread?path=<manifest.md>",
+  inbox: "GET /api/inbox?path=<manifest.md>",
+  topicIntake: "GET /api/topic/intake?path=<manifest.md>"
+};
+
+const SESSION_PATH_HINTS = {
+  topicManifest:
+    "Путь к manifest.md темы, напр. awn-container/finansydohody/manifest.md (legacy: _registration.md)",
+  areaManifest: "manifest.md области внутри awn-container/<slug>/",
+  mainNote: "Параметр file в memory tools — .md внутри awn-storage/main/ темы",
+  agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
+  storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…"
+};
+
+async function readWorkspaceManifestContent(relPath) {
+  const canonical = String(await resolveCanonicalManifestRelPath(relPath)).replace(/\\/g, "/");
+  const absolute = normalizeWorkspacePath(canonical);
+  if (!absolute) return { path: canonical, exists: false, content: null };
+  try {
+    const content = await fs.readFile(absolute, "utf-8");
+    return { path: canonical, exists: true, content };
+  } catch {
+    return { path: canonical, exists: false, content: null };
+  }
+}
+
+async function buildAgentSessionContext() {
+  const agentId = getActiveAgentId();
+  const agentRoot = getAgentRoot();
+  const kitFolder = getAgentKitFolder() || "awn-agent-kit";
+  const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
+
+  const serviceDocs = [];
+  for (const slot of ["agent", "user"]) {
+    const manifestPath = `${kitFolder}/${slot}/manifest.md`;
+    const file = await readWorkspaceManifestContent(manifestPath);
+    serviceDocs.push({
+      slotKey: slot,
+      manifestPath: file.path,
+      exists: file.exists,
+      content: file.content
+    });
+  }
+
+  const registry = await buildAgentRuntimeRegistry();
+  const sessionStartTopics = [];
+  for (const row of registry.rows) {
+    if (row.runtimeLoad !== "session-start") continue;
+    const file = await readWorkspaceManifestContent(row.manifestPath);
+    sessionStartTopics.push({
+      manifestPath: row.manifestPath,
+      label: row.label,
+      displayPath: row.displayPath,
+      runtimeLoad: row.runtimeLoad,
+      exists: file.exists,
+      content: file.content
+    });
+  }
+
+  const systemFiles = [];
+  for (const name of ["AGENTS.md", "README.md"]) {
+    const meta = await getSystemFileMeta(name);
+    if (!meta.exists) {
+      systemFiles.push({ name, exists: false, content: null });
+      continue;
+    }
+    const absolute = await resolveExistingSystemFileAbsolute(name);
+    try {
+      const content = await fs.readFile(absolute, "utf-8");
+      systemFiles.push({ name, exists: true, content });
+    } catch {
+      systemFiles.push({ name, exists: false, content: null });
+    }
+  }
+
+  let menuSummary = null;
+  try {
+    const menu = await buildAgentMenu(agentRoot);
+    menuSummary = {
+      topicCount: (menu.items || []).length,
+      hasServiceTree: Boolean(menu.serviceTree),
+      hasContainerTree: Boolean(menu.containerTree)
+    };
+  } catch {
+    menuSummary = null;
+  }
+
+  return {
+    version: "0.0.2",
+    mcpVersion: "0.2.0",
+    agentId,
+    agentRootRel,
+    kitFolder,
+    pathHints: SESSION_PATH_HINTS,
+    apiMap: SESSION_CONTEXT_API_MAP,
+    menuSummary,
+    serviceDocs,
+    sessionStartTopics,
+    sessionStartCount: sessionStartTopics.length,
+    runtimeRegistryTopicCount: registry.topicCount,
+    systemFiles,
+    hint: "Один вызов get_session_context в начале сессии вместо grep/curl/ls по репозиторию."
+  };
+}
+
 async function findNewestFileMetaInDir(dirAbsolute) {
   if (!dirAbsolute || !(await isExistingDirectory(dirAbsolute))) return null;
 
@@ -7720,6 +7836,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read runtime registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/session-context") {
+    try {
+      const context = await buildAgentSessionContext();
+      return sendJson(res, 200, context);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build session context",
         details: String(error.message || error)
       });
     }

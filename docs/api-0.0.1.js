@@ -1,11 +1,11 @@
 module.exports = {
   version: "0.0.1",
-  versionLabel: "Актуальная",
+  versionLabel: "Предыдущая",
   title: "Agent CMS HTTP API",
   baseUrl: "/api",
   generatedAt: "2026-06-04",
   notes: [
-    "Актуальная справка по коду server.js (июнь 2026). В UI: select «0.0.1 — актуальная».",
+    "Актуальная справка по коду server.js (снимок 0.0.1). В UI: select «0.0.1 — предыдущая».",
     "JSON-ответы, UTF-8. ?version=0.0.1 по умолчанию; 0.0.0 — предыдущий снимок.",
     "Контекст агента ?agent=<id>: все маршруты, кроме /api/agents*, /api/docs*, /api/mcp-docs*, /api/user-docs*, /api/public/images.",
     "path — путь к _registration.md; file — путь в content/ или media/."

@@ -502,7 +502,7 @@ const userDocsCloseBtn = document.getElementById("user-docs-close-btn");
 const userDocsContentNode = document.getElementById("user-docs-content");
 const userDocsVersionSelectNode = document.getElementById("user-docs-version-select");
 const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
-const DEFAULT_DOC_VERSION = "0.0.1";
+const DEFAULT_DOC_VERSION = "0.0.2";
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
 const DOCUMENTATION_AGENT_ID = "agent-cms-core";
 const DOCUMENTATION_TOPIC_DIR = "documentations";
@@ -21572,6 +21572,10 @@ function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache =
   return keys.filter((key) => !ExternalFileMask.isBuiltinSettingsSchemaKey(key));
 }
 
+function topicSchemaTargetHasCustomFields(targetId, cache = getTopicSchemaCache()) {
+  return getTopicSchemaCustomFieldKeys(targetId, cache).length > 0;
+}
+
 function addTopicSchemaField(target = topicSchemaActiveTarget) {
   const cache = getTopicSchemaCache();
   if (!cache) return;
@@ -21637,7 +21641,7 @@ function renameTopicSchemaField(target, oldKey, newKey) {
   }
 }
 
-function renderTopicSchemaTargetTabs() {
+function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (!topicSchemaTargetTabsNode) return;
   topicSchemaTargetTabsNode.replaceChildren(
     ...getTopicSchemaTargetSpecs().map((spec) => {
@@ -21651,6 +21655,7 @@ function renderTopicSchemaTargetTabs() {
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
       btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
+      btn.classList.toggle("is-configured", topicSchemaTargetHasCustomFields(id, cache));
       const typeName = getTopicSchemaTargetTypeName(id) || AWN_SCHEMA_TARGET_TYPE_NAMES[id];
       btn.textContent = getTopicSchemaTargetLabel(id);
       if (typeName) btn.title = typeName;

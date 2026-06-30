@@ -4,8 +4,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 
-const nodePath = z.string().min(1).describe("Path to _registration.md, e.g. 05 Хобби/MyArea/_registration.md");
-const extFile = z.string().min(1).describe("Relative path inside main/ or media/");
+const nodePath = z
+  .string()
+  .min(1)
+  .describe(
+    "Path to manifest.md of topic/area, e.g. awn-container/finansydohody/manifest.md (legacy _registration.md accepted)"
+  );
+const extFile = z.string().min(1).describe("File name under awn-storage/main/ or media/, e.g. notes.md");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -32,17 +37,53 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.1.0" });
+  const server = new McpServer({ name: "agent-cms", version: "0.2.0" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
   };
 
-  reg("list_agents", "List agents from registry.", z.object({}), () =>
+  reg("list_agents", "List agents from awn-agents.json registry.", z.object({}), () =>
     client.get("/api/agents", {}, { agentScope: false })
   );
 
-  reg("get_menu", "Node tree for workspace.", z.object({}), () => client.get("/api/menu"));
+  reg(
+    "get_session_context",
+    "START HERE: one-shot session bootstrap — agent/user manifests, session-start topics, AGENTS.md, API map, path hints.",
+    z.object({}),
+    () => client.get("/api/agent/session-context")
+  );
+
+  reg("get_mcp_docs", "MCP tools reference JSON (docs/mcp-0.0.2.js).", z.object({}), () =>
+    client.get("/api/mcp-docs", { version: "0.0.2" }, { agentScope: false })
+  );
+
+  reg("get_menu", "Workspace tree: areas and topics (manifest.md paths).", z.object({}), () =>
+    client.get("/api/menu")
+  );
+
+  reg("get_runtime_registry", "Topic runtime registry (awn-runtime-load, cron, heartbeat).", z.object({}), () =>
+    client.get("/api/agent/runtime-registry")
+  );
+
+  reg("get_storage_layout", "awn-storage slot layout (named-slots-v2) for all containers.", z.object({}), () =>
+    client.get("/api/agent/storage-layout")
+  );
+
+  reg("get_workspace_table", "Flat workspace table for agent dashboard.", z.object({}), () =>
+    client.get("/api/agent/workspace-table")
+  );
+
+  reg(
+    "get_node_meta",
+    "Node metadata: paths, storage layers, preview, manifest info.",
+    z.object({ path: nodePath }),
+    ({ path }) => client.get("/api/node/meta", { path })
+  );
+
+  reg("list_awn_types", "awn-type catalog for current agent workspace.", z.object({}), () =>
+    client.get("/api/awn-types")
+  );
 
   reg(
     "search_workspace",
@@ -89,26 +130,37 @@ function createServer() {
     (payload) => client.post("/api/agent/catalogs/items", payload)
   );
 
-  reg("read_node_description", "Read _registration.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_description", "Read manifest.md body (topic or area).", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file", { path })
   );
 
   reg(
     "write_node_description",
-    "Save _registration.md.",
+    "Save manifest.md body.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })
   );
 
-  reg("read_node_properties", "Read frontmatter from _registration.md.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_properties", "Read YAML frontmatter from manifest.md.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file/properties", { path })
   );
 
   reg(
     "write_node_properties",
-    "Save frontmatter to _registration.md.",
+    "Save YAML frontmatter to manifest.md.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/properties", { path, content })
+  );
+
+  reg("read_topic_schema", "Read topic field schema (schema.yml layer).", z.object({ path: nodePath }), ({ path }) =>
+    client.get("/api/file/topic-schema", { path })
+  );
+
+  reg(
+    "write_topic_schema",
+    "Save topic field schema.",
+    z.object({ path: nodePath, content: z.string() }),
+    ({ path, content }) => client.post("/api/file/topic-schema", { path, content })
   );
 
   reg(
@@ -127,8 +179,32 @@ function createServer() {
     client.delete("/api/file", { path })
   );
 
-  reg("read_internal_memory", "Read single-file memory (_.node.main.md).", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/memory/internal", { path })
+  reg(
+    "read_memory_summary",
+    "Memory layer summary for topic (main/memory/tabular counts).",
+    z.object({ path: nodePath }),
+    ({ path }) => client.get("/api/memory/summary", { path })
+  );
+
+  reg(
+    "read_tabular_memory",
+    "Read tabular memory CSV (awn-storage/memory/main.csv or topic tabular layer).",
+    z.object({ path: nodePath, file: z.string().optional() }),
+    ({ path, file }) => client.get("/api/memory/tabular", { path, file })
+  );
+
+  reg(
+    "write_tabular_memory",
+    "Save tabular memory CSV.",
+    z.object({ path: nodePath, content: z.string(), file: z.string().optional() }),
+    ({ path, content, file }) => client.post("/api/memory/tabular", { path, content, file })
+  );
+
+  reg(
+    "read_internal_memory",
+    "Read single-file internal memory bundle (legacy memory.md / main.md layer).",
+    z.object({ path: nodePath }),
+    ({ path }) => client.get("/api/memory/internal", { path })
   );
 
   reg(
@@ -138,27 +214,27 @@ function createServer() {
     ({ path, content }) => client.post("/api/memory/internal", { path, content })
   );
 
-  reg("list_external_memory", "List main/ files.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_external_memory", "List .md notes in awn-storage/main/.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/external/files", { path })
   );
 
   reg(
     "read_external_memory",
-    "Read main/ .md.",
+    "Read one note from awn-storage/main/.",
     z.object({ path: nodePath, file: extFile }),
     ({ path, file }) => client.get("/api/external/file", { path, file })
   );
 
   reg(
     "write_external_memory",
-    "Save main/ .md.",
+    "Save note to awn-storage/main/.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
 
   reg(
     "create_external_memory",
-    "Create memory note in main/.",
+    "Create new note in awn-storage/main/ with frontmatter.",
     z.object({ path: nodePath, title: z.string().optional() }),
     ({ path, title }) => client.post("/api/external/file/create", { path, title })
   );
@@ -361,8 +437,8 @@ function createServer() {
     ({ name, content }) => client.post("/api/system-file", { name, content })
   );
 
-  reg("get_api_reference", "HTTP API docs JSON.", z.object({}), () =>
-    client.get("/api/docs", {}, { agentScope: false })
+  reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
+    client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );
 
   return server;
