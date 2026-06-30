@@ -34453,6 +34453,7 @@ function getEntryOverviewDataSlotBarManifestPath(topicPath) {
 
 function syncEntryOverviewDataSlotBarActiveState(wrap, context) {
   if (!wrap) return;
+  wrap.querySelector(".node-entry-overview-memory-mode-counters")?.remove();
   const activeSlotKey = getDataStorageSlotKeyForEntryView();
   wrap.querySelectorAll("[data-entry-overview-slot-key]").forEach((btn) => {
     const isActive = activeSlotKey === btn.dataset.entryOverviewSlotKey;
