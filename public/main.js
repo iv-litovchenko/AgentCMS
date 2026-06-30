@@ -8186,11 +8186,63 @@ function refreshStorageSlotTree() {
   void renderStorageSlotTree(getStorageSlotTreeNode());
 }
 
+function getDataHubPanelNode() {
+  return listViewContentNode?.querySelector(".data-hub-list-view-wrap .data-hub-panel") || null;
+}
+
+function ensureDataHubPanelBody(panel) {
+  if (!panel) return null;
+  let panelBody = panel.querySelector(":scope > .data-hub-panel-body");
+  if (panelBody) return panelBody;
+  panelBody = document.createElement("div");
+  panelBody.className = "data-hub-panel-body";
+  const toMove = [...panel.childNodes].filter(
+    (node) => !(node.nodeType === Node.ELEMENT_NODE && node.classList?.contains("list-view-head")),
+  );
+  for (const node of toMove) {
+    panelBody.appendChild(node);
+  }
+  panel.appendChild(panelBody);
+  return panelBody;
+}
+
+function getDataHubPanelBodyNode() {
+  const panel = getDataHubPanelNode();
+  return panel ? ensureDataHubPanelBody(panel) : null;
+}
+
+function syncDataHubPanelHeadPlacement() {
+  const panel = getDataHubPanelNode();
+  const panelBody = getDataHubPanelBodyNode();
+  const head =
+    listViewBlockNode?.querySelector(":scope > .list-view-head") ||
+    panel?.querySelector(":scope > .list-view-head") ||
+    null;
+  const useDataHub =
+    Boolean(panel && panelBody && head) &&
+    shouldUseDataHubListShell() &&
+    listViewBlockNode &&
+    !listViewBlockNode.classList.contains("hidden");
+
+  if (useDataHub) {
+    if (head.parentElement !== panel) {
+      panel.insertBefore(head, panelBody);
+    }
+    return;
+  }
+
+  if (head && listViewBlockNode && listViewContentNode && head.parentElement !== listViewBlockNode) {
+    listViewBlockNode.insertBefore(head, listViewContentNode);
+  }
+}
+
 function ensureDataHubShell() {
   let wrap = listViewContentNode.querySelector(".data-hub-list-view-wrap");
   if (wrap) {
+    ensureDataHubPanelBody(wrap.querySelector(".data-hub-panel"));
     void renderStorageSlotTree(wrap.querySelector(".storage-slot-tree"));
     syncStorageSectionsPanelUi();
+    syncDataHubPanelHeadPlacement();
     return wrap;
   }
   listViewContentNode.innerHTML = "";
@@ -8207,19 +8259,26 @@ function ensureDataHubShell() {
 
   const panel = document.createElement("div");
   panel.className = "data-hub-panel";
+  const panelBody = document.createElement("div");
+  panelBody.className = "data-hub-panel-body";
+  panel.appendChild(panelBody);
   split.appendChild(panel);
 
   wrap.appendChild(split);
   listViewContentNode.appendChild(wrap);
   void renderStorageSlotTree(slotTree);
   syncStorageSectionsPanelUi();
+  syncDataHubPanelHeadPlacement();
   return wrap;
 }
 
 function getListViewMountRoot(mode = activeContentMode) {
   if (shouldUseDataHubListShell(mode)) {
-    return ensureDataHubShell().querySelector(".data-hub-panel");
+    ensureDataHubShell();
+    syncDataHubPanelHeadPlacement();
+    return getDataHubPanelBodyNode() || listViewContentNode;
   }
+  syncDataHubPanelHeadPlacement();
   return listViewContentNode;
 }
 
@@ -14078,6 +14137,7 @@ function syncListViewHead() {
       listViewSlotTypesNode.classList.add("hidden");
     }
   }
+  syncDataHubPanelHeadPlacement();
 }
 
 function getListViewTitleByMode() {

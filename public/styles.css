@@ -22308,24 +22308,25 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
 }
 
-.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-head {
+.data-hub-panel > .list-view-head {
+  flex-shrink: 0;
   padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
 
-.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-head-center {
+.data-hub-panel > .list-view-head .list-view-head-center {
   align-items: flex-start;
 }
 
-.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-title {
+.data-hub-panel > .list-view-head .list-view-title {
   text-align: left;
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
-.doc-slab-content .doc-slab-main > .list-view:has(.data-hub-list-view-wrap) .list-view-slot-types {
+.data-hub-panel > .list-view-head .list-view-slot-types {
   text-align: left;
 }
 
@@ -22342,7 +22343,7 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 0;
 }
 
-.doc-slab-main .data-hub-panel > .data-hub-all-items-view {
+.doc-slab-main .data-hub-panel .data-hub-all-items-view {
   padding: 12px;
 }
 
@@ -22350,6 +22351,32 @@ button.node-navigation-memory-title:focus-visible {
 .doc-slab-main .data-hub-all-items-loose-section {
   width: 100%;
   margin: 0;
+}
+
+/* Боковые деревья в data hub: слоты и разделы — отступы на секции, как у контента */
+.data-hub-list-view-split > .storage-slot-tree,
+.data-hub-panel .media-list-view-split > .media-section-tree {
+  flex: 0 0 min(168px, 30%);
+  max-width: 200px;
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--panel-2, var(--panel));
+}
+
+.data-hub-list-view-split .storage-slot-tree-list,
+.data-hub-panel .media-section-tree-list {
+  padding: 0;
+}
+
+.data-hub-list-view-split > .storage-slot-tree > .storage-slot-tree-loading,
+.data-hub-list-view-split > .storage-slot-tree > .media-section-tree-loading {
+  padding: 0;
+}
+
+.data-hub-list-view-split .media-section-tree-divider,
+.data-hub-panel .media-section-tree-divider {
+  margin: 4px 0;
+  background: var(--border);
 }
 
 .storage-slot-tree {
@@ -22394,11 +22421,11 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  padding: 16px 16px 24px;
-  text-align: left;
+  padding: 48px 24px 24px;
+  text-align: center;
   box-sizing: border-box;
 }
 
@@ -22431,10 +22458,31 @@ button.node-navigation-memory-title:focus-visible {
   color: #b45309;
 }
 
-.data-hub-panel > .data-hub-all-items-view {
+.data-hub-panel .data-hub-all-items-view {
   flex: 1;
   min-height: 0;
   justify-content: flex-start;
+}
+
+.data-hub-panel-body > .media-list-view-wrap,
+.data-hub-panel-body > .data-hub-all-items-view {
+  flex: 1;
+  min-height: 0;
+}
+
+.data-hub-panel .media-list-view-wrap {
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.data-hub-panel .media-list-view-wrap .media-list-view-split {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .data-hub-all-items-view {
@@ -22601,7 +22649,15 @@ button.node-navigation-memory-title:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
+}
+
+.data-hub-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .node-entry-overview-slot-counters {
@@ -22636,19 +22692,6 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 18px;
 }
 
-.data-hub-panel > .media-list-view-wrap {
-  flex: 1;
-  min-height: 0;
-  border: none;
-  border-radius: 0;
-}
-
-.data-hub-panel > .media-list-view-wrap .media-list-view-split {
-  border: none;
-  border-radius: 0;
-  min-height: 0;
-}
-
 .doc-slab-main .list-view-content > .media-list-view-wrap {
   flex: 1;
   min-height: 0;
@@ -22662,6 +22705,18 @@ button.node-navigation-memory-title:focus-visible {
 .doc-slab-main .media-list-view-wrap .media-list-view-split {
   flex: 1;
   min-height: 0;
+}
+
+.doc-slab-main .data-hub-panel .media-list-view-wrap {
+  min-height: 0;
+  gap: 0;
+}
+
+.doc-slab-main .data-hub-panel .media-list-view-wrap .media-list-view-split {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .media-list-view-split {
