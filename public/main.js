@@ -8222,27 +8222,21 @@ function getDataHubPanelBodyNode() {
 
 function syncDataHubPanelHeadPlacement() {
   const panel = getDataHubPanelNode();
-  const panelBody = getDataHubPanelBodyNode();
   const head =
     listViewBlockNode?.querySelector(":scope > .list-view-head") ||
     panel?.querySelector(":scope > .list-view-head") ||
     null;
   const useDataHub =
-    Boolean(panel && panelBody && head) &&
     shouldUseDataHubListShell() &&
     listViewBlockNode &&
     !listViewBlockNode.classList.contains("hidden");
 
-  if (useDataHub) {
-    if (head.parentElement !== panel) {
-      panel.insertBefore(head, panelBody);
-    }
-    return;
-  }
+  if (!head || !listViewBlockNode || !listViewContentNode) return;
 
-  if (head && listViewBlockNode && listViewContentNode && head.parentElement !== listViewBlockNode) {
+  if (head.parentElement !== listViewBlockNode) {
     listViewBlockNode.insertBefore(head, listViewContentNode);
   }
+  head.classList.toggle("hidden", useDataHub);
 }
 
 function ensureDataHubShell() {
@@ -14193,34 +14187,66 @@ function formatStoragePolicyWarningMessage(warning) {
     : `Найдено ${warning.count} неразрешённых файлов`;
 }
 
-function ensureStorageTreePolicyFooter(container, mode = activeContentMode) {
-  if (!container || !shouldUseDataHubListShell(mode)) return;
-  let footer = container.querySelector(".storage-tree-policy-footer");
+function getStorageSectionTreeListNode(container) {
+  return container?.querySelector(":scope > .media-section-tree-list") || null;
+}
+
+function mountStorageTreePolicyFooterInList(list) {
+  let divider = list.querySelector(".storage-tree-policy-divider");
+  if (!divider) {
+    divider = document.createElement("div");
+    divider.className = "media-section-tree-divider storage-tree-policy-divider";
+    divider.setAttribute("role", "presentation");
+  }
+
+  let footer = list.querySelector(".storage-tree-policy-footer");
   if (!footer) {
     footer = document.createElement("div");
-    footer.className = "storage-tree-policy-footer";
+    footer.className = "storage-tree-policy-footer hidden";
+    const plaque = document.createElement("div");
+    plaque.className = "storage-tree-policy-plaque";
     const typesNode = document.createElement("div");
     typesNode.className = "storage-tree-policy-types";
     const warningNode = document.createElement("div");
     warningNode.className = "storage-tree-policy-warning hidden";
-    footer.append(typesNode, warningNode);
-    container.appendChild(footer);
+    plaque.append(typesNode, warningNode);
+    footer.appendChild(plaque);
   }
+
+  list.appendChild(divider);
+  list.appendChild(footer);
+  return footer;
+}
+
+function ensureStorageTreePolicyFooter(container, mode = activeContentMode) {
+  if (!container || !shouldUseDataHubListShell(mode)) return;
+  if (container.classList.contains("storage-slot-tree")) return;
+  const list = getStorageSectionTreeListNode(container);
+  if (!list) return;
+  mountStorageTreePolicyFooterInList(list);
   syncStorageTreePolicyFooter(container, mode);
 }
 
 function syncStorageTreePolicyFooter(container, mode = activeContentMode) {
-  if (!container) return;
-  const footer = container.querySelector(".storage-tree-policy-footer");
+  if (!container || container.classList.contains("storage-slot-tree")) return;
+  const list = getStorageSectionTreeListNode(container);
+  if (!list) return;
+
+  let footer = list.querySelector(".storage-tree-policy-footer");
+  if (!footer) {
+    mountStorageTreePolicyFooterInList(list);
+    footer = list.querySelector(".storage-tree-policy-footer");
+  } else {
+    const divider = list.querySelector(".storage-tree-policy-divider");
+    if (divider) list.appendChild(divider);
+    list.appendChild(footer);
+  }
   if (!footer) return;
 
   const typesNode = footer.querySelector(".storage-tree-policy-types");
   const warningNode = footer.querySelector(".storage-tree-policy-warning");
-  const isSlotTree = container.classList.contains("storage-slot-tree");
-  const typesLabel = !isSlotTree ? getDataStorageSlotAllowedFileTypesLabel(mode) : null;
-  const warningText = formatStoragePolicyWarningMessage(
-    !isSlotTree || activeDataStorageAllItems ? getStoragePolicyWarningForUi(mode) : null
-  );
+  const typesLabel = getDataStorageSlotAllowedFileTypesLabel(mode);
+  const warningText = formatStoragePolicyWarningMessage(getStoragePolicyWarningForUi(mode));
 
   if (typesNode) {
     if (typesLabel) {
@@ -14236,35 +14262,41 @@ function syncStorageTreePolicyFooter(container, mode = activeContentMode) {
     if (warningText) {
       warningNode.textContent = warningText;
       warningNode.classList.remove("hidden");
+      footer.classList.add("storage-tree-policy-footer--has-warning");
     } else {
       warningNode.textContent = "";
       warningNode.classList.add("hidden");
+      footer.classList.remove("storage-tree-policy-footer--has-warning");
     }
   }
+
+  footer.classList.toggle("hidden", !typesLabel && !warningText);
+  const divider = list.querySelector(".storage-tree-policy-divider");
+  if (divider) divider.classList.toggle("hidden", !typesLabel && !warningText);
+
+  container.querySelector(":scope > .storage-tree-policy-footer")?.remove();
+  container.querySelector(":scope > .storage-tree-policy-divider")?.remove();
 }
 
 function syncAllStorageTreePolicyFooters(mode = activeContentMode) {
   if (!shouldUseDataHubListShell(mode)) return;
 
-  const slotTree = getStorageSlotTreeNode();
-  if (slotTree) syncStorageTreePolicyFooter(slotTree, mode);
-
   for (const tree of listViewContentNode.querySelectorAll(
     ".data-hub-panel .media-section-tree.external-section-tree"
   )) {
-    syncStorageTreePolicyFooter(tree, "external");
+    ensureStorageTreePolicyFooter(tree, "external");
   }
 
   for (const tree of listViewContentNode.querySelectorAll(
     ".data-hub-panel .media-section-tree.flat-storage-section-tree"
   )) {
-    syncStorageTreePolicyFooter(tree, tree.dataset.mode || mode);
+    ensureStorageTreePolicyFooter(tree, tree.dataset.mode || mode);
   }
 
   for (const tree of listViewContentNode.querySelectorAll(
     ".data-hub-panel .media-section-tree:not(.external-section-tree):not(.flat-storage-section-tree)"
   )) {
-    syncStorageTreePolicyFooter(tree, "media");
+    ensureStorageTreePolicyFooter(tree, "media");
   }
 }
 
@@ -14284,6 +14316,7 @@ function syncListViewHead() {
   if (!listViewTitleNode) return;
   listViewTitleNode.textContent = getListViewTitleByMode();
   const useDataHubHead = shouldUseDataHubListShell();
+
   if (listViewSlotTypesNode) {
     if (!useDataHubHead && getDataStorageSlotAllowedFileTypesLabel()) {
       listViewSlotTypesNode.textContent = `Допустимые типы файлов: ${getDataStorageSlotAllowedFileTypesLabel()}`;
@@ -20127,16 +20160,19 @@ function renderFlatStorageAllItemsView(container, mode) {
 }
 
 function renderFlatStorageListViewBody(container, mode) {
-  if (!activeStorageFolderExists) {
-    renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
-    return;
-  }
-  pruneActiveFlatStorageSectionFolder(mode);
   renderFlatStorageSectionTree(
     listViewContentNode.querySelector(`.flat-storage-section-tree[data-mode="${mode}"]`),
     mode
   );
   syncStorageSectionsPanelUi();
+
+  if (!activeStorageFolderExists) {
+    renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
+    void refreshStorageTreePolicyFooters(mode);
+    return;
+  }
+
+  pruneActiveFlatStorageSectionFolder(mode);
 
   if (isStorageSectionsPanelVisible() && activeFlatStorageSectionFolder[mode]) {
     renderFlatStorageSectionFolderView(container, mode, activeFlatStorageSectionFolder[mode]);
@@ -21915,12 +21951,6 @@ function renderListViewContent() {
     return;
   }
   if (isFlatStorageSectionListView) {
-    if (!activeStorageFolderExists) {
-      listMountRoot.innerHTML = "";
-      if (!useDataHub) listViewContentNode.innerHTML = "";
-      renderListEmptyMessage(listMountRoot, getStorageFolderMissingMessage(activeContentMode));
-      return;
-    }
     listTarget = ensureFlatStorageListViewLayout(activeContentMode);
     listTarget.innerHTML = "";
     renderFlatStorageListViewBody(listTarget, activeContentMode);
