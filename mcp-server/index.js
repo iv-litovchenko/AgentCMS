@@ -215,8 +215,25 @@ function createServer() {
       client.post("/api/node/create", { parentPath: parentPath || ".", type, name })
   );
 
-  reg("delete_node", "Delete node part or folder.", z.object({ path: nodePath }), ({ path }) =>
+  reg("delete_node", "Delete area, topic, or part folder.", z.object({ path: nodePath }), ({ path }) =>
     client.delete("/api/file", { path })
+  );
+
+  reg(
+    "rename_node",
+    "Rename area/topic (folder slug or topic .md filename).",
+    z.object({ path: nodePath, title: z.string().min(1) }),
+    ({ path, title }) => client.post("/api/file/title", { path, title })
+  );
+
+  reg(
+    "move_node",
+    "Move area/topic folder or topic .md to another parent folder.",
+    z.object({
+      path: nodePath,
+      parentPath: z.string().describe("Target parent folder path, e.g. awn-container/kollektsii or .")
+    }),
+    ({ path, parentPath }) => client.post("/api/node/move", { path, parentPath })
   );
 
   reg(
@@ -270,6 +287,33 @@ function createServer() {
     "Save note to awn-storage/main/.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
+  );
+
+  reg(
+    "rename_external_memory",
+    "Rename .md record in awn-storage/main/.",
+    z.object({ path: nodePath, file: extFile, title: z.string().min(1) }),
+    ({ path, file, title }) => client.post("/api/external/file/rename", { path, file, title })
+  );
+
+  reg(
+    "delete_external_memory",
+    "Delete .md record from awn-storage/main/.",
+    z.object({ path: nodePath, file: extFile }),
+    ({ path, file }) => client.delete("/api/external/file", { path, file })
+  );
+
+  reg(
+    "move_external_memory",
+    "Move .md record within or across topics (awn-storage/main/).",
+    z.object({
+      path: nodePath,
+      file: extFile,
+      targetPath: nodePath.optional().describe("Destination topic manifest; defaults to source topic"),
+      targetFile: z.string().optional().describe("Destination relative path in main/, e.g. 2026/06/note.md")
+    }),
+    ({ path, file, targetPath, targetFile }) =>
+      client.post("/api/external/file/move", { path, file, targetPath, targetFile })
   );
 
   reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: nodePath }), ({ path }) =>
@@ -466,6 +510,38 @@ function createServer() {
     "Save media sidecar.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/media/sidecar", { path, file, content })
+  );
+
+  reg(
+    "rename_media_file",
+    "Rename media file and its sidecar.",
+    z.object({
+      path: nodePath,
+      file: extFile,
+      title: z.string().min(1).optional(),
+      name: z.string().min(1).optional()
+    }),
+    ({ path, file, title, name }) => client.post("/api/media/file/rename", { path, file, title, name })
+  );
+
+  reg(
+    "delete_media_file",
+    "Delete media file and its sidecar.",
+    z.object({ path: nodePath, file: extFile }),
+    ({ path, file }) => client.delete("/api/media/file", { path, file })
+  );
+
+  reg(
+    "move_media_file",
+    "Move media file within or across topics.",
+    z.object({
+      path: nodePath,
+      file: extFile,
+      targetPath: nodePath.optional().describe("Destination topic manifest; defaults to source topic"),
+      targetFile: z.string().optional().describe("Destination relative path in media/")
+    }),
+    ({ path, file, targetPath, targetFile }) =>
+      client.post("/api/media/file/move", { path, file, targetPath, targetFile })
   );
 
   reg("list_system_files", "List agent system files.", z.object({}), () => client.get("/api/system-files"));

@@ -223,9 +223,21 @@ module.exports = {
         },
         {
           name: "delete_node",
-          description: "Удалить part или папку ноды.",
+          description: "Удалить область, топик или part.",
           parameters: "path",
           http: "DELETE /api/file?path="
+        },
+        {
+          name: "rename_node",
+          description: "Переименовать область/топик (slug папки или имя .md).",
+          parameters: "path, title",
+          http: "POST /api/file/title"
+        },
+        {
+          name: "move_node",
+          description: "Переместить область/топик в другую родительскую папку.",
+          parameters: "path, parentPath",
+          http: "POST /api/node/move"
         }
       ]
     },
@@ -286,6 +298,24 @@ module.exports = {
           description: "Создать заметку в main/. Без fileMask — берёт awn-mask-file из node config. Маска: {YYYY},{YY},{MM},{DD},{WW},{id}.",
           parameters: "path, title?, displayName?, fileMask?, parent?",
           http: "POST /api/external/file/create"
+        },
+        {
+          name: "rename_external_memory",
+          description: "Переименовать запись в main/.",
+          parameters: "path, file, title",
+          http: "POST /api/external/file/rename"
+        },
+        {
+          name: "delete_external_memory",
+          description: "Удалить запись из main/.",
+          parameters: "path, file",
+          http: "DELETE /api/external/file"
+        },
+        {
+          name: "move_external_memory",
+          description: "Переместить запись в main/ (внутри темы или между темами).",
+          parameters: "path, file, targetPath?, targetFile?",
+          http: "POST /api/external/file/move"
         }
       ]
     },
@@ -448,6 +478,24 @@ module.exports = {
           description: "Сохранить sidecar.",
           parameters: "path, file, content",
           http: "POST /api/media/sidecar"
+        },
+        {
+          name: "rename_media_file",
+          description: "Переименовать медиафайл и sidecar.",
+          parameters: "path, file, title?",
+          http: "POST /api/media/file/rename"
+        },
+        {
+          name: "delete_media_file",
+          description: "Удалить медиафайл и sidecar.",
+          parameters: "path, file",
+          http: "DELETE /api/media/file"
+        },
+        {
+          name: "move_media_file",
+          description: "Переместить медиафайл (внутри темы или между темами).",
+          parameters: "path, file, targetPath?, targetFile?",
+          http: "POST /api/media/file/move"
         }
       ]
     },

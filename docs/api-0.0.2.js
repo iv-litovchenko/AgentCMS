@@ -264,6 +264,14 @@ module.exports = {
         },
         {
           method: "POST",
+          path: "/api/node/move",
+          description: "Переместить область/топик в другую родительскую папку.",
+          query: [],
+          body: "{ path, parentPath }",
+          response: "{ path, parentPath, linkRewrite? }"
+        },
+        {
+          method: "POST",
           path: "/api/node/create",
           description: "Создать _registration.md в текущей папке, подпапку-ноду или part в _Parts.",
           query: [],
@@ -373,6 +381,22 @@ module.exports = {
           query: [],
           body: "{ path, file, title }",
           response: "{ file, content }"
+        },
+        {
+          method: "DELETE",
+          path: "/api/external/file",
+          description: "Удалить .md из main/.",
+          query: ["path", "file"],
+          body: null,
+          response: "{ deleted, path }"
+        },
+        {
+          method: "POST",
+          path: "/api/external/file/move",
+          description: "Переместить .md в main/ (внутри темы или в другую тему).",
+          query: [],
+          body: "{ path, file, targetPath?, targetFile? }",
+          response: "{ path, file, content, linkRewrite? }"
         }
       ]
     },
@@ -505,6 +529,22 @@ module.exports = {
           query: [],
           body: "{ path, file, title }",
           response: "{ file, sidecar?, content? }"
+        },
+        {
+          method: "DELETE",
+          path: "/api/media/file",
+          description: "Удалить медиафайл и sidecar.",
+          query: ["path", "file"],
+          body: null,
+          response: "{ deleted, path }"
+        },
+        {
+          method: "POST",
+          path: "/api/media/file/move",
+          description: "Переместить медиафайл (внутри темы или в другую тему).",
+          query: [],
+          body: "{ path, file, targetPath?, targetFile? }",
+          response: "{ path, file, sidecar?, content?, linkRewrite? }"
         },
         {
           method: "GET",

@@ -1598,6 +1598,26 @@
                   <span class="workspace-toolbar-btn-label">История</span>
                 </button>
                 <button
+                  id="delete-resource-btn"
+                  class="danger-btn workspace-toolbar-labeled-btn hidden"
+                  type="button"
+                  title="Удалить"
+                  aria-label="Удалить"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">🗑</span>
+                  <span class="workspace-toolbar-btn-label">Удалить</span>
+                </button>
+                <button
+                  id="move-resource-btn"
+                  class="save-btn workspace-toolbar-labeled-btn hidden"
+                  type="button"
+                  title="Переместить"
+                  aria-label="Переместить"
+                >
+                  <span class="workspace-toolbar-btn-icon" aria-hidden="true">↦</span>
+                  <span class="workspace-toolbar-btn-label">Переместить</span>
+                </button>
+                <button
                   id="save-content-btn"
                   class="save-btn workspace-toolbar-labeled-btn"
                   type="button"
@@ -1822,7 +1842,10 @@
               </section>
               <section id="list-view-block" class="list-view hidden">
                 <div class="list-view-head">
-                  <div id="list-view-title" class="list-view-title">Список файлов</div>
+                  <div class="list-view-head-center">
+                    <div id="list-view-title" class="list-view-title">Список файлов</div>
+                    <div id="list-view-slot-types" class="list-view-slot-types hidden" aria-live="polite"></div>
+                  </div>
                 </div>
                 <div id="list-view-content" class="list-view-content"></div>
               </section>
@@ -2080,6 +2103,10 @@
 
     <div id="menu-context-menu" class="menu-context-menu hidden" role="menu" aria-label="Действия с пунктом меню">
       <ul id="menu-context-menu-list" class="menu-context-menu-list"></ul>
+    </div>
+
+    <div id="resource-context-menu" class="menu-context-menu hidden" role="menu" aria-label="Действия с элементом">
+      <ul id="resource-context-menu-list" class="menu-context-menu-list"></ul>
     </div>
 
     <div id="create-node-modal" class="modal-overlay hidden">
@@ -2420,6 +2447,25 @@
         <div class="modal-actions">
           <button id="confirm-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="confirm-ok-btn" class="danger-btn" type="button">Удалить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="move-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="move-modal-title">
+      <div class="modal-card">
+        <div id="move-modal-title" class="modal-message">Переместить</div>
+        <p id="move-modal-hint" class="modal-hint"></p>
+        <label class="move-modal-field" id="move-target-topic-wrap">
+          <span class="move-modal-field-label">Тема назначения (manifest.md)</span>
+          <input id="move-target-topic-input" class="move-modal-field-input" type="text" autocomplete="off" />
+        </label>
+        <label class="move-modal-field">
+          <span class="move-modal-field-label" id="move-target-path-label">Папка назначения</span>
+          <input id="move-target-path-input" class="move-modal-field-input" type="text" autocomplete="off" />
+        </label>
+        <div class="modal-actions">
+          <button id="move-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="move-ok-btn" class="save-btn" type="button">Переместить</button>
         </div>
       </div>
     </div>

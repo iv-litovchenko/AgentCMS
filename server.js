@@ -3133,6 +3133,187 @@ async function writeStorageSectionReadme(
   }
 }
 
+async function resolveMemorySectionRootAbsolute(nodeAbsolute, scopeType, storageFolder = "") {
+  if (scopeType === "external") {
+    return getOrCreateExternalFolderAbsolute(nodeAbsolute);
+  }
+  if (scopeType === "media") {
+    return getMediaFolderAbsolute(nodeAbsolute);
+  }
+  if (scopeType === "storage") {
+    if (!isAllowedStorageSubfolderName(storageFolder)) return null;
+    return resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder);
+  }
+  return null;
+}
+
+async function resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const rootAbsolute = await resolveMemorySectionRootAbsolute(nodeAbsolute, scopeType, storageFolder);
+  if (!rootAbsolute) return { error: "Storage folder not found", status: 404 };
+
+  const normalizedSection = String(sectionRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalizedSection) return { error: "Missing section path", status: 400 };
+
+  const sectionAbsolute = joinFolderRelativePath(rootAbsolute, normalizedSection);
+  if (!sectionAbsolute || !isPathInsideDirectory(rootAbsolute, sectionAbsolute)) {
+    return { error: "Invalid section path", status: 400 };
+  }
+
+  try {
+    const stat = await fs.stat(sectionAbsolute);
+    if (!stat.isDirectory()) return { error: "Section not found", status: 404 };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { error: "Section not found", status: 404 };
+    throw error;
+  }
+
+  return {
+    rootAbsolute,
+    sectionAbsolute,
+    sectionRelPath: normalizedSection,
+    readmeAbsolute: path.join(sectionAbsolute, AREA_MANIFEST_FILE)
+  };
+}
+
+async function readMemorySectionReadmeContent(readmeAbsolute) {
+  try {
+    return await fs.readFile(readmeAbsolute, "utf-8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function writeMemorySectionReadmeContent(readmeAbsolute, content) {
+  await fs.writeFile(readmeAbsolute, content, "utf-8");
+}
+
+async function renameMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath, payload) {
+  const { display, diskSlug } = resolveContentItemNames(payload);
+  if (!display) return { error: "Title cannot be empty", status: 400 };
+
+  const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
+  if (ctx.error) return ctx;
+
+  const parts = ctx.sectionRelPath.split("/").filter(Boolean);
+  const currentSlug = parts[parts.length - 1] || "";
+  const nextSlug = toExternalSectionFolderName(diskSlug) || currentSlug;
+  if (!nextSlug) return { error: "Invalid slug", status: 400 };
+  parts[parts.length - 1] = nextSlug;
+  const nextRelPath = parts.join("/");
+
+  let sectionAbsolute = ctx.sectionAbsolute;
+  if (nextRelPath !== ctx.sectionRelPath) {
+    const nextAbsolute = joinFolderRelativePath(ctx.rootAbsolute, nextRelPath);
+    if (!nextAbsolute) return { error: "Invalid section path", status: 400 };
+    try {
+      await fs.access(nextAbsolute);
+      return { error: "Section already exists", status: 409 };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+    await fs.rename(sectionAbsolute, nextAbsolute);
+    sectionAbsolute = nextAbsolute;
+  }
+
+  const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
+  const raw = (await readMemorySectionReadmeContent(readmeAbsolute)) || buildStorageSectionReadmeContent(display);
+  const { frontmatter, body } = splitNodeFrontmatter(raw);
+  const nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-name", display);
+  await writeMemorySectionReadmeContent(readmeAbsolute, joinNodeFrontmatter(nextFrontmatter, body));
+
+  const sectionPath = path.relative(ctx.rootAbsolute, sectionAbsolute).replace(/\\/g, "/");
+  return {
+    sectionPath,
+    readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+    exists: true
+  };
+}
+
+async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath, targetParent) {
+  const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
+  if (ctx.error) return ctx;
+
+  const sectionName = path.basename(ctx.sectionAbsolute);
+  const parentRaw = String(targetParent || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const targetFolder = await resolveMediaTargetFolderAbsolute(ctx.rootAbsolute, parentRaw);
+  if (!targetFolder) {
+    return { error: parentRaw ? "Parent section not found" : "Invalid target parent", status: 400 };
+  }
+
+  const destAbsolute = path.join(targetFolder, sectionName);
+  if (!isPathInsideDirectory(ctx.rootAbsolute, destAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+  if (path.resolve(destAbsolute) === path.resolve(ctx.sectionAbsolute)) {
+    const sectionPath = ctx.sectionRelPath;
+    return {
+      sectionPath,
+      readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+      exists: true
+    };
+  }
+  if (isPathInsideDirectory(ctx.sectionAbsolute, destAbsolute)) {
+    return { error: "Cannot move section into itself", status: 400 };
+  }
+
+  try {
+    await fs.access(destAbsolute);
+    return { error: "Target section already exists", status: 409 };
+  } catch (error) {
+    if (!error || error.code !== "ENOENT") throw error;
+  }
+
+  await fs.rename(ctx.sectionAbsolute, destAbsolute);
+  const sectionPath = path.relative(ctx.rootAbsolute, destAbsolute).replace(/\\/g, "/");
+  return {
+    sectionPath,
+    readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+    exists: true
+  };
+}
+
+async function deleteMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath) {
+  const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
+  if (ctx.error) return ctx;
+  await fs.rm(ctx.sectionAbsolute, { recursive: true, force: false });
+  return { deleted: ctx.sectionRelPath, exists: false };
+}
+
+async function updateMemorySectionStatusRecord(
+  manifestRelPath,
+  scopeType,
+  storageFolder,
+  sectionRelPath,
+  nextStatus
+) {
+  const ctx = await resolveMemorySectionContext(manifestRelPath, scopeType, storageFolder, sectionRelPath);
+  if (ctx.error) return ctx;
+
+  const status = String(nextStatus || "").trim();
+  if (!status) return { error: "Missing status", status: 400 };
+
+  const raw =
+    (await readMemorySectionReadmeContent(ctx.readmeAbsolute)) ||
+    buildStorageSectionReadmeContent(ctx.sectionRelPath.split("/").pop() || "Раздел");
+  const { frontmatter, body } = splitNodeFrontmatter(raw);
+  const nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-status", status);
+  await writeMemorySectionReadmeContent(ctx.readmeAbsolute, joinNodeFrontmatter(nextFrontmatter, body));
+
+  const sectionPath = ctx.sectionRelPath;
+  return {
+    sectionPath,
+    readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+    status,
+    exists: true
+  };
+}
+
 async function getMediaFolderAbsolute(nodeAbsolute, options = {}) {
   const folderAbsolute = await resolveNodeSubfolderAbsolute(
     nodeAbsolute,
@@ -3606,6 +3787,419 @@ function sendRenameError(res, error) {
   });
 }
 
+function sendFileOpError(res, error, actionLabel) {
+  const code = error && error.code ? String(error.code) : "";
+  if (code === "ENOENT") return sendJson(res, 404, { error: "File not found" });
+  if (code === "EEXIST" || code === "ENOTEMPTY") return sendJson(res, 409, { error: "Target already exists" });
+  if (code === "EPERM" || code === "EACCES") {
+    return sendJson(res, 403, { error: `No permission to ${actionLabel}` });
+  }
+  return sendJson(res, 500, {
+    error: `Failed to ${actionLabel}`,
+    details: String(error && error.message ? error.message : error)
+  });
+}
+
+function normalizeMoveParentPath(raw) {
+  const normalized = String(raw || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  return normalized || ".";
+}
+
+function normalizeMoveTargetRelFile(raw, fallbackFile) {
+  const value = String(raw || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (value) return normalizeRelativeFilePath(value);
+  return normalizeRelativeFilePath(fallbackFile);
+}
+
+function isDescendantRelPath(ancestorRel, candidateRel) {
+  const ancestor = String(ancestorRel || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/g, "");
+  const candidate = String(candidateRel || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/g, "");
+  if (!ancestor || !candidate) return false;
+  return candidate === ancestor || candidate.startsWith(`${ancestor}/`);
+}
+
+async function removeMenuSortOrderEntry(dirAbsolute, sortKey) {
+  const key = String(sortKey || "").trim();
+  if (!key || !dirAbsolute) return;
+  const order = [...((await readMenuSortOrder(dirAbsolute)) || [])];
+  const nextOrder = order.filter((entry) => String(entry || "").trim() !== key);
+  if (nextOrder.length === order.length) return;
+  const sortPath = path.join(dirAbsolute, MENU_SORT_FILE);
+  await fs.writeFile(sortPath, `${JSON.stringify({ order: nextOrder }, null, 2)}\n`, "utf-8");
+}
+
+async function resolveExternalFileOpContext(manifestRelPath, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
+    return { error: "Only .md files are allowed", status: 400 };
+  }
+
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+  if (!folderAbsolute) return { error: "External folder not found", status: 404 };
+
+  const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
+  if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) {
+    return { error: "Invalid external file path", status: 400 };
+  }
+
+  try {
+    await fs.access(fileAbsolute);
+  } catch {
+    return { error: "External file not found", status: 404 };
+  }
+
+  return {
+    manifestRelPath,
+    nodeAbsolute,
+    folderAbsolute,
+    normalizedRelFile,
+    fileAbsolute
+  };
+}
+
+async function deleteExternalMemoryFile(manifestRelPath, relFile) {
+  const ctx = await resolveExternalFileOpContext(manifestRelPath, relFile);
+  if (ctx.error) return ctx;
+  await fs.rm(ctx.fileAbsolute, { force: false });
+  return {
+    deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
+    path: ctx.manifestRelPath
+  };
+}
+
+async function moveExternalMemoryFile(manifestRelPath, relFile, options = {}) {
+  const ctx = await resolveExternalFileOpContext(manifestRelPath, relFile);
+  if (ctx.error) return ctx;
+
+  const targetManifest = String(options.targetPath || manifestRelPath).trim();
+  const targetNodeAbsolute = await resolveApiManifestAbsolute(targetManifest);
+  if (!targetNodeAbsolute) return { error: "Invalid target path", status: 400 };
+
+  const targetFolderAbsolute = await resolveNodeSubfolderAbsolute(targetNodeAbsolute, STORAGE_SUBFOLDER_CONTENT, {
+    create: true
+  });
+  if (!targetFolderAbsolute) return { error: "External folder not found", status: 404 };
+
+  const nextRelFile = normalizeMoveTargetRelFile(options.targetFile, ctx.normalizedRelFile);
+  if (!nextRelFile) return { error: "Invalid target file path", status: 400 };
+
+  const nextAbsolute = path.join(targetFolderAbsolute, nextRelFile);
+  if (!isPathInsideDirectory(targetFolderAbsolute, nextAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+
+  if (path.resolve(ctx.fileAbsolute) === path.resolve(nextAbsolute)) {
+    return { error: "File is already at the target location", status: 409 };
+  }
+
+  try {
+    await fs.access(nextAbsolute);
+    return { error: "File with this name already exists", status: 409 };
+  } catch {
+    // target does not exist
+  }
+
+  await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
+  await fs.rename(ctx.fileAbsolute, nextAbsolute);
+
+  const content = await fs.readFile(nextAbsolute, "utf-8");
+  let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+  const oldWorkspaceRel = await resolveExternalFileWorkspaceRel(manifestRelPath, ctx.normalizedRelFile);
+  const newWorkspaceRel = await resolveExternalFileWorkspaceRel(targetManifest, nextRelFile);
+  if (
+    oldWorkspaceRel &&
+    newWorkspaceRel &&
+    oldWorkspaceRel.replace(/\\/g, "/") !== newWorkspaceRel.replace(/\\/g, "/")
+  ) {
+    linkRewrite = await rewriteMarkdownLinksForRename({
+      exactMappings: [{ oldRel: oldWorkspaceRel, newRel: newWorkspaceRel }]
+    });
+  }
+
+  return {
+    path: targetManifest,
+    file: nextRelFile.replace(/\\/g, "/"),
+    content,
+    linkRewrite
+  };
+}
+
+async function resolveMediaFileOpContext(manifestRelPath, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  if (!normalizedRelFile) return { error: "Invalid media file path", status: 400 };
+
+  const mediaAbsolute = await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRelFile);
+  if (!mediaAbsolute) return { error: "Media file not found", status: 404 };
+
+  const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+  if (!folderAbsolute || !isPathInsideDirectory(folderAbsolute, mediaAbsolute)) {
+    return { error: "Invalid media file path", status: 400 };
+  }
+
+  return {
+    manifestRelPath,
+    nodeAbsolute,
+    folderAbsolute,
+    normalizedRelFile,
+    mediaAbsolute
+  };
+}
+
+async function deleteMediaStorageFile(manifestRelPath, relFile) {
+  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
+  if (ctx.error) return ctx;
+
+  await fs.rm(ctx.mediaAbsolute, { force: false });
+
+  const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
+  if (
+    sidecarAbsolute &&
+    (await isAllowedMediaSidecarAbsolute(ctx.nodeAbsolute, sidecarAbsolute))
+  ) {
+    await removeIfExists(sidecarAbsolute);
+  }
+
+  return {
+    deleted: ctx.normalizedRelFile.replace(/\\/g, "/"),
+    path: ctx.manifestRelPath
+  };
+}
+
+async function moveMediaStorageFile(manifestRelPath, relFile, options = {}) {
+  const ctx = await resolveMediaFileOpContext(manifestRelPath, relFile);
+  if (ctx.error) return ctx;
+
+  const targetManifest = String(options.targetPath || manifestRelPath).trim();
+  const targetNodeAbsolute = await resolveApiManifestAbsolute(targetManifest);
+  if (!targetNodeAbsolute) return { error: "Invalid target path", status: 400 };
+
+  const targetFolderAbsolute = await getMediaFolderAbsolute(targetNodeAbsolute, { create: true });
+  if (!targetFolderAbsolute) return { error: "Media folder not found", status: 404 };
+
+  const nextRelFile = normalizeMoveTargetRelFile(
+    options.targetFile,
+    ctx.normalizedRelFile
+  );
+  if (!nextRelFile) return { error: "Invalid target file path", status: 400 };
+
+  const nextAbsolute = path.join(targetFolderAbsolute, nextRelFile);
+  if (!isPathInsideDirectory(targetFolderAbsolute, nextAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+
+  if (path.resolve(ctx.mediaAbsolute) === path.resolve(nextAbsolute)) {
+    return { error: "File is already at the target location", status: 409 };
+  }
+
+  try {
+    await fs.access(nextAbsolute);
+    return { error: "File with this name already exists", status: 409 };
+  } catch {
+    // target does not exist
+  }
+
+  await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
+  await fs.rename(ctx.mediaAbsolute, nextAbsolute);
+
+  const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
+  const nextSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+  if (
+    sidecarAbsolute &&
+    nextSidecarAbsolute &&
+    (await isAllowedMediaSidecarAbsolute(ctx.nodeAbsolute, sidecarAbsolute)) &&
+    (await isAllowedMediaSidecarAbsolute(targetNodeAbsolute, nextSidecarAbsolute))
+  ) {
+    try {
+      await fs.rename(sidecarAbsolute, nextSidecarAbsolute);
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  const sidecarRelPath = toMediaSidecarRelativePath(nextRelFile);
+  let content = "";
+  if (sidecarRelPath) {
+    const sidecarAbsoluteNext = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+    if (sidecarAbsoluteNext) {
+      try {
+        content = await fs.readFile(sidecarAbsoluteNext, "utf-8");
+      } catch {
+        content = "";
+      }
+    }
+  }
+
+  let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+  const exactMappings = [];
+  const oldAssetRel = manifestRelFromNodeAbsolute(ctx.mediaAbsolute);
+  const newAssetRel = manifestRelFromNodeAbsolute(nextAbsolute);
+  if (oldAssetRel && newAssetRel && oldAssetRel !== newAssetRel) {
+    exactMappings.push({ oldRel: oldAssetRel, newRel: newAssetRel });
+  }
+  const oldSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
+  const newSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
+  if (oldSidecarAbsolute && newSidecarAbsolute && oldSidecarAbsolute !== newSidecarAbsolute) {
+    const oldSidecarWorkspaceRel = manifestRelFromNodeAbsolute(oldSidecarAbsolute);
+    const newSidecarWorkspaceRel = manifestRelFromNodeAbsolute(newSidecarAbsolute);
+    if (
+      oldSidecarWorkspaceRel &&
+      newSidecarWorkspaceRel &&
+      oldSidecarWorkspaceRel !== newSidecarWorkspaceRel
+    ) {
+      exactMappings.push({ oldRel: oldSidecarWorkspaceRel, newRel: newSidecarWorkspaceRel });
+    }
+  }
+  if (exactMappings.length) {
+    linkRewrite = await rewriteMarkdownLinksForRename({ exactMappings });
+  }
+
+  return {
+    path: targetManifest,
+    file: nextRelFile.replace(/\\/g, "/"),
+    sidecar: sidecarRelPath ? sidecarRelPath.replace(/\\/g, "/") : "",
+    content,
+    linkRewrite
+  };
+}
+
+async function moveNodeManifest(relPath, parentPathRaw) {
+  const resolvedRelPath = String(await resolveExistingWorkspaceRelPath(relPath)).replace(/\\/g, "/");
+  if (isServiceAreaRootManifestRel(resolvedRelPath) || isContainerAreaRootManifestRel(resolvedRelPath)) {
+    return { error: "Служебная папка workspace не может быть перемещена", status: 403 };
+  }
+  if (isSystemReferenceManifestRel(resolvedRelPath)) {
+    return { error: "Системный справочник нельзя перемещать", status: 403 };
+  }
+  if (parsePartFolderManifestRel(resolvedRelPath)) {
+    return { error: "Parts cannot be moved with this API", status: 400 };
+  }
+
+  const parentPath = normalizeMoveParentPath(parentPathRaw);
+  const parentAbsolute = await resolveExistingWorkspaceDirAbsolute(parentPath === "." ? "" : parentPath);
+  if (!parentAbsolute) return { error: "Invalid parent folder path", status: 400 };
+
+  const normalized = resolvedRelPath;
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return { error: "Invalid file path", status: 400 };
+
+  let nextRelPath = normalized;
+  let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+
+  if (isAreaManifestRelPath(normalized)) {
+    const folderRelPath = path.dirname(normalized).replace(/\\/g, "/");
+    if (!folderRelPath || folderRelPath === ".") {
+      return { error: "Root Workspaces folder cannot be moved", status: 400 };
+    }
+    if (parentPath !== "." && isDescendantRelPath(folderRelPath, parentPath)) {
+      return { error: "Cannot move folder into itself or its descendant", status: 400 };
+    }
+
+    const currentParentRel = path.dirname(folderRelPath).replace(/\\/g, "/");
+    const currentParentNorm = !currentParentRel || currentParentRel === "." ? "." : currentParentRel;
+    if (currentParentNorm === parentPath) {
+      return { error: "Node is already in this folder", status: 409 };
+    }
+
+    const folderName = path.basename(folderRelPath);
+    const targetFolderRel = parentPath === "." ? folderName : `${parentPath}/${folderName}`;
+    const currentFolderAbsolute = path.dirname(absolute);
+    const targetFolderAbsolute = path.join(parentAbsolute, folderName);
+
+    try {
+      await fs.access(targetFolderAbsolute);
+      return { error: "Folder with this name already exists", status: 409 };
+    } catch {
+      // target does not exist
+    }
+
+    await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
+
+    const sortSlug = getMenuSortSlugFromFolderRel(folderRelPath);
+    await removeMenuSortOrderEntry(path.dirname(currentFolderAbsolute), sortSlug);
+    await appendMenuSortOrderEntry(parentAbsolute, sortSlug);
+
+    nextRelPath = path.join(targetFolderRel, path.basename(normalized)).replace(/\\/g, "/");
+    if (folderRelPath !== targetFolderRel) {
+      linkRewrite = await rewriteMarkdownLinksForRename({
+        prefixMappings: [{ oldPrefix: folderRelPath, newPrefix: targetFolderRel }]
+      });
+    }
+  } else {
+    const fileName = path.basename(normalized);
+    const currentDirRel = path.dirname(normalized).replace(/\\/g, "/");
+    const currentDirNorm = !currentDirRel || currentDirRel === "." ? "." : currentDirRel;
+    if (currentDirNorm === parentPath) {
+      return { error: "Node is already in this folder", status: 409 };
+    }
+
+    const targetRelPath = parentPath === "." ? fileName : `${parentPath}/${fileName}`;
+    const targetAbsolute = normalizeWorkspacePath(targetRelPath);
+    if (!targetAbsolute) return { error: "Invalid target path", status: 400 };
+
+    try {
+      await fs.access(targetAbsolute);
+      return { error: "File with this name already exists", status: 409 };
+    } catch {
+      // target does not exist
+    }
+
+    const oldContentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
+    const newContentAbsolute = normalizeWorkspacePath(toContentFilePath(targetRelPath));
+    const oldTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(normalized));
+    const newTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(targetRelPath));
+    const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
+    const newConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(targetRelPath));
+
+    await fs.rename(absolute, targetAbsolute);
+    if (oldContentAbsolute && newContentAbsolute) await renameIfExists(oldContentAbsolute, newContentAbsolute);
+    if (oldTodoAbsolute && newTodoAbsolute) await renameIfExists(oldTodoAbsolute, newTodoAbsolute);
+    if (oldConfigAbsolute && newConfigAbsolute) await renameIfExists(oldConfigAbsolute, newConfigAbsolute);
+
+    const oldNamedStorageAbsolute = getNamedStorageRootAbsolute(normalized);
+    const newNamedStorageAbsolute = getNamedStorageRootAbsolute(targetRelPath);
+    if (oldNamedStorageAbsolute && newNamedStorageAbsolute && oldNamedStorageAbsolute !== newNamedStorageAbsolute) {
+      await renameIfExists(oldNamedStorageAbsolute, newNamedStorageAbsolute);
+    }
+
+    const sortSlug = getManifestSlugFromRel(normalized);
+    const oldParentAbsolute = await resolveExistingWorkspaceDirAbsolute(
+      currentDirNorm === "." ? "" : currentDirNorm
+    );
+    if (oldParentAbsolute) await removeMenuSortOrderEntry(oldParentAbsolute, sortSlug);
+    await appendMenuSortOrderEntry(parentAbsolute, sortSlug);
+
+    nextRelPath = targetRelPath;
+    const oldRel = stripAgentContentPrefixFromRelPath(normalized);
+    const newRel = stripAgentContentPrefixFromRelPath(targetRelPath);
+    if (oldRel && newRel && oldRel !== newRel) {
+      linkRewrite = await rewriteMarkdownLinksForRename({
+        exactMappings: [{ oldRel, newRel }]
+      });
+    }
+  }
+
+  return {
+    path: stripAgentContentPrefixFromRelPath(nextRelPath),
+    parentPath,
+    linkRewrite
+  };
+}
+
 const VISIBLE_DOT_MENU_ENTRIES = new Set([".awn-framework"]);
 const MENU_SKIP_DIRS = new Set([
   "node_modules",
@@ -4025,13 +4619,29 @@ const STORAGE_SLOT_ROOT_FOLDER_NAMES = new Set(
   )
 );
 
-async function countDirectoryEntries(dirAbsolute) {
+async function countDirectoryFiles(dirAbsolute) {
+  let count = 0;
+  let entries = [];
   try {
-    const entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
-    return entries.filter((entry) => entry.name !== ".DS_Store").length;
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
   } catch {
     return 0;
   }
+
+  for (const entry of entries) {
+    if (entry.name === ".DS_Store" || entry.name.startsWith(".")) continue;
+    const absolute = path.join(dirAbsolute, entry.name);
+    if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
+      count += await countDirectoryFiles(absolute);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    if (isAreaManifestFileName(entry.name)) continue;
+    count += 1;
+  }
+
+  return count;
 }
 
 async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
@@ -4063,7 +4673,7 @@ async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
       const folderAbsolute = await resolveFolderPathCaseInsensitive(baseAbsolute, folderName);
       if (folderAbsolute && (await isExistingDirectory(folderAbsolute))) {
         exists = true;
-        entryCount = await countDirectoryEntries(folderAbsolute);
+        entryCount = await countDirectoryFiles(folderAbsolute);
       }
     }
     layers[folderName] = { kind: "folder", exists, entryCount };
@@ -4151,7 +4761,7 @@ async function scanNodeStorageRoot(manifestRelPath) {
       if (!entry.isDirectory()) continue;
 
       const folderAbsolute = await resolveFolderPathCaseInsensitive(storageRootAbs, entry.name);
-      const entryCount = folderAbsolute ? await countDirectoryEntries(folderAbsolute) : 0;
+      const entryCount = folderAbsolute ? await countDirectoryFiles(folderAbsolute) : 0;
       const canonical = normalizeStorageSubfolderName(entry.name);
       const slotKey = resolveSlotKeyFromStorageFolderName(entry.name);
       folders.push({
@@ -9557,6 +10167,184 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/storage/section/rename") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await renameMemorySectionRecord(
+        payload.path,
+        "storage",
+        String(payload.folder || "").trim(),
+        payload.section,
+        payload
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to rename storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/section/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await moveMemorySectionRecord(
+        payload.path,
+        "storage",
+        String(payload.folder || "").trim(),
+        payload.section,
+        payload.parent
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to move storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/storage/section") {
+    const relPath = url.searchParams.get("path") || "";
+    const section = url.searchParams.get("section") || "";
+    const folder = String(url.searchParams.get("folder") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!section) return sendJson(res, 400, { error: "Missing section query parameter" });
+    try {
+      const result = await deleteMemorySectionRecord(relPath, "storage", folder, section);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to delete storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/section/status") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await updateMemorySectionStatusRecord(
+        payload.path,
+        "storage",
+        String(payload.folder || "").trim(),
+        payload.section,
+        payload.status
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to update storage section status", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/external/section/rename") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await renameMemorySectionRecord(payload.path, "external", "", payload.section, payload);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to rename external section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/external/section/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await moveMemorySectionRecord(
+        payload.path,
+        "external",
+        "",
+        payload.section,
+        payload.parent
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to move external section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/external/section") {
+    const relPath = url.searchParams.get("path") || "";
+    const section = url.searchParams.get("section") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!section) return sendJson(res, 400, { error: "Missing section query parameter" });
+    try {
+      const result = await deleteMemorySectionRecord(relPath, "external", "", section);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to delete external section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/external/section/status") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await updateMemorySectionStatusRecord(
+        payload.path,
+        "external",
+        "",
+        payload.section,
+        payload.status
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to update external section status", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/section/rename") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await renameMemorySectionRecord(payload.path, "media", "", payload.section, payload);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to rename media section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/section/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await moveMemorySectionRecord(payload.path, "media", "", payload.section, payload.parent);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to move media section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/media/section") {
+    const relPath = url.searchParams.get("path") || "";
+    const section = url.searchParams.get("section") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!section) return sendJson(res, 400, { error: "Missing section query parameter" });
+    try {
+      const result = await deleteMemorySectionRecord(relPath, "media", "", section);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to delete media section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/section/status") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await updateMemorySectionStatusRecord(
+        payload.path,
+        "media",
+        "",
+        payload.section,
+        payload.status
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to update media section status", details: String(error.message || error) });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/storage/scan") {
     const relPath = url.searchParams.get("path");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
@@ -9828,6 +10616,40 @@ async function handleApiForAgent(req, res, url) {
       const code = error && error.code ? String(error.code) : "";
       if (code === "ENOENT") return sendJson(res, 404, { error: "External file not found" });
       return sendJson(res, 500, { error: "Failed to rename external file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/external/file") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    try {
+      const result = await deleteExternalMemoryFile(relPath, relFile);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "delete external file");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/external/file/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing external file path" });
+
+      const result = await moveExternalMemoryFile(relPath, relFile, {
+        targetPath: payload.targetPath,
+        targetFile: payload.targetFile
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "move external file");
     }
   }
 
@@ -10603,6 +11425,40 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/media/file") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    try {
+      const result = await deleteMediaStorageFile(relPath, relFile);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "delete media file");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/file/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
+
+      const result = await moveMediaStorageFile(relPath, relFile, {
+        targetPath: payload.targetPath,
+        targetFile: payload.targetFile
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "move media file");
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/folder/view") {
     const relPath = url.searchParams.get("path");
     const folderName = url.searchParams.get("folder");
@@ -10658,6 +11514,24 @@ async function handleApiForAgent(req, res, url) {
       targetPath: targetAbsolute,
       uri
     });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/node/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const parentPath = payload.parentPath;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (parentPath === undefined || parentPath === null) {
+        return sendJson(res, 400, { error: "Missing parentPath" });
+      }
+
+      const result = await moveNodeManifest(relPath, parentPath);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendRenameError(res, error);
+    }
   }
 
   if (req.method === "DELETE" && url.pathname === "/api/file") {

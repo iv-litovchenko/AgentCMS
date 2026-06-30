@@ -19497,6 +19497,10 @@ button.node-navigation-memory-title:focus-visible {
   transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
+#menu .node-settings-btn {
+  display: none;
+}
+
 .node-settings-btn:hover {
   background: var(--panel-soft);
   color: var(--text);
@@ -22047,9 +22051,12 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .list-view-title {
+  flex: 0 0 auto;
+  width: 100%;
   font-size: 13px;
   color: var(--muted);
   padding: 0;
+  text-align: center;
 }
 
 .list-view-content {
@@ -22069,6 +22076,23 @@ button.node-navigation-memory-title:focus-visible {
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
+}
+
+.list-view-head-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.list-view-slot-types {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.35;
+  max-width: 100%;
 }
 
 .list-view--no-head .list-view-head {
@@ -22313,6 +22337,7 @@ button.node-navigation-memory-title:focus-visible {
   gap: 10px;
   padding: 32px 24px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .data-hub-panel-empty-state--loading .data-hub-panel-empty-state-icon {
@@ -22344,20 +22369,36 @@ button.node-navigation-memory-title:focus-visible {
   color: #b45309;
 }
 
+.data-hub-panel > .data-hub-all-items-view {
+  flex: 1;
+  min-height: 0;
+  justify-content: flex-start;
+}
+
 .data-hub-all-items-view {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 12px;
+  padding: 12px 16px 24px;
   min-height: 0;
   flex: 1;
   overflow: auto;
+  box-sizing: border-box;
 }
 
 .data-hub-all-items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   gap: 10px;
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.data-hub-all-items-loose-section {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 .data-hub-slot-card {
@@ -22462,11 +22503,6 @@ button.node-navigation-memory-title:focus-visible {
   line-height: 1.35;
   color: #94a3b8;
   word-break: break-all;
-}
-
-.data-hub-all-items-loose-section {
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
 }
 
 .data-hub-all-items-loose-head {
@@ -24971,6 +25007,54 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.modal-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.move-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.move-modal-field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.move-modal-field-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--panel);
+  color: inherit;
+}
+
+.list-item-action-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: inherit;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.list-item-action-btn:hover {
+  background: var(--hover);
+}
+
+.list-item-action-btn--danger {
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.35);
 }
 
 .create-memory-names-list {

@@ -118,6 +118,8 @@ const menuSettingsBtn = document.getElementById("menu-settings-btn");
 const menuSettingsPopoverNode = document.getElementById("menu-settings-popover");
 const menuContextMenuNode = document.getElementById("menu-context-menu");
 const menuContextMenuListNode = document.getElementById("menu-context-menu-list");
+const resourceContextMenuNode = document.getElementById("resource-context-menu");
+const resourceContextMenuListNode = document.getElementById("resource-context-menu-list");
 const menuTreeShowEmptyFoldersNode = document.getElementById("menu-tree-show-empty-folders");
 const menuTreeShowActiveTopicsOnlyNode = document.getElementById("menu-tree-show-active-topics-only");
 const menuTreePadSortIndexesNode = document.getElementById("menu-tree-pad-sort-indexes");
@@ -235,6 +237,7 @@ const editorSurfaceNode = document.querySelector(".editor-surface");
 const externalFileCommentsBlockNode = document.getElementById("external-file-comments-block");
 const mediaFileCommentsBlockNode = document.getElementById("media-file-comments-block");
 const listViewTitleNode = document.getElementById("list-view-title");
+const listViewSlotTypesNode = document.getElementById("list-view-slot-types");
 const listViewContentNode = document.getElementById("list-view-content");
 const nodeOverviewBlockNode = document.getElementById("node-overview-block");
 const nodeOverviewContentNode = document.getElementById("node-overview-content");
@@ -304,6 +307,17 @@ const titleFixedTextNode = document.getElementById("title-fixed-text");
 const saveContentBtn = document.getElementById("save-content-btn");
 const saveSystemFileBtn = document.getElementById("save-system-file-btn");
 const fileHistoryBtn = document.getElementById("file-history-btn");
+const deleteResourceBtn = document.getElementById("delete-resource-btn");
+const moveResourceBtn = document.getElementById("move-resource-btn");
+const moveModalNode = document.getElementById("move-modal");
+const moveModalTitleNode = document.getElementById("move-modal-title");
+const moveModalHintNode = document.getElementById("move-modal-hint");
+const moveTargetTopicWrapNode = document.getElementById("move-target-topic-wrap");
+const moveTargetTopicInputNode = document.getElementById("move-target-topic-input");
+const moveTargetPathLabelNode = document.getElementById("move-target-path-label");
+const moveTargetPathInputNode = document.getElementById("move-target-path-input");
+const moveOkBtn = document.getElementById("move-ok-btn");
+const moveCancelBtn = document.getElementById("move-cancel-btn");
 const fileHistoryModalNode = document.getElementById("file-history-modal");
 const fileHistoryTitleNode = document.getElementById("file-history-title");
 const fileHistorySubtitleNode = document.getElementById("file-history-subtitle");
@@ -2341,6 +2355,147 @@ function syncFileHistoryButtonVisibility() {
   if (!fileHistoryBtn) return;
   const saveVisible = !saveContentBtn?.classList.contains("hidden") || !saveSystemFileBtn?.classList.contains("hidden");
   fileHistoryBtn.classList.toggle("hidden", !saveVisible || !isFileHistoryAvailable());
+}
+
+function isResourceDeleteAvailable() {
+  if (activeSystemFile) return false;
+  if (activeContentMode === "description" && isNodeDeleteAvailable()) return true;
+  if (activeContentMode === "external" && activeExternalFilePath) return true;
+  if (isMediaAssetEditing()) return true;
+  return false;
+}
+
+function isResourceMoveAvailable() {
+  if (activeSystemFile) return false;
+  const apiPath = getActiveNodeApiPath();
+  if (activeContentMode === "description" && apiPath && isNodeMdPath(apiPath) && !isAgentRootIndexPath(apiPath)) {
+    return true;
+  }
+  if (activeContentMode === "external" && activeExternalFilePath) return true;
+  if (isMediaAssetEditing()) return true;
+  return false;
+}
+
+function syncResourceActionButtonsVisibility() {
+  deleteResourceBtn?.classList.add("hidden");
+  moveResourceBtn?.classList.add("hidden");
+}
+
+function getNodeParentPathForMove(manifestPath) {
+  const folder = getFolderPathFromManifest(manifestPath);
+  if (!folder) return ".";
+  const parts = folder.split("/").filter(Boolean);
+  parts.pop();
+  return parts.length ? parts.join("/") : ".";
+}
+
+let pendingMoveResolve = null;
+
+function closeMoveModal(result = null) {
+  moveModalNode?.classList.add("hidden");
+  if (pendingMoveResolve) {
+    pendingMoveResolve(result);
+    pendingMoveResolve = null;
+  }
+}
+
+function askMoveTarget(options = {}) {
+  const {
+    title = "Переместить",
+    hint = "",
+    showTopicField = false,
+    topicLabel = "Тема назначения (manifest.md)",
+    pathLabel = "Папка назначения",
+    defaultTopic = "",
+    defaultPath = ""
+  } = options;
+
+  if (!moveModalNode || !moveTargetPathInputNode) {
+    return Promise.resolve(null);
+  }
+
+  if (moveModalTitleNode) moveModalTitleNode.textContent = title;
+  if (moveModalHintNode) moveModalHintNode.textContent = hint;
+  if (moveTargetTopicWrapNode) moveTargetTopicWrapNode.classList.toggle("hidden", !showTopicField);
+  if (moveTargetTopicInputNode) moveTargetTopicInputNode.value = defaultTopic;
+  if (moveTargetPathLabelNode) moveTargetPathLabelNode.textContent = pathLabel;
+  moveTargetPathInputNode.value = defaultPath;
+  moveModalNode.classList.remove("hidden");
+  moveTargetPathInputNode.focus();
+  moveTargetPathInputNode.select();
+
+  return new Promise((resolve) => {
+    pendingMoveResolve = resolve;
+  });
+}
+
+async function deleteExternalMemoryRecord(filePath, manifestPath = getActiveNodeApiPath()) {
+  const response = await fetch(
+    buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    throw new Error(reason);
+  }
+  return response.json();
+}
+
+async function moveExternalMemoryRecord(filePath, { targetPath, targetFile, manifestPath = getActiveNodeApiPath() }) {
+  const response = await fetch(buildApiUrl("/api/external/file/move"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: manifestPath, file: filePath, targetPath, targetFile })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    throw new Error(reason);
+  }
+  return response.json();
+}
+
+async function deleteMediaStorageRecord(filePath, manifestPath = getActiveNodeApiPath()) {
+  const response = await fetch(
+    buildApiUrl("/api/media/file", { path: manifestPath, file: filePath }),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    throw new Error(reason);
+  }
+  return response.json();
+}
+
+async function moveMediaStorageRecord(filePath, { targetPath, targetFile, manifestPath = getActiveNodeApiPath() }) {
+  const response = await fetch(buildApiUrl("/api/media/file/move"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: manifestPath, file: filePath, targetPath, targetFile })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    throw new Error(reason);
+  }
+  return response.json();
+}
+
+async function moveNodeByPath(targetPath, parentPath) {
+  const response = await fetch(buildApiUrl("/api/node/move"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: targetPath, parentPath })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  return response.json();
 }
 
 let fileElementThreadBtn = null;
@@ -7427,6 +7582,25 @@ const DATA_STORAGE_SLOT_SPECS = [
   }
 ];
 
+const BLOCKED_EXECUTABLE_EXTENSIONS_LABEL = ".exe, .dll, .so, .dylib, .bin, .com, .msi, .scr";
+
+const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
+  memory: {
+    external: "Markdown (.md)",
+    internal: "Markdown в bundle-файле",
+    tabular: "CSV (.csv)"
+  },
+  inbox: "Markdown (.md)",
+  "quick-notes": "Markdown (.md)",
+  references: "Markdown (.md)",
+  artefacts: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
+  repository: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
+  scripts: `Скрипты и текстовые файлы; запрещены исполняемые (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
+  media:
+    "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
+  thread: "Markdown (.md)"
+};
+
 const DATA_MEMORY_MODE_SPECS = [
   { mode: "external", label: "Многофайловая", icon: "📂" },
   { mode: "internal", label: "Однофайловая", icon: "📄" },
@@ -7851,9 +8025,7 @@ const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
 
 function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
   if (!shouldUseDataHubListShell(mode)) return false;
-  if (activeDataStorageAllItems) return true;
-  if (isFlatStorageSectionMode(mode) && isFlatStorageListMode(mode) && !activeStorageFolderExists) return true;
-  return false;
+  return activeDataStorageAllItems;
 }
 
 function isDataHubAllSlotsPanelStale() {
@@ -7991,6 +8163,7 @@ function getStorageScanFolderSpec(folder) {
 function setActiveDataStorageAllItems() {
   activeDataStorageAllItems = true;
   refreshStorageSlotTree();
+  syncListViewHead();
   renderListViewContent();
   syncAppRouteToUrl({ replace: true });
 }
@@ -8028,7 +8201,7 @@ function ensureDataHubShell() {
   split.className = "data-hub-list-view-split";
 
   const slotTree = document.createElement("nav");
-  slotTree.className = "storage-slot-tree media-section-tree";
+  slotTree.className = "storage-slot-tree";
   slotTree.setAttribute("aria-label", "Слоты storage");
   split.appendChild(slotTree);
 
@@ -8050,36 +8223,9 @@ function getListViewMountRoot(mode = activeContentMode) {
   return listViewContentNode;
 }
 
-function getDataStorageSlotCount(spec) {
-  const mode = spec.defaultMode;
-  if (spec.key === "memory") {
-    if (activeContentMode === "external" && externalFilesCache.length > 0) {
-      return getExternalSectionFileCounts(null).total;
-    }
-    return null;
-  }
-  if (spec.key === "inbox") {
-    if (activeContentMode === "inbox") {
-      return filterFlatStorageSectionItems(getFlatStorageNormalizedItems("inbox"), null).length;
-    }
-    const intake = topicIntakeCacheByPath.get(getActiveNodeApiPath());
-    const pending = Number(intake?.inbox?.pending) || 0;
-    return pending > 0 ? pending : null;
-  }
-  if (spec.key === "thread") {
-    const intake = topicIntakeCacheByPath.get(getActiveNodeApiPath());
-    const unread = getThreadUnreadCount(getActiveNodeApiPath(), intake);
-    if (unread > 0) return unread;
-    const count = Number(intake?.thread?.count) || 0;
-    return count > 0 ? count : null;
-  }
-  if (spec.sectionKind === "flat" && activeContentMode === mode) {
-    return filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null).length;
-  }
-  if (spec.sectionKind === "media" && activeContentMode === "media") {
-    return getMediaSectionFileCounts(null).total;
-  }
-  return null;
+function getDataStorageSlotCountForScan(_spec, folder) {
+  const entryCount = Number(folder?.entryCount);
+  return entryCount > 0 ? entryCount : null;
 }
 
 function setActiveDataStorageSlotFromOverview(spec) {
@@ -8105,6 +8251,9 @@ function setActiveDataStorageSlot(spec) {
   const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
   if (activeContentMode === targetMode) {
     refreshStorageSlotTree();
+    renderListViewContent();
+    applyModeUi();
+    syncAppRouteToUrl({ replace: true });
     return;
   }
   setContentMode(targetMode);
@@ -8130,16 +8279,12 @@ function setActiveDataMemoryMode(mode) {
   activeDataStorageAllItems = false;
   if (activeContentMode === mode) {
     refreshStorageSlotTree();
+    renderListViewContent();
+    applyModeUi();
+    syncAppRouteToUrl({ replace: true });
     return;
   }
   setContentMode(mode);
-}
-
-function getDataStorageSlotCountForScan(spec, folder) {
-  const liveCount = getDataStorageSlotCount(spec);
-  if (liveCount !== null) return liveCount;
-  const entryCount = Number(folder?.entryCount) || 0;
-  return entryCount > 0 ? entryCount : null;
 }
 
 function isStorageScanFolderDisabled(folder, spec = null) {
@@ -8291,8 +8436,6 @@ async function renderStorageSlotTree(container) {
       }
     }
   }
-
-  syncDataStorageSlotTreeCounts();
 }
 
 function loadStorageSectionsPanelVisible() {
@@ -9315,16 +9458,18 @@ const MENU_CONTEXT_MENU_ACTIONS = {
   area: [
     { id: "rename", label: "Переименовать" },
     { id: "move", label: "Переместить" },
+    { id: "delete", label: "Удалить" },
     { id: "container", label: "Контейнер", requiresNestedContainer: true }
   ],
   topic: [
     { id: "rename", label: "Переименовать" },
     { id: "move", label: "Переместить" },
+    { id: "delete", label: "Удалить" },
     { id: "convert-to-area", label: "Преобразовать в область" }
   ]
 };
 
-const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["container"]);
+const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["rename", "move", "delete", "container"]);
 
 const MENU_AWN_STATUS_OPTIONS = [
   { key: "open", name: "🟢 Открыта" },
@@ -9372,6 +9517,41 @@ function upsertAwnStatusInPropsYaml(content, nextStatus) {
   if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
   else entries.push(nextEntry);
   return stringifyPropsYaml(entries);
+}
+
+function upsertAwnNameInPropsYaml(content, nextAwnName) {
+  const entries = parsePropsYaml(content || "");
+  const normalizedKey = "awn-name";
+  const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
+  const nextEntry = { key: normalizedKey, kind: "string", value: nextAwnName };
+  if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
+  else entries.unshift(nextEntry);
+  return stringifyPropsYaml(entries);
+}
+
+async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
+  const apiPath = getResolvedNodePath(nodePath);
+  if (!apiPath) return;
+
+  const getResponse = await fetch(buildApiUrl("/api/file/properties", { path: apiPath }, agentId));
+  if (!getResponse.ok) {
+    const errorData = await getResponse.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+  }
+  const current = await getResponse.json();
+  const stampedContent = upsertAwnNameInPropsYaml(current.content || "", nextAwnName);
+
+  const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: apiPath, content: stampedContent })
+  });
+  if (!saveResponse.ok) {
+    const errorData = await saveResponse.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${saveResponse.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
 }
 
 async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgentId) {
@@ -9559,6 +9739,787 @@ function handleMenuContextMenuAction(actionId) {
     if (containerManifest) {
       void openNodeFromMenu(getLabelFromPath(containerManifest), containerManifest);
     }
+    return;
+  }
+
+  if (actionId === "rename") {
+    openRenameMenuNodeModal(state);
+    return;
+  }
+
+  if (actionId === "move") {
+    void promptMoveNodeFromMenu(state.path);
+    return;
+  }
+
+  if (actionId === "delete") {
+    void deleteNodeByPath(state.path, state.label || getLabelFromPath(state.path));
+  }
+}
+
+const RESOURCE_STANDARD_ACTIONS = [
+  { id: "rename", label: "Переименовать" },
+  { id: "move", label: "Переместить" },
+  { id: "delete", label: "Удалить" }
+];
+
+const RESOURCE_CONTEXT_MENU_ACTIONS = {
+  externalFile: [...RESOURCE_STANDARD_ACTIONS],
+  flatStorageFile: [...RESOURCE_STANDARD_ACTIONS],
+  memorySection: [...RESOURCE_STANDARD_ACTIONS]
+};
+
+let resourceContextMenuState = null;
+let renameSectionState = null;
+let renameMenuNodeState = null;
+let renameExternalFileState = null;
+
+function getMemorySectionScope(state = resourceContextMenuState) {
+  if (!state) return null;
+  if (state.storageMode) return { type: "storage", folder: getFlatStorageSectionFolderName(state.storageMode) };
+  if (state.externalMode) return { type: "external", folder: "" };
+  if (state.mediaMode) return { type: "media", folder: "" };
+  return null;
+}
+
+function getMemorySectionApiBase(scope) {
+  if (!scope) return "";
+  if (scope.type === "storage") return "/api/storage/section";
+  if (scope.type === "external") return "/api/external/section";
+  if (scope.type === "media") return "/api/media/section";
+  return "";
+}
+
+function resolveMemorySectionStatus(sectionFolder, state = resourceContextMenuState) {
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  const scope = getMemorySectionScope(state);
+  if (!scope) return "";
+
+  if (scope.type === "external") {
+    const file = externalFilesCache.find(
+      (item) => String(item.relativePath || "").replace(/\\/g, "/") === readmePath
+    );
+    return String(getPropsEntryValueByKey(file?.props, "awn-status") || file?.status || "").trim();
+  }
+
+  if (scope.type === "media") {
+    const manifest = mediaSectionManifests.find(
+      (item) => String(item.path || "").replace(/\\/g, "/") === readmePath
+    );
+    return String(manifest?.status || "").trim();
+  }
+
+  if (scope.type === "storage" && state.storageMode) {
+    const item = getFlatStorageNormalizedItems(state.storageMode).find(
+      (entry) => !entry.isFolder && entry.path === readmePath
+    );
+    if (item?.status) return String(item.status).trim();
+  }
+
+  return "";
+}
+
+async function fetchMemorySectionStatus(sectionFolder, state) {
+  const cached = resolveMemorySectionStatus(sectionFolder, state);
+  if (cached) return cached;
+
+  const scope = getMemorySectionScope(state);
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  if (!scope || !readmePath) return "";
+
+  try {
+    if (scope.type === "storage" && state.storageMode) {
+      const response = await fetch(
+        buildApiUrl("/api/storage/markdown", {
+          path: getActiveNodeApiPath(),
+          folder: scope.folder,
+          file: readmePath
+        })
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return String(getPropsEntryValueByKey(parsePropsYaml(data.content || ""), "awn-status") || "").trim();
+    }
+    if (scope.type === "external") {
+      const response = await fetch(
+        buildApiUrl("/api/external/file", { path: getActiveNodeApiPath(), file: readmePath })
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return String(getPropsEntryValueByKey(parsePropsYaml(data.content || ""), "awn-status") || "").trim();
+    }
+    if (scope.type === "media") {
+      const response = await fetch(
+        buildApiUrl("/api/media/markdown", { path: getActiveNodeApiPath(), file: readmePath })
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return String(getPropsEntryValueByKey(parsePropsYaml(data.content || ""), "awn-status") || "").trim();
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+async function renameMemorySectionApi(sectionFolder, { title, slug }, state = resourceContextMenuState) {
+  const scope = getMemorySectionScope(state);
+  const apiBase = getMemorySectionApiBase(scope);
+  if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
+
+  const body = {
+    path: getActiveNodeApiPath(),
+    section: sectionFolder,
+    title,
+    slug,
+    displayName: title
+  };
+  if (scope.type === "storage") body.folder = scope.folder;
+
+  const response = await fetch(buildApiUrl(`${apiBase}/rename`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function moveMemorySectionApi(sectionFolder, targetParent, state = resourceContextMenuState) {
+  const scope = getMemorySectionScope(state);
+  const apiBase = getMemorySectionApiBase(scope);
+  if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
+
+  const body = { path: getActiveNodeApiPath(), section: sectionFolder, parent: targetParent || "" };
+  if (scope.type === "storage") body.folder = scope.folder;
+
+  const response = await fetch(buildApiUrl(`${apiBase}/move`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function deleteMemorySectionApi(sectionFolder, state = resourceContextMenuState) {
+  const scope = getMemorySectionScope(state);
+  const apiBase = getMemorySectionApiBase(scope);
+  if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
+
+  const params = { path: getActiveNodeApiPath(), section: sectionFolder };
+  if (scope.type === "storage") params.folder = scope.folder;
+
+  const response = await fetch(buildApiUrl(apiBase, params), { method: "DELETE" });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function updateMemorySectionStatusApi(sectionFolder, nextStatus, state = resourceContextMenuState) {
+  const scope = getMemorySectionScope(state);
+  const apiBase = getMemorySectionApiBase(scope);
+  if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
+
+  const body = { path: getActiveNodeApiPath(), section: sectionFolder, status: nextStatus };
+  if (scope.type === "storage") body.folder = scope.folder;
+
+  const response = await fetch(buildApiUrl(`${apiBase}/status`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function refreshMemorySectionViews(state = resourceContextMenuState) {
+  invalidateStorageRootScanCache();
+  if (state?.storageMode) {
+    await reloadFlatStorageFolderMode(state.storageMode);
+    rerenderFlatStorageListViewBody(state.storageMode);
+    return;
+  }
+  if (state?.externalMode) {
+    await refreshExternalMemoryCaches();
+    rerenderExternalListViewBody();
+    return;
+  }
+  if (state?.mediaMode) {
+    await refreshMediaCache();
+    renderListViewContent();
+  }
+}
+
+function closeResourceContextMenu() {
+  resourceContextMenuNode?.classList.add("hidden");
+  resourceContextMenuState = null;
+}
+
+function positionResourceContextMenu(clientX, clientY) {
+  if (!resourceContextMenuNode) return;
+  resourceContextMenuNode.classList.remove("hidden");
+  const rect = resourceContextMenuNode.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+  resourceContextMenuNode.style.left = `${Math.min(clientX, maxLeft)}px`;
+  resourceContextMenuNode.style.top = `${Math.min(clientY, maxTop)}px`;
+}
+
+function appendResourceContextMenuStatusSection(currentStatus = "") {
+  if (!resourceContextMenuListNode) return;
+  const state = resourceContextMenuState;
+  if (!state || (state.kind !== "memorySection" && state.kind !== "externalFile" && state.kind !== "flatStorageFile")) {
+    return;
+  }
+
+  const options = getMenuAwnStatusOptions();
+  const activeStatus = normalizeEnumDisplayValue(currentStatus, options);
+  const hasActions = resourceContextMenuListNode.childElementCount > 0;
+
+  if (hasActions) {
+    const separator = document.createElement("li");
+    separator.className = "menu-context-menu-separator";
+    separator.setAttribute("role", "separator");
+    resourceContextMenuListNode.appendChild(separator);
+  }
+
+  const group = document.createElement("li");
+  group.className = "menu-context-menu-status-group";
+  group.setAttribute("role", "none");
+
+  const label = document.createElement("div");
+  label.className = "menu-context-menu-status-label";
+  label.textContent = "Статус";
+  group.appendChild(label);
+
+  const list = document.createElement("ul");
+  list.className = "menu-context-menu-status-list";
+  list.setAttribute("role", "group");
+  list.setAttribute("aria-label", "Статус");
+
+  for (const option of options) {
+    const api = awnEnumOptionsApi();
+    const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : String(option);
+    const optionName = typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+    const item = document.createElement("li");
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-status-btn";
+    btn.dataset.status = optionKey;
+    btn.textContent = optionName;
+    btn.setAttribute("role", "menuitemradio");
+    const isActive = optionKey === activeStatus;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-checked", isActive ? "true" : "false");
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  group.appendChild(list);
+  resourceContextMenuListNode.appendChild(group);
+}
+
+function renderResourceContextMenuItems(kind, currentStatus = "") {
+  if (!resourceContextMenuListNode) return;
+  resourceContextMenuListNode.replaceChildren();
+  const actions = RESOURCE_CONTEXT_MENU_ACTIONS[kind] || [];
+  for (const action of actions) {
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn";
+    btn.dataset.action = action.id;
+    btn.textContent = action.label;
+    btn.setAttribute("role", "menuitem");
+    item.appendChild(btn);
+    resourceContextMenuListNode.appendChild(item);
+  }
+  appendResourceContextMenuStatusSection(currentStatus);
+}
+
+function openResourceContextMenu(event, state) {
+  if (!resourceContextMenuNode || !resourceContextMenuListNode || !state?.kind) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenuContextMenu();
+
+  void (async () => {
+    let currentStatus = state.status || "";
+    if (state.kind === "memorySection" && state.sectionFolder) {
+      currentStatus = await fetchMemorySectionStatus(state.sectionFolder, state);
+    }
+
+    resourceContextMenuState = { ...state, status: currentStatus };
+    renderResourceContextMenuItems(state.kind, currentStatus);
+    positionResourceContextMenu(event.clientX, event.clientY);
+  })();
+}
+
+async function handleResourceContextMenuStatusAction(nextStatus) {
+  const state = resourceContextMenuState;
+  if (!state) return;
+  const options = getMenuAwnStatusOptions();
+  const normalizedStatus = normalizeEnumDisplayValue(nextStatus, options);
+  if (!normalizedStatus || !enumOptionsIncludeKey(options, normalizedStatus)) return;
+
+  const currentStatus = normalizeEnumDisplayValue(state.status || "", options);
+  closeResourceContextMenu();
+  if (normalizedStatus === currentStatus) return;
+
+  try {
+    if (state.kind === "memorySection" && state.sectionFolder) {
+      await updateMemorySectionStatusApi(state.sectionFolder, normalizedStatus, state);
+      await refreshMemorySectionViews(state);
+    } else {
+      showToast("Статус для этого типа элементов пока не поддерживается", "error");
+      return;
+    }
+    const api = awnEnumOptionsApi();
+    const label =
+      typeof api.resolveEnumDisplayName === "function"
+        ? api.resolveEnumDisplayName(normalizedStatus, options)
+        : normalizedStatus;
+    showToast(`Статус: ${label}`, "success");
+  } catch (error) {
+    showToast(`Ошибка статуса: ${error.message}`, "error");
+  }
+}
+
+function setCreateSectionModalLabels({
+  message = "Создать раздел",
+  nameLabel = "Название раздела",
+  slugLabel = "Имя папки (slug)"
+} = {}) {
+  const modalMessage = createSectionModalNode?.querySelector(".modal-message");
+  if (modalMessage) modalMessage.textContent = message;
+  const nameLabelNode = createSectionModalNode?.querySelector('label[for="create-section-name-input"]');
+  if (nameLabelNode) nameLabelNode.textContent = nameLabel;
+  const slugLabelNode = createSectionModalNode?.querySelector(".slug-field-label");
+  if (slugLabelNode) slugLabelNode.textContent = slugLabel;
+}
+
+function resetCreateSectionModalLabels() {
+  setCreateSectionModalLabels();
+}
+
+function prepareRenameModalFields({ message, nameLabel, slugLabel, displayName, slug }) {
+  if (!createSectionModalNode) return;
+  setCreateSectionModalLabels({ message, nameLabel, slugLabel });
+  createSectionNameInputNode.value = displayName;
+  createSectionSlugController?.reset();
+  if (createSectionSlugInputNode) {
+    createSectionSlugInputNode.value = slug;
+    createSectionSlugController?.setLinked(isAutoSlugForDisplay(displayName, slug));
+  }
+  createSectionOkBtn.textContent = "Сохранить";
+  createSectionModalNode.classList.remove("hidden");
+  createSectionNameInputNode.focus();
+  createSectionNameInputNode.select();
+}
+
+function openRenameMenuNodeModal(state) {
+  if (!createSectionModalNode || !state?.path) return;
+  renameMenuNodeState = state;
+  renameExternalFileState = null;
+
+  void (async () => {
+    const nodePath = state.path;
+    const slug = getNodeSlugFromPath(nodePath);
+    let displayName = "";
+    try {
+      const getResponse = await fetch(
+        buildApiUrl("/api/file/properties", { path: getResolvedNodePath(nodePath) })
+      );
+      if (getResponse.ok) {
+        const data = await getResponse.json();
+        displayName = getYamlScalarFromFrontmatter(data.content || "", "awn-name").trim();
+      }
+    } catch {
+      // ignore
+    }
+
+    prepareRenameModalFields({
+      message: state.kind === "area" ? "Переименовать область" : "Переименовать тему",
+      nameLabel: "Название",
+      slugLabel: state.kind === "area" ? "Имя папки (slug)" : "Имя файла (slug)",
+      displayName,
+      slug
+    });
+  })();
+}
+
+async function submitRenameMenuNode() {
+  const state = renameMenuNodeState;
+  if (!state?.path) return;
+
+  const displayName = createSectionNameInputNode.value.trim();
+  const slug = createSectionSlugController?.getSlug() || "";
+  if (!displayName) {
+    showToast("Введите название", "error");
+    return;
+  }
+  if (!slug) {
+    showToast(state.kind === "area" ? "Введите slug (имя папки)" : "Введите slug (имя файла)", "error");
+    return;
+  }
+
+  const nodePath = state.path;
+  const currentSlug = getNodeSlugFromPath(nodePath);
+  const nextStoredAwnName = normalizeAwnNameForStorage(displayName, slug);
+
+  createSectionOkBtn.disabled = true;
+  createSectionOkBtn.textContent = "Сохраняю...";
+  try {
+    let nextPath = nodePath;
+    if (slug !== currentSlug) {
+      const renameResponse = await fetch(buildApiUrl("/api/file/title"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: getResolvedNodePath(nodePath), title: slug })
+      });
+      if (!renameResponse.ok) {
+        const errorData = await renameResponse.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${renameResponse.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const renameData = await renameResponse.json();
+      nextPath = renameData.path;
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
+
+      if (isNodeManifestPath(nodePath) && isNodeManifestPath(nextPath) && !isPartNodePath(nodePath)) {
+        patchTreePaths(getFolderPathFromManifest(nodePath), getFolderPathFromManifest(nextPath));
+      } else if (isTopicManifestPath(nodePath)) {
+        patchTreePaths(nodePath, nextPath);
+      }
+    }
+
+    let previousRawAwnName = "";
+    try {
+      const getResponse = await fetch(
+        buildApiUrl("/api/file/properties", { path: getResolvedNodePath(nextPath) })
+      );
+      if (getResponse.ok) {
+        const data = await getResponse.json();
+        previousRawAwnName = getYamlScalarFromFrontmatter(data.content || "", "awn-name").trim();
+      }
+    } catch {
+      // ignore
+    }
+
+    if (nextStoredAwnName !== previousRawAwnName) {
+      await saveNodeAwnName(nextPath, nextStoredAwnName);
+    }
+
+    closeCreateSectionModal();
+    try {
+      await refreshMenu({ agentId: activeAgentId });
+    } catch {
+      // menu will resync on next open
+    }
+
+    const normalizedOld = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+    const normalizedActive = normalizeMenuNodePath(getResolvedNodePath(activePath));
+    if (normalizedOld && normalizedActive === normalizedOld) {
+      activePath = nextPath;
+      activeLabel = resolveNodeDisplayName(nextStoredAwnName, getNodeSlugFromPath(nextPath));
+      updateBreadcrumbsForActiveMode();
+      syncAppRouteToUrl({ replace: true });
+    }
+
+    showToast("Переименовано", "success");
+  } catch (error) {
+    showToast(`Ошибка переименования: ${error.message}`, "error");
+  } finally {
+    createSectionOkBtn.disabled = false;
+    createSectionOkBtn.textContent = renameModalSubmitLabel();
+  }
+}
+
+function openRenameExternalFileModal(state) {
+  if (!createSectionModalNode || !state?.filePath) return;
+  renameExternalFileState = state;
+  renameMenuNodeState = null;
+  renameSectionState = null;
+
+  const filePath = String(state.filePath || "").replace(/\\/g, "/");
+  const slug = getNodeSlugFromPath(filePath);
+  const cached = externalFilesCache.find(
+    (item) => String(item.relativePath || "").replace(/\\/g, "/") === filePath
+  );
+  const props = Array.isArray(cached?.props) ? cached.props : [];
+  const displayName = String(getPropsEntryValueByKey(props, "awn-name") || "").trim();
+
+  prepareRenameModalFields({
+    message: "Переименовать запись",
+    nameLabel: "Название",
+    slugLabel: "Имя файла (slug)",
+    displayName,
+    slug
+  });
+}
+
+async function submitRenameExternalFile() {
+  const state = renameExternalFileState;
+  if (!state?.filePath) return;
+
+  const displayName = createSectionNameInputNode.value.trim();
+  const slug = createSectionSlugController?.getSlug() || "";
+  if (!displayName) {
+    showToast("Введите название", "error");
+    return;
+  }
+  if (!slug) {
+    showToast("Введите slug (имя файла)", "error");
+    return;
+  }
+
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) {
+    showToast("Не выбран топик", "error");
+    return;
+  }
+
+  const currentSlug = getNodeSlugFromPath(state.filePath);
+  const nextStoredAwnName = normalizeAwnNameForStorage(displayName, slug);
+  let filePath = String(state.filePath || "").replace(/\\/g, "/");
+
+  createSectionOkBtn.disabled = true;
+  createSectionOkBtn.textContent = "Сохраняю...";
+  try {
+    if (slug !== currentSlug) {
+      const renameResponse = await fetch(buildApiUrl("/api/external/file/rename"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: manifestPath, file: filePath, title: slug })
+      });
+      if (!renameResponse.ok) {
+        const errorData = await renameResponse.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${renameResponse.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const renameData = await renameResponse.json();
+      filePath = String(renameData.file || filePath).replace(/\\/g, "/");
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
+      if (activeExternalFilePath === state.filePath) {
+        activeExternalFilePath = filePath;
+        updateBreadcrumbsForActiveMode();
+        syncAppRouteToUrl({ replace: true });
+      }
+    }
+
+    const cached = externalFilesCache.find(
+      (item) => String(item.relativePath || "").replace(/\\/g, "/") === filePath
+    );
+    const previousRawAwnName = String(getPropsEntryValueByKey(cached?.props, "awn-name") || "").trim();
+    if (nextStoredAwnName !== previousRawAwnName) {
+      const getResponse = await fetch(
+        buildApiUrl("/api/external/file", { path: manifestPath, file: filePath })
+      );
+      if (!getResponse.ok) {
+        const errorData = await getResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+      }
+      const current = await getResponse.json();
+      const { frontmatter, body } = splitFrontmatter(current.content || "");
+      const entries = parsePropsYaml(frontmatter);
+      const nameIndex = entries.findIndex((entry) => normalizePropsKey(entry.key) === "awn-name");
+      const nextEntry = { key: "awn-name", kind: "string", value: nextStoredAwnName };
+      if (nameIndex >= 0) entries[nameIndex] = { ...entries[nameIndex], ...nextEntry };
+      else entries.unshift(nextEntry);
+      const nextContent = joinFrontmatter(stringifyPropsYaml(entries), body);
+      const saveResponse = await fetch(buildApiUrl("/api/external/file"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: manifestPath, file: filePath, content: nextContent })
+      });
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+      }
+    }
+
+    closeCreateSectionModal();
+    await refreshExternalMemoryCaches();
+    rerenderExternalListViewBody();
+    showToast("Переименовано", "success");
+  } catch (error) {
+    showToast(`Ошибка переименования: ${error.message}`, "error");
+  } finally {
+    createSectionOkBtn.disabled = false;
+    createSectionOkBtn.textContent = renameModalSubmitLabel();
+  }
+}
+
+function renameModalSubmitLabel() {
+  return renameSectionState || renameMenuNodeState || renameExternalFileState ? "Сохранить" : "Создать";
+}
+
+function handleResourceContextMenuAction(actionId) {
+  const state = resourceContextMenuState;
+  if (!state) return;
+  closeResourceContextMenu();
+
+  if (actionId === "rename" && state.kind === "memorySection" && state.sectionFolder) {
+    openRenameSectionModal(state);
+    return;
+  }
+
+  if (actionId === "rename" && state.kind === "externalFile" && state.filePath) {
+    openRenameExternalFileModal(state);
+    return;
+  }
+
+  if (actionId === "move" && state.kind === "memorySection" && state.sectionFolder) {
+    void promptMoveMemorySection(state);
+    return;
+  }
+
+  if (actionId === "move" && state.kind === "externalFile" && state.filePath) {
+    void promptMoveExternalRecord(state.filePath);
+    return;
+  }
+
+  if (actionId === "delete" && state.kind === "memorySection" && state.sectionFolder) {
+    void deleteMemorySectionFromMenu(state);
+    return;
+  }
+
+  if (actionId === "delete" && state.kind === "externalFile" && state.filePath) {
+    void deleteExternalRecord(state.filePath);
+  }
+}
+
+function openRenameSectionModal(state) {
+  if (!createSectionModalNode || !state?.sectionFolder) return;
+  renameSectionState = state;
+  renameMenuNodeState = null;
+  renameExternalFileState = null;
+  const label =
+    state.label ||
+    getMemorySectionDisplayLabel(state.sectionFolder) ||
+    state.sectionFolder.split("/").pop() ||
+    "";
+  const slug = state.sectionFolder.split("/").filter(Boolean).pop() || "";
+
+  prepareRenameModalFields({
+    message: "Переименовать раздел",
+    nameLabel: "Название раздела",
+    slugLabel: "Имя папки (slug)",
+    displayName: label,
+    slug
+  });
+}
+
+async function submitRenameSection() {
+  const state = renameSectionState;
+  if (!state?.sectionFolder) return;
+
+  const displayName = createSectionNameInputNode.value.trim();
+  const slug = createSectionSlugController?.getSlug() || "";
+  if (!displayName) {
+    showToast("Введите название раздела", "error");
+    return;
+  }
+  if (!slug) {
+    showToast("Введите slug (имя папки)", "error");
+    return;
+  }
+
+  createSectionOkBtn.disabled = true;
+  createSectionOkBtn.textContent = "Сохраняю...";
+  try {
+    const data = await renameMemorySectionApi(state.sectionFolder, { title: displayName, slug }, state);
+    closeCreateSectionModal();
+    await refreshMemorySectionViews(state);
+    if (state.storageMode && data.sectionPath) {
+      activeFlatStorageSectionFolder[state.storageMode] = data.sectionPath;
+    } else if (state.externalMode && data.sectionPath) {
+      activeExternalSectionFolder = data.sectionPath;
+    } else if (state.mediaMode && data.sectionPath) {
+      activeMediaSectionFolder = data.sectionPath;
+    }
+    refreshStorageSlotTree();
+    showToast("Раздел переименован", "success");
+  } catch (error) {
+    showToast(`Ошибка переименования: ${error.message}`, "error");
+  } finally {
+    createSectionOkBtn.disabled = false;
+    createSectionOkBtn.textContent = renameModalSubmitLabel();
+  }
+}
+
+async function promptMoveMemorySection(state) {
+  const sectionFolder = state?.sectionFolder;
+  if (!sectionFolder) return;
+  const parentParts = sectionFolder.split("/").filter(Boolean);
+  parentParts.pop();
+  const defaultParent = parentParts.join("/");
+
+  const moveData = await askMoveTarget({
+    title: "Переместить раздел",
+    hint: "Укажите родительский раздел. Оставьте пустым для корня слота.",
+    pathLabel: "Родительский раздел",
+    defaultPath: defaultParent
+  });
+  if (moveData == null) return;
+
+  try {
+    const data = await moveMemorySectionApi(sectionFolder, moveData.path, state);
+    await refreshMemorySectionViews(state);
+    if (state.storageMode && data.sectionPath) {
+      activeFlatStorageSectionFolder[state.storageMode] = data.sectionPath;
+    } else if (state.externalMode && data.sectionPath) {
+      activeExternalSectionFolder = data.sectionPath;
+    } else if (state.mediaMode && data.sectionPath) {
+      activeMediaSectionFolder = data.sectionPath;
+    }
+    refreshStorageSlotTree();
+    showToast("Раздел перемещён", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteMemorySectionFromMenu(state) {
+  const sectionFolder = state?.sectionFolder;
+  if (!sectionFolder) return;
+  const label = state.label || getMemorySectionDisplayLabel(sectionFolder) || sectionFolder;
+  const confirmed = await askConfirm(`Удалить раздел «${label}» целиком?`, { okLabel: "Удалить" });
+  if (!confirmed) return;
+
+  try {
+    await deleteMemorySectionApi(sectionFolder, state);
+    if (state.storageMode && activeFlatStorageSectionFolder[state.storageMode] === sectionFolder) {
+      activeFlatStorageSectionFolder[state.storageMode] = null;
+    } else if (state.externalMode && activeExternalSectionFolder === sectionFolder) {
+      activeExternalSectionFolder = null;
+    } else if (state.mediaMode && activeMediaSectionFolder === sectionFolder) {
+      activeMediaSectionFolder = null;
+    }
+    await refreshMemorySectionViews(state);
+    refreshStorageSlotTree();
+    showToast("Раздел удалён", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
   }
 }
 
@@ -10106,37 +11067,7 @@ function initNodeWorkspaceDomainSelect() {
 }
 
 function syncTopicIntakeDomainLabels() {
-  syncDataStorageSlotTreeCounts();
-}
-
-function syncDataStorageSlotTreeCounts() {
-  const tree = getStorageSlotTreeNode();
-  if (!tree || !activePath) return;
-  const manifestPath = getActiveNodeApiPath();
-  const intake = topicIntakeCacheByPath.get(manifestPath) || null;
-
-  const inboxBtn = tree.querySelector('.media-section-tree-item[data-storage-slot="inbox"]');
-  if (inboxBtn) {
-    const pending = Number(intake?.inbox?.pending) || 0;
-    const badge = inboxBtn.querySelector(".media-section-tree-count");
-    if (badge) {
-      badge.textContent = pending > 0 ? `${badge.dataset.baseCount || "0"} · ${pending}` : String(badge.dataset.baseCount || "");
-      badge.classList.toggle("hidden", !badge.textContent);
-    }
-  }
-
-  const threadBtn = tree.querySelector('.media-section-tree-item[data-storage-slot="thread"]');
-  if (threadBtn) {
-    const count = Number(intake?.thread?.count) || 0;
-    const unread = getThreadUnreadCount(manifestPath, intake);
-    const badge = threadBtn.querySelector(".media-section-tree-count");
-    if (badge) {
-      if (unread > 0) badge.textContent = `${unread} нов.`;
-      else if (count > 0) badge.textContent = String(count);
-      else badge.textContent = badge.dataset.baseCount || "";
-      badge.classList.toggle("hidden", !badge.textContent);
-    }
-  }
+  // Slot tree badges use file counts from storage scan only.
 }
 
 function syncNodeWorkspaceDomainSelect() {
@@ -12282,6 +13213,7 @@ function applyContentModeState(mode) {
 function setContentMode(mode) {
   if (isGitRepoLooseMdEditing() && mode !== "internal") return;
   if (!applyContentModeState(mode)) return;
+  activeDataStorageAllItems = false;
   syncAppRouteToUrl({ replace: true });
   void applyContentModeChange();
 }
@@ -13122,29 +14054,54 @@ function updateBreadcrumbsForActiveMode(overrides) {
   updateDocumentTitle();
 }
 
+function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
+  if (shouldUseDataHubListShell(mode) && activeDataStorageAllItems) return null;
+  const slot = getDataStorageSlotForMode(mode);
+  if (!slot || slot.disabled) return null;
+  if (slot.key === "memory") {
+    const labels = DATA_STORAGE_SLOT_FILE_TYPE_LABELS.memory;
+    return labels[mode] || labels.external;
+  }
+  return DATA_STORAGE_SLOT_FILE_TYPE_LABELS[slot.key] || null;
+}
+
+function syncListViewHead() {
+  if (!listViewTitleNode) return;
+  listViewTitleNode.textContent = getListViewTitleByMode();
+  const typesLabel = getDataStorageSlotAllowedFileTypesLabel();
+  if (listViewSlotTypesNode) {
+    if (typesLabel) {
+      listViewSlotTypesNode.textContent = `Допустимые типы файлов: ${typesLabel}`;
+      listViewSlotTypesNode.classList.remove("hidden");
+    } else {
+      listViewSlotTypesNode.textContent = "";
+      listViewSlotTypesNode.classList.add("hidden");
+    }
+  }
+}
+
 function getListViewTitleByMode() {
   if (activeContentMode === "graph") {
     return `Пространство: ${activeLabel || getLabelFromPath(activePath) || "тема"}`;
   }
   if (activeContentMode === NODE_MINDMAP_MODE) {
-    return `Карта тем: ${activeLabel || getLabelFromPath(activePath) || "нода"}`;
+    return `Карта тем: ${activeLabel || getLabelFromPath(activePath) || "nода"}`;
   }
-  if (activeContentMode === "external") return `Многофайловая (${STORAGE_SUBFOLDER_CONTENT})`;
   if (activeContentMode === "tabular") {
-    return isTabularSourceEditing() ? "Табличная — исходник CSV" : "Табличная (CSV)";
+    return isTabularSourceEditing() ? "Табличная — исходник CSV" : "Табличная";
   }
-  if (activeContentMode === "inbox") {
-    const base = `Входящие (${STORAGE_SUBFOLDER_INBOX})`;
-    return inboxPendingCount > 0 ? `${base} · ${inboxPendingCount} необработ.` : base;
-  }
-  if (activeContentMode === "quick-notes") return `Заметки (${STORAGE_SUBFOLDER_QUICK_NOTES})`;
-  if (activeContentMode === "references") return `Источники (${STORAGE_SUBFOLDER_REFERENCES})`;
-  if (activeContentMode === "media") return `Медиа (${STORAGE_SUBFOLDER_MEDIA})`;
-  if (activeContentMode === "scripts") return `Скрипты (${STORAGE_SUBFOLDER_SCRIPTS})`;
-  if (activeContentMode === "artefacts") return `Артефакты (${STORAGE_SUBFOLDER_ARTEFACTS})`;
-  if (activeContentMode === "repository") return `Репозиторий (${STORAGE_SUBFOLDER_REPOSITORY})`;
   if (activeContentMode === "temp") return "Временные файлы";
-  return "Список файлов";
+
+  const slot = getDataStorageSlotForMode();
+  if (slot?.label) {
+    if (activeContentMode === "inbox" && inboxPendingCount > 0) {
+      return `${slot.label} · ${inboxPendingCount} необработ.`;
+    }
+    return slot.label;
+  }
+
+  const label = getContentModeLabel(activeContentMode);
+  return label && label !== activeContentMode ? label : "Список файлов";
 }
 
 function parseMediaSections(text) {
@@ -16396,7 +17353,10 @@ function appendMemorySectionTreeNodes(list, nodes, config, depth = 0) {
       onClick: () => config.onSelect(section.folderPath),
       sectionFolder: section.folderPath,
       readmeExists: config.readmeExists(section.folderPath),
-      onSectionReadmeEdit: (readmePath) => config.onReadmeEdit(readmePath, section.folderPath)
+      onSectionReadmeEdit: (readmePath) => config.onReadmeEdit(readmePath, section.folderPath),
+      sectionStorageMode: config.storageMode || null,
+      sectionExternalMode: config.externalMode || null,
+      sectionMediaMode: config.mediaMode || null
     });
     if (config.datasetKey) btn.dataset[config.datasetKey] = section.folderPath;
     if (section.children.length) {
@@ -16942,8 +17902,15 @@ function setMediaViewMode(mode, { rerender = true, skipRouteSync = false } = {})
   if (!skipRouteSync) syncAppRouteToUrl({ push: true });
 }
 
+function getMediaSectionTreeNode() {
+  const wrap = listViewContentNode.querySelector(
+    ".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)"
+  );
+  return wrap?.querySelector(".media-section-tree") || null;
+}
+
 function syncMediaSectionTreeActiveState() {
-  const tree = listViewContentNode.querySelector(".media-section-tree");
+  const tree = getMediaSectionTreeNode();
   if (!tree) return;
   for (const btn of tree.querySelectorAll(".media-section-tree-item[data-media-view]")) {
     const view = btn.dataset.mediaView;
@@ -16993,7 +17960,10 @@ function appendMediaSectionTreeItem(
     onClick,
     sectionFolder = null,
     readmeExists = false,
-    onSectionReadmeEdit = null
+    onSectionReadmeEdit = null,
+    sectionStorageMode = null,
+    sectionExternalMode = null,
+    sectionMediaMode = null
   }
 ) {
   const isUnregistered = isMemorySectionUnregistered(sectionFolder, readmeExists);
@@ -17033,13 +18003,19 @@ function appendMediaSectionTreeItem(
   btn.addEventListener("click", onClick);
   row.appendChild(btn);
 
-  if (sectionFolder && typeof onSectionReadmeEdit === "function") {
-    row.appendChild(
-      createSectionReadmeSettingsButton(sectionFolder, {
-        exists: readmeExists,
-        onEdit: onSectionReadmeEdit
-      })
-    );
+  if (sectionFolder) {
+    btn.addEventListener("contextmenu", (event) => {
+      openResourceContextMenu(event, {
+        kind: "memorySection",
+        sectionFolder,
+        readmeExists,
+        storageMode: sectionStorageMode,
+        externalMode: sectionExternalMode,
+        mediaMode: sectionMediaMode,
+        label: getMemorySectionDisplayLabel(sectionFolder) || label,
+        onReadmeEdit: onSectionReadmeEdit
+      });
+    });
   }
 
   list.appendChild(row);
@@ -17090,7 +18066,8 @@ function renderMediaSectionTree(container) {
       isActive: (folderPath) => activeMediaSectionFolder === folderPath,
       onSelect: (folderPath) => setActiveMediaSectionFolder(folderPath),
       readmeExists: mediaSectionReadmeExists,
-      onReadmeEdit: (readmePath, folderPath) => void openMediaSectionReadme(readmePath, folderPath)
+      onReadmeEdit: (readmePath, folderPath) => void openMediaSectionReadme(readmePath, folderPath),
+      mediaMode: true
     });
   }
 }
@@ -17200,7 +18177,8 @@ function renderMediaListViewBody(container) {
   }
   pruneActiveMediaSectionFolder();
   syncMediaViewSelectOptions();
-  renderMediaSectionTree(listViewContentNode.querySelector(".media-section-tree"));
+  const mediaTree = getMediaSectionTreeNode();
+  if (mediaTree) renderMediaSectionTree(mediaTree);
   syncStorageSectionsPanelUi();
   syncMediaListSectionHead(
     isStorageSectionsPanelVisible() && mediaViewMode === "all" ? activeMediaSectionFolder : null
@@ -17596,6 +18574,14 @@ function getExternalTableVisibleColumns() {
 function getExternalTableFixedColumns() {
   return [
     {
+      key: "awn-preview",
+      label: "Превью",
+      fieldDef: null,
+      typeId: null,
+      fixed: true,
+      optional: true
+    },
+    {
       key: EXTERNAL_TABLE_FILE_COLUMN_KEY,
       label: "Название",
       fieldDef: null,
@@ -17606,7 +18592,12 @@ function getExternalTableFixedColumns() {
 }
 
 function getExternalTableDisplayColumns() {
-  return [...getExternalTableFixedColumns(), ...getExternalTableVisibleColumns()];
+  const visibleKeys = new Set(getExternalListVisibleColumnKeys());
+  const fixed = getExternalTableFixedColumns().filter(
+    (column) => !column.optional || visibleKeys.has(column.key)
+  );
+  const schema = getExternalTableVisibleColumns().filter((column) => column.key !== "awn-preview");
+  return [...fixed, ...schema];
 }
 
 function syncExternalListToolbarMeta(shown, total) {
@@ -18050,6 +19041,13 @@ function renderExternalTableView(container, mdItems) {
     const row = document.createElement("tr");
     row.tabIndex = 0;
     row.addEventListener("click", () => openExternalFile(item.path));
+    row.addEventListener("contextmenu", (event) => {
+      openResourceContextMenu(event, {
+        kind: "externalFile",
+        filePath: item.path,
+        label: getExternalListItemDisplayTitle(item)
+      });
+    });
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -18213,7 +19211,8 @@ function renderExternalSectionTree(container) {
       isActive: (folderPath) => activeExternalSectionFolder === folderPath,
       onSelect: (folderPath) => setActiveExternalSectionFolder(folderPath),
       readmeExists: externalSectionReadmeExists,
-      onReadmeEdit: (readmePath, folderPath) => void openExternalSectionReadme(readmePath, folderPath)
+      onReadmeEdit: (readmePath, folderPath) => void openExternalSectionReadme(readmePath, folderPath),
+      externalMode: true
     });
   }
 }
@@ -18509,6 +19508,13 @@ function renderExternalViewContent(container, mdItems) {
     li.className = "list-item list-item-with-actions external-list-item";
     li.style.cursor = "pointer";
     li.addEventListener("click", () => openExternalFile(item.path));
+    li.addEventListener("contextmenu", (event) => {
+      openResourceContextMenu(event, {
+        kind: "externalFile",
+        filePath: item.path,
+        label: getExternalListItemDisplayTitle(item)
+      });
+    });
 
     const icon = document.createElement("span");
     icon.className = "list-item-icon";
@@ -18733,7 +19739,8 @@ function renderFlatStorageSectionTree(container, mode) {
       onSelect: (folderPath) => setActiveFlatStorageSectionFolder(mode, folderPath),
       readmeExists: (folderPath) => flatStorageSectionReadmeExists(mode, folderPath),
       onReadmeEdit: (readmePath, folderPath) =>
-        void openFlatStorageSectionReadme(mode, readmePath, folderPath)
+        void openFlatStorageSectionReadme(mode, readmePath, folderPath),
+      storageMode: mode
     });
   }
 }
@@ -18788,9 +19795,9 @@ function rerenderFlatStorageListViewBody(mode = activeContentMode) {
   renderFlatStorageListViewBody(body, mode);
 }
 
-function renderFlatStorageListItems(container, items) {
+function renderFlatStorageListItems(container, items, mode = activeContentMode) {
   if (items.length === 0) {
-    renderListEmptyMessage(container, getStorageFolderEmptyMessage());
+    renderListEmptyMessage(container, getStorageFolderEmptyMessage(mode));
     return;
   }
 
@@ -18804,6 +19811,20 @@ function renderFlatStorageListItems(container, items) {
   for (const normalized of normalizedItems) {
     const li = document.createElement("li");
     li.className = "list-item";
+    li.style.cursor = "pointer";
+    li.dataset.flatStorageFile = normalized.path;
+    li.addEventListener("click", () => {
+      openFlatStorageRecordOverviewFromNavigation({ path: normalized.path }, mode);
+    });
+    li.addEventListener("contextmenu", (event) => {
+      openResourceContextMenu(event, {
+        kind: "flatStorageFile",
+        mode,
+        filePath: normalized.path,
+        label: String(normalized.path || "").split("/").pop() || normalized.path
+      });
+    });
+
     const icon = document.createElement("span");
     icon.className = "list-item-icon";
     icon.textContent = "📄";
@@ -18826,12 +19847,6 @@ function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
       categoryType: "awn.record.category",
       onCreate: (readmePath) => void openFlatStorageSectionReadme(mode, readmePath, sectionFolder)
     });
-  }
-
-  if (mode === "inbox") {
-    mountInboxTriageToolbar(container);
-    renderInboxTriageItems(container, getInboxTriageItemsForSection(sectionFolder));
-    return;
   }
 
   if (childSections.length === 0 && items.length === 0) {
@@ -18859,7 +19874,7 @@ function renderFlatStorageSectionFolderView(container, mode, sectionFolder) {
   }
 
   if (items.length > 0) {
-    renderFlatStorageListItems(container, items);
+    renderFlatStorageListItems(container, items, mode);
   }
 }
 
@@ -18879,17 +19894,12 @@ function renderFlatStorageAllItemsView(container, mode) {
     renderListEmptyMessage(container, getStorageFolderMissingMessage(mode));
     return;
   }
-  if (mode === "inbox") {
-    mountInboxTriageToolbar(container);
-    renderInboxTriageItems(container, getInboxTriageItemsForSection(null));
-    return;
-  }
   const items = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null);
   if (items.length === 0 && getFlatStorageUserSections(mode).length === 0) {
     renderListEmptyMessage(container, getStorageFolderEmptyMessage(mode));
     return;
   }
-  renderFlatStorageListItems(container, items);
+  renderFlatStorageListItems(container, items, mode);
 }
 
 function renderFlatStorageListViewBody(container, mode) {
@@ -19407,8 +20417,199 @@ function appendMediaItemActionButtons(target, item) {
     createMediaSidecarEditButton(item),
     createMediaOpenButton(item),
     createMediaRevealInFinderButton(item),
-    createMediaLinkPathButton(item)
+    createMediaLinkPathButton(item),
+    createMediaMoveButton(item),
+    createMediaDeleteButton(item)
   );
+}
+
+function createMediaMoveButton(item) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "list-item-action-btn";
+  btn.textContent = "↦";
+  btn.title = "Переместить";
+  btn.setAttribute("aria-label", "Переместить");
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      void promptMoveMediaRecord(item.path);
+    });
+  });
+  return btn;
+}
+
+function createMediaDeleteButton(item) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "list-item-action-btn list-item-action-btn--danger";
+  btn.textContent = "×";
+  btn.title = "Удалить";
+  btn.setAttribute("aria-label", "Удалить");
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      void deleteMediaRecord(item.path);
+    });
+  });
+  return btn;
+}
+
+function appendExternalItemActionButtons(target, item) {
+  const moveBtn = document.createElement("button");
+  moveBtn.type = "button";
+  moveBtn.className = "list-item-action-btn";
+  moveBtn.textContent = "↦";
+  moveBtn.title = "Переместить";
+  moveBtn.setAttribute("aria-label", "Переместить");
+  moveBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void promptMoveExternalRecord(item.path);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "list-item-action-btn list-item-action-btn--danger";
+  deleteBtn.textContent = "×";
+  deleteBtn.title = "Удалить";
+  deleteBtn.setAttribute("aria-label", "Удалить");
+  deleteBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void deleteExternalRecord(item.path);
+  });
+
+  target.append(moveBtn, deleteBtn);
+}
+
+async function deleteExternalRecord(filePath) {
+  const confirmed = await askConfirm(`Удалить запись «${getExternalListItemDisplayTitle({ path: filePath })}»?`, {
+    okLabel: "Удалить"
+  });
+  if (!confirmed) return;
+  try {
+    await deleteExternalMemoryRecord(filePath);
+    if (activeExternalFilePath === filePath) {
+      activeExternalFilePath = null;
+      await openNodeFromMenu(activeLabel, activePath, { contentMode: "external" });
+    } else {
+      await refreshExternalMemoryCaches();
+      rerenderExternalListViewBody();
+    }
+    showToast("Удалено", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
+  }
+}
+
+async function promptMoveExternalRecord(filePath) {
+  const moveData = await askMoveTarget({
+    title: "Переместить запись",
+    hint: "Можно сменить тему и путь внутри main/. Оставьте тему пустой для текущей.",
+    showTopicField: true,
+    topicLabel: "Тема назначения (manifest.md)",
+    pathLabel: "Путь в main/",
+    defaultTopic: getActiveNodeApiPath(),
+    defaultPath: filePath
+  });
+  if (!moveData) return;
+
+  try {
+    const data = await moveExternalMemoryRecord(filePath, {
+      targetPath: moveData.topic || getActiveNodeApiPath(),
+      targetFile: moveData.path
+    });
+    notifyMarkdownLinkRewrite(data.linkRewrite);
+    await refreshExternalMemoryCaches();
+    if (activeExternalFilePath === filePath) {
+      activeExternalFilePath = data.file;
+      await openExternalFile(data.file);
+    } else {
+      rerenderExternalListViewBody();
+    }
+    showToast("Перемещено", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteMediaRecord(filePath) {
+  const confirmed = await askConfirm(`Удалить файл «${filePath}»?`, { okLabel: "Удалить" });
+  if (!confirmed) return;
+  try {
+    await deleteMediaStorageRecord(filePath);
+    if (activeMediaSidecarSourcePath === filePath) {
+      clearMediaSidecarEditor();
+      await openNodeFromMenu(activeLabel, activePath, { contentMode: "media" });
+    } else {
+    await refreshMediaListIfVisible();
+    rerenderMediaListViewBody();
+      renderMediaListViewBody(listViewContentNode);
+    }
+    showToast("Удалено", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
+  }
+}
+
+async function promptMoveMediaRecord(filePath) {
+  const moveData = await askMoveTarget({
+    title: "Переместить медиафайл",
+    hint: "Можно сменить тему и путь внутри media/.",
+    showTopicField: true,
+    topicLabel: "Тема назначения (manifest.md)",
+    pathLabel: "Путь в media/",
+    defaultTopic: getActiveNodeApiPath(),
+    defaultPath: filePath
+  });
+  if (!moveData) return;
+
+  try {
+    const data = await moveMediaStorageRecord(filePath, {
+      targetPath: moveData.topic || getActiveNodeApiPath(),
+      targetFile: moveData.path
+    });
+    notifyMarkdownLinkRewrite(data.linkRewrite);
+    await refreshMediaListIfVisible();
+    rerenderMediaListViewBody();
+    if (activeMediaSidecarSourcePath === filePath) {
+      activeMediaSidecarSourcePath = data.file;
+      activeMediaSidecarPath = data.sidecar || getMediaSidecarPath(data.file);
+      await openMediaSidecar(data.file);
+    } else {
+      renderMediaListViewBody(listViewContentNode);
+    }
+    showToast("Перемещено", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteActiveResource() {
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    await deleteExternalRecord(activeExternalFilePath);
+    return;
+  }
+  if (isMediaAssetEditing() && activeMediaSidecarSourcePath) {
+    await deleteMediaRecord(activeMediaSidecarSourcePath);
+    return;
+  }
+  if (activeContentMode === "description" && isNodeDeleteAvailable()) {
+    await deleteNode();
+  }
+}
+
+async function moveActiveResource() {
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    await promptMoveExternalRecord(activeExternalFilePath);
+    return;
+  }
+  if (isMediaAssetEditing() && activeMediaSidecarSourcePath) {
+    await promptMoveMediaRecord(activeMediaSidecarSourcePath);
+    return;
+  }
+  if (activeContentMode === "description") {
+    await promptMoveNodeFromMenu(getActiveNodeApiPath());
+  }
 }
 
 function createMediaSidecarEditButton(item) {
@@ -20079,7 +21280,7 @@ function renderListEmptyMessage(container, message, { centeredInDataHub = false 
       icon: spec?.icon || "📁",
       message: shortMessage,
       path: getDataStorageSlotPathHint(spec),
-      variant: shortMessage.includes("не найдена") ? "missing" : "muted"
+      variant: shortMessage.includes("не найден") ? "missing" : "muted"
     });
     return;
   }
@@ -20327,6 +21528,15 @@ function renderMediaFilteredView(container) {
 
 function renderDataHubAllItemsPanel(container, scan) {
   container.replaceChildren();
+  if (!scan?.exists) {
+    renderDataHubPanelEmptyState(container, {
+      icon: "📦",
+      message: "Папка awn-storage не найдена",
+      path: `${STORAGE_ROOT_FOLDER}/`,
+      variant: "missing"
+    });
+    return;
+  }
   const entries = buildStorageSlotTreeModel(scan || {});
   const looseFiles = scan?.looseFiles || [];
   const root = document.createElement("div");
@@ -28762,8 +29972,11 @@ function closeCreateSectionModal() {
   createSectionNameInputNode.value = "";
   createSectionSlugController?.reset();
   createSectionParentFolder = null;
-  const modalMessage = createSectionModalNode?.querySelector(".modal-message");
-  if (modalMessage) modalMessage.textContent = "Создать раздел";
+  renameSectionState = null;
+  renameMenuNodeState = null;
+  renameExternalFileState = null;
+  resetCreateSectionModalLabels();
+  createSectionOkBtn.textContent = "Создать";
 }
 
 async function createWorkspaceSection() {
@@ -34581,8 +35794,8 @@ async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = active
 
     if (agentId === activeAgentId) {
       syncTopicIntakeDomainLabels();
-      if (activeContentMode === "inbox" && listViewTitleNode) {
-        listViewTitleNode.textContent = getListViewTitleByMode();
+      if (activeContentMode === "inbox") {
+        syncListViewHead();
       }
     }
 
@@ -34761,8 +35974,8 @@ async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
     topicIntakeCacheByPath.set(manifestPath, intake);
     inboxPendingCount = Number(intake?.inbox?.pending) || 0;
     syncTopicIntakeDomainLabels();
-    if (activeContentMode === "inbox" && listViewTitleNode) {
-      listViewTitleNode.textContent = getListViewTitleByMode();
+    if (activeContentMode === "inbox") {
+      syncListViewHead();
     }
     syncMenuIntakeBadges(agentId);
     return intake;
@@ -36426,6 +37639,7 @@ function applyModeUi() {
   saveContentBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar);
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
   syncFileHistoryButtonVisibility();
+  syncResourceActionButtonsVisibility();
   syncFileElementThreadButtonVisibility();
   yamlPanelNode.classList.toggle("hidden", !showDocAside);
   docBodyGridNode?.classList.toggle("has-props-aside", showDocAside);
@@ -36484,7 +37698,7 @@ function applyModeUi() {
     syncSaveButtonLamp();
     return;
   } else if (listTemplate) {
-    listViewTitleNode.textContent = getListViewTitleByMode();
+    syncListViewHead();
     renderListViewContent();
   }
   const readOnly = isCurrentModeReadOnly();
@@ -40537,7 +41751,13 @@ const MENU_SORT_FOLDER_SELECTOR =
   ".tree-children[data-sort-folder], .menu-git-workspace-body[data-sort-folder]";
 
 function decorateMenuSortRows(root = getMenuQueryRoot()) {
-  if (!canSortMenu() || !root) return;
+  if (!root) return;
+  root.querySelectorAll(".menu-sort-handle").forEach((handle) => handle.remove());
+  root.querySelectorAll(".menu-sort-row").forEach((row) => {
+    row.classList.remove("menu-sort-row", "menu-sort-row--disabled", "is-dragging");
+    delete row.dataset.sortKind;
+  });
+  if (!canSortMenu()) return;
   root.querySelectorAll(MENU_SORT_FOLDER_SELECTOR).forEach((container) => {
     container.querySelectorAll(":scope > .menu-section > .menu-folder-row").forEach((row) => {
       applyMenuSortRow(row, "folder");
@@ -47302,14 +48522,13 @@ function formatCreateNodeErrorMessage(message) {
   return text ? `Ошибка создания: ${text}` : "Ошибка создания папки";
 }
 
-async function deleteNode() {
-  if (!isNodeDeleteAvailable()) return;
-  const targetPath = getActiveNodeApiPath();
+async function deleteNodeByPath(targetPath, targetLabel = getLabelFromPath(targetPath)) {
   if (!targetPath) return;
+  if (isAgentRootIndexPath(targetPath)) return;
+  if (isAgentSystemRootIndexPath(targetPath)) return;
 
   const menuBeforeDelete = currentMenuData;
   const isContainerNode = isNodeManifestPath(targetPath) && !isPartNodePath(targetPath);
-  const targetLabel = getLabelFromPath(targetPath);
   const question = isContainerNode
     ? `Удалить папку "${targetLabel}" целиком?`
     : isPartNodePath(targetPath)
@@ -47330,16 +48549,48 @@ async function deleteNode() {
 
     invalidateMenuAgentCache(activeAgentId);
     const menu = await refreshMenu();
-    const next = findPreferredNodeAfterDelete(menu, targetPath, menuBeforeDelete);
-    if (next) {
-      await openNodeFromMenu(next.label, next.path);
-    } else {
-      clearEditorState(`В ${getAgentTreeTitle()} нет markdown-манифестов`);
+    const normalizedActive = normalizeMenuNodePath(getResolvedNodePath(activePath));
+    const normalizedDeleted = normalizeMenuNodePath(targetPath);
+    if (normalizedActive && normalizedActive === normalizedDeleted) {
+      const next = findPreferredNodeAfterDelete(menu, targetPath, menuBeforeDelete);
+      if (next) {
+        await openNodeFromMenu(next.label, next.path);
+      } else {
+        clearEditorState(`В ${getAgentTreeTitle()} нет markdown-манифестов`);
+      }
     }
     showToast("Удалено", "success");
   } catch (error) {
     showToast(`Ошибка удаления: ${error.message}`, "error");
   }
+}
+
+async function promptMoveNodeFromMenu(targetPath) {
+  const parentPath = await askMoveTarget({
+    title: "Переместить",
+    hint: "Укажите родительскую папку (путь от корня workspace).",
+    pathLabel: "Родительская папка",
+    defaultPath: getNodeParentPathForMove(targetPath)
+  });
+  if (parentPath == null || parentPath === "") return;
+
+  try {
+    const data = await moveNodeByPath(targetPath, parentPath);
+    invalidateMenuAgentCache(activeAgentId);
+    await refreshMenu();
+    if (data.path) {
+      await openNodeFromMenu(getLabelFromPath(data.path), data.path);
+    }
+    notifyMarkdownLinkRewrite(data.linkRewrite);
+    showToast("Перемещено", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteNode() {
+  if (!isNodeDeleteAvailable()) return;
+  await deleteNodeByPath(getActiveNodeApiPath(), activeLabel || getLabelFromPath(activePath));
 }
 
 async function init() {
@@ -48382,6 +49633,34 @@ document.addEventListener("keydown", (event) => {
 nodeWorkspaceCloseBtn?.addEventListener("click", handleWorkspaceCloseClick);
 confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
 confirmOkBtn.addEventListener("click", () => closeConfirm(true));
+
+moveCancelBtn?.addEventListener("click", () => closeMoveModal(null));
+moveOkBtn?.addEventListener("click", () => {
+  const showTopic = moveTargetTopicWrapNode && !moveTargetTopicWrapNode.classList.contains("hidden");
+  const pathValue = moveTargetPathInputNode?.value?.trim() ?? "";
+  if (!pathValue && !showTopic) {
+    closeMoveModal(null);
+    return;
+  }
+  if (showTopic) {
+    closeMoveModal({
+      topic: moveTargetTopicInputNode?.value?.trim() || "",
+      path: pathValue
+    });
+    return;
+  }
+  closeMoveModal(pathValue);
+});
+moveModalNode?.addEventListener("click", (event) => {
+  if (event.target === moveModalNode) closeMoveModal(null);
+});
+deleteResourceBtn?.addEventListener("click", () => {
+  void deleteActiveResource();
+});
+moveResourceBtn?.addEventListener("click", () => {
+  void moveActiveResource();
+});
+
 attachmentSidecarCancelBtn?.addEventListener("click", () => closeAttachmentSidecarModal());
 attachmentSidecarModalNode?.addEventListener("click", (event) => {
   if (event.target === attachmentSidecarModalNode) closeAttachmentSidecarModal();
@@ -48586,6 +49865,7 @@ document.getElementById("menu")?.addEventListener(
   "scroll",
   () => {
     closeMenuContextMenu();
+    closeResourceContextMenu();
     if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
     closeMenuSettingsPopover();
   },
@@ -48610,9 +49890,27 @@ menuContextMenuListNode?.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  if (menuContextMenuNode?.classList.contains("hidden")) return;
-  if (event.target.closest("#menu-context-menu")) return;
-  closeMenuContextMenu();
+  if (menuContextMenuNode?.classList.contains("hidden") === false) {
+    if (!event.target.closest("#menu-context-menu")) closeMenuContextMenu();
+  }
+  if (resourceContextMenuNode?.classList.contains("hidden") === false) {
+    if (!event.target.closest("#resource-context-menu")) closeResourceContextMenu();
+  }
+});
+
+resourceContextMenuListNode?.addEventListener("click", (event) => {
+  const statusBtn = event.target.closest(".menu-context-menu-status-btn");
+  if (statusBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleResourceContextMenuStatusAction(statusBtn.dataset.status);
+    return;
+  }
+  const btn = event.target.closest(".menu-context-menu-btn");
+  if (!btn || btn.disabled) return;
+  event.preventDefault();
+  event.stopPropagation();
+  handleResourceContextMenuAction(btn.dataset.action);
 });
 
 menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
@@ -48768,9 +50066,36 @@ createMemoryNamesListNode?.addEventListener("keydown", (event) => {
   void createExternalMemory();
 });
 createSectionCancelBtn.addEventListener("click", closeCreateSectionModal);
-createSectionOkBtn.addEventListener("click", createWorkspaceSection);
+createSectionOkBtn.addEventListener("click", () => {
+  if (renameSectionState) {
+    void submitRenameSection();
+    return;
+  }
+  if (renameMenuNodeState) {
+    void submitRenameMenuNode();
+    return;
+  }
+  if (renameExternalFileState) {
+    void submitRenameExternalFile();
+    return;
+  }
+  void createWorkspaceSection();
+});
 createSectionNameInputNode.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") createWorkspaceSection();
+  if (event.key !== "Enter") return;
+  if (renameSectionState) {
+    void submitRenameSection();
+    return;
+  }
+  if (renameMenuNodeState) {
+    void submitRenameMenuNode();
+    return;
+  }
+  if (renameExternalFileState) {
+    void submitRenameExternalFile();
+    return;
+  }
+  void createWorkspaceSection();
 });
 
 function bindPreviewPasteButton(button) {
