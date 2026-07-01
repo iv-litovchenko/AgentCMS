@@ -9692,14 +9692,17 @@ function createMenuTreeStatusBadge(status) {
 function createHeroTitleRow(title, statusRaw = "", options = {}) {
   const row = document.createElement("div");
   row.className = options.rowClass || "node-navigation-hero-title-row";
+  const titleNode = document.createElement("h2");
+  titleNode.className = options.titleClass || "node-navigation-hero-title";
   const badge = createMenuTreeStatusBadge(statusRaw);
   if (badge) {
     badge.classList.add(options.statusClass || "node-navigation-hero-status");
-    row.appendChild(badge);
+    titleNode.appendChild(badge);
   }
-  const titleNode = document.createElement("h2");
-  titleNode.className = options.titleClass || "node-navigation-hero-title";
-  titleNode.textContent = title;
+  const titleText = document.createElement("span");
+  titleText.className = options.titleTextClass || "node-navigation-hero-title-text";
+  titleText.textContent = title;
+  titleNode.appendChild(titleText);
   row.appendChild(titleNode);
   return row;
 }
@@ -11972,18 +11975,22 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   labelWrap.className = "menu-folder-label";
   const nameNode = document.createElement("span");
   nameNode.className = nameClass;
-  nameNode.textContent = labelText;
   const statusBadge = createMenuTreeStatusBadge(source?.status);
   const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
 
   if (statusBadge) {
     host.classList.add("has-menu-tree-status");
-    labelWrap.appendChild(statusBadge);
+    nameNode.appendChild(statusBadge);
     const typeIcon = createMenuTreeTypeIcon(host);
-    if (typeIcon) labelWrap.appendChild(typeIcon);
+    if (typeIcon) nameNode.appendChild(typeIcon);
   }
 
+  const titleText = document.createElement("span");
+  titleText.className = "menu-tree-title-text";
+  titleText.textContent = labelText;
+
   if (markers) labelWrap.appendChild(markers);
+  nameNode.appendChild(titleText);
   labelWrap.appendChild(nameNode);
   host.appendChild(labelWrap);
 }
@@ -13371,12 +13378,12 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
 }
 
 function getMenuBranchLoadInFlight(agentId = activeAgentId) {
-  let set = menuBranchLoadInFlightByAgent.get(agentId);
-  if (!set) {
-    set = new Set();
-    menuBranchLoadInFlightByAgent.set(agentId, set);
+  let map = menuBranchLoadInFlightByAgent.get(agentId);
+  if (!map) {
+    map = new Map();
+    menuBranchLoadInFlightByAgent.set(agentId, map);
   }
-  return set;
+  return map;
 }
 
 function isMenuFolderLazyExpandable(node) {
@@ -13395,26 +13402,13 @@ function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = f
 function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentId) {
   const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   if (!menu || !target || target === ".") return null;
-
-  let found = null;
-  const visit = (node) => {
-    if (!node || found) return;
-    const explicit = normalizeFolderPath(node.folderPath || "");
-    if (explicit && explicit === target) {
-      found = node;
-      return;
-    }
-    for (const section of node.sections || []) visit(section);
-  };
-
-  visit({ sections: menu.sections || [] });
-  if (found) return found;
-  if (menu.serviceTree) visit(menu.serviceTree);
-  if (menu.containerTree) visit(menu.containerTree);
-  if (found) return found;
-
-  const hit = getMenuTreeNodeByFolderPath(target, agentId);
-  return hit && typeof hit === "object" ? hit : null;
+  const hit = findMenuTreeNodeByFolderPath(
+    { title: getAgentTreeTitle(agentId), ...menu },
+    target,
+    ".",
+    0
+  );
+  return hit?.node ?? null;
 }
 
 function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeAgentId) {
@@ -33397,23 +33391,9 @@ function renderNavigationInternalPart(internalData, { areaMode = false } = {}) {
     body.appendChild(note);
   } else if (areaMode) {
     body.appendChild(createNavigationEmptyPlaceholder());
-    const hint = document.createElement("p");
-    hint.className = "node-navigation-preview-note";
-    hint.textContent = "Однофайловая память хранится в main.md рядом с manifest.md.";
-    body.appendChild(hint);
   } else {
     return null;
   }
-
-  const actions = document.createElement("div");
-  actions.className = "node-navigation-internal-actions";
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "node-overview-action-btn";
-  editBtn.textContent = content ? "Редактировать" : "Добавить память";
-  editBtn.addEventListener("click", () => openMemoryModeFromOverview("internal"));
-  actions.appendChild(editBtn);
-  body.appendChild(actions);
 
   const card = createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData);
   if (areaMode) card.classList.add("node-navigation-memory-card--area-full");
@@ -33472,11 +33452,12 @@ function resolveNavigationItemStatus(item) {
   return String(getPropsEntryValueByKey(props, "awn-status") || "").trim();
 }
 
-function appendNavBookTocStatusBadge(parent, status) {
+function appendNavBookTocStatusBadge(titleHost, status) {
+  if (!titleHost) return;
   const badge = createMenuTreeStatusBadge(status);
   if (!badge) return;
   badge.classList.add("nav-book-toc-status");
-  parent.appendChild(badge);
+  titleHost.insertBefore(badge, titleHost.firstChild);
 }
 
 function createNavBookTocLinkLeading(item, nodePath = activePath) {
@@ -33691,17 +33672,21 @@ function populateNavBookTocFolderLabel(
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
-  folderText.textContent = label;
-  folderLabel.append(folderIcon, folderText);
+  let folderStatus = "";
   if (folderStatuses instanceof Map && folderNode.folderPath) {
-    const status = folderStatuses.get(folderNode.folderPath);
-    if (status) {
-      const leaders = document.createElement("span");
-      leaders.className = "nav-book-toc-leaders";
-      leaders.setAttribute("aria-hidden", "true");
-      folderLabel.appendChild(leaders);
-      appendNavBookTocStatusBadge(folderLabel, status);
-    }
+    folderStatus = String(folderStatuses.get(folderNode.folderPath) || "").trim();
+  }
+  appendNavBookTocStatusBadge(folderText, folderStatus);
+  const folderTextInner = document.createElement("span");
+  folderTextInner.className = "nav-book-toc-title-text";
+  folderTextInner.textContent = label;
+  folderText.appendChild(folderTextInner);
+  folderLabel.append(folderIcon, folderText);
+  if (folderStatus) {
+    const leaders = document.createElement("span");
+    leaders.className = "nav-book-toc-leaders";
+    leaders.setAttribute("aria-hidden", "true");
+    folderLabel.appendChild(leaders);
   }
 }
 
@@ -35447,7 +35432,11 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
 
   const title = document.createElement("span");
   title.className = "node-entry-overview-media-item-title";
-  title.textContent = String(item.displayName || item.title || item.name || item.path || "").trim();
+  appendNavBookTocStatusBadge(title, item.status);
+  const titleText = document.createElement("span");
+  titleText.className = "nav-book-toc-title-text";
+  titleText.textContent = String(item.displayName || item.title || item.name || item.path || "").trim();
+  title.appendChild(titleText);
 
   const meta = document.createElement("span");
   meta.className = "node-entry-overview-media-item-meta";
@@ -35455,7 +35444,6 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
 
   body.append(title, meta);
   link.append(preview, body);
-  appendNavBookTocStatusBadge(link, item.status);
   link.addEventListener("click", (event) => {
     event.stopPropagation();
     onFileClick(item);
@@ -35843,14 +35831,17 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const text = document.createElement("span");
     text.className = "nav-book-toc-link-text";
-    text.textContent = item.title;
+    appendNavBookTocStatusBadge(text, item.status);
+    const textInner = document.createElement("span");
+    textInner.className = "nav-book-toc-title-text";
+    textInner.textContent = item.title;
+    text.appendChild(textInner);
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
     leaders.setAttribute("aria-hidden", "true");
 
     link.append(createNavBookTocLinkLeading(item, nodePath), text, leaders);
-    appendNavBookTocStatusBadge(link, item.status);
     link.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -39166,6 +39157,68 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
 }
 
 let previewLightboxNode = null;
+let previewLightboxGallery = null;
+
+function buildPreviewLightboxGallery(triggerImg, activeSrc, alt = "") {
+  const previewRoot = triggerImg?.closest?.(".file-content-preview");
+  if (!previewRoot) {
+    return { images: [{ src: activeSrc, alt }], index: 0 };
+  }
+  const images = [];
+  for (const img of previewRoot.querySelectorAll("img")) {
+    const src = img.dataset.fullSrc || img.currentSrc || img.src;
+    if (!src) continue;
+    images.push({ src, alt: img.alt || "" });
+  }
+  if (images.length === 0) {
+    return { images: [{ src: activeSrc, alt }], index: 0 };
+  }
+  let index = images.findIndex((item) => item.src === activeSrc);
+  if (index < 0) index = 0;
+  return { images, index };
+}
+
+function updatePreviewLightboxNav() {
+  const overlay = previewLightboxNode;
+  if (!overlay || !previewLightboxGallery) return;
+  const { images, index } = previewLightboxGallery;
+  const showNav = images.length > 1;
+  const prevBtn = overlay.querySelector(".preview-image-lightbox-prev");
+  const nextBtn = overlay.querySelector(".preview-image-lightbox-next");
+  const counter = overlay.querySelector(".preview-image-lightbox-counter");
+  if (prevBtn) {
+    prevBtn.disabled = index <= 0;
+    prevBtn.hidden = !showNav;
+  }
+  if (nextBtn) {
+    nextBtn.disabled = index >= images.length - 1;
+    nextBtn.hidden = !showNav;
+  }
+  if (counter) {
+    counter.textContent = showNav ? `${index + 1} / ${images.length}` : "";
+    counter.hidden = !showNav;
+  }
+}
+
+function showPreviewLightboxSlide(index) {
+  const overlay = previewLightboxNode;
+  if (!overlay || !previewLightboxGallery) return;
+  const { images } = previewLightboxGallery;
+  if (index < 0 || index >= images.length) return;
+  previewLightboxGallery.index = index;
+  const item = images[index];
+  const img = overlay.querySelector(".preview-image-lightbox-img");
+  if (img) {
+    img.src = item.src;
+    img.alt = item.alt;
+  }
+  updatePreviewLightboxNav();
+}
+
+function navigatePreviewLightbox(delta) {
+  if (!previewLightboxGallery) return;
+  showPreviewLightboxSlide(previewLightboxGallery.index + delta);
+}
 
 function ensurePreviewImageLightbox() {
   if (previewLightboxNode) return previewLightboxNode;
@@ -39182,34 +39235,91 @@ function ensurePreviewImageLightbox() {
   closeBtn.setAttribute("aria-label", "Закрыть");
   closeBtn.textContent = "×";
 
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "preview-image-lightbox-nav preview-image-lightbox-prev";
+  prevBtn.setAttribute("aria-label", "Предыдущее изображение");
+  prevBtn.textContent = "‹";
+  prevBtn.hidden = true;
+
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "preview-image-lightbox-nav preview-image-lightbox-next";
+  nextBtn.setAttribute("aria-label", "Следующее изображение");
+  nextBtn.textContent = "›";
+  nextBtn.hidden = true;
+
+  const counter = document.createElement("div");
+  counter.className = "preview-image-lightbox-counter";
+  counter.hidden = true;
+
   const img = document.createElement("img");
   img.className = "preview-image-lightbox-img";
   img.alt = "";
 
-  overlay.append(closeBtn, img);
+  overlay.append(closeBtn, prevBtn, nextBtn, counter, img);
   document.body.appendChild(overlay);
 
-  const close = () => overlay.classList.add("hidden");
+  const close = () => {
+    overlay.classList.add("hidden");
+    previewLightboxGallery = null;
+  };
   closeBtn.addEventListener("click", close);
+  prevBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    navigatePreviewLightbox(-1);
+  });
+  nextBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    navigatePreviewLightbox(1);
+  });
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) close();
   });
+  img.addEventListener("click", (event) => event.stopPropagation());
+
+  let touchStartX = 0;
+  overlay.addEventListener(
+    "touchstart",
+    (event) => {
+      touchStartX = event.changedTouches[0]?.clientX ?? 0;
+    },
+    { passive: true }
+  );
+  overlay.addEventListener("touchend", (event) => {
+    if (overlay.classList.contains("hidden")) return;
+    const touchEndX = event.changedTouches[0]?.clientX ?? 0;
+    const deltaX = touchEndX - touchStartX;
+    if (Math.abs(deltaX) < 48) return;
+    navigatePreviewLightbox(deltaX > 0 ? -1 : 1);
+  });
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !overlay.classList.contains("hidden")) close();
+    if (overlay.classList.contains("hidden")) return;
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      navigatePreviewLightbox(-1);
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      navigatePreviewLightbox(1);
+    }
   });
 
   previewLightboxNode = overlay;
   return overlay;
 }
 
-function openPreviewImageLightbox(src, alt = "") {
-  const overlay = ensurePreviewImageLightbox();
-  const img = overlay.querySelector(".preview-image-lightbox-img");
-  if (img) {
-    img.src = src;
-    img.alt = alt;
-  }
-  overlay.classList.remove("hidden");
+function openPreviewImageLightbox(src, alt = "", { trigger } = {}) {
+  ensurePreviewImageLightbox();
+  previewLightboxGallery = buildPreviewLightboxGallery(trigger, src, alt);
+  showPreviewLightboxSlide(previewLightboxGallery.index);
+  previewLightboxNode.classList.remove("hidden");
 }
 
 function classifyPreviewImagesAuto(root) {
@@ -39241,7 +39351,15 @@ function initPreviewImageExpand(root) {
     ) {
       return;
     }
-    target.classList.toggle("is-expanded");
+    if (target.classList.contains("is-expanded")) {
+      openPreviewImageLightbox(
+        target.dataset.fullSrc || target.currentSrc || target.src,
+        target.alt || "",
+        { trigger: target }
+      );
+      return;
+    }
+    target.classList.add("is-expanded");
   });
 }
 
@@ -39254,7 +39372,8 @@ function initPreviewImageLightbox(root) {
     if (!target.closest(".img-style-lightbox")) return;
     openPreviewImageLightbox(
       target.dataset.fullSrc || target.currentSrc || target.src,
-      target.alt || ""
+      target.alt || "",
+      { trigger: target }
     );
   });
 }

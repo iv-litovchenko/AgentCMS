@@ -11898,7 +11898,17 @@ body.app-locked {
 .menu-folder-name,
 .menu-item-name,
 .menu-section-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-tree-title-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -15029,6 +15039,9 @@ body.app-locked {
 }
 
 .node-entry-overview-media-item-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
@@ -15735,12 +15748,20 @@ body.app-locked {
 }
 
 .node-navigation-hero-title {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
   color: #0f172a;
   word-break: break-word;
+}
+
+.node-navigation-hero-title-text {
+  min-width: 0;
 }
 
 .node-navigation-hero-path {
@@ -17060,7 +17081,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-folder-label {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -17088,6 +17109,9 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-folder-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -17130,7 +17154,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-link {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -17210,6 +17234,9 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -17230,11 +17257,13 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-status {
   flex-shrink: 0;
-  justify-self: end;
 }
 
-.nav-book-toc-folder-label .nav-book-toc-status {
-  justify-self: end;
+.nav-book-toc-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .node-navigation-media-groups {
@@ -17422,7 +17451,7 @@ button.node-navigation-memory-title:focus-visible {
 .editor-surface .file-content-preview img.is-expanded {
   max-width: 100%;
   max-height: none;
-  cursor: zoom-out;
+  cursor: zoom-in;
 }
 
 .node-navigation-memory-body .node-navigation-todo-content {
@@ -21239,6 +21268,10 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .node-overview-title {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0 0 6px;
   font-size: 22px;
   font-weight: 700;
@@ -25837,6 +25870,70 @@ button.node-navigation-memory-title:focus-visible {
 
 .preview-image-lightbox-close:hover {
   background: rgba(255, 255, 255, 0.24);
+}
+
+.preview-image-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 72px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.preview-image-lightbox-nav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.preview-image-lightbox-nav:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.preview-image-lightbox-prev {
+  left: 16px;
+}
+
+.preview-image-lightbox-next {
+  right: 16px;
+}
+
+.preview-image-lightbox-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.2;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (max-width: 760px) {
+  .preview-image-lightbox-nav {
+    width: 40px;
+    height: 56px;
+    font-size: 30px;
+  }
+
+  .preview-image-lightbox-prev {
+    left: 8px;
+  }
+
+  .preview-image-lightbox-next {
+    right: 8px;
+  }
 }
 
 @media (max-width: 760px) {
