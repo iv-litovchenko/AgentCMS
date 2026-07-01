@@ -10273,6 +10273,12 @@ body.app-locked {
   border: 1px solid rgba(251, 146, 60, 0.45);
 }
 
+.menu-intake-badge--inbox.menu-intake-badge--total {
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
 .menu-intake-badge--thread {
   color: #5b21b6;
   background: #ede9fe;

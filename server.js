@@ -7400,7 +7400,7 @@ function isServiceAreaRootManifestRel(relPath) {
   return String(relPath || "").replace(/\\/g, "/") === serviceRoot.replace(/\\/g, "/");
 }
 
-async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers) {
+async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers, options = {}) {
   const areaBasename = await resolveExistingAreaManifestBasename(fullPath);
   const indexPath = areaBasename
     ? path.join(relativePath, areaBasename).replace(/\\/g, "/")
@@ -7409,7 +7409,7 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers)
     ? await readNodeDisplayLabelForManifestRel(indexPath)
     : await resolveFolderDisplayTitle(fullPath, relativePath, null);
 
-  return {
+  const shell = {
     title: folderTitle,
     folderPath: relativePath,
     menuDepthLimited: true,
@@ -7417,6 +7417,12 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers)
     sections: [],
     items: [],
     menuOrder: await readMenuSortOrder(fullPath),
+    color: null,
+    tags: [],
+    category: null,
+    status: null,
+    hasPreview: false,
+    previewUrl: null,
     ...markers,
     hasGit: markers.hasGitSelf,
     hasObsidian: markers.hasObsidianSelf,
@@ -7427,6 +7433,18 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers)
     hasAgentSelf: markers.hasAgentSelf,
     hasSkillSelf: markers.hasSkillSelf
   };
+
+  if (indexPath) {
+    const indexMeta = await enrichMenuNodeItem(indexPath, options);
+    shell.color = indexMeta.color;
+    shell.tags = indexMeta.tags || [];
+    shell.category = indexMeta.category || null;
+    shell.status = indexMeta.status || null;
+    shell.hasPreview = indexMeta.hasPreview;
+    shell.previewUrl = indexMeta.previewUrl;
+  }
+
+  return shell;
 }
 
 async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
@@ -7464,7 +7482,12 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           const childDepth = depth + 1;
           if (maxDepth !== null && childDepth >= maxDepth) {
             nestedContainerTree = {
-              ...(await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, await readFolderWorkspaceMarkers(fullPath))),
+              ...(await buildMenuFolderShellAtDepthLimit(
+                fullPath,
+                relativePath,
+                await readFolderWorkspaceMarkers(fullPath),
+                options
+              )),
               containerTree: null
             };
           } else {
@@ -7489,7 +7512,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
       const childDepth = depth + 1;
       if (maxDepth !== null && childDepth >= maxDepth) {
         const markers = await readFolderWorkspaceMarkers(fullPath);
-        const shell = await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers);
+        const shell = await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers, options);
         if (await shouldRenderMenuChildAsTopicItem(shell)) {
           files.push({
             label: shell.title,

@@ -13390,6 +13390,52 @@ function isMenuFolderLazyExpandable(node) {
   return Boolean(node?.menuDepthLimited);
 }
 
+function getMenuFolderExpandMeta(
+  node,
+  agentId = activeAgentId,
+  parentSectionPath = ".",
+  depth = 0,
+  sectionFolderPath = null
+) {
+  const folderPath = sectionFolderPath ?? resolveSectionFolderPath(node, parentSectionPath, depth);
+  const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
+  const repoServiceItems = getMenuRepoServiceItems(node);
+  const isGitRepoMenuNode = Boolean(node.hasGitSelf && depth > 0);
+  const nestedContainerTree =
+    !isGitRepoMenuNode && depth > 0 && node.containerTree ? node.containerTree : null;
+  const nestedContainerPrefix = nestedContainerTree
+    ? `${folderPath}/${getActiveAgentContainerFolder(agentId)}`.replace(/\/+/g, "/")
+    : "";
+  const nestedContainerChildren = nestedContainerTree
+    ? getVisibleMenuChildren({ title: "", ...nestedContainerTree }, agentId, nestedContainerPrefix, depth + 1)
+    : [];
+  const hasNestedContainer = nestedContainerChildren.length > 0;
+  const hasNonContainer = visibleChildren.length > 0;
+  const hasRepoService = repoServiceItems.length > 0;
+  const depthLimited = Boolean(node.menuDepthLimited) || isMenuTreeDepthAtLimit(depth, agentId);
+  const lazyExpandable = isMenuFolderLazyExpandable(node);
+  const canExpandChildren =
+    lazyExpandable || (!depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId));
+  const hasContent = isGitRepoMenuNode
+    ? getGitRepoMenuHasContent(node, agentId, folderPath, depth)
+    : canExpandChildren && (lazyExpandable || hasNestedContainer || hasNonContainer || hasRepoService);
+
+  return {
+    sectionFolderPath: folderPath,
+    visibleChildren,
+    repoServiceItems,
+    isGitRepoMenuNode,
+    nestedContainerTree,
+    nestedContainerPrefix,
+    nestedContainerChildren,
+    hasNestedContainer,
+    hasNonContainer,
+    hasRepoService,
+    canExpandChildren,
+    hasContent
+  };
+}
+
 function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = false) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
   const section = findMenuSectionByFolderPath(normalized, agentId);
@@ -13416,8 +13462,14 @@ function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activ
   const node = findMenuBranchNodeByFolderPath(menu, normalized, agentId);
   if (!node || !branchPayload) return false;
   const preserved = {
-    title: node.title,
-    folderPath: node.folderPath || normalized
+    title: branchPayload.title || node.title,
+    folderPath: node.folderPath || normalized,
+    status: branchPayload.status ?? node.status ?? null,
+    color: branchPayload.color ?? node.color ?? null,
+    tags: branchPayload.tags ?? node.tags ?? [],
+    category: branchPayload.category ?? node.category ?? null,
+    hasPreview: branchPayload.hasPreview ?? node.hasPreview ?? false,
+    previewUrl: branchPayload.previewUrl ?? node.previewUrl ?? null
   };
   Object.assign(node, branchPayload, preserved, { menuDepthLimited: false });
   return true;
@@ -13472,7 +13524,11 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
       currentMenuData = menu;
       invalidateMenuDisplayLabelMap();
     }
-    const patched = withPreservedMenuScroll(() => patchMenuTreeAtFolder(normalized, agentId));
+    getAgentCollapsedFolders(agentId).delete(normalized);
+    const patched = withPreservedMenuScroll(() => {
+      if (patchMenuTreeAtFolder(normalized, agentId)) return true;
+      return patchFolderCollapsedState(normalized, agentId);
+    });
     if (!patched) {
       withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
     }
@@ -36719,11 +36775,13 @@ function countGlobalMentionUnread(summaries) {
 
 function upsertMenuIntakeBadges(host, intake, manifestPath) {
   const pending = Number(intake?.inbox?.pending) || 0;
+  const total = Number(intake?.inbox?.total) || 0;
   const unread = getThreadUnreadCount(manifestPath, intake);
   const mentionUnread = Number(intake?.mentions?.unread) || 0;
+  const showInboxCount = pending > 0 || total > 0;
   let badgesEl = host.querySelector(".menu-intake-badges");
 
-  if (!pending && !unread && !mentionUnread) {
+  if (!showInboxCount && !unread && !mentionUnread) {
     badgesEl?.remove();
     host.classList.remove("has-menu-intake-badges");
     return;
@@ -36745,6 +36803,13 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
     inboxBadge.title = `${pending} необработ. во входящих`;
     inboxBadge.setAttribute("aria-label", inboxBadge.title);
     badgesEl.appendChild(inboxBadge);
+  } else if (total > 0) {
+    const inboxBadge = document.createElement("span");
+    inboxBadge.className = "menu-intake-badge menu-intake-badge--inbox menu-intake-badge--total";
+    inboxBadge.textContent = String(total);
+    inboxBadge.title = `${total} во входящих`;
+    inboxBadge.setAttribute("aria-label", inboxBadge.title);
+    badgesEl.appendChild(inboxBadge);
   }
   if (unread > 0) {
     const threadBadge = document.createElement("span");
@@ -36764,6 +36829,11 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
     badgesEl.appendChild(mentionBadge);
   }
   host.classList.add("has-menu-intake-badges");
+}
+
+function refreshMenuTreeIntakeBadges(agentId = activeAgentId) {
+  if (menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  syncMenuIntakeBadges(agentId);
 }
 
 function syncMenuIntakeBadges(agentId = activeAgentId) {
@@ -42578,32 +42648,23 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
   if (pinnedPath && !isFolderInPinnedBranch(sectionFolderPath, pinnedPath)) {
     return;
   }
-  const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
-  const repoServiceItems = getMenuRepoServiceItems(node);
-  const isGitRepoMenuNode = Boolean(node.hasGitSelf && depth > 0);
+  const expandMeta = getMenuFolderExpandMeta(node, agentId, parentSectionPath, depth, sectionFolderPath);
+  const visibleChildren = expandMeta.visibleChildren;
+  const repoServiceItems = expandMeta.repoServiceItems;
+  const isGitRepoMenuNode = expandMeta.isGitRepoMenuNode;
   const gitRepoLayout = isGitRepoMenuNode
     ? getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth)
     : null;
-  const nestedContainerTree =
-    !isGitRepoMenuNode && depth > 0 && node.containerTree ? node.containerTree : null;
-  const nestedContainerPrefix = nestedContainerTree
-    ? `${sectionFolderPath}/${getActiveAgentContainerFolder(agentId)}`.replace(/\/+/g, "/")
-    : "";
-  const nestedContainerChildren = nestedContainerTree
-    ? getVisibleMenuChildren({ title: "", ...nestedContainerTree }, agentId, nestedContainerPrefix, depth + 1)
-    : [];
-  const hasNestedContainer = nestedContainerChildren.length > 0;
-  const hasNonContainer = visibleChildren.length > 0;
-  const hasRepoService = repoServiceItems.length > 0;
-  const depthLimited = Boolean(node.menuDepthLimited) || isMenuTreeDepthAtLimit(depth, agentId);
-  const lazyExpandable = isMenuFolderLazyExpandable(node);
-  const canExpandChildren =
-    lazyExpandable || (!depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId));
+  const nestedContainerTree = expandMeta.nestedContainerTree;
+  const nestedContainerPrefix = expandMeta.nestedContainerPrefix;
+  const nestedContainerChildren = expandMeta.nestedContainerChildren;
+  const hasNestedContainer = expandMeta.hasNestedContainer;
+  const hasNonContainer = expandMeta.hasNonContainer;
+  const hasRepoService = expandMeta.hasRepoService;
+  const canExpandChildren = expandMeta.canExpandChildren;
+  const hasContent = expandMeta.hasContent;
 
   if (node.title) {
-    const hasContent = isGitRepoMenuNode
-      ? getGitRepoMenuHasContent(node, agentId, sectionFolderPath, depth)
-      : canExpandChildren && (lazyExpandable || hasNestedContainer || hasNonContainer || hasRepoService);
     const isCollapsedEffective =
       searchActive || isRootFolder ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
@@ -43167,6 +43228,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     }
     renderSystemFiles(systemFilesCache);
     decorateMenuSortRows(target);
+    refreshMenuTreeIntakeBadges(agentId);
   }
 
   if (agentId === activeAgentId) {
@@ -48927,34 +48989,24 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
 
     const isCollapsed = isFolderCollapsed(normalized, agentId);
     const sectionFolderPath = normalized;
-    const visibleChildren = getVisibleMenuChildren(
+    const expandMeta = getMenuFolderExpandMeta(
       branch.node,
       agentId,
       branch.parentSectionPath,
-      branch.depth
+      branch.depth,
+      sectionFolderPath
     );
-    const repoServiceItems = getMenuRepoServiceItems(branch.node);
-    const isGitRepoMenuNode = Boolean(branch.node.hasGitSelf && branch.depth > 0);
-    const nestedContainerTree =
-      !isGitRepoMenuNode && branch.depth > 0 && branch.node.containerTree
-        ? branch.node.containerTree
-        : null;
-    const nestedContainerPrefix = nestedContainerTree
-      ? `${sectionFolderPath}/${getActiveAgentContainerFolder(agentId)}`.replace(/\/+/g, "/")
-      : "";
-    const nestedContainerChildren = nestedContainerTree
-      ? getVisibleMenuChildren(
-          { title: "", ...nestedContainerTree },
-          agentId,
-          nestedContainerPrefix,
-          branch.depth + 1
-        )
-      : [];
-    const hasContent = isGitRepoMenuNode
-      ? getGitRepoMenuHasContent(branch.node, agentId, sectionFolderPath, branch.depth)
-      : nestedContainerChildren.length > 0 ||
-        visibleChildren.length > 0 ||
-        repoServiceItems.length > 0;
+    const visibleChildren = expandMeta.visibleChildren;
+    const repoServiceItems = expandMeta.repoServiceItems;
+    const isGitRepoMenuNode = expandMeta.isGitRepoMenuNode;
+    const nestedContainerTree = expandMeta.nestedContainerTree;
+    const nestedContainerPrefix = expandMeta.nestedContainerPrefix;
+    const nestedContainerChildren = expandMeta.nestedContainerChildren;
+    const hasContent = expandMeta.hasContent;
+    const canExpandChildren = expandMeta.canExpandChildren;
+    const hasNestedContainer = expandMeta.hasNestedContainer;
+    const hasNonContainer = expandMeta.hasNonContainer;
+    const hasRepoService = expandMeta.hasRepoService;
 
     syncFolderToggleUi(sectionEl, isCollapsed, hasContent);
     sectionEl.querySelector(":scope > .tree-children")?.remove();
@@ -48986,6 +49038,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
     }
 
     refreshMenuSortDecorations(agentId);
+    refreshMenuTreeIntakeBadges(agentId);
     return true;
   } catch (error) {
     console.warn("patchFolderCollapsedState failed", folderPath, error);
@@ -49262,6 +49315,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
       oldSection.replaceWith(newSection);
       refreshRootMenuTreeExtras(agentId, menu);
       refreshMenuSortDecorations(agentId);
+      refreshMenuTreeIntakeBadges(agentId);
       return true;
     }
 
@@ -49276,6 +49330,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     }
     oldSection.replaceWith(newSection);
     refreshMenuSortDecorations(agentId);
+    refreshMenuTreeIntakeBadges(agentId);
     return true;
   } catch (error) {
     console.warn("patchMenuTreeAtFolder failed", folderPath, error);
