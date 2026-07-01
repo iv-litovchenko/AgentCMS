@@ -7303,6 +7303,7 @@ let agentMapLinksResizeObserver = null;
 let agentMap2LinksResizeObserver = null;
 let agentMap2PanZoomCleanup = null;
 const menuCacheByAgent = new Map();
+const menuBranchLoadInFlightByAgent = new Map();
 const manifestTreeTypeByPath = new Map();
 
 function normalizeDeclaredManifestTreeType(typeRaw) {
@@ -7345,20 +7346,27 @@ function getDeclaredManifestTreeType(nodePath) {
   const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
   if (!normalized) return null;
 
+  const activeManifest = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  const isActiveManifest = normalized === activeManifest;
+
+  if (isActiveManifest) {
+    const fromForm =
+      getPropsEntryValueByKey(propsFormEntries, "awn-type") ||
+      getYamlScalarFromFrontmatter(propsInputNode?.value || "", "awn-type");
+    const fromFormType = normalizeDeclaredManifestTreeType(fromForm);
+    if (fromFormType) return fromFormType;
+
+    const { frontmatter } = splitFrontmatter(modeContentCache.description || "");
+    const fromDescription = normalizeDeclaredManifestTreeType(
+      getYamlScalarFromFrontmatter(frontmatter, "awn-type")
+    );
+    if (fromDescription) return fromDescription;
+  }
+
   const cached = manifestTreeTypeByPath.get(normalized);
   if (cached) return cached;
 
-  const activeManifest = normalizeMenuNodePath(getResolvedNodePath(activePath));
-  if (normalized !== activeManifest) return null;
-
-  const fromForm =
-    getPropsEntryValueByKey(propsFormEntries, "awn-type") ||
-    getYamlScalarFromFrontmatter(propsInputNode?.value || "", "awn-type");
-  const fromFormType = normalizeDeclaredManifestTreeType(fromForm);
-  if (fromFormType) return fromFormType;
-
-  const { frontmatter } = splitFrontmatter(modeContentCache.description || "");
-  return normalizeDeclaredManifestTreeType(getYamlScalarFromFrontmatter(frontmatter, "awn-type"));
+  return null;
 }
 
 function indexManifestTreeTypesFromMenu(menu) {
@@ -7391,6 +7399,7 @@ const MENU_TREE_SETTINGS_STORAGE_KEY = "agentcms.menuTreeSettings.v1";
 const MENU_TREE_MAX_DEPTH_DEFAULT = 7;
 const MENU_TREE_MAX_DEPTH_MIN = 1;
 const MENU_TREE_MAX_DEPTH_MAX = 20;
+const MENU_LAZY_BOOTSTRAP_DEPTH = 3;
 const PINNED_MENU_FOLDER_STORAGE_KEY = "agentcms.pinnedMenuFolder.v1";
 const AGENT_GRAPH_SETTINGS_STORAGE_KEY = "agentcms.agentGraphSettings.v1";
 const SIDEBAR_WIDTH_STORAGE_KEY = "agentcms.sidebarWidth.v1";
@@ -7758,7 +7767,6 @@ function isDataStorageSlotActive(slotKey, mode = activeContentMode) {
 }
 
 const AREA_BLOCKED_CONTENT_MODES = new Set([
-  "internal",
   "external",
   "tabular",
   "media",
@@ -10949,7 +10957,8 @@ function menuFolderHasTopicContent(node) {
 
 function isMenuFolderWithoutTopics(node) {
   if (!node) return false;
-  if (node.empty || node.menuDepthLimited) return true;
+  if (node.menuDepthLimited) return false;
+  if (node.empty) return true;
   if (node.serviceTree || node.containerTree) return false;
   if (!node.indexPath && node.folderPath) return !menuFolderHasTopicContent(node);
   return !menuFolderHasTopicContent(node);
@@ -10961,7 +10970,8 @@ function isMenuTopicActiveStatus(status) {
 
 function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId) {
   if (!node) return false;
-  if (node.empty || node.menuDepthLimited) return false;
+  if (node.menuDepthLimited) return true;
+  if (node.empty) return false;
   if ((node.items || []).length > 0) return true;
   if (getMenuRepoServiceItems(node).length > 0) return true;
   if ((node.sections || []).some((section) => menuNodeHasVisibleTopicsAfterActiveFilter(section, agentId))) {
@@ -11122,7 +11132,7 @@ function isContainerNodePath(nodePath) {
   return isNodeManifestPath(nodePath) && !isPartNodePath(nodePath);
 }
 
-/** Область (Space): manifest на уровне workspace или корень kit/container — без драйверов памяти. */
+/** Область (Space): корень kit/container или manifest с awn.area — однофайловая память. Workspace-root — отдельно, все виды памяти. */
 function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!isNodeManifestPath(normalized)) return false;
@@ -11137,6 +11147,12 @@ function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   if (declared === "area") return true;
 
   return getManifestTreeFolderDepth(normalized) < 2;
+}
+
+function isAreaWorkspaceDomainBlocked(domain, mode = activeContentMode) {
+  if (!isAreaNodePath()) return false;
+  if (domain !== NODE_WORKSPACE_DOMAIN_DATA) return false;
+  return mode !== "internal";
 }
 
 function isAreaContentModeBlocked(mode, nodePath = getResolvedNodePath(activePath)) {
@@ -11372,7 +11388,7 @@ function syncNodeWorkspaceDomainSelect() {
   const domain = getNodeWorkspaceDomain(activeContentMode);
   workspaceDomainSelectSyncing = true;
   try {
-    if (isArea && AREA_BLOCKED_WORKSPACE_DOMAINS.has(domain)) {
+    if (isArea && isAreaWorkspaceDomainBlocked(domain)) {
       nodeWorkspaceDomainSelectNode.value = NODE_WORKSPACE_DOMAIN_NAVIGATION;
     } else {
       nodeWorkspaceDomainSelectNode.value =
@@ -11406,7 +11422,7 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("description");
     return;
   }
-  if (isAreaNodePath() && AREA_BLOCKED_WORKSPACE_DOMAINS.has(domain)) {
+  if (isAreaWorkspaceDomainBlocked(domain)) {
     returnToNodeNavigation();
     return;
   }
@@ -11505,7 +11521,7 @@ function applyNodeWorkspaceViewUi() {
   if (
     isAreaNodePath() &&
     activeContentMode !== NODE_ENTRY_OVERVIEW_MODE &&
-    (AREA_BLOCKED_WORKSPACE_DOMAINS.has(getNodeWorkspaceDomain()) ||
+    (isAreaWorkspaceDomainBlocked(getNodeWorkspaceDomain()) ||
       isAreaContentModeBlocked(activeContentMode))
   ) {
     returnToNodeNavigation();
@@ -13316,11 +13332,15 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   if (!normalizedPath || normalizedPath === ".") return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (collapsedFolders.has(normalizedPath)) {
-    collapsedFolders.delete(normalizedPath);
-  } else {
-    collapsedFolders.add(normalizedPath);
+    void expandMenuFolderWithLazyLoad(normalizedPath, agentId);
+    return;
   }
+  collapsedFolders.add(normalizedPath);
   saveCollapsedFoldersByAgent();
+  applyMenuFolderCollapsedUi(normalizedPath, agentId);
+}
+
+function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId))
@@ -13331,6 +13351,144 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   if (agentId === activeAgentId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
+  }
+}
+
+async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId) {
+  const normalizedPath = normalizeFolderPath(folderPath);
+  if (!normalizedPath || normalizedPath === ".") return;
+  try {
+    await ensureMenuBranchLoaded(normalizedPath, agentId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(`Не удалось загрузить ветку: ${message}`, "error");
+    return;
+  }
+  const collapsedFolders = getAgentCollapsedFolders(agentId);
+  collapsedFolders.delete(normalizedPath);
+  saveCollapsedFoldersByAgent();
+  applyMenuFolderCollapsedUi(normalizedPath, agentId);
+}
+
+function getMenuBranchLoadInFlight(agentId = activeAgentId) {
+  let set = menuBranchLoadInFlightByAgent.get(agentId);
+  if (!set) {
+    set = new Set();
+    menuBranchLoadInFlightByAgent.set(agentId, set);
+  }
+  return set;
+}
+
+function isMenuFolderLazyExpandable(node) {
+  return Boolean(node?.menuDepthLimited);
+}
+
+function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = false) {
+  const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+  const section = findMenuSectionByFolderPath(normalized, agentId);
+  if (!section) return;
+  section.classList.toggle("is-menu-branch-loading", isLoading);
+  const toggleBtn = section.querySelector(".folder-toggle-btn");
+  if (toggleBtn) toggleBtn.disabled = isLoading;
+}
+
+function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentId) {
+  const target = normalizeMenuPatchFolderPath(folderPath, agentId);
+  if (!menu || !target || target === ".") return null;
+
+  let found = null;
+  const visit = (node) => {
+    if (!node || found) return;
+    const explicit = normalizeFolderPath(node.folderPath || "");
+    if (explicit && explicit === target) {
+      found = node;
+      return;
+    }
+    for (const section of node.sections || []) visit(section);
+  };
+
+  visit({ sections: menu.sections || [] });
+  if (found) return found;
+  if (menu.serviceTree) visit(menu.serviceTree);
+  if (menu.containerTree) visit(menu.containerTree);
+  if (found) return found;
+
+  const hit = getMenuTreeNodeByFolderPath(target, agentId);
+  return hit && typeof hit === "object" ? hit : null;
+}
+
+function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeAgentId) {
+  const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+  const node = findMenuBranchNodeByFolderPath(menu, normalized, agentId);
+  if (!node || !branchPayload) return false;
+  const preserved = {
+    title: node.title,
+    folderPath: node.folderPath || normalized
+  };
+  Object.assign(node, branchPayload, preserved, { menuDepthLimited: false });
+  return true;
+}
+
+async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
+  const { maxDepth } = getMenuTreeSettings(agentId);
+  const response = await fetch(
+    buildApiUrl(
+      "/api/menu/branch",
+      {
+        folderPath,
+        maxDepth: String(maxDepth),
+        branchDepth: String(MENU_LAZY_BOOTSTRAP_DEPTH)
+      },
+      agentId
+    )
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
+  const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+  const node = getMenuTreeNodeByFolderPath(normalized, agentId);
+  if (!node || !isMenuFolderLazyExpandable(node)) return;
+
+  const inFlight = getMenuBranchLoadInFlight(agentId);
+  if (inFlight.has(normalized)) {
+    await inFlight.get(normalized);
+    return;
+  }
+
+  const loadPromise = (async () => {
+    const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+    if (!menu) throw new Error("Кэш меню пуст — обновите дерево");
+    setMenuBranchLoading(normalized, agentId, true);
+    let branchPayload;
+    try {
+      branchPayload = await fetchMenuBranch(normalized, agentId);
+    } finally {
+      setMenuBranchLoading(normalized, agentId, false);
+    }
+    if (!applyMenuBranchPayload(menu, normalized, branchPayload, agentId)) {
+      throw new Error("Не найден узел в кэше меню — обновите дерево");
+    }
+    menuCacheByAgent.set(agentId, menu);
+    if (agentId === activeAgentId) {
+      currentMenuData = menu;
+      invalidateMenuDisplayLabelMap();
+    }
+    const patched = withPreservedMenuScroll(() => patchMenuTreeAtFolder(normalized, agentId));
+    if (!patched) {
+      withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
+    }
+  })();
+
+  inFlight.set(normalized, loadPromise);
+  try {
+    await loadPromise;
+  } finally {
+    inFlight.delete(normalized);
   }
 }
 
@@ -31945,7 +32103,7 @@ function bindOverviewMemoryLink(link, modeId, { externalFile = null } = {}) {
   });
 }
 
-function renderOverviewMemoryBlock(summary, nodePath = activePath) {
+function renderOverviewMemoryBlock(summary, nodePath = activePath, { areaMode = false } = {}) {
   const section = document.createElement("section");
   section.className = "node-overview-memory";
 
@@ -31971,7 +32129,7 @@ function renderOverviewMemoryBlock(summary, nodePath = activePath) {
       title: "Табличная",
       desc: "Таблица с данными (как Excel) — подходит для ведения данных, которые нужно загружать в контекст за один раз (пример: счётчик изучения английских слов)"
     }
-  ];
+  ].filter((spec) => !areaMode || spec.id === "internal");
 
   for (const spec of specs) {
     const driver = summary.drivers?.[spec.id] || {};
@@ -32340,12 +32498,22 @@ function buildNodeMemorySlotStatuses({
   todoData = null,
   memorySummary = null
 } = {}) {
-  if (isArea) return [];
-
   const drivers = memorySummary?.drivers || {};
   const hasInternal =
     Boolean(String(internalData?.content || "").trim()) ||
     Boolean(drivers.internal?.exists && Number(drivers.internal.charCount) > 0);
+
+  if (isArea) {
+    return [
+      {
+        id: "internal",
+        label: "Однофайловая",
+        filled: hasInternal,
+        modeId: "internal"
+      }
+    ];
+  }
+
   const externalFiles = externalData?.files || [];
   const hasExternal =
     externalFiles.length > 0 ||
@@ -32520,7 +32688,14 @@ function buildNodeNavigationMemoryCounterSlots({
 
   const countById = {
     external: externalCount,
-    internal: memorySlots.find((slot) => slot.id === "internal")?.filled ? 1 : 0,
+    internal: (() => {
+      if (isArea) {
+        const chars = String(internalData?.content || "").trim().length;
+        if (chars > 0) return chars;
+        return Number(drivers.internal?.charCount) || 0;
+      }
+      return memorySlots.find((slot) => slot.id === "internal")?.filled ? 1 : 0;
+    })(),
     tabular: tabularCount,
     media: mediaCount,
     todo: todoLines.length
@@ -32529,7 +32704,10 @@ function buildNodeNavigationMemoryCounterSlots({
   return memorySlots.map((slot) => {
     const count = Number(countById[slot.id]) || 0;
     const filled = Boolean(slot.filled);
-    const title = filled ? `${slot.label}: ${count}` : `${slot.label}: пусто`;
+    let title = filled ? `${slot.label}: ${count}` : `${slot.label}: пусто`;
+    if (isArea && slot.id === "internal" && filled) {
+      title = `${slot.label}: ${count.toLocaleString("ru-RU")} симв.`;
+    }
     return { ...slot, count, tone: "", title };
   });
 }
@@ -32653,15 +32831,21 @@ function openNodeNavigationCounterSlot(slot) {
   openWorkspaceModeFromNavigation(slot.modeId);
 }
 
-function renderNodeNavigationWorkspaceCounterStrip(slots = []) {
+function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid" } = {}) {
   if (!slots.length) return null;
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-workspace-counters";
+  if (layout === "area-single") {
+    wrap.classList.add("node-navigation-workspace-counters--area-single");
+  }
   wrap.setAttribute("aria-label", "Слоты памяти и разделы workspace");
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
+  if (layout === "area-single") {
+    list.classList.add("node-navigation-workspace-counter-list--area-single");
+  }
 
   for (const slot of slots) {
     const item = document.createElement("li");
@@ -33195,26 +33379,45 @@ function createNavigationEmptyPlaceholder() {
   return empty;
 }
 
-function renderNavigationInternalPart(internalData) {
+function renderNavigationInternalPart(internalData, { areaMode = false } = {}) {
   const body = document.createElement("div");
   body.className = "node-navigation-internal";
-  const content = String(internalData.content || "").trim();
+  if (areaMode) body.classList.add("node-navigation-internal--area");
+  const content = String(internalData?.content || "").trim();
 
-  if (!content) {
+  if (content) {
+    const preview = document.createElement("div");
+    preview.className = "node-navigation-preview file-content-preview";
+    setMarkdownPreviewHtml(preview, content, { nodePath: getResolvedNodePath(activePath) });
+    body.appendChild(preview);
+
+    const note = document.createElement("p");
+    note.className = "node-navigation-preview-note";
+    note.textContent = `Кол-во символов: ${content.length.toLocaleString("ru-RU")}`;
+    body.appendChild(note);
+  } else if (areaMode) {
+    body.appendChild(createNavigationEmptyPlaceholder());
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-preview-note";
+    hint.textContent = "Однофайловая память хранится в main.md рядом с manifest.md.";
+    body.appendChild(hint);
+  } else {
     return null;
   }
 
-  const preview = document.createElement("div");
-  preview.className = "node-navigation-preview file-content-preview";
-  setMarkdownPreviewHtml(preview, content, { nodePath: getResolvedNodePath(activePath) });
-  body.appendChild(preview);
+  const actions = document.createElement("div");
+  actions.className = "node-navigation-internal-actions";
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "node-overview-action-btn";
+  editBtn.textContent = content ? "Редактировать" : "Добавить память";
+  editBtn.addEventListener("click", () => openMemoryModeFromOverview("internal"));
+  actions.appendChild(editBtn);
+  body.appendChild(actions);
 
-  const note = document.createElement("p");
-  note.className = "node-navigation-preview-note";
-  note.textContent = `Кол-во символов: ${content.length.toLocaleString("ru-RU")}`;
-  body.appendChild(note);
-
-  return createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData);
+  const card = createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData);
+  if (areaMode) card.classList.add("node-navigation-memory-card--area-full");
+  return card;
 }
 
 function collectNavigationFolderAncestors(filePath) {
@@ -37892,16 +38095,15 @@ async function renderNodeNavigation() {
   const entries = resolveNodeOverviewPropsEntries();
   const heroTitle = getOverviewTitleFromProps(entries);
 
-  const emptyInternal = { exists: false, content: "", path: null };
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
   const [internalData, externalData, tabularData, todoData, preview, nodeMeta] = await Promise.all(
     isArea
       ? [
-          emptyInternal,
-          emptyExternal,
-          emptyTabular,
+          fetchInternalMemoryForNavigation(nodePath),
+          Promise.resolve(emptyExternal),
+          Promise.resolve(emptyTabular),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath)
@@ -37955,11 +38157,17 @@ async function renderNodeNavigation() {
   });
   const workspaceCounters = isArea ? [] : await buildNodeNavigationWorkspaceCounters(nodePath, { isArea });
   if (isStale()) return;
-  const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip([
-    ...memoryCounters,
-    ...workspaceCounters
-  ]);
-  if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
+
+  if (isArea) {
+    const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true });
+    if (areaInternalPanel) hub.appendChild(areaInternalPanel);
+  } else {
+    const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip([
+      ...memoryCounters,
+      ...workspaceCounters
+    ]);
+    if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
+  }
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
   if (manifestPanel) hub.appendChild(manifestPanel);
@@ -38045,7 +38253,7 @@ async function renderNodeOverview() {
   const nodePathResolved = getResolvedNodePath(activePath);
   const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots] = await Promise.all([
     fetchNodeOverviewPreview(),
-    isOverviewArea ? null : fetchMemorySummary(nodePathResolved),
+    fetchMemorySummary(nodePathResolved),
     isOverviewArea ? null : fetchMediaOverview(nodePathResolved),
     fetchTodoForOverview(nodePathResolved)
   ]);
@@ -38165,20 +38373,18 @@ async function renderNodeOverview() {
     }
   }
 
-  if (!isOverviewArea) {
-    const memorySummary =
-      memorySummaryForSlots ?? (await fetchMemorySummary(nodePathResolved)) ?? createEmptyMemorySummary();
-    if (isStale()) return;
-    activeMemorySummary = memorySummary;
-    syncNodeMemoryDriverOptions(memorySummary);
-    const memoryBlock = renderOverviewMemoryBlock(memorySummary, nodePathResolved);
-    if (memoryBlock) {
-      fragment.appendChild(
-        createOverviewAccordionSection("memory", "🧠 Память", memoryBlock, { defaultOpen: true })
-      );
-    }
-  } else if (isStale()) {
-    return;
+  const memorySummary =
+    memorySummaryForSlots ?? (await fetchMemorySummary(nodePathResolved)) ?? createEmptyMemorySummary();
+  if (isStale()) return;
+  activeMemorySummary = memorySummary;
+  syncNodeMemoryDriverOptions(memorySummary);
+  const memoryBlock = renderOverviewMemoryBlock(memorySummary, nodePathResolved, {
+    areaMode: isOverviewArea
+  });
+  if (memoryBlock) {
+    fragment.appendChild(
+      createOverviewAccordionSection("memory", "🧠 Память", memoryBlock, { defaultOpen: true })
+    );
   }
 
   const mediaOverview = isOverviewArea ? null : mediaOverviewForSlots ?? (await fetchMediaOverview(nodePathResolved));
@@ -42271,12 +42477,14 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
   const hasNonContainer = visibleChildren.length > 0;
   const hasRepoService = repoServiceItems.length > 0;
   const depthLimited = Boolean(node.menuDepthLimited) || isMenuTreeDepthAtLimit(depth, agentId);
-  const canExpandChildren = !depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId);
+  const lazyExpandable = isMenuFolderLazyExpandable(node);
+  const canExpandChildren =
+    lazyExpandable || (!depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId));
 
   if (node.title) {
     const hasContent = isGitRepoMenuNode
       ? getGitRepoMenuHasContent(node, agentId, sectionFolderPath, depth)
-      : canExpandChildren && (hasNestedContainer || hasNonContainer || hasRepoService);
+      : canExpandChildren && (lazyExpandable || hasNestedContainer || hasNonContainer || hasRepoService);
     const isCollapsedEffective =
       searchActive || isRootFolder ? false : isFolderCollapsed(sectionFolderPath, agentId);
 
@@ -48991,8 +49199,12 @@ function withPreservedMenuScroll(run) {
   return result;
 }
 
-async function fetchMenuData(agentId = activeAgentId) {
-  const { maxDepth } = getMenuTreeSettings(agentId);
+async function fetchMenuData(agentId = activeAgentId, options = {}) {
+  const settings = getMenuTreeSettings(agentId);
+  const requestedDepth = Number.isFinite(options.maxDepth) ? options.maxDepth : settings.maxDepth;
+  const maxDepth = options.fullTree
+    ? requestedDepth
+    : Math.min(requestedDepth, MENU_LAZY_BOOTSTRAP_DEPTH);
   const response = await fetch(buildApiUrl("/api/menu", { maxDepth: String(maxDepth) }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

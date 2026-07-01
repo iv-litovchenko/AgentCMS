@@ -12057,6 +12057,16 @@ body.app-locked {
   cursor: default;
 }
 
+.menu-section.is-menu-branch-loading .folder-toggle-btn {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.menu-section.is-menu-branch-loading .folder-toggle-btn::after {
+  content: "…";
+  margin-left: 2px;
+}
+
 .menu-folder:hover {
   background: var(--panel-soft);
   color: var(--text);
@@ -15755,6 +15765,44 @@ body.app-locked {
 
 .node-navigation-workspace-counters {
   margin: 0;
+}
+
+.node-navigation-workspace-counters--area-single {
+  margin-top: 4px;
+}
+
+.node-navigation-workspace-counter-list--area-single {
+  grid-template-columns: 1fr;
+}
+
+.node-navigation-workspace-counter-list--area-single .node-navigation-workspace-counter {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 52px;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.node-navigation-workspace-counter-list--area-single .node-navigation-workspace-counter-value {
+  font-size: 18px;
+  min-width: 4ch;
+}
+
+.node-navigation-memory-card--area-full {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.node-navigation-internal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.node-navigation-internal--area .node-navigation-preview {
+  max-height: none;
 }
 
 .node-navigation-workspace-counter-list {

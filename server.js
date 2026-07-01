@@ -3727,7 +3727,15 @@ async function resolveAgentSubfolderAbsolute(agentRootAbsolute, folderName) {
   return absolute;
 }
 
+function withMenuBuildOptions(options = {}) {
+  return {
+    ...options,
+    menuMetaCache: options.menuMetaCache || new Map()
+  };
+}
+
 async function buildAgentMenu(agentRootAbsolute, options = {}) {
+  const buildOptions = withMenuBuildOptions(options);
   if (!(await dirExists(agentRootAbsolute))) {
     return {
       title: path.basename(agentRootAbsolute),
@@ -3741,7 +3749,9 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   }
 
   await ensureWorkspaceRootIndex(agentRootAbsolute);
-  const menu = dedupeReservedRootMenuSections(await listNodeMdFiles(agentRootAbsolute, "", 0, options));
+  const menu = dedupeReservedRootMenuSections(
+    await listNodeMdFiles(agentRootAbsolute, "", 0, buildOptions)
+  );
   const kitFolder = getAgentKitFolder();
   const containerFolder = getAgentContainerFolder();
   let serviceTree = null;
@@ -3750,7 +3760,7 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder);
   if (kitAbsolute) {
     serviceTree = await normalizeServiceMenuTree(
-      await listNodeMdFiles(kitAbsolute, kitFolder, 0, options),
+      await listNodeMdFiles(kitAbsolute, kitFolder, 0, buildOptions),
       kitAbsolute
     );
   }
@@ -3758,12 +3768,81 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   const containerAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, containerFolder);
   if (containerAbsolute) {
     containerTree = await normalizeContainerMenuTree(
-      await listNodeMdFiles(containerAbsolute, containerFolder, 0, options),
+      await listNodeMdFiles(containerAbsolute, containerFolder, 0, buildOptions),
       containerAbsolute
     );
   }
 
   return { ...menu, serviceTree, containerTree };
+}
+
+async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = {}) {
+  const buildOptions = withMenuBuildOptions(options);
+  const folderPath = String(folderPathRaw || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "") || ".";
+  const agentRoot = agentRootAbsolute || getAgentRoot();
+  const containerFolder = getAgentContainerFolder();
+  const kitFolder = getAgentKitFolder();
+
+  const resolveBranchListOptions = (depth) => {
+    const branchDepth = Number.isFinite(buildOptions.branchDepth)
+      ? Math.min(20, Math.max(1, Math.floor(buildOptions.branchDepth)))
+      : null;
+    const maxDepth = Number.isFinite(buildOptions.maxDepth) ? buildOptions.maxDepth : null;
+    if (branchDepth !== null && maxDepth !== null) {
+      return { ...buildOptions, maxDepth: Math.min(maxDepth, depth + branchDepth) };
+    }
+    return buildOptions;
+  };
+
+  if (folderPath === ".") {
+    return buildAgentMenu(agentRoot, buildOptions);
+  }
+
+  if (containerFolder && folderPath === containerFolder) {
+    const containerAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, containerFolder);
+    if (!containerAbsolute) {
+      throw new Error("Container folder not found");
+    }
+    const tree = await listNodeMdFiles(
+      containerAbsolute,
+      containerFolder,
+      0,
+      resolveBranchListOptions(0)
+    );
+    return normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
+  }
+
+  if (kitFolder && folderPath === kitFolder) {
+    const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, kitFolder);
+    if (!kitAbsolute) {
+      throw new Error("Service folder not found");
+    }
+    const tree = await listNodeMdFiles(kitAbsolute, kitFolder, 0, resolveBranchListOptions(0));
+    return normalizeServiceMenuTree(tree, kitAbsolute);
+  }
+
+  const absolute = normalizeWorkspacePath(folderPath);
+  if (!absolute) {
+    throw new Error("Invalid folder path");
+  }
+  const stat = await fs.stat(absolute).catch(() => null);
+  if (!stat?.isDirectory()) {
+    throw new Error("Folder not found");
+  }
+
+  const segments = folderPath.split("/").filter(Boolean);
+  const depth = Math.max(0, segments.length - 1);
+  const tree = await listNodeMdFiles(absolute, folderPath, depth, resolveBranchListOptions(depth));
+
+  if (containerFolder && folderPath.startsWith(`${containerFolder}/`)) {
+    return normalizeNestedContainerMenuTree(tree, absolute, folderPath);
+  }
+  if (kitFolder && folderPath.startsWith(`${kitFolder}/`)) {
+    return tree;
+  }
+  return tree;
 }
 
 async function normalizeServiceMenuTree(tree, serviceAbsolute) {
@@ -6657,14 +6736,18 @@ async function readNodePropsColorForNodeRel(nodeRelPath) {
   return meta.color;
 }
 
-async function enrichMenuNodeItem(nodeRelPath) {
+async function enrichMenuNodeItem(nodeRelPath, options = {}) {
   const normalizedPath = String(nodeRelPath || "").replace(/\\/g, "/");
+  const cache = options.menuMetaCache;
+  if (cache?.has(normalizedPath)) {
+    return cache.get(normalizedPath);
+  }
   const [meta, previewMeta, menuMeta] = await Promise.all([
     readNodeMenuMetaForNodeRel(normalizedPath),
     getNodePreviewMeta(normalizedPath),
     readManifestMenuMeta(normalizedPath)
   ]);
-  return {
+  const result = {
     color: meta.color,
     tags: meta.tags,
     category: meta.category,
@@ -6673,6 +6756,8 @@ async function enrichMenuNodeItem(nodeRelPath) {
     awnTreeType: menuMeta.type || null,
     ...previewMeta
   };
+  cache?.set(normalizedPath, result);
+  return result;
 }
 
 async function readMenuSortOrder(dirAbsolute) {
@@ -7409,7 +7494,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           files.push({
             label: shell.title,
             path: shell.indexPath,
-            ...(await enrichMenuNodeItem(shell.indexPath)),
+            ...(await enrichMenuNodeItem(shell.indexPath, options)),
             ...withMenuFolderWorkspaceMarkers(markers)
           });
         } else {
@@ -7441,7 +7526,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
           files.push({
             label: folderTitle,
             path: child.indexPath,
-            ...(await enrichMenuNodeItem(child.indexPath)),
+            ...(await enrichMenuNodeItem(child.indexPath, options)),
             ...withMenuFolderWorkspaceMarkers(markers)
           });
           continue;
@@ -7486,7 +7571,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
       const menuItem = {
         label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
         path: nodeRelPath,
-        ...(await enrichMenuNodeItem(nodeRelPath))
+        ...(await enrichMenuNodeItem(nodeRelPath, options))
       };
       repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
       continue;
@@ -7518,7 +7603,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let hasPreview = false;
   let previewUrl = null;
   if (indexPath) {
-    const indexMeta = await enrichMenuNodeItem(indexPath);
+    const indexMeta = await enrichMenuNodeItem(indexPath, options);
     color = indexMeta.color;
     tags = indexMeta.tags || [];
     category = indexMeta.category || null;
@@ -8634,6 +8719,30 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, menu);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read Workspaces menu", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/menu/branch") {
+    try {
+      const folderPath = String(url.searchParams.get("folderPath") || "").trim();
+      if (!folderPath) {
+        return sendJson(res, 400, { error: "folderPath is required" });
+      }
+      const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
+      const maxDepth = Number.isFinite(maxDepthRaw)
+        ? Math.min(20, Math.max(1, Math.floor(maxDepthRaw)))
+        : 7;
+      const branchDepthRaw = Number(url.searchParams.get("branchDepth"));
+      const branchDepth = Number.isFinite(branchDepthRaw)
+        ? Math.min(20, Math.max(1, Math.floor(branchDepthRaw)))
+        : 3;
+      const branch = await buildAgentMenuBranch(getAgentRoot(), folderPath, { maxDepth, branchDepth });
+      return sendJson(res, 200, branch);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read menu branch",
+        details: String(error.message || error)
+      });
     }
   }
 
