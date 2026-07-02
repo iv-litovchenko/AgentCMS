@@ -200,7 +200,9 @@ class Sidecar:
             self._last_ptt_held = False
 
         engine = str(settings.get("ttsEngine") or "browser")
-        if settings.get("ttsEnabled", True) and engine in ("sidecar", "say"):
+        target = str(settings.get("messageTarget") or "cms")
+        uses_cms_reply = target in ("cms", "qwenpaw-log")
+        if settings.get("ttsEnabled", True) and engine in ("sidecar", "say") and uses_cms_reply:
             latest = status.get("latestAgentMessage") or {}
             msg_id = str(latest.get("id") or "")
             body = str(latest.get("body") or "").strip()

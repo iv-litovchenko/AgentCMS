@@ -1,7 +1,7 @@
 const electron = require("electron");
 
 if (!electron.app) {
-  console.error("Agent CMS desktop must be started with Electron: npm run desktop");
+  console.error("Agent CMS desktop must be started with Electron: npm run cms:desktop");
   process.exit(1);
 }
 
@@ -187,7 +187,7 @@ async function switchProjectRoot(newRoot) {
 }
 
 function launchAgentShellApp() {
-  const packagedApp = path.join(getBundledProjectRoot(), "dist/shell/mac/Agent Shell.app");
+  const packagedApp = path.join(getBundledProjectRoot(), "dist/agent-shell/Agent Shell.app");
   if (fs.existsSync(packagedApp)) {
     shell.openPath(packagedApp).catch((error) => console.error(error));
     return;

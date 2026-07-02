@@ -13,9 +13,19 @@ npm start
 
 ## Desktop
 
+**Agent CMS** (редактор):
+
 ```bash
-npm run desktop
+npm run cms:desktop
 ```
+
+**Agent Shell** (голосовой клиент):
+
+```bash
+npm run shell:desktop
+```
+
+Сборка и запуск `.app`: см. [desktop/README.md](desktop/README.md).
 
 ## MCP (Cursor)
 

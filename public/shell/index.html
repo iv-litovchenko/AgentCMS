@@ -4,8 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent Shell</title>
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=8" />
+    <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
+    <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/shell/shell.css?v=14" />
   </head>
   <body>
     <div class="shell-app" id="shell-app">
@@ -14,7 +16,7 @@
           <span class="shell-logo" aria-hidden="true">◎</span>
           <div>
             <h1 class="shell-title">Agent Shell</h1>
-            <p class="shell-subtitle">Оболочка для MCP-агентов</p>
+            <p class="shell-subtitle">Голосовой клиент Agent CMS</p>
           </div>
         </div>
         <div class="shell-header-actions">
@@ -83,11 +85,6 @@
             <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
           </div>
         </div>
-
-        <label class="shell-field shell-cms-agent-field" id="shell-cms-agent-field">
-          <span class="shell-label">Workspace CMS</span>
-          <select id="shell-agent-select" class="shell-select"></select>
-        </label>
 
         <div class="shell-field shell-topic-field" id="shell-topic-field">
           <span class="shell-label">Тема</span>
@@ -163,10 +160,19 @@
       </section>
 
       <footer class="shell-footer">
-        <span id="shell-connection">offline</span>
-        <span id="shell-hint">Агент подключается к Agent CMS по MCP</span>
+        <div class="shell-label">TODO · команды</div>
+        <ul class="shell-todo-list">
+          <li>Команды</li>
+          <li>Сделать скриншот</li>
+          <li>Изменить размер окна</li>
+          <li>Показаться / спрятаться</li>
+        </ul>
+        <p class="shell-footer-note">
+          Mac-приложение: <code>npm run shell:dist</code>, затем
+          <code>npm run shell:open</code>
+        </p>
       </footer>
     </div>
-    <script src="/shell/shell.js?v=11" type="module"></script>
+    <script src="/shell/shell.js?v=15" type="module"></script>
   </body>
 </html>

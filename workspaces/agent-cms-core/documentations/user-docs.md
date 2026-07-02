@@ -459,13 +459,29 @@ Agent CMS можно запускать в браузере (`npm start`) или
 
 ### npm-скрипты
 
+**Сервер и общее**
+
 | Команда | Назначение |
 |---------|------------|
 | `npm start` | Сервер + UI в браузере (http://localhost:3000) |
-| `npm run desktop` | Desktop-приложение (внутри поднимается тот же сервер) |
-| `npm run pack` | Сборка без инсталлятора (`electron-builder --dir`) |
-| `npm run dist` | Полная сборка (DMG/ZIP на macOS, NSIS на Windows, AppImage на Linux) |
-| `npm run open:app` | Открыть собранное приложение на macOS (`dist/mac/Agent CMS.app`) |
+
+**Agent CMS (desktop)**
+
+| Команда | Назначение |
+|---------|------------|
+| `npm run cms:desktop` | Desktop-приложение (внутри поднимается тот же сервер) |
+| `npm run cms:pack` | Сборка без инсталлятора (`electron-builder --dir`) |
+| `npm run cms:dist` | Полная сборка (DMG/ZIP на macOS, NSIS на Windows, AppImage на Linux) |
+| `npm run cms:open` | Открыть собранное приложение на macOS (`dist/agent-cms/Agent CMS.app`) |
+
+**Agent Shell (desktop + backend)**
+
+| Команда | Назначение |
+|---------|------------|
+| `npm run shell:desktop` | Electron-окно Shell (dev) |
+| `npm run shell:dist` | Сборка Agent Shell.app |
+| `npm run shell:open` | Открыть `dist/agent-shell/Agent Shell.app` |
+| `npm run shell:sidecar` | Голосовой sidecar (STT/TTS, без Electron) |
 
 После `npm install` скрипт **postinstall** копирует vendor-зависимости в `public/vendor/`.
 
@@ -508,7 +524,7 @@ agentcms://open?agent=main
 - загрузка в фоне;
 - диалог «Доступна новая версия. Перезапустить сейчас?».
 
-В режиме разработки (`npm run desktop` из исходников) автообновление **отключено**. URL публикации задаётся в `package.json` → `build.publish`.
+В режиме разработки (`npm run cms:desktop` из исходников) автообновление **отключено**. URL публикации задаётся в `package.json` → `build.publish`.
 
 ---
 

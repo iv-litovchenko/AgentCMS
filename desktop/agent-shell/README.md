@@ -1,6 +1,7 @@
 # Agent Shell Desktop
 
-Отдельное приложение **Agent Shell** с собственной иконкой.
+Electron-приложение **Agent Shell** (`desktop/agent-shell/`).
+Backend API и sidecar — в `agent-shell/` (корень репо).
 
 ## Запуск (разработка)
 
@@ -15,7 +16,7 @@ npm run shell:desktop
 
 ```bash
 npm run shell:dist
-open "dist/shell/mac/Agent Shell.app"
+npm run shell:open
 ```
 
 Собранный Shell ожидает, что **Agent CMS server уже работает**  
@@ -23,9 +24,9 @@ open "dist/shell/mac/Agent Shell.app"
 
 ## Два приложения
 
-| App | Команда | Назначение |
-|-----|---------|------------|
-| **Agent CMS** | `npm run desktop` | редактор, workspace, MCP |
+| App | Dev | Назначение |
+|-----|-----|------------|
+| **Agent CMS** | `npm run cms:desktop` | редактор, workspace, MCP |
 | **Agent Shell** | `npm run shell:desktop` | голос, компактное окно |
 
 Можно запускать **по отдельности** или **оба сразу**.

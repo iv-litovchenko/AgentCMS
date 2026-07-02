@@ -4,20 +4,23 @@
   "private": true,
   "description": "File-based CMS prototype for agents (no database)",
   "author": "Agent CMS",
-  "main": "electron/main.js",
+  "main": "desktop/agent-cms/main.js",
   "scripts": {
     "start": "node server.js",
     "mcp": "node mcp-server/index.js",
     "shell:sidecar": "bash agent-shell/voice-sidecar/run.sh",
     "postinstall": "mkdir -p public/vendor && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && cp node_modules/mammoth/mammoth.browser.min.js public/vendor/mammoth.browser.min.js && cp node_modules/xlsx/dist/xlsx.full.min.js public/vendor/xlsx.full.min.js && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/vendor/highlight-github.min.css",
-    "desktop": "electron .",
-    "shell:desktop": "electron ./agent-shell-desktop",
-    "shell:pack": "npm run pack --prefix agent-shell-desktop",
-    "shell:dist": "npm run dist --prefix agent-shell-desktop",
-    "open:shell": "open \"dist/shell/mac/Agent Shell.app\"",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "open:app": "open \"dist/mac/Agent CMS.app\""
+    "cms:desktop": "electron .",
+    "cms:pack": "electron-builder --dir && node scripts/flatten-desktop-dist.js agent-cms",
+    "cms:dist": "electron-builder && node scripts/flatten-desktop-dist.js agent-cms",
+    "cms:open": "open \"dist/agent-cms/Agent CMS.app\"",
+    "shell:desktop": "electron ./desktop/agent-shell",
+    "shell:pack": "npm run pack --prefix desktop/agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
+    "shell:dist": "npm run dist --prefix desktop/agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
+    "shell:open": "open \"dist/agent-shell/Agent Shell.app\"",
+    "shell:icons": "node scripts/render-shell-icons.js",
+    "dist:clean": "rm -rf dist",
+    "dist:migrate": "node scripts/migrate-dist-layout.js"
   },
   "dependencies": {
     "@toast-ui/editor": "^3.2.2",
@@ -36,12 +39,12 @@
   "build": {
     "appId": "com.agentcms.desktop",
     "productName": "Agent CMS",
-    "icon": "electron/assets/icon.png",
+    "icon": "desktop/agent-cms/assets/icon.png",
     "directories": {
-      "output": "dist"
+      "output": "dist/agent-cms"
     },
     "files": [
-      "electron/**/*",
+      "desktop/agent-cms/**/*",
       "public/**/*",
       "*.js",
       "docs/**/*",
@@ -61,20 +64,20 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "nsis"
       ]
     },
     "linux": {
-      "icon": "electron/assets/icon.png",
+      "icon": "desktop/agent-cms/assets/icon.png",
       "target": [
         "AppImage"
       ]

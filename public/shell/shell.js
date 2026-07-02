@@ -1,4 +1,4 @@
-import { loadAgentSelectData, populateAgentSelect } from "/shared/agent-select.js";
+import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
 
 const PHASE_LABELS = {
@@ -9,11 +9,10 @@ const PHASE_LABELS = {
   disabled: "⏸️ Отключено"
 };
 
-const STORAGE_AGENT_KEY = "agentcms.activeAgent.v1";
+const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
 
-const qs = new URLSearchParams(window.location.search);
 const state = {
-  agentId: qs.get("agent") || localStorage.getItem(STORAGE_AGENT_KEY) || "",
+  agentId: localStorage.getItem(SHELL_AGENT_KEY) || "",
   settings: null,
   shellState: null,
   eventSource: null,
@@ -29,8 +28,6 @@ const state = {
 };
 
 const nodes = {
-  agentSelect: document.getElementById("shell-agent-select"),
-  cmsAgentField: document.getElementById("shell-cms-agent-field"),
   messageTarget: document.getElementById("shell-message-target"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
@@ -60,9 +57,7 @@ const nodes = {
   phrase: document.getElementById("shell-phrase"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
-  lastReply: document.getElementById("shell-last-reply"),
-  connection: document.getElementById("shell-connection"),
-  hint: document.getElementById("shell-hint")
+  lastReply: document.getElementById("shell-last-reply")
 };
 
 const topicPicker = createTopicPicker({
@@ -114,11 +109,6 @@ function renderPhase(phase, phrase = "", metrics = "") {
   nodes.pulse.dataset.phase = normalized;
 }
 
-function setConnection(online, note = "") {
-  nodes.connection.dataset.online = online ? "1" : "0";
-  nodes.connection.textContent = online ? `online${note ? ` · ${note}` : ""}` : "offline";
-}
-
 function applySettings(settings) {
   state.settings = settings;
   nodes.messageTarget.value = settings.messageTarget || "cms";
@@ -142,32 +132,14 @@ function updateTargetUi(target) {
   const cmsLog = target === "qwenpaw-log";
 
   nodes.qwenpawPanel.dataset.visible = qwenpaw ? "1" : "0";
-  if (nodes.cmsAgentField) {
-    nodes.cmsAgentField.style.display = cmsOnly || cmsLog ? "" : "none";
-  }
   topicPicker.setVisible(cmsOnly || cmsLog);
 }
 
-function buildHint(payload) {
-  const target = payload?.settings?.messageTarget || state.settings?.messageTarget || "cms";
-  if (usesQwenPawTarget(target)) {
-    const qwenpaw = payload?.qwenpaw || {};
-    if (qwenpaw.ok) {
-      const version = qwenpaw.version ? ` v${qwenpaw.version}` : "";
-      const baseUrl =
-        qwenpaw.baseUrl || payload?.settings?.qwenpawBaseUrl || "http://127.0.0.1:8088";
-      const agentId = payload?.settings?.qwenpawAgentId || nodes.qwenpawAgentId.value || "default";
-      return `QwenPaw online${version} · ${baseUrl} · agent ${agentId}`;
-    }
-    return "QwenPaw недоступен — запустите qwenpaw app на :8088";
-  }
-  if (state.sidecarConnected) {
-    return "Sidecar подключён · MCP-агент отвечает через CMS";
-  }
-  if (needsSidecar(nodes.voiceMode.value)) {
-    return "Запустите sidecar: npm run shell:sidecar";
-  }
-  return "Агент подключается к Agent CMS по MCP";
+function cleanShellUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("agent")) return;
+  url.searchParams.delete("agent");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function updateQwenPawChatUi(payload) {
@@ -282,7 +254,6 @@ function applyStatusPayload(payload) {
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   updateQwenPawChatUi(payload);
-  nodes.hint.textContent = buildHint(payload);
   if (payload?.latestAgentMessage?.body) {
     nodes.lastReply.textContent = payload.latestAgentMessage.body;
   }
@@ -292,25 +263,23 @@ function needsSidecar(mode) {
   return mode === "sidecar" || mode === "always";
 }
 
-async function loadAgents() {
+async function resolveShellAgent() {
   const data = await loadAgentSelectData();
-  const { selectedId } = populateAgentSelect(nodes.agentSelect, {
-    agents: data.agents,
-    groups: data.groups,
-    selectedId: state.agentId,
-    placeholder: "— агент —",
-    includePlaceholder: true
-  });
+  const selectable = getSelectableAgents(data.agents);
+  const candidates = [state.agentId, data.defaultAgentId].filter(Boolean);
 
-  if (selectedId) {
-    state.agentId = selectedId;
-  } else if (!state.agentId) {
-    state.agentId = data.defaultAgentId || data.agents.find((agent) => agent.active !== false)?.id || "";
+  let nextId = "";
+  for (const id of candidates) {
+    if (selectable.some((agent) => agent.id === id)) {
+      nextId = id;
+      break;
+    }
   }
+  if (!nextId) nextId = selectable[0]?.id || "";
 
-  if (state.agentId) {
-    nodes.agentSelect.value = state.agentId;
-    localStorage.setItem(STORAGE_AGENT_KEY, state.agentId);
+  if (nextId) {
+    state.agentId = nextId;
+    localStorage.setItem(SHELL_AGENT_KEY, nextId);
   }
 }
 
@@ -354,8 +323,9 @@ async function sendMessage(body) {
     nodes.message.value = "";
     if (result?.reply || result?.message?.body) {
       await handleAssistantMessage(result.message || { body: result.reply });
+    } else {
+      await refreshStatus();
     }
-    await refreshStatus();
   } catch (error) {
     renderPhase("waiting", error.message);
   } finally {
@@ -400,6 +370,7 @@ async function speakText(text) {
 }
 
 let lastHandledAssistantId = "";
+let lastSpokenBody = "";
 
 async function handleAssistantMessage(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
@@ -409,6 +380,8 @@ async function handleAssistantMessage(message) {
   lastHandledAssistantId = messageId;
   nodes.lastReply.textContent = body;
   if (state.settings?.ttsEnabled) {
+    if (body === lastSpokenBody && state.speaking) return;
+    lastSpokenBody = body;
     await speakText(body);
   }
 }
@@ -419,7 +392,6 @@ function connectStream() {
     state.eventSource = null;
   }
   if (!state.agentId || typeof EventSource === "undefined") {
-    setConnection(false);
     return;
   }
 
@@ -427,7 +399,6 @@ function connectStream() {
   state.eventSource = source;
 
   source.addEventListener("status", (event) => {
-    setConnection(true, "sse");
     try {
       applyStatusPayload(JSON.parse(event.data));
     } catch {
@@ -448,18 +419,10 @@ function connectStream() {
     stopBrowserTts();
   });
 
-  source.addEventListener("ping", () => {
-    setConnection(true, "sse");
-  });
-
   source.addEventListener("reconnect", () => {
     source.close();
     setTimeout(connectStream, 500);
   });
-
-  source.onerror = () => {
-    setConnection(false);
-  };
 }
 
 function setupSpeechRecognition() {
@@ -537,17 +500,6 @@ function toggleMic() {
 }
 
 function bindUi() {
-  nodes.agentSelect.addEventListener("change", async () => {
-    state.agentId = nodes.agentSelect.value;
-    localStorage.setItem(STORAGE_AGENT_KEY, state.agentId);
-    const next = new URL(window.location.href);
-    next.searchParams.set("agent", state.agentId);
-    window.history.replaceState({}, "", next);
-    await topicPicker.refresh();
-    await refreshStatus();
-    connectStream();
-  });
-
   const persistSettings = () => {
     const voiceMode = nodes.voiceMode.value;
     const messageTarget = nodes.messageTarget.value;
@@ -610,17 +562,16 @@ function bindUi() {
 }
 
 async function boot() {
+  cleanShellUrl();
   bindUi();
   setupSpeechRecognition();
   try {
-    await loadAgents();
+    await resolveShellAgent();
     await topicPicker.refresh();
     await refreshStatus();
     connectStream();
-    setConnection(true);
   } catch (error) {
     renderPhase("waiting", error.message);
-    setConnection(false);
   }
 }
 

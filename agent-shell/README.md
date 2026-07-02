@@ -6,18 +6,24 @@ shell только пишет в thread/inbox и слушает ответы.
 
 ## Desktop (отдельное приложение)
 
-```bash
-# Dev — своё окно + своя иконка в Dock
-npm run shell:desktop
+Код Electron-оболочки: `desktop/agent-shell/` (не путать с backend `agent-shell/`).
 
-# Собрать Agent Shell.app
+```bash
+# 1. Собрать Agent Shell.app (один раз)
 npm run shell:dist
-open "dist/shell/mac/Agent Shell.app"
+
+# 2. Запуск — как обычное Mac-приложение
+npm run shell:open
 ```
 
-Или двойной клик: **`Start-Agent-Shell-App.command`**
+Без сборки — dev-окно Electron:
 
-Подробнее: `agent-shell-desktop/README.md`
+```bash
+npm run shell:desktop
+```
+
+**Agent CMS server** должен быть запущен (`npm start` или Agent CMS.app).  
+Shell.app **не поднимает** CMS автоматически (в отличие от dev-режима).
 
 ## Быстрый старт (браузер)
 
@@ -26,7 +32,7 @@ open "dist/shell/mac/Agent Shell.app"
 npm start
 
 # 2. Shell UI
-open "http://localhost:3000/shell/index.html?agent=agent-cms-test"
+open "http://localhost:3000/shell/index.html"
 
 # 3. (опционально) TTS sidecar для macOS say
 AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
@@ -65,7 +71,7 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 
 ## Desktop
 
-В Electron: **Tray → Agent Shell** или `npm run desktop` и меню.
+В Electron: **Tray → Agent Shell** (из `npm run cms:desktop`) или `npm run shell:desktop`.
 
 ## Переменные sidecar
 
@@ -76,3 +82,22 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 | `SHELL_SAY_VOICE` | `Milena` (ru на macOS) |
 
 В UI выберите **TTS engine: sidecar** (сохраняется как `ttsEngine: sidecar`) и запустите sidecar.
+
+## UI · блок «Последний ответ агента»
+
+Внизу окна Shell — секция `section.shell-reply` (**«Последний ответ агента»**).
+
+Сюда выводится **полный текст** последнего ответа агента (QwenPaw или CMS) — как пришёл от модели, включая emoji и markdown. Это отдельно от карточки статуса сверху (фаза «Ожидаю / Думаю / Говорю» и короткая строка).
+
+Озвучка (TTS) читает тот же текст; позже — отдельная «spoken»-версия без emoji и таблиц, а в `shell-reply` остаётся полный ответ для чтения.
+
+**Ниже этого блока в UI** (планируется добавить):
+
+## TODO · Agent Shell UI
+
+- **Команды** — палитра / меню быстрых действий
+- **Сделать скриншот** — захват окна Shell
+- **Изменить размер окна** — пресеты или ручной resize
+- **Показаться / спрятаться** — show/hide окна (tray, hotkey)
+
+_Дополним позже._

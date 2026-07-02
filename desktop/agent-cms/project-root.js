@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 function getBundledProjectRoot() {
-  return path.join(__dirname, "..");
+  return path.join(__dirname, "..", "..");
 }
 
 function getWritableProjectRoot(app) {

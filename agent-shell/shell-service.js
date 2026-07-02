@@ -34,6 +34,7 @@ const DEFAULT_STATE = {
   phrase: "",
   metrics: "",
   lastAgentMessageId: "",
+  lastShellReply: "",
   stopTtsAt: 0,
   sidecarSeenAt: 0,
   pttHeld: false,
@@ -345,6 +346,9 @@ async function findLatestAgentMessage(deps, settings) {
 }
 
 async function pollAssistantReply(deps, agentRoot, agentId, settings) {
+  if (usesQwenPaw(settings) && !shouldLogToCms(settings)) {
+    return null;
+  }
   const latest = await findLatestAgentMessage(deps, settings);
   if (!latest?.id) return null;
   const state = await getState(agentRoot);
@@ -380,10 +384,34 @@ async function setPttHeld(agentRoot, agentId, held) {
 async function buildStatusPayload(deps, agentRoot, agentId) {
   const [settings, state] = await Promise.all([readSettings(agentRoot), getState(agentRoot)]);
   let latestAgent = null;
-  try {
-    latestAgent = await findLatestAgentMessage(deps, settings);
-  } catch {
-    latestAgent = null;
+  let stateOut = { ...state };
+
+  if (shouldLogToCms(settings)) {
+    try {
+      latestAgent = await findLatestAgentMessage(deps, settings);
+    } catch {
+      latestAgent = null;
+    }
+  } else if (usesQwenPaw(settings)) {
+    const reply = String(state.lastShellReply || "").trim();
+    if (reply && state.lastAgentMessageId) {
+      latestAgent = {
+        id: state.lastAgentMessageId,
+        body: reply,
+        role: "agent",
+        author: "qwenpaw",
+        created: state.updatedAt
+      };
+      stateOut = { ...stateOut, phrase: reply.slice(0, 240) };
+    } else if (String(state.lastAgentMessageId || "").includes(".md")) {
+      stateOut = { ...stateOut, phrase: "", lastAgentMessageId: "" };
+    }
+  } else {
+    try {
+      latestAgent = await findLatestAgentMessage(deps, settings);
+    } catch {
+      latestAgent = null;
+    }
   }
 
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };
@@ -401,7 +429,7 @@ async function buildStatusPayload(deps, agentRoot, agentId) {
   return {
     agentId,
     settings,
-    state,
+    state: stateOut,
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
     latestAgentMessage: latestAgent

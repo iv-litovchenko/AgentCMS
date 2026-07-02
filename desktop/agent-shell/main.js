@@ -9,7 +9,6 @@ const { app, BrowserWindow, dialog, shell } = electron;
 const path = require("path");
 const {
   getCmsBaseUrl,
-  getDefaultAgentId,
   getProjectRoot,
   saveConfig
 } = require("./config");
@@ -72,10 +71,8 @@ async function ensureCmsAvailable() {
   return startEmbeddedServer();
 }
 
-function buildShellUrl(agentId = getDefaultAgentId()) {
-  const url = new URL("/shell/index.html", `${cmsBaseUrl}/`);
-  if (agentId) url.searchParams.set("agent", agentId);
-  return url.toString();
+function buildShellUrl() {
+  return new URL("/shell/index.html", `${cmsBaseUrl}/`).toString();
 }
 
 async function createWindow() {
@@ -156,7 +153,7 @@ async function bootstrap() {
     console.error(error);
     dialog.showErrorBox(
       "Agent Shell",
-      `${error.message || error}\n\nПодсказка: запустите Agent CMS (npm run desktop) или npm start.`
+      `${error.message || error}\n\nПодсказка: запустите Agent CMS (npm run cms:desktop) или npm start.`
     );
     app.quit();
   }

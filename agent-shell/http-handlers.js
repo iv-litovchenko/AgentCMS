@@ -90,7 +90,8 @@ function createShellHandlers(deps) {
           await shellService.patchState(agentRoot, agentId, {
             phase: shellService.PHASE_WAITING,
             phrase: result.reply.slice(0, 240),
-            lastAgentMessageId: result.message.id
+            lastAgentMessageId: result.message.id,
+            lastShellReply: result.reply
           });
         } else {
           result = await shellService.sendUserMessage(deps, {

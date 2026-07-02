@@ -4,12 +4,12 @@
   "messageTarget": "qwenpaw",
   "qwenpawBaseUrl": "http://127.0.0.1:8088",
   "qwenpawAgentId": "default",
-  "qwenpawSessionId": "debug-shell",
+  "qwenpawSessionId": "agent-shell",
   "qwenpawUserId": "shell",
-  "qwenpawChatName": "Скажи толь",
+  "qwenpawChatName": "",
   "voiceInputMode": "browser",
   "voiceResponseEnabled": true,
-  "ttsEnabled": false,
+  "ttsEnabled": true,
   "ttsEngine": "browser",
-  "windowTopmost": false
+  "windowTopmost": true
 }
