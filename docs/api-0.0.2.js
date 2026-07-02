@@ -619,7 +619,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/agent/session-context",
-          description: "Стартовый пакет для агента: serviceDocs (agent/user), session-start темы, AGENTS.md, карта API.",
+          description: "Стартовый пакет для агента: serviceDocs (agent, user, agent.voice.tts, agent.voice.stt), session-start темы, AGENTS.md, карта API.",
           query: [],
           body: null,
           response: "{ version, agentId, pathHints, apiMap, serviceDocs[], sessionStartTopics[], systemFiles[] }"

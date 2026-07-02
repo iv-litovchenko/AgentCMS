@@ -13821,7 +13821,6 @@ function isCurrentModeListTemplate() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
-    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
@@ -38608,7 +38607,9 @@ function applyModeUi() {
   const mindmapMode = isMindmapModeActive();
   const canvasMode = isNodeCanvasViewMode();
   const listViewWithSourceToggle = isListViewWithSourceToggleMode();
-  const showListView = listTemplate && !(listViewWithSourceToggle && editorViewMode === "source");
+  const threadMode = activeContentMode === NODE_THREAD_MODE;
+  const showListView =
+    listTemplate && !threadMode && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
   const topicSchemaMode = activeContentMode === "topic-schema";
   const configsMode = activeContentMode === "configs";
@@ -38619,7 +38620,6 @@ function applyModeUi() {
     entryOverviewMode && activeEntryOverviewContext?.memoryKind === "media";
   const entryOverviewExternalMode =
     entryOverviewMode && activeEntryOverviewContext?.memoryKind !== "media";
-  const threadMode = activeContentMode === NODE_THREAD_MODE;
   const overviewLikeMode = overviewMode || navigationMode || entryOverviewMode;
   const titleVisible = isCurrentModeTitleEditable();
   const forceEditOnly = activeContentMode === "env";

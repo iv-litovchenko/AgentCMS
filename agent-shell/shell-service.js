@@ -43,6 +43,39 @@ const DEFAULT_STATE = {
 
 const SIDECAR_TTL_MS = 8000;
 
+const SHELL_SHOW_DEMO_RE = /^(демо|demo|пример)(\s+(картин|изображ|show|media|картинку|картинка|картинки))?/i;
+
+function isShellShowDemoRequest(text) {
+  return SHELL_SHOW_DEMO_RE.test(String(text || "").trim());
+}
+
+function buildShellShowDemoReply() {
+  return `Пример: агент может показать картинку прямо в Shell.
+
+[show]
+type: image
+src: /shell/wallpaper.png
+caption: Горы и храм — обои Agent Shell
+[/show]
+
+Блок [show] не попадает в озвучку — только текст выше.`;
+}
+
+function buildShellShowDemoResult() {
+  const reply = buildShellShowDemoReply();
+  return {
+    channel: "shell-demo",
+    reply,
+    message: {
+      id: `shell-show-demo-${Date.now()}`,
+      body: reply,
+      role: "agent",
+      author: "shell-demo",
+      created: new Date().toISOString()
+    }
+  };
+}
+
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
@@ -542,5 +575,7 @@ module.exports = {
   buildStatusPayload,
   streamShellEvents,
   emitShellEvent,
-  subscribeShellEvents
+  subscribeShellEvents,
+  isShellShowDemoRequest,
+  buildShellShowDemoResult
 };

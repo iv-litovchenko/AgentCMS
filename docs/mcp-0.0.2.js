@@ -43,7 +43,7 @@ module.exports = {
       tools: [
         {
           name: "get_session_context",
-          description: "Один запрос: agent/user manifests, session-start темы, AGENTS.md, карта API, path hints.",
+          description: "Один запрос: agent/user/voice manifests, session-start темы, AGENTS.md, карта API, path hints.",
           parameters: "—",
           http: "GET /api/agent/session-context"
         },

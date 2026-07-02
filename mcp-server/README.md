@@ -80,7 +80,7 @@ get_session_context
 
 Ответ включает:
 
-- `awn-agent-kit/agent/manifest.md` и `user/manifest.md`
+- `awn-agent-kit/agent/manifest.md`, `user/manifest.md`, `agent.voice.tts/manifest.md`, `agent.voice.stt/manifest.md`
 - темы с `awn-runtime-load: session-start`
 - `AGENTS.md`, `README.md`
 - `pathHints` и `apiMap`

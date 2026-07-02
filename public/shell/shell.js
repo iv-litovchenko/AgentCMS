@@ -1,5 +1,6 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
+import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js";
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -31,6 +32,7 @@ const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
+  qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
   qwenpawAgentId: document.getElementById("shell-qwenpaw-agent-id"),
   qwenpawChatTitle: document.getElementById("shell-qwenpaw-chat-title"),
   qwenpawChatSession: document.getElementById("shell-qwenpaw-chat-session"),
@@ -57,7 +59,9 @@ const nodes = {
   phrase: document.getElementById("shell-phrase"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
-  lastReply: document.getElementById("shell-last-reply")
+  lastReply: document.getElementById("shell-last-reply"),
+  lastReplyText: document.getElementById("shell-last-reply-text"),
+  lastReplyMedia: document.getElementById("shell-last-reply-media")
 };
 
 const topicPicker = createTopicPicker({
@@ -109,6 +113,25 @@ function renderPhase(phase, phrase = "", metrics = "") {
   nodes.pulse.dataset.phase = normalized;
 }
 
+function renderShellReply(message) {
+  const body = String(message?.body || message?.message?.body || "").trim();
+  const extraShows = Array.isArray(message?.shows) ? message.shows : [];
+  const parsed = parseShellReply(body);
+  const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
+
+  if (nodes.lastReplyText) nodes.lastReplyText.textContent = parsed.text;
+  else if (nodes.lastReply) nodes.lastReply.textContent = parsed.text;
+
+  renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
+  return { ...parsed, shows };
+}
+
+function clearShellReply() {
+  if (nodes.lastReplyText) nodes.lastReplyText.textContent = "—";
+  else if (nodes.lastReply) nodes.lastReply.textContent = "—";
+  renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
+}
+
 function applySettings(settings) {
   state.settings = settings;
   nodes.messageTarget.value = settings.messageTarget || "cms";
@@ -120,6 +143,19 @@ function applySettings(settings) {
   nodes.voiceMode.value = settings.voiceInputMode || "browser";
   document.body.style.opacity = settings.windowTopmost === false ? "0.98" : "1";
   updateTargetUi(settings.messageTarget || "cms");
+}
+
+function getQwenPawUrlValue() {
+  const raw = String(nodes.qwenpawUrl?.value || "").trim() || "http://127.0.0.1:8088";
+  try {
+    return new URL(raw).href;
+  } catch {
+    return "http://127.0.0.1:8088";
+  }
+}
+
+function openQwenPawInBrowser() {
+  window.open(getQwenPawUrlValue(), "_blank", "noopener,noreferrer");
 }
 
 function usesQwenPawTarget(target) {
@@ -221,7 +257,7 @@ async function startNewQwenPawChat() {
   });
   applySettings(data.settings);
   updateQwenPawChatUi({ settings: data.settings, qwenpaw: { sessionId: data.sessionId, chatName: data.chatName } });
-  nodes.lastReply.textContent = "—";
+  clearShellReply();
   lastHandledAssistantId = "";
   renderPhase("waiting", "Новый чат QwenPaw");
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
@@ -234,7 +270,7 @@ async function selectQwenPawChat(sessionId, chatName) {
   });
   applySettings(data.settings);
   updateQwenPawChatUi({ settings: data.settings, qwenpaw: { sessionId: data.sessionId, chatName: data.chatName } });
-  nodes.lastReply.textContent = "—";
+  clearShellReply();
   lastHandledAssistantId = "";
   setQwenPawChatsOpen(false);
   renderPhase("waiting", `Чат: ${data.chatName || data.sessionId}`);
@@ -255,7 +291,7 @@ function applyStatusPayload(payload) {
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   updateQwenPawChatUi(payload);
   if (payload?.latestAgentMessage?.body) {
-    nodes.lastReply.textContent = payload.latestAgentMessage.body;
+    renderShellReply(payload.latestAgentMessage);
   }
 }
 
@@ -378,11 +414,13 @@ async function handleAssistantMessage(message) {
   const messageId = String(message?.id || message?.message?.id || body.slice(0, 120));
   if (messageId && messageId === lastHandledAssistantId) return;
   lastHandledAssistantId = messageId;
-  nodes.lastReply.textContent = body;
+  renderShellReply(message);
   if (state.settings?.ttsEnabled) {
-    if (body === lastSpokenBody && state.speaking) return;
-    lastSpokenBody = body;
-    await speakText(body);
+    const speech = toSpeechText(body);
+    if (!speech) return;
+    if (speech === lastSpokenBody && state.speaking) return;
+    lastSpokenBody = speech;
+    await speakText(speech);
   }
 }
 
@@ -518,6 +556,7 @@ function bindUi() {
 
   nodes.messageTarget.addEventListener("change", persistSettings);
   nodes.qwenpawUrl.addEventListener("change", persistSettings);
+  nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
   nodes.qwenpawAgentId.addEventListener("change", persistSettings);
   nodes.ttsEnabled.addEventListener("change", persistSettings);
   nodes.topmost.addEventListener("change", persistSettings);

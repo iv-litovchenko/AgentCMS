@@ -72,6 +72,19 @@ function createShellHandlers(deps) {
           phrase: body.slice(0, 240)
         });
 
+        if (shellService.isShellShowDemoRequest(body)) {
+          const result = shellService.buildShellShowDemoResult();
+          shellService.emitShellEvent(agentId, "assistant_message", result.message);
+          await shellService.patchState(agentRoot, agentId, {
+            phase: shellService.PHASE_WAITING,
+            phrase: result.reply.slice(0, 240),
+            lastAgentMessageId: result.message.id,
+            lastShellReply: result.reply
+          });
+          deps.sendJson(res, 200, { agentId, ...result });
+          return true;
+        }
+
         let result;
         if (shellService.usesQwenPaw(settings)) {
           result = await shellService.sendToQwenPaw(deps, {

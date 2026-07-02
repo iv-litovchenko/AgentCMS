@@ -21,7 +21,6 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(circle at top, #1a1440 0%, var(--bg) 55%);
   color: var(--text);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -30,6 +29,14 @@ body {
   display: flex;
   justify-content: center;
   padding: 12px;
+  background-color: #0a1020;
+  background-image:
+    linear-gradient(180deg, rgba(8, 12, 28, 0.72) 0%, rgba(12, 18, 36, 0.82) 45%, rgba(10, 14, 30, 0.9) 100%),
+    url("/shell/wallpaper.png");
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .shell-app {
@@ -85,8 +92,10 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  border: 1px solid var(--panel-border);
-  background: var(--panel);
+  border: 1px solid rgba(122, 108, 255, 0.28);
+  background: rgba(18, 20, 38, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: var(--text);
   cursor: pointer;
 }
@@ -98,8 +107,11 @@ body {
   align-items: center;
   padding: 14px;
   border-radius: 16px;
-  background: rgba(23, 24, 44, 0.92);
-  border: 1px solid var(--panel-border);
+  background: rgba(18, 20, 38, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(122, 108, 255, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
 .shell-pulse {
@@ -172,8 +184,11 @@ body {
 .shell-reply {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(23, 24, 44, 0.92);
-  border: 1px solid var(--panel-border);
+  background: rgba(18, 20, 38, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(122, 108, 255, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
 .shell-field {
@@ -313,6 +328,26 @@ body {
   font: inherit;
 }
 
+.shell-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.shell-input-row .shell-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-input-action {
+  flex: 0 0 auto;
+  width: 41px;
+  height: auto;
+  align-self: stretch;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .shell-select {
   min-height: 36px;
   padding: 8px 34px 8px 11px;
@@ -392,12 +427,56 @@ body {
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #101223;
+  background: rgba(12, 14, 28, 0.72);
   border: 1px solid var(--panel-border);
   min-height: 64px;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.shell-reply-text {
   white-space: pre-wrap;
+}
+
+.shell-reply-media {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.shell-reply-media.hidden {
+  display: none;
+}
+
+.shell-show-item {
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  background: rgba(8, 10, 22, 0.55);
+}
+
+.shell-show-image {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.shell-show-caption {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.shell-show-link {
+  display: block;
+  padding: 10px 12px;
+  color: var(--speak);
+  text-decoration: none;
+  word-break: break-all;
 }
 
 .shell-footer {

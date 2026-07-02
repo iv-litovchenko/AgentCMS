@@ -5329,7 +5329,7 @@ async function buildAgentSessionContext() {
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
   const serviceDocs = [];
-  for (const slot of ["agent", "user"]) {
+  for (const slot of ["agent", "user", "agent.voice.tts", "agent.voice.stt"]) {
     const manifestPath = `${kitFolder}/${slot}/manifest.md`;
     const file = await readWorkspaceManifestContent(manifestPath);
     serviceDocs.push({

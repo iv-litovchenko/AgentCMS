@@ -18106,12 +18106,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .doc-slab-main .list-view-head {
-  flex: 0 0 auto;
-  padding: 8px 12px;
-  margin: 0 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel);
+  display: none;
 }
 
 .doc-slab-main .list-view-head.hidden {
