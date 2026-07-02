@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Agent Shell voice sidecar — STT (микрофон) + TTS (ответы агента)."""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any
+
+from stt import MicRecorder, rms, transcribe_pcm
+
+
+def env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
+BASE_URL = env("AGENT_CMS_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
+AGENT_ID = env("AGENT_CMS_AGENT", "")
+POLL_SEC = float(env("SHELL_SIDECAR_POLL_SEC", "0.35"))
+SAY_VOICE = env("SHELL_SAY_VOICE", "Milena")
+STT_LANGUAGE = env("SHELL_STT_LANGUAGE", "ru-RU")
+ALWAYS_THRESHOLD = float(env("SHELL_ALWAYS_RMS", "450"))
+
+
+class Sidecar:
+    def __init__(self) -> None:
+        self._stop = threading.Event()
+        self._speak_proc: subprocess.Popen[Any] | None = None
+        self._last_message_id = ""
+        self._stop_tts_at = 0
+        self._last_ptt_held = False
+        self._recorder = MicRecorder()
+        self._always_recording = False
+        self._always_silence = 0
+        self._always_frames: list[bytes] = []
+
+    def _url(self, path: str, params: dict[str, str] | None = None) -> str:
+        query: dict[str, str] = {}
+        if AGENT_ID:
+            query["agent"] = AGENT_ID
+        if params:
+            query.update({k: v for k, v in params.items() if v})
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
+        return f"{BASE_URL}{path}{suffix}"
+
+    def _request_json(self, path: str, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any]:
+        data = None
+        headers = {"Accept": "application/json"}
+        if body is not None:
+            data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+            headers["Content-Type"] = "application/json; charset=utf-8"
+        req = urllib.request.Request(self._url(path), data=data, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = resp.read().decode("utf-8")
+            return json.loads(payload) if payload else {}
+
+    def _patch_state(self, patch: dict[str, Any]) -> None:
+        self._request_json("/api/shell/state", method="POST", body={"state": patch})
+
+    def _send_message(self, text: str) -> None:
+        self._request_json(
+            "/api/shell/message",
+            method="POST",
+            body={"body": text, "author": "sidecar"},
+        )
+
+    def stop_playback(self) -> None:
+        proc = self._speak_proc
+        self._speak_proc = None
+        if proc and proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+    def speak(self, text: str) -> None:
+        payload = (text or "").strip()
+        if not payload:
+            return
+        self.stop_playback()
+        self._patch_state({"phase": "speaking", "phrase": payload[:240]})
+        cmd = ["say", "-v", SAY_VOICE, payload] if SAY_VOICE else ["say", payload]
+        self._speak_proc = subprocess.Popen(cmd)
+        self._speak_proc.wait()
+        self._speak_proc = None
+        self._patch_state({"phase": "waiting", "phrase": payload[:240]})
+
+    def _process_pcm(self, pcm: bytes) -> None:
+        result = transcribe_pcm(pcm, language=STT_LANGUAGE)
+        if result.error:
+            self._patch_state({"phase": "waiting", "phrase": result.error, "metrics": f"{result.duration_sec:.2f}s rms={result.peak_rms:.0f}"})
+            print(f"⚠️ {result.error}")
+            return
+        print(f"📝 {result.text}")
+        self._patch_state({"phase": "thinking", "phrase": result.text[:240], "metrics": f"{result.duration_sec:.2f}s"})
+        self._send_message(result.text)
+
+    def _handle_ptt(self, held: bool) -> None:
+        if held and not self._recorder.active:
+            self._recorder.start()
+            self._patch_state({"phase": "listening", "phrase": "Говорите…"})
+            print("🔴 Слушаю (PTT)")
+            return
+        if not held and self._recorder.active:
+            pcm = self._recorder.stop()
+            print("✅ Обработка PTT…")
+            self._process_pcm(pcm)
+
+    def _pump_ptt(self) -> None:
+        if self._recorder.active:
+            self._recorder.pump()
+
+    def _handle_always(self) -> None:
+        if self._recorder.active:
+            self._recorder.pump()
+            return
+        if self._always_recording:
+            return
+        try:
+            self._recorder.start()
+        except Exception as exc:  # noqa: BLE001
+            print(f"⚠️ Микрофон: {exc}")
+            return
+
+        self._always_frames = []
+        self._always_silence = 0
+        speech_started = False
+        print("👂 Always listen…")
+
+        while not self._stop.is_set():
+            self._recorder.pump()
+            chunk = self._recorder._frames[-1] if self._recorder._frames else b""
+            if not chunk:
+                time.sleep(0.02)
+                continue
+            level = rms(chunk)
+            if level > ALWAYS_THRESHOLD:
+                speech_started = True
+                self._always_silence = 0
+                self._patch_state({"phase": "listening", "phrase": f"vol={level:.0f}"})
+            elif speech_started:
+                self._always_silence += 1
+                if self._always_silence > 18:
+                    break
+            time.sleep(0.02)
+
+        pcm = self._recorder.stop()
+        if speech_started and pcm:
+            self._process_pcm(pcm)
+        else:
+            self._patch_state({"phase": "waiting", "phrase": "Ожидаю речь…"})
+
+    def _always_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                status = self._request_json("/api/shell/status")
+                mode = str((status.get("settings") or {}).get("voiceInputMode") or "browser")
+                if mode != "always":
+                    time.sleep(0.5)
+                    continue
+                if self._speak_proc and self._speak_proc.poll() is None:
+                    time.sleep(0.3)
+                    continue
+                self._handle_always()
+            except Exception as exc:  # noqa: BLE001
+                print(f"⚠️ always: {exc}")
+                time.sleep(1.0)
+
+    def tick(self) -> None:
+        status = self._request_json("/api/shell/status")
+        settings = status.get("settings") or {}
+        state = status.get("state") or {}
+        voice_mode = str(settings.get("voiceInputMode") or "browser")
+
+        self._patch_state({"sidecarSeenAt": int(time.time() * 1000)})
+
+        stop_at = int(state.get("stopTtsAt") or 0)
+        if stop_at and stop_at != self._stop_tts_at:
+            self._stop_tts_at = stop_at
+            self.stop_playback()
+
+        held = bool(state.get("pttHeld"))
+        if voice_mode == "sidecar":
+            if held != self._last_ptt_held:
+                self._handle_ptt(held)
+                self._last_ptt_held = held
+            self._pump_ptt()
+        elif voice_mode != "always":
+            if self._recorder.active:
+                pcm = self._recorder.stop()
+                if pcm and self._last_ptt_held:
+                    self._process_pcm(pcm)
+            self._last_ptt_held = False
+
+        engine = str(settings.get("ttsEngine") or "browser")
+        if settings.get("ttsEnabled", True) and engine in ("sidecar", "say"):
+            latest = status.get("latestAgentMessage") or {}
+            msg_id = str(latest.get("id") or "")
+            body = str(latest.get("body") or "").strip()
+            if msg_id and body and msg_id != self._last_message_id:
+                self._last_message_id = msg_id
+                print(f"🔊 {body}")
+                self.speak(body)
+
+    def run(self) -> None:
+        print("=" * 50)
+        print("Agent Shell · voice sidecar")
+        print(f"CMS: {BASE_URL}")
+        print(f"Agent: {AGENT_ID or '(default)'}")
+        print("STT: Google Speech (SpeechRecognition)")
+        print("TTS: macOS say")
+        print("Режим sidecar: кнопка 🎤 в Shell (PTT)")
+        print("Ctrl+C — выход")
+        print("=" * 50)
+
+        threading.Thread(target=self._always_loop, daemon=True).start()
+
+        while not self._stop.is_set():
+            try:
+                self.tick()
+            except urllib.error.URLError as exc:
+                print(f"⚠️ CMS недоступен: {exc}")
+            except Exception as exc:  # noqa: BLE001
+                print(f"⚠️ {exc}")
+            time.sleep(POLL_SEC)
+
+    def shutdown(self) -> None:
+        self._stop.set()
+        if self._recorder.active:
+            self._recorder.stop()
+        self.stop_playback()
+
+
+def main() -> None:
+    sidecar = Sidecar()
+    try:
+        sidecar.run()
+    except KeyboardInterrupt:
+        print("\n👋 Выход")
+    finally:
+        sidecar.shutdown()
+
+
+if __name__ == "__main__":
+    main()

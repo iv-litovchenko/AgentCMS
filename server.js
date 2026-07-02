@@ -7,6 +7,7 @@ const agentRegistry = require("./agent-registry");
 const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
+const { createShellHandlers } = require("./agent-shell/http-handlers");
 const {
   clampThumbMax,
   readOrCreateImageThumb,
@@ -1867,6 +1868,14 @@ async function createInboxItem({ manifestRelPath, title, body, source, author })
     body: textBody
   };
 }
+
+const shellHandlers = createShellHandlers({
+  sendJson,
+  readJsonBody,
+  appendTopicThreadMessage,
+  listTopicThread,
+  createInboxItem
+});
 
 async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
   const historyManifestRel = await resolveHistoryManifestRel({ manifestRelPath, mode, systemName });
@@ -7677,7 +7686,8 @@ async function serveIndexHtml(res) {
 }
 
 async function serveStatic(reqPath, res) {
-  const targetPath = reqPath === "/" ? "/index.html" : reqPath;
+  const normalizedPath = reqPath === "/shell" || reqPath === "/shell/" ? "/shell/index.html" : reqPath;
+  const targetPath = normalizedPath === "/" ? "/index.html" : normalizedPath;
   const safePath = path.normalize(targetPath).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
   const filePath = path.join(getPublicDir(), safePath);
 
@@ -8718,6 +8728,10 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 }
 
 async function handleApiForAgent(req, res, url) {
+  if (await shellHandlers.tryHandleShellApi(req, res, url, { agentId: getActiveAgentId(), agentRoot: getAgentRoot() })) {
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/search") {
     const query = url.searchParams.get("q") || "";
     const scope = url.searchParams.get("scope") || "content";

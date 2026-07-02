@@ -560,6 +560,24 @@ function createServer() {
     ({ name, content }) => client.post("/api/system-file", { name, content })
   );
 
+  reg("shell_get_status", "Agent Shell status, settings and latest agent reply.", z.object({}), () =>
+    client.get("/api/shell/status")
+  );
+
+  reg(
+    "shell_post_message",
+    "Send a user message through Agent Shell into the active topic thread/inbox.",
+    z.object({
+      body: z.string().min(1).describe("Message text for the connected agent"),
+      author: z.string().optional().describe("Optional author label, default shell")
+    }),
+    ({ body, author }) => client.post("/api/shell/message", { body, author: author || "agent-mcp" })
+  );
+
+  reg("shell_stop_tts", "Stop active Agent Shell text-to-speech playback.", z.object({}), () =>
+    client.post("/api/shell/stop-tts", {})
+  );
+
   reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
     client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );

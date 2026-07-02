@@ -1,0 +1,42 @@
+{
+  "name": "agent-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Shell — голосовая оболочка для Agent CMS",
+  "author": "Agent CMS",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentcms.shell",
+    "productName": "Agent Shell",
+    "icon": "electron/assets/icon.png",
+    "directories": {
+      "output": "../dist/shell"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "electron/assets/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "electron/assets/icon.png",
+      "target": ["nsis"]
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "target": ["AppImage"]
+    }
+  }
+}

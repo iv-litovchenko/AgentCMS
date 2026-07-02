@@ -7477,6 +7477,7 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Обзор" },
   { value: "settings", label: "Конфигурации" },
   { value: "data", label: "Данные" },
+  { value: "thread", label: "Диалог" },
   { value: "todo", label: "TODO" }
 ];
 
@@ -7549,8 +7550,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     key: "thread",
     label: "Диалог",
     icon: "💬",
-    modes: new Set([NODE_THREAD_MODE]),
-    defaultMode: NODE_THREAD_MODE,
+    modes: new Set([]),
+    defaultMode: null,
     sectionKind: null,
     disabled: true
   },
@@ -7798,6 +7799,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
+  if (mode === NODE_THREAD_MODE) return NODE_WORKSPACE_DOMAIN_THREAD;
   if (getDataStorageSlotForMode(mode)) return NODE_WORKSPACE_DOMAIN_DATA;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
@@ -7810,6 +7812,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
   return (
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_DATA ||
+    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
   );
@@ -8257,21 +8260,12 @@ function getDataHubPanelBodyNode() {
 }
 
 function syncDataHubPanelHeadPlacement() {
-  const panel = getDataHubPanelNode();
-  const head =
-    listViewBlockNode?.querySelector(":scope > .list-view-head") ||
-    panel?.querySelector(":scope > .list-view-head") ||
-    null;
   const useDataHub =
     shouldUseDataHubListShell() &&
     listViewBlockNode &&
     !listViewBlockNode.classList.contains("hidden");
-
-  if (!head || !listViewBlockNode || !listViewContentNode) return;
-
-  if (head.parentElement !== listViewBlockNode) {
-    listViewBlockNode.insertBefore(head, listViewContentNode);
-  }
+  const head = listViewBlockNode?.querySelector(":scope > .list-view-head");
+  if (!head) return;
   head.classList.toggle("hidden", useDataHub);
 }
 
@@ -9247,7 +9241,16 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (!mode || mode === "graph") return false;
   if (isAreaContentModeBlocked(mode, nodePath ?? getResolvedNodePath(activePath))) return false;
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return true;
-  if (mode === "inbox" || mode === "quick-notes" || mode === "references" || mode === "artefacts" || mode === "repository" || mode === "scripts" || mode === "todo") {
+  if (
+    mode === "inbox" ||
+    mode === "quick-notes" ||
+    mode === "references" ||
+    mode === "artefacts" ||
+    mode === "repository" ||
+    mode === "scripts" ||
+    mode === "todo" ||
+    mode === NODE_THREAD_MODE
+  ) {
     return true;
   }
   if (NODE_SETTINGS_MODE_IDS.has(mode)) return true;
@@ -9420,7 +9423,8 @@ function getNodeDefaultLandingDomainLabel(mode) {
   }
   if (
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
-    domain === NODE_WORKSPACE_DOMAIN_SETTINGS
+    domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
+    domain === NODE_WORKSPACE_DOMAIN_THREAD
   ) {
     return domainLabel;
   }
@@ -11461,6 +11465,13 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("todo");
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_THREAD) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    clearActiveThreadScope();
+    setContentMode(NODE_THREAD_MODE);
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -11477,12 +11488,12 @@ function applyNodeWorkspaceViewUi() {
   const mediaSlotActive = isDataStorageSlotActive("media");
   const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
+  const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_THREAD;
   const referencesSlotActive = isDataStorageSlotActive("references");
   const artefactsSlotActive = isDataStorageSlotActive("artefacts");
   const repositorySlotActive = isDataStorageSlotActive("repository");
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const inboxSlotActive = isDataStorageSlotActive("inbox");
-  const threadSlotActive = isDataStorageSlotActive("thread");
   const quickNotesSlotActive = isDataStorageSlotActive("quick-notes");
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
@@ -11505,7 +11516,7 @@ function applyNodeWorkspaceViewUi() {
   workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-repository", repositorySlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
-  workspacePathHeaderNode?.classList.toggle("is-node-thread", threadSlotActive);
+  workspacePathHeaderNode?.classList.toggle("is-node-thread", threadDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
@@ -18712,6 +18723,15 @@ function appendMediaSectionTreeItem(
   return btn;
 }
 
+function ensureMediaSectionTree(container) {
+  if (!container) return;
+  if (container.querySelector(":scope > .media-section-tree-list")) {
+    syncMediaSectionTreeActiveState();
+    return;
+  }
+  renderMediaSectionTree(container);
+}
+
 function renderMediaSectionTree(container) {
   if (!container) return;
   container.replaceChildren();
@@ -18781,7 +18801,7 @@ function ensureMediaListViewLayout() {
   const wrap = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
   if (!wrap) return null;
   ensureMediaListViewMainWrapper();
-  renderMediaSectionTree(wrap.querySelector(".media-section-tree"));
+  ensureMediaSectionTree(wrap.querySelector(".media-section-tree"));
   syncStorageSectionsPanelUi();
   syncMediaListSectionHead(
     isStorageSectionsPanelVisible() && mediaViewMode === "all" ? activeMediaSectionFolder : null
@@ -18874,7 +18894,7 @@ function renderMediaListViewBody(container) {
   pruneActiveMediaSectionFolder();
   syncMediaViewSelectOptions();
   const mediaTree = getMediaSectionTreeNode();
-  if (mediaTree) renderMediaSectionTree(mediaTree);
+  if (mediaTree) ensureMediaSectionTree(mediaTree);
   syncStorageSectionsPanelUi();
   syncMediaListSectionHead(
     isStorageSectionsPanelVisible() && mediaViewMode === "all" ? activeMediaSectionFolder : null
@@ -18927,7 +18947,7 @@ function mountMediaListViewLayout(root) {
 
   wrap.appendChild(split);
   root.appendChild(wrap);
-  renderMediaSectionTree(treeHost);
+  ensureMediaSectionTree(treeHost);
   syncStorageSectionsPanelUi();
   syncMediaListSectionHead(
     isStorageSectionsPanelVisible() && mediaViewMode === "all" ? activeMediaSectionFolder : null
@@ -19871,6 +19891,15 @@ function syncExternalSectionTreeActiveState() {
   }
 }
 
+function ensureExternalSectionTree(container) {
+  if (!container) return;
+  if (container.querySelector(":scope > .media-section-tree-list")) {
+    syncExternalSectionTreeActiveState();
+    return;
+  }
+  renderExternalSectionTree(container);
+}
+
 function renderExternalSectionTree(container) {
   if (!container) return;
   container.replaceChildren();
@@ -19940,7 +19969,7 @@ function mountExternalListViewLayout(root) {
 
   wrap.appendChild(split);
   root.appendChild(wrap);
-  renderExternalSectionTree(treeHost);
+  ensureExternalSectionTree(treeHost);
   syncStorageSectionsPanelUi();
   syncExternalListSectionHead(
     isStorageSectionsPanelVisible() ? activeExternalSectionFolder : null
@@ -19966,7 +19995,7 @@ function ensureExternalListViewLayout() {
   const wrap = mountRoot.querySelector(".external-list-view-wrap");
   if (!wrap) return null;
   ensureExternalListToolbar(wrap);
-  renderExternalSectionTree(wrap.querySelector(".external-section-tree"));
+  ensureExternalSectionTree(wrap.querySelector(".external-section-tree"));
   syncStorageSectionsPanelUi();
   return wrap.querySelector(".external-list-view-body");
 }
@@ -20243,8 +20272,7 @@ function renderExternalListViewBody(container) {
   container.replaceChildren();
 
   pruneActiveExternalSectionFolder();
-  renderExternalSectionTree(listViewContentNode.querySelector(".external-section-tree"));
-  syncStorageSectionsPanelUi();
+  syncExternalSectionTreeActiveState();
   syncExternalListSectionHead(
     isStorageSectionsPanelVisible() ? activeExternalSectionFolder : null
   );
@@ -20403,6 +20431,15 @@ function syncFlatStorageSectionTreeActiveState(mode) {
   }
 }
 
+function ensureFlatStorageSectionTree(container, mode) {
+  if (!container) return;
+  if (container.querySelector(":scope > .media-section-tree-list")) {
+    syncFlatStorageSectionTreeActiveState(mode);
+    return;
+  }
+  renderFlatStorageSectionTree(container, mode);
+}
+
 function renderFlatStorageSectionTree(container, mode) {
   if (!container) return;
   container.replaceChildren();
@@ -20467,7 +20504,7 @@ function mountFlatStorageListViewLayout(root, mode) {
 
   wrap.appendChild(split);
   root.appendChild(wrap);
-  renderFlatStorageSectionTree(treeHost, mode);
+  ensureFlatStorageSectionTree(treeHost, mode);
   syncStorageSectionsPanelUi();
   return body;
 }
@@ -20483,7 +20520,7 @@ function ensureFlatStorageListViewLayout(mode) {
   if (shouldUseDataHubListShell(mode)) {
     void renderStorageSlotTree(getStorageSlotTreeNode());
   }
-  renderFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"), mode);
+  ensureFlatStorageSectionTree(wrap.querySelector(".flat-storage-section-tree"), mode);
   syncStorageSectionsPanelUi();
   return wrap.querySelector(".flat-storage-list-view-body");
 }
@@ -20606,7 +20643,7 @@ function renderFlatStorageAllItemsView(container, mode) {
 }
 
 function renderFlatStorageListViewBody(container, mode) {
-  renderFlatStorageSectionTree(
+  ensureFlatStorageSectionTree(
     listViewContentNode.querySelector(`.flat-storage-section-tree[data-mode="${mode}"]`),
     mode
   );
@@ -22367,6 +22404,7 @@ function renderDataHubAllItemsPanel(container, scan) {
 
 function renderListViewContent() {
   closeMediaPathPopover();
+  syncListViewHead();
   const raw = getListViewRawContent();
   const useDataHub = shouldUseDataHubListShell();
   const listMountRoot = useDataHub ? getListViewMountRoot() : listViewContentNode;
@@ -37473,7 +37511,7 @@ async function renderNodeThread() {
   const thread = document.createElement("ol");
   thread.className = "node-comments-thread";
 
-  section.append(composer, thread);
+  section.append(thread, composer);
   nodeThreadContentNode.appendChild(section);
 
   const syncSubmitState = () => {
@@ -38701,7 +38739,8 @@ function applyModeUi() {
   listViewBlockNode.classList.toggle("hidden", !showListView);
   listViewBlockNode.classList.toggle(
     "list-view--no-head",
-    showExternalControls ||
+    shouldUseDataHubListShell() ||
+      showExternalControls ||
       showMediaControls ||
       showTabularControls ||
       activeContentMode === "scripts" ||
@@ -38709,7 +38748,8 @@ function applyModeUi() {
       activeContentMode === "inbox" ||
       activeContentMode === "quick-notes" ||
       activeContentMode === "references" ||
-      activeContentMode === "artefacts"
+      activeContentMode === "artefacts" ||
+      activeContentMode === "repository"
   );
   docActionsNode?.classList.toggle("hidden", hideToolbar);
   workspacePathToolbarNode?.classList.toggle(

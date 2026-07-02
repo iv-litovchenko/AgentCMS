@@ -1,0 +1,15 @@
+{
+  "topicPath": "awn-agent-kit/agent/manifest.md",
+  "messageChannel": "thread",
+  "messageTarget": "qwenpaw",
+  "qwenpawBaseUrl": "http://127.0.0.1:8088",
+  "qwenpawAgentId": "default",
+  "qwenpawSessionId": "shell-agent-cms-test-mr3xskba-1ic0y6",
+  "qwenpawUserId": "shell",
+  "qwenpawChatName": "Новый чат",
+  "voiceInputMode": "disabled",
+  "voiceResponseEnabled": true,
+  "ttsEnabled": false,
+  "ttsEngine": "browser",
+  "windowTopmost": false
+}

@@ -6,6 +6,7 @@ if (!electron.app) {
 }
 
 const { app, BrowserWindow, shell, dialog, ipcMain } = electron;
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { startServer, stopServer } = require("../server");
@@ -185,6 +186,23 @@ async function switchProjectRoot(newRoot) {
   await createWindow();
 }
 
+function launchAgentShellApp() {
+  const packagedApp = path.join(getBundledProjectRoot(), "dist/shell/mac/Agent Shell.app");
+  if (fs.existsSync(packagedApp)) {
+    shell.openPath(packagedApp).catch((error) => console.error(error));
+    return;
+  }
+
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const child = spawn(npmCommand, ["run", "shell:desktop"], {
+    cwd: getBundledProjectRoot(),
+    detached: true,
+    stdio: "ignore",
+    env: process.env
+  });
+  child.unref();
+}
+
 async function createWindow() {
   if (!app.isReady()) {
     markPendingShowWindow();
@@ -296,11 +314,17 @@ app.whenReady().then(async () => {
     onShowWindow: () => {
       showMainWindow();
     },
+    onShowShell: () => {
+      launchAgentShellApp();
+    },
     onQuit: requestQuit
   });
 
   createTray({
     onShow: () => showMainWindow(),
+    onShell: () => {
+      launchAgentShellApp();
+    },
     onQuit: requestQuit
   });
 

@@ -1,6 +1,6 @@
 const { Menu, shell } = require("electron");
 
-function buildApplicationMenu({ app, mainWindow, onOpenWorkspace, onShowWindow, onQuit }) {
+function buildApplicationMenu({ app, mainWindow, onOpenWorkspace, onShowWindow, onShowShell, onQuit }) {
   const isMac = process.platform === "darwin";
 
   const fileSubmenu = [
@@ -66,6 +66,7 @@ function buildApplicationMenu({ app, mainWindow, onOpenWorkspace, onShowWindow, 
       label: "Window",
       submenu: [
         { label: "Show Agent CMS", click: onShowWindow },
+        { label: "Agent Shell", accelerator: "CmdOrCtrl+Shift+S", click: onShowShell },
         { type: "separator" },
         { role: "minimize" },
         ...(isMac ? [{ role: "zoom" }, { type: "separator" }, { role: "front" }] : [{ role: "close" }])

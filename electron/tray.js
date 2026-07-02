@@ -11,7 +11,7 @@ function createTrayIcon() {
   return image.resize({ width: 18, height: 18 });
 }
 
-function createTray({ onShow, onQuit }) {
+function createTray({ onShow, onShell, onQuit }) {
   if (tray) return tray;
 
   tray = new Tray(createTrayIcon());
@@ -19,6 +19,7 @@ function createTray({ onShow, onQuit }) {
 
   const contextMenu = Menu.buildFromTemplate([
     { label: "Показать Agent CMS", click: onShow },
+    { label: "Agent Shell", click: onShell },
     { type: "separator" },
     { label: "Выход", click: onQuit }
   ]);
