@@ -484,6 +484,53 @@ body {
   border-top: 1px dashed rgba(124, 108, 255, 0.2);
 }
 
+.shell-footer-divider {
+  margin: 12px 0 10px;
+  border: 0;
+  border-top: 1px dashed rgba(124, 108, 255, 0.2);
+}
+
+.shell-footer-prose {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.shell-footer-prose p {
+  margin: 0 0 8px;
+}
+
+.shell-footer-prose p:last-child {
+  margin-bottom: 0;
+}
+
+.shell-footer-prose .shell-todo-list {
+  margin: 4px 0 10px;
+}
+
+.shell-footer-prose .shell-label {
+  margin-top: 10px;
+}
+
+.shell-footer-diagram {
+  margin: 6px 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(8, 10, 22, 0.55);
+  border: 1px solid rgba(122, 108, 255, 0.18);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.shell-todo-list--ordered {
+  list-style: decimal;
+  padding-left: 22px;
+}
+
 .shell-todo-list {
   margin: 6px 0 0;
   padding-left: 18px;

@@ -11,5 +11,5 @@
   "voiceResponseEnabled": true,
   "ttsEnabled": true,
   "ttsEngine": "browser",
-  "windowTopmost": false
+  "windowTopmost": true
 }

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=17" />
+    <link rel="stylesheet" href="/shell/shell.css?v=18" />
   </head>
   <body>
     <div class="shell-app" id="shell-app">
@@ -182,6 +182,138 @@
           <li>Изменить размер окна</li>
           <li>Показаться / спрятаться</li>
         </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · контент и голос</div>
+        <ul class="shell-todo-list">
+          <li>Показ: картинки из CMS (<code>/api/media/file?...</code>), не только <code>/shell/wallpaper.png</code></li>
+          <li>Показ: превью темы по запросу агента</li>
+          <li>Показ: несколько <code>[show]</code> в одном ответе</li>
+          <li><code>voiceResponseEnabled</code> в settings — подключить</li>
+          <li>QwenPaw <code>AGENTS.md</code> vs голос — проверить на практике (voice-manifest'ы)</li>
+        </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · архитектура (из начала чата)</div>
+        <ul class="shell-todo-list">
+          <li>Shell = device runtime: слышит, показывает, говорит — не думает (думает MCP-агент)</li>
+          <li><code>agent-shell/manifest.yaml</code> + <code>GET /api/shell/capabilities</code></li>
+          <li>Регистрация Shell в CMS при старте (online + capabilities на этом устройстве)</li>
+          <li>MCP proxy-команды: <code>shell_screenshot</code>, <code>shell_clipboard_read/write</code>, <code>shell_record_screen</code>, <code>shell_window_*</code></li>
+          <li>CMS проксирует команду → Shell выполняет → результат в thread</li>
+          <li>Spoken vs full reply: TTS без emoji/markdown, в <code>shell-reply</code> — полный текст</li>
+        </ul>
+        <div class="shell-label">TODO · фаза 2 · голос (Aya)</div>
+        <ul class="shell-todo-list">
+          <li>PTT по fn-кнопке (<code>fn_button</code>)</li>
+          <li>Wake word / meeting mode</li>
+          <li>Anti-echo и cooldown после TTS</li>
+          <li>Computer control — вставка в активное поле (Cmd+V)</li>
+          <li>Настройки Shell через MCP configuration (не только <code>.agent-shell/settings.json</code>)</li>
+        </ul>
+        <div class="shell-label">TODO · фаза 3 · multi-agent</div>
+        <ul class="shell-todo-list">
+          <li>Runtime registry — «кто отвечает»</li>
+          <li>Routing: голос → inbox/thread → агент по группе/теме</li>
+          <li>OpenClaw / другие runtime — launch profiles + heartbeat</li>
+        </ul>
+        <div class="shell-label">TODO · UI и платформы</div>
+        <ul class="shell-todo-list">
+          <li>Кнопка Shell в шапке Agent CMS (рядом с MCP)</li>
+          <li>Agent Shell.app: screenshot / clipboard через <code>ipcMain</code></li>
+          <li>Мобильный Shell — только голос, capabilities динамические (iOS ≠ macOS)</li>
+        </ul>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">Roadmap · дословно</div>
+        <div class="shell-footer-prose">
+          <p><strong>Исходная идея (замена Aya)</strong></p>
+          <p>
+            <strong>Agent Shell</strong> — тонкая оболочка: <strong>слышит, показывает, говорит</strong>.
+            <strong>Не думает</strong> — думает агент (QwenPaw, OpenClaw, Cursor…) через
+            <strong>MCP → Agent CMS</strong>.
+          </p>
+          <pre class="shell-footer-diagram">Пользователь → Shell → CMS (thread/inbox или QwenPaw API)
+                         ↑
+                    MCP-агент</pre>
+
+          <p><strong>Трёхфазный план из первого обсуждения</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Фаза 1. Shell v0</strong> — компактное окно, SSE, статус, отправка в thread — ✅ сделано</li>
+            <li><strong>Фаза 2. Голос</strong> — sidecar STT/TTS, режимы как в Aya (PTT, always, disabled) — ⚠️ частично</li>
+            <li><strong>Фаза 3. Multi-agent</strong> — runtime registry, «кто отвечает», routing по теме/группе — ❌ не делали</li>
+          </ul>
+
+          <p><strong>Что обсуждали, но ещё не в footer</strong></p>
+          <p><em>Архитектура Shell как «device runtime»</em></p>
+          <p>
+            Shell должен <strong>знать, кто он и что умеет</strong>, а агент видит команды через
+            <strong>один MCP (CMS)</strong>:
+          </p>
+          <ul class="shell-todo-list">
+            <li><code>agent-shell/manifest.yaml</code> + <code>GET /api/shell/capabilities</code></li>
+            <li>Shell <strong>регистрируется в CMS</strong> при старте (online + capabilities)</li>
+            <li>MCP tools: <code>shell_screenshot</code>, <code>shell_clipboard_read/write</code>, <code>shell_record_screen</code>, <code>shell_window_minimize</code>…</li>
+            <li>CMS <strong>проксирует</strong> команду → Shell выполняет → результат в thread</li>
+          </ul>
+          <p>Сейчас только 3 shell-tools в MCP: <code>shell_get_status</code>, <code>shell_post_message</code>, <code>shell_stop_tts</code>.</p>
+
+          <p><em>Отдельное приложение</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Agent Shell.app</strong> со своей иконкой, независимо от CMS — ✅ (<code>agent-shell-desktop</code>, <code>npm run shell:dist</code>)</li>
+            <li>Запуск CMS <strong>или</strong> Shell <strong>или</strong> оба — ✅</li>
+            <li>Shell-app потом: screenshot/clipboard через <code>ipcMain</code> — ❌</li>
+          </ul>
+
+          <p><em>Голос из Aya (что переносить)</em></p>
+          <ul class="shell-todo-list">
+            <li>PTT (<code>fn_button</code>) — ❌</li>
+            <li>Always listen — ⚠️ есть режим</li>
+            <li>Meeting / wake_name — ❌</li>
+            <li>Anti-echo / cooldown после TTS — ❌</li>
+            <li>Computer control (Cmd+V в поле) — ❌</li>
+            <li>Архив записей голоса — ❌</li>
+            <li>Настройки в CMS configuration — ❌ (только <code>.agent-shell/settings.json</code>)</li>
+          </ul>
+
+          <p><em>QwenPaw / OpenClaw</em></p>
+          <ul class="shell-todo-list">
+            <li>Shell → <strong>QwenPaw API напрямую</strong>, не thread polling — ✅</li>
+            <li>CMS MCP = память/tools, не основной чат — ✅ решили</li>
+            <li>OpenClaw сам thread не читает — нужен явный запрос или QwenPaw-маршрут — ⚠️ архитектурно поняли, routing не делали</li>
+          </ul>
+
+          <p><em>UI / UX (обсуждали по ходу)</em></p>
+          <ul class="shell-todo-list">
+            <li>Кнопка <strong>Shell</strong> в шапке CMS (рядом с MCP) — ❌</li>
+            <li><code>?agent=</code> убрать — auto-resolve workspace — ✅</li>
+            <li>Topic picker деревом — ✅</li>
+            <li>Spoken vs full reply для TTS — ❌ (в README есть, в коде частично)</li>
+            <li>Session autoload voice manifest'ов — ✅</li>
+          </ul>
+
+          <p><em>Мобила (отдельная ветка)</em></p>
+          <ul class="shell-todo-list">
+            <li>На телефоне <strong>только говорить</strong> — лёгкий Shell-app</li>
+            <li>Capabilities <strong>динамические</strong> (на iOS нет minimize window и т.д.)</li>
+            <li>Общий MCP CMS, другой manifest Shell — ❌ только обсудили</li>
+          </ul>
+
+          <p><strong>Чего нет в footer, но было в «начале»</strong></p>
+          <ol class="shell-todo-list shell-todo-list--ordered">
+            <li><strong>Shell capabilities manifest</strong> + регистрация в CMS</li>
+            <li><strong>MCP proxy-команды</strong> (screenshot, clipboard, запись экрана)</li>
+            <li><strong>Фаза 3:</strong> runtime registry / multi-agent routing</li>
+            <li><strong>Режимы Aya:</strong> PTT fn, wake word, anti-echo</li>
+            <li><strong>Computer control</strong> (вставка в активное поле)</li>
+            <li><strong>Кнопка Shell в шапке CMS</strong></li>
+            <li><strong>Мобильный Shell</strong> (голос only)</li>
+            <li><strong>Настройки Shell через MCP configuration</strong> (не только json в workspace)</li>
+          </ol>
+
+          <p>
+            <strong>Суть начала чата:</strong> не клон Aya, а
+            <strong>Shell = device runtime + голос</strong>, <strong>CMS = память + единый MCP</strong>, агенты снаружи.
+            MVP голоса и QwenPaw есть; <strong>слой capabilities и multi-agent</strong> — главное, что из начала ещё впереди.
+          </p>
+        </div>
         <p class="shell-footer-note">
           Mac-приложение: <code>npm run shell:dist</code>, затем
           <code>npm run shell:open</code>
