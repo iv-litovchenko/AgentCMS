@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aya — Nebula Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,400;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* База в духе JetBrains PhpStorm splash: индиго + неоновый фиолет */
+      --bg-deep: #0a0414;
+      --bg-panel: rgba(42, 22, 68, 0.38);
+      --glass: rgba(180, 140, 255, 0.07);
+      --glass-border: rgba(200, 160, 255, 0.22);
+      --text: #f4f4f8;
+      --muted: #8b8b9e;
+      --cyan: #3ee8ff;
+      --magenta: #ff3d9a;
+      --lime: #b8ff3d;
+      --violet: #a78bfa;
+      --orange: #ff8b4a;
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --radius-pill: 999px;
+      --shadow-glow-cyan: 0 0 40px rgba(62, 232, 255, 0.22);
+      --shadow-glow-magenta: 0 0 48px rgba(255, 61, 154, 0.2);
+      --font-ui: "Sora", system-ui, sans-serif;
+      --font-display: "Exo 2", sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      position: relative;
+      min-height: 100vh;
+      font-family: var(--font-ui);
+      color: var(--text);
+      background-color: #06020e;
+      /* Полупрозрачные слои = «просвечивающий» mesh-градиент поверх тёмной базы */
+      background-image:
+        radial-gradient(ellipse 90% 50% at 48% -8%, rgba(179, 0, 255, 0.32), transparent 58%),
+        radial-gradient(ellipse 55% 45% at 102% 18%, rgba(168, 85, 247, 0.26), transparent 52%),
+        radial-gradient(ellipse 70% 60% at -5% 75%, rgba(26, 0, 51, 0.82), transparent 55%),
+        radial-gradient(ellipse 45% 38% at 78% 88%, rgba(124, 58, 237, 0.2), transparent 48%),
+        radial-gradient(ellipse 50% 35% at 15% 40%, rgba(192, 132, 252, 0.08), transparent 45%),
+        linear-gradient(
+          168deg,
+          rgba(10, 4, 20, 0.92) 0%,
+          rgba(26, 8, 48, 0.55) 42%,
+          rgba(45, 16, 82, 0.5) 68%,
+          rgba(8, 2, 18, 0.88) 100%
+        );
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* Низкополигональная «сетка» + шум — как wireframe на splash */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.55;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='121' viewBox='0 0 140 121'%3E%3Cg fill='none' stroke='%23c084fc' stroke-width='0.35' opacity='0.55'%3E%3Cpath d='M70 0l70 40.4v40.4L70 121 0 80.8V40.4z'/%3E%3Cpath d='M70 0v121M0 40.4l140 40.4M0 80.8l140-40.4'/%3E%3C/g%3E%3C/svg%3E"),
+        repeating-linear-gradient(
+          118deg,
+          transparent 0,
+          transparent 11px,
+          rgba(168, 85, 247, 0.04) 11px,
+          rgba(168, 85, 247, 0.04) 12px
+        ),
+        repeating-linear-gradient(
+          -58deg,
+          transparent 0,
+          transparent 14px,
+          rgba(147, 51, 234, 0.035) 14px,
+          rgba(147, 51, 234, 0.035) 15px
+        );
+      background-size: 140px 121px, auto, auto;
+      mix-blend-mode: screen;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.12;
+      background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 240px 1fr 280px;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 16px;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px 24px 28px;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 1024px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+      }
+      .sidebar-left,
+      .sidebar-right {
+        display: none;
+      }
+    }
+
+    .glass-panel {
+      background: var(--glass);
+      backdrop-filter: blur(28px) saturate(1.15);
+      -webkit-backdrop-filter: blur(28px) saturate(1.15);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 60px rgba(124, 58, 237, 0.08);
+    }
+
+    /* Top bar */
+    .top-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .mode-switch {
+      display: flex;
+      padding: 4px;
+      border-radius: var(--radius-pill);
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--glass-border);
+    }
+
+    .mode-switch button {
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+
+    .mode-switch button.active {
+      background: rgba(255, 255, 255, 0.95);
+      color: #0a0a12;
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .mode-switch button:not(.active):hover {
+      color: var(--text);
+    }
+
+    .prompt-wrap {
+      flex: 1;
+      min-width: 200px;
+      max-width: 520px;
+    }
+
+    .prompt-wrap input {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .prompt-wrap input::placeholder {
+      color: var(--muted);
+    }
+
+    .prompt-wrap input:focus {
+      border-color: rgba(62, 232, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(62, 232, 255, 0.12);
+    }
+
+    /* Sidebars */
+    .sidebar-left {
+      grid-row: span 3;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.06em;
+      background: linear-gradient(135deg, var(--cyan), var(--magenta));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .badge-ready {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 4px 10px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--bg-deep);
+      background: var(--lime);
+      border-radius: 6px;
+      box-shadow: 0 0 20px rgba(184, 255, 61, 0.35);
+    }
+
+    .nav-section {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .nav-list {
+      list-style: none;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.75);
+    }
+
+    .nav-list li {
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: default;
+      transition: background 0.15s;
+    }
+
+    .nav-list li:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .nav-list li.active {
+      color: var(--cyan);
+      background: rgba(62, 232, 255, 0.08);
+    }
+
+    /* Main stage */
+    .stage {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-preview,
+    .panel-code,
+    .panel-history {
+      display: none;
+      flex: 1;
+      min-height: 420px;
+    }
+
+    .panel-preview.visible,
+    .panel-code.visible,
+    .panel-history.visible {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .widgets-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    @media (max-width: 700px) {
+      .widgets-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .widget {
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .widget::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 50% 100%, rgba(62, 232, 255, 0.15), transparent 55%);
+      pointer-events: none;
+    }
+
+    .widget.magenta-glow::before {
+      background: radial-gradient(circle at 50% 100%, rgba(255, 61, 154, 0.18), transparent 55%);
+    }
+
+    .widget-title {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Gauge */
+    .gauge-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .gauge-svg {
+      width: 180px;
+      height: 180px;
+      filter: drop-shadow(0 0 12px rgba(62, 232, 255, 0.35));
+    }
+
+    .gauge-label {
+      margin-top: 12px;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .gauge-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Scene bars */
+    .scene-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      align-items: end;
+      height: 140px;
+      padding: 8px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .scene-bar {
+      border-radius: 8px;
+      background: linear-gradient(180deg, var(--cyan), var(--magenta));
+      opacity: 0.85;
+      animation: pulse-h 1.4s ease-in-out infinite;
+      box-shadow: 0 0 16px rgba(255, 61, 154, 0.25);
+    }
+
+    .scene-bar:nth-child(1) { height: 40%; animation-delay: 0s; }
+    .scene-bar:nth-child(2) { height: 75%; animation-delay: 0.1s; background: linear-gradient(180deg, var(--lime), var(--cyan)); }
+    .scene-bar:nth-child(3) { height: 55%; animation-delay: 0.2s; }
+    .scene-bar:nth-child(4) { height: 90%; animation-delay: 0.05s; background: linear-gradient(180deg, var(--violet), var(--magenta)); }
+    .scene-bar:nth-child(5) { height: 48%; animation-delay: 0.15s; }
+    .scene-bar:nth-child(6) { height: 68%; animation-delay: 0.25s; background: linear-gradient(180deg, var(--orange), var(--magenta)); }
+
+    @keyframes pulse-h {
+      0%, 100% { transform: scaleY(1); opacity: 0.85; }
+      50% { transform: scaleY(1.08); opacity: 1; }
+    }
+
+    /* Heart card */
+    .heart-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .heart-icon {
+      font-size: 4.5rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 24px rgba(255, 61, 154, 0.55));
+      animation: heart-beat 1.8s ease-in-out infinite;
+    }
+
+    @keyframes heart-beat {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.06); }
+      50% { transform: scale(1); }
+    }
+
+    .sidebar-right {
+      grid-row: span 3;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Code panel */
+    .code-block {
+      flex: 1;
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--glass-border);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      line-height: 1.55;
+      color: #c4e8ff;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* History */
+    .history-list {
+      flex: 1;
+      overflow: auto;
+      padding: 4px;
+    }
+
+    .history-item {
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.88);
+      line-height: 1.4;
+    }
+
+    .history-empty {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 24px;
+      text-align: center;
+    }
+
+    /* Bottom bar */
+    .bottom-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 22px;
+      justify-content: space-between;
+    }
+
+    .bottom-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .status-pill.ok {
+      background: rgba(184, 255, 61, 0.2);
+      color: var(--lime);
+      border: 1px solid rgba(184, 255, 61, 0.35);
+    }
+
+    .status-pill.wait {
+      background: rgba(255, 204, 68, 0.15);
+      color: #ffcc44;
+      border: 1px solid rgba(255, 204, 68, 0.3);
+    }
+
+    .ring-user {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .progress-ring {
+      width: 56px;
+      height: 56px;
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring circle.bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 5;
+    }
+
+    .progress-ring circle.fg {
+      fill: none;
+      stroke: url(#ringGrad);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 151;
+      stroke-dashoffset: 45;
+      filter: drop-shadow(0 0 6px rgba(62, 232, 255, 0.5));
+    }
+
+    .user-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--cyan), var(--magenta));
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fff;
+      box-shadow: var(--shadow-glow-magenta);
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .user-role {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .live-hint {
+      font-size: 0.7rem;
+      color: var(--muted);
+      max-width: 280px;
+      line-height: 1.4;
+    }
+
+    .live-hint strong {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true">
+    <defs>
+      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#3ee8ff" />
+        <stop offset="100%" stop-color="#ff3d9a" />
+      </linearGradient>
+      <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#ff3d9a" />
+        <stop offset="50%" stop-color="#3ee8ff" />
+        <stop offset="100%" stop-color="#b8ff3d" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="app">
+    <header class="top-bar">
+      <div class="mode-switch" role="tablist">
+        <button type="button" class="mode-btn active" data-panel="preview" aria-selected="true">
+          <span>◉</span> Preview
+        </button>
+        <button type="button" class="mode-btn" data-panel="code">
+          <span>&lt;/&gt;</span> Code
+        </button>
+        <button type="button" class="mode-btn" data-panel="history">
+          <span>◷</span> History
+        </button>
+      </div>
+      <div class="prompt-wrap">
+        <input type="text" id="prompt" placeholder="Describe what you want to build…" autocomplete="off" />
+      </div>
+    </header>
+
+    <aside class="sidebar-left glass-panel">
+      <div>
+        <div class="brand">Aya Core</div>
+        <span class="badge-ready">Ready for dev</span>
+      </div>
+      <div>
+        <div class="nav-section">Project</div>
+        <ul class="nav-list">
+          <li>File</li>
+          <li>Assets</li>
+        </ul>
+      </div>
+      <div>
+        <div class="nav-section">Pages</div>
+        <ul class="nav-list">
+          <li class="active">Voice Console</li>
+          <li>Integration</li>
+        </ul>
+      </div>
+      <div>
+        <div class="nav-section">Layers</div>
+        <ul class="nav-list">
+          <li>status_card</li>
+          <li>pulse</li>
+          <li>quick_settings</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="panel-preview visible glass-panel" id="panel-preview">
+        <div class="widgets-row">
+          <div class="widget glass-panel" id="signal-widget">
+            <div class="widget-title">Input level</div>
+            <div class="gauge-wrap">
+              <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+                <circle
+                  id="gauge-arc"
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  fill="none"
+                  stroke="url(#gaugeGrad)"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  stroke-dasharray="245"
+                  stroke-dashoffset="180"
+                  transform="rotate(-90 60 60)"
+                />
+              </svg>
+              <div class="gauge-label" id="gauge-goal">GOAL — SYNC</div>
+              <div class="gauge-sub" id="gauge-detail">vol / threshold</div>
+            </div>
+          </div>
+          <div class="widget glass-panel">
+            <div class="widget-title">Scene</div>
+            <div class="scene-grid" aria-hidden="true">
+              <div class="scene-bar"></div>
+              <div class="scene-bar"></div>
+              <div class="scene-bar"></div>
+              <div class="scene-bar"></div>
+              <div class="scene-bar"></div>
+              <div class="scene-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="widget glass-panel magenta-glow" style="min-height: 120px;">
+          <div class="widget-title">Pulse</div>
+          <div class="heart-card">
+            <span class="heart-icon" aria-label="Aya">❤</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-code glass-panel" id="panel-code">
+        <div class="widget-title" style="padding: 18px 18px 0;">voice_status.txt</div>
+        <pre class="code-block" id="code-dump">// Загрузка…</pre>
+      </div>
+
+      <div class="panel-history glass-panel" id="panel-history">
+        <div class="widget-title" style="padding: 18px 18px 0;">phrase_history.json</div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">Нет записей</div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="sidebar-right">
+      <div class="glass-panel" style="padding: 18px; flex: 1;">
+        <div class="widget-title">Status</div>
+        <p id="side-state" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">—</p>
+        <p id="side-phrase" style="font-size: 0.82rem; color: rgba(255,255,255,0.7); line-height: 1.45;">—</p>
+        <p id="side-time" style="font-size: 0.72rem; color: var(--muted); margin-top: 14px;">—</p>
+      </div>
+    </aside>
+
+    <footer class="bottom-bar glass-panel">
+      <div class="bottom-left">
+        <span class="status-pill ok" id="pill-live">Live</span>
+        <span class="status-pill wait" id="pill-attempt">Session 1</span>
+      </div>
+      <div class="ring-user">
+        <svg class="progress-ring" viewBox="0 0 56 56" aria-hidden="true">
+          <circle class="bg" cx="28" cy="28" r="24" />
+          <circle class="fg" id="battery-ring" cx="28" cy="28" r="24" />
+        </svg>
+        <div class="user-block">
+          <div class="avatar">A</div>
+          <div>
+            <div class="user-name">Aya.AI</div>
+            <div class="user-role" id="battery-label">Battery —</div>
+          </div>
+        </div>
+      </div>
+      <p class="live-hint" id="hint">
+        <strong>Офлайн:</strong> открой через локальный сервер из папки <code style="color:#b8ff3d;">integration</code>, чтобы подтягивались файлы голоса.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const canFetch = window.location.protocol === "http:" || window.location.protocol === "https:";
+      const hint = document.getElementById("hint");
+      if (canFetch) {
+        hint.innerHTML = "<strong>Live:</strong> опрос <code style=\"color:#b8ff3d;\">voice_status.txt</code> и истории.";
+      }
+
+      const panels = {
+        preview: document.getElementById("panel-preview"),
+        code: document.getElementById("panel-code"),
+        history: document.getElementById("panel-history"),
+      };
+      const buttons = document.querySelectorAll(".mode-btn");
+
+      function setPanel(name) {
+        Object.keys(panels).forEach((k) => {
+          panels[k].classList.toggle("visible", k === name);
+        });
+        buttons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.panel === name);
+          btn.setAttribute("aria-selected", btn.dataset.panel === name ? "true" : "false");
+        });
+      }
+
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => setPanel(btn.dataset.panel));
+      });
+      setPanel("preview");
+
+      function parseStatus(text) {
+        const lines = text.split(/\r?\n/);
+        return {
+          state: (lines[0] || "").trim() || "—",
+          phrase: (lines[1] || "").trim() || "",
+          updated: (lines[2] || "").trim() || "",
+        };
+      }
+
+      function parseVolThr(phrase) {
+        const vol = phrase.match(/vol=(\d+)/i);
+        const thr = phrase.match(/thr=(\d+)/i);
+        return {
+          vol: vol ? parseInt(vol[1], 10) : null,
+          thr: thr ? parseInt(thr[1], 10) : null,
+        };
+      }
+
+      const circumference = 2 * Math.PI * 52;
+      const gaugeArc = document.getElementById("gauge-arc");
+      const gaugeGoal = document.getElementById("gauge-goal");
+      const gaugeDetail = document.getElementById("gauge-detail");
+      const codeDump = document.getElementById("code-dump");
+      const sideState = document.getElementById("side-state");
+      const sidePhrase = document.getElementById("side-phrase");
+      const sideTime = document.getElementById("side-time");
+      const historyList = document.getElementById("history-list");
+      const batteryRing = document.getElementById("battery-ring");
+      const batteryLabel = document.getElementById("battery-label");
+      const pillLive = document.getElementById("pill-live");
+
+      const ringLen = 2 * Math.PI * 24;
+
+      function setGauge(vol, thr) {
+        if (vol == null || thr == null || thr <= 0) {
+          gaugeArc.setAttribute("stroke-dasharray", String(circumference));
+          gaugeArc.setAttribute("stroke-dashoffset", String(circumference * 0.72));
+          gaugeGoal.textContent = "GOAL — SYNC";
+          gaugeDetail.textContent = "Ожидание сигнала…";
+          return;
+        }
+        const ratio = Math.min(1, vol / (thr * 2.2));
+        const filled = ratio * 0.72;
+        const offset = circumference * (1 - filled);
+        gaugeArc.setAttribute("stroke-dasharray", String(circumference));
+        gaugeArc.setAttribute("stroke-dashoffset", String(offset));
+        gaugeGoal.textContent = "PEAK " + Math.round(ratio * 100) + "%";
+        gaugeDetail.textContent = "vol=" + vol + " · thr=" + thr;
+      }
+
+      function setBatteryRing(percent) {
+        const p = Math.max(0, Math.min(100, percent));
+        const off = ringLen * (1 - p / 100);
+        batteryRing.style.strokeDasharray = ringLen;
+        batteryRing.style.strokeDashoffset = off;
+        batteryLabel.textContent = "Charge ~" + p + "%";
+      }
+
+      async function tick() {
+        if (!canFetch) return;
+        try {
+          const r = await fetch("voice_status.txt?t=" + Date.now(), { cache: "no-store" });
+          const text = await r.text();
+          const s = parseStatus(text);
+          const { vol, thr } = parseVolThr(s.phrase);
+          sideState.textContent = s.state;
+          sidePhrase.textContent = s.phrase || "—";
+          sideTime.textContent = s.updated || "—";
+          codeDump.textContent = text.trim() || "(пусто)";
+          setGauge(vol, thr);
+          pillLive.textContent = s.state.includes("🔴") ? "Listening" : s.state.includes("🔊") ? "Speaking" : "Idle";
+          pillLive.className = "status-pill " + (s.state.includes("🔴") ? "wait" : "ok");
+        } catch (e) {
+          codeDump.textContent = "// Не удалось прочитать voice_status.txt\n// " + String(e);
+          pillLive.textContent = "Offline";
+          pillLive.className = "status-pill wait";
+        }
+
+        try {
+          const h = await fetch("phrase_history.json?t=" + Date.now(), { cache: "no-store" });
+          const arr = await h.json();
+          if (Array.isArray(arr) && arr.length) {
+            historyList.innerHTML = arr
+              .slice(0, 12)
+              .map((line) => "<div class=\"history-item\">" + String(line).replace(/</g, "&lt;") + "</div>")
+              .join("");
+          } else {
+            historyList.innerHTML = "<div class=\"history-empty\">Нет записей</div>";
+          }
+        } catch {
+          historyList.innerHTML = "<div class=\"history-empty\">История недоступна</div>";
+        }
+
+        if (navigator.getBattery) {
+          try {
+            const bat = await navigator.getBattery();
+            setBatteryRing(Math.round(bat.level * 100));
+          } catch {
+            setBatteryRing(70);
+          }
+        } else {
+          setBatteryRing(70);
+        }
+      }
+
+      tick();
+      if (canFetch) setInterval(tick, 500);
+      else {
+        codeDump.textContent =
+          "Запусти из папки integration:\n\n  python3 -m http.server 8844\n\nОткрой:\n  http://localhost:8844/dashboard_nebula.html";
+      }
+    })();
+  </script>
+</body>
+</html>

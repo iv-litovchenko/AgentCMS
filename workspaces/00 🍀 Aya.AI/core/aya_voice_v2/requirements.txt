@@ -1,0 +1,7 @@
+python-dotenv
+SpeechRecognition
+pyaudio
+webrtcvad
+ollama
+gTTS
+pynput

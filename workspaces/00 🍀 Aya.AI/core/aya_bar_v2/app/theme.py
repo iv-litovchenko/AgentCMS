@@ -1,0 +1,10 @@
+"""Color and spacing constants."""
+
+BG = "#151528"
+PANEL = "#1e1e34"
+MUTED = "#9a9ab5"
+TEXT = "#ffffff"
+ACCENT = "#ff5ca8"
+GOOD = "#00dd88"
+WARN = "#ffcc44"
+DANGER = "#ff6666"
