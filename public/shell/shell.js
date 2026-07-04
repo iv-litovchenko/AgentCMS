@@ -394,8 +394,27 @@ function finalizeAssistantStream(message) {
     void finishStreamTtsWhenIdle();
   } else {
     state.assistantStream = null;
+    releaseMessagePipeline();
   }
   return true;
+}
+
+function releaseMessagePipeline() {
+  state.messagePipelineBusy = false;
+  nodes.sendBtn.disabled = false;
+  void drainOutboundQueue();
+}
+
+function queuePhraseSuffix() {
+  const n = outboundQueue.length;
+  return n > 0 ? ` · в очереди: ${n}` : "";
+}
+
+async function drainOutboundQueue() {
+  if (state.messagePipelineBusy || !outboundQueue.length) return;
+  const next = outboundQueue.shift();
+  if (!next) return;
+  await sendMessageDirect(next);
 }
 
 async function finishStreamTtsWhenIdle() {
@@ -404,8 +423,9 @@ async function finishStreamTtsWhenIdle() {
   state.assistantStream = null;
   if (!state.pttHeld && !state.micActive) {
     await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
-    renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
+    renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
   }
+  releaseMessagePipeline();
 }
 
 function handleAssistantDelta(payload) {
@@ -1012,6 +1032,20 @@ async function patchShellState(patch) {
 async function sendMessage(body) {
   const text = String(body || "").trim();
   if (!text) return;
+
+  if (state.messagePipelineBusy) {
+    outboundQueue.push(text);
+    renderPhase(state.shellState?.phase || "thinking", `В очереди: ${outboundQueue.length}${queuePhraseSuffix()}`);
+    return;
+  }
+
+  await sendMessageDirect(text);
+}
+
+async function sendMessageDirect(body) {
+  const text = String(body || "").trim();
+  if (!text) return;
+  state.messagePipelineBusy = true;
   nodes.sendBtn.disabled = true;
   const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
   const streamingQwenPaw = usesQwenPawTarget(target);
@@ -1025,8 +1059,14 @@ async function sendMessage(body) {
     nodes.message.value = "";
     if (result?.reply || result?.message?.body) {
       await handleAssistantMessage(result.message || { body: result.reply, streamId: result.streamId });
+      if (!streamingQwenPaw || shouldSkipAssistantSpeech(result.message || { streamId: result.streamId }, String(result.reply || result.message?.body || "").trim())) {
+        if (!state.streamTtsQueue.length && !state.streamTtsActive) {
+          releaseMessagePipeline();
+        }
+      }
     } else {
       await refreshStatus();
+      releaseMessagePipeline();
     }
   } catch (error) {
     if (streamingQwenPaw && state.assistantStream && !state.assistantStream.finalized) {
@@ -1034,8 +1074,7 @@ async function sendMessage(body) {
       state.assistantStream = null;
     }
     renderPhase("waiting", error.message);
-  } finally {
-    nodes.sendBtn.disabled = false;
+    releaseMessagePipeline();
   }
 }
 
@@ -1097,8 +1136,18 @@ async function handleAssistantMessage(message) {
   }
 
   if (messageId && messageId === lastHandledAssistantId) return;
-  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) return;
-  if (lastStreamHandledBody && lastStreamHandledBody === body) return;
+  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) {
+    if (!nodes.lastReplyText?.textContent || nodes.lastReplyText.textContent === "…" || nodes.lastReplyText.textContent === "—") {
+      renderShellReply(message);
+    }
+    return;
+  }
+  if (lastStreamHandledBody && lastStreamHandledBody === body) {
+    if (!nodes.lastReplyText?.textContent || nodes.lastReplyText.textContent === "…" || nodes.lastReplyText.textContent === "—") {
+      renderShellReply(message);
+    }
+    return;
+  }
 
   if (stream && !stream.finalized) {
     finalizeAssistantStream(message);
@@ -1113,10 +1162,16 @@ async function handleAssistantMessage(message) {
   }
   if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
     const speech = toSpeechText(body);
-    if (!speech) return;
+    if (!speech) {
+      releaseMessagePipeline();
+      return;
+    }
     if (speech === lastSpokenBody && state.speaking) return;
     lastSpokenBody = speech;
     await speakText(speech);
+    releaseMessagePipeline();
+  } else if (!state.messagePipelineBusy) {
+    releaseMessagePipeline();
   }
 }
 
