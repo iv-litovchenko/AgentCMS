@@ -525,27 +525,22 @@ async function setPttHeld(agentRoot, agentId, held) {
 async function buildStatusPayload(deps, agentRoot, agentId) {
   const [settings, state] = await Promise.all([readSettings(agentRoot), getState(agentRoot)]);
   let latestAgent = null;
+  const shellReply = String(state.lastShellReply || "").trim();
   let stateOut = { ...state };
 
-  if (shouldLogToCms(settings)) {
+  if (usesQwenPaw(settings) && shellReply) {
+    latestAgent = {
+      id: state.lastAgentMessageId || "qwenpaw-reply",
+      body: shellReply,
+      role: "agent",
+      author: "qwenpaw",
+      created: state.updatedAt || new Date().toISOString()
+    };
+  } else if (shouldLogToCms(settings)) {
     try {
       latestAgent = await findLatestAgentMessage(deps, settings);
     } catch {
       latestAgent = null;
-    }
-  } else if (usesQwenPaw(settings)) {
-    const reply = String(state.lastShellReply || "").trim();
-    if (reply && state.lastAgentMessageId) {
-      latestAgent = {
-        id: state.lastAgentMessageId,
-        body: reply,
-        role: "agent",
-        author: "qwenpaw",
-        created: state.updatedAt
-      };
-      stateOut = { ...stateOut, phrase: reply.slice(0, 240) };
-    } else if (String(state.lastAgentMessageId || "").includes(".md")) {
-      stateOut = { ...stateOut, phrase: "", lastAgentMessageId: "" };
     }
   } else {
     try {
@@ -553,6 +548,16 @@ async function buildStatusPayload(deps, agentRoot, agentId) {
     } catch {
       latestAgent = null;
     }
+  }
+
+  if (shellReply && stateOut.phrase) {
+    const phrase = String(stateOut.phrase);
+    if (phrase === shellReply.slice(0, 240)) {
+      stateOut = { ...stateOut, phrase: "" };
+    }
+  }
+  if (String(stateOut.lastAgentMessageId || "").includes(".md")) {
+    stateOut = { ...stateOut, phrase: "", lastAgentMessageId: "" };
   }
 
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };

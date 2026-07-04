@@ -7,15 +7,15 @@
   "qwenpawSessionId": "shell-agent-cms-test-mr40wgyz-idngi3",
   "qwenpawUserId": "shell",
   "qwenpawChatName": "Новый чат",
-  "voiceInputMode": "disabled",
+  "voiceInputMode": "browser",
   "voiceResponseEnabled": true,
   "ttsEnabled": false,
   "ttsEngine": "browser",
   "windowTopmost": false,
   "cameraEnabled": false,
-  "cameraOnSpeech": false,
+  "cameraOnSpeech": true,
   "cameraFacing": "user",
   "cameraDeviceId": "",
   "screenEnabled": false,
-  "screenOnSpeech": false
+  "screenOnSpeech": true
 }

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=29" />
+    <link rel="stylesheet" href="/shell/shell.css?v=33" />
   </head>
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
@@ -446,20 +446,220 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
       </div>
 
-      <div class="shell-main-view" id="shell-main-view">
-      <section class="shell-status-card" id="shell-status-card">
-        <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
-        <div class="shell-status-copy">
-          <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
-          <div class="shell-status-phrase" id="shell-phrase">Готов к сообщению</div>
+      <div class="shell-main-view" id="shell-main-view" data-session-open="0" data-route-open="0" data-media-open="0">
+      <section class="shell-hero" id="shell-hero">
+        <div class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-hidden="true">
+          <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
+            <circle class="shell-agent-ring" cx="32" cy="32" r="29" />
+            <circle class="shell-agent-face" cx="32" cy="30" r="17" />
+            <circle class="shell-agent-eye" cx="26" cy="28" r="2.5" />
+            <circle class="shell-agent-eye" cx="38" cy="28" r="2.5" />
+            <path class="shell-agent-mouth" d="M24 38 Q32 44 40 38" />
+            <ellipse class="shell-agent-glow" cx="32" cy="52" rx="10" ry="3" />
+          </svg>
+          <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
+        </div>
+        <div class="shell-hero-status">
+          <div class="shell-status-head">
+            <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
+            <div class="shell-status-extra">
+              <span class="shell-battery hidden" id="shell-battery" title="Батарея">
+                <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
+                  <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
+                  <rect class="shell-battery-cap" x="22" y="3.5" width="3" height="5" rx="1" />
+                  <rect class="shell-battery-fill" id="shell-battery-fill" x="2" y="2" height="8" rx="1" width="0" />
+                </svg>
+                <span class="shell-battery-level" id="shell-battery-level">—</span>
+              </span>
+              <time class="shell-clock" id="shell-clock" datetime="">—</time>
+            </div>
+          </div>
           <div class="shell-status-meta" id="shell-meta"></div>
         </div>
-        <button type="button" class="shell-compact-mic" id="shell-compact-mic" title="Говорить" aria-label="Говорить">
-          🎤
-        </button>
+        <div class="shell-hero-actions">
+          <button
+            type="button"
+            class="shell-icon-btn shell-route-toggle"
+            id="shell-route-toggle"
+            title="Маршрут и QwenPaw"
+            aria-label="Маршрут и QwenPaw"
+            aria-pressed="false"
+          >
+            🔀
+          </button>
+          <button
+            type="button"
+            class="shell-icon-btn shell-session-toggle"
+            id="shell-session-toggle"
+            title="Чат и сообщение"
+            aria-label="Чат и сообщение"
+            aria-pressed="false"
+          >
+            💬
+          </button>
+        </div>
       </section>
 
-      <section class="shell-media" id="shell-media-section">
+      <div class="shell-route-drawer hidden" id="shell-route-drawer">
+        <section class="shell-panel">
+          <label class="shell-field">
+            <span class="shell-label">Куда отправлять</span>
+            <select id="shell-message-target" class="shell-select">
+              <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
+              <option value="qwenpaw-log">QwenPaw + лог в CMS</option>
+              <option value="cms">Agent CMS (thread/inbox)</option>
+            </select>
+          </label>
+
+          <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
+            <label class="shell-field">
+              <span class="shell-label">QwenPaw URL</span>
+              <div class="shell-input-row">
+                <input
+                  id="shell-qwenpaw-url"
+                  class="shell-input"
+                  type="url"
+                  spellcheck="false"
+                  placeholder="http://127.0.0.1:8088"
+                />
+                <button
+                  type="button"
+                  class="shell-icon-btn shell-input-action"
+                  id="shell-qwenpaw-open-url"
+                  title="Открыть QwenPaw в новом окне"
+                  aria-label="Открыть QwenPaw в новом окне"
+                >
+                  ↗
+                </button>
+              </div>
+            </label>
+            <label class="shell-field">
+              <span class="shell-label">Агент QwenPaw</span>
+              <input
+                id="shell-qwenpaw-agent-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="default"
+              />
+            </label>
+            <p class="shell-panel-note" id="shell-qwenpaw-note">
+              CMS подключается в MCP QwenPaw — здесь выбирается только профиль QwenPaw.
+            </p>
+            <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
+              <div class="shell-qwenpaw-chat-current">
+                <span class="shell-label">Чат QwenPaw</span>
+                <div class="shell-qwenpaw-chat-title" id="shell-qwenpaw-chat-title">—</div>
+                <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
+              </div>
+              <div class="shell-qwenpaw-chat-actions">
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
+                  + Новый чат
+                </button>
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
+                  История
+                </button>
+              </div>
+              <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
+            </div>
+          </div>
+
+          <div class="shell-field shell-topic-field" id="shell-topic-field">
+            <span class="shell-label">Тема</span>
+            <div class="shell-topic-picker" id="shell-topic-picker">
+              <button
+                type="button"
+                class="shell-topic-trigger"
+                id="shell-topic-trigger"
+                aria-expanded="false"
+                aria-haspopup="dialog"
+              >
+                <span class="shell-topic-trigger-label" id="shell-topic-trigger-label">Выберите тему</span>
+                <span class="shell-topic-trigger-path" id="shell-topic-trigger-path">manifest.md не выбран</span>
+              </button>
+              <div class="shell-topic-popover hidden" id="shell-topic-popover" role="dialog" aria-label="Выбор темы">
+                <label class="shell-topic-search-wrap">
+                  <span class="shell-label">Поиск</span>
+                  <input
+                    id="shell-topic-search"
+                    class="shell-input shell-topic-search"
+                    type="search"
+                    placeholder="Название или путь…"
+                    autocomplete="off"
+                  />
+                </label>
+                <div class="shell-topic-tree" id="shell-topic-tree"></div>
+              </div>
+            </div>
+            <input id="shell-topic-path" type="hidden" value="" />
+          </div>
+        </section>
+      </div>
+
+      <div class="shell-session-drawer hidden" id="shell-session-drawer">
+        <section class="shell-compose">
+          <p class="shell-live-phrase" id="shell-phrase">Готов к сообщению</p>
+          <label class="shell-field shell-field--grow">
+            <span class="shell-label">Сообщение</span>
+            <textarea
+              id="shell-message"
+              class="shell-textarea"
+              rows="3"
+              placeholder="Текст для агента…"
+            ></textarea>
+          </label>
+          <div class="shell-compose-actions">
+            <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
+          </div>
+        </section>
+
+        <section class="shell-reply">
+          <div class="shell-label">Последний ответ агента</div>
+          <div class="shell-reply-body" id="shell-last-reply">
+            <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+            <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="shell-voice-panel" id="shell-voice-panel">
+        <div class="shell-voice-settings">
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label">Ввод голосом</span>
+            <select id="shell-voice-mode" class="shell-select">
+              <option value="disabled">Отключен</option>
+              <option value="browser" selected>Браузер (микрофон)</option>
+              <option value="sidecar">Sidecar (Python)</option>
+              <option value="always">Sidecar · всегда слушать</option>
+            </select>
+          </label>
+          <label class="shell-check shell-voice-tts">
+            <input id="shell-tts-enabled" type="checkbox" checked />
+            <span>Вывод голосом</span>
+          </label>
+        </div>
+        <div class="shell-action-row">
+          <button type="button" class="shell-btn shell-btn--ghost shell-action-btn" id="shell-mic-btn">🎤 Говорить</button>
+          <button
+            type="button"
+            class="shell-btn shell-btn--ghost shell-action-btn"
+            id="shell-watch-camera"
+            aria-pressed="false"
+          >
+            📷 Смотреть
+          </button>
+          <button
+            type="button"
+            class="shell-btn shell-btn--ghost shell-action-btn"
+            id="shell-watch-screen"
+            aria-pressed="false"
+          >
+            🖥 Смотреть
+          </button>
+        </div>
+      </section>
+
+      <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
         <div class="shell-media-head">
           <span class="shell-label">Медиа</span>
         </div>
@@ -543,144 +743,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
       </section>
 
-      <section class="shell-panel">
-        <label class="shell-field">
-          <span class="shell-label">Куда отправлять</span>
-          <select id="shell-message-target" class="shell-select">
-            <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
-            <option value="qwenpaw-log">QwenPaw + лог в CMS</option>
-            <option value="cms">Agent CMS (thread/inbox)</option>
-          </select>
-        </label>
-
-        <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
-          <label class="shell-field">
-            <span class="shell-label">QwenPaw URL</span>
-            <div class="shell-input-row">
-              <input
-                id="shell-qwenpaw-url"
-                class="shell-input"
-                type="url"
-                spellcheck="false"
-                placeholder="http://127.0.0.1:8088"
-              />
-              <button
-                type="button"
-                class="shell-icon-btn shell-input-action"
-                id="shell-qwenpaw-open-url"
-                title="Открыть QwenPaw в новом окне"
-                aria-label="Открыть QwenPaw в новом окне"
-              >
-                ↗
-              </button>
-            </div>
-          </label>
-          <label class="shell-field">
-            <span class="shell-label">Агент QwenPaw</span>
-            <input
-              id="shell-qwenpaw-agent-id"
-              class="shell-input"
-              type="text"
-              spellcheck="false"
-              placeholder="default"
-            />
-          </label>
-          <p class="shell-panel-note" id="shell-qwenpaw-note">
-            CMS подключается в MCP QwenPaw — здесь выбирается только профиль QwenPaw.
-          </p>
-          <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
-            <div class="shell-qwenpaw-chat-current">
-              <span class="shell-label">Чат QwenPaw</span>
-              <div class="shell-qwenpaw-chat-title" id="shell-qwenpaw-chat-title">—</div>
-              <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
-            </div>
-            <div class="shell-qwenpaw-chat-actions">
-              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
-                + Новый чат
-              </button>
-              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
-                История
-              </button>
-            </div>
-            <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
-          </div>
-        </div>
-
-        <div class="shell-field shell-topic-field" id="shell-topic-field">
-          <span class="shell-label">Тема</span>
-          <div class="shell-topic-picker" id="shell-topic-picker">
-            <button
-              type="button"
-              class="shell-topic-trigger"
-              id="shell-topic-trigger"
-              aria-expanded="false"
-              aria-haspopup="dialog"
-            >
-              <span class="shell-topic-trigger-label" id="shell-topic-trigger-label">Выберите тему</span>
-              <span class="shell-topic-trigger-path" id="shell-topic-trigger-path">manifest.md не выбран</span>
-            </button>
-            <div class="shell-topic-popover hidden" id="shell-topic-popover" role="dialog" aria-label="Выбор темы">
-              <label class="shell-topic-search-wrap">
-                <span class="shell-label">Поиск</span>
-                <input
-                  id="shell-topic-search"
-                  class="shell-input shell-topic-search"
-                  type="search"
-                  placeholder="Название или путь…"
-                  autocomplete="off"
-                />
-              </label>
-              <div class="shell-topic-tree" id="shell-topic-tree"></div>
-            </div>
-          </div>
-          <input id="shell-topic-path" type="hidden" value="" />
-        </div>
-
-        <div class="shell-row">
-          <label class="shell-check">
-            <input id="shell-tts-enabled" type="checkbox" checked />
-            <span>Озвучка ответа</span>
-          </label>
-        </div>
-
-        <label class="shell-field">
-          <span class="shell-label">Голосовой ввод</span>
-          <select id="shell-voice-mode" class="shell-select">
-            <option value="disabled">Отключен</option>
-            <option value="browser" selected>Браузер (микрофон)</option>
-            <option value="sidecar">Sidecar (Python)</option>
-            <option value="always">Sidecar · всегда слушать</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="shell-compose">
-        <label class="shell-field shell-field--grow">
-          <span class="shell-label">Сообщение</span>
-          <textarea
-            id="shell-message"
-            class="shell-textarea"
-            rows="3"
-            placeholder="Текст для агента или нажмите 🎤"
-          ></textarea>
-        </label>
-        <div class="shell-compose-actions">
-          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mic-btn">🎤 Говорить</button>
-          <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
-        </div>
-      </section>
-
-      <section class="shell-reply">
-        <div class="shell-label">Последний ответ агента</div>
-        <div class="shell-reply-body" id="shell-last-reply">
-          <div class="shell-reply-text" id="shell-last-reply-text">—</div>
-          <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
-        </div>
-      </section>
-
 
       </div>
     </div>
-    <script src="/shell/shell.js?v=24" type="module"></script>
+    <script src="/vendor/markdown-it.min.js"></script>
+    <script src="/markdown-github-alerts.js"></script>
+    <script src="/shell/shell.js?v=29" type="module"></script>
   </body>
 </html>

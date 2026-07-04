@@ -1,6 +1,7 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=1";
+import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=2";
+import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
@@ -34,7 +35,11 @@ const state = {
   cameraAppliedKey: "",
   screenSnapshotBusy: false,
   screenAppliedKey: "",
-  view: "main"
+  view: "main",
+  sessionOpen: false,
+  routeOpen: false,
+  mediaMode: "",
+  clockTimer: null
 };
 
 const nodes = {
@@ -61,7 +66,6 @@ const nodes = {
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowBackground: document.getElementById("shell-window-background"),
   windowCompact: document.getElementById("shell-window-compact"),
-  compactMic: document.getElementById("shell-compact-mic"),
   voiceMode: document.getElementById("shell-voice-mode"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
@@ -71,8 +75,21 @@ const nodes = {
   homeBtn: document.getElementById("shell-home-btn"),
   openCmsBtn: document.getElementById("shell-open-cms"),
   shellApp: document.getElementById("shell-app"),
+  mainView: document.getElementById("shell-main-view"),
   subtitle: document.getElementById("shell-subtitle"),
+  agentAvatar: document.getElementById("shell-agent-avatar"),
+  sessionToggle: document.getElementById("shell-session-toggle"),
+  sessionDrawer: document.getElementById("shell-session-drawer"),
+  routeToggle: document.getElementById("shell-route-toggle"),
+  routeDrawer: document.getElementById("shell-route-drawer"),
+  watchCamera: document.getElementById("shell-watch-camera"),
+  watchScreen: document.getElementById("shell-watch-screen"),
+  mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
+  battery: document.getElementById("shell-battery"),
+  batteryFill: document.getElementById("shell-battery-fill"),
+  batteryLevel: document.getElementById("shell-battery-level"),
+  clock: document.getElementById("shell-clock"),
   phrase: document.getElementById("shell-phrase"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
@@ -154,12 +171,79 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
+const SHELL_CLOCK_LOCALE = "ru-RU";
+const BATTERY_FILL_MAX = 16;
+
+function formatShellClock(date = new Date()) {
+  return new Intl.DateTimeFormat(SHELL_CLOCK_LOCALE, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function renderClock() {
+  if (!nodes.clock) return;
+  const now = new Date();
+  nodes.clock.textContent = formatShellClock(now);
+  nodes.clock.dateTime = now.toISOString();
+}
+
+function startClock() {
+  renderClock();
+  if (state.clockTimer) clearInterval(state.clockTimer);
+  state.clockTimer = setInterval(renderClock, 1000);
+}
+
+function renderBattery(battery) {
+  if (!nodes.battery || !nodes.batteryFill || !nodes.batteryLevel) return;
+  const level = Math.max(0, Math.min(100, Math.round((battery?.level || 0) * 100)));
+  const charging = Boolean(battery?.charging);
+  nodes.battery.classList.remove("hidden");
+  nodes.battery.dataset.charging = charging ? "1" : "0";
+  nodes.battery.dataset.level = level <= 10 ? "critical" : level <= 20 ? "low" : "normal";
+  nodes.batteryFill.setAttribute("width", String((level / 100) * BATTERY_FILL_MAX));
+  nodes.batteryLevel.textContent = `${level}%`;
+  nodes.battery.title = charging ? `Батарея: ${level}% (зарядка)` : `Батарея: ${level}%`;
+}
+
+async function initBatteryMonitor() {
+  if (!navigator.getBattery) {
+    nodes.battery?.classList.add("hidden");
+    return;
+  }
+  try {
+    const battery = await navigator.getBattery();
+    const update = () => renderBattery(battery);
+    update();
+    battery.addEventListener("levelchange", update);
+    battery.addEventListener("chargingchange", update);
+  } catch {
+    nodes.battery?.classList.add("hidden");
+  }
+}
+
+function livePhraseFromStatus(shellState, latestAgentMessage) {
+  const phase = shellState?.phase || "waiting";
+  let phrase = String(shellState?.phrase || "").trim();
+  const replyBody = String(latestAgentMessage?.body || "").trim();
+  if (replyBody && phrase && phrase === replyBody.slice(0, 240)) {
+    phrase = "";
+  }
+  if (!phrase && phase === "waiting") return "Готов к сообщению";
+  return phrase;
+}
+
 function renderPhase(phase, phrase = "", metrics = "") {
   const normalized = PHASE_LABELS[phase] ? phase : "waiting";
   nodes.phaseLabel.textContent = PHASE_LABELS[normalized];
-  nodes.phrase.textContent = phrase || "Готов к сообщению";
+  if (nodes.phrase) {
+    nodes.phrase.textContent = phrase || (normalized === "waiting" ? "Готов к сообщению" : "");
+  }
   nodes.meta.textContent = metrics || "";
   nodes.pulse.dataset.phase = normalized;
+  if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = normalized;
 }
 
 function renderShellReply(message) {
@@ -168,16 +252,16 @@ function renderShellReply(message) {
   const parsed = parseShellReply(body);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
 
-  if (nodes.lastReplyText) nodes.lastReplyText.textContent = parsed.text;
-  else if (nodes.lastReply) nodes.lastReply.textContent = parsed.text;
+  if (nodes.lastReplyText) renderShellReplyMarkdown(nodes.lastReplyText, parsed.text === "—" ? "" : parsed.text);
+  else if (nodes.lastReply) renderShellReplyMarkdown(nodes.lastReply, parsed.text === "—" ? "" : parsed.text);
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
   return { ...parsed, shows };
 }
 
 function clearShellReply() {
-  if (nodes.lastReplyText) nodes.lastReplyText.textContent = "—";
-  else if (nodes.lastReply) nodes.lastReply.textContent = "—";
+  if (nodes.lastReplyText) renderShellReplyMarkdown(nodes.lastReplyText, "");
+  else if (nodes.lastReply) renderShellReplyMarkdown(nodes.lastReply, "");
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
 }
 
@@ -219,6 +303,9 @@ async function refreshCameraDeviceList() {
 
 function updateCameraUi(active) {
   nodes.cameraSnapshot?.classList.toggle("hidden", !active);
+  nodes.watchCamera?.setAttribute("aria-pressed", active ? "true" : "false");
+  if (active) setMediaDrawer("camera");
+  else if (state.mediaMode === "camera") setMediaDrawer("");
 }
 
 async function applyCameraEnabled(enabled, { persist = false } = {}) {
@@ -339,6 +426,9 @@ async function handleScreenSnapshotRequest(payload) {
 
 function updateScreenUi(active) {
   nodes.screenSnapshot?.classList.toggle("hidden", !active);
+  nodes.watchScreen?.setAttribute("aria-pressed", active ? "true" : "false");
+  if (active) setMediaDrawer("screen");
+  else if (state.mediaMode === "screen") setMediaDrawer("");
 }
 
 async function applyScreenEnabled(enabled, { persist = false } = {}) {
@@ -409,18 +499,56 @@ function applyWindowSettings(settings) {
   if (window.shellApp?.applyWindowSettings) {
     void window.shellApp.applyWindowSettings(settings);
   }
-  syncCompactMicLabel();
 }
 
-function syncCompactMicLabel() {
-  if (!nodes.compactMic) return;
-  if (state.micActive || state.pttHeld) {
-    nodes.compactMic.textContent = "⏹";
-    nodes.compactMic.title = "Стоп";
-  } else {
-    nodes.compactMic.textContent = "🎤";
-    nodes.compactMic.title = "Говорить";
+function setSessionDrawer(open) {
+  const next = Boolean(open);
+  state.sessionOpen = next;
+  nodes.mainView?.setAttribute("data-session-open", next ? "1" : "0");
+  nodes.sessionToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+  nodes.sessionDrawer?.classList.toggle("hidden", !next);
+}
+
+function setRouteDrawer(open) {
+  const next = Boolean(open);
+  state.routeOpen = next;
+  nodes.mainView?.setAttribute("data-route-open", next ? "1" : "0");
+  nodes.routeToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+  nodes.routeDrawer?.classList.toggle("hidden", !next);
+}
+
+function setMediaDrawer(mode) {
+  const next = mode === "camera" || mode === "screen" ? mode : "";
+  state.mediaMode = next;
+  nodes.mainView?.setAttribute("data-media-open", next ? "1" : "0");
+  if (nodes.mediaSection) {
+    nodes.mediaSection.classList.toggle("hidden", !next);
+    nodes.mediaSection.dataset.mode = next;
   }
+  nodes.watchCamera?.setAttribute("aria-pressed", next === "camera" ? "true" : "false");
+  nodes.watchScreen?.setAttribute("aria-pressed", next === "screen" ? "true" : "false");
+}
+
+async function toggleWatchCamera() {
+  const active = nodes.watchCamera?.getAttribute("aria-pressed") === "true";
+  if (active) {
+    await applyCameraEnabled(false, { persist: true });
+    if (state.mediaMode === "camera") setMediaDrawer("");
+    return;
+  }
+  setMediaDrawer("camera");
+  await applyCameraEnabled(true, { persist: true });
+}
+
+async function toggleWatchScreen() {
+  const active = nodes.watchScreen?.getAttribute("aria-pressed") === "true";
+  if (active) {
+    await applyScreenEnabled(false, { persist: true });
+    if (state.mediaMode === "screen") setMediaDrawer("");
+    return;
+  }
+  setMediaDrawer("screen");
+  await applyScreenEnabled(true, { persist: true });
 }
 
 function applySettings(settings) {
@@ -610,10 +738,13 @@ function applyStatusPayload(payload) {
     state.shellState = payload.state;
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
     state.pttHeld = Boolean(payload.state.pttHeld);
-    renderPhase(payload.state.phase, payload.state.phrase, payload.state.metrics);
+    renderPhase(
+      payload.state.phase,
+      livePhraseFromStatus(payload.state, payload.latestAgentMessage),
+      payload.state.metrics
+    );
     if (state.pttHeld) nodes.micBtn.textContent = "⏹ Стоп";
     else if (!state.micActive) nodes.micBtn.textContent = "🎤 Говорить";
-    syncCompactMicLabel();
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
@@ -736,7 +867,7 @@ async function speakText(text) {
 
   stopBrowserTts();
   state.speaking = true;
-  await patchShellState({ phase: "speaking", phrase: payload.slice(0, 240) });
+  await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
 
   await new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(payload);
@@ -748,7 +879,7 @@ async function speakText(text) {
   });
 
   state.speaking = false;
-  await patchShellState({ phase: "waiting", phrase: payload.slice(0, 240) });
+  await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
 }
 
 let lastHandledAssistantId = "";
@@ -761,6 +892,10 @@ async function handleAssistantMessage(message) {
   if (messageId && messageId === lastHandledAssistantId) return;
   lastHandledAssistantId = messageId;
   renderShellReply(message);
+  const phase = state.shellState?.phase || "waiting";
+  if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
+    renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
+  }
   if (state.settings?.ttsEnabled) {
     const speech = toSpeechText(body);
     if (!speech) return;
@@ -850,10 +985,6 @@ function setupSpeechRecognition() {
   if (!SpeechRecognition) {
     nodes.micBtn.disabled = true;
     nodes.micBtn.title = "SpeechRecognition недоступен в этом браузере";
-    if (nodes.compactMic) {
-      nodes.compactMic.disabled = true;
-      nodes.compactMic.title = nodes.micBtn.title;
-    }
     return;
   }
 
@@ -866,14 +997,12 @@ function setupSpeechRecognition() {
   recognition.onstart = () => {
     state.micActive = true;
     nodes.micBtn.textContent = "⏹ Стоп";
-    syncCompactMicLabel();
     void patchShellState({ phase: "listening", phrase: "Говорите…" });
   };
 
   recognition.onend = () => {
     state.micActive = false;
     nodes.micBtn.textContent = "🎤 Говорить";
-    syncCompactMicLabel();
     if (!state.speaking) void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
   };
 
@@ -917,7 +1046,6 @@ function toggleMic() {
       .then((data) => {
         state.pttHeld = Boolean(data.held);
         nodes.micBtn.textContent = state.pttHeld ? "⏹ Стоп" : "🎤 Говорить";
-        syncCompactMicLabel();
         renderPhase(
           state.pttHeld ? "listening" : "thinking",
           state.pttHeld ? "Sidecar слушает…" : "Распознаю…"
@@ -949,6 +1077,14 @@ function setShellView(view) {
 function bindNavigationUi() {
   nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
   nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
+  nodes.sessionToggle?.addEventListener("click", () => setSessionDrawer(!state.sessionOpen));
+  nodes.routeToggle?.addEventListener("click", () => setRouteDrawer(!state.routeOpen));
+  nodes.watchCamera?.addEventListener("click", () => {
+    void toggleWatchCamera().catch((error) => renderPhase("waiting", error.message));
+  });
+  nodes.watchScreen?.addEventListener("click", () => {
+    void toggleWatchScreen().catch((error) => renderPhase("waiting", error.message));
+  });
 }
 
 function bindWindowSettingsUi() {
@@ -1038,7 +1174,7 @@ function bindUi() {
         [{ type: "image", src: frame.dataUrl, caption: "Кадр с камеры" }],
         state.agentId
       );
-      nodes.lastReplyText.textContent = "Кадр с камеры";
+      renderShellReplyMarkdown(nodes.lastReplyText, "Кадр с камеры");
       await uploadCameraSnapshot("manual").catch(() => {});
       renderPhase(state.shellState?.phase || "waiting", "Кадр сохранён");
     })();
@@ -1067,7 +1203,7 @@ function bindUi() {
         [{ type: "image", src: frame.dataUrl, caption: "Снимок экрана" }],
         state.agentId
       );
-      nodes.lastReplyText.textContent = "Снимок экрана";
+      renderShellReplyMarkdown(nodes.lastReplyText, "Снимок экрана");
       await uploadScreenSnapshot("manual").catch(() => {});
       renderPhase(state.shellState?.phase || "waiting", "Снимок сохранён");
     })();
@@ -1089,7 +1225,6 @@ function bindUi() {
   });
 
   nodes.micBtn.addEventListener("click", toggleMic);
-  nodes.compactMic?.addEventListener("click", toggleMic);
   nodes.stopTtsBtn.addEventListener("click", async () => {
     stopBrowserTts();
     await apiFetch("/api/shell/stop-tts", { method: "POST", body: "{}" });
@@ -1125,6 +1260,8 @@ async function boot() {
   bindNavigationUi();
   bindWindowSettingsUi();
   setupSpeechRecognition();
+  startClock();
+  void initBatteryMonitor();
   try {
     await resolveShellAgent();
     await topicPicker.refresh();
