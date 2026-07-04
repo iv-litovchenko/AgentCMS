@@ -406,6 +406,23 @@ async function selectQwenPawChat(agentRoot, agentId, settings, { sessionId, chat
   return { sessionId: nextSessionId, chatName: resolvedName, settings: nextSettings };
 }
 
+async function appendAgentReplyToCms(deps, settings, body, { partial = false } = {}) {
+  const topicPath = String(settings.topicPath || DEFAULT_SETTINGS.topicPath).trim();
+  const text = String(body || "").trim();
+  if (!text) return null;
+  const payloadBody = partial ? `${text}\n\n_(ответ оборван, сохранена часть)_` : text;
+  return deps.appendTopicThreadMessage({
+    manifestRelPath: topicPath,
+    body: payloadBody,
+    role: "agent",
+    author: "qwenpaw",
+    linkedFiles: "",
+    mode: "description",
+    file: "",
+    systemName: ""
+  });
+}
+
 async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
@@ -423,47 +440,84 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   }
 
   const sessionId = buildQwenPawSessionId(settings, agentId);
-  const reply = await chatWithQwenPaw({
-    baseUrl: settings.qwenpawBaseUrl,
-    agentId: settings.qwenpawAgentId,
-    sessionId,
-    userId: settings.qwenpawUserId,
-    text,
-    onEvent: (event) => {
-      if (typeof onProgress !== "function") return;
-      const status = String(event?.status || "").toLowerCase();
-      if (status === "in_progress" || status === "created") {
-        onProgress({ phase: PHASE_THINKING, status });
+  const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let lastEmittedText = "";
+  let lastEmitAt = 0;
+
+  const emitAssistantDelta = async (nextText, { done = false, force = false } = {}) => {
+    const replyText = String(nextText || "");
+    const now = Date.now();
+    if (!done && !force && replyText === lastEmittedText) return;
+    if (!done && !force && now - lastEmitAt < 60) return;
+    lastEmittedText = replyText;
+    lastEmitAt = now;
+
+    await patchState(agentRoot, agentId, {
+      phase: done ? PHASE_WAITING : PHASE_THINKING,
+      phrase: done ? "" : "Печатает…",
+      lastShellReply: replyText
+    });
+    emitShellEvent(agentId, "assistant_delta", { streamId, text: replyText, done });
+    if (typeof onProgress === "function") {
+      onProgress({ phase: done ? PHASE_WAITING : PHASE_THINKING, streamId, text: replyText, done });
+    }
+  };
+
+  await emitAssistantDelta("", { force: true });
+
+  let reply;
+  try {
+    reply = await chatWithQwenPaw({
+      baseUrl: settings.qwenpawBaseUrl,
+      agentId: settings.qwenpawAgentId,
+      sessionId,
+      userId: settings.qwenpawUserId,
+      text,
+      onEvent: ({ text: partialText }) => {
+        void emitAssistantDelta(partialText);
+      }
+    });
+  } catch (error) {
+    const partial = String(lastEmittedText || "").trim();
+    if (partial && shouldLogToCms(settings)) {
+      try {
+        await appendAgentReplyToCms(deps, settings, partial, { partial: true });
+      } catch {
+        // keep partial in state even if CMS write fails
       }
     }
-  });
+    await emitAssistantDelta(partial, { done: true, force: true });
+    throw error;
+  }
 
   let agentMessage = null;
   if (shouldLogToCms(settings)) {
-    agentMessage = await deps.appendTopicThreadMessage({
-      manifestRelPath: topicPath,
-      body: reply.text,
-      role: "agent",
-      author: "qwenpaw",
-      linkedFiles: "",
-      mode: "description",
-      file: "",
-      systemName: ""
-    });
+    agentMessage = await appendAgentReplyToCms(deps, settings, reply.text);
   }
 
   const assistantMessage = {
-    id: agentMessage?.id || `qwenpaw-${Date.now()}`,
+    id: agentMessage?.id || streamId,
+    streamId,
     body: reply.text,
     role: "agent",
     author: "qwenpaw",
     created: agentMessage?.created || new Date().toISOString()
   };
 
+  await patchState(agentRoot, agentId, {
+    phase: PHASE_WAITING,
+    phrase: "",
+    lastAgentMessageId: assistantMessage.id,
+    lastShellReply: reply.text
+  });
+  await emitAssistantDelta(reply.text, { done: true, force: true });
+  emitShellEvent(agentId, "assistant_message", assistantMessage);
+
   return {
     channel: "qwenpaw",
     topicPath,
     sessionId,
+    streamId,
     reply: reply.text,
     userMessage,
     message: assistantMessage
@@ -641,6 +695,10 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
     }
     if (entry.type === "assistant_message") {
       push("assistant_message", { message: entry.payload });
+      return;
+    }
+    if (entry.type === "assistant_delta") {
+      push("assistant_delta", entry.payload || {});
       return;
     }
     push(entry.type, entry);

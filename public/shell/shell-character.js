@@ -1,17 +1,20 @@
-const PHASE_COLORS = {
-  waiting: { ring: 0x7c6cff, head: 0xc4b5fd, pulse: 0.35 },
-  listening: { ring: 0xff6b8a, head: 0xffb4c4, pulse: 0.55 },
-  thinking: { ring: 0xffd166, head: 0xe8d49a, pulse: 0.5 },
-  speaking: { ring: 0x58c4ff, head: 0xb8e4ff, pulse: 0.55 },
-  disabled: { ring: 0x5a6088, head: 0x8a90b8, pulse: 0.2 }
-};
+import {
+  HERO_CHARACTER_ID,
+  PICKER_CHARACTER_MODELS,
+  getCharacterModel,
+  isFallbackCharacter,
+  loadStoredCharacterId,
+  saveStoredCharacterId
+} from "/shell/shell-character-models.js?v=8";
 
-function phaseColors(phase) {
-  return PHASE_COLORS[phase] || PHASE_COLORS.waiting;
-}
+const THREE_MODULE = "/shell/vendor/three.module.js";
+const GLTF_LOADER_MODULE = "/shell/vendor/loaders/GLTFLoader.js";
 
-function buildFallback(viewport) {
-  viewport.innerHTML = `
+function showCloudFallback(viewport, canvas) {
+  if (!viewport.querySelector(".shell-character-fallback")) {
+    viewport.insertAdjacentHTML(
+      "beforeend",
+      `
     <div class="shell-character-fallback" aria-hidden="true">
       <div class="shell-character-rig">
         <div class="shell-character-platform"></div>
@@ -25,18 +28,207 @@ function buildFallback(viewport) {
         </div>
       </div>
     </div>
-  `;
+  `
+    );
+  }
+  if (canvas) canvas.style.display = "none";
 }
 
-export async function initShellCharacter(stageEl) {
+function hideCloudFallback(viewport, canvas) {
+  viewport.querySelector(".shell-character-fallback")?.remove();
+  if (canvas) canvas.style.display = "block";
+}
+
+function buildFallback(viewport) {
+  showCloudFallback(viewport, null);
+}
+
+function addStageLights(THREE, scene) {
+  scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+  const key = new THREE.DirectionalLight(0xfff4e8, 1.15);
+  key.position.set(2.2, 3.8, 2.6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x9aa8ff, 0.55);
+  fill.position.set(-2.4, 2.2, -1.8);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x7c6cff, 0.35);
+  rim.position.set(0, 1.6, -3.2);
+  scene.add(rim);
+}
+
+function prepareModelMaterials(THREE, root) {
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = false;
+    node.receiveShadow = false;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      if (!material) continue;
+      if (material.map) {
+        material.map.colorSpace = THREE.SRGBColorSpace;
+        material.map.needsUpdate = true;
+      }
+      if (material.isMeshStandardMaterial && material.userData?.gltfExtensions?.KHR_materials_unlit) {
+        material.toneMapped = false;
+      }
+      if ("metalness" in material && material.metalness > 0.85) material.metalness = 0.35;
+      if ("roughness" in material && material.roughness < 0.2) material.roughness = 0.55;
+      material.needsUpdate = true;
+    }
+  });
+}
+function addStageFloor(THREE, scene) {
+  const platform = new THREE.Mesh(
+    new THREE.CircleGeometry(0.95, 48),
+    new THREE.MeshBasicMaterial({ color: 0x7c6cff, transparent: true, opacity: 0.16 })
+  );
+  platform.rotation.x = -Math.PI / 2;
+  platform.position.y = -0.02;
+  scene.add(platform);
+
+  const glow = new THREE.Mesh(
+    new THREE.RingGeometry(0.42, 0.88, 48),
+    new THREE.MeshBasicMaterial({ color: 0x7c6cff, transparent: true, opacity: 0.1, side: THREE.DoubleSide })
+  );
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = -0.01;
+  scene.add(glow);
+}
+
+function resolveAction(actions, spec) {
+  if (!actions || !spec) return null;
+  if (spec.clip && actions[spec.clip]) return actions[spec.clip];
+  const firstKey = Object.keys(actions)[0];
+  return firstKey ? actions[firstKey] : null;
+}
+
+function applyCamera(camera, spec) {
+  camera.position.set(spec.x, spec.y, spec.z);
+  camera.lookAt(0, spec.lookY, 0);
+}
+
+function fitModelToStage(THREE, camera, model, transform = {}) {
+  const {
+    rotY = 0,
+    scale: scaleMul = 1,
+    targetHeight = 1.28,
+    framePadding = 1.32,
+    groundLift = 0.02,
+    lookRatio = 0.44
+  } = transform;
+
+  model.rotation.set(0, rotY, 0);
+  model.position.set(0, 0, 0);
+  model.scale.set(1, 1, 1);
+  model.updateMatrixWorld(true);
+
+  const initialBox = new THREE.Box3().setFromObject(model);
+  const initialSize = initialBox.getSize(new THREE.Vector3());
+  const autoScale = targetHeight / Math.max(initialSize.y, 0.001);
+  model.scale.setScalar(autoScale * scaleMul);
+  model.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box.min.y + groundLift, -center.z);
+  model.updateMatrixWorld(true);
+
+  const fitted = new THREE.Box3().setFromObject(model);
+  const fittedSize = fitted.getSize(new THREE.Vector3());
+  const lookY = fitted.min.y + fittedSize.y * lookRatio;
+  const fovRad = (camera.fov * Math.PI) / 180;
+  const verticalDistance = (fittedSize.y * framePadding) / Math.tan(fovRad / 2);
+  const horizontalDistance = verticalDistance / Math.max(camera.aspect, 0.55);
+  const distance = Math.max(verticalDistance, horizontalDistance);
+
+  camera.position.set(0, lookY, distance);
+  camera.lookAt(0, lookY, 0);
+  camera.updateProjectionMatrix();
+}
+
+function renderCharacterOptionIcon(model) {
+  if (model.iconSvg) {
+    return `<img class="shell-character-option-icon-img" src="${model.iconSvg}" width="22" height="22" alt="" aria-hidden="true" />`;
+  }
+  return `<span class="shell-character-option-icon" aria-hidden="true">${model.icon || ""}</span>`;
+}
+
+function renderPicker(pickerEl, activeId, onPick) {
+  if (!pickerEl) return;
+  pickerEl.replaceChildren();
+  for (const model of PICKER_CHARACTER_MODELS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "shell-character-option";
+    btn.dataset.modelId = model.id;
+    btn.title = model.credit;
+    btn.setAttribute("aria-label", model.label);
+    btn.setAttribute("aria-pressed", model.id === activeId ? "true" : "false");
+    btn.innerHTML = `${renderCharacterOptionIcon(model)}<span class="shell-character-option-label">${model.label}</span>`;
+    btn.addEventListener("click", () => onPick(model.id));
+    pickerEl.appendChild(btn);
+  }
+}
+
+function updateSelectionUi(pickerEl, avatarEl, activeId) {
+  const isCloud = activeId === HERO_CHARACTER_ID;
+  avatarEl?.setAttribute("data-character-selected", isCloud ? "1" : "0");
+  avatarEl?.setAttribute("aria-pressed", isCloud ? "true" : "false");
+  pickerEl?.querySelectorAll(".shell-character-option").forEach((btn) => {
+    btn.setAttribute("aria-pressed", !isCloud && btn.dataset.modelId === activeId ? "true" : "false");
+  });
+}
+
+export async function initShellCharacter(stageEl, avatarEl) {
   if (!stageEl) return null;
 
   const viewport = stageEl.querySelector(".shell-character-viewport");
+  const pickerEl = stageEl.querySelector(".shell-character-picker");
   if (!viewport) return null;
 
-  let three = null;
+  let activeModelId = loadStoredCharacterId();
+  let loadedModelId = "";
+  let loadModelFn = null;
+
+  renderPicker(pickerEl, activeModelId, (modelId) => {
+    if (loadModelFn) void loadModelFn(modelId);
+    else {
+      activeModelId = modelId;
+      saveStoredCharacterId(modelId);
+      updateSelectionUi(pickerEl, avatarEl, modelId);
+    }
+  });
+
+  if (avatarEl) {
+    avatarEl.setAttribute("role", "button");
+    avatarEl.setAttribute("tabindex", "0");
+    avatarEl.setAttribute("title", "Облачко");
+    avatarEl.setAttribute("aria-label", "Облачко");
+    avatarEl.removeAttribute("aria-hidden");
+    const pickCloud = () => {
+      if (loadModelFn) void loadModelFn(HERO_CHARACTER_ID);
+      else {
+        activeModelId = HERO_CHARACTER_ID;
+        saveStoredCharacterId(HERO_CHARACTER_ID);
+        updateSelectionUi(pickerEl, avatarEl, HERO_CHARACTER_ID);
+      }
+    };
+    avatarEl.addEventListener("click", pickCloud);
+    avatarEl.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        pickCloud();
+      }
+    });
+  }
+
+  updateSelectionUi(pickerEl, avatarEl, activeModelId);
+
+  let THREE = null;
+  let GLTFLoader = null;
   try {
-    three = await import("https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js");
+    THREE = await import(THREE_MODULE);
+    ({ GLTFLoader } = await import(GLTF_LOADER_MODULE));
   } catch {
     buildFallback(viewport);
     return null;
@@ -54,122 +246,156 @@ export async function initShellCharacter(stageEl) {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x000000, 0);
+  if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
-  camera.position.set(0, 0.15, 3.1);
-  camera.lookAt(0, 0.05, 0);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 30);
+  addStageFloor(THREE, scene);
+  addStageLights(THREE, scene);
 
-  const ambient = new THREE.AmbientLight(0xeef0ff, 0.75);
-  const key = new THREE.DirectionalLight(0xffffff, 1.1);
-  key.position.set(2, 3, 4);
-  const rim = new THREE.DirectionalLight(0x7c6cff, 0.65);
-  rim.position.set(-2, 1, -2);
-  scene.add(ambient, key, rim);
+  const rig = new THREE.Group();
+  scene.add(rig);
 
-  const group = new THREE.Group();
-  scene.add(group);
+  const clock = new THREE.Clock();
+  const loader = new GLTFLoader();
 
-  const headMat = new THREE.MeshStandardMaterial({
-    color: PHASE_COLORS.waiting.head,
-    roughness: 0.38,
-    metalness: 0.12
-  });
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0x8b7cf8,
-    roughness: 0.48,
-    metalness: 0.08
-  });
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0xeef0ff,
-    emissive: PHASE_COLORS.waiting.ring,
-    emissiveIntensity: PHASE_COLORS.waiting.pulse,
-    roughness: 0.25,
-    metalness: 0.35
-  });
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1030, roughness: 0.9 });
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 40, 40), headMat);
-  head.position.y = 0.38;
-
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 24), bodyMat);
-  body.position.y = -0.32;
-  body.scale.set(1, 0.82, 0.95);
-
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.055, 20, 96, Math.PI * 1.28), ringMat);
-  ring.rotation.x = Math.PI / 2.15;
-  ring.rotation.z = -0.35;
-  ring.position.y = 0.48;
-
-  const platform = new THREE.Mesh(
-    new THREE.CircleGeometry(0.95, 48),
-    new THREE.MeshBasicMaterial({ color: 0x7c6cff, transparent: true, opacity: 0.18 })
-  );
-  platform.rotation.x = -Math.PI / 2;
-  platform.position.y = -0.82;
-
-  const glow = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 0.95, 48),
-    new THREE.MeshBasicMaterial({ color: 0x7c6cff, transparent: true, opacity: 0.12, side: THREE.DoubleSide })
-  );
-  glow.rotation.x = -Math.PI / 2;
-  glow.position.y = -0.81;
-
-  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 12), eyeMat);
-  leftEye.position.set(-0.16, 0.45, 0.46);
-  const rightEye = leftEye.clone();
-  rightEye.position.x = 0.16;
-
-  group.add(platform, glow, body, head, ring, leftEye, rightEye);
-
-  let width = 0;
-  let height = 0;
+  let mixer = null;
+  let actions = {};
+  let activeAction = null;
+  let activePhase = "";
+  let activeModelSpec = getCharacterModel(activeModelId);
+  let modelReady = false;
+  let loadingModel = false;
   let frameId = 0;
+  let currentModelRoot = null;
+  let cloudMode = isFallbackCharacter(activeModelSpec);
 
   function resize() {
-    width = viewport.clientWidth;
-    height = viewport.clientHeight;
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
 
-  function applyPhase(phase) {
-    const colors = phaseColors(phase);
-    headMat.color.setHex(colors.head);
-    ringMat.emissive.setHex(colors.ring);
-    ringMat.emissiveIntensity = colors.pulse;
+  function disposeCurrentModel() {
+    for (const action of Object.values(actions)) action.stop();
+    actions = {};
+    activeAction = null;
+    activePhase = "";
+    if (mixer) {
+      mixer.stopAllAction();
+      mixer = null;
+    }
+    if (currentModelRoot) {
+      rig.remove(currentModelRoot);
+      currentModelRoot.traverse((node) => {
+        if (node.isMesh) {
+          node.geometry?.dispose();
+          if (Array.isArray(node.material)) node.material.forEach((mat) => mat.dispose());
+          else node.material?.dispose();
+        }
+      });
+      currentModelRoot = null;
+    }
+    modelReady = false;
+  }
+
+  function playPhaseAnimation(phase) {
+    if (!mixer || !modelReady) return;
+    const spec = activeModelSpec.phases[phase] || activeModelSpec.phases.waiting;
+    const next = resolveAction(actions, spec);
+    if (!next) return;
+    const timeScale = Number(spec.timeScale) || 1;
+    if (activePhase === phase && activeAction === next && next.getEffectiveTimeScale() === timeScale) return;
+    activePhase = phase;
+    if (activeAction && activeAction !== next) activeAction.fadeOut(0.2);
+    next.reset().setEffectiveTimeScale(timeScale).setLoop(THREE.LoopRepeat).fadeIn(0.2).play();
+    if (timeScale === 0) next.paused = true;
+    else next.paused = false;
+    activeAction = next;
+  }
+
+  function loadModel(modelId) {
+    if (loadingModel) return Promise.resolve();
+    const spec = getCharacterModel(modelId);
+    if (modelId === loadedModelId && (modelReady || cloudMode)) return Promise.resolve();
+
+    loadingModel = true;
+    disposeCurrentModel();
+    activeModelId = modelId;
+    loadedModelId = "";
+    activeModelSpec = spec;
+    cloudMode = isFallbackCharacter(spec);
+    saveStoredCharacterId(modelId);
+    updateSelectionUi(pickerEl, avatarEl, modelId);
+
+    if (cloudMode) {
+      showCloudFallback(viewport, canvas);
+      modelReady = false;
+      loadedModelId = modelId;
+      loadingModel = false;
+      return Promise.resolve();
+    }
+
+    hideCloudFallback(viewport, canvas);
+
+    return new Promise((resolve) => {
+      loader.load(
+        spec.file,
+        (gltf) => {
+          const model = gltf.scene;
+          prepareModelMaterials(THREE, model);
+          rig.add(model);
+          currentModelRoot = model;
+          fitModelToStage(THREE, camera, model, spec.transform || {});
+          resize();
+
+          mixer = new THREE.AnimationMixer(model);
+          for (const clip of gltf.animations || []) {
+            const key = clip.name || "default";
+            actions[key] = mixer.clipAction(clip);
+          }
+          modelReady = true;
+          loadedModelId = modelId;
+          loadingModel = false;
+          playPhaseAnimation(stageEl.dataset.phase || "waiting");
+          resolve();
+        },
+        undefined,
+        () => {
+          loadingModel = false;
+          if (modelId !== "robot") {
+            void loadModel("robot");
+          } else {
+            renderer.dispose();
+            buildFallback(viewport);
+          }
+          resolve();
+        }
+      );
+    });
   }
 
   function animate() {
     frameId = requestAnimationFrame(animate);
-    const phase = stageEl.dataset.phase || "waiting";
-    applyPhase(phase);
-    const t = performance.now() * 0.001;
-    group.rotation.y = Math.sin(t * 0.55) * 0.42;
-    group.position.y = Math.sin(t * 1.15) * 0.045;
-
-    if (phase === "listening") {
-      ring.scale.setScalar(1 + Math.sin(t * 7) * 0.06);
-      head.scale.setScalar(1 + Math.sin(t * 5) * 0.02);
-    } else if (phase === "thinking") {
-      ring.rotation.z = -0.35 + t * 1.4;
-      ring.scale.setScalar(1);
-      head.scale.setScalar(1);
-    } else if (phase === "speaking") {
-      head.scale.set(1 + Math.sin(t * 9) * 0.03, 1 + Math.sin(t * 9) * 0.05, 1);
-      ring.scale.setScalar(1 + Math.sin(t * 4) * 0.03);
-    } else {
-      ring.scale.setScalar(1);
-      head.scale.setScalar(1);
+    if (!cloudMode) {
+      playPhaseAnimation(stageEl.dataset.phase || "waiting");
+      if (mixer) mixer.update(clock.getDelta());
+      if (modelReady) {
+        const t = performance.now() * 0.001;
+        rig.rotation.y = Math.sin(t * 0.45) * 0.12;
+      }
+      renderer.render(scene, camera);
     }
-
-    renderer.render(scene, camera);
   }
+
+  loadModelFn = loadModel;
 
   resize();
   animate();
+  void loadModel(activeModelId);
 
   const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => resize()) : null;
   observer?.observe(viewport);
@@ -177,16 +403,7 @@ export async function initShellCharacter(stageEl) {
   return () => {
     cancelAnimationFrame(frameId);
     observer?.disconnect();
+    disposeCurrentModel();
     renderer.dispose();
-    head.geometry.dispose();
-    body.geometry.dispose();
-    ring.geometry.dispose();
-    platform.geometry.dispose();
-    glow.geometry.dispose();
-    leftEye.geometry.dispose();
-    headMat.dispose();
-    bodyMat.dispose();
-    ringMat.dispose();
-    eyeMat.dispose();
   };
 }

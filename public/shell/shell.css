@@ -292,6 +292,87 @@ body.shell-window-transparent {
 
 .shell-character-stage {
   margin-top: -2px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shell-character-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(18, 20, 38, 0.62);
+  border: 1px solid rgba(122, 108, 255, 0.22);
+}
+
+.shell-character-picker {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 108, 255, 0.4) transparent;
+}
+
+.shell-character-picker::-webkit-scrollbar {
+  height: 4px;
+}
+
+.shell-character-picker::-webkit-scrollbar-thumb {
+  background: rgba(124, 108, 255, 0.35);
+  border-radius: 999px;
+}
+
+.shell-character-option {
+  flex: 1 0 auto;
+  min-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  background: rgba(12, 14, 28, 0.55);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.shell-character-option:hover {
+  border-color: rgba(124, 108, 255, 0.45);
+  background: rgba(124, 108, 255, 0.1);
+}
+
+.shell-character-option[aria-pressed="true"] {
+  border-color: rgba(124, 108, 255, 0.65);
+  background: rgba(124, 108, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.15);
+}
+
+.shell-character-option-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.shell-character-option-icon-img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+}
+
+.shell-character-option-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shell-character-option[aria-pressed="true"] .shell-character-option-label {
+  color: var(--text);
 }
 
 .shell-character-viewport {
@@ -428,6 +509,30 @@ body.shell-window-transparent {
   position: relative;
   width: 72px;
   height: 72px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.shell-agent-avatar:hover {
+  transform: scale(1.03);
+}
+
+.shell-agent-avatar[data-character-selected="1"] {
+  box-shadow: 0 0 0 2px rgba(124, 108, 255, 0.65), 0 0 18px rgba(124, 108, 255, 0.28);
+}
+
+.shell-agent-avatar[data-character-selected="1"] .shell-agent-ring {
+  stroke: rgba(124, 108, 255, 0.85);
+  filter: drop-shadow(0 0 6px rgba(124, 108, 255, 0.45));
+}
+
+.shell-agent-avatar:focus-visible {
+  outline: 2px solid rgba(124, 108, 255, 0.75);
+  outline-offset: 3px;
 }
 
 .shell-agent-svg {
@@ -822,7 +927,11 @@ body.shell-compact {
   color: var(--muted);
 }
 
-.shell-app[data-compact="1"] .shell-main-view > :not(.shell-hero):not(#shell-voice-panel) {
+.shell-app[data-compact="1"] .shell-main-view > :not(.shell-hero):not(#shell-voice-panel):not(.shell-character-stage) {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-character-viewport {
   display: none;
 }
 
@@ -867,6 +976,10 @@ body.shell-compact {
 
 .shell-app[data-compact="1"] .shell-status-meta {
   display: none;
+}
+
+.shell-app[data-compact="1"] .shell-character-picker-wrap {
+  padding: 8px 10px;
 }
 
 .shell-app[data-compact="1"] #shell-voice-panel {
@@ -1221,6 +1334,24 @@ body.shell-compact {
 
 .shell-reply-text {
   white-space: pre-wrap;
+}
+
+.shell-reply-panel.is-streaming .shell-reply-text::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent, #9b59ff);
+  animation: shell-stream-cursor 0.9s step-end infinite;
+}
+
+@keyframes shell-stream-cursor {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .shell-reply-text.shell-md {

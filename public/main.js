@@ -2258,15 +2258,23 @@ function toggleAgentTodoPreviewExpand() {
 }
 
 function getAgentTodoSidebarPreviewMarkdown(raw = "") {
-  const text = String(raw || "").trim();
+  let text = String(raw || "").trim();
   if (!text) return "";
 
   const dividerMatch = text.match(/^[\t ]*-{3,}[\t ]*$(?:\r?\n|$)/m);
   if (dividerMatch) {
-    return text.slice(0, dividerMatch.index).trim();
+    text = text.slice(0, dividerMatch.index).trim();
   }
 
   return text;
+}
+
+function resolveAgentSidebarNotePreviewData(fetchedNoteData) {
+  if (activeSystemFile === ROOT_SYSTEM_NOTE_FILE) {
+    const live = String(fileContentInputNode?.value || "").trim();
+    if (live) return { content: live, fileName: ROOT_SYSTEM_NOTE_FILE };
+  }
+  return fetchedNoteData;
 }
 
 async function fetchAgentSidebarNoteMarkdown() {
@@ -2275,7 +2283,7 @@ async function fetchAgentSidebarNoteMarkdown() {
     if (noteResponse.ok) {
       const data = await noteResponse.json();
       const content = String(data.content || "").trim();
-      if (content) return content;
+      if (content) return { content, fileName: ROOT_SYSTEM_NOTE_FILE };
     }
   } catch {
     // try legacy fallback below
@@ -2283,12 +2291,31 @@ async function fetchAgentSidebarNoteMarkdown() {
 
   try {
     const todoResponse = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
-    if (!todoResponse.ok) return "";
+    if (!todoResponse.ok) return null;
     const data = await todoResponse.json();
-    return String(data.content || "").trim();
+    const content = String(data.content || "").trim();
+    if (!content) return null;
+    return { content, fileName: ROOT_SYSTEM_TODO_FILE };
   } catch {
-    return "";
+    return null;
   }
+}
+
+function syncAgentTodoPreviewFromEditor() {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) return;
+  if (activeSystemFile !== ROOT_SYSTEM_NOTE_FILE) return;
+
+  const content = String(fileContentInputNode?.value || "").trim();
+  if (!content) {
+    hideAgentTodoPreview();
+    return;
+  }
+
+  setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(content), {
+    nodePath: ROOT_SYSTEM_NOTE_FILE
+  });
+  agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
+  scheduleAgentTodoPreviewExpandSync();
 }
 
 async function syncAgentTodoPreview() {
@@ -2300,15 +2327,18 @@ async function syncAgentTodoPreview() {
   const seq = ++agentTodoPreviewSeq;
 
   try {
-    const content = await fetchAgentSidebarNoteMarkdown();
+    const fetchedNoteData = await fetchAgentSidebarNoteMarkdown();
     if (seq !== agentTodoPreviewSeq) return;
 
-    if (!content) {
+    const noteData = resolveAgentSidebarNotePreviewData(fetchedNoteData);
+    if (!noteData?.content) {
       hideAgentTodoPreview();
       return;
     }
 
-    setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(content));
+    setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(noteData.content), {
+      nodePath: noteData.fileName
+    });
     agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
     scheduleAgentTodoPreviewExpandSync();
   } catch {
@@ -39518,9 +39548,10 @@ function enhanceMarkdownPreviewImages(root) {
 }
 
 function renderPreviewFromEditor() {
-  setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, {
-    nodePath: getPropsContextPath() || getActiveTitleEditorPath()
-  });
+  const nodePath =
+    activeSystemFile || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, { nodePath });
+  syncAgentTodoPreviewFromEditor();
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
   }
@@ -43534,6 +43565,11 @@ async function selectSystemFile(name, options = {}) {
     commitEditorSaveBaseline();
   } finally {
     hideContentLoading({ force: true });
+    if (normalizedName === ROOT_SYSTEM_NOTE_FILE) {
+      syncAgentTodoPreviewFromEditor();
+    } else {
+      void syncAgentTodoPreview();
+    }
     if (!options.skipRouteSync) {
       syncAppRouteToUrl({ replace: true });
     }
@@ -43602,6 +43638,7 @@ async function selectFile(label, filePath) {
 
   hideHomeView();
   activeSystemFile = null;
+  void syncAgentTodoPreview();
   if (!isNodeSettingsTargetPath(filePath)) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;

@@ -12,7 +12,7 @@
   "ttsEnabled": true,
   "ttsEngine": "browser",
   "windowTopmost": false,
-  "cameraEnabled": true,
+  "cameraEnabled": false,
   "cameraOnSpeech": false,
   "cameraFacing": "user",
   "cameraDeviceId": "",

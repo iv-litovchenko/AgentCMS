@@ -10007,10 +10007,6 @@ body.app-locked {
 }
 
 .agent-todo-preview-body {
-  font-size: 12px;
-  line-height: 1.4;
-  color: #422006;
-  word-break: break-word;
   cursor: text;
   user-select: text;
 }
@@ -10027,7 +10023,11 @@ body.app-locked {
   overflow-x: hidden !important;
   overflow-y: hidden !important;
   white-space: normal;
-  line-height: 1.4;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .agent-todo-preview-wrap.is-expanded .agent-todo-preview-body.file-content-preview {
@@ -10079,47 +10079,6 @@ body.app-locked {
   margin-bottom: 0;
 }
 
-.agent-todo-preview-body.file-content-preview h1,
-.agent-todo-preview-body.file-content-preview h2,
-.agent-todo-preview-body.file-content-preview h3,
-.agent-todo-preview-body.file-content-preview h4,
-.agent-todo-preview-body.file-content-preview h5,
-.agent-todo-preview-body.file-content-preview h6 {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 0 0 0.25em;
-}
-
-.agent-todo-preview-body.file-content-preview p,
-.agent-todo-preview-body.file-content-preview ul,
-.agent-todo-preview-body.file-content-preview ol,
-.agent-todo-preview-body.file-content-preview blockquote {
-  margin: 0 0 0.25em;
-}
-
-.agent-todo-preview-body.file-content-preview p:last-child,
-.agent-todo-preview-body.file-content-preview ul:last-child,
-.agent-todo-preview-body.file-content-preview ol:last-child,
-.agent-todo-preview-body.file-content-preview blockquote:last-child {
-  margin-bottom: 0;
-}
-
-.agent-todo-preview-body.file-content-preview p:empty {
-  display: none;
-}
-
-.agent-todo-preview-body.file-content-preview pre {
-  margin: 0.2em 0 0;
-  padding: 4px 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  max-width: 100%;
-  font-size: 11px;
-  line-height: 1.35;
-  background: rgba(255, 255, 255, 0.45);
-}
-
 .agent-todo-preview-body.file-content-preview img,
 .agent-todo-preview-body.file-content-preview video,
 .agent-todo-preview-body.file-content-preview iframe {
@@ -10128,17 +10087,6 @@ body.app-locked {
   max-height: 48px;
   border-radius: 3px;
   object-fit: cover;
-}
-
-.agent-todo-preview-body.file-content-preview a {
-  color: #b45309;
-  word-break: break-all;
-}
-
-.agent-todo-preview-body.file-content-preview table {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
 }
 
 .agent-preview-openable {

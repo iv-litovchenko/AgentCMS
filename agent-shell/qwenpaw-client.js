@@ -202,6 +202,19 @@ async function chatWithQwenPaw({
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
 
+  function notifyEvent(event) {
+    if (typeof onEvent !== "function") return;
+    try {
+      onEvent({
+        event,
+        text: parser.latestAssistantText(),
+        delta: String(event?.object || "") === "content" && Boolean(event?.delta)
+      });
+    } catch {
+      // ignore listener errors
+    }
+  }
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -212,13 +225,7 @@ async function chatWithQwenPaw({
     for (const block of parts) {
       for (const event of parseSseBuffer(`${block}\n\n`)) {
         parser.push(event);
-        if (typeof onEvent === "function") {
-          try {
-            onEvent(event);
-          } catch {
-            // ignore listener errors
-          }
-        }
+        notifyEvent(event);
       }
     }
   }
@@ -226,6 +233,7 @@ async function chatWithQwenPaw({
   if (buffer.trim()) {
     for (const event of parseSseBuffer(`${buffer}\n\n`)) {
       parser.push(event);
+      notifyEvent(event);
     }
   }
 

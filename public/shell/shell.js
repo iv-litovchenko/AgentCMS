@@ -1,8 +1,8 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=2";
+import { parseShellReply, renderShellReplyMedia, toSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=3";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
-import { initShellCharacter } from "/shell/shell-character.js?v=1";
+import { initShellCharacter } from "/shell/shell-character.js?v=14";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
@@ -40,7 +40,11 @@ const state = {
   chatOpen: true,
   routeOpen: false,
   mediaMode: "",
-  clockTimer: null
+  clockTimer: null,
+  assistantStream: null,
+  streamTtsQueue: [],
+  streamTtsActive: false,
+  streamTtsCursor: 0
 };
 
 const nodes = {
@@ -263,6 +267,153 @@ function clearShellReply() {
   if (nodes.lastReplyText) renderShellReplyMarkdown(nodes.lastReplyText, "");
   else if (nodes.lastReply) renderShellReplyMarkdown(nodes.lastReply, "");
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
+  nodes.replyPanel?.classList.remove("is-streaming");
+}
+
+function beginAssistantStream({ streamId } = {}) {
+  state.assistantStream = {
+    id: String(streamId || `local-${Date.now()}`),
+    text: "",
+    done: false,
+    finalized: false
+  };
+  state.streamTtsCursor = 0;
+  state.streamTtsQueue = [];
+  nodes.replyPanel?.classList.add("is-streaming");
+  if (nodes.lastReplyText) {
+    nodes.lastReplyText.classList.remove("shell-md");
+    nodes.lastReplyText.textContent = "…";
+  }
+  renderPhase("thinking", "Печатает…");
+}
+
+function renderStreamingAssistantText(text) {
+  const value = String(text || "");
+  if (!nodes.lastReplyText) return;
+  nodes.lastReplyText.classList.remove("shell-md");
+  nodes.lastReplyText.textContent = value || "…";
+  nodes.lastReply?.scrollTo?.({ top: nodes.lastReply.scrollHeight, behavior: "auto" });
+}
+
+function queueStreamSpeech(fullBody) {
+  if (!state.settings?.ttsEnabled) return;
+  if (state.settings?.ttsEngine === "sidecar" || state.settings?.ttsEngine === "say") return;
+
+  const speech = toSpeechText(fullBody);
+  if (!speech) return;
+
+  const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
+  if (!sentences.length && cursor === state.streamTtsCursor) return;
+
+  state.streamTtsCursor = cursor;
+  for (const sentence of sentences) {
+    state.streamTtsQueue.push(sentence);
+  }
+  void drainStreamTtsQueue();
+}
+
+async function speakStreamChunk(text) {
+  const payload = String(text || "").trim();
+  if (!payload) return;
+
+  const synth = getSpeechSynth();
+  if (!synth) return;
+
+  state.speaking = true;
+  if ((state.shellState?.phase || "waiting") !== "speaking") {
+    await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
+  }
+
+  await new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(payload);
+    utterance.lang = "ru-RU";
+    utterance.rate = 1;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    synth.speak(utterance);
+  });
+}
+
+async function drainStreamTtsQueue() {
+  if (state.streamTtsActive) return;
+  state.streamTtsActive = true;
+  try {
+    while (state.streamTtsQueue.length) {
+      const chunk = state.streamTtsQueue.shift();
+      await speakStreamChunk(chunk);
+    }
+  } finally {
+    state.streamTtsActive = false;
+  }
+}
+
+function finalizeAssistantStream(message) {
+  const stream = state.assistantStream;
+  const streamId = String(message?.streamId || message?.id || stream?.id || "");
+  const body = String(message?.body || stream?.text || "").trim();
+  if (!body) return false;
+  if (stream?.finalized && stream.id === streamId) return true;
+
+  state.assistantStream = { id: streamId, text: body, done: true, finalized: true };
+  nodes.replyPanel?.classList.remove("is-streaming");
+  renderShellReply({ ...message, body });
+
+  if (
+    state.settings?.ttsEnabled &&
+    state.settings?.ttsEngine !== "sidecar" &&
+    state.settings?.ttsEngine !== "say"
+  ) {
+    const speech = toSpeechText(body);
+    const tail = speech.slice(state.streamTtsCursor).trim();
+    if (tail) {
+      state.streamTtsQueue.push(tail);
+      state.streamTtsCursor = speech.length;
+    }
+    void finishStreamTtsWhenIdle();
+  } else {
+    state.assistantStream = null;
+  }
+  return true;
+}
+
+async function finishStreamTtsWhenIdle() {
+  await drainStreamTtsQueue();
+  state.speaking = false;
+  state.assistantStream = null;
+  if (!state.pttHeld && !state.micActive) {
+    await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
+    renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
+  }
+}
+
+function handleAssistantDelta(payload) {
+  const streamId = String(payload?.streamId || "").trim();
+  const text = String(payload?.text ?? "");
+  const done = Boolean(payload?.done);
+
+  if (!state.assistantStream) {
+    beginAssistantStream({ streamId: streamId || undefined });
+  } else if (streamId && state.assistantStream.id !== streamId) {
+    if (String(state.assistantStream.id).startsWith("local-")) {
+      state.assistantStream.id = streamId;
+    } else {
+      beginAssistantStream({ streamId });
+    }
+  }
+
+  state.assistantStream.text = text;
+  state.assistantStream.done = done;
+  renderStreamingAssistantText(text);
+  queueStreamSpeech(text);
+
+  if (done) {
+    finalizeAssistantStream({ streamId, id: streamId, body: text });
+    if (!state.settings?.ttsEnabled || state.settings?.ttsEngine === "sidecar" || state.settings?.ttsEngine === "say") {
+      renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
+    }
+  } else {
+    renderPhase("thinking", "Печатает…");
+  }
 }
 
 function getCameraConstraints() {
@@ -762,7 +913,8 @@ function applyStatusPayload(payload) {
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   updateQwenPawChatUi(payload);
   if (payload?.latestAgentMessage?.body) {
-    renderShellReply(payload.latestAgentMessage);
+    const streaming = state.assistantStream && !state.assistantStream.finalized;
+    if (!streaming) renderShellReply(payload.latestAgentMessage);
   }
 }
 
@@ -839,6 +991,9 @@ async function sendMessage(body) {
   const text = String(body || "").trim();
   if (!text) return;
   nodes.sendBtn.disabled = true;
+  const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
+  const streamingQwenPaw = usesQwenPawTarget(target);
+  if (streamingQwenPaw) beginAssistantStream({});
   try {
     await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
@@ -847,11 +1002,15 @@ async function sendMessage(body) {
     });
     nodes.message.value = "";
     if (result?.reply || result?.message?.body) {
-      await handleAssistantMessage(result.message || { body: result.reply });
+      await handleAssistantMessage(result.message || { body: result.reply, streamId: result.streamId });
     } else {
       await refreshStatus();
     }
   } catch (error) {
+    if (streamingQwenPaw && state.assistantStream && !state.assistantStream.finalized) {
+      nodes.replyPanel?.classList.remove("is-streaming");
+      state.assistantStream = null;
+    }
     renderPhase("waiting", error.message);
   } finally {
     nodes.sendBtn.disabled = false;
@@ -863,6 +1022,7 @@ function getSpeechSynth() {
 }
 
 function stopBrowserTts() {
+  state.streamTtsQueue = [];
   const synth = getSpeechSynth();
   if (synth) synth.cancel();
   state.speaking = false;
@@ -900,7 +1060,23 @@ let lastSpokenBody = "";
 async function handleAssistantMessage(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
   if (!body) return;
-  const messageId = String(message?.id || message?.message?.id || body.slice(0, 120));
+  const messageId = String(message?.id || message?.streamId || message?.message?.id || body.slice(0, 120));
+  const stream = state.assistantStream;
+
+  if (
+    stream?.finalized &&
+    (stream.id === message?.streamId || stream.id === messageId || stream.text === body)
+  ) {
+    lastHandledAssistantId = messageId;
+    return;
+  }
+
+  if (stream && !stream.finalized) {
+    finalizeAssistantStream(message);
+    lastHandledAssistantId = messageId;
+    return;
+  }
+
   if (messageId && messageId === lastHandledAssistantId) return;
   lastHandledAssistantId = messageId;
   renderShellReply(message);
@@ -941,6 +1117,15 @@ function connectStream() {
     try {
       const payload = JSON.parse(event.data);
       void handleAssistantMessage(payload.message || payload.payload || payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("assistant_delta", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      handleAssistantDelta(payload);
     } catch {
       // ignore malformed event
     }
@@ -1274,7 +1459,7 @@ async function boot() {
   setupSpeechRecognition();
   startClock();
   void initBatteryMonitor();
-  void initShellCharacter(nodes.characterStage);
+  void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
     await resolveShellAgent();
     await topicPicker.refresh();

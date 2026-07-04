@@ -52,7 +52,7 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 | POST | `/api/shell/camera/snapshot/complete` | Shell UI: ответ на запрос кадра |
 | POST | `/api/shell/camera/speech-snapshot` | Кадр при речи (VAD) или вручную |
 | GET | `/api/shell/camera/latest?kind=speech\|manual` | Последний сохранённый кадр |
-| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, camera_snapshot_request, screen_snapshot_request |
+| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, assistant_delta, camera_snapshot_request, screen_snapshot_request |
 
 Настройки хранятся в workspace агента: `.agent-shell/settings.json`.
 
@@ -88,8 +88,8 @@ HTTP: `POST /api/shell/screen/snapshot`, `GET /api/shell/screen/latest?kind=spee
 
 1. В UI выберите **Куда отправлять → QwenPaw**.
 2. Shell шлёт текст на `POST http://127.0.0.1:8088/api/console/chat` (заголовок `X-Agent-Id`).
-3. Ответ парсится из SSE, озвучивается в Shell.
-4. Режим **QwenPaw + лог в CMS** дополнительно пишет диалог в thread CMS.
+3. Ответ стримится из QwenPaw: Shell показывает текст по мере генерации (`assistant_delta` по SSE), затем финализирует markdown и TTS по предложениям.
+4. Режим **QwenPaw + лог в CMS** дополнительно пишет диалог в thread CMS (ответ — целиком; при обрыве — сохраняется часть).
 
 Настройки QwenPaw: `qwenpawBaseUrl`, `qwenpawAgentId`, `qwenpawSessionId` в `.agent-shell/settings.json`.
 

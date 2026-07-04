@@ -131,20 +131,7 @@ function createShellHandlers(deps) {
             agentRoot,
             agentId,
             settings,
-            body,
-            onProgress: (progress) => {
-              void shellService.patchState(agentRoot, agentId, {
-                phase: shellService.PHASE_THINKING,
-                phrase: progress?.status === "created" ? "QwenPaw думает…" : body.slice(0, 240)
-              });
-            }
-          });
-          shellService.emitShellEvent(agentId, "assistant_message", result.message);
-          await shellService.patchState(agentRoot, agentId, {
-            phase: shellService.PHASE_WAITING,
-            phrase: "",
-            lastAgentMessageId: result.message.id,
-            lastShellReply: result.reply
+            body
           });
         } else {
           result = await shellService.sendUserMessage(deps, {

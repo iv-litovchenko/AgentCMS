@@ -2,10 +2,10 @@
   "phase": "waiting",
   "phrase": "Готов к сообщению",
   "metrics": "",
-  "lastAgentMessageId": "qwenpaw-1783195893802",
-  "lastShellReply": "Ла-ла-ла-ла-ла-ла-ла-ла-ла-ла-ла 🎶🎵\n\n*(это была очень мелодичная ла-ла-ла, с нотками джаза и лёгким послевкусием лета)* 😄",
-  "stopTtsAt": 0,
+  "lastAgentMessageId": "qwenpaw-1783197834190-cgm9uq",
+  "lastShellReply": "Привет-привет! 🙌\n\nРада тебя видеть. Как настроение сегодня?",
+  "stopTtsAt": 1783196268343,
   "sidecarSeenAt": 0,
   "pttHeld": false,
-  "updatedAt": "2026-07-04T20:11:46.065Z"
+  "updatedAt": "2026-07-04T20:44:04.823Z"
 }

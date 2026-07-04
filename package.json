@@ -9,7 +9,7 @@
     "start": "node server.js",
     "mcp": "node mcp-server/index.js",
     "shell:sidecar": "bash agent-shell/voice-sidecar/run.sh",
-    "postinstall": "mkdir -p public/vendor && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && cp node_modules/mammoth/mammoth.browser.min.js public/vendor/mammoth.browser.min.js && cp node_modules/xlsx/dist/xlsx.full.min.js public/vendor/xlsx.full.min.js && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/vendor/highlight-github.min.css",
+    "postinstall": "mkdir -p public/vendor public/shell/vendor/loaders public/shell/vendor/utils && cp node_modules/markdown-it/dist/markdown-it.min.js public/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/vendor/toastui-editor.css && cp node_modules/mammoth/mammoth.browser.min.js public/vendor/mammoth.browser.min.js && cp node_modules/xlsx/dist/xlsx.full.min.js public/vendor/xlsx.full.min.js && cp node_modules/three/build/three.module.js public/shell/vendor/three.module.js && cp node_modules/three/examples/jsm/loaders/GLTFLoader.js public/shell/vendor/loaders/GLTFLoader.js && cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js public/shell/vendor/utils/BufferGeometryUtils.js && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/vendor/highlight-github.min.css",
     "cms:desktop": "electron .",
     "cms:pack": "electron-builder --dir && node scripts/flatten-desktop-dist.js agent-cms",
     "cms:dist": "electron-builder && node scripts/flatten-desktop-dist.js agent-cms",
@@ -34,7 +34,8 @@
   },
   "devDependencies": {
     "electron": "^35.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "three": "^0.170.0"
   },
   "build": {
     "appId": "com.agentcms.desktop",

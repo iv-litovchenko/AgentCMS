@@ -7,7 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=41" />
+    <link rel="stylesheet" href="/shell/shell.css?v=47" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/shell/vendor/three.module.js"
+        }
+      }
+    </script>
   </head>
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
@@ -502,6 +509,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <section class="shell-character-stage" id="shell-character-stage" data-phase="waiting" aria-hidden="true">
         <div class="shell-character-viewport" id="shell-character-viewport"></div>
+        <div class="shell-character-picker-wrap">
+          <div class="shell-character-picker" id="shell-character-picker" role="listbox" aria-label="Модель персонажа"></div>
+        </div>
       </section>
 
       <section class="shell-route-panel hidden" id="shell-route-panel">
@@ -755,6 +765,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=35" type="module"></script>
+    <script src="/shell/shell.js?v=46" type="module"></script>
   </body>
 </html>

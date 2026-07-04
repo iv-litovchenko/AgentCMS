@@ -90,6 +90,26 @@ export function toSpeechText(body) {
   return speech.trim();
 }
 
+const SENTENCE_END_RE = /[.!?…](?:\s+|$)|\n+/;
+
+export function pullSpeechSentences(speechText, fromIndex = 0) {
+  const sentences = [];
+  let cursor = Math.max(0, Number(fromIndex) || 0);
+  const source = String(speechText || "");
+
+  while (cursor < source.length) {
+    const tail = source.slice(cursor);
+    const match = tail.match(SENTENCE_END_RE);
+    if (!match || match.index === undefined) break;
+    const end = cursor + match.index + match[0].length;
+    const chunk = source.slice(cursor, end).trim();
+    cursor = end;
+    if (chunk) sentences.push(chunk);
+  }
+
+  return { sentences, cursor };
+}
+
 export function renderShellReplyMedia(containerEl, shows, agentId) {
   if (!containerEl) return;
   containerEl.innerHTML = "";
