@@ -11,6 +11,8 @@
   --warn: #ffd166;
   --danger: #ff6b8a;
   --speak: #58c4ff;
+  --shell-panel-inset-x: 14px;
+  --shell-panel-inset-y: 12px;
 }
 
 * {
@@ -76,6 +78,29 @@ body.shell-window-transparent {
   align-items: center;
   flex: 1;
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+}
+
+.shell-brand:hover {
+  background: rgba(124, 108, 255, 0.1);
+}
+
+.shell-brand:focus-visible {
+  outline: 2px solid rgba(124, 108, 255, 0.65);
+  outline-offset: 2px;
+}
+
+.shell-brand[aria-pressed="true"] .shell-logo {
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.45);
 }
 
 .shell-logo {
@@ -171,16 +196,94 @@ body.shell-window-transparent {
 }
 
 .shell-hero {
+  padding: var(--shell-panel-inset-y) var(--shell-panel-inset-x);
+}
+
+.shell-hero-layout {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
 }
 
-.shell-hero-actions {
+.shell-hero-body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: start;
+}
+
+.shell-hero-main {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.shell-hero-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shell-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(12, 14, 28, 0.55);
+  border: 1px solid rgba(122, 108, 255, 0.16);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shell-link-chip-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-meta-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.shell-reply-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shell-reply-tts {
+  margin: 0;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.shell-reply-tts input {
+  margin: 0;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.shell-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .shell-route-toggle[aria-pressed="true"],
@@ -249,21 +352,32 @@ body.shell-window-transparent {
   margin-top: 0;
 }
 
-.shell-compose-panel .shell-btn--primary {
-  width: 100%;
+.shell-compose-panel .shell-compose-actions .shell-btn--primary {
+  flex: 1;
+  width: auto;
+}
+
+.shell-compose-stop {
+  flex: 0 0 auto;
+  min-width: 88px;
+}
+
+.shell-compose-stop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .shell-compose-head {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .shell-message-queue {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding: 12px;
-  border-radius: 14px;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
   background: rgba(8, 10, 22, 0.48);
   border: 1px solid rgba(122, 108, 255, 0.22);
 }
@@ -272,23 +386,19 @@ body.shell-window-transparent {
   display: none;
 }
 
-.shell-message-queue-head {
+.shell-message-queue-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-}
-
-.shell-message-queue-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
+  min-height: 0;
 }
 
 .shell-message-queue-count {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
   border-radius: 999px;
   background: rgba(155, 89, 255, 0.16);
   color: #c4b8ff;
@@ -300,45 +410,45 @@ body.shell-window-transparent {
 
 .shell-message-queue-active {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(88, 196, 255, 0.07);
-  border: 1px solid rgba(88, 196, 255, 0.22);
-  box-shadow: inset 3px 0 0 #58c4ff;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(88, 196, 255, 0.08);
+  border: 1px solid rgba(88, 196, 255, 0.18);
 }
 
 .shell-message-queue-active.hidden {
   display: none;
 }
 
-.shell-message-queue-active-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.shell-message-queue-active-hint {
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .shell-message-queue-badge {
-  font-size: 11px;
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1;
+  color: #58c4ff;
+  animation: shell-queue-pulse 1.2s ease-in-out infinite;
+}
+
+.shell-message-queue-active-label {
+  flex: 0 0 auto;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
   color: #7ec8ff;
 }
 
 .shell-message-queue-text {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 12px;
+  line-height: 1.35;
   color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .shell-message-queue-list {
@@ -347,13 +457,13 @@ body.shell-window-transparent {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
+  gap: 4px;
+  max-height: 108px;
   overflow: auto;
 }
 
 .shell-message-queue-list::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .shell-message-queue-list::-webkit-scrollbar-thumb {
@@ -362,100 +472,88 @@ body.shell-window-transparent {
 }
 
 .shell-message-queue-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 8px;
   background: rgba(18, 20, 38, 0.78);
-  border: 1px solid rgba(122, 108, 255, 0.18);
+  border: 1px solid rgba(122, 108, 255, 0.16);
 }
 
 .shell-message-queue-item.is-editing {
-  border-color: rgba(155, 89, 255, 0.38);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  border-color: rgba(155, 89, 255, 0.34);
   background: rgba(24, 18, 44, 0.86);
-  box-shadow: 0 0 0 1px rgba(155, 89, 255, 0.12);
+}
+
+.shell-message-queue-item.is-editing .shell-message-queue-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shell-message-queue-item.is-editing .shell-message-queue-item-body {
+  grid-column: auto;
+}
+
+.shell-message-queue-item.is-editing .shell-message-queue-item-actions {
+  grid-column: auto;
+  justify-content: flex-end;
 }
 
 .shell-message-queue-item-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: contents;
 }
 
 .shell-message-queue-index {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border-radius: 999px;
   background: rgba(155, 89, 255, 0.18);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #d6cbff;
-}
-
-.shell-message-queue-item-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.shell-message-queue-item.is-editing .shell-message-queue-item-label {
-  color: #c4b8ff;
 }
 
 .shell-message-queue-item-body {
   min-width: 0;
 }
 
+.shell-message-queue-item.is-editing .shell-message-queue-item-body {
+  min-width: 0;
+}
+
 .shell-message-queue-item-text {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.35;
   color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
   cursor: text;
-}
-
-.shell-message-queue-edit-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.shell-message-queue-edit-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #c4b8ff;
-}
-
-.shell-message-queue-edit-hint {
-  font-size: 10px;
-  color: var(--muted);
-  text-align: right;
 }
 
 .shell-message-queue-edit {
   width: 100%;
-  min-height: 72px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: 1px solid rgba(155, 89, 255, 0.34);
   background: rgba(8, 10, 22, 0.78);
   color: var(--text);
   font: inherit;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
   resize: vertical;
 }
 
@@ -466,11 +564,14 @@ body.shell-window-transparent {
 }
 
 .shell-message-queue-item-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(122, 108, 255, 0.12);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.shell-message-queue-item.is-editing .shell-message-queue-item-actions {
+  justify-content: flex-end;
 }
 
 .shell-message-queue-action {
@@ -488,6 +589,15 @@ body.shell-window-transparent {
   line-height: 1.2;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.shell-message-queue-action--compact {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .shell-message-queue-action:hover {
@@ -511,15 +621,14 @@ body.shell-window-transparent {
   color: var(--muted);
 }
 
-.shell-message-queue-footnote {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.shell-message-queue-footnote.hidden {
-  display: none;
+@keyframes shell-queue-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .shell-route-panel .shell-field:last-child {
@@ -654,6 +763,17 @@ body.shell-window-transparent {
     linear-gradient(180deg, rgba(18, 20, 38, 0.55) 0%, rgba(18, 20, 38, 0.82) 100%);
   border: 1px solid rgba(122, 108, 255, 0.24);
   box-shadow: inset 0 1px 0 rgba(238, 240, 255, 0.06);
+}
+
+.shell-character-toggle {
+  position: absolute;
+  top: var(--shell-panel-inset-y);
+  right: var(--shell-panel-inset-x);
+  z-index: 3;
+}
+
+.shell-character-picker-wrap.hidden {
+  display: none;
 }
 
 .shell-character-canvas {
@@ -873,27 +993,22 @@ body.shell-window-transparent {
   min-width: 0;
 }
 
-.shell-status-head {
+.shell-phase-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
-.shell-status-extra {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--muted);
+.shell-phase-row .shell-tts-controls {
+  margin-left: 2px;
 }
 
 .shell-battery {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .shell-battery.hidden {
@@ -1024,10 +1139,6 @@ body.shell-window-transparent {
   gap: 8px;
 }
 
-.shell-voice-tts {
-  margin: 0;
-}
-
 .shell-media--drawer.hidden {
   display: none;
 }
@@ -1091,7 +1202,117 @@ body.shell-window-transparent {
   font-size: 16px;
   font-weight: 700;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.shell-voice-wave {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.shell-voice-wave.hidden {
+  display: none;
+}
+
+.shell-voice-wave span {
+  display: block;
+  width: 3px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #9ee8ff 0%, #58c4ff 100%);
+  box-shadow: 0 0 8px rgba(88, 196, 255, 0.45);
+  transform-origin: center bottom;
+  animation: shell-voice-bar 0.85s ease-in-out infinite;
+}
+
+.shell-voice-wave span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.shell-voice-wave span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.shell-voice-wave span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.shell-voice-wave span:nth-child(4) {
+  animation-delay: 0.16s;
+}
+
+.shell-voice-wave span:nth-child(5) {
+  animation-delay: 0.08s;
+}
+
+.shell-voice-wave.is-paused span {
+  animation-play-state: paused;
+  opacity: 0.55;
+}
+
+.shell-tts-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.shell-tts-controls.hidden {
+  display: none;
+}
+
+.shell-tts-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgba(122, 108, 255, 0.32);
+  background: rgba(12, 14, 28, 0.72);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.shell-tts-btn:hover {
+  border-color: rgba(124, 108, 255, 0.55);
+  background: rgba(124, 108, 255, 0.16);
+}
+
+.shell-tts-btn:active {
+  transform: scale(0.96);
+}
+
+.shell-tts-btn.hidden {
+  display: none;
+}
+
+.shell-tts-btn--stop {
+  border-color: rgba(255, 107, 138, 0.35);
+}
+
+.shell-tts-btn--stop:hover {
+  border-color: rgba(255, 107, 138, 0.62);
+  background: rgba(255, 107, 138, 0.14);
+}
+
+@keyframes shell-voice-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 
 .shell-status-phrase {
@@ -1206,8 +1427,11 @@ body.shell-compact {
 }
 
 .shell-app[data-compact="1"] .shell-hero {
-  grid-template-columns: 52px minmax(0, 1fr) auto;
   padding: 10px 12px;
+}
+
+.shell-app[data-compact="1"] .shell-hero-layout {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
   gap: 10px;
 }
 
@@ -1226,6 +1450,11 @@ body.shell-compact {
   height: 52px;
 }
 
+.shell-app[data-compact="1"] .shell-meta-chip {
+  padding: 2px 7px;
+  font-size: 10px;
+}
+
 .shell-app[data-compact="1"] .shell-agent-svg {
   width: 52px;
   height: 52px;
@@ -1235,9 +1464,23 @@ body.shell-compact {
   font-size: 13px;
 }
 
-.shell-app[data-compact="1"] .shell-status-extra {
-  gap: 6px;
+.shell-app[data-compact="1"] .shell-voice-wave {
+  height: 14px;
+}
+
+.shell-app[data-compact="1"] .shell-voice-wave span {
+  width: 2px;
+  height: 11px;
+}
+
+.shell-app[data-compact="1"] .shell-tts-btn {
+  width: 24px;
+  height: 24px;
   font-size: 10px;
+}
+
+.shell-app[data-compact="1"] .shell-hero-meta {
+  gap: 6px;
 }
 
 .shell-app[data-compact="1"] .shell-battery-level {

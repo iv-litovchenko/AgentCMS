@@ -5,6 +5,7 @@ import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
+import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -30,6 +31,7 @@ const state = {
   eventSource: null,
   recognition: null,
   speaking: false,
+  ttsPaused: false,
   micActive: false,
   pttHeld: false,
   sidecarConnected: false,
@@ -45,6 +47,7 @@ const state = {
   view: "main",
   chatOpen: true,
   routeOpen: false,
+  characterPickerOpen: false,
   mediaMode: "",
   clockTimer: null,
   assistantStream: null,
@@ -53,8 +56,46 @@ const state = {
   streamTtsCursor: 0,
   messagePipelineBusy: false,
   processingMessage: "",
-  queueEditingId: ""
+  queueEditingId: "",
+  messageStopped: false
 };
+
+let messageSendAbortController = null;
+let ttsTabCoordinator = null;
+
+function yieldLocalTtsPlayback(reason = "yield") {
+  state.streamTtsQueue = [];
+  state.ttsPaused = false;
+  const synth = getSpeechSynth();
+  if (synth) synth.cancel();
+  state.speaking = false;
+  state.streamTtsActive = false;
+  renderPhase(state.shellState?.phase || "waiting", state.shellState?.phrase || "", state.shellState?.metrics || "");
+  if (reason === "remote-stop" && !state.pttHeld && !state.micActive) {
+    void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).then(() => {
+      renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+    });
+  }
+}
+
+function canPlayBrowserTts() {
+  if (!isBrowserTtsEngine()) return false;
+  if (document.visibilityState === "visible") ttsTabCoordinator?.claimLeader();
+  if (!ttsTabCoordinator?.isLeader()) return false;
+  return document.visibilityState === "visible";
+}
+
+function isTypingTarget(element) {
+  if (!element || !(element instanceof HTMLElement)) return false;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable;
+}
+
+function toggleTtsPauseResume() {
+  if (!isTtsPlaybackActive()) return;
+  if (state.ttsPaused) resumeBrowserTts();
+  else pauseBrowserTts();
+}
 
 const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
@@ -83,16 +124,25 @@ const nodes = {
   voiceMode: document.getElementById("shell-voice-mode"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
+  sendStopBtn: document.getElementById("shell-send-stop"),
   micBtn: document.getElementById("shell-mic-btn"),
-  stopTtsBtn: document.getElementById("shell-stop-tts"),
+  ttsControls: document.getElementById("shell-tts-controls"),
+  ttsPauseBtn: document.getElementById("shell-tts-pause"),
+  ttsResumeBtn: document.getElementById("shell-tts-resume"),
+  ttsStopBtn: document.getElementById("shell-tts-stop"),
+  voiceWave: document.getElementById("shell-voice-wave"),
   settingsBtn: document.getElementById("shell-settings-btn"),
   homeBtn: document.getElementById("shell-home-btn"),
+  homeBrand: document.getElementById("shell-home-brand"),
   openCmsBtn: document.getElementById("shell-open-cms"),
   shellApp: document.getElementById("shell-app"),
   mainView: document.getElementById("shell-main-view"),
   subtitle: document.getElementById("shell-subtitle"),
   agentAvatar: document.getElementById("shell-agent-avatar"),
   characterStage: document.getElementById("shell-character-stage"),
+  characterToggle: document.getElementById("shell-character-toggle"),
+  characterPickerWrap: document.getElementById("shell-character-picker-wrap"),
+  characterPicker: document.getElementById("shell-character-picker"),
   sessionToggle: document.getElementById("shell-session-toggle"),
   replyPanel: document.getElementById("shell-reply-panel"),
   composePanel: document.getElementById("shell-compose-panel"),
@@ -100,7 +150,6 @@ const nodes = {
   messageQueueActive: document.getElementById("shell-message-queue-active"),
   messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
   messageQueueCount: document.getElementById("shell-message-queue-count"),
-  messageQueueFootnote: document.getElementById("shell-message-queue-footnote"),
   messageQueueList: document.getElementById("shell-message-queue-list"),
   routeToggle: document.getElementById("shell-route-toggle"),
   routePanel: document.getElementById("shell-route-panel"),
@@ -112,6 +161,9 @@ const nodes = {
   batteryFill: document.getElementById("shell-battery-fill"),
   batteryLevel: document.getElementById("shell-battery-level"),
   clock: document.getElementById("shell-clock"),
+  linkChip: document.getElementById("shell-link-chip"),
+  linkChipDot: document.getElementById("shell-link-chip-dot"),
+  linkChipLabel: document.getElementById("shell-link-chip-label"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
@@ -204,6 +256,45 @@ function formatShellClock(date = new Date()) {
   }).format(date);
 }
 
+const ROUTE_CHIP_LABELS = {
+  qwenpaw: "QwenPaw",
+  "qwenpaw-log": "QwenPaw",
+  cms: "CMS"
+};
+
+function renderHeroLinkChip() {
+  if (!nodes.linkChip || !nodes.linkChipDot || !nodes.linkChipLabel) return;
+  const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
+  const label = ROUTE_CHIP_LABELS[target] || "CMS";
+  const streamLive = state.eventSource?.readyState === EventSource.OPEN;
+  const online = navigator.onLine !== false;
+  const usesQwen = usesQwenPawTarget(target);
+  let status = "off";
+  let dot = "🔴";
+  let title = `${label} · нет связи`;
+
+  if (usesQwen) {
+    if (state.qwenpawConnected && streamLive && online) {
+      status = "ok";
+      dot = "🟢";
+      title = `${label} · на связи`;
+    } else if (streamLive || state.qwenpawConnected) {
+      status = "partial";
+      dot = "🟡";
+      title = `${label} · частично`;
+    }
+  } else if (streamLive && online) {
+    status = "ok";
+    dot = "🟢";
+    title = `${label} · на связи`;
+  }
+
+  nodes.linkChip.dataset.status = status;
+  nodes.linkChipDot.textContent = dot;
+  nodes.linkChipLabel.textContent = label;
+  nodes.linkChip.title = title;
+}
+
 function renderClock() {
   if (!nodes.clock) return;
   const now = new Date();
@@ -256,13 +347,104 @@ function livePhraseFromStatus(shellState, latestAgentMessage) {
   return phrase;
 }
 
+function resolveDisplayPhase(requestedPhase = "waiting") {
+  const phase = PHASE_LABELS[requestedPhase] ? requestedPhase : "waiting";
+
+  if (phase === "disabled") return "disabled";
+  if (state.micActive || state.pttHeld) return "listening";
+  if (isTtsPlaybackActive() && isBrowserTtsEngine()) return "speaking";
+  if (
+    !isBrowserTtsEngine() &&
+    phase === "speaking" &&
+    state.settings?.ttsEnabled !== false
+  ) {
+    return "speaking";
+  }
+  if (state.assistantStream && !state.assistantStream.finalized) return "thinking";
+  if (state.messagePipelineBusy) return "thinking";
+  if (phase === "speaking") return "waiting";
+
+  return phase;
+}
+
+function maybeResetStaleSpeakingPhase() {
+  if (state.shellState?.phase !== "speaking") return;
+  if (isTtsPlaybackActive()) return;
+  if (!isBrowserTtsEngine()) return;
+  if (ttsTabCoordinator && !ttsTabCoordinator.isLeader()) return;
+  void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
+}
+
 function renderPhase(phase, phrase = "", metrics = "") {
-  const normalized = PHASE_LABELS[phase] ? phase : "waiting";
-  nodes.phaseLabel.textContent = PHASE_LABELS[normalized];
+  const displayPhase = resolveDisplayPhase(phase);
+  if (!state.ttsPaused) {
+    nodes.phaseLabel.textContent = PHASE_LABELS[displayPhase];
+  }
   nodes.meta.textContent = metrics || "";
-  nodes.pulse.dataset.phase = normalized;
-  if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = normalized;
-  if (nodes.characterStage) nodes.characterStage.dataset.phase = normalized;
+  nodes.pulse.dataset.phase = displayPhase;
+  if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = displayPhase;
+  if (nodes.characterStage) nodes.characterStage.dataset.phase = displayPhase;
+  updateTtsControlsUi(displayPhase);
+}
+
+function isBrowserTtsEngine() {
+  return (
+    state.settings?.ttsEnabled !== false &&
+    state.settings?.ttsEngine !== "sidecar" &&
+    state.settings?.ttsEngine !== "say"
+  );
+}
+
+function isTtsPlaybackActive() {
+  if (state.ttsPaused) return true;
+  if (state.streamTtsActive || state.streamTtsQueue.length) return true;
+  return Boolean(state.speaking);
+}
+
+function waitWhileTtsPaused() {
+  if (!state.ttsPaused) return Promise.resolve();
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (!state.ttsPaused) {
+        resolve();
+        return;
+      }
+      setTimeout(tick, 80);
+    };
+    tick();
+  });
+}
+
+function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase || nodes.pulse?.dataset.phase || "waiting")) {
+  const browserTts = isBrowserTtsEngine();
+  const playbackActive = browserTts && isTtsPlaybackActive();
+
+  nodes.ttsControls?.classList.toggle("hidden", !playbackActive);
+  nodes.ttsPauseBtn?.classList.toggle("hidden", !playbackActive || state.ttsPaused);
+  nodes.ttsResumeBtn?.classList.toggle("hidden", !playbackActive || !state.ttsPaused);
+
+  const showWave = browserTts && playbackActive;
+  nodes.voiceWave?.classList.toggle("hidden", !showWave);
+  nodes.voiceWave?.classList.toggle("is-paused", Boolean(state.ttsPaused));
+  updateSendButtonLabel();
+}
+
+function pauseBrowserTts() {
+  if (!isTtsPlaybackActive()) return;
+  const synth = getSpeechSynth();
+  if (synth?.speaking && !synth.paused) synth.pause();
+  state.ttsPaused = true;
+  if (nodes.phaseLabel) nodes.phaseLabel.textContent = "⏸ Пауза";
+  updateTtsControlsUi("speaking");
+}
+
+function resumeBrowserTts() {
+  if (!state.ttsPaused) return;
+  const synth = getSpeechSynth();
+  if (synth?.paused) synth.resume();
+  state.ttsPaused = false;
+  if (nodes.phaseLabel) nodes.phaseLabel.textContent = PHASE_LABELS.speaking;
+  updateTtsControlsUi("speaking");
 }
 
 function renderShellReply(message) {
@@ -331,6 +513,7 @@ function renderStreamingAssistantText(text) {
 }
 
 function queueStreamSpeech(fullBody) {
+  if (!canPlayBrowserTts()) return;
   if (!state.settings?.ttsEnabled) return;
   if (state.settings?.ttsEngine === "sidecar" || state.settings?.ttsEngine === "say") return;
 
@@ -350,11 +533,13 @@ function queueStreamSpeech(fullBody) {
 async function speakStreamChunk(text) {
   const payload = String(text || "").trim();
   if (!payload) return;
+  if (!canPlayBrowserTts()) return;
 
   const synth = getSpeechSynth();
   if (!synth) return;
 
   state.speaking = true;
+  updateTtsControlsUi("speaking");
   if ((state.shellState?.phase || "waiting") !== "speaking") {
     await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
   }
@@ -367,18 +552,26 @@ async function speakStreamChunk(text) {
     utterance.onerror = () => resolve();
     synth.speak(utterance);
   });
+
+  if (!state.streamTtsQueue.length) {
+    state.speaking = false;
+  }
 }
 
 async function drainStreamTtsQueue() {
   if (state.streamTtsActive) return;
   state.streamTtsActive = true;
+  updateTtsControlsUi("speaking");
   try {
     while (state.streamTtsQueue.length) {
+      await waitWhileTtsPaused();
+      if (!state.streamTtsQueue.length) break;
       const chunk = state.streamTtsQueue.shift();
       await speakStreamChunk(chunk);
     }
   } finally {
     state.streamTtsActive = false;
+    updateTtsControlsUi(state.shellState?.phase || "waiting");
   }
 }
 
@@ -397,7 +590,8 @@ function finalizeAssistantStream(message) {
   if (
     state.settings?.ttsEnabled &&
     state.settings?.ttsEngine !== "sidecar" &&
-    state.settings?.ttsEngine !== "say"
+    state.settings?.ttsEngine !== "say" &&
+    canPlayBrowserTts()
   ) {
     const speech = toSpeechText(body);
     const tail = speech.slice(state.streamTtsCursor).trim();
@@ -417,6 +611,7 @@ function releaseMessagePipeline() {
   state.messagePipelineBusy = false;
   state.processingMessage = "";
   renderMessageQueue();
+  updateSendButtonLabel();
   void drainOutboundQueue();
 }
 
@@ -433,6 +628,37 @@ function updateSendButtonLabel() {
   } else {
     nodes.sendBtn.textContent = "Отправить";
   }
+  const stopActive = Boolean(
+    state.messagePipelineBusy ||
+      state.processingMessage ||
+      (state.assistantStream && !state.assistantStream.finalized) ||
+      state.streamTtsActive ||
+      state.streamTtsQueue.length ||
+      state.speaking
+  );
+  if (nodes.sendStopBtn) nodes.sendStopBtn.disabled = !stopActive;
+}
+
+async function stopActiveMessage() {
+  if (nodes.sendStopBtn?.disabled) return;
+  state.messageStopped = true;
+  messageSendAbortController?.abort();
+  messageSendAbortController = null;
+  outboundQueue.length = 0;
+  state.queueEditingId = "";
+  state.processingMessage = "";
+  if (state.assistantStream && !state.assistantStream.finalized) {
+    nodes.replyPanel?.classList.remove("is-streaming");
+    state.assistantStream = null;
+  }
+  state.streamTtsQueue = [];
+  state.streamTtsCursor = 0;
+  stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true });
+  renderMessageQueue();
+  releaseMessagePipeline();
+  await patchShellState({ phase: "waiting", phrase: "Остановлено" }).catch(() => {});
+  renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+  updateSendButtonLabel();
 }
 
 function removeOutboundMessage(id) {
@@ -483,10 +709,12 @@ function moveOutboundMessageToDraft(id) {
   updateSendButtonLabel();
 }
 
-function createQueueAction(label, { variant = "", onClick, ariaLabel = label } = {}) {
+function createQueueAction(label, { variant = "", onClick, ariaLabel = label, compact = false } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = ["shell-message-queue-action", variant].filter(Boolean).join(" ");
+  btn.className = ["shell-message-queue-action", compact ? "shell-message-queue-action--compact" : "", variant]
+    .filter(Boolean)
+    .join(" ");
   btn.textContent = label;
   btn.setAttribute("aria-label", ariaLabel);
   btn.addEventListener("click", onClick);
@@ -500,12 +728,11 @@ function renderMessageQueue() {
 
   nodes.messageQueue?.classList.toggle("hidden", !showQueue);
   nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
-  nodes.messageQueueFootnote?.classList.toggle("hidden", !showQueue);
   if (nodes.messageQueueActiveText) {
     nodes.messageQueueActiveText.textContent = state.processingMessage || "";
   }
   if (nodes.messageQueueCount) {
-    nodes.messageQueueCount.textContent = hasQueued ? `${outboundQueue.length} ждут` : "";
+    nodes.messageQueueCount.textContent = hasQueued ? `+${outboundQueue.length}` : "";
   }
 
   if (!nodes.messageQueueList) {
@@ -526,34 +753,17 @@ function renderMessageQueue() {
     order.className = "shell-message-queue-index";
     order.textContent = String(index + 1);
 
-    const status = document.createElement("span");
-    status.className = "shell-message-queue-item-label";
-    status.textContent = isEditing ? "Редактирование" : "В очереди";
-
-    head.append(order, status);
+    head.append(order);
 
     const body = document.createElement("div");
     body.className = "shell-message-queue-item-body";
 
     if (isEditing) {
-      const meta = document.createElement("div");
-      meta.className = "shell-message-queue-edit-meta";
-
-      const title = document.createElement("span");
-      title.className = "shell-message-queue-edit-title";
-      title.textContent = "Текст сообщения";
-
-      const hint = document.createElement("span");
-      hint.className = "shell-message-queue-edit-hint";
-      hint.textContent = "⌘↩ сохранить · Esc отмена";
-
-      meta.append(title, hint);
-
       const editor = document.createElement("textarea");
       editor.className = "shell-message-queue-edit";
       editor.dataset.queueEdit = item.id;
       editor.value = item.text;
-      editor.rows = 3;
+      editor.rows = 2;
       editor.setAttribute("aria-label", "Редактирование сообщения в очереди");
       editor.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
@@ -566,17 +776,21 @@ function renderMessageQueue() {
         }
       });
 
-      body.append(meta, editor);
+      body.append(editor);
 
       const actions = document.createElement("div");
       actions.className = "shell-message-queue-item-actions";
       actions.append(
-        createQueueAction("Сохранить", {
+        createQueueAction("✓", {
           variant: "shell-message-queue-action--save",
+          compact: true,
+          ariaLabel: "Сохранить",
           onClick: () => saveEditOutboundMessage(item.id, editor.value)
         }),
-        createQueueAction("Отмена", {
+        createQueueAction("✕", {
           variant: "shell-message-queue-action--muted",
+          compact: true,
+          ariaLabel: "Отмена",
           onClick: cancelEditOutboundMessage
         })
       );
@@ -586,25 +800,29 @@ function renderMessageQueue() {
       const text = document.createElement("p");
       text.className = "shell-message-queue-item-text";
       text.textContent = item.text;
-      text.title = "Двойной клик — изменить текст";
+      text.title = item.text;
       text.addEventListener("dblclick", () => startEditOutboundMessage(item.id));
       body.append(text);
 
       const actions = document.createElement("div");
       actions.className = "shell-message-queue-item-actions";
       actions.append(
-        createQueueAction("Изменить", {
+        createQueueAction("✎", {
+          compact: true,
+          ariaLabel: "Изменить",
           onClick: () => startEditOutboundMessage(item.id)
         }),
-        createQueueAction("В черновик", {
+        createQueueAction("↩", {
           variant: "shell-message-queue-action--muted",
-          onClick: () => moveOutboundMessageToDraft(item.id),
-          ariaLabel: "Вернуть в поле ввода"
+          compact: true,
+          ariaLabel: "Вернуть в поле ввода",
+          onClick: () => moveOutboundMessageToDraft(item.id)
         }),
-        createQueueAction("Удалить", {
+        createQueueAction("✕", {
           variant: "shell-message-queue-action--danger",
-          onClick: () => removeOutboundMessage(item.id),
-          ariaLabel: "Удалить из очереди"
+          compact: true,
+          ariaLabel: "Удалить",
+          onClick: () => removeOutboundMessage(item.id)
         })
       );
 
@@ -629,18 +847,34 @@ async function drainOutboundQueue() {
   await sendMessageDirect(next.text);
 }
 
+function syncWaitingUiAfterPlayback() {
+  if (isTtsPlaybackActive()) return;
+  if (state.micActive || state.pttHeld) return;
+  if (state.messagePipelineBusy) return;
+  if (state.assistantStream && !state.assistantStream.finalized) return;
+  const phrase = `Готов к сообщению${queuePhraseSuffix()}`;
+  const metrics = state.shellState?.metrics || "";
+  if (state.shellState?.phase === "speaking") {
+    state.shellState = { ...state.shellState, phase: "waiting", phrase: "Готов к сообщению" };
+  }
+  renderPhase("waiting", phrase, metrics);
+}
+
 async function finishStreamTtsWhenIdle() {
   await drainStreamTtsQueue();
   state.speaking = false;
+  state.ttsPaused = false;
   state.assistantStream = null;
+  updateTtsControlsUi("waiting");
   if (!state.pttHeld && !state.micActive) {
-    await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
-    renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+    await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
   }
+  syncWaitingUiAfterPlayback();
   releaseMessagePipeline();
 }
 
 function handleAssistantDelta(payload) {
+  if (state.messageStopped) return;
   const streamId = String(payload?.streamId || "").trim();
   const text = String(payload?.text ?? "");
   const done = Boolean(payload?.done);
@@ -934,6 +1168,15 @@ function setRouteDrawer(open) {
   nodes.routePanel?.classList.toggle("hidden", !next);
 }
 
+function setCharacterPicker(open) {
+  const next = Boolean(open);
+  state.characterPickerOpen = next;
+  nodes.characterStage?.setAttribute("data-character-picker-open", next ? "1" : "0");
+  nodes.characterToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+  nodes.characterToggle?.setAttribute("aria-expanded", next ? "true" : "false");
+  nodes.characterPickerWrap?.classList.toggle("hidden", !next);
+}
+
 function setMediaDrawer(mode) {
   const next = mode === "camera" || mode === "screen" ? mode : "";
   state.mediaMode = next;
@@ -1040,6 +1283,7 @@ function updateTargetUi(target) {
 
   nodes.qwenpawPanel.dataset.visible = qwenpaw ? "1" : "0";
   topicPicker.setVisible(cmsOnly || cmsLog);
+  renderHeroLinkChip();
 }
 
 function cleanShellUrl() {
@@ -1160,11 +1404,13 @@ function applyStatusPayload(payload) {
       livePhraseFromStatus(payload.state, payload.latestAgentMessage),
       payload.state.metrics
     );
+    maybeResetStaleSpeakingPhase();
     if (state.pttHeld) setMicButtonState("Стоп", { active: true });
     else if (!state.micActive) setMicButtonState("Говорить");
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
+  renderHeroLinkChip();
   updateQwenPawChatUi(payload);
   if (payload?.latestAgentMessage?.body) {
     const streaming = state.assistantStream && !state.assistantStream.finalized;
@@ -1245,9 +1491,13 @@ async function sendMessage(body, { fromCompose = true } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
 
+  if (fromCompose && nodes.message) {
+    nodes.message.value = "";
+    updateSendButtonLabel();
+  }
+
   if (state.messagePipelineBusy) {
     outboundQueue.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text });
-    if (fromCompose && nodes.message) nodes.message.value = "";
     renderMessageQueue();
     renderPhase(
       state.shellState?.phase || "thinking",
@@ -1262,19 +1512,28 @@ async function sendMessage(body, { fromCompose = true } = {}) {
 async function sendMessageDirect(body, { fromCompose = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
+  state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text;
   renderMessageQueue();
+  updateSendButtonLabel();
   const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
   const streamingQwenPaw = usesQwenPawTarget(target);
   if (streamingQwenPaw) beginAssistantStream({});
+  messageSendAbortController?.abort();
+  messageSendAbortController = new AbortController();
+  const { signal } = messageSendAbortController;
   try {
     await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
       method: "POST",
-      body: JSON.stringify({ body: text, author: "shell" })
+      body: JSON.stringify({ body: text, author: "shell" }),
+      signal
     });
-    if (fromCompose && nodes.message) nodes.message.value = "";
+    if (state.messageStopped) {
+      releaseMessagePipeline();
+      return;
+    }
     updateSendButtonLabel();
     if (result?.reply || result?.message?.body) {
       await handleAssistantMessage(result.message || { body: result.reply, streamId: result.streamId });
@@ -1297,6 +1556,9 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
       releaseMessagePipeline();
     }
   } catch (error) {
+    if (state.messageStopped || error?.name === "AbortError") {
+      return;
+    }
     if (streamingQwenPaw && state.assistantStream && !state.assistantStream.finalized) {
       nodes.replyPanel?.classList.remove("is-streaming");
       state.assistantStream = null;
@@ -1305,6 +1567,11 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
     renderMessageQueue();
     renderPhase("waiting", error.message);
     releaseMessagePipeline();
+  } finally {
+    if (messageSendAbortController?.signal === signal) {
+      messageSendAbortController = null;
+    }
+    updateSendButtonLabel();
   }
 }
 
@@ -1312,11 +1579,23 @@ function getSpeechSynth() {
   return window.speechSynthesis || null;
 }
 
-function stopBrowserTts() {
+function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = true } = {}) {
   state.streamTtsQueue = [];
+  state.ttsPaused = false;
   const synth = getSpeechSynth();
   if (synth) synth.cancel();
   state.speaking = false;
+  state.streamTtsActive = false;
+  updateTtsControlsUi("waiting");
+  if (broadcast) ttsTabCoordinator?.requestGlobalStop();
+  if (resetPhase && !state.pttHeld && !state.micActive) {
+    void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).then(() => {
+      syncWaitingUiAfterPlayback();
+    });
+  }
+  if (notifyServer) {
+    void apiFetch("/api/shell/stop-tts", { method: "POST", body: "{}" }).catch(() => {});
+  }
 }
 
 async function speakText(text) {
@@ -1324,12 +1603,19 @@ async function speakText(text) {
   if (!payload) return;
   if (!state.settings?.ttsEnabled) return;
   if (state.settings?.ttsEngine === "sidecar" || state.settings?.ttsEngine === "say") return;
+  if (!canPlayBrowserTts()) {
+    releaseMessagePipeline();
+    renderPhase(state.shellState?.phase || "waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+    return;
+  }
 
   const synth = getSpeechSynth();
   if (!synth) return;
 
-  stopBrowserTts();
+  stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false });
   state.speaking = true;
+  state.ttsPaused = false;
+  updateTtsControlsUi("speaking");
   await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
 
   await new Promise((resolve) => {
@@ -1342,10 +1628,17 @@ async function speakText(text) {
   });
 
   state.speaking = false;
-  await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
+  state.ttsPaused = false;
+  updateTtsControlsUi("waiting");
+  await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
+  syncWaitingUiAfterPlayback();
 }
 
 async function handleAssistantMessage(message) {
+  if (state.messageStopped) {
+    releaseMessagePipeline();
+    return;
+  }
   const body = String(message?.body || message?.message?.body || "").trim();
   if (!body) return;
   const messageId = resolveAssistantMessageKey(message, body);
@@ -1410,6 +1703,8 @@ function connectStream() {
 
   const source = new EventSource(apiUrl("/api/shell/stream"));
   state.eventSource = source;
+  source.onopen = () => renderHeroLinkChip();
+  source.onerror = () => renderHeroLinkChip();
 
   source.addEventListener("status", (event) => {
     try {
@@ -1467,14 +1762,21 @@ function connectStream() {
   source.addEventListener("state", (event) => {
     try {
       const entry = JSON.parse(event.data);
-      onShellPhaseChange(entry.payload || entry);
+      const nextState = entry.payload || entry;
+      onShellPhaseChange(nextState);
+      if (nextState?.phase) {
+        state.shellState = { ...(state.shellState || {}), ...nextState };
+        renderPhase(nextState.phase, nextState.phrase, nextState.metrics);
+        maybeResetStaleSpeakingPhase();
+      }
     } catch {
       // ignore malformed event
     }
   });
 
   source.addEventListener("stop_tts", () => {
-    stopBrowserTts();
+    stopBrowserTts({ notifyServer: false, broadcast: false });
+    releaseMessagePipeline();
   });
 
   source.addEventListener("reconnect", () => {
@@ -1575,13 +1877,21 @@ function setShellView(view) {
   if (nodes.homeBtn) {
     nodes.homeBtn.setAttribute("aria-pressed", next === "main" ? "true" : "false");
   }
+  if (nodes.homeBrand) {
+    nodes.homeBrand.setAttribute("aria-pressed", next === "main" ? "true" : "false");
+  }
 }
 
 function bindNavigationUi() {
   nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
   nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
+  nodes.homeBrand?.addEventListener("click", () => setShellView("main"));
   nodes.sessionToggle?.addEventListener("click", () => setChatPanel(!state.chatOpen));
   nodes.routeToggle?.addEventListener("click", () => setRouteDrawer(!state.routeOpen));
+  nodes.characterToggle?.addEventListener("click", () => setCharacterPicker(!state.characterPickerOpen));
+  nodes.characterPicker?.addEventListener("click", (event) => {
+    if (event.target.closest(".shell-character-option")) setCharacterPicker(false);
+  });
   nodes.watchCamera?.addEventListener("click", () => {
     void toggleWatchCamera().catch((error) => renderPhase("waiting", error.message));
   });
@@ -1720,6 +2030,7 @@ function bindUi() {
   nodes.voiceMode.addEventListener("change", persistSettings);
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
+  nodes.sendStopBtn?.addEventListener("click", () => void stopActiveMessage());
   nodes.message?.addEventListener("input", updateSendButtonLabel);
   nodes.message.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -1729,9 +2040,28 @@ function bindUi() {
   });
 
   nodes.micBtn.addEventListener("click", toggleMic);
-  nodes.stopTtsBtn.addEventListener("click", async () => {
+  nodes.ttsStopBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
     stopBrowserTts();
-    await apiFetch("/api/shell/stop-tts", { method: "POST", body: "{}" });
+    releaseMessagePipeline();
+  });
+
+  nodes.ttsPauseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    pauseBrowserTts();
+  });
+  nodes.ttsResumeBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    resumeBrowserTts();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.code !== "Space" || event.repeat) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (isTypingTarget(event.target)) return;
+    if (!isBrowserTtsEngine() || !isTtsPlaybackActive()) return;
+    event.preventDefault();
+    toggleTtsPauseResume();
   });
 
   nodes.openCmsBtn.addEventListener("click", () => {
@@ -1760,11 +2090,17 @@ function bindUi() {
 
 async function boot() {
   cleanShellUrl();
+  ttsTabCoordinator = createShellTtsTabCoordinator({
+    onYieldSpeech: (reason) => yieldLocalTtsPlayback(reason)
+  });
   bindUi();
   bindNavigationUi();
   bindWindowSettingsUi();
   setupSpeechRecognition();
   startClock();
+  window.addEventListener("online", renderHeroLinkChip);
+  window.addEventListener("offline", renderHeroLinkChip);
+  renderHeroLinkChip();
   void initBatteryMonitor();
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {

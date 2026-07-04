@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=54" />
+    <link rel="stylesheet" href="/shell/shell.css?v=67" />
     <script type="importmap">
       {
         "imports": {
@@ -19,15 +19,21 @@
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
       <header class="shell-header">
-        <div class="shell-brand">
+        <button
+          type="button"
+          class="shell-brand"
+          id="shell-home-brand"
+          title="Главная"
+          aria-label="Главная"
+          aria-pressed="true"
+        >
           <img class="shell-logo" src="/shell/favicon.svg" width="42" height="42" alt="" aria-hidden="true" />
           <div>
             <h1 class="shell-title">Agent Shell</h1>
             <p class="shell-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</p>
           </div>
-        </div>
+        </button>
         <div class="shell-header-actions">
-          <button type="button" class="shell-icon-btn" id="shell-stop-tts" title="Стоп озвучки" aria-label="Стоп озвучки">🔇</button>
           <button
             type="button"
             class="shell-icon-btn shell-icon-btn--cms"
@@ -455,22 +461,66 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
       <section class="shell-hero" id="shell-hero">
-        <div class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-hidden="true">
-          <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
-            <circle class="shell-agent-ring" cx="32" cy="32" r="29" />
-            <circle class="shell-agent-face" cx="32" cy="30" r="17" />
-            <circle class="shell-agent-eye" cx="26" cy="28" r="2.5" />
-            <circle class="shell-agent-eye" cx="38" cy="28" r="2.5" />
-            <path class="shell-agent-mouth" d="M24 38 Q32 44 40 38" />
-            <ellipse class="shell-agent-glow" cx="32" cy="52" rx="10" ry="3" />
-          </svg>
-          <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
-        </div>
-        <div class="shell-hero-status">
-          <div class="shell-status-head">
-            <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
-            <div class="shell-status-extra">
-              <span class="shell-battery hidden" id="shell-battery" title="Батарея">
+        <div class="shell-hero-layout">
+          <button type="button" class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-label="Облачко">
+            <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
+              <circle class="shell-agent-ring" cx="32" cy="32" r="29" />
+              <circle class="shell-agent-face" cx="32" cy="30" r="17" />
+              <circle class="shell-agent-eye" cx="26" cy="28" r="2.5" />
+              <circle class="shell-agent-eye" cx="38" cy="28" r="2.5" />
+              <path class="shell-agent-mouth" d="M24 38 Q32 44 40 38" />
+              <ellipse class="shell-agent-glow" cx="32" cy="52" rx="10" ry="3" />
+            </svg>
+            <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
+          </button>
+
+          <div class="shell-hero-body">
+            <div class="shell-hero-main">
+              <div class="shell-phase-row">
+                <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
+                <div class="shell-tts-controls hidden" id="shell-tts-controls">
+                  <button
+                    type="button"
+                    class="shell-tts-btn"
+                    id="shell-tts-pause"
+                    title="Пауза (Space)"
+                    aria-label="Пауза озвучки"
+                  >
+                    ⏸
+                  </button>
+                  <button
+                    type="button"
+                    class="shell-tts-btn hidden"
+                    id="shell-tts-resume"
+                    title="Продолжить (Space)"
+                    aria-label="Продолжить озвучку"
+                  >
+                    ▶
+                  </button>
+                  <button
+                    type="button"
+                    class="shell-tts-btn shell-tts-btn--stop"
+                    id="shell-tts-stop"
+                    title="Стоп озвучки"
+                    aria-label="Стоп озвучки"
+                  >
+                    ⏹
+                  </button>
+                </div>
+              </div>
+              <div class="shell-status-meta" id="shell-meta"></div>
+            </div>
+
+            <div class="shell-hero-meta">
+              <span class="shell-meta-chip shell-battery hidden" id="shell-battery" title="Батарея">
+                <span class="shell-meta-icon" aria-hidden="true">🔋</span>
                 <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
                   <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
                   <rect class="shell-battery-cap" x="22" y="3.5" width="3" height="5" rx="1" />
@@ -478,38 +528,58 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </svg>
                 <span class="shell-battery-level" id="shell-battery-level">—</span>
               </span>
-              <time class="shell-clock" id="shell-clock" datetime="">—</time>
+              <span class="shell-meta-chip shell-clock-chip">
+                <span class="shell-meta-icon" aria-hidden="true">🕐</span>
+                <time class="shell-clock" id="shell-clock" datetime="">—</time>
+              </span>
+              <span class="shell-meta-chip shell-link-chip" id="shell-link-chip" title="Маршрут">
+                <span class="shell-meta-icon shell-link-chip-dot" id="shell-link-chip-dot" aria-hidden="true">🟡</span>
+                <span class="shell-link-chip-label" id="shell-link-chip-label">—</span>
+              </span>
             </div>
           </div>
-          <div class="shell-status-meta" id="shell-meta"></div>
-        </div>
-        <div class="shell-hero-actions">
-          <button
-            type="button"
-            class="shell-icon-btn shell-route-toggle"
-            id="shell-route-toggle"
-            title="QwenPaw и отправка"
-            aria-label="QwenPaw и отправка"
-            aria-pressed="false"
-          >
-            🔀
-          </button>
-          <button
-            type="button"
-            class="shell-icon-btn shell-session-toggle"
-            id="shell-session-toggle"
-            title="Чат"
-            aria-label="Чат"
-            aria-pressed="true"
-          >
-            💬
-          </button>
+
+          <div class="shell-hero-actions">
+            <button
+              type="button"
+              class="shell-icon-btn shell-route-toggle"
+              id="shell-route-toggle"
+              title="QwenPaw и отправка"
+              aria-label="QwenPaw и отправка"
+              aria-pressed="false"
+            >
+              🔀
+            </button>
+            <button
+              type="button"
+              class="shell-icon-btn shell-session-toggle"
+              id="shell-session-toggle"
+              title="Чат"
+              aria-label="Чат"
+              aria-pressed="true"
+            >
+              💬
+            </button>
+          </div>
         </div>
       </section>
 
-      <section class="shell-character-stage" id="shell-character-stage" data-phase="waiting" aria-hidden="true">
-        <div class="shell-character-viewport" id="shell-character-viewport"></div>
-        <div class="shell-character-picker-wrap">
+      <section class="shell-character-stage" id="shell-character-stage" data-phase="waiting" data-character-picker-open="0" aria-hidden="true">
+        <div class="shell-character-viewport" id="shell-character-viewport">
+          <button
+            type="button"
+            class="shell-icon-btn shell-character-toggle"
+            id="shell-character-toggle"
+            title="Выбор персонажа"
+            aria-label="Выбор персонажа"
+            aria-pressed="false"
+            aria-controls="shell-character-picker-wrap"
+            aria-expanded="false"
+          >
+            🎭
+          </button>
+        </div>
+        <div class="shell-character-picker-wrap hidden" id="shell-character-picker-wrap">
           <div class="shell-character-picker" id="shell-character-picker" role="listbox" aria-label="Модель персонажа"></div>
         </div>
       </section>
@@ -609,7 +679,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
 
       <section class="shell-reply-panel" id="shell-reply-panel">
-        <div class="shell-section-label">Ответ агента</div>
+        <div class="shell-reply-head">
+          <div class="shell-section-label">Ответ агента</div>
+          <label class="shell-check shell-reply-tts" title="Озвучивать ответы агента">
+            <input id="shell-tts-enabled" type="checkbox" checked />
+            <span>Вывод голосом — озвучка (TTS)</span>
+          </label>
+        </div>
         <div class="shell-reply-body" id="shell-last-reply">
           <div class="shell-reply-text" id="shell-last-reply-text">—</div>
           <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
@@ -621,21 +697,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <div class="shell-section-label">Ваше сообщение</div>
         </div>
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
-          <div class="shell-message-queue-head">
-            <span class="shell-message-queue-title">Очередь</span>
+          <div class="shell-message-queue-bar">
+            <div class="shell-message-queue-active hidden" id="shell-message-queue-active">
+              <span class="shell-message-queue-badge" aria-hidden="true">●</span>
+              <span class="shell-message-queue-active-label">Сейчас</span>
+              <p class="shell-message-queue-text" id="shell-message-queue-active-text"></p>
+            </div>
             <span class="shell-message-queue-count" id="shell-message-queue-count"></span>
           </div>
-          <div class="shell-message-queue-active hidden" id="shell-message-queue-active">
-            <div class="shell-message-queue-active-top">
-              <span class="shell-message-queue-badge">Сейчас</span>
-              <span class="shell-message-queue-active-hint">агент обрабатывает</span>
-            </div>
-            <p class="shell-message-queue-text" id="shell-message-queue-active-text"></p>
-          </div>
           <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
-          <p class="shell-message-queue-footnote hidden" id="shell-message-queue-footnote">
-            Пока агент занят, новые сообщения попадают в очередь. Их можно изменить или вернуть в поле ввода.
-          </p>
         </div>
         <textarea
           id="shell-message"
@@ -646,6 +716,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
         ></textarea>
         <div class="shell-compose-actions">
           <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
+          <button
+            type="button"
+            class="shell-btn shell-btn--ghost shell-compose-stop"
+            id="shell-send-stop"
+            disabled
+            aria-label="Остановить ответ"
+          >
+            Стоп
+          </button>
         </div>
       </section>
 
@@ -686,10 +765,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <option value="sidecar">Sidecar (Python)</option>
               <option value="always">Sidecar · всегда слушать</option>
             </select>
-          </label>
-          <label class="shell-check shell-voice-tts">
-            <input id="shell-tts-enabled" type="checkbox" checked />
-            <span>Вывод голосом</span>
           </label>
           </div>
         </details>
@@ -784,6 +859,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=54" type="module"></script>
+    <script src="/shell/shell.js?v=63" type="module"></script>
   </body>
 </html>
