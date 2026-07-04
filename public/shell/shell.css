@@ -65,6 +65,17 @@ body.shell-window-transparent {
   gap: 12px;
 }
 
+.shell-version {
+  margin: 0;
+  padding: 0 4px 2px;
+  text-align: center;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(148, 145, 180, 0.55);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
 .shell-header {
   display: flex;
   align-items: flex-start;
@@ -214,30 +225,38 @@ body.shell-window-transparent {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: start;
+  align-items: center;
 }
 
 .shell-hero-body {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 10px;
-  align-items: start;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1 1 auto;
 }
 
 .shell-hero-main {
   min-width: 0;
+  min-height: 72px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   gap: 6px;
+  flex: 1 1 auto;
 }
 
 .shell-hero-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: center;
   gap: 4px;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .shell-meta-chip {
@@ -501,7 +520,14 @@ body.shell-window-transparent {
   cursor: not-allowed;
 }
 
-.shell-compose-mic {
+.shell-compose-tools {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.shell-compose-tool {
   flex: 0 0 auto;
   width: 44px;
   min-height: 42px;
@@ -510,13 +536,19 @@ body.shell-window-transparent {
   padding: 0;
 }
 
+.shell-compose-tool-icon {
+  line-height: 1;
+}
+
 .shell-compose-mic.is-active {
   border-color: rgba(255, 107, 138, 0.55);
   background: rgba(255, 107, 138, 0.16);
 }
 
-.shell-compose-mic-icon {
-  line-height: 1;
+.shell-compose-tool[aria-pressed="true"]:not(.shell-compose-mic) {
+  border-color: rgba(124, 108, 255, 0.65);
+  background: rgba(124, 108, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.15);
 }
 
 .shell-compose-head {
@@ -1226,37 +1258,25 @@ body.shell-window-transparent {
   min-width: 0;
 }
 
-.shell-phase-block {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 8px;
-  row-gap: 6px;
-  align-items: start;
+.shell-phase-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
   min-width: 0;
-  width: 100%;
 }
 
-.shell-phase-block > .shell-voice-wave {
-  grid-column: 1;
-  grid-row: 1;
-  margin-top: 3px;
+.shell-phase-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.shell-phase-block > .shell-status-line {
-  grid-column: 2;
-  grid-row: 1;
-  flex: unset;
-}
-
-.shell-phase-block > .shell-tts-controls {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.shell-phase-block:not(:has(.shell-voice-wave:not(.hidden))) > .shell-status-line,
-.shell-phase-block:not(:has(.shell-voice-wave:not(.hidden))) > .shell-tts-controls {
-  grid-column: 1 / -1;
+.shell-phase-stack > .shell-tts-controls {
+  margin: 0;
+  padding: 0;
 }
 
 .shell-voice-wave {
@@ -1345,8 +1365,14 @@ body.shell-window-transparent {
 
 .shell-action-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+
+@media (max-width: 380px) {
+  .shell-action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .shell-action-card {
@@ -1464,7 +1490,7 @@ body.shell-window-transparent {
   font-size: 16px;
   font-weight: 700;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1521,10 +1547,12 @@ body.shell-window-transparent {
 .shell-tts-controls {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   flex: 0 0 auto;
   max-width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .shell-tts-controls.hidden {
@@ -1737,6 +1765,11 @@ body.shell-compact {
 .shell-app[data-compact="1"] .shell-agent-svg {
   width: 52px;
   height: 52px;
+}
+
+.shell-app[data-compact="1"] .shell-hero-body,
+.shell-app[data-compact="1"] .shell-hero-main {
+  min-height: 52px;
 }
 
 .shell-app[data-compact="1"] .shell-status-line {

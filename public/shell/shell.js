@@ -174,6 +174,10 @@ const nodes = {
   routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
   watchScreen: document.getElementById("shell-watch-screen"),
+  screenshotAction: document.getElementById("shell-screenshot-action"),
+  clipboardReadAction: document.getElementById("shell-clipboard-read-action"),
+  clipboardPasteAction: document.getElementById("shell-clipboard-paste-action"),
+  compactAction: document.getElementById("shell-compact-action"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
   battery: document.getElementById("shell-battery"),
@@ -1057,6 +1061,111 @@ async function uploadScreenSnapshot(kind = "speech") {
   return data;
 }
 
+async function takeManualScreenshot() {
+  if (shellScreen.isActive()) {
+    const frame = shellScreen.captureFrame();
+    if (frame) {
+      renderShellReplyMedia(
+        nodes.lastReplyMedia,
+        [{ type: "image", src: frame.dataUrl, caption: "Снимок экрана" }],
+        state.agentId
+      );
+      renderShellReplyMarkdown(nodes.lastReplyText, "Снимок экрана");
+      await uploadScreenSnapshot("manual").catch(() => {});
+      renderPhase(state.shellState?.phase || "waiting", "Снимок сохранён");
+      return;
+    }
+  }
+
+  if (shellCamera.isActive()) {
+    const frame = shellCamera.captureFrame();
+    if (frame) {
+      renderShellReplyMedia(
+        nodes.lastReplyMedia,
+        [{ type: "image", src: frame.dataUrl, caption: "Кадр с камеры" }],
+        state.agentId
+      );
+      renderShellReplyMarkdown(nodes.lastReplyText, "Кадр с камеры");
+      await uploadCameraSnapshot("manual").catch(() => {});
+      renderPhase(state.shellState?.phase || "waiting", "Кадр сохранён");
+      return;
+    }
+  }
+
+  renderPhase("waiting", "Сначала включите камеру 📷 или демонстрацию экрана 🖥");
+}
+
+async function readClipboardText() {
+  if (!navigator.clipboard?.readText) {
+    throw new Error("Буфер обмена недоступен в этом браузере");
+  }
+  return navigator.clipboard.readText();
+}
+
+async function readClipboardForAgent() {
+  try {
+    const text = String(await readClipboardText() || "").trim();
+    if (!text) {
+      renderPhase("waiting", "Буфер пуст");
+      return;
+    }
+    state.lastClipboardText = text;
+    const preview = text.length > 320 ? `${text.slice(0, 320)}…` : text;
+    renderShellReplyMarkdown(nodes.lastReplyText, `**Буфер обмена**\n\n${preview}`);
+    renderPhase(state.shellState?.phase || "waiting", "Буфер прочитан");
+  } catch {
+    renderPhase("waiting", "Нет доступа к буферу — разрешите в браузере");
+  }
+}
+
+async function pasteClipboardToCompose() {
+  try {
+    const text = String(await readClipboardText() || "");
+    if (!text.trim()) {
+      renderPhase("waiting", "Буфер пуст");
+      return;
+    }
+    const field = nodes.message;
+    if (!field) return;
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? field.value.length;
+    field.value = field.value.slice(0, start) + text + field.value.slice(end);
+    const caret = start + text.length;
+    field.setSelectionRange(caret, caret);
+    field.focus();
+    renderPhase(state.shellState?.phase || "waiting", "Вставлено из буфера");
+  } catch {
+    renderPhase("waiting", "Нет доступа к буферу — разрешите в браузере");
+  }
+}
+
+function buildWindowSettingsPayload(overrides = {}) {
+  const windowBackground = nodes.windowBackground?.value || "wallpaper";
+  const windowTransparent =
+    nodes.windowTransparent?.checked === true || windowBackground === "transparent";
+  return {
+    windowTopmost: nodes.topmost?.checked !== false,
+    windowTransparent,
+    windowBackground: windowTransparent ? "transparent" : windowBackground,
+    windowCompact: isWindowCompactEnabled(),
+    ...overrides
+  };
+}
+
+function syncCompactActionUi(compact = isWindowCompactEnabled()) {
+  const pressed = compact ? "true" : "false";
+  nodes.windowCompact?.setAttribute("aria-pressed", pressed);
+  nodes.compactAction?.setAttribute("aria-pressed", pressed);
+}
+
+function toggleCompactMode() {
+  const next = !isWindowCompactEnabled();
+  syncCompactActionUi(next);
+  void saveWindowSettings(buildWindowSettingsPayload({ windowCompact: next })).catch((error) =>
+    renderPhase("waiting", error.message)
+  );
+}
+
 async function handleCameraSnapshotRequest(payload) {
   if (state.cameraSnapshotBusy) return;
   state.cameraSnapshotBusy = true;
@@ -1185,6 +1294,7 @@ function applyWindowSettings(settings) {
   if (nodes.windowCompact) {
     nodes.windowCompact.setAttribute("aria-pressed", settings.windowCompact ? "true" : "false");
   }
+  syncCompactActionUi(Boolean(settings.windowCompact));
   if (nodes.windowBackground) {
     nodes.windowBackground.value = settings.windowBackground || "wallpaper";
     nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
@@ -1199,8 +1309,8 @@ function applyWindowSettings(settings) {
 function setMicButtonState(label, { active = false } = {}) {
   if (!nodes.micBtn) return;
   const icon =
-    nodes.micBtn.querySelector(".shell-compose-mic-icon") ||
-    nodes.micBtn.querySelector(".shell-action-icon");
+    nodes.micBtn.querySelector(".shell-compose-tool-icon") ||
+    nodes.micBtn.querySelector(".shell-compose-mic-icon");
   if (icon) icon.textContent = active ? "⏹" : "🎤";
   nodes.micBtn.setAttribute("aria-label", label);
   nodes.micBtn.title = label;
@@ -2142,8 +2252,7 @@ function bindWindowSettingsUi() {
 
   nodes.topmost?.addEventListener("change", persistWindowSettings);
   nodes.windowCompact?.addEventListener("click", () => {
-    const next = !isWindowCompactEnabled();
-    nodes.windowCompact.setAttribute("aria-pressed", next ? "true" : "false");
+    syncCompactActionUi(!isWindowCompactEnabled());
     persistWindowSettings();
   });
   nodes.windowTransparent?.addEventListener("change", () => {
@@ -2243,6 +2352,22 @@ function bindUi() {
       await uploadScreenSnapshot("manual").catch(() => {});
       renderPhase(state.shellState?.phase || "waiting", "Снимок сохранён");
     })();
+  });
+
+  nodes.screenshotAction?.addEventListener("click", () => {
+    void takeManualScreenshot();
+  });
+
+  nodes.clipboardReadAction?.addEventListener("click", () => {
+    void readClipboardForAgent();
+  });
+
+  nodes.clipboardPasteAction?.addEventListener("click", () => {
+    void pasteClipboardToCompose();
+  });
+
+  nodes.compactAction?.addEventListener("click", () => {
+    toggleCompactMode();
   });
 
   nodes.messageTarget.addEventListener("change", persistSettings);

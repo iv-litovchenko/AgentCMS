@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=86" />
+    <link rel="stylesheet" href="/shell/shell.css?v=92" />
     <script type="importmap">
       {
         "imports": {
@@ -482,15 +482,17 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
           <div class="shell-hero-body">
             <div class="shell-hero-main">
-              <div class="shell-phase-block">
-                <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
+              <div class="shell-phase-stack">
+                <div class="shell-phase-status">
+                  <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
                 </div>
-                <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
                 <div class="shell-tts-controls hidden" id="shell-tts-controls">
                   <button
                     type="button"
@@ -880,16 +882,38 @@ aya_bar_v2 тоже читает те же файлы</pre>
         ></textarea>
         <div class="shell-compose-actions">
           <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
-          <button
-            type="button"
-            class="shell-icon-btn shell-compose-mic"
-            id="shell-mic-btn"
-            title="Говорить"
-            aria-label="Говорить"
-            aria-pressed="false"
-          >
-            <span class="shell-compose-mic-icon" aria-hidden="true">🎤</span>
-          </button>
+          <div class="shell-compose-tools">
+            <button
+              type="button"
+              class="shell-icon-btn shell-compose-tool shell-compose-mic"
+              id="shell-mic-btn"
+              title="Говорить"
+              aria-label="Говорить"
+              aria-pressed="false"
+            >
+              <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
+            </button>
+            <button
+              type="button"
+              class="shell-icon-btn shell-compose-tool"
+              id="shell-watch-camera"
+              title="Камера"
+              aria-label="Камера"
+              aria-pressed="false"
+            >
+              <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
+            </button>
+            <button
+              type="button"
+              class="shell-icon-btn shell-compose-tool"
+              id="shell-watch-screen"
+              title="Демонстрация экрана"
+              aria-label="Демонстрация экрана"
+              aria-pressed="false"
+            >
+              <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
+            </button>
+          </div>
           <button
             type="button"
             class="shell-btn shell-btn--ghost shell-compose-stop"
@@ -908,20 +932,43 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <button
             type="button"
             class="shell-action-card"
-            id="shell-watch-camera"
-            aria-pressed="false"
+            id="shell-screenshot-action"
+            title="Снимок экрана или камеры для агента"
+            aria-label="Сделать скриншот"
           >
-            <span class="shell-action-icon" aria-hidden="true">📷</span>
-            <span class="shell-action-label">Камера</span>
+            <span class="shell-action-icon" aria-hidden="true">📸</span>
+            <span class="shell-action-label">Скриншот</span>
           </button>
           <button
             type="button"
             class="shell-action-card"
-            id="shell-watch-screen"
+            id="shell-clipboard-read-action"
+            title="Прочитать буфер обмена и показать агенту"
+            aria-label="Прочитать буфер обмена"
+          >
+            <span class="shell-action-icon" aria-hidden="true">📋</span>
+            <span class="shell-action-label">Буфер</span>
+          </button>
+          <button
+            type="button"
+            class="shell-action-card"
+            id="shell-clipboard-paste-action"
+            title="Вставить текст из буфера в сообщение"
+            aria-label="Вставить из буфера"
+          >
+            <span class="shell-action-icon" aria-hidden="true">✎</span>
+            <span class="shell-action-label">Вставить</span>
+          </button>
+          <button
+            type="button"
+            class="shell-action-card"
+            id="shell-compact-action"
+            title="Компактный режим окна"
+            aria-label="Компактный режим"
             aria-pressed="false"
           >
-            <span class="shell-action-icon" aria-hidden="true">🖥</span>
-            <span class="shell-action-label">Экран</span>
+            <span class="shell-action-icon" aria-hidden="true">▫</span>
+            <span class="shell-action-label">Компакт</span>
           </button>
         </div>
       </section>
@@ -1012,9 +1059,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
 
       </div>
+
+      <footer class="shell-version" id="shell-version" aria-label="Версия">0.0.2</footer>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=71" type="module"></script>
+    <script src="/shell/shell.js?v=73" type="module"></script>
   </body>
 </html>
