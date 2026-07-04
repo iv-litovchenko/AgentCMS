@@ -60,6 +60,8 @@ const nodes = {
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowBackground: document.getElementById("shell-window-background"),
+  windowCompact: document.getElementById("shell-window-compact"),
+  compactMic: document.getElementById("shell-compact-mic"),
   voiceMode: document.getElementById("shell-voice-mode"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
@@ -384,7 +386,10 @@ function onShellPhaseChange(nextState) {
 function applyWindowAppearance(settings) {
   const ws = settings || state.windowSettings || {};
   const transparent = Boolean(ws.windowTransparent || ws.windowBackground === "transparent");
+  const compact = Boolean(ws.windowCompact);
   document.body.classList.toggle("shell-window-transparent", transparent);
+  document.body.classList.toggle("shell-compact", compact);
+  if (nodes.shellApp) nodes.shellApp.dataset.compact = compact ? "1" : "0";
   document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent");
   const bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
   document.body.classList.add(`shell-bg-${bg}`);
@@ -394,13 +399,27 @@ function applyWindowSettings(settings) {
   state.windowSettings = settings;
   if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
   if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
+  if (nodes.windowCompact) nodes.windowCompact.checked = Boolean(settings.windowCompact);
   if (nodes.windowBackground) {
     nodes.windowBackground.value = settings.windowBackground || "wallpaper";
     nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
   }
   applyWindowAppearance(settings);
+  if (settings.windowCompact) setShellView("main");
   if (window.shellApp?.applyWindowSettings) {
     void window.shellApp.applyWindowSettings(settings);
+  }
+  syncCompactMicLabel();
+}
+
+function syncCompactMicLabel() {
+  if (!nodes.compactMic) return;
+  if (state.micActive || state.pttHeld) {
+    nodes.compactMic.textContent = "⏹";
+    nodes.compactMic.title = "Стоп";
+  } else {
+    nodes.compactMic.textContent = "🎤";
+    nodes.compactMic.title = "Говорить";
   }
 }
 
@@ -594,6 +613,7 @@ function applyStatusPayload(payload) {
     renderPhase(payload.state.phase, payload.state.phrase, payload.state.metrics);
     if (state.pttHeld) nodes.micBtn.textContent = "⏹ Стоп";
     else if (!state.micActive) nodes.micBtn.textContent = "🎤 Говорить";
+    syncCompactMicLabel();
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
@@ -830,6 +850,10 @@ function setupSpeechRecognition() {
   if (!SpeechRecognition) {
     nodes.micBtn.disabled = true;
     nodes.micBtn.title = "SpeechRecognition недоступен в этом браузере";
+    if (nodes.compactMic) {
+      nodes.compactMic.disabled = true;
+      nodes.compactMic.title = nodes.micBtn.title;
+    }
     return;
   }
 
@@ -842,12 +866,14 @@ function setupSpeechRecognition() {
   recognition.onstart = () => {
     state.micActive = true;
     nodes.micBtn.textContent = "⏹ Стоп";
+    syncCompactMicLabel();
     void patchShellState({ phase: "listening", phrase: "Говорите…" });
   };
 
   recognition.onend = () => {
     state.micActive = false;
     nodes.micBtn.textContent = "🎤 Говорить";
+    syncCompactMicLabel();
     if (!state.speaking) void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
   };
 
@@ -891,6 +917,7 @@ function toggleMic() {
       .then((data) => {
         state.pttHeld = Boolean(data.held);
         nodes.micBtn.textContent = state.pttHeld ? "⏹ Стоп" : "🎤 Говорить";
+        syncCompactMicLabel();
         renderPhase(
           state.pttHeld ? "listening" : "thinking",
           state.pttHeld ? "Sidecar слушает…" : "Распознаю…"
@@ -938,11 +965,13 @@ function bindWindowSettingsUi() {
     void saveWindowSettings({
       windowTopmost: nodes.topmost?.checked !== false,
       windowTransparent,
-      windowBackground: windowTransparent ? "transparent" : windowBackground
+      windowBackground: windowTransparent ? "transparent" : windowBackground,
+      windowCompact: nodes.windowCompact?.checked === true
     }).catch((error) => renderPhase("waiting", error.message));
   };
 
   nodes.topmost?.addEventListener("change", persistWindowSettings);
+  nodes.windowCompact?.addEventListener("change", persistWindowSettings);
   nodes.windowTransparent?.addEventListener("change", () => {
     if (!nodes.windowTransparent.checked && nodes.windowBackground?.value === "transparent") {
       nodes.windowBackground.value = "wallpaper";
@@ -1060,6 +1089,7 @@ function bindUi() {
   });
 
   nodes.micBtn.addEventListener("click", toggleMic);
+  nodes.compactMic?.addEventListener("click", toggleMic);
   nodes.stopTtsBtn.addEventListener("click", async () => {
     stopBrowserTts();
     await apiFetch("/api/shell/stop-tts", { method: "POST", body: "{}" });

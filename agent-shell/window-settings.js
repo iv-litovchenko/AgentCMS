@@ -3,10 +3,25 @@ const path = require("path");
 
 const AWN_SHELL_FILE = "awn-shell.json";
 
+const WINDOW_PROFILE_NORMAL = {
+  width: 460,
+  height: 780,
+  minWidth: 320,
+  minHeight: 500
+};
+
+const WINDOW_PROFILE_COMPACT = {
+  width: 300,
+  height: 148,
+  minWidth: 260,
+  minHeight: 120
+};
+
 const DEFAULT_WINDOW_SETTINGS = {
   windowTopmost: true,
   windowTransparent: false,
-  windowBackground: "wallpaper"
+  windowBackground: "wallpaper",
+  windowCompact: false
 };
 
 function windowSettingsPath(projectRoot) {
@@ -28,6 +43,7 @@ function normalizeWindowSettings(raw) {
     merged.windowTransparent = true;
     merged.windowBackground = "transparent";
   }
+  merged.windowCompact = Boolean(merged.windowCompact);
   return merged;
 }
 
@@ -65,6 +81,8 @@ async function migrateWindowSettingsFromAgent(projectRoot, agentSettings) {
 
 module.exports = {
   AWN_SHELL_FILE,
+  WINDOW_PROFILE_NORMAL,
+  WINDOW_PROFILE_COMPACT,
   DEFAULT_WINDOW_SETTINGS,
   normalizeWindowSettings,
   readWindowSettings,

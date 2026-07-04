@@ -14,6 +14,20 @@ const {
 } = require("./config");
 const { getAppIcon } = require("./icon");
 
+const WINDOW_PROFILE_NORMAL = {
+  width: 460,
+  height: 780,
+  minWidth: 320,
+  minHeight: 500
+};
+
+const WINDOW_PROFILE_COMPACT = {
+  width: 300,
+  height: 148,
+  minWidth: 260,
+  minHeight: 120
+};
+
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const PROTOCOL = "agentshell";
 
@@ -86,6 +100,18 @@ function applyNativeWindowSettings(settings = {}) {
   if (typeof mainWindow.setBackgroundColor === "function") {
     mainWindow.setBackgroundColor(transparent ? "#00000000" : "#0f1020");
   }
+
+  const compact = Boolean(settings.windowCompact);
+  const profile = compact ? WINDOW_PROFILE_COMPACT : WINDOW_PROFILE_NORMAL;
+  mainWindow.setMinimumSize(profile.minWidth, profile.minHeight);
+  if (compact) {
+    mainWindow.setSize(profile.width, profile.height);
+    return;
+  }
+  const [curW, curH] = mainWindow.getSize();
+  const nextW = Math.max(profile.minWidth, curW < profile.minWidth ? profile.width : curW);
+  const nextH = Math.max(profile.minHeight, curH < profile.minHeight ? profile.height : curH);
+  mainWindow.setSize(nextW, nextH);
 }
 
 async function createWindow() {
@@ -99,10 +125,10 @@ async function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 460,
-    height: 780,
-    minWidth: 380,
-    minHeight: 640,
+    width: WINDOW_PROFILE_NORMAL.width,
+    height: WINDOW_PROFILE_NORMAL.height,
+    minWidth: WINDOW_PROFILE_NORMAL.minWidth,
+    minHeight: WINDOW_PROFILE_NORMAL.minHeight,
     title: "Agent Shell",
     icon: getAppIcon(),
     transparent: true,

@@ -235,8 +235,7 @@ body.shell-window-transparent {
   color: var(--muted);
 }
 
-.shell-camera,
-.shell-screen,
+.shell-media,
 .shell-window-panel,
 .shell-todo-panel {
   padding: 14px;
@@ -246,6 +245,31 @@ body.shell-window-transparent {
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(122, 108, 255, 0.28);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.shell-media-head {
+  margin-bottom: 10px;
+}
+
+.shell-media-block {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(124, 108, 255, 0.06);
+  border: 1px solid rgba(124, 108, 255, 0.14);
+}
+
+.shell-media-block + .shell-media-block {
+  margin-top: 10px;
+}
+
+.shell-media-block-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .shell-window-head {
@@ -272,6 +296,87 @@ body.shell-window-transparent {
 
 .shell-window-options .shell-field--compact {
   margin-bottom: 0;
+}
+
+.shell-window-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-compact-mic {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 108, 255, 0.35);
+  background: rgba(124, 108, 255, 0.16);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.shell-compact-mic:hover {
+  background: rgba(124, 108, 255, 0.26);
+}
+
+body.shell-compact {
+  padding: 6px;
+}
+
+.shell-app[data-compact="1"] {
+  min-height: 0;
+  width: 100%;
+  gap: 8px;
+}
+
+.shell-app[data-compact="1"] .shell-brand > div {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.shell-app[data-compact="1"] .shell-main-view > :not(.shell-status-card) {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-status-card {
+  grid-template-columns: 52px minmax(0, 1fr) 44px;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+.shell-app[data-compact="1"] .shell-pulse {
+  width: 48px;
+  height: 48px;
+}
+
+.shell-app[data-compact="1"] .shell-status-line {
+  font-size: 13px;
+}
+
+.shell-app[data-compact="1"] .shell-status-phrase {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-app[data-compact="1"] .shell-status-meta {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-compact-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .shell-todo-head {
@@ -326,13 +431,20 @@ body.shell-window-transparent {
   display: none;
 }
 
-.shell-camera-video,
-.shell-screen-video {
+.shell-camera-video {
   display: block;
   width: 100%;
   max-height: 200px;
   object-fit: cover;
   transform: scaleX(-1);
+}
+
+.shell-screen-video {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #000;
 }
 
 .shell-camera-status,
@@ -347,7 +459,6 @@ body.shell-window-transparent {
 .shell-screen-options {
   display: grid;
   gap: 8px;
-  margin-top: 10px;
 }
 
 .shell-field--compact {

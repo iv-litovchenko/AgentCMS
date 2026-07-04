@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=27" />
+    <link rel="stylesheet" href="/shell/shell.css?v=29" />
   </head>
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
@@ -68,6 +68,11 @@
             <input id="shell-window-transparent" type="checkbox" />
             <span>Прозрачный фон</span>
           </label>
+          <label class="shell-check">
+            <input id="shell-window-compact" type="checkbox" />
+            <span>Компактный режим</span>
+          </label>
+          <p class="shell-window-note">Маленькое окно: pulse, статус и 🎤. Минимум обычного окна: 320×500.</p>
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
             <select id="shell-window-background" class="shell-select">
@@ -442,90 +447,99 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
 
       <div class="shell-main-view" id="shell-main-view">
-      <section class="shell-status-card">
+      <section class="shell-status-card" id="shell-status-card">
         <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
         <div class="shell-status-copy">
           <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
           <div class="shell-status-phrase" id="shell-phrase">Готов к сообщению</div>
           <div class="shell-status-meta" id="shell-meta"></div>
         </div>
+        <button type="button" class="shell-compact-mic" id="shell-compact-mic" title="Говорить" aria-label="Говорить">
+          🎤
+        </button>
       </section>
 
-      <section class="shell-camera" id="shell-camera-section">
-        <div class="shell-camera-head">
-          <span class="shell-label">Камера</span>
-          <div class="shell-camera-actions">
-            <label class="shell-check shell-camera-toggle">
-              <input id="shell-camera-enabled" type="checkbox" />
-              <span>Включить</span>
-            </label>
-            <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-camera-snapshot">
-              📷 Кадр
-            </button>
-          </div>
+      <section class="shell-media" id="shell-media-section">
+        <div class="shell-media-head">
+          <span class="shell-label">Медиа</span>
         </div>
-        <div class="shell-camera-options">
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label">Источник</span>
-            <select id="shell-camera-facing" class="shell-select">
-              <option value="user">Фронт</option>
-              <option value="environment">Задняя</option>
-              <option value="device">Список камер</option>
-            </select>
-          </label>
-          <label class="shell-field shell-field--compact hidden" id="shell-camera-device-field">
-            <span class="shell-label">Устройство</span>
-            <select id="shell-camera-device" class="shell-select"></select>
-          </label>
-          <label class="shell-check shell-camera-speech">
-            <input id="shell-camera-on-speech" type="checkbox" checked />
-            <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется кадр с камеры для агента">
-              Снимать, когда говорю (после «Слушаю» → «Думаю»)
-            </span>
-          </label>
-        </div>
-        <div class="shell-camera-stage hidden" id="shell-camera-stage">
-          <video
-            id="shell-camera-video"
-            class="shell-camera-video"
-            autoplay
-            muted
-            playsinline
-          ></video>
-          <div class="shell-camera-status" id="shell-camera-status"></div>
-        </div>
-      </section>
 
-      <section class="shell-screen" id="shell-screen-section">
-        <div class="shell-screen-head">
-          <span class="shell-label">Экран</span>
-          <div class="shell-screen-actions">
-            <label class="shell-check shell-screen-toggle">
-              <input id="shell-screen-enabled" type="checkbox" />
-              <span>Демонстрация</span>
+        <div class="shell-media-block shell-media-block--camera" id="shell-camera-section">
+          <div class="shell-camera-head">
+            <span class="shell-media-block-title">Камера</span>
+            <div class="shell-camera-actions">
+              <label class="shell-check shell-camera-toggle">
+                <input id="shell-camera-enabled" type="checkbox" />
+                <span>Включить</span>
+              </label>
+              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-camera-snapshot">
+                📷 Кадр
+              </button>
+            </div>
+          </div>
+          <div class="shell-camera-options">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Источник</span>
+              <select id="shell-camera-facing" class="shell-select">
+                <option value="user">Фронт</option>
+                <option value="environment">Задняя</option>
+                <option value="device">Список камер</option>
+              </select>
             </label>
-            <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-screen-snapshot">
-              🖥 Снимок
-            </button>
+            <label class="shell-field shell-field--compact hidden" id="shell-camera-device-field">
+              <span class="shell-label">Устройство</span>
+              <select id="shell-camera-device" class="shell-select"></select>
+            </label>
+            <label class="shell-check shell-camera-speech">
+              <input id="shell-camera-on-speech" type="checkbox" checked />
+              <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется кадр с камеры для агента">
+                Снимать при речи
+              </span>
+            </label>
+          </div>
+          <div class="shell-camera-stage hidden" id="shell-camera-stage">
+            <video
+              id="shell-camera-video"
+              class="shell-camera-video"
+              autoplay
+              muted
+              playsinline
+            ></video>
+            <div class="shell-camera-status" id="shell-camera-status"></div>
           </div>
         </div>
-        <div class="shell-screen-options">
-          <label class="shell-check shell-screen-speech">
-            <input id="shell-screen-on-speech" type="checkbox" checked />
-            <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется снимок экрана для агента">
-              Снимать, когда говорю (после «Слушаю» → «Думаю»)
-            </span>
-          </label>
-        </div>
-        <div class="shell-screen-stage hidden" id="shell-screen-stage">
-          <video
-            id="shell-screen-video"
-            class="shell-screen-video"
-            autoplay
-            muted
-            playsinline
-          ></video>
-          <div class="shell-screen-status" id="shell-screen-status"></div>
+
+        <div class="shell-media-block shell-media-block--screen" id="shell-screen-section">
+          <div class="shell-screen-head">
+            <span class="shell-media-block-title">Экран</span>
+            <div class="shell-screen-actions">
+              <label class="shell-check shell-screen-toggle">
+                <input id="shell-screen-enabled" type="checkbox" />
+                <span>Демонстрация</span>
+              </label>
+              <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-screen-snapshot">
+                🖥 Снимок
+              </button>
+            </div>
+          </div>
+          <div class="shell-screen-options">
+            <label class="shell-check shell-screen-speech">
+              <input id="shell-screen-on-speech" type="checkbox" checked />
+              <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется снимок экрана для агента">
+                Снимать при речи
+              </span>
+            </label>
+          </div>
+          <div class="shell-screen-stage hidden" id="shell-screen-stage">
+            <video
+              id="shell-screen-video"
+              class="shell-screen-video"
+              autoplay
+              muted
+              playsinline
+            ></video>
+            <div class="shell-screen-status" id="shell-screen-status"></div>
+          </div>
         </div>
       </section>
 
@@ -667,6 +681,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       </div>
     </div>
-    <script src="/shell/shell.js?v=23" type="module"></script>
+    <script src="/shell/shell.js?v=24" type="module"></script>
   </body>
 </html>
