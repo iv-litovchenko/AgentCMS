@@ -45,8 +45,7 @@ const state = {
   streamTtsQueue: [],
   streamTtsActive: false,
   streamTtsCursor: 0,
-  lastHandledStreamId: "",
-  lastStreamHandledBody: ""
+  messagePipelineBusy: false
 };
 
 const nodes = {
@@ -300,6 +299,7 @@ function beginAssistantStream({ streamId } = {}) {
   state.streamTtsCursor = 0;
   state.streamTtsQueue = [];
   lastStreamHandledBody = "";
+  lastHandledStreamId = "";
   nodes.replyPanel?.classList.add("is-streaming");
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
@@ -1078,6 +1078,9 @@ async function speakText(text) {
 
 let lastHandledAssistantId = "";
 let lastSpokenBody = "";
+let lastHandledStreamId = "";
+let lastStreamHandledBody = "";
+const outboundQueue = [];
 
 async function handleAssistantMessage(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
