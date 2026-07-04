@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=33" />
+    <link rel="stylesheet" href="/shell/shell.css?v=41" />
   </head>
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
@@ -446,7 +446,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
       </div>
 
-      <div class="shell-main-view" id="shell-main-view" data-session-open="0" data-route-open="0" data-media-open="0">
+      <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
       <section class="shell-hero" id="shell-hero">
         <div class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-hidden="true">
           <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
@@ -481,8 +481,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
             type="button"
             class="shell-icon-btn shell-route-toggle"
             id="shell-route-toggle"
-            title="Маршрут и QwenPaw"
-            aria-label="Маршрут и QwenPaw"
+            title="QwenPaw и отправка"
+            aria-label="QwenPaw и отправка"
             aria-pressed="false"
           >
             🔀
@@ -491,27 +491,30 @@ aya_bar_v2 тоже читает те же файлы</pre>
             type="button"
             class="shell-icon-btn shell-session-toggle"
             id="shell-session-toggle"
-            title="Чат и сообщение"
-            aria-label="Чат и сообщение"
-            aria-pressed="false"
+            title="Чат"
+            aria-label="Чат"
+            aria-pressed="true"
           >
             💬
           </button>
         </div>
       </section>
 
-      <div class="shell-route-drawer hidden" id="shell-route-drawer">
-        <section class="shell-panel">
-          <label class="shell-field">
-            <span class="shell-label">Куда отправлять</span>
-            <select id="shell-message-target" class="shell-select">
-              <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
-              <option value="qwenpaw-log">QwenPaw + лог в CMS</option>
-              <option value="cms">Agent CMS (thread/inbox)</option>
-            </select>
-          </label>
+      <section class="shell-character-stage" id="shell-character-stage" data-phase="waiting" aria-hidden="true">
+        <div class="shell-character-viewport" id="shell-character-viewport"></div>
+      </section>
 
-          <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
+      <section class="shell-route-panel hidden" id="shell-route-panel">
+        <div class="shell-section-label">Куда отправлять (маршрут)</div>
+        <label class="shell-field">
+          <select id="shell-message-target" class="shell-select" aria-label="Куда отправлять (маршрут)">
+            <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
+            <option value="qwenpaw-log">QwenPaw + лог в CMS</option>
+            <option value="cms">Agent CMS (thread/inbox)</option>
+          </select>
+        </label>
+
+        <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
             <label class="shell-field">
               <span class="shell-label">QwenPaw URL</span>
               <div class="shell-input-row">
@@ -593,37 +596,59 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </div>
             <input id="shell-topic-path" type="hidden" value="" />
           </div>
-        </section>
-      </div>
+      </section>
 
-      <div class="shell-session-drawer hidden" id="shell-session-drawer">
-        <section class="shell-compose">
-          <p class="shell-live-phrase" id="shell-phrase">Готов к сообщению</p>
-          <label class="shell-field shell-field--grow">
-            <span class="shell-label">Сообщение</span>
-            <textarea
-              id="shell-message"
-              class="shell-textarea"
-              rows="3"
-              placeholder="Текст для агента…"
-            ></textarea>
-          </label>
-          <div class="shell-compose-actions">
-            <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
-          </div>
-        </section>
+      <section class="shell-reply-panel" id="shell-reply-panel">
+        <div class="shell-section-label">Ответ агента</div>
+        <div class="shell-reply-body" id="shell-last-reply">
+          <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+          <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+        </div>
+      </section>
 
-        <section class="shell-reply">
-          <div class="shell-label">Последний ответ агента</div>
-          <div class="shell-reply-body" id="shell-last-reply">
-            <div class="shell-reply-text" id="shell-last-reply-text">—</div>
-            <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
-          </div>
-        </section>
-      </div>
+      <section class="shell-compose-panel" id="shell-compose-panel">
+        <div class="shell-section-label">Ваше сообщение</div>
+        <textarea
+          id="shell-message"
+          class="shell-textarea"
+          rows="3"
+          placeholder="Напишите агенту…"
+          aria-label="Ваше сообщение"
+        ></textarea>
+        <div class="shell-compose-actions">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
+        </div>
+      </section>
 
-      <section class="shell-voice-panel" id="shell-voice-panel">
-        <div class="shell-voice-settings">
+      <section class="shell-tools-panel" id="shell-voice-panel">
+        <div class="shell-section-label">Действия</div>
+        <div class="shell-action-row">
+          <button type="button" class="shell-action-card" id="shell-mic-btn">
+            <span class="shell-action-icon" aria-hidden="true">🎤</span>
+            <span class="shell-action-label">Говорить</span>
+          </button>
+          <button
+            type="button"
+            class="shell-action-card"
+            id="shell-watch-camera"
+            aria-pressed="false"
+          >
+            <span class="shell-action-icon" aria-hidden="true">📷</span>
+            <span class="shell-action-label">Камера</span>
+          </button>
+          <button
+            type="button"
+            class="shell-action-card"
+            id="shell-watch-screen"
+            aria-pressed="false"
+          >
+            <span class="shell-action-icon" aria-hidden="true">🖥</span>
+            <span class="shell-action-label">Экран</span>
+          </button>
+        </div>
+        <details class="shell-tools-more">
+          <summary class="shell-tools-more-summary">Настройки голоса</summary>
+          <div class="shell-voice-settings">
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Ввод голосом</span>
             <select id="shell-voice-mode" class="shell-select">
@@ -637,26 +662,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <input id="shell-tts-enabled" type="checkbox" checked />
             <span>Вывод голосом</span>
           </label>
-        </div>
-        <div class="shell-action-row">
-          <button type="button" class="shell-btn shell-btn--ghost shell-action-btn" id="shell-mic-btn">🎤 Говорить</button>
-          <button
-            type="button"
-            class="shell-btn shell-btn--ghost shell-action-btn"
-            id="shell-watch-camera"
-            aria-pressed="false"
-          >
-            📷 Смотреть
-          </button>
-          <button
-            type="button"
-            class="shell-btn shell-btn--ghost shell-action-btn"
-            id="shell-watch-screen"
-            aria-pressed="false"
-          >
-            🖥 Смотреть
-          </button>
-        </div>
+          </div>
+        </details>
       </section>
 
       <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
@@ -748,6 +755,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=29" type="module"></script>
+    <script src="/shell/shell.js?v=35" type="module"></script>
   </body>
 </html>

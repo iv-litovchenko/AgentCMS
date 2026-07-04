@@ -2,6 +2,7 @@ import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.j
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=2";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
+import { initShellCharacter } from "/shell/shell-character.js?v=1";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
@@ -36,7 +37,7 @@ const state = {
   screenSnapshotBusy: false,
   screenAppliedKey: "",
   view: "main",
-  sessionOpen: false,
+  chatOpen: true,
   routeOpen: false,
   mediaMode: "",
   clockTimer: null
@@ -78,10 +79,12 @@ const nodes = {
   mainView: document.getElementById("shell-main-view"),
   subtitle: document.getElementById("shell-subtitle"),
   agentAvatar: document.getElementById("shell-agent-avatar"),
+  characterStage: document.getElementById("shell-character-stage"),
   sessionToggle: document.getElementById("shell-session-toggle"),
-  sessionDrawer: document.getElementById("shell-session-drawer"),
+  replyPanel: document.getElementById("shell-reply-panel"),
+  composePanel: document.getElementById("shell-compose-panel"),
   routeToggle: document.getElementById("shell-route-toggle"),
-  routeDrawer: document.getElementById("shell-route-drawer"),
+  routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
   watchScreen: document.getElementById("shell-watch-screen"),
   mediaSection: document.getElementById("shell-media-section"),
@@ -90,7 +93,6 @@ const nodes = {
   batteryFill: document.getElementById("shell-battery-fill"),
   batteryLevel: document.getElementById("shell-battery-level"),
   clock: document.getElementById("shell-clock"),
-  phrase: document.getElementById("shell-phrase"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
@@ -238,12 +240,10 @@ function livePhraseFromStatus(shellState, latestAgentMessage) {
 function renderPhase(phase, phrase = "", metrics = "") {
   const normalized = PHASE_LABELS[phase] ? phase : "waiting";
   nodes.phaseLabel.textContent = PHASE_LABELS[normalized];
-  if (nodes.phrase) {
-    nodes.phrase.textContent = phrase || (normalized === "waiting" ? "Готов к сообщению" : "");
-  }
   nodes.meta.textContent = metrics || "";
   nodes.pulse.dataset.phase = normalized;
   if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = normalized;
+  if (nodes.characterStage) nodes.characterStage.dataset.phase = normalized;
 }
 
 function renderShellReply(message) {
@@ -501,20 +501,32 @@ function applyWindowSettings(settings) {
   }
 }
 
-function setSessionDrawer(open) {
+function setMicButtonState(label, { active = false } = {}) {
+  if (!nodes.micBtn) return;
+  const icon = nodes.micBtn.querySelector(".shell-action-icon");
+  const text = nodes.micBtn.querySelector(".shell-action-label");
+  if (icon) icon.textContent = active ? "⏹" : "🎤";
+  if (text) text.textContent = label;
+  else nodes.micBtn.textContent = label;
+}
+
+function setChatPanel(open) {
   const next = Boolean(open);
-  state.sessionOpen = next;
-  nodes.mainView?.setAttribute("data-session-open", next ? "1" : "0");
+  state.chatOpen = next;
+  nodes.mainView?.setAttribute("data-chat-open", next ? "1" : "0");
   nodes.sessionToggle?.setAttribute("aria-pressed", next ? "true" : "false");
-  nodes.sessionDrawer?.classList.toggle("hidden", !next);
+  nodes.replyPanel?.classList.toggle("hidden", !next);
+  nodes.composePanel?.classList.toggle("hidden", !next);
 }
 
 function setRouteDrawer(open) {
   const next = Boolean(open);
   state.routeOpen = next;
   nodes.mainView?.setAttribute("data-route-open", next ? "1" : "0");
-  nodes.routeToggle?.setAttribute("aria-pressed", next ? "true" : "false");
-  nodes.routeDrawer?.classList.toggle("hidden", !next);
+  document.querySelectorAll(".shell-route-toggle").forEach((btn) => {
+    btn.setAttribute("aria-pressed", next ? "true" : "false");
+  });
+  nodes.routePanel?.classList.toggle("hidden", !next);
 }
 
 function setMediaDrawer(mode) {
@@ -743,8 +755,8 @@ function applyStatusPayload(payload) {
       livePhraseFromStatus(payload.state, payload.latestAgentMessage),
       payload.state.metrics
     );
-    if (state.pttHeld) nodes.micBtn.textContent = "⏹ Стоп";
-    else if (!state.micActive) nodes.micBtn.textContent = "🎤 Говорить";
+    if (state.pttHeld) setMicButtonState("Стоп", { active: true });
+    else if (!state.micActive) setMicButtonState("Говорить");
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
@@ -996,13 +1008,13 @@ function setupSpeechRecognition() {
 
   recognition.onstart = () => {
     state.micActive = true;
-    nodes.micBtn.textContent = "⏹ Стоп";
+    setMicButtonState("Стоп", { active: true });
     void patchShellState({ phase: "listening", phrase: "Говорите…" });
   };
 
   recognition.onend = () => {
     state.micActive = false;
-    nodes.micBtn.textContent = "🎤 Говорить";
+    setMicButtonState("Говорить");
     if (!state.speaking) void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
   };
 
@@ -1045,7 +1057,7 @@ function toggleMic() {
     })
       .then((data) => {
         state.pttHeld = Boolean(data.held);
-        nodes.micBtn.textContent = state.pttHeld ? "⏹ Стоп" : "🎤 Говорить";
+        setMicButtonState(state.pttHeld ? "Стоп" : "Говорить", { active: state.pttHeld });
         renderPhase(
           state.pttHeld ? "listening" : "thinking",
           state.pttHeld ? "Sidecar слушает…" : "Распознаю…"
@@ -1077,7 +1089,7 @@ function setShellView(view) {
 function bindNavigationUi() {
   nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
   nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
-  nodes.sessionToggle?.addEventListener("click", () => setSessionDrawer(!state.sessionOpen));
+  nodes.sessionToggle?.addEventListener("click", () => setChatPanel(!state.chatOpen));
   nodes.routeToggle?.addEventListener("click", () => setRouteDrawer(!state.routeOpen));
   nodes.watchCamera?.addEventListener("click", () => {
     void toggleWatchCamera().catch((error) => renderPhase("waiting", error.message));
@@ -1262,6 +1274,7 @@ async function boot() {
   setupSpeechRecognition();
   startClock();
   void initBatteryMonitor();
+  void initShellCharacter(nodes.characterStage);
   try {
     await resolveShellAgent();
     await topicPicker.refresh();
