@@ -46661,7 +46661,7 @@ function getAgentSchemaNodeKindLabel(entry) {
   return "Тема";
 }
 
-function createAgentSchemaNodeButton(entry) {
+function createAgentSchemaNodeButton(entry, sizeMeta = null) {
   const row = document.createElement("button");
   row.type = "button";
   const isArea = isAreaNodePath(entry.path);
@@ -46680,17 +46680,37 @@ function createAgentSchemaNodeButton(entry) {
   path.textContent = entry.displayPath || getNodeDisplayPath(entry.path);
 
   row.append(kind, label, path);
+
+  if (sizeMeta) {
+    const size = document.createElement("span");
+    size.className = `agent-schema-node-size${sizeMeta.kind === "area" ? " is-area-sum" : ""}`;
+    size.textContent = sizeMeta.loading ? "…" : sizeMeta.sizeLabel || formatFileSize(sizeMeta.bytes || 0);
+    if (!sizeMeta.loading && sizeMeta.kind === "area") {
+      size.title = `Суммарный объём ${sizeMeta.topicCount ?? 0} тем внутри`;
+    } else if (!sizeMeta.loading) {
+      size.title = "Объём темы на диске";
+    }
+    row.appendChild(size);
+  }
+
   row.addEventListener("click", () => {
     if (entry.path) openNodeFromMenu(getLabelFromPath(entry.path), entry.path);
   });
   return row;
 }
 
-function createAgentSchemaItemLi(entry) {
+function createAgentSchemaItemLi(entry, sizeByPath = null) {
   const li = document.createElement("li");
   const isArea = isAreaNodePath(entry.path);
   li.className = `agent-schema-item${isArea ? " is-area" : " is-topic"}`;
-  li.appendChild(createAgentSchemaNodeButton(entry));
+  let sizeMeta = null;
+  if (sizeByPath) {
+    sizeMeta = sizeByPath[entry.path] || {
+      loading: Boolean(sizeByPath.__loading),
+      kind: isArea ? "area" : "topic"
+    };
+  }
+  li.appendChild(createAgentSchemaNodeButton(entry, sizeMeta));
   return li;
 }
 
@@ -46698,21 +46718,24 @@ function shouldHideAgentSchemaTreeNode(path) {
   return isAgentRootIndexPath(path);
 }
 
-function walkAgentSchemaMenu(node, parentUl) {
+function walkAgentSchemaMenu(node, parentUl, sizeByPath = null) {
   const children = getOrderedMenuChildren(node);
 
   const appendAgentSchemaChild = (child) => {
     if (child.kind === "folder") {
-      walkAgentSchemaMenu(child.entry, parentUl);
+      walkAgentSchemaMenu(child.entry, parentUl, sizeByPath);
       return;
     }
     if (shouldHideAgentSchemaTreeNode(child.entry.path)) return;
     parentUl.appendChild(
-      createAgentSchemaItemLi({
-        path: child.entry.path,
-        label: child.entry.label || getLabelFromPath(child.entry.path),
-        displayPath: getNodeDisplayPath(child.entry.path)
-      })
+      createAgentSchemaItemLi(
+        {
+          path: child.entry.path,
+          label: child.entry.label || getLabelFromPath(child.entry.path),
+          displayPath: getNodeDisplayPath(child.entry.path)
+        },
+        sizeByPath
+      )
     );
   };
 
@@ -46722,25 +46745,31 @@ function walkAgentSchemaMenu(node, parentUl) {
   }
 
   if (node.indexPath) {
-    const li = createAgentSchemaItemLi({
-      path: node.indexPath,
-      label: getLabelFromPath(node.indexPath),
-      displayPath: getNodeDisplayPath(node.indexPath)
-    });
+    const li = createAgentSchemaItemLi(
+      {
+        path: node.indexPath,
+        label: getLabelFromPath(node.indexPath),
+        displayPath: getNodeDisplayPath(node.indexPath)
+      },
+      sizeByPath
+    );
 
     const childUl = document.createElement("ul");
     childUl.className = "agent-schema-branch-list";
 
     for (const child of children) {
       if (child.kind === "folder") {
-        walkAgentSchemaMenu(child.entry, childUl);
+        walkAgentSchemaMenu(child.entry, childUl, sizeByPath);
       } else if (!shouldHideAgentSchemaTreeNode(child.entry.path)) {
         childUl.appendChild(
-          createAgentSchemaItemLi({
-            path: child.entry.path,
-            label: child.entry.label || getLabelFromPath(child.entry.path),
-            displayPath: getNodeDisplayPath(child.entry.path)
-          })
+          createAgentSchemaItemLi(
+            {
+              path: child.entry.path,
+              label: child.entry.label || getLabelFromPath(child.entry.path),
+              displayPath: getNodeDisplayPath(child.entry.path)
+            },
+            sizeByPath
+          )
         );
       }
     }
@@ -47163,9 +47192,91 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   }
 }
 
+let agentSchemaSizeSeq = 0;
+
+async function fetchAgentTopicSizes() {
+  const response = await fetch(buildApiUrl("/api/agent/topic-sizes"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function buildAgentSchemaSizeLookup(byPath = {}, { loading = false } = {}) {
+  const lookup = { __loading: loading };
+  for (const [manifestPath, meta] of Object.entries(byPath || {})) {
+    lookup[manifestPath] = { ...meta, loading: false };
+  }
+  return lookup;
+}
+
+function renderAgentSchemaSizeChart(ranking = [], totalTopicBytes = 0) {
+  const section = document.createElement("section");
+  section.className = "agent-schema-size-chart";
+  section.setAttribute("aria-label", "Сравнение тем по объёму");
+
+  const head = document.createElement("header");
+  head.className = "agent-schema-size-chart-head";
+  const title = document.createElement("h3");
+  title.className = "agent-schema-size-chart-title";
+  title.textContent = "Темы по объёму";
+  const note = document.createElement("p");
+  note.className = "agent-schema-size-chart-note";
+  note.textContent = "Сравниваются только темы; у областей — сумма вложенных тем.";
+  head.append(title, note);
+  section.appendChild(head);
+
+  if (!ranking.length) {
+    const empty = document.createElement("p");
+    empty.className = "agent-schema-size-chart-empty";
+    empty.textContent = "Нет тем для сравнения";
+    section.appendChild(empty);
+    return section;
+  }
+
+  const maxBytes = Math.max(...ranking.map((item) => Number(item.bytes) || 0), 1);
+  const list = document.createElement("div");
+  list.className = "agent-schema-size-chart-list";
+
+  for (const item of ranking.slice(0, 16)) {
+    const row = document.createElement("div");
+    row.className = "agent-schema-size-chart-row";
+
+    const label = document.createElement("span");
+    label.className = "agent-schema-size-chart-label";
+    label.textContent = item.label || getLabelFromPath(item.manifestPath);
+    label.title = item.manifestPath || "";
+
+    const track = document.createElement("div");
+    track.className = "agent-schema-size-chart-bar-track";
+    track.setAttribute("role", "presentation");
+    const fill = document.createElement("div");
+    fill.className = "agent-schema-size-chart-bar-fill";
+    const percent = Math.max(4, Math.round(((Number(item.bytes) || 0) / maxBytes) * 100));
+    fill.style.width = `${percent}%`;
+    track.appendChild(fill);
+
+    const value = document.createElement("span");
+    value.className = "agent-schema-size-chart-value";
+    value.textContent = item.sizeLabel || formatFileSize(item.bytes || 0);
+    if (totalTopicBytes > 0) {
+      const share = Math.round(((Number(item.bytes) || 0) / totalTopicBytes) * 100);
+      value.title = `${share}% от суммарного объёма тем`;
+    }
+
+    row.append(label, track, value);
+    list.appendChild(row);
+  }
+
+  section.appendChild(list);
+  return section;
+}
+
 function renderAgentSchemaView() {
   if (!agentSchemaContentNode) return;
   agentSchemaContentNode.innerHTML = "";
+  const renderSeq = ++agentSchemaSizeSeq;
 
   if (!currentMenuData) {
     renderListEmptyMessage(agentSchemaContentNode, "Дерево агента ещё не загружено");
@@ -47179,19 +47290,58 @@ function renderAgentSchemaView() {
     return;
   }
 
+  const shell = document.createElement("div");
+  shell.className = "agent-schema-shell";
+
   const tree = document.createElement("div");
   tree.className = "agent-schema-tree";
   const rootList = document.createElement("ul");
   rootList.className = "agent-schema-branch-list agent-schema-branch-list--root";
-  walkAgentSchemaMenu(getWorkspaceRootMenuTreeNode(menu), rootList);
+  const loadingSizeLookup = buildAgentSchemaSizeLookup({}, { loading: true });
+  walkAgentSchemaMenu(getWorkspaceRootMenuTreeNode(menu), rootList, loadingSizeLookup);
   if (menu.serviceTree) {
-    walkAgentSchemaMenu({ title: "", ...menu.serviceTree }, rootList);
+    walkAgentSchemaMenu({ title: "", ...menu.serviceTree }, rootList, loadingSizeLookup);
   }
   if (menu.containerTree) {
-    walkAgentSchemaMenu({ title: "", ...menu.containerTree }, rootList);
+    walkAgentSchemaMenu({ title: "", ...menu.containerTree }, rootList, loadingSizeLookup);
   }
   tree.appendChild(rootList);
-  agentSchemaContentNode.appendChild(tree);
+  shell.appendChild(tree);
+
+  const chartPlaceholder = document.createElement("div");
+  chartPlaceholder.className = "agent-schema-size-chart agent-schema-size-chart--loading";
+  chartPlaceholder.innerHTML = `<p class="agent-schema-size-chart-empty">Загрузка объёмов тем…</p>`;
+  shell.appendChild(chartPlaceholder);
+  agentSchemaContentNode.appendChild(shell);
+
+  void (async () => {
+    try {
+      const data = await fetchAgentTopicSizes();
+      if (renderSeq !== agentSchemaSizeSeq || agentWorkspaceView !== "schema") return;
+
+      const sizeLookup = buildAgentSchemaSizeLookup(data.byPath || {});
+      rootList.replaceChildren();
+      walkAgentSchemaMenu(getWorkspaceRootMenuTreeNode(menu), rootList, sizeLookup);
+      if (menu.serviceTree) {
+        walkAgentSchemaMenu({ title: "", ...menu.serviceTree }, rootList, sizeLookup);
+      }
+      if (menu.containerTree) {
+        walkAgentSchemaMenu({ title: "", ...menu.containerTree }, rootList, sizeLookup);
+      }
+
+      chartPlaceholder.replaceWith(
+        renderAgentSchemaSizeChart(data.ranking || [], Number(data.totalTopicBytes) || 0)
+      );
+    } catch (error) {
+      if (renderSeq !== agentSchemaSizeSeq || agentWorkspaceView !== "schema") return;
+      chartPlaceholder.classList.remove("agent-schema-size-chart--loading");
+      chartPlaceholder.innerHTML = `<p class="agent-schema-size-chart-empty is-alert">Не удалось загрузить объёмы: ${escapeHtml(String(error.message || error))}</p>`;
+      for (const sizeNode of agentSchemaContentNode.querySelectorAll(".agent-schema-node-size")) {
+        sizeNode.textContent = "—";
+        sizeNode.classList.add("is-missing");
+      }
+    }
+  })();
 }
 
 const AGENT_HOME_HINT_DEFAULT = "Выберите тему в дереве или откройте схему";

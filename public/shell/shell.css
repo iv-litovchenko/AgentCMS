@@ -179,6 +179,64 @@ body {
   color: var(--muted);
 }
 
+.shell-camera {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(18, 20, 38, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(122, 108, 255, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.shell-camera-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shell-camera-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell-camera-toggle {
+  margin: 0;
+}
+
+.shell-camera-stage {
+  margin-top: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  background: #000;
+}
+
+.shell-camera-stage.hidden {
+  display: none;
+}
+
+.shell-camera-video {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.shell-camera-status {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(8, 10, 22, 0.72);
+}
+
+.shell-camera-status:empty {
+  display: none;
+}
+
 .shell-panel,
 .shell-compose,
 .shell-reply {
@@ -463,6 +521,13 @@ body {
   max-height: 220px;
   object-fit: cover;
   cursor: zoom-in;
+}
+
+.shell-show-video {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  background: #000;
 }
 
 .shell-show-caption {

@@ -26,7 +26,8 @@ const DEFAULT_SETTINGS = {
   voiceResponseEnabled: true,
   ttsEnabled: true,
   ttsEngine: "browser",
-  windowTopmost: true
+  windowTopmost: true,
+  cameraEnabled: false
 };
 
 const DEFAULT_STATE = {
@@ -43,13 +44,36 @@ const DEFAULT_STATE = {
 
 const SIDECAR_TTL_MS = 8000;
 
-const SHELL_SHOW_DEMO_RE = /^(демо|demo|пример)(\s+(картин|изображ|show|media|картинку|картинка|картинки))?/i;
+const SHELL_SHOW_DEMO_RE = /^(демо|demo|пример)(\s+[\wа-яё-]+)?$/i;
+const SHELL_SHOW_VIDEO_RE = /\b(видео|video)\b/i;
 
 function isShellShowDemoRequest(text) {
-  return SHELL_SHOW_DEMO_RE.test(String(text || "").trim());
+  const trimmed = String(text || "").trim();
+  if (!SHELL_SHOW_DEMO_RE.test(trimmed)) return false;
+  return (
+    SHELL_SHOW_VIDEO_RE.test(trimmed) ||
+    /\b(картин|изображ|show|media|картинку|картинка|картинки|image|picture)\b/i.test(trimmed) ||
+    /^(демо|demo|пример)$/i.test(trimmed)
+  );
 }
 
-function buildShellShowDemoReply() {
+function shellShowDemoKind(text) {
+  return SHELL_SHOW_VIDEO_RE.test(String(text || "")) ? "video" : "image";
+}
+
+function buildShellShowDemoReply(kind = "image") {
+  if (kind === "video") {
+    return `Пример: агент может показать видео прямо в Shell.
+
+[show]
+type: video
+src: /shell/demo.mp4
+caption: Демо-ролик Agent Shell
+[/show]
+
+Блок [show] не попадает в озвучку — только текст выше.`;
+  }
+
   return `Пример: агент может показать картинку прямо в Shell.
 
 [show]
@@ -61,8 +85,8 @@ caption: Горы и храм — обои Agent Shell
 Блок [show] не попадает в озвучку — только текст выше.`;
 }
 
-function buildShellShowDemoResult() {
-  const reply = buildShellShowDemoReply();
+function buildShellShowDemoResult(text) {
+  const reply = buildShellShowDemoReply(shellShowDemoKind(text));
   return {
     channel: "shell-demo",
     reply,

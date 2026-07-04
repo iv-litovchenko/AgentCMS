@@ -1,6 +1,7 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js";
+import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=1";
+import { createShellCamera } from "/shell/shell-camera.js?v=1";
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -61,8 +62,19 @@ const nodes = {
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
   lastReplyText: document.getElementById("shell-last-reply-text"),
-  lastReplyMedia: document.getElementById("shell-last-reply-media")
+  lastReplyMedia: document.getElementById("shell-last-reply-media"),
+  cameraEnabled: document.getElementById("shell-camera-enabled"),
+  cameraStage: document.getElementById("shell-camera-stage"),
+  cameraVideo: document.getElementById("shell-camera-video"),
+  cameraStatus: document.getElementById("shell-camera-status"),
+  cameraSnapshot: document.getElementById("shell-camera-snapshot")
 };
+
+const shellCamera = createShellCamera({
+  videoEl: nodes.cameraVideo,
+  stageEl: nodes.cameraStage,
+  statusEl: nodes.cameraStatus
+});
 
 const topicPicker = createTopicPicker({
   rootEl: document.getElementById("shell-topic-picker"),
@@ -132,6 +144,41 @@ function clearShellReply() {
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
 }
 
+function updateCameraUi(active) {
+  nodes.cameraSnapshot?.classList.toggle("hidden", !active);
+}
+
+async function applyCameraEnabled(enabled, { persist = false } = {}) {
+  const want = Boolean(enabled);
+  if (!want) {
+    await shellCamera.setEnabled(false);
+    if (nodes.cameraEnabled) nodes.cameraEnabled.checked = false;
+    updateCameraUi(false);
+    return;
+  }
+
+  if (!shellCamera.isSupported()) {
+    if (nodes.cameraEnabled) nodes.cameraEnabled.checked = false;
+    if (nodes.cameraStatus) {
+      nodes.cameraStatus.textContent = "Камера недоступна в этом браузере";
+      nodes.cameraStage?.classList.remove("hidden");
+    }
+    updateCameraUi(false);
+    return;
+  }
+
+  try {
+    await shellCamera.setEnabled(true);
+    if (nodes.cameraEnabled) nodes.cameraEnabled.checked = true;
+    updateCameraUi(true);
+    if (persist) await saveSettings({ cameraEnabled: true });
+  } catch (error) {
+    if (nodes.cameraEnabled) nodes.cameraEnabled.checked = false;
+    updateCameraUi(false);
+    renderPhase("waiting", error.message);
+  }
+}
+
 function applySettings(settings) {
   state.settings = settings;
   nodes.messageTarget.value = settings.messageTarget || "cms";
@@ -143,6 +190,15 @@ function applySettings(settings) {
   nodes.voiceMode.value = settings.voiceInputMode || "browser";
   document.body.style.opacity = settings.windowTopmost === false ? "0.98" : "1";
   updateTargetUi(settings.messageTarget || "cms");
+  if (nodes.cameraEnabled) {
+    const enabled = Boolean(settings.cameraEnabled);
+    nodes.cameraEnabled.checked = enabled;
+    if (enabled) void applyCameraEnabled(true);
+    else {
+      void shellCamera.stop();
+      updateCameraUi(false);
+    }
+  }
 }
 
 function getQwenPawUrlValue() {
@@ -550,9 +606,28 @@ function bindUi() {
       ttsEnabled: nodes.ttsEnabled.checked,
       windowTopmost: nodes.topmost.checked,
       voiceInputMode: voiceMode,
-      ttsEngine: voiceMode === "sidecar" || voiceMode === "always" ? "say" : "browser"
+      ttsEngine: voiceMode === "sidecar" || voiceMode === "always" ? "say" : "browser",
+      cameraEnabled: nodes.cameraEnabled?.checked === true
     }).catch((error) => renderPhase("waiting", error.message));
   };
+
+  nodes.cameraEnabled?.addEventListener("change", () => {
+    const enabled = nodes.cameraEnabled.checked;
+    void applyCameraEnabled(enabled, { persist: true }).then(() => {
+      if (!enabled) void saveSettings({ cameraEnabled: false });
+    });
+  });
+
+  nodes.cameraSnapshot?.addEventListener("click", () => {
+    const frame = shellCamera.captureFrame();
+    if (!frame) {
+      renderPhase("waiting", "Камера не готова для снимка");
+      return;
+    }
+    renderShellReplyMedia(nodes.lastReplyMedia, [{ type: "image", src: frame, caption: "Кадр с камеры" }], state.agentId);
+    nodes.lastReplyText.textContent = "Кадр с камеры (локальный превью)";
+    renderPhase("waiting", "Кадр сохранён в превью — отправка агенту позже");
+  });
 
   nodes.messageTarget.addEventListener("change", persistSettings);
   nodes.qwenpawUrl.addEventListener("change", persistSettings);

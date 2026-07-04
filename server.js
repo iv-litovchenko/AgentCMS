@@ -7132,6 +7132,115 @@ async function buildAgentWorkspaceStats() {
   };
 }
 
+async function collectDirBytes(dirAbsolute, stats = { totalBytes: 0, fileCount: 0 }) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return stats;
+  }
+
+  for (const entry of entries) {
+    const absolute = path.join(dirAbsolute, entry.name);
+    if (entry.isDirectory()) {
+      if (shouldSkipLargeFileScanDirectory(entry.name)) continue;
+      await collectDirBytes(absolute, stats);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    try {
+      const stat = await fs.stat(absolute);
+      stats.totalBytes += stat.size;
+      stats.fileCount += 1;
+    } catch {
+      // skip unreadable files
+    }
+  }
+
+  return stats;
+}
+
+function isTopicDirInsideAreaDir(topicContainerDir, areaContainerDir) {
+  const topicDir = String(topicContainerDir || "").replace(/\\/g, "/");
+  const areaDir = String(areaContainerDir || "").replace(/\\/g, "/");
+  if (!topicDir) return false;
+  if (!areaDir) return true;
+  if (topicDir === areaDir) return false;
+  return topicDir.startsWith(`${areaDir}/`);
+}
+
+async function buildAgentTopicSizeReport() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const entries = collectAllMenuManifestEntries(menu);
+  const topics = [];
+
+  for (const entry of entries) {
+    if (entry.kind !== "topic") continue;
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    const containerDir = getManifestContainerDirRel(manifestPath);
+    const absolute = normalizeWorkspacePath(containerDir);
+    const stats = { totalBytes: 0, fileCount: 0 };
+    if (absolute) await collectDirBytes(absolute, stats);
+    topics.push({
+      manifestPath,
+      label: String(entry.label || getManifestNamedSlotKey(manifestPath) || "").trim(),
+      containerDir,
+      bytes: stats.totalBytes,
+      fileCount: stats.fileCount,
+      sizeLabel: formatBytesLabel(stats.totalBytes)
+    });
+  }
+
+  const byPath = {};
+  for (const topic of topics) {
+    byPath[topic.manifestPath] = {
+      kind: "topic",
+      bytes: topic.bytes,
+      sizeLabel: topic.sizeLabel,
+      fileCount: topic.fileCount
+    };
+  }
+
+  for (const entry of entries) {
+    if (entry.kind !== "area") continue;
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    const areaDir = getManifestContainerDirRel(manifestPath);
+    let bytes = 0;
+    let topicCount = 0;
+    for (const topic of topics) {
+      if (!isTopicDirInsideAreaDir(topic.containerDir, areaDir)) continue;
+      bytes += topic.bytes;
+      topicCount += 1;
+    }
+    byPath[manifestPath] = {
+      kind: "area",
+      bytes,
+      sizeLabel: formatBytesLabel(bytes),
+      topicCount
+    };
+  }
+
+  const ranking = topics
+    .slice()
+    .sort((left, right) => right.bytes - left.bytes || left.label.localeCompare(right.label, "ru"))
+    .map((topic) => ({
+      manifestPath: topic.manifestPath,
+      label: topic.label || getManifestNamedSlotKey(topic.manifestPath),
+      bytes: topic.bytes,
+      sizeLabel: topic.sizeLabel
+    }));
+
+  const totalTopicBytes = topics.reduce((sum, topic) => sum + topic.bytes, 0);
+
+  return {
+    byPath,
+    ranking,
+    topicCount: topics.length,
+    totalTopicBytes,
+    totalTopicSizeLabel: formatBytesLabel(totalTopicBytes)
+  };
+}
+
 async function buildAgentGitStatus() {
   const agentRoot = getAgentRoot();
   const repoAbsolute = await resolveAgentRootGitRepoAbsolute();
@@ -8828,6 +8937,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/topic-sizes") {
+    try {
+      const report = await buildAgentTopicSizeReport();
+      return sendJson(res, 200, report);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic sizes",
         details: String(error.message || error)
       });
     }

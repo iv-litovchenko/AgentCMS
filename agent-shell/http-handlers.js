@@ -73,7 +73,7 @@ function createShellHandlers(deps) {
         });
 
         if (shellService.isShellShowDemoRequest(body)) {
-          const result = shellService.buildShellShowDemoResult();
+          const result = shellService.buildShellShowDemoResult(body);
           shellService.emitShellEvent(agentId, "assistant_message", result.message);
           await shellService.patchState(agentRoot, agentId, {
             phase: shellService.PHASE_WAITING,

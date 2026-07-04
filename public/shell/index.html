@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=18" />
+    <link rel="stylesheet" href="/shell/shell.css?v=21" />
   </head>
   <body>
     <div class="shell-app" id="shell-app">
@@ -31,6 +31,31 @@
           <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
           <div class="shell-status-phrase" id="shell-phrase">Готов к сообщению</div>
           <div class="shell-status-meta" id="shell-meta"></div>
+        </div>
+      </section>
+
+      <section class="shell-camera" id="shell-camera-section">
+        <div class="shell-camera-head">
+          <span class="shell-label">Камера</span>
+          <div class="shell-camera-actions">
+            <label class="shell-check shell-camera-toggle">
+              <input id="shell-camera-enabled" type="checkbox" />
+              <span>Включить</span>
+            </label>
+            <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-camera-snapshot">
+              📷 Кадр
+            </button>
+          </div>
+        </div>
+        <div class="shell-camera-stage hidden" id="shell-camera-stage">
+          <video
+            id="shell-camera-video"
+            class="shell-camera-video"
+            autoplay
+            muted
+            playsinline
+          ></video>
+          <div class="shell-camera-status" id="shell-camera-status"></div>
         </div>
       </section>
 
@@ -314,12 +339,220 @@
             MVP голоса и QwenPaw есть; <strong>слой capabilities и multi-agent</strong> — главное, что из начала ещё впереди.
           </p>
         </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">Aya.AI · не забрали · дословно</div>
+        <div class="shell-footer-prose">
+          <p>Сравнил <code>workspaces/00 🍀 Aya.AI/core/</code> с тем, что уже есть в <strong>Agent Shell</strong>.</p>
+          <p><strong>Кратко:</strong> голосовой каркас частично перенесли, а «ум Aya» и половину UX Aya Bar — сознательно не брали (это теперь QwenPaw + CMS).</p>
+
+          <p><strong>Что уже забрали (или заменили эквивалентом)</strong></p>
+          <ul class="shell-todo-list">
+            <li>Плавающий бар + статус (ожидаю / слушаю / думаю / говорю) — ✅ pulse + phases</li>
+            <li>Стоп озвучки 🔇 — ✅ <code>/api/shell/stop-tts</code></li>
+            <li>Поверх окон — ✅ <code>windowTopmost</code></li>
+            <li>STT + отправка текста — ✅ browser + sidecar (Google Speech)</li>
+            <li>TTS ответа — ✅ Web Speech + sidecar <code>say</code></li>
+            <li>«Последнее сообщение» — ✅ <code>shell-reply</code></li>
+            <li>Настройки — ✅ <code>.agent-shell/settings.json</code></li>
+            <li>Два процесса bar+voice — ✅ Shell UI + <code>voice-sidecar</code></li>
+            <li>Файловый мост <code>integration/*.txt</code> — ✅ заменён на HTTP/SSE</li>
+            <li><strong>LLM внутри голоса</strong> (Ollama/OpenAI) — ✅ <strong>не переносили</strong> — ответ даёт QwenPaw/CMS-агент</li>
+            <li>Отдельное <code>.app</code> — ✅ <code>Agent Shell.app</code></li>
+          </ul>
+
+          <p><strong>Что из Aya ещё не забрали</strong></p>
+
+          <p><em>1. Голосовой пайплайн (<code>aya_voice_v2</code>) — самое ценное</em></p>
+          <p>Режимы ввода (<code>assistant_settings.json</code>):</p>
+          <ul class="shell-todo-list">
+            <li><code>fn_button</code> — PTT по Fn/F18 (<code>pynput</code>) — в Aya ✅, в Shell ❌</li>
+            <li><code>always</code> — в Aya ✅, в Shell ⚠️ есть в sidecar</li>
+            <li><code>meeting</code> — длинные записи — в Aya ✅, в Shell ❌</li>
+            <li><code>wake_name</code> — фильтр по имени — в Aya ✅, в Shell ❌</li>
+            <li><code>voice_profile</code> — «только мой голос» (beta) — в Aya заготовка, в Shell ❌</li>
+            <li><code>disabled</code> — в Aya ✅, в Shell ✅</li>
+          </ul>
+          <p><strong>VAD и качество STT:</strong></p>
+          <ul class="shell-todo-list">
+            <li><code>webrtcvad</code> + RMS-порог + live-метрики <code>vol/thr/vad</code> в статусе — ❌</li>
+            <li><code>VOICE_FORCE_THRESHOLD</code>, pre/post roll, cooldown после записи — ❌</li>
+            <li>Выбор устройства микрофона <code>VOICE_INPUT_DEVICE_INDEX</code> — ❌</li>
+          </ul>
+          <p><strong>Anti-echo (очень полезно для голоса):</strong></p>
+          <ul class="shell-todo-list">
+            <li>пока идёт TTS — <strong>не слушать</strong> (только drain буфера) — ❌</li>
+            <li><code>VOICE_POST_TTS_COOLDOWN_SEC</code> после озвучки — ❌</li>
+            <li>отдельный поток опроса stop (~40 ms) во время блокирующего read — ⚠️ частично</li>
+          </ul>
+          <p><strong>TTS-бэкенды:</strong></p>
+          <ul class="shell-todo-list">
+            <li>ElevenLabs, gTTS → MP3 → <code>afplay</code> — ❌ (только <code>say</code> / browser)</li>
+            <li>выбор движка <code>VOICE_TTS_BACKEND=auto|gtts|elevenlabs</code> — ❌</li>
+          </ul>
+          <p><strong>Computer control</strong> (<code>focused_input.py</code>):</p>
+          <ul class="shell-todo-list">
+            <li>вставка распознанного текста в активное поле через clipboard + Cmd+V — ❌</li>
+            <li>в settings Aya: <code>computer_control_enabled: true</code></li>
+          </ul>
+          <p><strong>Архив голоса</strong> (<code>08 ❄️ Archive/04 Voice/</code>):</p>
+          <ul class="shell-todo-list">
+            <li>WAV + TXT входа, MP3 + метаданные ответа — ❌</li>
+            <li>логичнее перенести в CMS media/thread, но пока нет</li>
+          </ul>
+
+          <p><em>2. Aya Bar UI (<code>aya_bar_v2</code>) — визуал и UX</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Pulse</strong> — 15 анимаций (heart/jarvis) — ❌ (у Shell простой круг)</li>
+            <li><strong>Nebula</strong> фон (<code>nebula_bg.py</code>, <code>AYA_BAR_NEBULA</code>) — ❌ (у Shell свои обои + glass)</li>
+            <li><strong>История фраз</strong> (<code>phrase_history.json</code>, до 10) — ❌</li>
+            <li><strong>Quick settings</strong> — все тумблеры в одной панели — ⚠️ размазано по Shell</li>
+            <li><code>voice_response_model</code> (aya-voice / openai / local) — ❌ не нужно как LLM; <code>voiceResponseEnabled</code> в Shell не подключено</li>
+            <li><code>safe_guard_stub_enabled</code> — ❌ (заготовка «страховки» в Aya)</li>
+            <li>About dialog, кастомная иконка бара — ❌</li>
+            <li><code>dashboard_nebula.html</code> + <code>serve_dashboard.sh</code> (порт 8844) — ❌</li>
+          </ul>
+
+          <p><em>3. Интеграция / инфраструктура Aya</em></p>
+          <ul class="shell-todo-list">
+            <li><code>.env</code> в корне workspace (<code>python-dotenv</code>) — ❌ в sidecar нет</li>
+            <li><code>voice_status.txt</code> с emoji + метриками — ❌ → SSE/state (проще, но без vol/thr/vad)</li>
+            <li><code>phrase_history.json</code> — ❌</li>
+            <li><code>run_macos_terminal.sh</code> (обход краша Tk) — не актуально — Shell на web/Electron</li>
+          </ul>
+
+          <p><em>4. Архитектурно не переносим (и правильно)</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>LLM внутри <code>aya_voice_v2</code></strong> (<code>llm_reply.py</code>, Ollama/OpenAI) — заменено на <strong>QwenPaw + MCP</strong></li>
+            <li><strong>Два Python-процесса + JSON/txt файлы</strong> — заменено на CMS API</li>
+            <li><strong>Tkinter bar</strong> — заменено на web Shell + Electron</li>
+          </ul>
+
+          <p><strong>Приоритет «что имеет смысл забрать дальше»</strong></p>
+          <ol class="shell-todo-list shell-todo-list--ordered">
+            <li><strong>Anti-echo + cooldown после TTS</strong> — сразу улучшит голос</li>
+            <li><strong>PTT <code>fn_button</code></strong> (из <code>ptt.py</code> + <code>pynput</code>) — как в Aya</li>
+            <li><strong>VAD + RMS</strong> — меньше ложных срабатываний</li>
+            <li><strong>Computer control</strong> — если нужна «диктовка в поле»</li>
+            <li><strong>ElevenLabs/gTTS</strong> — если <code>say</code> / browser TTS не устраивает</li>
+            <li><strong>Meeting / wake_name</strong> — по необходимости</li>
+            <li><strong>Архив записей</strong> → в CMS (media или thread), не в <code>08 Archive</code></li>
+            <li><strong>Pulse-анимации / phrase history</strong> — чистый UX, не блокер</li>
+          </ol>
+
+          <p>
+            <strong>Итог:</strong> из <code>00 🍀 Aya.AI</code> главное <strong>не забранное</strong> — это
+            <strong>зрелый voice-sidecar</strong> (VAD, PTT, anti-echo, TTS-бэкенды, computer control, архив) и
+            <strong>богатый bar UX</strong> (pulse, nebula, history, dashboard). «Мозг» Aya (LLM в голосе) мы
+            <strong>не забираем</strong> — вместо него QwenPaw и manifest'ы в CMS.
+          </p>
+          <p>Файлы для переноса: <code>ptt.py</code>, <code>vad.py</code>, <code>focused_input.py</code>, …</p>
+        </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">dashboard_nebula.html · дословно</div>
+        <div class="shell-footer-prose">
+          <p><strong>Идея в двух словах</strong></p>
+          <p>
+            Это <strong>не</strong> главный интерфейс Aya (им остаётся <strong>Aya Bar</strong> — Tkinter).
+            <strong>Nebula Dashboard</strong> — отдельная <strong>«консоль наблюдения»</strong>: красивая web-страница,
+            которая <strong>смотрит на голосовой процесс издалека</strong> и показывает, что происходит
+            <strong>прямо сейчас</strong>.
+          </p>
+          <p>Запуск:</p>
+          <pre class="shell-footer-diagram">cd core/integration
+./serve_dashboard.sh   # → http://localhost:8844/dashboard_nebula.html</pre>
+          <p>Страница <strong>опрашивает каждые 500 ms</strong> два файла из <code>integration/</code>:</p>
+          <ul class="shell-todo-list">
+            <li><code>voice_status.txt</code> — строка 1: emoji-состояние (🔴 слушаю, 🔊 говорю…), строка 2: фраза + <code>vol=</code> / <code>thr=</code>, строка 3: время</li>
+            <li><code>phrase_history.json</code> — последние распознанные фразы</li>
+          </ul>
+          <pre class="shell-footer-diagram">aya_voice_v2 → voice_status.txt + phrase_history.json
+                        ↓ fetch 500ms
+              dashboard_nebula.html
+aya_bar_v2 тоже читает те же файлы</pre>
+          <p>
+            <strong>Bar</strong> — управление и компактный UI.
+            <strong>Dashboard</strong> — большой экран «как в космическом корабле»: gauge, история, сырой дамп.
+          </p>
+
+          <p><strong>Что на странице (по смыслу)</strong></p>
+          <p><em>1. Preview — визуальный монитор</em></p>
+          <ul class="shell-todo-list">
+            <li><strong>Input level</strong> — круговой gauge по <code>vol/thr</code> (уровень микрофона vs порог)</li>
+            <li><strong>Scene</strong> — декоративные полоски «активности»</li>
+            <li><strong>Pulse</strong> — сердечко (как у бара, но в web)</li>
+          </ul>
+          <p><em>2. Code — отладка</em> — сырой текст <code>voice_status.txt</code></p>
+          <p><em>3. History</em> — список из <code>phrase_history.json</code> (до 12 строк)</p>
+          <p><em>4. Правая колонка Status</em> — состояние, фраза, время обновления</p>
+          <p><em>5. Низ</em> — pill Live / Listening / Speaking / Idle; кольцо «батареи» (<code>navigator.getBattery</code>)</p>
+          <p><em>6. Что только «нарисовано» (не работает)</em></p>
+          <ul class="shell-todo-list">
+            <li>Поле «Describe what you want to build…» — <strong>ни куда не подключено</strong>, заготовка</li>
+            <li>Левое меню (File, Assets, Voice Console…) — <strong>декоративная навигация</strong></li>
+          </ul>
+          <p>Dashboard — <strong>50% живой мониторинг + 50% UI-макет</strong> под расширение.</p>
+
+          <p><strong>Зачем это было в Aya</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Видеть, жив ли голос</strong> — Bar маленький; dashboard — на втором мониторе</li>
+            <li><strong>Настраивать порог микрофона</strong> — Gauge vol/thr — сразу видно, слышит ли VAD</li>
+            <li><strong>История фраз</strong> — «Что он только что распознал?»</li>
+            <li><strong>Debug</strong> — вкладка Code — без Finder/terminal</li>
+            <li><strong>Эстетика Nebula</strong> — PhpStorm-splash, mesh, glass — «второй мозг / sci-fi»</li>
+          </ul>
+          <p>Это <strong>не замена</strong> чату с LLM. Dashboard <strong>не отправляет</strong> сообщения агенту.</p>
+
+          <p><strong>Что мы не забрали в Agent Shell / CMS</strong></p>
+          <ul class="shell-todo-list">
+            <li>Отдельная <strong>monitor-страница</strong> — только <code>/shell/index.html</code> — ❌</li>
+            <li><strong>Gauge vol/thr</strong> — нет метрик микрофона в API — ❌</li>
+            <li><strong>phrase_history</strong> — ❌</li>
+            <li>Вкладка <strong>Code</strong> (raw status) — ❌</li>
+            <li><strong>Nebula</strong> фон (mesh, hex, neon) — горы + glass — ❌</li>
+            <li>Опрос 500 ms — SSE <code>/api/shell/stream</code> — ⚠️ частично</li>
+            <li><strong>Battery ring</strong> — ❌</li>
+            <li>Mock prompt + nav — в Shell prompt реальный (QwenPaw) — ✅ лучше</li>
+            <li><code>serve_dashboard.sh</code> :8844 — всё через CMS :3000 — ⚠️ страница <code>/shell/monitor.html</code> могла бы быть позже</li>
+          </ul>
+          <p>
+            <strong>Главное не забранное по смыслу:</strong> не картинка Nebula, а
+            <strong>роль «Voice Console / Monitor»</strong> — второй экран для отладки и наблюдения за голосом.
+          </p>
+
+          <p><strong>Как это ложится на Agent Shell</strong></p>
+          <pre class="shell-footer-diagram">dashboard → GET /api/shell/status + SSE
+          → (позже) GET /api/shell/metrics  // vol, thr
+          → thread для history фраз</pre>
+          <ul class="shell-todo-list">
+            <li><code>voice_status.txt</code> → <code>state.phase</code>, <code>state.phrase</code>, <code>qwenpaw.ok</code></li>
+            <li><code>phrase_history.json</code> → последние N STT-фраз или thread</li>
+            <li>vol/thr gauge → новое поле в sidecar → API</li>
+          </ul>
+          <p>
+            <strong>Agent Shell</strong> = <strong>действие</strong> (говорить, отправить, ответ).
+            <strong>Nebula Dashboard</strong> = <strong>наблюдение</strong> (слушает ли, что распознал, сырой статус).
+            CMS — большой UI редактора; Nebula был <strong>третьим экраном</strong> только для голоса.
+          </p>
+
+          <p><strong>Нужен ли сейчас?</strong></p>
+          <ul class="shell-todo-list">
+            <li><strong>Да</strong> — если отлаживаете sidecar / «не распознано», второй монитор, vol/thr</li>
+            <li><strong>Нет срочно</strong> — если хватает pulse + фразы в Shell</li>
+          </ul>
+
+          <p>
+            <strong>Итог:</strong> <code>dashboard_nebula.html</code> — <strong>живая панель мониторинга голосового пайплайна Aya</strong>
+            (статус, gauge, история, debug), в стиле Nebula; <strong>не чат и не управление</strong>.
+            В Agent Shell забрали компактный бар, но <strong>не забрали идею отдельной Voice Console</strong> —
+            логично как <code>/shell/monitor.html</code> поверх <code>/api/shell/*</code>, когда появятся метрики sidecar.
+          </p>
+        </div>
         <p class="shell-footer-note">
           Mac-приложение: <code>npm run shell:dist</code>, затем
           <code>npm run shell:open</code>
         </p>
       </footer>
     </div>
-    <script src="/shell/shell.js?v=17" type="module"></script>
+    <script src="/shell/shell.js?v=19" type="module"></script>
   </body>
 </html>

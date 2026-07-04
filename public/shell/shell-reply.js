@@ -1,5 +1,16 @@
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
 const MARKDOWN_IMAGE_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|#|$)/i;
+
+function inferShowType(src, declaredType) {
+  const type = String(declaredType || "").trim().toLowerCase();
+  if (type && type !== "image") return type;
+  const lower = String(src || "").toLowerCase();
+  if (VIDEO_EXT_RE.test(lower)) return "video";
+  if (IMAGE_EXT_RE.test(lower)) return "image";
+  return type || "image";
+}
 
 function parseShowBlockBody(blockBody) {
   const fields = {};
@@ -13,10 +24,10 @@ function parseShowBlockBody(blockBody) {
     if (key && value) fields[key] = value;
   }
 
-  const type = fields.type || "image";
-  const src = fields.src || fields.url || fields.image || fields.href || "";
+  const src = fields.src || fields.url || fields.image || fields.href || fields.video || "";
   const caption = fields.caption || fields.title || fields.alt || "";
   if (!src) return null;
+  const type = inferShowType(src, fields.type);
   return { type, src, caption };
 }
 
@@ -32,9 +43,10 @@ export function parseShellReply(body) {
 
   let text = raw.replace(SHOW_BLOCK_RE, "").trim();
   text = text.replace(MARKDOWN_IMAGE_RE, (_, alt, src) => {
+    const rawSrc = String(src || "").trim();
     shows.push({
-      type: "image",
-      src: String(src || "").trim(),
+      type: inferShowType(rawSrc, "image"),
+      src: rawSrc,
       caption: String(alt || "").trim()
     });
     return "";
@@ -82,14 +94,28 @@ export function renderShellReplyMedia(containerEl, shows, agentId) {
   for (const item of items) {
     const wrap = document.createElement("figure");
     wrap.className = "shell-show-item";
+    const mediaType = inferShowType(item.src, item.type);
+    const mediaSrc = resolveShowSrc(item.src, agentId);
 
-    if (item.type === "image" || !item.type) {
+    if (mediaType === "video") {
+      const video = document.createElement("video");
+      video.className = "shell-show-video";
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.src = mediaSrc;
+      if (item.caption) {
+        video.setAttribute("aria-label", item.caption);
+        video.title = item.caption;
+      }
+      wrap.append(video);
+    } else if (mediaType === "image") {
       const img = document.createElement("img");
       img.className = "shell-show-image";
       img.loading = "lazy";
       img.decoding = "async";
       img.alt = item.caption || "Изображение от агента";
-      img.src = resolveShowSrc(item.src, agentId);
+      img.src = mediaSrc;
       img.addEventListener("click", () => {
         window.open(img.src, "_blank", "noopener,noreferrer");
       });
@@ -97,7 +123,7 @@ export function renderShellReplyMedia(containerEl, shows, agentId) {
     } else {
       const link = document.createElement("a");
       link.className = "shell-show-link";
-      link.href = resolveShowSrc(item.src, agentId);
+      link.href = mediaSrc;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.textContent = item.caption || item.src;
