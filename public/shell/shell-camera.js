@@ -1,22 +1,59 @@
 export function createShellCamera({ videoEl, stageEl, statusEl } = {}) {
   let stream = null;
+  let constraints = { facingMode: "user", deviceId: "" };
 
   function isSupported() {
     return Boolean(navigator.mediaDevices?.getUserMedia);
   }
 
-  async function start() {
-    if (stream) return true;
+  function setConstraints(next = {}) {
+    constraints = {
+      facingMode: next.facingMode || next.cameraFacing || constraints.facingMode || "user",
+      deviceId: String(next.deviceId || next.cameraDeviceId || constraints.deviceId || "").trim()
+    };
+  }
+
+  function buildVideoConstraints() {
+    if (constraints.deviceId) {
+      return {
+        deviceId: { exact: constraints.deviceId },
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      };
+    }
+    if (constraints.facingMode === "environment" || constraints.facingMode === "user") {
+      return {
+        facingMode: { ideal: constraints.facingMode },
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      };
+    }
+    return { width: { ideal: 640 }, height: { ideal: 480 } };
+  }
+
+  async function listDevices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return [];
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter((device) => device.kind === "videoinput")
+      .map((device) => ({
+        deviceId: device.deviceId,
+        label: device.label || `Камера ${device.deviceId.slice(0, 6)}`
+      }));
+  }
+
+  async function start(nextConstraints) {
+    if (nextConstraints) setConstraints(nextConstraints);
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      stream = null;
+    }
     if (!isSupported()) {
       throw new Error("Камера недоступна в этом браузере");
     }
 
     stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "user",
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      },
+      video: buildVideoConstraints(),
       audio: false
     });
 
@@ -39,10 +76,10 @@ export function createShellCamera({ videoEl, stageEl, statusEl } = {}) {
     if (statusEl) statusEl.textContent = "";
   }
 
-  async function setEnabled(enabled) {
+  async function setEnabled(enabled, nextConstraints) {
     if (enabled) {
       try {
-        await start();
+        await start(nextConstraints);
         return true;
       } catch (error) {
         const message =
@@ -66,8 +103,16 @@ export function createShellCamera({ videoEl, stageEl, statusEl } = {}) {
     canvas.height = videoEl.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
+    if (constraints.facingMode === "user" && !constraints.deviceId) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(videoEl, 0, 0);
-    return canvas.toDataURL(mimeType, quality);
+    return {
+      dataUrl: canvas.toDataURL(mimeType, quality),
+      width: canvas.width,
+      height: canvas.height
+    };
   }
 
   function isActive() {
@@ -78,5 +123,14 @@ export function createShellCamera({ videoEl, stageEl, statusEl } = {}) {
     void stop();
   });
 
-  return { isSupported, start, stop, setEnabled, captureFrame, isActive };
+  return {
+    isSupported,
+    setConstraints,
+    listDevices,
+    start,
+    stop,
+    setEnabled,
+    captureFrame,
+    isActive
+  };
 }

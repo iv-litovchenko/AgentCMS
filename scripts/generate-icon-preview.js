@@ -77,7 +77,7 @@ ${inner}
 }
 
 const cmsGlyphs = [
-  [1, "tree-classic", "Дерево", "Классика — корень и две ветви, как сейчас."],
+  [1, "tree-classic", "Дерево", "Область сверху (крупнее) · два топика снизу."],
   [2, "tree-three-level", "3 уровня", "Иерархия топиков — workspace → agent → manifest."],
   [3, "hub-four", "Хаб", "Центр + 4 узла — MCP и инструменты."],
   [4, "yaml-brace", "YAML", "Фигурные скобки — конфиг и manifest.md."],
@@ -111,11 +111,11 @@ const cmsGlyphs = [
 
 const cmsInner = {
   "tree-classic": `
-  <circle cx="32" cy="18" r="6" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
-  <circle cx="18" cy="44" r="6" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
-  <circle cx="46" cy="44" r="6" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
-  <line x1="32" y1="24" x2="18" y2="38" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.9" />
-  <line x1="32" y1="24" x2="46" y2="38" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.9" />`,
+  <circle cx="32" cy="17" r="8" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
+  <circle cx="18" cy="45" r="7" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
+  <circle cx="46" cy="45" r="7" fill="none" stroke="#eef0ff" stroke-width="3" opacity="0.95" />
+  <line x1="32" y1="25" x2="18" y2="38" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.9" />
+  <line x1="32" y1="25" x2="46" y2="38" stroke="#eef0ff" stroke-width="3" stroke-linecap="round" opacity="0.9" />`,
   "tree-three-level": `
   <circle cx="32" cy="14" r="4" fill="none" stroke="#eef0ff" stroke-width="2.5" opacity="0.95" />
   <circle cx="20" cy="30" r="4" fill="none" stroke="#eef0ff" stroke-width="2.5" opacity="0.95" />
@@ -459,7 +459,7 @@ ${cmsFavoriteCards}
         <p class="icon-preview-section-desc">
           Текущая:
           <a href="/shell/favicon.svg" target="_blank" rel="noopener noreferrer">favicon.svg</a>
-          (◎). Выбери номер — подставим в favicon, шапку и Agent Shell.app.
+          (13 · Волна). Фиолетовый градиент, единый стиль с CMS.
         </p>
         <div class="icon-preview-grid">
 ${shellCards}
@@ -471,7 +471,7 @@ ${shellCards}
             <img src="/shell/favicon.svg" width="16" height="16" alt="" />
           </div>
           <h2>Сейчас · Shell</h2>
-          <p>Кольцо + большая заливка (◎).</p>
+          <p>13 · Волна — фиолетовый градиент, стиль как у CMS.</p>
           <code>/shell/favicon.svg</code>
         </article>
         </div>
@@ -481,21 +481,21 @@ ${shellCards}
         <h2 class="icon-preview-section-title icon-preview-section-title--cms">Agent CMS · синий · 30 вариантов</h2>
         <p class="icon-preview-section-desc">
           Текущая:
-          <a href="/favicon.png" target="_blank" rel="noopener noreferrer">favicon.png</a>
-          (дерево). Выбери номер — подставим в favicon и Agent CMS.app.
+          <a href="/favicon.svg" target="_blank" rel="noopener noreferrer">favicon.svg</a>
+          (1 · Дерево). Оригинальный градиент CMS (#5149f3 → #2e8dfd).
         </p>
         <div class="icon-preview-grid">
 ${cmsCards}
 
         <article class="icon-preview-card icon-preview-card--current icon-preview-card--cms">
           <div class="icon-preview-sizes">
-            <img src="/favicon.png" width="64" height="64" alt="" />
-            <img src="/favicon.png" width="32" height="32" alt="" />
-            <img src="/favicon.png" width="16" height="16" alt="" />
+            <img src="/favicon.svg" width="64" height="64" alt="" />
+            <img src="/favicon.svg" width="32" height="32" alt="" />
+            <img src="/favicon.svg" width="16" height="16" alt="" />
           </div>
           <h2>Сейчас · CMS</h2>
-          <p>Дерево узлов на синем градиенте.</p>
-          <code>/favicon.png</code>
+          <p>1 · Дерево — оригинальный стиль Agent CMS.</p>
+          <code>/favicon.svg</code>
         </article>
         </div>
       </section>

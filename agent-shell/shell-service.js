@@ -2,6 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
 const { chatWithQwenPaw, checkQwenPawHealth, listQwenPawChats, createQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -27,7 +28,12 @@ const DEFAULT_SETTINGS = {
   ttsEnabled: true,
   ttsEngine: "browser",
   windowTopmost: true,
-  cameraEnabled: false
+  cameraEnabled: false,
+  cameraOnSpeech: true,
+  cameraFacing: "user",
+  cameraDeviceId: "",
+  screenEnabled: false,
+  screenOnSpeech: true
 };
 
 const DEFAULT_STATE = {
@@ -134,6 +140,14 @@ function normalizeSettings(raw) {
   merged.voiceResponseEnabled = Boolean(merged.voiceResponseEnabled);
   merged.ttsEnabled = Boolean(merged.ttsEnabled);
   merged.windowTopmost = merged.windowTopmost !== false;
+  merged.cameraEnabled = Boolean(merged.cameraEnabled);
+  merged.cameraOnSpeech = merged.cameraOnSpeech !== false;
+  if (!["user", "environment", "device"].includes(merged.cameraFacing)) {
+    merged.cameraFacing = "user";
+  }
+  merged.cameraDeviceId = String(merged.cameraDeviceId || "").trim();
+  merged.screenEnabled = Boolean(merged.screenEnabled);
+  merged.screenOnSpeech = merged.screenOnSpeech !== false;
   return merged;
 }
 
@@ -213,6 +227,76 @@ function emitShellEvent(agentId, type, payload) {
 function subscribeShellEvents(listener) {
   bus.on("event", listener);
   return () => bus.off("event", listener);
+}
+
+const cameraSnapshots = createSnapshotRequestService({
+  emitShellEvent,
+  eventName: "camera_snapshot_request",
+  requestPrefix: "cam",
+  timeoutMessage:
+    "Camera snapshot timed out — откройте Agent Shell, включите камеру и разрешите доступ"
+});
+
+const screenSnapshots = createSnapshotRequestService({
+  emitShellEvent,
+  eventName: "screen_snapshot_request",
+  requestPrefix: "scr",
+  timeoutMessage:
+    "Screen snapshot timed out — откройте Agent Shell, включите демонстрацию экрана и выберите окно"
+});
+
+async function requestCameraSnapshot(agentId, agentRoot, options = {}) {
+  const snapshot = await cameraSnapshots.requestSnapshot(agentId, options);
+  const meta = await cameraSnapshots.saveSnapshotFile(agentRoot, "camera", "manual", snapshot);
+  const parsed = parseDataUrl(snapshot.dataUrl);
+  return {
+    ok: true,
+    ...meta,
+    base64: parsed?.base64 || "",
+    dataUrl: snapshot.dataUrl
+  };
+}
+
+async function requestScreenSnapshot(agentId, agentRoot, options = {}) {
+  const snapshot = await screenSnapshots.requestSnapshot(agentId, options);
+  const meta = await screenSnapshots.saveSnapshotFile(agentRoot, "screen", "manual", snapshot);
+  const parsed = parseDataUrl(snapshot.dataUrl);
+  return {
+    ok: true,
+    ...meta,
+    base64: parsed?.base64 || "",
+    dataUrl: snapshot.dataUrl
+  };
+}
+
+function completeCameraSnapshotRequest(agentId, requestId, snapshot) {
+  return cameraSnapshots.completeSnapshot(agentId, requestId, snapshot);
+}
+
+function completeScreenSnapshotRequest(agentId, requestId, snapshot) {
+  return screenSnapshots.completeSnapshot(agentId, requestId, snapshot);
+}
+
+async function saveStoredSnapshot(agentRoot, domain, snapshot) {
+  const kind = snapshot?.kind === "manual" ? "manual" : "speech";
+  const service = domain === "screen" ? screenSnapshots : cameraSnapshots;
+  return service.saveSnapshotFile(agentRoot, domain, kind, snapshot);
+}
+
+async function saveSpeechCameraSnapshot(agentRoot, snapshot) {
+  return saveStoredSnapshot(agentRoot, "camera", snapshot);
+}
+
+async function saveSpeechScreenSnapshot(agentRoot, snapshot) {
+  return saveStoredSnapshot(agentRoot, "screen", snapshot);
+}
+
+async function getLatestCameraSnapshot(agentRoot, kind = "manual") {
+  return cameraSnapshots.readLatestSnapshot(agentRoot, "camera", kind);
+}
+
+async function getLatestScreenSnapshot(agentRoot, kind = "manual") {
+  return screenSnapshots.readLatestSnapshot(agentRoot, "screen", kind);
 }
 
 async function sendUserMessage(deps, { agentRoot, settings, body, author }) {
@@ -489,6 +573,14 @@ async function buildStatusPayload(deps, agentRoot, agentId) {
     state: stateOut,
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
+    camera: {
+      speech: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "speech"),
+      manual: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "manual")
+    },
+    screen: {
+      speech: await screenSnapshots.readLatestMeta(agentRoot, "screen", "speech"),
+      manual: await screenSnapshots.readLatestMeta(agentRoot, "screen", "manual")
+    },
     latestAgentMessage: latestAgent
       ? {
           id: latestAgent.id,
@@ -522,6 +614,30 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
 
   const onBus = (entry) => {
     if (entry.agentId && entry.agentId !== agentId) return;
+    if (entry.type === "screen_snapshot_request") {
+      push("screen_snapshot_request", entry.payload || {});
+      return;
+    }
+    if (entry.type === "camera_snapshot_request") {
+      push("camera_snapshot_request", entry.payload || {});
+      return;
+    }
+    if (entry.type === "state") {
+      void (async () => {
+        try {
+          const status = await buildStatusPayload(deps, agentRoot, agentId);
+          status.state = { ...status.state, ...(entry.payload || {}) };
+          push("status", status);
+        } catch (error) {
+          push("error", { message: String(error?.message || error) });
+        }
+      })();
+      return;
+    }
+    if (entry.type === "assistant_message") {
+      push("assistant_message", { message: entry.payload });
+      return;
+    }
     push(entry.type, entry);
   };
   const unsubscribe = subscribeShellEvents(onBus);
@@ -601,5 +717,13 @@ module.exports = {
   emitShellEvent,
   subscribeShellEvents,
   isShellShowDemoRequest,
-  buildShellShowDemoResult
+  buildShellShowDemoResult,
+  requestCameraSnapshot,
+  completeCameraSnapshotRequest,
+  saveSpeechCameraSnapshot,
+  getLatestCameraSnapshot,
+  requestScreenSnapshot,
+  completeScreenSnapshotRequest,
+  saveSpeechScreenSnapshot,
+  getLatestScreenSnapshot
 };

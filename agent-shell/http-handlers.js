@@ -1,7 +1,8 @@
 const shellService = require("./shell-service");
+const windowSettings = require("./window-settings");
 
 function createShellHandlers(deps) {
-  async function tryHandleShellApi(req, res, url, { agentId, agentRoot }) {
+  async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {
     if (!url.pathname.startsWith("/api/shell")) return false;
 
     if (req.method === "GET" && url.pathname === "/api/shell/status") {
@@ -11,6 +12,45 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to read shell status",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/window") {
+      try {
+        const agentSettings = await shellService.readSettings(agentRoot);
+        const settings = await windowSettings.migrateWindowSettingsFromAgent(projectRoot, agentSettings);
+        deps.sendJson(res, 200, {
+          agentId,
+          projectRoot,
+          settingsFile: windowSettings.AWN_SHELL_FILE,
+          settings
+        });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read shell window settings",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/window") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const settings = await windowSettings.writeWindowSettings(projectRoot, payload?.settings || payload);
+        shellService.emitShellEvent(agentId, "window_settings", settings);
+        deps.sendJson(res, 200, {
+          agentId,
+          projectRoot,
+          settingsFile: windowSettings.AWN_SHELL_FILE,
+          settings
+        });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to save shell window settings",
           details: String(error?.message || error)
         });
       }
@@ -154,6 +194,182 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to stop TTS",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/camera/snapshot") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const result = await shellService.requestCameraSnapshot(agentId, agentRoot, {
+          waitMs: payload?.waitMs,
+          reason: payload?.reason
+        });
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 504, {
+          error: "Camera snapshot failed",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/camera/snapshot/complete") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const requestId = String(payload?.requestId || "").trim();
+        const dataUrl = String(payload?.dataUrl || payload?.image || "").trim();
+        if (!requestId || !dataUrl) {
+          deps.sendJson(res, 400, { error: "requestId and dataUrl are required" });
+          return true;
+        }
+        const ok = shellService.completeCameraSnapshotRequest(agentId, requestId, {
+          dataUrl,
+          width: Number(payload?.width) || 0,
+          height: Number(payload?.height) || 0
+        });
+        if (!ok) {
+          deps.sendJson(res, 404, { error: "Unknown or expired snapshot request" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, requestId });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to complete camera snapshot",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/camera/speech-snapshot") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const dataUrl = String(payload?.dataUrl || "").trim();
+        if (!dataUrl) {
+          deps.sendJson(res, 400, { error: "dataUrl is required" });
+          return true;
+        }
+        const kind = String(payload?.kind || "speech").trim() === "manual" ? "manual" : "speech";
+        const meta = await shellService.saveSpeechCameraSnapshot(agentRoot, {
+          dataUrl,
+          width: Number(payload?.width) || 0,
+          height: Number(payload?.height) || 0,
+          kind
+        });
+        deps.sendJson(res, 200, { agentId, ok: true, ...meta });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to save speech snapshot",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/camera/latest") {
+      try {
+        const kind = String(url.searchParams.get("kind") || "manual").trim();
+        const snapshot = await shellService.getLatestCameraSnapshot(agentRoot, kind);
+        if (!snapshot) {
+          deps.sendJson(res, 404, { error: "No camera snapshot yet" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, snapshot });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read camera snapshot",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/screen/snapshot") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const result = await shellService.requestScreenSnapshot(agentId, agentRoot, {
+          waitMs: payload?.waitMs,
+          reason: payload?.reason
+        });
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 504, {
+          error: "Screen snapshot failed",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/screen/snapshot/complete") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const requestId = String(payload?.requestId || "").trim();
+        const dataUrl = String(payload?.dataUrl || payload?.image || "").trim();
+        if (!requestId || !dataUrl) {
+          deps.sendJson(res, 400, { error: "requestId and dataUrl are required" });
+          return true;
+        }
+        const ok = shellService.completeScreenSnapshotRequest(agentId, requestId, {
+          dataUrl,
+          width: Number(payload?.width) || 0,
+          height: Number(payload?.height) || 0
+        });
+        if (!ok) {
+          deps.sendJson(res, 404, { error: "Unknown or expired snapshot request" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, requestId });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to complete screen snapshot",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/screen/speech-snapshot") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const dataUrl = String(payload?.dataUrl || "").trim();
+        if (!dataUrl) {
+          deps.sendJson(res, 400, { error: "dataUrl is required" });
+          return true;
+        }
+        const kind = String(payload?.kind || "speech").trim() === "manual" ? "manual" : "speech";
+        const meta = await shellService.saveSpeechScreenSnapshot(agentRoot, {
+          dataUrl,
+          width: Number(payload?.width) || 0,
+          height: Number(payload?.height) || 0,
+          kind
+        });
+        deps.sendJson(res, 200, { agentId, ok: true, ...meta });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to save screen snapshot",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/screen/latest") {
+      try {
+        const kind = String(url.searchParams.get("kind") || "manual").trim();
+        const snapshot = await shellService.getLatestScreenSnapshot(agentRoot, kind);
+        if (!snapshot) {
+          deps.sendJson(res, 404, { error: "No screen snapshot yet" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, snapshot });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read screen snapshot",
           details: String(error?.message || error)
         });
       }

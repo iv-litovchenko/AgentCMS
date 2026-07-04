@@ -18,7 +18,7 @@
     "shell:pack": "npm run pack --prefix desktop/agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
     "shell:dist": "npm run dist --prefix desktop/agent-shell && node scripts/flatten-desktop-dist.js agent-shell",
     "shell:open": "open \"dist/agent-shell/Agent Shell.app\"",
-    "shell:icons": "node scripts/render-shell-icons.js",
+    "shell:icons": "node scripts/render-app-icons.js",
     "dist:clean": "rm -rf dist",
     "dist:migrate": "node scripts/migrate-dist-layout.js"
   },

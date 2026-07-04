@@ -8837,7 +8837,11 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 }
 
 async function handleApiForAgent(req, res, url) {
-  if (await shellHandlers.tryHandleShellApi(req, res, url, { agentId: getActiveAgentId(), agentRoot: getAgentRoot() })) {
+  if (await shellHandlers.tryHandleShellApi(req, res, url, {
+    agentId: getActiveAgentId(),
+    agentRoot: getAgentRoot(),
+    projectRoot: getProjectRoot()
+  })) {
     return;
   }
 

@@ -1,7 +1,8 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { parseShellReply, renderShellReplyMedia, toSpeechText } from "/shell/shell-reply.js?v=1";
-import { createShellCamera } from "/shell/shell-camera.js?v=1";
+import { createShellCamera } from "/shell/shell-camera.js?v=2";
+import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -16,6 +17,7 @@ const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
 const state = {
   agentId: localStorage.getItem(SHELL_AGENT_KEY) || "",
   settings: null,
+  windowSettings: null,
   shellState: null,
   eventSource: null,
   recognition: null,
@@ -26,7 +28,13 @@ const state = {
   qwenpawConnected: false,
   qwenpawSessionId: "",
   qwenpawChatsOpen: false,
-  stopTtsAt: 0
+  stopTtsAt: 0,
+  previousPhase: "waiting",
+  cameraSnapshotBusy: false,
+  cameraAppliedKey: "",
+  screenSnapshotBusy: false,
+  screenAppliedKey: "",
+  view: "main"
 };
 
 const nodes = {
@@ -50,12 +58,18 @@ const nodes = {
   topicTree: document.getElementById("shell-topic-tree"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   topmost: document.getElementById("shell-topmost"),
+  windowTransparent: document.getElementById("shell-window-transparent"),
+  windowBackground: document.getElementById("shell-window-background"),
   voiceMode: document.getElementById("shell-voice-mode"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
   micBtn: document.getElementById("shell-mic-btn"),
   stopTtsBtn: document.getElementById("shell-stop-tts"),
+  settingsBtn: document.getElementById("shell-settings-btn"),
+  homeBtn: document.getElementById("shell-home-btn"),
   openCmsBtn: document.getElementById("shell-open-cms"),
+  shellApp: document.getElementById("shell-app"),
+  subtitle: document.getElementById("shell-subtitle"),
   phaseLabel: document.getElementById("shell-phase-label"),
   phrase: document.getElementById("shell-phrase"),
   meta: document.getElementById("shell-meta"),
@@ -67,13 +81,34 @@ const nodes = {
   cameraStage: document.getElementById("shell-camera-stage"),
   cameraVideo: document.getElementById("shell-camera-video"),
   cameraStatus: document.getElementById("shell-camera-status"),
-  cameraSnapshot: document.getElementById("shell-camera-snapshot")
+  cameraSnapshot: document.getElementById("shell-camera-snapshot"),
+  cameraFacing: document.getElementById("shell-camera-facing"),
+  cameraDevice: document.getElementById("shell-camera-device"),
+  cameraDeviceField: document.getElementById("shell-camera-device-field"),
+  cameraOnSpeech: document.getElementById("shell-camera-on-speech"),
+  screenEnabled: document.getElementById("shell-screen-enabled"),
+  screenStage: document.getElementById("shell-screen-stage"),
+  screenVideo: document.getElementById("shell-screen-video"),
+  screenStatus: document.getElementById("shell-screen-status"),
+  screenSnapshot: document.getElementById("shell-screen-snapshot"),
+  screenOnSpeech: document.getElementById("shell-screen-on-speech")
 };
 
 const shellCamera = createShellCamera({
   videoEl: nodes.cameraVideo,
   stageEl: nodes.cameraStage,
   statusEl: nodes.cameraStatus
+});
+
+const shellScreen = createShellScreen({
+  videoEl: nodes.screenVideo,
+  stageEl: nodes.screenStage,
+  statusEl: nodes.screenStatus,
+  onInactive: () => {
+    if (nodes.screenEnabled) nodes.screenEnabled.checked = false;
+    updateScreenUi(false);
+    void saveSettings({ screenEnabled: false }).catch(() => {});
+  }
 });
 
 const topicPicker = createTopicPicker({
@@ -144,14 +179,53 @@ function clearShellReply() {
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
 }
 
+function getCameraConstraints() {
+  const facing = nodes.cameraFacing?.value || state.settings?.cameraFacing || "user";
+  const deviceId =
+    facing === "device" ? String(nodes.cameraDevice?.value || state.settings?.cameraDeviceId || "").trim() : "";
+  return {
+    cameraFacing: facing === "device" ? "user" : facing,
+    cameraDeviceId: deviceId
+  };
+}
+
+function updateCameraDeviceField() {
+  const useList = nodes.cameraFacing?.value === "device";
+  nodes.cameraDeviceField?.classList.toggle("hidden", !useList);
+}
+
+async function refreshCameraDeviceList() {
+  if (!nodes.cameraDevice) return;
+  const devices = await shellCamera.listDevices();
+  const current = state.settings?.cameraDeviceId || nodes.cameraDevice.value || "";
+  nodes.cameraDevice.innerHTML = "";
+  if (!devices.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Нет камер";
+    nodes.cameraDevice.append(opt);
+    return;
+  }
+  for (const device of devices) {
+    const opt = document.createElement("option");
+    opt.value = device.deviceId;
+    opt.textContent = device.label;
+    if (device.deviceId === current) opt.selected = true;
+    nodes.cameraDevice.append(opt);
+  }
+}
+
 function updateCameraUi(active) {
   nodes.cameraSnapshot?.classList.toggle("hidden", !active);
 }
 
 async function applyCameraEnabled(enabled, { persist = false } = {}) {
   const want = Boolean(enabled);
+  const constraints = getCameraConstraints();
+  shellCamera.setConstraints(constraints);
+
   if (!want) {
-    await shellCamera.setEnabled(false);
+    await shellCamera.stop();
     if (nodes.cameraEnabled) nodes.cameraEnabled.checked = false;
     updateCameraUi(false);
     return;
@@ -168,14 +242,165 @@ async function applyCameraEnabled(enabled, { persist = false } = {}) {
   }
 
   try {
-    await shellCamera.setEnabled(true);
+    await shellCamera.setEnabled(true, constraints);
+    await refreshCameraDeviceList();
     if (nodes.cameraEnabled) nodes.cameraEnabled.checked = true;
     updateCameraUi(true);
-    if (persist) await saveSettings({ cameraEnabled: true });
+    if (persist) {
+      await saveSettings({
+        cameraEnabled: true,
+        ...constraints
+      });
+    }
   } catch (error) {
     if (nodes.cameraEnabled) nodes.cameraEnabled.checked = false;
     updateCameraUi(false);
     renderPhase("waiting", error.message);
+  }
+}
+
+async function uploadCameraSnapshot(kind = "speech") {
+  const frame = shellCamera.captureFrame();
+  if (!frame) return null;
+  const data = await apiFetch("/api/shell/camera/speech-snapshot", {
+    method: "POST",
+    body: JSON.stringify({ ...frame, kind })
+  });
+  return data;
+}
+
+async function uploadScreenSnapshot(kind = "speech") {
+  const frame = shellScreen.captureFrame();
+  if (!frame) return null;
+  const data = await apiFetch("/api/shell/screen/speech-snapshot", {
+    method: "POST",
+    body: JSON.stringify({ ...frame, kind })
+  });
+  return data;
+}
+
+async function handleCameraSnapshotRequest(payload) {
+  if (state.cameraSnapshotBusy) return;
+  state.cameraSnapshotBusy = true;
+  const requestId = String(payload?.requestId || "").trim();
+  try {
+    if (!requestId) return;
+    if (!shellCamera.isActive()) {
+      await applyCameraEnabled(true);
+    }
+    const frame = shellCamera.captureFrame();
+    if (!frame) throw new Error("Камера не готова");
+    await apiFetch("/api/shell/camera/snapshot/complete", {
+      method: "POST",
+      body: JSON.stringify({ requestId, ...frame })
+    });
+    renderShellReplyMedia(
+      nodes.lastReplyMedia,
+      [{ type: "image", src: frame.dataUrl, caption: payload?.reason || "Кадр для агента" }],
+      state.agentId
+    );
+    renderPhase(state.shellState?.phase || "waiting", "Кадр отправлен агенту");
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  } finally {
+    state.cameraSnapshotBusy = false;
+  }
+}
+
+async function handleScreenSnapshotRequest(payload) {
+  if (state.screenSnapshotBusy) return;
+  state.screenSnapshotBusy = true;
+  const requestId = String(payload?.requestId || "").trim();
+  try {
+    if (!requestId) return;
+    if (!shellScreen.isActive()) {
+      await applyScreenEnabled(true);
+    }
+    const frame = shellScreen.captureFrame();
+    if (!frame) throw new Error("Демонстрация экрана не готова");
+    await apiFetch("/api/shell/screen/snapshot/complete", {
+      method: "POST",
+      body: JSON.stringify({ requestId, ...frame })
+    });
+    renderShellReplyMedia(
+      nodes.lastReplyMedia,
+      [{ type: "image", src: frame.dataUrl, caption: payload?.reason || "Снимок экрана для агента" }],
+      state.agentId
+    );
+    renderPhase(state.shellState?.phase || "waiting", "Снимок экрана отправлен агенту");
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  } finally {
+    state.screenSnapshotBusy = false;
+  }
+}
+
+function updateScreenUi(active) {
+  nodes.screenSnapshot?.classList.toggle("hidden", !active);
+}
+
+async function applyScreenEnabled(enabled, { persist = false } = {}) {
+  if (!shellScreen.isSupported()) {
+    if (nodes.screenEnabled) nodes.screenEnabled.checked = false;
+    if (nodes.screenStatus) {
+      nodes.screenStatus.textContent = "Демонстрация экрана недоступна в этом браузере";
+      nodes.screenStage?.classList.remove("hidden");
+    }
+    return false;
+  }
+  try {
+    await shellScreen.setEnabled(enabled);
+    updateScreenUi(enabled);
+    if (nodes.screenEnabled) nodes.screenEnabled.checked = enabled;
+    if (persist && enabled) {
+      await saveSettings({
+        screenEnabled: true
+      });
+    }
+    return enabled;
+  } catch (error) {
+    if (nodes.screenEnabled) nodes.screenEnabled.checked = false;
+    updateScreenUi(false);
+    renderPhase("waiting", error.message);
+    return false;
+  }
+}
+
+function onShellPhaseChange(nextState) {
+  const prev = state.previousPhase || "waiting";
+  const next = nextState?.phase || "waiting";
+  if (prev === next) return;
+  if (prev === "listening" && next === "thinking") {
+    if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
+      void uploadCameraSnapshot("speech").catch(() => {});
+    }
+    if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
+      void uploadScreenSnapshot("speech").catch(() => {});
+    }
+  }
+  state.previousPhase = next;
+}
+
+function applyWindowAppearance(settings) {
+  const ws = settings || state.windowSettings || {};
+  const transparent = Boolean(ws.windowTransparent || ws.windowBackground === "transparent");
+  document.body.classList.toggle("shell-window-transparent", transparent);
+  document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent");
+  const bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
+  document.body.classList.add(`shell-bg-${bg}`);
+}
+
+function applyWindowSettings(settings) {
+  state.windowSettings = settings;
+  if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
+  if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
+  if (nodes.windowBackground) {
+    nodes.windowBackground.value = settings.windowBackground || "wallpaper";
+    nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
+  }
+  applyWindowAppearance(settings);
+  if (window.shellApp?.applyWindowSettings) {
+    void window.shellApp.applyWindowSettings(settings);
   }
 }
 
@@ -186,17 +411,43 @@ function applySettings(settings) {
   nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
   topicPicker.setValue(settings.topicPath || "");
   nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
-  nodes.topmost.checked = settings.windowTopmost !== false;
   nodes.voiceMode.value = settings.voiceInputMode || "browser";
-  document.body.style.opacity = settings.windowTopmost === false ? "0.98" : "1";
   updateTargetUi(settings.messageTarget || "cms");
+  if (nodes.cameraFacing) {
+    nodes.cameraFacing.value = settings.cameraFacing || "user";
+    updateCameraDeviceField();
+  }
+  if (nodes.cameraOnSpeech) {
+    nodes.cameraOnSpeech.checked = settings.cameraOnSpeech !== false;
+  }
   if (nodes.cameraEnabled) {
     const enabled = Boolean(settings.cameraEnabled);
     nodes.cameraEnabled.checked = enabled;
-    if (enabled) void applyCameraEnabled(true);
-    else {
-      void shellCamera.stop();
-      updateCameraUi(false);
+    shellCamera.setConstraints(getCameraConstraints());
+    const cameraKey = `${enabled}:${settings.cameraFacing || "user"}:${settings.cameraDeviceId || ""}`;
+    if (cameraKey !== state.cameraAppliedKey) {
+      state.cameraAppliedKey = cameraKey;
+      if (enabled) void applyCameraEnabled(true);
+      else {
+        void shellCamera.stop();
+        updateCameraUi(false);
+      }
+    }
+  }
+  if (nodes.screenOnSpeech) {
+    nodes.screenOnSpeech.checked = settings.screenOnSpeech !== false;
+  }
+  if (nodes.screenEnabled) {
+    const enabled = Boolean(settings.screenEnabled);
+    nodes.screenEnabled.checked = enabled;
+    const screenKey = enabled ? "on" : "off";
+    if (screenKey !== state.screenAppliedKey) {
+      state.screenAppliedKey = screenKey;
+      if (enabled) void applyScreenEnabled(true);
+      else {
+        void shellScreen.stop();
+        updateScreenUi(false);
+      }
     }
   }
 }
@@ -336,6 +587,7 @@ async function selectQwenPawChat(sessionId, chatName) {
 function applyStatusPayload(payload) {
   if (payload?.settings) applySettings(payload.settings);
   if (payload?.state) {
+    onShellPhaseChange(payload.state);
     state.shellState = payload.state;
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
     state.pttHeld = Boolean(payload.state.pttHeld);
@@ -378,6 +630,24 @@ async function resolveShellAgent() {
 async function refreshStatus() {
   const payload = await apiFetch("/api/shell/status");
   applyStatusPayload(payload);
+}
+
+async function loadWindowSettings() {
+  const data = await apiFetch("/api/shell/window");
+  applyWindowSettings(data.settings);
+}
+
+async function saveWindowSettings(patch) {
+  try {
+    const data = await apiFetch("/api/shell/window", {
+      method: "POST",
+      body: JSON.stringify({ settings: patch })
+    });
+    applyWindowSettings(data.settings);
+  } catch (error) {
+    renderPhase("waiting", error.message);
+    throw error;
+  }
 }
 
 async function saveSettings(patch) {
@@ -503,7 +773,43 @@ function connectStream() {
   source.addEventListener("assistant_message", (event) => {
     try {
       const payload = JSON.parse(event.data);
-      void handleAssistantMessage(payload.message || payload);
+      void handleAssistantMessage(payload.message || payload.payload || payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("camera_snapshot_request", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      void handleCameraSnapshotRequest(payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("screen_snapshot_request", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      void handleScreenSnapshotRequest(payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("window_settings", (event) => {
+    try {
+      const entry = JSON.parse(event.data);
+      applyWindowSettings(entry.payload || entry);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("state", (event) => {
+    try {
+      const entry = JSON.parse(event.data);
+      onShellPhaseChange(entry.payload || entry);
     } catch {
       // ignore malformed event
     }
@@ -553,7 +859,15 @@ function setupSpeechRecognition() {
     const text = event.results?.[0]?.[0]?.transcript || "";
     if (text) {
       nodes.message.value = text;
-      void sendMessage(text);
+      void (async () => {
+        if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
+          await uploadCameraSnapshot("speech").catch(() => {});
+        }
+        if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
+          await uploadScreenSnapshot("speech").catch(() => {});
+        }
+        await sendMessage(text);
+      })();
     }
   };
 }
@@ -593,6 +907,51 @@ function toggleMic() {
   state.recognition.start();
 }
 
+function setShellView(view) {
+  const next = view === "settings" ? "settings" : "main";
+  state.view = next;
+  if (nodes.shellApp) nodes.shellApp.dataset.view = next;
+  if (nodes.settingsBtn) {
+    nodes.settingsBtn.setAttribute("aria-pressed", next === "settings" ? "true" : "false");
+  }
+  if (nodes.homeBtn) {
+    nodes.homeBtn.setAttribute("aria-pressed", next === "main" ? "true" : "false");
+  }
+}
+
+function bindNavigationUi() {
+  nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
+  nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
+}
+
+function bindWindowSettingsUi() {
+  const persistWindowSettings = () => {
+    const windowBackground = nodes.windowBackground?.value || "wallpaper";
+    const windowTransparent =
+      nodes.windowTransparent?.checked === true || windowBackground === "transparent";
+    if (nodes.windowTransparent) {
+      nodes.windowTransparent.checked = windowTransparent;
+    }
+    if (nodes.windowBackground) {
+      nodes.windowBackground.disabled = windowTransparent && nodes.windowTransparent?.checked === true;
+    }
+    void saveWindowSettings({
+      windowTopmost: nodes.topmost?.checked !== false,
+      windowTransparent,
+      windowBackground: windowTransparent ? "transparent" : windowBackground
+    }).catch((error) => renderPhase("waiting", error.message));
+  };
+
+  nodes.topmost?.addEventListener("change", persistWindowSettings);
+  nodes.windowTransparent?.addEventListener("change", () => {
+    if (!nodes.windowTransparent.checked && nodes.windowBackground?.value === "transparent") {
+      nodes.windowBackground.value = "wallpaper";
+    }
+    persistWindowSettings();
+  });
+  nodes.windowBackground?.addEventListener("change", persistWindowSettings);
+}
+
 function bindUi() {
   const persistSettings = () => {
     const voiceMode = nodes.voiceMode.value;
@@ -604,10 +963,14 @@ function bindUi() {
       qwenpawAgentId: nodes.qwenpawAgentId.value.trim() || "default",
       topicPath: topicPicker.getValue(),
       ttsEnabled: nodes.ttsEnabled.checked,
-      windowTopmost: nodes.topmost.checked,
       voiceInputMode: voiceMode,
       ttsEngine: voiceMode === "sidecar" || voiceMode === "always" ? "say" : "browser",
-      cameraEnabled: nodes.cameraEnabled?.checked === true
+      cameraEnabled: nodes.cameraEnabled?.checked === true,
+      cameraOnSpeech: nodes.cameraOnSpeech?.checked !== false,
+      cameraFacing: nodes.cameraFacing?.value || "user",
+      cameraDeviceId: nodes.cameraFacing?.value === "device" ? nodes.cameraDevice?.value || "" : "",
+      screenEnabled: nodes.screenEnabled?.checked === true,
+      screenOnSpeech: nodes.screenOnSpeech?.checked !== false
     }).catch((error) => renderPhase("waiting", error.message));
   };
 
@@ -618,15 +981,67 @@ function bindUi() {
     });
   });
 
+  nodes.cameraFacing?.addEventListener("change", () => {
+    updateCameraDeviceField();
+    void refreshCameraDeviceList();
+    if (shellCamera.isActive()) void applyCameraEnabled(true, { persist: true });
+    else void saveSettings(getCameraConstraints());
+  });
+
+  nodes.cameraDevice?.addEventListener("change", () => {
+    if (shellCamera.isActive()) void applyCameraEnabled(true, { persist: true });
+    else void saveSettings(getCameraConstraints());
+  });
+
+  nodes.cameraOnSpeech?.addEventListener("change", () => {
+    void saveSettings({ cameraOnSpeech: nodes.cameraOnSpeech.checked });
+  });
+
   nodes.cameraSnapshot?.addEventListener("click", () => {
-    const frame = shellCamera.captureFrame();
-    if (!frame) {
-      renderPhase("waiting", "Камера не готова для снимка");
-      return;
-    }
-    renderShellReplyMedia(nodes.lastReplyMedia, [{ type: "image", src: frame, caption: "Кадр с камеры" }], state.agentId);
-    nodes.lastReplyText.textContent = "Кадр с камеры (локальный превью)";
-    renderPhase("waiting", "Кадр сохранён в превью — отправка агенту позже");
+    void (async () => {
+      const frame = shellCamera.captureFrame();
+      if (!frame) {
+        renderPhase("waiting", "Камера не готова для снимка");
+        return;
+      }
+      renderShellReplyMedia(
+        nodes.lastReplyMedia,
+        [{ type: "image", src: frame.dataUrl, caption: "Кадр с камеры" }],
+        state.agentId
+      );
+      nodes.lastReplyText.textContent = "Кадр с камеры";
+      await uploadCameraSnapshot("manual").catch(() => {});
+      renderPhase(state.shellState?.phase || "waiting", "Кадр сохранён");
+    })();
+  });
+
+  nodes.screenEnabled?.addEventListener("change", () => {
+    const enabled = nodes.screenEnabled.checked;
+    void applyScreenEnabled(enabled, { persist: true }).then(() => {
+      if (!enabled) void saveSettings({ screenEnabled: false });
+    });
+  });
+
+  nodes.screenOnSpeech?.addEventListener("change", () => {
+    void saveSettings({ screenOnSpeech: nodes.screenOnSpeech.checked });
+  });
+
+  nodes.screenSnapshot?.addEventListener("click", () => {
+    void (async () => {
+      const frame = shellScreen.captureFrame();
+      if (!frame) {
+        renderPhase("waiting", "Демонстрация экрана не готова для снимка");
+        return;
+      }
+      renderShellReplyMedia(
+        nodes.lastReplyMedia,
+        [{ type: "image", src: frame.dataUrl, caption: "Снимок экрана" }],
+        state.agentId
+      );
+      nodes.lastReplyText.textContent = "Снимок экрана";
+      await uploadScreenSnapshot("manual").catch(() => {});
+      renderPhase(state.shellState?.phase || "waiting", "Снимок сохранён");
+    })();
   });
 
   nodes.messageTarget.addEventListener("change", persistSettings);
@@ -634,7 +1049,6 @@ function bindUi() {
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
   nodes.qwenpawAgentId.addEventListener("change", persistSettings);
   nodes.ttsEnabled.addEventListener("change", persistSettings);
-  nodes.topmost.addEventListener("change", persistSettings);
   nodes.voiceMode.addEventListener("change", persistSettings);
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
@@ -678,10 +1092,13 @@ function bindUi() {
 async function boot() {
   cleanShellUrl();
   bindUi();
+  bindNavigationUi();
+  bindWindowSettingsUi();
   setupSpeechRecognition();
   try {
     await resolveShellAgent();
     await topicPicker.refresh();
+    await loadWindowSettings();
     await refreshStatus();
     connectStream();
   } catch (error) {

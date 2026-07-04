@@ -578,6 +578,42 @@ function createServer() {
     client.post("/api/shell/stop-tts", {})
   );
 
+  reg(
+    "shell_camera_snapshot",
+    "Capture a JPEG frame from Agent Shell camera. Requires Shell UI open with camera enabled.",
+    z.object({
+      waitMs: z.number().int().min(1000).max(60000).optional().describe("Wait for Shell UI, default 15000"),
+      reason: z.string().optional().describe("Why the agent needs the frame"),
+      kind: z.enum(["live", "speech", "manual"]).optional().describe("live=ask Shell now; speech/manual=last saved frame")
+    }),
+    async ({ waitMs, reason, kind }) => {
+      const mode = kind || "live";
+      if (mode === "speech" || mode === "manual") {
+        const latest = await client.get("/api/shell/camera/latest", { kind: mode });
+        return latest;
+      }
+      return client.post("/api/shell/camera/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
+    }
+  );
+
+  reg(
+    "shell_screenshot",
+    "Capture a PNG frame from Agent Shell screen share. Requires Shell UI open with screen share enabled.",
+    z.object({
+      waitMs: z.number().int().min(1000).max(60000).optional().describe("Wait for Shell UI, default 15000"),
+      reason: z.string().optional().describe("Why the agent needs the screenshot"),
+      kind: z.enum(["live", "speech", "manual"]).optional().describe("live=ask Shell now; speech/manual=last saved frame")
+    }),
+    async ({ waitMs, reason, kind }) => {
+      const mode = kind || "live";
+      if (mode === "speech" || mode === "manual") {
+        const latest = await client.get("/api/shell/screen/latest", { kind: mode });
+        return latest;
+      }
+      return client.post("/api/shell/screen/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
+    }
+  );
+
   reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
     client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );

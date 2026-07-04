@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, dialog, shell } = electron;
+const { app, BrowserWindow, dialog, shell, ipcMain } = electron;
 const path = require("path");
 const {
   getCmsBaseUrl,
@@ -75,6 +75,19 @@ function buildShellUrl() {
   return new URL("/shell/index.html", `${cmsBaseUrl}/`).toString();
 }
 
+function applyNativeWindowSettings(settings = {}) {
+  if (!mainWindow) return;
+  const topmost = settings.windowTopmost !== false;
+  mainWindow.setAlwaysOnTop(topmost, "floating");
+  if (process.platform === "darwin" && typeof mainWindow.setVisibleOnAllWorkspaces === "function") {
+    mainWindow.setVisibleOnAllWorkspaces(topmost, { visibleOnFullScreen: true });
+  }
+  const transparent = Boolean(settings.windowTransparent || settings.windowBackground === "transparent");
+  if (typeof mainWindow.setBackgroundColor === "function") {
+    mainWindow.setBackgroundColor(transparent ? "#00000000" : "#0f1020");
+  }
+}
+
 async function createWindow() {
   await ensureCmsAvailable();
 
@@ -92,9 +105,10 @@ async function createWindow() {
     minHeight: 640,
     title: "Agent Shell",
     icon: getAppIcon(),
+    transparent: true,
+    backgroundColor: "#00000000",
     alwaysOnTop: true,
     show: false,
-    backgroundColor: "#0f1020",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -169,6 +183,10 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     registerProtocol();
+    ipcMain.handle("shell:apply-window-settings", (_event, settings) => {
+      applyNativeWindowSettings(settings);
+      return { ok: true };
+    });
     bootstrap();
   });
 

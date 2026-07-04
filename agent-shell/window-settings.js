@@ -1,0 +1,73 @@
+const fs = require("fs/promises");
+const path = require("path");
+
+const AWN_SHELL_FILE = "awn-shell.json";
+
+const DEFAULT_WINDOW_SETTINGS = {
+  windowTopmost: true,
+  windowTransparent: false,
+  windowBackground: "wallpaper"
+};
+
+function windowSettingsPath(projectRoot) {
+  return path.join(projectRoot, AWN_SHELL_FILE);
+}
+
+function normalizeWindowSettings(raw) {
+  const merged = {
+    ...DEFAULT_WINDOW_SETTINGS,
+    ...(raw && typeof raw === "object" ? raw : {})
+  };
+  merged.windowTopmost = merged.windowTopmost !== false;
+  merged.windowTransparent = Boolean(merged.windowTransparent);
+  const bg = String(merged.windowBackground || "wallpaper").trim();
+  if (!["wallpaper", "dark", "transparent"].includes(bg)) {
+    merged.windowBackground = "wallpaper";
+  }
+  if (merged.windowTransparent || merged.windowBackground === "transparent") {
+    merged.windowTransparent = true;
+    merged.windowBackground = "transparent";
+  }
+  return merged;
+}
+
+async function readWindowSettings(projectRoot) {
+  try {
+    const raw = await fs.readFile(windowSettingsPath(projectRoot), "utf-8");
+    return normalizeWindowSettings(JSON.parse(raw));
+  } catch {
+    return normalizeWindowSettings({});
+  }
+}
+
+async function writeWindowSettings(projectRoot, patch) {
+  const current = await readWindowSettings(projectRoot);
+  const next = normalizeWindowSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
+  const target = windowSettingsPath(projectRoot);
+  const tmp = `${target}.tmp`;
+  await fs.writeFile(tmp, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+  await fs.rename(tmp, target);
+  return next;
+}
+
+async function migrateWindowSettingsFromAgent(projectRoot, agentSettings) {
+  try {
+    await fs.access(windowSettingsPath(projectRoot));
+    return readWindowSettings(projectRoot);
+  } catch {
+    // first run — migrate legacy per-agent setting if present
+  }
+  if (agentSettings && typeof agentSettings.windowTopmost === "boolean") {
+    return writeWindowSettings(projectRoot, { windowTopmost: agentSettings.windowTopmost });
+  }
+  return normalizeWindowSettings({});
+}
+
+module.exports = {
+  AWN_SHELL_FILE,
+  DEFAULT_WINDOW_SETTINGS,
+  normalizeWindowSettings,
+  readWindowSettings,
+  writeWindowSettings,
+  migrateWindowSettingsFromAgent
+};

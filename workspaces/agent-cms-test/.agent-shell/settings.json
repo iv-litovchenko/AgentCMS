@@ -11,6 +11,11 @@
   "voiceResponseEnabled": true,
   "ttsEnabled": true,
   "ttsEngine": "browser",
-  "windowTopmost": true,
-  "cameraEnabled": false
+  "windowTopmost": false,
+  "cameraEnabled": false,
+  "cameraOnSpeech": true,
+  "cameraFacing": "user",
+  "cameraDeviceId": "",
+  "screenEnabled": false,
+  "screenOnSpeech": true
 }

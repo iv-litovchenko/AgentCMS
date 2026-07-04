@@ -48,11 +48,35 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 | POST | `/api/shell/state?agent=` | Обновить phase/phrase (sidecar) |
 | POST | `/api/shell/message?agent=` | `{ "body": "…" }` → thread/inbox |
 | POST | `/api/shell/stop-tts?agent=` | Остановить озвучку |
-| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, stop_tts |
+| POST | `/api/shell/camera/snapshot` | MCP: запросить кадр (ждёт Shell UI) |
+| POST | `/api/shell/camera/snapshot/complete` | Shell UI: ответ на запрос кадра |
+| POST | `/api/shell/camera/speech-snapshot` | Кадр при речи (VAD) или вручную |
+| GET | `/api/shell/camera/latest?kind=speech\|manual` | Последний сохранённый кадр |
+| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, camera_snapshot_request, screen_snapshot_request |
 
 Настройки хранятся в workspace агента: `.agent-shell/settings.json`.
 
-## Поток
+## Камера (Shell UI)
+
+Агент через MCP `shell_camera_snapshot` может запросить кадр. Shell UI должен быть открыт, камера включена.
+
+- `kind: live` (default) — новый кадр с камеры
+- `kind: speech` — последний кадр после голосового сообщения (когда Shell переходит «Слушаю» → «Думаю»)
+- `kind: manual` — последний кадр по кнопке 📷
+
+Настройки: `cameraEnabled`, `cameraOnSpeech`, `cameraFacing` (`user` | `environment` | `device`), `cameraDeviceId`.
+
+## Экран (Shell UI)
+
+Агент через MCP `shell_screenshot` может запросить снимок экрана. Shell UI должен быть открыт, демонстрация экрана включена (браузер попросит выбрать окно/экран).
+
+- `kind: live` (default) — новый снимок с демонстрации
+- `kind: speech` — последний снимок после голосового сообщения
+- `kind: manual` — последний снимок по кнопке 🖥
+
+Настройки: `screenEnabled`, `screenOnSpeech`.
+
+HTTP: `POST /api/shell/screen/snapshot`, `GET /api/shell/screen/latest?kind=speech|manual`.
 
 ### Agent CMS (по умолчанию)
 

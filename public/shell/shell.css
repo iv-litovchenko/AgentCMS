@@ -30,13 +30,29 @@ body {
   justify-content: center;
   padding: 12px;
   background-color: #0a1020;
+  background-repeat: no-repeat;
+}
+
+body.shell-bg-wallpaper {
   background-image:
     linear-gradient(180deg, rgba(8, 12, 28, 0.72) 0%, rgba(12, 18, 36, 0.82) 45%, rgba(10, 14, 30, 0.9) 100%),
     url("/shell/wallpaper.png");
   background-size: cover;
   background-position: center top;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+}
+
+body.shell-bg-dark {
+  background-image: linear-gradient(180deg, #0c1020 0%, #0f1020 100%);
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+}
+
+body.shell-bg-transparent,
+body.shell-window-transparent {
+  background-color: transparent;
+  background-image: none;
 }
 
 .shell-app {
@@ -58,17 +74,17 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .shell-logo {
   width: 42px;
   height: 42px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #5f4bff, #9b59ff);
-  box-shadow: 0 8px 24px rgba(95, 75, 255, 0.35);
-  font-size: 22px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: block;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
 }
 
 .shell-title {
@@ -86,6 +102,46 @@ body {
 .shell-header-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+.shell-icon-btn[aria-pressed="true"] {
+  border-color: rgba(124, 108, 255, 0.65);
+  background: rgba(124, 108, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.15);
+}
+
+.shell-icon-btn--cms {
+  padding: 7px;
+}
+
+.shell-header-icon {
+  display: block;
+  border-radius: 6px;
+}
+
+.shell-main-view,
+.shell-settings-view {
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.shell-main-view {
+  display: flex;
+}
+
+.shell-settings-view {
+  display: none;
+}
+
+.shell-app[data-view="settings"] .shell-settings-view {
+  display: flex;
+}
+
+.shell-app[data-view="settings"] .shell-main-view {
+  display: none;
 }
 
 .shell-icon-btn {
@@ -179,7 +235,10 @@ body {
   color: var(--muted);
 }
 
-.shell-camera {
+.shell-camera,
+.shell-screen,
+.shell-window-panel,
+.shell-todo-panel {
   padding: 14px;
   border-radius: 16px;
   background: rgba(18, 20, 38, 0.78);
@@ -189,24 +248,72 @@ body {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
-.shell-camera-head {
+.shell-window-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.shell-window-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.shell-window-hint code {
+  font-size: 10px;
+}
+
+.shell-window-options {
+  display: grid;
+  gap: 10px;
+}
+
+.shell-window-options .shell-field--compact {
+  margin-bottom: 0;
+}
+
+.shell-todo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.shell-todo-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.shell-todo-panel .shell-footer {
+  padding: 0;
+  border-top: none;
+}
+
+.shell-camera-head,
+.shell-screen-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.shell-camera-actions {
+.shell-camera-actions,
+.shell-screen-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.shell-camera-toggle {
+.shell-camera-toggle,
+.shell-screen-toggle {
   margin: 0;
 }
 
-.shell-camera-stage {
+.shell-camera-stage,
+.shell-screen-stage {
   margin-top: 10px;
   border-radius: 12px;
   overflow: hidden;
@@ -214,11 +321,13 @@ body {
   background: #000;
 }
 
-.shell-camera-stage.hidden {
+.shell-camera-stage.hidden,
+.shell-screen-stage.hidden {
   display: none;
 }
 
-.shell-camera-video {
+.shell-camera-video,
+.shell-screen-video {
   display: block;
   width: 100%;
   max-height: 200px;
@@ -226,14 +335,31 @@ body {
   transform: scaleX(-1);
 }
 
-.shell-camera-status {
+.shell-camera-status,
+.shell-screen-status {
   padding: 8px 10px;
   font-size: 11px;
   color: var(--muted);
   background: rgba(8, 10, 22, 0.72);
 }
 
-.shell-camera-status:empty {
+.shell-camera-options,
+.shell-screen-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.shell-field--compact {
+  margin-bottom: 0;
+}
+
+.shell-camera-speech,
+.shell-screen-speech {
+  margin: 0;
+}
+
+.shell-camera-device-field.hidden {
   display: none;
 }
 
