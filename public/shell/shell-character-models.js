@@ -78,6 +78,36 @@ export const SHELL_CHARACTER_MODELS = [
     }
   },
   {
+    id: "pirate",
+    label: "Пират",
+    icon: "🏴‍☠️",
+    file: "/shell/models/BlockyPirate.glb",
+    credit: "Kenney · CC0 · blocky-characters",
+    transform: { rotY: 0.3, framePadding: 1.05, targetHeight: 1.18, lookRatio: 0.46 },
+    phases: {
+      waiting: { clip: "idle", timeScale: 1 },
+      listening: { clip: "emote-yes", timeScale: 1 },
+      thinking: { clip: "walk", timeScale: 0.35 },
+      speaking: { clip: "holding-right", timeScale: 0.85 },
+      disabled: { clip: "sit", timeScale: 1 }
+    }
+  },
+  {
+    id: "kimono",
+    label: "Кимоно",
+    icon: "👘",
+    file: "/shell/models/BlockyKimono.glb",
+    credit: "Kenney · CC0 · blocky-characters",
+    transform: { rotY: 0.3, framePadding: 1.05, targetHeight: 1.18, lookRatio: 0.46 },
+    phases: {
+      waiting: { clip: "idle", timeScale: 1 },
+      listening: { clip: "emote-yes", timeScale: 1 },
+      thinking: { clip: "walk", timeScale: 0.35 },
+      speaking: { clip: "holding-right", timeScale: 0.85 },
+      disabled: { clip: "sit", timeScale: 1 }
+    }
+  },
+  {
     id: "lego",
     label: "LEGO",
     iconSvg: "/shell/icons/lego-minifig.svg?v=2",

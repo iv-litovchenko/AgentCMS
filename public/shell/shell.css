@@ -253,6 +253,275 @@ body.shell-window-transparent {
   width: 100%;
 }
 
+.shell-compose-head {
+  margin-bottom: 10px;
+}
+
+.shell-message-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(8, 10, 22, 0.48);
+  border: 1px solid rgba(122, 108, 255, 0.22);
+}
+
+.shell-message-queue.hidden {
+  display: none;
+}
+
+.shell-message-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shell-message-queue-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.shell-message-queue-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(155, 89, 255, 0.16);
+  color: #c4b8ff;
+}
+
+.shell-message-queue-count:empty {
+  display: none;
+}
+
+.shell-message-queue-active {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(88, 196, 255, 0.07);
+  border: 1px solid rgba(88, 196, 255, 0.22);
+  box-shadow: inset 3px 0 0 #58c4ff;
+}
+
+.shell-message-queue-active.hidden {
+  display: none;
+}
+
+.shell-message-queue-active-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shell-message-queue-active-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.shell-message-queue-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7ec8ff;
+}
+
+.shell-message-queue-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.shell-message-queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.shell-message-queue-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.shell-message-queue-list::-webkit-scrollbar-thumb {
+  background: rgba(122, 108, 255, 0.35);
+  border-radius: 999px;
+}
+
+.shell-message-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(18, 20, 38, 0.78);
+  border: 1px solid rgba(122, 108, 255, 0.18);
+}
+
+.shell-message-queue-item.is-editing {
+  border-color: rgba(155, 89, 255, 0.38);
+  background: rgba(24, 18, 44, 0.86);
+  box-shadow: 0 0 0 1px rgba(155, 89, 255, 0.12);
+}
+
+.shell-message-queue-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell-message-queue-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(155, 89, 255, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  color: #d6cbff;
+}
+
+.shell-message-queue-item-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.shell-message-queue-item.is-editing .shell-message-queue-item-label {
+  color: #c4b8ff;
+}
+
+.shell-message-queue-item-body {
+  min-width: 0;
+}
+
+.shell-message-queue-item-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: text;
+}
+
+.shell-message-queue-edit-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.shell-message-queue-edit-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c4b8ff;
+}
+
+.shell-message-queue-edit-hint {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.shell-message-queue-edit {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(155, 89, 255, 0.34);
+  background: rgba(8, 10, 22, 0.78);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.shell-message-queue-edit:focus {
+  outline: none;
+  border-color: rgba(155, 89, 255, 0.58);
+  box-shadow: 0 0 0 2px rgba(155, 89, 255, 0.14);
+}
+
+.shell-message-queue-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(122, 108, 255, 0.12);
+}
+
+.shell-message-queue-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shell-message-queue-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(155, 89, 255, 0.34);
+}
+
+.shell-message-queue-action--save {
+  color: #8dffc0;
+  border-color: rgba(98, 220, 150, 0.34);
+  background: rgba(56, 140, 90, 0.12);
+}
+
+.shell-message-queue-action--danger {
+  color: #ffb4b4;
+  border-color: rgba(255, 120, 120, 0.28);
+  background: rgba(120, 40, 40, 0.12);
+}
+
+.shell-message-queue-action--muted {
+  color: var(--muted);
+}
+
+.shell-message-queue-footnote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-message-queue-footnote.hidden {
+  display: none;
+}
+
 .shell-route-panel .shell-field:last-child {
   margin-bottom: 0;
 }

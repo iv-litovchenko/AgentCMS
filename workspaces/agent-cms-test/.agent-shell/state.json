@@ -2,10 +2,10 @@
   "phase": "speaking",
   "phrase": "Озвучиваю ответ…",
   "metrics": "",
-  "lastAgentMessageId": "qwenpaw-1783199278587-p2x1ca",
-  "lastShellReply": "Тест пройден! ✅\n\nЯ жива, бодра, и даже ла-ла-лакать умею 🎵\n\nЧто тестим дальше? 😄",
-  "stopTtsAt": 1783196268343,
+  "lastAgentMessageId": "qwenpaw-1783200125510-pm64vo",
+  "lastShellReply": "Готово! Картинка прямо выше ☝️🌅\n\nКрасивый летний пейзаж — пляж, море, закат... Чтобы ты проникся атмосферой, пока мы тут тестим 😄\n\nВидно?",
+  "stopTtsAt": 0,
   "sidecarSeenAt": 0,
   "pttHeld": false,
-  "updatedAt": "2026-07-04T21:08:05.692Z"
+  "updatedAt": "2026-07-04T21:22:27.492Z"
 }

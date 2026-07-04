@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=50" />
+    <link rel="stylesheet" href="/shell/shell.css?v=54" />
     <script type="importmap">
       {
         "imports": {
@@ -617,7 +617,26 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
 
       <section class="shell-compose-panel" id="shell-compose-panel">
-        <div class="shell-section-label">Ваше сообщение</div>
+        <div class="shell-compose-head">
+          <div class="shell-section-label">Ваше сообщение</div>
+        </div>
+        <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
+          <div class="shell-message-queue-head">
+            <span class="shell-message-queue-title">Очередь</span>
+            <span class="shell-message-queue-count" id="shell-message-queue-count"></span>
+          </div>
+          <div class="shell-message-queue-active hidden" id="shell-message-queue-active">
+            <div class="shell-message-queue-active-top">
+              <span class="shell-message-queue-badge">Сейчас</span>
+              <span class="shell-message-queue-active-hint">агент обрабатывает</span>
+            </div>
+            <p class="shell-message-queue-text" id="shell-message-queue-active-text"></p>
+          </div>
+          <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
+          <p class="shell-message-queue-footnote hidden" id="shell-message-queue-footnote">
+            Пока агент занят, новые сообщения попадают в очередь. Их можно изменить или вернуть в поле ввода.
+          </p>
+        </div>
         <textarea
           id="shell-message"
           class="shell-textarea"
@@ -765,6 +784,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=50" type="module"></script>
+    <script src="/shell/shell.js?v=54" type="module"></script>
   </body>
 </html>

@@ -5,7 +5,7 @@ import {
   isFallbackCharacter,
   loadStoredCharacterId,
   saveStoredCharacterId
-} from "/shell/shell-character-models.js?v=11";
+} from "/shell/shell-character-models.js?v=12";
 
 const THREE_MODULE = "/shell/vendor/three.module.js";
 const GLTF_LOADER_MODULE = "/shell/vendor/loaders/GLTFLoader.js";

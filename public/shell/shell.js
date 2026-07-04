@@ -2,7 +2,7 @@ import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.j
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { parseShellReply, renderShellReplyMedia, toSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=3";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
-import { initShellCharacter } from "/shell/shell-character.js?v=17";
+import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
@@ -15,6 +15,12 @@ const PHASE_LABELS = {
 };
 
 const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
+
+let lastHandledAssistantId = "";
+let lastSpokenBody = "";
+let lastHandledStreamId = "";
+let lastStreamHandledBody = "";
+const outboundQueue = [];
 
 const state = {
   agentId: localStorage.getItem(SHELL_AGENT_KEY) || "",
@@ -45,7 +51,9 @@ const state = {
   streamTtsQueue: [],
   streamTtsActive: false,
   streamTtsCursor: 0,
-  messagePipelineBusy: false
+  messagePipelineBusy: false,
+  processingMessage: "",
+  queueEditingId: ""
 };
 
 const nodes = {
@@ -88,6 +96,12 @@ const nodes = {
   sessionToggle: document.getElementById("shell-session-toggle"),
   replyPanel: document.getElementById("shell-reply-panel"),
   composePanel: document.getElementById("shell-compose-panel"),
+  messageQueue: document.getElementById("shell-message-queue"),
+  messageQueueActive: document.getElementById("shell-message-queue-active"),
+  messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
+  messageQueueCount: document.getElementById("shell-message-queue-count"),
+  messageQueueFootnote: document.getElementById("shell-message-queue-footnote"),
+  messageQueueList: document.getElementById("shell-message-queue-list"),
   routeToggle: document.getElementById("shell-route-toggle"),
   routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
@@ -401,7 +415,8 @@ function finalizeAssistantStream(message) {
 
 function releaseMessagePipeline() {
   state.messagePipelineBusy = false;
-  nodes.sendBtn.disabled = false;
+  state.processingMessage = "";
+  renderMessageQueue();
   void drainOutboundQueue();
 }
 
@@ -410,11 +425,208 @@ function queuePhraseSuffix() {
   return n > 0 ? ` · в очереди: ${n}` : "";
 }
 
+function updateSendButtonLabel() {
+  if (!nodes.sendBtn) return;
+  const draft = String(nodes.message?.value || "").trim();
+  if (state.messagePipelineBusy && draft) {
+    nodes.sendBtn.textContent = outboundQueue.length ? `В очередь · ${outboundQueue.length}` : "В очередь";
+  } else {
+    nodes.sendBtn.textContent = "Отправить";
+  }
+}
+
+function removeOutboundMessage(id) {
+  if (state.queueEditingId === id) state.queueEditingId = "";
+  const idx = outboundQueue.findIndex((item) => item.id === id);
+  if (idx >= 0) outboundQueue.splice(idx, 1);
+  renderMessageQueue();
+}
+
+function startEditOutboundMessage(id) {
+  state.queueEditingId = id;
+  renderMessageQueue();
+  const field = nodes.messageQueueList?.querySelector(`[data-queue-edit="${id}"]`);
+  field?.focus();
+  if (field instanceof HTMLTextAreaElement) {
+    field.setSelectionRange(field.value.length, field.value.length);
+  }
+}
+
+function saveEditOutboundMessage(id, nextText) {
+  const text = String(nextText || "").trim();
+  const item = outboundQueue.find((entry) => entry.id === id);
+  if (!item) {
+    state.queueEditingId = "";
+    renderMessageQueue();
+    return;
+  }
+  if (!text) {
+    removeOutboundMessage(id);
+    return;
+  }
+  item.text = text;
+  state.queueEditingId = "";
+  renderMessageQueue();
+}
+
+function cancelEditOutboundMessage() {
+  state.queueEditingId = "";
+  renderMessageQueue();
+}
+
+function moveOutboundMessageToDraft(id) {
+  const item = outboundQueue.find((entry) => entry.id === id);
+  if (!item || !nodes.message) return;
+  nodes.message.value = item.text;
+  removeOutboundMessage(id);
+  nodes.message.focus();
+  updateSendButtonLabel();
+}
+
+function createQueueAction(label, { variant = "", onClick, ariaLabel = label } = {}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = ["shell-message-queue-action", variant].filter(Boolean).join(" ");
+  btn.textContent = label;
+  btn.setAttribute("aria-label", ariaLabel);
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function renderMessageQueue() {
+  const hasActive = Boolean(state.processingMessage);
+  const hasQueued = outboundQueue.length > 0;
+  const showQueue = hasActive || hasQueued;
+
+  nodes.messageQueue?.classList.toggle("hidden", !showQueue);
+  nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
+  nodes.messageQueueFootnote?.classList.toggle("hidden", !showQueue);
+  if (nodes.messageQueueActiveText) {
+    nodes.messageQueueActiveText.textContent = state.processingMessage || "";
+  }
+  if (nodes.messageQueueCount) {
+    nodes.messageQueueCount.textContent = hasQueued ? `${outboundQueue.length} ждут` : "";
+  }
+
+  if (!nodes.messageQueueList) {
+    updateSendButtonLabel();
+    return;
+  }
+
+  nodes.messageQueueList.innerHTML = "";
+  outboundQueue.forEach((item, index) => {
+    const li = document.createElement("li");
+    const isEditing = state.queueEditingId === item.id;
+    li.className = `shell-message-queue-item${isEditing ? " is-editing" : ""}`;
+
+    const head = document.createElement("div");
+    head.className = "shell-message-queue-item-head";
+
+    const order = document.createElement("span");
+    order.className = "shell-message-queue-index";
+    order.textContent = String(index + 1);
+
+    const status = document.createElement("span");
+    status.className = "shell-message-queue-item-label";
+    status.textContent = isEditing ? "Редактирование" : "В очереди";
+
+    head.append(order, status);
+
+    const body = document.createElement("div");
+    body.className = "shell-message-queue-item-body";
+
+    if (isEditing) {
+      const meta = document.createElement("div");
+      meta.className = "shell-message-queue-edit-meta";
+
+      const title = document.createElement("span");
+      title.className = "shell-message-queue-edit-title";
+      title.textContent = "Текст сообщения";
+
+      const hint = document.createElement("span");
+      hint.className = "shell-message-queue-edit-hint";
+      hint.textContent = "⌘↩ сохранить · Esc отмена";
+
+      meta.append(title, hint);
+
+      const editor = document.createElement("textarea");
+      editor.className = "shell-message-queue-edit";
+      editor.dataset.queueEdit = item.id;
+      editor.value = item.text;
+      editor.rows = 3;
+      editor.setAttribute("aria-label", "Редактирование сообщения в очереди");
+      editor.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          cancelEditOutboundMessage();
+        }
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          saveEditOutboundMessage(item.id, editor.value);
+        }
+      });
+
+      body.append(meta, editor);
+
+      const actions = document.createElement("div");
+      actions.className = "shell-message-queue-item-actions";
+      actions.append(
+        createQueueAction("Сохранить", {
+          variant: "shell-message-queue-action--save",
+          onClick: () => saveEditOutboundMessage(item.id, editor.value)
+        }),
+        createQueueAction("Отмена", {
+          variant: "shell-message-queue-action--muted",
+          onClick: cancelEditOutboundMessage
+        })
+      );
+
+      li.append(head, body, actions);
+    } else {
+      const text = document.createElement("p");
+      text.className = "shell-message-queue-item-text";
+      text.textContent = item.text;
+      text.title = "Двойной клик — изменить текст";
+      text.addEventListener("dblclick", () => startEditOutboundMessage(item.id));
+      body.append(text);
+
+      const actions = document.createElement("div");
+      actions.className = "shell-message-queue-item-actions";
+      actions.append(
+        createQueueAction("Изменить", {
+          onClick: () => startEditOutboundMessage(item.id)
+        }),
+        createQueueAction("В черновик", {
+          variant: "shell-message-queue-action--muted",
+          onClick: () => moveOutboundMessageToDraft(item.id),
+          ariaLabel: "Вернуть в поле ввода"
+        }),
+        createQueueAction("Удалить", {
+          variant: "shell-message-queue-action--danger",
+          onClick: () => removeOutboundMessage(item.id),
+          ariaLabel: "Удалить из очереди"
+        })
+      );
+
+      li.append(head, body, actions);
+    }
+
+    nodes.messageQueueList.append(li);
+  });
+  updateSendButtonLabel();
+
+  if (state.queueEditingId) {
+    const field = nodes.messageQueueList.querySelector(`[data-queue-edit="${state.queueEditingId}"]`);
+    field?.focus();
+  }
+}
+
 async function drainOutboundQueue() {
   if (state.messagePipelineBusy || !outboundQueue.length) return;
   const next = outboundQueue.shift();
-  if (!next) return;
-  await sendMessageDirect(next);
+  renderMessageQueue();
+  if (!next?.text) return;
+  await sendMessageDirect(next.text);
 }
 
 async function finishStreamTtsWhenIdle() {
@@ -1029,24 +1241,30 @@ async function patchShellState(patch) {
   renderPhase(data.state.phase, data.state.phrase, data.state.metrics);
 }
 
-async function sendMessage(body) {
+async function sendMessage(body, { fromCompose = true } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
 
   if (state.messagePipelineBusy) {
-    outboundQueue.push(text);
-    renderPhase(state.shellState?.phase || "thinking", `В очереди: ${outboundQueue.length}${queuePhraseSuffix()}`);
+    outboundQueue.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text });
+    if (fromCompose && nodes.message) nodes.message.value = "";
+    renderMessageQueue();
+    renderPhase(
+      state.shellState?.phase || "thinking",
+      `Печатает…${queuePhraseSuffix()}`
+    );
     return;
   }
 
-  await sendMessageDirect(text);
+  await sendMessageDirect(text, { fromCompose });
 }
 
-async function sendMessageDirect(body) {
+async function sendMessageDirect(body, { fromCompose = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
   state.messagePipelineBusy = true;
-  nodes.sendBtn.disabled = true;
+  state.processingMessage = text;
+  renderMessageQueue();
   const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
   const streamingQwenPaw = usesQwenPawTarget(target);
   if (streamingQwenPaw) beginAssistantStream({});
@@ -1056,16 +1274,26 @@ async function sendMessageDirect(body) {
       method: "POST",
       body: JSON.stringify({ body: text, author: "shell" })
     });
-    nodes.message.value = "";
+    if (fromCompose && nodes.message) nodes.message.value = "";
+    updateSendButtonLabel();
     if (result?.reply || result?.message?.body) {
       await handleAssistantMessage(result.message || { body: result.reply, streamId: result.streamId });
-      if (!streamingQwenPaw || shouldSkipAssistantSpeech(result.message || { streamId: result.streamId }, String(result.reply || result.message?.body || "").trim())) {
-        if (!state.streamTtsQueue.length && !state.streamTtsActive) {
-          releaseMessagePipeline();
-        }
-      }
     } else {
       await refreshStatus();
+      releaseMessagePipeline();
+      return;
+    }
+
+    if (!streamingQwenPaw) {
+      if (!state.speaking && !state.streamTtsQueue.length && !state.streamTtsActive) {
+        releaseMessagePipeline();
+      }
+    } else if (
+      !state.assistantStream &&
+      !state.streamTtsQueue.length &&
+      !state.streamTtsActive &&
+      !state.speaking
+    ) {
       releaseMessagePipeline();
     }
   } catch (error) {
@@ -1073,6 +1301,8 @@ async function sendMessageDirect(body) {
       nodes.replyPanel?.classList.remove("is-streaming");
       state.assistantStream = null;
     }
+    state.processingMessage = "";
+    renderMessageQueue();
     renderPhase("waiting", error.message);
     releaseMessagePipeline();
   }
@@ -1114,12 +1344,6 @@ async function speakText(text) {
   state.speaking = false;
   await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
 }
-
-let lastHandledAssistantId = "";
-let lastSpokenBody = "";
-let lastHandledStreamId = "";
-let lastStreamHandledBody = "";
-const outboundQueue = [];
 
 async function handleAssistantMessage(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
@@ -1496,6 +1720,7 @@ function bindUi() {
   nodes.voiceMode.addEventListener("change", persistSettings);
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
+  nodes.message?.addEventListener("input", updateSendButtonLabel);
   nodes.message.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
