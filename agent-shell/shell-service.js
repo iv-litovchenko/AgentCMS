@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
-const { chatWithQwenPaw, checkQwenPawHealth, listQwenPawChats, createQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const { chatWithQwenPaw, checkQwenPawHealth, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 
 const SETTINGS_DIR = ".agent-shell";
@@ -25,8 +25,17 @@ const DEFAULT_SETTINGS = {
   qwenpawChatName: "",
   voiceInputMode: "browser",
   voiceResponseEnabled: true,
+  sttLang: "ru-RU",
+  sttPrompt: "",
   ttsEnabled: true,
   ttsEngine: "browser",
+  ttsPrompt: "",
+  ttsRate: 1,
+  ttsPitch: 1,
+  ttsLang: "ru-RU",
+  ttsVoice: "",
+  ttsStripEmoji: true,
+  ttsIncludeCaptions: true,
   windowTopmost: true,
   cameraEnabled: false,
   cameraOnSpeech: true,
@@ -138,7 +147,16 @@ function normalizeSettings(raw) {
   }
   if (!["browser", "sidecar", "say"].includes(merged.ttsEngine)) merged.ttsEngine = "browser";
   merged.voiceResponseEnabled = Boolean(merged.voiceResponseEnabled);
+  merged.sttLang = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
+  merged.sttPrompt = String(merged.sttPrompt || "");
   merged.ttsEnabled = Boolean(merged.ttsEnabled);
+  merged.ttsPrompt = String(merged.ttsPrompt || "");
+  merged.ttsRate = Math.min(2, Math.max(0.5, Number(merged.ttsRate) || 1));
+  merged.ttsPitch = Math.min(2, Math.max(0, Number(merged.ttsPitch) || 1));
+  merged.ttsLang = String(merged.ttsLang || "ru-RU").trim() || "ru-RU";
+  merged.ttsVoice = String(merged.ttsVoice || "").trim();
+  merged.ttsStripEmoji = merged.ttsStripEmoji !== false;
+  merged.ttsIncludeCaptions = merged.ttsIncludeCaptions !== false;
   merged.windowTopmost = merged.windowTopmost !== false;
   merged.cameraEnabled = Boolean(merged.cameraEnabled);
   merged.cameraOnSpeech = merged.cameraOnSpeech !== false;
@@ -404,6 +422,52 @@ async function selectQwenPawChat(agentRoot, agentId, settings, { sessionId, chat
   );
 
   return { sessionId: nextSessionId, chatName: resolvedName, settings: nextSettings };
+}
+
+async function renameQwenPawChat(agentRoot, agentId, settings, { name, sessionId } = {}) {
+  if (!usesQwenPaw(settings)) throw new Error("QwenPaw mode is not enabled");
+
+  const chatName = String(name || "").trim();
+  if (!chatName) throw new Error("Chat name is required");
+
+  const nextSessionId = String(sessionId || settings.qwenpawSessionId || "").trim();
+  if (!nextSessionId) throw new Error("sessionId is required");
+
+  const chats = await fetchQwenPawChats(settings);
+  const match = chats.find((chat) => String(chat?.session_id || "") === nextSessionId);
+
+  if (match?.id) {
+    await updateQwenPawChat({
+      baseUrl: settings.qwenpawBaseUrl,
+      agentId: settings.qwenpawAgentId,
+      chatId: match.id,
+      name: chatName,
+      sessionId: nextSessionId,
+      userId: settings.qwenpawUserId,
+      channel: "console"
+    });
+  } else {
+    try {
+      await createQwenPawChat({
+        baseUrl: settings.qwenpawBaseUrl,
+        agentId: settings.qwenpawAgentId,
+        sessionId: nextSessionId,
+        userId: settings.qwenpawUserId,
+        channel: "console",
+        name: chatName
+      });
+    } catch {
+      // First message may register the chat later.
+    }
+  }
+
+  const nextSettings = await writeSettings(
+    agentRoot,
+    { qwenpawSessionId: nextSessionId, qwenpawChatName: chatName },
+    agentId
+  );
+
+  return { sessionId: nextSessionId, chatName, settings: nextSettings };
 }
 
 async function appendAgentReplyToCms(deps, settings, body, { partial = false } = {}) {
@@ -771,6 +835,7 @@ module.exports = {
   fetchQwenPawChats,
   startNewQwenPawChat,
   selectQwenPawChat,
+  renameQwenPawChat,
   pollAssistantReply,
   stopTts,
   setPttHeld,

@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, dialog, shell, ipcMain } = electron;
+const { app, BrowserWindow, dialog, shell, ipcMain, screen } = electron;
 const path = require("path");
 const {
   getCmsBaseUrl,
@@ -89,6 +89,18 @@ function buildShellUrl() {
   return new URL("/shell/index.html", `${cmsBaseUrl}/`).toString();
 }
 
+const WINDOW_BOTTOM_MARGIN = 16;
+
+function positionWindowBottomCenter(win = mainWindow) {
+  if (!win) return;
+  const display = screen.getDisplayMatching(win.getBounds());
+  const area = display.workArea;
+  const [winW, winH] = win.getSize();
+  const x = area.x + Math.max(0, Math.round((area.width - winW) / 2));
+  const y = area.y + Math.max(0, area.height - winH - WINDOW_BOTTOM_MARGIN);
+  win.setPosition(x, y);
+}
+
 function applyNativeWindowSettings(settings = {}) {
   if (!mainWindow) return;
   const topmost = settings.windowTopmost !== false;
@@ -106,6 +118,7 @@ function applyNativeWindowSettings(settings = {}) {
   mainWindow.setMinimumSize(profile.minWidth, profile.minHeight);
   if (compact) {
     mainWindow.setSize(profile.width, profile.height);
+    positionWindowBottomCenter(mainWindow);
     return;
   }
   const [curW, curH] = mainWindow.getSize();
@@ -211,6 +224,10 @@ if (!gotLock) {
     registerProtocol();
     ipcMain.handle("shell:apply-window-settings", (_event, settings) => {
       applyNativeWindowSettings(settings);
+      return { ok: true };
+    });
+    ipcMain.handle("shell:position-window-bottom-center", () => {
+      positionWindowBottomCenter();
       return { ok: true };
     });
     bootstrap();

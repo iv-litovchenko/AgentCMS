@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=67" />
+    <link rel="stylesheet" href="/shell/shell.css?v=86" />
     <script type="importmap">
       {
         "imports": {
@@ -34,6 +34,16 @@
           </div>
         </button>
         <div class="shell-header-actions">
+          <button
+            type="button"
+            class="shell-icon-btn shell-compact-toggle"
+            id="shell-compact-toggle"
+            title="Компактный режим"
+            aria-label="Компактный режим"
+            aria-pressed="false"
+          >
+            ▫
+          </button>
           <button
             type="button"
             class="shell-icon-btn shell-icon-btn--cms"
@@ -81,11 +91,7 @@
             <input id="shell-window-transparent" type="checkbox" />
             <span>Прозрачный фон</span>
           </label>
-          <label class="shell-check">
-            <input id="shell-window-compact" type="checkbox" />
-            <span>Компактный режим</span>
-          </label>
-          <p class="shell-window-note">Маленькое окно: pulse, статус и 🎤. Минимум обычного окна: 320×500.</p>
+          <p class="shell-window-note">Компактный режим — кнопка ▫ в шапке. Минимум окна: 320×500.</p>
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
             <select id="shell-window-background" class="shell-select">
@@ -476,7 +482,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
           <div class="shell-hero-body">
             <div class="shell-hero-main">
-              <div class="shell-phase-row">
+              <div class="shell-phase-block">
                 <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
                   <span></span>
                   <span></span>
@@ -493,7 +499,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                     title="Пауза (Space)"
                     aria-label="Пауза озвучки"
                   >
-                    ⏸
+                    <span class="shell-tts-btn-icon" aria-hidden="true">⏸</span>
+                    <span class="shell-tts-btn-label">Пауза</span>
                   </button>
                   <button
                     type="button"
@@ -502,7 +509,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                     title="Продолжить (Space)"
                     aria-label="Продолжить озвучку"
                   >
-                    ▶
+                    <span class="shell-tts-btn-icon" aria-hidden="true">▶</span>
+                    <span class="shell-tts-btn-label">Продолжить</span>
                   </button>
                   <button
                     type="button"
@@ -511,7 +519,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                     title="Стоп озвучки"
                     aria-label="Стоп озвучки"
                   >
-                    ⏹
+                    <span class="shell-tts-btn-icon" aria-hidden="true">⏹</span>
+                    <span class="shell-tts-btn-label">Стоп</span>
                   </button>
                 </div>
               </div>
@@ -535,6 +544,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <span class="shell-meta-chip shell-link-chip" id="shell-link-chip" title="Маршрут">
                 <span class="shell-meta-icon shell-link-chip-dot" id="shell-link-chip-dot" aria-hidden="true">🟡</span>
                 <span class="shell-link-chip-label" id="shell-link-chip-label">—</span>
+                <button
+                  type="button"
+                  class="shell-link-chip-open hidden"
+                  id="shell-link-chip-open"
+                  title="Открыть QwenPaw"
+                  aria-label="Открыть QwenPaw в новом окне"
+                >
+                  ↗
+                </button>
               </span>
             </div>
           </div>
@@ -595,54 +613,64 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </label>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
-            <label class="shell-field">
-              <span class="shell-label">QwenPaw URL</span>
-              <div class="shell-input-row">
-                <input
-                  id="shell-qwenpaw-url"
-                  class="shell-input"
-                  type="url"
-                  spellcheck="false"
-                  placeholder="http://127.0.0.1:8088"
-                />
-                <button
-                  type="button"
-                  class="shell-icon-btn shell-input-action"
-                  id="shell-qwenpaw-open-url"
-                  title="Открыть QwenPaw в новом окне"
-                  aria-label="Открыть QwenPaw в новом окне"
-                >
-                  ↗
-                </button>
-              </div>
-            </label>
-            <label class="shell-field">
-              <span class="shell-label">Агент QwenPaw</span>
-              <input
-                id="shell-qwenpaw-agent-id"
-                class="shell-input"
-                type="text"
-                spellcheck="false"
-                placeholder="default"
-              />
-            </label>
-            <p class="shell-panel-note" id="shell-qwenpaw-note">
-              CMS подключается в MCP QwenPaw — здесь выбирается только профиль QwenPaw.
+            <p class="shell-qwenpaw-note" id="shell-qwenpaw-note">
+              Профиль QwenPaw для Shell. Подключение CMS к агенту — через MCP в QwenPaw, не здесь.
             </p>
-            <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
-              <div class="shell-qwenpaw-chat-current">
-                <span class="shell-label">Чат QwenPaw</span>
-                <div class="shell-qwenpaw-chat-title" id="shell-qwenpaw-chat-title">—</div>
-                <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
+            <div class="shell-qwenpaw-profile">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">QwenPaw URL</span>
+                <div class="shell-input-row">
+                  <input
+                    id="shell-qwenpaw-url"
+                    class="shell-input"
+                    type="url"
+                    spellcheck="false"
+                    placeholder="http://127.0.0.1:8088"
+                  />
+                  <button
+                    type="button"
+                    class="shell-icon-btn shell-input-action"
+                    id="shell-qwenpaw-open-url"
+                    title="Открыть QwenPaw в новом окне"
+                    aria-label="Открыть QwenPaw в новом окне"
+                  >
+                    ↗
+                  </button>
+                </div>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Агент QwenPaw</span>
+                <input
+                  id="shell-qwenpaw-agent-id"
+                  class="shell-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="default"
+                />
+              </label>
+            </div>
+            <div class="shell-field shell-field--compact shell-qwenpaw-chat" id="shell-qwenpaw-chat">
+              <span class="shell-label">Текущий чат</span>
+              <div class="shell-input-row shell-qwenpaw-chat-row">
+                <input
+                  id="shell-qwenpaw-chat-name"
+                  class="shell-input shell-qwenpaw-chat-name"
+                  type="text"
+                  spellcheck="false"
+                  maxlength="120"
+                  placeholder="Название чата"
+                  aria-label="Название чата QwenPaw"
+                />
+                <div class="shell-qwenpaw-chat-toolbar">
+                  <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
+                    + Новый
+                  </button>
+                  <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
+                    История
+                  </button>
+                </div>
               </div>
-              <div class="shell-qwenpaw-chat-actions">
-                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
-                  + Новый чат
-                </button>
-                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
-                  История
-                </button>
-              </div>
+              <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
               <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
             </div>
           </div>
@@ -681,10 +709,82 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <section class="shell-reply-panel" id="shell-reply-panel">
         <div class="shell-reply-head">
           <div class="shell-section-label">Ответ агента</div>
-          <label class="shell-check shell-reply-tts" title="Озвучивать ответы агента">
-            <input id="shell-tts-enabled" type="checkbox" checked />
-            <span>Вывод голосом — озвучка (TTS)</span>
+          <div class="shell-reply-tts-bar">
+            <label class="shell-check shell-reply-tts" title="Текст ответа агента → голос">
+              <input id="shell-tts-enabled" type="checkbox" checked />
+              <span>Голосовой вывод (TTS)</span>
+            </label>
+            <button
+              type="button"
+              class="shell-icon-btn shell-tts-settings-toggle"
+              id="shell-tts-settings-toggle"
+              title="Настройки голосового вывода"
+              aria-label="Настройки голосового вывода"
+              aria-expanded="false"
+              aria-controls="shell-tts-settings"
+            >
+              ⚙️
+            </button>
+          </div>
+        </div>
+        <div class="shell-tts-settings hidden" id="shell-tts-settings">
+          <p class="shell-tts-settings-note">
+            Промпт — как готовить текст к голосу. Сейчас сохраняется в <code>settings.json</code>; автоматическая
+            spoken-версия по промпту — позже.
+          </p>
+          <label class="shell-field shell-field--compact shell-field--todo">
+            <span class="shell-label shell-label-row">
+              Промпт spoken-версии
+              <span class="shell-todo-badge" title="Сохраняется, но автоматически не применяется">TODO</span>
+            </span>
+            <textarea
+              id="shell-tts-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="3"
+              spellcheck="false"
+              placeholder="Озвучь кратко, по-русски. Убери emoji, markdown и лишние детали — только смысл для голоса."
+            ></textarea>
           </label>
+          <div class="shell-tts-settings-grid">
+            <label class="shell-field shell-field--compact shell-field--todo">
+              <span class="shell-label shell-label-row">
+                Движок TTS
+                <span class="shell-todo-badge" title="Работает только «Браузер»; say и sidecar — TODO">TODO · sidecar</span>
+              </span>
+              <select id="shell-tts-engine" class="shell-select">
+                <option value="browser">Браузер (Web Speech)</option>
+                <option value="say">macOS say (sidecar) · TODO</option>
+                <option value="sidecar">Sidecar (Python) · TODO</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Язык</span>
+              <select id="shell-tts-lang" class="shell-select">
+                <option value="ru-RU">Русский</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Голос</span>
+              <select id="shell-tts-voice" class="shell-select">
+                <option value="">Системный по умолчанию</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+            </label>
+          </div>
+          <div class="shell-tts-settings-checks">
+            <label class="shell-check">
+              <input id="shell-tts-strip-emoji" type="checkbox" checked />
+              <span>Убирать emoji перед озвучкой</span>
+            </label>
+            <label class="shell-check">
+              <input id="shell-tts-include-captions" type="checkbox" checked />
+              <span>Озвучивать подписи [show]</span>
+            </label>
+          </div>
         </div>
         <div class="shell-reply-body" id="shell-last-reply">
           <div class="shell-reply-text" id="shell-last-reply-text">—</div>
@@ -695,6 +795,70 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <section class="shell-compose-panel" id="shell-compose-panel">
         <div class="shell-compose-head">
           <div class="shell-section-label">Ваше сообщение</div>
+          <div class="shell-compose-stt-bar">
+            <label class="shell-check shell-compose-stt" title="Ваш голос → текст сообщения">
+              <input id="shell-stt-enabled" type="checkbox" checked />
+              <span>Голосовой ввод (STT)</span>
+            </label>
+            <button
+              type="button"
+              class="shell-icon-btn shell-stt-settings-toggle"
+              id="shell-stt-settings-toggle"
+              title="Настройки голосового ввода"
+              aria-label="Настройки голосового ввода"
+              aria-expanded="false"
+              aria-controls="shell-stt-settings"
+            >
+              ⚙️
+            </button>
+          </div>
+        </div>
+        <div class="shell-stt-settings hidden" id="shell-stt-settings">
+          <p class="shell-stt-settings-note">
+            Режим и язык сохраняются в <code>settings.json</code>. Кнопка 🎤 справа от «Отправить» запускает
+            распознавание; sidecar — через <code>npm run shell:sidecar</code>.
+          </p>
+          <label class="shell-field shell-field--compact shell-field--todo">
+            <span class="shell-label shell-label-row">
+              Промпт пост-обработки
+              <span class="shell-todo-badge" title="Сохраняется, но автоматически не применяется">TODO</span>
+            </span>
+            <textarea
+              id="shell-stt-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="3"
+              spellcheck="false"
+              placeholder="Исправь пунктуацию, убери «э-э», оставь смысл — готовый текст для отправки агенту."
+            ></textarea>
+          </label>
+          <div class="shell-stt-settings-grid">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Режим ввода</span>
+              <select id="shell-voice-mode" class="shell-select">
+                <option value="disabled">Отключен</option>
+                <option value="browser" selected>Браузер (микрофон)</option>
+                <option value="sidecar">Sidecar (Python)</option>
+                <option value="always">Sidecar · всегда слушать</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Язык STT</span>
+              <select id="shell-stt-lang" class="shell-select">
+                <option value="ru-RU">Русский</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact shell-field--todo">
+              <span class="shell-label shell-label-row">
+                Движок STT (sidecar)
+                <span class="shell-todo-badge" title="Sidecar-модель и VAD — в sidecar, не в Shell UI">TODO · sidecar</span>
+              </span>
+              <select id="shell-stt-engine" class="shell-select" disabled>
+                <option value="browser">Браузер (Web Speech)</option>
+                <option value="sidecar">Sidecar (Python) · TODO</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
           <div class="shell-message-queue-bar">
@@ -718,6 +882,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
           <button
             type="button"
+            class="shell-icon-btn shell-compose-mic"
+            id="shell-mic-btn"
+            title="Говорить"
+            aria-label="Говорить"
+            aria-pressed="false"
+          >
+            <span class="shell-compose-mic-icon" aria-hidden="true">🎤</span>
+          </button>
+          <button
+            type="button"
             class="shell-btn shell-btn--ghost shell-compose-stop"
             id="shell-send-stop"
             disabled
@@ -731,10 +905,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <section class="shell-tools-panel" id="shell-voice-panel">
         <div class="shell-section-label">Действия</div>
         <div class="shell-action-row">
-          <button type="button" class="shell-action-card" id="shell-mic-btn">
-            <span class="shell-action-icon" aria-hidden="true">🎤</span>
-            <span class="shell-action-label">Говорить</span>
-          </button>
           <button
             type="button"
             class="shell-action-card"
@@ -754,20 +924,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <span class="shell-action-label">Экран</span>
           </button>
         </div>
-        <details class="shell-tools-more">
-          <summary class="shell-tools-more-summary">Настройки голоса</summary>
-          <div class="shell-voice-settings">
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label">Ввод голосом</span>
-            <select id="shell-voice-mode" class="shell-select">
-              <option value="disabled">Отключен</option>
-              <option value="browser" selected>Браузер (микрофон)</option>
-              <option value="sidecar">Sidecar (Python)</option>
-              <option value="always">Sidecar · всегда слушать</option>
-            </select>
-          </label>
-          </div>
-        </details>
       </section>
 
       <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
@@ -859,6 +1015,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=63" type="module"></script>
+    <script src="/shell/shell.js?v=71" type="module"></script>
   </body>
 </html>

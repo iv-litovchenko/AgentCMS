@@ -79,15 +79,28 @@ export function resolveShowSrc(src, agentId) {
   return raw;
 }
 
-export function toSpeechText(body) {
+export function toSpeechText(body, options = {}) {
+  const { includeCaptions = true } = options;
   const { text, shows } = parseShellReply(body);
   let speech = stripInlineMarkdown(text === "—" ? "" : text);
-  for (const item of shows) {
-    if (item.caption) {
-      speech = speech ? `${speech} ${item.caption}` : item.caption;
+  if (includeCaptions) {
+    for (const item of shows) {
+      if (item.caption) {
+        speech = speech ? `${speech} ${item.caption}` : item.caption;
+      }
     }
   }
   return speech.trim();
+}
+
+export function prepareSpeechText(body, settings = {}) {
+  let speech = toSpeechText(body, {
+    includeCaptions: settings.ttsIncludeCaptions !== false
+  });
+  if (settings.ttsStripEmoji !== false) {
+    speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
+  }
+  return speech;
 }
 
 const SENTENCE_END_RE = /[.!?…](?:\s+|$)|\n+/;

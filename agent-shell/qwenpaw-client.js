@@ -320,6 +320,29 @@ async function createQwenPawChat({
   });
 }
 
+async function updateQwenPawChat({
+  baseUrl,
+  agentId = "default",
+  chatId,
+  name,
+  sessionId,
+  userId = "shell",
+  channel = "console"
+}) {
+  const id = String(chatId || "").trim();
+  if (!id) throw new Error("chatId is required");
+  const nextName = String(name || "").trim();
+  if (!nextName) throw new Error("Chat name is required");
+
+  return qwenpawRequest({
+    baseUrl,
+    agentId,
+    path: `/chats/${encodeURIComponent(id)}`,
+    method: "PUT",
+    body: { name: nextName }
+  });
+}
+
 function buildNewShellSessionId(agentId) {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 8);
@@ -333,6 +356,7 @@ module.exports = {
   chatWithQwenPaw,
   listQwenPawChats,
   createQwenPawChat,
+  updateQwenPawChat,
   buildNewShellSessionId,
   extractAssistantText
 };

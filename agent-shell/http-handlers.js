@@ -417,6 +417,24 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shell/qwenpaw/rename-chat") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const settings = await shellService.readSettings(agentRoot);
+        const result = await shellService.renameQwenPawChat(agentRoot, agentId, settings, {
+          name: payload?.name,
+          sessionId: payload?.sessionId
+        });
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to rename QwenPaw chat",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/shell/stream") {
       try {
         await shellService.streamShellEvents(req, res, { agentId, agentRoot, deps });

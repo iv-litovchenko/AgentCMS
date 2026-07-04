@@ -1,6 +1,6 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, toSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=3";
+import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=4";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
@@ -38,6 +38,8 @@ const state = {
   qwenpawConnected: false,
   qwenpawSessionId: "",
   qwenpawChatsOpen: false,
+  qwenpawChatNameDraft: "",
+  qwenpawRenameBusy: false,
   stopTtsAt: 0,
   previousPhase: "waiting",
   cameraSnapshotBusy: false,
@@ -57,7 +59,8 @@ const state = {
   messagePipelineBusy: false,
   processingMessage: "",
   queueEditingId: "",
-  messageStopped: false
+  messageStopped: false,
+  sttResumeMode: "browser"
 };
 
 let messageSendAbortController = null;
@@ -103,7 +106,7 @@ const nodes = {
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
   qwenpawAgentId: document.getElementById("shell-qwenpaw-agent-id"),
-  qwenpawChatTitle: document.getElementById("shell-qwenpaw-chat-title"),
+  qwenpawChatName: document.getElementById("shell-qwenpaw-chat-name"),
   qwenpawChatSession: document.getElementById("shell-qwenpaw-chat-session"),
   qwenpawNewChat: document.getElementById("shell-qwenpaw-new-chat"),
   qwenpawChatsToggle: document.getElementById("shell-qwenpaw-chats-toggle"),
@@ -117,10 +120,26 @@ const nodes = {
   topicSearch: document.getElementById("shell-topic-search"),
   topicTree: document.getElementById("shell-topic-tree"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
+  ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
+  ttsSettingsPanel: document.getElementById("shell-tts-settings"),
+  ttsPrompt: document.getElementById("shell-tts-prompt"),
+  ttsEngine: document.getElementById("shell-tts-engine"),
+  ttsLang: document.getElementById("shell-tts-lang"),
+  ttsVoice: document.getElementById("shell-tts-voice"),
+  ttsRate: document.getElementById("shell-tts-rate"),
+  ttsRateValue: document.getElementById("shell-tts-rate-value"),
+  ttsStripEmoji: document.getElementById("shell-tts-strip-emoji"),
+  ttsIncludeCaptions: document.getElementById("shell-tts-include-captions"),
+  sttEnabled: document.getElementById("shell-stt-enabled"),
+  sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
+  sttSettingsPanel: document.getElementById("shell-stt-settings"),
+  sttPrompt: document.getElementById("shell-stt-prompt"),
+  sttLang: document.getElementById("shell-stt-lang"),
+  sttEngine: document.getElementById("shell-stt-engine"),
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowBackground: document.getElementById("shell-window-background"),
-  windowCompact: document.getElementById("shell-window-compact"),
+  windowCompact: document.getElementById("shell-compact-toggle"),
   voiceMode: document.getElementById("shell-voice-mode"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
@@ -164,6 +183,7 @@ const nodes = {
   linkChip: document.getElementById("shell-link-chip"),
   linkChipDot: document.getElementById("shell-link-chip-dot"),
   linkChipLabel: document.getElementById("shell-link-chip-label"),
+  linkChipOpen: document.getElementById("shell-link-chip-open"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
@@ -293,6 +313,10 @@ function renderHeroLinkChip() {
   nodes.linkChipDot.textContent = dot;
   nodes.linkChipLabel.textContent = label;
   nodes.linkChip.title = title;
+  if (nodes.linkChipOpen) {
+    nodes.linkChipOpen.classList.toggle("hidden", !usesQwen);
+    nodes.linkChipOpen.title = usesQwen ? "Открыть QwenPaw" : "";
+  }
 }
 
 function renderClock() {
@@ -370,8 +394,6 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
 function maybeResetStaleSpeakingPhase() {
   if (state.shellState?.phase !== "speaking") return;
   if (isTtsPlaybackActive()) return;
-  if (!isBrowserTtsEngine()) return;
-  if (ttsTabCoordinator && !ttsTabCoordinator.isLeader()) return;
   void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
 }
 
@@ -447,22 +469,51 @@ function resumeBrowserTts() {
   updateTtsControlsUi("speaking");
 }
 
+function isStubReplyText(text) {
+  const value = String(text || "").trim();
+  if (!value || value === "—") return true;
+  return /^(ответ от mcp-агента|ответ агента|ответ получен|ok|понятно)\.?$/iu.test(value);
+}
+
+function stubReplyPresentation() {
+  return "Агент на связи — содержательного текста в ответе пока нет";
+}
+
+function applyReplyTextPresentation(element, { text, stub }) {
+  if (!element) return;
+  element.classList.toggle("shell-reply-text--stub", Boolean(stub));
+  element.dataset.replyKind = stub ? "stub" : "message";
+}
+
 function renderShellReply(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
   const extraShows = Array.isArray(message?.shows) ? message.shows : [];
   const parsed = parseShellReply(body);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
+  const rawText = parsed.text === "—" ? "" : parsed.text;
+  const stub = isStubReplyText(rawText);
+  const displayText = stub ? stubReplyPresentation() : rawText;
 
-  if (nodes.lastReplyText) renderShellReplyMarkdown(nodes.lastReplyText, parsed.text === "—" ? "" : parsed.text);
-  else if (nodes.lastReply) renderShellReplyMarkdown(nodes.lastReply, parsed.text === "—" ? "" : parsed.text);
+  if (nodes.lastReplyText) {
+    renderShellReplyMarkdown(nodes.lastReplyText, displayText);
+    applyReplyTextPresentation(nodes.lastReplyText, { text: displayText, stub });
+  } else if (nodes.lastReply) {
+    renderShellReplyMarkdown(nodes.lastReply, displayText);
+    applyReplyTextPresentation(nodes.lastReply, { text: displayText, stub });
+  }
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
   return { ...parsed, shows };
 }
 
 function clearShellReply() {
-  if (nodes.lastReplyText) renderShellReplyMarkdown(nodes.lastReplyText, "");
-  else if (nodes.lastReply) renderShellReplyMarkdown(nodes.lastReply, "");
+  if (nodes.lastReplyText) {
+    renderShellReplyMarkdown(nodes.lastReplyText, "");
+    applyReplyTextPresentation(nodes.lastReplyText, { text: "", stub: false });
+  } else if (nodes.lastReply) {
+    renderShellReplyMarkdown(nodes.lastReply, "");
+    applyReplyTextPresentation(nodes.lastReply, { text: "", stub: false });
+  }
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
   nodes.replyPanel?.classList.remove("is-streaming");
 }
@@ -507,7 +558,8 @@ function beginAssistantStream({ streamId } = {}) {
 function renderStreamingAssistantText(text) {
   const value = String(text || "");
   if (!nodes.lastReplyText) return;
-  nodes.lastReplyText.classList.remove("shell-md");
+  nodes.lastReplyText.classList.remove("shell-md", "shell-reply-text--stub");
+  nodes.lastReplyText.dataset.replyKind = "stream";
   nodes.lastReplyText.textContent = value || "…";
   nodes.lastReply?.scrollTo?.({ top: nodes.lastReply.scrollHeight, behavior: "auto" });
 }
@@ -517,7 +569,7 @@ function queueStreamSpeech(fullBody) {
   if (!state.settings?.ttsEnabled) return;
   if (state.settings?.ttsEngine === "sidecar" || state.settings?.ttsEngine === "say") return;
 
-  const speech = toSpeechText(fullBody);
+  const speech = buildSpeechPayload(fullBody);
   if (!speech) return;
 
   const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
@@ -545,9 +597,7 @@ async function speakStreamChunk(text) {
   }
 
   await new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(payload);
-    utterance.lang = "ru-RU";
-    utterance.rate = 1;
+    const utterance = createSpeechUtterance(payload);
     utterance.onend = () => resolve();
     utterance.onerror = () => resolve();
     synth.speak(utterance);
@@ -593,7 +643,7 @@ function finalizeAssistantStream(message) {
     state.settings?.ttsEngine !== "say" &&
     canPlayBrowserTts()
   ) {
-    const speech = toSpeechText(body);
+    const speech = buildSpeechPayload(body);
     const tail = speech.slice(state.streamTtsCursor).trim();
     if (tail) {
       state.streamTtsQueue.push(tail);
@@ -1124,11 +1174,17 @@ function applyWindowAppearance(settings) {
   document.body.classList.add(`shell-bg-${bg}`);
 }
 
+function isWindowCompactEnabled() {
+  return nodes.windowCompact?.getAttribute("aria-pressed") === "true";
+}
+
 function applyWindowSettings(settings) {
   state.windowSettings = settings;
   if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
   if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
-  if (nodes.windowCompact) nodes.windowCompact.checked = Boolean(settings.windowCompact);
+  if (nodes.windowCompact) {
+    nodes.windowCompact.setAttribute("aria-pressed", settings.windowCompact ? "true" : "false");
+  }
   if (nodes.windowBackground) {
     nodes.windowBackground.value = settings.windowBackground || "wallpaper";
     nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
@@ -1142,11 +1198,14 @@ function applyWindowSettings(settings) {
 
 function setMicButtonState(label, { active = false } = {}) {
   if (!nodes.micBtn) return;
-  const icon = nodes.micBtn.querySelector(".shell-action-icon");
-  const text = nodes.micBtn.querySelector(".shell-action-label");
+  const icon =
+    nodes.micBtn.querySelector(".shell-compose-mic-icon") ||
+    nodes.micBtn.querySelector(".shell-action-icon");
   if (icon) icon.textContent = active ? "⏹" : "🎤";
-  if (text) text.textContent = label;
-  else nodes.micBtn.textContent = label;
+  nodes.micBtn.setAttribute("aria-label", label);
+  nodes.micBtn.title = label;
+  nodes.micBtn.classList.toggle("is-active", active);
+  nodes.micBtn.setAttribute("aria-pressed", active ? "true" : "false");
 }
 
 function setChatPanel(open) {
@@ -1218,7 +1277,8 @@ function applySettings(settings) {
   nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
   topicPicker.setValue(settings.topicPath || "");
   nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
-  nodes.voiceMode.value = settings.voiceInputMode || "browser";
+  applySttSettingsUi(settings);
+  applyTtsSettingsUi(settings);
   updateTargetUi(settings.messageTarget || "cms");
   if (nodes.cameraFacing) {
     nodes.cameraFacing.value = settings.cameraFacing || "user";
@@ -1294,7 +1354,7 @@ function cleanShellUrl() {
 }
 
 function updateQwenPawChatUi(payload) {
-  if (!nodes.qwenpawChatTitle || !nodes.qwenpawChatSession) return;
+  if (!nodes.qwenpawChatName || !nodes.qwenpawChatSession) return;
   const target = payload?.settings?.messageTarget || state.settings?.messageTarget || "cms";
   if (!usesQwenPawTarget(target)) return;
 
@@ -1307,12 +1367,43 @@ function updateQwenPawChatUi(payload) {
   const chatName =
     qwenpaw.chatName ||
     payload?.settings?.qwenpawChatName ||
-    sessionId ||
-    "—";
+    nodes.qwenpawChatName.value ||
+    "Новый чат";
 
   state.qwenpawSessionId = sessionId;
-  nodes.qwenpawChatTitle.textContent = chatName || "Новый чат";
+  if (document.activeElement !== nodes.qwenpawChatName) {
+    nodes.qwenpawChatName.value = chatName || "Новый чат";
+    state.qwenpawChatNameDraft = nodes.qwenpawChatName.value;
+  }
   nodes.qwenpawChatSession.textContent = sessionId ? `session: ${sessionId}` : "";
+}
+
+async function renameQwenPawChatName({ force = false } = {}) {
+  if (!nodes.qwenpawChatName || state.qwenpawRenameBusy) return;
+  const nextName = String(nodes.qwenpawChatName.value || "").trim();
+  if (!nextName) {
+    nodes.qwenpawChatName.value = state.qwenpawChatNameDraft || "Новый чат";
+    return;
+  }
+  if (!force && nextName === state.qwenpawChatNameDraft) return;
+
+  state.qwenpawRenameBusy = true;
+  nodes.qwenpawChatName.disabled = true;
+  try {
+    const data = await apiFetch("/api/shell/qwenpaw/rename-chat", {
+      method: "POST",
+      body: JSON.stringify({ name: nextName, sessionId: state.qwenpawSessionId })
+    });
+    applySettings(data.settings);
+    updateQwenPawChatUi({ settings: data.settings, qwenpaw: { sessionId: data.sessionId, chatName: data.chatName } });
+    if (state.qwenpawChatsOpen) await loadQwenPawChats();
+  } catch (error) {
+    nodes.qwenpawChatName.value = state.qwenpawChatNameDraft || "Новый чат";
+    renderPhase("waiting", error.message);
+  } finally {
+    nodes.qwenpawChatName.disabled = false;
+    state.qwenpawRenameBusy = false;
+  }
 }
 
 function setQwenPawChatsOpen(open) {
@@ -1375,6 +1466,8 @@ async function startNewQwenPawChat() {
   clearShellReply();
   lastHandledAssistantId = "";
   renderPhase("waiting", "Новый чат QwenPaw");
+  nodes.qwenpawChatName?.focus();
+  nodes.qwenpawChatName?.select();
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
 }
 
@@ -1571,12 +1664,136 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
     if (messageSendAbortController?.signal === signal) {
       messageSendAbortController = null;
     }
+    if (
+      state.messagePipelineBusy &&
+      !state.speaking &&
+      !state.streamTtsActive &&
+      !state.streamTtsQueue.length &&
+      (!state.assistantStream || state.assistantStream.finalized)
+    ) {
+      releaseMessagePipeline();
+    }
     updateSendButtonLabel();
   }
 }
 
 function getSpeechSynth() {
   return window.speechSynthesis || null;
+}
+
+function buildSpeechPayload(body) {
+  return prepareSpeechText(body, state.settings || {});
+}
+
+function createSpeechUtterance(text) {
+  const settings = state.settings || {};
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = settings.ttsLang || "ru-RU";
+  utterance.rate = Math.min(2, Math.max(0.5, Number(settings.ttsRate) || 1));
+  utterance.pitch = Math.min(2, Math.max(0, Number(settings.ttsPitch) || 1));
+  const voiceName = String(settings.ttsVoice || "").trim();
+  if (voiceName) {
+    const voices = getSpeechSynth()?.getVoices() || [];
+    const voice = voices.find((item) => item.name === voiceName || item.voiceURI === voiceName);
+    if (voice) utterance.voice = voice;
+  }
+  return utterance;
+}
+
+function refreshTtsVoiceOptions() {
+  if (!nodes.ttsVoice) return;
+  const synth = getSpeechSynth();
+  const lang = String(nodes.ttsLang?.value || state.settings?.ttsLang || "ru-RU").toLowerCase();
+  const langPrefix = lang.split("-")[0];
+  const current = nodes.ttsVoice.value || state.settings?.ttsVoice || "";
+  nodes.ttsVoice.innerHTML = '<option value="">Системный по умолчанию</option>';
+  const voices = (synth?.getVoices() || []).filter((voice) =>
+    voice.lang.toLowerCase().startsWith(langPrefix)
+  );
+  for (const voice of voices) {
+    const opt = document.createElement("option");
+    opt.value = voice.name;
+    opt.textContent = `${voice.name} (${voice.lang})`;
+    if (voice.name === current) opt.selected = true;
+    nodes.ttsVoice.append(opt);
+  }
+}
+
+function updateTtsRateLabel() {
+  if (!nodes.ttsRateValue || !nodes.ttsRate) return;
+  nodes.ttsRateValue.textContent = Number(nodes.ttsRate.value || 1).toFixed(1);
+}
+
+function setTtsSettingsOpen(open) {
+  const next = Boolean(open);
+  nodes.ttsSettingsPanel?.classList.toggle("hidden", !next);
+  nodes.ttsSettingsToggle?.setAttribute("aria-expanded", next ? "true" : "false");
+  nodes.ttsSettingsToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+}
+
+function setSttSettingsOpen(open) {
+  const next = Boolean(open);
+  nodes.sttSettingsPanel?.classList.toggle("hidden", !next);
+  nodes.sttSettingsToggle?.setAttribute("aria-expanded", next ? "true" : "false");
+  nodes.sttSettingsToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+}
+
+function applyRecognitionLang(lang) {
+  const code = lang || nodes.sttLang?.value || state.settings?.sttLang || "ru-RU";
+  if (state.recognition) state.recognition.lang = code;
+}
+
+function applySttSettingsUi(settings) {
+  const mode = settings.voiceInputMode || "browser";
+  if (nodes.voiceMode) nodes.voiceMode.value = mode;
+  if (mode !== "disabled") state.sttResumeMode = mode;
+  if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
+  if (nodes.sttPrompt) nodes.sttPrompt.value = settings.sttPrompt || "";
+  if (nodes.sttLang) nodes.sttLang.value = settings.sttLang || "ru-RU";
+  if (nodes.sttEngine) {
+    const sidecar = mode === "sidecar" || mode === "always";
+    nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
+  }
+  applyRecognitionLang(settings.sttLang);
+}
+
+function collectSttSettingsPatch() {
+  const voiceMode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
+  return {
+    voiceInputMode: voiceMode,
+    sttLang: nodes.sttLang?.value || "ru-RU",
+    sttPrompt: nodes.sttPrompt?.value || ""
+  };
+}
+
+function applyTtsSettingsUi(settings) {
+  if (nodes.ttsPrompt) nodes.ttsPrompt.value = settings.ttsPrompt || "";
+  if (nodes.ttsEngine) nodes.ttsEngine.value = settings.ttsEngine || "browser";
+  if (nodes.ttsLang) nodes.ttsLang.value = settings.ttsLang || "ru-RU";
+  if (nodes.ttsRate) nodes.ttsRate.value = String(settings.ttsRate ?? 1);
+  if (nodes.ttsStripEmoji) nodes.ttsStripEmoji.checked = settings.ttsStripEmoji !== false;
+  if (nodes.ttsIncludeCaptions) nodes.ttsIncludeCaptions.checked = settings.ttsIncludeCaptions !== false;
+  updateTtsRateLabel();
+  refreshTtsVoiceOptions();
+  if (nodes.ttsVoice && settings.ttsVoice) nodes.ttsVoice.value = settings.ttsVoice;
+  const sidecarVoice =
+    settings.voiceInputMode === "sidecar" || settings.voiceInputMode === "always";
+  if (nodes.ttsEngine) nodes.ttsEngine.disabled = sidecarVoice;
+}
+
+function collectTtsSettingsPatch() {
+  const voiceMode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
+  const sidecarVoice = voiceMode === "sidecar" || voiceMode === "always";
+  return {
+    ttsEnabled: nodes.ttsEnabled.checked,
+    ttsPrompt: nodes.ttsPrompt?.value || "",
+    ttsEngine: sidecarVoice ? "say" : nodes.ttsEngine?.value || "browser",
+    ttsLang: nodes.ttsLang?.value || "ru-RU",
+    ttsVoice: nodes.ttsVoice?.value || "",
+    ttsRate: Number(nodes.ttsRate?.value || 1),
+    ttsStripEmoji: nodes.ttsStripEmoji?.checked !== false,
+    ttsIncludeCaptions: nodes.ttsIncludeCaptions?.checked !== false
+  };
 }
 
 function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = true } = {}) {
@@ -1619,9 +1836,7 @@ async function speakText(text) {
   await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
 
   await new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(payload);
-    utterance.lang = "ru-RU";
-    utterance.rate = 1;
+    const utterance = createSpeechUtterance(payload);
     utterance.onend = () => resolve();
     utterance.onerror = () => resolve();
     synth.speak(utterance);
@@ -1640,7 +1855,10 @@ async function handleAssistantMessage(message) {
     return;
   }
   const body = String(message?.body || message?.message?.body || "").trim();
-  if (!body) return;
+  if (!body) {
+    if (state.messagePipelineBusy) releaseMessagePipeline();
+    return;
+  }
   const messageId = resolveAssistantMessageKey(message, body);
   const stream = state.assistantStream;
 
@@ -1678,18 +1896,21 @@ async function handleAssistantMessage(message) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
   }
   if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
-    const speech = toSpeechText(body);
+    const speech = buildSpeechPayload(body);
     if (!speech) {
       releaseMessagePipeline();
       return;
     }
-    if (speech === lastSpokenBody && state.speaking) return;
+    if (speech === lastSpokenBody && state.speaking) {
+      releaseMessagePipeline();
+      return;
+    }
     lastSpokenBody = speech;
     await speakText(speech);
     releaseMessagePipeline();
-  } else if (!state.messagePipelineBusy) {
-    releaseMessagePipeline();
+    return;
   }
+  releaseMessagePipeline();
 }
 
 function connectStream() {
@@ -1794,7 +2015,7 @@ function setupSpeechRecognition() {
   }
 
   const recognition = new SpeechRecognition();
-  recognition.lang = "ru-RU";
+  recognition.lang = state.settings?.sttLang || nodes.sttLang?.value || "ru-RU";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
   state.recognition = recognition;
@@ -1915,12 +2136,16 @@ function bindWindowSettingsUi() {
       windowTopmost: nodes.topmost?.checked !== false,
       windowTransparent,
       windowBackground: windowTransparent ? "transparent" : windowBackground,
-      windowCompact: nodes.windowCompact?.checked === true
+      windowCompact: isWindowCompactEnabled()
     }).catch((error) => renderPhase("waiting", error.message));
   };
 
   nodes.topmost?.addEventListener("change", persistWindowSettings);
-  nodes.windowCompact?.addEventListener("change", persistWindowSettings);
+  nodes.windowCompact?.addEventListener("click", () => {
+    const next = !isWindowCompactEnabled();
+    nodes.windowCompact.setAttribute("aria-pressed", next ? "true" : "false");
+    persistWindowSettings();
+  });
   nodes.windowTransparent?.addEventListener("change", () => {
     if (!nodes.windowTransparent.checked && nodes.windowBackground?.value === "transparent") {
       nodes.windowBackground.value = "wallpaper";
@@ -1932,7 +2157,6 @@ function bindWindowSettingsUi() {
 
 function bindUi() {
   const persistSettings = () => {
-    const voiceMode = nodes.voiceMode.value;
     const messageTarget = nodes.messageTarget.value;
     updateTargetUi(messageTarget);
     void saveSettings({
@@ -1940,9 +2164,8 @@ function bindUi() {
       qwenpawBaseUrl: nodes.qwenpawUrl.value.trim() || "http://127.0.0.1:8088",
       qwenpawAgentId: nodes.qwenpawAgentId.value.trim() || "default",
       topicPath: topicPicker.getValue(),
-      ttsEnabled: nodes.ttsEnabled.checked,
-      voiceInputMode: voiceMode,
-      ttsEngine: voiceMode === "sidecar" || voiceMode === "always" ? "say" : "browser",
+      ...collectSttSettingsPatch(),
+      ...collectTtsSettingsPatch(),
       cameraEnabled: nodes.cameraEnabled?.checked === true,
       cameraOnSpeech: nodes.cameraOnSpeech?.checked !== false,
       cameraFacing: nodes.cameraFacing?.value || "user",
@@ -2025,9 +2248,76 @@ function bindUi() {
   nodes.messageTarget.addEventListener("change", persistSettings);
   nodes.qwenpawUrl.addEventListener("change", persistSettings);
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
+  nodes.linkChipOpen?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openQwenPawInBrowser();
+  });
   nodes.qwenpawAgentId.addEventListener("change", persistSettings);
   nodes.ttsEnabled.addEventListener("change", persistSettings);
-  nodes.voiceMode.addEventListener("change", persistSettings);
+  nodes.sttEnabled?.addEventListener("change", () => {
+    if (nodes.sttEnabled.checked) {
+      nodes.voiceMode.value = state.sttResumeMode || "browser";
+    } else if (nodes.voiceMode.value !== "disabled") {
+      state.sttResumeMode = nodes.voiceMode.value;
+      nodes.voiceMode.value = "disabled";
+    }
+    if (state.settings) {
+      applySttSettingsUi({ ...state.settings, voiceInputMode: nodes.voiceMode.value });
+      applyTtsSettingsUi({ ...state.settings, voiceInputMode: nodes.voiceMode.value });
+    }
+    persistSettings();
+  });
+  nodes.sttSettingsToggle?.addEventListener("click", () => {
+    const open = nodes.sttSettingsPanel?.classList.contains("hidden");
+    setSttSettingsOpen(open);
+  });
+  for (const el of [nodes.sttPrompt]) {
+    el?.addEventListener("change", persistSettings);
+  }
+  nodes.sttPrompt?.addEventListener("blur", persistSettings);
+  nodes.sttLang?.addEventListener("change", () => {
+    applyRecognitionLang();
+    persistSettings();
+  });
+  nodes.ttsSettingsToggle?.addEventListener("click", () => {
+    const open = nodes.ttsSettingsPanel?.classList.contains("hidden");
+    setTtsSettingsOpen(open);
+  });
+  for (const el of [
+    nodes.ttsPrompt,
+    nodes.ttsEngine,
+    nodes.ttsLang,
+    nodes.ttsVoice,
+    nodes.ttsRate,
+    nodes.ttsStripEmoji,
+    nodes.ttsIncludeCaptions
+  ]) {
+    el?.addEventListener("change", persistSettings);
+  }
+  nodes.ttsPrompt?.addEventListener("blur", persistSettings);
+  nodes.ttsRate?.addEventListener("input", updateTtsRateLabel);
+  nodes.ttsLang?.addEventListener("change", () => {
+    refreshTtsVoiceOptions();
+    persistSettings();
+  });
+  if (typeof speechSynthesis !== "undefined") {
+    speechSynthesis.addEventListener("voiceschanged", refreshTtsVoiceOptions);
+  }
+  nodes.voiceMode?.addEventListener("change", () => {
+    const mode = nodes.voiceMode.value;
+    if (mode !== "disabled") state.sttResumeMode = mode;
+    if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
+    if (nodes.sttEngine) {
+      const sidecar = mode === "sidecar" || mode === "always";
+      nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
+    }
+    if (state.settings) {
+      const next = { ...state.settings, voiceInputMode: mode };
+      applySttSettingsUi(next);
+      applyTtsSettingsUi(next);
+    }
+    persistSettings();
+  });
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
   nodes.sendStopBtn?.addEventListener("click", () => void stopActiveMessage());
@@ -2067,10 +2357,24 @@ function bindUi() {
   nodes.openCmsBtn.addEventListener("click", () => {
     const url = state.agentId ? `/a/${encodeURIComponent(state.agentId)}` : "/";
     window.open(url, "_blank");
+    if (window.shellApp?.positionWindowBottomCenter) {
+      void window.shellApp.positionWindowBottomCenter();
+    }
   });
 
   nodes.qwenpawNewChat?.addEventListener("click", () => {
     void startNewQwenPawChat().catch((error) => renderPhase("waiting", error.message));
+  });
+
+  nodes.qwenpawChatName?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void renameQwenPawChatName({ force: true });
+      nodes.qwenpawChatName?.blur();
+    }
+  });
+  nodes.qwenpawChatName?.addEventListener("blur", () => {
+    void renameQwenPawChatName();
   });
 
   nodes.qwenpawChatsToggle?.addEventListener("click", () => {
