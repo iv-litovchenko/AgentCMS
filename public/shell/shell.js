@@ -2,7 +2,7 @@ import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.j
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { parseShellReply, renderShellReplyMedia, toSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=3";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
-import { initShellCharacter } from "/shell/shell-character.js?v=14";
+import { initShellCharacter } from "/shell/shell-character.js?v=16";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
@@ -44,7 +44,9 @@ const state = {
   assistantStream: null,
   streamTtsQueue: [],
   streamTtsActive: false,
-  streamTtsCursor: 0
+  streamTtsCursor: 0,
+  lastHandledStreamId: "",
+  lastStreamHandledBody: ""
 };
 
 const nodes = {
@@ -270,6 +272,24 @@ function clearShellReply() {
   nodes.replyPanel?.classList.remove("is-streaming");
 }
 
+function resolveAssistantMessageKey(message, body) {
+  return String(message?.id || message?.streamId || body.slice(0, 120));
+}
+
+function markAssistantReplyHandled(message, body, { streamTts = false } = {}) {
+  const key = resolveAssistantMessageKey(message, body);
+  lastHandledAssistantId = key;
+  if (message?.streamId) lastHandledStreamId = String(message.streamId);
+  if (streamTts || message?.streamId) lastStreamHandledBody = body;
+}
+
+function shouldSkipAssistantSpeech(message, body) {
+  if (message?.streamId) return true;
+  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) return true;
+  if (lastStreamHandledBody && lastStreamHandledBody === body) return true;
+  return false;
+}
+
 function beginAssistantStream({ streamId } = {}) {
   state.assistantStream = {
     id: String(streamId || `local-${Date.now()}`),
@@ -279,6 +299,7 @@ function beginAssistantStream({ streamId } = {}) {
   };
   state.streamTtsCursor = 0;
   state.streamTtsQueue = [];
+  lastStreamHandledBody = "";
   nodes.replyPanel?.classList.add("is-streaming");
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
@@ -357,6 +378,7 @@ function finalizeAssistantStream(message) {
   state.assistantStream = { id: streamId, text: body, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
   renderShellReply({ ...message, body });
+  markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   if (
     state.settings?.ttsEnabled &&
@@ -1060,31 +1082,33 @@ let lastSpokenBody = "";
 async function handleAssistantMessage(message) {
   const body = String(message?.body || message?.message?.body || "").trim();
   if (!body) return;
-  const messageId = String(message?.id || message?.streamId || message?.message?.id || body.slice(0, 120));
+  const messageId = resolveAssistantMessageKey(message, body);
   const stream = state.assistantStream;
 
   if (
     stream?.finalized &&
     (stream.id === message?.streamId || stream.id === messageId || stream.text === body)
   ) {
-    lastHandledAssistantId = messageId;
-    return;
-  }
-
-  if (stream && !stream.finalized) {
-    finalizeAssistantStream(message);
-    lastHandledAssistantId = messageId;
+    markAssistantReplyHandled(message, body, { streamTts: true });
     return;
   }
 
   if (messageId && messageId === lastHandledAssistantId) return;
-  lastHandledAssistantId = messageId;
+  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) return;
+  if (lastStreamHandledBody && lastStreamHandledBody === body) return;
+
+  if (stream && !stream.finalized) {
+    finalizeAssistantStream(message);
+    return;
+  }
+
+  markAssistantReplyHandled(message, body);
   renderShellReply(message);
   const phase = state.shellState?.phase || "waiting";
   if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
   }
-  if (state.settings?.ttsEnabled) {
+  if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
     const speech = toSpeechText(body);
     if (!speech) return;
     if (speech === lastSpokenBody && state.speaking) return;

@@ -5,7 +5,7 @@ import {
   isFallbackCharacter,
   loadStoredCharacterId,
   saveStoredCharacterId
-} from "/shell/shell-character-models.js?v=8";
+} from "/shell/shell-character-models.js?v=10";
 
 const THREE_MODULE = "/shell/vendor/three.module.js";
 const GLTF_LOADER_MODULE = "/shell/vendor/loaders/GLTFLoader.js";
@@ -102,17 +102,12 @@ function resolveAction(actions, spec) {
   return firstKey ? actions[firstKey] : null;
 }
 
-function applyCamera(camera, spec) {
-  camera.position.set(spec.x, spec.y, spec.z);
-  camera.lookAt(0, spec.lookY, 0);
-}
-
 function fitModelToStage(THREE, camera, model, transform = {}) {
   const {
     rotY = 0,
     scale: scaleMul = 1,
     targetHeight = 1.28,
-    framePadding = 1.32,
+    framePadding = 1.08,
     groundLift = 0.02,
     lookRatio = 0.44
   } = transform;

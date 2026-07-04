@@ -8,7 +8,7 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "🤖",
     file: "/shell/models/RobotExpressive.glb",
     credit: "Tomás Laulhé · CC0",
-    transform: { rotY: 0, framePadding: 1.42, targetHeight: 1.15 },
+    transform: { rotY: 0, framePadding: 1.08, targetHeight: 1.22 },
     phases: {
       waiting: { clip: "Idle", timeScale: 1 },
       listening: { clip: "Wave", timeScale: 1 },
@@ -23,7 +23,7 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "🦊",
     file: "/shell/models/Fox.glb",
     credit: "Khronos glTF Samples · CC-BY 4.0",
-    transform: { rotY: 0.4, framePadding: 1.34, targetHeight: 0.72, lookRatio: 0.4 },
+    transform: { rotY: 0.4, framePadding: 1.02, targetHeight: 0.88, lookRatio: 0.42 },
     phases: {
       waiting: { clip: "Survey", timeScale: 1 },
       listening: { clip: "Walk", timeScale: 0.3 },
@@ -38,7 +38,7 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "🦜",
     file: "/shell/models/Parrot.glb",
     credit: "three.js examples · CC0",
-    transform: { rotY: 0.5, framePadding: 1.36, targetHeight: 0.62, lookRatio: 0.38 },
+    transform: { rotY: 0.5, framePadding: 0.98, targetHeight: 0.82, lookRatio: 0.4 },
     phases: {
       waiting: { clip: "parrot_A_", timeScale: 0.35 },
       listening: { clip: "parrot_A_", timeScale: 0.55 },
@@ -53,7 +53,7 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "🦩",
     file: "/shell/models/Flamingo.glb",
     credit: "three.js examples · CC0",
-    transform: { rotY: 0.45, framePadding: 1.36, targetHeight: 0.78, lookRatio: 0.4 },
+    transform: { rotY: 0.45, framePadding: 0.98, targetHeight: 0.95, lookRatio: 0.42 },
     phases: {
       waiting: { clip: "flamingo_flyA_", timeScale: 0.35 },
       listening: { clip: "flamingo_flyA_", timeScale: 0.55 },
@@ -63,12 +63,27 @@ export const SHELL_CHARACTER_MODELS = [
     }
   },
   {
+    id: "orc",
+    label: "Орк",
+    icon: "⚔️",
+    file: "/shell/models/WarcraftOrc.glb",
+    credit: "Kenney · CC0 · blocky-characters",
+    transform: { rotY: 0.3, framePadding: 1.05, targetHeight: 1.18, lookRatio: 0.46 },
+    phases: {
+      waiting: { clip: "idle", timeScale: 1 },
+      listening: { clip: "emote-yes", timeScale: 1 },
+      thinking: { clip: "walk", timeScale: 0.35 },
+      speaking: { clip: "holding-right", timeScale: 0.85 },
+      disabled: { clip: "sit", timeScale: 1 }
+    }
+  },
+  {
     id: "lego",
     label: "LEGO",
-    iconSvg: "/shell/icons/lego-minifig.svg",
+    iconSvg: "/shell/icons/lego-minifig.svg?v=2",
     file: "/shell/models/LegoMinifig.glb",
     credit: "Kenney · CC0 · mini-characters",
-    transform: { rotY: 0.2, framePadding: 1.32, targetHeight: 1.22, lookRatio: 0.46 },
+    transform: { rotY: 0.2, framePadding: 1.04, targetHeight: 1.28, lookRatio: 0.46 },
     phases: {
       waiting: { clip: "idle", timeScale: 1 },
       listening: { clip: "emote-yes", timeScale: 1 },

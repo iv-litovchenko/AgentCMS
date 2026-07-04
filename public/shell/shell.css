@@ -400,6 +400,7 @@ body.shell-window-transparent {
   align-items: center;
   justify-content: center;
   perspective: 760px;
+  transform: translateY(-10px);
 }
 
 .shell-character-rig {
@@ -408,12 +409,13 @@ body.shell-window-transparent {
   height: 108px;
   transform-style: preserve-3d;
   animation: shell-character-idle 5.2s ease-in-out infinite;
+  margin-top: -6px;
 }
 
 .shell-character-platform {
   position: absolute;
   left: 50%;
-  bottom: 4px;
+  bottom: 8px;
   width: 92px;
   height: 92px;
   margin-left: -46px;
@@ -435,7 +437,7 @@ body.shell-window-transparent {
 .shell-character-head {
   position: absolute;
   left: 50%;
-  top: 22px;
+  top: 16px;
   width: 58px;
   height: 58px;
   margin-left: -29px;
