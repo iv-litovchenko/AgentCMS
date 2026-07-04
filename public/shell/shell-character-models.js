@@ -53,7 +53,7 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "🦩",
     file: "/shell/models/Flamingo.glb",
     credit: "three.js examples · CC0",
-    transform: { rotY: 0.45, framePadding: 0.98, targetHeight: 0.95, lookRatio: 0.42 },
+    transform: { rotY: 0.45, framePadding: 0.62, targetHeight: 1.32, lookRatio: 0.42, zoom: 1.28 },
     phases: {
       waiting: { clip: "flamingo_flyA_", timeScale: 0.35 },
       listening: { clip: "flamingo_flyA_", timeScale: 0.55 },

@@ -5,7 +5,7 @@ import {
   isFallbackCharacter,
   loadStoredCharacterId,
   saveStoredCharacterId
-} from "/shell/shell-character-models.js?v=10";
+} from "/shell/shell-character-models.js?v=11";
 
 const THREE_MODULE = "/shell/vendor/three.module.js";
 const GLTF_LOADER_MODULE = "/shell/vendor/loaders/GLTFLoader.js";
@@ -109,7 +109,8 @@ function fitModelToStage(THREE, camera, model, transform = {}) {
     targetHeight = 1.28,
     framePadding = 1.08,
     groundLift = 0.02,
-    lookRatio = 0.44
+    lookRatio = 0.44,
+    zoom = 1
   } = transform;
 
   model.rotation.set(0, rotY, 0);
@@ -132,7 +133,8 @@ function fitModelToStage(THREE, camera, model, transform = {}) {
   const fittedSize = fitted.getSize(new THREE.Vector3());
   const lookY = fitted.min.y + fittedSize.y * lookRatio;
   const fovRad = (camera.fov * Math.PI) / 180;
-  const verticalDistance = (fittedSize.y * framePadding) / Math.tan(fovRad / 2);
+  const zoomFactor = Math.max(Number(zoom) || 1, 0.55);
+  const verticalDistance = (fittedSize.y * framePadding) / (Math.tan(fovRad / 2) * zoomFactor);
   const horizontalDistance = verticalDistance / Math.max(camera.aspect, 0.55);
   const distance = Math.max(verticalDistance, horizontalDistance);
 
@@ -346,6 +348,7 @@ export async function initShellCharacter(stageEl, avatarEl) {
           currentModelRoot = model;
           fitModelToStage(THREE, camera, model, spec.transform || {});
           resize();
+          if (currentModelRoot) fitModelToStage(THREE, camera, currentModelRoot, spec.transform || {});
 
           mixer = new THREE.AnimationMixer(model);
           for (const clip of gltf.animations || []) {

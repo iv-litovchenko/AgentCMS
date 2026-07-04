@@ -2,7 +2,7 @@ import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.j
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { parseShellReply, renderShellReplyMedia, toSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=3";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
-import { initShellCharacter } from "/shell/shell-character.js?v=16";
+import { initShellCharacter } from "/shell/shell-character.js?v=17";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 
