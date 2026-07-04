@@ -1,5 +1,4 @@
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
-const MARKDOWN_IMAGE_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|#|$)/i;
 
@@ -42,18 +41,25 @@ export function parseShellReply(body) {
   });
 
   let text = raw.replace(SHOW_BLOCK_RE, "").trim();
-  text = text.replace(MARKDOWN_IMAGE_RE, (_, alt, src) => {
-    const rawSrc = String(src || "").trim();
-    shows.push({
-      type: inferShowType(rawSrc, "image"),
-      src: rawSrc,
-      caption: String(alt || "").trim()
-    });
-    return "";
-  }).trim();
 
   if (!text && shows.length) text = "—";
   return { text: text || "—", shows };
+}
+
+function stripInlineMarkdown(text) {
+  return String(text || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function resolveShowSrc(src, agentId) {
@@ -75,7 +81,7 @@ export function resolveShowSrc(src, agentId) {
 
 export function toSpeechText(body) {
   const { text, shows } = parseShellReply(body);
-  let speech = text === "—" ? "" : text;
+  let speech = stripInlineMarkdown(text === "—" ? "" : text);
   for (const item of shows) {
     if (item.caption) {
       speech = speech ? `${speech} ${item.caption}` : item.caption;
