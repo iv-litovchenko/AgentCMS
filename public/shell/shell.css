@@ -400,7 +400,7 @@ body.shell-window-transparent {
   align-items: center;
   justify-content: center;
   perspective: 760px;
-  transform: translateY(14px);
+  transform: translateY(6px);
 }
 
 .shell-character-rig {

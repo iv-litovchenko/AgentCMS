@@ -1,11 +1,11 @@
 {
-  "phase": "waiting",
-  "phrase": "Готов к сообщению",
+  "phase": "speaking",
+  "phrase": "Озвучиваю ответ…",
   "metrics": "",
-  "lastAgentMessageId": "qwenpaw-1783198145023-9pj53s",
-  "lastShellReply": "Привеееет! 👋\n\nЯ на связи. Ты что-то проверяешь? Или просто здороваемся по кругу? 🤔😄",
+  "lastAgentMessageId": "qwenpaw-1783199278587-p2x1ca",
+  "lastShellReply": "Тест пройден! ✅\n\nЯ жива, бодра, и даже ла-ла-лакать умею 🎵\n\nЧто тестим дальше? 😄",
   "stopTtsAt": 1783196268343,
   "sidecarSeenAt": 0,
   "pttHeld": false,
-  "updatedAt": "2026-07-04T20:49:20.223Z"
+  "updatedAt": "2026-07-04T21:08:05.692Z"
 }
