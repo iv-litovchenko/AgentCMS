@@ -28917,3 +28917,112 @@ body.is-discuss-resizing .discuss-aside-resizer {
   }
 }
 
+/* ── Node overview: type-specific custom fields form ─────────────────────── */
+
+.node-type-fields-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 0 4px;
+}
+
+.node-type-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.node-type-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  letter-spacing: 0.01em;
+  cursor: default;
+}
+
+.node-type-field-required {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.type-field-ctrl {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text, #1e293b);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 7px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.type-field-ctrl:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.type-field-ctrl--textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+}
+
+.type-field-ctrl--select {
+  cursor: pointer;
+}
+
+.type-field-ctrl--color {
+  padding: 2px 6px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.type-field-ctrl--boolean {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text, #1e293b);
+  cursor: pointer;
+  user-select: none;
+}
+
+.type-field-ctrl--boolean input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #6366f1;
+}
+
+.node-type-fields-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  margin-top: 4px;
+}
+
+.node-type-fields-save-btn {
+  padding: 7px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #6366f1;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.node-type-fields-save-btn:hover {
+  background: #4f46e5;
+}
+
+.node-type-fields-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

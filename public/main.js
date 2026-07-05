@@ -24763,7 +24763,20 @@ function resolveAwnTypeForContext(nodePath = activePath) {
 }
 
 function getActiveAwnTypeDef(typeName = null) {
-  const resolvedType = normalizeAwnTypeName(typeName || resolveAwnTypeForContext());
+  let resolvedType = normalizeAwnTypeName(typeName || resolveAwnTypeForContext());
+
+  // When no specific typeName is requested, prefer the declared awn-type from frontmatter
+  // (path inference returns generic "awn.topic", but frontmatter may say "awn.page.topic.agent")
+  if (!typeName) {
+    const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
+    if (declared) {
+      const normalized = normalizeAwnTypeName(declared);
+      if (normalized && normalized !== resolvedType && awnTypesCache?.types?.[normalized]) {
+        resolvedType = normalized;
+      }
+    }
+  }
+
   const cache = getTopicSchemaCache();
   const target = typeName
     ? resolveAwnSchemaTargetForType(resolvedType)
@@ -24781,6 +24794,23 @@ function getActiveAwnTypeDef(typeName = null) {
   const baseTypeDef = awnTypesCache?.types?.[resolvedType];
   if (!baseTypeDef) return null;
   return { name: resolvedType, ...baseTypeDef };
+}
+
+// Returns fields defined in typeId that are NOT inherited from its parent type.
+// Used to show only the "own" custom fields in the node overview form.
+function getTypeOwnFields(typeId) {
+  if (!typeId || !awnTypesCache?.types) return {};
+  const typeDef = awnTypesCache.types[typeId];
+  if (!typeDef?.fields) return {};
+
+  const parentId = typeDef.extends;
+  const parentFields = parentId && awnTypesCache.types[parentId]?.fields ? awnTypesCache.types[parentId].fields : {};
+
+  const own = {};
+  for (const [key, fieldDef] of Object.entries(typeDef.fields)) {
+    if (!parentFields[key]) own[key] = fieldDef;
+  }
+  return own;
 }
 
 function getExternalRecordTypeDef() {
@@ -38623,6 +38653,183 @@ async function renderNodeNavigation() {
   }
 }
 
+// Creates a single editable field widget for the type-fields form in the node overview.
+// Updates propsFormEntries on change so the standard saveProperties() pipeline handles saving.
+function createTypeFieldControl(key, fieldDef, entry) {
+  const widget = resolvePropsFieldWidget(key, fieldDef);
+  const value = entry?.value;
+
+  let el;
+  if (widget === "textarea") {
+    el = document.createElement("textarea");
+    el.className = "type-field-ctrl type-field-ctrl--textarea";
+    el.rows = 3;
+    el.placeholder = fieldDef?.hint || fieldDef?.description || "";
+    el.value = String(value ?? "");
+  } else if (widget === "boolean") {
+    const label = document.createElement("label");
+    label.className = "type-field-ctrl type-field-ctrl--boolean";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = entry?.kind === "bool" ? Boolean(value) : String(value).trim() === "true";
+    const caption = document.createElement("span");
+    caption.textContent = input.checked ? "Да" : "Нет";
+    input.addEventListener("change", () => { caption.textContent = input.checked ? "Да" : "Нет"; });
+    label.append(input, caption);
+    return label;
+  } else if (widget === "select") {
+    el = document.createElement("select");
+    el.className = "type-field-ctrl type-field-ctrl--select";
+    const opts = getEnumOptionsForField(fieldDef);
+    const emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "—";
+    el.appendChild(emptyOpt);
+    for (const opt of opts) {
+      const o = document.createElement("option");
+      o.value = typeof opt === "object" ? (opt.key ?? opt.value ?? "") : String(opt);
+      o.textContent = typeof opt === "object" ? (opt.name ?? opt.label ?? o.value) : String(opt);
+      o.selected = o.value === String(value ?? "");
+      el.appendChild(o);
+    }
+  } else if (widget === "color") {
+    el = document.createElement("input");
+    el.type = "color";
+    el.className = "type-field-ctrl type-field-ctrl--color";
+    el.value = String(value || "#000000");
+  } else if (widget === "date") {
+    el = document.createElement("input");
+    el.type = "date";
+    el.className = "type-field-ctrl";
+    el.value = String(value ?? "").slice(0, 10);
+  } else if (widget === "datetime") {
+    el = document.createElement("input");
+    el.type = "datetime-local";
+    el.className = "type-field-ctrl";
+    el.value = String(value ?? "").slice(0, 16);
+  } else if (widget === "number") {
+    el = document.createElement("input");
+    el.type = "number";
+    el.className = "type-field-ctrl";
+    el.value = String(value ?? "");
+  } else if (widget === "url") {
+    el = document.createElement("input");
+    el.type = "url";
+    el.className = "type-field-ctrl";
+    el.placeholder = "https://";
+    el.value = String(value ?? "");
+  } else {
+    el = document.createElement("input");
+    el.type = "text";
+    el.className = "type-field-ctrl";
+    el.placeholder = fieldDef?.hint || fieldDef?.description || "";
+    el.value = String(value ?? "");
+  }
+  return el;
+}
+
+// Reads value from a type-field control element.
+function readTypeFieldControlValue(el, widget) {
+  if (widget === "boolean" || el.tagName === "LABEL") {
+    const input = el.tagName === "LABEL" ? el.querySelector("input[type=checkbox]") : el;
+    return input?.checked ?? false;
+  }
+  if (el.type === "checkbox") return el.checked;
+  return el.value ?? "";
+}
+
+// Renders an accordion section in the node overview for editing type-specific custom fields.
+// Only shows fields that are defined in the leaf type (not inherited from parent types).
+function renderNodeTypeFieldsSection(typeId, currentEntries) {
+  if (!typeId || !awnTypesCache?.types) return null;
+
+  const ownFields = getTypeOwnFields(typeId);
+  if (!Object.keys(ownFields).length) return null;
+
+  const form = document.createElement("div");
+  form.className = "node-type-fields-form";
+
+  const fieldEls = [];
+
+  for (const [key, fieldDef] of Object.entries(ownFields)) {
+    const normalizedKey = normalizePropsKey(key);
+    if (!normalizedKey) continue;
+
+    const fieldLabel = getFieldDefDisplayName(fieldDef, normalizedKey) || normalizedKey;
+    const meta = getPropsFieldMetaFromSchema(normalizedKey) || {
+      label: fieldLabel,
+      hint: fieldDef?.description || fieldDef?.hint || "",
+      required: Boolean(fieldDef?.required),
+      locked: Boolean(fieldDef?.locked),
+      fieldDef
+    };
+    const existingEntry = currentEntries.find((e) => normalizePropsKey(e.key) === normalizedKey);
+    const entry = existingEntry || {
+      key: normalizedKey,
+      kind: fieldDefToEntryKind(fieldDef),
+      value: fieldDefDefaultValue(fieldDef)
+    };
+
+    const widget = resolvePropsFieldWidget(normalizedKey, fieldDef);
+    const fieldEl = createTypeFieldControl(normalizedKey, fieldDef, entry);
+
+    const row = document.createElement("div");
+    row.className = "node-type-field-row";
+    row.dataset.fieldKey = normalizedKey;
+
+    const labelEl = document.createElement("label");
+    labelEl.className = "node-type-field-label";
+    labelEl.textContent = meta.label || normalizedKey;
+    if (meta.hint) labelEl.title = meta.hint;
+    if (meta.required) {
+      const req = document.createElement("span");
+      req.className = "node-type-field-required";
+      req.textContent = " *";
+      labelEl.appendChild(req);
+    }
+
+    row.append(labelEl, fieldEl);
+    form.appendChild(row);
+    fieldEls.push({ key: normalizedKey, el: fieldEl, widget, entry });
+  }
+
+  if (!fieldEls.length) return null;
+
+  // Save button — syncs values back to propsFormEntries then calls saveProperties()
+  const footer = document.createElement("div");
+  footer.className = "node-type-fields-footer";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "node-type-fields-save-btn";
+  saveBtn.textContent = "Сохранить";
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    try {
+      // Write updated values back to propsFormEntries
+      for (const { key, el, widget } of fieldEls) {
+        const rawValue = readTypeFieldControlValue(el, widget);
+        const idx = propsFormEntries.findIndex((e) => normalizePropsKey(e.key) === key);
+        if (idx >= 0) {
+          propsFormEntries[idx] = { ...propsFormEntries[idx], value: rawValue };
+        } else {
+          propsFormEntries.push({ key, kind: typeof rawValue === "boolean" ? "bool" : "string", value: rawValue });
+        }
+      }
+      flushPropsYamlFromFormBeforeSave();
+      await saveProperties({ showToastOnSuccess: true });
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  footer.appendChild(saveBtn);
+  form.appendChild(footer);
+
+  return form;
+}
+
 async function renderNodeOverview() {
   if (!nodeOverviewContentNode || !activePath) return;
 
@@ -38738,6 +38945,16 @@ async function renderNodeOverview() {
 
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
   if (isStale()) return;
+
+  // Type-specific custom fields form (only for specific sub-types, not generic awn.page.topic)
+  if (typeLabel && awnTypesCache?.types) {
+    const typeFieldsSection = renderNodeTypeFieldsSection(typeLabel, entries);
+    if (typeFieldsSection) {
+      fragment.appendChild(
+        createOverviewAccordionSection("type-fields", "✏️ Поля типа", typeFieldsSection, { defaultOpen: true })
+      );
+    }
+  }
 
   if (excerpt) {
     const excerptBlock = document.createElement("section");
@@ -53177,3 +53394,4 @@ initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
+

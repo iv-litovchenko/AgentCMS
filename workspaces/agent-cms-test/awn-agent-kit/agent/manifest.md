@@ -1,25 +1,24 @@
 ---
-awn-preview: awn-storage/assets/preview/20260623202254.png
+awn-preview: ""
 awn-emoji: ""
 awn-name: Агент
-awn-status: 🟢 Открыта
-awn-type: awn.page.service-doc
-awn-create: "2026-06-23T20:22:54.250Z"
-awn-update: 2026-06-24T07:13:01.562Z
+awn-status: draft
+awn-type: awn.page.topic.agent
+awn-create: 2026-07-05T23:04:56.869Z
+awn-update: 2026-07-05T23:04:56.869Z
 awn-description: ""
 awn-main: false
 awn-category: ""
 awn-owner: ""
 awn-priority: ""
-awn-tags:
-  - system
-  - service
+awn-tags: []
 awn-color: ""
-awn-version: 3
+awn-version: 1
 awn-sort: ""
-awn-attachments: []
+my-field2: ""
+awn-runtime-load: ""
+awn-runtime-cron: ""
+awn-runtime-heartbeat: ""
+awn-agent-role: ""
+awn-agent-language: ""
 ---
-
-# Агент
-
-Описание агента: роль, цели и границы workspace.
