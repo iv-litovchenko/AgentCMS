@@ -1573,3 +1573,18 @@ body.mobile-session-active .mobile-talk-panel {
     height: 46px;
   }
 }
+
+body.mobile-embed {
+  padding: 0;
+  height: 100%;
+}
+
+body.mobile-embed .mobile-install-banner,
+body.mobile-embed .mobile-pull-hint {
+  display: none !important;
+}
+
+body.mobile-embed .mobile-app {
+  max-width: none;
+  width: 100%;
+}

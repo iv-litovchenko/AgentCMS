@@ -2059,6 +2059,17 @@
               >
                 Agent Shell
               </button>
+              <button
+                type="button"
+                class="discuss-aside-tab"
+                role="tab"
+                id="discuss-tab-shell-mobile"
+                aria-selected="false"
+                aria-controls="discuss-panel-shell-mobile"
+                tabindex="-1"
+              >
+                Shell Mobile
+              </button>
             </div>
           </header>
 
@@ -2109,6 +2120,22 @@
               id="discuss-shell-iframe"
               class="discuss-shell-iframe"
               title="Agent Shell"
+              loading="lazy"
+              referrerpolicy="same-origin"
+            ></iframe>
+          </div>
+
+          <div
+            id="discuss-panel-shell-mobile"
+            class="discuss-aside-view discuss-aside-shell-view"
+            role="tabpanel"
+            aria-labelledby="discuss-tab-shell-mobile"
+            hidden
+          >
+            <iframe
+              id="discuss-shell-mobile-iframe"
+              class="discuss-shell-iframe"
+              title="Agent Shell Mobile"
               loading="lazy"
               referrerpolicy="same-origin"
             ></iframe>
@@ -2689,7 +2716,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/main.js?v=0.5.235"></script>
-    <script src="/discuss-panel.js?v=0.5.224"></script>
+    <script src="/discuss-panel.js?v=0.5.226"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

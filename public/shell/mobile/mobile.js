@@ -26,6 +26,16 @@ const MIC_HINT_IDLE = "Нажмите микрофон — запись";
 const MIC_HINT_ACTIVE = "Нажмите ещё раз — стоп";
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
+function isMobileEmbedMode() {
+  try {
+    return new URLSearchParams(window.location.search).get("embed") === "1";
+  } catch {
+    return false;
+  }
+}
+
+const mobileEmbedMode = isMobileEmbedMode();
+
 const state = {
   agentId: localStorage.getItem(AGENT_KEY) || "",
   agentLabel: "",
@@ -1321,6 +1331,18 @@ function resolveAgentLabel(agentId) {
   return match?.name || agentId;
 }
 
+function cleanMobileUrl() {
+  const url = new URL(window.location.href);
+  const embedAgent = mobileEmbedMode ? String(url.searchParams.get("agent") || "").trim() : "";
+  if (embedAgent) {
+    state.agentId = embedAgent;
+    localStorage.setItem(AGENT_KEY, embedAgent);
+  }
+  if (!url.searchParams.has("agent")) return;
+  url.searchParams.delete("agent");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 async function bootstrapAgents() {
   try {
     state.agentOptions = await loadAgentSelectData();
@@ -1538,6 +1560,10 @@ function reconnect({ soft = false } = {}) {
 }
 
 async function init() {
+  if (mobileEmbedMode) {
+    document.body.classList.add("mobile-embed");
+    cleanMobileUrl();
+  }
   initMobilePermissions({ bannerEl: nodes.permissionBanner, micDialog: nodes.micDialog });
   loadHistory();
   renderHistory();

@@ -27913,8 +27913,8 @@ body.document-viewer-open {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 var(--discuss-panel-width, 340px);
-  width: var(--discuss-panel-width, 340px);
+  flex: 0 0 var(--discuss-panel-width, var(--sidebar-width, 280px));
+  width: var(--discuss-panel-width, var(--sidebar-width, 280px));
   min-height: 0;
   min-width: 280px;
   max-width: 520px;
@@ -27972,6 +27972,11 @@ body.is-discuss-resizing .discuss-aside-resizer {
   padding: 7px 8px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.discuss-aside-tabs:has(.discuss-aside-tab:nth-child(3)) .discuss-aside-tab {
+  font-size: 11px;
+  padding: 7px 5px;
 }
 
 .discuss-aside-tab:hover:not(.is-active) {
