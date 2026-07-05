@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=98" />
+    <link rel="stylesheet" href="/shell/shell.css?v=101" />
     <script type="importmap">
       {
         "imports": {
@@ -884,8 +884,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
         <div class="shell-stt-settings hidden" id="shell-stt-settings">
           <p class="shell-stt-settings-note">
-            Режим и язык сохраняются в <code>settings.json</code>. Кнопка 🎤 справа от «Отправить» запускает
-            распознавание; sidecar — через <code>npm run shell:sidecar</code>.
+            Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
+            Sidecar: <code>npm run shell:sidecar</code>.
           </p>
           <label class="shell-field shell-field--compact shell-field--todo">
             <span class="shell-label shell-label-row">
@@ -901,16 +901,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
             ></textarea>
           </label>
           <div class="shell-stt-settings-grid">
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Режим ввода</span>
-              <select id="shell-voice-mode" class="shell-select">
-                <option value="disabled">Отключен</option>
-                <option value="browser" selected>Браузер (микрофон)</option>
-                <option value="sidecar">Sidecar (Python)</option>
-                <option value="always">Sidecar · всегда слушать</option>
-                <option value="fn_button">Fn / F18 (удерживать)</option>
-              </select>
-            </label>
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Язык STT</span>
               <select id="shell-stt-lang" class="shell-select">
@@ -929,9 +919,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </select>
             </label>
           </div>
-          <p id="shell-fn-ptt-hint" class="shell-stt-settings-note hidden">
-            Удерживай Fn или F18. На Mac часто нужен Karabiner (Fn → F18). С sidecar — глобально; без sidecar — когда окно Shell в фокусе.
-          </p>
         </div>
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
           <div class="shell-message-queue-bar">
@@ -954,16 +941,30 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-compose-actions">
           <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
           <div class="shell-compose-tools">
-            <button
-              type="button"
-              class="shell-icon-btn shell-compose-tool shell-compose-mic"
-              id="shell-mic-btn"
-              title="Говорить"
-              aria-label="Говорить"
-              aria-pressed="false"
-            >
-              <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
-            </button>
+            <div class="shell-compose-voice" id="shell-voice-control">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-mic"
+                id="shell-mic-btn"
+                title="Говорить"
+                aria-label="Говорить"
+                aria-pressed="false"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
+              </button>
+              <select
+                id="shell-voice-mode"
+                class="shell-select shell-compose-voice-select"
+                aria-label="Режим голосового ввода"
+                title="Режим голосового ввода"
+              >
+                <option value="disabled">Выкл</option>
+                <option value="browser" selected>Браузер</option>
+                <option value="sidecar">Sidecar</option>
+                <option value="always">Всегда</option>
+                <option value="fn_button">Shift</option>
+              </select>
+            </div>
             <button
               type="button"
               class="shell-icon-btn shell-compose-tool"
@@ -995,6 +996,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
             Стоп
           </button>
         </div>
+        <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
+          Shift: удерживай для записи. С sidecar — глобально; без sidecar — когда окно Shell в фокусе (не в поле ввода).
+        </p>
       </section>
 
       <section class="shell-tools-panel" id="shell-voice-panel">
@@ -1135,6 +1139,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=91" type="module"></script>
+    <script src="/shell/shell.js?v=97" type="module"></script>
   </body>
 </html>

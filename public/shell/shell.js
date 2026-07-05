@@ -6,7 +6,7 @@ import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
-import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=1";
+import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=2";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -23,6 +23,14 @@ const PHASE_LABELS = {
   thinking: "🟢 Думаю",
   speaking: "🔊 Говорю",
   disabled: "⏸️ Отключено"
+};
+
+const VOICE_MODE_TITLES = {
+  disabled: "Отключен",
+  browser: "Браузер (микрофон)",
+  sidecar: "Sidecar (Python)",
+  always: "Sidecar · всегда слушать",
+  fn_button: "Shift (удерживать)"
 };
 
 const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
@@ -81,6 +89,16 @@ const state = {
 let messageSendAbortController = null;
 let ttsTabCoordinator = null;
 let ttsPlayer = null;
+let ttsPlaybackSeq = 0;
+
+function bumpTtsPlayback() {
+  ttsPlaybackSeq += 1;
+  return ttsPlaybackSeq;
+}
+
+function isTtsPlaybackCurrent(seq) {
+  return seq === ttsPlaybackSeq && !state.messageStopped;
+}
 
 function yieldLocalTtsPlayback(reason = "yield") {
   state.streamTtsQueue = [];
@@ -142,6 +160,7 @@ function usesSidecarPtt(mode = getVoiceInputMode()) {
 function isPttKeyEvent(event) {
   if (!event) return false;
   const code = String(event.code || "");
+  if (code === "ShiftLeft" || code === "ShiftRight") return true;
   if (code === "F18" || code === "Fn") return true;
   return event.keyCode === 128;
 }
@@ -283,6 +302,7 @@ const nodes = {
   windowBackground: document.getElementById("shell-window-background"),
   windowCompact: document.getElementById("shell-compact-toggle"),
   voiceMode: document.getElementById("shell-voice-mode"),
+  voiceControl: document.getElementById("shell-voice-control"),
   fnPttHint: document.getElementById("shell-fn-ptt-hint"),
   message: document.getElementById("shell-message"),
   sendBtn: document.getElementById("shell-send-btn"),
@@ -836,7 +856,7 @@ function finalizeAssistantStream(message) {
   renderShellReply({ ...message, body });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
-  if (state.settings?.ttsEnabled && canPlayTts()) {
+  if (state.settings?.ttsEnabled && canPlayTts() && !state.messageStopped) {
     const parts = spokenParts
       .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
       .filter(Boolean);
@@ -896,12 +916,28 @@ function updateSendButtonLabel() {
       state.streamTtsQueue.length ||
       state.speaking
   );
-  if (nodes.sendStopBtn) nodes.sendStopBtn.disabled = !stopActive;
+  if (nodes.sendStopBtn) {
+    nodes.sendStopBtn.disabled = !stopActive;
+    if (state.speaking || state.streamTtsActive || state.streamTtsQueue.length) {
+      nodes.sendStopBtn.title = "Остановить озвучку";
+      nodes.sendStopBtn.setAttribute("aria-label", "Остановить озвучку");
+    } else {
+      nodes.sendStopBtn.title = "Остановить ответ агента";
+      nodes.sendStopBtn.setAttribute("aria-label", "Остановить ответ агента");
+    }
+  }
 }
 
 async function stopActiveMessage() {
   if (nodes.sendStopBtn?.disabled) return;
+  const stoppingSpeech = Boolean(state.speaking || state.streamTtsActive || state.streamTtsQueue.length);
+  const stoppingGeneration = Boolean(
+    state.messagePipelineBusy ||
+      state.processingMessage ||
+      (state.assistantStream && !state.assistantStream.finalized)
+  );
   state.messageStopped = true;
+  bumpTtsPlayback();
   messageSendAbortController?.abort();
   messageSendAbortController = null;
   outboundQueue.length = 0;
@@ -916,7 +952,8 @@ async function stopActiveMessage() {
   stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true });
   renderMessageQueue();
   releaseMessagePipeline();
-  await patchShellState({ phase: "waiting", phrase: "Остановлено" }).catch(() => {});
+  const phrase = stoppingSpeech && !stoppingGeneration ? "Озвучка остановлена" : "Остановлено";
+  await patchShellState({ phase: "waiting", phrase }).catch(() => {});
   renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
   updateSendButtonLabel();
 }
@@ -1889,6 +1926,7 @@ function applyStatusPayload(payload) {
     else if (!state.micActive) setMicButtonState("Говорить");
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
+  updateFnPttHint();
   state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
   state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
   state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
@@ -2043,6 +2081,8 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
     }
   } catch (error) {
     if (state.messageStopped || error?.name === "AbortError") {
+      releaseMessagePipeline();
+      updateSendButtonLabel();
       return;
     }
     if (streamingQwenPaw && state.assistantStream && !state.assistantStream.finalized) {
@@ -2177,6 +2217,48 @@ function applyRecognitionLang(lang) {
   if (state.recognition) state.recognition.lang = code;
 }
 
+function updateFnPttHint(mode = getVoiceInputMode()) {
+  if (!nodes.fnPttHint) return;
+  const show = mode === "fn_button";
+  nodes.fnPttHint.classList.toggle("hidden", !show);
+  if (!show) return;
+  if (state.sidecarConnected) {
+    nodes.fnPttHint.textContent =
+      "Shift: удерживай для записи. Sidecar подключён — работает глобально в любом приложении.";
+    nodes.fnPttHint.classList.remove("shell-compose-voice-hint--warn");
+  } else {
+    nodes.fnPttHint.textContent =
+      "Shift глобально — запусти sidecar: npm run shell:sidecar. Без sidecar Shift только когда окно Shell в фокусе (не в поле ввода).";
+    nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
+  }
+}
+
+function updateVoiceModeSelectUi(mode = getVoiceInputMode()) {
+  const title = VOICE_MODE_TITLES[mode] || mode;
+  const disabled = mode === "disabled";
+  if (nodes.voiceMode) {
+    nodes.voiceMode.title = `Режим голосового ввода: ${title}`;
+  }
+  nodes.voiceControl?.classList.toggle("is-disabled", disabled);
+  if (nodes.micBtn) {
+    nodes.micBtn.disabled = disabled;
+  }
+  if (disabled) {
+    if (state.recognition && state.micActive) {
+      try {
+        state.recognition.stop();
+      } catch {
+        // ignore
+      }
+    }
+    if (state.pttKeyboardHeld) endPttHold();
+    setMicButtonState("Голосовой ввод выключен");
+  } else if (!state.micActive && !state.pttHeld) {
+    setMicButtonState("Говорить");
+  }
+  updateFnPttHint(mode);
+}
+
 function applySttSettingsUi(settings) {
   const mode = settings.voiceInputMode || "browser";
   if (nodes.voiceMode) nodes.voiceMode.value = mode;
@@ -2190,7 +2272,7 @@ function applySttSettingsUi(settings) {
     const sidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
     nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
   }
-  nodes.fnPttHint?.classList.toggle("hidden", mode !== "fn_button");
+  updateVoiceModeSelectUi(mode);
   applyRecognitionLang(settings.sttLang);
 }
 
@@ -2323,7 +2405,8 @@ function collectTtsSettingsPatch() {
   };
 }
 
-function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = true } = {}) {
+function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = true, bumpPlayback = true } = {}) {
+  if (bumpPlayback) bumpTtsPlayback();
   state.streamTtsQueue = [];
   state.ttsPaused = false;
   const synth = getSpeechSynth();
@@ -2366,26 +2449,38 @@ async function speakTextParts(parts) {
     .filter(Boolean);
   if (!list.length) return;
   if (!state.settings?.ttsEnabled) return;
+  if (state.messageStopped) return;
   if (!canPlayTts()) {
     releaseMessagePipeline();
     renderPhase(state.shellState?.phase || "waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
     return;
   }
 
-  stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false });
+  const seq = bumpTtsPlayback();
+  stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
   state.speaking = true;
   state.ttsPaused = false;
   updateTtsControlsUi("speaking");
 
   try {
     for (let i = 0; i < list.length; i++) {
+      if (!isTtsPlaybackCurrent(seq)) break;
       const label =
         list.length > 1 ? `Озвучиваю ${i + 1}/${list.length}…` : "Озвучиваю ответ…";
       await patchShellState({ phase: "speaking", phrase: label });
       await speakOneChunk(list[i]);
+      if (!isTtsPlaybackCurrent(seq)) break;
     }
   } catch (error) {
+    if (!isTtsPlaybackCurrent(seq)) return;
     renderPhase("waiting", error.message || "Ошибка озвучки");
+  }
+
+  if (!isTtsPlaybackCurrent(seq)) {
+    state.speaking = false;
+    state.ttsPaused = false;
+    updateTtsControlsUi("waiting");
+    return;
   }
 
   state.speaking = false;
@@ -2619,7 +2714,7 @@ function toggleMic() {
     return;
   }
   if (mode === "fn_button" && state.sidecarConnected) {
-    renderPhase("waiting", "Удерживай Fn (F18). Sidecar слушает глобально.");
+    renderPhase("waiting", "Удерживай Shift. Sidecar слушает глобально.");
     return;
   }
   if (mode === "sidecar" || mode === "always") {
@@ -2830,9 +2925,11 @@ function bindUi() {
       state.sttResumeMode = nodes.voiceMode.value;
       nodes.voiceMode.value = "disabled";
     }
+    updateVoiceModeSelectUi(nodes.voiceMode.value);
     if (state.settings) {
-      applySttSettingsUi({ ...state.settings, voiceInputMode: nodes.voiceMode.value });
-      applyTtsSettingsUi({ ...state.settings, voiceInputMode: nodes.voiceMode.value });
+      const next = { ...state.settings, voiceInputMode: nodes.voiceMode.value };
+      applySttSettingsUi(next);
+      applyTtsSettingsUi(next);
     }
     persistSettings();
   });
@@ -2901,12 +2998,7 @@ function bindUi() {
   nodes.voiceMode?.addEventListener("change", () => {
     const mode = nodes.voiceMode.value;
     if (mode !== "disabled") state.sttResumeMode = mode;
-    if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
-    if (nodes.sttEngine) {
-      const sidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
-      nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
-    }
-    nodes.fnPttHint?.classList.toggle("hidden", mode !== "fn_button");
+    updateVoiceModeSelectUi(mode);
     if (state.settings) {
       const next = { ...state.settings, voiceInputMode: mode };
       applySttSettingsUi(next);
@@ -2928,7 +3020,8 @@ function bindUi() {
   nodes.micBtn.addEventListener("click", toggleMic);
   nodes.ttsStopBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    stopBrowserTts();
+    bumpTtsPlayback();
+    stopBrowserTts({ bumpPlayback: false });
     releaseMessagePipeline();
   });
 

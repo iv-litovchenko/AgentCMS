@@ -572,6 +572,74 @@ body.shell-window-transparent {
   flex: 0 0 auto;
 }
 
+.shell-compose-voice {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.shell-compose-voice .shell-compose-mic {
+  width: 44px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.shell-compose-voice-select {
+  width: auto;
+  min-width: 0;
+  min-height: 42px;
+  max-width: 104px;
+  flex: 1 1 auto;
+  padding: 0 22px 0 8px;
+  font-size: 11px;
+  line-height: 1.1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.shell-compose-voice.is-disabled {
+  opacity: 0.72;
+}
+
+.shell-compose-voice.is-disabled .shell-compose-mic {
+  opacity: 0.55;
+}
+
+.shell-compose-voice.is-disabled .shell-compose-mic:not(:disabled) {
+  cursor: not-allowed;
+}
+
+.shell-compose-voice:focus-within {
+  outline: 2px solid rgba(124, 108, 255, 0.45);
+  outline-offset: 1px;
+}
+
+.shell-compose-voice-hint {
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.shell-compose-voice-hint.hidden {
+  display: none;
+}
+
+.shell-compose-voice-hint--warn {
+  color: #e8a045;
+}
+
 .shell-compose-tool {
   flex: 0 0 auto;
   width: 44px;

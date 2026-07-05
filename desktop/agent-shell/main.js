@@ -164,7 +164,7 @@ async function createWindow() {
 
   mainWindow.webContents.on("before-input-event", (_event, input) => {
     const code = String(input.code || "");
-    if (code !== "F18" && code !== "Fn") return;
+    if (code !== "ShiftLeft" && code !== "ShiftRight" && code !== "F18" && code !== "Fn") return;
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.send("shell:ptt-key", {
       pressed: input.type === "keyDown" && !input.isAutoRepeat,

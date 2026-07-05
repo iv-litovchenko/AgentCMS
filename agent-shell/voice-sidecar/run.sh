@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export AGENT_CMS_BASE_URL="${AGENT_CMS_BASE_URL:-http://127.0.0.1:3000}"
 export AGENT_CMS_AGENT="${AGENT_CMS_AGENT:-}"
+export SHELL_PTT_KEY="${SHELL_PTT_KEY:-shift}"
 
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv

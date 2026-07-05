@@ -1,4 +1,4 @@
-"""Push-to-talk: удержание клавиши (на macOS часто Fn → F18 через Karabiner)."""
+"""Push-to-talk: удержание клавиши (по умолчанию Shift)."""
 
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ class PttGate:
         return self._held.is_set()
 
     def start(self) -> bool:
-        key = _key_from_env_name(os.environ.get("SHELL_PTT_KEY", "f18"))
+        key = _key_from_env_name(os.environ.get("SHELL_PTT_KEY", "shift"))
         if key is None:
-            print("⚠️ SHELL_PTT_KEY: неизвестная клавиша, задай f18, f19, space …")
+            print("⚠️ SHELL_PTT_KEY: неизвестная клавиша, задай shift, f18, space …")
             return False
 
         try:
@@ -58,7 +58,7 @@ class PttGate:
 
         self._listener = keyboard.Listener(on_press=on_press, on_release=on_release)
         self._listener.start()
-        print(f"⌨️ Push-to-talk: удерживай {os.environ.get('SHELL_PTT_KEY', 'f18')} (SHELL_PTT_KEY)")
+        print(f"⌨️ Push-to-talk: удерживай {os.environ.get('SHELL_PTT_KEY', 'shift')} (SHELL_PTT_KEY)")
         return True
 
     def stop(self) -> None:

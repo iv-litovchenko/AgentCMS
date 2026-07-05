@@ -242,7 +242,7 @@ class Sidecar:
         print("STT: Google Speech (SpeechRecognition)")
         print("TTS: macOS say")
         print("Режим sidecar: кнопка 🎤 в Shell (PTT)")
-        print("Режим fn_button: удерживай F18 (SHELL_PTT_KEY), Fn→F18 через Karabiner")
+        print("Режим fn_button: удерживай Shift (SHELL_PTT_KEY=shift)")
         print("Ctrl+C — выход")
         print("=" * 50)
 

@@ -2,10 +2,13 @@ export function createShellTtsPlayer({ apiFetch }) {
   /** @type {HTMLAudioElement | null} */
   let audio = null;
   let objectUrl = "";
+  let speakGeneration = 0;
 
   function cleanupAudio() {
     if (audio) {
       audio.pause();
+      audio.onended = null;
+      audio.onerror = null;
       audio.src = "";
       audio = null;
     }
@@ -28,6 +31,7 @@ export function createShellTtsPlayer({ apiFetch }) {
   }
 
   function stop() {
+    speakGeneration += 1;
     cleanupAudio();
   }
 
@@ -42,6 +46,7 @@ export function createShellTtsPlayer({ apiFetch }) {
   }
 
   async function speak(text) {
+    const generation = ++speakGeneration;
     cleanupAudio();
     const payload = String(text || "").trim();
     if (!payload) return;
@@ -50,6 +55,7 @@ export function createShellTtsPlayer({ apiFetch }) {
       method: "POST",
       body: JSON.stringify({ text: payload })
     });
+    if (generation !== speakGeneration) return;
 
     const mimeType = String(result.mimeType || "audio/mpeg");
     const binary = atob(String(result.audio || ""));
@@ -58,13 +64,28 @@ export function createShellTtsPlayer({ apiFetch }) {
     const blob = new Blob([bytes], { type: mimeType });
     objectUrl = URL.createObjectURL(blob);
     audio = new Audio(objectUrl);
+    if (generation !== speakGeneration) {
+      cleanupAudio();
+      return;
+    }
 
     await new Promise((resolve, reject) => {
-      audio.onended = () => resolve();
+      if (generation !== speakGeneration) {
+        resolve();
+        return;
+      }
+      const finish = () => {
+        if (generation !== speakGeneration) {
+          resolve();
+          return;
+        }
+        cleanupAudio();
+        resolve();
+      };
+      audio.onended = finish;
       audio.onerror = () => reject(new Error("Не удалось воспроизвести аудио"));
       audio.play().catch(reject);
     });
-    cleanupAudio();
   }
 
   return {
