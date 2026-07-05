@@ -1,9 +1,11 @@
-id: awn.array
-name: Несколько значений (из списка)
+id: awn.field.array
+name: Несколько из списка
 kind: field
+domain: fields
+extends: awn.field.base
+widget: checkbox
 storage: array
 mdbase: list
-widget: checkbox
-description: Несколько значений из списка — checkbox или select multiple (настройка widget)
-settings: [description, hint, required, locked, widget, default, enum]
+description: Несколько значений из заданного списка. Виджет: checkbox (по умолчанию) или select-multiple
+settings: [hint, required, locked, default, widget, enum, items]
 status: active

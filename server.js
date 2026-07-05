@@ -10030,6 +10030,31 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent-system/all-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot || "");
+      const allTypes = (payload.types || []).map((t) => ({
+        id: t.id,
+        name: t.name || t.id,
+        kind: t.kind || "type",
+        domain: t.domain || "",
+        extends: t.extends || null,
+        status: t.status || "active",
+        description: t.schema?.description || t.description || "",
+        source: t.source || "platform",
+        fields: t.schema?.fields || null,
+        widget: t.schema?.widget || null,
+        storage: t.schema?.storage || null,
+        mdbase: t.schema?.mdbase || null,
+        settings: t.schema?.settings || null
+      }));
+      return sendJson(res, 200, { types: allTypes, total: allTypes.length });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to load all types", details: String(error.message || error) });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/status") {
     try {
       const agentRoot = getAgentRoot();

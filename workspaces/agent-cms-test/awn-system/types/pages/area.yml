@@ -7,6 +7,6 @@ extends: awn.page.base
 description: Область (категория) — папка с manifest.md
 fields:
   awn-color:
-    type: awn.color
+    type: awn.field.color
     title: Цвет
     description: Акцентный цвет области в меню

@@ -12,8 +12,8 @@ create-node-slug: agent.voice.stt
 create-node-order: 4
 fields:
   awn-stt-provider:
-    type: awn.string
+    type: awn.field.string
     title: Провайдер STT
   awn-stt-language:
-    type: awn.string
+    type: awn.field.string
     title: Язык распознавания

@@ -1,5 +1,5 @@
-id: agent.view.moy-vid
-name: Мой вид
+id: agent.view.test
+name: test
 kind: view
 domain: views
 status: active

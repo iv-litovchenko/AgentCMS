@@ -6,7 +6,7 @@ status: active
 description: Прикреплённые файлы
 fields:
   awn-attachments:
-    type: awn.array
+    type: awn.field.array
     name: Вложения
-    items: awn.file
+    items: awn.field.file
     widget: attachments

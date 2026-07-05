@@ -1,4 +1,4 @@
-id: awn.taxonomy.statuses
+id: agent.taxonomy.statuses
 name: Статусы
 kind: taxonomy
 domain: taxonomies

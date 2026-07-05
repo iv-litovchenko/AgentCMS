@@ -1,4 +1,4 @@
-id: awn.view.thread
+id: agent.view.thread
 name: Тред (диалог)
 kind: view
 domain: views

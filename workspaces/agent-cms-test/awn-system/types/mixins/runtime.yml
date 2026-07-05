@@ -6,7 +6,7 @@ status: active
 description: Загрузка в контекст агента, cron, heartbeat
 fields:
   awn-runtime-load:
-    type: awn.enum
+    type: awn.field.enum
     name: Загрузка в runtime
     enum:
       - key: on-demand
@@ -14,8 +14,8 @@ fields:
       - key: session-start
         name: При старте сессии
   awn-runtime-cron:
-    type: awn.boolean
+    type: awn.field.boolean
     name: Cron
   awn-runtime-heartbeat:
-    type: awn.boolean
+    type: awn.field.boolean
     name: Heartbeat

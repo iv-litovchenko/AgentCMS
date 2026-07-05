@@ -42189,15 +42189,17 @@ const AGENT_SYSTEM_DOMAIN_EXTENDS = {
 };
 
 const AGENT_SYSTEM_DOMAIN_PREFIX = {
+  // Platform-level types (extend the CMS platform)
   pages: "awn.page",
   content: "awn.content",
   slots: "awn.slot",
-  fields: "awn",
+  fields: "awn.field",
   "md-blocks": "awn.block",
-  taxonomies: "awn.taxonomy",
-  views: "awn.view",
   mixins: "awn.mixin",
-  base: "awn"
+  base: "awn",
+  // Agent-specific types (instance-level configuration)
+  taxonomies: "agent.taxonomy",
+  views: "agent.view"
 };
 
 function slugifyTypeName(name) {
@@ -42384,8 +42386,53 @@ function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
   return itemRow;
 }
 
+function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeAgentId) {
+  if (!subGroup?.items?.length || !parentEl) return null;
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  const visibleItems = (subGroup.items || []).filter((item) => {
+    if (!queryLower) return true;
+    return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
+  });
+  if (!visibleItems.length) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "menu-agent-system-domain menu-agent-system-subgroup";
+  wrap.dataset.menuFolder = `subgroup:${subGroup.folderPath || subGroup.title}`;
+
+  const headRow = document.createElement("div");
+  headRow.className = "menu-folder-row menu-agent-system-domain-head";
+
+  const collapseKey = `subgroup:${subGroup.folderPath}`;
+  const collapsed = queryLower ? false : isAgentSystemDomainCollapsed({ folderPath: collapseKey }, agentId);
+  const toggleCollapsed = () => toggleAgentSystemDomainCollapsed({ folderPath: collapseKey, title: subGroup.title }, agentId);
+  headRow.appendChild(createFolderToggleButton(true, collapsed, toggleCollapsed));
+
+  const folderButton = document.createElement("button");
+  folderButton.type = "button";
+  folderButton.className = "menu-folder menu-folder-agent-system-domain";
+  folderButton.textContent = subGroup.title || "kit";
+  folderButton.title = collapsed ? "Раскрыть" : "Скрыть";
+  folderButton.addEventListener("click", toggleCollapsed);
+  headRow.appendChild(folderButton);
+  wrap.appendChild(headRow);
+
+  if (!collapsed) {
+    const body = document.createElement("div");
+    body.className = "tree-children menu-agent-system-domain-body";
+    for (const item of visibleItems) {
+      renderAgentSystemMenuItem(item, body, agentId);
+    }
+    wrap.appendChild(body);
+  }
+
+  parentEl.appendChild(wrap);
+  return wrap;
+}
+
 function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgentId) {
-  if (!section?.items?.length || !parentEl) return null;
+  const hasDirectItems = Array.isArray(section?.items) && section.items.length > 0;
+  const hasSubGroups = Array.isArray(section?.subGroups) && section.subGroups.length > 0;
+  if ((!hasDirectItems && !hasSubGroups) || !parentEl) return null;
 
   const wrap = document.createElement("div");
   wrap.className = "menu-agent-system-domain";
@@ -42394,16 +42441,25 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
   const headRow = document.createElement("div");
   headRow.className = "menu-folder-row menu-agent-system-domain-head";
 
+  const queryLower = menuSearchQuery.trim().toLowerCase();
   const visibleItems = (section.items || []).filter((item) => {
-    const queryLower = menuSearchQuery.trim().toLowerCase();
     if (!queryLower) return true;
     return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
   });
-  if (!visibleItems.length) return null;
 
-  const collapsed = menuSearchQuery.trim() ? false : isAgentSystemDomainCollapsed(section, agentId);
+  // Count visible sub-group items for the toggle
+  const visibleSubGroupItems = (section.subGroups || []).flatMap((sg) =>
+    (sg.items || []).filter((item) =>
+      !queryLower || nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower)
+    )
+  );
+
+  const totalVisible = visibleItems.length + visibleSubGroupItems.length;
+  if (totalVisible === 0) return null;
+
+  const collapsed = queryLower ? false : isAgentSystemDomainCollapsed(section, agentId);
   const toggleCollapsed = () => toggleAgentSystemDomainCollapsed(section, agentId);
-  headRow.appendChild(createFolderToggleButton(visibleItems.length > 0, collapsed, toggleCollapsed));
+  headRow.appendChild(createFolderToggleButton(totalVisible > 0, collapsed, toggleCollapsed));
 
   const folderButton = document.createElement("button");
   folderButton.type = "button";
@@ -42435,6 +42491,9 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
     body.className = "tree-children menu-agent-system-domain-body";
     for (const item of visibleItems) {
       renderAgentSystemMenuItem(item, body, agentId);
+    }
+    for (const subGroup of section.subGroups || []) {
+      renderAgentSystemSubGroup(subGroup, body, agentId);
     }
     wrap.appendChild(body);
   }
@@ -42475,7 +42534,16 @@ function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId)
         if (!queryLower) return true;
         return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
       });
-      return items.length ? { ...section, items } : null;
+      const subGroups = (section.subGroups || [])
+        .map((sg) => {
+          const sgItems = (sg.items || []).filter((item) => {
+            if (!queryLower) return true;
+            return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
+          });
+          return sgItems.length ? { ...sg, items: sgItems } : null;
+        })
+        .filter(Boolean);
+      return items.length || subGroups.length ? { ...section, items, subGroups } : null;
     })
     .filter(Boolean);
   const hasContent =
@@ -48190,11 +48258,25 @@ function createAwnTypeKindBadge(kind) {
   return badge;
 }
 
+// Группы навигации: base/entity → все конкретные типы → mixins
 const AWN_TYPE_NAV_GROUPS = [
-  { kind: "base", label: "База" },
-  { kind: "mixin", label: "Миксины" },
-  { kind: "type", label: "Типы" }
+  { kinds: ["base", "entity"], label: "Базовые" },
+  { kinds: ["type", "slot", "field", "view", "taxonomy", "block", "meta"], label: "Типы" },
+  { kinds: ["mixin"], label: "Миксины" }
 ];
+
+const AWN_KIND_BADGE_LABELS = {
+  base:     "База",
+  entity:   "Сущность",
+  type:     "Тип",
+  slot:     "Слот",
+  field:    "Поле",
+  view:     "Вид",
+  taxonomy: "Таксономия",
+  block:    "Блок",
+  mixin:    "Миксин",
+  meta:     "Мета"
+};
 
 function createAwnTypeNavItem(typeKey, typeDef, isActive) {
   const btn = document.createElement("button");
@@ -48204,11 +48286,26 @@ function createAwnTypeNavItem(typeKey, typeDef, isActive) {
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   btn.dataset.typeKey = typeKey || "";
 
+  // First row: badge + id inline
+  const firstRow = document.createElement("span");
+  firstRow.className = "agent-awn-type-nav-row";
+
+  const kind = typeDef?.kind || "type";
+  const kindLabel = AWN_KIND_BADGE_LABELS[kind];
+  if (kindLabel) {
+    const badge = document.createElement("span");
+    badge.className = `agent-awn-type-nav-kind agent-awn-type-nav-kind--${kind}`;
+    badge.textContent = kindLabel;
+    firstRow.appendChild(badge);
+  }
+
   const id = document.createElement("span");
   id.className = "agent-awn-type-nav-id";
   id.textContent = typeDef?.id || typeKey || "—";
-  btn.appendChild(id);
+  firstRow.appendChild(id);
+  btn.appendChild(firstRow);
 
+  // Second row: human name
   const humanName = String(typeDef?.name || "").trim();
   if (humanName && humanName !== typeDef?.id) {
     const title = document.createElement("span");
@@ -48373,28 +48470,61 @@ function createAwnTypesBrowserSection(typeEntries) {
   nav.setAttribute("role", "tablist");
   nav.setAttribute("aria-label", "Типы записей");
 
-  for (const group of AWN_TYPE_NAV_GROUPS) {
-    const groupEntries = typeEntries.filter(
-      (entry) => (entry.typeDef?.kind || "type") === group.kind
-    );
-    if (!groupEntries.length) continue;
+  // Search input
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "agent-awn-types-search-wrap";
+  const searchInput = document.createElement("input");
+  searchInput.type = "search";
+  searchInput.className = "agent-awn-types-search";
+  searchInput.placeholder = "Поиск типа…";
+  searchInput.setAttribute("aria-label", "Поиск типа");
+  searchWrap.appendChild(searchInput);
+  nav.appendChild(searchWrap);
 
-    const groupNode = document.createElement("div");
-    groupNode.className = "agent-awn-types-nav-group";
+  const countBadge = document.createElement("span");
+  countBadge.className = "agent-awn-types-search-count";
+  searchWrap.appendChild(countBadge);
 
-    const groupLabel = document.createElement("div");
-    groupLabel.className = "agent-awn-types-nav-group-label";
-    groupLabel.textContent = group.label;
-    groupNode.appendChild(groupLabel);
+  function renderNavGroups(query) {
+    nav.querySelectorAll(".agent-awn-types-nav-group").forEach((n) => n.remove());
+    const q = query.trim().toLowerCase();
+    let totalVisible = 0;
 
-    const list = document.createElement("div");
-    list.className = "agent-awn-types-nav-list";
-    for (const { typeKey, typeDef } of groupEntries) {
-      list.appendChild(createAwnTypeNavItem(typeKey, typeDef, typeKey === selectedKey));
+    for (const group of AWN_TYPE_NAV_GROUPS) {
+      const kindsSet = new Set(group.kinds || [group.kind]);
+      const groupEntries = typeEntries.filter((entry) => {
+        if (!kindsSet.has(entry.typeDef?.kind || "type")) return false;
+        if (!q) return true;
+        const id = String(entry.typeDef?.id || entry.typeKey || "").toLowerCase();
+        const name = String(entry.typeDef?.name || "").toLowerCase();
+        return id.includes(q) || name.includes(q);
+      });
+      if (!groupEntries.length) continue;
+      totalVisible += groupEntries.length;
+
+      const groupNode = document.createElement("div");
+      groupNode.className = "agent-awn-types-nav-group";
+
+      const groupLabel = document.createElement("div");
+      groupLabel.className = "agent-awn-types-nav-group-label";
+      groupLabel.textContent = group.label;
+      groupNode.appendChild(groupLabel);
+
+      const list = document.createElement("div");
+      list.className = "agent-awn-types-nav-list";
+      for (const { typeKey, typeDef } of groupEntries) {
+        list.appendChild(createAwnTypeNavItem(typeKey, typeDef, typeKey === selectedKey));
+      }
+      groupNode.appendChild(list);
+      nav.appendChild(groupNode);
     }
-    groupNode.appendChild(list);
-    nav.appendChild(groupNode);
+
+    countBadge.textContent = String(totalVisible);
+    countBadge.title = `${totalVisible} типов`;
   }
+
+  renderNavGroups("");
+  searchInput.addEventListener("input", () => renderNavGroups(searchInput.value));
 
   const detailHost = document.createElement("div");
   detailHost.className = "agent-awn-types-detail-host";
@@ -48438,30 +48568,24 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     return;
   }
 
-  await loadAwnTypes(agentId);
+  let allTypesData = null;
+  try {
+    const res = await fetch(buildApiUrl("/api/agent-system/all-types", {}, agentId));
+    if (res.ok) allTypesData = await res.json();
+  } catch {}
 
-  if (!awnTypesCache?.types) {
-    renderListEmptyMessage(
-      containerNode,
-      "Не удалось загрузить типы. Проверьте workspaces/agent-cms-core/components/ и /api/components."
-    );
+  if (!allTypesData?.types?.length) {
+    renderListEmptyMessage(containerNode, "Типы не найдены. Проверьте awn-system/types/.");
     return;
   }
 
-  const note = document.createElement("aside");
-  note.className = "agent-awn-types-note";
-  note.innerHTML =
-    '<h3 class="agent-awn-types-note-title">Системные схемы полей frontmatter</h3>' +
-    "<p><strong>Компоненты</strong> — <code>workspaces/agent-cms-core/components/</code> (manifest + schema.yml). " +
-    "Типы полей — <code>components/fields/</code>. Блоки — <code>components/markdown-blocks/</code>. " +
-    "Мета-схема поля — <code>components/fields/_base/schema.yml</code>. " +
-    "Доп. поля темы — <code>awn-storage/{тема}/configuration.yml</code> → <code>awn_schema</code>.</p>" +
-    "<p><strong>kind:</strong> <code>base</code> / <code>mixin</code> / <code>type</code> — записи; " +
-    "<code>field</code> — значения в frontmatter; <code>block</code> — вставки в тело Markdown.</p>";
-  containerNode.appendChild(note);
+  // Convert flat array → typeEntries format { typeKey, typeDef }
+  const typeEntries = allTypesData.types.map((t) => ({
+    typeKey: t.id,
+    typeDef: t
+  }));
 
-  const types = getSortedAwnTypesList(awnTypesCache.types);
-  containerNode.appendChild(createAwnTypesBrowserSection(types));
+  containerNode.appendChild(createAwnTypesBrowserSection(typeEntries));
 
   const registry = awnTypesCache.fieldRegistry || {};
   const registryKeys = Object.keys(registry).filter((id) => id.startsWith("awn.")).sort();

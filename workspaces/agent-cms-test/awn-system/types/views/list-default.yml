@@ -1,4 +1,4 @@
-id: awn.view.list
+id: agent.view.list
 name: Список
 kind: view
 domain: views

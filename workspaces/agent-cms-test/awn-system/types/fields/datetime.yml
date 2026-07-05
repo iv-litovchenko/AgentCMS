@@ -1,10 +1,12 @@
-id: awn.datetime
+id: awn.field.datetime
 name: Дата и время
 kind: field
+domain: fields
+extends: awn.field.base
+widget: datetime
 storage: string
 mdbase: datetime
-widget: datetime
 format: ISO-8601
 description: Дата и время (ISO 8601)
-settings: [description, hint, required, locked, format, default]
+settings: [hint, required, locked, default, format]
 status: active

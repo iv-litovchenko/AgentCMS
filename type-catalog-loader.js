@@ -18,6 +18,7 @@ const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
 /** Legacy id → canonical id (манifests могут ещё использовать старые awn-type). */
 const TYPE_ID_ALIASES = {
+  // Page aliases
   "awn.page": "awn.page.base",
   "awn.base": "awn.page.base",
   "awn.workspace": "awn.page.ws",
@@ -32,7 +33,40 @@ const TYPE_ID_ALIASES = {
   "service-doc": "awn.page.service-doc",
   "catalog": "awn.page.catalog",
   "taxonomy": "awn.page.taxonomy",
-  "awn.page.catalog": "awn.page.taxonomy"
+  "awn.page.catalog": "awn.page.taxonomy",
+  // View aliases (awn.view.* → agent.view.*)
+  "awn.view.list": "agent.view.list",
+  "awn.view.inbox": "agent.view.inbox",
+  "awn.view.media-grid": "agent.view.media-grid",
+  "awn.view.tabular": "agent.view.tabular",
+  "awn.view.thread": "agent.view.thread",
+  // Taxonomy aliases (awn.taxonomy.* → agent.taxonomy.*)
+  "awn.taxonomy.categories": "agent.taxonomy.categories",
+  "awn.taxonomy.colors": "agent.taxonomy.colors",
+  "awn.taxonomy.priorities": "agent.taxonomy.priorities",
+  "awn.taxonomy.statuses": "agent.taxonomy.statuses",
+  "awn.taxonomy.tags": "agent.taxonomy.tags",
+  "awn.taxonomy.tax": "agent.taxonomy.tax",
+  // Field type aliases (old → new namespace awn.field.*)
+  "awn.field-def": "awn.field.base",
+  "awn.string": "awn.field.string",
+  "awn.text": "awn.field.text",
+  "awn.boolean": "awn.field.boolean",
+  "awn.integer": "awn.field.integer",
+  "awn.number": "awn.field.number",
+  "awn.date": "awn.field.date",
+  "awn.datetime": "awn.field.datetime",
+  "awn.color": "awn.field.color",
+  "awn.url": "awn.field.url",
+  "awn.link": "awn.field.link",
+  "awn.file": "awn.field.file",
+  "awn.enum": "awn.field.enum",
+  "awn.enum-select": "awn.field.enum",
+  "awn.enum-radio": "awn.field.enum",
+  "awn.array": "awn.field.array",
+  "awn.array-checkbox": "awn.field.array",
+  "awn.array-select-multiple": "awn.field.array",
+  "awn.null": "awn.field.base"
 };
 
 function listTypeFiles(typesDir) {

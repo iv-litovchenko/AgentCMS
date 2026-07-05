@@ -1,15 +1,11 @@
-id: awn.string
+id: awn.field.string
 name: Строка
-path-id: fields/string
 kind: field
-extends: awn.field-def
+domain: fields
+extends: awn.field.base
 widget: input
 storage: string
 mdbase: string
-description: Короткая строка
-settings:
-  - hint
-  - required
-  - default
-  - format
+description: Короткая строка (одна строка текста)
+settings: [hint, required, locked, default, format]
 status: active

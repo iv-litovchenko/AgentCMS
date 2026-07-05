@@ -1,9 +1,11 @@
-id: awn.boolean
+id: awn.field.boolean
 name: Логическое
 kind: field
+domain: fields
+extends: awn.field.base
+widget: checkbox
 storage: bool
 mdbase: boolean
-widget: checkbox
-description: Логическое значение
-settings: [description, hint, required, locked, default]
+description: Логическое значение (да/нет)
+settings: [hint, required, locked, default]
 status: active

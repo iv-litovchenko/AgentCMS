@@ -7,8 +7,8 @@ extends: awn.page.base
 description: Метаданные медиафайла (*.sidecar.md)
 fields:
   awn-mime:
-    type: awn.string
+    type: awn.field.string
     title: MIME-тип
   awn-size:
-    type: awn.integer
+    type: awn.field.integer
     title: Размер (байт)

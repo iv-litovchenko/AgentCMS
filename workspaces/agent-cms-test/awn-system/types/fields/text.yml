@@ -1,9 +1,11 @@
-id: awn.text
-name: Текст (многострочный)
+id: awn.field.text
+name: Текст
 kind: field
+domain: fields
+extends: awn.field.base
+widget: textarea
 storage: string
 mdbase: text
-widget: textarea
-description: Длинный текст или описание
-settings: [description, hint, required, locked, default]
+description: Длинный текст или описание (многострочное)
+settings: [hint, required, locked, default]
 status: active

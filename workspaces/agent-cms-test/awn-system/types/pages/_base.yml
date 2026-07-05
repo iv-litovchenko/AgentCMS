@@ -8,20 +8,20 @@ description: Базовые YAML-свойства для узлов дерева
 mixins: [awn.mixin.preview, awn.mixin.runtime]
 fields:
   awn-preview:
-    type: awn.url
+    type: awn.field.url
     title: Превью
     description: Путь к файлу в Assets/Preview/
   awn-emoji:
-    type: awn.string
+    type: awn.field.string
     title: Эмодзи
     description: Показывается вместо иконки, если превью не задано
   awn-name:
-    type: awn.string
+    type: awn.field.string
     name: Имя
     description: Отображаемое имя в меню
     locked: true
   awn-status:
-    type: awn.enum
+    type: awn.field.enum
     name: Статус
     enum:
       - key: open
@@ -32,49 +32,49 @@ fields:
         name: 🔴 Закрыта
     default: draft
   awn-type:
-    type: awn.string
+    type: awn.field.string
     name: Tип
     required: true
     locked: true
   awn-create:
-    type: awn.datetime
+    type: awn.field.datetime
     title: Создан
     locked: true
   awn-update:
-    type: awn.datetime
+    type: awn.field.datetime
     title: Изменён
     locked: true
   awn-description:
-    type: awn.text
+    type: awn.field.text
     title: Описание
   awn-main:
-    type: awn.boolean
+    type: awn.field.boolean
     title: На главной
     default: false
   awn-category:
-    type: awn.string
+    type: awn.field.string
     title: Категория
   awn-owner:
-    type: awn.string
+    type: awn.field.string
     title: Владелец
   awn-priority:
-    type: awn.string
+    type: awn.field.string
     title: Приоритет
   awn-tags:
-    type: awn.array
+    type: awn.field.array
     name: Теги
-    items: awn.string
+    items: awn.field.string
   awn-color:
-    type: awn.color
+    type: awn.field.color
     title: Цвет
   awn-version:
-    type: awn.integer
+    type: awn.field.integer
     title: Версия
     default: 1
     locked: true
   awn-sort:
-    type: awn.integer
+    type: awn.field.integer
     title: Сортировка
   my-field2:
-    type: awn.string
+    type: awn.field.string
     title: Моё поле22

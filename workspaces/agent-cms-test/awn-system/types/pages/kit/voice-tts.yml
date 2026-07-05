@@ -12,11 +12,11 @@ create-node-slug: agent.voice.tts
 create-node-order: 3
 fields:
   awn-tts-provider:
-    type: awn.string
+    type: awn.field.string
     title: Провайдер TTS
   awn-tts-voice:
-    type: awn.string
+    type: awn.field.string
     title: Голос
   awn-tts-speed:
-    type: awn.number
+    type: awn.field.number
     title: Скорость (0.5–2.0)

@@ -13,8 +13,8 @@ create-node-slug: agent
 create-node-order: 1
 fields:
   awn-agent-role:
-    type: awn.text
+    type: awn.field.text
     title: Роль агента
   awn-agent-language:
-    type: awn.string
+    type: awn.field.string
     title: Язык общения

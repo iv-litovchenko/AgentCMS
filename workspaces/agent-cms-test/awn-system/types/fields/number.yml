@@ -1,9 +1,11 @@
-id: awn.number
+id: awn.field.number
 name: Число
 kind: field
+domain: fields
+extends: awn.field.base
+widget: number
 storage: number
 mdbase: number
-widget: number
-description: Число с дробной частью
-settings: [description, hint, required, locked, format, default]
+description: Число с дробной частью (float)
+settings: [hint, required, locked, default, format]
 status: active

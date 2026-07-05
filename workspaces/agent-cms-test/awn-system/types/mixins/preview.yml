@@ -6,5 +6,5 @@ status: active
 description: Поле превью-изображения
 fields:
   awn-preview:
-    type: awn.url
+    type: awn.field.url
     name: Превью

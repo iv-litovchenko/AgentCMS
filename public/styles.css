@@ -5356,10 +5356,60 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 10px 14px;
+  padding: 8px 10px 14px;
   border-right: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(248, 250, 252, 0.65);
   overflow-y: auto;
+}
+
+.agent-awn-types-search-wrap {
+  position: relative;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.agent-awn-types-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 36px 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 13px;
+  background: #fff;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.agent-awn-types-search:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.agent-awn-types-search-count {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.agent-awn-type-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .agent-awn-types-nav-group-label {
@@ -5370,6 +5420,28 @@ body.app-locked {
   text-transform: uppercase;
   color: #64748b;
 }
+
+.agent-awn-type-nav-kind {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.agent-awn-type-nav-kind--base     { background: #e0e7ff; color: #3730a3; }
+.agent-awn-type-nav-kind--entity   { background: #ede9fe; color: #5b21b6; }
+.agent-awn-type-nav-kind--type     { background: #dcfce7; color: #166534; }
+.agent-awn-type-nav-kind--slot     { background: #ccfbf1; color: #0f766e; }
+.agent-awn-type-nav-kind--field    { background: #fef9c3; color: #854d0e; }
+.agent-awn-type-nav-kind--view     { background: #dbeafe; color: #1e40af; }
+.agent-awn-type-nav-kind--taxonomy { background: #ffe4e6; color: #9f1239; }
+.agent-awn-type-nav-kind--block    { background: #fce7f3; color: #9d174d; }
+.agent-awn-type-nav-kind--mixin    { background: #f1f5f9; color: #475569; }
+.agent-awn-type-nav-kind--meta     { background: #f0fdf4; color: #15803d; }
 
 .agent-awn-types-nav-list {
   display: flex;
@@ -5383,7 +5455,7 @@ body.app-locked {
   align-items: flex-start;
   gap: 2px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -11594,6 +11666,12 @@ body.app-locked {
   padding-left: 4px;
 }
 
+.menu-agent-system-subgroup {
+  padding-left: 12px;
+  margin: 0 0 2px;
+  border-left: 1px solid var(--color-border-subtle, rgba(0,0,0,0.07));
+}
+
 .menu-agent-system-domain-head {
   display: flex;
   align-items: center;
@@ -11741,13 +11819,37 @@ body.app-locked {
 }
 
 .agent-system-type-inspector {
-  margin: 0 0 12px;
-  padding: 12px 14px;
+  margin: 0;
+  padding: 12px 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* When YAML is visible alongside the form, cap the inspector height */
+:not(.is-agent-type-form-mode) .agent-system-type-inspector {
+  max-height: 42vh;
   border: 1px solid #c7d2fe;
   border-radius: 10px;
   background: #f5f7ff;
-  max-height: 42vh;
-  overflow: auto;
+  margin: 0 0 12px;
+}
+
+/* When YAML is hidden, inspector fills all available height */
+.is-agent-type-form-mode .editor-surface {
+  position: relative;
+  overflow: hidden;
+}
+
+.is-agent-type-form-mode .agent-system-type-inspector {
+  position: absolute;
+  inset: 0;
+  max-height: none;
+  overflow-y: auto;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 12px 20px 24px;
+  background: #f8faff;
 }
 
 .agent-system-type-inspector-panel {

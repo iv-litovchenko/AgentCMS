@@ -8,7 +8,7 @@ description: Одно сообщение в слоте thread/ — диалог 
 slot: thread
 fields:
   awn-role:
-    type: awn.enum
+    type: awn.field.enum
     name: Роль
     enum:
       - key: user

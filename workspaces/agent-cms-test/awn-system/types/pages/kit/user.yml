@@ -13,8 +13,8 @@ create-node-slug: user
 create-node-order: 5
 fields:
   awn-user-role:
-    type: awn.string
+    type: awn.field.string
     title: Роль
   awn-user-timezone:
-    type: awn.string
+    type: awn.field.string
     title: Часовой пояс

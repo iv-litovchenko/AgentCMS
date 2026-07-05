@@ -1,4 +1,4 @@
-id: awn.view.media-grid
+id: agent.view.media-grid
 name: Медиа-сетка
 kind: view
 domain: views

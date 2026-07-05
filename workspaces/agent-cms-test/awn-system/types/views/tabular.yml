@@ -1,4 +1,4 @@
-id: awn.view.tabular
+id: agent.view.tabular
 name: Таблица
 kind: view
 domain: views

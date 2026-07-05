@@ -1,9 +1,11 @@
-id: awn.enum
-name: Одно значение (из списка)
+id: awn.field.enum
+name: Одно из списка
 kind: field
+domain: fields
+extends: awn.field.base
+widget: select
 storage: string
 mdbase: enum
-widget: select
-description: Одно значение из списка — select или radio (настройка widget)
-settings: [description, hint, required, locked, widget, default, enum]
+description: Одно значение из заданного списка. Виджет: select (по умолчанию) или radio
+settings: [hint, required, locked, default, widget, enum]
 status: active

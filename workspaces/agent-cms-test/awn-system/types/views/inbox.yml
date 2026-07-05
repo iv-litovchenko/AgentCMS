@@ -1,4 +1,4 @@
-id: awn.view.inbox
+id: agent.view.inbox
 name: Входящие
 kind: view
 domain: views
