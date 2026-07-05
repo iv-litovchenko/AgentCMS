@@ -1,0 +1,13 @@
+id: awn.slot.main
+name: Main
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Основное тело топика — markdown, CSV, конфиг
+path: main/
+allowed-content:
+  - awn.content.record
+  - awn.content.record.category
+accept-files:
+  - ".md"

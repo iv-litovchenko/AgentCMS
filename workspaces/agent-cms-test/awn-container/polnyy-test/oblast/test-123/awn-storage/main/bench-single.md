@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: Bench single
 awn-status: draft
-awn-type: awn.record
+awn-type: awn.content.record
 awn-create: 2026-06-29T23:48:58.090Z
 awn-update: 2026-06-29T23:48:58.090Z
 awn-description: ""

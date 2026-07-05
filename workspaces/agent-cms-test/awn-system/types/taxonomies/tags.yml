@@ -1,0 +1,8 @@
+id: awn.taxonomy.tags
+name: Теги
+kind: taxonomy
+domain: taxonomies
+status: active
+extends: awn.entity
+description: Справочник тегов — awn-agent-kit/taxonomies/tags/main.csv
+data-path: awn-agent-kit/taxonomies/tags/main.csv

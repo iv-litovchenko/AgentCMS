@@ -375,7 +375,7 @@ export function createTopicPicker({
 
     if (menuCache.serviceTree) {
       const service = filterMenuNode(
-        { title: "Служебные темы", ...(menuCache.serviceTree || {}) },
+        { title: "Агент и пользователи", ...(menuCache.serviceTree || {}) },
         q
       );
       if (service) renderNode(service, treeEl, 0);

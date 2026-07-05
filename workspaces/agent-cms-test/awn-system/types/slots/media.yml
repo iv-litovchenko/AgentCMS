@@ -1,0 +1,19 @@
+id: awn.slot.media
+name: Media
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Медиа-файлы и sidecar
+path: media/
+allowed-content:
+  - awn.content.sidecar
+  - awn.content.media.category
+accept-files:
+  - ".png"
+  - ".jpg"
+  - ".jpeg"
+  - ".gif"
+  - ".webp"
+  - ".pdf"
+  - ".sidecar.md"

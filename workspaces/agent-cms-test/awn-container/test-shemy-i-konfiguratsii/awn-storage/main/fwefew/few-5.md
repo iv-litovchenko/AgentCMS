@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: few
 awn-status: draft
-awn-type: awn.record
+awn-type: awn.content.record
 awn-create: 2026-06-29T15:22:23.033Z
 awn-update: 2026-06-29T15:22:23.033Z
 awn-description: ""

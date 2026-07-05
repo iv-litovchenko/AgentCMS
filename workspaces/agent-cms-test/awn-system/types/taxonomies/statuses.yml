@@ -1,0 +1,8 @@
+id: awn.taxonomy.statuses
+name: Статусы
+kind: taxonomy
+domain: taxonomies
+status: active
+extends: awn.entity
+description: Справочник статусов — awn-agent-kit/taxonomies/statuses/main.csv
+data-path: awn-agent-kit/taxonomies/statuses/main.csv

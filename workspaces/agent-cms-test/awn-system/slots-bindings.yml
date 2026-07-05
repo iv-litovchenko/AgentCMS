@@ -1,0 +1,54 @@
+# Слот (папка в topic/awn-storage/) → какие content-типы допустимы
+version: 1
+
+bindings:
+  main:
+    path: main/
+    content: [awn.content.record, awn.content.record.category]
+    files: [".md"]
+  inbox:
+    path: inbox/
+    content: [awn.content.record]
+    files: [".md", ".txt"]
+  quick-notes:
+    path: quick-notes/
+    content: [awn.content.record]
+    files: [".md"]
+  references:
+    path: references/
+    content: [awn.content.record]
+    files: [".md"]
+  artefacts:
+    path: artefacts/
+    content: [awn.content.record]
+    files: [".md"]
+  scripts:
+    path: scripts/
+    content: [awn.content.record]
+    files: [".md", ".sh", ".js"]
+  repository:
+    path: repository/
+    content: [awn.file]
+    files: ["*"]
+  media:
+    path: media/
+    content: [awn.content.sidecar, awn.content.media.category]
+    files: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"]
+  assets:
+    path: assets/
+    content: [awn.content.sidecar]
+    files: [".png", ".jpg", ".sidecar.md"]
+  thread:
+    path: thread/
+    content: [awn.content.dialog]
+    files: [".md"]
+    note: диалог с агентом — awn-agent-kit/agent/awn-storage/thread/
+  comments:
+    path: comments/
+    content: [awn.content.comment]
+    files: [".md"]
+
+system-only:
+  - history/
+  - temp/
+  - preview/

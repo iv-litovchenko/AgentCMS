@@ -1,0 +1,9 @@
+id: awn.url
+name: URL
+kind: field
+storage: string
+mdbase: url
+widget: url
+description: Внешняя ссылка
+settings: [description, hint, required, locked, default]
+status: active

@@ -11562,6 +11562,55 @@ body.app-locked {
   background: #fffbeb;
 }
 
+.menu-agent-system-section {
+  margin: 0 0 10px;
+  padding: 8px 8px 4px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+}
+
+.menu-agent-system-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.menu-agent-system-head .menu-folder.menu-folder-agent-system-root {
+  color: #4338ca;
+  font-weight: 700;
+}
+
+.menu-agent-system-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4338ca;
+}
+
+.menu-agent-system-domain {
+  margin: 0 0 4px;
+  padding-left: 4px;
+}
+
+.menu-agent-system-domain-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.menu-agent-system-domain-body {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid #c7d2fe;
+}
+
+.menu-item.menu-item--agent-system {
+  font-size: 12px;
+}
+
 .menu-container-section {
   margin: 0 0 4px;
   padding: 0;

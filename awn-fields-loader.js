@@ -116,8 +116,8 @@ function loadFieldsFromComponents(projectRoot, agentRoot) {
 
 function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveFieldsContext(agentRoot, projectRoot);
-  let registry = loadFieldTypesFromCatalog(root);
-  let fieldDefSchema = loadFieldDefFromCatalog(root);
+  let registry = loadFieldTypesFromCatalog(root, agent);
+  let fieldDefSchema = loadFieldDefFromCatalog(root, agent);
 
   if (!Object.keys(registry).length) {
     registry = loadFieldsFromComponents(root, agent);

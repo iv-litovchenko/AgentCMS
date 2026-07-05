@@ -1,7 +1,7 @@
 ---
 awn-name: Пользователь
 awn-status: open
-awn-type: service-doc
+awn-type: awn.page.service-doc
 awn-tags:
   - system
   - service

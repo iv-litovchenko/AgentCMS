@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: ""
 awn-status: draft
-awn-type: awn.sidecar
+awn-type: awn.content.sidecar
 awn-create: "2026-06-25T22:58"
 awn-update: 2026-06-25T19:59:16.771Z
 awn-description: ""

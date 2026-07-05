@@ -1,0 +1,19 @@
+id: awn.content.dialog
+name: Сообщение диалога
+kind: type
+domain: content
+status: active
+extends: awn.page.base
+description: Одно сообщение в слоте thread/ — диалог с агентом
+slot: thread
+fields:
+  awn-role:
+    type: awn.enum
+    name: Роль
+    enum:
+      - key: user
+        name: Пользователь
+      - key: assistant
+        name: Ассистент
+      - key: system
+        name: Система

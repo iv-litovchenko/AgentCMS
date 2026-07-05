@@ -1,7 +1,15 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { getAgentCmsCoreAbsolute, TYPE_DOMAINS, TYPE_CATALOG_REL } = require("./platform-sources");
+const {
+  getAgentCmsCoreAbsolute,
+  getAgentSystemAbsolute,
+  getAgentSystemTypesDir,
+  TYPE_DOMAINS,
+  AGENT_TYPE_DOMAINS,
+  TYPE_CATALOG_REL,
+  AGENT_SYSTEM_REL
+} = require("./platform-sources");
 
 const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
@@ -17,7 +25,12 @@ const TYPE_ID_ALIASES = {
   "awn.topic": "awn.page.topic",
   "awn.record": "awn.content.record",
   "awn.sidecar": "awn.content.sidecar",
-  "awn.record.category": "awn.content.record.category"
+  "awn.record.category": "awn.content.record.category",
+  "awn.media.category": "awn.content.media.category",
+  "awn.dialog": "awn.content.dialog",
+  "awn.comment": "awn.content.comment",
+  "service-doc": "awn.page.service-doc",
+  "catalog": "awn.page.catalog"
 };
 
 function listTypeFiles(typesDir) {
@@ -28,17 +41,23 @@ function listTypeFiles(typesDir) {
     .map((e) => path.join(typesDir, e.name));
 }
 
-function loadTypeFile(filePath, domain) {
+function loadTypeFile(filePath, domain, source = "platform") {
   try {
     const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
     if (!parsed?.id) return null;
     const fileName = path.basename(filePath).replace(/\.ya?ml$/i, "");
+    const catalogFile =
+      source === "agent"
+        ? `${AGENT_SYSTEM_REL}/types/${domain}/${fileName}.yml`
+        : `types/${domain}/awn-storage/configuration/types/${fileName}.yml`;
     return {
       id: String(parsed.id).trim(),
       domain,
       fileName,
       filePath,
       relPath: `${domain}/${fileName}`,
+      catalogFile,
+      source,
       schema: parsed,
       status: String(parsed.status || "active").trim(),
       kind: String(parsed.kind || "").trim(),
@@ -49,30 +68,64 @@ function loadTypeFile(filePath, domain) {
   }
 }
 
-function getDomainTypesDir(coreRoot, domain) {
+function getPlatformDomainTypesDir(coreRoot, domain) {
   return path.join(coreRoot, TYPE_CATALOG_REL, domain, ...TYPES_DIR_SEGMENTS);
 }
 
-function loadTypeCatalog(projectRoot = process.cwd()) {
+function resolveAgentRootAbsolute(agentRoot, projectRoot) {
+  const raw = String(agentRoot || "").trim();
+  if (!raw) return "";
+  return path.isAbsolute(raw) ? raw : path.join(projectRoot || process.cwd(), raw);
+}
+
+function ingestDomainTypes(typesDir, domain, source, byId, byDomain) {
+  if (!typesDir || !fs.existsSync(typesDir)) return;
+  if (!byDomain[domain]) byDomain[domain] = [];
+  const indexById = new Map(byDomain[domain].map((entry, idx) => [entry.id, idx]));
+
+  for (const filePath of listTypeFiles(typesDir)) {
+    const entry = loadTypeFile(filePath, domain, source);
+    if (!entry) continue;
+    byId.set(entry.id, entry);
+    if (indexById.has(entry.id)) {
+      byDomain[domain][indexById.get(entry.id)] = entry;
+    } else {
+      byDomain[domain].push(entry);
+      indexById.set(entry.id, byDomain[domain].length - 1);
+    }
+  }
+}
+
+function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
+  const agentSystemRoot = agentRootAbs ? getAgentSystemAbsolute(agentRootAbs) : "";
   const byId = new Map();
   const byDomain = {};
+  const sources = ["platform:agent-cms-core"];
 
   for (const domain of TYPE_DOMAINS) {
-    const typesDir = getDomainTypesDir(coreRoot, domain);
-    const entries = [];
-    for (const filePath of listTypeFiles(typesDir)) {
-      const entry = loadTypeFile(filePath, domain);
-      if (!entry) continue;
-      entries.push(entry);
-      byId.set(entry.id, entry);
+    ingestDomainTypes(getPlatformDomainTypesDir(coreRoot, domain), domain, "platform", byId, byDomain);
+  }
+
+  const agentTypesRoot = agentSystemRoot ? path.join(agentSystemRoot, "types") : "";
+  if (agentTypesRoot && fs.existsSync(agentTypesRoot)) {
+    sources.push(`${AGENT_SYSTEM_REL}:agent`);
+    for (const domain of AGENT_TYPE_DOMAINS) {
+      ingestDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
     }
-    byDomain[domain] = entries;
   }
 
   applyTypeAliases(byId);
 
-  return { coreRoot, byId, byDomain };
+  return {
+    coreRoot,
+    agentRoot: agentRootAbs,
+    agentSystemRoot,
+    sources,
+    byId,
+    byDomain
+  };
 }
 
 function applyTypeAliases(byId) {
@@ -166,8 +219,8 @@ function isPageTreeType(typeId, byId) {
   return inheritsFrom(typeId, root, byId);
 }
 
-function getActiveTypes(projectRoot, domain = null, kind = null) {
-  const { byId, byDomain } = loadTypeCatalog(projectRoot);
+function getActiveTypes(projectRoot, domain = null, kind = null, agentRoot = "") {
+  const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const pool = domain ? byDomain[domain] || [] : [...byId.values()];
   return pool.filter((entry) => {
     if (!isCatalogType(entry)) return false;
@@ -182,7 +235,10 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
     id: entry.id,
     domain: entry.domain,
     fileName: entry.fileName,
-    catalogFile: `types/${entry.domain}/awn-storage/configuration/types/${entry.fileName}.yml`,
+    catalogFile:
+      entry.catalogFile ||
+      `types/${entry.domain}/awn-storage/configuration/types/${entry.fileName}.yml`,
+    source: entry.source || "platform",
     kind: entry.kind || entry.schema?.kind || null,
     status: entry.status,
     extends: entry.extends,
@@ -194,9 +250,9 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
   };
 }
 
-function getTypeCatalogPayload(projectRoot = process.cwd()) {
-  const catalog = loadTypeCatalog(projectRoot);
-  const { byId, byDomain, coreRoot } = catalog;
+function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const { byId, byDomain, coreRoot, agentSystemRoot, sources } = catalog;
   const pageRoot = getPageTreeRootId(byId);
 
   const browseTypes = [];
@@ -230,9 +286,11 @@ function getTypeCatalogPayload(projectRoot = process.cwd()) {
   }
 
   return {
-    specVersion: "1.0",
+    specVersion: "1.1",
     model: "type-catalog",
     coreRoot: coreRoot.replace(/\\/g, "/"),
+    agentSystemRoot: agentSystemRoot ? agentSystemRoot.replace(/\\/g, "/") : null,
+    sources,
     pageTreeRoot: pageRoot,
     domains,
     types,
@@ -254,8 +312,8 @@ function toRecordTypeDef(entry, byId) {
   };
 }
 
-function loadPageTypesFromCatalog(projectRoot) {
-  const { byId, byDomain } = loadTypeCatalog(projectRoot);
+function loadPageTypesFromCatalog(projectRoot, agentRoot = "") {
+  const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const types = {};
 
   for (const domain of ["pages", "content"]) {
@@ -284,8 +342,8 @@ function loadPageTypesFromCatalog(projectRoot) {
   return types;
 }
 
-function loadFieldTypesFromCatalog(projectRoot) {
-  const { byId, byDomain } = loadTypeCatalog(projectRoot);
+function loadFieldTypesFromCatalog(projectRoot, agentRoot = "") {
+  const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const registry = {};
   for (const entry of byDomain.fields || []) {
     if (!isCatalogType(entry) || entry.kind !== "field") continue;
@@ -307,8 +365,8 @@ function loadFieldTypesFromCatalog(projectRoot) {
   return registry;
 }
 
-function loadFieldDefFromCatalog(projectRoot) {
-  const { byId } = loadTypeCatalog(projectRoot);
+function loadFieldDefFromCatalog(projectRoot, agentRoot = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
   const base = byId.get("awn.field-def");
   if (!base) return null;
   const merged = mergeTypeSchema(base, byId);
@@ -321,8 +379,8 @@ function loadFieldDefFromCatalog(projectRoot) {
   };
 }
 
-function loadBlocksFromCatalog(projectRoot) {
-  const { byId, byDomain } = loadTypeCatalog(projectRoot);
+function loadBlocksFromCatalog(projectRoot, agentRoot = "") {
+  const { byId, byDomain } = loadTypeCatalog(projectRoot, agentRoot);
   const blocksById = {};
 
   for (const entry of byDomain["md-blocks"] || []) {
@@ -348,8 +406,8 @@ function loadBlocksFromCatalog(projectRoot) {
   return blocksById;
 }
 
-function loadBlockGroupsFromCatalog(projectRoot) {
-  const { byId } = loadTypeCatalog(projectRoot);
+function loadBlockGroupsFromCatalog(projectRoot, agentRoot = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
   const groupsEntry = byId.get("awn.block.groups");
   const meta = groupsEntry?.schema || {};
   return {

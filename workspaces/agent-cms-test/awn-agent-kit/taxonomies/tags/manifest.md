@@ -1,6 +1,6 @@
 ---
 awn-name: Теги
-awn-type: catalog
+awn-type: awn.page.catalog
 awn-tags:
   - system
   - catalog

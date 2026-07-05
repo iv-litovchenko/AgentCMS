@@ -1,0 +1,9 @@
+id: awn.view.media-grid
+name: Сетка медиа
+kind: view
+domain: views
+status: active
+extends: awn.entity
+description: Превью-сетка для слота media/
+applies-to-slots:
+  - media

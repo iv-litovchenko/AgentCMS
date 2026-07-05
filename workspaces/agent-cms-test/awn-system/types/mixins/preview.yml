@@ -1,0 +1,10 @@
+id: awn.mixin.preview
+name: Превью
+kind: mixin
+domain: mixins
+status: active
+description: Поле превью-изображения
+fields:
+  awn-preview:
+    type: awn.url
+    name: Превью

@@ -3,10 +3,10 @@ awn-preview: awn-storage/assets/preview/20260623192851.png
 awn-emoji: ""
 awn-name: "[Agent CMS] Test"
 awn-status: 🟢 Открыта
-awn-type: awn.workspace
+awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
 awn-update: 2026-06-23T19:28:51.532Z
-awn-description: Тестовый агент
+awn-description: Тестовый агент. CMS-модель встроена — см. awn-system/MAP.md и AGENTS.md
 awn-main: false
 awn-category: ""
 awn-owner: ""

@@ -1,0 +1,12 @@
+id: awn.slot.references
+name: References
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Ссылки и источники
+path: references/
+allowed-content:
+  - awn.content.record
+accept-files:
+  - ".md"

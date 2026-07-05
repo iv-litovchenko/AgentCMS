@@ -1,0 +1,7 @@
+id: awn.slot
+name: Слот памяти
+kind: slot
+domain: slots
+status: active
+extends: awn.entity
+description: Базовый тип слоя памяти у топика

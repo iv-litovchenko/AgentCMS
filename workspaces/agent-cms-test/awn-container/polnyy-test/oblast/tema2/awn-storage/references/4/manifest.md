@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: 4
 awn-status: done
-awn-type: awn.record.category
+awn-type: awn.content.record.category
 awn-create: 2026-06-25T19:44:30.030Z
 awn-update: 2026-06-25T19:44:30.030Z
 awn-description: ""

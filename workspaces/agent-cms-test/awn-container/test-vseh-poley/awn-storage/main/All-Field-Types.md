@@ -3,7 +3,7 @@ awn-preview: awn-storage/assets/preview/20260623203519.png
 awn-emoji: ""
 awn-name: ""
 awn-status: 🟢 Открыта
-awn-type: awn.record
+awn-type: awn.content.record
 awn-create: "2026-06-21T12:00"
 awn-update: 2026-06-23T20:35:19.097Z
 awn-description: Запись-демо со всеми типами кастомных полей

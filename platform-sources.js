@@ -8,6 +8,14 @@ const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 /** Домены каталога типов platform core (под areas/types/) */
 const TYPE_CATALOG_REL = "types";
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields", "md-blocks"];
+/** Встроенная CMS-модель агента (flat YAML: awn-system/types/{domain}/*.yml) */
+const AGENT_SYSTEM_REL = "awn-system";
+const AGENT_TYPE_DOMAINS = [
+  ...TYPE_DOMAINS,
+  "taxonomies",
+  "views",
+  "mixins"
+];
 
 function getTypeDomainAbsolute(projectRoot, domain) {
   return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TYPE_CATALOG_REL, domain);
@@ -15,6 +23,14 @@ function getTypeDomainAbsolute(projectRoot, domain) {
 
 function getTypeCatalogRootAbsolute(projectRoot) {
   return getAgentCmsCoreAbsolute(projectRoot);
+}
+
+function getAgentSystemAbsolute(agentRoot) {
+  return path.join(String(agentRoot || "").trim(), AGENT_SYSTEM_REL);
+}
+
+function getAgentSystemTypesDir(agentRoot, domain) {
+  return path.join(getAgentSystemAbsolute(agentRoot), "types", domain);
 }
 
 const CATALOG_KIT_REL = path.join(AGENT_CMS_CORE_REL, "catalog");
@@ -71,6 +87,10 @@ module.exports = {
   COMPONENTS_REL,
   TYPE_CATALOG_REL,
   TYPE_DOMAINS,
+  AGENT_SYSTEM_REL,
+  AGENT_TYPE_DOMAINS,
+  getAgentSystemAbsolute,
+  getAgentSystemTypesDir,
   CATALOG_KIT_REL,
   AGENTS_GROUPS_REL,
   AGENTS_GROUPS_FILE,

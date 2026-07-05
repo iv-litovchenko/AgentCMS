@@ -1,0 +1,11 @@
+id: awn.block.groups
+kind: meta
+status: active
+domain: md-blocks
+groupOrder: [structure, text, lists, code, awn]
+groupNames:
+  structure: Структура
+  text: Текст
+  lists: Списки
+  code: Код и таблицы
+  awn: AWN

@@ -3,7 +3,7 @@ awn-preview: awn-storage/assets/preview/preview.png
 awn-emoji: ""
 awn-name: Test
 awn-status: draft
-awn-type: awn.record
+awn-type: awn.content.record
 awn-create: "2026-06-25T00:33"
 awn-update: 2026-06-24T21:34:30.611Z
 awn-description: ""

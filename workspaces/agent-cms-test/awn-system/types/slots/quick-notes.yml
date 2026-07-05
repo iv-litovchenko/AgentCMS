@@ -1,0 +1,12 @@
+id: awn.slot.quick-notes
+name: Quick notes
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+path: quick-notes/
+allowed-content:
+  - awn.content.record
+accept-files:
+  - ".md"
+description: Быстрые заметки

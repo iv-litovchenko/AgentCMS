@@ -1,0 +1,14 @@
+id: awn.slot.scripts
+name: Scripts
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Скрипты и автоматизация
+path: scripts/
+allowed-content:
+  - awn.content.record
+accept-files:
+  - ".md"
+  - ".sh"
+  - ".js"

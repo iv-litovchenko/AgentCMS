@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: Тест 123
 awn-status: 🟢 Открыта
-awn-type: awn.topic
+awn-type: awn.page.topic
 awn-create: 2026-06-29T23:41:05.018Z
 awn-update: 2026-06-29T23:43:10.095Z
 awn-description: ""

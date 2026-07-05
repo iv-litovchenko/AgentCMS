@@ -3,7 +3,7 @@ awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-emoji: ""
 awn-name: PHP
 awn-status: 🟢 Открыта
-awn-type: awn.topic
+awn-type: awn.page.topic
 awn-create: "2026-06-09T02:18"
 awn-update: 2026-06-24T20:25:40.838Z
 awn-description: ""

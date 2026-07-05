@@ -1,7 +1,7 @@
 ---
 awn-name: Голос · STT
 awn-tags: [system, service]
-awn-type: service-doc
+awn-type: awn.page.service-doc
 ---
 
 # Голос · STT

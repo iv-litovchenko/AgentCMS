@@ -1,0 +1,12 @@
+id: awn.slot.thread
+name: Thread
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Цепочка сообщений
+path: thread/
+allowed-content:
+  - awn.content.dialog
+accept-files:
+  - ".md"

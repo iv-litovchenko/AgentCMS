@@ -145,6 +145,14 @@ const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload } = require("./type-catalog-loader");
+const {
+  AGENT_SYSTEM_REL,
+  agentSystemExists,
+  buildAgentSystemMenuTree,
+  readAgentSystemFile,
+  writeAgentSystemFile,
+  getAgentSystemStatus
+} = require("./agent-system");
 const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -3758,6 +3766,7 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
       indexPath: null,
       serviceTree: null,
       containerTree: null,
+      systemTree: null,
       workspaceMissing: true
     };
   }
@@ -3770,6 +3779,7 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   const containerFolder = getAgentContainerFolder();
   let serviceTree = null;
   let containerTree = null;
+  let systemTree = null;
 
   const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder);
   if (kitAbsolute) {
@@ -3787,7 +3797,11 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
     );
   }
 
-  return { ...menu, serviceTree, containerTree };
+  if (agentSystemExists(agentRootAbsolute)) {
+    systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
+  }
+
+  return { ...menu, serviceTree, containerTree, systemTree };
 }
 
 async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = {}) {
@@ -3925,7 +3939,7 @@ async function normalizeNestedContainerMenuTree(tree, containerAbsolute, contain
 
 function dedupeReservedRootMenuSections(menu) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentContainerFolder()]
+    [getAgentKitFolder(), getAgentContainerFolder(), AGENT_SYSTEM_REL]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -5327,6 +5341,47 @@ async function readWorkspaceManifestContent(relPath) {
   }
 }
 
+async function readAgentSystemContext(agentRoot) {
+  const systemRoot = path.join(agentRoot, "awn-system");
+  const readText = async (rel) => {
+    const abs = path.join(systemRoot, rel);
+    try {
+      const content = await fs.readFile(abs, "utf-8");
+      return { path: `awn-system/${rel}`.replace(/\\/g, "/"), exists: true, content };
+    } catch {
+      return { path: `awn-system/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
+    }
+  };
+
+  let typeSummary = null;
+  if (fsSync.existsSync(systemRoot)) {
+    try {
+      const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot);
+      typeSummary = {
+        sources: payload.sources || [],
+        typeCount: Array.isArray(payload.types) ? payload.types.length : 0,
+        domains: Object.keys(payload.domains || {}),
+        agentSystemRoot: payload.agentSystemRoot || null
+      };
+    } catch {
+      typeSummary = null;
+    }
+  }
+
+  return {
+    exists: fsSync.existsSync(systemRoot),
+    root: "awn-system",
+    typeSummary,
+    docs: {
+      map: await readText("MAP.md"),
+      registry: await readText("registry.yml"),
+      slotsBindings: await readText("slots-bindings.yml"),
+      manifest: await readText("manifest.md")
+    },
+    hint: "CMS-модель агента: awn-system/MAP.md и awn-system/types/"
+  };
+}
+
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
@@ -5388,8 +5443,10 @@ async function buildAgentSessionContext() {
     menuSummary = null;
   }
 
+  const awnSystem = await readAgentSystemContext(agentRoot);
+
   return {
-    version: "0.0.2",
+    version: "0.0.3",
     mcpVersion: "0.2.0",
     agentId,
     agentRootRel,
@@ -5397,12 +5454,13 @@ async function buildAgentSessionContext() {
     pathHints: SESSION_PATH_HINTS,
     apiMap: SESSION_CONTEXT_API_MAP,
     menuSummary,
+    awnSystem,
     serviceDocs,
     sessionStartTopics,
     sessionStartCount: sessionStartTopics.length,
     runtimeRegistryTopicCount: registry.topicCount,
     systemFiles,
-    hint: "Один вызов get_session_context в начале сессии вместо grep/curl/ls по репозиторию."
+    hint: "Старт: get_session_context → awn-system/MAP.md → get_menu для контента."
   };
 }
 
@@ -9933,11 +9991,58 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/type-catalog") {
     try {
-      const payload = getTypeCatalogPayload(getProjectRoot());
+      const payload = getTypeCatalogPayload(getProjectRoot(), getAgentRoot() || "");
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load type catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent-system/status") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      return sendJson(res, 200, getAgentSystemStatus(agentRoot, getProjectRoot()));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load agent-system status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent-system/file") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const relPath = String(url.searchParams.get("path") || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const payload = await readAgentSystemFile(agentRoot, relPath);
+      if (!payload.exists) return sendJson(res, 404, { error: "File not found", path: relPath });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read agent-system file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent-system/file") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const saved = await writeAgentSystemFile(agentRoot, relPath, payload?.content ?? "");
+      return sendJson(res, 200, saved);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save agent-system file",
         details: String(error.message || error)
       });
     }

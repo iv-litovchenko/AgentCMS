@@ -3,7 +3,7 @@ awn-preview: awn-storage/assets/preview/20260623203544.png
 awn-emoji: 🧪
 awn-name: Тест всех полей
 awn-status: 🟢 Открыта
-awn-type: awn.topic
+awn-type: awn.page.topic
 awn-create: "2026-06-21T12:00"
 awn-update: 2026-06-23T20:36:31.965Z
 awn-description: Демо-тема для проверки всех виджетов кастомных полей (topic / record / sidecar)

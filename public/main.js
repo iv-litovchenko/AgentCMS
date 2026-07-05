@@ -647,12 +647,15 @@ function isPlatformAgent(agent) {
   return agent?.virtual === true || isPlatformAgentId(agent?.id);
 }
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
-const SERVICE_AREA_NAME = "Служебные темы и компоненты системы";
-const SERVICE_SECTION_LABEL = "Служебные темы и компоненты";
+const SERVICE_AREA_NAME = "Агент и пользователи";
+const SERVICE_SECTION_LABEL = "Агент и пользователи";
 const CONTAINER_SECTION_LABEL = "Контейнер";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
-const KIT_ROOT_HINT = "Правила, справочники и служебные темы агента.";
+const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
+const AGENT_SYSTEM_ROOT = "awn-system";
+const AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY = "agentcms.agentSystemDomains.collapsed.v1";
+const KIT_ROOT_HINT = "Агент, пользователи, taxonomies, thread — не editorial-контент.";
 const CONTAINER_ROOT_HINT = "Области и темы рабочего контента агента.";
 const CONTAINER_ROOT_HINT_GIT =
   "Области и темы контента. В git-репозитории новые узлы из корня создаются здесь.";
@@ -5867,6 +5870,7 @@ async function switchActiveAgent(nextAgentId) {
     activeAgentId = nextAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
     invalidateMarkdownLinkIndexCache();
+    invalidateTypeCatalogCache(nextAgentId);
     hideAppLandingView();
     hideMenuNoAgentPlaceholder();
     syncAppRouteToUrl({ replace: true });
@@ -7449,9 +7453,13 @@ const TYPE_CATALOG_DOMAIN_LABELS = {
   pages: "Страницы",
   content: "Контент",
   slots: "Слоты",
-  base: "База"
+  base: "База",
+  taxonomies: "Таксономии",
+  views: "Представления",
+  mixins: "Миксины"
 };
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
+const agentSystemDomainCollapsedByAgent = loadAgentSystemDomainCollapsedByAgent();
 const pinnedMenuFolderByAgent = loadPinnedMenuFoldersByAgent();
 const bookmarkedPaths = loadBookmarks();
 const menuTreeSettingsByAgent = loadMenuTreeSettingsByAgent();
@@ -8970,6 +8978,72 @@ function saveCollapsedFoldersByAgent() {
     localStorage.setItem(COLLAPSED_FOLDERS_STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // Ignore storage write issues (private mode, quota, etc.)
+  }
+}
+
+function loadAgentSystemDomainCollapsedByAgent() {
+  const byAgent = {};
+  try {
+    const raw = readStorageItem(AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY);
+    if (!raw) return byAgent;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return byAgent;
+    for (const [agentId, paths] of Object.entries(parsed)) {
+      if (!Array.isArray(paths)) continue;
+      const set = new Set();
+      for (const folderPath of paths) {
+        const normalized = normalizeFolderPath(folderPath);
+        if (normalized) set.add(normalized);
+      }
+      if (set.size) byAgent[agentId] = set;
+    }
+  } catch {
+    return byAgent;
+  }
+  return byAgent;
+}
+
+function saveAgentSystemDomainCollapsedByAgent() {
+  try {
+    const payload = {};
+    for (const [agentId, paths] of Object.entries(agentSystemDomainCollapsedByAgent)) {
+      if (!paths || paths.size === 0) continue;
+      payload[agentId] = Array.from(paths);
+    }
+    localStorage.setItem(AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function getAgentSystemDomainCollapsedSet(agentId = activeAgentId) {
+  const id = String(agentId || "main").trim() || "main";
+  if (!agentSystemDomainCollapsedByAgent[id]) {
+    agentSystemDomainCollapsedByAgent[id] = new Set();
+  }
+  return agentSystemDomainCollapsedByAgent[id];
+}
+
+function getAgentSystemDomainCollapseKey(section) {
+  return normalizeFolderPath(section?.folderPath || section?.title || "");
+}
+
+function isAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+  const key = getAgentSystemDomainCollapseKey(section);
+  if (!key) return false;
+  return getAgentSystemDomainCollapsedSet(agentId).has(key);
+}
+
+function toggleAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+  const key = getAgentSystemDomainCollapseKey(section);
+  if (!key) return;
+  const collapsed = getAgentSystemDomainCollapsedSet(agentId);
+  if (collapsed.has(key)) collapsed.delete(key);
+  else collapsed.add(key);
+  saveAgentSystemDomainCollapsedByAgent();
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (menu) {
+    withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
   }
 }
 
@@ -11240,6 +11314,10 @@ async function openNodeFromMenu(label, filePath, options = {}) {
     }
     return;
   }
+  if (isAgentSystemEditableFilePath(nextPath)) {
+    await selectAgentSystemFile(label, nextPath, options);
+    return;
+  }
   try {
     await loadNodeConfig(filePath);
   } catch {
@@ -12756,15 +12834,19 @@ function isGitRepoLooseMdEditing() {
 
 function isPlainServiceStyleOpen() {
   if (activeSystemFile) return true;
+  if (isAgentSystemFileEditing()) return true;
   return isGitRepoLooseFilePath(activePath) && !isGitRepoLooseMdEditing();
 }
 
 function isServiceStyleContentOpen() {
-  return Boolean(activeSystemFile) || isGitRepoLooseFilePath(activePath);
+  return Boolean(activeSystemFile) || isGitRepoLooseFilePath(activePath) || isAgentSystemFileEditing();
 }
 
 function getServiceStyleContentLabel() {
   if (activeSystemFile) return activeSystemFile;
+  if (isAgentSystemFileEditing()) {
+    return activePath.split("/").filter(Boolean).pop() || activePath;
+  }
   if (isGitRepoLooseFilePath(activePath)) {
     return activePath.split("/").filter(Boolean).pop() || activePath;
   }
@@ -22889,9 +22971,39 @@ let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
-let typeCatalogCache = null;
-let typeCatalogLoadPromise = null;
+let typeCatalogCacheByAgent = new Map();
+let typeCatalogLoadPromiseByAgent = new Map();
 let agentCatalogsCache = null;
+
+function invalidateTypeCatalogCache(agentId = activeAgentId) {
+  const cacheKey = String(agentId || "default");
+  typeCatalogCacheByAgent.delete(cacheKey);
+  typeCatalogLoadPromiseByAgent.delete(cacheKey);
+}
+
+function isAgentSystemRelPath(nodePath) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  return normalized === AGENT_SYSTEM_ROOT || normalized.startsWith(`${AGENT_SYSTEM_ROOT}/`);
+}
+
+function isAgentSystemManifestPath(nodePath) {
+  return isAgentSystemRelPath(nodePath) && /(^|\/)manifest\.md$/i.test(normalizeMenuNodePath(nodePath));
+}
+
+function isAgentSystemEditableFilePath(nodePath) {
+  return isAgentSystemRelPath(nodePath) && !isAgentSystemManifestPath(nodePath);
+}
+
+function isAgentSystemFileEditing() {
+  return isAgentSystemEditableFilePath(activePath);
+}
+
+function agentHasTypeCatalogOverview(nodePath = activePath) {
+  if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return true;
+  if (currentMenuData?.systemTree) return true;
+  return isAgentSystemRelPath(nodePath);
+}
+
 let agentCatalogsLoadPromise = null;
 let awnTypesSelectedKey = null;
 
@@ -31947,43 +32059,55 @@ function appendNavigationHeroProps(hero, propEntries = []) {
   return propsSection;
 }
 
-async function loadTypeCatalog() {
-  if (typeCatalogCache) return typeCatalogCache;
-  if (typeCatalogLoadPromise) return typeCatalogLoadPromise;
-  typeCatalogLoadPromise = (async () => {
+async function loadTypeCatalog(agentId = activeAgentId) {
+  const cacheKey = String(agentId || "default");
+  if (typeCatalogCacheByAgent.has(cacheKey)) return typeCatalogCacheByAgent.get(cacheKey);
+  if (typeCatalogLoadPromiseByAgent.has(cacheKey)) return typeCatalogLoadPromiseByAgent.get(cacheKey);
+  const loadPromise = (async () => {
     try {
-      let response = await fetch(buildApiUrl("/api/type-catalog", {}, "agent-cms-core"));
+      let response = await fetch(buildApiUrl("/api/type-catalog", {}, agentId));
       if (response.ok) {
-        typeCatalogCache = await response.json();
-        return typeCatalogCache;
+        const payload = await response.json();
+        typeCatalogCacheByAgent.set(cacheKey, payload);
+        return payload;
       }
-      response = await fetch(buildApiUrl("/api/awn-types", {}, "agent-cms-core"));
+      response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
       if (response.ok) {
         const payload = await response.json();
         if (payload?.typeCatalog?.browseTypes || payload?.typeCatalog?.types) {
-          typeCatalogCache = payload.typeCatalog;
-          return typeCatalogCache;
+          typeCatalogCacheByAgent.set(cacheKey, payload.typeCatalog);
+          return payload.typeCatalog;
         }
       }
-      typeCatalogCache = null;
+      typeCatalogCacheByAgent.set(cacheKey, null);
       return null;
     } catch {
-      typeCatalogCache = null;
+      typeCatalogCacheByAgent.set(cacheKey, null);
       return null;
     } finally {
-      typeCatalogLoadPromise = null;
+      typeCatalogLoadPromiseByAgent.delete(cacheKey);
     }
   })();
-  return typeCatalogLoadPromise;
+  typeCatalogLoadPromiseByAgent.set(cacheKey, loadPromise);
+  return loadPromise;
 }
 
 function resolveTypeCatalogOverviewContext(nodePath) {
-  if (!TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return null;
+  if (!agentHasTypeCatalogOverview(nodePath)) return null;
   const path = String(nodePath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
 
   const domainRules = [
+    [/awn-system\/types\/fields(\/|$)/, "fields"],
+    [/awn-system\/types\/md-blocks(\/|$)/, "md-blocks"],
+    [/awn-system\/types\/pages(\/|$)/, "pages"],
+    [/awn-system\/types\/content(\/|$)/, "content"],
+    [/awn-system\/types\/slots(\/|$)/, "slots"],
+    [/awn-system\/types\/base(\/|$)/, "base"],
+    [/awn-system\/types\/taxonomies(\/|$)/, "taxonomies"],
+    [/awn-system\/types\/views(\/|$)/, "views"],
+    [/awn-system\/types\/mixins(\/|$)/, "mixins"],
     [/(^|\/)types\/fields(\/|$)/, "fields"],
     [/(^|\/)types\/md-blocks(\/|$)/, "md-blocks"],
     [/(^|\/)types\/pages(\/|$)/, "pages"],
@@ -31996,6 +32120,8 @@ function resolveTypeCatalogOverviewContext(nodePath) {
     [/(^|\/)content(\/|$)/, "content"],
     [/(^|\/)slots(\/|$)/, "slots"],
     [/(^|\/)base(\/|$)/, "base"],
+    [/(^|\/)types\/mixins(\/|$)/, "mixins"],
+    [/awn-system(\/|$)/, "__all__"],
     [/(^|\/)types(\/|$)/, "__all__"],
     [/(^|\/)components\/fields(\/|$)/, "fields"],
     [/(^|\/)components\/markdown-blocks(\/|$)/, "md-blocks"],
@@ -32075,12 +32201,24 @@ function renderNodeOverviewTypeRegistryList(types, context) {
       row.setAttribute("role", "button");
       row.title = `Открыть ${entry.catalogFile}`;
       row.addEventListener("click", () => {
-        void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+        if (entry.catalogFile && isAgentSystemEditableFilePath(entry.catalogFile)) {
+          void selectAgentSystemFile(entry.name || entry.id, entry.catalogFile);
+          return;
+        }
+        if (entry.catalogFile) {
+          void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+        }
       });
       row.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
-        void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+        if (entry.catalogFile && isAgentSystemEditableFilePath(entry.catalogFile)) {
+          void selectAgentSystemFile(entry.name || entry.id, entry.catalogFile);
+          return;
+        }
+        if (entry.catalogFile) {
+          void openNodeFromMenu(entry.name || entry.id, entry.catalogFile);
+        }
       });
     }
 
@@ -32119,7 +32257,11 @@ function renderNodeOverviewTypeRegistryList(types, context) {
 
 function renderNodeOverviewTypeRegistryFold(types, context) {
   if (!types.length && !context) return null;
-  const domainLabel = context.domain ? TYPE_CATALOG_DOMAIN_LABELS[context.domain] || context.domain : "Platform";
+  const domainLabel = context.domain
+    ? TYPE_CATALOG_DOMAIN_LABELS[context.domain] || context.domain
+    : agentHasTypeCatalogOverview(context.path)
+      ? AGENT_SYSTEM_SECTION_LABEL
+      : "Platform";
   const title = context.allDomains ? `Типы · ${types.length}` : `${domainLabel} · ${types.length}`;
   const list = renderNodeOverviewTypeRegistryList(types, context);
   const accordion = createOverviewAccordionSection(OVERVIEW_TYPES_ACCORDION_GROUP_ID, title, list, {
@@ -32133,7 +32275,7 @@ async function appendNodeOverviewTypeRegistryFold(container, nodePath) {
   if (!container) return;
   const context = resolveTypeCatalogOverviewContext(nodePath);
   if (!context) return;
-  const catalog = typeCatalogCache || (await loadTypeCatalog());
+  const catalog = typeCatalogCacheByAgent.get(String(activeAgentId || "default")) || (await loadTypeCatalog(activeAgentId));
   if (!catalog) return;
   const types = filterOverviewTypeCatalogEntries(catalog, context);
   const fold = renderNodeOverviewTypeRegistryFold(types, context);
@@ -41715,6 +41857,9 @@ function menuSearchHasResults(menu) {
   if (menu.containerTree && filterMenuTree({ title: CONTAINER_SECTION_LABEL, ...menu.containerTree }, queryLower)) {
     return true;
   }
+  if (menu.systemTree && filterMenuTree({ title: AGENT_SYSTEM_SECTION_LABEL, ...menu.systemTree }, queryLower)) {
+    return true;
+  }
   const entries = [
     ...collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true }),
     ...collectSystemFileMenuEntries(systemFilesCache)
@@ -41784,6 +41929,202 @@ function clearMenuServiceSection(parentEl) {
 
 function clearMenuContainerSection(parentEl) {
   parentEl?.querySelectorAll(".menu-container-section").forEach((node) => node.remove());
+}
+
+function clearMenuAgentSystemSection(parentEl) {
+  parentEl?.querySelectorAll(".menu-agent-system-section").forEach((node) => node.remove());
+}
+
+function isAgentSystemTreeCollapsed() {
+  return localStorage.getItem("agentcms.agentSystemTree.collapsed.v1") === "1";
+}
+
+function toggleAgentSystemTreeCollapsed() {
+  const next = !isAgentSystemTreeCollapsed();
+  localStorage.setItem("agentcms.agentSystemTree.collapsed.v1", next ? "1" : "0");
+  if (currentMenuData) {
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+  }
+}
+
+function sanitizeAgentSystemFolderCollapseState(agentId = activeAgentId) {
+  const collapsed = getAgentCollapsedFolders(agentId);
+  let changed = false;
+  for (const path of [...collapsed]) {
+    if (path === AGENT_SYSTEM_ROOT || path.startsWith(`${AGENT_SYSTEM_ROOT}/`)) {
+      collapsed.delete(path);
+      changed = true;
+    }
+  }
+  if (changed) saveCollapsedFoldersByAgent();
+}
+
+function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
+  if (!item?.path || !parentEl) return null;
+  const itemRow = document.createElement("div");
+  itemRow.className = "menu-item-row menu-agent-system-item-row";
+  itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-item menu-item--agent-system";
+  btn.dataset.path = normalizeMenuNodePath(item.path);
+  if (item.systemFile) btn.dataset.systemFile = "1";
+  applyNodeColorVars(btn, item.typeKind === "page" ? "blue" : item.typeKind === "slot" ? "teal" : "slate");
+  setMenuLabelWithMarkers(btn, item.label || getLabelFromPath(item.path), item, "menu-item-name", {
+    skipAgentMarker: true
+  });
+  btn.addEventListener("click", () => {
+    if (isAgentSystemEditableFilePath(item.path)) {
+      void selectAgentSystemFile(item.label || getLabelFromPath(item.path), item.path);
+      return;
+    }
+    void openNodeFromMenu(item.label || getLabelFromPath(item.path), item.path);
+  });
+
+  itemRow.appendChild(btn);
+  parentEl.appendChild(itemRow);
+  return itemRow;
+}
+
+function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgentId) {
+  if (!section?.items?.length || !parentEl) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "menu-agent-system-domain";
+  wrap.dataset.menuFolder = getAgentSystemDomainCollapseKey(section);
+
+  const headRow = document.createElement("div");
+  headRow.className = "menu-folder-row menu-agent-system-domain-head";
+
+  const visibleItems = (section.items || []).filter((item) => {
+    const queryLower = menuSearchQuery.trim().toLowerCase();
+    if (!queryLower) return true;
+    return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
+  });
+  if (!visibleItems.length) return null;
+
+  const collapsed = menuSearchQuery.trim() ? false : isAgentSystemDomainCollapsed(section, agentId);
+  const toggleCollapsed = () => toggleAgentSystemDomainCollapsed(section, agentId);
+  headRow.appendChild(createFolderToggleButton(visibleItems.length > 0, collapsed, toggleCollapsed));
+
+  const folderButton = document.createElement("button");
+  folderButton.type = "button";
+  folderButton.className = "menu-folder menu-folder-agent-system-domain";
+  folderButton.textContent = section.title || section.folderPath || "Types";
+  folderButton.title = collapsed ? "Раскрыть" : "Скрыть";
+  folderButton.addEventListener("click", toggleCollapsed);
+  headRow.appendChild(folderButton);
+  wrap.appendChild(headRow);
+
+  if (!collapsed) {
+    const body = document.createElement("div");
+    body.className = "tree-children menu-agent-system-domain-body";
+    for (const item of visibleItems) {
+      renderAgentSystemMenuItem(item, body, agentId);
+    }
+    wrap.appendChild(body);
+  }
+
+  parentEl.appendChild(wrap);
+  return wrap;
+}
+
+function renderAgentSystemTreeBody(systemTree, body, agentId = activeAgentId) {
+  if (!systemTree || !body) return;
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+
+  for (const item of systemTree.items || []) {
+    if (queryLower && !nodeMatchesQuery(item.label, queryLower) && !nodeMatchesQuery(item.path, queryLower)) {
+      continue;
+    }
+    renderAgentSystemMenuItem(item, body, agentId);
+  }
+
+  for (const section of systemTree.sections || []) {
+    renderAgentSystemDomainSection(section, body, agentId);
+  }
+}
+
+function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId) {
+  if (!systemTree || !parentEl) return;
+  sanitizeAgentSystemFolderCollapseState(agentId);
+  clearMenuAgentSystemSection(parentEl);
+
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  const filteredItems = (systemTree.items || []).filter((item) => {
+    if (!queryLower) return true;
+    return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
+  });
+  const filteredSections = (systemTree.sections || [])
+    .map((section) => {
+      const items = (section.items || []).filter((item) => {
+        if (!queryLower) return true;
+        return nodeMatchesQuery(item.label, queryLower) || nodeMatchesQuery(item.path, queryLower);
+      });
+      return items.length ? { ...section, items } : null;
+    })
+    .filter(Boolean);
+  const hasContent =
+    filteredItems.length > 0 ||
+    filteredSections.length > 0 ||
+    Boolean(systemTree.indexPath);
+  if (!hasContent && queryLower) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "menu-agent-system-section";
+
+  const headRow = document.createElement("div");
+  headRow.className = "menu-folder-row menu-agent-system-head";
+  const collapsed = queryLower ? false : isAgentSystemTreeCollapsed();
+  headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleAgentSystemTreeCollapsed));
+
+  const manifestPath = systemTree.indexPath;
+  if (manifestPath) {
+    const folderButton = document.createElement("button");
+    folderButton.type = "button";
+    folderButton.className = "menu-folder menu-folder-agent-system-root";
+    folderButton.dataset.path = normalizeMenuNodePath(manifestPath);
+    applyNodeColorVars(folderButton, "#6366f1", { isFolder: true });
+    setMenuLabelWithMarkers(
+      folderButton,
+      AGENT_SYSTEM_SECTION_LABEL,
+      systemTree,
+      "menu-folder-name",
+      { skipAgentMarker: true }
+    );
+    folderButton.addEventListener("click", () => {
+      void openNodeFromMenu(AGENT_SYSTEM_SECTION_LABEL, manifestPath);
+    });
+    headRow.appendChild(folderButton);
+    headRow.appendChild(createBookmarkButton(manifestPath));
+  } else {
+    const title = document.createElement("h3");
+    title.className = "menu-agent-system-title";
+    title.textContent = AGENT_SYSTEM_SECTION_LABEL;
+    title.title = systemTree.typeCount
+      ? `${systemTree.typeCount} типов · базовая CMS-модель`
+      : "Базовая CMS-модель агента";
+    if (hasContent) title.addEventListener("click", toggleAgentSystemTreeCollapsed);
+    headRow.appendChild(title);
+  }
+
+  wrap.appendChild(headRow);
+
+  if (!collapsed && hasContent) {
+    const body = document.createElement("div");
+    body.className = "tree-children menu-agent-system-body";
+    body.dataset.sortFolder = AGENT_SYSTEM_ROOT;
+    renderAgentSystemTreeBody(
+      { ...systemTree, items: filteredItems, sections: filteredSections },
+      body,
+      agentId
+    );
+    wrap.appendChild(body);
+  }
+
+  insertMenuReservedNode(parentEl, wrap, "system");
+  normalizeMenuReservedSectionsOrder(parentEl);
 }
 
 function clearMenuConfigurationSection(parentEl) {
@@ -41902,11 +42243,12 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleServiceTreeCollapsed));
 
   if (serviceManifestPath) {
-    const serviceLabel = getServiceRootMenuTitle(agentId);
+    const serviceLabel = SERVICE_SECTION_LABEL;
     const folderButton = document.createElement("button");
     folderButton.type = "button";
     folderButton.className = "menu-folder menu-folder-service-root";
     folderButton.dataset.path = normalizeMenuNodePath(serviceManifestPath);
+    folderButton.title = KIT_ROOT_HINT;
     applyNodeColorVars(folderButton, treeToRender.color, { isFolder: true });
     setMenuLabelWithMarkers(
       folderButton,
@@ -41917,7 +42259,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
     );
     folderButton.addEventListener("click", (event) => {
       const pathFromNode = event.currentTarget?.dataset?.path || "";
-      openNodeFromMenu(serviceLabel, pathFromNode);
+      openNodeFromMenu(getLabelFromPath(pathFromNode) || serviceLabel, pathFromNode);
     });
     headRow.appendChild(folderButton);
 
@@ -41940,7 +42282,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
     const title = document.createElement("h3");
     title.className = "menu-service-title";
     title.textContent = SERVICE_SECTION_LABEL;
-    title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "";
+    title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : KIT_ROOT_HINT;
     if (hasContent) {
       title.addEventListener("click", toggleServiceTreeCollapsed);
     }
@@ -42202,18 +42544,19 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
 
 function normalizeMenuReservedSectionsOrder(parentEl) {
   if (!parentEl) return;
+  const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
   const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
-  if (!kit && !container && !configuration) return;
+  if (!system && !kit && !container && !configuration) return;
 
-  const reserved = new Set([kit, container, configuration].filter(Boolean));
+  const reserved = new Set([system, kit, container, configuration].filter(Boolean));
   let insertRef = parentEl.firstChild;
   while (insertRef && reserved.has(insertRef)) {
     insertRef = insertRef.nextSibling;
   }
 
-  [kit, container, configuration].filter(Boolean).forEach((node) => {
+  [system, kit, container, configuration].filter(Boolean).forEach((node) => {
     parentEl.insertBefore(node, insertRef);
   });
 
@@ -42240,9 +42583,11 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
   if (!parentEl) return;
 
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
   const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
+  const showSystem = Boolean(system && hasVisibleAgentSystemSection(menu));
   const showKit = Boolean(kit && hasVisibleKitSection(menu, agentId));
   const showContainer = Boolean(container && hasVisibleContainerSection(menu, agentId));
   const showConfiguration = Boolean(configuration && hasVisibleConfigurationSection(menu));
@@ -42254,7 +42599,9 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
       ? container
       : showKit
         ? kit
-        : null;
+        : showSystem
+          ? system
+          : null;
   if (workspaceAnchor && showWorkspace) {
     workspaceAnchor.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
   }
@@ -42276,15 +42623,27 @@ function syncMenuSystemFilesDivider(parentEl, hasSystemFiles) {
 
 function insertMenuReservedNode(parentEl, node, slot = "kit") {
   if (!parentEl || !node) return;
-  if (slot === "kit") {
+  if (slot === "system") {
     parentEl.insertBefore(node, parentEl.firstChild);
+    return;
+  }
+  if (slot === "kit") {
+    const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
+    if (systemSection) {
+      systemSection.insertAdjacentElement("afterend", node);
+    } else {
+      parentEl.insertBefore(node, parentEl.firstChild);
+    }
     return;
   }
   const kitSection = parentEl.querySelector(":scope > .menu-service-section");
   const containerSection = parentEl.querySelector(":scope > .menu-container-section");
+  const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
   if (slot === "container") {
     if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
+    } else if (systemSection) {
+      systemSection.insertAdjacentElement("afterend", node);
     } else {
       parentEl.insertBefore(node, parentEl.firstChild);
     }
@@ -42296,13 +42655,15 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
       containerSection.insertAdjacentElement("afterend", node);
     } else if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
+    } else if (systemSection) {
+      systemSection.insertAdjacentElement("afterend", node);
     } else {
       parentEl.insertBefore(node, parentEl.firstChild);
     }
     return;
   }
   if (slot === "divider") {
-    const anchor = configurationSection || containerSection || kitSection;
+    const anchor = configurationSection || containerSection || kitSection || systemSection;
     if (anchor) {
       anchor.insertAdjacentElement("afterend", node);
     } else {
@@ -42324,6 +42685,7 @@ function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
   const tree = { title: getAgentTreeTitle(agentId), ...menu };
   delete tree.serviceTree;
   delete tree.containerTree;
+  delete tree.systemTree;
   delete tree.configurationTree;
   delete tree.workspaceMissing;
   return tree;
@@ -42347,12 +42709,22 @@ function hasVisibleKitSection(menu, agentId = activeAgentId) {
   return Boolean(menu?.serviceTree && shouldShowServiceSectionInMenu(agentId));
 }
 
+function hasVisibleAgentSystemSection(menu) {
+  return Boolean(menu?.systemTree);
+}
+
 function hasVisibleConfigurationSection(menu) {
   return Boolean(menu?.configurationTree);
 }
 
 function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId) {
   if (!parentEl) return;
+
+  if (menu?.systemTree) {
+    renderAgentSystemSection(menu.systemTree, parentEl, agentId);
+  } else {
+    clearMenuAgentSystemSection(parentEl);
+  }
 
   if (menu?.serviceTree && shouldShowServiceSectionInMenu(agentId)) {
     renderServiceSection(menu.serviceTree, parentEl, agentId);
@@ -43626,6 +43998,47 @@ async function selectRepoLooseFile(label, filePath, options = {}) {
   }
 }
 
+async function selectAgentSystemFile(label, filePath, options = {}) {
+  const normalizedPath = normalizeMenuNodePath(filePath);
+  if (!isAgentSystemEditableFilePath(normalizedPath)) {
+    await openNodeFromMenu(label, filePath, options);
+    return;
+  }
+
+  hideHomeView();
+  nodeOverviewRenderSeq += 1;
+  activeSystemFile = null;
+  activePath = normalizedPath;
+  activeLabel = label || getLabelFromPath(normalizedPath);
+  activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  clearMediaSidecarEditor();
+  updateActiveButton();
+  setLoading("Загрузка типа...");
+  setPropsYamlContent("");
+  applyContentModeState("description");
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent-system/file", { path: normalizedPath }));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    fileContentInputNode.value = data.content || "";
+    applyModeUi();
+    refreshEditorViewContent();
+    commitEditorSaveBaseline();
+  } catch (error) {
+    fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
+    applyModeUi();
+    commitEditorSaveBaseline();
+  } finally {
+    hideContentLoading({ force: true });
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ replace: true });
+    }
+  }
+}
+
 async function selectFile(label, filePath) {
   if (isGitRepoLooseFilePath(filePath)) {
     await selectRepoLooseFile(label, filePath);
@@ -44209,6 +44622,36 @@ async function saveContent() {
       await loadSystemFiles();
       saveSucceeded = true;
       showToast("Сохранено", "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
+
+  if (isAgentSystemFileEditing()) {
+    if (deferDescriptionContentBuild) {
+      content = getEditorContentValue();
+    }
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      const response = await fetch(buildApiUrl("/api/agent-system/file"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: getActiveNodeApiPath(), content })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      invalidateTypeCatalogCache(activeAgentId);
+      saveSucceeded = true;
+      showToast("Тип сохранён", "success");
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
@@ -49439,6 +49882,10 @@ function renderMenuTreeChildInto(
   setMenuTreeItemLabel(btn, item, parentMenuNode, agentId);
   btn.addEventListener("click", (event) => {
     const pathFromNode = event.currentTarget?.dataset?.path || "";
+    if (item.systemFile && isAgentSystemEditableFilePath(pathFromNode)) {
+      void selectAgentSystemFile(getLabelFromPath(pathFromNode), pathFromNode);
+      return;
+    }
     openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
   });
 

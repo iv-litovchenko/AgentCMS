@@ -1,0 +1,12 @@
+id: awn.mixin.attachments
+name: Вложения
+kind: mixin
+domain: mixins
+status: active
+description: Прикреплённые файлы
+fields:
+  awn-attachments:
+    type: awn.array
+    name: Вложения
+    items: awn.file
+    widget: attachments

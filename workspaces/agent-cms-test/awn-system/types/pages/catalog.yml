@@ -1,0 +1,12 @@
+id: awn.page.catalog
+name: Справочник
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Каталог-справочник (tags, statuses) — manifest + main.csv
+menu-visible: true
+storage-slots: []
+tags-default:
+  - catalog
+manifest-pattern: "{slug}/manifest.md"

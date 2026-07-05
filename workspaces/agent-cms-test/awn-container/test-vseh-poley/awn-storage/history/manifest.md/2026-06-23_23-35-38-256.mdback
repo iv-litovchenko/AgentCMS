@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: "🧪"
 awn-name: All Field Types
 awn-status: 🟡 Черновик
-awn-type: awn.topic
+awn-type: awn.page.topic
 awn-create: "2026-06-21T12:00"
 awn-update: "2026-06-21T12:00"
 awn-description: Демо-тема для проверки всех виджетов кастомных полей (topic / record / sidecar)

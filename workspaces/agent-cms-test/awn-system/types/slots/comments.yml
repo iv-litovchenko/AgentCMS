@@ -1,0 +1,12 @@
+id: awn.slot.comments
+name: Comments
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+path: comments/
+allowed-content:
+  - awn.content.comment
+accept-files:
+  - ".md"
+description: Комментарии к узлам

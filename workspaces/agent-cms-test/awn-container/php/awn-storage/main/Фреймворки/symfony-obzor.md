@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: Symfony обзор
 awn-status: 🟡 Черновик
-awn-type: awn.record
+awn-type: awn.content.record
 awn-create: "2026-06-11T11:14"
 awn-update: 2026-06-11T08:14:04.262Z
 awn-description: ""

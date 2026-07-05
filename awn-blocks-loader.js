@@ -137,8 +137,8 @@ function loadBlocksFromComponents(projectRoot, agentRoot) {
 
 function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveBlocksContext(agentRoot, projectRoot);
-  let blocksById = loadBlocksFromCatalog(root);
-  let meta = loadBlockGroupsFromCatalog(root);
+  let blocksById = loadBlocksFromCatalog(root, agent);
+  let meta = loadBlockGroupsFromCatalog(root, agent);
 
   if (!Object.keys(blocksById).length) {
     blocksById = loadBlocksFromComponents(root, agent);

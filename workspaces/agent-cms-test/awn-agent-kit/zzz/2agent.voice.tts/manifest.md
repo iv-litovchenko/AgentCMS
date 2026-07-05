@@ -1,7 +1,7 @@
 ---
 awn-name: Голос · TTS
 awn-status: open
-awn-type: service-doc
+awn-type: awn.page.service-doc
 awn-runtime-load: session-start
 awn-tags:
   - system

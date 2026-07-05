@@ -3,7 +3,7 @@ awn-preview: ""
 awn-emoji: ""
 awn-name: 2
 awn-status: 🟡 Черновик
-awn-type: awn.media.category
+awn-type: awn.content.media.category
 awn-create: 2026-06-25T19:50:46.933Z
 awn-update: 2026-06-25T19:50:46.933Z
 awn-description: ""

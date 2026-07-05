@@ -1,0 +1,13 @@
+id: awn.slot.inbox
+name: Inbox
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+description: Входящие заметки и черновики
+path: inbox/
+allowed-content:
+  - awn.content.record
+accept-files:
+  - ".md"
+  - ".txt"

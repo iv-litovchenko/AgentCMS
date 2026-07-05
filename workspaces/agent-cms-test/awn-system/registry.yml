@@ -1,0 +1,20 @@
+version: 1
+mode: agent-owned
+agent: agent-cms-test
+description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-system/types/
+domains:
+  - base
+  - content
+  - fields
+  - md-blocks
+  - pages
+  - slots
+  - taxonomies
+  - views
+  - mixins
+docs:
+  map: awn-system/MAP.md
+  agents: AGENTS.md
+
+canonical-types: migrated
+migration-date: "2026-07-05"

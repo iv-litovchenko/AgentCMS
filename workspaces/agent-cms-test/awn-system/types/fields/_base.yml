@@ -1,0 +1,88 @@
+id: awn.field-def
+name: Мета-свойства поля
+kind: base
+domain: fields
+status: active
+extends: awn.entity
+description: Мета-свойства определения поля
+properties:
+  type:
+    title: Тип данных
+    description: Тип из fields/ (awn.string, awn.enum, awn.array…)
+    required: true
+  name:
+    title: Название
+    description: Подпись поля в форме «Свойства» (человекочитаемое имя)
+    required: true
+  title:
+    title: Название (legacy)
+    description: Устаревший alias для name — не используйте в новых схемах
+    type: awn.string
+  description:
+    title: Описание
+    description: Развёрнутое пояснение для схемы и документации
+    type: awn.text
+  hint:
+    title: Подсказка
+    description: Краткая подсказка в UI (placeholder, title)
+    type: awn.string
+  required:
+    type: awn.boolean
+    title: Обязательное
+    description: Поле должно быть заполнено
+    default: false
+  locked:
+    type: awn.boolean
+    title: Заблокированное
+    description: Только чтение в форме (системное или вычисляемое значение)
+    default: false
+  format:
+    title: Формат
+    description: Пример или шаблон заполнения (0.0.1, YYYY-MM-DD)
+    type: awn.string
+  default:
+    title: По умолчанию
+    description: Значение при создании (key для enum, ключи для array)
+    type: awn.string
+  widget:
+    title: Виджет
+    description: "awn.enum: select | radio; awn.array: checkbox | select-multiple"
+    type: awn.string
+  enum:
+    title: Варианты
+    description: "Список key/name для awn.enum и awn.array (key — в YAML, name — в UI)"
+  items:
+    title: Элемент списка
+    description: Тип элементов для array-* (awn.string, awn.link…)
+    type: awn.string
+  multiple:
+    type: awn.boolean
+    title: Несколько файлов
+    description: "false — один файл, true — список файлов"
+    default: false
+  accept:
+    title: Допустимые форматы
+    description: "Расширения или шаблоны через запятую: .pdf, .png, image/*"
+    type: awn.string
+  upload:
+    type: awn.boolean
+    title: Загрузка файлов
+    description: Разрешить загрузку с диска (как у вложений)
+    default: false
+  insertInText:
+    type: awn.boolean
+    title: Вставка в текст
+    description: Кнопка вставки ссылки или изображения в редактор
+    default: false
+  scope:
+    title: Область файлов
+    description: Где искать файлы при выборе
+    type: awn.enum
+    enum:
+      - key: topic
+        name: Текущий топик
+      - key: area
+        name: Текущая область
+      - key: system
+        name: Вся система
+status: active

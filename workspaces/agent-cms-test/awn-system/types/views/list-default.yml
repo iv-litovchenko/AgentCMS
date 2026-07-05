@@ -1,0 +1,12 @@
+id: awn.view.list
+name: Список
+kind: view
+domain: views
+status: active
+extends: awn.entity
+description: Табличный/списковый вид записей слота
+applies-to-slots:
+  - main
+  - inbox
+  - references
+  - quick-notes

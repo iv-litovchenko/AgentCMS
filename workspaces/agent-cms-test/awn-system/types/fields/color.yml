@@ -1,0 +1,9 @@
+id: awn.color
+name: Цвет
+kind: field
+storage: string
+mdbase: color
+widget: color
+description: Цвет в формате #RRGGBB
+settings: [description, hint, required, locked, format, default]
+status: active
