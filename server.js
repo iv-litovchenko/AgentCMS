@@ -373,6 +373,7 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".yaml": "text/yaml; charset=utf-8",
   ".yml": "text/yaml; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
@@ -7795,7 +7796,10 @@ async function serveIndexHtml(res) {
 }
 
 async function serveStatic(reqPath, res) {
-  const normalizedPath = reqPath === "/shell" || reqPath === "/shell/" ? "/shell/index.html" : reqPath;
+  let normalizedPath = reqPath === "/shell" || reqPath === "/shell/" ? "/shell/index.html" : reqPath;
+  if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
+    normalizedPath = `${normalizedPath}index.html`;
+  }
   const targetPath = normalizedPath === "/" ? "/index.html" : normalizedPath;
   const safePath = path.normalize(targetPath).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
   const filePath = path.join(getPublicDir(), safePath);

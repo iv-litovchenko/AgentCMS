@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1419" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agent Shell" />
+    <title>Agent Shell · Mobile</title>
+    <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
+    <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
+    <link rel="manifest" href="/shell/mobile/manifest.webmanifest" />
+    <link rel="stylesheet" href="/shell/mobile/mobile.css?v=2" />
+  </head>
+  <body>
+    <div class="mobile-app">
+      <header class="mobile-header">
+        <div class="mobile-header-main">
+          <div class="mobile-title-row">
+            <img class="mobile-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
+            <h1>Agent Shell</h1>
+          </div>
+          <p class="mobile-sub" id="mobile-connection">Подключение…</p>
+          <div class="mobile-meta">
+            <span class="mobile-chip" id="mobile-route">—</span>
+            <span class="mobile-chip mobile-chip--muted" id="mobile-server"></span>
+          </div>
+        </div>
+        <div class="mobile-header-actions">
+          <button type="button" class="mobile-icon-btn" id="mobile-reconnect-btn" title="Переподключить" aria-label="Переподключить">↻</button>
+          <button type="button" class="mobile-icon-btn" id="mobile-settings-btn" aria-label="Настройки">⚙️</button>
+        </div>
+      </header>
+
+      <section class="mobile-phase" id="mobile-phase" data-phase="waiting">
+        <div class="mobile-phase-ring" aria-hidden="true"></div>
+        <div class="mobile-phase-label" id="mobile-phase-label">🟡 Ожидаю</div>
+        <div class="mobile-phrase" id="mobile-phrase"></div>
+      </section>
+
+      <div class="mobile-mic-wrap">
+        <button type="button" class="mobile-mic" id="mobile-mic" aria-label="Удерживайте и говорите">
+          <span class="mobile-mic-icon" aria-hidden="true">🎤</span>
+        </button>
+        <p class="mobile-mic-hint" id="mobile-mic-hint">Удерживайте для записи</p>
+        <button type="button" class="mobile-stop-tts hidden" id="mobile-stop-tts">⏹ Стоп озвучки</button>
+      </div>
+
+      <section class="mobile-reply">
+        <h2>Последний ответ</h2>
+        <div class="mobile-reply-body" id="mobile-reply">—</div>
+      </section>
+
+      <form class="mobile-compose" id="mobile-compose">
+        <input type="text" id="mobile-input" placeholder="Сообщение…" autocomplete="off" enterkeyhint="send" />
+        <button type="submit" class="mobile-send" id="mobile-send-btn" aria-label="Отправить">→</button>
+      </form>
+
+      <p class="mobile-error hidden" id="mobile-error" role="alert"></p>
+    </div>
+
+    <dialog class="mobile-dialog" id="mobile-settings-dialog">
+      <form method="dialog" class="mobile-dialog-form" id="mobile-settings-form">
+        <h2>Настройки</h2>
+        <label>
+          Agent
+          <select id="mobile-agent-select"></select>
+        </label>
+        <label class="mobile-dialog-check">
+          <input type="checkbox" id="mobile-tts-enabled" checked />
+          Озвучивать ответы (TTS)
+        </label>
+        <p class="mobile-dialog-note" id="mobile-help-url"></p>
+        <p class="mobile-dialog-note">
+          Полный Shell: <a href="/shell/index.html">/shell/</a> ·
+          iOS: <code>mobile/iphone-shell/</code>
+        </p>
+        <div class="mobile-dialog-actions">
+          <button type="button" value="cancel" id="mobile-settings-cancel">Отмена</button>
+          <button type="submit" value="save" class="mobile-send">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/shell/mobile/mobile.js?v=2"></script>
+  </body>
+</html>

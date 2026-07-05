@@ -8,6 +8,16 @@ shell только пишет в thread/inbox и слушает ответы.
 
 Код Electron-оболочки: `desktop/agent-shell/` (не путать с backend `agent-shell/`).
 
+## iPhone
+
+| Путь | Что это |
+|------|---------|
+| `mobile/iphone-shell/` | Нативное iOS-приложение (SwiftUI) |
+| `public/shell/mobile/` | Облегчённый web-клиент для Safari / PWA |
+
+На iPhone укажите URL Mac в локальной сети, например `http://192.168.1.42:3000`. CMS: `HOST=0.0.0.0 npm start`.
+Подробнее: [`mobile/README.md`](../mobile/README.md).
+
 ```bash
 # 1. Собрать Agent Shell.app (один раз)
 npm run shell:dist

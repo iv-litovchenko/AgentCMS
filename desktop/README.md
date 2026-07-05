@@ -50,6 +50,8 @@ npm run shell:dist
 | Путь | Что это |
 |------|---------|
 | `desktop/agent-shell/` | Electron-оболочка (окно, иконка) |
+| `mobile/iphone-shell/` | iOS-приложение (SwiftUI) |
+| `public/shell/mobile/` | Web UI Shell для iPhone Safari |
 | `agent-shell/` | Backend Shell: API, sidecar, QwenPaw (`npm run shell:sidecar`) |
 | `public/shell/` | Web UI Shell |
 
