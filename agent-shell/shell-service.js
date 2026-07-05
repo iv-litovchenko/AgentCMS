@@ -29,6 +29,12 @@ const DEFAULT_SETTINGS = {
   sttPrompt: "",
   ttsEnabled: true,
   ttsEngine: "browser",
+  ttsEdgeVoice: "ru-RU-SvetlanaNeural",
+  ttsElevenlabsApiKey: "",
+  ttsElevenlabsVoiceId: "",
+  ttsElevenlabsModel: "eleven_multilingual_v2",
+  ttsPiperModel: "",
+  ttsPiperBinary: "",
   ttsPrompt: "",
   ttsRate: 1,
   ttsPitch: 1,
@@ -145,7 +151,10 @@ function normalizeSettings(raw) {
   if (!["disabled", "browser", "sidecar", "always"].includes(merged.voiceInputMode)) {
     merged.voiceInputMode = "browser";
   }
-  if (!["browser", "sidecar", "say"].includes(merged.ttsEngine)) merged.ttsEngine = "browser";
+  if (!["browser", "say", "edge", "piper", "elevenlabs", "sidecar"].includes(merged.ttsEngine)) {
+    merged.ttsEngine = "browser";
+  }
+  if (merged.ttsEngine === "sidecar") merged.ttsEngine = "say";
   merged.voiceResponseEnabled = Boolean(merged.voiceResponseEnabled);
   merged.sttLang = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
   merged.sttPrompt = String(merged.sttPrompt || "");
@@ -155,6 +164,12 @@ function normalizeSettings(raw) {
   merged.ttsPitch = Math.min(2, Math.max(0, Number(merged.ttsPitch) || 1));
   merged.ttsLang = String(merged.ttsLang || "ru-RU").trim() || "ru-RU";
   merged.ttsVoice = String(merged.ttsVoice || "").trim();
+  merged.ttsEdgeVoice = String(merged.ttsEdgeVoice || "ru-RU-SvetlanaNeural").trim();
+  merged.ttsElevenlabsApiKey = String(merged.ttsElevenlabsApiKey || "").trim();
+  merged.ttsElevenlabsVoiceId = String(merged.ttsElevenlabsVoiceId || "").trim();
+  merged.ttsElevenlabsModel = String(merged.ttsElevenlabsModel || "eleven_multilingual_v2").trim();
+  merged.ttsPiperModel = String(merged.ttsPiperModel || "").trim();
+  merged.ttsPiperBinary = String(merged.ttsPiperBinary || "").trim();
   merged.ttsStripEmoji = merged.ttsStripEmoji !== false;
   merged.ttsIncludeCaptions = merged.ttsIncludeCaptions !== false;
   merged.windowTopmost = merged.windowTopmost !== false;

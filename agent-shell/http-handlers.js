@@ -1,6 +1,8 @@
 const shellService = require("./shell-service");
 const windowSettings = require("./window-settings");
 
+const ttsService = require("./tts-service");
+
 function createShellHandlers(deps) {
   async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {
     if (!url.pathname.startsWith("/api/shell")) return false;
@@ -181,6 +183,55 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to stop TTS",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/tts/capabilities") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const capabilities = await ttsService.getCapabilities(settings);
+        deps.sendJson(res, 200, { agentId, ...capabilities });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read TTS capabilities",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/tts/voices") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const engine = url.searchParams.get("engine") || settings.ttsEngine || "browser";
+        const payload = await ttsService.listVoices(engine, settings);
+        deps.sendJson(res, 200, { agentId, ...payload });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to list TTS voices",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/tts/synthesize") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const text = String(payload?.text || "").trim();
+        if (!text) {
+          deps.sendJson(res, 400, { error: "Text is required" });
+          return true;
+        }
+        const settings = await shellService.readSettings(agentRoot);
+        const result = await ttsService.synthesize(text, settings);
+        deps.sendJson(res, 200, { agentId, ok: true, ...result });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "TTS synthesis failed",
           details: String(error?.message || error)
         });
       }

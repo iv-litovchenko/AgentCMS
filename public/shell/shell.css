@@ -379,6 +379,22 @@ body.shell-window-transparent {
   gap: 8px 10px;
 }
 
+.shell-tts-engine-panels {
+  display: grid;
+  gap: 8px;
+}
+
+.shell-tts-capabilities-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-tts-capabilities-note.hidden {
+  display: none;
+}
+
 .shell-tts-settings-checks {
   display: flex;
   flex-direction: column;

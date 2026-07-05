@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=92" />
+    <link rel="stylesheet" href="/shell/shell.css?v=93" />
     <script type="importmap">
       {
         "imports": {
@@ -748,15 +748,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
             ></textarea>
           </label>
           <div class="shell-tts-settings-grid">
-            <label class="shell-field shell-field--compact shell-field--todo">
-              <span class="shell-label shell-label-row">
-                Движок TTS
-                <span class="shell-todo-badge" title="Работает только «Браузер»; say и sidecar — TODO">TODO · sidecar</span>
-              </span>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Движок TTS</span>
               <select id="shell-tts-engine" class="shell-select">
                 <option value="browser">Браузер (Web Speech)</option>
-                <option value="say">macOS say (sidecar) · TODO</option>
-                <option value="sidecar">Sidecar (Python) · TODO</option>
+                <option value="say">macOS say</option>
+                <option value="edge">Edge TTS (онлайн)</option>
+                <option value="piper">Piper (офлайн)</option>
+                <option value="elevenlabs">ElevenLabs</option>
               </select>
             </label>
             <label class="shell-field shell-field--compact">
@@ -766,7 +765,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <option value="en-US">English</option>
               </select>
             </label>
-            <label class="shell-field shell-field--compact">
+            <label class="shell-field shell-field--compact shell-tts-field-voice">
               <span class="shell-label">Голос</span>
               <select id="shell-tts-voice" class="shell-select">
                 <option value="">Системный по умолчанию</option>
@@ -777,6 +776,35 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
             </label>
           </div>
+          <div class="shell-tts-engine-panels">
+            <label class="shell-field shell-field--compact hidden" id="shell-tts-edge-field">
+              <span class="shell-label">Голос Edge</span>
+              <select id="shell-tts-edge-voice" class="shell-select"></select>
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-tts-piper-model-field">
+              <span class="shell-label">Модель Piper (.onnx)</span>
+              <input
+                id="shell-tts-piper-model"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="/path/to/ru_RU-irina-medium.onnx"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-tts-piper-binary-field">
+              <span class="shell-label">Бинарник Piper</span>
+              <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-tts-elevenlabs-key-field">
+              <span class="shell-label">ElevenLabs API key</span>
+              <input id="shell-tts-elevenlabs-key" class="shell-input" type="password" autocomplete="off" placeholder="sk_…" />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-tts-elevenlabs-voice-field">
+              <span class="shell-label">ElevenLabs Voice ID</span>
+              <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
+            </label>
+          </div>
+          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
           <div class="shell-tts-settings-checks">
             <label class="shell-check">
               <input id="shell-tts-strip-emoji" type="checkbox" checked />
@@ -1064,6 +1092,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=73" type="module"></script>
+    <script src="/shell/shell.js?v=75" type="module"></script>
   </body>
 </html>
