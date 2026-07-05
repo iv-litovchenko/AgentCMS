@@ -1,7 +1,7 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingReplyBody, extractStreamingTtsBody } from "/shell/shell-reply.js?v=11";
-import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=2";
+import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingTtsBody, stripAllTtsBlocks } from "/shell/shell-reply.js?v=12";
+import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=3";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
@@ -666,28 +666,30 @@ function applyReplyTextPresentation(element, { text, stub }) {
   element.dataset.replyKind = stub ? "stub" : "message";
 }
 
-function resolveReplyDisplayBody(body) {
-  const raw = String(body || "").trim();
-  if (!hasTtsPrompt()) return raw;
-  const dual = parseDualReply(raw);
-  return dual.parsed ? dual.body || "" : raw;
-}
-
 function renderShellReply(message) {
-  const body = resolveReplyDisplayBody(message?.body || message?.message?.body || "");
+  const rawBody = String(message?.body || message?.message?.body || "").trim();
   const extraShows = Array.isArray(message?.shows) ? message.shows : [];
-  const parsed = parseShellReply(body);
+  const parsed = parseShellReply(rawBody);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
   const rawText = parsed.text === "—" ? "" : parsed.text;
-  const stub = isStubReplyText(rawText);
-  const displayText = stub ? stubReplyPresentation() : rawText;
+  const stub = isStubReplyText(stripAllTtsBlocks(rawText));
 
   if (nodes.lastReplyText) {
-    renderShellReplyMarkdown(nodes.lastReplyText, displayText);
-    applyReplyTextPresentation(nodes.lastReplyText, { text: displayText, stub });
+    if (stub) {
+      renderShellReplyMarkdown(nodes.lastReplyText, stubReplyPresentation());
+      applyReplyTextPresentation(nodes.lastReplyText, { text: stubReplyPresentation(), stub: true });
+    } else {
+      renderShellReplyBody(nodes.lastReplyText, rawText);
+      applyReplyTextPresentation(nodes.lastReplyText, { text: rawText, stub: false });
+    }
   } else if (nodes.lastReply) {
-    renderShellReplyMarkdown(nodes.lastReply, displayText);
-    applyReplyTextPresentation(nodes.lastReply, { text: displayText, stub });
+    if (stub) {
+      renderShellReplyMarkdown(nodes.lastReply, stubReplyPresentation());
+      applyReplyTextPresentation(nodes.lastReply, { text: stubReplyPresentation(), stub: true });
+    } else {
+      renderShellReplyBody(nodes.lastReply, rawText);
+      applyReplyTextPresentation(nodes.lastReply, { text: rawText, stub: false });
+    }
   }
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
@@ -748,9 +750,13 @@ function beginAssistantStream({ streamId } = {}) {
 function renderStreamingAssistantText(text) {
   const value = String(text || "");
   if (!nodes.lastReplyText) return;
-  nodes.lastReplyText.classList.remove("shell-md", "shell-reply-text--stub");
+  nodes.lastReplyText.classList.remove("shell-reply-text--stub");
   nodes.lastReplyText.dataset.replyKind = "stream";
-  nodes.lastReplyText.textContent = value || "…";
+  if (!value) {
+    renderShellReplyMarkdown(nodes.lastReplyText, "…");
+    return;
+  }
+  renderShellReplyBody(nodes.lastReplyText, value);
   nodes.lastReply?.scrollTo?.({ top: nodes.lastReply.scrollHeight, behavior: "auto" });
 }
 
@@ -1191,7 +1197,7 @@ function handleAssistantDelta(payload) {
     }
   }
 
-  const displayText = hasTtsPrompt() ? extractStreamingReplyBody(rawText) : rawText;
+  const displayText = rawText;
   state.assistantStream.text = rawText;
   if (spokenText) state.assistantStream.spokenText = spokenText;
   if (spokenParts.length) state.assistantStream.spokenParts = spokenParts;

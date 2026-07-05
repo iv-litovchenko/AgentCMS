@@ -14,6 +14,7 @@ const {
   buildSttSessionId,
   refineSttTranscript
 } = require("./stt-refine");
+const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -70,6 +71,7 @@ const DEFAULT_STATE = {
   metrics: "",
   lastAgentMessageId: "",
   lastShellReply: "",
+  qwenpawChatUpdatedAt: "",
   stopTtsAt: 0,
   sidecarSeenAt: 0,
   pttHeld: false,
@@ -437,6 +439,13 @@ async function startNewQwenPawChat(agentRoot, agentId, settings, { name } = {}) 
     agentId
   );
 
+  await patchState(agentRoot, agentId, {
+    lastShellReply: "",
+    lastAgentMessageId: "",
+    qwenpawChatUpdatedAt: "",
+    phrase: ""
+  });
+
   return { sessionId, chatName, settings: nextSettings };
 }
 
@@ -455,6 +464,21 @@ async function selectQwenPawChat(agentRoot, agentId, settings, { sessionId, chat
     { qwenpawSessionId: nextSessionId, qwenpawChatName: resolvedName },
     agentId
   );
+
+  await patchState(agentRoot, agentId, {
+    qwenpawChatUpdatedAt: "",
+    phrase: ""
+  });
+
+  await syncLatestReplyFromQwenPaw({
+    settings: nextSettings,
+    agentId,
+    state: await getState(agentRoot),
+    buildSessionId: buildQwenPawSessionId,
+    patchState: (patch) => patchState(agentRoot, agentId, patch),
+    emitShellEvent,
+    emitLiveUpdate: false
+  }).catch(() => null);
 
   return { sessionId: nextSessionId, chatName: resolvedName, settings: nextSettings };
 }
@@ -704,8 +728,27 @@ async function setPttHeld(agentRoot, agentId, held) {
   return patchState(agentRoot, agentId, patch);
 }
 
-async function buildStatusPayload(deps, agentRoot, agentId) {
-  const [settings, state] = await Promise.all([readSettings(agentRoot), getState(agentRoot)]);
+async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = false } = {}) {
+  const [settings, initialState] = await Promise.all([readSettings(agentRoot), getState(agentRoot)]);
+  let state = initialState;
+
+  if (usesQwenPaw(settings)) {
+    try {
+      const synced = await syncLatestReplyFromQwenPaw({
+        settings,
+        agentId,
+        state,
+        buildSessionId: buildQwenPawSessionId,
+        patchState: (patch) => patchState(agentRoot, agentId, patch),
+        emitShellEvent,
+        emitLiveUpdate
+      });
+      state = synced.state;
+    } catch {
+      // QwenPaw sync is best-effort; stale cache is better than broken status.
+    }
+  }
+
   let latestAgent = null;
   const shellReply = String(state.lastShellReply || "").trim();
   let stateOut = { ...state };
@@ -855,7 +898,7 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
       if (reply) {
         push("assistant_message", { message: reply });
       }
-      const status = await buildStatusPayload(deps, agentRoot, agentId);
+      const status = await buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate: true });
       const sig = JSON.stringify({
         phase: status.state.phase,
         phrase: status.state.phrase,

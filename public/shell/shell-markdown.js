@@ -1,3 +1,9 @@
+import {
+  splitReplyDisplayParts,
+  cleanReplyTextSegment,
+  hasReplyTtsBlocks
+} from "./shell-reply.js?v=12";
+
 let shellMarkdownIt = null;
 
 function getShellMarkdownIt() {
@@ -74,5 +80,55 @@ export function renderShellReplyMarkdown(element, markdown) {
     element.innerHTML = md.render(source);
   } catch {
     element.textContent = source;
+  }
+}
+
+function appendTtsDisplayBlock(container, text, { open = false } = {}) {
+  const aside = document.createElement("aside");
+  aside.className = "shell-reply-tts";
+  if (open) aside.classList.add("shell-reply-tts--open");
+
+  const label = document.createElement("div");
+  label.className = "shell-reply-tts-label";
+  label.textContent = open ? "Озвучка · печатает…" : "Озвучка";
+
+  const content = document.createElement("div");
+  content.className = "shell-reply-tts-text shell-md";
+  renderShellReplyMarkdown(content, text);
+
+  aside.append(label, content);
+  container.append(aside);
+}
+
+export function renderShellReplyBody(element, rawBody) {
+  if (!element) return;
+  const source = String(rawBody || "").trim();
+
+  element.classList.remove("shell-reply-text--stub");
+  element.dataset.replyKind = "message";
+
+  if (!source || source === "—") {
+    renderShellReplyMarkdown(element, "—");
+    return;
+  }
+
+  if (!hasReplyTtsBlocks(source)) {
+    renderShellReplyMarkdown(element, cleanReplyTextSegment(source));
+    return;
+  }
+
+  const parts = splitReplyDisplayParts(source);
+  element.innerHTML = "";
+  element.classList.add("shell-md", "shell-reply-body-formatted");
+
+  for (const part of parts) {
+    if (part.kind === "tts") {
+      appendTtsDisplayBlock(element, part.text, { open: Boolean(part.open) });
+      continue;
+    }
+    const segment = document.createElement("div");
+    segment.className = "shell-reply-segment shell-md";
+    renderShellReplyMarkdown(segment, part.text);
+    element.append(segment);
   }
 }

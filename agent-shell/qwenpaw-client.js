@@ -371,6 +371,60 @@ async function listQwenPawChats({
   return Array.isArray(data) ? data : [];
 }
 
+async function fetchQwenPawChat({
+  baseUrl,
+  agentId = "default",
+  chatId
+}) {
+  const id = String(chatId || "").trim();
+  if (!id) throw new Error("chatId is required");
+  return qwenpawRequest({
+    baseUrl,
+    agentId,
+    path: `/chats/${encodeURIComponent(id)}`
+  });
+}
+
+async function findQwenPawChatBySessionId({
+  baseUrl,
+  agentId = "default",
+  userId = "shell",
+  channel = "console",
+  sessionId
+}) {
+  const targetSessionId = String(sessionId || "").trim();
+  if (!targetSessionId) return null;
+  const chats = await listQwenPawChats({ baseUrl, agentId, userId, channel });
+  return chats.find((chat) => String(chat?.session_id || "") === targetSessionId) || null;
+}
+
+function extractMessageText(message) {
+  if (!message || typeof message !== "object") return "";
+  if (Array.isArray(message.content)) {
+    return extractFromContentParts(message.content);
+  }
+  return extractAssistantText(message);
+}
+
+function findLatestAssistantMessage(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const item = list[i];
+    const role = String(item?.role || "").toLowerCase();
+    if (role !== "assistant") continue;
+    const body = String(extractMessageText(item) || "").trim();
+    if (!body) continue;
+    return {
+      id: String(item.id || `qwenpaw-${i}`),
+      body,
+      role: "agent",
+      author: "qwenpaw",
+      created: String(item.created_at || item.updated_at || new Date().toISOString())
+    };
+  }
+  return null;
+}
+
 async function createQwenPawChat({
   baseUrl,
   agentId = "default",
@@ -432,6 +486,10 @@ module.exports = {
   listQwenPawAgents,
   chatWithQwenPaw,
   listQwenPawChats,
+  fetchQwenPawChat,
+  findQwenPawChatBySessionId,
+  findLatestAssistantMessage,
+  extractMessageText,
   createQwenPawChat,
   updateQwenPawChat,
   buildNewShellSessionId,

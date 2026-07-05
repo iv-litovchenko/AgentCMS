@@ -151,6 +151,63 @@ export function stripAllTtsBlocks(text) {
     .trim();
 }
 
+export function cleanReplyTextSegment(text) {
+  let value = String(text || "").trim();
+  if (!value) return value;
+
+  const closed = value.match(/^\[text\]([\s\S]*?)\[\/text\]$/i);
+  if (closed) return closed[1].trim();
+
+  const open = value.match(/^\[text\]\s*([\s\S]*)/i);
+  if (open) return open[1].replace(/\[\/text\]\s*$/i, "").trim();
+
+  return value;
+}
+
+export function hasReplyTtsBlocks(text) {
+  return /\[tts\]/i.test(String(text || ""));
+}
+
+export function splitReplyDisplayParts(text) {
+  const source = String(text || "");
+  const parts = [];
+  let lastIndex = 0;
+  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
+  let match = re.exec(source);
+
+  while (match) {
+    if (match.index > lastIndex) {
+      const chunk = cleanReplyTextSegment(source.slice(lastIndex, match.index));
+      if (chunk) parts.push({ kind: "markdown", text: chunk });
+    }
+    const ttsText = String(match[1] || "").trim();
+    if (ttsText) parts.push({ kind: "tts", text: ttsText });
+    lastIndex = match.index + match[0].length;
+    match = re.exec(source);
+  }
+
+  const tail = source.slice(lastIndex);
+  const openMatch = tail.match(/\[tts\]\s*([\s\S]*)$/i);
+  if (openMatch && !/\[\/tts\]/i.test(openMatch[1])) {
+    const beforeOpen = cleanReplyTextSegment(tail.slice(0, openMatch.index));
+    if (beforeOpen) parts.push({ kind: "markdown", text: beforeOpen });
+    const openTts = String(openMatch[1] || "")
+      .replace(/\n*\[text\][\s\S]*$/i, "")
+      .trim();
+    if (openTts) parts.push({ kind: "tts", text: openTts, open: true });
+  } else {
+    const rest = cleanReplyTextSegment(tail);
+    if (rest) parts.push({ kind: "markdown", text: rest });
+  }
+
+  if (!parts.length) {
+    const fallback = cleanReplyTextSegment(source);
+    if (fallback) parts.push({ kind: "markdown", text: fallback });
+  }
+
+  return parts;
+}
+
 export function parseDualReply(text) {
   const raw = String(text || "").trim();
   if (!raw) return { body: "", spoken: null, spokenParts: [], parsed: false };

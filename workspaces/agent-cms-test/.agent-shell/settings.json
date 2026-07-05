@@ -9,7 +9,7 @@
   "qwenpawChatName": "Новый чат",
   "qwenpawSttSessionId": "",
   "qwenpawSttChatName": "Shell STT",
-  "voiceInputMode": "browser",
+  "voiceInputMode": "fn_button",
   "voiceResponseEnabled": true,
   "sttLang": "ru-RU",
   "sttPrompt": "",
