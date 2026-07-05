@@ -1670,8 +1670,8 @@ function collectRouteSnapshot() {
 function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
   if (section === "route") return collectRouteSnapshot();
-  if (section === "tts") return collectTtsSettingsPatch();
-  if (section === "stt") return collectSttSettingsPatch();
+  if (section === "tts") return collectTtsFormPatch();
+  if (section === "stt") return collectSttFormPatch();
   return {};
 }
 
@@ -1683,8 +1683,8 @@ function commitAllSettingsBaselines() {
   settingsSave.commitAllBaselines({
     window: collectWindowSnapshot(),
     route: collectRouteSnapshot(),
-    tts: collectTtsSettingsPatch(),
-    stt: collectSttSettingsPatch()
+    tts: collectTtsFormPatch(),
+    stt: collectSttFormPatch()
   });
 }
 
@@ -1706,7 +1706,6 @@ async function saveSettingsSection(section) {
   if (section === "route") updateTargetUi(patch.messageTarget);
   if (section === "stt") {
     applyRecognitionLang(patch.sttLang);
-    updateVoiceModeSelectUi(patch.voiceInputMode);
   }
   await saveSettings(patch);
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
@@ -1724,13 +1723,14 @@ function applySettings(settings) {
     updateTargetUi(settings.messageTarget || "cms");
   }
 
+  nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
   if (!settingsSave.isSectionDirty("tts")) {
-    nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
     applyTtsSettingsUi(settings);
   }
 
+  applySttToggleUi(settings);
   if (!settingsSave.isSectionDirty("stt")) {
-    applySttSettingsUi(settings);
+    applySttFormUi(settings);
   }
 
   if (nodes.cameraFacing) {
@@ -2379,30 +2379,53 @@ function updateVoiceModeSelectUi(mode = getVoiceInputMode()) {
   updateFnPttHint(mode);
 }
 
-function applySttSettingsUi(settings) {
+function applySttToggleUi(settings) {
   const mode = settings.voiceInputMode || "browser";
   if (nodes.voiceMode) nodes.voiceMode.value = mode;
   if (mode !== "disabled") state.sttResumeMode = mode;
   if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
+  updateVoiceModeSelectUi(mode);
+}
+
+function applySttFormUi(settings) {
   if (nodes.sttPrompt && document.activeElement !== nodes.sttPrompt) {
     nodes.sttPrompt.value = settings.sttPrompt || "";
   }
   if (nodes.sttLang) nodes.sttLang.value = settings.sttLang || "ru-RU";
   if (nodes.sttEngine) {
+    const mode = settings.voiceInputMode || "browser";
     const sidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
     nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
   }
-  updateVoiceModeSelectUi(mode);
   applyRecognitionLang(settings.sttLang);
 }
 
-function collectSttSettingsPatch() {
-  const voiceMode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
+function applySttSettingsUi(settings) {
+  applySttToggleUi(settings);
+  applySttFormUi(settings);
+}
+
+function collectSttFormPatch() {
   return {
-    voiceInputMode: voiceMode,
     sttLang: nodes.sttLang?.value || "ru-RU",
     sttPrompt: nodes.sttPrompt?.value || ""
   };
+}
+
+async function persistVoiceInputMode(mode) {
+  try {
+    await saveSettings({ voiceInputMode: mode });
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  }
+}
+
+async function persistTtsEnabled(enabled) {
+  try {
+    await saveSettings({ ttsEnabled: enabled });
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  }
 }
 
 async function loadTtsCapabilities() {
@@ -2517,9 +2540,8 @@ function collectOutboundMessageSettings() {
   };
 }
 
-function collectTtsSettingsPatch() {
+function collectTtsFormPatch() {
   return {
-    ttsEnabled: nodes.ttsEnabled.checked,
     ttsPrompt: nodes.ttsPrompt?.value || "",
     ttsEngine: nodes.ttsEngine?.value || "browser",
     ttsLang: nodes.ttsLang?.value || "ru-RU",
@@ -2530,6 +2552,13 @@ function collectTtsSettingsPatch() {
     ttsPiperModel: nodes.ttsPiperModel?.value || "",
     ttsPiperBinary: nodes.ttsPiperBinary?.value || "",
     ttsRate: Number(nodes.ttsRate?.value || 1)
+  };
+}
+
+function collectTtsSettingsPatch() {
+  return {
+    ttsEnabled: nodes.ttsEnabled.checked,
+    ...collectTtsFormPatch()
   };
 }
 
@@ -3056,23 +3085,23 @@ function bindUi() {
   });
   nodes.qwenpawAgentId.addEventListener("change", markRouteDirty);
   nodes.ttsEnabled.addEventListener("change", () => {
-    if (state.settings) state.settings.ttsEnabled = nodes.ttsEnabled.checked;
-    markTtsDirty();
+    const enabled = nodes.ttsEnabled.checked;
+    if (state.settings) state.settings.ttsEnabled = enabled;
+    if (!enabled) stopBrowserTts({ notifyServer: true });
+    void persistTtsEnabled(enabled);
   });
   nodes.sttEnabled?.addEventListener("change", () => {
+    let mode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
     if (nodes.sttEnabled.checked) {
-      nodes.voiceMode.value = state.sttResumeMode || "browser";
-    } else if (nodes.voiceMode.value !== "disabled") {
-      state.sttResumeMode = nodes.voiceMode.value;
-      nodes.voiceMode.value = "disabled";
+      mode = state.sttResumeMode || "browser";
+      if (nodes.voiceMode) nodes.voiceMode.value = mode;
+    } else if (mode !== "disabled") {
+      state.sttResumeMode = mode;
+      mode = "disabled";
+      if (nodes.voiceMode) nodes.voiceMode.value = mode;
     }
-    updateVoiceModeSelectUi(nodes.voiceMode.value);
-    if (state.settings) {
-      const next = { ...state.settings, voiceInputMode: nodes.voiceMode.value };
-      applySttSettingsUi(next);
-      applyTtsSettingsUi(next);
-    }
-    markSttDirty();
+    updateVoiceModeSelectUi(mode);
+    void persistVoiceInputMode(mode);
   });
   nodes.sttSettingsToggle?.addEventListener("click", () => {
     const open = nodes.sttSettingsPanel?.classList.contains("hidden");
@@ -3136,13 +3165,9 @@ function bindUi() {
   nodes.voiceMode?.addEventListener("change", () => {
     const mode = nodes.voiceMode.value;
     if (mode !== "disabled") state.sttResumeMode = mode;
+    if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
     updateVoiceModeSelectUi(mode);
-    if (state.settings) {
-      const next = { ...state.settings, voiceInputMode: mode };
-      applySttSettingsUi(next);
-      applyTtsSettingsUi(next);
-    }
-    markSttDirty();
+    void persistVoiceInputMode(mode);
   });
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
