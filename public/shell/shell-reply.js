@@ -1,10 +1,48 @@
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|#|$)/i;
+const YOUTUBE_HOST_RE = /(?:^|\.)((?:youtube\.com|youtu\.be|youtube-nocookie\.com))(?:\/|$)/i;
+
+function extractYouTubeVideoId(src) {
+  const raw = String(src || "").trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw, "https://www.youtube.com");
+    const host = url.hostname.toLowerCase();
+
+    if (host === "youtu.be") {
+      return url.pathname.replace(/^\//, "").split("/")[0] || "";
+    }
+
+    if (host.includes("youtube.com")) {
+      if (url.pathname.startsWith("/embed/")) {
+        return url.pathname.split("/")[2] || "";
+      }
+      if (url.pathname.startsWith("/shorts/")) {
+        return url.pathname.split("/")[2] || "";
+      }
+      return url.searchParams.get("v") || "";
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function isYouTubeUrl(src) {
+  const raw = String(src || "").trim();
+  if (!raw) return false;
+  if (extractYouTubeVideoId(raw)) return true;
+  return YOUTUBE_HOST_RE.test(raw);
+}
 
 function inferShowType(src, declaredType) {
   const type = String(declaredType || "").trim().toLowerCase();
-  if (type && type !== "image") return type;
+  if (type === "youtube" || type === "embed") return "youtube";
+  if (type && !["image", "video"].includes(type)) return type;
+  if (isYouTubeUrl(src)) return "youtube";
   const lower = String(src || "").toLowerCase();
   if (VIDEO_EXT_RE.test(lower)) return "video";
   if (IMAGE_EXT_RE.test(lower)) return "image";
@@ -210,7 +248,29 @@ export function renderShellReplyMedia(containerEl, shows, agentId) {
     const mediaType = inferShowType(item.src, item.type);
     const mediaSrc = resolveShowSrc(item.src, agentId);
 
-    if (mediaType === "video") {
+    if (mediaType === "youtube") {
+      const videoId = extractYouTubeVideoId(mediaSrc);
+      if (videoId) {
+        const iframe = document.createElement("iframe");
+        iframe.className = "shell-show-youtube";
+        iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}`;
+        iframe.title = item.caption || "YouTube video";
+        iframe.loading = "lazy";
+        iframe.allow =
+          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+        iframe.referrerPolicy = "strict-origin-when-cross-origin";
+        iframe.allowFullscreen = true;
+        wrap.append(iframe);
+      } else {
+        const link = document.createElement("a");
+        link.className = "shell-show-link";
+        link.href = mediaSrc;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = item.caption || mediaSrc;
+        wrap.append(link);
+      }
+    } else if (mediaType === "video") {
       const video = document.createElement("video");
       video.className = "shell-show-video";
       video.controls = true;

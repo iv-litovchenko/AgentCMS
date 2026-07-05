@@ -548,6 +548,37 @@ body.shell-window-transparent {
 
 .shell-compose-panel .shell-compose-actions {
   margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shell-compose-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shell-compose-bar--primary .shell-btn--primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.shell-compose-bar--tools {
+  gap: 6px;
+}
+
+.shell-compose-media-tools {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.shell-compose-bar--tools .shell-compose-voice {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .shell-compose-panel .shell-compose-actions .shell-btn--primary {
@@ -557,7 +588,8 @@ body.shell-window-transparent {
 
 .shell-compose-stop {
   flex: 0 0 auto;
-  min-width: 88px;
+  min-width: 72px;
+  padding-inline: 12px;
 }
 
 .shell-compose-stop:disabled {
@@ -565,11 +597,9 @@ body.shell-window-transparent {
   cursor: not-allowed;
 }
 
-.shell-compose-tools {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  flex: 0 0 auto;
+.shell-compose-attach:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .shell-compose-voice {
@@ -596,7 +626,7 @@ body.shell-window-transparent {
   width: auto;
   min-width: 0;
   min-height: 42px;
-  max-width: 104px;
+  max-width: none;
   flex: 1 1 auto;
   padding: 0 22px 0 8px;
   font-size: 11px;
@@ -2281,6 +2311,7 @@ body.shell-compact {
 
 .shell-compose-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-top: 10px;
 }
@@ -2517,6 +2548,15 @@ body.shell-compact {
   display: block;
   width: 100%;
   max-height: 280px;
+  background: #000;
+}
+
+.shell-show-youtube {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  border: 0;
   background: #000;
 }
 
@@ -2820,11 +2860,26 @@ body.shell-compact {
   }
 
   .shell-compose-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .shell-compose-bar--primary {
+    flex-wrap: nowrap;
+  }
+
+  .shell-compose-bar--tools {
+    flex-wrap: nowrap;
+  }
+
+  .shell-compose-media-tools .shell-compose-tool {
+    width: 40px;
+  }
+
+  .shell-compose-voice .shell-compose-mic {
+    width: 40px;
   }
 
   .shell-compose-panel .shell-compose-actions .shell-btn--primary {
-    flex: 1 1 120px;
+    flex: 1 1 auto;
   }
 }

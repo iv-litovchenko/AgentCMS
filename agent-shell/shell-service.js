@@ -9,6 +9,11 @@ const {
   shouldRequestDualReply
 } = require("./spoken-text");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
+const {
+  shouldRefineStt,
+  buildSttSessionId,
+  refineSttTranscript
+} = require("./stt-refine");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -29,6 +34,8 @@ const DEFAULT_SETTINGS = {
   qwenpawSessionId: "agent-shell",
   qwenpawUserId: "shell",
   qwenpawChatName: "",
+  qwenpawSttSessionId: "",
+  qwenpawSttChatName: "Shell STT",
   voiceInputMode: "browser",
   voiceResponseEnabled: true,
   sttLang: "ru-RU",
@@ -154,6 +161,9 @@ function normalizeSettings(raw) {
   merged.qwenpawUserId = String(merged.qwenpawUserId || DEFAULT_SETTINGS.qwenpawUserId).trim()
     || DEFAULT_SETTINGS.qwenpawUserId;
   merged.qwenpawChatName = String(merged.qwenpawChatName || "").trim();
+  merged.qwenpawSttSessionId = String(merged.qwenpawSttSessionId || "").trim();
+  merged.qwenpawSttChatName = String(merged.qwenpawSttChatName || DEFAULT_SETTINGS.qwenpawSttChatName).trim()
+    || DEFAULT_SETTINGS.qwenpawSttChatName;
   if (!["disabled", "browser", "sidecar", "always", "fn_button"].includes(merged.voiceInputMode)) {
     merged.voiceInputMode = "browser";
   }
@@ -899,6 +909,9 @@ module.exports = {
   usesQwenPaw,
   shouldLogToCms,
   buildQwenPawSessionId,
+  shouldRefineStt,
+  buildSttSessionId,
+  refineSttTranscript,
   fetchQwenPawChats,
   fetchQwenPawAgents,
   startNewQwenPawChat,

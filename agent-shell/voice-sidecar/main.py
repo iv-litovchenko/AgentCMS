@@ -69,7 +69,7 @@ class Sidecar:
         self._request_json(
             "/api/shell/message",
             method="POST",
-            body={"body": text, "author": "sidecar"},
+            body={"body": text, "author": "sidecar", "voice": True},
         )
 
     def stop_playback(self) -> None:

@@ -7,7 +7,9 @@
   "qwenpawSessionId": "shell-agent-cms-test-mr7m03zk-apspmp",
   "qwenpawUserId": "shell",
   "qwenpawChatName": "Новый чат",
-  "voiceInputMode": "always",
+  "qwenpawSttSessionId": "",
+  "qwenpawSttChatName": "Shell STT",
+  "voiceInputMode": "browser",
   "voiceResponseEnabled": true,
   "sttLang": "ru-RU",
   "sttPrompt": "",
@@ -32,5 +34,5 @@
   "cameraFacing": "user",
   "cameraDeviceId": "",
   "screenEnabled": false,
-  "screenOnSpeech": false
+  "screenOnSpeech": true
 }

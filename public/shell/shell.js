@@ -1,6 +1,6 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingReplyBody, extractStreamingTtsBody } from "/shell/shell-reply.js?v=10";
+import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingReplyBody, extractStreamingTtsBody } from "/shell/shell-reply.js?v=11";
 import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=2";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
@@ -16,6 +16,8 @@ const TTS_WAIT_FOR_COMPLETE_REPLY = true;
 const DEFAULT_TTS_PROMPT = `Ты голосовой ассистент. В начале ответа выдели блок [tts], в котором сформируй краткую версию текста для озвучки. Убери emoji, markdown и лишние детали, оставь только смысл для TTS. Закрой блок [/tts].
 
 Далее — полный текст ответа для экрана.`;
+
+const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -295,6 +297,7 @@ const nodes = {
   sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
   sttPrompt: document.getElementById("shell-stt-prompt"),
+  sttPromptInsert: document.getElementById("shell-stt-prompt-insert"),
   sttLang: document.getElementById("shell-stt-lang"),
   sttEngine: document.getElementById("shell-stt-engine"),
   topmost: document.getElementById("shell-topmost"),
@@ -1141,7 +1144,7 @@ async function drainOutboundQueue() {
   const next = outboundQueue.shift();
   renderMessageQueue();
   if (!next?.text) return;
-  await sendMessageDirect(next.text);
+  await sendMessageDirect(next.text, { voice: Boolean(next.voice) });
 }
 
 function syncWaitingUiAfterPlayback() {
@@ -2009,7 +2012,7 @@ async function patchShellState(patch) {
   renderPhase(data.state.phase, data.state.phrase, data.state.metrics);
 }
 
-async function sendMessage(body, { fromCompose = true } = {}) {
+async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
 
@@ -2019,7 +2022,7 @@ async function sendMessage(body, { fromCompose = true } = {}) {
   }
 
   if (state.messagePipelineBusy) {
-    outboundQueue.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text });
+    outboundQueue.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text, voice });
     renderMessageQueue();
     renderPhase(
       state.shellState?.phase || "thinking",
@@ -2028,10 +2031,10 @@ async function sendMessage(body, { fromCompose = true } = {}) {
     return;
   }
 
-  await sendMessageDirect(text, { fromCompose });
+  await sendMessageDirect(text, { fromCompose, voice });
 }
 
-async function sendMessageDirect(body, { fromCompose = false } = {}) {
+async function sendMessageDirect(body, { fromCompose = false, voice = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
   state.messageStopped = false;
@@ -2049,9 +2052,12 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
     await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
       method: "POST",
-      body: JSON.stringify({ body: text, author: "shell" }),
+      body: JSON.stringify({ body: text, author: "shell", voice: Boolean(voice) }),
       signal
     });
+    if (result?.sttRefined && nodes.message && String(result.sttRefined) !== text) {
+      nodes.message.value = String(result.sttRefined);
+    }
     if (state.messageStopped) {
       releaseMessagePipeline();
       return;
@@ -2118,6 +2124,13 @@ function insertTtsPromptTemplate() {
   if (!nodes.ttsPrompt) return;
   nodes.ttsPrompt.value = DEFAULT_TTS_PROMPT;
   state.settings = { ...(state.settings || {}), ttsPrompt: DEFAULT_TTS_PROMPT };
+  void persistSettings();
+}
+
+function insertSttPromptTemplate() {
+  if (!nodes.sttPrompt) return;
+  nodes.sttPrompt.value = DEFAULT_STT_PROMPT;
+  state.settings = { ...(state.settings || {}), sttPrompt: DEFAULT_STT_PROMPT };
   void persistSettings();
 }
 
@@ -2701,7 +2714,7 @@ function setupSpeechRecognition() {
         if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
           await uploadScreenSnapshot("speech").catch(() => {});
         }
-        await sendMessage(text);
+        await sendMessage(text, { fromCompose: false, voice: true });
       })();
     }
   };
@@ -2977,6 +2990,10 @@ function bindUi() {
   nodes.ttsPromptInsert?.addEventListener("click", (event) => {
     event.preventDefault();
     insertTtsPromptTemplate();
+  });
+  nodes.sttPromptInsert?.addEventListener("click", (event) => {
+    event.preventDefault();
+    insertSttPromptTemplate();
   });
   nodes.ttsPiperModel?.addEventListener("blur", persistSettings);
   nodes.ttsPiperBinary?.addEventListener("blur", persistSettings);

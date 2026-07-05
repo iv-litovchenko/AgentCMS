@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=101" />
+    <link rel="stylesheet" href="/shell/shell.css?v=103" />
     <script type="importmap">
       {
         "imports": {
@@ -886,18 +886,22 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <p class="shell-stt-settings-note">
             Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
             Sidecar: <code>npm run shell:sidecar</code>.
+            Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
+            (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
           </p>
-          <label class="shell-field shell-field--compact shell-field--todo">
-            <span class="shell-label shell-label-row">
-              Промпт пост-обработки
-              <span class="shell-todo-badge" title="Сохраняется, но автоматически не применяется">TODO</span>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт пост-обработки STT
+              <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
+                Вставить заготовку
+              </button>
             </span>
             <textarea
               id="shell-stt-prompt"
               class="shell-textarea shell-textarea--compact"
-              rows="3"
+              rows="4"
               spellcheck="false"
-              placeholder="Исправь пунктуацию, убери «э-э», оставь смысл — готовый текст для отправки агенту."
+              placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
             ></textarea>
           </label>
           <div class="shell-stt-settings-grid">
@@ -939,8 +943,51 @@ aya_bar_v2 тоже читает те же файлы</pre>
           aria-label="Ваше сообщение"
         ></textarea>
         <div class="shell-compose-actions">
-          <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
-          <div class="shell-compose-tools">
+          <div class="shell-compose-bar shell-compose-bar--primary">
+            <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
+            <button
+              type="button"
+              class="shell-btn shell-btn--ghost shell-compose-stop"
+              id="shell-send-stop"
+              disabled
+              aria-label="Остановить ответ"
+            >
+              Стоп
+            </button>
+          </div>
+          <div class="shell-compose-bar shell-compose-bar--tools">
+            <div class="shell-compose-media-tools" aria-label="Вложения и захват">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-attach"
+                id="shell-attach-btn"
+                disabled
+                title="Прикрепить файл — скоро"
+                aria-label="Прикрепить файл (скоро)"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📎</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool"
+                id="shell-watch-camera"
+                title="Камера"
+                aria-label="Камера"
+                aria-pressed="false"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool"
+                id="shell-watch-screen"
+                title="Демонстрация экрана"
+                aria-label="Демонстрация экрана"
+                aria-pressed="false"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
+              </button>
+            </div>
             <div class="shell-compose-voice" id="shell-voice-control">
               <button
                 type="button"
@@ -959,42 +1006,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 title="Режим голосового ввода"
               >
                 <option value="disabled">Выкл</option>
-                <option value="browser" selected>Браузер</option>
-                <option value="sidecar">Sidecar</option>
-                <option value="always">Всегда</option>
+                <option value="browser" selected>Web</option>
+                <option value="sidecar">Side</option>
+                <option value="always">Live</option>
                 <option value="fn_button">Shift</option>
               </select>
             </div>
-            <button
-              type="button"
-              class="shell-icon-btn shell-compose-tool"
-              id="shell-watch-camera"
-              title="Камера"
-              aria-label="Камера"
-              aria-pressed="false"
-            >
-              <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
-            </button>
-            <button
-              type="button"
-              class="shell-icon-btn shell-compose-tool"
-              id="shell-watch-screen"
-              title="Демонстрация экрана"
-              aria-label="Демонстрация экрана"
-              aria-pressed="false"
-            >
-              <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
-            </button>
           </div>
-          <button
-            type="button"
-            class="shell-btn shell-btn--ghost shell-compose-stop"
-            id="shell-send-stop"
-            disabled
-            aria-label="Остановить ответ"
-          >
-            Стоп
-          </button>
         </div>
         <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
           Shift: удерживай для записи. С sidecar — глобально; без sidecar — когда окно Shell в фокусе (не в поле ввода).
@@ -1139,6 +1157,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=97" type="module"></script>
+    <script src="/shell/shell.js?v=100" type="module"></script>
   </body>
 </html>

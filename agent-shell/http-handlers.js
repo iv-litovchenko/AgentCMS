@@ -103,12 +103,50 @@ function createShellHandlers(deps) {
     if (req.method === "POST" && url.pathname === "/api/shell/message") {
       try {
         const payload = await deps.readJsonBody(req);
-        const body = String(payload?.body || "").trim();
-        if (!body) {
+        const rawBody = String(payload?.body || "").trim();
+        if (!rawBody) {
           deps.sendJson(res, 400, { error: "Message body is required" });
           return true;
         }
         const settings = await shellService.readSettings(agentRoot);
+        const voiceInput = Boolean(payload?.voice) || String(payload?.author || "") === "sidecar";
+        let body = rawBody;
+        let sttRefine = null;
+
+        if (voiceInput && shellService.shouldRefineStt(settings)) {
+          if (!shellService.usesQwenPaw(settings)) {
+            deps.sendJson(res, 400, {
+              error: "STT post-processing requires QwenPaw",
+              details: "Задайте messageTarget qwenpaw или очистите sttPrompt"
+            });
+            return true;
+          }
+          await shellService.patchState(agentRoot, agentId, {
+            phase: shellService.PHASE_THINKING,
+            phrase: "Чищу расшифровку…"
+          });
+          try {
+            sttRefine = await shellService.refineSttTranscript({
+              settings,
+              agentId,
+              rawText: rawBody
+            });
+            body = String(sttRefine?.refined || rawBody).trim();
+          } catch (error) {
+            body = rawBody;
+            sttRefine = {
+              raw: rawBody,
+              refined: rawBody,
+              applied: false,
+              error: String(error?.message || error)
+            };
+          }
+          if (!body) {
+            deps.sendJson(res, 400, { error: "STT post-processing returned empty text" });
+            return true;
+          }
+        }
+
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
           phrase: body.slice(0, 240)
@@ -148,7 +186,15 @@ function createShellHandlers(deps) {
           });
         }
 
-        deps.sendJson(res, 200, { agentId, ...result });
+        deps.sendJson(res, 200, {
+          agentId,
+          ...result,
+          sttRaw: sttRefine?.raw || undefined,
+          sttRefined: sttRefine?.refined || undefined,
+          sttRefineApplied: sttRefine?.applied || undefined,
+          sttRefineError: sttRefine?.error || undefined,
+          sttSessionId: sttRefine?.sessionId || undefined
+        });
       } catch (error) {
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_WAITING,
