@@ -154,7 +154,7 @@ function normalizeSettings(raw) {
   merged.qwenpawUserId = String(merged.qwenpawUserId || DEFAULT_SETTINGS.qwenpawUserId).trim()
     || DEFAULT_SETTINGS.qwenpawUserId;
   merged.qwenpawChatName = String(merged.qwenpawChatName || "").trim();
-  if (!["disabled", "browser", "sidecar", "always"].includes(merged.voiceInputMode)) {
+  if (!["disabled", "browser", "sidecar", "always", "fn_button"].includes(merged.voiceInputMode)) {
     merged.voiceInputMode = "browser";
   }
   if (!["browser", "say", "edge", "piper", "elevenlabs", "sidecar"].includes(merged.ttsEngine)) {
@@ -535,7 +535,10 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   let lastEmittedText = "";
   let lastEmitAt = 0;
 
-  const emitAssistantDelta = async (nextText, { done = false, force = false, spokenText = null } = {}) => {
+  const emitAssistantDelta = async (
+    nextText,
+    { done = false, force = false, spokenText = null, spokenParts = null } = {}
+  ) => {
     const replyText = String(nextText || "");
     const now = Date.now();
     if (!done && !force && replyText === lastEmittedText) return;
@@ -552,10 +555,18 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       streamId,
       text: replyText,
       done,
-      spokenText: spokenText || undefined
+      spokenText: spokenText || undefined,
+      spokenParts: Array.isArray(spokenParts) && spokenParts.length ? spokenParts : undefined
     });
     if (typeof onProgress === "function") {
-      onProgress({ phase: done ? PHASE_WAITING : PHASE_THINKING, streamId, text: replyText, done, spokenText });
+      onProgress({
+        phase: done ? PHASE_WAITING : PHASE_THINKING,
+        streamId,
+        text: replyText,
+        done,
+        spokenText,
+        spokenParts
+      });
     }
   };
 
@@ -598,6 +609,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     streamId,
     body: finalized.body,
     spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
     role: "agent",
     author: "qwenpaw",
     created: agentMessage?.created || new Date().toISOString()
@@ -612,7 +624,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   await emitAssistantDelta(finalized.body, {
     done: true,
     force: true,
-    spokenText: finalized.spoken || null
+    spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
 
@@ -623,6 +636,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     streamId,
     reply: finalized.body,
     spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null,
     userMessage,
     message: assistantMessage
   };

@@ -199,7 +199,7 @@
 
           <p><em>Голос из Aya (что переносить)</em></p>
           <ul class="shell-todo-list">
-            <li>PTT (<code>fn_button</code>) — ❌</li>
+            <li>PTT (<code>fn_button</code>) — ✅</li>
             <li>Always listen — ⚠️ есть режим</li>
             <li>Meeting / wake_name — ❌</li>
             <li>Anti-echo / cooldown после TTS — ❌</li>
@@ -275,7 +275,7 @@
           <p><em>1. Голосовой пайплайн (<code>aya_voice_v2</code>) — самое ценное</em></p>
           <p>Режимы ввода (<code>assistant_settings.json</code>):</p>
           <ul class="shell-todo-list">
-            <li><code>fn_button</code> — PTT по Fn/F18 (<code>pynput</code>) — в Aya ✅, в Shell ❌</li>
+            <li><code>fn_button</code> — PTT по Fn/F18 (<code>pynput</code>) — ✅</li>
             <li><code>always</code> — в Aya ✅, в Shell ⚠️ есть в sidecar</li>
             <li><code>meeting</code> — длинные записи — в Aya ✅, в Shell ❌</li>
             <li><code>wake_name</code> — фильтр по имени — в Aya ✅, в Shell ❌</li>
@@ -908,6 +908,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <option value="browser" selected>Браузер (микрофон)</option>
                 <option value="sidecar">Sidecar (Python)</option>
                 <option value="always">Sidecar · всегда слушать</option>
+                <option value="fn_button">Fn / F18 (удерживать)</option>
               </select>
             </label>
             <label class="shell-field shell-field--compact">
@@ -928,6 +929,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </select>
             </label>
           </div>
+          <p id="shell-fn-ptt-hint" class="shell-stt-settings-note hidden">
+            Удерживай Fn или F18. На Mac часто нужен Karabiner (Fn → F18). С sidecar — глобально; без sidecar — когда окно Shell в фокусе.
+          </p>
         </div>
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
           <div class="shell-message-queue-bar">
@@ -1131,6 +1135,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=89" type="module"></script>
+    <script src="/shell/shell.js?v=91" type="module"></script>
   </body>
 </html>

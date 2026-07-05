@@ -93,34 +93,53 @@ export function toSpeechText(body, options = {}) {
   return speech.trim();
 }
 
+export function extractAllTtsBlocks(text) {
+  const blocks = [];
+  const source = String(text || "");
+  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
+  let match = re.exec(source);
+  while (match) {
+    const chunk = String(match[1] || "").trim();
+    if (chunk) blocks.push(chunk);
+    match = re.exec(source);
+  }
+  return blocks;
+}
+
+export function stripAllTtsBlocks(text) {
+  return String(text || "")
+    .replace(/\[tts\][\s\S]*?\[\/tts\]/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function parseDualReply(text) {
   const raw = String(text || "").trim();
-  if (!raw) return { body: "", spoken: null, parsed: false };
+  if (!raw) return { body: "", spoken: null, spokenParts: [], parsed: false };
 
-  const spokenMatch = raw.match(/\[tts\]([\s\S]*?)\[\/tts\]/i);
-  const spoken = spokenMatch ? spokenMatch[1].trim() : null;
+  const spokenParts = extractAllTtsBlocks(raw);
+  const spoken = spokenParts.length ? spokenParts.join("\n\n") : null;
 
   const closedText = raw.match(/\[text\]([\s\S]*?)\[\/text\]/i);
   if (closedText) {
-    return { body: closedText[1].trim(), spoken, parsed: true };
+    return { body: closedText[1].trim(), spoken, spokenParts, parsed: true };
   }
 
   const openText = raw.match(/\[text\]\s*([\s\S]*)/i);
   if (openText) {
     const body = openText[1].replace(/\[\/text\]\s*$/i, "").trim();
-    return { body, spoken, parsed: true };
+    return { body, spoken, spokenParts, parsed: true };
   }
 
-  if (spokenMatch) {
-    const afterTts = raw.slice(raw.indexOf(spokenMatch[0]) + spokenMatch[0].length).trim();
-    return { body: afterTts, spoken, parsed: true };
+  if (spokenParts.length) {
+    return { body: stripAllTtsBlocks(raw), spoken, spokenParts, parsed: true };
   }
 
   if (/\[tts\]/i.test(raw)) {
-    return { body: "", spoken: null, parsed: true };
+    return { body: "", spoken: null, spokenParts: [], parsed: true };
   }
 
-  return { body: raw, spoken: null, parsed: false };
+  return { body: raw, spoken: null, spokenParts: [], parsed: false };
 }
 
 export function extractStreamingTtsBody(partialText) {
@@ -140,12 +159,12 @@ export function extractStreamingReplyBody(partialText) {
   if (/\[text\]/i.test(raw)) {
     return parseDualReply(raw).body || "";
   }
-  const closeTts = raw.match(/\[\/tts\]\s*/i);
-  if (closeTts && closeTts.index !== undefined) {
-    return raw.slice(closeTts.index + closeTts[0].length).trim();
+  let visible = stripAllTtsBlocks(raw);
+  const openMatch = raw.match(/\[tts\](?![\s\S]*\[\/tts\])/i);
+  if (openMatch && openMatch.index !== undefined) {
+    visible = stripAllTtsBlocks(raw.slice(0, openMatch.index));
   }
-  if (/\[tts\]/i.test(raw)) return "";
-  return raw.trim();
+  return visible.trim();
 }
 
 export function prepareSpeechText(body, settings = {}) {

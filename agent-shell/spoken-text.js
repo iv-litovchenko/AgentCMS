@@ -1,5 +1,25 @@
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
-const TTS_BLOCK_RE = /\[tts\]([\s\S]*?)\[\/tts\]/i;
+const TTS_BLOCK_RE = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
+
+function extractAllTtsBlocks(text) {
+  const blocks = [];
+  const source = String(text || "");
+  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
+  let match = re.exec(source);
+  while (match) {
+    const chunk = String(match[1] || "").trim();
+    if (chunk) blocks.push(chunk);
+    match = re.exec(source);
+  }
+  return blocks;
+}
+
+function stripAllTtsBlocks(text) {
+  return String(text || "")
+    .replace(TTS_BLOCK_RE, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 function stripInlineMarkdown(text) {
   return String(text || "")
@@ -70,32 +90,31 @@ ${prompt}${suffix}`;
 
 function parseDualReply(text) {
   const raw = String(text || "").trim();
-  if (!raw) return { body: "", spoken: null, parsed: false };
+  if (!raw) return { body: "", spoken: null, spokenParts: [], parsed: false };
 
-  const spokenMatch = raw.match(TTS_BLOCK_RE);
-  const spoken = spokenMatch ? spokenMatch[1].trim() : null;
+  const spokenParts = extractAllTtsBlocks(raw);
+  const spoken = spokenParts.length ? spokenParts.join("\n\n") : null;
 
   const closedText = raw.match(/\[text\]([\s\S]*?)\[\/text\]/i);
   if (closedText) {
-    return { body: closedText[1].trim(), spoken, parsed: true };
+    return { body: closedText[1].trim(), spoken, spokenParts, parsed: true };
   }
 
   const openText = raw.match(/\[text\]\s*([\s\S]*)/i);
   if (openText) {
     const body = openText[1].replace(/\[\/text\]\s*$/i, "").trim();
-    return { body, spoken, parsed: true };
+    return { body, spoken, spokenParts, parsed: true };
   }
 
-  if (spokenMatch) {
-    const afterTts = raw.slice(raw.indexOf(spokenMatch[0]) + spokenMatch[0].length).trim();
-    return { body: afterTts, spoken, parsed: true };
+  if (spokenParts.length) {
+    return { body: stripAllTtsBlocks(raw), spoken, spokenParts, parsed: true };
   }
 
   if (/\[tts\]/i.test(raw)) {
-    return { body: "", spoken: null, parsed: true };
+    return { body: "", spoken: null, spokenParts: [], parsed: true };
   }
 
-  return { body: raw, spoken: null, parsed: false };
+  return { body: raw, spoken: null, spokenParts: [], parsed: false };
 }
 
 function extractStreamingReplyBody(partialText) {
@@ -103,26 +122,37 @@ function extractStreamingReplyBody(partialText) {
   if (/\[text\]/i.test(raw)) {
     return parseDualReply(raw).body || "";
   }
-  const closeTts = raw.match(/\[\/tts\]\s*/i);
-  if (closeTts && closeTts.index !== undefined) {
-    return raw.slice(closeTts.index + closeTts[0].length).trim();
+  let visible = stripAllTtsBlocks(raw);
+  const openMatch = raw.match(/\[tts\](?![\s\S]*\[\/tts\])/i);
+  if (openMatch && openMatch.index !== undefined) {
+    const prefix = raw.slice(0, openMatch.index);
+    visible = stripAllTtsBlocks(prefix);
   }
-  if (/\[tts\]/i.test(raw)) return "";
-  return raw.trim();
+  return visible.trim();
 }
 
 function finalizeDualReply(rawText, settings = {}) {
   const parsed = parseDualReply(rawText);
   if (parsed.parsed) {
+    const spokenParts = parsed.spokenParts?.length
+      ? parsed.spokenParts
+      : parsed.spoken
+        ? [parsed.spoken]
+        : [];
+    const spoken =
+      spokenParts.join("\n\n") || ruleBasedSpeechText(parsed.body, settings) || null;
     return {
       body: parsed.body || rawText.trim(),
-      spoken: parsed.spoken || ruleBasedSpeechText(parsed.body, settings)
+      spoken,
+      spokenParts: spokenParts.length ? spokenParts : spoken ? [spoken] : []
     };
   }
   const body = parsed.body;
+  const spoken = shouldRequestDualReply(settings) ? ruleBasedSpeechText(body, settings) : null;
   return {
     body,
-    spoken: shouldRequestDualReply(settings) ? ruleBasedSpeechText(body, settings) : null
+    spoken,
+    spokenParts: spoken ? [spoken] : []
   };
 }
 
@@ -135,6 +165,8 @@ module.exports = {
   ruleBasedSpeechText,
   shouldRequestDualReply,
   buildDualReplyInstruction,
+  extractAllTtsBlocks,
+  stripAllTtsBlocks,
   parseDualReply,
   extractStreamingReplyBody,
   finalizeDualReply,

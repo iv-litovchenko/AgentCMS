@@ -14,6 +14,7 @@ import urllib.request
 from typing import Any
 
 from stt import MicRecorder, rms, transcribe_pcm
+from ptt import PttGate
 
 
 def env(name: str, default: str = "") -> str:
@@ -39,6 +40,7 @@ class Sidecar:
         self._always_recording = False
         self._always_silence = 0
         self._always_frames: list[bytes] = []
+        self._ptt_gate: PttGate | None = None
 
     def _url(self, path: str, params: dict[str, str] | None = None) -> str:
         query: dict[str, str] = {}
@@ -105,13 +107,24 @@ class Sidecar:
     def _handle_ptt(self, held: bool) -> None:
         if held and not self._recorder.active:
             self._recorder.start()
-            self._patch_state({"phase": "listening", "phrase": "Говорите…"})
+            self._patch_state({"phase": "listening", "phrase": "Говорите…", "pttHeld": True})
             print("🔴 Слушаю (PTT)")
             return
         if not held and self._recorder.active:
+            self._patch_state({"pttHeld": False})
             pcm = self._recorder.stop()
             print("✅ Обработка PTT…")
             self._process_pcm(pcm)
+
+    def _ensure_ptt_gate(self) -> None:
+        if self._ptt_gate is None:
+            self._ptt_gate = PttGate()
+            self._ptt_gate.start()
+
+    def _stop_ptt_gate(self) -> None:
+        if self._ptt_gate is not None:
+            self._ptt_gate.stop()
+            self._ptt_gate = None
 
     def _pump_ptt(self) -> None:
         if self._recorder.active:
@@ -192,7 +205,17 @@ class Sidecar:
                 self._handle_ptt(held)
                 self._last_ptt_held = held
             self._pump_ptt()
+        elif voice_mode == "fn_button":
+            self._ensure_ptt_gate()
+            fn_held = self._ptt_gate.is_held() if self._ptt_gate else False
+            if fn_held != self._last_ptt_held:
+                self._handle_ptt(fn_held)
+                self._last_ptt_held = fn_held
+            self._pump_ptt()
+            if fn_held != bool(state.get("pttHeld")):
+                self._patch_state({"pttHeld": fn_held})
         elif voice_mode != "always":
+            self._stop_ptt_gate()
             if self._recorder.active:
                 pcm = self._recorder.stop()
                 if pcm and self._last_ptt_held:
@@ -219,6 +242,7 @@ class Sidecar:
         print("STT: Google Speech (SpeechRecognition)")
         print("TTS: macOS say")
         print("Режим sidecar: кнопка 🎤 в Shell (PTT)")
+        print("Режим fn_button: удерживай F18 (SHELL_PTT_KEY), Fn→F18 через Karabiner")
         print("Ctrl+C — выход")
         print("=" * 50)
 
@@ -235,6 +259,7 @@ class Sidecar:
 
     def shutdown(self) -> None:
         self._stop.set()
+        self._stop_ptt_gate()
         if self._recorder.active:
             self._recorder.stop()
         self.stop_playback()
