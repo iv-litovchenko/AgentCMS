@@ -15,7 +15,7 @@
   "sttPrompt": "",
   "ttsEnabled": true,
   "ttsEngine": "edge",
-  "ttsEdgeVoice": "ru-RU-SvetlanaNeural",
+  "ttsEdgeVoice": "ru-RU-DmitryNeural",
   "ttsElevenlabsApiKey": "**MetabasePass**",
   "ttsElevenlabsVoiceId": "",
   "ttsElevenlabsModel": "eleven_multilingual_v2",

@@ -7,6 +7,7 @@ export const SHELL_API = {
   settings: "/api/shell/settings",
   message: "/api/shell/message",
   stopTts: "/api/shell/stop-tts",
+  ttsSynthesize: "/api/shell/tts/synthesize",
   stream: "/api/shell/stream",
   agents: "/api/agents",
   agentGroups: "/api/agents/groups"
@@ -17,6 +18,7 @@ export const SHELL_SSE = {
   state: "state",
   assistantMessage: "assistant_message",
   assistantDelta: "assistant_delta",
+  settings: "settings",
   error: "error"
 };
 

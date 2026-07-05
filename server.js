@@ -1,4 +1,7 @@
 const http = require("http");
+const https = require("https");
+const os = require("os");
+const fsSync = require("fs");
 const fs = require("fs/promises");
 const path = require("path");
 const { execFile } = require("child_process");
@@ -159,6 +162,7 @@ const execFileAsync = promisify(execFile);
 let appRoot = __dirname;
 let projectRoot = __dirname;
 let httpServer = null;
+let httpsServer = null;
 
 function getAppRoot() {
   return appRoot;
@@ -12932,8 +12936,8 @@ async function handleApi(req, res, url) {
   return runWithAgent(agent.id, () => handleApiForAgent(req, res, url));
 }
 
-function createAppServer() {
-  return http.createServer(async (req, res) => {
+function createRequestHandler() {
+  return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
 
     if (url.pathname.startsWith("/api/")) {
@@ -12941,7 +12945,28 @@ function createAppServer() {
     }
 
     return serveStatic(url.pathname, res);
-  });
+  };
+}
+
+function readTlsCredentials() {
+  const keyPath = process.env.TLS_KEY || process.env.HTTPS_KEY;
+  const certPath = process.env.TLS_CERT || process.env.HTTPS_CERT;
+  if (!keyPath || !certPath || !fsSync.existsSync(keyPath) || !fsSync.existsSync(certPath)) {
+    return null;
+  }
+  return {
+    key: fsSync.readFileSync(keyPath),
+    cert: fsSync.readFileSync(certPath)
+  };
+}
+
+function createAppServer() {
+  const handler = createRequestHandler();
+  const tls = readTlsCredentials();
+  if (tls && process.env.TLS_ONLY === "1") {
+    return https.createServer(tls, handler);
+  }
+  return http.createServer(handler);
 }
 
 function listenServer(server, { host, port, tryNextPort = false }) {
@@ -12976,8 +13001,21 @@ function listenServer(server, { host, port, tryNextPort = false }) {
   });
 }
 
+function getLanIPv4() {
+  for (const nets of Object.values(os.networkInterfaces())) {
+    for (const net of nets || []) {
+      if (net && net.family === "IPv4" && !net.internal) return net.address;
+    }
+  }
+  return "";
+}
+
+function isTlsEnabled() {
+  return Boolean(readTlsCredentials());
+}
+
 async function startServer(options = {}) {
-  if (httpServer) {
+  if (httpServer || httpsServer) {
     await stopServer();
   }
 
@@ -12987,37 +13025,101 @@ async function startServer(options = {}) {
 
   const host = options.host ?? process.env.HOST ?? undefined;
   const port = Number(options.port ?? process.env.PORT ?? 3000);
+  const tlsPort = Number(process.env.TLS_PORT ?? 3443);
   const tryNextPort = Boolean(options.tryNextPort);
+  const handler = createRequestHandler();
+  const lanIp = getLanIPv4();
+  const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
 
-  httpServer = createAppServer();
+  if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {
+    const tls = readTlsCredentials();
+    httpsServer = https.createServer(tls, handler);
+    const boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort });
+    const hostname = host || "localhost";
+    const url = `https://${hostname}:${boundTlsPort}`;
+    return {
+      port: boundTlsPort,
+      tlsPort: boundTlsPort,
+      host: hostname,
+      url,
+      scheme: "https",
+      lanIp,
+      tls: true,
+      httpUrl: null,
+      httpsUrl: lanIp ? `https://${lanIp}:${boundTlsPort}` : url,
+      mobileUrl: lanIp ? `https://${lanIp}:${boundTlsPort}/shell/mobile/` : `${url}/shell/mobile/`,
+      stop: stopServer
+    };
+  }
+
+  httpServer = http.createServer(handler);
   const boundPort = await listenServer(httpServer, { host, port, tryNextPort });
   const hostname = host || "localhost";
-  const url = `http://${hostname}:${boundPort}`;
+  const httpUrl = `http://${hostname}:${boundPort}`;
+  let httpsUrl = null;
+  let boundTlsPort = null;
+
+  if (isTlsEnabled()) {
+    const tls = readTlsCredentials();
+    httpsServer = https.createServer(tls, handler);
+    boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort: false });
+    httpsUrl = `https://${hostname}:${boundTlsPort}`;
+  }
 
   return {
     port: boundPort,
+    tlsPort: boundTlsPort,
     host: hostname,
-    url,
+    url: httpUrl,
+    scheme: "http",
+    lanIp,
+    tls: Boolean(httpsUrl),
+    httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
+    httpsUrl: lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl,
+    mobileUrl: lanIp && boundTlsPort
+      ? `https://${lanIp}:${boundTlsPort}/shell/mobile/`
+      : lanIp
+        ? `http://${lanIp}:${boundPort}/shell/mobile/`
+        : `${httpUrl}/shell/mobile/`,
     stop: stopServer
   };
 }
 
 async function stopServer() {
-  if (!httpServer) return;
-
-  await new Promise((resolve, reject) => {
-    httpServer.close((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-  httpServer = null;
+  const closes = [];
+  if (httpServer) {
+    closes.push(
+      new Promise((resolve, reject) => {
+        httpServer.close((error) => (error ? reject(error) : resolve()));
+      })
+    );
+    httpServer = null;
+  }
+  if (httpsServer) {
+    closes.push(
+      new Promise((resolve, reject) => {
+        httpsServer.close((error) => (error ? reject(error) : resolve()));
+      })
+    );
+    httpsServer = null;
+  }
+  if (closes.length) await Promise.all(closes);
 }
 
 if (require.main === module) {
   startServer({ root: __dirname, tryNextPort: false })
     .then((info) => {
-      console.log(`Agent CMS running at ${info.url}`);
+      if (info.httpUrl) console.log(`Agent CMS HTTP  at ${info.httpUrl}`);
+      if (info.httpsUrl) console.log(`Agent CMS HTTPS at ${info.httpsUrl}`);
+      else if (!info.httpUrl) console.log(`Agent CMS at ${info.url}`);
+      console.log(`Mobile Shell:     ${info.mobileUrl}`);
+      console.log("");
+      if (info.httpsUrl) {
+        console.log("iPhone: open HTTPS URL → accept certificate → hold 🎤");
+      } else {
+        console.log("iPhone mic/compass need HTTPS. Run in another terminal:");
+        console.log("  npm run start:https");
+      }
     })
     .catch((error) => {
       console.error(error);

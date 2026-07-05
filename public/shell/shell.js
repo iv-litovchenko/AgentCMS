@@ -8,6 +8,7 @@ import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=2";
+import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -150,6 +151,24 @@ function canPlayTts() {
   if (document.visibilityState === "visible") ttsTabCoordinator?.claimLeader();
   if (!ttsTabCoordinator?.isLeader()) return false;
   return document.visibilityState === "visible";
+}
+
+function isLocalMessagePipelineActive() {
+  return Boolean(state.messagePipelineBusy || state.processingMessage);
+}
+
+/** Озвучивать только на том устройстве, с которого отправили вопрос. */
+function shouldPlayReplyTts(meta = {}) {
+  if (!state.settings?.ttsEnabled) return false;
+  if (state.messageStopped) return false;
+  const target = String(meta.ttsClientId || "").trim();
+  const mine = getShellClientId();
+  if (target) {
+    if (target !== mine) return false;
+    if (document.visibilityState === "visible") ttsTabCoordinator?.claimLeader();
+    return ttsTabCoordinator?.isLeader() !== false;
+  }
+  return isLocalMessagePipelineActive() && canPlayTts();
 }
 
 function canPlayBrowserTts() {
@@ -739,7 +758,6 @@ function markAssistantReplyHandled(message, body, { streamTts = false } = {}) {
 }
 
 function shouldSkipAssistantSpeech(message, body) {
-  if (message?.streamId) return true;
   if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) return true;
   if (lastStreamHandledBody && lastStreamHandledBody === body) return true;
   return false;
@@ -884,7 +902,7 @@ function finalizeAssistantStream(message) {
   renderShellReply({ ...message, body });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
-  if (state.settings?.ttsEnabled && canPlayTts() && !state.messageStopped) {
+  if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && !state.messageStopped) {
     const parts = spokenParts
       .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
       .filter(Boolean);
@@ -896,7 +914,7 @@ function finalizeAssistantStream(message) {
     state.streamTtsQueue = [];
     if (parts.length) {
       lastSpokenBody = parts.join("\0");
-      void speakTextParts(parts).finally(() => {
+      void speakTextParts(parts, { ttsClientId: message.ttsClientId }).finally(() => {
         state.assistantStream = null;
         releaseMessagePipeline();
       });
@@ -1221,8 +1239,15 @@ function handleAssistantDelta(payload) {
   queueStreamSpeech(rawText);
 
   if (done) {
-    finalizeAssistantStream({ streamId, id: streamId, body: rawText, spokenText, spokenParts });
-    if (!state.settings?.ttsEnabled || !canPlayTts()) {
+    finalizeAssistantStream({
+      streamId,
+      id: streamId,
+      body: rawText,
+      spokenText,
+      spokenParts,
+      ttsClientId: payload.ttsClientId
+    });
+    if (!state.settings?.ttsEnabled || !shouldPlayReplyTts(payload)) {
       renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
     }
   } else {
@@ -2157,6 +2182,7 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
         body: text,
         author: "shell",
         voice: Boolean(voice),
+        shellClientId: getShellClientId(),
         ...collectOutboundMessageSettings()
       }),
       signal
@@ -2171,7 +2197,13 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
     updateSendButtonLabel();
     if (result?.reply || result?.message?.body) {
       await handleAssistantMessage(
-        result.message || { body: result.reply, streamId: result.streamId, spokenText: result.spokenText }
+        result.message || {
+          body: result.reply,
+          streamId: result.streamId,
+          spokenText: result.spokenText,
+          spokenParts: result.spokenParts,
+          ttsClientId: result.ttsClientId
+        }
       );
     } else {
       await refreshStatus();
@@ -2600,14 +2632,14 @@ async function speakOneChunk(text) {
   }
 }
 
-async function speakTextParts(parts) {
+async function speakTextParts(parts, { ttsClientId } = {}) {
   const list = (Array.isArray(parts) ? parts : [parts])
     .map((part) => String(part || "").trim())
     .filter(Boolean);
   if (!list.length) return;
   if (!state.settings?.ttsEnabled) return;
   if (state.messageStopped) return;
-  if (!canPlayTts()) {
+  if (!shouldPlayReplyTts({ ttsClientId })) {
     releaseMessagePipeline();
     renderPhase(state.shellState?.phase || "waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
     return;
@@ -2709,7 +2741,7 @@ async function handleAssistantMessage(message) {
       return;
     }
     lastSpokenBody = speechKey;
-    await speakTextParts(parts);
+    await speakTextParts(parts, { ttsClientId: message.ttsClientId });
     releaseMessagePipeline();
     return;
   }

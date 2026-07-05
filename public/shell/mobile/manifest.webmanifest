@@ -2,11 +2,11 @@
   "name": "Agent Shell",
   "short_name": "Shell",
   "description": "Голосовой клиент Agent CMS",
-  "start_url": "/shell/mobile/",
-  "scope": "/shell/mobile/",
+  "start_url": "/shell/mobile/index.html",
+  "scope": "/shell/",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#0f1419",
+  "background_color": "#070812",
+  "theme_color": "#070812",
   "orientation": "portrait",
   "icons": [
     {

@@ -5,6 +5,7 @@ import {
   unwrapAssistantMessage,
   unwrapShellState
 } from "/shell/shell-contract.js?v=1";
+import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 
 export class ShellClient {
   constructor({
@@ -54,10 +55,24 @@ export class ShellClient {
     return this.apiFetch(SHELL_API.status);
   }
 
-  sendMessage(body, { voice = false, author = "shell" } = {}) {
+  sendMessage(body, { voice = false, author = "shell", signal } = {}) {
     return this.apiFetch(SHELL_API.message, {
       method: "POST",
-      body: JSON.stringify({ body: String(body || "").trim(), author, voice: Boolean(voice) })
+      body: JSON.stringify({
+        body: String(body || "").trim(),
+        author,
+        voice: Boolean(voice),
+        shellClientId: getShellClientId()
+      }),
+      signal
+    });
+  }
+
+  synthesizeTts(text, { signal } = {}) {
+    return this.apiFetch(SHELL_API.ttsSynthesize, {
+      method: "POST",
+      body: JSON.stringify({ text: String(text || "").trim() }),
+      signal
     });
   }
 
@@ -109,6 +124,10 @@ export class ShellClient {
     }
     if (type === SHELL_SSE.assistantDelta) {
       this.onStreamEvent({ type: "assistant_delta", delta: data });
+      return;
+    }
+    if (type === SHELL_SSE.settings) {
+      this.onStreamEvent({ type: "settings", settings: data?.payload || data });
       return;
     }
     this.onStreamEvent({ type, data });

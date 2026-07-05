@@ -75,6 +75,7 @@ const DEFAULT_STATE = {
   stopTtsAt: 0,
   sidecarSeenAt: 0,
   pttHeld: false,
+  lastTtsClientId: "",
   updatedAt: ""
 };
 
@@ -558,9 +559,10 @@ async function appendAgentReplyToCms(deps, settings, body, { partial = false } =
   });
 }
 
-async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress }) {
+async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
+  const replyTtsClientId = String(ttsClientId || "").trim();
 
   const topicPath = String(settings.topicPath || DEFAULT_SETTINGS.topicPath).trim();
   let userMessage = null;
@@ -601,6 +603,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       streamId,
       text: replyText,
       done,
+      ttsClientId: replyTtsClientId || undefined,
       spokenText: spokenText || undefined,
       spokenParts: Array.isArray(spokenParts) && spokenParts.length ? spokenParts : undefined
     });
@@ -610,6 +613,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
         streamId,
         text: replyText,
         done,
+        ttsClientId: replyTtsClientId || undefined,
         spokenText,
         spokenParts
       });
@@ -656,6 +660,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     body: finalized.body,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+    ttsClientId: replyTtsClientId || undefined,
     role: "agent",
     author: "qwenpaw",
     created: agentMessage?.created || new Date().toISOString()
@@ -683,6 +688,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     reply: finalized.body,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null,
+    ttsClientId: replyTtsClientId || undefined,
     userMessage,
     message: assistantMessage
   };
@@ -766,9 +772,13 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
   let stateOut = { ...state };
 
   if (usesQwenPaw(settings) && shellReply) {
+    const finalized = finalizeDualReply(shellReply, settings);
     latestAgent = {
       id: state.lastAgentMessageId || "qwenpaw-reply",
-      body: shellReply,
+      body: finalized.body || shellReply,
+      spokenText: finalized.spoken || undefined,
+      spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+      ttsClientId: state.lastTtsClientId || undefined,
       role: "agent",
       author: "qwenpaw",
       created: state.updatedAt || new Date().toISOString()
@@ -840,6 +850,9 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
       ? {
           id: latestAgent.id,
           body: latestAgent.body,
+          spokenText: latestAgent.spokenText,
+          spokenParts: latestAgent.spokenParts,
+          ttsClientId: latestAgent.ttsClientId || stateOut.lastTtsClientId || undefined,
           created: latestAgent.created,
           author: latestAgent.author
         }

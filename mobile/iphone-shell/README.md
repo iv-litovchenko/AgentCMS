@@ -23,6 +23,26 @@ AgentShell/
   Resources/     — Info.plist, Assets
 ```
 
+## Открыть проект
+
+**Важно:** открывать именно этот файл (двойной клик в Finder):
+
+```
+YamlCMS/mobile/iphone-shell/AgentShell.xcodeproj
+```
+
+Команда:
+
+```bash
+open ~/Desktop/YamlCMS/mobile/iphone-shell/AgentShell.xcodeproj
+```
+
+В Xcode слева в Navigator должна быть папка **AgentShell** (App, Views, Services…).  
+В toolbar по центру схема **AgentShell** (слитно, без пробела — не «Agent Shell»).
+
+Если схемы нет: **Product → Scheme → AgentShell**.  
+Если проект пустой — открыли не тот файл (не `desktop/agent-shell`, не весь YamlCMS).
+
 ## Сборка
 
 1. Установите [Xcode](https://developer.apple.com/xcode/) 15+

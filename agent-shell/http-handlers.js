@@ -151,9 +151,12 @@ function createShellHandlers(deps) {
           }
         }
 
+        const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
+
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
-          phrase: body.slice(0, 240)
+          phrase: body.slice(0, 240),
+          lastTtsClientId: ttsClientId || undefined
         });
 
         if (shellService.isShellShowDemoRequest(body)) {
@@ -175,7 +178,8 @@ function createShellHandlers(deps) {
             agentRoot,
             agentId,
             settings: outboundSettings,
-            body
+            body,
+            ttsClientId
           });
         } else {
           result = await shellService.sendUserMessage(deps, {
