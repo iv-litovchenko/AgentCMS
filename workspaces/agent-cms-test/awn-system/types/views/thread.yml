@@ -1,0 +1,10 @@
+id: awn.view.thread
+name: Тред (диалог)
+kind: view
+domain: views
+status: active
+extends: awn.entity
+description: Режим диалога с агентом — thread/
+contentMode: thread
+applies-to-slots:
+  - thread

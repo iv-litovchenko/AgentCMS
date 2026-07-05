@@ -1,0 +1,22 @@
+id: awn.page.topic.voice-tts
+name: Голос TTS
+kind: type
+domain: pages
+status: active
+extends: awn.page.topic
+description: Настройки синтеза речи (Text-to-Speech)
+storage-slots: []
+create-node-group: agent
+create-node-label: Голос TTS
+create-node-slug: agent.voice.tts
+create-node-order: 3
+fields:
+  awn-tts-provider:
+    type: awn.string
+    title: Провайдер TTS
+  awn-tts-voice:
+    type: awn.string
+    title: Голос
+  awn-tts-speed:
+    type: awn.number
+    title: Скорость (0.5–2.0)

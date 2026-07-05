@@ -1,0 +1,14 @@
+id: awn.taxonomy.base
+name: База справочника
+kind: base
+domain: taxonomies
+status: active
+extends: awn.entity
+description: Общий формат taxonomy — CSV в awn-agent-kit/taxonomies/{slug}/main.csv
+properties:
+  data-path:
+    title: Путь к данным
+    description: Относительный путь к main.csv справочника
+  props-field:
+    title: Поле frontmatter
+    description: Какое awn-* поле темы использует этот справочник

@@ -3,6 +3,10 @@ name: Статусы
 kind: taxonomy
 domain: taxonomies
 status: active
-extends: awn.entity
-description: Справочник статусов — awn-agent-kit/taxonomies/statuses/main.csv
+extends: awn.taxonomy.base
+description: Справочник статусов для awn-status
+props-field: awn-status
 data-path: awn-agent-kit/taxonomies/statuses/main.csv
+create-node-group: taxonomy
+create-node-label: Статусы
+create-node-preset: statuses

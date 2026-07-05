@@ -1,0 +1,12 @@
+id: awn.taxonomy.categories
+name: Категории
+kind: taxonomy
+domain: taxonomies
+status: active
+extends: awn.taxonomy.base
+description: Справочник категорий для awn-category
+props-field: awn-category
+data-path: awn-agent-kit/taxonomies/categories/main.csv
+create-node-group: taxonomy
+create-node-label: Категории
+create-node-preset: categories

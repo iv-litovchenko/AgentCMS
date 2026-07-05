@@ -1,0 +1,12 @@
+id: awn.taxonomy.priorities
+name: Приоритеты
+kind: taxonomy
+domain: taxonomies
+status: active
+extends: awn.taxonomy.base
+description: Справочник приоритетов для awn-priority
+props-field: awn-priority
+data-path: awn-agent-kit/taxonomies/priorities/main.csv
+create-node-group: taxonomy
+create-node-label: Приоритеты
+create-node-preset: priorities

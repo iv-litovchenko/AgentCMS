@@ -26,8 +26,7 @@ workspaces/agent-cms-test/
 ├── awn-agent-kit/              ← runtime агента
 │   ├── agent/                  ← persona + thread/
 │   ├── user/
-│   ├── taxonomies/tags/
-│   └── taxonomies/statuses/
+│   └── taxonomies/{categories,tags,statuses,priorities,colors}/
 │
 └── awn-storage/                ← assets workspace-уровня
 ```
@@ -44,7 +43,7 @@ workspaces/agent-cms-test/
 | **slots** | `awn.slot.*` | **папки** в `topic/awn-storage/` |
 | **fields** | `awn.string` … | типы полей frontmatter |
 | **md-blocks** | `awn.block.*` | блоки редактора |
-| **taxonomies** | `awn.taxonomy.*` | справочники (tags, statuses) |
+| **taxonomies** | `awn.taxonomy.*` | справочники (categories, tags, statuses, priorities, colors) |
 | **views** | `awn.view.*` | как показывать слот в UI |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
 
@@ -56,7 +55,7 @@ workspaces/agent-cms-test/
 | `awn.page.area` | topics | `awn-container/{area}/manifest.md` |
 | `awn.page.topic` | **нет** (данные в слотах) | `…/{topic}/manifest.md` |
 | `awn.page.service-doc` | **нет** | `awn-agent-kit/agent`, `user`, `agent.voice.*` |
-| `awn.page.catalog` | **нет** | `awn-agent-kit/taxonomies/tags`, `statuses` |
+| `awn.page.catalog` | **нет** | `awn-agent-kit/taxonomies/*` (categories, tags, statuses, priorities, colors) |
 
 ### Content (в слотах)
 
@@ -92,13 +91,52 @@ comments/  → awn.content.comment
 5. **`read_media_sidecar`** / **`write_media_sidecar`**
 6. **`GET /api/awn-types`** — эффективные типы **этого** агента
 
+### Создание топика — правильный порядок
+
+```
+1. create_node (type: folder, name: "slug-topika")
+2. write_node_properties → content: "awn-type: awn.page.topic\nawn-name: Название"
+3. (опционально) write_topic_schema → content YAML с awn_schema блоком
+```
+
+### Ключи awn_schema (для write_topic_schema)
+
+| Ключ | Для чего |
+|------|----------|
+| `slot_memory` | записи в `main/` |
+| `slot_memory_category` | категории записей |
+| `slot_inbox` | записи в `inbox/` |
+| `slot_quick_notes` | заметки |
+| `slot_references` | ссылки / референсы |
+| `slot_artefacts` | артефакты |
+| `slot_media` | медиа |
+| `slot_media_category` | категории медиа |
+| `slot_scripts` | скрипты |
+| `slot_repository` | репозиторий |
+| `topic` | поля самой темы |
+| `sidecar` | поля sidecar-файлов |
+| `settings` | настройки |
+
+Пример `write_topic_schema` content:
+```yaml
+awn_schema:
+  slot_memory:
+    fields:
+      title:
+        type: string
+        name: Заголовок
+      tags:
+        type: tags
+```
+
 ### Не путать
 
-| Действие | Где |
-|----------|-----|
-| Менять **схему CMS** | `awn-system/types/` (редко, осознанно) |
-| Создать **тему/запись** | `awn-container/…` |
-| Override полей одной темы | `{topic}/config.yml` → `awn_schema` |
+| Действие | Инструмент |
+|----------|------------|
+| Менять **схему CMS** (типы) | YAML в `awn-system/types/` (редко, осознанно) |
+| Создать **тему/запись** | `create_node` / `create_external_memory` |
+| Задать **поля одной темы** | `write_topic_schema` (content = YAML с awn_schema:) |
+| UI настройки темы | `write_node_config` (content = YAML с awn_ui:) |
 
 ---
 

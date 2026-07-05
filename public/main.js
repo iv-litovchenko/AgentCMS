@@ -13437,6 +13437,78 @@ function closeCreateNodeModal() {
   syncCreateNodeActionsUi();
 }
 
+function createNodeWithPreset(awnType, defaultName, defaultSlug) {
+  if (createNameInputNode) {
+    createNameInputNode.value = defaultName || "";
+    createNameInputNode.dispatchEvent(new Event("input"));
+  }
+  if (createSlugInputNode && defaultSlug) {
+    createSlugInputNode.value = defaultSlug;
+    setCreateSlugLinked(false);
+  }
+  void createNode("file", { awnType });
+}
+
+let createNodeDynamicTypesCache = null;
+
+async function loadAndRenderCreateNodeDynamicTypes() {
+  try {
+    const agentId = getCreateModalAgentId() || activeAgentId;
+    const resp = await fetch(buildApiUrl("/api/agent-system/create-node-types", {}, agentId));
+    if (!resp.ok) return;
+    const data = await resp.json();
+    createNodeDynamicTypesCache = data;
+    renderCreateNodeDynamicTypes(data);
+  } catch {
+    // silently fail
+  }
+}
+
+function renderCreateNodeDynamicTypes(data) {
+  if (!data?.groups?.length) return;
+
+  // "agent" group → "Агент и пользователи" section
+  const agentGroup = data.groups.find((g) => g.id === "agent");
+  if (agentGroup?.types?.length && createNodeServiceDocsWrapNode) {
+    const actionsNode = createNodeServiceDocsWrapNode.querySelector(".create-node-service-docs-actions");
+    if (actionsNode) {
+      actionsNode.replaceChildren();
+      for (const type of agentGroup.types) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "create-node-action-btn create-node-service-doc-btn create-node-dynamic-type-btn";
+        btn.dataset.awnType = type.id;
+        btn.textContent = type.name;
+        btn.title = type.description || type.id;
+        btn.addEventListener("click", () => {
+          createNodeWithPreset(type.id, type.name, type.slug || "");
+        });
+        actionsNode.appendChild(btn);
+      }
+    }
+  }
+
+  // "taxonomy" group → "Справочники" section
+  const taxGroup = data.groups.find((g) => g.id === "taxonomy");
+  if (taxGroup?.types?.length && createNodeCatalogActionsNode) {
+    createNodeCatalogActionsNode.replaceChildren();
+    for (const type of taxGroup.types) {
+      const preset = type.preset || type.slug || type.id.split(".").pop();
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "create-node-action-btn create-node-catalog-btn create-node-dynamic-type-btn";
+      btn.dataset.catalogPreset = preset;
+      btn.dataset.awnType = type.id;
+      btn.textContent = type.name;
+      btn.title = type.description || type.id;
+      btn.addEventListener("click", () => {
+        void createNode("catalog", { preset });
+      });
+      createNodeCatalogActionsNode.appendChild(btn);
+    }
+  }
+}
+
 function openCreateNodeModal(parentPath, options = {}) {
   createModalAgentId = options.agentId || activeAgentId;
   createModalBaseParentPath = resolveCreateModalParentPath(parentPath, options);
@@ -13457,6 +13529,7 @@ function openCreateNodeModal(parentPath, options = {}) {
     createNameInputNode.focus();
   }
   syncCreateSlugFromDisplayName();
+  void loadAndRenderCreateNodeDynamicTypes();
 }
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
@@ -31119,7 +31192,7 @@ function applySystemFileUi() {
 }
 
 function clearSystemFileViewUi() {
-  appRootNode.classList.remove("system-file-view");
+  appRootNode.classList.remove("system-file-view", "is-agent-type-form-mode");
   workspacePathHeaderNode?.classList.remove("is-service-file");
   clearAgentSystemTypeInspector();
   workspaceGdriveSyncBtn?.classList.remove("hidden");
@@ -38653,6 +38726,11 @@ async function renderNodeOverview() {
   const slotStrip = renderNodeSlotStrip(slotStripGroups);
   if (slotStrip) head.appendChild(slotStrip);
 
+  // Async: view selector (after slotStrip so it doesn't block rendering)
+  renderNodeOverviewViewSelector(nodePathResolved).then((viewSelectorEl) => {
+    if (viewSelectorEl && head.isConnected) head.appendChild(viewSelectorEl);
+  }).catch(() => {});
+
   heroMain.append(thumbWrap, head);
   hero.appendChild(heroMain);
   appendNavigationHeroProps(hero, entries);
@@ -42013,6 +42091,271 @@ function sanitizeAgentSystemFolderCollapseState(agentId = activeAgentId) {
   if (changed) saveCollapsedFoldersByAgent();
 }
 
+// ── View selector for topic overview ─────────────────────────────────────────
+
+let cachedViewTypes = null;
+
+async function fetchViewTypes() {
+  if (cachedViewTypes) return cachedViewTypes;
+  try {
+    const resp = await fetch(buildApiUrl("/api/agent-system/views"));
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    cachedViewTypes = Array.isArray(data.views) ? data.views.filter((v) => v.contentMode) : [];
+    return cachedViewTypes;
+  } catch {
+    return [];
+  }
+}
+
+async function renderNodeOverviewViewSelector(nodePath) {
+  if (!isTopicManifestPath(nodePath)) return null;
+
+  const [viewTypes, nodeConfig] = await Promise.all([
+    fetchViewTypes(),
+    loadNodeConfig(nodePath).catch(() => null)
+  ]);
+
+  if (!viewTypes.length) return null;
+
+  const currentMode = nodeConfig?.defaultLandingMode || null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-overview-view-selector";
+
+  const label = document.createElement("span");
+  label.className = "node-overview-view-selector-label";
+  label.textContent = "Вид по умолчанию:";
+
+  const select = document.createElement("select");
+  select.className = "node-overview-view-selector-select";
+
+  const optNone = document.createElement("option");
+  optNone.value = "";
+  optNone.textContent = "— обзор (по умолчанию)";
+  select.appendChild(optNone);
+
+  for (const view of viewTypes) {
+    const opt = document.createElement("option");
+    opt.value = view.contentMode;
+    opt.textContent = view.name;
+    opt.title = view.description || "";
+    if (view.contentMode === currentMode) opt.selected = true;
+    select.appendChild(opt);
+  }
+
+  select.addEventListener("change", async () => {
+    const mode = select.value || null;
+    try {
+      if (mode) {
+        await saveNodeConfigDefaultLanding(nodePath, mode);
+        showToast(`Вид «${select.options[select.selectedIndex].text}» сохранён`, "success");
+      } else {
+        await clearNodeDefaultView(nodePath);
+        showToast("Вид сброшен — при открытии будет обзор", "info");
+      }
+      syncNodeDefaultLandingBtn();
+    } catch (err) {
+      showToast(`Не удалось сохранить вид: ${err.message}`, "error");
+    }
+  });
+
+  wrap.append(label, select);
+  return wrap;
+}
+
+// ── Type creation helpers ────────────────────────────────────────────────────
+
+const AGENT_SYSTEM_DOMAIN_KIND = {
+  base: "base",
+  pages: "type",
+  content: "type",
+  slots: "slot",
+  fields: "field",
+  "md-blocks": "block",
+  taxonomies: "taxonomy",
+  views: "view",
+  mixins: "mixin"
+};
+
+const AGENT_SYSTEM_DOMAIN_EXTENDS = {
+  pages: "awn.page.base",
+  content: "awn.entity",
+  slots: "awn.slot",
+  fields: "awn.field-def",
+  "md-blocks": "awn.block.base",
+  taxonomies: "awn.taxonomy.base",
+  views: "awn.view.base"
+};
+
+const AGENT_SYSTEM_DOMAIN_PREFIX = {
+  pages: "awn.page",
+  content: "awn.content",
+  slots: "awn.slot",
+  fields: "awn",
+  "md-blocks": "awn.block",
+  taxonomies: "awn.taxonomy",
+  views: "awn.view",
+  mixins: "awn.mixin",
+  base: "awn"
+};
+
+function slugifyTypeName(name) {
+  return name
+    .toLowerCase()
+    .replace(/[а-яёa-z0-9]+/gi, (m) => {
+      // transliterate basic Russian
+      const map = { а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "zh", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya" };
+      return [...m].map((c) => map[c] || c).join("");
+    })
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildNewTypeYaml(domain, slug, displayName) {
+  const kind = AGENT_SYSTEM_DOMAIN_KIND[domain] || "type";
+  const prefix = AGENT_SYSTEM_DOMAIN_PREFIX[domain] || "awn";
+  const id = `${prefix}.${slug}`;
+  const ext = AGENT_SYSTEM_DOMAIN_EXTENDS[domain];
+  const lines = [
+    `id: ${id}`,
+    `name: ${displayName}`,
+    `kind: ${kind}`,
+    `domain: ${domain}`,
+    `status: active`
+  ];
+  if (ext) lines.push(`extends: ${ext}`);
+  lines.push(`description: ""`);
+  if (domain === "pages" || domain === "content") {
+    lines.push(`fields:`);
+    lines.push(`  # Add custom fields below`);
+  }
+  if (domain === "slots") {
+    lines.push(`path: ${slug}/`);
+    lines.push(`allowed-content: []`);
+    lines.push(`accept-files: [".md"]`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+function showNewTypeInlineForm(domain, triggerBtn) {
+  // Remove any existing open form
+  document.querySelectorAll(".new-type-inline-form").forEach((el) => el.remove());
+
+  const form = document.createElement("div");
+  form.className = "new-type-inline-form";
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.placeholder = "Название типа";
+  nameInput.className = "new-type-input new-type-input--name";
+  nameInput.autofocus = true;
+
+  const slugInput = document.createElement("input");
+  slugInput.type = "text";
+  slugInput.placeholder = "slug";
+  slugInput.className = "new-type-input new-type-input--slug";
+
+  nameInput.addEventListener("input", () => {
+    const auto = slugifyTypeName(nameInput.value);
+    if (!slugInput.dataset.manualEdit) slugInput.value = auto;
+  });
+  slugInput.addEventListener("input", () => {
+    slugInput.dataset.manualEdit = "1";
+    slugInput.value = slugInput.value.replace(/[^a-z0-9-]/gi, "").toLowerCase();
+  });
+
+  const confirmBtn = document.createElement("button");
+  confirmBtn.type = "button";
+  confirmBtn.className = "new-type-confirm-btn";
+  confirmBtn.textContent = "Создать";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "new-type-cancel-btn";
+  cancelBtn.textContent = "✕";
+  cancelBtn.addEventListener("click", () => form.remove());
+
+  const domainLabel = document.createElement("span");
+  domainLabel.className = "new-type-domain-label";
+  domainLabel.textContent = domain;
+
+  const row1 = document.createElement("div");
+  row1.className = "new-type-row";
+  row1.append(domainLabel, cancelBtn);
+
+  const row2 = document.createElement("div");
+  row2.className = "new-type-row";
+  row2.append(nameInput);
+
+  const row3 = document.createElement("div");
+  row3.className = "new-type-row";
+  row3.append(slugInput, confirmBtn);
+
+  form.append(row1, row2, row3);
+
+  // Insert below the trigger button's parent section
+  const section = triggerBtn.closest(".menu-agent-system-domain");
+  if (section) section.after(form);
+  else triggerBtn.after(form);
+
+  nameInput.focus();
+
+  const doCreate = async () => {
+    const displayName = nameInput.value.trim();
+    const slug = slugInput.value.trim();
+    if (!displayName || !slug) {
+      nameInput.style.borderColor = displayName ? "" : "#ef4444";
+      slugInput.style.borderColor = slug ? "" : "#ef4444";
+      return;
+    }
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "…";
+    const filePath = `awn-system/types/${domain}/${slug}.yml`;
+    const content = buildNewTypeYaml(domain, slug, displayName);
+    try {
+      const resp = await fetch(buildApiUrl("/api/agent-system/file"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: filePath, content })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        showToast(`Ошибка: ${data.error || resp.status}`, "error");
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Создать";
+        return;
+      }
+      form.remove();
+      cachedViewTypes = null; // invalidate view cache if views domain
+      await refreshMenu({ agentId: activeAgentId });
+      await selectAgentSystemFile(displayName, filePath);
+      showToast(`Тип «${displayName}» создан`, "success");
+    } catch (err) {
+      showToast(`Ошибка: ${err.message}`, "error");
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Создать";
+    }
+  };
+
+  confirmBtn.addEventListener("click", doCreate);
+  nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); slugInput.focus(); } });
+  slugInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doCreate(); } });
+
+  // Close on outside click
+  const onOutsideClick = (e) => {
+    if (!form.contains(e.target) && e.target !== triggerBtn) {
+      form.remove();
+      document.removeEventListener("mousedown", onOutsideClick, true);
+    }
+  };
+  setTimeout(() => document.addEventListener("mousedown", onOutsideClick, true), 100);
+}
+
+async function createNewAgentSystemType(domain, folderPath, triggerBtn) {
+  showNewTypeInlineForm(domain, triggerBtn);
+}
+
 function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
   if (!item?.path || !parentEl) return null;
   const itemRow = document.createElement("div");
@@ -42069,6 +42412,22 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
   folderButton.title = collapsed ? "Раскрыть" : "Скрыть";
   folderButton.addEventListener("click", toggleCollapsed);
   headRow.appendChild(folderButton);
+
+  // "+" button to create new type in this domain
+  const domain = String(section.folderPath || "").split("/").pop() || "";
+  if (domain && AGENT_SYSTEM_DOMAIN_KIND[domain]) {
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "menu-action-btn menu-agent-system-add-type-btn";
+    addBtn.textContent = "+";
+    addBtn.title = `Создать новый тип в домене ${domain}`;
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void createNewAgentSystemType(domain, section.folderPath, addBtn);
+    });
+    headRow.appendChild(addBtn);
+  }
+
   wrap.appendChild(headRow);
 
   if (!collapsed) {
@@ -44063,6 +44422,307 @@ async function loadAgentSystemTypeDetail(catalogPath) {
   return response.json();
 }
 
+// ── Type YAML helpers ──────────────────────────────────────────────────────
+function toggleTypeYamlVisibility() {
+  appRootNode.classList.toggle("is-agent-type-form-mode");
+}
+
+function patchTypeYamlList(key, items) {
+  if (!fileContentInputNode) return;
+  const yaml = fileContentInputNode.value;
+  const safeKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const newBlock = items.length > 0
+    ? `${key}:\n${items.map((i) => `  - ${i}`).join("\n")}`
+    : `${key}: []`;
+  const listRe = new RegExp(`^${safeKey}:[ \\t]*(?:\\[\\]|(?:\\n(?:  - [^\\n]*))+)`, "m");
+  const patched = listRe.test(yaml)
+    ? yaml.replace(listRe, newBlock)
+    : `${yaml.trimEnd()}\n${newBlock}\n`;
+  fileContentInputNode.value = patched;
+  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function deleteTypeFieldFromYaml(fieldKey) {
+  if (!fileContentInputNode || !fieldKey) return;
+  const yaml = fileContentInputNode.value;
+  const lines = yaml.split("\n");
+  const fieldPrefix = `  ${fieldKey}:`;
+  let inField = false;
+  const result = [];
+  for (const line of lines) {
+    if (!inField) {
+      const isTarget = line.startsWith(fieldPrefix) &&
+        (line.length === fieldPrefix.length || line[fieldPrefix.length] === " ");
+      if (isTarget) { inField = true; continue; }
+      result.push(line);
+    } else {
+      if (line.startsWith("    ") || line.trim() === "") continue;
+      inField = false;
+      result.push(line);
+    }
+  }
+  fileContentInputNode.value = result.join("\n");
+  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function buildTypeStorageSlotsEditor(currentSlots) {
+  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "artefacts", "repository"];
+  const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
+
+  const wrap = document.createElement("div");
+  wrap.className = "type-slots-editor";
+
+  const label = document.createElement("span");
+  label.className = "type-meta-edit-label";
+  label.textContent = "Слоты";
+
+  const tagsWrap = document.createElement("div");
+  tagsWrap.className = "type-slots-tags";
+
+  function renderTags() {
+    tagsWrap.replaceChildren();
+    for (const slot of slots) {
+      const tag = document.createElement("span");
+      tag.className = "type-slot-tag";
+      tag.textContent = slot;
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "type-slot-tag-del";
+      del.textContent = "×";
+      del.title = `Удалить слот ${slot}`;
+      del.addEventListener("click", () => {
+        slots.splice(slots.indexOf(slot), 1);
+        renderTags();
+        patchTypeYamlList("storage-slots", slots);
+      });
+      tag.appendChild(del);
+      tagsWrap.appendChild(tag);
+    }
+    // Add input
+    const addRow = document.createElement("span");
+    addRow.className = "type-slots-add-row";
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.className = "type-slots-add-input";
+    inp.placeholder = "слот...";
+    inp.list = "type-slots-datalist";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "type-slots-add-btn";
+    confirm.textContent = "+";
+    const addSlot = () => {
+      const val = inp.value.trim().toLowerCase().replace(/\s+/g, "-");
+      if (val && !slots.includes(val)) {
+        slots.push(val);
+        renderTags();
+        patchTypeYamlList("storage-slots", slots);
+      }
+      inp.value = "";
+    };
+    confirm.addEventListener("click", addSlot);
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addSlot(); } });
+    addRow.append(inp, confirm);
+    tagsWrap.appendChild(addRow);
+
+    // datalist for autocomplete
+    let dl = document.getElementById("type-slots-datalist");
+    if (!dl) {
+      dl = document.createElement("datalist");
+      dl.id = "type-slots-datalist";
+      document.body.appendChild(dl);
+    }
+    dl.replaceChildren();
+    for (const s of KNOWN_SLOTS.filter((s) => !slots.includes(s))) {
+      const opt = document.createElement("option");
+      opt.value = s;
+      dl.appendChild(opt);
+    }
+  }
+
+  renderTags();
+  wrap.append(label, tagsWrap);
+  return wrap;
+}
+
+function patchTypeYamlScalar(key, rawValue) {
+  if (!fileContentInputNode) return;
+  const yaml = fileContentInputNode.value;
+  const safeKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^(${safeKey}):[^\\S\\n]*.*$`, "m");
+  const needsQuotes = /[:#\[\]{}|>&*!,'"%@`]/.test(String(rawValue)) || /^\s|\s$/.test(String(rawValue));
+  const formatted = needsQuotes ? `"${String(rawValue).replace(/"/g, '\\"')}"` : String(rawValue);
+  const newLine = `${key}: ${formatted}`;
+  const patched = re.test(yaml) ? yaml.replace(re, newLine) : `${yaml.trimEnd()}\n${newLine}\n`;
+  fileContentInputNode.value = patched;
+  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function addTypeFieldToYaml(fieldKey, fieldType, fieldTitle) {
+  if (!fileContentInputNode || !fieldKey || !fieldType) return;
+  const yaml = fileContentInputNode.value;
+  const indent = "  ";
+  let fieldBlock = `${indent}${fieldKey}:\n${indent}  type: ${fieldType}\n`;
+  if (fieldTitle) fieldBlock += `${indent}  title: ${fieldTitle}\n`;
+  const fieldsRe = /^(fields:)\s*\n/m;
+  let patched;
+  if (fieldsRe.test(yaml)) {
+    patched = yaml.replace(fieldsRe, `$1\n${fieldBlock}`);
+  } else {
+    patched = `${yaml.trimEnd()}\nfields:\n${fieldBlock}`;
+  }
+  fileContentInputNode.value = patched;
+  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function buildTypeMetaEditForm(detail) {
+  const wrap = document.createElement("div");
+  wrap.className = "type-meta-edit-form";
+
+  function makeRow(labelText, inputEl) {
+    const row = document.createElement("label");
+    row.className = "type-meta-edit-row";
+    const lbl = document.createElement("span");
+    lbl.className = "type-meta-edit-label";
+    lbl.textContent = labelText;
+    row.append(lbl, inputEl);
+    return row;
+  }
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "type-meta-edit-input";
+  nameInput.value = detail.name || "";
+  nameInput.placeholder = "Название типа";
+  nameInput.addEventListener("change", () => patchTypeYamlScalar("name", nameInput.value.trim()));
+  wrap.appendChild(makeRow("Название", nameInput));
+
+  const descInput = document.createElement("input");
+  descInput.type = "text";
+  descInput.className = "type-meta-edit-input";
+  descInput.value = detail.description || "";
+  descInput.placeholder = "Описание";
+  descInput.addEventListener("change", () => patchTypeYamlScalar("description", descInput.value.trim()));
+  wrap.appendChild(makeRow("Описание", descInput));
+
+  const statusSel = document.createElement("select");
+  statusSel.className = "type-meta-edit-select";
+  for (const [val, label] of [["active", "Активен"], ["inactive", "Неактивен"], ["draft", "Черновик"]]) {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    if (val === (detail.status || "active")) opt.selected = true;
+    statusSel.appendChild(opt);
+  }
+  statusSel.addEventListener("change", () => patchTypeYamlScalar("status", statusSel.value));
+  wrap.appendChild(makeRow("Статус", statusSel));
+
+  // Domain-specific extras
+  const schema = detail.schema || {};
+  if (detail.domain === "views") {
+    const modeSel = document.createElement("select");
+    modeSel.className = "type-meta-edit-select";
+    for (const [val, label] of [
+      ["", "— не задан —"],
+      ["external", "external (список)"],
+      ["media", "media (сетка)"],
+      ["tabular", "tabular (таблица)"],
+      ["thread", "thread (лента)"],
+      ["inbox", "inbox (входящие)"]
+    ]) {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = label;
+      if (val === (schema.contentMode || "")) opt.selected = true;
+      modeSel.appendChild(opt);
+    }
+    modeSel.addEventListener("change", () => patchTypeYamlScalar("contentMode", modeSel.value));
+    wrap.appendChild(makeRow("contentMode", modeSel));
+  }
+
+  if (detail.domain === "fields") {
+    const widgetSel = document.createElement("select");
+    widgetSel.className = "type-meta-edit-select";
+    for (const w of ["input", "textarea", "checkbox", "select", "select-multiple", "radio", "number", "date", "datetime", "color", "url", "file", "link", "nullable-input"]) {
+      const opt = document.createElement("option");
+      opt.value = w;
+      opt.textContent = w;
+      if (w === (schema.widget || "input")) opt.selected = true;
+      widgetSel.appendChild(opt);
+    }
+    widgetSel.addEventListener("change", () => patchTypeYamlScalar("widget", widgetSel.value));
+    wrap.appendChild(makeRow("Widget", widgetSel));
+  }
+
+  if (detail.domain === "pages" || detail.domain === "content" || detail.domain === "slots") {
+    const slotsEditor = buildTypeStorageSlotsEditor(detail.storageSlots || []);
+    wrap.appendChild(slotsEditor);
+  }
+
+  return wrap;
+}
+
+function buildTypeAddFieldForm() {
+  const wrap = document.createElement("div");
+  wrap.className = "type-add-field-wrap";
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "type-add-field-toggle";
+  toggleBtn.textContent = "+ Добавить поле";
+
+  const form = document.createElement("div");
+  form.className = "type-add-field-form hidden";
+
+  const keyInput = document.createElement("input");
+  keyInput.type = "text";
+  keyInput.className = "type-meta-edit-input";
+  keyInput.placeholder = "ключ-поля";
+
+  const typeSel = document.createElement("select");
+  typeSel.className = "type-meta-edit-select";
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const fieldIds = Object.keys(registry).length
+    ? Object.keys(registry)
+    : ["awn.string", "awn.text", "awn.boolean", "awn.integer", "awn.number", "awn.enum", "awn.date", "awn.file", "awn.link", "awn.url"];
+  for (const fid of fieldIds) {
+    const opt = document.createElement("option");
+    opt.value = fid;
+    opt.textContent = registry[fid]?.name || fid;
+    typeSel.appendChild(opt);
+  }
+
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.className = "type-meta-edit-input";
+  titleInput.placeholder = "Название поля";
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "type-add-field-confirm";
+  addBtn.textContent = "Добавить";
+
+  addBtn.addEventListener("click", () => {
+    const key = keyInput.value.trim();
+    if (!key) { keyInput.focus(); return; }
+    addTypeFieldToYaml(key, typeSel.value, titleInput.value.trim());
+    keyInput.value = "";
+    titleInput.value = "";
+    form.classList.add("hidden");
+    toggleBtn.textContent = "+ Добавить поле";
+  });
+
+  form.append(keyInput, typeSel, titleInput, addBtn);
+
+  toggleBtn.addEventListener("click", () => {
+    const hidden = form.classList.toggle("hidden");
+    toggleBtn.textContent = hidden ? "+ Добавить поле" : "✕ Отмена";
+  });
+
+  wrap.append(toggleBtn, form);
+  return wrap;
+}
+// ── End type editor helpers ────────────────────────────────────────────────
+
 function renderAgentSystemTypeInspector(detail) {
   if (!agentSystemTypeInspectorNode || !detail) {
     clearAgentSystemTypeInspector();
@@ -44077,10 +44737,10 @@ function renderAgentSystemTypeInspector(detail) {
 
   const head = document.createElement("header");
   head.className = "agent-system-type-inspector-head";
-  const title = document.createElement("h3");
-  title.className = "agent-system-type-inspector-title";
-  title.textContent = detail.name || detail.id || "Тип";
-  head.appendChild(title);
+  const idBadge = document.createElement("code");
+  idBadge.className = "agent-system-type-inspector-id";
+  idBadge.textContent = detail.id || "";
+  head.appendChild(idBadge);
 
   if (Array.isArray(detail.inheritanceChain) && detail.inheritanceChain.length) {
     const chain = document.createElement("div");
@@ -44112,13 +44772,8 @@ function renderAgentSystemTypeInspector(detail) {
 
   panel.appendChild(head);
 
-  const hint = document.createElement("p");
-  hint.className = "agent-system-type-inspector-hint";
-  hint.textContent =
-    detail.ownFieldCount > 0
-      ? "Собственные поля — в YAML ниже. Унаследованные открываются по ссылке в колонке «Источник»."
-      : "У типа нет собственных полей — набор задаётся базовым классом. Добавьте блок fields: в YAML ниже или откройте родителя.";
-  panel.appendChild(hint);
+  // Editable metadata form
+  panel.appendChild(buildTypeMetaEditForm(detail));
 
   if (Array.isArray(detail.storageSlots) && detail.storageSlots.length) {
     const slots = document.createElement("p");
@@ -44126,6 +44781,14 @@ function renderAgentSystemTypeInspector(detail) {
     slots.innerHTML = `Слоты: <code>${detail.storageSlots.join("</code>, <code>")}</code>`;
     panel.appendChild(slots);
   }
+
+  const hint = document.createElement("p");
+  hint.className = "agent-system-type-inspector-hint";
+  hint.textContent =
+    detail.ownFieldCount > 0
+      ? "Собственные поля помечены «этот тип». Унаследованные открываются по клику на источник."
+      : "Нет собственных полей — набор задаётся родителем. Добавьте поле кнопкой ниже или через YAML.";
+  panel.appendChild(hint);
 
   const mergedFields = detail.mergedFields && typeof detail.mergedFields === "object" ? detail.mergedFields : {};
   const ownFields = detail.ownFields && typeof detail.ownFields === "object" ? detail.ownFields : {};
@@ -44140,7 +44803,7 @@ function renderAgentSystemTypeInspector(detail) {
     table.className = "node-overview-meta-table agent-system-type-fields-table";
     const thead = document.createElement("thead");
     thead.innerHTML =
-      "<tr><th>Поле</th><th>Тип</th><th>Название</th><th>Источник</th><th>Флаги</th></tr>";
+      "<tr><th>Поле</th><th>Тип</th><th>Название</th><th>Источник</th><th>Флаги</th><th></th></tr>";
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
     for (const fieldKey of fieldKeys.sort((a, b) => a.localeCompare(b, "ru"))) {
@@ -44183,6 +44846,22 @@ function renderAgentSystemTypeInspector(detail) {
       const flagsCell = document.createElement("td");
       flagsCell.appendChild(createAwnTypeFieldFlags(fieldDef));
       row.appendChild(flagsCell);
+      const actCell = document.createElement("td");
+      actCell.className = "agent-system-type-field-actions";
+      if (ownFields[fieldKey]) {
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "type-field-delete-btn";
+        delBtn.textContent = "×";
+        delBtn.title = `Удалить поле ${fieldKey}`;
+        delBtn.addEventListener("click", () => {
+          if (!confirm(`Удалить поле «${fieldKey}» из типа?`)) return;
+          deleteTypeFieldFromYaml(fieldKey);
+          row.remove();
+        });
+        actCell.appendChild(delBtn);
+      }
+      row.appendChild(actCell);
       tbody.appendChild(row);
     }
     table.appendChild(tbody);
@@ -44195,10 +44874,21 @@ function renderAgentSystemTypeInspector(detail) {
     panel.appendChild(empty);
   }
 
-  const yamlLabel = document.createElement("p");
-  yamlLabel.className = "agent-system-type-inspector-yaml-label";
-  yamlLabel.textContent = "YAML типа (редактирование)";
-  panel.appendChild(yamlLabel);
+  // Add field button
+  panel.appendChild(buildTypeAddFieldForm());
+
+  const yamlToggleBtn = document.createElement("button");
+  yamlToggleBtn.type = "button";
+  yamlToggleBtn.className = "agent-system-type-yaml-toggle";
+  yamlToggleBtn.textContent = "Показать YAML";
+  yamlToggleBtn.title = "Показать / скрыть исходный YAML для ручного редактирования";
+  yamlToggleBtn.addEventListener("click", () => {
+    const isHiding = toggleTypeYamlVisibility();
+    yamlToggleBtn.textContent = appRootNode.classList.contains("is-agent-type-form-mode")
+      ? "Показать YAML"
+      : "Скрыть YAML";
+  });
+  panel.appendChild(yamlToggleBtn);
 
   agentSystemTypeInspectorNode.appendChild(panel);
 }
@@ -44234,10 +44924,13 @@ async function selectAgentSystemFile(label, filePath, options = {}) {
     fileContentInputNode.value = data.content || "";
     renderAgentSystemTypeInspector(typeDetail);
     applyModeUi();
+    // Hide raw YAML by default when a type has a parsed form
+    appRootNode.classList.toggle("is-agent-type-form-mode", Boolean(typeDetail));
     refreshEditorViewContent();
     commitEditorSaveBaseline();
   } catch (error) {
     fileContentInputNode.value = `Ошибка чтения файла: ${error.message}`;
+    appRootNode.classList.remove("is-agent-type-form-mode");
     applyModeUi();
     commitEditorSaveBaseline();
   } finally {
@@ -44859,7 +45552,10 @@ async function saveContent() {
         throw new Error(`${reason}${details}`);
       }
       invalidateTypeCatalogCache(activeAgentId);
-      const detail = await loadAgentSystemTypeDetail(getActiveNodeApiPath()).catch(() => null);
+      const [detail] = await Promise.all([
+        loadAgentSystemTypeDetail(getActiveNodeApiPath()).catch(() => null),
+        loadAwnTypes(activeAgentId).catch(() => null)
+      ]);
       renderAgentSystemTypeInspector(detail);
       saveSucceeded = true;
       showToast("Тип сохранён", "success");
@@ -50517,6 +51213,9 @@ async function createNode(type, options = {}) {
     if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
       payload.preset = options.preset || name;
       payload.parentPath = getActiveAgentKitFolder(agentId) || createTargetParentPath;
+    }
+    if (options.awnType) {
+      payload.awnType = String(options.awnType);
     }
 
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {

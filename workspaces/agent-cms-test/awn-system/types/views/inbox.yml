@@ -1,0 +1,10 @@
+id: awn.view.inbox
+name: Входящие
+kind: view
+domain: views
+status: active
+extends: awn.entity
+description: Записи из inbox/ — непрочитанное / очередь
+contentMode: inbox
+applies-to-slots:
+  - inbox

@@ -166,18 +166,18 @@ function createServer() {
 
   reg(
     "write_topic_schema",
-    "Save topic field schema.",
+    "Save topic field schema. Pass content as YAML string containing an awn_schema: block with slot targets (slot_memory, slot_inbox, sidecar, etc.). Example: 'awn_schema:\\n  slot_memory:\\n    fields:\\n      title:\\n        type: string'. Only awn_schema is written; awn_ui and awn_settings are untouched.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/topic-schema", { path, content })
   );
 
-  reg("read_node_config", "Read node configuration.yml (awn_settings incl. awn-mask-file for main/).", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_config", "Read node configuration.yml (awn_ui, awn_settings). Does NOT include awn_schema — use read_topic_schema for that.", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file/node-config", { path })
   );
 
   reg(
     "write_node_config",
-    "Save node configuration.yml (awn_settings, awn_ui, awn_schema).",
+    "Save node configuration.yml settings (awn_ui, awn_settings only). Existing awn_schema is preserved automatically — do NOT include awn_schema in content here, use write_topic_schema instead.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/node-config", { path, content })
   );
@@ -558,6 +558,49 @@ function createServer() {
     "Write system file.",
     z.object({ name: z.string().min(1), content: z.string() }),
     ({ name, content }) => client.post("/api/system-file", { name, content })
+  );
+
+  // ── awn-system (CMS model: types, views, fields) ─────────────────────────────
+
+  reg(
+    "get_agent_system_status",
+    "Get agent awn-system status: whether it exists, type count, active domains.",
+    z.object({}),
+    () => client.get("/api/agent-system/status", {})
+  );
+
+  reg(
+    "list_view_types",
+    "List available view types (awn.view.*) with their contentMode mapping. Use to know which views can be set as default_landing_mode for a topic.",
+    z.object({}),
+    () => client.get("/api/agent-system/views", {})
+  );
+
+  reg(
+    "get_agent_system_type",
+    "Get resolved type details: inheritance chain, merged fields, storage slots. Use 'id' (e.g. 'awn.page.topic') or 'path' (e.g. 'awn-system/types/pages/topic.yml').",
+    z.object({
+      id: z.string().optional().describe("Type id, e.g. awn.page.topic"),
+      path: z.string().optional().describe("Catalog-relative path, e.g. awn-system/types/pages/topic.yml")
+    }),
+    ({ id, path }) => client.get("/api/agent-system/type", { id, path })
+  );
+
+  reg(
+    "read_agent_system_file",
+    "Read a file from agent awn-system (types/*.yml, MAP.md, slots-bindings.yml, registry.yml). Path is relative to agent root, e.g. 'awn-system/types/content/record.yml'.",
+    z.object({ path: z.string().min(1).describe("Path relative to agent root, starting with awn-system/") }),
+    ({ path }) => client.get("/api/agent-system/file", { path })
+  );
+
+  reg(
+    "write_agent_system_file",
+    "Create or update a file in agent awn-system. Allowed: awn-system/types/**/*.yml, awn-system/MAP.md, awn-system/slots-bindings.yml. To CREATE a new type: path = 'awn-system/types/{domain}/{slug}.yml', content = valid YAML with id, name, kind, domain, status fields. Domains: base, pages, content, slots, fields, md-blocks, taxonomies, views, mixins.",
+    z.object({
+      path: z.string().min(1).describe("Path relative to agent root, starting with awn-system/"),
+      content: z.string().describe("File content (YAML for types, Markdown for .md)")
+    }),
+    ({ path, content }) => client.post("/api/agent-system/file", { path, content })
   );
 
   reg("shell_get_status", "Agent Shell status, settings and latest agent reply.", z.object({}), () =>

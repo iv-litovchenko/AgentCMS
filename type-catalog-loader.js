@@ -30,32 +30,51 @@ const TYPE_ID_ALIASES = {
   "awn.dialog": "awn.content.dialog",
   "awn.comment": "awn.content.comment",
   "service-doc": "awn.page.service-doc",
-  "catalog": "awn.page.catalog"
+  "catalog": "awn.page.catalog",
+  "taxonomy": "awn.page.taxonomy",
+  "awn.page.catalog": "awn.page.taxonomy"
 };
 
 function listTypeFiles(typesDir) {
   if (!typesDir || !fs.existsSync(typesDir)) return [];
-  return fs
-    .readdirSync(typesDir, { withFileTypes: true })
-    .filter((e) => e.isFile() && /\.ya?ml$/i.test(e.name))
-    .map((e) => path.join(typesDir, e.name));
+  const result = [];
+  function walk(dir) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.isFile() && /\.ya?ml$/i.test(e.name)) {
+        result.push(path.join(dir, e.name));
+      } else if (e.isDirectory() && !e.name.startsWith(".")) {
+        walk(path.join(dir, e.name));
+      }
+    }
+  }
+  walk(typesDir);
+  return result;
 }
 
-function loadTypeFile(filePath, domain, source = "platform") {
+function loadTypeFile(filePath, domain, source = "platform", domainDir = "") {
   try {
     const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
     if (!parsed?.id) return null;
     const fileName = path.basename(filePath).replace(/\.ya?ml$/i, "");
+    // Compute relative path from domain dir (supports subdirectories)
+    let relFromDomain = fileName;
+    if (domainDir && source === "agent") {
+      try {
+        relFromDomain = path.relative(domainDir, filePath).replace(/\\/g, "/").replace(/\.ya?ml$/i, "");
+      } catch { relFromDomain = fileName; }
+    }
     const catalogFile =
       source === "agent"
-        ? `${AGENT_SYSTEM_REL}/types/${domain}/${fileName}.yml`
+        ? `${AGENT_SYSTEM_REL}/types/${domain}/${relFromDomain}.yml`
         : `types/${domain}/awn-storage/configuration/types/${fileName}.yml`;
     return {
       id: String(parsed.id).trim(),
       domain,
       fileName,
       filePath,
-      relPath: `${domain}/${fileName}`,
+      relPath: `${domain}/${relFromDomain}`,
       catalogFile,
       source,
       schema: parsed,
@@ -84,7 +103,7 @@ function ingestDomainTypes(typesDir, domain, source, byId, byDomain) {
   const indexById = new Map(byDomain[domain].map((entry, idx) => [entry.id, idx]));
 
   for (const filePath of listTypeFiles(typesDir)) {
-    const entry = loadTypeFile(filePath, domain, source);
+    const entry = loadTypeFile(filePath, domain, source, typesDir);
     if (!entry) continue;
     byId.set(entry.id, entry);
     if (indexById.has(entry.id)) {
@@ -328,6 +347,7 @@ function findTypeEntryByCatalogPath(byId, catalogPath) {
   if (!normalized) return null;
   for (const entry of byId.values()) {
     if (entry.catalogFile === normalized) return entry;
+    // Legacy fallback: flat domain/fileName path without subdirectory
     const agentRel = `${AGENT_SYSTEM_REL}/types/${entry.domain}/${entry.fileName}.yml`;
     if (agentRel === normalized) return entry;
   }
@@ -529,6 +549,59 @@ function loadBlockGroupsFromCatalog(projectRoot, agentRoot = "") {
   };
 }
 
+/**
+ * Returns view types with their contentMode mapping.
+ * Reads awn.view.* from the type catalog and picks those with a contentMode field.
+ * Used by the UI view-selector dropdown and by agents to know which views are available.
+ */
+function getViewTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const views = [];
+  for (const entry of catalog.byId.values()) {
+    if (entry.aliasOf || entry.domain !== "views" || !isTypeActive(entry)) continue;
+    const schema = entry.schema || {};
+    const contentMode = schema.contentMode || null;
+    views.push({
+      id: entry.id,
+      name: schema.name || entry.id,
+      description: schema.description || "",
+      contentMode,
+      appliesToSlots: schema["applies-to-slots"] || [],
+      source: entry.source || "platform",
+      catalogFile: entry.catalogFile || null
+    });
+  }
+  views.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+  return { views };
+}
+
+function getCreateNodeTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const byGroup = new Map();
+  for (const entry of catalog.byId.values()) {
+    if (entry.aliasOf || !isTypeActive(entry)) continue;
+    const schema = entry.schema || {};
+    const group = schema["create-node-group"];
+    if (!group) continue;
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push({
+      id: entry.id,
+      name: schema["create-node-label"] || schema.name || entry.id,
+      description: schema.description || "",
+      slug: schema["create-node-slug"] || null,
+      preset: schema["create-node-preset"] || null,
+      order: typeof schema["create-node-order"] === "number" ? schema["create-node-order"] : 99,
+      source: entry.source || "platform"
+    });
+  }
+  const groups = [];
+  for (const [groupId, types] of byGroup.entries()) {
+    types.sort((a, b) => a.order - b.order || String(a.name).localeCompare(String(b.name), "ru"));
+    groups.push({ id: groupId, types });
+  }
+  return { groups };
+}
+
 module.exports = {
   TYPES_DIR_SEGMENTS,
   TYPE_ID_ALIASES,
@@ -541,6 +614,8 @@ module.exports = {
   getActiveTypes,
   getTypeCatalogPayload,
   getTypeDetailByCatalogPath,
+  getViewTypesPayload,
+  getCreateNodeTypesPayload,
   isFoundationType,
   loadPageTypesFromCatalog,
   loadFieldTypesFromCatalog,

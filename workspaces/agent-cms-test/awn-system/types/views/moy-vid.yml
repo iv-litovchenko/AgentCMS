@@ -1,0 +1,7 @@
+id: awn.view.moy-vid
+name: Мой вид
+kind: view
+domain: views
+status: active
+extends: awn.view.base
+description: ""

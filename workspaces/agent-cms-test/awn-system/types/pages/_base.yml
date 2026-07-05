@@ -75,3 +75,6 @@ fields:
   awn-sort:
     type: awn.integer
     title: Сортировка
+  my-field2:
+    type: awn.string
+    title: Моё поле22

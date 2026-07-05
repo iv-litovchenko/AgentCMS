@@ -24,14 +24,30 @@
 - **Sidecar** = `{file}.sidecar.md` рядом с медиа, тип `awn.content.sidecar`
 - **Слот vs content**: папка `main/` — слот; файл внутри — content-type
 
-## Создание
+## Создание топика — правильный порядок
+
+> Нарушение порядка = потеря схемы или неверный тип!
+
+1. `create_node` — создать папку (type: "folder")
+2. `write_node_properties` — записать frontmatter:
+   ```yaml
+   awn-type: awn.page.topic
+   awn-name: <название>
+   ```
+3. **Если нужна кастомная схема полей** — `write_topic_schema` (content: YAML с `awn_schema:`)
+   - **НЕ** используй `write_node_config` для записи схемы — это затёрет `awn_ui`
+   - `write_node_config` только для `awn_ui` и `awn_settings`
+4. Для слотов агент создаёт стандартные папки автоматически (не трогай вручную)
+
+## Остальные операции
 
 | Задача | MCP / API |
 |--------|-----------|
-| Область / тема | `create_node` (folder / file) |
+| Область | `create_node` → `write_node_properties` (awn-type: awn.page.area) |
 | Запись в main | `create_external_memory` |
 | Sidecar | `read_media_sidecar` / `write_media_sidecar` |
 | Свойства узла | `read_node_properties` / `write_node_properties` |
+| Схема полей топика | `read_topic_schema` / `write_topic_schema` (YAML content) |
 
 ## Схема типов
 

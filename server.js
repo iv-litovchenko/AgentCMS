@@ -126,6 +126,7 @@ const {
   inferAwnTypeFromPath,
   loadAgentTypes,
   normalizeAwnSchema,
+  extractAwnSchemaFromConfig,
   applyAwnSchemaToConfig,
   applyAwnUiToConfig,
   applyAwnSettingsToConfig,
@@ -144,7 +145,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath } = require("./type-catalog-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -3202,8 +3203,9 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.record.category"
 }
 
 function resolveAwnSchemaTargetForSectionType(awnType) {
-  if (awnType === "awn.media.category") return "media_category";
-  if (awnType === "awn.record.category") return "record_category";
+  // Modern canonical ids
+  if (awnType === "awn.content.media.category" || awnType === "awn.media.category") return "slot_media_category";
+  if (awnType === "awn.content.record.category" || awnType === "awn.record.category") return "slot_memory_category";
   return null;
 }
 
@@ -3247,9 +3249,9 @@ async function buildExternalRecordFileContentForManifest(manifestRel, title) {
       getAgentRoot(),
       getProjectRoot()
     );
-    const mergedType = payload.merged.record;
+    const mergedType = payload.merged.slot_memory || payload.merged.record;
     if (mergedType?.fields && Object.keys(mergedType.fields).length) {
-      const frontmatter = buildDefaultFrontmatter("awn.record", {
+      const frontmatter = buildDefaultFrontmatter("awn.content.record", {
         name: safeTitle,
         agentRoot: getAgentRoot(),
         projectRoot: getProjectRoot(),
@@ -4840,6 +4842,7 @@ async function ensureManifestStorageSlotDir(relNodePath) {
   await fs.mkdir(slotAbsolute, { recursive: true });
   return slotAbsolute;
 }
+
 
 const STORAGE_SLOT_LAYER_FILES = [
   BUNDLE_CONTENT_FILE,
@@ -10001,6 +10004,32 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent-system/views") {
+    try {
+      const agentRoot = getAgentRoot();
+      const payload = getViewTypesPayload(getProjectRoot(), agentRoot || "");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load view types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent-system/create-node-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      const payload = getCreateNodeTypesPayload(getProjectRoot(), agentRoot || "");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load create-node types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/status") {
     try {
       const agentRoot = getAgentRoot();
@@ -10064,7 +10093,35 @@ async function handleApiForAgent(req, res, url) {
       const payload = await readJsonBody(req);
       const relPath = String(payload?.path || "").trim();
       if (!relPath) return sendJson(res, 400, { error: "Missing path" });
-      const saved = await writeAgentSystemFile(agentRoot, relPath, payload?.content ?? "");
+      const content = String(payload?.content ?? "");
+
+      // Validate YAML types before saving
+      const isTypeFile = /^awn-system\/types\/[^/]+\/[^/]+\.ya?ml$/i.test(relPath.replace(/\\/g, "/"));
+      if (isTypeFile && content.trim()) {
+        const { parseTypeYaml } = require("./awn-yaml-utils");
+        let parsed;
+        try {
+          parsed = parseTypeYaml(content);
+        } catch (parseErr) {
+          return sendJson(res, 400, {
+            error: "Invalid YAML",
+            details: String(parseErr.message || parseErr),
+            path: relPath
+          });
+        }
+        if (!parsed) return sendJson(res, 400, { error: "Empty or unparseable YAML", path: relPath });
+        // Require id and kind
+        const missing = ["id", "kind"].filter((k) => !parsed[k]);
+        if (missing.length) {
+          return sendJson(res, 400, {
+            error: `Type YAML missing required fields: ${missing.join(", ")}`,
+            path: relPath,
+            hint: 'Required: id (e.g. "awn.content.mytype"), kind (type|base|slot|field|block|mixin|taxonomy|view)'
+          });
+        }
+      }
+
+      const saved = await writeAgentSystemFile(agentRoot, relPath, content);
       return sendJson(res, 200, saved);
     } catch (error) {
       return sendJson(res, 500, {
@@ -10238,7 +10295,17 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const awnSchema = normalizeAwnSchema(payload.awnSchema);
+      // Accept both shapes:
+      //   { awnSchema: {...} }  — from UI (correct)
+      //   { content: "yaml..." } — from MCP agent (legacy, parse YAML → extract awn_schema)
+      let awnSchema;
+      if (payload.awnSchema && typeof payload.awnSchema === "object") {
+        awnSchema = normalizeAwnSchema(payload.awnSchema);
+      } else if (typeof payload.content === "string" && payload.content.trim()) {
+        awnSchema = extractAwnSchemaFromConfig(payload.content);
+      } else {
+        awnSchema = normalizeAwnSchema(undefined);
+      }
 
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
 
@@ -10328,14 +10395,32 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      const normalizedContent = content.endsWith("\n") ? content : `${content}\n`;
+      // Merge-safe: if incoming content has no awn_schema block, preserve existing one from disk.
+      // This prevents agents from accidentally wiping awn_schema by sending partial config.
+      let finalContent = content;
+      const incomingBundle = NodeConfigBundle.parseNodeConfigBundle(content);
+      const incomingHasSchema = Boolean(incomingBundle.awn_schema && Object.keys(incomingBundle.awn_schema).length);
+      if (!incomingHasSchema) {
+        const existingFile = await readNodeConfigFile(manifestCtx.rel);
+        if (existingFile.exists && existingFile.content) {
+          const existingBundle = NodeConfigBundle.parseNodeConfigBundle(existingFile.content);
+          if (existingBundle.awn_schema && Object.keys(existingBundle.awn_schema).length) {
+            incomingBundle.awn_schema = existingBundle.awn_schema;
+            incomingBundle.awn_schemaYaml = NodeConfigBundle.extractSectionYamlText(existingFile.content, "awn_schema");
+            finalContent = NodeConfigBundle.composeNodeConfigBundle(incomingBundle);
+          }
+        }
+      }
+
+      const normalizedContent = finalContent.endsWith("\n") ? finalContent : `${finalContent}\n`;
       await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, normalizedContent);
-      const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(content);
+      const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(finalContent);
       return sendJson(res, 200, {
         path: configRelPath,
-        content,
+        content: normalizedContent,
         exists: true,
-        defaultLandingMode
+        defaultLandingMode,
+        schemaMerged: !incomingHasSchema
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save node config", details: String(error.message || error) });
@@ -12453,7 +12538,8 @@ async function handleApiForAgent(req, res, url) {
 
       await fs.mkdir(folderAbsolute, { recursive: false });
       const manifestAbsolute = path.join(folderAbsolute, MANIFEST_FILE);
-      const fileFrontmatter = buildDefaultFrontmatter("topic", {
+      const awnNodeType = String(payload.awnType || "topic").trim() || "topic";
+      const fileFrontmatter = buildDefaultFrontmatter(awnNodeType, {
         name: displayName || stripTopicPrefix(folderName),
         agentRoot: getAgentRoot(),
         projectRoot: getProjectRoot()

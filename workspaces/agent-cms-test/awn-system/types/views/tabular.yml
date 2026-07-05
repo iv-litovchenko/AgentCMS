@@ -1,0 +1,11 @@
+id: awn.view.tabular
+name: Таблица
+kind: view
+domain: views
+status: active
+extends: awn.entity
+description: Табличный вид — строки записей с колонками из полей схемы
+contentMode: tabular
+applies-to-slots:
+  - main
+  - inbox

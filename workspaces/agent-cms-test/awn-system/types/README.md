@@ -10,7 +10,7 @@ YAML-типы CMS этого агента. Loader: `type-catalog-loader.js` (age
 | slots/ | `awn.slot.*` | main, inbox, thread, media |
 | fields/ | `awn.*` | string, enum, file |
 | md-blocks/ | `awn.block.*` | h2, quote, tasks |
-| taxonomies/ | `awn.taxonomy.*` | tags, statuses |
+| taxonomies/ | `awn.taxonomy.*` | categories, tags, statuses, priorities, colors |
 | views/ | `awn.view.*` | list, media-grid |
 | mixins/ | `awn.mixin.*` | preview, runtime, attachments |
 

@@ -1,0 +1,12 @@
+id: awn.page.taxonomy
+name: Таксономия
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Справочник-таксономия — manifest.md + данные (CSV/YAML)
+menu-visible: true
+storage-slots: []
+tags-default:
+  - taxonomy
+manifest-pattern: "{slug}/manifest.md"
