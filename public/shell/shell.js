@@ -2,7 +2,7 @@ import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.j
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { createSettingsSaveController } from "/shell/shell-settings-save.js?v=1";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingTtsBody, stripAllTtsBlocks } from "/shell/shell-reply.js?v=12";
-import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=4";
+import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=6";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
@@ -15,11 +15,11 @@ const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 /** Озвучка только после полного ответа агента (без streaming TTS по предложениям). */
 const TTS_WAIT_FOR_COMPLETE_REPLY = true;
 
-const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем формате. В начале ответа добавь блок [tts], в котором сформируй краткую версию текста для озвучки (предполагается, что ты работаешь в режиме голосового ассистента). Убери emoji, markdown и лишние детали, оставь только смысл для TTS (text to speech). Закрой блок [/tts].
+const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем формате. В начале ответа добавь блок [tts], в котором сформируй краткую версию текста для озвучки (предполагается, что ты работаешь в режиме голосового ассистента). Убери emoji, markdown и лишние детали, оставь только смысл для TTS (text to speech). Сохраняй оригинальный язык. Закрой блок [/tts].
 
 Далее — полный текст ответа для экрана.
 
-По умолчанию — всегда без TTS, если нет маркера [tts]. Используй только один блок [tts]…[/tts]; остальные такие маркеры в тексте — обычный текст.`;
+По умолчанию — всегда без TTS, если нет маркера [tts].`;
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
@@ -99,7 +99,9 @@ const state = {
   processingMessage: "",
   queueEditingId: "",
   messageStopped: false,
-  sttResumeMode: "browser"
+  sttResumeMode: "browser",
+  /** shellClientId отправителя текущего вопроса — для надёжной маршрутизации TTS */
+  pendingReplyTtsClientId: ""
 };
 
 let messageSendAbortController = null;
@@ -119,6 +121,15 @@ function isTtsPlaybackCurrent(seq) {
 }
 
 function yieldLocalTtsPlayback(reason = "yield") {
+  if (
+    reason === "leader-lost" &&
+    state.speaking &&
+    state.pendingReplyTtsClientId &&
+    state.pendingReplyTtsClientId === getShellClientId()
+  ) {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return;
+  }
   state.streamTtsQueue = [];
   state.ttsPaused = false;
   const synth = getSpeechSynth();
@@ -161,14 +172,28 @@ function isLocalMessagePipelineActive() {
 function shouldPlayReplyTts(meta = {}) {
   if (!state.settings?.ttsEnabled) return false;
   if (state.messageStopped) return false;
+  if (document.visibilityState !== "visible") return false;
+
   const target = String(meta.ttsClientId || "").trim();
   const mine = getShellClientId();
+  const pending = String(state.pendingReplyTtsClientId || "").trim();
+
   if (target) {
     if (target !== mine) return false;
-    if (document.visibilityState === "visible") ttsTabCoordinator?.claimLeader();
-    return ttsTabCoordinator?.isLeader() !== false;
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
+  }
+  if (pending && pending === mine) {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
   }
   return isLocalMessagePipelineActive() && canPlayTts();
+}
+
+function clearPendingReplyTtsClientId() {
+  if (!state.speaking && !state.streamTtsActive && !state.streamTtsQueue.length) {
+    state.pendingReplyTtsClientId = "";
+  }
 }
 
 function canPlayBrowserTts() {
@@ -707,17 +732,20 @@ function applyReplyTextPresentation(element, { text, stub }) {
 function renderShellReply(message) {
   const rawBody = String(message?.body || message?.message?.body || "").trim();
   const extraShows = Array.isArray(message?.shows) ? message.shows : [];
+  const spokenParts = Array.isArray(message?.spokenParts) ? message.spokenParts : [];
+  const spokenText = String(message?.spokenText || "").trim();
   const parsed = parseShellReply(rawBody);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
   const rawText = parsed.text === "—" ? "" : parsed.text;
   const stub = isStubReplyText(stripAllTtsBlocks(rawText));
+  const spokenOpts = { spokenParts, spokenText };
 
   if (nodes.lastReplyText) {
     if (stub) {
       renderShellReplyMarkdown(nodes.lastReplyText, stubReplyPresentation());
       applyReplyTextPresentation(nodes.lastReplyText, { text: stubReplyPresentation(), stub: true });
     } else {
-      renderShellReplyBody(nodes.lastReplyText, rawText);
+      renderShellReplyBody(nodes.lastReplyText, rawText, spokenOpts);
       applyReplyTextPresentation(nodes.lastReplyText, { text: rawText, stub: false });
     }
   } else if (nodes.lastReply) {
@@ -725,7 +753,7 @@ function renderShellReply(message) {
       renderShellReplyMarkdown(nodes.lastReply, stubReplyPresentation());
       applyReplyTextPresentation(nodes.lastReply, { text: stubReplyPresentation(), stub: true });
     } else {
-      renderShellReplyBody(nodes.lastReply, rawText);
+      renderShellReplyBody(nodes.lastReply, rawText, spokenOpts);
       applyReplyTextPresentation(nodes.lastReply, { text: rawText, stub: false });
     }
   }
@@ -838,16 +866,16 @@ async function speakStreamChunk(text) {
   }
 
   if (isBrowserTtsEngine()) {
-    const synth = getSpeechSynth();
-    if (!synth) return;
-    await new Promise((resolve) => {
-      const utterance = createSpeechUtterance(payload);
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      synth.speak(utterance);
-    });
+    await speakBrowserChunk(payload);
   } else if (isServerTtsEngine() && ttsPlayer) {
-    await ttsPlayer.speak(payload);
+    try {
+      await ttsPlayer.speak(payload);
+    } catch (serverError) {
+      const synth = getSpeechSynth();
+      if (!synth) return;
+      console.warn("[shell] stream server TTS failed, fallback to browser:", serverError?.message || serverError);
+      await speakBrowserChunk(payload);
+    }
   }
 
   if (!state.streamTtsQueue.length) {
@@ -899,7 +927,7 @@ function finalizeAssistantStream(message) {
 
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
-  renderShellReply({ ...message, body });
+  renderShellReply({ ...message, body, spokenText, spokenParts });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && !state.messageStopped) {
@@ -920,6 +948,13 @@ function finalizeAssistantStream(message) {
       });
     } else {
       state.assistantStream = null;
+      if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && hasTtsPrompt()) {
+        renderPhase(
+          "waiting",
+          "Нет блока [tts] для озвучки — агент не вернул текст для TTS",
+          state.shellState?.metrics || ""
+        );
+      }
       releaseMessagePipeline();
     }
   } else {
@@ -932,6 +967,7 @@ function finalizeAssistantStream(message) {
 function releaseMessagePipeline() {
   state.messagePipelineBusy = false;
   state.processingMessage = "";
+  clearPendingReplyTtsClientId();
   renderMessageQueue();
   updateSendButtonLabel();
   void drainOutboundQueue();
@@ -2166,6 +2202,7 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text;
+  state.pendingReplyTtsClientId = getShellClientId();
   renderMessageQueue();
   updateSendButtonLabel();
   const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
@@ -2615,20 +2652,31 @@ function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = tr
   }
 }
 
+async function speakBrowserChunk(text) {
+  const synth = getSpeechSynth();
+  if (!synth) throw new Error("Web Speech недоступен в этом браузере");
+  await new Promise((resolve, reject) => {
+    const utterance = createSpeechUtterance(text);
+    utterance.onend = () => resolve();
+    utterance.onerror = (event) => reject(new Error(event?.error || "speech-error"));
+    synth.speak(utterance);
+  });
+}
+
 async function speakOneChunk(text) {
   const payload = String(text || "").trim();
   if (!payload) return;
   if (isBrowserTtsEngine()) {
-    const synth = getSpeechSynth();
-    if (!synth) return;
-    await new Promise((resolve) => {
-      const utterance = createSpeechUtterance(payload);
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      synth.speak(utterance);
-    });
+    await speakBrowserChunk(payload);
   } else if (isServerTtsEngine() && ttsPlayer) {
-    await ttsPlayer.speak(payload);
+    try {
+      await ttsPlayer.speak(payload);
+    } catch (serverError) {
+      const synth = getSpeechSynth();
+      if (!synth) throw serverError;
+      console.warn("[shell] server TTS failed, fallback to browser:", serverError?.message || serverError);
+      await speakBrowserChunk(payload);
+    }
   }
 }
 
@@ -2662,19 +2710,22 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
     }
   } catch (error) {
     if (!isTtsPlaybackCurrent(seq)) return;
-    renderPhase("waiting", error.message || "Ошибка озвучки");
+    const msg = String(error?.message || "Ошибка озвучки");
+    renderPhase("waiting", msg.includes("No audio") ? "Edge TTS недоступен — выберите say или browser" : msg);
   }
 
   if (!isTtsPlaybackCurrent(seq)) {
     state.speaking = false;
     state.ttsPaused = false;
     updateTtsControlsUi("waiting");
+    clearPendingReplyTtsClientId();
     return;
   }
 
   state.speaking = false;
   state.ttsPaused = false;
   updateTtsControlsUi("waiting");
+  state.pendingReplyTtsClientId = "";
   await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
   syncWaitingUiAfterPlayback();
 }

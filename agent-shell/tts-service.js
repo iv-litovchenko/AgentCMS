@@ -175,20 +175,36 @@ async function synthesizeSay(text, settings = {}) {
 }
 
 async function synthesizeEdge(text, settings = {}) {
-  const { Communicate } = require("edge-tts-universal");
-  const voice =
-    String(settings.ttsEdgeVoice || settings.ttsVoice || "").trim() || "ru-RU-SvetlanaNeural";
-  const comm = new Communicate(text, {
-    voice,
-    rate: speechRateToEdgePercent(settings.ttsRate)
-  });
-  const chunks = [];
-  for await (const chunk of comm.stream()) {
-    if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);
+  const EDGE_TIMEOUT_MS = 15000;
+
+  const run = async () => {
+    const { Communicate } = require("edge-tts-universal");
+    const voice =
+      String(settings.ttsEdgeVoice || settings.ttsVoice || "").trim() || "ru-RU-SvetlanaNeural";
+    const comm = new Communicate(text, {
+      voice,
+      rate: speechRateToEdgePercent(settings.ttsRate)
+    });
+    const chunks = [];
+    for await (const chunk of comm.stream()) {
+      if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);
+    }
+    const audio = Buffer.concat(chunks);
+    if (!audio.length) throw new Error("Edge TTS не вернул аудио");
+    return { engine: "edge", mimeType: "audio/mpeg", audio: audio.toString("base64"), voice };
+  };
+
+  let timer;
+  try {
+    return await Promise.race([
+      run(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Edge TTS: timeout (15s)")), EDGE_TIMEOUT_MS);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  const audio = Buffer.concat(chunks);
-  if (!audio.length) throw new Error("Edge TTS не вернул аудио");
-  return { engine: "edge", mimeType: "audio/mpeg", audio: audio.toString("base64"), voice };
 }
 
 async function synthesizeElevenLabs(text, settings = {}) {

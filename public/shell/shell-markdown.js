@@ -83,6 +83,23 @@ export function renderShellReplyMarkdown(element, markdown) {
   }
 }
 
+function prependTtsDisplayBlock(container, text, { open = false } = {}) {
+  const aside = document.createElement("aside");
+  aside.className = "shell-reply-tts-block";
+  if (open) aside.classList.add("shell-reply-tts-block--open");
+
+  const label = document.createElement("div");
+  label.className = "shell-reply-tts-block-label";
+  label.textContent = open ? "Озвучка · печатает…" : "Озвучка";
+
+  const content = document.createElement("div");
+  content.className = "shell-reply-tts-block-text shell-md";
+  renderShellReplyMarkdown(content, text);
+
+  aside.append(label, content);
+  container.prepend(aside);
+}
+
 function appendTtsDisplayBlock(container, text, { open = false } = {}) {
   const aside = document.createElement("aside");
   aside.className = "shell-reply-tts-block";
@@ -100,20 +117,46 @@ function appendTtsDisplayBlock(container, text, { open = false } = {}) {
   container.append(aside);
 }
 
-export function renderShellReplyBody(element, rawBody) {
+function resolveSpokenDisplayText(spokenParts = [], spokenText = "") {
+  const parts = (Array.isArray(spokenParts) ? spokenParts : [])
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+  return parts.length ? parts.join("\n\n") : String(spokenText || "").trim();
+}
+
+function renderReplyBodySegment(container, text) {
+  const segment = document.createElement("div");
+  segment.className = "shell-reply-segment shell-md";
+  renderShellReplyMarkdown(segment, text);
+  container.append(segment);
+}
+
+export function renderShellReplyBody(element, rawBody, { spokenParts = [], spokenText = "" } = {}) {
   if (!element) return;
   const source = String(rawBody || "").trim();
+  const spoken = resolveSpokenDisplayText(spokenParts, spokenText);
 
   element.classList.remove("shell-reply-text--stub");
   element.dataset.replyKind = "message";
 
   if (!source || source === "—") {
-    renderShellReplyMarkdown(element, "—");
+    if (spoken) {
+      element.innerHTML = "";
+      element.classList.add("shell-md", "shell-reply-body-formatted");
+      prependTtsDisplayBlock(element, spoken);
+      renderReplyBodySegment(element, "—");
+    } else {
+      renderShellReplyMarkdown(element, "—");
+    }
     return;
   }
 
   if (!hasReplyTtsBlocks(source)) {
-    renderShellReplyMarkdown(element, cleanReplyTextSegment(source));
+    const bodyText = cleanReplyTextSegment(source);
+    element.innerHTML = "";
+    element.classList.add("shell-md", "shell-reply-body-formatted");
+    if (spoken) prependTtsDisplayBlock(element, spoken);
+    if (bodyText) renderReplyBodySegment(element, bodyText);
     return;
   }
 
@@ -126,9 +169,6 @@ export function renderShellReplyBody(element, rawBody) {
       appendTtsDisplayBlock(element, part.text, { open: Boolean(part.open) });
       continue;
     }
-    const segment = document.createElement("div");
-    segment.className = "shell-reply-segment shell-md";
-    renderShellReplyMarkdown(segment, part.text);
-    element.append(segment);
+    renderReplyBodySegment(element, part.text);
   }
 }

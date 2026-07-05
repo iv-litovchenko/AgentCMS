@@ -255,7 +255,7 @@ function queueStreamingReply(text) {
   }, STREAM_RENDER_MS);
 }
 
-function renderReply(text, { streaming = false } = {}) {
+function renderReply(text, { streaming = false, spokenParts = [], spokenText = "" } = {}) {
   const raw = String(text || "").trim();
   state.lastReplyRaw = raw;
 
@@ -281,7 +281,7 @@ function renderReply(text, { streaming = false } = {}) {
     return;
   }
   state.lastRenderedReplyKey = renderKey;
-  renderShellReplyBody(nodes.reply, body);
+  renderShellReplyBody(nodes.reply, body, { spokenParts, spokenText });
   updateChatCollapseHint();
 }
 
@@ -683,7 +683,10 @@ function handleAssistantMessage(message, { streamDone = false } = {}) {
     if (!isReplyAlreadyDisplayed(message)) {
       markReplyDisplayed(message);
       state.lastMessageId = id || state.lastMessageId;
-      renderReply(body);
+      renderReply(body, {
+        spokenParts: message.spokenParts,
+        spokenText: message.spokenText
+      });
     }
     return;
   }
@@ -704,8 +707,10 @@ function handleAssistantMessage(message, { streamDone = false } = {}) {
   state.streamBuffer = "";
   pendingStreamText = "";
   flushStreamingReply();
-  renderReply(body);
-  pushHistory("agent", body);
+  renderReply(body, {
+    spokenParts: message.spokenParts,
+    spokenText: message.spokenText
+  });
   markReplyDisplayed(message);
   clearSendingState();
 
