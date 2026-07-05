@@ -93,26 +93,58 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
     for (const domain of AGENT_TYPE_DOMAINS) {
       const domainDir = path.join(typesRoot, domain);
       if (!fs.existsSync(domainDir)) continue;
-      const domainItems = [];
-      for (const fileName of listYamlFiles(domainDir)) {
-        const rel = `${AGENT_SYSTEM_REL}/types/${domain}/${fileName}`.replace(/\\/g, "/");
-        const meta = readTypeYamlMeta(path.join(domainDir, fileName));
-        const isFoundation = fileName === "_base.yml" || meta.kind === "entity" || meta.kind === "base";
-        domainItems.push({
-          label: isFoundation ? `${meta.name || meta.id} (база)` : meta.name || meta.id,
-          path: rel,
-          systemFile: true,
-          typeId: meta.id,
-          typeKind: meta.kind,
-          typeExtends: meta.extends,
-          isFoundation
-        });
+
+      function collectItems(dir, relPrefix) {
+        const result = [];
+        for (const fileName of listYamlFiles(dir)) {
+          const rel = `${relPrefix}/${fileName}`.replace(/\\/g, "/");
+          const meta = readTypeYamlMeta(path.join(dir, fileName));
+          const isFoundation = fileName === "_base.yml" || meta.kind === "entity" || meta.kind === "base";
+          result.push({
+            label: isFoundation ? `${meta.name || meta.id} (база)` : meta.name || meta.id,
+            path: rel,
+            systemFile: true,
+            typeId: meta.id,
+            typeKind: meta.kind,
+            typeExtends: meta.extends,
+            isFoundation
+          });
+        }
+        return result;
       }
-      if (!domainItems.length) continue;
+
+      const domainRelPrefix = `${AGENT_SYSTEM_REL}/types/${domain}`;
+      const domainItems = collectItems(domainDir, domainRelPrefix);
+
+      // Scan subdirectories and add as sub-groups
+      const subGroups = [];
+      let subdirs = [];
+      try {
+        subdirs = fs.readdirSync(domainDir, { withFileTypes: true })
+          .filter((e) => e.isDirectory() && !e.name.startsWith(".") && !e.name.startsWith("_"))
+          .map((e) => e.name)
+          .sort((a, b) => a.localeCompare(b, "ru"));
+      } catch {}
+
+      for (const subName of subdirs) {
+        const subDir = path.join(domainDir, subName);
+        const subRelPrefix = `${domainRelPrefix}/${subName}`;
+        const subItems = collectItems(subDir, subRelPrefix);
+        if (subItems.length) {
+          subGroups.push({
+            title: subName,
+            folderPath: subRelPrefix,
+            items: subItems
+          });
+        }
+      }
+
+      if (!domainItems.length && !subGroups.length) continue;
       sections.push({
         title: SYSTEM_DOMAIN_LABELS[domain] || domain,
-        folderPath: `${AGENT_SYSTEM_REL}/types/${domain}`,
-        items: domainItems
+        folderPath: domainRelPrefix,
+        items: domainItems,
+        subGroups
       });
     }
   }
