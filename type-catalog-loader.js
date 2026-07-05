@@ -295,7 +295,120 @@ function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "") {
     domains,
     types,
     browseTypes,
+    foundationTypes: collectFoundationTypes(byId, pageRoot),
     byKind
+  };
+}
+
+function isFoundationType(entry) {
+  if (!entry || !isTypeActive(entry)) return false;
+  if (entry.kind === "entity" || entry.kind === "base") return true;
+  const baseNames = new Set(["_base", "base"]);
+  return baseNames.has(entry.fileName);
+}
+
+function collectFoundationTypes(byId, pageRoot) {
+  const out = [];
+  for (const entry of byId.values()) {
+    if (entry.aliasOf || !isFoundationType(entry)) continue;
+    const browseEntry = toTypeBrowseEntry(entry, byId, pageRoot);
+    if (!browseEntry) continue;
+    const merged = mergeTypeSchema(entry, byId);
+    out.push({
+      ...browseEntry,
+      kind: entry.kind || merged.kind || "base",
+      fieldCount: merged.fields ? Object.keys(merged.fields).length : 0
+    });
+  }
+  return out.sort((a, b) => String(a.id).localeCompare(String(b.id), "ru"));
+}
+
+function findTypeEntryByCatalogPath(byId, catalogPath) {
+  const normalized = String(catalogPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return null;
+  for (const entry of byId.values()) {
+    if (entry.catalogFile === normalized) return entry;
+    const agentRel = `${AGENT_SYSTEM_REL}/types/${entry.domain}/${entry.fileName}.yml`;
+    if (agentRel === normalized) return entry;
+  }
+  return null;
+}
+
+function buildInheritanceChain(entry, byId) {
+  const chain = [];
+  const seen = new Set();
+  let current = entry;
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    chain.push({
+      id: current.id,
+      name: current.schema?.name || current.id,
+      kind: current.kind || current.schema?.kind || null,
+      catalogFile: current.catalogFile || null
+    });
+    if (!current.extends) break;
+    current = byId.get(current.extends);
+  }
+  return chain;
+}
+
+function splitOwnAndInheritedFields(entry, byId) {
+  const merged = mergeTypeSchema(entry, byId);
+  const mergedFields =
+    merged.fields && typeof merged.fields === "object" ? { ...merged.fields } : {};
+  const ownFields =
+    entry.schema?.fields && typeof entry.schema.fields === "object" ? { ...entry.schema.fields } : {};
+  const inheritedFields = {};
+
+  const assignInheritedFrom = (typeId) => {
+    const typeEntry = byId.get(typeId);
+    if (!typeEntry) return;
+    const own =
+      typeEntry.schema?.fields && typeof typeEntry.schema.fields === "object"
+        ? typeEntry.schema.fields
+        : {};
+    for (const [key, def] of Object.entries(own)) {
+      if (ownFields[key] || inheritedFields[key]) continue;
+      inheritedFields[key] = { ...def, fromType: typeId };
+    }
+    if (typeEntry.extends) assignInheritedFrom(typeEntry.extends);
+  };
+
+  if (entry.extends) assignInheritedFrom(entry.extends);
+
+  return { mergedFields, ownFields, inheritedFields };
+}
+
+function getTypeDetailByCatalogPath(projectRoot = process.cwd(), agentRoot = "", catalogPath = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
+  const entry = findTypeEntryByCatalogPath(byId, catalogPath);
+  if (!entry) return null;
+
+  const merged = mergeTypeSchema(entry, byId);
+  const { mergedFields, ownFields, inheritedFields } = splitOwnAndInheritedFields(entry, byId);
+  const chain = buildInheritanceChain(entry, byId);
+
+  return {
+    path: String(catalogPath || "").replace(/\\/g, "/"),
+    id: entry.id,
+    name: merged.name || entry.id,
+    kind: merged.kind || entry.kind || null,
+    domain: entry.domain,
+    status: entry.status,
+    extends: entry.extends || merged.extends || null,
+    mixins: Array.isArray(merged.mixins) ? [...merged.mixins] : [],
+    description: merged.description || "",
+    catalogFile: entry.catalogFile,
+    source: entry.source || "platform",
+    isFoundation: isFoundationType(entry),
+    inheritanceChain: chain,
+    ownFields,
+    inheritedFields,
+    mergedFields,
+    fieldCount: Object.keys(mergedFields).length,
+    ownFieldCount: Object.keys(ownFields).length,
+    storageSlots: Array.isArray(merged["storage-slots"]) ? [...merged["storage-slots"]] : [],
+    manifestPattern: merged["manifest-pattern"] || null
   };
 }
 
@@ -427,6 +540,8 @@ module.exports = {
   isPageTreeType,
   getActiveTypes,
   getTypeCatalogPayload,
+  getTypeDetailByCatalogPath,
+  isFoundationType,
   loadPageTypesFromCatalog,
   loadFieldTypesFromCatalog,
   loadFieldDefFromCatalog,

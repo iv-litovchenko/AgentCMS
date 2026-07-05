@@ -295,6 +295,7 @@ const editorViewSourceBtn = document.getElementById("editor-view-source-btn");
 const editorWysiwygWrapNode = document.getElementById("editor-wysiwyg-wrap");
 const editorLineNumbersBtn = document.getElementById("editor-line-numbers-btn");
 const editorCodeWrapNode = document.getElementById("editor-code-wrap");
+const agentSystemTypeInspectorNode = document.getElementById("agent-system-type-inspector");
 const editorLineNumbersNode = document.getElementById("editor-line-numbers");
 const tabularSourceBtn = document.getElementById("tabular-source-btn");
 const tabularTableBackBtn = document.getElementById("tabular-table-back-btn");
@@ -7443,9 +7444,10 @@ const SIDEBAR_WIDTH_MAX = 520;
 const SIDEBAR_WIDTH_STEP = 20;
 const OVERVIEW_ACCORDION_STORAGE_KEY = "agentcms.overviewAccordions.v1";
 const NODE_LAST_VIEWED_STORAGE_KEY = "agentcms.nodeLastViewed.v1";
-const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "types-registry"]);
+const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "types-registry", "foundation-types"]);
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
+const OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID = "foundation-types";
 const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
 const TYPE_CATALOG_DOMAIN_LABELS = {
   fields: "Поля",
@@ -31119,6 +31121,7 @@ function applySystemFileUi() {
 function clearSystemFileViewUi() {
   appRootNode.classList.remove("system-file-view");
   workspacePathHeaderNode?.classList.remove("is-service-file");
+  clearAgentSystemTypeInspector();
   workspaceGdriveSyncBtn?.classList.remove("hidden");
   if (!isMediaAssetEditing()) {
     resetTitleInputState();
@@ -32280,6 +32283,57 @@ async function appendNodeOverviewTypeRegistryFold(container, nodePath) {
   const types = filterOverviewTypeCatalogEntries(catalog, context);
   const fold = renderNodeOverviewTypeRegistryFold(types, context);
   if (fold) container.appendChild(fold);
+
+  if (context.allDomains && Array.isArray(catalog.foundationTypes) && catalog.foundationTypes.length) {
+    const foundationFold = renderNodeOverviewFoundationTypesFold(catalog.foundationTypes);
+    if (foundationFold) container.appendChild(foundationFold);
+  }
+}
+
+function renderNodeOverviewFoundationTypesFold(foundationTypes) {
+  const section = document.createElement("section");
+  section.className = "node-overview-types node-overview-foundation-types";
+
+  const table = document.createElement("table");
+  table.className = "node-overview-meta-table node-overview-types-table";
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Базовый класс</th><th>id</th><th>extends</th><th>Полей</th></tr>";
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const entry of foundationTypes) {
+    const row = document.createElement("tr");
+    row.className = "node-overview-types-row";
+    if (entry.catalogFile) {
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.title = `Открыть ${entry.catalogFile}`;
+      row.addEventListener("click", () => {
+        void selectAgentSystemFile(entry.name || entry.id, entry.catalogFile);
+      });
+    }
+    for (const text of [
+      entry.name || entry.id,
+      entry.id,
+      entry.extends || "—",
+      String(entry.fieldCount ?? "—")
+    ]) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (text === "—") td.classList.add("is-empty");
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  section.appendChild(table);
+
+  return createOverviewAccordionSection(
+    OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID,
+    `Базовые классы · ${foundationTypes.length}`,
+    section,
+    { defaultOpen: true }
+  );
 }
 
 function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true } = {}) {
@@ -43998,6 +44052,157 @@ async function selectRepoLooseFile(label, filePath, options = {}) {
   }
 }
 
+function clearAgentSystemTypeInspector() {
+  agentSystemTypeInspectorNode?.classList.add("hidden");
+  agentSystemTypeInspectorNode?.replaceChildren();
+}
+
+async function loadAgentSystemTypeDetail(catalogPath) {
+  const response = await fetch(buildApiUrl("/api/agent-system/type", { path: catalogPath }));
+  if (!response.ok) return null;
+  return response.json();
+}
+
+function renderAgentSystemTypeInspector(detail) {
+  if (!agentSystemTypeInspectorNode || !detail) {
+    clearAgentSystemTypeInspector();
+    return;
+  }
+
+  agentSystemTypeInspectorNode.replaceChildren();
+  agentSystemTypeInspectorNode.classList.remove("hidden");
+
+  const panel = document.createElement("div");
+  panel.className = "agent-system-type-inspector-panel";
+
+  const head = document.createElement("header");
+  head.className = "agent-system-type-inspector-head";
+  const title = document.createElement("h3");
+  title.className = "agent-system-type-inspector-title";
+  title.textContent = detail.name || detail.id || "Тип";
+  head.appendChild(title);
+
+  if (Array.isArray(detail.inheritanceChain) && detail.inheritanceChain.length) {
+    const chain = document.createElement("div");
+    chain.className = "agent-system-type-chain";
+    chain.appendChild(document.createTextNode("Наследование: "));
+    detail.inheritanceChain.forEach((item, index) => {
+      if (index > 0) {
+        chain.appendChild(document.createTextNode(" → "));
+      }
+      if (item.catalogFile && item.id !== detail.id) {
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "agent-system-type-chain-link";
+        link.textContent = item.name || item.id;
+        link.title = item.id;
+        link.addEventListener("click", () => {
+          void selectAgentSystemFile(item.name || item.id, item.catalogFile);
+        });
+        chain.appendChild(link);
+      } else {
+        const span = document.createElement("span");
+        span.className = "agent-system-type-chain-current";
+        span.textContent = item.name || item.id;
+        chain.appendChild(span);
+      }
+    });
+    head.appendChild(chain);
+  }
+
+  panel.appendChild(head);
+
+  const hint = document.createElement("p");
+  hint.className = "agent-system-type-inspector-hint";
+  hint.textContent =
+    detail.ownFieldCount > 0
+      ? "Собственные поля — в YAML ниже. Унаследованные открываются по ссылке в колонке «Источник»."
+      : "У типа нет собственных полей — набор задаётся базовым классом. Добавьте блок fields: в YAML ниже или откройте родителя.";
+  panel.appendChild(hint);
+
+  if (Array.isArray(detail.storageSlots) && detail.storageSlots.length) {
+    const slots = document.createElement("p");
+    slots.className = "agent-system-type-inspector-line";
+    slots.innerHTML = `Слоты: <code>${detail.storageSlots.join("</code>, <code>")}</code>`;
+    panel.appendChild(slots);
+  }
+
+  const mergedFields = detail.mergedFields && typeof detail.mergedFields === "object" ? detail.mergedFields : {};
+  const ownFields = detail.ownFields && typeof detail.ownFields === "object" ? detail.ownFields : {};
+  const inheritedFields =
+    detail.inheritedFields && typeof detail.inheritedFields === "object" ? detail.inheritedFields : {};
+  const fieldKeys = Object.keys(mergedFields);
+
+  if (fieldKeys.length) {
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "agent-system-type-fields-wrap";
+    const table = document.createElement("table");
+    table.className = "node-overview-meta-table agent-system-type-fields-table";
+    const thead = document.createElement("thead");
+    thead.innerHTML =
+      "<tr><th>Поле</th><th>Тип</th><th>Название</th><th>Источник</th><th>Флаги</th></tr>";
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    for (const fieldKey of fieldKeys.sort((a, b) => a.localeCompare(b, "ru"))) {
+      const fieldDef = mergedFields[fieldKey];
+      const row = document.createElement("tr");
+      if (ownFields[fieldKey]) row.classList.add("is-own-field");
+
+      const sourceCell = document.createElement("td");
+      if (ownFields[fieldKey]) {
+        sourceCell.textContent = "этот тип";
+        sourceCell.classList.add("is-own");
+      } else if (inheritedFields[fieldKey]?.fromType) {
+        const fromType = inheritedFields[fieldKey].fromType;
+        const fromEntry = (detail.inheritanceChain || []).find((item) => item.id === fromType);
+        if (fromEntry?.catalogFile) {
+          const link = document.createElement("button");
+          link.type = "button";
+          link.className = "agent-system-type-source-link";
+          link.textContent = fromEntry.name || fromType;
+          link.title = fromType;
+          link.addEventListener("click", () => {
+            void selectAgentSystemFile(fromEntry.name || fromType, fromEntry.catalogFile);
+          });
+          sourceCell.appendChild(link);
+        } else {
+          sourceCell.innerHTML = `<code>${fromType}</code>`;
+        }
+      } else {
+        sourceCell.textContent = "—";
+      }
+
+      const keyCell = document.createElement("td");
+      keyCell.innerHTML = `<code>${fieldKey}</code>`;
+      const typeCell = document.createElement("td");
+      typeCell.innerHTML = `<code>${fieldDef?.type || "—"}</code>`;
+      const titleCell = document.createElement("td");
+      titleCell.textContent = fieldDef?.title || fieldDef?.name || fieldDef?.description || "—";
+
+      row.append(keyCell, typeCell, titleCell, sourceCell);
+      const flagsCell = document.createElement("td");
+      flagsCell.appendChild(createAwnTypeFieldFlags(fieldDef));
+      row.appendChild(flagsCell);
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    panel.appendChild(tableWrap);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "agent-system-type-inspector-empty";
+    empty.textContent = "Нет полей в цепочке наследования.";
+    panel.appendChild(empty);
+  }
+
+  const yamlLabel = document.createElement("p");
+  yamlLabel.className = "agent-system-type-inspector-yaml-label";
+  yamlLabel.textContent = "YAML типа (редактирование)";
+  panel.appendChild(yamlLabel);
+
+  agentSystemTypeInspectorNode.appendChild(panel);
+}
+
 async function selectAgentSystemFile(label, filePath, options = {}) {
   const normalizedPath = normalizeMenuNodePath(filePath);
   if (!isAgentSystemEditableFilePath(normalizedPath)) {
@@ -44020,10 +44225,14 @@ async function selectAgentSystemFile(label, filePath, options = {}) {
   applyContentModeState("description");
 
   try {
-    const response = await fetch(buildApiUrl("/api/agent-system/file", { path: normalizedPath }));
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
+    const [fileResponse, typeDetail] = await Promise.all([
+      fetch(buildApiUrl("/api/agent-system/file", { path: normalizedPath })),
+      loadAgentSystemTypeDetail(normalizedPath).catch(() => null)
+    ]);
+    if (!fileResponse.ok) throw new Error(`Request failed with ${fileResponse.status}`);
+    const data = await fileResponse.json();
     fileContentInputNode.value = data.content || "";
+    renderAgentSystemTypeInspector(typeDetail);
     applyModeUi();
     refreshEditorViewContent();
     commitEditorSaveBaseline();
@@ -44650,6 +44859,8 @@ async function saveContent() {
         throw new Error(`${reason}${details}`);
       }
       invalidateTypeCatalogCache(activeAgentId);
+      const detail = await loadAgentSystemTypeDetail(getActiveNodeApiPath()).catch(() => null);
+      renderAgentSystemTypeInspector(detail);
       saveSucceeded = true;
       showToast("Тип сохранён", "success");
     } catch (error) {

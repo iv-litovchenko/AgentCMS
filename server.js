@@ -10014,6 +10014,32 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent-system/type") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const relPath = String(url.searchParams.get("path") || "").trim();
+      const typeId = String(url.searchParams.get("id") || "").trim();
+      let catalogPath = relPath;
+      if (!catalogPath && typeId) {
+        const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot);
+        const match = [...(payload.foundationTypes || []), ...(payload.browseTypes || [])].find(
+          (entry) => entry.id === typeId
+        );
+        catalogPath = match?.catalogFile || "";
+      }
+      if (!catalogPath) return sendJson(res, 400, { error: "Missing path or id" });
+      const detail = getTypeDetailByCatalogPath(getProjectRoot(), agentRoot, catalogPath);
+      if (!detail) return sendJson(res, 404, { error: "Type not found", path: catalogPath });
+      return sendJson(res, 200, detail);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load agent-system type",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/file") {
     try {
       const agentRoot = getAgentRoot();

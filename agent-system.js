@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
 const { AGENT_SYSTEM_REL, AGENT_TYPE_DOMAINS } = require("./platform-sources");
-const { getTypeCatalogPayload } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getTypeDetailByCatalogPath } = require("./type-catalog-loader");
 
 const SYSTEM_DOMAIN_LABELS = {
   base: "Base",
@@ -95,16 +95,17 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       if (!fs.existsSync(domainDir)) continue;
       const domainItems = [];
       for (const fileName of listYamlFiles(domainDir)) {
-        if (fileName.startsWith("_")) continue;
         const rel = `${AGENT_SYSTEM_REL}/types/${domain}/${fileName}`.replace(/\\/g, "/");
         const meta = readTypeYamlMeta(path.join(domainDir, fileName));
+        const isFoundation = fileName === "_base.yml" || meta.kind === "entity" || meta.kind === "base";
         domainItems.push({
-          label: meta.name || meta.id,
+          label: isFoundation ? `${meta.name || meta.id} (база)` : meta.name || meta.id,
           path: rel,
           systemFile: true,
           typeId: meta.id,
           typeKind: meta.kind,
-          typeExtends: meta.extends
+          typeExtends: meta.extends,
+          isFoundation
         });
       }
       if (!domainItems.length) continue;

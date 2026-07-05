@@ -11607,6 +11607,84 @@ body.app-locked {
   border-left: 1px solid #c7d2fe;
 }
 
+.agent-system-type-inspector {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #f5f7ff;
+  max-height: 42vh;
+  overflow: auto;
+}
+
+.agent-system-type-inspector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-system-type-inspector-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-system-type-inspector-title {
+  margin: 0;
+  font-size: 16px;
+  color: #312e81;
+}
+
+.agent-system-type-chain {
+  font-size: 12px;
+  color: #4338ca;
+  line-height: 1.5;
+}
+
+.agent-system-type-chain-link,
+.agent-system-type-source-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #4338ca;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.agent-system-type-chain-current {
+  font-weight: 600;
+}
+
+.agent-system-type-inspector-hint,
+.agent-system-type-inspector-line,
+.agent-system-type-inspector-empty,
+.agent-system-type-inspector-yaml-label {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.agent-system-type-inspector-yaml-label {
+  font-weight: 600;
+  color: #312e81;
+  padding-top: 4px;
+  border-top: 1px solid #dbeafe;
+}
+
+.agent-system-type-fields-wrap {
+  overflow: auto;
+}
+
+.agent-system-type-fields-table tr.is-own-field {
+  background: #eef2ff;
+}
+
+.agent-system-type-fields-table td.is-own {
+  color: #4338ca;
+  font-weight: 600;
+}
+
 .menu-item.menu-item--agent-system {
   font-size: 12px;
 }
