@@ -4,10 +4,16 @@
 (function initDiscussPanel() {
   const MENU_LINK_DRAG_MIME = "application/x-awn-menu-link";
   const STORAGE_WIDTH_KEY = "agent-cms-discuss-width";
+  const STORAGE_TAB_KEY = "agent-cms-discuss-tab";
   const storageDataKey = (agentId) => `agent-cms-discuss-data:${agentId || "default"}`;
 
   const discussAsideNode = document.getElementById("discuss-aside");
   const discussResizerNode = document.getElementById("discuss-aside-resizer");
+  const discussTabDiscussBtn = document.getElementById("discuss-tab-discuss");
+  const discussTabShellBtn = document.getElementById("discuss-tab-shell");
+  const discussPanelDiscussNode = document.getElementById("discuss-panel-discuss");
+  const discussPanelShellNode = document.getElementById("discuss-panel-shell");
+  const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
   const discussContextListNode = document.getElementById("discuss-context-list");
   const discussContextHintNode = document.getElementById("discuss-context-hint");
   const discussContextDropzoneNode = document.getElementById("discuss-context-dropzone");
@@ -21,6 +27,8 @@
   if (!discussAsideNode) return;
 
   let panelWidth = clamp(readNumber(STORAGE_WIDTH_KEY, 340), 280, 520);
+  let activeTab = readStoredTab();
+  let shellIframeAgentId = "";
   let currentAgentId = null;
   let session = { context: [], messages: [] };
   let dropHighlight = 0;
@@ -49,10 +57,86 @@
 
   function getActiveAgentIdFromUrl() {
     try {
-      return new URLSearchParams(window.location.search).get("agent") || "";
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("agent");
+      if (fromQuery) return fromQuery;
+      const parts = window.location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (parts[0] === "a" && parts[1]) return decodeURIComponent(parts[1]);
     } catch {
-      return "";
+      // ignore
     }
+    return "";
+  }
+
+  function readStoredTab() {
+    try {
+      const tab = localStorage.getItem(STORAGE_TAB_KEY);
+      if (tab === "shell" || tab === "discuss") return tab;
+    } catch {
+      // ignore
+    }
+    return "discuss";
+  }
+
+  function buildShellIframeUrl(agentId) {
+    const url = new URL("/shell/", window.location.origin);
+    url.searchParams.set("embed", "1");
+    if (agentId) url.searchParams.set("agent", agentId);
+    return url.toString();
+  }
+
+  function ensureShellIframeLoaded(agentId) {
+    if (!discussShellIframeNode) return;
+    const nextAgentId = agentId || "default";
+    const nextUrl = buildShellIframeUrl(nextAgentId);
+    const currentSrc = discussShellIframeNode.getAttribute("src") || "";
+    if (!currentSrc) {
+      discussShellIframeNode.src = nextUrl;
+      shellIframeAgentId = nextAgentId;
+      return;
+    }
+    if (shellIframeAgentId !== nextAgentId) {
+      discussShellIframeNode.src = nextUrl;
+      shellIframeAgentId = nextAgentId;
+    }
+  }
+
+  function setActiveTab(tab) {
+    const nextTab = tab === "shell" ? "shell" : "discuss";
+    activeTab = nextTab;
+    discussAsideNode?.setAttribute("data-active-tab", nextTab);
+
+    const isDiscuss = nextTab === "discuss";
+    discussTabDiscussBtn?.classList.toggle("is-active", isDiscuss);
+    discussTabShellBtn?.classList.toggle("is-active", !isDiscuss);
+    discussTabDiscussBtn?.setAttribute("aria-selected", isDiscuss ? "true" : "false");
+    discussTabShellBtn?.setAttribute("aria-selected", isDiscuss ? "false" : "true");
+    discussTabDiscussBtn?.setAttribute("tabindex", isDiscuss ? "0" : "-1");
+    discussTabShellBtn?.setAttribute("tabindex", isDiscuss ? "-1" : "0");
+
+    discussPanelDiscussNode?.classList.toggle("is-active", isDiscuss);
+    discussPanelShellNode?.classList.toggle("is-active", !isDiscuss);
+    if (discussPanelDiscussNode) discussPanelDiscussNode.hidden = !isDiscuss;
+    if (discussPanelShellNode) discussPanelShellNode.hidden = isDiscuss;
+
+    if (!isDiscuss) {
+      ensureShellIframeLoaded(currentAgentId || getActiveAgentIdFromUrl());
+    }
+
+    try {
+      localStorage.setItem(STORAGE_TAB_KEY, nextTab);
+    } catch {
+      // ignore
+    }
+  }
+
+  function bindTabs() {
+    discussTabDiscussBtn?.addEventListener("click", () => {
+      setActiveTab("discuss");
+    });
+    discussTabShellBtn?.addEventListener("click", () => {
+      setActiveTab("shell");
+    });
   }
 
   function loadSession(agentId) {
@@ -392,6 +476,9 @@
       loadSession(agentId);
       renderAll();
     }
+    if (activeTab === "shell") {
+      ensureShellIframeLoaded(agentId || currentAgentId);
+    }
     discussAddCurrentBtn?.toggleAttribute("disabled", !getActivePathFromDom());
   }
 
@@ -417,13 +504,16 @@
   bindDropZone(discussContextDropzoneNode);
   bindDropZone(discussComposerInputNode?.closest(".discuss-composer") || discussComposerInputNode);
 
+  bindTabs();
   bindResize();
   loadSession(getActiveAgentIdFromUrl());
   applyPanelWidth();
   renderAll();
+  setActiveTab(activeTab);
 
   window.AgentDiscussPanel = {
     sync: syncFromApp,
-    addContext: addContextItem
+    addContext: addContextItem,
+    setTab: setActiveTab
   };
 })();

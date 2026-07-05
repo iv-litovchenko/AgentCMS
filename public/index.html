@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.75" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.76" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -2037,12 +2037,32 @@
         <aside id="discuss-aside" class="discuss-aside" aria-label="Панель обсуждения">
           <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели обсуждения" tabindex="0"></div>
           <header class="discuss-aside-head">
-            <div class="discuss-aside-head-main">
-              <h2 class="discuss-aside-title">Обсуждение</h2>
-              <p class="discuss-aside-sub">Контекст для агента · перетащите из меню</p>
+            <div class="discuss-aside-tabs" role="tablist" aria-label="Панель справа">
+              <button
+                type="button"
+                class="discuss-aside-tab is-active"
+                role="tab"
+                id="discuss-tab-discuss"
+                aria-selected="true"
+                aria-controls="discuss-panel-discuss"
+              >
+                Обсуждение
+              </button>
+              <button
+                type="button"
+                class="discuss-aside-tab"
+                role="tab"
+                id="discuss-tab-shell"
+                aria-selected="false"
+                aria-controls="discuss-panel-shell"
+                tabindex="-1"
+              >
+                Agent Shell
+              </button>
             </div>
           </header>
 
+          <div id="discuss-panel-discuss" class="discuss-aside-view is-active" role="tabpanel" aria-labelledby="discuss-tab-discuss">
           <section class="discuss-context-section" aria-label="Контекст обсуждения">
             <div class="discuss-context-head">
               <span class="discuss-context-label">Контекст</span>
@@ -2076,6 +2096,23 @@
               <button id="discuss-clear-btn" class="discuss-composer-btn discuss-composer-btn--ghost" type="button" title="Очистить чат">Очистить</button>
             </div>
           </footer>
+          </div>
+
+          <div
+            id="discuss-panel-shell"
+            class="discuss-aside-view discuss-aside-shell-view"
+            role="tabpanel"
+            aria-labelledby="discuss-tab-shell"
+            hidden
+          >
+            <iframe
+              id="discuss-shell-iframe"
+              class="discuss-shell-iframe"
+              title="Agent Shell"
+              loading="lazy"
+              referrerpolicy="same-origin"
+            ></iframe>
+          </div>
         </aside>
         </div>
       </section>
@@ -2652,7 +2689,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/main.js?v=0.5.235"></script>
-    <script src="/discuss-panel.js?v=0.5.223"></script>
+    <script src="/discuss-panel.js?v=0.5.224"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

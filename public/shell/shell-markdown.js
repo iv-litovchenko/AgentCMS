@@ -85,15 +85,15 @@ export function renderShellReplyMarkdown(element, markdown) {
 
 function appendTtsDisplayBlock(container, text, { open = false } = {}) {
   const aside = document.createElement("aside");
-  aside.className = "shell-reply-tts";
-  if (open) aside.classList.add("shell-reply-tts--open");
+  aside.className = "shell-reply-tts-block";
+  if (open) aside.classList.add("shell-reply-tts-block--open");
 
   const label = document.createElement("div");
-  label.className = "shell-reply-tts-label";
+  label.className = "shell-reply-tts-block-label";
   label.textContent = open ? "Озвучка · печатает…" : "Озвучка";
 
   const content = document.createElement("div");
-  content.className = "shell-reply-tts-text shell-md";
+  content.className = "shell-reply-tts-block-text shell-md";
   renderShellReplyMarkdown(content, text);
 
   aside.append(label, content);

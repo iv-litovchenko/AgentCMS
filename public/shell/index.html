@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=104" />
+    <link rel="stylesheet" href="/shell/shell.css?v=107" />
     <script type="importmap">
       {
         "imports": {
@@ -100,6 +100,13 @@
               <option value="transparent">Прозрачный</option>
             </select>
           </label>
+        </div>
+        <div class="shell-settings-save-row">
+          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save" disabled>
+            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+            Сохранить
+          </button>
+          <span class="shell-settings-save-hint"><code>awn-shell.json</code></span>
         </div>
       </section>
 
@@ -759,6 +766,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </div>
             <input id="shell-topic-path" type="hidden" value="" />
           </div>
+        <div class="shell-settings-save-row">
+          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-route-save" disabled>
+            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+            Сохранить
+          </button>
+          <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
+        </div>
       </section>
 
       <section class="shell-reply-panel" id="shell-reply-panel">
@@ -795,7 +809,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               class="shell-textarea shell-textarea--compact"
               rows="3"
               spellcheck="false"
-              placeholder="[tts] — кратко для голоса в начале ответа, затем полный текст для экрана."
+              placeholder="Инструкция для ответа: блок [tts] для озвучки, затем полный текст. Без [tts] — только экран, без озвучки. «Вставить заготовку» — шаблон."
             ></textarea>
           </label>
           <label class="shell-field shell-field--compact shell-tts-engine-field">
@@ -853,6 +867,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
               <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
             </label>
+          </div>
+          <div class="shell-settings-save-row">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save" disabled>
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
           </div>
         </div>
         <div class="shell-reply-body" id="shell-last-reply">
@@ -922,6 +943,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <option value="sidecar">Sidecar (Python) · TODO</option>
               </select>
             </label>
+          </div>
+          <div class="shell-settings-save-row">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save" disabled>
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code> · режим 🎤</span>
           </div>
         </div>
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
@@ -1157,6 +1185,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=101" type="module"></script>
+    <script src="/shell/shell.js?v=104" type="module"></script>
   </body>
 </html>

@@ -442,6 +442,73 @@ body.shell-window-transparent {
   border-radius: 4px;
 }
 
+.shell-settings-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(122, 108, 255, 0.18);
+}
+
+.shell-settings-save-hint {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.shell-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shell-save-btn .shell-save-btn-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #64748b;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
+}
+
+.shell-save-btn.is-dirty .shell-save-btn-lamp {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16);
+}
+
+.shell-save-btn.is-saved .shell-save-btn-lamp {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
+}
+
+.shell-save-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.shell-icon-btn.has-unsaved {
+  position: relative;
+}
+
+.shell-icon-btn.has-unsaved::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(8, 10, 22, 0.92);
+  pointer-events: none;
+}
+
 .shell-todo-badge {
   display: inline-flex;
   align-items: center;
@@ -1845,6 +1912,39 @@ body.shell-compact {
   padding: 6px;
 }
 
+body.shell-embed {
+  display: block;
+  min-height: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+body.shell-embed.shell-bg-wallpaper,
+body.shell-embed.shell-bg-dark {
+  background-attachment: scroll;
+}
+
+body.shell-embed .shell-app {
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+body.shell-embed .shell-header {
+  padding: 6px 8px 0;
+}
+
+body.shell-embed #shell-open-cms,
+body.shell-embed #shell-compact-toggle {
+  display: none;
+}
+
+body.shell-embed .shell-version {
+  display: none;
+}
+
 .shell-app[data-compact="1"] {
   min-height: 0;
   width: 100%;
@@ -2411,7 +2511,7 @@ body.shell-compact {
   margin-bottom: 0;
 }
 
-.shell-reply-tts {
+.shell-reply-tts-block {
   margin: 0;
   padding: 10px 12px;
   border-radius: 10px;
@@ -2420,12 +2520,12 @@ body.shell-compact {
   box-shadow: inset 0 0 0 1px rgba(88, 196, 255, 0.06);
 }
 
-.shell-reply-tts--open {
+.shell-reply-tts-block--open {
   border-style: solid;
   border-color: rgba(88, 196, 255, 0.65);
 }
 
-.shell-reply-tts-label {
+.shell-reply-tts-block-label {
   margin: 0 0 6px;
   font-size: 10px;
   font-weight: 700;
@@ -2434,15 +2534,15 @@ body.shell-compact {
   color: rgba(88, 196, 255, 0.95);
 }
 
-.shell-reply-tts-text > :first-child {
+.shell-reply-tts-block-text > :first-child {
   margin-top: 0;
 }
 
-.shell-reply-tts-text > :last-child {
+.shell-reply-tts-block-text > :last-child {
   margin-bottom: 0;
 }
 
-.shell-reply-tts-text {
+.shell-reply-tts-block-text {
   font-size: 12px;
   line-height: 1.45;
   color: rgba(214, 236, 255, 0.92);

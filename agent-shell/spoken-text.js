@@ -1,24 +1,35 @@
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
-const TTS_BLOCK_RE = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
+
+function findFirstTtsBlock(text) {
+  const source = String(text || "");
+  const leading = source.match(/^\s*/)?.[0]?.length || 0;
+  const openMatch = /\[tts\]/i.exec(source.slice(leading));
+  if (!openMatch || openMatch.index !== 0) return null;
+
+  const openStart = leading;
+  const contentStart = openStart + openMatch[0].length;
+  const afterOpen = source.slice(contentStart);
+  const closeMatch = /\[\/tts\]/i.exec(afterOpen);
+  if (!closeMatch || closeMatch.index === undefined) return null;
+
+  return {
+    content: String(afterOpen.slice(0, closeMatch.index)).trim(),
+    start: openStart,
+    end: contentStart + closeMatch.index + closeMatch[0].length
+  };
+}
 
 function extractAllTtsBlocks(text) {
-  const blocks = [];
-  const source = String(text || "");
-  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
-  let match = re.exec(source);
-  while (match) {
-    const chunk = String(match[1] || "").trim();
-    if (chunk) blocks.push(chunk);
-    match = re.exec(source);
-  }
-  return blocks;
+  const block = findFirstTtsBlock(text);
+  if (!block?.content) return [];
+  return [block.content];
 }
 
 function stripAllTtsBlocks(text) {
-  return String(text || "")
-    .replace(TTS_BLOCK_RE, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  const block = findFirstTtsBlock(text);
+  const source = String(text || "");
+  if (!block) return source.replace(/\n{3,}/g, "\n\n").trim();
+  return (source.slice(0, block.start) + source.slice(block.end)).replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function stripInlineMarkdown(text) {
@@ -80,7 +91,7 @@ function buildDualReplyInstruction(userText, settings = {}) {
   let suffix = "";
   if (!/\[tts\]/i.test(prompt)) {
     suffix =
-      "\n\nФормат ответа (строго, в таком порядке):\n[tts]\n…кратко для озвучки…\n[/tts]\n\nДалее — полный текст ответа для экрана.";
+      "\n\nФормат ответа (строго, в таком порядке):\n[tts]\n…кратко для озвучки…\n[/tts]\n\nДалее — полный текст ответа для экрана.\n\nПо умолчанию — без озвучки, если нет блока [tts].";
   }
   return `${text}
 
@@ -110,7 +121,7 @@ function parseDualReply(text) {
     return { body: stripAllTtsBlocks(raw), spoken, spokenParts, parsed: true };
   }
 
-  if (/\[tts\]/i.test(raw)) {
+  if (/^\s*\[tts\]/i.test(raw) && !findFirstTtsBlock(raw)) {
     return { body: "", spoken: null, spokenParts: [], parsed: true };
   }
 
@@ -122,33 +133,30 @@ function extractStreamingReplyBody(partialText) {
   if (/\[text\]/i.test(raw)) {
     return parseDualReply(raw).body || "";
   }
-  let visible = stripAllTtsBlocks(raw);
-  const openMatch = raw.match(/\[tts\](?![\s\S]*\[\/tts\])/i);
-  if (openMatch && openMatch.index !== undefined) {
-    const prefix = raw.slice(0, openMatch.index);
-    visible = stripAllTtsBlocks(prefix);
+  const block = findFirstTtsBlock(raw);
+  if (block) {
+    return (raw.slice(0, block.start) + raw.slice(block.end)).trim();
   }
-  return visible.trim();
+  const firstOpen = /^\s*\[tts\]/i.exec(raw);
+  if (firstOpen) {
+    return raw.slice(0, firstOpen.index).trim();
+  }
+  return raw.trim();
 }
 
 function finalizeDualReply(rawText, settings = {}) {
   const parsed = parseDualReply(rawText);
   if (parsed.parsed) {
-    const spokenParts = parsed.spokenParts?.length
-      ? parsed.spokenParts
-      : parsed.spoken
-        ? [parsed.spoken]
-        : [];
-    const spoken =
-      spokenParts.join("\n\n") || ruleBasedSpeechText(parsed.body, settings) || null;
+    const spokenParts = parsed.spokenParts?.length ? parsed.spokenParts : [];
+    const spoken = spokenParts.length ? spokenParts.join("\n\n") : null;
     return {
       body: parsed.body || rawText.trim(),
       spoken,
-      spokenParts: spokenParts.length ? spokenParts : spoken ? [spoken] : []
+      spokenParts
     };
   }
   const body = parsed.body;
-  const spoken = shouldRequestDualReply(settings) ? ruleBasedSpeechText(body, settings) : null;
+  const spoken = shouldRequestDualReply(settings) ? null : ruleBasedSpeechText(body, settings) || null;
   return {
     body,
     spoken,

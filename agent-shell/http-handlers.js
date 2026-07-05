@@ -109,6 +109,10 @@ function createShellHandlers(deps) {
           return true;
         }
         const settings = await shellService.readSettings(agentRoot);
+        const outboundSettings = shellService.applyOutboundSettings(settings, {
+          ttsEnabled: payload?.ttsEnabled,
+          ttsPrompt: payload?.ttsPrompt
+        });
         const voiceInput = Boolean(payload?.voice) || String(payload?.author || "") === "sidecar";
         let body = rawBody;
         let sttRefine = null;
@@ -170,7 +174,7 @@ function createShellHandlers(deps) {
           result = await shellService.sendToQwenPaw(deps, {
             agentRoot,
             agentId,
-            settings,
+            settings: outboundSettings,
             body
           });
         } else {

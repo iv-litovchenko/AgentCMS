@@ -131,24 +131,36 @@ export function toSpeechText(body, options = {}) {
   return speech.trim();
 }
 
-export function extractAllTtsBlocks(text) {
-  const blocks = [];
+export function findFirstTtsBlock(text) {
   const source = String(text || "");
-  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
-  let match = re.exec(source);
-  while (match) {
-    const chunk = String(match[1] || "").trim();
-    if (chunk) blocks.push(chunk);
-    match = re.exec(source);
-  }
-  return blocks;
+  const leading = source.match(/^\s*/)?.[0]?.length || 0;
+  const openMatch = /\[tts\]/i.exec(source.slice(leading));
+  if (!openMatch || openMatch.index !== 0) return null;
+
+  const openStart = leading;
+  const contentStart = openStart + openMatch[0].length;
+  const afterOpen = source.slice(contentStart);
+  const closeMatch = /\[\/tts\]/i.exec(afterOpen);
+  if (!closeMatch || closeMatch.index === undefined) return null;
+
+  return {
+    content: String(afterOpen.slice(0, closeMatch.index)).trim(),
+    start: openStart,
+    end: contentStart + closeMatch.index + closeMatch[0].length
+  };
+}
+
+export function extractAllTtsBlocks(text) {
+  const block = findFirstTtsBlock(text);
+  if (!block?.content) return [];
+  return [block.content];
 }
 
 export function stripAllTtsBlocks(text) {
-  return String(text || "")
-    .replace(/\[tts\][\s\S]*?\[\/tts\]/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  const block = findFirstTtsBlock(text);
+  const source = String(text || "");
+  if (!block) return source.replace(/\n{3,}/g, "\n\n").trim();
+  return (source.slice(0, block.start) + source.slice(block.end)).replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function cleanReplyTextSegment(text) {
@@ -171,40 +183,31 @@ export function hasReplyTtsBlocks(text) {
 export function splitReplyDisplayParts(text) {
   const source = String(text || "");
   const parts = [];
-  let lastIndex = 0;
-  const re = /\[tts\]([\s\S]*?)\[\/tts\]/gi;
-  let match = re.exec(source);
+  const block = findFirstTtsBlock(source);
 
-  while (match) {
-    if (match.index > lastIndex) {
-      const chunk = cleanReplyTextSegment(source.slice(lastIndex, match.index));
-      if (chunk) parts.push({ kind: "markdown", text: chunk });
-    }
-    const ttsText = String(match[1] || "").trim();
-    if (ttsText) parts.push({ kind: "tts", text: ttsText });
-    lastIndex = match.index + match[0].length;
-    match = re.exec(source);
+  if (block) {
+    const before = cleanReplyTextSegment(source.slice(0, block.start));
+    if (before) parts.push({ kind: "markdown", text: before });
+    if (block.content) parts.push({ kind: "tts", text: block.content });
+    const after = cleanReplyTextSegment(source.slice(block.end));
+    if (after) parts.push({ kind: "markdown", text: after });
+    return parts;
   }
 
-  const tail = source.slice(lastIndex);
-  const openMatch = tail.match(/\[tts\]\s*([\s\S]*)$/i);
-  if (openMatch && !/\[\/tts\]/i.test(openMatch[1])) {
-    const beforeOpen = cleanReplyTextSegment(tail.slice(0, openMatch.index));
+  const firstOpen = /^\s*\[tts\]/i.exec(source);
+  if (firstOpen) {
+    const beforeOpen = cleanReplyTextSegment(source.slice(0, firstOpen.index));
     if (beforeOpen) parts.push({ kind: "markdown", text: beforeOpen });
-    const openTts = String(openMatch[1] || "")
+    const openTail = source.slice(firstOpen.index + firstOpen[0].length);
+    const openTts = String(openTail || "")
       .replace(/\n*\[text\][\s\S]*$/i, "")
       .trim();
     if (openTts) parts.push({ kind: "tts", text: openTts, open: true });
-  } else {
-    const rest = cleanReplyTextSegment(tail);
-    if (rest) parts.push({ kind: "markdown", text: rest });
+    return parts.length ? parts : [{ kind: "markdown", text: cleanReplyTextSegment(source) }];
   }
 
-  if (!parts.length) {
-    const fallback = cleanReplyTextSegment(source);
-    if (fallback) parts.push({ kind: "markdown", text: fallback });
-  }
-
+  const fallback = cleanReplyTextSegment(source);
+  if (fallback) parts.push({ kind: "markdown", text: fallback });
   return parts;
 }
 
@@ -230,7 +233,7 @@ export function parseDualReply(text) {
     return { body: stripAllTtsBlocks(raw), spoken, spokenParts, parsed: true };
   }
 
-  if (/\[tts\]/i.test(raw)) {
+  if (/^\s*\[tts\]/i.test(raw) && !findFirstTtsBlock(raw)) {
     return { body: "", spoken: null, spokenParts: [], parsed: true };
   }
 
@@ -239,9 +242,10 @@ export function parseDualReply(text) {
 
 export function extractStreamingTtsBody(partialText) {
   const raw = String(partialText || "");
-  const openMatch = raw.match(/\[tts\]\s*/i);
-  if (!openMatch || openMatch.index === undefined) return "";
-  const afterOpen = raw.slice(openMatch.index + openMatch[0].length);
+  const leading = raw.match(/^\s*/)?.[0]?.length || 0;
+  const openMatch = /\[tts\]\s*/i.exec(raw.slice(leading));
+  if (!openMatch || openMatch.index !== 0) return "";
+  const afterOpen = raw.slice(leading + openMatch[0].length);
   const closeMatch = afterOpen.match(/\[\/tts\]/i);
   if (closeMatch && closeMatch.index !== undefined) {
     return afterOpen.slice(0, closeMatch.index).trim();
@@ -254,12 +258,15 @@ export function extractStreamingReplyBody(partialText) {
   if (/\[text\]/i.test(raw)) {
     return parseDualReply(raw).body || "";
   }
-  let visible = stripAllTtsBlocks(raw);
-  const openMatch = raw.match(/\[tts\](?![\s\S]*\[\/tts\])/i);
-  if (openMatch && openMatch.index !== undefined) {
-    visible = stripAllTtsBlocks(raw.slice(0, openMatch.index));
+  const block = findFirstTtsBlock(raw);
+  if (block) {
+    return (raw.slice(0, block.start) + raw.slice(block.end)).trim();
   }
-  return visible.trim();
+  const firstOpen = /^\s*\[tts\]/i.exec(raw);
+  if (firstOpen) {
+    return raw.slice(0, firstOpen.index).trim();
+  }
+  return raw.trim();
 }
 
 export function prepareSpeechText(body, settings = {}) {

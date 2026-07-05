@@ -222,6 +222,18 @@ async function writeSettings(agentRoot, patch, agentId) {
   return next;
 }
 
+function applyOutboundSettings(settings, overrides = {}) {
+  const merged = { ...settings };
+  if (!overrides || typeof overrides !== "object") return merged;
+  if (overrides.ttsEnabled !== undefined) {
+    merged.ttsEnabled = Boolean(overrides.ttsEnabled);
+  }
+  if (overrides.ttsPrompt !== undefined) {
+    merged.ttsPrompt = String(overrides.ttsPrompt);
+  }
+  return merged;
+}
+
 async function readPersistedState(agentRoot) {
   try {
     const raw = await fs.readFile(stateAbsolute(agentRoot), "utf-8");
@@ -945,6 +957,7 @@ module.exports = {
   DEFAULT_SETTINGS,
   readSettings,
   writeSettings,
+  applyOutboundSettings,
   getState,
   patchState,
   sendUserMessage,
