@@ -1,7 +1,13 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
-const { chatWithQwenPaw, checkQwenPawHealth, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const {
+  buildDualReplyInstruction,
+  extractStreamingReplyBody,
+  finalizeDualReply,
+  shouldRequestDualReply
+} = require("./spoken-text");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 
 const SETTINGS_DIR = ".agent-shell";
@@ -386,6 +392,10 @@ async function fetchQwenPawChats(settings) {
   });
 }
 
+async function fetchQwenPawAgents(settings) {
+  return listQwenPawAgents({ baseUrl: settings.qwenpawBaseUrl });
+}
+
 async function resolveQwenPawChatName(settings, sessionId) {
   const chats = await fetchQwenPawChats(settings);
   const match = chats.find((chat) => String(chat?.session_id || "") === String(sessionId || ""));
@@ -520,10 +530,12 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
 
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dualReply = shouldRequestDualReply(settings);
+  const outboundText = buildDualReplyInstruction(text, settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
 
-  const emitAssistantDelta = async (nextText, { done = false, force = false } = {}) => {
+  const emitAssistantDelta = async (nextText, { done = false, force = false, spokenText = null } = {}) => {
     const replyText = String(nextText || "");
     const now = Date.now();
     if (!done && !force && replyText === lastEmittedText) return;
@@ -536,9 +548,14 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       phrase: done ? "" : "Печатает…",
       lastShellReply: replyText
     });
-    emitShellEvent(agentId, "assistant_delta", { streamId, text: replyText, done });
+    emitShellEvent(agentId, "assistant_delta", {
+      streamId,
+      text: replyText,
+      done,
+      spokenText: spokenText || undefined
+    });
     if (typeof onProgress === "function") {
-      onProgress({ phase: done ? PHASE_WAITING : PHASE_THINKING, streamId, text: replyText, done });
+      onProgress({ phase: done ? PHASE_WAITING : PHASE_THINKING, streamId, text: replyText, done, spokenText });
     }
   };
 
@@ -551,9 +568,10 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       agentId: settings.qwenpawAgentId,
       sessionId,
       userId: settings.qwenpawUserId,
-      text,
+      text: outboundText,
       onEvent: ({ text: partialText }) => {
-        void emitAssistantDelta(partialText);
+        const displayText = dualReply ? extractStreamingReplyBody(partialText) : partialText;
+        void emitAssistantDelta(displayText);
       }
     });
   } catch (error) {
@@ -570,14 +588,16 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   }
 
   let agentMessage = null;
+  const finalized = finalizeDualReply(reply.text, settings);
   if (shouldLogToCms(settings)) {
-    agentMessage = await appendAgentReplyToCms(deps, settings, reply.text);
+    agentMessage = await appendAgentReplyToCms(deps, settings, finalized.body);
   }
 
   const assistantMessage = {
     id: agentMessage?.id || streamId,
     streamId,
-    body: reply.text,
+    body: finalized.body,
+    spokenText: finalized.spoken || null,
     role: "agent",
     author: "qwenpaw",
     created: agentMessage?.created || new Date().toISOString()
@@ -587,9 +607,13 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     phase: PHASE_WAITING,
     phrase: "",
     lastAgentMessageId: assistantMessage.id,
-    lastShellReply: reply.text
+    lastShellReply: finalized.body
   });
-  await emitAssistantDelta(reply.text, { done: true, force: true });
+  await emitAssistantDelta(finalized.body, {
+    done: true,
+    force: true,
+    spokenText: finalized.spoken || null
+  });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
 
   return {
@@ -597,7 +621,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     topicPath,
     sessionId,
     streamId,
-    reply: reply.text,
+    reply: finalized.body,
+    spokenText: finalized.spoken || null,
     userMessage,
     message: assistantMessage
   };
@@ -695,10 +720,23 @@ async function buildStatusPayload(deps, agentRoot, agentId) {
 
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };
   if (usesQwenPaw(settings)) {
+    const health = await checkQwenPawHealth(settings.qwenpawBaseUrl);
+    const agent =
+      health.ok
+        ? await checkQwenPawAgent({
+            baseUrl: settings.qwenpawBaseUrl,
+            agentId: settings.qwenpawAgentId
+          })
+        : { ok: false, agentId: settings.qwenpawAgentId, error: "QwenPaw недоступен" };
     qwenpaw = {
-      ...(await checkQwenPawHealth(settings.qwenpawBaseUrl)),
+      ...health,
       configured: true,
+      serverOk: Boolean(health.ok),
+      agentOk: Boolean(agent.ok),
+      ok: Boolean(health.ok && agent.ok),
       agentId: settings.qwenpawAgentId,
+      agentName: agent.name || "",
+      agentError: agent.error || "",
       sessionId: buildQwenPawSessionId(settings, agentId),
       chatName: settings.qwenpawChatName || "",
       userId: settings.qwenpawUserId
@@ -848,6 +886,7 @@ module.exports = {
   shouldLogToCms,
   buildQwenPawSessionId,
   fetchQwenPawChats,
+  fetchQwenPawAgents,
   startNewQwenPawChat,
   selectQwenPawChat,
   renameQwenPawChat,

@@ -414,6 +414,28 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/shell/qwenpaw/agents") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        if (!shellService.usesQwenPaw(settings)) {
+          deps.sendJson(res, 400, { error: "QwenPaw mode is not enabled" });
+          return true;
+        }
+        const agents = await shellService.fetchQwenPawAgents(settings);
+        deps.sendJson(res, 200, {
+          agentId,
+          selectedAgentId: settings.qwenpawAgentId,
+          agents
+        });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to list QwenPaw agents",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/shell/qwenpaw/chats") {
       try {
         const settings = await shellService.readSettings(agentRoot);

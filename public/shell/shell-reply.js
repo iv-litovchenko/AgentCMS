@@ -93,6 +93,61 @@ export function toSpeechText(body, options = {}) {
   return speech.trim();
 }
 
+export function parseDualReply(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return { body: "", spoken: null, parsed: false };
+
+  const spokenMatch = raw.match(/\[tts\]([\s\S]*?)\[\/tts\]/i);
+  const spoken = spokenMatch ? spokenMatch[1].trim() : null;
+
+  const closedText = raw.match(/\[text\]([\s\S]*?)\[\/text\]/i);
+  if (closedText) {
+    return { body: closedText[1].trim(), spoken, parsed: true };
+  }
+
+  const openText = raw.match(/\[text\]\s*([\s\S]*)/i);
+  if (openText) {
+    const body = openText[1].replace(/\[\/text\]\s*$/i, "").trim();
+    return { body, spoken, parsed: true };
+  }
+
+  if (spokenMatch) {
+    const afterTts = raw.slice(raw.indexOf(spokenMatch[0]) + spokenMatch[0].length).trim();
+    return { body: afterTts, spoken, parsed: true };
+  }
+
+  if (/\[tts\]/i.test(raw)) {
+    return { body: "", spoken: null, parsed: true };
+  }
+
+  return { body: raw, spoken: null, parsed: false };
+}
+
+export function extractStreamingTtsBody(partialText) {
+  const raw = String(partialText || "");
+  const openMatch = raw.match(/\[tts\]\s*/i);
+  if (!openMatch || openMatch.index === undefined) return "";
+  const afterOpen = raw.slice(openMatch.index + openMatch[0].length);
+  const closeMatch = afterOpen.match(/\[\/tts\]/i);
+  if (closeMatch && closeMatch.index !== undefined) {
+    return afterOpen.slice(0, closeMatch.index).trim();
+  }
+  return afterOpen.replace(/\n*\[text\][\s\S]*$/i, "").trim();
+}
+
+export function extractStreamingReplyBody(partialText) {
+  const raw = String(partialText || "");
+  if (/\[text\]/i.test(raw)) {
+    return parseDualReply(raw).body || "";
+  }
+  const closeTts = raw.match(/\[\/tts\]\s*/i);
+  if (closeTts && closeTts.index !== undefined) {
+    return raw.slice(closeTts.index + closeTts[0].length).trim();
+  }
+  if (/\[tts\]/i.test(raw)) return "";
+  return raw.trim();
+}
+
 export function prepareSpeechText(body, settings = {}) {
   let speech = toSpeechText(body, {
     includeCaptions: settings.ttsIncludeCaptions !== false

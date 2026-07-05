@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=93" />
+    <link rel="stylesheet" href="/shell/shell.css?v=98" />
     <script type="importmap">
       {
         "imports": {
@@ -457,6 +457,65 @@ aya_bar_v2 тоже читает те же файлы</pre>
             логично как <code>/shell/monitor.html</code> поверх <code>/api/shell/*</code>, когда появятся метрики sidecar.
           </p>
         </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · датчики · что имеет смысл для Agent Shell</div>
+        <div class="shell-footer-prose">
+          <p>
+            <strong>Mac ≠ iPhone.</strong> На MacBook есть аксelerometр (внутренний), датчик света, lid, Touch ID, камера/микрофон.
+            На iMac / mini / Studio — почти нет motion-датчиков. Гироскопа, компаса, GPS, TrueDepth на Mac нет.
+            В браузере / Electron <code>DeviceOrientation</code> на macOS по сути не работает.
+          </p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Идея</th>
+                  <th scope="col">Mac</th>
+                  <th scope="col">iPhone</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>«Наклони устройство — UI реагирует»</td>
+                  <td>❌ почти бесполезно</td>
+                  <td>✅ да</td>
+                </tr>
+                <tr>
+                  <td>«Уронили / резко двигают ноутбук»</td>
+                  <td>⚠️ только нативно (не web)</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Камера, микрофон, экран</td>
+                  <td>✅ уже есть в Shell</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Геолокация</td>
+                  <td>⚠️ грубо по Wi‑Fi</td>
+                  <td>✅ точнее</td>
+                </tr>
+                <tr>
+                  <td>Расстояние до лица (TrueDepth)</td>
+                  <td>❌</td>
+                  <td>✅</td>
+                </tr>
+                <tr>
+                  <td>Ориентация в пространстве (<code>devicemotion</code>)</td>
+                  <td>❌ web API недоступен</td>
+                  <td>✅ с permission</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>Вывод для Shell на Mac:</strong> камера, микрофон, экран, clipboard, окно Electron — основные «входы».
+            Ориентация / tilt — сценарий <strong>iPhone как второй клиент</strong>, не desktop Shell.</p>
+          <ul class="shell-todo-list">
+            <li>Mac Shell: не планировать UI на <code>deviceorientation</code></li>
+            <li>iPhone PWA / app: <code>DeviceMotion</code> + permission → события в CMS/QwenPaw</li>
+            <li>Capabilities manifest: разные наборы для macOS vs iOS</li>
+          </ul>
+        </div>
         <p class="shell-footer-note">
           Mac-приложение: <code>npm run shell:dist</code>, затем
           <code>npm run shell:open</code>
@@ -642,13 +701,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </label>
               <label class="shell-field shell-field--compact">
                 <span class="shell-label">Агент QwenPaw</span>
-                <input
-                  id="shell-qwenpaw-agent-id"
-                  class="shell-input"
-                  type="text"
-                  spellcheck="false"
-                  placeholder="default"
-                />
+                <select id="shell-qwenpaw-agent-id" class="shell-select"></select>
               </label>
             </div>
             <div class="shell-field shell-field--compact shell-qwenpaw-chat" id="shell-qwenpaw-chat">
@@ -730,58 +783,51 @@ aya_bar_v2 тоже читает те же файлы</pre>
           </div>
         </div>
         <div class="shell-tts-settings hidden" id="shell-tts-settings">
-          <p class="shell-tts-settings-note">
-            Промпт — как готовить текст к голосу. Сейчас сохраняется в <code>settings.json</code>; автоматическая
-            spoken-версия по промпту — позже.
-          </p>
-          <label class="shell-field shell-field--compact shell-field--todo">
-            <span class="shell-label shell-label-row">
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
               Промпт spoken-версии
-              <span class="shell-todo-badge" title="Сохраняется, но автоматически не применяется">TODO</span>
+              <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
+                Вставить заготовку
+              </button>
             </span>
             <textarea
               id="shell-tts-prompt"
               class="shell-textarea shell-textarea--compact"
               rows="3"
               spellcheck="false"
-              placeholder="Озвучь кратко, по-русски. Убери emoji, markdown и лишние детали — только смысл для голоса."
+              placeholder="[tts] — кратко для голоса в начале ответа, затем полный текст для экрана."
             ></textarea>
           </label>
-          <div class="shell-tts-settings-grid">
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Движок TTS</span>
-              <select id="shell-tts-engine" class="shell-select">
-                <option value="browser">Браузер (Web Speech)</option>
-                <option value="say">macOS say</option>
-                <option value="edge">Edge TTS (онлайн)</option>
-                <option value="piper">Piper (офлайн)</option>
-                <option value="elevenlabs">ElevenLabs</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact">
+          <label class="shell-field shell-field--compact shell-tts-engine-field">
+            <span class="shell-label">Движок TTS</span>
+            <select id="shell-tts-engine" class="shell-select shell-select--full">
+              <option value="browser">Браузер (Web Speech)</option>
+              <option value="say">macOS say</option>
+              <option value="edge">Edge TTS (онлайн)</option>
+              <option value="piper">Piper (офлайн)</option>
+              <option value="elevenlabs">ElevenLabs</option>
+            </select>
+          </label>
+          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
+          <div class="shell-tts-engine-fields" id="shell-tts-engine-fields">
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
               <span class="shell-label">Язык</span>
-              <select id="shell-tts-lang" class="shell-select">
+              <select id="shell-tts-lang" class="shell-select shell-select--full">
                 <option value="ru-RU">Русский</option>
                 <option value="en-US">English</option>
               </select>
             </label>
-            <label class="shell-field shell-field--compact shell-tts-field-voice">
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
               <span class="shell-label">Голос</span>
-              <select id="shell-tts-voice" class="shell-select">
+              <select id="shell-tts-voice" class="shell-select shell-select--full">
                 <option value="">Системный по умолчанию</option>
               </select>
             </label>
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
-              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
-            </label>
-          </div>
-          <div class="shell-tts-engine-panels">
-            <label class="shell-field shell-field--compact hidden" id="shell-tts-edge-field">
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="edge">
               <span class="shell-label">Голос Edge</span>
-              <select id="shell-tts-edge-voice" class="shell-select"></select>
+              <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
             </label>
-            <label class="shell-field shell-field--compact hidden" id="shell-tts-piper-model-field">
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
               <span class="shell-label">Модель Piper (.onnx)</span>
               <input
                 id="shell-tts-piper-model"
@@ -791,28 +837,21 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 placeholder="/path/to/ru_RU-irina-medium.onnx"
               />
             </label>
-            <label class="shell-field shell-field--compact hidden" id="shell-tts-piper-binary-field">
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
               <span class="shell-label">Бинарник Piper</span>
               <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
             </label>
-            <label class="shell-field shell-field--compact hidden" id="shell-tts-elevenlabs-key-field">
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
               <span class="shell-label">ElevenLabs API key</span>
               <input id="shell-tts-elevenlabs-key" class="shell-input" type="password" autocomplete="off" placeholder="sk_…" />
             </label>
-            <label class="shell-field shell-field--compact hidden" id="shell-tts-elevenlabs-voice-field">
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
               <span class="shell-label">ElevenLabs Voice ID</span>
               <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
             </label>
-          </div>
-          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
-          <div class="shell-tts-settings-checks">
-            <label class="shell-check">
-              <input id="shell-tts-strip-emoji" type="checkbox" checked />
-              <span>Убирать emoji перед озвучкой</span>
-            </label>
-            <label class="shell-check">
-              <input id="shell-tts-include-captions" type="checkbox" checked />
-              <span>Озвучивать подписи [show]</span>
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say edge piper elevenlabs">
+              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
             </label>
           </div>
         </div>
@@ -1092,6 +1131,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </div>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
-    <script src="/shell/shell.js?v=75" type="module"></script>
+    <script src="/shell/shell.js?v=89" type="module"></script>
   </body>
 </html>

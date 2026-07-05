@@ -1,7 +1,7 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences } from "/shell/shell-reply.js?v=4";
-import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=1";
+import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingReplyBody, extractStreamingTtsBody } from "/shell/shell-reply.js?v=9";
+import { renderShellReplyMarkdown } from "/shell/shell-markdown.js?v=2";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
@@ -9,6 +9,13 @@ import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
+
+/** Озвучка только после полного ответа агента (без streaming TTS по предложениям). */
+const TTS_WAIT_FOR_COMPLETE_REPLY = true;
+
+const DEFAULT_TTS_PROMPT = `Ты голосовой ассистент. В начале ответа выдели блок [tts], в котором сформируй краткую версию текста для озвучки. Убери emoji, markdown и лишние детали, оставь только смысл для TTS. Закрой блок [/tts].
+
+Далее — полный текст ответа для экрана.`;
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -39,6 +46,10 @@ const state = {
   pttHeld: false,
   sidecarConnected: false,
   qwenpawConnected: false,
+  qwenpawServerOk: false,
+  qwenpawAgentOk: false,
+  qwenpawAgentName: "",
+  qwenpawAgentError: "",
   qwenpawSessionId: "",
   qwenpawChatsOpen: false,
   qwenpawChatNameDraft: "",
@@ -144,25 +155,19 @@ const nodes = {
   ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
   ttsSettingsPanel: document.getElementById("shell-tts-settings"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
+  ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
   ttsEngine: document.getElementById("shell-tts-engine"),
+  ttsEngineFields: document.getElementById("shell-tts-engine-fields"),
   ttsEdgeVoice: document.getElementById("shell-tts-edge-voice"),
-  ttsEdgeField: document.getElementById("shell-tts-edge-field"),
   ttsPiperModel: document.getElementById("shell-tts-piper-model"),
   ttsPiperBinary: document.getElementById("shell-tts-piper-binary"),
-  ttsPiperModelField: document.getElementById("shell-tts-piper-model-field"),
-  ttsPiperBinaryField: document.getElementById("shell-tts-piper-binary-field"),
   ttsElevenlabsKey: document.getElementById("shell-tts-elevenlabs-key"),
   ttsElevenlabsVoiceId: document.getElementById("shell-tts-elevenlabs-voice-id"),
-  ttsElevenlabsKeyField: document.getElementById("shell-tts-elevenlabs-key-field"),
-  ttsElevenlabsVoiceField: document.getElementById("shell-tts-elevenlabs-voice-field"),
   ttsCapabilitiesNote: document.getElementById("shell-tts-capabilities-note"),
-  ttsVoiceField: document.querySelector(".shell-tts-field-voice"),
   ttsLang: document.getElementById("shell-tts-lang"),
   ttsVoice: document.getElementById("shell-tts-voice"),
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
-  ttsStripEmoji: document.getElementById("shell-tts-strip-emoji"),
-  ttsIncludeCaptions: document.getElementById("shell-tts-include-captions"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
   sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
@@ -331,14 +336,23 @@ function renderHeroLinkChip() {
   let title = `${label} · нет связи`;
 
   if (usesQwen) {
-    if (state.qwenpawConnected && streamLive && online) {
+    const agentLabel = state.qwenpawAgentName || state.settings?.qwenpawAgentId || "default";
+    if (!online) {
+      title = `${label} · нет сети`;
+    } else if (!state.qwenpawServerOk) {
+      title = `${label} · сервер недоступен`;
+    } else if (!state.qwenpawAgentOk) {
+      status = "off";
+      dot = "🔴";
+      title = state.qwenpawAgentError || `${label} · агент «${agentLabel}» недоступен`;
+    } else if (streamLive) {
       status = "ok";
       dot = "🟢";
-      title = `${label} · на связи`;
-    } else if (streamLive || state.qwenpawConnected) {
+      title = `${label} · ${agentLabel} · на связи`;
+    } else {
       status = "partial";
       dot = "🟡";
-      title = `${label} · частично`;
+      title = `${label} · ${agentLabel} · агент ok, SSE отключён`;
     }
   } else if (streamLive && online) {
     status = "ok";
@@ -524,8 +538,15 @@ function applyReplyTextPresentation(element, { text, stub }) {
   element.dataset.replyKind = stub ? "stub" : "message";
 }
 
+function resolveReplyDisplayBody(body) {
+  const raw = String(body || "").trim();
+  if (!hasTtsPrompt()) return raw;
+  const dual = parseDualReply(raw);
+  return dual.parsed ? dual.body || "" : raw;
+}
+
 function renderShellReply(message) {
-  const body = String(message?.body || message?.message?.body || "").trim();
+  const body = resolveReplyDisplayBody(message?.body || message?.message?.body || "");
   const extraShows = Array.isArray(message?.shows) ? message.shows : [];
   const parsed = parseShellReply(body);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
@@ -579,6 +600,7 @@ function beginAssistantStream({ streamId } = {}) {
   state.assistantStream = {
     id: String(streamId || `local-${Date.now()}`),
     text: "",
+    spokenText: "",
     done: false,
     finalized: false
   };
@@ -603,11 +625,23 @@ function renderStreamingAssistantText(text) {
   nodes.lastReply?.scrollTo?.({ top: nodes.lastReply.scrollHeight, behavior: "auto" });
 }
 
+function prepareTtsStreamChunk(text) {
+  let speech = String(text || "").trim();
+  if (!speech) return "";
+  if (state.settings?.ttsStripEmoji !== false) {
+    speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
+  }
+  return speech;
+}
+
 function queueStreamSpeech(fullBody) {
+  if (TTS_WAIT_FOR_COMPLETE_REPLY) return;
   if (!canPlayTts()) return;
   if (!state.settings?.ttsEnabled) return;
 
-  const speech = buildSpeechPayload(fullBody);
+  const speech = hasTtsPrompt()
+    ? prepareTtsStreamChunk(extractStreamingTtsBody(fullBody))
+    : buildSpeechPayloadSync(fullBody);
   if (!speech) return;
 
   const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
@@ -669,23 +703,42 @@ async function drainStreamTtsQueue() {
 function finalizeAssistantStream(message) {
   const stream = state.assistantStream;
   const streamId = String(message?.streamId || message?.id || stream?.id || "");
-  const body = String(message?.body || stream?.text || "").trim();
-  if (!body) return false;
+  const rawBody = String(message?.body || stream?.text || "").trim();
+  if (!rawBody) return false;
   if (stream?.finalized && stream.id === streamId) return true;
 
-  state.assistantStream = { id: streamId, text: body, done: true, finalized: true };
+  const spokenFromMessage = String(message?.spokenText || stream?.spokenText || "").trim();
+  let body = rawBody;
+  let spokenText = spokenFromMessage;
+  if (hasTtsPrompt()) {
+    const parsed = parseDualReply(rawBody);
+    if (parsed.parsed) {
+      body = parsed.body ?? "";
+      if (!spokenText) spokenText = String(parsed.spoken || "").trim();
+    }
+  }
+
+  state.assistantStream = { id: streamId, text: body, spokenText, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
   renderShellReply({ ...message, body });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   if (state.settings?.ttsEnabled && canPlayTts()) {
-    const speech = buildSpeechPayload(body);
-    const tail = speech.slice(state.streamTtsCursor).trim();
-    if (tail) {
-      state.streamTtsQueue.push(tail);
-      state.streamTtsCursor = speech.length;
+    const speech = hasTtsPrompt()
+      ? prepareTtsStreamChunk(spokenText || extractStreamingTtsBody(rawBody))
+      : buildSpeechPayloadSync(body);
+    state.streamTtsCursor = 0;
+    state.streamTtsQueue = [];
+    if (speech) {
+      lastSpokenBody = speech;
+      void speakText(speech).finally(() => {
+        state.assistantStream = null;
+        releaseMessagePipeline();
+      });
+    } else {
+      state.assistantStream = null;
+      releaseMessagePipeline();
     }
-    void finishStreamTtsWhenIdle();
   } else {
     state.assistantStream = null;
     releaseMessagePipeline();
@@ -962,8 +1015,9 @@ async function finishStreamTtsWhenIdle() {
 function handleAssistantDelta(payload) {
   if (state.messageStopped) return;
   const streamId = String(payload?.streamId || "").trim();
-  const text = String(payload?.text ?? "");
+  const rawText = String(payload?.text ?? "");
   const done = Boolean(payload?.done);
+  const spokenText = String(payload?.spokenText || "").trim();
 
   if (!state.assistantStream) {
     beginAssistantStream({ streamId: streamId || undefined });
@@ -975,13 +1029,15 @@ function handleAssistantDelta(payload) {
     }
   }
 
-  state.assistantStream.text = text;
+  const displayText = hasTtsPrompt() ? extractStreamingReplyBody(rawText) : rawText;
+  state.assistantStream.text = rawText;
+  if (spokenText) state.assistantStream.spokenText = spokenText;
   state.assistantStream.done = done;
-  renderStreamingAssistantText(text);
-  queueStreamSpeech(text);
+  renderStreamingAssistantText(displayText);
+  queueStreamSpeech(rawText);
 
   if (done) {
-    finalizeAssistantStream({ streamId, id: streamId, body: text });
+    finalizeAssistantStream({ streamId, id: streamId, body: rawText, spokenText });
     if (!state.settings?.ttsEnabled || !canPlayTts()) {
       renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
     }
@@ -1417,6 +1473,7 @@ function applySettings(settings) {
   nodes.messageTarget.value = settings.messageTarget || "cms";
   nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
   nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
+  void loadQwenPawAgents(settings.qwenpawAgentId || "default");
   topicPicker.setValue(settings.topicPath || "");
   nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
   applySttSettingsUi(settings);
@@ -1471,7 +1528,21 @@ function getQwenPawUrlValue() {
 }
 
 function openQwenPawInBrowser() {
-  window.open(getQwenPawUrlValue(), "_blank", "noopener,noreferrer");
+  void (async () => {
+    const base = getQwenPawUrlValue().replace(/\/+$/, "");
+    try {
+      const data = await apiFetch("/api/shell/qwenpaw/chats");
+      const sessionId =
+        data?.sessionId || state.qwenpawSessionId || state.settings?.qwenpawSessionId || "";
+      const match = (data?.chats || []).find(
+        (chat) => String(chat?.session_id || "") === sessionId && !isInternalQwenPawChat(chat)
+      );
+      const url = match?.id ? `${base}/chat/${match.id}` : base;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(base, "_blank", "noopener,noreferrer");
+    }
+  })();
 }
 
 function usesQwenPawTarget(target) {
@@ -1493,6 +1564,52 @@ function cleanShellUrl() {
   if (!url.searchParams.has("agent")) return;
   url.searchParams.delete("agent");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function renderQwenPawAgents(agents, selectedAgentId) {
+  if (!nodes.qwenpawAgentId) return;
+  const selected = String(selectedAgentId || nodes.qwenpawAgentId.value || state.settings?.qwenpawAgentId || "default");
+  const items = Array.isArray(agents) ? agents : [];
+  const knownIds = new Set(items.map((item) => item.id));
+  nodes.qwenpawAgentId.innerHTML = "";
+
+  if (selected && !knownIds.has(selected)) {
+    const missing = document.createElement("option");
+    missing.value = selected;
+    missing.textContent = `${selected} (не найден)`;
+    missing.dataset.invalid = "1";
+    missing.selected = true;
+    nodes.qwenpawAgentId.append(missing);
+  }
+
+  for (const agent of items) {
+    const opt = document.createElement("option");
+    opt.value = agent.id;
+    const suffix = agent.enabled === false ? " · выкл" : "";
+    opt.textContent = agent.name && agent.name !== agent.id ? `${agent.name} (${agent.id})${suffix}` : `${agent.id}${suffix}`;
+    if (agent.id === selected) opt.selected = true;
+    if (agent.enabled === false) opt.disabled = true;
+    nodes.qwenpawAgentId.append(opt);
+  }
+
+  if (!items.length && !selected) {
+    const fallback = document.createElement("option");
+    fallback.value = "default";
+    fallback.textContent = "default";
+    nodes.qwenpawAgentId.append(fallback);
+  }
+
+  nodes.qwenpawAgentId.dataset.invalid = selected && !knownIds.has(selected) ? "1" : "0";
+}
+
+async function loadQwenPawAgents(preferredId = "") {
+  if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
+  try {
+    const data = await apiFetch("/api/shell/qwenpaw/agents");
+    renderQwenPawAgents(data.agents, preferredId || data.selectedAgentId || state.settings?.qwenpawAgentId);
+  } catch {
+    renderQwenPawAgents([], preferredId || state.settings?.qwenpawAgentId || "default");
+  }
 }
 
 function updateQwenPawChatUi(payload) {
@@ -1553,11 +1670,16 @@ function setQwenPawChatsOpen(open) {
   nodes.qwenpawChatsPanel?.classList.toggle("hidden", !state.qwenpawChatsOpen);
 }
 
+function isInternalQwenPawChat(chat) {
+  const sessionId = String(chat?.session_id || "").trim();
+  return sessionId.includes("-tts-prep-") || sessionId.startsWith("__shell-tts-prep-");
+}
+
 function renderQwenPawChats(chats, activeSessionId) {
   if (!nodes.qwenpawChatsPanel) return;
   nodes.qwenpawChatsPanel.innerHTML = "";
 
-  const items = Array.isArray(chats) ? chats : [];
+  const items = (Array.isArray(chats) ? chats : []).filter((chat) => !isInternalQwenPawChat(chat));
   if (!items.length) {
     nodes.qwenpawChatsPanel.innerHTML = '<div class="shell-qwenpaw-chats-empty">Чатов пока нет</div>';
     return;
@@ -1644,6 +1766,10 @@ function applyStatusPayload(payload) {
     else if (!state.micActive) setMicButtonState("Говорить");
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
+  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
+  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
+  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
+  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   renderHeroLinkChip();
   updateQwenPawChatUi(payload);
@@ -1771,7 +1897,9 @@ async function sendMessageDirect(body, { fromCompose = false } = {}) {
     }
     updateSendButtonLabel();
     if (result?.reply || result?.message?.body) {
-      await handleAssistantMessage(result.message || { body: result.reply, streamId: result.streamId });
+      await handleAssistantMessage(
+        result.message || { body: result.reply, streamId: result.streamId, spokenText: result.spokenText }
+      );
     } else {
       await refreshStatus();
       releaseMessagePipeline();
@@ -1823,8 +1951,31 @@ function getSpeechSynth() {
   return window.speechSynthesis || null;
 }
 
-function buildSpeechPayload(body) {
+function insertTtsPromptTemplate() {
+  if (!nodes.ttsPrompt) return;
+  nodes.ttsPrompt.value = DEFAULT_TTS_PROMPT;
+  state.settings = { ...(state.settings || {}), ttsPrompt: DEFAULT_TTS_PROMPT };
+  void persistSettings();
+}
+
+function hasTtsPrompt() {
+  return Boolean(String(state.settings?.ttsPrompt || nodes.ttsPrompt?.value || "").trim());
+}
+
+function buildSpeechPayloadSync(body) {
   return prepareSpeechText(body, state.settings || {});
+}
+
+function buildSpeechPayload(body, message = {}) {
+  const spoken = String(message?.spokenText || "").trim();
+  if (spoken) {
+    let text = spoken;
+    if (state.settings?.ttsStripEmoji !== false) {
+      text = text.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
+    }
+    return text;
+  }
+  return buildSpeechPayloadSync(body);
 }
 
 function createSpeechUtterance(text) {
@@ -1890,7 +2041,9 @@ function applySttSettingsUi(settings) {
   if (nodes.voiceMode) nodes.voiceMode.value = mode;
   if (mode !== "disabled") state.sttResumeMode = mode;
   if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
-  if (nodes.sttPrompt) nodes.sttPrompt.value = settings.sttPrompt || "";
+  if (nodes.sttPrompt && document.activeElement !== nodes.sttPrompt) {
+    nodes.sttPrompt.value = settings.sttPrompt || "";
+  }
   if (nodes.sttLang) nodes.sttLang.value = settings.sttLang || "ru-RU";
   if (nodes.sttEngine) {
     const sidecar = mode === "sidecar" || mode === "always";
@@ -1939,12 +2092,14 @@ async function loadTtsCapabilities() {
 
 function updateTtsEnginePanels(engine = getTtsEngine()) {
   const value = engine || "browser";
-  nodes.ttsEdgeField?.classList.toggle("hidden", value !== "edge");
-  nodes.ttsPiperModelField?.classList.toggle("hidden", value !== "piper");
-  nodes.ttsPiperBinaryField?.classList.toggle("hidden", value !== "piper");
-  nodes.ttsElevenlabsKeyField?.classList.toggle("hidden", value !== "elevenlabs");
-  nodes.ttsElevenlabsVoiceField?.classList.toggle("hidden", value !== "elevenlabs");
-  nodes.ttsVoiceField?.classList.toggle("hidden", value !== "browser" && value !== "say");
+  const root = nodes.ttsEngineFields || nodes.ttsSettingsPanel;
+  if (!root) return;
+  for (const field of root.querySelectorAll("[data-tts-engines]")) {
+    const engines = String(field.dataset.ttsEngines || "")
+      .split(/\s+/)
+      .filter(Boolean);
+    field.classList.toggle("hidden", !engines.includes(value));
+  }
 }
 
 async function refreshTtsEngineVoices(engine = getTtsEngine()) {
@@ -1972,7 +2127,7 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
     }
     return;
   }
-  if (!nodes.ttsVoice) return;
+  if (engine !== "say" || !nodes.ttsVoice) return;
   try {
     const data = await apiFetch(`/api/shell/tts/voices?engine=${encodeURIComponent(engine)}`);
     const current = nodes.ttsVoice.value || state.settings?.ttsVoice || "";
@@ -1990,15 +2145,15 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
 }
 
 function applyTtsSettingsUi(settings) {
-  if (nodes.ttsPrompt) nodes.ttsPrompt.value = settings.ttsPrompt || "";
+  if (nodes.ttsPrompt && document.activeElement !== nodes.ttsPrompt) {
+    nodes.ttsPrompt.value = settings.ttsPrompt || "";
+  }
   if (nodes.ttsEngine) {
     const engine = settings.ttsEngine === "sidecar" ? "say" : settings.ttsEngine || "browser";
     nodes.ttsEngine.value = engine;
   }
   if (nodes.ttsLang) nodes.ttsLang.value = settings.ttsLang || "ru-RU";
   if (nodes.ttsRate) nodes.ttsRate.value = String(settings.ttsRate ?? 1);
-  if (nodes.ttsStripEmoji) nodes.ttsStripEmoji.checked = settings.ttsStripEmoji !== false;
-  if (nodes.ttsIncludeCaptions) nodes.ttsIncludeCaptions.checked = settings.ttsIncludeCaptions !== false;
   if (nodes.ttsEdgeVoice) nodes.ttsEdgeVoice.value = settings.ttsEdgeVoice || "ru-RU-SvetlanaNeural";
   if (nodes.ttsPiperModel) nodes.ttsPiperModel.value = settings.ttsPiperModel || "";
   if (nodes.ttsPiperBinary) nodes.ttsPiperBinary.value = settings.ttsPiperBinary || "";
@@ -2022,9 +2177,7 @@ function collectTtsSettingsPatch() {
     ttsElevenlabsVoiceId: nodes.ttsElevenlabsVoiceId?.value || "",
     ttsPiperModel: nodes.ttsPiperModel?.value || "",
     ttsPiperBinary: nodes.ttsPiperBinary?.value || "",
-    ttsRate: Number(nodes.ttsRate?.value || 1),
-    ttsStripEmoji: nodes.ttsStripEmoji?.checked !== false,
-    ttsIncludeCaptions: nodes.ttsIncludeCaptions?.checked !== false
+    ttsRate: Number(nodes.ttsRate?.value || 1)
   };
 }
 
@@ -2135,7 +2288,7 @@ async function handleAssistantMessage(message) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
   }
   if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
-    const speech = buildSpeechPayload(body);
+    const speech = buildSpeechPayload(body, message);
     if (!speech) {
       releaseMessagePipeline();
       return;
@@ -2500,7 +2653,10 @@ function bindUi() {
   });
 
   nodes.messageTarget.addEventListener("change", persistSettings);
-  nodes.qwenpawUrl.addEventListener("change", persistSettings);
+  nodes.qwenpawUrl.addEventListener("change", () => {
+    persistSettings();
+    void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
+  });
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
   nodes.linkChipOpen?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -2547,13 +2703,25 @@ function bindUi() {
     nodes.ttsPiperBinary,
     nodes.ttsElevenlabsKey,
     nodes.ttsElevenlabsVoiceId,
-    nodes.ttsRate,
-    nodes.ttsStripEmoji,
-    nodes.ttsIncludeCaptions
+    nodes.ttsRate
   ]) {
     el?.addEventListener("change", persistSettings);
   }
   nodes.ttsPrompt?.addEventListener("blur", persistSettings);
+  let ttsPromptSaveTimer = 0;
+  nodes.ttsPrompt?.addEventListener("input", () => {
+    window.clearTimeout(ttsPromptSaveTimer);
+    ttsPromptSaveTimer = window.setTimeout(() => persistSettings(), 400);
+  });
+  let sttPromptSaveTimer = 0;
+  nodes.sttPrompt?.addEventListener("input", () => {
+    window.clearTimeout(sttPromptSaveTimer);
+    sttPromptSaveTimer = window.setTimeout(() => persistSettings(), 400);
+  });
+  nodes.ttsPromptInsert?.addEventListener("click", (event) => {
+    event.preventDefault();
+    insertTtsPromptTemplate();
+  });
   nodes.ttsPiperModel?.addEventListener("blur", persistSettings);
   nodes.ttsPiperBinary?.addEventListener("blur", persistSettings);
   nodes.ttsElevenlabsKey?.addEventListener("blur", persistSettings);
@@ -2681,6 +2849,7 @@ async function boot() {
     await topicPicker.refresh();
     await loadWindowSettings();
     await refreshStatus();
+    void loadQwenPawAgents();
     connectStream();
   } catch (error) {
     renderPhase("waiting", error.message);

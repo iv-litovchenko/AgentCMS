@@ -31,6 +31,24 @@ function getShellMarkdownIt() {
     return defaultLinkOpen(tokens, idx, options, env, self);
   };
 
+  const defaultTableOpen =
+    shellMarkdownIt.renderer.rules.table_open ||
+    function renderTableOpen(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+  const defaultTableClose =
+    shellMarkdownIt.renderer.rules.table_close ||
+    function renderTableClose(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+
+  shellMarkdownIt.renderer.rules.table_open = function renderWrappedTableOpen(tokens, idx, options, env, self) {
+    return `<div class="shell-md-table-wrap">${defaultTableOpen(tokens, idx, options, env, self)}`;
+  };
+  shellMarkdownIt.renderer.rules.table_close = function renderWrappedTableClose(tokens, idx, options, env, self) {
+    return `${defaultTableClose(tokens, idx, options, env, self)}</div>`;
+  };
+
   return shellMarkdownIt;
 }
 

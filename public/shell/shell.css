@@ -297,6 +297,18 @@ body.shell-window-transparent {
   transform: translate(1px, -1px);
 }
 
+.shell-link-chip[data-status="off"] .shell-link-chip-dot {
+  filter: saturate(1.1);
+}
+
+.shell-link-chip[data-status="partial"] .shell-link-chip-dot {
+  filter: saturate(1.05);
+}
+
+.shell-select[data-invalid="1"] {
+  border-color: rgba(229, 72, 77, 0.55);
+}
+
 .shell-link-chip-open.hidden {
   display: none;
 }
@@ -366,22 +378,22 @@ body.shell-window-transparent {
   display: none;
 }
 
-.shell-tts-settings-note {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
+.shell-tts-engine-field {
+  width: 100%;
 }
 
-.shell-tts-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
+.shell-select--full {
+  width: 100%;
 }
 
-.shell-tts-engine-panels {
-  display: grid;
+.shell-tts-engine-fields {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.shell-tts-engine-fields .shell-field.hidden {
+  display: none;
 }
 
 .shell-tts-capabilities-note {
@@ -395,22 +407,39 @@ body.shell-window-transparent {
   display: none;
 }
 
-.shell-tts-settings-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.shell-tts-settings-checks .shell-check {
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .shell-label-row {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.shell-label-row--spread {
+  display: flex;
+  width: 100%;
+}
+
+.shell-label-action {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #b8adff;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.shell-label-action:hover {
+  color: #d4ccff;
+}
+
+.shell-label-action:focus-visible {
+  outline: 2px solid rgba(184, 173, 255, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .shell-todo-badge {
@@ -2339,6 +2368,56 @@ body.shell-compact {
   border-radius: 0 8px 8px 0;
 }
 
+.shell-reply-text.shell-md .shell-md-table-wrap {
+  margin: 0 0 0.65em;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(8, 10, 22, 0.55);
+}
+
+.shell-reply-text.shell-md table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.94em;
+  line-height: 1.45;
+  table-layout: auto;
+}
+
+.shell-reply-text.shell-md thead {
+  background: rgba(124, 108, 255, 0.14);
+}
+
+.shell-reply-text.shell-md th,
+.shell-reply-text.shell-md td {
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.shell-reply-text.shell-md th {
+  font-weight: 600;
+  color: #eef0ff;
+  white-space: nowrap;
+}
+
+.shell-reply-text.shell-md tbody tr:nth-child(even) {
+  background: rgba(124, 108, 255, 0.06);
+}
+
+.shell-reply-text.shell-md tbody tr:hover {
+  background: rgba(124, 108, 255, 0.1);
+}
+
+.shell-reply-text.shell-md table code {
+  white-space: nowrap;
+}
+
 .shell-reply-media {
   display: flex;
   flex-direction: column;
@@ -2449,6 +2528,40 @@ body.shell-compact {
 
 .shell-todo-list li {
   margin-bottom: 2px;
+}
+
+.shell-todo-table-wrap {
+  margin: 8px 0 10px;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(8, 10, 22, 0.55);
+}
+
+.shell-todo-table {
+  width: 100%;
+  min-width: 280px;
+  border-collapse: collapse;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.shell-todo-table th,
+.shell-todo-table td {
+  border: 1px solid rgba(122, 108, 255, 0.2);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.shell-todo-table th {
+  background: rgba(124, 108, 255, 0.12);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.shell-todo-table tbody tr:nth-child(even) {
+  background: rgba(124, 108, 255, 0.05);
 }
 
 .shell-footer-note {

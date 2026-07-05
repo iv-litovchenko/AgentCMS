@@ -138,6 +138,81 @@ async function checkQwenPawHealth(baseUrl, timeoutMs = 4000) {
   }
 }
 
+async function listQwenPawAgents({ baseUrl, timeoutMs = 4000 } = {}) {
+  const root = normalizeBaseUrl(baseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${root}/api/agents`, {
+      method: "GET",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      throw new Error(`QwenPaw HTTP ${response.status}${details ? `: ${details.slice(0, 180)}` : ""}`);
+    }
+    const data = await response.json().catch(() => ({}));
+    const agents = Array.isArray(data?.agents) ? data.agents : Array.isArray(data) ? data : [];
+    return agents
+      .map((item) => ({
+        id: String(item?.id || "").trim(),
+        name: String(item?.name || item?.id || "").trim(),
+        description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false
+      }))
+      .filter((item) => item.id);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkQwenPawAgent({ baseUrl, agentId, timeoutMs = 4000 } = {}) {
+  const root = normalizeBaseUrl(baseUrl);
+  const id = String(agentId || "default").trim() || "default";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${root}/api/agents/${encodeURIComponent(id)}`, {
+      method: "GET",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      let message = `HTTP ${response.status}`;
+      try {
+        const parsed = JSON.parse(details);
+        message = String(parsed?.detail || parsed?.error || message);
+      } catch {
+        if (details) message = details.slice(0, 180);
+      }
+      return { ok: false, agentId: id, error: message };
+    }
+    const data = await response.json().catch(() => ({}));
+    if (data?.enabled === false) {
+      return {
+        ok: false,
+        agentId: id,
+        name: String(data?.name || id),
+        error: `Агент «${data?.name || id}» отключён`
+      };
+    }
+    return {
+      ok: true,
+      agentId: id,
+      name: String(data?.name || id),
+      enabled: data?.enabled !== false
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      agentId: id,
+      error: String(error?.message || error)
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function chatWithQwenPaw({
   baseUrl,
   agentId = "default",
@@ -353,6 +428,8 @@ module.exports = {
   DEFAULT_BASE_URL,
   normalizeBaseUrl,
   checkQwenPawHealth,
+  checkQwenPawAgent,
+  listQwenPawAgents,
   chatWithQwenPaw,
   listQwenPawChats,
   createQwenPawChat,
