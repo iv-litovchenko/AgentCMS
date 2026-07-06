@@ -439,6 +439,7 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
           extends: def.extends || null,
           mixins: Array.isArray(def.mixins) ? [...def.mixins] : [],
           description: def.description || "",
+          fieldGroups: Array.isArray(def.fieldGroups) ? def.fieldGroups : null,
           fields: def.fields || {}
         }
       ])

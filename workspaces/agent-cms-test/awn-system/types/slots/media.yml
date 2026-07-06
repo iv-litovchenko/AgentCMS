@@ -4,6 +4,7 @@ kind: slot
 domain: slots
 status: active
 extends: awn.slot
+storage-driver: external
 description: Медиа-файлы и sidecar
 path: media/
 allowed-content:

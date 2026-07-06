@@ -1,0 +1,9 @@
+id: agent.settings.voice
+name: Голос
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: Настройки озвучки и распознавания речи
+scope: agent
+enabled: true

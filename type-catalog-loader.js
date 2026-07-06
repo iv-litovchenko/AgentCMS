@@ -149,6 +149,86 @@ function ingestDomainTypes(typesDir, domain, source, byId, byDomain) {
   }
 }
 
+// Метаданные встроенных доменов (label + kind нового типа). registry.yml может
+// переопределять их и добавлять свои домены («пакеты»).
+const BUILTIN_DOMAIN_META = {
+  base: { label: "Base", kind: "base" },
+  pages: { label: "Pages", kind: "type" },
+  content: { label: "Content", kind: "type" },
+  slots: { label: "Slots", kind: "slot" },
+  fields: { label: "Fields", kind: "field" },
+  "md-blocks": { label: "Markdown blocks", kind: "block" },
+  taxonomies: { label: "Taxonomies", kind: "taxonomy" },
+  views: { label: "Views", kind: "view" },
+  mixins: { label: "Mixins", kind: "mixin" }
+};
+
+function normalizeDomainEntry(raw) {
+  if (typeof raw === "string") {
+    const id = raw.trim();
+    return id ? { id } : null;
+  }
+  if (raw && typeof raw === "object" && raw.id) {
+    const id = String(raw.id).trim();
+    if (!id) return null;
+    const out = { id };
+    if (raw.label) out.label = String(raw.label);
+    if (raw.kind) out.kind = String(raw.kind);
+    if (raw.icon) out.icon = String(raw.icon);
+    if (raw.extends) out.extends = String(raw.extends);
+    if (raw.prefix) out.prefix = String(raw.prefix);
+    return out;
+  }
+  return null;
+}
+
+/**
+ * Единый источник правды для списка доменов агента: встроенные (в коде) +
+ * объявленные в awn-system/registry.yml (domains:). registry может добавлять
+ * новые домены-«пакеты» и переопределять label/kind встроенных.
+ * Формат domains: список строк ["base", ...] ИЛИ объектов {id,label,kind,icon}.
+ */
+function resolveAgentDomainManifest(agentSystemRoot) {
+  const map = new Map();
+  for (const id of AGENT_TYPE_DOMAINS) {
+    const meta = BUILTIN_DOMAIN_META[id] || {};
+    map.set(id, { id, label: meta.label || id, kind: meta.kind || "type", builtin: true });
+  }
+  if (agentSystemRoot) {
+    try {
+      const registry = loadYamlFileSync(path.join(agentSystemRoot, "registry.yml"), {});
+      const declared = Array.isArray(registry?.domains) ? registry.domains : [];
+      for (const raw of declared) {
+        const entry = normalizeDomainEntry(raw);
+        if (!entry) continue;
+        const existing = map.get(entry.id);
+        if (existing) {
+          if (entry.label) existing.label = entry.label;
+          if (entry.kind) existing.kind = entry.kind;
+          if (entry.icon) existing.icon = entry.icon;
+          if (entry.extends) existing.extends = entry.extends;
+          if (entry.prefix) existing.prefix = entry.prefix;
+        } else {
+          map.set(entry.id, {
+            id: entry.id,
+            label: entry.label || entry.id,
+            kind: entry.kind || "type",
+            icon: entry.icon,
+            extends: entry.extends,
+            prefix: entry.prefix,
+            builtin: false
+          });
+        }
+      }
+    } catch {}
+  }
+  return [...map.values()];
+}
+
+function resolveAgentDomainIds(agentSystemRoot) {
+  return resolveAgentDomainManifest(agentSystemRoot).map((d) => d.id);
+}
+
 function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
@@ -164,7 +244,8 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const agentTypesRoot = agentSystemRoot ? path.join(agentSystemRoot, "types") : "";
   if (agentTypesRoot && fs.existsSync(agentTypesRoot)) {
     sources.push(`${AGENT_SYSTEM_REL}:agent`);
-    for (const domain of AGENT_TYPE_DOMAINS) {
+    // Домены = встроенные + объявленные в registry.yml (расширяемость «пакетами»).
+    for (const domain of resolveAgentDomainIds(agentSystemRoot)) {
       ingestDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
     }
   }
@@ -433,6 +514,118 @@ function splitOwnAndInheritedFields(entry, byId) {
   return { mergedFields, ownFields, inheritedFields };
 }
 
+/**
+ * Что в рантайме РЕАЛЬНО читает этот тип: список потребителей + флаг wired.
+ * Отвечает на вопрос «влияет он на систему или это просто данные для агента».
+ */
+function getTypeUsage(entry, merged, byId) {
+  const consumers = [];
+  let wired = false;
+  let note = "";
+
+  if (isFoundationType(entry)) {
+    let children = 0;
+    for (const e of byId.values()) {
+      if (!e.aliasOf && e.extends === entry.id) children += 1;
+    }
+    if (children > 0) {
+      consumers.push(`фундамент — наследуется типами (${children})`);
+      wired = true;
+    } else {
+      note = "фундамент, но никто от него не наследует";
+    }
+    return { wired, consumers, note };
+  }
+
+  switch (entry.domain) {
+    case "fields": {
+      if (merged.widget) {
+        consumers.push(`формы (виджет «${merged.widget}»)`);
+        wired = true;
+      } else {
+        note = "нет widget — получит дефолтный ввод";
+      }
+      break;
+    }
+    case "views": {
+      const vlayout = merged["render-mode"];
+      if (merged.contentMode) {
+        consumers.push(`селектор «Вид по умолчанию» на обзоре темы (contentMode «${merged.contentMode}»)`);
+        wired = true;
+      }
+      if (vlayout) {
+        consumers.push(`тулбар-переключатель раскладок (render-mode «${vlayout}»)`);
+        wired = true;
+      }
+      if (!wired) note = "нет contentMode и render-mode — вид ни к чему не привязан";
+      break;
+    }
+    case "slots": {
+      // Реальность: набор слотов в дереве фиксирован рантаймом (скан папок
+      // awn-storage). Тип слота — декларация/документация: словарь драйвера
+      // (internal/external/tabular) совпадает с формами памяти в счётчике узла,
+      // но сам тип рантайм в дерево не подставляет.
+      const driver = merged["storage-driver"];
+      if (driver) {
+        const ru = { internal: "Однофайловая", external: "Многофайловая", tabular: "Табличная" };
+        note = `декларирует драйвер «${driver}» (${ru[driver] || driver}); набор слотов в дереве фиксирован рантаймом`;
+      } else {
+        note = "набор слотов в дереве фиксирован рантаймом — тип слота пока декларация";
+      }
+      break;
+    }
+    case "md-blocks": {
+      const render = merged.render || "template";
+      if (merged.template || merged.text) {
+        consumers.push("палитра блоков редактора");
+        wired = true;
+      } else note = "нет template — нечего вставлять";
+      if (render === "fence") {
+        if (merged.renderer) consumers.push(`JS-рендер (${merged.renderer})`);
+        else note = (note ? note + "; " : "") + "render: fence без renderer";
+      }
+      break;
+    }
+    case "taxonomies": {
+      if (merged["props-field"]) {
+        consumers.push(`поле темы «${merged["props-field"]}»`);
+        wired = true;
+      }
+      if (merged["data-path"]) consumers.push("справочник (CSV)");
+      if (merged["create-node-group"]) consumers.push("меню «создать»");
+      if (!consumers.length) note = "нет props-field/data-path — ни к чему не привязан";
+      break;
+    }
+    case "pages":
+    case "content": {
+      consumers.push("узлы дерева / формы (по полям типа)");
+      wired = true;
+      if (merged["create-node-group"]) consumers.push("меню «создать»");
+      break;
+    }
+    case "mixins": {
+      let users = 0;
+      for (const e of byId.values()) {
+        if (e.aliasOf) continue;
+        const m = e.schema && e.schema.mixins;
+        if (Array.isArray(m) && m.includes(entry.id)) users += 1;
+      }
+      if (users > 0) {
+        consumers.push(`подмешивается в типы (${users})`);
+        wired = true;
+      } else note = "никакой тип не подключает этот миксин";
+      break;
+    }
+    default:
+      note = "данные для агента (рантайм CMS их не читает)";
+  }
+
+  if (!consumers.length && !note) {
+    note = "данные для агента (рантайм CMS их не читает)";
+  }
+  return { wired, consumers, note };
+}
+
 function getTypeDetailByCatalogPath(projectRoot = process.cwd(), agentRoot = "", catalogPath = "") {
   const { byId } = loadTypeCatalog(projectRoot, agentRoot);
   const entry = findTypeEntryByCatalogPath(byId, catalogPath);
@@ -456,13 +649,18 @@ function getTypeDetailByCatalogPath(projectRoot = process.cwd(), agentRoot = "",
     source: entry.source || "platform",
     isFoundation: isFoundationType(entry),
     inheritanceChain: chain,
+    // Собственные (не унаследованные) скаляры типа — для доменных контролов формы
+    // (contentMode, widget, template, data-path…). Показывают реальные значения.
+    schema: entry.schema && typeof entry.schema === "object" ? { ...entry.schema } : {},
+    mergedSchema: merged,
     ownFields,
     inheritedFields,
     mergedFields,
     fieldCount: Object.keys(mergedFields).length,
     ownFieldCount: Object.keys(ownFields).length,
     storageSlots: Array.isArray(merged["storage-slots"]) ? [...merged["storage-slots"]] : [],
-    manifestPattern: merged["manifest-pattern"] || null
+    manifestPattern: merged["manifest-pattern"] || null,
+    usage: getTypeUsage(entry, merged, byId)
   };
 }
 
@@ -475,6 +673,7 @@ function toRecordTypeDef(entry, byId) {
     extends: entry.extends || merged.extends || null,
     mixins: Array.isArray(merged.mixins) ? [...merged.mixins] : [],
     description: merged.description || "",
+    fieldGroups: Array.isArray(merged["field-groups"]) ? [...merged["field-groups"]] : null,
     fields: merged.fields && typeof merged.fields === "object" ? { ...merged.fields } : {}
   };
 }
@@ -489,6 +688,13 @@ function loadPageTypesFromCatalog(projectRoot, agentRoot = "") {
       const def = toRecordTypeDef(entry, byId);
       if (def.id) types[def.id] = def;
     }
+  }
+
+  // Lean core base (awn.base) — включаем явно, чтобы downstream-загрузчик
+  // не подменял его полным awn.page.base через свой fallback.
+  const leanBase = byId.get("awn.base");
+  if (leanBase && isTypeActive(leanBase)) {
+    types[leanBase.id] = toRecordTypeDef(leanBase, byId);
   }
 
   const base = byId.get("awn.page.base") || byId.get("awn.base") || byId.get("awn.page");
@@ -566,6 +772,9 @@ function loadBlocksFromCatalog(projectRoot, agentRoot = "") {
       description: merged.description || "",
       icon: String(merged.icon || merged.emoji || "").trim(),
       template,
+      render: String(merged.render || "template").trim(),
+      fenceTag: String(merged["fence-tag"] || merged.fenceTag || "").trim(),
+      renderer: String(merged.renderer || "").trim(),
       catalogPath: entry.relPath
     };
   }
@@ -593,20 +802,91 @@ function getViewTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
   const views = [];
   for (const entry of catalog.byId.values()) {
     if (entry.aliasOf || entry.domain !== "views" || !isTypeActive(entry)) continue;
+    if (isFoundationType(entry)) continue;
+    const merged = mergeTypeSchema(entry, catalog.byId);
     const schema = entry.schema || {};
-    const contentMode = schema.contentMode || null;
+    const contentMode = merged.contentMode || null;
     views.push({
       id: entry.id,
-      name: schema.name || entry.id,
-      description: schema.description || "",
+      name: schema.name || merged.name || entry.id,
+      description: schema.description || merged.description || "",
       contentMode,
-      appliesToSlots: schema["applies-to-slots"] || [],
+      renderMode: merged["render-mode"] || null,
+      icon: merged.icon || schema.icon || null,
+      appliesToSlots: merged["applies-to-slots"] || [],
       source: entry.source || "platform",
       catalogFile: entry.catalogFile || null
     });
   }
   views.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
   return { views };
+}
+
+/**
+ * Проверка «здоровья» типов агента: битые extends, виды без contentMode,
+ * блоки без template, поля без widget, несоответствие domain и т.п.
+ * Используется UI (бейджи в дереве типов) и MCP (get_type_health).
+ */
+function getTypeHealth(projectRoot = process.cwd(), agentRoot = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
+  const issues = [];
+  const add = (severity, entry, code, message) => {
+    issues.push({
+      severity,
+      id: entry.id,
+      domain: entry.domain,
+      code,
+      message,
+      catalogFile: entry.catalogFile || null
+    });
+  };
+
+  for (const entry of byId.values()) {
+    if (entry.aliasOf) continue;
+    const schema = entry.schema || {};
+    const foundation = isFoundationType(entry);
+
+    if (entry.extends && !byId.has(entry.extends)) {
+      add("error", entry, "broken-extends", `extends «${entry.extends}» не найден — тип не наследует поля`);
+    }
+    if (schema.domain && String(schema.domain) !== entry.domain) {
+      add("warn", entry, "domain-mismatch", `domain «${schema.domain}» ≠ папке «${entry.domain}»`);
+    }
+    if (!schema.name) {
+      add("info", entry, "no-name", "нет человекочитаемого name");
+    }
+
+    if (foundation) continue;
+
+    if (entry.domain === "views" && !schema.contentMode) {
+      add("warn", entry, "view-no-contentmode", "вид без contentMode не появится в переключателе");
+    }
+    const isBlockConfig = schema.groupOrder || schema.groupNames;
+    if (entry.domain === "md-blocks" && !isBlockConfig && !(schema.template || schema.text)) {
+      add("warn", entry, "block-no-template", "блок без template ничего не вставит в редактор");
+    }
+    if (entry.domain === "fields" && !schema.widget) {
+      add("info", entry, "field-no-widget", "поле без widget получит дефолтный ввод");
+    }
+    if (entry.domain === "slots" && !schema.path) {
+      add("warn", entry, "slot-no-path", "слот без path не привязан к папке");
+    }
+  }
+
+  issues.sort((a, b) => {
+    const rank = { error: 0, warn: 1, info: 2 };
+    return (rank[a.severity] - rank[b.severity]) || String(a.id).localeCompare(String(b.id), "ru");
+  });
+
+  const total = [...byId.values()].filter((e) => !e.aliasOf).length;
+  const summary = {
+    total,
+    errors: issues.filter((i) => i.severity === "error").length,
+    warnings: issues.filter((i) => i.severity === "warn").length,
+    info: issues.filter((i) => i.severity === "info").length,
+    healthy: issues.filter((i) => i.severity === "error").length === 0
+  };
+  return { specVersion: "1.0", model: "type-health", summary, issues };
 }
 
 function getCreateNodeTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
@@ -640,6 +920,8 @@ module.exports = {
   TYPES_DIR_SEGMENTS,
   TYPE_ID_ALIASES,
   loadTypeCatalog,
+  resolveAgentDomainManifest,
+  resolveAgentDomainIds,
   mergeTypeSchema,
   isTypeActive,
   isCatalogType,
@@ -650,6 +932,7 @@ module.exports = {
   getTypeDetailByCatalogPath,
   getViewTypesPayload,
   getCreateNodeTypesPayload,
+  getTypeHealth,
   isFoundationType,
   loadPageTypesFromCatalog,
   loadFieldTypesFromCatalog,

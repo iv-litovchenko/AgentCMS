@@ -1,8 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { AGENT_SYSTEM_REL, AGENT_TYPE_DOMAINS } = require("./platform-sources");
-const { getTypeCatalogPayload, getTypeDetailByCatalogPath } = require("./type-catalog-loader");
+const { AGENT_SYSTEM_REL } = require("./platform-sources");
+const {
+  getTypeCatalogPayload,
+  getTypeDetailByCatalogPath,
+  resolveAgentDomainManifest
+} = require("./type-catalog-loader");
 
 const SYSTEM_DOMAIN_LABELS = {
   base: "Base",
@@ -76,21 +80,35 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
   const indexPath = fs.existsSync(manifestPath) ? `${AGENT_SYSTEM_REL}/manifest.md` : null;
 
   const items = [];
-  for (const name of ["MAP.md", "slots-bindings.yml", "registry.yml"]) {
-    const rel = `${AGENT_SYSTEM_REL}/${name}`.replace(/\\/g, "/");
-    if (fs.existsSync(path.join(systemRoot, name))) {
-      items.push({
-        label: name,
-        path: rel,
-        systemFile: true
-      });
-    }
+  // Все top-level документы/конфиги системной модели (кроме manifest.md — он indexPath).
+  let topFiles = [];
+  try {
+    topFiles = fs
+      .readdirSync(systemRoot, { withFileTypes: true })
+      .filter((e) => e.isFile() && !e.name.startsWith("."))
+      .map((e) => e.name)
+      .filter((name) => /\.(md|ya?ml)$/i.test(name) && name !== "manifest.md")
+      .sort((a, b) => a.localeCompare(b, "ru"));
+  } catch {}
+  for (const name of topFiles) {
+    items.push({
+      label: name,
+      path: `${AGENT_SYSTEM_REL}/${name}`.replace(/\\/g, "/"),
+      systemFile: true
+    });
   }
 
+  // Единый источник правды: встроенные домены + объявленные в registry.yml.
+  // Добавил домен в registry.yml и завёл папку — он появится в дереве (с ярлыком
+  // и кнопкой создания) и в каталоге типов.
+  const domainManifest = resolveAgentDomainManifest(systemRoot);
+
   const sections = [];
+  const metaItems = []; // kind: meta (конфиги вроде awn.block.groups) — отдельной секцией
   const typesRoot = path.join(systemRoot, "types");
   if (fs.existsSync(typesRoot)) {
-    for (const domain of AGENT_TYPE_DOMAINS) {
+    for (const domainMeta of domainManifest) {
+      const domain = domainMeta.id;
       const domainDir = path.join(typesRoot, domain);
       if (!fs.existsSync(domainDir)) continue;
 
@@ -114,7 +132,17 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       }
 
       const domainRelPrefix = `${AGENT_SYSTEM_REL}/types/${domain}`;
-      const domainItems = collectItems(domainDir, domainRelPrefix);
+      const allDomainItems = collectItems(domainDir, domainRelPrefix);
+      // Конфиги (kind: meta) — не типы; уносим их в отдельную секцию «Конфиги».
+      const domainItems = [];
+      for (const item of allDomainItems) {
+        if (item.typeKind === "meta") {
+          const domLabel = domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain;
+          metaItems.push({ ...item, label: `${item.label} · ${domLabel}` });
+        } else {
+          domainItems.push(item);
+        }
+      }
 
       // Scan subdirectories and add as sub-groups
       const subGroups = [];
@@ -141,12 +169,23 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
 
       if (!domainItems.length && !subGroups.length) continue;
       sections.push({
-        title: SYSTEM_DOMAIN_LABELS[domain] || domain,
+        title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,
+        domain,
+        domainKind: domainMeta.kind || null,
         folderPath: domainRelPrefix,
         items: domainItems,
         subGroups
       });
     }
+  }
+
+  // Секция «Конфиги» (kind: meta) — после всех доменов, сразу после Mixins.
+  if (metaItems.length) {
+    sections.push({
+      title: "Конфиги",
+      items: metaItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
+      subGroups: []
+    });
   }
 
   let typeCount = 0;
@@ -191,8 +230,13 @@ async function writeAgentSystemFile(agentRoot, relPath, content) {
     throw new Error("Invalid agent-system path");
   }
   const ext = path.extname(absolute).toLowerCase();
-  if (![".yml", ".yaml", ".md"].includes(ext)) {
-    throw new Error("Only .yml, .yaml and .md files are editable in agent-system");
+  const inRenderers = absolute.replace(/\\/g, "/").includes("/renderers/");
+  const allowed = [".yml", ".yaml", ".md"];
+  // JS-рендеры блоков живут в awn-system/renderers/ — их пишет агент.
+  if (ext === ".js" && inRenderers) {
+    // ok
+  } else if (!allowed.includes(ext)) {
+    throw new Error("Only .yml, .yaml, .md (and .js in renderers/) files are editable in agent-system");
   }
   await fs.promises.mkdir(path.dirname(absolute), { recursive: true });
   const normalized = String(content ?? "");

@@ -6,4 +6,4 @@ sort: 1
 icon: "📝"
 description: Пустой блок для текста
 template: "\n\nТекст...\n\n"
-status: active
+status: draft

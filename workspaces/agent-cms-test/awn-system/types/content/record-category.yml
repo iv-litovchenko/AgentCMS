@@ -3,5 +3,5 @@ name: Категория записи
 kind: type
 domain: content
 status: active
-extends: awn.page.base
+extends: awn.base
 description: Справочная категория для группировки записей в слоте main

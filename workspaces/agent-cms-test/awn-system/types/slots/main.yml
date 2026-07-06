@@ -4,6 +4,7 @@ kind: slot
 domain: slots
 status: active
 extends: awn.slot
+storage-driver: external
 description: Основное тело топика — markdown, CSV, конфиг
 path: main/
 allowed-content:

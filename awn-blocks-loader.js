@@ -116,6 +116,9 @@ function buildBlockGroups(blocksById, meta) {
         icon: block.icon || "",
         text: block.template,
         template: block.template,
+        render: block.render || "template",
+        fenceTag: block.fenceTag || "",
+        renderer: block.renderer || "",
         componentId: block.componentId || null
       }))
   }));

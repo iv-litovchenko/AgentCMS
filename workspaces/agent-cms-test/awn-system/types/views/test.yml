@@ -1,7 +1,0 @@
-id: agent.view.test
-name: test
-kind: view
-domain: views
-status: active
-extends: awn.view.base
-description: ""

@@ -3,7 +3,7 @@ name: Входящие
 kind: view
 domain: views
 status: active
-extends: awn.entity
+extends: awn.view.base
 description: Записи из inbox/ — непрочитанное / очередь
 contentMode: inbox
 applies-to-slots:

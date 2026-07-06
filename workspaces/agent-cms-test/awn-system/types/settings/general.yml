@@ -1,0 +1,9 @@
+id: agent.settings.general
+name: Общие
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: Общие настройки агента
+scope: agent
+enabled: true

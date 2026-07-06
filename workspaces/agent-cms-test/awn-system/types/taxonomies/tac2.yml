@@ -1,0 +1,12 @@
+id: agent.taxonomy.tac2
+name: Tac2
+kind: taxonomy
+domain: taxonomies
+status: active
+extends: awn.taxonomy.base
+description: ""
+props-field: awn-tac2
+data-path: awn-agent-kit/taxonomies/tac2/main.csv
+create-node-group: taxonomy
+create-node-label: Tac2
+create-node-preset: tags

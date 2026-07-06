@@ -3,7 +3,7 @@ name: Сообщение диалога
 kind: type
 domain: content
 status: active
-extends: awn.page.base
+extends: awn.base
 description: Одно сообщение в слоте thread/ — диалог с агентом
 slot: thread
 fields:

@@ -3,7 +3,7 @@ name: Тред (диалог)
 kind: view
 domain: views
 status: active
-extends: awn.entity
+extends: awn.view.base
 description: Режим диалога с агентом — thread/
 contentMode: thread
 applies-to-slots:

@@ -8,6 +8,7 @@ fields:
   awn-runtime-load:
     type: awn.field.enum
     name: Загрузка в runtime
+    group: runtime
     enum:
       - key: on-demand
         name: По запросу
@@ -16,6 +17,8 @@ fields:
   awn-runtime-cron:
     type: awn.field.boolean
     name: Cron
+    group: runtime
   awn-runtime-heartbeat:
     type: awn.field.boolean
     name: Heartbeat
+    group: runtime

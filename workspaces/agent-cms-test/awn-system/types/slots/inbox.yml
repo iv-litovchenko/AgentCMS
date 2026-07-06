@@ -4,6 +4,7 @@ kind: slot
 domain: slots
 status: active
 extends: awn.slot
+storage-driver: external
 description: Входящие заметки и черновики
 path: inbox/
 allowed-content:

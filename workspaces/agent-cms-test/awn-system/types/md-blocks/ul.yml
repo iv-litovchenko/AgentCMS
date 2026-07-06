@@ -6,4 +6,4 @@ sort: 1
 icon: "📋"
 description: Пункты с буллетами
 template: "\n- пункт 1\n- пункт 2\n- пункт 3\n\n"
-status: active
+status: inactive

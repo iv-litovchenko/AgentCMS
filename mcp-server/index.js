@@ -94,6 +94,13 @@ function createServer() {
   );
 
   reg(
+    "get_type_health",
+    "Validate agent type model: broken extends, views without contentMode, blocks without template, slots without path. Use before/after editing awn-system/types/.",
+    z.object({}),
+    () => client.get("/api/agent/type-health")
+  );
+
+  reg(
     "search_workspace",
     "Search workspace.",
     z.object({

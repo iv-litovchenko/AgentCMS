@@ -145,7 +145,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth } = require("./type-catalog-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -10004,6 +10004,18 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/type-health") {
+    try {
+      const payload = getTypeHealth(getProjectRoot(), getAgentRoot() || "");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to check type health",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/views") {
     try {
       const agentRoot = getAgentRoot();
@@ -10106,6 +10118,34 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read agent-system file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  // Отдаёт JS-рендер блока сырым текстом с JS-MIME — для dynamic import() в UI.
+  // Только файлы из awn-system/renderers/*.js.
+  if (req.method === "GET" && url.pathname === "/api/agent-system/renderer") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      let relPath = String(url.searchParams.get("path") || "").trim();
+      const slug = String(url.searchParams.get("slug") || "").trim();
+      if (!relPath && slug) relPath = `awn-system/renderers/${slug}.js`;
+      const norm = relPath.replace(/\\/g, "/");
+      if (!/^awn-system\/renderers\/[A-Za-z0-9_-]+\.js$/.test(norm)) {
+        return sendJson(res, 400, { error: "Invalid renderer path" });
+      }
+      const payload = await readAgentSystemFile(agentRoot, relPath);
+      if (!payload.exists) return sendJson(res, 404, { error: "Renderer not found", path: relPath });
+      res.writeHead(200, {
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Cache-Control": "no-cache"
+      });
+      return res.end(payload.content || "");
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read renderer",
         details: String(error.message || error)
       });
     }

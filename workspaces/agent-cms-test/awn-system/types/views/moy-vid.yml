@@ -4,4 +4,10 @@ kind: view
 domain: views
 status: active
 extends: awn.view.base
-description: ""
+description: Пример пользовательского вида — карточки записей слота main
+contentMode: external
+render-mode: cards
+icon: "🃏"
+applies-to-slots:
+  - main
+  - inbox

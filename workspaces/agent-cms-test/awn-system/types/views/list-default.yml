@@ -3,7 +3,7 @@ name: Список
 kind: view
 domain: views
 status: active
-extends: awn.entity
+extends: awn.view.base
 description: Карточки записей слота main/ в виде списка
 contentMode: external
 applies-to-slots:

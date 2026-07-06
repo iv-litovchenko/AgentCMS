@@ -3,7 +3,7 @@ name: Медиа-сетка
 kind: view
 domain: views
 status: active
-extends: awn.entity
+extends: awn.view.base
 description: Превью-сетка для слота media/
 contentMode: media
 applies-to-slots:

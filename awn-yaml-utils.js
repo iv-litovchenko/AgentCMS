@@ -4,13 +4,24 @@ const path = require("path");
 const YAML_FILE_RE = /\.ya?ml$/i;
 
 function parseYamlScalar(value) {
-  const raw = String(value ?? "").trim();
+  let raw = String(value ?? "").trim();
   if (!raw) return "";
-  if (raw === "true" || raw === "false") return raw === "true";
-  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
-  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-    return raw.slice(1, -1);
+  // Значение в кавычках: берём содержимое кавычек, игнорируя хвостовой inline-комментарий.
+  if (raw[0] === '"' || raw[0] === "'") {
+    const q = raw[0];
+    const end = raw.indexOf(q, 1);
+    if (end > 0) return raw.slice(1, end);
+    return raw.slice(1);
   }
+  // Без кавычек: срезаем inline-комментарий (в YAML комментарий = пробел + '#').
+  const commentAt = raw.search(/\s#/);
+  if (commentAt >= 0) {
+    raw = raw.slice(0, commentAt).trim();
+    if (!raw) return "";
+  }
+  if (raw === "true" || raw === "false") return raw === "true";
+  if (raw === "null" || raw === "~") return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
   return raw;
 }
 
@@ -110,12 +121,15 @@ function parseTypeYaml(text) {
       continue;
     }
 
-    if (value.startsWith("[") && value.endsWith("]")) {
-      const inner = value.slice(1, -1).trim();
-      target[key] = inner
-        ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
-        : [];
-      continue;
+    if (value.startsWith("[")) {
+      const close = value.lastIndexOf("]");
+      if (close > 0) {
+        const inner = value.slice(1, close).trim();
+        target[key] = inner
+          ? inner.split(",").map((part) => part.trim().replace(/^["']|["']$/g, ""))
+          : [];
+        continue;
+      }
     }
 
     target[key] = parseYamlScalar(value);

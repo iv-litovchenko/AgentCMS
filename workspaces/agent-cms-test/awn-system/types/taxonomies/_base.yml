@@ -6,9 +6,19 @@ status: active
 extends: awn.entity
 description: Общий формат taxonomy — CSV в awn-agent-kit/taxonomies/{slug}/main.csv
 properties:
-  data-path:
-    title: Путь к данным
-    description: Относительный путь к main.csv справочника
   props-field:
     title: Поле frontmatter
     description: Какое awn-* поле темы использует этот справочник
+  data-path:
+    title: Путь к данным
+    description: Относительный путь к main.csv справочника
+  create-node-group:
+    title: Группа в «создать»
+    description: В какой группе меню создания показывать (если нужно)
+  create-node-label:
+    title: Ярлык в «создать»
+    description: Название пункта в меню создания узла
+  create-node-preset:
+    title: Пресет справочника
+    description: Примитив справочника для создания (tags/categories/statuses…)
+    enum: [tags, categories, statuses, priorities, colors]

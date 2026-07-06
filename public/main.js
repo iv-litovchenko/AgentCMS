@@ -23106,6 +23106,11 @@ const STANDARD_PROPS_FIELD_KEYS = [
 ];
 
 function getStandardPropsFieldKeys() {
+  // Поля активного типа (запись, тема, область…) — форма зависит от типа узла.
+  const typeDef = getActiveAwnTypeDef();
+  const typeKeys = typeDef?.fields ? Object.keys(typeDef.fields) : null;
+  if (typeKeys && typeKeys.length) return typeKeys;
+
   const fromApi = awnTypesCache?.baseFieldOrder;
   if (Array.isArray(fromApi) && fromApi.length) return fromApi;
   return STANDARD_PROPS_FIELD_KEYS;
@@ -27215,6 +27220,79 @@ function renderPropsPreviewBlock() {
   propsPreviewBlockNode.appendChild(createPropsFormFieldRow(entry, index));
 }
 
+const DEFAULT_PROPS_FIELD_GROUPS = [
+  { id: "content", name: "Основное", collapsed: false },
+  { id: "nav", name: "Дерево и вид", collapsed: true },
+  { id: "runtime", name: "Runtime агента", collapsed: true },
+  { id: "system", name: "Системные", collapsed: true }
+];
+
+const PROPS_FIELD_GROUP_FALLBACK = {
+  "awn-name": "content",
+  "awn-emoji": "content",
+  "awn-status": "content",
+  "awn-description": "content",
+  "awn-tags": "content",
+  "awn-preview": "content",
+  "awn-main": "nav",
+  "awn-category": "nav",
+  "awn-owner": "nav",
+  "awn-priority": "nav",
+  "awn-color": "nav",
+  "awn-sort": "nav",
+  "awn-runtime-load": "runtime",
+  "awn-runtime-cron": "runtime",
+  "awn-runtime-cron-schedule": "runtime",
+  "awn-runtime-heartbeat": "runtime",
+  "awn-type": "system",
+  "awn-create": "system",
+  "awn-update": "system",
+  "awn-version": "system"
+};
+
+const PROPS_GROUP_COLLAPSE_STORAGE_KEY = "agent-cms:props-group-collapsed";
+
+function getActivePropsFieldGroups() {
+  const typeDef = getActiveAwnTypeDef();
+  const groups = Array.isArray(typeDef?.fieldGroups) ? typeDef.fieldGroups : null;
+  if (groups && groups.length) {
+    return groups.filter((g) => g && g.id).map((g) => ({
+      id: String(g.id),
+      name: g.name || g.title || g.id,
+      collapsed: Boolean(g.collapsed)
+    }));
+  }
+  return DEFAULT_PROPS_FIELD_GROUPS;
+}
+
+function resolvePropsFieldGroupId(key, fieldDef = getPropsFieldDef(key)) {
+  const explicit = fieldDef?.group;
+  if (explicit) return String(explicit);
+  return PROPS_FIELD_GROUP_FALLBACK[normalizePropsKey(key)] || "content";
+}
+
+function loadPropsGroupCollapseState() {
+  try {
+    const raw = readStorageItem(PROPS_GROUP_COLLAPSE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePropsGroupCollapseState(groupId, isCollapsed) {
+  if (!groupId) return;
+  const state = loadPropsGroupCollapseState();
+  state[groupId] = Boolean(isCollapsed);
+  try {
+    localStorage.setItem(PROPS_GROUP_COLLAPSE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 function renderPropsForm() {
   if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
@@ -27285,27 +27363,67 @@ function renderPropsForm() {
     }
   }
 
-  const appendPropsFieldGroup = (title, items) => {
+  const collapseState = loadPropsGroupCollapseState();
+
+  const appendPropsFieldGroup = (groupDef, items, { collapsible = false } = {}) => {
     if (!items.length) return;
 
     const group = document.createElement("section");
     group.className = "props-form-group";
 
-    if (title) {
-      const groupTitle = document.createElement("h4");
-      groupTitle.className = "props-form-group-title";
-      groupTitle.textContent = title;
-      group.appendChild(groupTitle);
-    }
+    const title = groupDef?.name || null;
+    const groupId = groupDef?.id || null;
 
     const groupBody = document.createElement("div");
     groupBody.className = "props-form-group-body";
-
     for (const { entry, index } of items) {
       groupBody.appendChild(createPropsFormFieldRow(entry, index));
     }
 
-    group.appendChild(groupBody);
+    if (collapsible && title) {
+      group.classList.add("props-form-group--collapsible");
+      const defaultCollapsed = Boolean(groupDef?.collapsed);
+      const collapsed =
+        groupId && Object.prototype.hasOwnProperty.call(collapseState, groupId)
+          ? Boolean(collapseState[groupId])
+          : defaultCollapsed;
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = "props-form-group-toggle";
+      header.setAttribute("aria-expanded", String(!collapsed));
+
+      const caret = document.createElement("span");
+      caret.className = "props-form-group-caret";
+      caret.textContent = "▸";
+      const titleEl = document.createElement("span");
+      titleEl.className = "props-form-group-title";
+      titleEl.textContent = title;
+      const countEl = document.createElement("span");
+      countEl.className = "props-form-group-count";
+      countEl.textContent = String(items.length);
+      header.append(caret, titleEl, countEl);
+
+      group.classList.toggle("is-collapsed", collapsed);
+      group.appendChild(header);
+      group.appendChild(groupBody);
+
+      header.addEventListener("click", () => {
+        const nowCollapsed = !group.classList.contains("is-collapsed");
+        group.classList.toggle("is-collapsed", nowCollapsed);
+        header.setAttribute("aria-expanded", String(!nowCollapsed));
+        savePropsGroupCollapseState(groupId, nowCollapsed);
+      });
+    } else {
+      if (title) {
+        const groupTitle = document.createElement("h4");
+        groupTitle.className = "props-form-group-title";
+        groupTitle.textContent = title;
+        group.appendChild(groupTitle);
+      }
+      group.appendChild(groupBody);
+    }
+
     propsFormFieldsNode.appendChild(group);
   };
 
@@ -27319,8 +27437,40 @@ function renderPropsForm() {
     });
   }
 
-  appendPropsFieldGroup(null, standardEntries);
-  appendPropsFieldGroup(customEntries.length ? "Ещё" : null, customEntries);
+  const groupDefs = getActivePropsFieldGroups();
+  const grouped = new Map();
+  for (const item of standardEntries) {
+    const gid = resolvePropsFieldGroupId(item.entry.key, getPropsFieldDef(item.entry.key));
+    if (!grouped.has(gid)) grouped.set(gid, []);
+    grouped.get(gid).push(item);
+  }
+
+  const firstGroupId = groupDefs[0]?.id;
+  const hasMultipleGroups = grouped.size > 1;
+  const renderedGroups = new Set();
+  for (const groupDef of groupDefs) {
+    const items = grouped.get(groupDef.id);
+    if (!items || !items.length) continue;
+    renderedGroups.add(groupDef.id);
+    // Первая группа (обычно «Основное») остаётся раскрытой и без заголовка.
+    if (!hasMultipleGroups || groupDef.id === firstGroupId) {
+      appendPropsFieldGroup({ ...groupDef, name: null }, items, { collapsible: false });
+    } else {
+      appendPropsFieldGroup(groupDef, items, { collapsible: true });
+    }
+  }
+  for (const [gid, items] of grouped) {
+    if (renderedGroups.has(gid) || !items.length) continue;
+    appendPropsFieldGroup({ id: gid, name: null }, items, { collapsible: false });
+  }
+
+  if (customEntries.length) {
+    appendPropsFieldGroup(
+      { id: "__custom", name: "Ещё", collapsed: true },
+      customEntries,
+      { collapsible: true }
+    );
+  }
 }
 
 const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
@@ -39306,7 +39456,11 @@ function applyModeUi() {
     !showExternalControls && !showMediaControls && !showFlatStorageSectionControls
   );
   if (showExternalControls) {
-    if (externalViewSelectNode) externalViewSelectNode.value = externalViewMode;
+    void syncExternalViewSelectOptions().then(() => {
+      if (externalViewSelectNode) {
+        externalViewSelectNode.value = selectedExternalViewTypeId || externalViewMode;
+      }
+    });
   }
   if (showMediaControls) {
     syncMediaViewSelectOptions();
@@ -39606,6 +39760,21 @@ function getMarkdownIt() {
     if (language === "mermaid") {
       return `<pre class="mermaid">${token.content.trimEnd()}</pre>\n`;
     }
+    const fenceBlock = getAwnFenceRenderer(language);
+    if (fenceBlock) {
+      // Экранируем в <template> — читаем обратно через .content.textContent.
+      const escaped = String(token.content)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return (
+        `<div class="awn-fence-block" data-awn-fence="${language}"` +
+        (fenceBlock.renderer ? ` data-awn-renderer="${fenceBlock.renderer}"` : "") +
+        (fenceBlock.id ? ` data-awn-block="${fenceBlock.id}"` : "") +
+        `><template class="awn-fence-src">${escaped}</template>` +
+        `<div class="awn-fence-target"></div></div>\n`
+      );
+    }
     return defaultFence(tokens, idx, options, env, self);
   };
 
@@ -39777,6 +39946,73 @@ async function typesetMarkdownDiagrams(rootNode) {
   }
 }
 
+// --- JS-рендер markdown-блоков (fence) ---------------------------------------
+// Блок домена md-blocks с render: fence и fence-tag появляется в редакторе как
+// ```<fence-tag> … ```. JS-рендер лежит в awn-system/renderers/<slug>.js и
+// экспортирует default (или render): (targetEl, source, ctx) => void.
+const awnRendererModuleCache = new Map();
+
+function getAwnFenceRenderer(fenceTag) {
+  if (!fenceTag) return null;
+  const groups = awnTypesCache?.blockGroups;
+  if (!Array.isArray(groups)) return null;
+  for (const group of groups) {
+    for (const block of group.blocks || []) {
+      if ((block.render || "template") === "fence" && block.fenceTag && block.fenceTag === fenceTag) {
+        return { id: block.id, renderer: block.renderer || "", fenceTag };
+      }
+    }
+  }
+  return null;
+}
+
+async function loadAwnRendererModule(rendererPath) {
+  if (!rendererPath) return null;
+  if (awnRendererModuleCache.has(rendererPath)) return awnRendererModuleCache.get(rendererPath);
+  const url = buildApiUrl("/api/agent-system/renderer", { path: rendererPath }, activeAgentId);
+  const promise = import(/* webpackIgnore: true */ url).catch((err) => {
+    console.warn("Не удалось загрузить рендер блока:", rendererPath, err);
+    awnRendererModuleCache.delete(rendererPath);
+    return null;
+  });
+  awnRendererModuleCache.set(rendererPath, promise);
+  return promise;
+}
+
+async function hydrateAwnFenceBlocks(rootNode) {
+  const root = rootNode instanceof Element ? rootNode : null;
+  if (!root) return;
+  const nodes = root.querySelectorAll(".awn-fence-block:not([data-awn-hydrated])");
+  for (const el of nodes) {
+    el.setAttribute("data-awn-hydrated", "1");
+    const rendererPath = el.getAttribute("data-awn-renderer") || "";
+    const target = el.querySelector(".awn-fence-target");
+    const srcTpl = el.querySelector("template.awn-fence-src");
+    const source = srcTpl ? srcTpl.content.textContent : "";
+    if (!target) continue;
+    if (!rendererPath) {
+      target.innerHTML = `<pre class="awn-fence-fallback">${source
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")}</pre>`;
+      continue;
+    }
+    try {
+      const mod = await loadAwnRendererModule(rendererPath);
+      const fn = mod && (mod.default || mod.render);
+      if (typeof fn !== "function") throw new Error("Рендер не экспортирует функцию (default/render)");
+      await fn(target, source, {
+        agentId: activeAgentId,
+        blockId: el.getAttribute("data-awn-block") || "",
+        fenceTag: el.getAttribute("data-awn-fence") || ""
+      });
+    } catch (err) {
+      target.innerHTML = `<pre class="awn-fence-error">Ошибка рендера блока: ${String(
+        err && err.message ? err.message : err
+      ).replace(/</g, "&lt;")}</pre>`;
+    }
+  }
+}
+
 function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
   if (!element) return;
   const resolvedNodePath =
@@ -39784,6 +40020,7 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
   applySyntaxHighlighting(element, { nodePath: resolvedNodePath });
   void typesetMarkdownDiagrams(element);
+  void hydrateAwnFenceBlocks(element);
   enhanceMarkdownPreviewImages(element);
 }
 
@@ -42318,20 +42555,64 @@ async function fetchViewTypes() {
     const resp = await fetch(buildApiUrl("/api/agent-system/views"));
     if (!resp.ok) return [];
     const data = await resp.json();
-    cachedViewTypes = Array.isArray(data.views) ? data.views.filter((v) => v.contentMode) : [];
+    cachedViewTypes = Array.isArray(data.views) ? data.views : [];
     return cachedViewTypes;
   } catch {
     return [];
   }
 }
 
+// Встроенные раскладки внешней памяти (значения option в external-view-select).
+const BUILTIN_EXTERNAL_VIEW_MODES = new Set([
+  "table", "list", "cards", "kanban", "calendar", "index", "moc", "mindmap", "cheatsheet", "graph"
+]);
+// Выбранный пользовательский тип-вид (option value «vt:<id>») либо null.
+let selectedExternalViewTypeId = null;
+// option value → render-mode встроенной раскладки.
+const externalViewTypeOptionMap = new Map();
+
+// Наполняет тулбар-переключатель «Вид отображения» пользовательскими типами
+// видов, у которых задан render-mode. Встроенные <option> из index.html
+// остаются нетронутыми — типы добавляются в конец.
+async function syncExternalViewSelectOptions() {
+  if (!externalViewSelectNode) return;
+  let types = [];
+  try {
+    types = await fetchViewTypes();
+  } catch {
+    types = [];
+  }
+  externalViewSelectNode
+    .querySelectorAll("option.ext-view-type-option")
+    .forEach((o) => o.remove());
+  externalViewTypeOptionMap.clear();
+  const custom = types.filter(
+    (v) => v.renderMode && BUILTIN_EXTERNAL_VIEW_MODES.has(v.renderMode)
+  );
+  for (const v of custom) {
+    const value = `vt:${v.id}`;
+    externalViewTypeOptionMap.set(value, v.renderMode);
+    const opt = document.createElement("option");
+    opt.className = "ext-view-type-option";
+    opt.value = value;
+    opt.textContent = v.icon ? `${v.icon} ${v.name}` : v.name;
+    opt.title = v.description || v.id;
+    externalViewSelectNode.appendChild(opt);
+  }
+  // Если выбранный тип исчез (тип удалён/переименован) — сбрасываем.
+  if (selectedExternalViewTypeId && !externalViewTypeOptionMap.has(selectedExternalViewTypeId)) {
+    selectedExternalViewTypeId = null;
+  }
+}
+
 async function renderNodeOverviewViewSelector(nodePath) {
   if (!isTopicManifestPath(nodePath)) return null;
 
-  const [viewTypes, nodeConfig] = await Promise.all([
+  const [allViewTypes, nodeConfig] = await Promise.all([
     fetchViewTypes(),
     loadNodeConfig(nodePath).catch(() => null)
   ]);
+  const viewTypes = allViewTypes.filter((v) => v.contentMode);
 
   if (!viewTypes.length) return null;
 
@@ -42397,9 +42678,9 @@ const AGENT_SYSTEM_DOMAIN_KIND = {
 
 const AGENT_SYSTEM_DOMAIN_EXTENDS = {
   pages: "awn.page.base",
-  content: "awn.entity",
+  content: "awn.base",
   slots: "awn.slot",
-  fields: "awn.field-def",
+  fields: "awn.field.base",
   "md-blocks": "awn.block.base",
   taxonomies: "awn.taxonomy.base",
   views: "awn.view.base"
@@ -42431,8 +42712,8 @@ function slugifyTypeName(name) {
     .replace(/^-+|-+$/g, "");
 }
 
-function buildNewTypeYaml(domain, slug, displayName) {
-  const kind = AGENT_SYSTEM_DOMAIN_KIND[domain] || "type";
+function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
+  const kind = domainKind || AGENT_SYSTEM_DOMAIN_KIND[domain] || "type";
   const prefix = AGENT_SYSTEM_DOMAIN_PREFIX[domain] || "awn";
   const id = `${prefix}.${slug}`;
   const ext = AGENT_SYSTEM_DOMAIN_EXTENDS[domain];
@@ -42445,19 +42726,96 @@ function buildNewTypeYaml(domain, slug, displayName) {
   ];
   if (ext) lines.push(`extends: ${ext}`);
   lines.push(`description: ""`);
+
+  // Домен-специфичные обязательные ключи, чтобы новый тип сразу «жил»,
+  // а не создавался мёртвым (проверяется get_type_health).
   if (domain === "pages" || domain === "content") {
     lines.push(`fields:`);
-    lines.push(`  # Add custom fields below`);
+    lines.push(`  # добавьте поля: my-field: { type: awn.field.string, title: Моё поле }`);
   }
   if (domain === "slots") {
+    lines.push(`# storage-driver: internal (Однофайловая) | external (Многофайловая) | tabular (Табличная)`);
+    lines.push(`storage-driver: external`);
     lines.push(`path: ${slug}/`);
-    lines.push(`allowed-content: []`);
+    lines.push(`allowed-content: [awn.content.record]`);
     lines.push(`accept-files: [".md"]`);
+  }
+  if (domain === "fields") {
+    lines.push(`# widget: input | textarea | select | checkbox | number | date | color | url | file | link`);
+    lines.push(`widget: input`);
+    lines.push(`storage: string`);
+    lines.push(`settings: [hint, required, default]`);
+  }
+  if (domain === "md-blocks") {
+    lines.push(`group: misc`);
+    lines.push(`sort: 99`);
+    lines.push(`icon: "📌"`);
+    lines.push(`# render: template — вставляет template как есть (по умолчанию)`);
+    lines.push(`# render: fence + fence-tag/renderer — JS-рендер (см. TYPES-GUIDE)`);
+    lines.push(`render: template`);
+    lines.push(`template: |`);
+    lines.push(`  ## ${displayName}`);
+    lines.push(``);
+    lines.push(`  Текст блока.`);
+  }
+  if (domain === "taxonomies") {
+    lines.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
+    lines.push(`props-field: awn-${slug}`);
+    lines.push(`data-path: awn-agent-kit/taxonomies/${slug}/main.csv`);
+    lines.push(`create-node-group: taxonomy`);
+    lines.push(`create-node-label: ${displayName}`);
+    lines.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);
+    lines.push(`create-node-preset: tags`);
+  }
+  if (domain === "views") {
+    lines.push(`# contentMode: экран по умолчанию — external | tabular | media | thread | inbox`);
+    lines.push(`contentMode: external`);
+    lines.push(`# render-mode: раскладка в тулбаре — table | list | cards | kanban | calendar | index | moc | mindmap | cheatsheet | graph`);
+    lines.push(`render-mode: cards`);
+    lines.push(`icon: "🃏"`);
+    lines.push(`applies-to-slots: [main]`);
   }
   return lines.join("\n") + "\n";
 }
 
-function showNewTypeInlineForm(domain, triggerBtn) {
+async function createStarterRenderer(relPath, title) {
+  const norm = String(relPath || "").replace(/\\/g, "/");
+  if (!/^awn-system\/renderers\/[A-Za-z0-9_-]+\.js$/.test(norm)) {
+    showToast("Путь рендера должен быть awn-system/renderers/<slug>.js", "error");
+    return;
+  }
+  const content = `// JS-рендер fence-блока «${title}».
+// Вызывается движком CMS: render(target, source, ctx)
+//   target — DOM-контейнер для вывода
+//   source — текст между \`\`\`<fence-tag> … \`\`\`
+//   ctx    — { agentId, blockId, fenceTag }
+export default function render(target, source, ctx) {
+  const box = document.createElement("div");
+  box.className = "awn-custom-block";
+  box.style.cssText = "padding:12px;border:1px solid var(--border,#3a3a3a);border-radius:8px";
+  box.textContent = (source || "").trim() || "Пустой блок";
+  target.replaceChildren(box);
+}
+`;
+  try {
+    const resp = await fetch(buildApiUrl("/api/agent-system/file"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: norm, content })
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showToast(`Ошибка: ${data.error || resp.status}`, "error");
+      return;
+    }
+    awnRendererModuleCache.delete(norm);
+    showToast(`JS-рендер создан: ${norm}`, "success");
+  } catch (err) {
+    showToast(`Ошибка: ${err.message}`, "error");
+  }
+}
+
+function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
   // Remove any existing open form
   document.querySelectorAll(".new-type-inline-form").forEach((el) => el.remove());
 
@@ -42531,7 +42889,7 @@ function showNewTypeInlineForm(domain, triggerBtn) {
     confirmBtn.disabled = true;
     confirmBtn.textContent = "…";
     const filePath = `awn-system/types/${domain}/${slug}.yml`;
-    const content = buildNewTypeYaml(domain, slug, displayName);
+    const content = buildNewTypeYaml(domain, slug, displayName, domainKind);
     try {
       const resp = await fetch(buildApiUrl("/api/agent-system/file"), {
         method: "POST",
@@ -42571,8 +42929,8 @@ function showNewTypeInlineForm(domain, triggerBtn) {
   setTimeout(() => document.addEventListener("mousedown", onOutsideClick, true), 100);
 }
 
-async function createNewAgentSystemType(domain, folderPath, triggerBtn) {
-  showNewTypeInlineForm(domain, triggerBtn);
+async function createNewAgentSystemType(domain, folderPath, triggerBtn, domainKind = null) {
+  showNewTypeInlineForm(domain, triggerBtn, domainKind);
 }
 
 function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
@@ -42686,9 +43044,12 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
   folderButton.addEventListener("click", toggleCollapsed);
   headRow.appendChild(folderButton);
 
-  // "+" button to create new type in this domain
-  const domain = String(section.folderPath || "").split("/").pop() || "";
-  if (domain && AGENT_SYSTEM_DOMAIN_KIND[domain]) {
+  // "+" button to create new type in this domain.
+  // domain/kind приходят из payload (registry.yml), с fallback на встроенную карту —
+  // так новые домены-«пакеты» тоже получают кнопку создания.
+  const domain = section.domain || String(section.folderPath || "").split("/").pop() || "";
+  const domainKind = section.domainKind || AGENT_SYSTEM_DOMAIN_KIND[domain] || null;
+  if (domain && domainKind) {
     const addBtn = document.createElement("button");
     addBtn.type = "button";
     addBtn.className = "menu-action-btn menu-agent-system-add-type-btn";
@@ -42696,7 +43057,7 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
     addBtn.title = `Создать новый тип в домене ${domain}`;
     addBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      void createNewAgentSystemType(domain, section.folderPath, addBtn);
+      void createNewAgentSystemType(domain, section.folderPath, addBtn, domainKind);
     });
     headRow.appendChild(addBtn);
   }
@@ -44901,29 +45262,103 @@ function buildTypeMetaEditForm(detail) {
   statusSel.addEventListener("change", () => patchTypeYamlScalar("status", statusSel.value));
   wrap.appendChild(makeRow("Статус", statusSel));
 
-  // Domain-specific extras
+  // Доменные контролы формы строятся из properties: самого типа (по цепочке
+  // наследования), а НЕ хардкодятся. Хочешь новое поле в форме — добавь его в
+  // properties базового типа домена (например awn.slot, awn.view.base).
   const schema = detail.schema || {};
-  if (detail.domain === "views") {
-    const modeSel = document.createElement("select");
-    modeSel.className = "type-meta-edit-select";
-    for (const [val, label] of [
-      ["", "— не задан —"],
-      ["external", "external (список)"],
-      ["media", "media (сетка)"],
-      ["tabular", "tabular (таблица)"],
-      ["thread", "thread (лента)"],
-      ["inbox", "inbox (входящие)"]
-    ]) {
-      const opt = document.createElement("option");
-      opt.value = val;
-      opt.textContent = label;
-      if (val === (schema.contentMode || "")) opt.selected = true;
-      modeSel.appendChild(opt);
+  const mergedSchema = detail.mergedSchema || {};
+  // У fields блок properties описывает ЭКЗЕМПЛЯР поля (type/name/hint…), а не
+  // top-level конфиг типа-поля — поэтому для fields рендерим курируемо ниже.
+  const props =
+    detail.domain !== "fields" && mergedSchema.properties && typeof mergedSchema.properties === "object"
+      ? mergedSchema.properties
+      : {};
+
+  const propValue = (key) => {
+    if (schema[key] != null) return schema[key];
+    if (mergedSchema[key] != null) return mergedSchema[key];
+    return "";
+  };
+  const normEnum = (arr) =>
+    (Array.isArray(arr) ? arr : []).map((o) =>
+      o && typeof o === "object"
+        ? [String(o.key ?? o.value ?? ""), String(o.name ?? o.label ?? o.key ?? o.value ?? "")]
+        : [String(o), String(o)]
+    );
+
+  // Доменные контролы — в отдельную секцию с подзаголовком и акцентом, чтобы
+  // визуально отличались от базовых полей (name/description/status).
+  const domainWrap = document.createElement("div");
+  domainWrap.className = "type-meta-domain-section";
+
+  // Служебные/структурные ключи уже редактируются сверху или менять их вручную нельзя.
+  const META_PROP_SKIP = new Set(["id", "name", "description", "status", "kind", "extends", "domain"]);
+  for (const [key, rawSpec] of Object.entries(props)) {
+    if (META_PROP_SKIP.has(key)) continue;
+    const spec = rawSpec && typeof rawSpec === "object" ? rawSpec : {};
+    const label = spec.title || key;
+    const value = propValue(key);
+    const isList = spec.type === "list" || spec.type === "array" || Array.isArray(value);
+    let control;
+
+    if (Array.isArray(spec.enum) && spec.enum.length) {
+      control = document.createElement("select");
+      control.className = "type-meta-edit-select";
+      const opts = spec.required
+        ? normEnum(spec.enum)
+        : [["", "— не задан —"], ...normEnum(spec.enum)];
+      const cur = String(value || "");
+      for (const [v, l] of opts) {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = l;
+        if (v === cur) opt.selected = true;
+        control.appendChild(opt);
+      }
+      control.addEventListener("change", () => patchTypeYamlScalar(key, control.value));
+    } else if (spec.type === "boolean") {
+      control = document.createElement("input");
+      control.type = "checkbox";
+      control.className = "type-meta-edit-checkbox";
+      control.checked = value === true || value === "true";
+      control.addEventListener("change", () =>
+        patchTypeYamlScalar(key, control.checked ? "true" : "false")
+      );
+    } else {
+      control = document.createElement("input");
+      control.type = "text";
+      control.className = "type-meta-edit-input";
+      control.value = isList
+        ? Array.isArray(value)
+          ? value.join(", ")
+          : String(value || "")
+        : value != null
+          ? String(value)
+          : "";
+      if (spec.placeholder) control.placeholder = String(spec.placeholder);
+      control.addEventListener("change", () => {
+        const raw = control.value.trim();
+        if (isList) {
+          const items = raw
+            .replace(/^\[|\]$/g, "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          patchTypeYamlList(key, items);
+        } else {
+          patchTypeYamlScalar(key, raw);
+        }
+      });
     }
-    modeSel.addEventListener("change", () => patchTypeYamlScalar("contentMode", modeSel.value));
-    wrap.appendChild(makeRow("contentMode", modeSel));
+
+    const row = makeRow(label, control);
+    row.classList.add("type-meta-domain-row");
+    if (spec.description) row.title = String(spec.description).replace(/\s+/g, " ").trim();
+    if (spec.required) row.classList.add("type-meta-required");
+    domainWrap.appendChild(row);
   }
 
+  // fields: top-level ключи типа-поля — widget (примитив) + storage.
   if (detail.domain === "fields") {
     const widgetSel = document.createElement("select");
     widgetSel.className = "type-meta-edit-select";
@@ -44931,16 +45366,60 @@ function buildTypeMetaEditForm(detail) {
       const opt = document.createElement("option");
       opt.value = w;
       opt.textContent = w;
-      if (w === (schema.widget || "input")) opt.selected = true;
+      if (w === (schema.widget || mergedSchema.widget || "input")) opt.selected = true;
       widgetSel.appendChild(opt);
     }
     widgetSel.addEventListener("change", () => patchTypeYamlScalar("widget", widgetSel.value));
-    wrap.appendChild(makeRow("Widget", widgetSel));
+    const widgetRow = makeRow("Widget", widgetSel);
+    widgetRow.classList.add("type-meta-domain-row");
+    domainWrap.appendChild(widgetRow);
+
+    const storageInput = document.createElement("input");
+    storageInput.type = "text";
+    storageInput.className = "type-meta-edit-input";
+    storageInput.value = schema.storage != null ? String(schema.storage) : "";
+    storageInput.placeholder = "string / boolean / number …";
+    storageInput.addEventListener("change", () => patchTypeYamlScalar("storage", storageInput.value.trim()));
+    const storageRow = makeRow("Storage", storageInput);
+    storageRow.classList.add("type-meta-domain-row");
+    domainWrap.appendChild(storageRow);
   }
 
-  if (detail.domain === "pages" || detail.domain === "content" || detail.domain === "slots") {
+  // md-blocks: кнопка бутстрапа JS-рендера (когда render: fence).
+  if (detail.domain === "md-blocks") {
+    const slug = detail.id?.split(".").pop() || "block";
+    const renderMode = String(propValue("render") || "template");
+    if (renderMode === "fence") {
+      const jsBtn = document.createElement("button");
+      jsBtn.type = "button";
+      jsBtn.className = "type-add-field-btn";
+      jsBtn.textContent = "Создать JS-рендер";
+      jsBtn.title = "Записать стартовый файл рендера в awn-system/renderers/";
+      jsBtn.addEventListener("click", () => {
+        const rel = String(propValue("renderer") || `awn-system/renderers/${slug}.js`);
+        void createStarterRenderer(rel, detail.name || slug);
+      });
+      domainWrap.appendChild(jsBtn);
+    }
+    const tplNote = document.createElement("p");
+    tplNote.className = "agent-system-type-inspector-hint";
+    tplNote.textContent =
+      "template (что вставляется в редактор) правится в YAML ниже. Для fence сделайте template с ```<fence-tag>.";
+    domainWrap.appendChild(tplNote);
+  }
+
+  if (detail.domain === "pages" || detail.domain === "content") {
     const slotsEditor = buildTypeStorageSlotsEditor(detail.storageSlots || []);
-    wrap.appendChild(slotsEditor);
+    domainWrap.appendChild(slotsEditor);
+  }
+
+  // Подзаголовок + секция появляются только если у типа есть доменные контролы.
+  if (domainWrap.childElementCount) {
+    const head = document.createElement("div");
+    head.className = "type-meta-section-head";
+    head.textContent = "Свойства типа";
+    wrap.appendChild(head);
+    wrap.appendChild(domainWrap);
   }
 
   return wrap;
@@ -45056,6 +45535,28 @@ function renderAgentSystemTypeInspector(detail) {
   }
 
   panel.appendChild(head);
+
+  // Индикатор: влияет ли тип на систему или это данные для агента.
+  if (detail.usage) {
+    const usage = detail.usage;
+    const bar = document.createElement("div");
+    bar.className = `agent-system-type-usage ${usage.wired ? "is-wired" : "is-data"}`;
+    const icon = document.createElement("span");
+    icon.className = "agent-system-type-usage-icon";
+    icon.textContent = usage.wired ? "✓" : "○";
+    const text = document.createElement("span");
+    text.className = "agent-system-type-usage-text";
+    if (usage.wired && Array.isArray(usage.consumers) && usage.consumers.length) {
+      text.innerHTML =
+        `<strong>Влияет:</strong> ${usage.consumers.map((c) => escapeHtml(c)).join(", ")}`;
+    } else {
+      text.innerHTML = `<strong>Не влияет.</strong> ${escapeHtml(
+        usage.note || "данные для агента"
+      )}`;
+    }
+    bar.append(icon, text);
+    panel.appendChild(bar);
+  }
 
   // Editable metadata form
   panel.appendChild(buildTypeMetaEditForm(detail));
@@ -48852,21 +49353,50 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     defSection.innerHTML =
       '<header class="agent-awn-types-section-head">' +
       '<h3 class="agent-awn-types-section-title">Мета-свойства поля</h3>' +
-      '<p class="agent-awn-types-section-sub">Что можно указать у каждого поля в <code>components/types/fields</code></p>' +
+      '<p class="agent-awn-types-section-sub">Что можно указать у поля и <strong>к каким типам полей</strong> это применимо. Применимость выведена из колонки «Настройки» реестра выше: не каждое поле может быть обязательным, иметь варианты (<code>enum</code>) или загрузку файлов.</p>' +
       "</header>";
+
+    // Инвертируем реестр: настройка → набор виджетов, которые её принимают.
+    const regEntries = Object.entries(registry).filter(([id]) => id.startsWith("awn."));
+    const allWidgets = new Set(regEntries.map(([, e]) => e.widget).filter(Boolean));
+    const settingToWidgets = {};
+    for (const [, e] of regEntries) {
+      if (!e.widget) continue;
+      for (const s of Array.isArray(e.settings) ? e.settings : []) {
+        (settingToWidgets[s] ||= new Set()).add(e.widget);
+      }
+    }
+    // Ключи, которые есть у любого поля как часть структуры типа (не «настройка»).
+    const STRUCTURAL_META = new Set([
+      "id", "name", "description", "extends", "status", "kind", "type", "title"
+    ]);
+    const describeApplicability = (propKey) => {
+      if (STRUCTURAL_META.has(propKey)) return "все поля (структура типа)";
+      const ws = settingToWidgets[propKey];
+      if (!ws || ws.size === 0) return "—";
+      if (ws.size >= allWidgets.size) return "все поля";
+      if (ws.size > allWidgets.size / 2) {
+        const missing = [...allWidgets].filter((w) => !ws.has(w)).sort();
+        return "все, кроме: " + missing.join(", ");
+      }
+      return [...ws].sort().join(", ");
+    };
 
     const tableWrap = document.createElement("div");
     tableWrap.style.overflowX = "auto";
     const table = document.createElement("table");
     table.className = "agent-awn-field-registry-table";
     table.innerHTML =
-      "<thead><tr><th>Ключ</th><th>Название</th><th>Описание</th></tr></thead>";
+      "<thead><tr><th>Ключ</th><th>Название</th><th>Применимо к</th><th>Описание</th></tr></thead>";
     const tbody = document.createElement("tbody");
     for (const [propKey, propDef] of Object.entries(defProps)) {
+      const appliesTo = describeApplicability(propKey);
+      const isUniversal = appliesTo.startsWith("все");
       const row = document.createElement("tr");
       row.innerHTML =
         `<td><code>${propKey}</code></td>` +
         `<td>${propDef?.title || "—"}</td>` +
+        `<td class="${isUniversal ? "meta-applies-universal" : "meta-applies-scoped"}">${appliesTo}</td>` +
         `<td>${propDef?.description || "—"}</td>`;
       tbody.appendChild(row);
     }
@@ -53112,7 +53642,14 @@ document.addEventListener("keydown", (event) => {
 sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SIDEBAR_WIDTH_STEP));
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
 externalViewSelectNode?.addEventListener("change", () => {
-  externalViewMode = externalViewSelectNode?.value || "table";
+  const val = externalViewSelectNode?.value || "table";
+  if (val.startsWith("vt:")) {
+    selectedExternalViewTypeId = val;
+    externalViewMode = externalViewTypeOptionMap.get(val) || "table";
+  } else {
+    selectedExternalViewTypeId = null;
+    externalViewMode = val;
+  }
   if (activeContentMode === "external") rerenderExternalListViewBody();
 });
 storageSectionsPanelToggleNode?.addEventListener("change", () => {

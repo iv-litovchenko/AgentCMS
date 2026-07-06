@@ -4,6 +4,7 @@ kind: slot
 domain: slots
 status: active
 extends: awn.slot
+storage-driver: external
 path: quick-notes/
 allowed-content:
   - awn.content.record

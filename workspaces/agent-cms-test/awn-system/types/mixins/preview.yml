@@ -8,3 +8,4 @@ fields:
   awn-preview:
     type: awn.field.url
     name: Превью
+    group: content
