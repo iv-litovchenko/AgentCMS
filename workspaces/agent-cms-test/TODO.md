@@ -110,7 +110,7 @@
 | Ключ | Описание | Комментарий |
 |---|---|---|
 | field-groups | Группы полей внутри формы | Сейчас: заданы в `awn.base`, наследуются, поля ссылаются через `group:` — уже "по типу", но конкретный тип не может добавить свою группу поверх базовой |
-| `awn.block.groups` | Группы палитры markdown-блоков | Сейчас: один общий список (structure/text/lists/code/awn) на все контексты. Нужно — группы, зависящие от типа/контекста |
+| `awn.block.groups` | Группы палитры markdown-блоков | Сейчас один общий список на все контексты — см. раздел **Markdown blocks**. Нужно: группы/наборы, зависящие от типа контента или слота |
 
 ---
 
@@ -213,11 +213,136 @@
 
 ---
 
-## Настройки
+## Markdown blocks
+
+Домен `md-blocks` — типы блоков палитры редактора. Наследуют `awn.block.base` (extends `awn.entity`): декларации, не узлы на диске. Блок вставляет `template` в markdown-курсор; в превью может отрисовываться через JS (`render: fence`).
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| settings | Домен настроек агента | Создан как пример (данные для агента), сам по себе ни на что не влияет. Нужно решить, какие настройки станут "рабочими" (кто их читает) vs просто данные |
+| `awn.block.h2` | Заголовок H2 | group: structure, active |
+| `awn.block.h3` | Заголовок H3 | group: structure, active |
+| `awn.block.hr` | Разделитель `---` | group: structure, active |
+| `awn.block.paragraph` | Абзац | group: text, **draft** — не в палитре |
+| `awn.block.quote` | Цитата | group: text, active |
+| `awn.block.note` | Примечание | group: text, active |
+| `awn.block.ul` | Маркированный список | group: lists, **inactive** — не в палитре |
+| `awn.block.ol` | Нумерованный список | group: lists, active |
+| `awn.block.tasks` | Чеклист | group: lists, active |
+| `awn.block.code` | Блок кода | group: code, active. Файл `codeblock.yml` — id расходится с именем файла |
+| `awn.block.table` | Таблица | group: code, active |
+| `awn.block.desc` | Краткое описание (AWN) | group: awn, active. Callout `> [!AWN-DESC]` |
+| `awn.block.groups` | Мета: порядок и названия групп палитры | kind: meta, не блок. `groupOrder`, `groupNames` |
+
+**Группы палитры** (`awn.block.groups`)
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| structure | Структура | h2, h3, hr |
+| text | Текст | paragraph, quote, note |
+| lists | Списки | ul, ol, tasks |
+| code | Код и таблицы | code, table |
+| awn | AWN | desc и будущие кастомные блоки |
+
+**Свойства типа блока** (в `md-blocks/*.yml`)
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| template | Текст вставки | Обязательно для попадания в палитру. Многострочный markdown/snippet |
+| group | Группа палитры | id из `awn.block.groups` |
+| icon | Иконка в палитре | Эмодзи |
+| sort | Порядок в группе | Меньше — выше |
+| status | Видимость | `active` — в палитре; `draft` / `inactive` — скрыт |
+| render | Способ отображения в превью | `template` (по умолчанию) — как markdown; `fence` — JS-рендер |
+| fence-tag | Тег fenced-блока | Для `render: fence`, напр. `awn-chart` → ` ```awn-chart ` |
+| renderer | Путь к JS | `awn-system/renderers/<slug>.js`, только эта папка |
+
+**Рендер `fence`** — механизм кастомного отображения (как mermaid): блок вставляет fenced-code с `fence-tag`, превью грузит `renderer` через API и вызывает `export default function render(target, source, ctx)`. **Сейчас:** инфраструктура есть, ни одного блока с `render: fence` в каталоге нет, папка `renderers/` пуста.
+
+Открыто: группы палитры общие на все контексты — нужны ли группы/наборы блоков по типу контента или слоту (см. раздел Группировки); выровнять id `awn.block.code` и имя файла; добавлять ли новые AWN-блоки только в группу `awn`.
+
+---
+
+## Виды
+
+**Предложение: разделить на два понятия** (сейчас в коде и YAML смешаны)
+
+| Понятие | Ось | Что это | Где в UI |
+|---|---|---|---|
+| **Экраны слотов** | `contentMode` | Какой слот/память открыта | `external`, `tabular`, `media`, `inbox`… — навигация по слотам Topic. YAML-виды в основном для «Вид по умолчанию» на manifest |
+| **Раскладки** | `render-mode` | Как нарисовать содержимое слота | `table`, `list`, `cards`, `calendar`… — встроены в рантайм, переключатель `#external-view-select` в тулбаре (не из YAML по умолчанию) |
+
+```
+Topic
+ ├── Слот main/          → contentMode: external
+ │    └── Dropdown       → render-mode: table | cards | calendar …
+ ├── Слот main.csv       → contentMode: tabular  (другой UI, не тот dropdown)
+ ├── Слот media/         → contentMode: media
+ └── Обзор manifest      → «Вид по умолчанию»    ← YAML views, ось contentMode
+```
+
+Домен `views` — типы в `views/*.yml`, наследуют `awn.view.base`. **Сейчас:** dropdown «Таблица / Карточки / Календарь» — это **раскладки** (`render-mode`), опции зашиты в `index.html`, не из каталога видов. Типы `agent.view.*` дают подписи для `contentMode` и опционально дублируют раскладку через `render-mode` + `vt:<id>`.
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| `agent.view.list` | Список | `contentMode: external`, slots: main, inbox, references, quick-notes |
+| `agent.view.tabular` | Таблица | `contentMode: tabular`, slots: main, inbox |
+| `agent.view.media-grid` | Медиа-сетка | `contentMode: media`, slots: media |
+| `agent.view.inbox` | Входящие | `contentMode: inbox`, slots: inbox |
+| `agent.view.thread` | Тред (диалог) | `contentMode: thread`, slots: thread — **убрать** вместе со слотом `thread` |
+| ~~`agent.view.moy-vid`~~ | Мой вид (пример) | Убрать |
+
+**Свойства**
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| contentMode | Экран по умолчанию | `external` / `tabular` / `media` / `thread` / `inbox`. **Обязательно** — без него вид не в селекторе (type-health) |
+| render-mode | Раскладка тулбара | `table`, `list`, `cards`, `kanban`, `calendar`, `index`, `moc`, `mindmap`, `cheatsheet`, `graph`. Опционально — только для external |
+| applies-to-slots | К каким слотам относится | Список ключей слотов. Сейчас в UI не фильтрует жёстко — уточнить |
+| icon | Иконка в переключателе | Эмодзи |
+
+**Именование:** сейчас id `agent.view.*`, база `awn.view.base` — расходятся с паттерном `awn.<домен>.*`. **Решено:** выровнять в `awn.view.*`?
+
+**Собственный JS-рендер вида** — не доведён (в отличие от markdown-blocks `render: fence`). Сейчас вид = декларация поверх встроенных примитивов рантайма.
+
+Открыто: после удаления `thread` — убрать `agent.view.thread`; фильтровать ли виды по `applies-to-slots` при выборе на Topic.
+
+---
+
+## Настройки
+
+Два слоя — не путать:
+
+| Слой | Где | Что делает |
+|---|---|---|
+| **Домен `settings`** | `awn-system/types/settings/*.yml` | Декларации типов настроек (каталог, дерево типов) |
+| **Данные настроек** | `config.yml` узла/агента | Секции `awn_settings` (значения) и `awn_schema.settings.fields` (схема полей формы) |
+
+Домен зарегистрирован в `registry.yml` как пример пользовательского пакета. **Сейчас:** типы `agent.settings.*` на UI/runtime почти не влияют — форма читает `awn_schema.settings`, значения пишет в `awn_settings`.
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| `agent.settings.general` | Общие | `scope: agent`, extends `awn.settings.base` — заготовка |
+| `agent.settings.voice` | Голос | `scope: agent` — заготовка. TTS/STT фактически в kit-страницах (`awn.page.topic.voice-tts` и т.д.), не здесь |
+
+**Свойства типа** (`awn.settings.base`)
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| scope | Область | `agent` / `workspace` / `ui` — кто потребитель |
+| value | Значение | Строка / число / флаг |
+| enabled | Включено | default: true |
+
+**Связь с `config.yml`**
+
+| Секция | Описание | Комментарий |
+|---|---|---|
+| `awn_settings` | Key-value настроек | Редактируется в панели конфигурации узла; агент читает через MCP `write_node_config` |
+| `awn_schema.settings.fields` | Схема полей настроек | Динамическая форма (как topic.fields) |
+| `awn_ui` | UI-настройки узла | Отдельно: `default_landing_mode` — не домен settings |
+
+**Решено (черновик):** домен `settings` — каталог *типов* настроек и их метаданные (`scope`, кто читает). Конкретные значения — всегда в `awn_settings` у нужного узла (Topic, agent kit…). Тип считается «рабочим», только если есть код-потребитель, который его читает.
+
+Открыто: нужны ли `fields:` у `agent.settings.*` (как у content); один глобальный `config.yml` агента vs настройки на Topic; связь `scope: ui` с `awn_ui`; выровнять id `agent.settings.*` → `awn.settings.*`.
 
 ---
 
@@ -225,9 +350,7 @@
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| views | Тип вида представляет свой тип данных и раскладку | Должен уметь нести свой рендер |
-| md-blocks | Тип блока представляет свой формат отображения | render: fence + renderer — заготовка, не доведена до рабочего |
-| JS-обработчики | Общий механизм для views и md-blocks | Куда кладём, как грузим, какие ограничения (песочница) |
+| JS-обработчики | Общий механизм для views | Куда кладём, как грузим, ограничения (песочница). Для блоков — см. **Markdown blocks** (`render: fence`) |
 
 ---
 
