@@ -1,362 +1,616 @@
 # ТЗ — система типов
 
-Это не список доработок задним числом, а ТЗ, которое мы составляем и обсуждаем вместе, по параграфам. Формат: заголовок-раздел + описание + таблица пунктов.
+ТЗ, которое составляем и обсуждаем вместе. Не changelog — фиксируем целевую модель и расхождения с кодом. Формат: раздел + таблица.
 
 ---
 
-## Базовые типы
+## Три слоя (как в Neos / Strapi, но на файлах)
 
-Базовый тип — корневой YAML для домена (`_base.yml`), от которого наследуются все конкретные типы этого домена (`extends:`). Это первоисточник всего: имя, id и структура базового типа определяют, как называется и наследуется вся семья типов под ним.
+| Слой | Что | Где | Аналог |
+|---|---|---|---|
+| **Schema** | Типы, поля на типе, слоты, блоки | `awn-system/types/*.yml` | Neos NodeType, Strapi Content-Type, TYPO3 TCA |
+| **Instance** | Конкретные записи | `.md` + frontmatter на диске | Node, Entry, Page record |
+| **Runtime** | Как рисовать в UI | `public/main.js`, `index.html` | Fusion, Twig, встроенные view modes |
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| `awn.entity` | Корень всей системы, domain: base, kind: entity | От него наследуют pages, content, fields, md-blocks и всё остальное |
-| `awn.base` | База сущности, domain: base, kind: base, extends `awn.entity` | Общие поля контента и узла (отображение, системные) |
-| `awn.page.base` | База страниц, domain: pages | |
-| `awn.content.base` | База контента, domain: content | **Решено: завести.** Сейчас файла `_base.yml` у домена `content` нет — Запись/Категория записи/Sidecar наследуют `awn.base` напрямую. Нужно создать `awn.content.base` (extends `awn.base`) и перевести все три типа на него |
-| `awn.slot` | База слотов, domain: slots | **Решено: переименовать в `awn.slot.base`** — для единообразия с паттерном `awn.<домен>.base` (сейчас единственное исключение без суффикса `.base`) |
-| `awn.field.base` | База полей, domain: fields | |
-| `awn.view.base` | База видов, domain: views | |
-| `awn.taxonomy.base` | База справочников, domain: taxonomies | |
-| `awn.block.base` | База markdown-блоков, domain: md-blocks | |
-| `awn.settings.base` | База настроек, domain: settings | |
-
-**Почему `awn.entity` и `awn.base` — два разных уровня, а не дублирование:** `awn.entity` не содержит `fields:`, только мета-схему («из чего состоит любая декларация типа»: id/name/description/extends/status/kind). `awn.base` добавляет поверх настоящие data-поля контента (awn-name, awn-status, awn-tags, awn-create, awn-update, awn-version). От `awn.entity` напрямую наследуют домены-конфигурации, которые сами являются декларацией, но не становятся узлом на диске: `fields`, `taxonomies`, `md-blocks`, `views`, `settings`, `slots`. От `awn.base` наследуют только те, кто реально превращается в файл/узел на диске: `pages` и `content`. Если убрать `awn.base` и оставить один `awn.entity` — все 6 доменов-конфигов получат ненужные им поля `awn-name/awn-tags/awn-status/...`.
+**Правило:** schema описывает *что можно создать*; instance хранит *значения*; runtime — *как показать*. Сейчас часть runtime зашита в код по ключу `awn-*` (catalog-tags, preview…) — это расхождение со schema.
 
 ---
 
-## Типы страницы
+## Глоссарий (где путаница)
 
-Конкретные типы домена `pages` (наследуют `page-base`). Добавлять новые можно, но особого смысла пока нет — набор закрыт.
-
-| Ключ | Описание | Комментарий |
+| Термин | Уровень | Пример |
 |---|---|---|
-| `awn.page.ws` | Workspace | `allow-children: true` — дочерние страницы (area, topic, taxonomy…) |
-| `awn.page.area` | Area | `allow-children: true` — дочерние страницы (topic, taxonomy…) |
-| `awn.page.topic` | Topic | `allow-children: false` — не может содержать дочерние страницы (topic внутри topic); `storage-slots: [main, media, inbox, …]` |
-| `awn.page.taxonomy` | Taxonomy (он же справочник) | `allow-children: false`, `storage-slots: []` — **Решено: один тип.** Канонический — `awn.page.taxonomy`. Убрать `catalog.yml`, поправить 2 манифеста |
-| `awn.page.service-doc` | ~~Служебный документ~~ | Решено: не нужен как тип страницы — убрать из набора / переклассифицировать |
+| **Тип** (content/page/slot…) | Schema | `awn.content.record`, `awn.page.topic` |
+| **Тип поля** (`awn.field.*`) | Schema | `awn.field.string` — домен `fields/`, это **не** поле записи |
+| **Объявление поля** (`fields:` на типе) | Schema | `awn-name: { type: awn.field.string, title: Имя }` на `awn.base` |
+| **Значение поля** | Instance | `awn-name: Моя запись` в frontmatter `.md` |
+| **`properties:` на `awn.entity`** | Schema | Мета-поля *редактора типа* (id, extends, status) — **не** данные записи |
+| **Слот** | Schema | `awn.slot.main` — правило хранения, **не** файл на диске |
+| **Инстанс** | Instance | `main/note.md` с `awn-type: awn.content.record` |
+| **Markdown block** | Schema → вставка | `awn.block.h2` — snippet в тело, не узел дерева |
 
-**Свойства**
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| allow-children | Разрешены ли дочерние страницы в дереве | Workspace, Area — `true` (могут содержать topic, taxonomy и др.). Topic, Taxonomy — `false` (topic не может содержать topic) |
-| storage-slots | Какие слоты памяти разрешены у страницы | Только у Topic. Список ключей слотов: main, media, inbox, thread, references, scripts, artefacts, repository (убрать `thread`). У Taxonomy — `[]` |
-| menu-visible | Показывать ли тип в дереве меню | |
-| manifest-pattern | Путь к файлу манифеста | Например `{slug}/manifest.md` |
-| tags-default | Теги по умолчанию при создании узла | |
+```
+awn.field.string        = класс (тип данных)
+fields.awn-name         = свойство типа Record/Page (объявление в schema)
+awn-name: "Заголовок"   = значение у конкретного .md (instance)
+```
 
 ---
 
-## Content
+## Дерево модели (страница → слот → контент → поля → markdown)
 
-Это всё про md-файлы — по сути наша база данных. **Решено: оставляем три, все наследуются от `awn.content.base`** (extends `awn.base`).
+```
+SCHEMA (awn-system/types/)
+│
+├── СТРАНИЦА (pages)                 узел дерева
+│   Тип: awn.page.topic
+│   Поля на типе: awn.base + awn.page.base (awn-name, awn-main…)
+│   Свойства типа: storage-slots, allow-children
+│
+│   INSTANCE: topic-slug/manifest.md
+│   frontmatter: awn-type: awn.page.topic, awn-name, …
+│
+│   ├── СЛОТ (slots)                 привязка памяти, НЕ сущность на диске
+│   │   Тип: awn.slot.main
+│   │   Свойства: storage-driver, path, allowed-content
+│   │   Привязка: storage-slots у awn.page.topic
+│   │
+│   │   └── КОНТЕНТ (content)        файлы внутри слота
+│   │       Тип: awn.content.record
+│   │       Поля: awn.base + mixins + свои fields:
+│   │       INSTANCE: main/note.md + frontmatter + markdown-тело
+│   │       │
+│   │       └── MARKDOWN BLOCKS      вставки в тело (не узел)
+│   │           Тип: awn.block.h2, awn.block.tasks
+│   │
+│   └── config.yml (instance)
+│       awn_settings, awn_schema, awn_ui
+│
+└── ПОЛЯ (fields)                    поперечно: ТИПЫ для fields: выше
+    awn.field.string, awn.field.enum…
+```
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| `awn.content.record` | Запись | `allow-children: false` — лист, не содержит дочерних элементов |
-| `awn.content.record.category` | Категория записи | `allow-children: true` — раздел, может содержать записи внутри |
-| `awn.content.sidecar` | Sidecar | `allow-children: false` |
-| ~~`awn.content.media.category`~~ | Категория медиа | Убрать — дублирует «Категорию записи» |
-| ~~`awn.content.dialog`~~ | Сообщение диалога | Убрать |
-| ~~`awn.content.comment`~~ | Комментарий | Убрать |
-
-**Свойства**
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| fields | Собственные дополнительные поля типа поверх базовых | У Sidecar — `awn-mime`, `awn-size` |
-| mixins | Подключение общего набора полей | У Записи — `awn.mixin.attachments`, добавляет `awn-attachments` |
-| allow-children | Разрешены ли дочерние элементы в многофайловой памяти | Определяется у content-типа, не у слота. Категория — `true`; Запись, Sidecar — `false` |
+**Слот** ≈ colPos / collection в TYPO3, не content type. **Контент** ≈ Content Element / Entry. **Страница** ≈ Page в дереве.
 
 ---
 
-## Слоты памяти
+## Schema — базовые типы
 
-Конкретные типы домена `slots` (наследуют `awn.slot` / будущий `awn.slot.base`). Слоты привязываются только к страницам — свойство `storage-slots` есть только у `awn.page.topic`.
+Корневые `_base.yml` доменов (`extends:`).
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| `awn.slot.main` | Main (многофайловая) | `storage-driver: external`, `path: main/` — есть в типах |
-| `awn.slot.main-single` | Main (однофайловая) | `storage-driver: internal`, `path: main.md` — завести |
-| `awn.slot.main-single-csv` | Main (табличная) | `storage-driver: tabular`, `path: main.csv` — завести |
-| `awn.slot.todo-single` | Todo | `storage-driver: internal`, `path: todo.md` — завести |
-| `awn.slot.inbox` | Inbox | `storage-driver: external`, `path: inbox/` |
-| `awn.slot.quick-notes` | Quick notes | Быстрые заметки — не привязан к Topic, решение нужно |
-| `awn.slot.references` | References | Ссылки и источники |
-| `awn.slot.artefacts` | Artefacts | Артефакты и экспорты |
-| `awn.slot.repository` | Repository | `storage-driver: external`, `path: repository/`, `allowed-content: [awn.file]`, `accept-files: [*]` — есть в типах |
-| `awn.slot.scripts` | Scripts | Скрипты и автоматизация |
-| `awn.slot.assets` | Assets | Вложения и вставки — не привязан к Topic, решение нужно |
-| `awn.slot.media` | Media | Медиа-файлы и sidecar |
+| `awn.entity` | Корень мета-схемы | `properties:` id/name/extends/status — только редактор типов, без `fields:` данных |
+| `awn.base` | База инстансов на диске | `fields:` awn-name, awn-status… + `field-groups`. Наследуют pages и content |
+| `awn.page.base` | База страниц | + nav-поля, mixins preview/runtime |
+| `awn.content.base` | База контента | **Решено: завести** (extends `awn.base`). Сейчас content наследует `awn.base` напрямую |
+| `awn.slot` → `awn.slot.base` | База слотов | **Решено: переименовать** в `awn.slot.base` |
+| `awn.field.base` | База типов полей | extends `awn.entity` — домен конфигурации |
+| `awn.block.base` | База markdown-блоков | extends `awn.entity` |
+| `awn.view.base` | База видов | extends `awn.entity` |
+| `awn.taxonomy.base` | База справочников | extends `awn.entity` |
+| `awn.settings.base` | База настроек | extends `awn.entity` |
+
+**Почему `awn.entity` и `awn.base` — два уровня:** от `awn.entity` — домены-конфиги (fields, slots, md-blocks, views…), не становятся узлом на диске. От `awn.base` — только то, что превращается в `.md` с данными (pages, content).
+
+---
+
+## Schema — страницы (pages)
+
+Типы узлов дерева. Набор закрыт.
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| `awn.page.ws` | Workspace | `allow-children: true` |
+| `awn.page.area` | Area | `allow-children: true` |
+| `awn.page.topic` | Topic | `allow-children: false`; `storage-slots: [main, media, inbox, …]` |
+| `awn.page.taxonomy` | Taxonomy | `allow-children: false`, `storage-slots: []` — **Решено:** канонический тип. Убрать `catalog.yml` |
+| ~~`awn.page.service-doc`~~ | Служебный документ | Убрать |
+
+**Свойства типа**
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| allow-children | Дочерние страницы в дереве | ws/area — true; topic/taxonomy — false |
+| storage-slots | Разрешённые слоты | Только Topic. Убрать `thread` из списка |
+| manifest-pattern | Путь манифеста | `{slug}/manifest.md` |
+| menu-visible | В меню дерева | |
+| tags-default | Теги при создании | |
+
+**Instance:** `topic-slug/manifest.md`, `awn-type: awn.page.topic`.
+
+---
+
+## Schema — слоты (slots)
+
+Правила хранения. Привязка к Topic через `storage-slots`. **Не инстанс** — папка/файл на диске появляется по `path`.
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| `awn.slot.main` | Main (многофайловая) | `external`, `main/` |
+| `awn.slot.main-single` | Main (однофайловая) | `internal`, `main.md` — завести |
+| `awn.slot.main-single-csv` | Main (табличная) | `tabular`, `main.csv` — завести |
+| `awn.slot.todo-single` | Todo | `internal`, `todo.md` — завести |
+| `awn.slot.inbox` | Inbox | `external`, `inbox/` |
+| `awn.slot.media` | Media | |
+| `awn.slot.references` | References | |
+| `awn.slot.artefacts` | Artefacts | |
+| `awn.slot.repository` | Repository | |
+| `awn.slot.scripts` | Scripts | |
+| `awn.slot.quick-notes` | Quick notes | Не в storage-slots Topic — решение нужно |
+| `awn.slot.assets` | Assets | Не в storage-slots Topic — решение нужно |
 | ~~`awn.slot.comments`~~ | Comments | Убрать |
 | ~~`awn.slot.thread`~~ | Thread | Убрать |
 | ~~`awn.slot.my-slot`~~ | my-slot | Убрать |
 
-**Свойства**
+**Свойства типа**
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| storage-driver | Драйвер памяти | `internal` / `external` / `tabular` |
-| path | Куда кладётся контент | `external` — папка (`main/`, `media/`); `internal` — файл (`main.md`); `tabular` — файл (`main.csv`) |
-| allowed-content | Разрешённый контент | Список `awn.content.*` типов, которые можно класть в слот |
-| accept-files | Принимаемые файлы | Список расширений (`.md`, `.png`, `.sidecar.md`…) |
+| storage-driver | Драйвер | `internal` / `external` / `tabular` |
+| path | Путь | папка или файл |
+| allowed-content | Типы контента | `awn.content.*` |
+| accept-files | Расширения | `.md`, `.png`… |
 
 ---
 
-## Группировки — делать для конкретных типов, а не общую
+## Schema — контент (content)
+
+Типы md-файлов в слотах — наша «БД». **Решено: три типа**, все на `awn.content.base`.
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| field-groups | Группы полей внутри формы | Сейчас: заданы в `awn.base`, наследуются, поля ссылаются через `group:` — уже "по типу", но конкретный тип не может добавить свою группу поверх базовой |
-| `awn.block.groups` | Группы палитры markdown-блоков | Сейчас один общий список на все контексты — см. раздел **Markdown blocks**. Нужно: группы/наборы, зависящие от типа контента или слота |
+| `awn.content.record` | Запись | `allow-children: false` |
+| `awn.content.record.category` | Категория записи | `allow-children: true` |
+| `awn.content.sidecar` | Sidecar | `allow-children: false`; поля `awn-mime`, `awn-size` |
+| ~~`awn.content.media.category`~~ | | Убрать |
+| ~~`awn.content.dialog`~~ | | Убрать |
+| ~~`awn.content.comment`~~ | | Убрать |
+
+**Свойства типа**
+
+| Ключ | Описание | Комментарий |
+|---|---|---|
+| fields | Доп. поля поверх базы | |
+| mixins | Наборы полей | У Записи — `awn.mixin.attachments` |
+| allow-children | Вложенность в слоте | У content-типа, не у слота |
+
+**Instance:** `main/foo.md`, frontmatter `awn-type: awn.content.record`, тело markdown.
 
 ---
 
-## Поля
+## Schema — поля (fields)
 
-Домен `fields` — типы данных для свойств контента и страниц. Наследуют `awn.field.base` (extends `awn.entity`): это декларации, не узлы на диске. В схеме типа (`fields:` у content/page) поле ссылается на `awn.field.*` и задаёт свои настройки из whitelist `settings` этого типа.
+Домен **типов полей** (`awn.field.*`), не значения. Объявления полей на page/content — в `fields:` базовых типов и mixins.
 
-**Примитивы** (домен `fields`, `fields/*.yml`)
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| `awn.field.string` | Строка | widget: input, storage: string |
-| `awn.field.text` | Текст (многострочный) | widget: textarea |
-| `awn.field.markdown` | Markdown с превью | widget: markdown |
-| `awn.field.slug` | URL-слаг | widget: slug |
-| `awn.field.email` | Email | widget: email |
-| `awn.field.url` | Внешняя ссылка | widget: url |
-| `awn.field.integer` | Целое число | widget: number, storage: number |
-| `awn.field.number` | Число с дробной частью | widget: number |
-| `awn.field.boolean` | Логическое (да/нет) | widget: checkbox, storage: bool |
-| `awn.field.date` | Дата | widget: date, format: YYYY-MM-DD |
-| `awn.field.datetime` | Дата и время | widget: datetime, format: ISO-8601 |
-| `awn.field.color` | Цвет #RRGGBB | widget: color |
-| `awn.field.enum` | Одно из списка | widget: select (или radio через переопределение widget) |
-| `awn.field.array` | Несколько из списка | widget: checkbox (или select-multiple) |
-| `awn.field.tags` | Свободные теги | widget: tags, storage: array |
-| `awn.field.file` | Файл / вложения | widget: file |
-| `awn.field.image` | Изображение | widget: image |
-| `awn.field.json` | JSON-редактор | widget: json |
-| `awn.field.link` | Связь по пути | widget: link, значение `[[путь]]` — **не доведено:** нет резолва и подсветки битых ссылок |
-| `awn.field.relation` | Семантическое отношение | widget: relation — **не доведено:** нет выбора целевого типа и списка нод |
-
-**Специальные типы** — отдельная семья с собственным виджетом и логикой, не примитив + хак по имени ключа `awn-*`. Именование `awn.field.special.*` — черновик.
+### Примитивы
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| `awn.field.special.preview` | Превью-изображение | **Сейчас:** `awn.field.url` + виджет по ключу `awn-preview` |
-| `awn.field.special.attachments` | Вложения (список файлов) | **Сейчас:** `awn.field.array` of file + `widget: attachments` + ключ `awn-attachments` |
-| `awn.field.special.cron` | Расписание cron | **Сейчас:** `awn-runtime-cron-schedule` без типа в схеме, виджет `cron-schedule` по ключу |
+| `awn.field.string` … `awn.field.relation` | 20 примитивов | string, text, enum, array, file, link… |
+| `awn.field.link` | Wiki-путь | **не доведено:** резолв `[[путь]]` |
+| `awn.field.relation` | Связь с нодой | **не доведено:** picker + фильтр типа |
 
-**Под вопросом** (нужна отдельная проработка)
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| `awn.field.special.catalog` | Значение из справочника (taxonomy) | Один тип с `preset` или иная схема — не решено. **Сейчас:** 6 виджетов по ключу |
-| ↳ preset `tags` | Теги (мульти) | Ключ `awn-tags` → `catalog-tags` |
-| ↳ preset `categories` | Категория (одно) | Ключ `awn-category` → `catalog-category` |
-| ↳ preset `statuses` | Статус (одно) | Ключ `awn-status` → `catalog-status` (дубль inline-enum в `awn.base`) |
-| ↳ preset `users` | Пользователь / владелец | Ключ `awn-owner` → `catalog-users` |
-| ↳ preset `priorities` | Приоритет | Ключ `awn-priority` → `catalog-priorities` |
-| ↳ preset `colors` | Цвет из справочника | Ключ `awn-color` → `catalog-colors` |
-| `awn.field.special.link` | Wiki-ссылка `[[путь]]` | Остаётся примитивом `awn.field.link` или выносится в special — не решено |
-| `awn.field.special.relation` | Связь с нодой + фильтр типа | Остаётся примитивом `awn.field.relation` или выносится в special — не решено |
-
-**Примитивы с заявленным виджетом, но без рабочего UI** (кандидаты в special или доработка виджета)
+### Special (черновик `awn.field.special.*`)
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| `awn.field.markdown` | Markdown-редактор | widget: markdown — в форме свойств не подключён |
-| `awn.field.json` | JSON-редактор | widget: json — не подключён |
-| `awn.field.image` | Изображение | widget: image — не отделён от file |
-| `awn.field.slug` | Слаг | widget: slug — не подделён, обычный input |
-| `awn.field.tags` | Свободные теги | widget: tags — не подключён (работает только catalog-tags по ключу `awn-tags`) |
+| `awn.field.special.preview` | Превью | Сейчас: url + хак по ключу `awn-preview` |
+| `awn.field.special.attachments` | Вложения | Сейчас: array of file + `widget: attachments` |
+| `awn.field.special.cron` | Cron | Сейчас: `awn-runtime-cron-schedule` без типа |
 
-Открыто: `runtime-load` / `runtime-heartbeat` — остаются enum/boolean или тоже special; flat-имена (`awn.field.preview`) vs `special.*`. Миксины после появления special-типов — только способ подключить готовый набор полей.
+**Под вопросом:** `special.catalog` (+ presets tags/categories/statuses/users/priorities/colors), `special.link`, `special.relation`.
 
-**Свойства типа поля** (в `fields/*.yml`)
+### Объявление поля на типе (`fields:` у page/content)
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| widget | Виджет формы по умолчанию | input, textarea, select, checkbox, file, image, relation… |
-| storage | Как сериализуется в YAML/markdown | string / number / bool / array |
-| mdbase | Базовый тип для markdown-frontmatter | string, text, enum, list, link, file, image, date, datetime, color, url, integer, number, boolean |
-| format | Формат по умолчанию | У date/datetime/чисел — шаблон (YYYY-MM-DD, ISO-8601) |
-| settings | Whitelist настроек при объявлении поля в схеме | Список ключей, доступных в редакторе типа. Базовый набор: hint, required, locked, default; у enum/array — +widget, enum; у file — +multiple, accept, upload, insertInText, scope |
+| Ключ | Описание |
+|---|---|
+| type | `awn.field.*` |
+| title / name | Подпись |
+| hint, required, locked, default, enum, group… | Настройки из whitelist `settings` типа поля |
 
-**Свойства объявления поля** (в `fields:` у content/page)
+### Встроенные поля (`awn.base` / mixins)
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| type | ID типа поля | Обязательно. `awn.field.string`, `awn.field.enum`… |
-| name / title | Подпись в форме | Обязательно (в YAML — `title` или `name`) |
-| description | Пояснение для схемы | Есть в `_base`, но не во всех `settings[]` типов — уточнить единый набор |
-| hint | Подсказка / placeholder | |
-| required | Обязательное | default: false |
-| locked | Только чтение | default: false |
-| format | Шаблон заполнения | Для string, date, integer, number |
-| default | Значение при создании | |
-| widget | Переопределить виджет типа | Для enum (select/radio), array (checkbox/select-multiple) |
-| enum | Варианты key/name | Для enum и array |
-| items | Тип элементов списка | Для array и relation (`awn.field.string`, `awn.field.link`…) |
-| multiple | Несколько файлов | Для file, image, relation |
-| accept | Допустимые расширения | Для file, image — `.pdf, image/*` |
-| upload | Загрузка с диска | Для file, image |
-| insertInText | Вставка в редактор | Для file |
-| scope | Область поиска файлов | topic / area / system — для file |
-| group | Секция формы | Ссылка на `field-groups` базового типа (см. раздел Группировки) |
-
-**relation vs link:** `link` — текстовая wiki-ссылка в markdown; `relation` — типизированная связь с фильтром по целевому типу ноды. Оба в наборе, доработка — в первую очередь `relation` (picker + фильтр), затем резолв `link`.
+Префикс `awn-*` зарезервирован. Пользовательские поля — без префикса. Mixins: `preview`, `attachments`, `runtime` — подключение готовых полей, не замена special-типов.
 
 ---
 
-## Markdown blocks
+## Schema — markdown blocks
 
-Домен `md-blocks` — типы блоков палитры редактора. Наследуют `awn.block.base` (extends `awn.entity`): декларации, не узлы на диске. Блок вставляет `template` в markdown-курсор; в превью может отрисовываться через JS (`render: fence`).
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| `awn.block.h2` | Заголовок H2 | group: structure, active |
-| `awn.block.h3` | Заголовок H3 | group: structure, active |
-| `awn.block.hr` | Разделитель `---` | group: structure, active |
-| `awn.block.paragraph` | Абзац | group: text, **draft** — не в палитре |
-| `awn.block.quote` | Цитата | group: text, active |
-| `awn.block.note` | Примечание | group: text, active |
-| `awn.block.ul` | Маркированный список | group: lists, **inactive** — не в палитре |
-| `awn.block.ol` | Нумерованный список | group: lists, active |
-| `awn.block.tasks` | Чеклист | group: lists, active |
-| `awn.block.code` | Блок кода | group: code, active. Файл `codeblock.yml` — id расходится с именем файла |
-| `awn.block.table` | Таблица | group: code, active |
-| `awn.block.desc` | Краткое описание (AWN) | group: awn, active. Callout `> [!AWN-DESC]` |
-| `awn.block.groups` | Мета: порядок и названия групп палитры | kind: meta, не блок. `groupOrder`, `groupNames` |
-
-**Группы палитры** (`awn.block.groups`)
+Вставки в тело markdown. Не узлы дерева.
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| structure | Структура | h2, h3, hr |
-| text | Текст | paragraph, quote, note |
-| lists | Списки | ul, ol, tasks |
-| code | Код и таблицы | code, table |
-| awn | AWN | desc и будущие кастомные блоки |
+| `awn.block.h2` … `awn.block.desc` | 12 блоков | paragraph — draft, ul — inactive |
+| `awn.block.groups` | Мета групп палитры | structure, text, lists, code, awn |
 
-**Свойства типа блока** (в `md-blocks/*.yml`)
+**Свойства:** template (обяз.), group, icon, sort, status, render (`template`|`fence`), fence-tag, renderer.
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| template | Текст вставки | Обязательно для попадания в палитру. Многострочный markdown/snippet |
-| group | Группа палитры | id из `awn.block.groups` |
-| icon | Иконка в палитре | Эмодзи |
-| sort | Порядок в группе | Меньше — выше |
-| status | Видимость | `active` — в палитре; `draft` / `inactive` — скрыт |
-| render | Способ отображения в превью | `template` (по умолчанию) — как markdown; `fence` — JS-рендер |
-| fence-tag | Тег fenced-блока | Для `render: fence`, напр. `awn-chart` → ` ```awn-chart ` |
-| renderer | Путь к JS | `awn-system/renderers/<slug>.js`, только эта папка |
+**Предложение по группам:** `block-groups` на типе контента (как `field-groups`), не один глобальный `groups.yml` на все контексты.
 
-**Рендер `fence`** — механизм кастомного отображения (как mermaid): блок вставляет fenced-code с `fence-tag`, превью грузит `renderer` через API и вызывает `export default function render(target, source, ctx)`. **Сейчас:** инфраструктура есть, ни одного блока с `render: fence` в каталоге нет, папка `renderers/` пуста.
-
-Открыто: группы палитры общие на все контексты — нужны ли группы/наборы блоков по типу контента или слоту (см. раздел Группировки); выровнять id `awn.block.code` и имя файла; добавлять ли новые AWN-блоки только в группу `awn`.
+**Runtime:** `render: fence` + `awn-system/renderers/*.js` — инфра есть, блоков с fence нет.
 
 ---
 
-## Виды
+## Schema — виды (views)
 
-**Предложение: разделить на два понятия** (сейчас в коде и YAML смешаны)
+**Предложение: два понятия** (сейчас смешаны в YAML и коде)
 
-| Понятие | Ось | Что это | Где в UI |
-|---|---|---|---|
-| **Экраны слотов** | `contentMode` | Какой слот/память открыта | `external`, `tabular`, `media`, `inbox`… — навигация по слотам Topic. YAML-виды в основном для «Вид по умолчанию» на manifest |
-| **Раскладки** | `render-mode` | Как нарисовать содержимое слота | `table`, `list`, `cards`, `calendar`… — встроены в рантайм, переключатель `#external-view-select` в тулбаре (не из YAML по умолчанию) |
+| Понятие | Ось | Где в UI |
+|---|---|---|
+| **Экран слота** | `contentMode` | external, tabular, media, inbox — навигация по слотам |
+| **Раскладка** | `render-mode` | table, cards, calendar — `#external-view-select` в тулбаре |
 
 ```
 Topic
  ├── Слот main/          → contentMode: external
  │    └── Dropdown       → render-mode: table | cards | calendar …
- ├── Слот main.csv       → contentMode: tabular  (другой UI, не тот dropdown)
+ ├── Слот main.csv       → contentMode: tabular
  ├── Слот media/         → contentMode: media
- └── Обзор manifest      → «Вид по умолчанию»    ← YAML views, ось contentMode
+ └── Обзор manifest      → «Вид по умолчанию» (YAML views → contentMode)
 ```
 
-Домен `views` — типы в `views/*.yml`, наследуют `awn.view.base`. **Сейчас:** dropdown «Таблица / Карточки / Календарь» — это **раскладки** (`render-mode`), опции зашиты в `index.html`, не из каталога видов. Типы `agent.view.*` дают подписи для `contentMode` и опционально дублируют раскладку через `render-mode` + `vt:<id>`.
+**Runtime:** раскладки зашиты в `index.html`, не из каталога видов. YAML `agent.view.*` — подписи для «Вид по умолчанию» + опционально `vt:<id>` в dropdown.
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| `agent.view.list` | Список | `contentMode: external`, slots: main, inbox, references, quick-notes |
-| `agent.view.tabular` | Таблица | `contentMode: tabular`, slots: main, inbox |
-| `agent.view.media-grid` | Медиа-сетка | `contentMode: media`, slots: media |
-| `agent.view.inbox` | Входящие | `contentMode: inbox`, slots: inbox |
-| `agent.view.thread` | Тред (диалог) | `contentMode: thread`, slots: thread — **убрать** вместе со слотом `thread` |
-| ~~`agent.view.moy-vid`~~ | Мой вид (пример) | Убрать |
+| `agent.view.list` | Список | contentMode: external |
+| `agent.view.tabular` | Таблица | contentMode: tabular |
+| `agent.view.media-grid` | Медиа | contentMode: media |
+| `agent.view.inbox` | Inbox | contentMode: inbox |
+| ~~`agent.view.thread`~~ | Thread | Убрать со слотом thread |
+| ~~`agent.view.moy-vid`~~ | Пример | Убрать |
 
-**Свойства**
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| contentMode | Экран по умолчанию | `external` / `tabular` / `media` / `thread` / `inbox`. **Обязательно** — без него вид не в селекторе (type-health) |
-| render-mode | Раскладка тулбара | `table`, `list`, `cards`, `kanban`, `calendar`, `index`, `moc`, `mindmap`, `cheatsheet`, `graph`. Опционально — только для external |
-| applies-to-slots | К каким слотам относится | Список ключей слотов. Сейчас в UI не фильтрует жёстко — уточнить |
-| icon | Иконка в переключателе | Эмодзи |
-
-**Именование:** сейчас id `agent.view.*`, база `awn.view.base` — расходятся с паттерном `awn.<домен>.*`. **Решено:** выровнять в `awn.view.*`?
-
-**Собственный JS-рендер вида** — не доведён (в отличие от markdown-blocks `render: fence`). Сейчас вид = декларация поверх встроенных примитивов рантайма.
-
-Открыто: после удаления `thread` — убрать `agent.view.thread`; фильтровать ли виды по `applies-to-slots` при выборе на Topic.
+Открыто: `agent.view.*` → `awn.view.*`; фильтр по `applies-to-slots`; JS-рендер вида не доведён.
 
 ---
 
-## Настройки
+## Schema — настройки (settings)
 
-Два слоя — не путать:
-
-| Слой | Где | Что делает |
+| Слой | Где | Роль |
 |---|---|---|
-| **Домен `settings`** | `awn-system/types/settings/*.yml` | Декларации типов настроек (каталог, дерево типов) |
-| **Данные настроек** | `config.yml` узла/агента | Секции `awn_settings` (значения) и `awn_schema.settings.fields` (схема полей формы) |
-
-Домен зарегистрирован в `registry.yml` как пример пользовательского пакета. **Сейчас:** типы `agent.settings.*` на UI/runtime почти не влияют — форма читает `awn_schema.settings`, значения пишет в `awn_settings`.
+| Домен `settings` | `types/settings/*.yml` | Каталог типов настроек (пока заготовка) |
+| Instance | `config.yml` | `awn_settings` (значения), `awn_schema.settings.fields` (форма) |
 
 | Ключ | Описание | Комментарий |
 |---|---|---|
-| `agent.settings.general` | Общие | `scope: agent`, extends `awn.settings.base` — заготовка |
-| `agent.settings.voice` | Голос | `scope: agent` — заготовка. TTS/STT фактически в kit-страницах (`awn.page.topic.voice-tts` и т.д.), не здесь |
+| `agent.settings.general` | Общие | scope: agent — заготовка |
+| `agent.settings.voice` | Голос | TTS/STT реально в kit-страницах, не здесь |
 
-**Свойства типа** (`awn.settings.base`)
-
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| scope | Область | `agent` / `workspace` / `ui` — кто потребитель |
-| value | Значение | Строка / число / флаг |
-| enabled | Включено | default: true |
-
-**Связь с `config.yml`**
-
-| Секция | Описание | Комментарий |
-|---|---|---|
-| `awn_settings` | Key-value настроек | Редактируется в панели конфигурации узла; агент читает через MCP `write_node_config` |
-| `awn_schema.settings.fields` | Схема полей настроек | Динамическая форма (как topic.fields) |
-| `awn_ui` | UI-настройки узла | Отдельно: `default_landing_mode` — не домен settings |
-
-**Решено (черновик):** домен `settings` — каталог *типов* настроек и их метаданные (`scope`, кто читает). Конкретные значения — всегда в `awn_settings` у нужного узла (Topic, agent kit…). Тип считается «рабочим», только если есть код-потребитель, который его читает.
-
-Открыто: нужны ли `fields:` у `agent.settings.*` (как у content); один глобальный `config.yml` агента vs настройки на Topic; связь `scope: ui` с `awn_ui`; выровнять id `agent.settings.*` → `awn.settings.*`.
+**Решено (черновик):** тип «рабочий», только если есть код-потребитель. `awn_ui.default_landing_mode` — отдельно, не домен settings.
 
 ---
 
-## Расширяемость и дописываемость
+## Schema — прочее (заготовки)
 
-| Ключ | Описание | Комментарий |
-|---|---|---|
-| JS-обработчики | Общий механизм для views | Куда кладём, как грузим, ограничения (песочница). Для блоков — см. **Markdown blocks** (`render: fence`) |
+| Домен | Комментарий |
+|---|---|
+| **mixins** | `preview`, `attachments`, `runtime` — переиспользуемые `fields:` на типе |
+| **taxonomies** | Справочники CSV; привязка через `props-field` к `awn-*` полям |
+| **field-groups** | Секции формы на типе; тип не может легко добавить группу поверх базы |
+| **группировки блоков** | См. markdown blocks — `block-groups` на content-типе |
 
 ---
 
-## Что рядом всплыло, но в исходное ТЗ не входило
+## Instance — что на диске
 
-- таксономии: нет своего пресета создания и своего просмотра значений
-- kind — дублирует domain в большинстве случаев, можно выводить автоматически
-- миграции схемы при изменении типа (что с данными при переименовании поля)
-- wired-индикатор — сделать единообразным на все домены, включая новые пакеты
+| Что | Файл | Ключевые поля |
+|---|---|---|
+| Страница Topic | `manifest.md` | `awn-type`, `awn-name`, nav-поля |
+| Запись | `main/*.md` | `awn-type: awn.content.record`, тело markdown |
+| Sidecar | `*.sidecar.md` | `awn-mime`, `awn-size` |
+| Конфиг Topic | `config.yml` | `awn_settings`, `awn_schema`, `awn_ui` |
+
+Инстанс = md-файл с `awn-type` в frontmatter (аналог Node/Entry в file-based CMS).
+
+---
+
+## Runtime — где schema не дотягивает (замечания)
+
+| Что | Сейчас | Цель |
+|---|---|---|
+| Раскладки table/cards/calendar | `index.html`, не YAML | Оставить встроенными примитивами runtime |
+| catalog-tags, catalog-status… | Виджет по ключу `awn-tags`, `awn-status` | `awn.field.special.catalog` или явный runtime-слой |
+| preview, attachments, cron | Хак по имени ключа | `awn.field.special.*` |
+| Виды | YAML + HTML дублируют друг друга | Screen = contentMode в schema; Layout = runtime |
+| settings types vs config.yml | Два несвязанных механизма | Один путь: schema → consumer → instance |
+
+---
+
+## Расхождения с «умными» CMS
+
+```
+✓ Типы + extends          ≈ Neos NodeTypes
+✓ Дерево страниц          ≈ TYPO3 pages
+✓ Контент-типы отдельно   ≈ Strapi Content-Types
+✓ Поля на типе + values   ≈ properties (frontmatter вместо БД)
+✓ Слот ≈ storage binding  ≈ colPos / collection (не content type)
+
+⚠ Домен называется fields     → путаница с fields: на типе
+⚠ properties на entity        → два смысла «property»
+⚠ views смешивают screen+layout
+⚠ settings: schema + config.yml без связи
+⚠ runtime-хаки по awn-* ключам
+```
+
+---
+
+## Решено в ТЗ, не применено в YAML/коде
+
+- `awn.content.base`, `awn.slot.base`
+- Слоты: `main-single`, `main-single-csv`, `todo-single`
+- Убрать: лишние content/slots/page-типы, `thread`, `moy-vid`
+- Special-типы: preview, attachments, cron
+- Виды: разделить screen / layout в модели
+
+---
+
+## Открыто / вне ТЗ
+
+- таксономии: пресет создания и просмотр значений
+- `quick-notes`, `assets` в storage-slots Topic
+- `block-groups` на content-типе
+- catalog / link / relation как special
+- kind автоматически из domain
+- миграции схемы при переименовании поля
+- wired-индикатор на все домены
+- JS-обработчики: песочница, путь (`renderers/` для blocks)
+
+---
+
+Три проблемы — три направления. Ниже конкретный план «как исправить», в духе вашего TODO (schema → instance → runtime).
+
+---
+
+## 1. Единый механизм полей в UI
+
+**Сейчас:** виджет выбирается по имени ключа (`awn-tags` → catalog-tags, `awn-preview` → preview), не по `type`.
+
+**Цель:** как TCA/FormEngine в TYPO3 — форма смотрит только на **объявление поля** (`type` + настройки), runtime подключается через тип.
+
+### Шаги
+
+**A. Довести special-типы в schema**
+
+```yaml
+# fields/special/preview.yml
+id: awn.field.special.preview
+widget: preview
+storage: string
+settings: [hint, required, locked, default, scope]
+
+# fields/special/catalog.yml  
+id: awn.field.special.catalog
+widget: catalog
+storage: string | array
+settings: [hint, required, locked, preset, multiple]  # preset: tags|statuses|…
+```
+
+**B. Переписать поля в `awn.base` / mixins**
+
+```yaml
+# было (логически)
+awn-tags:
+  type: awn.field.array
+  items: awn.field.string
+
+# станет
+awn-tags:
+  type: awn.field.special.catalog
+  preset: tags
+  multiple: true
+```
+
+**C. Один рендерер формы**
+
+В `resolvePropsFieldWidget` убрать ветки `if (normalized === "awn-tags")` — оставить:
+
+```
+fieldDef.type → fieldRegistry[type].widget → createWidget(widget, fieldDef)
+```
+
+Ключ `awn-name` не влияет на виджет, только `type` и `preset`.
+
+**D. Catalog preset — данные, не ключ**
+
+`preset: tags` → грузить taxonomy `tags`, не хардкод по `awn-tags`.
+
+| Было | Стало |
+|---|---|
+| имя ключа → виджет | `type` → виджет |
+| 6 отдельных catalog-* | один `special.catalog` + `preset` |
+| preview по `awn-preview` | `type: special.preview` на любом поле |
+
+**Порядок работ:** special.preview, special.attachments, special.catalog → миграция `awn.base` → выпилить `resolvePropsFieldWidget` key-hacks.
+
+---
+
+## 2. Presentation отдельно (render-mode / views)
+
+**Сейчас:** раскладки в `index.html`, YAML `views` — подписи для contentMode, две оси смешаны.
+
+**Цель:** как Fluid в TYPO3 — **presentation описан в schema**, runtime только исполняет.
+
+### Разделить домены
+
+| Домен | Что хранит | Пример |
+|---|---|---|
+| **`screens`** (или ось `contentMode` в views) | Какой экран/слот | `external`, `tabular`, `media` |
+| **`layouts`** (новый или `render-mode`) | Как рисовать список | `table`, `cards`, `calendar` |
+
+### Шаги
+
+**A. Каталог раскладок в YAML** (`awn-system/types/layouts/` или секция в views)
+
+```yaml
+id: awn.layout.table
+name: Таблица
+primitive: table        # встроенный рендерер в runtime
+applies-to-screens: [external]
+
+id: awn.layout.cards
+name: Карточки
+primitive: cards
+```
+
+**B. Генерировать `#external-view-select` из API**
+
+Не статический HTML — `GET /api/agent/layouts?screen=external` → options. Как сейчас дополняется `vt:<id>`, но **все** пункты из schema.
+
+**C. Views = только screens + дефолты**
+
+```yaml
+id: awn.view.main-external
+contentMode: external
+default-layout: awn.layout.list   # опционально
+applies-to-slots: [main]
+```
+
+«Вид по умолчанию» на Topic сохраняет `contentMode` (и опционально `default-layout`), не смешивает с раскладкой.
+
+**D. Кастомная раскладка (позже)**
+
+`awn.layout.my-cards` + `renderer: awn-system/renderers/my-cards.js` — по аналогии с markdown `fence`, не отдельная вселенная.
+
+```
+Topic → Screen (external) → Layout (cards) → Runtime primitive "cards"
+         ↑ schema views      ↑ schema layouts    ↑ main.js
+```
+
+**Порядок:** вынести список layouts в YAML → API → dropdown из API → views только contentMode → убрать дубли из HTML.
+
+---
+
+## 3. Один источник правды настроек
+
+**Сейчас:** `types/settings/*.yml` (пустые заготовки) и `config.yml` (`awn_schema.settings` + `awn_settings`) живут отдельно.
+
+**Цель:** как site config в TYPO3 — **schema в типах**, **значения в одном месте**, потребитель один.
+
+### Выбрать модель (рекомендую B)
+
+**A. Только config.yml** — убрать домен `settings` из каталога.  
+Просто, но нет переиспользуемых типов настроек.
+
+**B. Settings type = schema, config = values** (рекомендую)
+
+```yaml
+# types/settings/voice.yml
+id: awn.settings.voice
+extends: awn.settings.base
+scope: agent
+fields:
+  stt-provider:
+    type: awn.field.string
+  tts-voice:
+    type: awn.field.string
+```
+
+```yaml
+# config.yml (instance)
+awn_settings:
+  voice:
+    stt-provider: whisper
+    tts-voice: alloy
+```
+
+**C. Полностью в types, без awn_schema.settings** — значения тоже в YAML агента. Для md-CMS избыточно.
+
+### Шаги для B
+
+1. **`agent.settings.*` получают `fields:`** — как content-тип, не пустые заготовки.
+2. **Убрать `awn_schema.settings.fields`** — форма настроек строится из merged types `settings/*` по `scope` и привязке к узлу.
+3. **`awn_settings` — только values**, структура по id типа:
+
+   ```yaml
+   awn_settings:
+     general: { … }
+     voice: { … }
+   ```
+
+4. **Потребитель объявляет связь:** Topic manifest или `awn.page.topic` → `settings-types: [awn.settings.general, awn.settings.voice]`.
+5. **MCP `write_node_config`** пишет только values, schema читает из `awn-system/types/settings/`.
+6. **`awn_ui`** остаётся отдельной секцией (default_landing_mode) — это UI runtime, не settings domain.
+
+| Было | Стало |
+|---|---|
+| schema в config + types в каталоге | schema только в `types/settings/` |
+| values в `awn_settings` flat keys | values по id типа настроек |
+| два редактора схемы | один: типы settings в дереве типов |
+
+---
+
+## Общий порядок (что делать по очереди)
+
+```
+1. Поля: special.* + убрать key-hacks          ← самый болезненный UX/confusion
+2. Settings: fields на types + убрать awn_schema.settings
+3. Layouts: YAML + API + dropdown из schema
+4. Views: только screens, привязка к layouts
+```
+
+Зависимости: layouts и catalog presets не блокируют друг друга; settings можно параллельно с полями.
+
+---
+
+## Минимальный «MVP исправления» (если не всё сразу)
+
+| Проблема | MVP |
+|---|---|
+| Поля | Только `special.catalog` + перевести `awn-tags`, `awn-status` на `preset` |
+| Presentation | Файл `layouts.yml` + наполнять dropdown из API, HTML options удалить |
+| Settings | Один `awn.settings.general` с `fields:` + форма читает тип, values в `awn_settings.general` |
+
+---
+
+## Критерий «исправлено»
+
+- Новое поле с `type: awn.field.special.catalog` + `preset: priorities` работает **без правки `main.js`**.
+- Новая раскладка — YAML `awn.layout.*`, появляется в dropdown **без правки `index.html`**.
+- Новая настройка — YAML `awn.settings.*` с `fields:`, значение в `config.yml`, **без `awn_schema.settings`**.
+
+## Комментарии Нейронок
+
+Чёткое разделение awn.entity и awn.base
+
+Идеальное решение. Разделение мета-схемы (то, что конфигурирует систему изнутри) и базы инстансов (то, что материализуется в виде файлов .md на диске) предотвратит раздувание кода и путаницу в рендерере форм.
+
+Schema  → что существует (YAML-типы)
+Instance → данные (модель знаний)
+Runtime → отображение (интерфейс)
+
+awn.entity ↑ конфигурационные домены
+awn.base ↑ реальные инстансы
+
+types/settings ↓ config.yml
+
+Разделение screen (contentMode) и layout (render-mode).
+
+Разделение на schema/instance/runtime хорошо стыкуется с концепцией AWN-агентов: агент может читать схему, понимать, какие типы доступны, и генерировать UI или валидацию на лету.
+
+Для аналогии с ИИ Тони Старка. В такой архитектуре «память» — это instance (MD-файлы), «модель знаний» — schema (YAML-типы), а «интерфейс/речь» — runtime. Это даёт хорошую основу для того, чтобы агент мог «понимать» структуру твоих знаний и работать с ней.
+
+Schema
+      ↓
+Registry
+      ↓
+Instance
+      ↓
+Runtime
+
+Мне кажется, именно Registry станет центральной частью системы, и его стоит описать отдельно. Иначе кажется, что Runtime читает YAML напрямую, хотя на самом деле между ними почти наверняка будет слой нормализации, объединения extends, проверки схемы, регистрации виджетов и т.д.
+
+Общий вердикт
+Это уже уровень серьёзной production-системы, а не очередного pet-проекта. Если довести предложенные три направления (поля → presentation → settings), получится очень сильная штука.
+Приоритет по моему мнению:
+
+Поля + special types (самый большой выигрыш в UX и техдолге)
+Layouts / render-modes как отдельный домен
+Settings (B-вариант)
+
+Хочешь — можем пройтись по конкретным частям глубже:
+
+Как именно сделать registry special-полей
+Структура layouts.yml
+Как обрабатывать relations/links
+Или как сделать миграции схемы минимально болезненными
