@@ -7193,7 +7193,7 @@ const MODE_GROUPS = [
       { id: "inbox", label: "Входящие" },
       { id: "external-db", label: "Реляционная БД", disabled: true },
       { id: "references", label: "Источники" },
-      { id: "volume", label: "Рассуждения (volume)", disabled: true }
+      { id: "volume", label: "Итоги", disabled: true }
     ]
   },
   {
@@ -7732,8 +7732,8 @@ const DATA_STORAGE_SLOT_SPECS = [
   },
   {
     key: "volume",
-    label: "Рассуждения",
-    icon: "💭",
+    label: "Итоги",
+    icon: "📋",
     modes: new Set(["volume"]),
     defaultMode: "volume",
     sectionKind: null,
