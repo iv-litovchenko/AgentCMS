@@ -226,14 +226,30 @@ function createServer() {
 
   reg(
     "create_node",
-    "Create folder node or part.",
-    z.object({
-      parentPath: z.string().optional(),
-      type: z.enum(["folder", "file"]),
-      name: z.string().min(1)
-    }),
-    ({ parentPath, type, name }) =>
-      client.post("/api/node/create", { parentPath: parentPath || ".", type, name })
+    "Create area (type folder) or topic (type file). displayName/title → awn-name in manifest; slug or name → folder on disk (transliterated when Cyrillic).",
+    z
+      .object({
+        parentPath: z.string().optional(),
+        type: z.enum(["folder", "file"]),
+        name: z.string().min(1).optional(),
+        displayName: z.string().min(1).optional(),
+        title: z.string().optional(),
+        slug: z.string().optional(),
+        awnType: z.string().optional()
+      })
+      .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
+        message: "Provide displayName, title, name, or slug"
+      }),
+    ({ parentPath, type, name, displayName, title, slug, awnType }) =>
+      client.post("/api/node/create", {
+        parentPath: parentPath || ".",
+        type,
+        name,
+        displayName,
+        title,
+        slug,
+        awnType
+      })
   );
 
   reg("delete_node", "Delete area, topic, or part folder.", z.object({ path: nodePath }), ({ path }) =>
@@ -242,9 +258,24 @@ function createServer() {
 
   reg(
     "rename_node",
-    "Rename area/topic (folder slug or topic .md filename).",
-    z.object({ path: nodePath, title: z.string().min(1) }),
-    ({ path, title }) => client.post("/api/file/title", { path, title })
+    "Rename area/topic. displayName → awn-name; slug → folder/filename on disk (transliterated from displayName when omitted). Do not pass Cyrillic as slug.",
+    z
+      .object({
+        path: nodePath,
+        displayName: z.string().min(1).optional(),
+        slug: z.string().optional(),
+        title: z.string().min(1).optional()
+      })
+      .refine((value) => Boolean(value.displayName || value.title), {
+        message: "displayName or title is required"
+      }),
+    ({ path, displayName, slug, title }) =>
+      client.post("/api/file/title", {
+        path,
+        displayName: displayName || undefined,
+        slug: slug || undefined,
+        title: title || displayName
+      })
   );
 
   reg(

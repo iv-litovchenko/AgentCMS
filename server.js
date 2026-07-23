@@ -653,6 +653,80 @@ function resolveContentItemNames(payload = {}) {
   return { display, diskSlug };
 }
 
+function resolveNodeCreateNames(payload = {}) {
+  const explicitDisplay = String(payload.displayName || payload.title || "").trim();
+  const { display, diskSlug } = resolveContentItemNames(payload);
+  const folderSlug =
+    sanitizeSlugInput(payload.slug) ||
+    diskSlug ||
+    sanitizeSlugInput(transliterateToSlug(explicitDisplay || display)) ||
+    sanitizeSlugInput(String(payload.name || "").trim()) ||
+    "";
+  const displayName =
+    explicitDisplay ||
+    (display && display !== folderSlug ? display : "") ||
+    display ||
+    stripTopicPrefix(folderSlug) ||
+    "";
+  return { displayName, folderSlug };
+}
+
+function hasNodeCreateIdentity(payload = {}, type = "") {
+  if (type === "manifest" || type === "topic-manifest") {
+    return Boolean(
+      String(payload.name || "").trim() ||
+        String(payload.displayName || payload.title || "").trim() ||
+        sanitizeSlugInput(payload.slug)
+    );
+  }
+  const { displayName, folderSlug } = resolveNodeCreateNames(payload);
+  return Boolean(displayName || folderSlug);
+}
+
+function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, options = {}) {
+  const typeName =
+    options.awnType || (nodeKind === "topic" ? "topic" : nodeKind === "area" ? "area" : String(nodeKind || "topic"));
+  const title =
+    String(displayName || "").trim() ||
+    stripTopicPrefix(String(folderSlug || "").trim()) ||
+    (nodeKind === "topic" ? "Тема" : "Область");
+  let frontmatter = buildDefaultFrontmatter(typeName, {
+    name: title,
+    agentRoot: getAgentRoot(),
+    projectRoot: getProjectRoot()
+  });
+  return upsertYamlScalarLine(frontmatter, "awn-name", title);
+}
+
+function normalizeAwnNameForStorage(displayName, slug) {
+  const trimmed = String(displayName || "").trim();
+  if (!trimmed) return "";
+  if (trimmed === String(slug || "").trim()) return "";
+  return trimmed;
+}
+
+function shouldSyncAwnNameOnTitleRename(payload, display, diskSlug) {
+  if (Object.prototype.hasOwnProperty.call(payload, "displayName")) return true;
+  const title = String(payload.title || "").trim();
+  if (!title) return false;
+  const slugLikeTitle = sanitizeSlugInput(title);
+  if (slugLikeTitle && slugLikeTitle === String(diskSlug || "").trim()) return false;
+  return transliterateToSlug(title) !== title || Boolean(display && display !== diskSlug);
+}
+
+function removeYamlScalarLine(frontmatter, key) {
+  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*\\n?`, "m");
+  return String(frontmatter || "")
+    .replace(pattern, "")
+    .trim();
+}
+
+function applyAwnNameToFrontmatter(frontmatter, displayName, slug) {
+  const awnName = normalizeAwnNameForStorage(displayName, slug);
+  if (!awnName) return removeYamlScalarLine(frontmatter, "awn-name");
+  return upsertYamlScalarLine(frontmatter, "awn-name", awnName);
+}
+
 function formatYamlScalarForFrontmatter(value) {
   const text = String(value ?? "");
   if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
@@ -9549,10 +9623,15 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const title = String(payload.title || "").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const legacyTitle = String(payload.title || payload.name || "").trim();
+      const renameTarget = diskSlug || sanitizeSlugInput(legacyTitle);
 
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
-      if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+      if (!renameTarget && !display && !legacyTitle) {
+        return sendJson(res, 400, { error: "Title cannot be empty" });
+      }
+      if (!renameTarget) return sendJson(res, 400, { error: "Invalid slug" });
 
       const resolvedRelPath = String(await resolveExistingWorkspaceRelPath(relPath)).replace(/\\/g, "/");
       if (isServiceAreaRootManifestRel(resolvedRelPath) || isContainerAreaRootManifestRel(resolvedRelPath)) {
@@ -9595,8 +9674,8 @@ async function handleApiForAgent(req, res, url) {
           // ignore
         }
         const targetFolderName = isStorageFolderName(currentFolderName)
-          ? toStorageFolderName(title)
-          : toAreaFolderName(title);
+          ? toStorageFolderName(renameTarget)
+          : toAreaFolderName(renameTarget);
         if (!targetFolderName) return sendJson(res, 400, { error: "Folder name cannot be empty" });
         const targetFolderAbsolute = path.join(parentAbsolutePath, targetFolderName);
 
@@ -9628,7 +9707,7 @@ async function handleApiForAgent(req, res, url) {
         );
         if (!dirAbsolute) return sendJson(res, 400, { error: "Invalid file directory path" });
 
-        const nextName = toNodeFileName(title);
+        const nextName = toNodeFileName(renameTarget);
         if (!nextName) return sendJson(res, 400, { error: "Invalid file name" });
         const oldTopicSortSlug = getManifestSlugFromRel(normalized);
         let oldTopicSortLegacyKeys = [];
@@ -9685,7 +9764,20 @@ async function handleApiForAgent(req, res, url) {
         }
       }
 
-      const content = await fs.readFile(nextAbsolute, "utf-8");
+      let content = await fs.readFile(nextAbsolute, "utf-8");
+      const resolvedSlug = isAreaManifestRelPath(nextRelPath) && !parsePartFolderManifestRel(nextRelPath)
+        ? stripTopicPrefix(path.basename(path.dirname(nextAbsolute)))
+        : getManifestSlugFromRel(nextRelPath);
+
+      if (shouldSyncAwnNameOnTitleRename(payload, display, resolvedSlug)) {
+        const { frontmatter, body } = splitNodeFrontmatter(content);
+        const nextFrontmatter = applyAwnNameToFrontmatter(frontmatter, display, resolvedSlug);
+        const nextContent = joinNodeFrontmatter(nextFrontmatter, body);
+        if (nextContent !== content) {
+          await fs.writeFile(nextAbsolute, nextContent, "utf-8");
+          content = nextContent;
+        }
+      }
 
       const oldRel = stripAgentContentPrefixFromRelPath(normalized);
       const newRel = stripAgentContentPrefixFromRelPath(nextRelPath);
@@ -9706,7 +9798,9 @@ async function handleApiForAgent(req, res, url) {
 
       return sendJson(res, 200, {
         path: newRel,
-        title,
+        title: display || legacyTitle || renameTarget,
+        displayName: display || legacyTitle || renameTarget,
+        slug: resolvedSlug,
         content,
         linkRewrite
       });
@@ -12614,13 +12708,12 @@ async function handleApiForAgent(req, res, url) {
   }) {
     const responseType = nodeKind === "topic" ? "topic-manifest" : "manifest";
     const currentFolderName = path.basename(parentAbsolute);
-    const displayName = String(payload.displayName || "").trim();
+    const { displayName, folderSlug } = resolveNodeCreateNames(payload);
     const title =
       displayName ||
       String(name || stripTopicPrefix(currentFolderName)).trim() ||
       currentFolderName;
-    const diskSlug = resolveNodeDiskSlugFromPayload(payload);
-    const targetFolderName = toFolderName(diskSlug);
+    const targetFolderName = toFolderName(folderSlug || resolveNodeDiskSlugFromPayload(payload));
     if (!targetFolderName) {
       return { error: "Invalid folder name", status: 400 };
     }
@@ -12662,11 +12755,7 @@ async function handleApiForAgent(req, res, url) {
       // continue
     }
 
-    const manifestFrontmatter = buildDefaultFrontmatter(nodeKind === "topic" ? "topic" : "area", {
-      name: title,
-      agentRoot: getAgentRoot(),
-      projectRoot: getProjectRoot()
-    });
+    const manifestFrontmatter = buildManifestCreateFrontmatter(nodeKind === "topic" ? "topic" : "area", title, targetFolderName);
     await fs.writeFile(
       manifestAbsolute,
       joinNodeFrontmatter(manifestFrontmatter, ""),
@@ -12844,8 +12933,8 @@ async function handleApiForAgent(req, res, url) {
         }
       }
 
-      if (!name && type !== "manifest") {
-        return sendJson(res, 400, { error: "Name is required" });
+      if (!hasNodeCreateIdentity(payload, type)) {
+        return sendJson(res, 400, { error: "Name is required (name, displayName, title, or slug)" });
       }
 
       const parentAbsolute =
@@ -12877,9 +12966,8 @@ async function handleApiForAgent(req, res, url) {
       }
 
       if (type === "folder") {
-        const displayName = String(payload.displayName || "").trim() || String(name || "").trim();
-        const diskSlug = resolveNodeDiskSlugFromPayload(payload);
-        const folderName = toFolderName(diskSlug);
+        const { displayName, folderSlug } = resolveNodeCreateNames(payload);
+        const folderName = toFolderName(folderSlug);
         if (!folderName) return sendJson(res, 400, { error: "Invalid folder name" });
 
         const folderAbsolute = path.join(parentAbsolute, folderName);
@@ -12892,12 +12980,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const areaTitle = displayName || stripTopicPrefix(folderName);
-        const areaFrontmatter = buildDefaultFrontmatter("area", {
-          name: areaTitle,
-          agentRoot: getAgentRoot(),
-          projectRoot: getProjectRoot()
-        });
+        const areaFrontmatter = buildManifestCreateFrontmatter("area", displayName, folderName);
         await fs.writeFile(
           manifestAbsolute,
           joinNodeFrontmatter(areaFrontmatter, ""),
@@ -12917,9 +13000,8 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      const displayName = String(payload.displayName || "").trim() || String(name || "").trim();
-      const diskSlug = resolveNodeDiskSlugFromPayload(payload);
-      const folderName = toFolderName(diskSlug);
+      const { displayName, folderSlug } = resolveNodeCreateNames(payload);
+      const folderName = toFolderName(folderSlug);
       if (!folderName) return sendJson(res, 400, { error: "Invalid topic name" });
 
       const folderAbsolute = path.join(parentAbsolute, folderName);
@@ -12933,10 +13015,8 @@ async function handleApiForAgent(req, res, url) {
       await fs.mkdir(folderAbsolute, { recursive: false });
       const manifestAbsolute = path.join(folderAbsolute, MANIFEST_FILE);
       const awnNodeType = String(payload.awnType || "topic").trim() || "topic";
-      const fileFrontmatter = buildDefaultFrontmatter(awnNodeType, {
-        name: displayName || stripTopicPrefix(folderName),
-        agentRoot: getAgentRoot(),
-        projectRoot: getProjectRoot()
+      const fileFrontmatter = buildManifestCreateFrontmatter("topic", displayName, folderName, {
+        awnType: awnNodeType
       });
       await fs.writeFile(
         manifestAbsolute,

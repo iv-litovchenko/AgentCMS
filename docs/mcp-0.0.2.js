@@ -229,8 +229,8 @@ module.exports = {
         },
         {
           name: "create_node",
-          description: "Создать область/тему или part.",
-          parameters: "parentPath?, type: folder|file, name",
+          description: "Создать область (folder) или тему (file). displayName/title → awn-name; slug/name → папка на диске.",
+          parameters: "parentPath?, type: folder|file, displayName?, title?, name?, slug?, awnType?",
           http: "POST /api/node/create"
         },
         {
@@ -241,8 +241,8 @@ module.exports = {
         },
         {
           name: "rename_node",
-          description: "Переименовать область/топик (slug папки или имя .md).",
-          parameters: "path, title",
+          description: "Переименовать область/топик. displayName → awn-name; slug → папка на диске.",
+          parameters: "path, displayName?, title?, slug?",
           http: "POST /api/file/title"
         },
         {
@@ -463,9 +463,21 @@ module.exports = {
         },
         {
           name: "write_storage_file",
-          description: "Записать текстовый файл в слот (scripts, artefacts, …; main/ — не .md).",
+          description: "Сырой текст в слот (scripts, repository, …). Для typed .md — create_storage_record.",
           parameters: "path, folder, file, content",
           http: "POST /api/storage/file"
+        },
+        {
+          name: "create_storage_record",
+          description: "Typed .md запись (awn.content.record + схема слота): inbox/, notes/, references/, artefacts/, scripts/.",
+          parameters: "path, folder, displayName?, title?, slug?, body?, parent?, fileMask?, source?, author?, status?",
+          http: "POST /api/storage/file/create"
+        },
+        {
+          name: "create_storage_section",
+          description: "Typed раздел (awn.content.record.category): manifest.md в подпапке слота.",
+          parameters: "path, folder, title, displayName?, slug?, parent?",
+          http: "POST /api/storage/section/create"
         }
       ]
     },

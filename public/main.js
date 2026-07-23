@@ -154,6 +154,7 @@ const agentTimelineVerticalPaneNode = document.getElementById("agent-timeline-ve
 const agentTimelineVerticalContentNode = document.getElementById("agent-timeline-vertical-content");
 const agentTimelineVerticalStatsNode = document.getElementById("agent-timeline-vertical-stats");
 const agentDashboardStatsNode = document.getElementById("agent-dashboard-stats");
+const homeDashboardIdeaNode = document.getElementById("home-dashboard-idea");
 const agentMapPaneNode = document.getElementById("agent-map-pane");
 const agentMapStageNode = document.getElementById("agent-map-stage");
 const agentMapLinksNode = document.getElementById("agent-map-links");
@@ -7553,19 +7554,39 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
 const STORAGE_SLOT_TREE_GROUP_FOLDER = "folder";
 const STORAGE_SLOT_TREE_GROUP_FILES = "files";
 const STORAGE_SLOT_TREE_GROUP_SINGLE_FILE = "single-file";
+const STORAGE_SLOT_TREE_GROUP_META = "meta";
+const STORAGE_SLOT_TREE_GROUP_COMMUNICATION = "communication";
 const STORAGE_SLOT_TREE_GROUP_LABELS = {
   [STORAGE_SLOT_TREE_GROUP_FILES]: "Файлы",
-  [STORAGE_SLOT_TREE_GROUP_SINGLE_FILE]: "Один файл"
+  [STORAGE_SLOT_TREE_GROUP_SINGLE_FILE]: "Один файл",
+  [STORAGE_SLOT_TREE_GROUP_META]: "Записи",
+  [STORAGE_SLOT_TREE_GROUP_COMMUNICATION]: "Общение"
 };
 const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
   STORAGE_SLOT_TREE_GROUP_FOLDER,
   STORAGE_SLOT_TREE_GROUP_FILES,
-  STORAGE_SLOT_TREE_GROUP_SINGLE_FILE
+  STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+  STORAGE_SLOT_TREE_GROUP_META,
+  STORAGE_SLOT_TREE_GROUP_COMMUNICATION
 ];
+const STORAGE_SLOT_TREE_META_KEYS = new Set(["history", "temp"]);
+const STORAGE_SLOT_TREE_META_ORDER = ["history", "temp"];
+const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["thread", "comments", "volume"]);
+const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["thread", "comments", "volume"];
+const STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS = new Set([
+  ...STORAGE_SLOT_TREE_META_KEYS,
+  ...STORAGE_SLOT_TREE_COMMUNICATION_KEYS
+]);
 
 function getStorageSlotTreeGroup(spec) {
-  if (!spec || spec.disabled) return null;
-  return spec.treeGroup || STORAGE_SLOT_TREE_GROUP_FOLDER;
+  if (!spec) return null;
+  if (spec.treeGroup) return spec.treeGroup;
+  if (spec.disabled) return null;
+  return STORAGE_SLOT_TREE_GROUP_FOLDER;
+}
+
+function isStorageSlotCountOnly(spec) {
+  return spec?.treeDisplay === "count-only";
 }
 
 const DATA_STORAGE_SLOT_SPECS = [
@@ -7696,7 +7717,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set([]),
     defaultMode: null,
     sectionKind: null,
-    disabled: true
+    treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
+    treeDisplay: "count-only"
   },
   {
     key: "temp",
@@ -7705,7 +7727,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set(["temp"]),
     defaultMode: "temp",
     sectionKind: null,
-    disabled: true
+    treeGroup: STORAGE_SLOT_TREE_GROUP_META,
+    treeDisplay: "count-only"
   },
   {
     key: "volume",
@@ -7714,7 +7737,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set(["volume"]),
     defaultMode: "volume",
     sectionKind: null,
-    disabled: true
+    treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
+    treeDisplay: "count-only"
   },
   {
     key: "history",
@@ -7723,7 +7747,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set([]),
     defaultMode: null,
     sectionKind: null,
-    disabled: true
+    treeGroup: STORAGE_SLOT_TREE_GROUP_META,
+    treeDisplay: "count-only"
   },
   {
     key: "comments",
@@ -7732,7 +7757,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     modes: new Set([]),
     defaultMode: null,
     sectionKind: null,
-    disabled: true
+    treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
+    treeDisplay: "count-only"
   }
 ];
 
@@ -8343,9 +8369,6 @@ function buildStorageSlotTreeModel(scan = {}) {
   const consumed = new Set();
   const entries = [];
   const enabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => !spec.disabled);
-  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter(
-    (spec) => spec.disabled && !HIDDEN_STORAGE_SLOT_TREE_KEYS.has(spec.key)
-  );
   const folderSpecs = enabledSpecs.filter(
     (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_FOLDER
   );
@@ -8391,6 +8414,46 @@ function buildStorageSlotTreeModel(scan = {}) {
     }
   }
 
+  const metaSpecs = STORAGE_SLOT_TREE_META_ORDER.map((key) =>
+    DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === key)
+  ).filter(Boolean);
+  if (metaSpecs.length > 0) {
+    entries.push({ kind: "divider", id: "meta-slots" });
+    entries.push({
+      kind: "group-label",
+      id: "meta-slots",
+      label: STORAGE_SLOT_TREE_GROUP_LABELS[STORAGE_SLOT_TREE_GROUP_META]
+    });
+    for (const spec of metaSpecs) {
+      const folder = findScanFolderForSlotKey(spec.key, folders);
+      markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
+      entries.push({ kind: "slot", spec, folder });
+    }
+  }
+
+  const communicationSpecs = STORAGE_SLOT_TREE_COMMUNICATION_ORDER.map((key) =>
+    DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === key)
+  ).filter(Boolean);
+  if (communicationSpecs.length > 0) {
+    entries.push({ kind: "divider", id: "communication-slots" });
+    entries.push({
+      kind: "group-label",
+      id: "communication-slots",
+      label: STORAGE_SLOT_TREE_GROUP_LABELS[STORAGE_SLOT_TREE_GROUP_COMMUNICATION]
+    });
+    for (const spec of communicationSpecs) {
+      const folder = findScanFolderForSlotKey(spec.key, folders);
+      markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
+      entries.push({ kind: "slot", spec, folder });
+    }
+  }
+
+  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter(
+    (spec) =>
+      spec.disabled &&
+      !HIDDEN_STORAGE_SLOT_TREE_KEYS.has(spec.key) &&
+      !STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS.has(spec.key)
+  );
   if (disabledSpecs.length > 0) {
     entries.push({ kind: "divider", id: "disabled-slots" });
     for (const spec of disabledSpecs) {
@@ -8555,6 +8618,9 @@ function getListViewMountRoot(mode = activeContentMode) {
 }
 
 function getDataStorageSlotCountForScan(spec, folder, bundleSlot = null) {
+  if (isStorageSlotCountOnly(spec)) {
+    return Number(folder?.entryCount) || 0;
+  }
   if (spec?.treeGroup === STORAGE_SLOT_TREE_GROUP_SINGLE_FILE) {
     const count = Number(bundleSlot?.entryCount) || 0;
     return count > 0 ? count : null;
@@ -8564,7 +8630,7 @@ function getDataStorageSlotCountForScan(spec, folder, bundleSlot = null) {
 }
 
 function setActiveDataStorageSlotFromOverview(spec) {
-  if (!spec || spec.disabled) return;
+  if (!spec || spec.disabled || isStorageSlotCountOnly(spec)) return;
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (memoryKind && supportsDataEntryOverview(spec.key)) {
     if (
@@ -8580,7 +8646,7 @@ function setActiveDataStorageSlotFromOverview(spec) {
 }
 
 function setActiveDataStorageSlot(spec) {
-  if (!spec || spec.disabled) return;
+  if (!spec || spec.disabled || isStorageSlotCountOnly(spec)) return;
   activeDataStorageAllItems = false;
   if (spec.key === "thread") clearActiveThreadScope();
   const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
@@ -8642,11 +8708,13 @@ function appendStorageSlotTreeItem(
 ) {
   const slotKey = spec?.key || folder?.slotKey || null;
   const isOrphan = !spec && Boolean(folder);
-  const disabled = isStorageScanFolderDisabled(folder, spec);
+  const isCountOnly = isStorageSlotCountOnly(spec);
+  const disabled = isCountOnly ? false : isStorageScanFolderDisabled(folder, spec);
   const isMemorySlot = slotKey === "memory";
   const label = spec?.label || folder?.name || "";
   const icon = spec?.icon || "📁";
   const isActive =
+    !isCountOnly &&
     !disabled &&
     !allItemsActive &&
     (isMemorySlot
@@ -8656,23 +8724,26 @@ function appendStorageSlotTreeItem(
       : useEntryOverviewNavigation
         ? activeSlotKey === slotKey
         : activeSlot?.key === slotKey);
-  const count = disabled
-    ? folder?.entryCount > 0
-      ? folder.entryCount
-      : null
-    : spec
-      ? getDataStorageSlotCountForScan(spec, folder, bundleSlot)
-      : folder?.entryCount > 0
+  const count = isCountOnly
+    ? getDataStorageSlotCountForScan(spec, folder, bundleSlot)
+    : disabled
+      ? folder?.entryCount > 0
         ? folder.entryCount
-        : null;
+        : null
+      : spec
+        ? getDataStorageSlotCountForScan(spec, folder, bundleSlot)
+        : folder?.entryCount > 0
+          ? folder.entryCount
+          : null;
   const btn = appendMediaSectionTreeItem(list, {
     icon,
     label,
-    count,
+    count: isCountOnly ? count : count > 0 ? count : null,
     isActive: isActive && !sectionFilterActive,
-    onClick: disabled
-      ? () => {}
-      : () => {
+    onClick:
+      isCountOnly || disabled
+        ? () => {}
+        : () => {
           if (!spec) return;
           if (useEntryOverviewNavigation) {
             if (isMemorySlot) {
@@ -8692,7 +8763,11 @@ function appendStorageSlotTreeItem(
   btn.dataset.storageSlot = slotKey || folder?.name || "";
   if (isOrphan) btn.dataset.storageOrphan = folder.name;
   btn.classList.add("storage-slot-tree-item");
-  if (disabled) {
+  if (isCountOnly) {
+    btn.classList.add("storage-slot-tree-item--count-only");
+    btn.setAttribute("aria-disabled", "true");
+    btn.title = `${label} · ${count} файл(ов)`;
+  } else if (disabled) {
     btn.disabled = true;
     btn.classList.add("is-disabled");
     if (isOrphan) btn.title = "Папка не сопоставлена ни с одним слотом";
@@ -8703,6 +8778,7 @@ function appendStorageSlotTreeItem(
 
   if (
     !disabled &&
+    !isCountOnly &&
     slotKey &&
     slotKey !== "thread" &&
     getTopicSchemaTargetForStorageSlot(slotKey)
@@ -8732,6 +8808,10 @@ function syncStorageSlotTreeActiveState(container, { useEntryOverviewNavigation 
   list.querySelectorAll(".storage-slot-tree-item[data-storage-slot]").forEach((btn) => {
     const slotKey = btn.dataset.storageSlot;
     if (!slotKey || slotKey === "all") return;
+    if (btn.classList.contains("storage-slot-tree-item--count-only")) {
+      btn.classList.remove("is-active");
+      return;
+    }
     const disabled = btn.disabled || btn.classList.contains("is-disabled");
     const isMemorySlot = slotKey === "memory";
     let isActive = false;
@@ -8776,6 +8856,11 @@ function updateStorageSlotTreeCounts(container, scan = {}) {
         : null;
     const badge = btn.querySelector(".media-section-tree-count");
     if (!badge) return;
+    if (isStorageSlotCountOnly(spec)) {
+      badge.textContent = String(Number(count) || 0);
+      badge.dataset.baseCount = String(Number(count) || 0);
+      return;
+    }
     if (count !== null && count > 0) {
       badge.textContent = String(count);
       badge.dataset.baseCount = String(count);
@@ -32686,9 +32771,6 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       thumbClass: options.thumbClass
     });
 
-  const identity = document.createElement("div");
-  identity.className = "node-navigation-hero-identity";
-
   const statusRaw = String(
     options.status || resolveAwnStatusFromPropEntries(options.propEntries || [])
   ).trim();
@@ -32698,7 +32780,19 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = options.pathLabel || formatNodeHeroSlugLabel(nodePath);
 
-  identity.append(titleRow, pathNode);
+  const actions = createNodeOverviewHeroActions(nodePath, {
+    propEntries: options.propEntries || null,
+    onEditClick: options.onEditClick,
+    editLabel: options.editLabel
+  });
+
+  const headerRow = document.createElement("div");
+  headerRow.className = "node-navigation-hero-header";
+  headerRow.append(titleRow, actions);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-hero-body";
+  body.append(headerRow, pathNode);
 
   if (options.typeLabel) {
     const typeNode = document.createElement("span");
@@ -32706,22 +32800,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       options.kindClass ? ` node-entry-overview-kind--${options.kindClass}` : ""
     }`;
     typeNode.textContent = options.typeLabel;
-    identity.appendChild(typeNode);
+    body.appendChild(typeNode);
   }
-
-  const actions = createNodeOverviewHeroActions(nodePath, {
-    propEntries: options.propEntries || null,
-    onEditClick: options.onEditClick,
-    editLabel: options.editLabel
-  });
-
-  const head = document.createElement("div");
-  head.className = "node-navigation-hero-head";
-  head.append(identity, actions);
-
-  const body = document.createElement("div");
-  body.className = "node-navigation-hero-body";
-  body.appendChild(head);
 
   const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
   if (datesPanel.childElementCount > 0) {
@@ -36355,8 +36435,29 @@ const ENTRY_OVERVIEW_MEDIA_ASSET_KIND_CLASS_NAMES = [
   "pdf",
   "archive",
   "document",
+  "code",
   "other"
 ];
+
+const ENTRY_OVERVIEW_MEDIA_OFFICE_EXTS = new Set([
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx"
+]);
+
+const ENTRY_OVERVIEW_MEDIA_PLAIN_TEXT_EXTS = new Set([
+  ".txt",
+  ".csv",
+  ".log",
+  ".env",
+  ".ini",
+  ".rtf"
+]);
+
+const ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES = 256 * 1024;
 
 function getEntryOverviewMediaAssetExt(relativePath) {
   const name = String(relativePath || "");
@@ -36364,7 +36465,25 @@ function getEntryOverviewMediaAssetExt(relativePath) {
   return dot === -1 ? "" : name.slice(dot).toLowerCase();
 }
 
+function isEntryOverviewTextCodeAsset(relativePath) {
+  const ext = getEntryOverviewMediaAssetExt(relativePath);
+  if (!ext || ext === ".md") return false;
+  if (
+    ENTRY_OVERVIEW_MEDIA_IMAGE_EXTS.has(ext) ||
+    ENTRY_OVERVIEW_MEDIA_VIDEO_EXTS.has(ext) ||
+    ENTRY_OVERVIEW_MEDIA_AUDIO_EXTS.has(ext) ||
+    ext === ".pdf" ||
+    ENTRY_OVERVIEW_MEDIA_ARCHIVE_EXTS.has(ext) ||
+    ENTRY_OVERVIEW_MEDIA_OFFICE_EXTS.has(ext)
+  ) {
+    return false;
+  }
+  if (getCodePreviewLanguage(relativePath)) return true;
+  return ENTRY_OVERVIEW_MEDIA_PLAIN_TEXT_EXTS.has(ext);
+}
+
 function getEntryOverviewMediaAssetKind(relativePath) {
+  if (isEntryOverviewTextCodeAsset(relativePath)) return "code";
   const ext = getEntryOverviewMediaAssetExt(relativePath);
   if (ENTRY_OVERVIEW_MEDIA_IMAGE_EXTS.has(ext)) return "image";
   if (ENTRY_OVERVIEW_MEDIA_VIDEO_EXTS.has(ext)) return "video";
@@ -36383,6 +36502,7 @@ function getEntryOverviewMediaAssetKindLabel(kind) {
     pdf: "PDF",
     archive: "Архив",
     document: "Документ",
+    code: "Исходный код",
     other: "Файл"
   };
   return labels[kind] || "Файл";
@@ -36396,6 +36516,7 @@ function getEntryOverviewMediaAssetKindIcon(kind) {
     pdf: "📕",
     archive: "🗜",
     document: "📄",
+    code: "💻",
     other: "📎"
   };
   return icons[kind] || "📎";
@@ -36441,8 +36562,92 @@ function buildEntryOverviewMediaAssetItem(context, navigationIndex = null) {
   };
 }
 
-function createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath = activePath) {
+async function fetchMediaAssetTextPreview(relativePath, nodePath = activePath, sizeHint = null) {
+  if (sizeHint != null && sizeHint > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+    return { tooLarge: true, size: sizeHint };
+  }
+
+  const url = appendCacheBuster(buildMediaAssetUrl(relativePath, nodePath));
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+    return { tooLarge: true, size: contentLength };
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+    return { tooLarge: true, size: buffer.byteLength };
+  }
+
+  const bytes = new Uint8Array(buffer);
+  if (bytes.includes(0)) {
+    return { binary: true };
+  }
+
+  return { text: new TextDecoder("utf-8", { fatal: false }).decode(buffer) };
+}
+
+async function hydrateEntryOverviewMediaAssetCodePreview(
+  previewNode,
+  relativePath,
+  nodePath = activePath,
+  sizeHint = null
+) {
+  if (!previewNode) return;
+
+  try {
+    const result = await fetchMediaAssetTextPreview(relativePath, nodePath, sizeHint);
+    if (result.binary) {
+      previewNode.innerHTML =
+        '<p class="node-entry-overview-media-asset-code-notice">Бинарный файл — превью кода недоступно.</p>';
+      return;
+    }
+    if (result.tooLarge) {
+      const sizeLabel = formatFileSize(result.size || sizeHint || 0);
+      previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Файл слишком большой для превью (${sizeLabel}).</p>`;
+      return;
+    }
+
+    const lang = getCodePreviewLanguage(relativePath) || "plaintext";
+    previewNode.innerHTML = renderCodePreviewHtml(result.text || "", lang);
+    applySyntaxHighlighting(previewNode, { nodePath: relativePath });
+  } catch (error) {
+    previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Не удалось загрузить превью: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function createEntryOverviewMediaAssetCodeShowcase(context, nodePath = activePath, sizeHint = null) {
   const relativePath = String(context.relativePath || "");
+  const showcase = document.createElement("div");
+  showcase.className = "node-entry-overview-media-asset-showcase is-kind-code";
+
+  const preview = document.createElement("div");
+  preview.className = "node-entry-overview-media-asset-code-preview file-content-preview";
+  preview.innerHTML = '<p class="node-entry-overview-media-asset-code-loading">Загрузка…</p>';
+  showcase.appendChild(preview);
+
+  void hydrateEntryOverviewMediaAssetCodePreview(preview, relativePath, nodePath, sizeHint);
+  return showcase;
+}
+
+function createEntryOverviewMediaAssetShowcase(
+  context,
+  assetKind,
+  nodePath = activePath,
+  navigationIndex = null
+) {
+  const relativePath = String(context.relativePath || "");
+  const indexed = findEntryOverviewMediaItemMeta(navigationIndex, relativePath);
+  const sizeHint = indexed?.size ?? null;
+
+  if (assetKind === "code") {
+    return createEntryOverviewMediaAssetCodeShowcase(context, nodePath, sizeHint);
+  }
+
   const assetUrl = appendCacheBuster(buildMediaAssetUrl(relativePath, nodePath));
   const showcase = document.createElement("div");
   showcase.className = `node-entry-overview-media-asset-showcase is-kind-${assetKind}`;
@@ -36527,13 +36732,10 @@ function createEntryOverviewMediaAssetPanel(
   const heroNav = createEntryOverviewSiblingNav({ ...(entryOverviewNav || {}), variant: "hero" });
   if (heroNav) panel.appendChild(heroNav);
 
-  panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath));
+  panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath, navigationIndex));
 
   const main = document.createElement("div");
   main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "node-entry-overview-media-asset-toolbar";
 
   const kindBadge = document.createElement("span");
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
@@ -36545,22 +36747,31 @@ function createEntryOverviewMediaAssetPanel(
     onEditClick: () => openEntryOverviewEdit(context)
   });
 
-  toolbar.append(kindBadge, actions);
-
-  const identity = document.createElement("div");
-  identity.className = "node-navigation-hero-identity node-entry-overview-media-asset-identity";
-
   const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries));
+
+  const headerRow = document.createElement("div");
+  headerRow.className = "node-navigation-hero-header";
+  headerRow.append(titleRow, actions);
 
   const pathNode = document.createElement("p");
   pathNode.className = "node-navigation-hero-path";
   pathNode.textContent = formatEntryOverviewHeroPathLabel(entries, context.relativePath);
 
-  identity.append(titleRow, pathNode);
+  const metaRow = document.createElement("div");
+  metaRow.className = "node-entry-overview-media-asset-meta-row node-navigation-hero-meta-row";
+  metaRow.append(kindBadge, pathNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
     datesPanel.classList.add("node-entry-overview-media-asset-dates");
+  }
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-hero-body node-entry-overview-media-asset-body";
+  body.append(headerRow, metaRow);
+
+  if (datesPanel.childElementCount > 0) {
+    body.appendChild(datesPanel);
   }
 
   const metaLineParts = [mediaItem.name];
@@ -36569,16 +36780,9 @@ function createEntryOverviewMediaAssetPanel(
   const metaLine = document.createElement("p");
   metaLine.className = "node-entry-overview-media-asset-meta-line";
   metaLine.textContent = metaLineParts.join(" · ");
-  identity.appendChild(metaLine);
+  body.appendChild(metaLine);
 
-  const body = document.createElement("div");
-  body.className = "node-navigation-hero-body node-entry-overview-media-asset-body";
-  body.appendChild(identity);
-  if (datesPanel.childElementCount > 0) {
-    body.appendChild(datesPanel);
-  }
-
-  main.append(toolbar, body);
+  main.append(body);
   panel.appendChild(main);
   appendNavigationHeroProps(panel, entries);
   return panel;
@@ -37382,20 +37586,45 @@ function resolveDialogAuthor() {
   return getStoredCommentAuthor() || "Вы";
 }
 
+function stripCommentAuthorDecorations(author) {
+  return String(author || "")
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+    .trim();
+}
+
+function isAgentCommentAuthor(author) {
+  const cleaned = stripCommentAuthorDecorations(author).toLowerCase();
+  return cleaned === "агент" || cleaned === "agent";
+}
+
 function getCommentAuthorInitials(author) {
-  const parts = String(author || "").trim().split(/[\s_.-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  const one = parts[0] || "?";
-  return one.slice(0, 2).toUpperCase();
+  const raw = String(author || "").trim();
+  if (!raw) return "?";
+  if (isAgentCommentAuthor(raw)) return "🤖";
+  const cleaned = stripCommentAuthorDecorations(raw);
+  const parts = cleaned.split(/[\s_.-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = [...parts[0]][0] || "?";
+    const second = [...parts[1]][0] || "?";
+    return `${first}${second}`.toUpperCase();
+  }
+  const chars = [...(parts[0] || "?")];
+  return chars.slice(0, 2).join("").toUpperCase();
 }
 
 function getCommentAvatarTone(author) {
-  const text = String(author || "");
+  if (isAgentCommentAuthor(author)) return "violet";
+  const text = stripCommentAuthorDecorations(author);
   let hash = 0;
   for (let index = 0; index < text.length; index += 1) {
     hash = (hash + text.charCodeAt(index) * (index + 1)) % COMMENT_AVATAR_TONES.length;
   }
   return COMMENT_AVATAR_TONES[hash] || "slate";
+}
+
+function formatCommentAuthorLabel(author) {
+  const cleaned = stripCommentAuthorDecorations(author);
+  return cleaned || String(author || "").trim() || "guest";
 }
 
 function buildFileCommentsApiParams(context) {
@@ -38535,35 +38764,9 @@ async function renderNodeThread() {
 
   const manifestPath = getActiveNodeApiPath();
   const threadContext = getActiveThreadRequestContext();
-  const nodeTitle = activeLabel || getLabelFromPath(activePath) || "тема";
   const isElementScope = Boolean(activeThreadScope?.file);
-  const scopeLabel = isElementScope
-    ? getLabelFromPath(activeThreadScope.file) || activeThreadScope.file
-    : null;
 
   nodeThreadContentNode.replaceChildren();
-
-  const head = document.createElement("div");
-  head.className = "node-thread-head";
-  const title = document.createElement("h3");
-  title.className = "node-thread-head-title";
-  title.textContent = isElementScope
-    ? `Диалог · ${scopeLabel}`
-    : `Диалог · ${nodeTitle}`;
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.className = "node-thread-refresh-btn";
-  refreshBtn.textContent = "Обновить";
-  refreshBtn.title = "Подтянуть новые ответы агента (live-обновление ~2.5 с)";
-
-  head.append(title, refreshBtn);
-
-  const hint = document.createElement("p");
-  hint.className = "node-thread-hint";
-  hint.textContent = isElementScope
-    ? `Диалог по файлу «${scopeLabel}» в теме «${nodeTitle}». Агент отвечает через MCP — лента обновляется автоматически.`
-    : "Запишите сообщение здесь — агент в Cursor прочитает и ответит через MCP. Лента обновляется автоматически.";
 
   if (isElementScope) {
     const scopeBar = document.createElement("div");
@@ -38580,16 +38783,15 @@ async function renderNodeThread() {
       void renderNodeThread();
     });
     scopeBar.append(scopeNote, backBtn);
-    nodeThreadContentNode.append(head, hint, scopeBar);
-  } else {
-    nodeThreadContentNode.append(head, hint);
+    nodeThreadContentNode.appendChild(scopeBar);
   }
 
   const section = document.createElement("section");
   section.className = "node-comments node-thread-panel";
+  section.setAttribute("aria-label", "Диалог");
 
   const composer = document.createElement("div");
-  composer.className = "node-comments-composer";
+  composer.className = "node-comments-composer node-thread-composer";
 
   const composerAvatar = createNodeCommentAvatar("Вы", "green");
 
@@ -38601,8 +38803,8 @@ async function renderNodeThread() {
 
   const composerField = document.createElement("textarea");
   composerField.className = "node-comments-input";
-  composerField.rows = 4;
-  composerField.placeholder = "Сообщение для агента…";
+  composerField.rows = 3;
+  composerField.placeholder = "Напишите агенту…";
   composerField.setAttribute("aria-label", "Новое сообщение в диалоге");
 
   const composerActions = document.createElement("div");
@@ -38610,7 +38812,7 @@ async function renderNodeThread() {
 
   const composerHint = document.createElement("span");
   composerHint.className = "node-comments-composer-hint";
-  composerHint.textContent = "Markdown · Ctrl/Cmd+Enter";
+  composerHint.textContent = "Markdown · Ctrl/Cmd+Enter · автообновление ~2.5 с";
 
   const composerSubmit = document.createElement("button");
   composerSubmit.type = "button";
@@ -38624,10 +38826,16 @@ async function renderNodeThread() {
   composer.append(composerAvatar, composerMain);
 
   const thread = document.createElement("ol");
-  thread.className = "node-comments-thread";
+  thread.className = "node-comments-thread node-thread-messages";
 
   section.append(thread, composer);
   nodeThreadContentNode.appendChild(section);
+
+  const scrollThreadToLatest = () => {
+    requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+    });
+  };
 
   const syncSubmitState = () => {
     composerSubmit.disabled = !String(composerField.value || "").trim();
@@ -38641,8 +38849,8 @@ async function renderNodeThread() {
     const items = Array.isArray(messages) ? messages : [];
     if (!items.length) {
       const empty = document.createElement("li");
-      empty.className = "node-comments-empty";
-      empty.textContent = "Диалог пуст — напишите первое сообщение.";
+      empty.className = "node-comments-empty node-thread-empty";
+      empty.textContent = "Пока нет сообщений — напишите первое ниже.";
       thread.appendChild(empty);
       return;
     }
@@ -38651,23 +38859,29 @@ async function renderNodeThread() {
       item.className = "node-comment node-thread-message";
       if (message.role === "agent") item.classList.add("node-thread-message--agent");
 
-      const avatarTone = message.role === "agent" ? "violet" : "green";
-      const avatarLabel = message.role === "agent" ? "AI" : (message.author || "Вы").slice(0, 2);
-      const avatar = createNodeCommentAvatar(avatarLabel, avatarTone);
+      const authorLabel =
+        message.role === "agent"
+          ? formatCommentAuthorLabel(message.author || "Агент")
+          : formatCommentAuthorLabel(message.author || "Вы");
+      const avatar = createNodeCommentAvatar(
+        message.role === "agent" ? "🤖" : getCommentAuthorInitials(message.author || "Вы"),
+        message.role === "agent" ? "violet" : "green"
+      );
 
-      const main = document.createElement("div");
+      const main = document.createElement("article");
       main.className = "node-comment-main";
 
-      const commentHead = document.createElement("div");
+      const commentHead = document.createElement("header");
       commentHead.className = "node-comment-head";
 
-      const author = document.createElement("span");
+      const author = document.createElement("strong");
       author.className = "node-comment-author";
-      author.textContent = message.role === "agent" ? (message.author || "Агент") : (message.author || "Вы");
+      author.textContent = authorLabel;
 
       const time = document.createElement("time");
       time.className = "node-comment-time";
       time.textContent = formatThreadMessageLabel(message);
+      time.dateTime = message.created || message.id || "";
 
       commentHead.append(author, time);
 
@@ -38678,7 +38892,7 @@ async function renderNodeThread() {
       main.append(commentHead, body);
 
       if (message.linkedFiles) {
-        const foot = document.createElement("div");
+        const foot = document.createElement("footer");
         foot.className = "node-comment-foot";
         for (const filePath of String(message.linkedFiles).split(",").map((s) => s.trim()).filter(Boolean)) {
           const linkBtn = document.createElement("button");
@@ -38697,6 +38911,7 @@ async function renderNodeThread() {
       item.append(avatar, main);
       thread.appendChild(item);
     }
+    scrollThreadToLatest();
   };
 
   const refreshThread = async () => {
@@ -38719,9 +38934,6 @@ async function renderNodeThread() {
     }
   };
 
-  refreshBtn.addEventListener("click", () => {
-    void refreshThread();
-  });
   nodeThreadRefreshOnFocus = () => {
     void refreshThread();
   };
@@ -38844,7 +39056,7 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 
   const author = document.createElement("strong");
   author.className = "node-comment-author";
-  author.textContent = comment.author || "guest";
+  author.textContent = formatCommentAuthorLabel(comment.author);
 
   const time = document.createElement("time");
   time.className = "node-comment-time";
@@ -39132,7 +39344,8 @@ async function createNodeCommentsBlock(options = {}) {
 
 function createNodeCommentAvatar(initials, tone = "slate") {
   const avatar = document.createElement("span");
-  avatar.className = `node-comment-avatar node-comment-avatar--${tone}`;
+  const isIcon = /\p{Extended_Pictographic}/u.test(String(initials || ""));
+  avatar.className = `node-comment-avatar node-comment-avatar--${tone}${isIcon ? " node-comment-avatar--icon" : ""}`;
   avatar.setAttribute("aria-hidden", "true");
   avatar.textContent = initials;
   return avatar;
@@ -49299,9 +49512,9 @@ async function revealWorkspacePath(relPath) {
   }
 }
 
-function renderAgentDashboardIntroStats(counts) {
-  if (!agentDashboardStatsNode) return;
-  agentDashboardStatsNode.innerHTML = "";
+function renderAgentDashboardIntroStats(counts, host = agentDashboardStatsNode) {
+  if (!host) return;
+  host.replaceChildren();
   const stats = [
     { value: String(counts.total), label: "Тем в workspace" },
     { value: String(counts.folders), label: "Контейнеров" },
@@ -49314,8 +49527,209 @@ function renderAgentDashboardIntroStats(counts) {
       <span class="agent-dashboard-stat-value">${escapeHtml(stat.value)}</span>
       <span class="agent-dashboard-stat-label">${escapeHtml(stat.label)}</span>
     `;
-    agentDashboardStatsNode.appendChild(card);
+    host.appendChild(card);
   }
+}
+
+function createHomeDashboardWidget(title, note = "") {
+  const widget = document.createElement("article");
+  widget.className = "home-dashboard-widget";
+
+  const head = document.createElement("div");
+  head.className = "home-dashboard-widget-head";
+
+  const titleNode = document.createElement("h4");
+  titleNode.className = "home-dashboard-widget-title";
+  titleNode.textContent = title;
+
+  head.appendChild(titleNode);
+  if (note) {
+    const noteNode = document.createElement("p");
+    noteNode.className = "home-dashboard-widget-note";
+    noteNode.textContent = note;
+    head.appendChild(noteNode);
+  }
+
+  const body = document.createElement("div");
+  body.className = "home-dashboard-widget-body";
+
+  widget.append(head, body);
+  return { widget, body };
+}
+
+function createHomeDashboardBarChart(counts) {
+  const rows = [
+    { label: "Листовые темы", value: counts.leaves || 0, tone: "blue" },
+    { label: "Контейнеры", value: counts.folders || 0, tone: "violet" },
+    { label: "Всего узлов", value: counts.total || 0, tone: "slate" }
+  ];
+  const max = Math.max(1, ...rows.map((row) => row.value));
+  const wrap = document.createElement("div");
+  wrap.className = "home-dashboard-bars";
+
+  for (const row of rows) {
+    const item = document.createElement("div");
+    item.className = "home-dashboard-bar-row";
+
+    const label = document.createElement("span");
+    label.className = "home-dashboard-bar-label";
+    label.textContent = row.label;
+
+    const track = document.createElement("div");
+    track.className = "home-dashboard-bar-track";
+    track.setAttribute("role", "presentation");
+
+    const fill = document.createElement("span");
+    fill.className = `home-dashboard-bar-fill home-dashboard-bar-fill--${row.tone}`;
+    fill.style.width = `${Math.max(8, Math.round((row.value / max) * 100))}%`;
+
+    const value = document.createElement("span");
+    value.className = "home-dashboard-bar-value";
+    value.textContent = String(row.value);
+
+    track.appendChild(fill);
+    item.append(label, track, value);
+    wrap.appendChild(item);
+  }
+
+  return wrap;
+}
+
+function createHomeDashboardDonutMock() {
+  const wrap = document.createElement("div");
+  wrap.className = "home-dashboard-donut-wrap";
+
+  const donut = document.createElement("div");
+  donut.className = "home-dashboard-donut";
+  donut.setAttribute("role", "img");
+  donut.setAttribute("aria-label", "Заглушка распределения активности");
+
+  const legend = document.createElement("ul");
+  legend.className = "home-dashboard-donut-legend";
+  for (const item of [
+    { label: "Редактирование", tone: "blue", value: "42%" },
+    { label: "Обзор", tone: "violet", value: "30%" },
+    { label: "Прочее", tone: "slate", value: "28%" }
+  ]) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="home-dashboard-legend-dot home-dashboard-legend-dot--${item.tone}"></span>${escapeHtml(item.label)} <span class="home-dashboard-legend-value">${escapeHtml(item.value)}</span>`;
+    legend.appendChild(li);
+  }
+
+  wrap.append(donut, legend);
+  return wrap;
+}
+
+function createHomeDashboardSparklineMock() {
+  const wrap = document.createElement("div");
+  wrap.className = "home-dashboard-sparkline-wrap";
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 240 72");
+  svg.setAttribute("class", "home-dashboard-sparkline");
+  svg.setAttribute("aria-hidden", "true");
+
+  const area = document.createElementNS(svgNS, "path");
+  area.setAttribute(
+    "d",
+    "M0 58 L24 52 L48 46 L72 49 L96 36 L120 28 L144 34 L168 22 L192 18 L216 24 L240 12 L240 72 L0 72 Z"
+  );
+  area.setAttribute("class", "home-dashboard-sparkline-area");
+
+  const line = document.createElementNS(svgNS, "path");
+  line.setAttribute(
+    "d",
+    "M0 58 L24 52 L48 46 L72 49 L96 36 L120 28 L144 34 L168 22 L192 18 L216 24 L240 12"
+  );
+  line.setAttribute("class", "home-dashboard-sparkline-line");
+
+  svg.append(area, line);
+
+  const caption = document.createElement("p");
+  caption.className = "home-dashboard-sparkline-caption";
+  caption.textContent = "Пример: заметки и правки по неделям — позже из history/thread.";
+
+  wrap.append(svg, caption);
+  return wrap;
+}
+
+function createHomeDashboardRoadmapList() {
+  const list = document.createElement("ul");
+  list.className = "home-dashboard-roadmap";
+  for (const item of [
+    "Burn-down TODO и inbox",
+    "Комментарии и упоминания @agent",
+    "Диалог с агентом — частота ответов",
+    "Медиа и вложения по темам"
+  ]) {
+    const li = document.createElement("li");
+    li.className = "home-dashboard-roadmap-item";
+    li.textContent = item;
+    list.appendChild(li);
+  }
+  return list;
+}
+
+function renderAgentDashboardIdeaSection(counts) {
+  if (!homeDashboardIdeaNode) return;
+  homeDashboardIdeaNode.replaceChildren();
+
+  const head = document.createElement("div");
+  head.className = "home-dashboard-idea-head";
+
+  const copy = document.createElement("div");
+  copy.className = "home-dashboard-idea-copy";
+
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "home-dashboard-idea-eyebrow";
+  eyebrow.textContent = "Идея · concept";
+
+  const title = document.createElement("h3");
+  title.className = "home-dashboard-idea-title";
+  title.textContent = "Дашборд workspace";
+
+  const lead = document.createElement("p");
+  lead.className = "home-dashboard-idea-lead";
+  lead.textContent =
+    "Заготовка виджетов — позже соберём из дерева тем, памяти, TODO и активности агента.";
+
+  copy.append(eyebrow, title, lead);
+
+  const badge = document.createElement("span");
+  badge.className = "home-dashboard-idea-badge";
+  badge.textContent = "mock data";
+
+  head.append(copy, badge);
+
+  const stats = document.createElement("div");
+  stats.className = "agent-dashboard-stats home-dashboard-idea-stats";
+  renderAgentDashboardIntroStats(counts, stats);
+
+  const grid = document.createElement("div");
+  grid.className = "home-dashboard-idea-grid";
+
+  const structureWidget = createHomeDashboardWidget("Структура", "из текущего дерева");
+  structureWidget.body.appendChild(createHomeDashboardBarChart(counts));
+  structureWidget.widget.classList.add("home-dashboard-widget--wide");
+
+  const activityWidget = createHomeDashboardWidget("Активность", "заглушка");
+  activityWidget.body.appendChild(createHomeDashboardDonutMock());
+
+  const growthWidget = createHomeDashboardWidget("Рост контекста", "заглушка");
+  growthWidget.body.appendChild(createHomeDashboardSparklineMock());
+
+  const roadmapWidget = createHomeDashboardWidget("В перспективе");
+  roadmapWidget.body.appendChild(createHomeDashboardRoadmapList());
+
+  grid.append(
+    structureWidget.widget,
+    activityWidget.widget,
+    growthWidget.widget,
+    roadmapWidget.widget
+  );
+
+  homeDashboardIdeaNode.append(head, stats, grid);
 }
 
 function renderAgentDashboardWorkspaceSection(counts) {
@@ -49446,7 +49860,7 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
 function renderAgentDashboardView() {
   const counts = countAgentMenuNodes(currentMenuData);
-  renderAgentDashboardIntroStats(counts);
+  renderAgentDashboardIdeaSection(counts);
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
     homeHintNode.textContent = AGENT_HOME_HINT_DEFAULT;
