@@ -1836,48 +1836,40 @@ async function buildIntakeBatchSummary(paths, options = {}) {
 }
 
 async function createInboxItem({ manifestRelPath, title, body, source, author }) {
-  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
-  if (!nodeAbsolute) throw new Error("Invalid file path");
-
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX, {
-    create: true
-  });
-  if (!folderAbsolute) throw new Error("Inbox folder unavailable");
-
   const { display, diskSlug } = resolveContentItemNames({ title: title || "Входящее", slug: title });
   const fileTitle = display || "Входящее";
   if (!diskSlug) throw new Error("Invalid file name");
-
-  const fileName = await resolveUniqueExternalFileName(folderAbsolute, diskSlug);
-  if (!fileName) throw new Error("Invalid file name");
-
-  const created = new Date().toISOString();
-  const frontmatterLines = [
-    "awn-status: new",
-    `awn-source: ${formatYamlScalar(source || "ui")}`,
-    `awn-created: ${created}`
-  ];
-  const itemAuthor = String(author || "").trim();
-  if (itemAuthor) frontmatterLines.push(`awn-author: ${formatYamlScalar(itemAuthor)}`);
-
   const textBody = sanitizeInboxIntakeBody(String(body || "").trim() || `# ${fileTitle}\n`);
-  const content = joinNodeFrontmatter(frontmatterLines.join("\n"), textBody);
+  const itemAuthor = String(author || "").trim();
 
-  const fileAbsolute = path.join(folderAbsolute, fileName);
-  await fs.writeFile(fileAbsolute, content, "utf-8");
+  const created = await createStorageRecordFile({
+    manifestRelPath,
+    storageFolder: STORAGE_SUBFOLDER_INBOX,
+    title: fileTitle,
+    slug: diskSlug,
+    body: textBody,
+    source: source || "ui",
+    author: itemAuthor,
+    status: "new"
+  });
 
-  const relPath = path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/");
-  const inboxDirRel = path.relative(getAgentRoot(), folderAbsolute).replace(/\\/g, "/");
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX);
+  const inboxDirRel = folderAbsolute
+    ? path.relative(getAgentRoot(), folderAbsolute).replace(/\\/g, "/")
+    : "";
 
   return {
-    path: relPath,
-    relPath: `${inboxDirRel}/${relPath}`.replace(/\\/g, "/"),
+    path: created.file,
+    relPath: inboxDirRel ? `${inboxDirRel}/${created.file}`.replace(/\\/g, "/") : created.file,
     status: "new",
     source: source || "ui",
     author: itemAuthor,
-    created,
+    created: new Date().toISOString(),
     preview: textBody.replace(/\s+/g, " ").trim().slice(0, 160),
-    body: textBody
+    body: textBody,
+    file: created.file,
+    content: created.content
   };
 }
 
@@ -2323,6 +2315,22 @@ function joinNodeFrontmatter(frontmatter, body) {
   if (!fm) return mdBody;
   if (!mdBody) return `---\n${fm}\n---\n`;
   return `---\n${fm}\n---\n\n${mdBody}`;
+}
+
+function mergeFrontmatterOverrides(baseFrontmatter, overrides = {}) {
+  const lines = String(baseFrontmatter || "")
+    .split("\n")
+    .filter((line) => line.trim());
+  const overrideKeys = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
+  const kept = lines.filter((line) => {
+    const key = line.split(":")[0]?.trim().toLowerCase();
+    return key && !overrideKeys.has(key);
+  });
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined || value === null) continue;
+    kept.push(`${key}: ${formatYamlScalar(value)}`);
+  }
+  return kept.join("\n");
 }
 
 async function readNodeManifestRaw(nodeAbsolute) {
@@ -3247,8 +3255,22 @@ async function buildStorageSectionReadmeContentForManifest(manifestRel, title, a
   return buildStorageSectionReadmeContent(safeTitle, awnType);
 }
 
-async function buildExternalRecordFileContentForManifest(manifestRel, title) {
-  const safeTitle = String(title || "Воспоминание").trim() || "Воспоминание";
+async function buildSlotContentFileContentForManifest(
+  manifestRel,
+  title,
+  slotKey,
+  contentKind = "record",
+  options = {}
+) {
+  const {
+    CONTENT_KIND_TYPE_NAMES,
+    resolveTopicSchemaTargetIdForAwnType
+  } = require("./public/topic-schema-slot-specs.js");
+  const safeTitle = String(title || "Запись").trim() || "Запись";
+  const awnType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+  const schemaTarget = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
+
+  let frontmatter = "";
   try {
     const configFile = await readNodeConfigFile(manifestRel);
     const payload = getTopicSchemaPayload(
@@ -3256,25 +3278,133 @@ async function buildExternalRecordFileContentForManifest(manifestRel, title) {
       getAgentRoot(),
       getProjectRoot()
     );
-    const mergedType = payload.merged.slot_memory || payload.merged.record;
+    const mergedType = schemaTarget ? payload.merged[schemaTarget] : null;
     if (mergedType?.fields && Object.keys(mergedType.fields).length) {
-      const frontmatter = buildDefaultFrontmatter("awn.content.record", {
+      frontmatter = buildDefaultFrontmatter(awnType, {
         name: safeTitle,
         agentRoot: getAgentRoot(),
         projectRoot: getProjectRoot(),
         typeDef: mergedType
       });
-      return `---\n${frontmatter}\n---\n\n# ${safeTitle}\n`;
     }
   } catch {
     // fallback below
   }
-  const frontmatter = buildDefaultFrontmatter("awn.content.record", {
-    name: safeTitle,
-    agentRoot: getAgentRoot(),
-    projectRoot: getProjectRoot()
-  });
-  return `---\n${frontmatter}\n---\n\n# ${safeTitle}\n`;
+  if (!frontmatter) {
+    frontmatter = buildDefaultFrontmatter(awnType, {
+      name: safeTitle,
+      agentRoot: getAgentRoot(),
+      projectRoot: getProjectRoot()
+    });
+  }
+  if (options.frontmatterOverrides && Object.keys(options.frontmatterOverrides).length) {
+    frontmatter = mergeFrontmatterOverrides(frontmatter, options.frontmatterOverrides);
+  }
+
+  let body = options.body;
+  if (body === undefined) {
+    if (contentKind === "category") {
+      body = "> Описание раздела.\n";
+    } else if (contentKind === "sidecar") {
+      body = "";
+    } else {
+      body = `# ${safeTitle}\n`;
+    }
+  }
+  return joinNodeFrontmatter(frontmatter, body);
+}
+
+async function buildExternalRecordFileContentForManifest(manifestRel, title) {
+  return buildSlotContentFileContentForManifest(manifestRel, title, "memory", "record");
+}
+
+async function createStorageRecordFile({
+  manifestRelPath,
+  storageFolder,
+  title,
+  slug,
+  parent = "",
+  body = "",
+  fileMask = "",
+  source = "",
+  author = "",
+  status = ""
+}) {
+  const canonicalFolder = normalizeStorageSubfolderName(storageFolder);
+  if (!canonicalFolder || !isAllowedStorageSubfolderName(canonicalFolder)) {
+    throw new Error("Invalid storage folder");
+  }
+
+  const slotKey = resolveSlotKeyFromStorageFolderName(canonicalFolder);
+  if (!slotKey) throw new Error("Storage folder does not support typed records");
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) throw new Error("Invalid file path");
+
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, canonicalFolder, { create: true });
+  if (!folderAbsolute) throw new Error("Storage folder unavailable");
+
+  const parentRaw = String(parent || "").trim().replace(/\\/g, "/");
+  const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+  if (!targetFolder) {
+    throw new Error(parentRaw ? "Parent section not found" : "Invalid storage folder path");
+  }
+
+  let fileName = null;
+  let fileTitle = String(title || "").trim() || "Запись";
+  const mask = String(fileMask || "").trim();
+
+  if (mask) {
+    fileName = await resolveExternalFileNameFromMask(targetFolder, mask, {
+      incrementRoot: folderAbsolute
+    });
+    if (!fileName) throw new Error("Invalid file mask");
+    fileTitle = String(title || "").trim() || displayNameFromMaskPath(fileName);
+    await ensureExternalRelativeParentDirs(targetFolder, fileName);
+  } else {
+    const { display, diskSlug } = resolveContentItemNames({ title: fileTitle, slug: slug || title });
+    fileTitle = display || fileTitle;
+    const resolvedSlug = diskSlug || slug;
+    if (!fileTitle) throw new Error("Title cannot be empty");
+    if (!resolvedSlug) throw new Error("Invalid slug");
+    fileName = await resolveUniqueExternalFileName(targetFolder, resolvedSlug);
+    if (!fileName) throw new Error("Invalid file name");
+  }
+
+  const textBody = String(body || "").trim();
+  const frontmatterOverrides =
+    slotKey === "inbox"
+      ? {
+          "awn-status": String(status || "new").trim() || "new",
+          "awn-source": String(source || "mcp").trim() || "mcp",
+          ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
+        }
+      : null;
+
+  const content = await buildSlotContentFileContentForManifest(
+    manifestRelPath,
+    fileTitle,
+    slotKey,
+    "record",
+    {
+      body: textBody || undefined,
+      frontmatterOverrides
+    }
+  );
+
+  const fileAbsolute = joinFolderRelativePath(targetFolder, fileName);
+  if (!fileAbsolute) throw new Error("Invalid file path");
+  await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
+  await fs.writeFile(fileAbsolute, content, "utf-8");
+
+  const relFile = path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/");
+  return {
+    folder: canonicalFolder,
+    file: relFile,
+    content,
+    exists: true,
+    slotKey
+  };
 }
 
 async function writeStorageSectionReadme(
@@ -10966,6 +11096,8 @@ async function handleApiForAgent(req, res, url) {
         storageFolder !== STORAGE_SUBFOLDER_SCRIPTS &&
         storageFolder !== STORAGE_SUBFOLDER_INBOX &&
         storageFolder !== STORAGE_SUBFOLDER_QUICK_NOTES &&
+        storageFolder !== STORAGE_SUBFOLDER_NOTE &&
+        storageFolder !== STORAGE_SUBFOLDER_REFERENCES &&
         storageFolder !== STORAGE_SUBFOLDER_ARTEFACTS
       ) {
         return sendJson(res, 400, { error: "Sections are not supported for this folder" });
@@ -11341,6 +11473,38 @@ async function handleApiForAgent(req, res, url) {
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save storage file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/file/create") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const storageFolder = String(payload.folder || "").trim();
+      const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display || String(payload.title || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
+      if (!title && !payload.fileMask) return sendJson(res, 400, { error: "Title cannot be empty" });
+
+      const result = await createStorageRecordFile({
+        manifestRelPath: relPath,
+        storageFolder,
+        title,
+        slug: diskSlug || payload.slug,
+        parent: payload.parent,
+        body: payload.body,
+        fileMask: payload.fileMask || payload.mask,
+        source: payload.source,
+        author: payload.author,
+        status: payload.status
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to create storage record",
+        details: String(error.message || error)
+      });
     }
   }
 

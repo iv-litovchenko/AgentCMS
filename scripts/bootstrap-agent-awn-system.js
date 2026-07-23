@@ -221,6 +221,9 @@ fields:
   awn-runtime-cron:
     type: awn.boolean
     name: Cron
+  awn-runtime-cron-schedule:
+    type: awn.string
+    name: Расписание cron
   awn-runtime-heartbeat:
     type: awn.boolean
     name: Heartbeat

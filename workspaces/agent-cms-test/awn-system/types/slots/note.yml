@@ -6,7 +6,7 @@ status: active
 extends: awn.slot
 storage-driver: external
 description: Заметки топика
-path: note/
+path: notes/
 slot-order: 5
 allowed-content:
   - awn.content.record

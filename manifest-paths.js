@@ -83,7 +83,8 @@ const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MAIN;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
-const STORAGE_SUBFOLDER_NOTE = "note";
+const STORAGE_SUBFOLDER_NOTE = "notes";
+const LEGACY_STORAGE_SUBFOLDER_NOTE = "note";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
@@ -312,6 +313,9 @@ function normalizeStorageSubfolderName(name) {
   if (raw === LEGACY_STORAGE_SUBFOLDER_CONTENT || raw.toLowerCase() === LEGACY_STORAGE_SUBFOLDER_CONTENT) {
     return STORAGE_SUBFOLDER_MAIN;
   }
+  if (raw === LEGACY_STORAGE_SUBFOLDER_NOTE || raw.toLowerCase() === LEGACY_STORAGE_SUBFOLDER_NOTE) {
+    return STORAGE_SUBFOLDER_NOTE;
+  }
   for (const canonical of STORAGE_SLOT_LAYER_FOLDERS) {
     if (raw === canonical || raw.toLowerCase() === canonical.toLowerCase()) return canonical;
   }
@@ -327,6 +331,9 @@ function listStorageSubfolderNameCandidates(folderName) {
   if (!canonical) return [];
   if (canonical === STORAGE_SUBFOLDER_MAIN) {
     return [STORAGE_SUBFOLDER_MAIN, LEGACY_STORAGE_SUBFOLDER_MEMORY, LEGACY_STORAGE_SUBFOLDER_CONTENT];
+  }
+  if (canonical === STORAGE_SUBFOLDER_NOTE) {
+    return [STORAGE_SUBFOLDER_NOTE, LEGACY_STORAGE_SUBFOLDER_NOTE];
   }
   return [canonical];
 }

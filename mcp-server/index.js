@@ -14,7 +14,7 @@ const extFile = z.string().min(1).describe("File name under awn-storage/main/ or
 const storageSlotFolder = z
   .string()
   .min(1)
-  .describe("Storage slot folder: scripts, artefacts, repository, references, assets, temp, main, configuration");
+  .describe("Storage slot folder: scripts, artefacts, repository, references, notes, assets, temp, main, configuration");
 const storageSlotFile = z
   .string()
   .min(1)
@@ -384,9 +384,64 @@ function createServer() {
 
   reg(
     "write_storage_file",
-    "Write text file to storage slot (scripts/, artefacts/, repository/, references/, assets/, temp/, main/ non-md).",
+    "Write raw text file to storage slot (scripts, repository, exports). For typed .md records use create_storage_record.",
     z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
     ({ path, folder, file, content }) => client.post("/api/storage/file", { path, folder, file, content })
+  );
+
+  reg(
+    "create_storage_record",
+    "Create typed .md record in storage slot (inbox/, notes/, references/, artefacts/, scripts/). Frontmatter: awn-type awn.content.record + slot schema defaults.",
+    z.object({
+      path: nodePath,
+      folder: storageSlotFolder,
+      title: z.string().optional(),
+      displayName: z.string().optional(),
+      slug: z.string().optional(),
+      parent: z.string().optional(),
+      body: z.string().optional(),
+      fileMask: z.string().optional(),
+      source: z.string().optional(),
+      author: z.string().optional(),
+      status: z.string().optional()
+    }),
+    ({ path, folder, title, displayName, slug, parent, body, fileMask, source, author, status }) =>
+      client.post("/api/storage/file/create", {
+        path,
+        folder,
+        title: title || displayName,
+        displayName: displayName || title,
+        slug,
+        parent,
+        body,
+        fileMask,
+        mask: fileMask,
+        source,
+        author,
+        status
+      })
+  );
+
+  reg(
+    "create_storage_section",
+    "Create typed section folder (manifest.md with awn.content.record.category) in inbox/, notes/, references/, artefacts/, scripts/.",
+    z.object({
+      path: nodePath,
+      folder: storageSlotFolder,
+      title: z.string().min(1),
+      displayName: z.string().optional(),
+      slug: z.string().optional(),
+      parent: z.string().optional()
+    }),
+    ({ path, folder, title, displayName, slug, parent }) =>
+      client.post("/api/storage/section/create", {
+        path,
+        folder,
+        title,
+        displayName: displayName || title,
+        slug,
+        parent
+      })
   );
 
   reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: nodePath }), ({ path }) =>

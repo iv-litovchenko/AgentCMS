@@ -18,6 +18,11 @@ fields:
     type: awn.field.boolean
     name: Cron
     group: runtime
+  awn-runtime-cron-schedule:
+    type: awn.field.string
+    name: Расписание cron
+    group: runtime
+    description: Шаблон, быстрый выбор времени или своё cron-выражение (5 полей)
   awn-runtime-heartbeat:
     type: awn.field.boolean
     name: Heartbeat

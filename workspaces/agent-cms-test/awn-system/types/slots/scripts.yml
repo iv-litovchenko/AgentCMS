@@ -7,7 +7,7 @@ extends: awn.slot
 storage-driver: external
 description: Скрипты и автоматизация
 path: scripts/
-slot-order: 10
+slot-order: 11
 allowed-content:
   - awn.content.record
   - awn.content.record.category

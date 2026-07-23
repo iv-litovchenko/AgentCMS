@@ -19,7 +19,7 @@ bindings:
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
     files: [".md", ".txt"]
   note:
-    path: note/
+    path: notes/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
     files: [".md"]
   references:

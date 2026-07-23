@@ -7,7 +7,7 @@ extends: awn.slot
 storage-driver: internal
 description: Список задач топика — todo.md
 path: todo.md
-slot-order: 11
+slot-order: 12
 allowed-content:
   - awn.content.record
   - awn.content.record.category

@@ -58,6 +58,7 @@ const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
 const sidebarFocusNode = document.getElementById("sidebar-focus");
 const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
+const sidebarFocusCountNode = document.getElementById("sidebar-focus-count");
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn");
@@ -3392,11 +3393,14 @@ function createFocusItem(focusItem, variant = "landing") {
   const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
 
   if (variant === "sidebar") {
+    const row = document.createElement("div");
+    row.className = "agent-focus-chip-row";
+    row.setAttribute("role", "listitem");
+    if (nodePath) row.dataset.focusPath = nodePath;
+
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "agent-focus-chip";
-    chip.setAttribute("role", "listitem");
-    if (nodePath) chip.dataset.focusPath = nodePath;
     if (isFocusItemActive(focusItem)) {
       chip.classList.add("is-active");
       chip.setAttribute("aria-current", "page");
@@ -3414,7 +3418,21 @@ function createFocusItem(focusItem, variant = "landing") {
     chip.addEventListener("click", () => {
       void openFocusItem(focusItem);
     });
-    return chip;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "agent-focus-chip-remove";
+    removeBtn.title = "Убрать из фокуса";
+    removeBtn.setAttribute("aria-label", `Убрать ${label} из фокуса`);
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void removeNodeFromFocus(focusItem);
+    });
+
+    row.append(chip, removeBtn);
+    return row;
   }
 
   const item = document.createElement("article");
@@ -3735,8 +3753,32 @@ function renderLandingFocusTable(items) {
   }
 }
 
+function renderSidebarFocusPanel(panelNode, listNode, items) {
+  if (!panelNode || !listNode) return;
+  listNode.replaceChildren();
+  if (!activeAgentId) {
+    panelNode.classList.add("hidden");
+    return;
+  }
+  panelNode.classList.remove("hidden");
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "agent-focus-empty";
+    empty.textContent = "Нет записей с awn-main: true — отметьте тему в свойствах (⭐ Фокус).";
+    listNode.appendChild(empty);
+    return;
+  }
+  for (const focusItem of items) {
+    listNode.appendChild(createFocusItem(focusItem, "sidebar"));
+  }
+}
+
 function renderFocusPanel(panelNode, listNode, items, variant) {
   if (!panelNode || !listNode) return;
+  if (variant === "sidebar") {
+    renderSidebarFocusPanel(panelNode, listNode, items);
+    return;
+  }
   listNode.replaceChildren();
   if (!items.length) {
     panelNode.classList.add("hidden");
@@ -3765,8 +3807,14 @@ function renderGlobalFocusPanel() {
 }
 
 function renderAgentFocusPanels() {
+  const count = agentFocusItemsCache.length;
+  if (sidebarFocusCountNode) {
+    sidebarFocusCountNode.textContent = String(count);
+    sidebarFocusCountNode.classList.toggle("hidden", !activeAgentId);
+  }
   renderFocusPanel(homeFocusNode, homeFocusListNode, agentFocusItemsCache, "home");
   renderFocusPanel(sidebarFocusNode, sidebarFocusListNode, agentFocusItemsCache, "sidebar");
+  updateNodeOverviewHeroActionStates();
 }
 
 async function loadGlobalFocusItems() {
@@ -5890,7 +5938,7 @@ async function switchActiveAgent(nextAgentId) {
     if (isAgentWorkspaceCanvasVisible()) {
       applyAgentWorkspaceCanvasUi();
     }
-    void loadAgentFocusItems(activeAgentId);
+    await loadAgentFocusItems(activeAgentId);
     updateDocumentTitle();
     updateBreadcrumbsForActiveMode();
   } finally {
@@ -7558,15 +7606,6 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
-    key: "scripts",
-    label: "Скрипты",
-    icon: "📜",
-    modes: new Set(["scripts"]),
-    defaultMode: "scripts",
-    sectionKind: "flat",
-    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
-  },
-  {
     key: "artefacts",
     label: "Артефакты",
     icon: "📦",
@@ -7599,6 +7638,15 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "📚",
     modes: new Set(["repository"]),
     defaultMode: "repository",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+  },
+  {
+    key: "scripts",
+    label: "Скрипты",
+    icon: "📜",
+    modes: new Set(["scripts"]),
+    defaultMode: "scripts",
     sectionKind: "flat",
     treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
@@ -8235,7 +8283,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   const namesByKey = {
     memory: ["main", "content", "memory"],
     inbox: ["inbox"],
-    note: ["note", "quick-notes"],
+    note: ["notes", "note", "quick-notes"],
     references: ["references"],
     artefacts: ["artefacts"],
     assets: ["assets"],
@@ -10063,6 +10111,81 @@ function upsertAwnNameInPropsYaml(content, nextAwnName) {
   return stringifyPropsYaml(entries);
 }
 
+function upsertAwnMainInPropsYaml(content, nextAwnMain) {
+  const entries = parsePropsYaml(content || "");
+  const normalizedKey = "awn-main";
+  const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
+  const nextEntry = { key: normalizedKey, kind: "bool", value: Boolean(nextAwnMain) };
+  if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
+  else entries.push(nextEntry);
+  return stringifyPropsYaml(entries);
+}
+
+async function setNodeFocusState(nodePath, enabled, options = {}) {
+  const { agentId = activeAgentId, confirmRemove = true } = options;
+  const nodePathRaw = String(nodePath || "").trim();
+  const label = getLabelFromPath(nodePathRaw) || nodePathRaw;
+  const agentIdResolved = agentId || activeAgentId;
+
+  if (!enabled && confirmRemove) {
+    const confirmed = await askConfirm(
+      `Убрать «${label}» из фокуса? Запись останется в workspace, но пропадёт из списка быстрого навигатора.`,
+      { okLabel: "Убрать" }
+    );
+    if (!confirmed) return false;
+  }
+
+  const apiPath = getResolvedNodePath(nodePathRaw);
+  if (!apiPath || !canShowNodeOverviewPinActions(nodePathRaw)) {
+    showToast("Фокус доступен только для markdown-записей", "error");
+    return false;
+  }
+
+  try {
+    const getResponse = await fetch(buildApiUrl("/api/file/properties", { path: apiPath }, agentIdResolved));
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const stampedContent = upsertAwnMainInPropsYaml(current.content || "", enabled);
+
+    const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, agentIdResolved), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, content: stampedContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      const reason = errorData.error || `Request failed with ${saveResponse.status}`;
+      const details = errorData.details ? `: ${errorData.details}` : "";
+      throw new Error(`${reason}${details}`);
+    }
+
+    await refreshAllFocusPanels();
+    updateNodeOverviewHeroActionStates();
+    showToast(
+      enabled ? `«${label}» добавлено в фокус` : `«${label}» убрано из фокуса`,
+      "success"
+    );
+    return true;
+  } catch (error) {
+    showToast(error?.message || "Не удалось изменить фокус", "error");
+    return false;
+  }
+}
+
+async function toggleNodeFocus(nodePath, propEntries = null) {
+  const inFocus = isNodeInFocus(nodePath, propEntries);
+  return setNodeFocusState(nodePath, !inFocus, { confirmRemove: true });
+}
+
+async function removeNodeFromFocus(focusItem) {
+  const nodePath = String(focusItem?.nodePath || "").trim();
+  const agentId = focusItem?.agentId || activeAgentId;
+  await setNodeFocusState(nodePath, false, { agentId, confirmRemove: true });
+}
+
 async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
   const apiPath = getResolvedNodePath(nodePath);
   if (!apiPath) return;
@@ -11389,6 +11512,7 @@ function toggleBookmark(nodePath) {
     updateActiveButton();
   } else {
     updateBookmarkButtonStates();
+    updateNodeOverviewHeroActionStates();
   }
 }
 
@@ -14430,7 +14554,7 @@ const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
-const STORAGE_SUBFOLDER_NOTE = "note";
+const STORAGE_SUBFOLDER_NOTE = "notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
@@ -27764,6 +27888,8 @@ function renderPropsForm() {
     appendPropsFieldGroup({ id: gid, name: null }, items, { collapsible: false });
   }
 
+  syncRuntimePropsFormVisibility();
+
   if (customEntries.length) {
     appendPropsFieldGroup(
       { id: "__custom", name: "Ещё", collapsed: true },
@@ -30640,14 +30766,42 @@ function readPropsFormValueFromControl(valueWrap) {
   return control?.value ?? "";
 }
 
+function syncRuntimePropsFormVisibility() {
+  if (!propsFormFieldsNode) return;
+  const cronRow = propsFormFieldsNode.querySelector('[data-prop-key="awn-runtime-cron"]');
+  const scheduleRow = propsFormFieldsNode.querySelector('[data-prop-key="awn-runtime-cron-schedule"]');
+  if (!scheduleRow) return;
+
+  const cronWrap = cronRow?.querySelector('.props-form-value-wrap[data-field="value"]');
+  const cronEnabled = cronWrap ? readPropsFormValueFromControl(cronWrap) === "true" : false;
+  scheduleRow.classList.toggle("hidden", !cronEnabled);
+
+  const checkbox = cronWrap?.querySelector('input[type="checkbox"]');
+  if (checkbox && checkbox.dataset.runtimeBound !== "1") {
+    checkbox.dataset.runtimeBound = "1";
+    checkbox.addEventListener("change", () => {
+      syncRuntimePropsFormVisibility();
+    });
+  }
+}
+
 function createPropsFormFieldRow(entry, index) {
   const meta = getPropsFieldMeta(entry.key);
-  const isPreviewField = normalizePropsKey(entry.key) === "awn-preview";
-  const isAttachmentsField = normalizePropsKey(entry.key) === "awn-attachments";
+  const normalizedKey = normalizePropsKey(entry.key);
+  const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
+  const isPreviewField = normalizedKey === "awn-preview";
+  const isAttachmentsField = normalizedKey === "awn-attachments";
+  const isWideRuntimeField =
+    fieldWidget === "cron-schedule" ||
+    normalizedKey === "awn-runtime-load" ||
+    normalizedKey === "awn-runtime-cron-schedule";
   const row = document.createElement("div");
-  row.className = "props-form-row props-form-field props-form-field--compact";
+  row.className = isWideRuntimeField
+    ? "props-form-row props-form-field props-form-field--wide"
+    : "props-form-row props-form-field props-form-field--compact";
   if (isPreviewField) row.classList.add("props-form-field--preview");
   if (isAttachmentsField) row.classList.add("props-form-field--attachments");
+  if (normalizedKey === "awn-runtime-cron-schedule") row.classList.add("props-form-field--cron-schedule");
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
@@ -31961,6 +32115,18 @@ function createOverviewEditManifestIcon() {
   );
 }
 
+function createOverviewBookmarkIcon() {
+  return createOverviewActionIcon(
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+  );
+}
+
+function createOverviewFocusIcon() {
+  return createOverviewActionIcon(
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>'
+  );
+}
+
 function createNodeOverviewEditButton(onClick, label = "Редактировать") {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -31970,6 +32136,110 @@ function createNodeOverviewEditButton(onClick, label = "Редактироват
     void onClick();
   });
   return btn;
+}
+
+function canShowNodeOverviewPinActions(nodePath) {
+  const apiPath = String(getResolvedNodePath(nodePath) || nodePath || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!apiPath) return false;
+  const lower = apiPath.toLowerCase();
+  if (!lower.endsWith(".md") || lower.endsWith(".mdback")) return false;
+  if (isPartNodePath(apiPath)) return false;
+  return true;
+}
+
+function isNodeInFocusFromProps(propEntries) {
+  if (!Array.isArray(propEntries)) return false;
+  const entry = propEntries.find((item) => normalizePropsKey(item.key) === "awn-main");
+  return entry?.kind === "bool" ? Boolean(entry.value) : false;
+}
+
+function isNodeInFocusCache(nodePath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
+  if (!normalized) return false;
+  return agentFocusItemsCache.some(
+    (item) => normalizeMenuNodePath(item.nodePath || "") === normalized
+  );
+}
+
+function isNodeInFocus(nodePath, propEntries = null) {
+  return isNodeInFocusCache(nodePath) || isNodeInFocusFromProps(propEntries);
+}
+
+function syncNodeOverviewBookmarkButton(btn, nodePath) {
+  const on = isBookmarked(nodePath);
+  btn.classList.toggle("is-active", on);
+  const label = btn.querySelector(".node-overview-action-btn-label");
+  if (label) label.textContent = on ? "В избранном" : "В избранное";
+  btn.title = on ? "Убрать из избранного" : "Добавить в избранное";
+}
+
+function syncNodeOverviewFocusButton(btn, nodePath, propEntries = null) {
+  const on = isNodeInFocus(nodePath, propEntries);
+  btn.classList.toggle("is-active", on);
+  const label = btn.querySelector(".node-overview-action-btn-label");
+  if (label) label.textContent = on ? "В фокусе" : "В фокус";
+  btn.title = on ? "Убрать из фокуса" : "Добавить в фокус";
+}
+
+function updateNodeOverviewHeroActionStates() {
+  const root = appRootNode || document;
+  for (const btn of root.querySelectorAll(".node-overview-bookmark-btn")) {
+    syncNodeOverviewBookmarkButton(btn, btn.dataset.path || "");
+  }
+  for (const btn of root.querySelectorAll(".node-overview-focus-btn")) {
+    syncNodeOverviewFocusButton(btn, btn.dataset.path || "", null);
+  }
+}
+
+function createNodeOverviewBookmarkButton(nodePath) {
+  const canonicalPath = normalizeMenuNodePath(nodePath);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-overview-action-btn node-overview-bookmark-btn";
+  btn.dataset.path = canonicalPath;
+  const label = document.createElement("span");
+  label.className = "node-overview-action-btn-label";
+  btn.append(createOverviewBookmarkIcon(), label);
+  syncNodeOverviewBookmarkButton(btn, canonicalPath);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleBookmark(canonicalPath);
+  });
+  return btn;
+}
+
+function createNodeOverviewFocusButton(nodePath, propEntries = null) {
+  const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-overview-action-btn node-overview-focus-btn";
+  btn.dataset.path = resolvedPath;
+  const label = document.createElement("span");
+  label.className = "node-overview-action-btn-label";
+  btn.append(createOverviewFocusIcon(), label);
+  syncNodeOverviewFocusButton(btn, nodePath, propEntries);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void toggleNodeFocus(nodePath, propEntries);
+  });
+  return btn;
+}
+
+function createNodeOverviewHeroActions(nodePath, options = {}) {
+  const actions = document.createElement("div");
+  actions.className = "node-navigation-hero-actions";
+  if (canShowNodeOverviewPinActions(nodePath)) {
+    actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
+    actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
+  }
+  if (options.onEditClick) {
+    actions.appendChild(createNodeOverviewEditButton(options.onEditClick, options.editLabel));
+  }
+  return actions;
 }
 
 async function openEntryOverviewEdit(context) {
@@ -32430,11 +32700,6 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 
   identity.append(titleRow, pathNode);
 
-  const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
-  if (datesPanel.childElementCount > 0) {
-    identity.appendChild(datesPanel);
-  }
-
   if (options.typeLabel) {
     const typeNode = document.createElement("span");
     typeNode.className = `node-entry-overview-kind${
@@ -32444,13 +32709,26 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     identity.appendChild(typeNode);
   }
 
-  const actions = document.createElement("div");
-  actions.className = "node-navigation-hero-actions";
-  if (options.onEditClick) {
-    actions.appendChild(createNodeOverviewEditButton(options.onEditClick, options.editLabel));
+  const actions = createNodeOverviewHeroActions(nodePath, {
+    propEntries: options.propEntries || null,
+    onEditClick: options.onEditClick,
+    editLabel: options.editLabel
+  });
+
+  const head = document.createElement("div");
+  head.className = "node-navigation-hero-head";
+  head.append(identity, actions);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-hero-body";
+  body.appendChild(head);
+
+  const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
+  if (datesPanel.childElementCount > 0) {
+    body.appendChild(datesPanel);
   }
 
-  main.append(thumbWrap, identity, actions);
+  main.append(thumbWrap, body);
   const heroNav = createEntryOverviewSiblingNav({ ...(options.entryOverviewNav || {}), variant: "hero" });
   if (heroNav) hero.appendChild(heroNav);
   hero.appendChild(main);
@@ -36283,7 +36561,6 @@ function createEntryOverviewMediaAssetPanel(
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
     datesPanel.classList.add("node-entry-overview-media-asset-dates");
-    identity.appendChild(datesPanel);
   }
 
   const metaLineParts = [mediaItem.name];
@@ -36294,7 +36571,14 @@ function createEntryOverviewMediaAssetPanel(
   metaLine.textContent = metaLineParts.join(" · ");
   identity.appendChild(metaLine);
 
-  main.append(toolbar, identity);
+  const body = document.createElement("div");
+  body.className = "node-navigation-hero-body node-entry-overview-media-asset-body";
+  body.appendChild(identity);
+  if (datesPanel.childElementCount > 0) {
+    body.appendChild(datesPanel);
+  }
+
+  main.append(toolbar, body);
   panel.appendChild(main);
   appendNavigationHeroProps(panel, entries);
   return panel;
@@ -52680,6 +52964,10 @@ async function init() {
       await applyAppRouteFromUrl();
     } finally {
       resumeAppRouteSync();
+    }
+
+    if (activeAgentId) {
+      await loadAgentFocusItems(activeAgentId);
     }
 
     syncAppRouteToUrl({ replace: true });

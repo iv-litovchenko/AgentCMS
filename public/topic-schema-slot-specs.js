@@ -157,7 +157,7 @@
       {
         slotKey: "scripts",
         label: "Скрипты",
-        tabGroup: "workspace",
+        tabGroup: "files",
         defaultKind: "record",
         targets: {
           record: { id: "slot_scripts" },
