@@ -6,5 +6,8 @@ status: active
 extends: awn.slot
 description: ""
 path: my-slot/
-allowed-content: [awn.content.record]
+allowed-content:
+  - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files: [".md"]

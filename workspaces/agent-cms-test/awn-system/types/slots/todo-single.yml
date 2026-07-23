@@ -1,17 +1,16 @@
-id: awn.slot.inbox
-name: Входящие
+id: awn.slot.todo-single
+name: TODO
 kind: slot
 domain: slots
 status: active
 extends: awn.slot
-storage-driver: external
-description: Входящие заметки и черновики
-path: inbox/
-slot-order: 4
+storage-driver: internal
+description: Список задач топика — todo.md
+path: todo.md
+slot-order: 11
 allowed-content:
   - awn.content.record
   - awn.content.record.category
   - awn.content.sidecar
 accept-files:
   - ".md"
-  - ".txt"

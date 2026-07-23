@@ -1,5 +1,5 @@
 id: awn.slot.repository
-name: Repository
+name: Репозитории
 kind: slot
 domain: slots
 status: active
@@ -7,7 +7,10 @@ extends: awn.slot
 storage-driver: external
 description: Файловый репозиторий топика
 path: repository/
+slot-order: 8
 allowed-content:
-  - awn.file
+  - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - "*"

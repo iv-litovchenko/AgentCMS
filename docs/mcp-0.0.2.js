@@ -108,6 +108,18 @@ module.exports = {
           http: "GET /api/agent/workspace-table"
         },
         {
+          name: "get_canonical_model",
+          description: "Канон v1: page types (ws/area/topic), slot content (record/record.category/sidecar), bindings.",
+          parameters: "—",
+          http: "GET /api/agent/canonical-model"
+        },
+        {
+          name: "get_site_map",
+          description: "Карта сайта — все области и темы с manifest paths и awn-type.",
+          parameters: "—",
+          http: "GET /api/agent/site-map"
+        },
+        {
           name: "get_node_meta",
           description: "Метаданные ноды: слои storage, preview, manifest.",
           parameters: "path",

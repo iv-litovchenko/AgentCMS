@@ -7,7 +7,9 @@ extends: awn.slot
 storage-driver: external
 path: comments/
 allowed-content:
-  - awn.content.comment
+  - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"
 description: Комментарии к узлам

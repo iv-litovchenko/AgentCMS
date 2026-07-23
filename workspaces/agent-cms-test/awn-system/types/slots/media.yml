@@ -1,5 +1,5 @@
 id: awn.slot.media
-name: Media
+name: Медиа
 kind: slot
 domain: slots
 status: active
@@ -7,9 +7,11 @@ extends: awn.slot
 storage-driver: external
 description: Медиа-файлы и sidecar
 path: media/
+slot-order: 8
 allowed-content:
+  - awn.content.record
+  - awn.content.record.category
   - awn.content.sidecar
-  - awn.content.media.category
 accept-files:
   - ".png"
   - ".jpg"

@@ -618,6 +618,22 @@ module.exports = {
         },
         {
           method: "GET",
+          path: "/api/agent/canonical-model",
+          description: "Канон v1: page types (ws/area/topic), slot content types (record/record.category/sidecar), slot bindings.",
+          query: [],
+          body: null,
+          response: "{ version, model, pageTypes[], slotContentTypes[], rules, slotTypes[], slotBindings[] }"
+        },
+        {
+          method: "GET",
+          path: "/api/agent/site-map",
+          description: "Карта сайта — все области и темы с manifest paths, awn-type и иерархией.",
+          query: [],
+          body: null,
+          response: "{ version, model, canonicalModel, workspace, areas[], topics[], topicCount, areaCount }"
+        },
+        {
+          method: "GET",
           path: "/api/agent/session-context",
           description: "Стартовый пакет для агента: serviceDocs (agent, user, agent.voice.tts, agent.voice.stt), session-start темы, AGENTS.md, карта API.",
           query: [],

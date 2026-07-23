@@ -83,6 +83,20 @@ function createServer() {
   );
 
   reg(
+    "get_canonical_model",
+    "Canonical CMS model v1: page types (ws/area/topic), slot content types (record/record.category/sidecar), slot bindings.",
+    z.object({}),
+    () => client.get("/api/agent/canonical-model")
+  );
+
+  reg(
+    "get_site_map",
+    "Site map — all areas and topics with manifest paths and awn-type.",
+    z.object({}),
+    () => client.get("/api/agent/site-map")
+  );
+
+  reg(
     "get_node_meta",
     "Node metadata: paths, storage layers, preview, manifest info.",
     z.object({ path: nodePath }),

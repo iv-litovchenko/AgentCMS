@@ -66,7 +66,10 @@ const TYPE_ID_ALIASES = {
   "awn.array": "awn.field.array",
   "awn.array-checkbox": "awn.field.array",
   "awn.array-select-multiple": "awn.field.array",
-  "awn.null": "awn.field.base"
+  "awn.null": "awn.field.base",
+  // Slot aliases
+  "awn.slot.scripts": "awn.slot.script",
+  "awn.slot.todo": "awn.slot.todo-single"
 };
 
 function listTypeFiles(typesDir) {

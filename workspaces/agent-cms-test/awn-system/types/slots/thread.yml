@@ -8,6 +8,8 @@ storage-driver: external
 description: Цепочка сообщений
 path: thread/
 allowed-content:
-  - awn.content.dialog
+  - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"

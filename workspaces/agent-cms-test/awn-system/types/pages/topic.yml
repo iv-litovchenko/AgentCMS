@@ -7,11 +7,15 @@ extends: awn.page.base
 description: Тема — manifest.md + слоты памяти
 storage-slots:
   - main
-  - media
+  - main-single
+  - main-single-csv
   - inbox
-  - thread
+  - note
   - references
-  - scripts
   - artefacts
+  - assets
+  - media
   - repository
+  - scripts
+  - todo-single
 manifest-pattern: "{slug}/manifest.md"

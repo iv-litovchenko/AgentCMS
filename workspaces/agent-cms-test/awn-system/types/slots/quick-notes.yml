@@ -8,6 +8,8 @@ storage-driver: external
 path: quick-notes/
 allowed-content:
   - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"
 description: Быстрые заметки

@@ -1,5 +1,5 @@
 id: awn.slot.references
-name: References
+name: Источники
 kind: slot
 domain: slots
 status: active
@@ -7,7 +7,10 @@ extends: awn.slot
 storage-driver: external
 description: Ссылки и источники
 path: references/
+slot-order: 6
 allowed-content:
   - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"

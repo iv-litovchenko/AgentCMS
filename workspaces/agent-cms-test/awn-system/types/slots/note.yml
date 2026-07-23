@@ -1,17 +1,16 @@
-id: awn.slot.inbox
-name: Входящие
+id: awn.slot.note
+name: Заметки
 kind: slot
 domain: slots
 status: active
 extends: awn.slot
 storage-driver: external
-description: Входящие заметки и черновики
-path: inbox/
-slot-order: 4
+description: Заметки топика
+path: note/
+slot-order: 5
 allowed-content:
   - awn.content.record
   - awn.content.record.category
   - awn.content.sidecar
 accept-files:
   - ".md"
-  - ".txt"

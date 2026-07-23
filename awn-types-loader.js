@@ -25,6 +25,7 @@ const {
   inferAwnTypeFromRelPath
 } = require("./manifest-paths");
 const { getComponentsAbsolute } = require("./platform-sources");
+const { resolveCanonicalTypeId } = require("./type-catalog-loader");
 const {
   parseNodeConfigBundle,
   composeNodeConfigBundle,
@@ -273,15 +274,16 @@ function extractFileBaseName(relPath) {
 function normalizeAwnTypeName(typeName) {
   const raw = String(typeName || "").trim();
   if (!raw) return "";
-  if (/^awn\./i.test(raw)) return raw;
-  const aliases = {
-    area: "awn.area",
-    topic: "awn.topic",
-    workspace: "awn.workspace",
-    record: "awn.record",
+  const shortAliases = {
+    area: "awn.page.area",
+    topic: "awn.page.topic",
+    workspace: "awn.page.ws",
+    ws: "awn.page.ws",
+    record: "awn.content.record",
     service: "service"
   };
-  return aliases[raw.toLowerCase()] || raw;
+  const normalized = /^awn\./i.test(raw) ? raw : shortAliases[raw.toLowerCase()] || raw;
+  return resolveCanonicalTypeId(normalized, new Map());
 }
 
 function buildDefaultFrontmatter(typeName, options = {}) {
@@ -447,36 +449,15 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
   };
 }
 
-const TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS = [
-  { id: "slot_memory", slotKey: "memory", typeName: "awn.record", legacyId: "record" },
-  {
-    id: "slot_memory_category",
-    slotKey: "memory",
-    typeName: "awn.record.category",
-    legacyId: "record_category",
-    schemaOnly: true
-  },
-  { id: "slot_inbox", slotKey: "inbox", typeName: "awn.record" },
-  { id: "slot_quick_notes", slotKey: "quick-notes", typeName: "awn.record" },
-  { id: "slot_references", slotKey: "references", typeName: "awn.record" },
-  { id: "slot_artefacts", slotKey: "artefacts", typeName: "awn.record" },
-  { id: "slot_media", slotKey: "media", typeName: "awn.sidecar" },
-  {
-    id: "slot_media_category",
-    slotKey: "media",
-    typeName: "awn.media.category",
-    legacyId: "media_category",
-    schemaOnly: true
-  },
-  { id: "slot_scripts", slotKey: "scripts", typeName: "awn.record" },
-  { id: "slot_repository", slotKey: "repository", typeName: "awn.file" }
-];
+const {
+  buildTopicSchemaStorageSlotTargetSpecs,
+  buildTopicSchemaLegacyTargetMigrations,
+  resolveTopicSchemaTargetIdForAwnType
+} = require("./public/topic-schema-slot-specs.js");
 
-const AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS = [
-  ["record", "slot_memory"],
-  ["record_category", "slot_memory_category"],
-  ["media_category", "slot_media_category"]
-];
+const TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS = buildTopicSchemaStorageSlotTargetSpecs();
+
+const AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS = buildTopicSchemaLegacyTargetMigrations();
 
 const AWN_SCHEMA_TARGETS = [
   "topic",

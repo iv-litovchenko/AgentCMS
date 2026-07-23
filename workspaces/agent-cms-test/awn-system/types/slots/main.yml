@@ -1,14 +1,16 @@
 id: awn.slot.main
-name: Main
+name: Память (многофайловая)
 kind: slot
 domain: slots
 status: active
 extends: awn.slot
 storage-driver: external
-description: Основное тело топика — markdown, CSV, конфиг
+description: Многофайловая память топика — папка main/
 path: main/
+slot-order: 1
 allowed-content:
   - awn.content.record
   - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"

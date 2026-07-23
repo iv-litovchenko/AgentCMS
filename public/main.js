@@ -654,6 +654,8 @@ const CONTAINER_SECTION_LABEL = "Контейнер";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
+/** Sidebar «Базовая модель» — visible but not interactive until type editor is ready. */
+const AGENT_SYSTEM_MENU_DISABLED = true;
 const AGENT_SYSTEM_ROOT = "awn-system";
 const AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY = "agentcms.agentSystemDomains.collapsed.v1";
 const KIT_ROOT_HINT = "Агент, пользователи, taxonomies, thread — не editorial-контент.";
@@ -722,8 +724,10 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "env",
   "scripts",
   "artefacts",
+  "assets",
   "repository",
   "inbox",
+  "note",
   "thread",
   "quick-notes",
   "references",
@@ -771,7 +775,7 @@ function parseViewRouteTail(tail, view) {
     return result;
   }
 
-  if (view === "media" || view === "external" || FLAT_STORAGE_SECTION_MODES.has(view)) {
+  if (view === "external" || isMediaLibraryContentMode(view) || FLAT_STORAGE_SECTION_MODES.has(view)) {
     let index = 0;
     while (index < tail.length) {
       const marker = tail[index];
@@ -793,7 +797,7 @@ function parseViewRouteTail(tail, view) {
         result.mediaSectionPath = parts.join("/");
         continue;
       }
-      if (view === "media" && marker === "m" && index + 1 < tail.length) {
+      if (isMediaLibraryContentMode(view) && marker === "m" && index + 1 < tail.length) {
         result.mediaListView = tail[index + 1];
         index += 2;
         continue;
@@ -843,7 +847,7 @@ function parseAppRoute(pathname = location.pathname) {
   if (vIndex >= 0 && vIndex < rest.length - 1) {
     const mode = rest[vIndex + 1];
     if (APP_ROUTE_VIEW_IDS.has(mode)) {
-      view = mode;
+      view = mode === "quick-notes" ? "note" : mode;
       const tail = rest.slice(vIndex + 2);
       rest = rest.slice(0, vIndex);
       const parsedTail = parseViewRouteTail(tail, mode);
@@ -942,7 +946,10 @@ function buildAppPathFromState() {
       if (sectionSegments.length) {
         path += `/s/${sectionSegments.join("/")}`;
       }
-    } else if (activeContentMode === "media" && (activeMediaSidecarSourcePath || activeMediaMarkdownPath)) {
+    } else if (
+      isMediaLibraryContentMode() &&
+      (activeMediaSidecarSourcePath || activeMediaMarkdownPath)
+    ) {
       const fileSegments = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath)
         .split("/")
         .filter(Boolean)
@@ -950,7 +957,7 @@ function buildAppPathFromState() {
       if (fileSegments.length) {
         path += `/f/${fileSegments.join("/")}`;
       }
-    } else if (activeContentMode === "media") {
+    } else if (isMediaLibraryContentMode()) {
       const viewForUrl = mediaViewMode || "dashboard";
       if (activeMediaSectionFolder && isStorageSectionsPanelVisible()) {
         const sectionSegments = String(activeMediaSectionFolder)
@@ -1184,7 +1191,7 @@ async function applyAppRouteFromUrl() {
 
   const label = entry.label || getLabelFromPath(entry.path);
   if (route.view && APP_ROUTE_VIEW_IDS.has(route.view)) {
-    const memoryModes = new Set(["internal", "external", "tabular", "media"]);
+    const memoryModes = new Set(["internal", "external", "tabular", "media", "assets"]);
     const landingMode =
       isContainerNodePath(entry.path) && memoryModes.has(route.view) ? "navigation" : route.view;
     await selectNodeManifest(label, entry.path, landingMode, { skipRouteSync: true });
@@ -1291,7 +1298,7 @@ async function applyAppRouteResourceFromUrl(route) {
       await openExternalFile(route.resourcePath, { skipRouteSync: true });
       return;
     }
-    if (route.view === "media") {
+    if (isMediaLibraryContentMode(route.view)) {
       if (isSectionReadmePath(route.resourcePath)) {
         await openMediaMarkdownFile(route.resourcePath, { skipRouteSync: true });
       } else {
@@ -1301,7 +1308,7 @@ async function applyAppRouteResourceFromUrl(route) {
     }
   }
 
-  if (route.view === "media") {
+  if (isMediaLibraryContentMode(route.view)) {
     await applyMediaRouteStateFromUrl(route);
     await applyDataHubRouteStateFromUrl(route);
     return;
@@ -2020,12 +2027,14 @@ const NODE_OVERVIEW_SLOT_MEMORY_SPECS = [
 
 const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "inbox", label: "Входящие", modeId: "inbox" },
-  { id: "quick-notes", label: "Заметки", modeId: "quick-notes" },
+  { id: "note", label: "Заметки", modeId: "note" },
   { id: "references", label: "Источники", modeId: "references" },
   { id: "artefacts", label: "Артефакты", modeId: "artefacts" },
-  { id: "repository", label: "Репозиторий", modeId: "repository" },
+  { id: "assets", label: "Активы", modeId: "assets" },
+  { id: "media", label: "Медиа", modeId: "media" },
+  { id: "repository", label: "Репозитории", modeId: "repository" },
   { id: "scripts", label: "Скрипты", modeId: "scripts" },
-  { id: "thread", label: "Диалог", modeId: "thread" }
+  { id: "todo-single", label: "TODO", modeId: "todo" }
 ];
 
 function isFullWorkspaceRelPath(relPath) {
@@ -2284,22 +2293,11 @@ function resolveAgentSidebarNotePreviewData(fetchedNoteData) {
 async function fetchAgentSidebarNoteMarkdown() {
   try {
     const noteResponse = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_NOTE_FILE }));
-    if (noteResponse.ok) {
-      const data = await noteResponse.json();
-      const content = String(data.content || "").trim();
-      if (content) return { content, fileName: ROOT_SYSTEM_NOTE_FILE };
-    }
-  } catch {
-    // try legacy fallback below
-  }
-
-  try {
-    const todoResponse = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
-    if (!todoResponse.ok) return null;
-    const data = await todoResponse.json();
+    if (!noteResponse.ok) return null;
+    const data = await noteResponse.json();
     const content = String(data.content || "").trim();
     if (!content) return null;
-    return { content, fileName: ROOT_SYSTEM_TODO_FILE };
+    return { content, fileName: ROOT_SYSTEM_NOTE_FILE };
   } catch {
     return null;
   }
@@ -2372,7 +2370,7 @@ function getFileHistoryRequestContext() {
   if (activeContentMode === "external" && activeExternalFilePath) {
     context.file = activeExternalFilePath;
   }
-  if (activeContentMode === "media" && activeMediaSidecarSourcePath) {
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath) {
     context.file = activeMediaSidecarSourcePath;
   }
   return context;
@@ -2535,34 +2533,10 @@ async function moveNodeByPath(targetPath, parentPath) {
 
 let fileElementThreadBtn = null;
 
-function ensureFileElementThreadButton() {
-  if (fileElementThreadBtn) return fileElementThreadBtn;
-  if (!fileHistoryBtn?.parentElement) return null;
-
-  fileElementThreadBtn = document.createElement("button");
-  fileElementThreadBtn.type = "button";
-  fileElementThreadBtn.id = "file-element-thread-btn";
-  fileElementThreadBtn.className = "file-element-thread-btn workspace-toolbar-labeled-btn hidden";
-  fileElementThreadBtn.title = "Диалог по этому файлу";
-  fileElementThreadBtn.setAttribute("aria-label", "Диалог по файлу");
-  fileElementThreadBtn.innerHTML = `
-    <span class="workspace-toolbar-btn-icon" aria-hidden="true">💬</span>
-    <span class="workspace-toolbar-btn-label">Диалог</span>
-  `;
-  fileElementThreadBtn.addEventListener("click", () => {
-    if (activeExternalFilePath) {
-      openElementThreadDialog(activeExternalFilePath, "external");
-    }
-  });
-  fileHistoryBtn.insertAdjacentElement("afterend", fileElementThreadBtn);
-  return fileElementThreadBtn;
-}
-
 function syncFileElementThreadButtonVisibility() {
-  const btn = ensureFileElementThreadButton();
-  if (!btn) return;
-  const visible = isExternalFileEditing() && Boolean(activeExternalFilePath) && Boolean(activePath);
-  btn.classList.toggle("hidden", !visible);
+  const existing = document.getElementById("file-element-thread-btn");
+  existing?.remove();
+  fileElementThreadBtn = null;
 }
 
 function closeFileHistoryModal() {
@@ -7235,18 +7209,20 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.memory.toc.root": "Оглавление",
   "awn.media.memory.toc.root": "Оглавление медиа",
   "awn.inbox.toc.root": "Оглавление",
-  "awn.quick-notes.toc.root": "Оглавление",
+  "awn.note.toc.root": "Оглавление",
   "awn.references.toc.root": "Оглавление",
   "awn.artefacts.toc.root": "Оглавление",
+  "awn.assets.toc.root": "Оглавление",
   "awn.repository.toc.root": "Оглавление",
   "awn.scripts.toc.root": "Оглавление"
 };
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "inbox",
-  "quick-notes",
+  "note",
   "references",
   "artefacts",
+  "assets",
   "repository",
   "scripts"
 ]);
@@ -7254,19 +7230,22 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
   "media",
   "inbox",
-  "quick-notes",
+  "note",
   "references",
   "artefacts",
+  "assets",
   "repository",
-  "scripts"
+  "scripts",
+  "todo"
 ]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.memory.toc.root",
   "awn.media.memory.toc.root",
   "awn.inbox.toc.root",
-  "awn.quick-notes.toc.root",
+  "awn.note.toc.root",
   "awn.references.toc.root",
   "awn.artefacts.toc.root",
+  "awn.assets.toc.root",
   "awn.repository.toc.root",
   "awn.scripts.toc.root"
 ]);
@@ -7285,6 +7264,7 @@ const NODE_VIEW_SURFACE = {
   todo: "document",
   external: "browser",
   inbox: "browser",
+  note: "browser",
   thread: "thread",
   "quick-notes": "browser",
   references: "browser",
@@ -7292,6 +7272,7 @@ const NODE_VIEW_SURFACE = {
   temp: "browser",
   scripts: "browser",
   artefacts: "browser",
+  assets: "browser",
   repository: "browser",
   "node-preview": "asset",
   graph: "canvas",
@@ -7521,14 +7502,33 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "todo", label: "TODO" }
 ];
 
+const STORAGE_SLOT_TREE_GROUP_FOLDER = "folder";
+const STORAGE_SLOT_TREE_GROUP_FILES = "files";
+const STORAGE_SLOT_TREE_GROUP_SINGLE_FILE = "single-file";
+const STORAGE_SLOT_TREE_GROUP_LABELS = {
+  [STORAGE_SLOT_TREE_GROUP_FILES]: "Файлы",
+  [STORAGE_SLOT_TREE_GROUP_SINGLE_FILE]: "Один файл"
+};
+const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
+  STORAGE_SLOT_TREE_GROUP_FOLDER,
+  STORAGE_SLOT_TREE_GROUP_FILES,
+  STORAGE_SLOT_TREE_GROUP_SINGLE_FILE
+];
+
+function getStorageSlotTreeGroup(spec) {
+  if (!spec || spec.disabled) return null;
+  return spec.treeGroup || STORAGE_SLOT_TREE_GROUP_FOLDER;
+}
+
 const DATA_STORAGE_SLOT_SPECS = [
   {
     key: "memory",
     label: "Память",
     icon: "🧠",
-    modes: new Set(["external", "internal", "tabular"]),
+    modes: new Set(["external"]),
     defaultMode: "external",
-    sectionKind: "external"
+    sectionKind: "external",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
     key: "inbox",
@@ -7536,15 +7536,17 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "📥",
     modes: new Set(["inbox"]),
     defaultMode: "inbox",
-    sectionKind: "flat"
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
-    key: "quick-notes",
+    key: "note",
     label: "Заметки",
-    icon: "📝",
-    modes: new Set(["quick-notes"]),
-    defaultMode: "quick-notes",
-    sectionKind: "flat"
+    icon: "📒",
+    modes: new Set(["note"]),
+    defaultMode: "note",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
     key: "references",
@@ -7552,7 +7554,17 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "🔗",
     modes: new Set(["references"]),
     defaultMode: "references",
-    sectionKind: "flat"
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
+  },
+  {
+    key: "scripts",
+    label: "Скрипты",
+    icon: "📜",
+    modes: new Set(["scripts"]),
+    defaultMode: "scripts",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
     key: "artefacts",
@@ -7560,15 +7572,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "📦",
     modes: new Set(["artefacts"]),
     defaultMode: "artefacts",
-    sectionKind: "flat"
-  },
-  {
-    key: "repository",
-    label: "Репозиторий",
-    icon: "📚",
-    modes: new Set(["repository"]),
-    defaultMode: "repository",
-    sectionKind: "flat"
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
     key: "media",
@@ -7576,15 +7581,65 @@ const DATA_STORAGE_SLOT_SPECS = [
     icon: "🖼",
     modes: new Set(["media"]),
     defaultMode: "media",
-    sectionKind: "media"
+    sectionKind: "media",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
-    key: "scripts",
-    label: "Скрипты",
-    icon: "⚙",
-    modes: new Set(["scripts"]),
-    defaultMode: "scripts",
-    sectionKind: "flat"
+    key: "assets",
+    label: "Активы",
+    icon: "📎",
+    modes: new Set(["assets"]),
+    defaultMode: "assets",
+    sectionKind: "media",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+  },
+  {
+    key: "repository",
+    label: "Репозитории",
+    icon: "📚",
+    modes: new Set(["repository"]),
+    defaultMode: "repository",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+  },
+  {
+    key: "main-single",
+    label: "Память (однофайловая)",
+    icon: "📄",
+    modes: new Set(["internal"]),
+    defaultMode: "internal",
+    sectionKind: "bundle",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+    bundleFile: BUNDLE_CONTENT_FILE
+  },
+  {
+    key: "main-single-csv",
+    label: "Память (табличная)",
+    icon: "📊",
+    modes: new Set(["tabular"]),
+    defaultMode: "tabular",
+    sectionKind: "bundle",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+    bundleFile: BUNDLE_TABULAR_FILE
+  },
+  {
+    key: "todo-single",
+    label: "TODO",
+    icon: "📋",
+    modes: new Set(["todo"]),
+    defaultMode: "todo",
+    sectionKind: "bundle",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+    bundleFile: BUNDLE_TODO_FILE
+  },
+  {
+    key: "quick-notes",
+    label: "Quick notes",
+    icon: "📝",
+    modes: new Set(["quick-notes"]),
+    defaultMode: "quick-notes",
+    sectionKind: "flat",
+    disabled: true
   },
   {
     key: "thread",
@@ -7642,13 +7697,18 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
     tabular: "CSV (.csv)"
   },
   inbox: "Markdown (.md)",
-  "quick-notes": "Markdown (.md)",
+  note: "Markdown (.md)",
   references: "Markdown (.md)",
   artefacts: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
+  assets:
+    "Изображения, видео, аудио, документы, архивы; метаданные — .sidecar.md",
   repository: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
   scripts: `Скрипты и текстовые файлы; запрещены исполняемые (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
+  "main-single": "Markdown (.md) — main.md",
+  "main-single-csv": "CSV (.csv) — main.csv",
+  "todo-single": "Markdown (.md) — todo.md",
   thread: "Markdown (.md)"
 };
 
@@ -7658,38 +7718,15 @@ const DATA_MEMORY_MODE_SPECS = [
   { mode: "tabular", label: "Табличная", icon: "📊" }
 ];
 
-const TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS = [
-  { id: "slot_memory", slotKey: "memory", label: "Память", typeName: "awn.record", legacyId: "record" },
-  {
-    id: "slot_memory_category",
-    slotKey: "memory",
-    label: "Память · раздел",
-    typeName: "awn.record.category",
-    legacyId: "record_category",
-    schemaOnly: true
-  },
-  { id: "slot_inbox", slotKey: "inbox", label: "Входящие", typeName: "awn.record" },
-  { id: "slot_quick_notes", slotKey: "quick-notes", label: "Заметки", typeName: "awn.record" },
-  { id: "slot_references", slotKey: "references", label: "Источники", typeName: "awn.record" },
-  { id: "slot_artefacts", slotKey: "artefacts", label: "Артефакты", typeName: "awn.record" },
-  { id: "slot_repository", slotKey: "repository", label: "Репозиторий", typeName: "awn.file" },
-  { id: "slot_media", slotKey: "media", label: "Медиа", typeName: "awn.sidecar" },
-  {
-    id: "slot_media_category",
-    slotKey: "media",
-    label: "Медиа · раздел",
-    typeName: "awn.media.category",
-    legacyId: "media_category",
-    schemaOnly: true
-  },
-  { id: "slot_scripts", slotKey: "scripts", label: "Скрипты", typeName: "awn.record" }
-];
+const TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS =
+  typeof TopicSchemaSlotSpecs !== "undefined"
+    ? TopicSchemaSlotSpecs.buildTopicSchemaStorageSlotTargetSpecs()
+    : [];
 
-const TOPIC_SCHEMA_LEGACY_TARGET_MIGRATIONS = [
-  ["record", "slot_memory"],
-  ["record_category", "slot_memory_category"],
-  ["media_category", "slot_media_category"]
-];
+const TOPIC_SCHEMA_LEGACY_TARGET_MIGRATIONS =
+  typeof TopicSchemaSlotSpecs !== "undefined"
+    ? TopicSchemaSlotSpecs.buildTopicSchemaLegacyTargetMigrations()
+    : [];
 
 function getTopicSchemaStorageSlotUiSpec(slotKey) {
   return TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.find(
@@ -7701,8 +7738,11 @@ function getTopicSchemaTargetForStorageSlot(slotKey) {
   return getTopicSchemaStorageSlotUiSpec(slotKey)?.id || null;
 }
 
-function resolveStorageSlotSchemaTargetId(slotKey, { category = false } = {}) {
-  if (category) {
+function resolveStorageSlotSchemaTargetId(slotKey, options = {}) {
+  if (typeof TopicSchemaSlotSpecs !== "undefined") {
+    return TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(slotKey, options);
+  }
+  if (options.category) {
     if (slotKey === "media") return "slot_media_category";
     if (slotKey === "memory") return "slot_memory_category";
   }
@@ -7717,8 +7757,14 @@ function getTopicSchemaTargetSpecs() {
       label: item.label,
       typeName: item.typeName,
       slotKey: item.slotKey,
+      contentKind: item.contentKind,
       schemaOnly: Boolean(item.schemaOnly),
-      group: item.schemaOnly ? "slot-meta" : "slot"
+      group:
+        item.contentKind === "category"
+          ? "slot-meta"
+          : item.contentKind === "sidecar"
+            ? "slot-sidecar"
+            : "slot"
     })),
     { id: "settings", label: "Настройки", typeName: "awn.settings", group: "settings" }
   ];
@@ -7774,11 +7820,34 @@ function getDataStorageSlotForMode(mode = activeContentMode) {
   return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.modes.has(mode)) || null;
 }
 
+function isMediaLibraryContentMode(mode = activeContentMode) {
+  const spec = getDataStorageSlotForMode(mode);
+  return spec?.sectionKind === "media";
+}
+
+function getMediaLibraryStorageSubfolder(mode = activeContentMode) {
+  return mode === "assets" ? STORAGE_SUBFOLDER_ASSETS : STORAGE_SUBFOLDER_MEDIA;
+}
+
+function buildMediaLibraryApiParams(extra = {}, mode = activeContentMode) {
+  const params = { ...(extra || {}) };
+  const folder = getMediaLibraryStorageSubfolder(mode);
+  if (folder !== STORAGE_SUBFOLDER_MEDIA) params.folder = folder;
+  return params;
+}
+
+function getMediaLibraryModeLabel(mode = activeContentMode) {
+  return getDataStorageSlotForMode(mode)?.label || (mode === "media" ? "Медиа" : mode);
+}
+
 function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
   if (mode === NODE_ENTRY_OVERVIEW_MODE) {
     const memoryKind = activeEntryOverviewContext?.memoryKind;
     if (!memoryKind) return null;
     if (memoryKind === "external") return "memory";
+    if (memoryKind === "internal") return "main-single";
+    if (memoryKind === "tabular") return "main-single-csv";
+    if (memoryKind === "todo") return "todo-single";
     if (memoryKind === "media") return "media";
     if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
     return null;
@@ -7789,7 +7858,11 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
 function getEntryOverviewMemoryKindForSlot(spec) {
   if (!spec) return null;
   if (spec.key === "memory") return "external";
+  if (spec.key === "main-single") return "internal";
+  if (spec.key === "main-single-csv") return "tabular";
   if (spec.key === "media") return "media";
+  if (spec.key === "assets") return "assets";
+  if (spec.key === "todo-single") return "todo";
   if (spec.defaultMode && isFlatEntryOverviewMemoryKind(spec.defaultMode)) return spec.defaultMode;
   return null;
 }
@@ -7813,9 +7886,10 @@ const AREA_BLOCKED_CONTENT_MODES = new Set([
   "media",
   "temp",
   "inbox",
-  "quick-notes",
+  "note",
   "references",
   "artefacts",
+  "assets",
   "repository"
 ]);
 
@@ -8062,7 +8136,9 @@ let mediaViewMode = "dashboard";
 let activeMediaSectionFolder = null;
 let activeExternalSectionFolder = null;
 const FLAT_STORAGE_SECTION_MODES = new Set(
-  DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.sectionKind === "flat").map((spec) => spec.defaultMode)
+  DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.sectionKind === "flat" && !spec.disabled).map(
+    (spec) => spec.defaultMode
+  )
 );
 const activeFlatStorageSectionFolder = Object.fromEntries(
   [...FLAT_STORAGE_SECTION_MODES].map((mode) => [mode, null])
@@ -8121,7 +8197,7 @@ function invalidateStorageRootScanCache(manifestPath = getActiveNodeApiPath()) {
 
 async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { force = false } = {}) {
   if (!manifestPath) {
-    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+    return { exists: false, folders: [], looseFiles: [], bundleSlots: {}, totalEntries: 0, storageRoot: "" };
   }
   if (!force) {
     const cached = storageRootScanCache.get(manifestPath);
@@ -8159,9 +8235,10 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   const namesByKey = {
     memory: ["main", "content", "memory"],
     inbox: ["inbox"],
-    "quick-notes": ["quick-notes"],
+    note: ["note", "quick-notes"],
     references: ["references"],
     artefacts: ["artefacts"],
+    assets: ["assets"],
     repository: ["repository"],
     media: ["media"],
     scripts: ["scripts"],
@@ -8174,16 +8251,36 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   return namesByKey[slotKey] || [];
 }
 
+const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes"]);
+
 function findScanFolderForSlotKey(slotKey, folders = []) {
   const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
   if (!names.size) return null;
-  return (
-    folders.find((folder) => {
-      const canonical = String(folder.canonical || folder.name || "").toLowerCase();
-      const name = String(folder.name || "").toLowerCase();
-      return names.has(canonical) || names.has(name);
-    }) || null
-  );
+  const matched = folders.filter((folder) => {
+    const canonical = String(folder.canonical || folder.name || "").toLowerCase();
+    const name = String(folder.name || "").toLowerCase();
+    return names.has(canonical) || names.has(name);
+  });
+  if (!matched.length) return null;
+  if (matched.length === 1) return matched[0];
+  return {
+    name: matched.map((folder) => folder.name).join("+"),
+    canonical: matched[0].canonical || matched[0].name,
+    entryCount: matched.reduce((sum, folder) => sum + (Number(folder.entryCount) || 0), 0),
+    slotKey,
+    matched: true
+  };
+}
+
+function markScanFoldersConsumedForSlotKey(consumed, slotKey, folders = []) {
+  const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
+  for (const folder of folders) {
+    const canonical = String(folder.canonical || folder.name || "").toLowerCase();
+    const name = String(folder.name || "").toLowerCase();
+    if (names.has(canonical) || names.has(name)) {
+      markScanFolderConsumed(consumed, folder);
+    }
+  }
 }
 
 function markScanFolderConsumed(consumed, folder) {
@@ -8194,22 +8291,63 @@ function markScanFolderConsumed(consumed, folder) {
 
 function buildStorageSlotTreeModel(scan = {}) {
   const folders = scan.exists ? scan.folders || [] : [];
+  const bundleSlots = scan.bundleSlots || {};
   const consumed = new Set();
   const entries = [];
   const enabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => !spec.disabled);
-  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) => spec.disabled);
+  const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter(
+    (spec) => spec.disabled && !HIDDEN_STORAGE_SLOT_TREE_KEYS.has(spec.key)
+  );
+  const folderSpecs = enabledSpecs.filter(
+    (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_FOLDER
+  );
+  const filesSpecs = enabledSpecs.filter(
+    (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_FILES
+  );
+  const singleFileSpecs = enabledSpecs.filter(
+    (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_SINGLE_FILE
+  );
 
-  for (const spec of enabledSpecs) {
+  for (const spec of folderSpecs) {
     const folder = findScanFolderForSlotKey(spec.key, folders);
-    markScanFolderConsumed(consumed, folder);
+    markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
     entries.push({ kind: "slot", spec, folder });
+  }
+
+  if (filesSpecs.length > 0) {
+    entries.push({
+      kind: "group-label",
+      id: "files-slots",
+      label: STORAGE_SLOT_TREE_GROUP_LABELS[STORAGE_SLOT_TREE_GROUP_FILES]
+    });
+    for (const spec of filesSpecs) {
+      const folder = findScanFolderForSlotKey(spec.key, folders);
+      markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
+      entries.push({ kind: "slot", spec, folder });
+    }
+  }
+
+  if (singleFileSpecs.length > 0) {
+    entries.push({
+      kind: "group-label",
+      id: "single-file-slots",
+      label: STORAGE_SLOT_TREE_GROUP_LABELS[STORAGE_SLOT_TREE_GROUP_SINGLE_FILE]
+    });
+    for (const spec of singleFileSpecs) {
+      entries.push({
+        kind: "slot",
+        spec,
+        folder: null,
+        bundleSlot: bundleSlots[spec.key] || null
+      });
+    }
   }
 
   if (disabledSpecs.length > 0) {
     entries.push({ kind: "divider", id: "disabled-slots" });
     for (const spec of disabledSpecs) {
       const folder = findScanFolderForSlotKey(spec.key, folders);
-      markScanFolderConsumed(consumed, folder);
+      markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
       entries.push({ kind: "slot", spec, folder });
     }
   }
@@ -8368,7 +8506,11 @@ function getListViewMountRoot(mode = activeContentMode) {
   return listViewContentNode;
 }
 
-function getDataStorageSlotCountForScan(_spec, folder) {
+function getDataStorageSlotCountForScan(spec, folder, bundleSlot = null) {
+  if (spec?.treeGroup === STORAGE_SLOT_TREE_GROUP_SINGLE_FILE) {
+    const count = Number(bundleSlot?.entryCount) || 0;
+    return count > 0 ? count : null;
+  }
   const entryCount = Number(folder?.entryCount);
   return entryCount > 0 ? entryCount : null;
 }
@@ -8441,7 +8583,7 @@ function isStorageScanFolderDisabled(folder, spec = null) {
 
 function appendStorageSlotTreeItem(
   list,
-  { spec = null, folder = null },
+  { spec = null, folder = null, bundleSlot = null },
   {
     activeSlot,
     sectionFilterActive,
@@ -8471,7 +8613,7 @@ function appendStorageSlotTreeItem(
       ? folder.entryCount
       : null
     : spec
-      ? getDataStorageSlotCountForScan(spec, folder)
+      ? getDataStorageSlotCountForScan(spec, folder, bundleSlot)
       : folder?.entryCount > 0
         ? folder.entryCount
         : null;
@@ -8573,13 +8715,14 @@ function updateStorageSlotTreeCounts(container, scan = {}) {
   }
 
   const folders = scan.exists ? scan.folders || [] : [];
+  const bundleSlots = scan.bundleSlots || {};
   list.querySelectorAll(".storage-slot-tree-item[data-storage-slot]").forEach((btn) => {
     const slotKey = btn.dataset.storageSlot;
     if (!slotKey || slotKey === "all") return;
     const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
     const folder = findScanFolderForSlotKey(slotKey, folders);
     const count = spec
-      ? getDataStorageSlotCountForScan(spec, folder)
+      ? getDataStorageSlotCountForScan(spec, folder, bundleSlots[slotKey] || null)
       : folder?.entryCount > 0
         ? folder.entryCount
         : null;
@@ -8655,10 +8798,18 @@ function renderStorageSlotTreeContent(
         list.appendChild(entryDivider);
         continue;
       }
+      if (entry.kind === "group-label") {
+        const groupLabel = document.createElement("div");
+        groupLabel.className = "media-section-tree-group-label storage-slot-tree-group-label";
+        groupLabel.textContent = entry.label || "";
+        groupLabel.setAttribute("role", "presentation");
+        list.appendChild(groupLabel);
+        continue;
+      }
       if (entry.kind === "slot") {
         appendStorageSlotTreeItem(
           list,
-          { spec: entry.spec, folder: entry.folder },
+          { spec: entry.spec, folder: entry.folder, bundleSlot: entry.bundleSlot || null },
           treeItemOptions
         );
         continue;
@@ -8707,13 +8858,13 @@ async function renderStorageSlotTree(container, options = {}) {
     container.appendChild(loading);
   }
 
-  let scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+  let scan = { exists: false, folders: [], looseFiles: [], bundleSlots: {}, totalEntries: 0 };
   let scanError = null;
   try {
     if (manifestPath) scan = await fetchStorageRootScan(manifestPath, { force });
   } catch (error) {
     scanError = error;
-    scan = { exists: false, folders: [], looseFiles: [], totalEntries: 0 };
+    scan = { exists: false, folders: [], looseFiles: [], bundleSlots: {}, totalEntries: 0 };
   }
   if (token !== container._storageSlotTreeRenderSeq) return;
   if (connectedAtStart && !container.isConnected) return;
@@ -8792,7 +8943,7 @@ function setStorageSectionsPanelVisible(visible, { rerender = true, skipRouteSyn
   }
   syncStorageSectionsPanelUi();
   if (rerender) {
-    if (activeContentMode === "media" && !isMediaAssetEditing()) {
+    if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
       rerenderMediaListViewBody();
     } else if (activeContentMode === "external" && !isExternalFileEditing()) {
       rerenderExternalListViewBody();
@@ -8843,9 +8994,11 @@ const modeContentCache = {
   external: "",
   tabular: "",
   inbox: "",
+  note: "",
   "quick-notes": "",
   references: "",
   artefacts: "",
+  assets: "",
   repository: "",
   media: "",
   configs: "",
@@ -9349,9 +9502,11 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   if (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return true;
   if (
     mode === "inbox" ||
+    mode === "note" ||
     mode === "quick-notes" ||
     mode === "references" ||
     mode === "artefacts" ||
+    mode === "assets" ||
     mode === "repository" ||
     mode === "scripts" ||
     mode === "todo" ||
@@ -9502,11 +9657,12 @@ function getContentModeLabel(mode) {
   }
   if (mode === "inbox") return "Входящие";
   if (mode === NODE_THREAD_MODE) return "Диалог";
-  if (mode === "quick-notes") return "Заметки";
+  if (mode === "note" || mode === "quick-notes") return "Заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
+  if (mode === "assets") return "Активы";
   if (mode === "repository") return "Репозиторий";
   return mode;
 }
@@ -10163,7 +10319,13 @@ function getMemorySectionScope(state = resourceContextMenuState) {
   if (!state) return null;
   if (state.storageMode) return { type: "storage", folder: getFlatStorageSectionFolderName(state.storageMode) };
   if (state.externalMode) return { type: "external", folder: "" };
-  if (state.mediaMode) return { type: "media", folder: "" };
+  if (state.mediaMode) {
+    const folder = isMediaLibraryContentMode() ? getMediaLibraryStorageSubfolder() : STORAGE_SUBFOLDER_MEDIA;
+    return {
+      type: "media",
+      folder: folder === STORAGE_SUBFOLDER_MEDIA ? "" : folder
+    };
+  }
   return null;
 }
 
@@ -10259,7 +10421,7 @@ async function renameMemorySectionApi(sectionFolder, { title, slug }, state = re
     slug,
     displayName: title
   };
-  if (scope.type === "storage") body.folder = scope.folder;
+  if (scope.type === "storage" || (scope.type === "media" && scope.folder)) body.folder = scope.folder;
 
   const response = await fetch(buildApiUrl(`${apiBase}/rename`), {
     method: "POST",
@@ -10279,7 +10441,7 @@ async function moveMemorySectionApi(sectionFolder, targetParent, state = resourc
   if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
 
   const body = { path: getActiveNodeApiPath(), section: sectionFolder, parent: targetParent || "" };
-  if (scope.type === "storage") body.folder = scope.folder;
+  if (scope.type === "storage" || (scope.type === "media" && scope.folder)) body.folder = scope.folder;
 
   const response = await fetch(buildApiUrl(`${apiBase}/move`), {
     method: "POST",
@@ -10299,7 +10461,7 @@ async function deleteMemorySectionApi(sectionFolder, state = resourceContextMenu
   if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
 
   const params = { path: getActiveNodeApiPath(), section: sectionFolder };
-  if (scope.type === "storage") params.folder = scope.folder;
+  if (scope.type === "storage" || (scope.type === "media" && scope.folder)) params.folder = scope.folder;
 
   const response = await fetch(buildApiUrl(apiBase, params), { method: "DELETE" });
   if (!response.ok) {
@@ -10315,7 +10477,7 @@ async function updateMemorySectionStatusApi(sectionFolder, nextStatus, state = r
   if (!apiBase || !sectionFolder) throw new Error("Не удалось определить раздел");
 
   const body = { path: getActiveNodeApiPath(), section: sectionFolder, status: nextStatus };
-  if (scope.type === "storage") body.folder = scope.folder;
+  if (scope.type === "storage" || (scope.type === "media" && scope.folder)) body.folder = scope.folder;
 
   const response = await fetch(buildApiUrl(`${apiBase}/status`), {
     method: "POST",
@@ -11549,10 +11711,15 @@ async function applyNodeWorkspaceDomainChange(domain) {
       nodeMemoryViewActive = Boolean(
         isDataStorageSlotActive("memory") ||
           isDataStorageSlotActive("inbox") ||
+          isDataStorageSlotActive("note") ||
           isDataStorageSlotActive("quick-notes") ||
           isDataStorageSlotActive("references") ||
           isDataStorageSlotActive("artefacts") ||
-          isDataStorageSlotActive("repository")
+          isDataStorageSlotActive("assets") ||
+          isDataStorageSlotActive("repository") ||
+          isDataStorageSlotActive("main-single") ||
+          isDataStorageSlotActive("main-single-csv") ||
+          isDataStorageSlotActive("todo-single")
       );
       applyNodeWorkspaceViewUi();
       renderListViewContent();
@@ -11601,29 +11768,44 @@ function applyNodeWorkspaceViewUi() {
   const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_THREAD;
   const referencesSlotActive = isDataStorageSlotActive("references");
   const artefactsSlotActive = isDataStorageSlotActive("artefacts");
+  const assetsSlotActive = isDataStorageSlotActive("assets");
   const repositorySlotActive = isDataStorageSlotActive("repository");
   const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const inboxSlotActive = isDataStorageSlotActive("inbox");
-  const quickNotesSlotActive = isDataStorageSlotActive("quick-notes");
+  const noteSlotActive = isDataStorageSlotActive("note") || isDataStorageSlotActive("quick-notes");
+  const mainSingleSlotActive = isDataStorageSlotActive("main-single");
+  const tabularSlotActive = isDataStorageSlotActive("main-single-csv");
+  const todoSingleSlotActive = isDataStorageSlotActive("todo-single");
+  const quickNotesSlotActive = noteSlotActive;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   nodeSettingsViewActive = settingsDomain;
   nodeMemoryViewActive =
     memorySlotActive ||
     referencesSlotActive ||
     artefactsSlotActive ||
+    assetsSlotActive ||
     repositorySlotActive ||
     inboxSlotActive ||
-    quickNotesSlotActive;
+    noteSlotActive ||
+    mainSingleSlotActive ||
+    tabularSlotActive ||
+    todoSingleSlotActive;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle(
     "is-node-memory",
-    memorySlotActive || inboxSlotActive || quickNotesSlotActive
+    memorySlotActive ||
+      inboxSlotActive ||
+      noteSlotActive ||
+      mainSingleSlotActive ||
+      tabularSlotActive ||
+      todoSingleSlotActive
   );
   workspacePathHeaderNode?.classList.toggle("is-node-media", mediaSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-scripts", scriptsSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-todo", todoDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-references", referencesSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-artefacts", artefactsSlotActive);
+  workspacePathHeaderNode?.classList.toggle("is-node-assets", assetsSlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-repository", repositorySlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-thread", threadDomain);
@@ -11698,7 +11880,7 @@ function syncWorkspaceCloseButtonsVisibility() {
     externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memorySlotActive && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
-    (mediaSlotActive && activeContentMode === "media") ||
+    (mediaSlotActive && isMediaLibraryContentMode()) ||
     (todoDomain && activeContentMode === "todo");
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
@@ -13840,6 +14022,7 @@ function isNodeCanvasViewMode() {
 }
 
 function applyContentModeState(mode) {
+  if (mode === "quick-notes") mode = "note";
   if (mode === "graph") return false;
   const group = findModeGroup(mode);
   const modeDef = group?.modes.find((item) => item.id === mode);
@@ -13863,7 +14046,7 @@ function applyContentModeState(mode) {
   if (isFlatStorageListMode(mode)) {
     activeStorageFolderExists = false;
   }
-  if (mode !== "media") {
+  if (!isMediaLibraryContentMode(mode)) {
     clearMediaSidecarEditor();
     setMediaBulkUploadPanelOpen(false);
   }
@@ -13928,7 +14111,7 @@ async function applyContentModeChange() {
 }
 
 function isMediaSidecarEditing() {
-  return activeContentMode === "media" && Boolean(activeMediaSidecarPath);
+  return isMediaLibraryContentMode() && Boolean(activeMediaSidecarPath);
 }
 
 function isCurrentModeWithoutContentEditor() {
@@ -13941,13 +14124,13 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
     activeContentMode === "configs" ||
-    (activeContentMode === "media" && !isMediaAssetEditing())
+    (isMediaLibraryContentMode() && !isMediaAssetEditing())
   );
 }
 
 function getListViewRawContent() {
-  if (activeContentMode === "media" && !isMediaAssetEditing()) {
-    return modeContentCache.media || "";
+  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
+    return modeContentCache[activeContentMode] || "";
   }
   if (activeContentMode === "external" && !isExternalFileEditing()) {
     return modeContentCache.external || "";
@@ -13963,13 +14146,14 @@ function isCurrentModeReadOnly() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === "note" ||
     activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "repository" ||
     activeContentMode === "temp" ||
-    (activeContentMode === "media" && !mediaSidecarEditing) ||
+    (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
     activeContentMode === "scripts" ||
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
@@ -14008,11 +14192,12 @@ function isCurrentModeListTemplate() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     activeContentMode === "inbox" ||
+    activeContentMode === "note" ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "repository" ||
-    (activeContentMode === "media" && !mediaSidecarEditing) ||
+    (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
     activeContentMode === "temp" ||
     activeContentMode === "scripts"
   );
@@ -14245,6 +14430,7 @@ const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
+const STORAGE_SUBFOLDER_NOTE = "note";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
@@ -14422,11 +14608,13 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
   thread: STORAGE_SUBFOLDER_THREAD,
+  note: STORAGE_SUBFOLDER_NOTE,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_MEDIA,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
+  assets: STORAGE_SUBFOLDER_ASSETS,
   repository: STORAGE_SUBFOLDER_REPOSITORY,
   temp: STORAGE_SUBFOLDER_TEMP
 };
@@ -14462,6 +14650,7 @@ const AGENT_STORAGE_LAYER_ORDER = [
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_SCRIPTS,
   STORAGE_SUBFOLDER_ARTEFACTS,
+  STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW
@@ -14583,11 +14772,13 @@ const CONTENT_MODE_TITLE_LABELS = {
   external: "Content",
   tabular: "Таблица",
   inbox: "Входящие",
+  note: "Заметки",
   "quick-notes": "Заметки",
   references: "Источники",
   media: "Медиа",
   scripts: "Скрипты",
   artefacts: "Артефакты",
+  assets: "Активы",
   repository: "Репозиторий",
   temp: "Временные",
   configs: "Конфигурация",
@@ -14691,10 +14882,12 @@ function getStorageListBreadcrumbPath(overrides = {}) {
     case "media":
       return null;
     case "inbox":
+    case "note":
     case "quick-notes":
     case "references":
     case "scripts":
     case "artefacts":
+    case "assets":
     case "repository":
     case "temp":
       return null;
@@ -14722,7 +14915,7 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
   }
   if (isGraphModeActive()) return normalizeBreadcrumbPath(activePath);
 
-  if (activeContentMode === "external" || activeContentMode === "media") {
+  if (activeContentMode === "external" || isMediaLibraryContentMode()) {
     return getNodeMemoryListBreadcrumbPath(activePath);
   }
 
@@ -14929,7 +15122,7 @@ function syncAllStorageTreePolicyFooters(mode = activeContentMode) {
   for (const tree of listViewContentNode.querySelectorAll(
     ".data-hub-panel .media-section-tree:not(.external-section-tree):not(.flat-storage-section-tree)"
   )) {
-    ensureStorageTreePolicyFooter(tree, "media");
+    ensureStorageTreePolicyFooter(tree, activeContentMode);
   }
 }
 
@@ -17900,7 +18093,7 @@ async function uploadMediaAttachment(
   const effectiveSubdir = inlinePaste
     ? PASTED_ASSETS_SUBDIR
     : subdir ??
-      (activeContentMode === "media"
+      (isMediaLibraryContentMode()
         ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
         : null);
   const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: usePastedNaming });
@@ -17922,7 +18115,8 @@ async function uploadMediaAttachment(
           : buildInlineAttachmentFileName(normalizedFile)),
       mimeType: normalizedFile.type,
       subdir: effectiveSubdir || undefined,
-      createSubdir: Boolean(effectiveSubdir)
+      createSubdir: Boolean(effectiveSubdir),
+      libraryFolder: isMediaLibraryContentMode() ? getMediaLibraryStorageSubfolder() : undefined
     })
   });
   if (!response.ok) {
@@ -17934,7 +18128,7 @@ async function uploadMediaAttachment(
 }
 
 async function refreshMediaListIfVisible() {
-  if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  if (!isMediaLibraryContentMode() || isMediaAssetEditing()) return;
   await refreshMediaCache();
   renderListViewContent();
 }
@@ -18543,7 +18737,7 @@ function getBreadcrumbSegmentDisplayLabel(segmentIndex, parts) {
       const filePath = String(activeExternalFilePath).replace(/\\/g, "/");
       if (memoryMap.has(filePath)) return memoryMap.get(filePath);
     }
-    if (activeContentMode === "media") {
+    if (isMediaLibraryContentMode()) {
       const filePath = String(activeMediaMarkdownPath || activeMediaSidecarSourcePath || "")
         .replace(/\\/g, "/");
       if (filePath && memoryMap.has(filePath)) return memoryMap.get(filePath);
@@ -18966,17 +19160,18 @@ function renderMediaSectionTree(container) {
       mediaMode: true
     });
   }
-  ensureStorageTreePolicyFooter(container, "media");
+  ensureStorageTreePolicyFooter(container, activeContentMode);
 }
 
 function ensureMediaListViewLayout() {
-  const mountRoot = getListViewMountRoot("media");
+  const mode = activeContentMode;
+  const mountRoot = getListViewMountRoot(mode);
   const existing = mountRoot.querySelector(".media-list-view-wrap:not(.external-list-view-wrap):not(.flat-storage-list-view-wrap)");
   if (!existing) {
     mountRoot.innerHTML = "";
-    if (!shouldUseDataHubListShell("media")) listViewContentNode.innerHTML = "";
+    if (!shouldUseDataHubListShell(mode)) listViewContentNode.innerHTML = "";
     mountMediaListViewLayout(mountRoot);
-  } else if (shouldUseDataHubListShell("media")) {
+  } else if (shouldUseDataHubListShell(mode)) {
     const slotTree = getStorageSlotTreeNode();
     if (shouldRenderStorageSlotTree(slotTree)) {
       void renderStorageSlotTree(slotTree);
@@ -19012,7 +19207,7 @@ function renderMediaAllFilesSections(container) {
   }
 
   if (!raw.trim()) {
-    renderListEmptyMessage(container, getStorageFolderEmptyMessage("media"));
+    renderListEmptyMessage(container, getStorageFolderEmptyMessage(activeContentMode));
     return;
   }
 
@@ -20491,9 +20686,10 @@ function renderExternalListViewBody(container) {
 function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "scripts") return "Разделы скриптов";
   if (mode === "inbox") return "Разделы входящих";
-  if (mode === "quick-notes") return "Разделы заметок";
+  if (mode === "note" || mode === "quick-notes") return "Разделы заметок";
   if (mode === "references") return "Разделы источников";
   if (mode === "artefacts") return "Разделы артефактов";
+  if (mode === "assets") return "Разделы активов";
   if (mode === "repository") return "Разделы репозитория";
   return "Разделы";
 }
@@ -20899,7 +21095,7 @@ function mountMediaBulkUploadZone(host) {
   zone.className = "media-bulk-upload-zone";
   zone.tabIndex = 0;
   zone.setAttribute("role", "button");
-  zone.setAttribute("aria-label", "Массовая загрузка файлов в Assets");
+  zone.setAttribute("aria-label", `Массовая загрузка файлов в ${getMediaLibraryModeLabel()}`);
 
   const idle = document.createElement("div");
   idle.className = "media-bulk-upload-idle";
@@ -21986,7 +22182,7 @@ function renderMediaUsageDashboard(container) {
   if (filteredItems.length === 0) {
     const empty = document.createElement("div");
     empty.className = "media-dashboard-empty";
-    empty.textContent = allItems.length ? "Нет файлов по выбранным фильтрам" : getStorageFolderEmptyMessage("media");
+    empty.textContent = allItems.length ? "Нет файлов по выбранным фильтрам" : getStorageFolderEmptyMessage(activeContentMode);
     inventory.appendChild(empty);
     dashboard.appendChild(inventory);
     container.appendChild(dashboard);
@@ -22090,6 +22286,7 @@ const STORAGE_FOLDER_LABELS = {
   references: STORAGE_SUBFOLDER_REFERENCES,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
+  assets: STORAGE_SUBFOLDER_ASSETS,
   repository: STORAGE_SUBFOLDER_REPOSITORY,
   media: STORAGE_SUBFOLDER_MEDIA,
   temp: STORAGE_SUBFOLDER_TEMP,
@@ -22153,7 +22350,16 @@ function renderDataHubPanelEmptyState(container, { icon = "📁", message = "", 
 }
 
 function isFlatStorageListMode(mode = activeContentMode) {
-  return mode === "inbox" || mode === "quick-notes" || mode === "references" || mode === "scripts" || mode === "artefacts" || mode === "repository" || mode === "temp";
+  return (
+    mode === "inbox" ||
+    mode === "note" ||
+    mode === "quick-notes" ||
+    mode === "references" ||
+    mode === "scripts" ||
+    mode === "artefacts" ||
+    mode === "repository" ||
+    mode === "temp"
+  );
 }
 
 function isFlatStorageListSourceToggleMode() {
@@ -22173,7 +22379,7 @@ function isWorkspaceRefreshAvailable() {
   if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_THREAD_MODE) return true;
   if (isFlatStorageListMode()) return true;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
-  if (activeContentMode === "media" && !isMediaAssetEditing()) return true;
+  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) return true;
   if (activeContentMode === "repository") return true;
   if (activeContentMode === "temp") return true;
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) return true;
@@ -22594,7 +22800,7 @@ function renderListViewContent() {
   const raw = getListViewRawContent();
   const useDataHub = shouldUseDataHubListShell();
   const listMountRoot = useDataHub ? getListViewMountRoot() : listViewContentNode;
-  const isMediaListView = activeContentMode === "media" && !isMediaAssetEditing();
+  const isMediaListView = isMediaLibraryContentMode() && !isMediaAssetEditing();
   const isExternalListView = activeContentMode === "external" && !isExternalFileEditing();
   const isFlatStorageSectionListView = isFlatStorageSectionMode() && isFlatStorageListMode();
 
@@ -22672,8 +22878,8 @@ function renderListViewContent() {
   if (!raw.trim()) {
     const empty = document.createElement("div");
     empty.className = "list-empty";
-    if (activeContentMode === "media" && !isMediaAssetEditing()) {
-      empty.textContent = getStorageFolderEmptyMessage("media");
+    if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
+      empty.textContent = getStorageFolderEmptyMessage(activeContentMode);
     } else {
       empty.textContent = "Список пуст";
     }
@@ -22681,7 +22887,7 @@ function renderListViewContent() {
     return;
   }
 
-  const sections = activeContentMode === "media"
+  const sections = isMediaLibraryContentMode()
     ? parseMediaSections(raw)
     : [{ title: "Файлы", items: parseFlatListItems(raw) }];
 
@@ -22726,7 +22932,7 @@ function renderListViewContent() {
       li.appendChild(icon);
       li.appendChild(pathNode);
 
-      if (activeContentMode === "media" && !normalized.isFolder) {
+      if (isMediaLibraryContentMode() && !normalized.isFolder) {
         li.classList.add("list-item-with-actions");
         const actions = document.createElement("div");
         actions.className = "list-item-actions";
@@ -22911,13 +23117,16 @@ function getMediaSidecarFileName(filePath = activeMediaSidecarSourcePath) {
 }
 
 async function refreshMediaCache() {
-  if (!activePath || activeContentMode !== "media") return;
+  if (!activePath || !isMediaLibraryContentMode()) return;
+  const mode = activeContentMode;
   try {
-    const response = await fetch(buildApiUrl("/api/media", { path: getActiveNodeApiPath() }));
+    const response = await fetch(
+      buildApiUrl("/api/media", buildMediaLibraryApiParams({ path: getActiveNodeApiPath() }, mode))
+    );
     if (!response.ok) return;
     const data = await response.json();
     mediaAssetsExists = Boolean(data.exists);
-    modeContentCache.media = data.content || "";
+    modeContentCache[mode] = data.content || "";
     syncMediaFilesCache(data.content, data.groups, data.sectionManifests);
     syncMediaViewSelectOptions();
   } catch {
@@ -23958,6 +24167,10 @@ function resolveAwnSchemaTargetForType(typeName) {
 function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
   const typeName = resolveAwnTypeForContext(nodePath);
   const slotKey = getDataStorageSlotForMode()?.key;
+  if (slotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
+    const bySlot = TopicSchemaSlotSpecs.resolveTopicSchemaTargetIdForAwnType(slotKey, typeName);
+    if (bySlot) return bySlot;
+  }
   if (typeName === "awn.media.category") return "slot_media_category";
   if (typeName === "awn.record.category") {
     return slotKey === "media" ? "slot_media_category" : "slot_memory_category";
@@ -24167,27 +24380,91 @@ function renameTopicSchemaField(target, oldKey, newKey) {
   }
 }
 
+function createTopicSchemaTargetTabButton(spec, cache = getTopicSchemaCache()) {
+  const { id, group, slotKey, contentKind, label, fullLabel, isDefault } = spec;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "topic-schema-target-tab";
+  if (group === "core" || group === "settings") btn.classList.add("topic-schema-target-tab--core");
+  if (group === "slot") btn.classList.add("topic-schema-target-tab--slot");
+  if (group === "slot-meta") btn.classList.add("topic-schema-target-tab--slot-meta");
+  if (group === "slot-sidecar") btn.classList.add("topic-schema-target-tab--slot-sidecar");
+  if (isDefault) btn.classList.add("topic-schema-target-tab--default");
+  if (slotKey) btn.dataset.slotKey = slotKey;
+  if (contentKind) btn.dataset.contentKind = contentKind;
+  btn.dataset.target = id;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
+  btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
+  btn.classList.toggle("is-configured", topicSchemaTargetHasCustomFields(id, cache));
+  const typeName = getTopicSchemaTargetTypeName(id) || AWN_SCHEMA_TARGET_TYPE_NAMES[id];
+  btn.textContent = label || getTopicSchemaTargetLabel(id);
+  if (fullLabel || typeName) {
+    btn.title = [fullLabel || getTopicSchemaTargetLabel(id), typeName].filter(Boolean).join(" · ");
+  }
+  return btn;
+}
+
 function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (!topicSchemaTargetTabsNode) return;
-  topicSchemaTargetTabsNode.replaceChildren(
-    ...getTopicSchemaTargetSpecs().map((spec) => {
-      const { id, group } = spec;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "topic-schema-target-tab";
-      if (group === "slot") btn.classList.add("topic-schema-target-tab--slot");
-      if (group === "slot-meta") btn.classList.add("topic-schema-target-tab--slot-meta");
-      btn.dataset.target = id;
-      btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
-      btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
-      btn.classList.toggle("is-configured", topicSchemaTargetHasCustomFields(id, cache));
-      const typeName = getTopicSchemaTargetTypeName(id) || AWN_SCHEMA_TARGET_TYPE_NAMES[id];
-      btn.textContent = getTopicSchemaTargetLabel(id);
-      if (typeName) btn.title = typeName;
-      return btn;
-    })
-  );
+  topicSchemaTargetTabsNode.replaceChildren();
+
+  const groups =
+    typeof TopicSchemaSlotSpecs !== "undefined" && TopicSchemaSlotSpecs.buildTopicSchemaTargetTabGroups
+      ? TopicSchemaSlotSpecs.buildTopicSchemaTargetTabGroups()
+      : null;
+
+  if (!groups) {
+    topicSchemaTargetTabsNode.append(
+      ...getTopicSchemaTargetSpecs().map((spec) => createTopicSchemaTargetTabButton(spec, cache))
+    );
+    return;
+  }
+
+  for (const group of groups) {
+    const section = document.createElement("section");
+    section.className = "topic-schema-target-tab-group";
+    section.dataset.tabGroup = group.id;
+
+    const heading = document.createElement("div");
+    heading.className = "topic-schema-target-tab-group-label";
+    heading.textContent = group.label;
+    section.appendChild(heading);
+
+    const body = document.createElement("div");
+    body.className = "topic-schema-target-tab-group-body";
+
+    if (group.id === "core" && group.coreTabs) {
+      const row = document.createElement("div");
+      row.className = "topic-schema-target-tab-row topic-schema-target-tab-row--core";
+      for (const tab of group.coreTabs) {
+        row.appendChild(createTopicSchemaTargetTabButton(tab, cache));
+      }
+      body.appendChild(row);
+    } else if (group.slots) {
+      for (const slot of group.slots) {
+        const row = document.createElement("div");
+        row.className = "topic-schema-target-tab-row";
+
+        const slotLabel = document.createElement("span");
+        slotLabel.className = "topic-schema-target-slot-label";
+        slotLabel.textContent = slot.label;
+        row.appendChild(slotLabel);
+
+        const tabs = document.createElement("div");
+        tabs.className = "topic-schema-target-slot-tabs";
+        tabs.setAttribute("role", "presentation");
+        for (const tab of slot.tabs) {
+          tabs.appendChild(createTopicSchemaTargetTabButton(tab, cache));
+        }
+        row.appendChild(tabs);
+        body.appendChild(row);
+      }
+    }
+
+    section.appendChild(body);
+    topicSchemaTargetTabsNode.appendChild(section);
+  }
 }
 
 function renderTopicSchemaBaseFields(cache = getTopicSchemaCache()) {
@@ -24587,14 +24864,15 @@ function getPropsContextPath(nodePath = activePath) {
     return `${getNodeStorageSubfolderPath(manifestBase, "external")}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (manifestBase && activeContentMode === "media" && activeMediaMarkdownPath) {
+  if (manifestBase && isMediaLibraryContentMode() && activeMediaMarkdownPath) {
     const rel = String(activeMediaMarkdownPath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(manifestBase, "media")}/${rel}`.replace(/\/+/g, "/");
+    const subfolder = getMediaLibraryStorageSubfolder();
+    return `${getNodeStorageSubfolderPath(manifestBase, subfolder)}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (manifestBase && activeContentMode === "media" && activeMediaSidecarPath) {
+  if (manifestBase && isMediaLibraryContentMode() && activeMediaSidecarPath) {
     const rel = String(activeMediaSidecarPath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(manifestBase, "assets")}/${rel}`.replace(/\/+/g, "/");
+    return `${getNodeStorageSubfolderPath(manifestBase, STORAGE_SUBFOLDER_ASSETS)}/${rel}`.replace(/\/+/g, "/");
   }
 
   if (manifestBase && activeContentMode === "internal") {
@@ -24611,15 +24889,25 @@ function getPropsContextPath(nodePath = activePath) {
 function normalizeAwnTypeName(typeName) {
   const raw = String(typeName || "").trim();
   if (!raw) return "";
-  if (/^awn\./i.test(raw)) return raw;
-  const aliases = {
-    area: "awn.area",
-    topic: "awn.topic",
-    workspace: "awn.workspace",
-    record: "awn.record",
+  const shortAliases = {
+    area: "awn.page.area",
+    topic: "awn.page.topic",
+    workspace: "awn.page.ws",
+    ws: "awn.page.ws",
+    record: "awn.content.record",
     service: "service"
   };
-  return aliases[raw.toLowerCase()] || raw;
+  const normalized = /^awn\./i.test(raw) ? raw : shortAliases[raw.toLowerCase()] || raw;
+  const legacyToCanonical = {
+    "awn.record": "awn.content.record",
+    "awn.record.category": "awn.content.record.category",
+    "awn.sidecar": "awn.content.sidecar",
+    "awn.media.category": "awn.content.record.category",
+    "awn.topic": "awn.page.topic",
+    "awn.area": "awn.page.area",
+    "awn.workspace": "awn.page.ws"
+  };
+  return legacyToCanonical[normalized] || normalized;
 }
 
 function getPropertiesApiPath() {
@@ -24696,36 +24984,36 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
   const lower = fileName.toLowerCase();
 
-  if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
-  if (isMediaCategoryContentPath(normalized)) return "awn.media.category";
-  if (isRecordCategoryContentPath(normalized)) return "awn.record.category";
+  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.content.sidecar");
+  if (isMediaCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
+  if (isRecordCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
   if (isSectionReadmePath(normalized) && /\/media\//i.test(normalized)) {
-    return "awn.media.category";
+    return normalizeAwnTypeName("awn.content.record.category");
   }
   if (isSectionReadmePath(normalized) && /\/content\//i.test(normalized)) {
-    return "awn.record.category";
+    return normalizeAwnTypeName("awn.content.record.category");
   }
 
-  const flatStorageModes = ["inbox", "quick-notes", "references"];
+  const flatStorageModes = ["inbox", "note", "references"];
   const isFlatStorageContentFile =
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
   if (isFlatStorageContentFile && !isNodeManifestPath(normalized)) {
-    if (isSectionReadmePath(normalized)) return "awn.record.category";
-    return "awn.record";
+    if (isSectionReadmePath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
+    return normalizeAwnTypeName("awn.content.record");
   }
 
   const isStorageContentFile =
     options.contentMode === "external" ||
-    /\/(?:awn-storage|storage)\/content\//i.test(normalized);
+    /\/(?:awn-storage|storage)\/(?:main|memory|content)\//i.test(normalized);
   if (isStorageContentFile && !isNodeManifestPath(normalized)) {
-    return "awn.record";
+    return normalizeAwnTypeName("awn.content.record");
   }
 
   if (isNodeManifestPath(normalized)) {
-    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return "awn.workspace";
-    if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) return "awn.area";
-    if (isAgentSystemRootIndexPath(normalized)) return "awn.area";
+    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.ws");
+    if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
+    if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
     if (isSystemReferenceManifestPath(normalized)) {
       return /\/taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
         /\/catalog\/[^/]+\/manifest\.md$/i.test(normalized)
@@ -24734,20 +25022,24 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     }
 
     const declared = getDeclaredManifestTreeType(normalized);
-    if (declared === "topic") return "awn.topic";
-    if (declared === "area") return "awn.area";
+    if (declared === "topic") return normalizeAwnTypeName("awn.page.topic");
+    if (declared === "area") return normalizeAwnTypeName("awn.page.area");
 
-    if (isTopicManifestPath(normalized)) return "awn.topic";
-    if (isAreaNodePath(normalized)) return "awn.area";
+    if (isTopicManifestPath(normalized)) return normalizeAwnTypeName("awn.page.topic");
+    if (isAreaNodePath(normalized)) return normalizeAwnTypeName("awn.page.area");
     const containerFolder = options.containerFolder || getActiveAgentContainerFolder();
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
-      return folderDepth >= 2 ? "awn.topic" : "awn.area";
+      return folderDepth >= 2
+        ? normalizeAwnTypeName("awn.page.topic")
+        : normalizeAwnTypeName("awn.page.area");
     }
-    return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2 ? "awn.topic" : "awn.area";
+    return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2
+      ? normalizeAwnTypeName("awn.page.topic")
+      : normalizeAwnTypeName("awn.page.area");
   }
 
-  return "awn.record";
+  return normalizeAwnTypeName("awn.content.record");
 }
 
 function resolveAwnTypeForContext(nodePath = activePath) {
@@ -26856,6 +27148,14 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Артефакты",
         items: [`Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ARTEFACTS}/`)}`]
+      };
+    case "assets":
+      return {
+        title: "Активы",
+        items: [
+          `Папка: ${formatMiniDocPathHint(`${STORAGE_SUBFOLDER_ASSETS}/`)}`,
+          "Подпапки: pasted/, attachments/, preview/"
+        ]
       };
     case "repository":
       return {
@@ -30614,7 +30914,7 @@ function buildMediaSidecarContent() {
 }
 
 function isMediaMarkdownEditing() {
-  return activeContentMode === "media" && Boolean(activeMediaMarkdownPath);
+  return isMediaLibraryContentMode() && Boolean(activeMediaMarkdownPath);
 }
 
 function isMediaAssetEditing() {
@@ -31065,7 +31365,7 @@ function getActiveMediaSectionParentForCreate() {
   if (!isStorageSectionsPanelVisible()) return null;
   if (activeMediaSectionFolder) return activeMediaSectionFolder;
   const route = parseAppRoute(location.pathname);
-  if (route.view === "media" && route.mediaSectionPath) {
+  if (route.view === activeContentMode && route.mediaSectionPath) {
     return route.mediaSectionPath;
   }
   return null;
@@ -31084,8 +31384,8 @@ function openCreateSectionModal(targetMode = "external") {
   if (!activePath) return;
   if (targetMode === "external") {
     if (activeContentMode !== "external" || activeExternalFilePath) return;
-  } else if (targetMode === "media") {
-    if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  } else if (isMediaLibraryContentMode(targetMode)) {
+    if (activeContentMode !== targetMode || isMediaAssetEditing()) return;
   } else if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
     if (activeContentMode !== targetMode) return;
   } else {
@@ -31096,7 +31396,7 @@ function openCreateSectionModal(targetMode = "external") {
   renameMenuNodeState = null;
   renameExternalFileState = null;
   createSectionParentFolder =
-    targetMode === "media"
+    isMediaLibraryContentMode(targetMode)
       ? getActiveMediaSectionParentForCreate()
       : targetMode === "external"
         ? getActiveExternalSectionParentForCreate()
@@ -31132,8 +31432,8 @@ async function createWorkspaceSection() {
   if (!activePath) return;
   if (createSectionTargetMode === "external") {
     if (activeContentMode !== "external" || activeExternalFilePath) return;
-  } else if (createSectionTargetMode === "media") {
-    if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  } else if (isMediaLibraryContentMode(createSectionTargetMode)) {
+    if (activeContentMode !== createSectionTargetMode || isMediaAssetEditing()) return;
   } else if (FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode)) {
     if (activeContentMode !== createSectionTargetMode) return;
   } else {
@@ -31153,18 +31453,18 @@ async function createWorkspaceSection() {
   createSectionOkBtn.disabled = true;
   createSectionOkBtn.textContent = "Создаю...";
 
+  const isMediaLibraryTarget = isMediaLibraryContentMode(createSectionTargetMode);
   const isFlatStorageTarget = FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode);
   const apiPath = isFlatStorageTarget
     ? "/api/storage/section/create"
-    : createSectionTargetMode === "media"
+    : isMediaLibraryTarget
       ? "/api/media/section/create"
       : "/api/external/section/create";
 
   try {
-    const mediaParentFolder =
-      createSectionTargetMode === "media"
-        ? createSectionParentFolder || getActiveMediaSectionParentForCreate()
-        : null;
+    const mediaParentFolder = isMediaLibraryTarget
+      ? createSectionParentFolder || getActiveMediaSectionParentForCreate()
+      : null;
     const externalParentFolder =
       createSectionTargetMode === "external"
         ? createSectionParentFolder || getActiveExternalSectionParentForCreate()
@@ -31178,8 +31478,12 @@ async function createWorkspaceSection() {
       displayName,
       slug
     };
-    if (createSectionTargetMode === "media" && mediaParentFolder) {
+    if (isMediaLibraryTarget && mediaParentFolder) {
       requestBody.parent = mediaParentFolder;
+    }
+    if (isMediaLibraryTarget) {
+      const libraryFolder = getMediaLibraryStorageSubfolder(createSectionTargetMode);
+      if (libraryFolder !== STORAGE_SUBFOLDER_MEDIA) requestBody.folder = libraryFolder;
     }
     if (createSectionTargetMode === "external" && externalParentFolder) {
       requestBody.parent = externalParentFolder;
@@ -31201,10 +31505,9 @@ async function createWorkspaceSection() {
     }
 
     closeCreateSectionModal();
-    const createdMediaSectionPath =
-      createSectionTargetMode === "media"
-        ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
-        : "";
+    const createdMediaSectionPath = isMediaLibraryTarget
+      ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
+      : "";
     const createdExternalSectionPath =
       createSectionTargetMode === "external"
         ? buildCreatedMediaSectionPath(externalParentFolder, data.section, data.sectionPath)
@@ -31274,16 +31577,18 @@ function isEditorSaveTrackingActive() {
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
     activeContentMode === "inbox" ||
+    activeContentMode === "note" ||
     activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
+    activeContentMode === "assets" ||
     activeContentMode === "temp"
   ) {
     return false;
   }
   if (activeContentMode === "external" && !activeExternalFilePath) return false;
-  if (activeContentMode === "media" && !isMediaAssetEditing()) return false;
+  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) return false;
   if (activeContentMode === "temp") return false;
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) return false;
   return true;
@@ -32521,26 +32826,15 @@ function renderNodeOverviewTypeRegistryFold(types, context) {
   const title = context.allDomains ? `Типы · ${types.length}` : `${domainLabel} · ${types.length}`;
   const list = renderNodeOverviewTypeRegistryList(types, context);
   const accordion = createOverviewAccordionSection(OVERVIEW_TYPES_ACCORDION_GROUP_ID, title, list, {
-    defaultOpen: types.length > 0
+    defaultOpen: false,
+    disabled: true
   });
   accordion.classList.add("node-overview-types-fold", "node-navigation-types");
   return accordion;
 }
 
-async function appendNodeOverviewTypeRegistryFold(container, nodePath) {
-  if (!container) return;
-  const context = resolveTypeCatalogOverviewContext(nodePath);
-  if (!context) return;
-  const catalog = typeCatalogCacheByAgent.get(String(activeAgentId || "default")) || (await loadTypeCatalog(activeAgentId));
-  if (!catalog) return;
-  const types = filterOverviewTypeCatalogEntries(catalog, context);
-  const fold = renderNodeOverviewTypeRegistryFold(types, context);
-  if (fold) container.appendChild(fold);
-
-  if (context.allDomains && Array.isArray(catalog.foundationTypes) && catalog.foundationTypes.length) {
-    const foundationFold = renderNodeOverviewFoundationTypesFold(catalog.foundationTypes);
-    if (foundationFold) container.appendChild(foundationFold);
-  }
+async function appendNodeOverviewTypeRegistryFold(_container, _nodePath) {
+  // Type registry folds (Типы / Базовые классы) not shown in node overview.
 }
 
 function renderNodeOverviewFoundationTypesFold(foundationTypes) {
@@ -32585,19 +32879,27 @@ function renderNodeOverviewFoundationTypesFold(foundationTypes) {
     OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID,
     `Базовые классы · ${foundationTypes.length}`,
     section,
-    { defaultOpen: true }
+    { defaultOpen: false, disabled: true }
   );
 }
 
-function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true } = {}) {
+function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true, disabled = false } = {}) {
   const details = document.createElement("details");
   details.className = "node-overview-fold";
+  if (disabled) details.classList.add("is-disabled");
 
   const accordionState = loadOverviewAccordionState();
-  details.open = accordionState[groupId] !== undefined ? Boolean(accordionState[groupId]) : defaultOpen;
 
   const summary = document.createElement("summary");
   summary.className = "node-overview-fold-head";
+
+  if (disabled) {
+    details.open = false;
+    summary.setAttribute("aria-disabled", "true");
+    summary.title = "Раздел временно отключён";
+  } else {
+    details.open = accordionState[groupId] !== undefined ? Boolean(accordionState[groupId]) : defaultOpen;
+  }
 
   const titleSpan = document.createElement("span");
   titleSpan.className = "node-overview-fold-title";
@@ -32615,6 +32917,10 @@ function createOverviewAccordionSection(groupId, title, contentNode, { defaultOp
 
   details.append(summary, body);
   details.addEventListener("toggle", () => {
+    if (disabled) {
+      details.open = false;
+      return;
+    }
     saveOverviewAccordionOpenState(groupId, details.open);
   });
 
@@ -32745,16 +33051,22 @@ function renderOverviewMemoryBlock(summary, nodePath = activePath, { areaMode = 
   return section;
 }
 
-async function fetchMediaOverview(nodePath = activePath) {
+async function fetchMediaLibraryOverview(nodePath = activePath, mode = "media") {
   const apiPath = getOverviewNodeApiPath(nodePath);
   if (!apiPath) return null;
   try {
-    const response = await fetch(buildApiUrl("/api/media", { path: apiPath }));
+    const response = await fetch(
+      buildApiUrl("/api/media", buildMediaLibraryApiParams({ path: apiPath }, mode))
+    );
     if (!response.ok) return null;
     return await response.json();
   } catch {
     return null;
   }
+}
+
+async function fetchMediaOverview(nodePath = activePath) {
+  return fetchMediaLibraryOverview(nodePath, "media");
 }
 
 const MEDIA_OVERVIEW_GROUP_ICONS = {
@@ -33295,6 +33607,18 @@ async function fetchFolderViewSummary(manifestPath, folder, agentId = activeAgen
   }
 }
 
+async function fetchFlatStorageSectionSummary(manifestPath, slotKey) {
+  const folders = getStorageFolderNamesForSlotKey(slotKey);
+  if (!folders.length) return { exists: false, files: 0 };
+  const summaries = await Promise.all(
+    folders.map((folder) => fetchFolderViewSummary(manifestPath, folder))
+  );
+  return {
+    exists: summaries.some((summary) => summary.exists),
+    files: summaries.reduce((sum, summary) => sum + (Number(summary.files) || 0), 0)
+  };
+}
+
 async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false } = {}) {
   if (isArea) return [];
 
@@ -33312,14 +33636,13 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatModes = ["quick-notes", "references", "artefacts", "repository", "scripts"];
-  const folderResults = await Promise.all(
-    flatModes.map(async (mode) => {
-      const folder = getFlatStorageSectionFolderName(mode);
-      const summary = await fetchFolderViewSummary(manifestPath, folder);
-      return [mode, summary];
-    })
-  );
+  const flatModes = ["note", "references", "artefacts", "repository", "scripts"];
+  const [todoData, mediaOverview, assetsOverview, ...folderResults] = await Promise.all([
+    fetchTodoForOverview(nodePath).catch(() => null),
+    fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+    fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
+    ...flatModes.map(async (mode) => [mode, await fetchFlatStorageSectionSummary(manifestPath, mode)])
+  ]);
   const folderByMode = Object.fromEntries(folderResults);
 
   return NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS.map((spec) => {
@@ -33341,6 +33664,14 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
       } else {
         title = `${spec.label}: пусто`;
       }
+    } else if (spec.id === "todo-single") {
+      const todoLines = String(todoData?.content || "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      count = todoLines.length;
+      filled = count > 0;
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.id === "thread") {
       count = Number(intake?.thread?.count) || 0;
       filled = count > 0;
@@ -33352,6 +33683,14 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
       } else {
         title = `${spec.label}: пусто`;
       }
+    } else if (spec.id === "media") {
+      count = Number(mediaOverview?.files) || 0;
+      filled = count > 0 || Boolean(mediaOverview?.exists);
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+    } else if (spec.id === "assets") {
+      count = Number(assetsOverview?.files) || 0;
+      filled = count > 0 || Boolean(assetsOverview?.exists);
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else {
       const summary = folderByMode[spec.id] || { files: 0 };
       count = Number(summary.files) || 0;
@@ -33557,7 +33896,7 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
   wrap.className = "node-navigation-hero-marker-slots";
   wrap.setAttribute(
     "aria-label",
-    "Agent, Git, Skill и runtime-настройки темы"
+    "Agent, Git и runtime-настройки темы"
   );
   wrap.append(
     createNavigationHeroMarkerSlot({
@@ -33573,14 +33912,6 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       caption: "Git",
       active: markers.hasGit,
       createSvg: createGitMarkerSvg
-    }),
-    createNavigationHeroMarkerSlot({
-      id: "skill",
-      caption: "Skill",
-      active: markers.hasSkill,
-      createSvg: createSkillMarkerSvg,
-      titleActive: "SKILL.md: есть в этой папке — это скилл",
-      titleInactive: "SKILL.md: нет в этой папке"
     })
   );
   appendNavigationHeroRuntimeSlots(wrap, options.propEntries);
@@ -34274,7 +34605,7 @@ function isFlatEntryOverviewMemoryKind(kind) {
 }
 
 function isDataEntryOverviewMemoryKind(kind) {
-  return kind === "external" || kind === "media" || isFlatEntryOverviewMemoryKind(kind);
+  return kind === "external" || kind === "media" || kind === "todo" || isFlatEntryOverviewMemoryKind(kind);
 }
 
 function getEntryOverviewTocRootEntryKind(memoryKind) {
@@ -34459,6 +34790,7 @@ function getActiveMemoryEntryViewKind() {
     return null;
   }
   if (activeContentMode === "media") return "media";
+  if (activeContentMode === "assets") return "assets";
   if (activeContentMode === "external") return "external";
   if (isFlatEntryOverviewMemoryKind(activeContentMode)) return activeContentMode;
   return null;
@@ -34469,6 +34801,7 @@ function getActiveDataEntryViewKind() {
   if (overviewKind) return overviewKind;
   const slot = getDataStorageSlotForMode();
   if (slot?.key === "media") return "media";
+  if (slot?.key === "assets") return "assets";
   if (slot?.key === "memory") return "external";
   if (slot && supportsDataEntryOverview(slot.key)) return slot.key;
   return "list-only";
@@ -34984,7 +35317,7 @@ function getEntryOverviewSearchPlaceholder(context) {
   const kind = context?.memoryKind;
   if (kind === "media") return "Поиск по медиа...";
   if (kind === "external") return "Поиск по записям Content...";
-  if (kind === "quick-notes") return "Поиск по быстрым заметкам...";
+  if (kind === "note" || kind === "quick-notes") return "Поиск по заметкам...";
   if (kind === "references") return "Поиск по ссылкам...";
   return "Поиск по оглавлению...";
 }
@@ -35147,15 +35480,19 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
   );
   const flatModes = overviewSpecs
-    .filter((spec) => spec.sectionKind === "flat" && spec.key !== "inbox")
+    .filter(
+      (spec) => spec.sectionKind === "flat" && spec.key !== "inbox" && spec.key !== "todo-single"
+    )
     .map((spec) => spec.key);
 
-  const [externalData, mediaData, ...folderResults] = await Promise.all([
+  const [externalData, mediaData, assetsData, todoData, ...folderResults] = await Promise.all([
     fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
-    fetchMediaOverview(topicPath).catch(() => ({ groups: {}, sectionManifests: [] })),
+    fetchMediaLibraryOverview(topicPath, "media").catch(() => ({ groups: {}, sectionManifests: [] })),
+    fetchMediaLibraryOverview(topicPath, "assets").catch(() => ({ groups: {}, sectionManifests: [] })),
+    fetchTodoForOverview(topicPath).catch(() => null),
     ...flatModes.map(async (mode) => [
       mode,
-      await fetchFolderViewSummary(manifestPath, getFlatStorageSectionFolderName(mode))
+      await fetchFlatStorageSectionSummary(manifestPath, mode)
     ])
   ]);
 
@@ -35166,6 +35503,10 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
   const mediaPrepared = prepareNavigationMediaItems(
     mediaData?.groups || {},
     mediaData?.sectionManifests || []
+  );
+  const assetsPrepared = prepareNavigationMediaItems(
+    assetsData?.groups || {},
+    assetsData?.sectionManifests || []
   );
   const folderByMode = Object.fromEntries(folderResults);
 
@@ -35183,6 +35524,10 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       count = (mediaPrepared.contentFiles || []).length;
       filled = count > 0 || Boolean(mediaPrepared.folderPaths?.size);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+    } else if (spec.key === "assets") {
+      count = (assetsPrepared.contentFiles || []).length;
+      filled = count > 0 || Boolean(assetsPrepared.folderPaths?.size);
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "inbox") {
       const pending = Number(intake?.inbox?.pending) || 0;
       const total = Number(intake?.inbox?.total) || 0;
@@ -35196,6 +35541,14 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       } else {
         title = `${spec.label}: пусто`;
       }
+    } else if (spec.key === "todo-single") {
+      const todoLines = String(todoData?.content || "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      count = todoLines.length;
+      filled = count > 0;
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else {
       const summary = folderByMode[spec.key] || { files: 0 };
       count = Number(summary.files) || 0;
@@ -38724,25 +39077,19 @@ async function renderNodeNavigation() {
   await appendNodeOverviewTypeRegistryFold(hub, nodePath);
   if (isStale()) return;
 
-  const memoryCounters = buildNodeNavigationMemoryCounterSlots({
-    isArea,
-    internalData,
-    externalData,
-    tabularData,
-    mediaData,
-    todoData
-  });
-  const workspaceCounters = isArea ? [] : await buildNodeNavigationWorkspaceCounters(nodePath, { isArea });
+  const topicSlotCounters = isArea ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
   if (isStale()) return;
 
   if (isArea) {
     const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true });
     if (areaInternalPanel) hub.appendChild(areaInternalPanel);
   } else {
-    const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip([
-      ...memoryCounters,
-      ...workspaceCounters
-    ]);
+    const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
+      topicSlotCounters.map((slot) => ({
+        ...slot,
+        modeId: slot.spec?.defaultMode || slot.id
+      }))
+    );
     if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
   }
 
@@ -39303,7 +39650,7 @@ function applyModeUi() {
   }
   const hideContentEditor = isCurrentModeWithoutContentEditor();
   const showExternalControls = activeContentMode === "external" && !externalEditing;
-  const showMediaControls = activeContentMode === "media" && !mediaSidecarEditing;
+  const showMediaControls = isMediaLibraryContentMode() && !mediaSidecarEditing;
   const showFlatStorageSectionControls = isFlatStorageSectionMode() && isFlatStorageListMode();
   const showTabularControls = activeContentMode === "tabular" && !isTabularSourceEditing();
   const showWorkspaceRefresh = isWorkspaceRefreshAvailable();
@@ -39317,6 +39664,7 @@ function applyModeUi() {
     showMediaControls ||
     showTabularControls ||
     activeContentMode === "inbox" ||
+    activeContentMode === "note" ||
     activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
@@ -39417,9 +39765,11 @@ function applyModeUi() {
       activeContentMode === "scripts" ||
       activeContentMode === "temp" ||
       activeContentMode === "inbox" ||
+      activeContentMode === "note" ||
       activeContentMode === "quick-notes" ||
       activeContentMode === "references" ||
       activeContentMode === "artefacts" ||
+      activeContentMode === "assets" ||
       activeContentMode === "repository"
   );
   docActionsNode?.classList.toggle("hidden", hideToolbar);
@@ -41435,8 +41785,8 @@ function setCreateSlugLinked(linked) {
 
 function getActiveTitleEditorPath() {
   if (activeContentMode === "external" && activeExternalFilePath) return activeExternalFilePath;
-  if (activeContentMode === "media" && activeMediaMarkdownPath) return activeMediaMarkdownPath;
-  if (activeContentMode === "media" && activeMediaSidecarSourcePath) return activeMediaSidecarSourcePath;
+  if (isMediaLibraryContentMode() && activeMediaMarkdownPath) return activeMediaMarkdownPath;
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath) return activeMediaSidecarSourcePath;
   return activePath;
 }
 
@@ -41449,10 +41799,10 @@ function isTitleSlugRenameSupported(nodePath = getActiveTitleEditorPath()) {
   if (activeContentMode === "external" && activeExternalFilePath === nodePath) {
     return !isSectionReadmePath(nodePath);
   }
-  if (activeContentMode === "media" && activeMediaMarkdownPath === nodePath) {
+  if (isMediaLibraryContentMode() && activeMediaMarkdownPath === nodePath) {
     return !isSectionReadmePath(nodePath);
   }
-  if (activeContentMode === "media" && activeMediaSidecarSourcePath === nodePath) {
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) {
     return Boolean(nodePath);
   }
   return false;
@@ -41464,8 +41814,8 @@ function isTitleSlugRowVisible(nodePath = getActiveTitleEditorPath()) {
     return isTitleSlugRenameSupported(nodePath) || isSlugLockedManifestPath(nodePath);
   }
   if (activeContentMode === "external" && activeExternalFilePath === nodePath) return true;
-  if (activeContentMode === "media" && activeMediaMarkdownPath === nodePath) return true;
-  if (activeContentMode === "media" && activeMediaSidecarSourcePath === nodePath) return true;
+  if (isMediaLibraryContentMode() && activeMediaMarkdownPath === nodePath) return true;
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) return true;
   return false;
 }
 
@@ -43132,11 +43482,14 @@ function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId)
 
   const wrap = document.createElement("div");
   wrap.className = "menu-agent-system-section";
+  if (AGENT_SYSTEM_MENU_DISABLED) wrap.classList.add("is-disabled");
 
   const headRow = document.createElement("div");
   headRow.className = "menu-folder-row menu-agent-system-head";
-  const collapsed = queryLower ? false : isAgentSystemTreeCollapsed();
-  headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleAgentSystemTreeCollapsed));
+  const collapsed = AGENT_SYSTEM_MENU_DISABLED ? true : queryLower ? false : isAgentSystemTreeCollapsed();
+  if (!AGENT_SYSTEM_MENU_DISABLED) {
+    headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleAgentSystemTreeCollapsed));
+  }
 
   const manifestPath = systemTree.indexPath;
   if (manifestPath) {
@@ -43152,25 +43505,32 @@ function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId)
       "menu-folder-name",
       { skipAgentMarker: true }
     );
-    folderButton.addEventListener("click", () => {
-      void openNodeFromMenu(AGENT_SYSTEM_SECTION_LABEL, manifestPath);
-    });
+    if (AGENT_SYSTEM_MENU_DISABLED) {
+      folderButton.disabled = true;
+      folderButton.title = "Базовая модель временно отключена";
+    } else {
+      folderButton.addEventListener("click", () => {
+        void openNodeFromMenu(AGENT_SYSTEM_SECTION_LABEL, manifestPath);
+      });
+    }
     headRow.appendChild(folderButton);
     headRow.appendChild(createBookmarkButton(manifestPath));
   } else {
     const title = document.createElement("h3");
     title.className = "menu-agent-system-title";
     title.textContent = AGENT_SYSTEM_SECTION_LABEL;
-    title.title = systemTree.typeCount
-      ? `${systemTree.typeCount} типов · базовая CMS-модель`
-      : "Базовая CMS-модель агента";
-    if (hasContent) title.addEventListener("click", toggleAgentSystemTreeCollapsed);
+    title.title = AGENT_SYSTEM_MENU_DISABLED
+      ? "Базовая модель временно отключена"
+      : systemTree.typeCount
+        ? `${systemTree.typeCount} типов · базовая CMS-модель`
+        : "Базовая CMS-модель агента";
+    if (hasContent && !AGENT_SYSTEM_MENU_DISABLED) title.addEventListener("click", toggleAgentSystemTreeCollapsed);
     headRow.appendChild(title);
   }
 
   wrap.appendChild(headRow);
 
-  if (!collapsed && hasContent) {
+  if (!collapsed && hasContent && !AGENT_SYSTEM_MENU_DISABLED) {
     const body = document.createElement("div");
     body.className = "tree-children menu-agent-system-body";
     body.dataset.sortFolder = AGENT_SYSTEM_ROOT;
@@ -44918,9 +45278,7 @@ async function loadSystemFiles(options = {}) {
       { name: ".env", exists: false, empty: true },
       { name: ".gitignore", exists: false, empty: true },
       { name: "AGENTS.md", exists: false, empty: true },
-      { name: "awn-autoincrement-id.json", exists: false, empty: true },
       { name: "awn-dependencies.json", exists: false, empty: true },
-      { name: "awn-map.json", exists: false, empty: true },
       { name: "docker-compose.yml", exists: false, empty: true },
       { name: "README.md", exists: false, empty: true },
       { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true },
@@ -45112,7 +45470,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "artefacts", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");
@@ -45778,9 +46136,11 @@ async function selectFile(label, filePath) {
     modeContentCache.internal = "";
     modeContentCache.external = "";
     modeContentCache.inbox = "";
+    modeContentCache.note = "";
     modeContentCache["quick-notes"] = "";
     modeContentCache.references = "";
     modeContentCache.artefacts = "";
+    modeContentCache.assets = "";
     modeContentCache.repository = "";
     modeContentCache.media = "";
     modeContentCache.configs = "";
@@ -45817,22 +46177,37 @@ async function selectFile(label, filePath) {
   }
 }
 
+async function resolveFlatStorageSectionFolderName(mode) {
+  const normalizedMode = mode === "quick-notes" ? "note" : mode;
+  const primary = getFlatStorageSectionFolderName(normalizedMode);
+  if (normalizedMode !== "note") return primary;
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) return primary;
+  for (const folder of getStorageFolderNamesForSlotKey("note")) {
+    const summary = await fetchFolderViewSummary(manifestPath, folder);
+    if (summary.exists) return folder;
+  }
+  return primary;
+}
+
 async function loadFlatStorageSectionContent(mode, preserveSectionFolder = null) {
-  const folder = getFlatStorageSectionFolderName(mode);
+  const resolvedMode = mode === "quick-notes" ? "note" : mode;
+  const folder = await resolveFlatStorageSectionFolderName(resolvedMode);
   if (!folder) return;
   const response = await fetch(
     buildApiUrl("/api/folder/view", { path: getActiveNodeApiPath(), folder })
   );
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
-  applyFlatStorageFolderLoadState(mode, data);
+  applyFlatStorageFolderLoadState(resolvedMode, data);
   const sectionToRestore =
     preserveSectionFolder ||
+    activeFlatStorageSectionFolder[resolvedMode] ||
     activeFlatStorageSectionFolder[mode] ||
-    getActiveFlatStorageSectionParentForCreate(mode);
+    getActiveFlatStorageSectionParentForCreate(resolvedMode);
   if (sectionToRestore) {
-    activeFlatStorageSectionFolder[mode] = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
-    pruneActiveFlatStorageSectionFolder(mode);
+    activeFlatStorageSectionFolder[resolvedMode] = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
+    pruneActiveFlatStorageSectionFolder(resolvedMode);
   }
   applyModeUi();
   renderListViewContent();
@@ -46013,14 +46388,16 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
-  if (activeContentMode === "quick-notes") {
+  if (activeContentMode === "note" || activeContentMode === "quick-notes") {
     try {
       await loadFlatStorageSectionContent(
-        "quick-notes",
-        activeContentMode === "quick-notes" ? preserveFlatStorageSectionFolder : null
+        "note",
+        activeContentMode === "note" || activeContentMode === "quick-notes"
+          ? preserveFlatStorageSectionFolder
+          : null
       );
     } catch (error) {
-      fileContentInputNode.value = `Ошибка чтения быстрых заметок: ${error.message}`;
+      fileContentInputNode.value = `Ошибка чтения заметок: ${error.message}`;
       renderListViewContent();
       fileContentInputNode.readOnly = true;
     }
@@ -46043,17 +46420,20 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
-  if (activeContentMode === "media") {
+  if (isMediaLibraryContentMode()) {
     clearMediaSidecarEditor();
     fileContentInputNode.value = "";
     const sectionToRestore =
       preserveMediaSectionFolder || activeMediaSectionFolder || getActiveMediaSectionParentForCreate();
+    const mode = activeContentMode;
     try {
-      const response = await fetch(buildApiUrl("/api/media", { path: getActiveNodeApiPath() }));
+      const response = await fetch(
+        buildApiUrl("/api/media", buildMediaLibraryApiParams({ path: getActiveNodeApiPath() }, mode))
+      );
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       mediaAssetsExists = Boolean(data.exists);
-      modeContentCache.media = data.content || "";
+      modeContentCache[mode] = data.content || "";
       syncMediaFilesCache(data.content, data.groups, data.sectionManifests);
       if (sectionToRestore) {
         activeMediaSectionFolder = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
@@ -46063,12 +46443,18 @@ async function loadContentByMode(options = {}) {
       renderListViewContent();
     } catch (error) {
       mediaAssetsExists = true;
-      modeContentCache.media = "";
+      modeContentCache[mode] = "";
       syncMediaFilesCache("", {}, []);
       applyModeUi();
       listViewContentNode.innerHTML = "";
-      renderMediaEmpty(listViewContentNode, `Ошибка чтения медиа: ${error.message}`);
-      showToast(`Ошибка чтения медиа: ${error.message}`, "error");
+      renderMediaEmpty(
+        listViewContentNode,
+        `Ошибка чтения ${getMediaLibraryModeLabel(mode).toLowerCase()}: ${error.message}`
+      );
+      showToast(
+        `Ошибка чтения ${getMediaLibraryModeLabel(mode).toLowerCase()}: ${error.message}`,
+        "error"
+      );
     }
     updateBreadcrumbsForActiveMode();
     return;
@@ -46446,7 +46832,7 @@ async function saveContent() {
     nextSlug &&
     nextSlug !== currentExternalSlug;
   const shouldRenameMediaSidecar =
-    activeContentMode === "media" &&
+    isMediaLibraryContentMode() &&
     activeMediaSidecarPath &&
     isTitleSlugRenameSupported(activeMediaSidecarSourcePath) &&
     nextSlug &&
@@ -46455,7 +46841,7 @@ async function saveContent() {
     ? getNodeSlugFromPath(activeMediaMarkdownPath)
     : "";
   const shouldRenameMediaMarkdown =
-    activeContentMode === "media" &&
+    isMediaLibraryContentMode() &&
     activeMediaMarkdownPath &&
     isTitleSlugRenameSupported(activeMediaMarkdownPath) &&
     nextSlug &&
@@ -46616,7 +47002,7 @@ async function saveContent() {
     );
     if (
       (activeContentMode === "external" && !activeExternalFilePath) ||
-      (activeContentMode === "media" && !isMediaAssetEditing()) ||
+      (isMediaLibraryContentMode() && !isMediaAssetEditing()) ||
       (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
       activeContentMode === "scripts" ||
       activeContentMode === "node-preview" ||
@@ -46625,7 +47011,7 @@ async function saveContent() {
       throw new Error("Этот режим доступен только для чтения");
     }
 
-    if (activeContentMode === "media" && activeMediaMarkdownPath) {
+    if (isMediaLibraryContentMode() && activeMediaMarkdownPath) {
       const response = await fetch(buildApiUrl("/api/media/markdown"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46650,7 +47036,7 @@ async function saveContent() {
       return;
     }
 
-    if (activeContentMode === "media" && activeMediaSidecarPath) {
+    if (isMediaLibraryContentMode() && activeMediaSidecarPath) {
       const response = await fetch(buildApiUrl("/api/media/sidecar"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50071,8 +50457,10 @@ function mapTimelineFileKindToModeId(fileKind) {
     scripts: "scripts",
     inbox: "inbox",
     artefacts: "artefacts",
+    assets: "assets",
     repository: "repository",
-    "quick-notes": "quick-notes",
+    "quick-notes": "note",
+    note: "note",
     references: "references"
   };
   return map[fileKind] || fileKind;
@@ -51162,9 +51550,11 @@ function clearEditorState(message = "") {
   modeContentCache.internal = "";
   modeContentCache.external = "";
   modeContentCache.inbox = "";
+  modeContentCache.note = "";
   modeContentCache["quick-notes"] = "";
   modeContentCache.references = "";
   modeContentCache.artefacts = "";
+  modeContentCache.assets = "";
   modeContentCache.repository = "";
   modeContentCache.media = "";
   modeContentCache.configs = "";
@@ -53718,7 +54108,7 @@ createExternalSectionBtn.addEventListener("click", () => {
   }
   openCreateSectionModal("external");
 });
-createMediaSectionBtn?.addEventListener("click", () => openCreateSectionModal("media"));
+createMediaSectionBtn?.addEventListener("click", () => openCreateSectionModal(activeContentMode));
 createMemoryCancelBtn.addEventListener("click", closeCreateMemoryModal);
 createMemoryOkBtn.addEventListener("click", createExternalMemory);
 createMemoryNamesListNode?.addEventListener("keydown", (event) => {

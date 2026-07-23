@@ -5,6 +5,13 @@
  * - Slug = имя папки; display name — frontmatter `awn-name:`
  */
 const path = require("path");
+const { resolveCanonicalTypeId } = require("./type-catalog-loader");
+
+const EMPTY_TYPE_CATALOG = new Map();
+
+function canonicalAwnType(typeId) {
+  return resolveCanonicalTypeId(String(typeId || "").trim(), EMPTY_TYPE_CATALOG);
+}
 
 const MANIFEST_FILE = "manifest.md";
 /** @deprecated alias */
@@ -76,6 +83,7 @@ const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MAIN;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
 const STORAGE_SUBFOLDER_THREAD = "thread";
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
+const STORAGE_SUBFOLDER_NOTE = "note";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
 const STORAGE_SUBFOLDER_MEDIA = "media";
 const STORAGE_SUBFOLDER_ASSETS = "assets";
@@ -97,6 +105,7 @@ const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
+  STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,
@@ -114,6 +123,7 @@ const STORAGE_FILE_READ_SLOT_FOLDERS = [
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_CONFIGURATION
@@ -125,6 +135,7 @@ const STORAGE_FILE_WRITE_SLOT_FOLDERS = [
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_ASSETS,
   STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_MAIN
@@ -141,10 +152,12 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   inbox: STORAGE_SUBFOLDER_INBOX,
   thread: STORAGE_SUBFOLDER_THREAD,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
+  note: STORAGE_SUBFOLDER_NOTE,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_MEDIA,
   scripts: STORAGE_SUBFOLDER_SCRIPTS,
   artefacts: STORAGE_SUBFOLDER_ARTEFACTS,
+  assets: STORAGE_SUBFOLDER_ASSETS,
   repository: STORAGE_SUBFOLDER_REPOSITORY,
   temp: STORAGE_SUBFOLDER_TEMP,
   configs: STORAGE_SUBFOLDER_CONFIGURATION
@@ -774,38 +787,40 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   const fileName = normalized.split("/").filter(Boolean).pop() || "";
   const lower = fileName.toLowerCase();
 
-  if (lower.endsWith(".sidecar.md")) return "awn.sidecar";
-  if (isMediaCategoryContentRelPath(normalized)) return "awn.media.category";
-  if (isRecordCategoryContentRelPath(normalized)) return "awn.record.category";
-  if (isExternalSectionReadmeRelPath(normalized)) return "awn.record.category";
-  if (isMediaSectionReadmeRelPath(normalized)) return "awn.media.category";
+  if (lower.endsWith(".sidecar.md")) return canonicalAwnType("awn.content.sidecar");
+  if (isMediaCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
+  if (isRecordCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
+  if (isExternalSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
+  if (isMediaSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
 
   const isStorageContentFile =
     options.contentMode === "external" ||
     /\/(?:awn-storage|storage)\/(?:main|memory|content)\//i.test(normalized);
   if (isStorageContentFile && !isManifestFileName(fileName)) {
-    return "awn.record";
+    return canonicalAwnType("awn.content.record");
   }
 
   if (isManifestFileName(fileName)) {
-    if (options.isAgentRoot) return "awn.workspace";
-    if (options.isContainerRoot) return "awn.area";
+    if (options.isAgentRoot) return canonicalAwnType("awn.page.ws");
+    if (options.isContainerRoot) return canonicalAwnType("awn.page.area");
 
     const declared = normalizeDeclaredManifestTreeType(
       options.declaredTreeType || options.explicitType
     );
-    if (declared === "topic") return "awn.topic";
-    if (declared === "area") return "awn.area";
+    if (declared === "topic") return canonicalAwnType("awn.page.topic");
+    if (declared === "area") return canonicalAwnType("awn.page.area");
 
     const containerFolder = options.containerFolder || "awn-container";
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
-      return folderDepth >= 2 ? "awn.topic" : "awn.area";
+      return folderDepth >= 2 ? canonicalAwnType("awn.page.topic") : canonicalAwnType("awn.page.area");
     }
-    return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2 ? "awn.topic" : "awn.area";
+    return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2
+      ? canonicalAwnType("awn.page.topic")
+      : canonicalAwnType("awn.page.area");
   }
 
-  return "awn.record";
+  return canonicalAwnType("awn.content.record");
 }
 
 function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRelPath) {
@@ -1149,6 +1164,7 @@ module.exports = {
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
+  STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,

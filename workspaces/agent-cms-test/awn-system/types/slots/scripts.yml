@@ -1,5 +1,5 @@
-id: awn.slot.scripts
-name: Scripts
+id: awn.slot.script
+name: Скрипты
 kind: slot
 domain: slots
 status: active
@@ -7,8 +7,11 @@ extends: awn.slot
 storage-driver: external
 description: Скрипты и автоматизация
 path: scripts/
+slot-order: 10
 allowed-content:
   - awn.content.record
+  - awn.content.record.category
+  - awn.content.sidecar
 accept-files:
   - ".md"
   - ".sh"

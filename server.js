@@ -80,6 +80,7 @@ const {
   STORAGE_SUBFOLDER_INBOX,
   STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
+  STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_ASSETS,
@@ -145,7 +146,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -154,6 +155,7 @@ const {
   writeAgentSystemFile,
   getAgentSystemStatus
 } = require("./agent-system");
+const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -309,9 +311,7 @@ const {
   isSystemReferenceManifestRel,
   isAwnDependenciesFileName,
   WORKSPACE_AWN_TYPE,
-  AWN_MAP_FILE,
-  AWN_DEPENDENCIES_FILE,
-  AWN_AUTOINCREMENT_ID_FILE
+  AWN_DEPENDENCIES_FILE
 } = agentRegistry;
 
 const SYSTEM_FILE_NAMES = [
@@ -319,8 +319,6 @@ const SYSTEM_FILE_NAMES = [
   ".gitignore",
   "AGENTS.md",
   AWN_DEPENDENCIES_FILE,
-  AWN_AUTOINCREMENT_ID_FILE,
-  AWN_MAP_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
@@ -2439,6 +2437,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "quick-notes") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_QUICK_NOTES);
   }
+  if (mode === "note") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_NOTE);
+  }
   if (mode === "references") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_REFERENCES);
   }
@@ -2793,6 +2794,7 @@ function getStorageFilePolicyViolationReason(fileName, slotKey) {
     case "memory":
     case "inbox":
     case "quick-notes":
+    case "note":
     case "references":
     case "thread":
       if (!lowerName.endsWith(".md")) return "expected-markdown";
@@ -3191,7 +3193,7 @@ async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options 
   }
 }
 
-function buildStorageSectionReadmeContent(title, awnType = "awn.record.category") {
+function buildStorageSectionReadmeContent(title, awnType = "awn.content.record.category") {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
   const quotedTitle = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeTitle)
     ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
@@ -3202,18 +3204,23 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.record.category"
   return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
-function resolveAwnSchemaTargetForSectionType(awnType) {
-  // Modern canonical ids
+function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
+  if (slotKey) {
+    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/topic-schema-slot-specs.js");
+    const resolved = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
+    if (resolved) return resolved;
+  }
+  // Legacy fallback when slot is unknown
   if (awnType === "awn.content.media.category" || awnType === "awn.media.category") return "slot_media_category";
   if (awnType === "awn.content.record.category" || awnType === "awn.record.category") return "slot_memory_category";
   return null;
 }
 
-async function buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType) {
+async function buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey = null) {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
   if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null);
 
-  const schemaTarget = resolveAwnSchemaTargetForSectionType(awnType);
+  const schemaTarget = resolveAwnSchemaTargetForSectionType(awnType, slotKey);
   if (schemaTarget) {
     try {
       const configFile = await readNodeConfigFile(manifestRel);
@@ -3262,7 +3269,7 @@ async function buildExternalRecordFileContentForManifest(manifestRel, title) {
   } catch {
     // fallback below
   }
-  const frontmatter = buildDefaultFrontmatter("awn.record", {
+  const frontmatter = buildDefaultFrontmatter("awn.content.record", {
     name: safeTitle,
     agentRoot: getAgentRoot(),
     projectRoot: getProjectRoot()
@@ -3273,15 +3280,16 @@ async function buildExternalRecordFileContentForManifest(manifestRel, title) {
 async function writeStorageSectionReadme(
   sectionAbsolute,
   title,
-  awnType = "awn.record.category",
-  manifestRel = null
+  awnType = "awn.content.record.category",
+  manifestRel = null,
+  slotKey = null
 ) {
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
   try {
     await fs.access(readmeAbsolute);
   } catch {
     const content = manifestRel
-      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType)
+      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey)
       : buildStorageSectionReadmeContent(title, awnType);
     await fs.writeFile(readmeAbsolute, content, "utf-8");
   }
@@ -3292,7 +3300,11 @@ async function resolveMemorySectionRootAbsolute(nodeAbsolute, scopeType, storage
     return getOrCreateExternalFolderAbsolute(nodeAbsolute);
   }
   if (scopeType === "media") {
-    return getMediaFolderAbsolute(nodeAbsolute);
+    const subfolder =
+      storageFolder && isAllowedStorageSubfolderName(storageFolder)
+        ? storageFolder
+        : STORAGE_SUBFOLDER_MEDIA;
+    return resolveNodeSubfolderAbsolute(nodeAbsolute, subfolder);
   }
   if (scopeType === "storage") {
     if (!isAllowedStorageSubfolderName(storageFolder)) return null;
@@ -4951,6 +4963,7 @@ const STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL = (() => {
 function resolveSlotKeyFromStorageFolderName(rawName) {
   const canonical = normalizeStorageSubfolderName(rawName);
   if (!canonical) return null;
+  if (canonical === STORAGE_SUBFOLDER_QUICK_NOTES) return "note";
   return STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL.get(canonical) || null;
 }
 
@@ -4970,15 +4983,41 @@ function isStorageRootBundleLooseFile(fileName) {
   return bundleNames.has(lower);
 }
 
+async function scanStorageRootBundleSlots(storageRootAbs) {
+  const specs = [
+    { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
+    { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
+  ];
+  const bundleSlots = {};
+  if (!storageRootAbs) {
+    for (const spec of specs) {
+      bundleSlots[spec.slotKey] = { exists: false, entryCount: 0 };
+    }
+    return bundleSlots;
+  }
+  for (const spec of specs) {
+    let exists = false;
+    for (const name of listBundleFileNameCandidates(spec.fileName)) {
+      if (await fileExists(path.join(storageRootAbs, name))) {
+        exists = true;
+        break;
+      }
+    }
+    bundleSlots[spec.slotKey] = { exists, entryCount: exists ? 1 : 0 };
+  }
+  return bundleSlots;
+}
+
 async function scanNodeStorageRoot(manifestRelPath) {
   const normalizedPath = String(manifestRelPath || "").replace(/\\/g, "/");
   if (!normalizedPath) {
-    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+    return { exists: false, folders: [], looseFiles: [], bundleSlots: {}, totalEntries: 0, storageRoot: "" };
   }
 
   const nodeAbsolute = await resolveApiManifestAbsolute(normalizedPath);
   if (!nodeAbsolute) {
-    return { exists: false, folders: [], looseFiles: [], totalEntries: 0, storageRoot: "" };
+    return { exists: false, folders: [], looseFiles: [], bundleSlots: {}, totalEntries: 0, storageRoot: "" };
   }
 
   const storageRootAbs = getNodeStorageRootAbsolute(nodeAbsolute);
@@ -5028,10 +5067,14 @@ async function scanNodeStorageRoot(manifestRelPath) {
     });
   }
 
+  const bundleSlots =
+    exists && storageRootAbs ? await scanStorageRootBundleSlots(storageRootAbs) : {};
+
   return {
     exists,
     folders,
     looseFiles,
+    bundleSlots,
     totalEntries,
     storageRoot
   };
@@ -5165,7 +5208,7 @@ async function buildAgentStorageLayout() {
     return aKey.localeCompare(bKey, "ru");
   });
 
-  return { containers, manifestCount: manifests.length };
+  return { containers, manifestCount: manifests.length, canonicalModel: getCanonicalModelPayload(getProjectRoot(), getAgentRoot()) };
 }
 
 function countStorageLayersPresent(layers) {
@@ -5257,6 +5300,81 @@ async function buildAgentWorkspaceTable() {
   return { rows, manifestCount: layout.manifestCount || rows.length };
 }
 
+async function buildAgentSiteMap() {
+  const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const menu = await buildAgentMenu(agentRoot);
+  const canonicalModel = getCanonicalModelPayload(projectRoot, agentRoot);
+  const topics = [];
+  const areas = [];
+  let workspace = null;
+
+  async function appendNode(manifestPath, label, kind, parentArea = null) {
+    const normalized = String(manifestPath || "").replace(/\\/g, "/");
+    if (!normalized) return null;
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(normalized));
+    } catch {
+      frontmatter = "";
+    }
+    const rawType = getYamlScalar(frontmatter, "awn-type") || "";
+    const awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
+    const awnName = getYamlScalar(frontmatter, "awn-name") || label;
+    const entry = {
+      manifestPath: normalized,
+      title: String(awnName || label || "").trim(),
+      label: String(label || awnName || "").trim(),
+      awnType,
+      kind,
+      areaPath: parentArea?.manifestPath || null,
+      areaTitle: parentArea?.title || null
+    };
+    if (kind === "topic") topics.push(entry);
+    else if (kind === "area") areas.push(entry);
+    else if (kind === "ws") workspace = entry;
+    return entry;
+  }
+
+  async function walkTree(tree, parentArea = null, rootKind = "area") {
+    if (!tree) return;
+    let currentArea = parentArea;
+    if (tree.indexPath) {
+      const kind = parentArea ? "area" : rootKind;
+      currentArea = await appendNode(tree.indexPath, tree.title, kind, parentArea);
+    }
+    for (const item of tree.items || []) {
+      if (!item?.path) continue;
+      await appendNode(item.path, item.label, "topic", currentArea);
+    }
+    for (const section of tree.sections || []) {
+      await walkTree(section, currentArea, rootKind);
+    }
+  }
+
+  await walkTree(menu, null, "ws");
+  if (menu.containerTree) await walkTree(menu.containerTree, null, "area");
+
+  topics.sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  areas.sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  return {
+    version: 1,
+    model: "site-map",
+    canonicalModel: {
+      pageTypes: canonicalModel.pageTypes,
+      slotContentTypes: canonicalModel.slotContentTypes,
+      rules: canonicalModel.rules
+    },
+    workspace,
+    areas,
+    topics,
+    topicCount: topics.length,
+    areaCount: areas.length
+  };
+}
+
 async function buildAgentRuntimeRegistry() {
   const menu = await buildAgentMenu(getAgentRoot());
   const entries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
@@ -5313,6 +5431,8 @@ const SESSION_CONTEXT_API_MAP = {
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-*",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
+  canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
+  siteMap: "GET /api/agent/site-map — карта сайта: все темы и области",
   platformCatalogs: "GET /api/platform/catalogs — глобальные справочники",
   agentCatalogs: "GET /api/agent/catalogs — справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
@@ -5456,6 +5576,7 @@ async function buildAgentSessionContext() {
     kitFolder,
     pathHints: SESSION_PATH_HINTS,
     apiMap: SESSION_CONTEXT_API_MAP,
+    canonicalModel: getCanonicalModelPayload(getProjectRoot(), agentRoot),
     menuSummary,
     awnSystem,
     serviceDocs,
@@ -5728,6 +5849,7 @@ const TIMELINE_SLOT_FOLDER_TRACKS = [
   { subfolder: STORAGE_SUBFOLDER_MAIN, fileKind: "external", label: "Main" },
   { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
   { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
+  { subfolder: STORAGE_SUBFOLDER_NOTE, fileKind: "note", label: "Заметки" },
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
   { subfolder: STORAGE_SUBFOLDER_REPOSITORY, fileKind: "repository", label: "Репозиторий" },
   { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
@@ -9051,6 +9173,30 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/canonical-model") {
+    try {
+      const payload = getCanonicalModelPayload(getProjectRoot(), getAgentRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read canonical model",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/site-map") {
+    try {
+      const payload = await buildAgentSiteMap();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read site map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/runtime-registry") {
     try {
       const registry = await buildAgentRuntimeRegistry();
@@ -10736,7 +10882,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.record.category", relPath);
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.content.record.category", relPath, "memory");
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -10765,7 +10911,10 @@ async function handleApiForAgent(req, res, url) {
       const sectionName = toExternalSectionFolderName(diskSlug);
       if (!sectionName) return sendJson(res, 400, { error: "Invalid section name" });
 
-      const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute, { create: true });
+      const folderParam = String(payload.folder || STORAGE_SUBFOLDER_MEDIA).trim();
+      const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
+      const slotKey = folderName === STORAGE_SUBFOLDER_ASSETS ? "assets" : "media";
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
       const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
@@ -10787,7 +10936,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.media.category", relPath);
+      await writeStorageSectionReadme(sectionAbsolute, title, "awn.content.record.category", relPath, slotKey);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -10850,7 +10999,14 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, null);
+      const slotKey = resolveSlotKeyFromStorageFolderName(storageFolder);
+      await writeStorageSectionReadme(
+        sectionAbsolute,
+        title,
+        "awn.content.record.category",
+        relPath,
+        slotKey
+      );
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
@@ -10991,7 +11147,7 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/media/section/rename") {
     try {
       const payload = await readJsonBody(req);
-      const result = await renameMemorySectionRecord(payload.path, "media", "", payload.section, payload);
+      const result = await renameMemorySectionRecord(payload.path, "media", payload.folder || "", payload.section, payload);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -11002,7 +11158,7 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/media/section/move") {
     try {
       const payload = await readJsonBody(req);
-      const result = await moveMemorySectionRecord(payload.path, "media", "", payload.section, payload.parent);
+      const result = await moveMemorySectionRecord(payload.path, "media", payload.folder || "", payload.section, payload.parent);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -11015,8 +11171,9 @@ async function handleApiForAgent(req, res, url) {
     const section = url.searchParams.get("section") || "";
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!section) return sendJson(res, 400, { error: "Missing section query parameter" });
+    const folder = url.searchParams.get("folder") || "";
     try {
-      const result = await deleteMemorySectionRecord(relPath, "media", "", section);
+      const result = await deleteMemorySectionRecord(relPath, "media", folder, section);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, result);
     } catch (error) {
@@ -11030,7 +11187,7 @@ async function handleApiForAgent(req, res, url) {
       const result = await updateMemorySectionStatusRecord(
         payload.path,
         "media",
-        "",
+        payload.folder || "",
         payload.section,
         payload.status
       );
@@ -11356,7 +11513,9 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const folderAbsolute = await getMediaFolderAbsolute(nodeAbsolute);
+    const folderParam = String(url.searchParams.get("folder") || STORAGE_SUBFOLDER_MEDIA).trim();
+    const folderName = isAllowedStorageSubfolderName(folderParam) ? folderParam : STORAGE_SUBFOLDER_MEDIA;
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName);
     if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });
 
     try {
@@ -11415,7 +11574,13 @@ async function handleApiForAgent(req, res, url) {
           create: createSubdir || true
         });
       } else {
-        const folderAbsolute = await getMediaFolderAbsolute(storageContext.absolute, { create: true });
+        const libraryFolder = String(payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_MEDIA).trim();
+        const folderName = isAllowedStorageSubfolderName(libraryFolder)
+          ? libraryFolder
+          : STORAGE_SUBFOLDER_MEDIA;
+        const folderAbsolute = await resolveNodeSubfolderAbsolute(storageContext.absolute, folderName, {
+          create: true
+        });
         if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
         targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, {
           create: createSubdir
