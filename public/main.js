@@ -1,6 +1,7 @@
 const sidebarWidthDecreaseBtn = document.getElementById("sidebar-width-decrease-btn");
 const sidebarWidthIncreaseBtn = document.getElementById("sidebar-width-increase-btn");
 const menuNode = document.getElementById("menu");
+const menuScrollTopBtn = document.getElementById("menu-scroll-top-btn");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
@@ -207,6 +208,7 @@ const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
 const titleEditorBlockNode = document.getElementById("editor-title-bar");
 const propsPreviewBlockNode = document.getElementById("props-preview-block");
+const propsWebUrlBlockNode = document.getElementById("props-web-url-block");
 const propsAttachmentsBlockNode = document.getElementById("props-attachments-block");
 const attachmentSidecarModalNode = document.getElementById("attachment-sidecar-modal");
 const attachmentSidecarModalPathNode = document.getElementById("attachment-sidecar-modal-path");
@@ -698,7 +700,7 @@ const SERVICE_AREA_NAME = "Агент и пользователи";
 const SERVICE_SECTION_LABEL = "Агент и пользователи";
 const CONTAINER_SECTION_LABEL = "Контейнер";
 const SHARED_FOLDER_DEFAULT = "awn-shared";
-const SHARED_SECTION_LABEL = "Общее";
+const SHARED_SECTION_LABEL = "Общие темы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
   "Общие темы и ресурсы для всех тем агента: скрипты, источники, медиа и другие накопители.";
@@ -22198,8 +22200,29 @@ function getFlatStorageUserSections(mode) {
     .sort((a, b) => collator.compare(a.folderPath, b.folderPath));
 }
 
+function getFlatStorageSectionFileCounts(mode, sectionFolder) {
+  const normalizedSection = String(sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+  let direct = 0;
+  let total = 0;
+  for (const item of getFlatStorageNormalizedItems(mode)) {
+    if (item.isFolder) continue;
+    if (isSectionReadmePath(item.path)) continue;
+    const path = String(item.path || "").replace(/\\/g, "/");
+    if (!normalizedSection) {
+      total += 1;
+      continue;
+    }
+    const prefix = `${normalizedSection}/`;
+    if (!path.startsWith(prefix)) continue;
+    total += 1;
+    const remainder = path.slice(prefix.length);
+    if (remainder && !remainder.includes("/")) direct += 1;
+  }
+  return { direct, total };
+}
+
 function countFlatStorageItemsInSection(mode, sectionFolder) {
-  return filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), sectionFolder).length;
+  return getFlatStorageSectionFileCounts(mode, sectionFolder).total;
 }
 
 function filterFlatStorageSectionItems(items, sectionFolder) {
@@ -22279,8 +22302,15 @@ function syncFlatStorageSectionTreeActiveState(mode) {
 
 function ensureFlatStorageSectionTree(container, mode) {
   if (!container) return;
-  if (container.querySelector(":scope > .media-section-tree-list")) {
+  if (
+    container.querySelector(":scope > .media-section-tree-list") &&
+    !isMemorySectionTreeStale(container, {
+      getExpectedCount: () => getFlatStorageUserSections(mode).length,
+      datasetAttr: "flat-storage-section"
+    })
+  ) {
     syncFlatStorageSectionTreeActiveState(mode);
+    decorateMemorySectionSortRows(container);
     return;
   }
   renderFlatStorageSectionTree(container, mode);
@@ -22295,11 +22325,10 @@ function renderFlatStorageSectionTree(container, mode) {
   list.setAttribute("role", "tree");
   container.appendChild(list);
 
-  const allCount = filterFlatStorageSectionItems(getFlatStorageNormalizedItems(mode), null).length;
   const allBtn = appendMediaSectionTreeItem(list, {
     icon: "📋",
     label: "Все элементы",
-    count: allCount,
+    count: formatMemorySectionTreeCount(getFlatStorageSectionFileCounts(mode, null), { allItems: true }),
     isActive: !activeFlatStorageSectionFolder[mode],
     onClick: () => setActiveFlatStorageSectionFolder(mode, null)
   });
@@ -22319,7 +22348,7 @@ function renderFlatStorageSectionTree(container, mode) {
   } else {
     appendMemorySectionTreeNodes(list, buildMemorySectionForest(userSections), {
       datasetKey: "flatStorageSection",
-      countFn: (folderPath) => countFlatStorageItemsInSection(mode, folderPath),
+      countFn: (folderPath) => getFlatStorageSectionFileCounts(mode, folderPath),
       isActive: (folderPath) => activeFlatStorageSectionFolder[mode] === folderPath,
       onSelect: (folderPath) => setActiveFlatStorageSectionFolder(mode, folderPath),
       readmeExists: (folderPath) => flatStorageSectionReadmeExists(mode, folderPath),
@@ -24858,6 +24887,7 @@ let awnTypesSelectedKey = null;
 
 const STANDARD_PROPS_FIELD_KEYS = [
   "awn-preview",
+  "awn-web-url",
   "awn-emoji",
   "awn-name",
   "awn-status",
@@ -24962,6 +24992,10 @@ const PROPS_FIELD_META = {
   "awn-preview": {
     label: "Превью",
     hint: "awn-storage/assets/preview/ (загрузка через миниатюру)"
+  },
+  "awn-web-url": {
+    label: "Веб-источник",
+    hint: "URL оригинала в интернете (https://…)"
   },
   "awn-attachments": {
     label: "Вложения",
@@ -26831,6 +26865,7 @@ function getExternalListSortOptions() {
 const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
+  "awn.mixin.web-url": "Опциональный миксин — поле awn-web-url для ссылки на оригинал в интернете",
   "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
   "awn.mixin.runtime":
     "Миксин runtime — awn-runtime-load, cron и heartbeat для реестра агента",
@@ -26895,6 +26930,7 @@ const PROPS_FIELD_ICONS = {
   "awn-version": "🔢",
   "awn-sort": "↕️",
   "awn-preview": "🖼️",
+  "awn-web-url": "🔗",
   "awn-attachments": "📎",
   "awn-color": "🎨",
   "awn-emoji": "😀"
@@ -29330,6 +29366,105 @@ function renderPropsPreviewBlock() {
   propsPreviewBlockNode.appendChild(createPropsFormFieldRow(entry, index));
 }
 
+function hasPropsWebUrlField() {
+  return Boolean(getPropsFieldDef("awn-web-url"));
+}
+
+function findPropsWebUrlEntry() {
+  const index = propsFormEntries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === "awn-web-url"
+  );
+  if (index >= 0) return { entry: propsFormEntries[index], index };
+  if (!hasPropsWebUrlField()) return null;
+  return { entry: { key: "awn-web-url", kind: "string", value: "" }, index: -1 };
+}
+
+function mergePropsWebUrlIntoEntries(entries) {
+  const key = "awn-web-url";
+  const withoutWebUrl = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
+  if (!hasPropsWebUrlField()) {
+    return ensureStandardPropsEntries(withoutWebUrl);
+  }
+
+  const webUrlWrap = propsWebUrlBlockNode?.querySelector('.props-form-value-wrap[data-widget="url"]');
+  if (!webUrlWrap) {
+    const existing = entries.find((entry) => normalizePropsKey(entry.key) === key);
+    if (existing) withoutWebUrl.push(existing);
+    return ensureStandardPropsEntries(withoutWebUrl);
+  }
+
+  const domValue = readPropsFormValueFromControl(webUrlWrap);
+  const memoryValue = getPropsEntryValueByKey(entries, key);
+  const yamlValue = getPropsEntryValueByKey(parsePropsYaml(propsInputNode.value || ""), key);
+  const value = domValue.trim() || memoryValue.trim() || yamlValue.trim();
+  const nextEntry = applyFormValueToEntry({ key, kind: "string", value: "" }, value);
+  return ensureStandardPropsEntries([...withoutWebUrl, nextEntry]);
+}
+
+function renderPropsWebUrlBlock() {
+  if (!propsWebUrlBlockNode) return;
+
+  const webUrlSpec = findPropsWebUrlEntry();
+  propsWebUrlBlockNode.replaceChildren();
+
+  if (!webUrlSpec || propsRawYamlVisible || !hasPropsWebUrlField()) {
+    propsWebUrlBlockNode.classList.add("hidden");
+    return;
+  }
+
+  propsWebUrlBlockNode.classList.remove("hidden");
+  const { entry } = webUrlSpec;
+  const meta = getPropsFieldMeta(entry.key);
+  const readOnly = isPropsFormReadOnly();
+
+  const head = document.createElement("div");
+  head.className = "doc-aside-web-url-head";
+
+  const title = document.createElement("h4");
+  title.className = "doc-aside-web-url-title";
+  title.textContent = meta.label || "Веб-источник";
+  if (meta.hint) title.title = meta.hint;
+  head.appendChild(title);
+
+  if (meta.hint) {
+    const hint = document.createElement("p");
+    hint.className = "doc-aside-web-url-hint";
+    hint.textContent = meta.hint;
+    head.appendChild(hint);
+  }
+
+  propsWebUrlBlockNode.appendChild(head);
+
+  if (readOnly) {
+    const body = document.createElement("div");
+    body.className = "doc-aside-web-url-body doc-aside-web-url-readonly";
+    const displayValue = getPropsEntryDisplayValue(entry).trim();
+    const value = document.createElement("div");
+    value.className = "doc-aside-web-url-readonly-value";
+
+    if (displayValue) {
+      const link = document.createElement("a");
+      link.href = displayValue;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = displayValue;
+      value.appendChild(link);
+    } else {
+      value.textContent = "—";
+      value.classList.add("is-empty");
+    }
+
+    body.appendChild(value);
+    propsWebUrlBlockNode.appendChild(body);
+    return;
+  }
+
+  const body = document.createElement("div");
+  body.className = "doc-aside-web-url-body";
+  body.appendChild(createPropsFormValueControl(entry, meta));
+  propsWebUrlBlockNode.appendChild(body);
+}
+
 const DEFAULT_PROPS_FIELD_GROUPS = [
   { id: "content", name: "Основное", collapsed: false },
   { id: "nav", name: "Дерево и вид", collapsed: true },
@@ -29344,6 +29479,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-description": "content",
   "awn-tags": "content",
   "awn-preview": "content",
+  "awn-web-url": "content",
   "awn-main": "nav",
   "awn-category": "nav",
   "awn-owner": "nav",
@@ -29492,6 +29628,7 @@ function renderPropsForm() {
     return;
   }
   renderPropsPreviewBlock();
+  renderPropsWebUrlBlock();
   renderPropsAttachmentsBlock();
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
@@ -29514,7 +29651,7 @@ function renderPropsForm() {
     for (let index = 0; index < propsFormEntries.length; index += 1) {
       const entry = propsFormEntries[index];
       const entryKey = normalizePropsKey(entry.key);
-      if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
+      if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
         continue;
       }
       if (!isAwnFieldKey(entryKey)) continue;
@@ -29558,7 +29695,7 @@ function renderPropsForm() {
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
     const entryKey = normalizePropsKey(entry.key);
-    if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
+    if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
       continue;
     }
     if (!isAwnFieldKey(entryKey)) continue;
@@ -29690,7 +29827,14 @@ function renderPropsForm() {
   }
 }
 
-const PROPS_FORM_LOCKED_KEYS = new Set(["awn-type"]);
+const PROPS_FORM_LOCKED_KEYS = new Set([
+  "awn-type",
+  // Пока disabled: справочники категорий/владельцев/приоритетов/цветов не доработаны.
+  "awn-category",
+  "awn-owner",
+  "awn-priority",
+  "awn-color"
+]);
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
@@ -29804,6 +29948,58 @@ function createPropsFormValueWrap(widget) {
   return wrap;
 }
 
+function normalizeExternalWebUrl(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return "";
+}
+
+const PROPS_FORM_EXTERNAL_URL_OPEN_ICON =
+  '<svg class="props-form-url-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function syncPropsFormUrlOpenButton(openBtn, rawValue) {
+  if (!openBtn || openBtn.dataset.locked === "1") return;
+  const url = normalizeExternalWebUrl(rawValue);
+  openBtn.disabled = !url;
+  openBtn.dataset.url = url;
+  openBtn.title = url ? `Открыть: ${url}` : "Введите URL (https://…)";
+}
+
+function appendPropsFormUrlOpenButton(wrap, input, { locked = false } = {}) {
+  const row = document.createElement("div");
+  row.className = "props-form-url-input-row";
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "props-form-url-open-btn";
+  openBtn.setAttribute("aria-label", "Открыть ссылку в новом окне");
+  openBtn.innerHTML = PROPS_FORM_EXTERNAL_URL_OPEN_ICON;
+
+  openBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const url = normalizeExternalWebUrl(openBtn.dataset.url || input.value);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  });
+
+  const sync = () => syncPropsFormUrlOpenButton(openBtn, input.value);
+  input.addEventListener("input", sync);
+  input.addEventListener("change", sync);
+
+  if (locked) {
+    openBtn.disabled = true;
+    openBtn.dataset.locked = "1";
+    openBtn.title = "Поле только для чтения";
+  } else {
+    sync();
+  }
+
+  row.append(input, openBtn);
+  wrap.classList.add("props-form-value-wrap--url");
+  wrap.appendChild(row);
+}
+
 function bindPropsFormLockedState(control, locked) {
   if (!control || !locked) return;
   if (control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement) {
@@ -29862,7 +30058,11 @@ function createPropsFormTypedInputControl(entry, meta, type, { locked = false } 
   if (meta.hint) input.title = meta.hint;
   if (meta.format && !input.value) input.placeholder = meta.format;
   bindPropsFormLockedState(input, locked);
-  wrap.appendChild(input);
+  if (type === "url") {
+    appendPropsFormUrlOpenButton(wrap, input, { locked });
+  } else {
+    wrap.appendChild(input);
+  }
   return wrap;
 }
 
@@ -32908,6 +33108,7 @@ function readPropsFormIntoEntries() {
   }
 
   propsFormEntries = mergePropsPreviewIntoEntries(nextEntries);
+  propsFormEntries = mergePropsWebUrlIntoEntries(propsFormEntries);
   propsFormEntries = mergePropsAttachmentsIntoEntries(propsFormEntries);
 }
 
@@ -36932,6 +37133,35 @@ function countNavigationItemAttachments(item) {
   return countPropEntriesAttachments(props);
 }
 
+function normalizeNavigationWebUrl(rawValue) {
+  return normalizeExternalWebUrl(rawValue);
+}
+
+function getNavigationItemWebUrl(item) {
+  const props = Array.isArray(item?.props) ? item.props : [];
+  const fromProps = getPropsEntryValueByKey(props, "awn-web-url");
+  return normalizeNavigationWebUrl(fromProps || item?.webUrl || "");
+}
+
+function appendNavBookTocWebUrlLink(titleHost, webUrl) {
+  const normalized = normalizeNavigationWebUrl(webUrl);
+  if (!titleHost || !normalized) return;
+
+  const link = document.createElement("a");
+  link.className = "nav-book-toc-web-url-link";
+  link.href = normalized;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.title = normalized;
+  link.setAttribute("aria-label", `Открыть веб-источник: ${normalized}`);
+  link.innerHTML =
+    '<svg class="nav-book-toc-web-url-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  link.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  titleHost.appendChild(link);
+}
+
 function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
   const normalized = Number(count);
   if (!Number.isFinite(normalized) || normalized <= 0) return null;
@@ -39585,6 +39815,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     textInner.className = "nav-book-toc-title-text";
     textInner.textContent = normalizeYamlDisplayString(item.title);
     text.appendChild(textInner);
+    appendNavBookTocWebUrlLink(text, getNavigationItemWebUrl(item));
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
@@ -46823,7 +47054,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let treeToRender = pruneMenuTreeForDisplay(
-    { title: SHARED_SECTION_TITLE, ...sharedTree },
+    { title: getSharedRootMenuTitle(agentId), ...sharedTree },
     agentId
   );
   if (queryLower) {
@@ -46845,7 +47076,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleSharedTreeCollapsed));
 
   if (sharedManifestPath) {
-    const sharedLabel = SHARED_SECTION_LABEL;
+    const sharedLabel = getSharedRootMenuTitle(agentId);
     const folderButton = document.createElement("button");
     folderButton.type = "button";
     folderButton.className = "menu-folder menu-folder-shared-root";
@@ -55819,7 +56050,27 @@ function withPreservedMenuScroll(run) {
   const scrollTop = menuNode?.scrollTop ?? 0;
   const result = run();
   if (menuNode) menuNode.scrollTop = scrollTop;
+  syncMenuScrollTopButton();
   return result;
+}
+
+const MENU_SCROLL_TOP_THRESHOLD = 160;
+
+function syncMenuScrollTopButton() {
+  if (!menuNode || !menuScrollTopBtn) return;
+  const isVisible = menuNode.scrollTop > MENU_SCROLL_TOP_THRESHOLD;
+  menuScrollTopBtn.classList.toggle("is-visible", isVisible);
+  menuScrollTopBtn.setAttribute("aria-hidden", isVisible ? "false" : "true");
+  menuScrollTopBtn.tabIndex = isVisible ? 0 : -1;
+}
+
+function setupMenuScrollTopButton() {
+  if (!menuNode || !menuScrollTopBtn) return;
+  menuNode.addEventListener("scroll", syncMenuScrollTopButton, { passive: true });
+  menuScrollTopBtn.addEventListener("click", () => {
+    menuNode.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  syncMenuScrollTopButton();
 }
 
 async function fetchMenuData(agentId = activeAgentId, options = {}) {
@@ -56985,6 +57236,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 });
 
 setupMenuSortDragDrop();
+setupMenuScrollTopButton();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
 setupMenuNodeMoveDragDrop();

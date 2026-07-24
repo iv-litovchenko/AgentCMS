@@ -164,6 +164,7 @@ function resolveTypeDefinition(typeName, typesByName) {
 
 const FALLBACK_BASE_FIELD_ORDER = [
   "awn-preview",
+  "awn-web-url",
   "awn-emoji",
   "awn-name",
   "awn-status",

@@ -7,7 +7,7 @@ extends: awn.entity
 description: >
   Общие поля любого контента и узла: отображение и системные. Узлы дерева
   добавляют навигацию через awn.page.base; записи наследуют только это.
-mixins: [awn.mixin.preview]
+mixins: [awn.mixin.preview, awn.mixin.web-url]
 
 field-groups:
   - id: content

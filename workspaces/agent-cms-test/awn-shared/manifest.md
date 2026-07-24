@@ -1,5 +1,5 @@
 ---
-awn-name: Общее
+awn-name: Общие темы
 awn-status: 🟢 Открыта
 awn-type: awn.page.area
 awn-create: 2026-07-23T23:19:03.932Z

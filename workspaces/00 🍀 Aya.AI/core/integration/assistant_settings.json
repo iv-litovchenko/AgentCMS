@@ -1,8 +1,0 @@
-{
-  "voice_input_mode": "fn_button",
-  "voice_response_enabled": true,
-  "voice_response_model": "aya-voice",
-  "computer_control_enabled": true,
-  "safe_guard_stub_enabled": false,
-  "window_topmost": true
-}

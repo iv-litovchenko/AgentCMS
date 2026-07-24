@@ -203,6 +203,19 @@ fields:
     type: awn.url
     name: Превью
 `,
+  "mixins/web-url.yml": `id: awn.mixin.web-url
+name: Веб-источник
+kind: mixin
+domain: mixins
+status: active
+description: Ссылка на оригинал в интернете
+fields:
+  awn-web-url:
+    type: awn.field.url
+    title: Веб-источник
+    description: URL оригинала в интернете (https://…)
+    group: content
+`,
   "mixins/runtime.yml": `id: awn.mixin.runtime
 name: Runtime
 kind: mixin

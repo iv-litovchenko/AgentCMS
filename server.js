@@ -4373,7 +4373,7 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
 }
 
 const CONTAINER_AREA_NAME = "Контейнер";
-const SHARED_AREA_NAME = "Общее";
+const SHARED_AREA_NAME = "Общие темы";
 const SHARED_DEFAULT_THEMES = [
   { slug: "inbox", title: "Входящие" },
   { slug: "notes", title: "Заметки" },

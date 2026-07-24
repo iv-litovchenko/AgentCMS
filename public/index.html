@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.114" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.115" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -447,6 +447,23 @@
               <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
             </div>
           </nav>
+          <button
+            id="menu-scroll-top-btn"
+            class="menu-scroll-top-btn"
+            type="button"
+            title="Наверх"
+            aria-label="Прокрутить дерево наверх"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <span class="menu-scroll-top-btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5"></path>
+                <path d="M5 12l7-7 7 7"></path>
+              </svg>
+            </span>
+            <span class="menu-scroll-top-btn-label">Наверх</span>
+          </button>
           <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
         </section>
       </aside>
@@ -1806,9 +1823,6 @@
               <div id="editor-title-bar" class="editor-title-bar hidden" aria-label="Название документа">
                 <div class="editor-title-fields">
                   <div class="editor-title-field editor-title-field--name">
-                    <label class="editor-title-field-label doc-aside-title-label" for="title-input">
-                      Отображаемое имя (awn-name)
-                    </label>
                     <div class="editor-title-field-value">
                       <div class="title-row">
                         <input
@@ -1823,9 +1837,6 @@
                     </div>
                   </div>
                   <div id="title-slug-row" class="editor-title-field editor-title-field--slug slug-field-row hidden">
-                    <label class="editor-title-field-label slug-field-label" for="title-slug-input">
-                      Имя на диске (slug)
-                    </label>
                     <div class="editor-title-field-value">
                       <div class="slug-input-row">
                         <input
@@ -2013,6 +2024,7 @@
                 <div class="doc-aside-panel-scroll">
                   <section class="doc-aside-fields-card" aria-label="Свойства документа">
                     <section id="props-preview-block" class="doc-aside-preview-block hidden" aria-label="Превью"></section>
+                    <section id="props-web-url-block" class="doc-aside-web-url-block hidden" aria-label="Веб-источник"></section>
                     <section id="props-attachments-block" class="doc-aside-attachments-block hidden" aria-label="Вложения"></section>
                     <header class="doc-aside-fields-card-head">
                       <h3 class="doc-aside-fields-card-title">Метаданные</h3>
@@ -2766,7 +2778,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.265"></script>
+    <script src="/main.js?v=0.5.266"></script>
     <script src="/discuss-panel.js?v=0.5.226"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

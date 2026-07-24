@@ -8,6 +8,10 @@ fields:
     type: awn.url
     title: Превью
     description: Путь к файлу в Assets/Preview/ (заполняется при загрузке превью)
+  awn-web-url:
+    type: awn.url
+    title: Веб-источник
+    description: URL оригинала в интернете (https://…)
   awn-emoji:
     type: awn.string
     title: Эмодзи
