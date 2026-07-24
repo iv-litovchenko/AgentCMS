@@ -1806,11 +1806,9 @@
               <div id="editor-title-bar" class="editor-title-bar hidden" aria-label="Название документа">
                 <div class="editor-title-fields">
                   <div class="editor-title-field editor-title-field--name">
-                    <label
-                      class="editor-title-field-label"
-                      for="title-input"
-                      title="Отображаемое имя в меню и списках"
-                    >awn-name</label>
+                    <label class="editor-title-field-label doc-aside-title-label" for="title-input">
+                      Отображаемое имя (awn-name)
+                    </label>
                     <div class="editor-title-field-value">
                       <div class="title-row">
                         <input
@@ -1825,11 +1823,9 @@
                     </div>
                   </div>
                   <div id="title-slug-row" class="editor-title-field editor-title-field--slug slug-field-row hidden">
-                    <label
-                      class="editor-title-field-label"
-                      for="title-slug-input"
-                      title="Имя папки или файла на диске. Транслит из awn-name; можно открепить ✎ и ввести вручную."
-                    >Slug</label>
+                    <label class="editor-title-field-label slug-field-label" for="title-slug-input">
+                      Имя на диске (slug)
+                    </label>
                     <div class="editor-title-field-value">
                       <div class="slug-input-row">
                         <input
@@ -1850,6 +1846,9 @@
                           aria-label="Редактировать slug вручную"
                         >✎</button>
                       </div>
+                      <p class="slug-field-hint editor-title-field-hint">
+                        Имя папки или файла на диске. Транслит из awn-name; можно открепить ✎ и ввести вручную.
+                      </p>
                     </div>
                   </div>
                 </div>

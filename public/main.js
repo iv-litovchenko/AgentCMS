@@ -15290,6 +15290,8 @@ const ATTACHMENT_UI_VARIANT = {
   simple: "simple",
   extended: "extended"
 };
+/** Секция «В папке, не в списке» — временно отключена. */
+const PROPS_ATTACHMENTS_ORPHANS_ENABLED = false;
 
 function formatAttachmentPathForVariant(path) {
   const canonical = normalizeAttachmentRefForCompare(path) || String(path || "").trim();
@@ -15365,7 +15367,9 @@ function rerenderPropsAttachmentsListFromWrap(wrap, { locked = false } = {}) {
   const paths = getPropsAttachmentsPathsFromWrap(wrap);
   renderPropsAttachmentsList(wrap, paths, { locked });
   refreshPropsAttachmentsUsageState();
-  void refreshPropsAttachmentsOrphans(wrap, { locked });
+  if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
+    void refreshPropsAttachmentsOrphans(wrap, { locked });
+  }
 }
 
 function syncPropsAttachmentsHeadUi(head) {
@@ -32252,7 +32256,9 @@ function addPropsAttachmentPathToWrap(wrap, path, { locked = false } = {}) {
   syncPropsAttachmentsHiddenInput(wrap, paths);
   renderPropsAttachmentsList(wrap, paths, { locked });
   syncPropsAttachmentsEntryFromWrap(wrap);
-  void refreshPropsAttachmentsOrphans(wrap, { locked });
+  if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
+    void refreshPropsAttachmentsOrphans(wrap, { locked });
+  }
   return true;
 }
 
@@ -32340,9 +32346,12 @@ function createPropsAttachmentOrphanItem(path, wrap, { locked = false } = {}) {
 }
 
 async function refreshPropsAttachmentsOrphans(wrap, { locked = false } = {}) {
-  if (PROPS_ATTACHMENTS_UI_DISABLED) return;
   if (!wrap) return;
   const section = wrap.querySelector(".props-form-attachments-orphans");
+  if (!PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
+    section?.classList.add("hidden");
+    return;
+  }
   const list = wrap.querySelector(".props-form-attachments-orphans-list");
   if (!section || !list) return;
 
@@ -32392,38 +32401,9 @@ function renderPropsAttachmentsList(wrap, paths, { locked = false } = {}) {
   });
 
   void hydrateAttachmentItemLabels(wrap);
-  if (!PROPS_ATTACHMENTS_UI_DISABLED) {
+  if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
     void refreshPropsAttachmentsOrphans(wrap, { locked });
   }
-}
-
-function createPropsFormAttachmentsDisabledControl(entry, meta) {
-  const wrap = createPropsFormValueWrap("attachments");
-  wrap.classList.add("props-form-value-wrap--attachments", "props-form-value-wrap--attachments-disabled");
-
-  const paths = parsePropsAttachmentsValue(entry);
-
-  const hidden = document.createElement("input");
-  hidden.type = "hidden";
-  hidden.className = "props-form-value props-form-attachments-value";
-  hidden.value = JSON.stringify(paths);
-  hidden.dataset.field = "value";
-  hidden.disabled = true;
-  wrap.appendChild(hidden);
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "props-form-attachments-disabled-input";
-  input.readOnly = true;
-  input.disabled = true;
-  input.value = paths.length
-    ? paths.map((path) => getAttachmentDisplayLabelFromPath(path)).join(", ")
-    : "";
-  input.placeholder = "—";
-  if (meta?.hint) input.title = meta.hint;
-  wrap.appendChild(input);
-
-  return wrap;
 }
 
 function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {}) {
@@ -32493,7 +32473,7 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     wrap.append(uploadZone, input);
   }
 
-  if (!PROPS_ATTACHMENTS_UI_DISABLED) {
+  if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
     const orphansSection = document.createElement("div");
     orphansSection.className = "props-form-attachments-orphans hidden";
 
@@ -32510,7 +32490,7 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     wrap.appendChild(orphansSection);
   }
 
-  if (!locked && !PROPS_ATTACHMENTS_UI_DISABLED) {
+  if (!locked) {
     const registeredList = wrap.querySelector(".props-form-attachments-list");
     registeredList?.addEventListener("dragover", (event) => {
       const types = event.dataTransfer?.types || [];
