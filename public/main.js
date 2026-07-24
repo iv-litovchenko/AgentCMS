@@ -29,6 +29,7 @@ const agentRuntimeRegistryPaneNode = document.getElementById("agent-runtime-regi
 const agentRuntimeRegistryContentNode = document.getElementById("agent-runtime-registry-content");
 const agentRuntimeRegistryStatsNode = document.getElementById("agent-runtime-registry-stats");
 const agentRuntimeRegistryRefreshBtn = document.getElementById("agent-runtime-registry-refresh-btn");
+const agentRuntimeRegistryFilterNode = document.getElementById("agent-runtime-registry-filter");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
@@ -406,6 +407,7 @@ const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
 const createNodeRootWrapNode = document.getElementById("create-node-root-wrap");
 const createNodeReservedWrapNode = document.getElementById("create-node-reserved-wrap");
 const createNodeKitScaffoldBtn = document.getElementById("create-node-kit-scaffold-btn");
+const createNodeSharedScaffoldBtn = document.getElementById("create-node-shared-scaffold-btn");
 const createNodeContainerScaffoldBtn = document.getElementById("create-node-container-scaffold-btn");
 const createNodeRootSystemWrapNode = document.getElementById("create-node-root-system-wrap");
 const createNodeAgentsScaffoldBtn = document.getElementById("create-node-agents-scaffold-btn");
@@ -653,6 +655,11 @@ function isPlatformAgent(agent) {
 const SERVICE_AREA_NAME = "Агент и пользователи";
 const SERVICE_SECTION_LABEL = "Агент и пользователи";
 const CONTAINER_SECTION_LABEL = "Контейнер";
+const SHARED_FOLDER_DEFAULT = "awn-shared";
+const SHARED_SECTION_LABEL = "Общее";
+const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
+const SHARED_ROOT_HINT =
+  "Общие темы и ресурсы для всех тем агента: скрипты, источники, медиа и другие накопители.";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
@@ -1513,6 +1520,11 @@ function getActiveAgentContainerFolder(agentId = activeAgentId) {
   return CONTAINER_FOLDER_DEFAULT;
 }
 
+function getActiveAgentSharedFolder(agentId = activeAgentId) {
+  if (isPlatformAgentId(agentId)) return null;
+  return SHARED_FOLDER_DEFAULT;
+}
+
 function getCreateModalAgentId() {
   return createModalAgentId || activeAgentId;
 }
@@ -1531,6 +1543,11 @@ function isContainerFolderEntryName(name) {
     lower === CONTAINER_FOLDER_DEFAULT.toLowerCase() ||
     lower === LEGACY_CONTAINER_FOLDER.toLowerCase()
   );
+}
+
+function isSharedFolderEntryName(name) {
+  const lower = String(name || "").toLowerCase();
+  return lower === SHARED_FOLDER_DEFAULT.toLowerCase();
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
@@ -1555,6 +1572,11 @@ function getContainerRootManifestPath(agentId = activeAgentId) {
   return containerFolder ? `${containerFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
+function getSharedRootManifestPath(agentId = activeAgentId) {
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  return sharedFolder ? `${sharedFolder}/${AREA_MANIFEST_FILE}` : null;
+}
+
 function getContainerRootMenuTitle(agentId = activeAgentId) {
   const manifestPath = getContainerRootManifestPath(agentId);
   if (!manifestPath) return CONTAINER_SECTION_LABEL;
@@ -1575,6 +1597,28 @@ function getContainerRootMenuTitle(agentId = activeAgentId) {
   if (nodeTitle) return nodeTitle;
 
   return CONTAINER_SECTION_LABEL;
+}
+
+function getSharedRootMenuTitle(agentId = activeAgentId) {
+  const manifestPath = getSharedRootManifestPath(agentId);
+  if (!manifestPath) return SHARED_SECTION_LABEL;
+
+  const normalizedManifest = normalizeMenuNodePath(manifestPath);
+  const activeNormalized = normalizeMenuNodePath(getActiveNodeApiPath());
+  if (activeNormalized === normalizedManifest) {
+    const liveTitle = getNodeDisplayTitleForActiveManifest(normalizedManifest);
+    if (liveTitle) return liveTitle;
+  }
+
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const cachedTitle = String(menu?.sharedTree?.title || "").trim();
+  if (cachedTitle) return cachedTitle;
+
+  const node = findMenuNodeInAgentMenu(menu, normalizedManifest);
+  const nodeTitle = String(node?.title || "").trim();
+  if (nodeTitle) return nodeTitle;
+
+  return SHARED_SECTION_LABEL;
 }
 
 function getServiceRootMenuTitle(agentId = activeAgentId) {
@@ -1624,10 +1668,25 @@ function isAgentContainerRootIndexPath(nodePath) {
   return normalized === normalizeMenuNodePath(containerRoot);
 }
 
+function isAgentSharedRootIndexPath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
+  if (!isNodeManifestPath(normalized)) return false;
+  const sharedRoot = getSharedRootManifestPath();
+  if (!sharedRoot) return false;
+  return normalized === normalizeMenuNodePath(sharedRoot);
+}
+
 function isAgentContainerNodePath(nodePath) {
   if (!getActiveAgentContainerFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
   const prefix = getActiveAgentContainerFolder();
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
+function isAgentSharedNodePath(nodePath) {
+  if (!getActiveAgentSharedFolder() || !nodePath) return false;
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const prefix = getActiveAgentSharedFolder();
   return normalized === prefix || normalized.startsWith(`${prefix}/`);
 }
 
@@ -2112,6 +2171,14 @@ function syncNodeDescriptionHintUi() {
     textNode.innerHTML =
       "Корневая область контентных папок агента: области и темы внутри <code>awn-container/</code>. " +
       "Пути в markdown — GitHub-ссылки `[название](путь/к/файлу.md)`; относительный путь считается от текущего файла. " +
+      "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
+    return;
+  }
+  if (isAgentSharedRootIndexPath(resolvedPath)) {
+    titleNode.textContent = "Общее — назначение области";
+    textNode.innerHTML =
+      "Общие темы и ресурсы для всех тем агента внутри <code>awn-shared/</code>: скрипты, источники, медиа и другие накопители. " +
+      "Создайте файл один раз — используйте из любой темы через ссылки или mount. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
   }
@@ -5998,6 +6065,7 @@ function getMenuQueryRoot() {
 
 function invalidateMenuAgentCache(agentId = activeAgentId) {
   menuCacheByAgent.delete(agentId);
+  menuRuntimeFlagsByAgent.delete(agentId);
 }
 
 function openAgentsRegistryModal() {
@@ -7368,6 +7436,7 @@ let agentMapLinksResizeObserver = null;
 let agentMap2LinksResizeObserver = null;
 let agentMap2PanZoomCleanup = null;
 const menuCacheByAgent = new Map();
+const menuRuntimeFlagsByAgent = new Map();
 const menuBranchLoadInFlightByAgent = new Map();
 const manifestTreeTypeByPath = new Map();
 
@@ -7474,8 +7543,9 @@ const SIDEBAR_WIDTH_MAX = 520;
 const SIDEBAR_WIDTH_STEP = 20;
 const OVERVIEW_ACCORDION_STORAGE_KEY = "agentcms.overviewAccordions.v1";
 const NODE_LAST_VIEWED_STORAGE_KEY = "agentcms.nodeLastViewed.v1";
-const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "types-registry", "foundation-types"]);
+const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "awn-props", "types-registry", "foundation-types"]);
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
+const OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID = "awn-props";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
 const OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID = "foundation-types";
 const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
@@ -7556,11 +7626,13 @@ const STORAGE_SLOT_TREE_GROUP_FILES = "files";
 const STORAGE_SLOT_TREE_GROUP_SINGLE_FILE = "single-file";
 const STORAGE_SLOT_TREE_GROUP_META = "meta";
 const STORAGE_SLOT_TREE_GROUP_COMMUNICATION = "communication";
+const STORAGE_SLOT_TREE_GROUP_SHARED = "shared-mounts";
 const STORAGE_SLOT_TREE_GROUP_LABELS = {
   [STORAGE_SLOT_TREE_GROUP_FILES]: "Файлы",
   [STORAGE_SLOT_TREE_GROUP_SINGLE_FILE]: "Один файл",
   [STORAGE_SLOT_TREE_GROUP_META]: "Записи",
-  [STORAGE_SLOT_TREE_GROUP_COMMUNICATION]: "Общение"
+  [STORAGE_SLOT_TREE_GROUP_COMMUNICATION]: "Общение",
+  [STORAGE_SLOT_TREE_GROUP_SHARED]: "Общее (shared)"
 };
 const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
   STORAGE_SLOT_TREE_GROUP_FOLDER,
@@ -7888,6 +7960,101 @@ function createStorageSlotSchemaButton(slotKey) {
     void openTopicSchemaForStorageSlot(slotKey);
   });
   return btn;
+}
+
+function findSharedMountForSlotKey(slotKey, scan = activeStorageRootScan) {
+  if (!slotKey) return null;
+  return (scan?.sharedMounts || []).find((mount) => mount?.slotKey === slotKey) || null;
+}
+
+function isActiveSharedThemeStorageContext(scan = activeStorageRootScan) {
+  return Boolean(scan?.sharedContext?.isSharedTheme);
+}
+
+function readDataHubSharedReturnContext() {
+  try {
+    const raw = sessionStorage.getItem(DATA_HUB_SHARED_RETURN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.topicManifest) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearDataHubSharedReturnContext() {
+  sessionStorage.removeItem(DATA_HUB_SHARED_RETURN_STORAGE_KEY);
+}
+
+async function openSharedStorageMount(mount, options = {}) {
+  if (!mount?.themeManifestPath) return;
+  const returnTopicManifest = options.returnToTopicManifest || getActiveNodeApiPath();
+  if (returnTopicManifest && !isAgentSharedNodePath(returnTopicManifest)) {
+    sessionStorage.setItem(
+      DATA_HUB_SHARED_RETURN_STORAGE_KEY,
+      JSON.stringify({
+        topicManifest: returnTopicManifest,
+        mode: activeContentMode
+      })
+    );
+  }
+  const targetMode = mount.mode || mount.defaultMode || "external";
+  const label = mount.label || getLabelFromPath(mount.themeManifestPath);
+  await selectNodeManifest(label, mount.themeManifestPath, targetMode);
+}
+
+async function returnFromSharedStorageToTopic() {
+  const context = readDataHubSharedReturnContext();
+  if (!context?.topicManifest) return;
+  clearDataHubSharedReturnContext();
+  const label = getLabelFromPath(context.topicManifest) || "Тема";
+  await selectNodeManifest(label, context.topicManifest, context.mode || NODE_OVERVIEW_MODE);
+}
+
+function createStorageSlotSharedOpenButton(mount) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-settings-btn media-section-tree-settings-btn storage-slot-shared-btn";
+  btn.textContent = "↗";
+  btn.title = `Открыть в общем: ${mount?.label || "shared"}`;
+  btn.setAttribute("aria-label", `Открыть в общем: ${mount?.label || "shared"}`);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openSharedStorageMount(mount);
+  });
+  return btn;
+}
+
+function syncDataHubSharedContextBanner(panelBody, scan = activeStorageRootScan) {
+  if (!panelBody) return;
+  panelBody.querySelector(".data-hub-shared-context-banner")?.remove();
+  const context = scan?.sharedContext;
+  if (!context?.isSharedTheme) return;
+
+  const banner = document.createElement("div");
+  banner.className = "data-hub-shared-context-banner";
+
+  const note = document.createElement("span");
+  note.className = "data-hub-shared-context-note";
+  note.textContent = `Общее · ${context.label || context.themeSlug || "shared"}`;
+
+  const returnContext = readDataHubSharedReturnContext();
+  banner.appendChild(note);
+
+  if (returnContext?.topicManifest) {
+    const backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "data-hub-shared-context-back";
+    backBtn.textContent = "← К теме";
+    backBtn.addEventListener("click", () => {
+      void returnFromSharedStorageToTopic();
+    });
+    banner.appendChild(backBtn);
+  }
+
+  panelBody.insertBefore(banner, panelBody.firstChild);
 }
 
 function getDataStorageSlotForMode(mode = activeContentMode) {
@@ -8224,6 +8391,7 @@ const storageRootScanInflight = new Map();
 let activeStorageRootScan = null;
 const STORAGE_ROOT_SCAN_TIMEOUT_MS = 20000;
 const DATA_HUB_ALL_SLOTS_LABEL = "Все слоты";
+const DATA_HUB_SHARED_RETURN_STORAGE_KEY = "agentcms.dataHub.sharedReturn.v1";
 const entryOverviewSlotCountersCache = new Map();
 
 function shouldShowDataHubAllSlotsPanel(mode = activeContentMode) {
@@ -8445,6 +8613,19 @@ function buildStorageSlotTreeModel(scan = {}) {
       const folder = findScanFolderForSlotKey(spec.key, folders);
       markScanFoldersConsumedForSlotKey(consumed, spec.key, folders);
       entries.push({ kind: "slot", spec, folder });
+    }
+  }
+
+  const sharedMounts = Array.isArray(scan.sharedMounts) ? scan.sharedMounts : [];
+  if (sharedMounts.length > 0 && !isActiveSharedThemeStorageContext(scan)) {
+    entries.push({ kind: "divider", id: "shared-mounts" });
+    entries.push({
+      kind: "group-label",
+      id: "shared-mounts",
+      label: STORAGE_SLOT_TREE_GROUP_LABELS[STORAGE_SLOT_TREE_GROUP_SHARED]
+    });
+    for (const mount of sharedMounts) {
+      entries.push({ kind: "shared-mount", mount });
     }
   }
 
@@ -8786,6 +8967,35 @@ function appendStorageSlotTreeItem(
     const row = btn.closest(".media-section-tree-row");
     row?.appendChild(createStorageSlotSchemaButton(slotKey));
   }
+
+  const sharedMount = findSharedMountForSlotKey(slotKey);
+  if (sharedMount && !isCountOnly && !isActiveSharedThemeStorageContext()) {
+    const sharedRow = btn.closest(".media-section-tree-row");
+    sharedRow?.appendChild(createStorageSlotSharedOpenButton(sharedMount));
+  }
+}
+
+function appendSharedMountTreeItem(list, mount, { activeSlotKey = null, sectionFilterActive = false } = {}) {
+  if (!mount) return null;
+  const slotKey = mount.slotKey || mount.themeSlug || "";
+  const count = Number(mount.entryCount) || 0;
+  const isActive = !sectionFilterActive && activeSlotKey === slotKey && isActiveSharedThemeStorageContext();
+  const btn = appendMediaSectionTreeItem(list, {
+    icon: "📦",
+    label: mount.label || mount.themeSlug || "shared",
+    count: count > 0 ? count : 0,
+    isActive,
+    onClick: () => {
+      void openSharedStorageMount(mount);
+    }
+  });
+  btn.dataset.storageSlot = slotKey;
+  btn.dataset.storageSharedMount = mount.themeSlug || slotKey;
+  btn.classList.add("storage-slot-tree-item", "storage-slot-tree-item--shared-mount");
+  btn.title = `Общее · ${mount.label || mount.themeSlug}. Файлы доступны всем темам.`;
+  const badge = btn.querySelector(".media-section-tree-count");
+  if (badge) badge.dataset.baseCount = String(count);
+  return btn;
 }
 
 function syncStorageSlotTreeActiveState(container, { useEntryOverviewNavigation = false } = {}) {
@@ -8810,6 +9020,14 @@ function syncStorageSlotTreeActiveState(container, { useEntryOverviewNavigation 
     if (!slotKey || slotKey === "all") return;
     if (btn.classList.contains("storage-slot-tree-item--count-only")) {
       btn.classList.remove("is-active");
+      return;
+    }
+    if (btn.classList.contains("storage-slot-tree-item--shared-mount")) {
+      const isActive =
+        !allItemsActive &&
+        isActiveSharedThemeStorageContext() &&
+        (activeSlotKey === slotKey || btn.dataset.storageSharedMount === activeStorageRootScan?.sharedContext?.themeSlug);
+      btn.classList.toggle("is-active", isActive && !sectionFilterActive);
       return;
     }
     const disabled = btn.disabled || btn.classList.contains("is-disabled");
@@ -8848,12 +9066,20 @@ function updateStorageSlotTreeCounts(container, scan = {}) {
     const slotKey = btn.dataset.storageSlot;
     if (!slotKey || slotKey === "all") return;
     const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
+    const sharedMount = btn.dataset.storageSharedMount
+      ? (scan?.sharedMounts || []).find(
+          (mount) =>
+            mount?.themeSlug === btn.dataset.storageSharedMount || mount?.slotKey === slotKey
+        ) || null
+      : null;
     const folder = findScanFolderForSlotKey(slotKey, folders);
-    const count = spec
-      ? getDataStorageSlotCountForScan(spec, folder, bundleSlots[slotKey] || null)
-      : folder?.entryCount > 0
-        ? folder.entryCount
-        : null;
+    const count = sharedMount
+      ? Number(sharedMount.entryCount) || 0
+      : spec
+        ? getDataStorageSlotCountForScan(spec, folder, bundleSlots[slotKey] || null)
+        : folder?.entryCount > 0
+          ? folder.entryCount
+          : null;
     const badge = btn.querySelector(".media-section-tree-count");
     if (!badge) return;
     if (isStorageSlotCountOnly(spec)) {
@@ -8947,6 +9173,10 @@ function renderStorageSlotTreeContent(
         );
         continue;
       }
+      if (entry.kind === "shared-mount") {
+        appendSharedMountTreeItem(list, entry.mount, treeItemOptions);
+        continue;
+      }
       if (entry.kind === "orphan") {
         appendStorageSlotTreeItem(
           list,
@@ -8958,6 +9188,7 @@ function renderStorageSlotTreeContent(
   }
   ensureStorageTreePolicyFooter(container, activeContentMode);
   if (!useEntryOverviewNavigation) syncListViewHead();
+  syncDataHubSharedContextBanner(getDataHubPanelBodyNode(), scan);
 }
 
 async function renderStorageSlotTree(container, options = {}) {
@@ -11433,7 +11664,7 @@ function menuFolderHasTopicItems(node) {
 
 function menuFolderHasTopicContent(node) {
   if (!node) return false;
-  if (node.serviceTree || node.containerTree) return true;
+  if (node.serviceTree || node.containerTree || node.sharedTree) return true;
   if (menuFolderHasTopicItems(node)) return true;
   return (node.sections || []).some((section) => menuFolderHasTopicContent(section));
 }
@@ -11442,7 +11673,7 @@ function isMenuFolderWithoutTopics(node) {
   if (!node) return false;
   if (node.menuDepthLimited) return false;
   if (node.empty) return true;
-  if (node.serviceTree || node.containerTree) return false;
+  if (node.serviceTree || node.containerTree || node.sharedTree) return false;
   if (!node.indexPath && node.folderPath) return !menuFolderHasTopicContent(node);
   return !menuFolderHasTopicContent(node);
 }
@@ -11462,6 +11693,7 @@ function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId
   }
   if (node.serviceTree && menuNodeHasVisibleTopicsAfterActiveFilter(node.serviceTree, agentId)) return true;
   if (node.containerTree && menuNodeHasVisibleTopicsAfterActiveFilter(node.containerTree, agentId)) return true;
+  if (node.sharedTree && menuNodeHasVisibleTopicsAfterActiveFilter(node.sharedTree, agentId)) return true;
   if (node.indexPath && isMenuTopicActiveStatus(node.status)) return true;
   return false;
 }
@@ -11482,12 +11714,18 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
   let containerTree = node.containerTree
     ? pruneMenuTreeByActiveTopics({ title: "", ...node.containerTree }, agentId)
     : node.containerTree;
+  let sharedTree = node.sharedTree
+    ? pruneMenuTreeByActiveTopics({ title: "", ...node.sharedTree }, agentId)
+    : node.sharedTree;
 
   if (serviceTree && !menuNodeHasVisibleTopicsAfterActiveFilter(serviceTree, agentId)) {
     serviceTree = null;
   }
   if (containerTree && !menuNodeHasVisibleTopicsAfterActiveFilter(containerTree, agentId)) {
     containerTree = null;
+  }
+  if (sharedTree && !menuNodeHasVisibleTopicsAfterActiveFilter(sharedTree, agentId)) {
+    sharedTree = null;
   }
 
   return {
@@ -11497,6 +11735,7 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
     repoItems: repoServiceItems,
     repoServiceItems,
     serviceTree,
+    sharedTree,
     containerTree
   };
 }
@@ -11519,6 +11758,9 @@ function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
     containerTree: node.containerTree
       ? pruneMenuTreeByFolderVisibility({ title: "", ...node.containerTree }, agentId)
       : node.containerTree,
+    sharedTree: node.sharedTree
+      ? pruneMenuTreeByFolderVisibility({ title: "", ...node.sharedTree }, agentId)
+      : node.sharedTree,
     serviceTree: node.serviceTree
       ? pruneMenuTreeByFolderVisibility({ title: "", ...node.serviceTree }, agentId)
       : node.serviceTree
@@ -11623,6 +11865,7 @@ function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   if (isPartNodePath(normalized)) return false;
   if (isAgentRootIndexPath(normalized)) return false;
   if (isAgentContainerRootIndexPath(normalized)) return true;
+  if (isAgentSharedRootIndexPath(normalized)) return true;
   if (isAgentSystemRootIndexPath(normalized)) return true;
   if (isSystemReferenceManifestPath(normalized)) return false;
 
@@ -11803,6 +12046,9 @@ function collectAgentRootNavigationSubsectionEntries(activeResolvedPath) {
   }
   if (menu.containerTree) {
     pushEntriesFromNode({ title: "", ...menu.containerTree });
+  }
+  if (menu.sharedTree) {
+    pushEntriesFromNode({ title: "", ...menu.sharedTree });
   }
 
   const baseTree = { title: getAgentTreeTitle(), ...getWorkspaceRootMenuTreeNode(menu) };
@@ -12357,6 +12603,123 @@ function createObsidianMarkerSvg() {
   return svg;
 }
 
+function createCronRuntimeMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg menu-runtime-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "12");
+  circle.setAttribute("cy", "12");
+  circle.setAttribute("r", "8");
+  circle.setAttribute("fill", "none");
+  circle.setAttribute("stroke", "currentColor");
+  circle.setAttribute("stroke-width", "2");
+  svg.appendChild(circle);
+
+  const hand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  hand.setAttribute("d", "M12 8v4l2.5 1.8");
+  hand.setAttribute("fill", "none");
+  hand.setAttribute("stroke", "currentColor");
+  hand.setAttribute("stroke-width", "2");
+  hand.setAttribute("stroke-linecap", "round");
+  hand.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(hand);
+
+  return svg;
+}
+
+function createHeartbeatRuntimeMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg menu-runtime-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const pulse = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pulse.setAttribute("d", "M4 12h3l2-4 4 8 2-4h5");
+  pulse.setAttribute("fill", "none");
+  pulse.setAttribute("stroke", "currentColor");
+  pulse.setAttribute("stroke-width", "2");
+  pulse.setAttribute("stroke-linecap", "round");
+  pulse.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(pulse);
+
+  return svg;
+}
+
+function resolveMenuRuntimeBadgeTitle(kind, source) {
+  const selfKey = kind === "cron" ? "runtimeCronSelf" : "runtimeHeartbeatSelf";
+  const hasSelf = source?.[selfKey];
+  const schedule = String(source?.runtimeCronSchedule || "").trim();
+  if (kind === "cron") {
+    if (hasSelf === false) return "Cron в дочерних темах";
+    const base = "Cron включён";
+    return schedule ? `${base}: ${schedule}` : base;
+  }
+  if (hasSelf === false) return "Heartbeat в дочерних темах";
+  return "Heartbeat включён";
+}
+
+function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
+  if (!source) return source;
+  const path = normalizeMenuNodePath(source.path || source.indexPath || "");
+  const cached = path ? menuRuntimeFlagsByAgent.get(agentId)?.get(path) : null;
+  const merged = { ...source };
+
+  if (cached) {
+    merged.runtimeCron = Boolean(source.runtimeCron || cached.runtimeCron);
+    merged.runtimeHeartbeat = Boolean(source.runtimeHeartbeat || cached.runtimeHeartbeat);
+    if (!merged.runtimeCronSchedule) {
+      merged.runtimeCronSchedule = String(cached.runtimeCronSchedule || "").trim();
+    }
+    if (source.runtimeCronSelf === undefined && cached.runtimeCronSelf !== undefined) {
+      merged.runtimeCronSelf = cached.runtimeCronSelf;
+    }
+    if (source.runtimeHeartbeatSelf === undefined && cached.runtimeHeartbeatSelf !== undefined) {
+      merged.runtimeHeartbeatSelf = cached.runtimeHeartbeatSelf;
+    }
+  }
+
+  return merged;
+}
+
+function createMenuRuntimeBadges(source, agentId = activeAgentId) {
+  const resolved = resolveMenuRuntimeSource(source, agentId);
+  const hasCron = Boolean(resolved?.runtimeCron);
+  const hasHeartbeat = Boolean(resolved?.runtimeHeartbeat);
+  if (!hasCron && !hasHeartbeat) return null;
+
+  const wrap = document.createElement("span");
+  wrap.className = "menu-runtime-badges";
+
+  if (hasCron) {
+    const badge = document.createElement("span");
+    badge.className = "menu-runtime-badge menu-runtime-badge--cron";
+    if (resolved?.runtimeCronSelf === false) badge.classList.add("menu-runtime-badge--descendant");
+    badge.appendChild(createCronRuntimeMarkerSvg());
+    const title = resolveMenuRuntimeBadgeTitle("cron", resolved);
+    badge.title = title;
+    badge.setAttribute("aria-label", title);
+    wrap.appendChild(badge);
+  }
+
+  if (hasHeartbeat) {
+    const badge = document.createElement("span");
+    badge.className = "menu-runtime-badge menu-runtime-badge--heartbeat";
+    if (resolved?.runtimeHeartbeatSelf === false) {
+      badge.classList.add("menu-runtime-badge--descendant");
+    }
+    badge.appendChild(createHeartbeatRuntimeMarkerSvg());
+    const title = resolveMenuRuntimeBadgeTitle("heartbeat", resolved);
+    badge.title = title;
+    badge.setAttribute("aria-label", title);
+    wrap.appendChild(badge);
+  }
+
+  return wrap;
+}
+
 function createSkillMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -12481,7 +12844,7 @@ function createMenuTreeTypeIcon(host) {
 
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
   host.replaceChildren();
-  host.classList.remove("has-menu-tree-status");
+  host.classList.remove("has-menu-tree-status", "has-menu-runtime-badges");
 
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
@@ -12489,6 +12852,7 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   nameNode.className = nameClass;
   const statusBadge = createMenuTreeStatusBadge(source?.status);
   const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
+  const runtimeBadges = createMenuRuntimeBadges(source, options.agentId);
 
   if (statusBadge) {
     host.classList.add("has-menu-tree-status");
@@ -12504,6 +12868,10 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   if (markers) labelWrap.appendChild(markers);
   nameNode.appendChild(titleText);
   labelWrap.appendChild(nameNode);
+  if (runtimeBadges) {
+    labelWrap.appendChild(runtimeBadges);
+    host.classList.add("has-menu-runtime-badges");
+  }
   host.appendChild(labelWrap);
 }
 
@@ -13096,7 +13464,9 @@ function resolveCreateTargetParentPath(baseParentPath, agentId = getCreateModalA
 }
 
 function isMenuRenderInServiceTree(parentEl) {
-  return Boolean(parentEl?.closest?.(".menu-service-section, .menu-container-section"));
+  return Boolean(
+    parentEl?.closest?.(".menu-service-section, .menu-shared-section, .menu-container-section")
+  );
 }
 
 function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
@@ -13117,6 +13487,15 @@ function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${containerFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
+function resolveSharedTreeFolderPath(folderPath, agentId = activeAgentId) {
+  const raw = String(folderPath || "").replace(/\\/g, "/").trim();
+  if (!raw || raw === ".") return ".";
+  if (isAgentSharedNodePath(raw)) return raw;
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  if (!sharedFolder) return raw;
+  return `${sharedFolder}/${raw}`.replace(/\/+/g, "/");
+}
+
 function shouldOfferAreaAdopt(node) {
   if (!node || node.indexPath) return false;
   return Boolean(String(node.folderPath || "").trim());
@@ -13127,6 +13506,9 @@ function resolveCreateModalParentPath(parentPath, options = {}) {
   const raw = String(options.folderPath || parentPath || ".").trim();
   if (options.inContainerTree || options.menuParentEl?.closest?.(".menu-container-section")) {
     return normalizeCreateParentPath(resolveContainerTreeFolderPath(raw, agentId));
+  }
+  if (options.inSharedTree || options.menuParentEl?.closest?.(".menu-shared-section")) {
+    return normalizeCreateParentPath(resolveSharedTreeFolderPath(raw, agentId));
   }
   if (options.inServiceTree || options.menuParentEl?.closest?.(".menu-service-section")) {
     return normalizeCreateParentPath(resolveServiceTreeFolderPath(raw, agentId));
@@ -13162,6 +13544,11 @@ function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId
 
   if (menu.containerTree) {
     hit = findMenuTreeNodeByFolderPath({ title: "", ...menu.containerTree }, normalized, ".", 0);
+    if (hit?.node) return hit.node;
+  }
+
+  if (menu.sharedTree) {
+    hit = findMenuTreeNodeByFolderPath({ title: "", ...menu.sharedTree }, normalized, ".", 0);
     if (hit?.node) return hit.node;
   }
 
@@ -13290,6 +13677,11 @@ function isAgentContainerFolderPresent(agentId = getCreateModalAgentId()) {
   return Boolean(menu?.containerTree);
 }
 
+function isAgentSharedFolderPresent(agentId = getCreateModalAgentId()) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  return Boolean(menu?.sharedTree);
+}
+
 function getContainerRootHint(agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   return menu?.hasGitSelf ? CONTAINER_ROOT_HINT_GIT : CONTAINER_ROOT_HINT;
@@ -13302,6 +13694,9 @@ function getWorkspaceRootAddButtonTitle(agentId = activeAgentId) {
   }
   if (!isAgentContainerFolderPresent(agentId)) {
     lines.push(`${CONTAINER_FOLDER_DEFAULT}: ${getContainerRootHint(agentId)}`);
+  }
+  if (!isAgentSharedFolderPresent(agentId)) {
+    lines.push(`${SHARED_FOLDER_DEFAULT}: ${SHARED_ROOT_HINT}`);
   }
   return lines.join("\n");
 }
@@ -13411,6 +13806,7 @@ function shouldShowReservedFoldersInCreateModal(agentId = getCreateModalAgentId(
   if (normalized !== ".") return false;
   if (isServiceNodePath(createModalBaseParentPath)) return false;
   if (isAgentContainerNodePath(createModalBaseParentPath)) return false;
+  if (isAgentSharedNodePath(createModalBaseParentPath)) return false;
   return true;
 }
 
@@ -13461,6 +13857,7 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
   const containerExists = showNestedGitContainerScaffold
     ? hasContainerForGitRoot(gitRoot, agentId)
     : isAgentContainerFolderPresent(agentId);
+  const sharedExists = isAgentSharedFolderPresent(agentId);
 
   if (createNodeKitScaffoldBtn) {
     createNodeKitScaffoldBtn.disabled = kitExists;
@@ -13483,6 +13880,17 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
     const containerTitleNode = createNodeContainerScaffoldBtn.querySelector(".create-node-scaffold-title");
     if (containerTitleNode) {
       containerTitleNode.textContent = `Создать ${CONTAINER_FOLDER_DEFAULT}`;
+    }
+  }
+  if (createNodeSharedScaffoldBtn) {
+    createNodeSharedScaffoldBtn.disabled = sharedExists;
+    createNodeSharedScaffoldBtn.setAttribute("aria-disabled", sharedExists ? "true" : "false");
+    createNodeSharedScaffoldBtn.title = sharedExists
+      ? `${SHARED_FOLDER_DEFAULT} уже создан`
+      : SHARED_ROOT_HINT;
+    const sharedTitleNode = createNodeSharedScaffoldBtn.querySelector(".create-node-scaffold-title");
+    if (sharedTitleNode) {
+      sharedTitleNode.textContent = `Создать ${SHARED_FOLDER_DEFAULT}`;
     }
   }
 }
@@ -13529,8 +13937,10 @@ function syncCreateNodeReservedFoldersUi() {
   }
 
   const showKit = showWrap && !isNestedGitRoot;
+  const showShared = showWrap && !isNestedGitRoot;
   const showContainer = (showWrap && !isNestedGitRoot) || showNestedGitContainerScaffold;
   createNodeKitScaffoldBtn?.classList.toggle("hidden", !showKit);
+  createNodeSharedScaffoldBtn?.classList.toggle("hidden", !showShared);
   createNodeContainerScaffoldBtn?.classList.toggle("hidden", !showContainer);
   if (createNodeContainerScaffoldHintNode) {
     createNodeContainerScaffoldHintNode.textContent = showNestedGitContainerScaffold
@@ -14102,6 +14512,8 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
     let branchPayload;
     try {
       branchPayload = await fetchMenuBranch(normalized, agentId);
+      await refreshMenuRuntimeFlagsCache(agentId);
+      enrichMenuRuntimeFromCache(branchPayload, agentId);
     } finally {
       setMenuBranchLoading(normalized, agentId, false);
     }
@@ -14946,7 +15358,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
-  "runtime-registry": "Реестр тем",
+  "runtime-registry": "Карта runtime",
   map: "Карта",
   map2: "Структура",
   map3: "Карта 3",
@@ -22583,16 +22995,16 @@ function isListViewWithSourceToggleMode() {
   return false;
 }
 
+function isNodeManifestContextPath(nodePath = activePath) {
+  const normalized = getResolvedNodePath(nodePath);
+  if (!normalized || activeSystemFile) return false;
+  if (isGitRepoLooseFilePath(normalized)) return false;
+  if (isAgentSystemEditableFilePath(normalized)) return false;
+  return isNodeManifestPath(normalized) || isTopicManifestPath(normalized) || isAreaNodePath(normalized);
+}
+
 function isWorkspaceRefreshAvailable() {
-  if (!activePath || activeSystemFile) return false;
-  if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_THREAD_MODE) return true;
-  if (isFlatStorageListMode()) return true;
-  if (activeContentMode === "external" && !activeExternalFilePath) return true;
-  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) return true;
-  if (activeContentMode === "repository") return true;
-  if (activeContentMode === "temp") return true;
-  if (activeContentMode === "tabular" && !isTabularSourceEditing()) return true;
-  return false;
+  return Boolean(activePath || activeSystemFile);
 }
 
 function isRevealNodeFolderAvailable() {
@@ -22607,19 +23019,104 @@ function syncWorkspaceRevealFolderButton() {
   workspaceRevealFolderBtn.classList.toggle("hidden", !isRevealNodeFolderAvailable());
 }
 
+function syncWorkspaceRefreshButton() {
+  if (!workspaceRefreshBtn) return;
+  const available = isWorkspaceRefreshAvailable();
+  workspaceRefreshBtn.classList.toggle("hidden", !available);
+  workspaceRefreshBtn.disabled = workspaceRefreshInFlight;
+  workspaceRefreshBtn.classList.toggle("is-spinning", workspaceRefreshInFlight);
+}
+
 let workspaceRefreshInFlight = false;
+
+async function reloadActiveNodeManifestFromDisk() {
+  const apiPath = getActiveNodeApiPath();
+  if (!apiPath || !isNodeManifestContextPath()) return;
+
+  const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  modeContentCache.description = data.content || "";
+
+  invalidateNodeConfigCache(activePath);
+  try {
+    await loadNodeConfig(activePath, { force: true });
+  } catch {
+    // ignore config reload errors during refresh
+  }
+
+  const schemaManifestPath = getTopicSchemaManifestPath(activePath);
+  if (schemaManifestPath) {
+    topicSchemaCacheByManifest.delete(schemaManifestPath);
+  }
+}
 
 async function refreshWorkspaceContent() {
   if (!isWorkspaceRefreshAvailable() || workspaceRefreshInFlight) return;
   workspaceRefreshInFlight = true;
-  workspaceRefreshBtn?.classList.add("is-spinning");
-  workspaceRefreshBtn?.setAttribute("disabled", "disabled");
+  syncWorkspaceRefreshButton();
   try {
-    await loadContentByMode();
+    invalidateStorageRootScanCache();
+    resetPropsLibrariesCache();
+
+    if (activeSystemFile) {
+      await selectSystemFile(activeSystemFile, { skipRouteSync: true });
+      return;
+    }
+
+    if (isAgentSystemFileEditing()) {
+      await selectAgentSystemFile(activeLabel || getLabelFromPath(activePath), activePath, {
+        skipRouteSync: true
+      });
+      return;
+    }
+
+    if (isGitRepoLooseFilePath(activePath)) {
+      await selectRepoLooseFile(activeLabel || getLabelFromPath(activePath), activePath, {
+        skipRouteSync: true
+      });
+      return;
+    }
+
+    if (activeContentMode === "external" && activeExternalFilePath) {
+      const file = activeExternalFilePath;
+      await refreshExternalMemoryCaches();
+      await openExternalFile(file, { skipRouteSync: true });
+      return;
+    }
+
+    if (isMediaSidecarEditing() && activeMediaSidecarSourcePath) {
+      const file = activeMediaSidecarSourcePath;
+      await refreshMediaCache();
+      await openMediaSidecar(file, { skipRouteSync: true });
+      return;
+    }
+
+    if (isMediaMarkdownEditing() && activeMediaMarkdownPath) {
+      const file = activeMediaMarkdownPath;
+      await refreshMediaCache();
+      await openMediaMarkdownFile(file, { skipRouteSync: true });
+      return;
+    }
+
+    if (isNodeManifestContextPath()) {
+      await reloadActiveNodeManifestFromDisk();
+      await loadPropertiesForActivePath();
+    } else if (activePath) {
+      modeContentCache.description = "";
+    }
+
+    if (activeContentMode && Object.prototype.hasOwnProperty.call(modeContentCache, activeContentMode)) {
+      modeContentCache[activeContentMode] = "";
+    }
+    if (activeContentMode === "tabular") {
+      tabularDataCache = { columns: [], rows: [], rowCount: 0 };
+    }
+
+    await loadContentByMode({ forceReload: true });
   } finally {
     workspaceRefreshInFlight = false;
-    workspaceRefreshBtn?.classList.remove("is-spinning");
-    workspaceRefreshBtn?.removeAttribute("disabled");
+    syncWorkspaceRefreshButton();
   }
 }
 
@@ -23201,7 +23698,11 @@ function setTitleLockedDisplay(label) {
 }
 
 function isReservedRootManifestPath(nodePath) {
-  return isAgentSystemRootIndexPath(nodePath) || isAgentContainerRootIndexPath(nodePath);
+  return (
+    isAgentSystemRootIndexPath(nodePath) ||
+    isAgentContainerRootIndexPath(nodePath) ||
+    isAgentSharedRootIndexPath(nodePath)
+  );
 }
 
 function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
@@ -24524,6 +25025,31 @@ function topicSchemaTargetHasCustomFields(targetId, cache = getTopicSchemaCache(
   return getTopicSchemaCustomFieldKeys(targetId, cache).length > 0;
 }
 
+function topicSchemaFieldHasAdvancedSettings(fieldDef) {
+  if (!fieldDef || typeof fieldDef !== "object") return false;
+  const typeId = resolveFieldTypeId(fieldDef.type || "awn.string");
+  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(typeId)]);
+  for (const [propKey, value] of Object.entries(fieldDef)) {
+    if (!allowedSettings.has(propKey)) continue;
+    if (shouldPersistFieldDefSetting(propKey, value, fieldDef)) return true;
+  }
+  return false;
+}
+
+function topicSchemaSlotHasCustomFields(slot, cache = getTopicSchemaCache()) {
+  return (slot?.tabs || []).some((tab) => topicSchemaTargetHasCustomFields(tab.id, cache));
+}
+
+function topicSchemaTabGroupHasCustomFields(group, cache = getTopicSchemaCache()) {
+  if (group?.coreTabs?.length) {
+    return group.coreTabs.some((tab) => topicSchemaTargetHasCustomFields(tab.id, cache));
+  }
+  if (group?.slots?.length) {
+    return group.slots.some((slot) => topicSchemaSlotHasCustomFields(slot, cache));
+  }
+  return false;
+}
+
 function addTopicSchemaField(target = topicSchemaActiveTarget) {
   const cache = getTopicSchemaCache();
   if (!cache) return;
@@ -24605,11 +25131,27 @@ function createTopicSchemaTargetTabButton(spec, cache = getTopicSchemaCache()) {
   btn.setAttribute("role", "tab");
   btn.setAttribute("aria-selected", id === topicSchemaActiveTarget ? "true" : "false");
   btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
-  btn.classList.toggle("is-configured", topicSchemaTargetHasCustomFields(id, cache));
+  const configured = topicSchemaTargetHasCustomFields(id, cache);
+  btn.classList.toggle("is-configured", configured);
   const typeName = getTopicSchemaTargetTypeName(id) || AWN_SCHEMA_TARGET_TYPE_NAMES[id];
-  btn.textContent = label || getTopicSchemaTargetLabel(id);
+  const tabLabel = label || getTopicSchemaTargetLabel(id);
+  btn.replaceChildren();
+  if (configured) {
+    const mark = document.createElement("span");
+    mark.className = "topic-schema-target-tab-mark";
+    mark.setAttribute("aria-hidden", "true");
+    btn.appendChild(mark);
+  }
+  const labelNode = document.createElement("span");
+  labelNode.className = "topic-schema-target-tab-label";
+  labelNode.textContent = tabLabel;
+  btn.appendChild(labelNode);
   if (fullLabel || typeName) {
-    btn.title = [fullLabel || getTopicSchemaTargetLabel(id), typeName].filter(Boolean).join(" · ");
+    btn.title = [fullLabel || getTopicSchemaTargetLabel(id), typeName, configured ? "Есть доп. поля" : ""]
+      .filter(Boolean)
+      .join(" · ");
+  } else if (configured) {
+    btn.title = `${tabLabel} · есть доп. поля`;
   }
   return btn;
 }
@@ -24634,10 +25176,17 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
     const section = document.createElement("section");
     section.className = "topic-schema-target-tab-group";
     section.dataset.tabGroup = group.id;
+    section.classList.toggle("is-configured", topicSchemaTabGroupHasCustomFields(group, cache));
 
     const heading = document.createElement("div");
     heading.className = "topic-schema-target-tab-group-label";
-    heading.textContent = group.label;
+    if (section.classList.contains("is-configured")) {
+      const groupMark = document.createElement("span");
+      groupMark.className = "topic-schema-target-group-mark";
+      groupMark.setAttribute("aria-hidden", "true");
+      heading.appendChild(groupMark);
+    }
+    heading.append(document.createTextNode(group.label));
     section.appendChild(heading);
 
     const body = document.createElement("div");
@@ -24654,6 +25203,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
       for (const slot of group.slots) {
         const row = document.createElement("div");
         row.className = "topic-schema-target-tab-row";
+        row.classList.toggle("is-configured", topicSchemaSlotHasCustomFields(slot, cache));
 
         const slotLabel = document.createElement("span");
         slotLabel.className = "topic-schema-target-slot-label";
@@ -24732,10 +25282,12 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   keys.forEach((key, index) => {
     const fieldDef = cache?.awnSchema?.[target]?.fields?.[key] || {};
     const expanded = isTopicSchemaFieldExpanded(target, key);
+    const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
     const row = document.createElement("div");
     row.className = "topic-schema-field-row";
     row.dataset.schemaRowKey = key;
     row.classList.toggle("is-settings-open", expanded);
+    row.classList.toggle("is-configured", hasAdvancedSettings);
 
     const compact = document.createElement("div");
     compact.className = "topic-schema-field-compact";
@@ -24785,7 +25337,10 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     settingsBtn.dataset.schemaAction = "toggle-settings";
     settingsBtn.dataset.schemaKey = key;
     settingsBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
-    settingsBtn.title = "Расширенные настройки";
+    settingsBtn.title = hasAdvancedSettings
+      ? "Расширенные настройки (заполнены)"
+      : "Расширенные настройки";
+    settingsBtn.classList.toggle("is-configured", hasAdvancedSettings);
     settingsBtn.textContent = expanded ? "Скрыть" : "Настройки";
 
     const removeBtn = document.createElement("button");
@@ -24875,6 +25430,11 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
   });
 
   fields[activeKey] = fieldDef;
+  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fieldDef));
+  row.querySelector(".topic-schema-settings-toggle")?.classList.toggle(
+    "is-configured",
+    topicSchemaFieldHasAdvancedSettings(fieldDef)
+  );
 }
 
 function handleTopicSchemaFieldsInput(event) {
@@ -25221,7 +25781,12 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
 
   if (isNodeManifestPath(normalized)) {
     if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.ws");
-    if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
+    if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) {
+      return normalizeAwnTypeName("awn.page.area");
+    }
+    if (options.isSharedRoot || isAgentSharedRootIndexPath(normalized)) {
+      return normalizeAwnTypeName("awn.page.area");
+    }
     if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
     if (isSystemReferenceManifestPath(normalized)) {
       return /\/taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
@@ -25258,7 +25823,8 @@ function resolveAwnTypeForContext(nodePath = activePath) {
     contentMode: activeContentMode,
     containerFolder: getActiveAgentContainerFolder(),
     isAgentRoot: isAgentRootIndexPath(manifestPath),
-    isContainerRoot: isAgentContainerRootIndexPath(manifestPath)
+    isContainerRoot: isAgentContainerRootIndexPath(manifestPath),
+    isSharedRoot: isAgentSharedRootIndexPath(manifestPath)
   };
 
   if (propsTarget && propsTarget !== manifestPath) {
@@ -30944,9 +31510,17 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     propsInputNode.classList.add("hidden");
     setPropsYamlToggleLabel("Показать YAML");
   }
-  if (shouldRefreshPropsFormFromYaml()) {
+  if (shouldRenderPropsFormNow()) {
     renderPropsForm();
+  } else if (propsFormFieldsNode) {
+    // Панель «Свойства» не отрисована — очищаем DOM, чтобы save не прочитал устаревшие поля другой темы.
+    propsFormFieldsNode.replaceChildren();
   }
+}
+
+function isPropsFormDomMounted() {
+  if (!propsFormFieldsNode || propsRawYamlVisible) return false;
+  return propsFormFieldsNode.querySelectorAll(".props-form-row").length > 0;
 }
 
 function readPropsFormIntoEntries() {
@@ -30954,6 +31528,7 @@ function readPropsFormIntoEntries() {
   const rows = [...propsFormFieldsNode.querySelectorAll(".props-form-row")].sort(
     (a, b) => Number(a.dataset.index) - Number(b.dataset.index)
   );
+  if (!rows.length) return;
   const nextEntries = [];
 
   rows.forEach((row) => {
@@ -31087,9 +31662,10 @@ function normalizePropsEntriesAssetRefs(entries) {
 function flushPropsYamlFromFormBeforeSave() {
   if (propsRawYamlVisible) {
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+  } else if (isPropsFormDomMounted()) {
+    readPropsFormIntoEntries();
+    propsFormEntries = normalizePropsEntriesAssetRefs(propsFormEntries);
   }
-  readPropsFormIntoEntries();
-  propsFormEntries = normalizePropsEntriesAssetRefs(propsFormEntries);
   syncYamlFromPropsForm();
 }
 
@@ -32005,6 +32581,49 @@ function stripAwnDescCallouts(body) {
     .replace(/^>\s*\[!AWN-DESC\]\s*.+$/gim, "");
 }
 
+function normalizeMarkdownHeadingCompareText(text) {
+  return String(text || "")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_`~]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function stripLeadingDuplicateMarkdownHeading(markdown, heroTitle) {
+  const titleNorm = normalizeMarkdownHeadingCompareText(heroTitle);
+  if (!titleNorm) return String(markdown || "");
+
+  const lines = String(markdown || "").split(/\r?\n/);
+  let index = 0;
+  while (index < lines.length && !lines[index].trim()) index += 1;
+  if (index >= lines.length) return String(markdown || "");
+
+  const firstLine = lines[index].trim();
+  const atxMatch = firstLine.match(/^(#{1,6})\s+(.+)$/);
+  if (atxMatch) {
+    const level = atxMatch[1].length;
+    const headingText = atxMatch[2].replace(/\s+#+\s*$/, "").trim();
+    if (level === 1 && normalizeMarkdownHeadingCompareText(headingText) === titleNorm) {
+      index += 1;
+      while (index < lines.length && !lines[index].trim()) index += 1;
+      return lines.slice(index).join("\n");
+    }
+    return String(markdown || "");
+  }
+
+  if (index + 1 < lines.length && /^=+\s*$/.test(lines[index + 1].trim())) {
+    if (normalizeMarkdownHeadingCompareText(firstLine) === titleNorm) {
+      index += 2;
+      while (index < lines.length && !lines[index].trim()) index += 1;
+      return lines.slice(index).join("\n");
+    }
+  }
+
+  return String(markdown || "");
+}
+
 function getOverviewDescription(rawManifest, entries) {
   const fromEntries =
     getPropsEntryValueByKey(entries, "awn-description") ||
@@ -32255,17 +32874,15 @@ function isNodeInFocus(nodePath, propEntries = null) {
 function syncNodeOverviewBookmarkButton(btn, nodePath) {
   const on = isBookmarked(nodePath);
   btn.classList.toggle("is-active", on);
-  const label = btn.querySelector(".node-overview-action-btn-label");
-  if (label) label.textContent = on ? "В избранном" : "В избранное";
   btn.title = on ? "Убрать из избранного" : "Добавить в избранное";
+  btn.setAttribute("aria-label", btn.title);
 }
 
 function syncNodeOverviewFocusButton(btn, nodePath, propEntries = null) {
   const on = isNodeInFocus(nodePath, propEntries);
   btn.classList.toggle("is-active", on);
-  const label = btn.querySelector(".node-overview-action-btn-label");
-  if (label) label.textContent = on ? "В фокусе" : "В фокус";
   btn.title = on ? "Убрать из фокуса" : "Добавить в фокус";
+  btn.setAttribute("aria-label", btn.title);
 }
 
 function updateNodeOverviewHeroActionStates() {
@@ -32282,11 +32899,9 @@ function createNodeOverviewBookmarkButton(nodePath) {
   const canonicalPath = normalizeMenuNodePath(nodePath);
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "node-overview-action-btn node-overview-bookmark-btn";
+  btn.className = "node-overview-action-btn node-overview-action-btn--icon node-overview-bookmark-btn";
   btn.dataset.path = canonicalPath;
-  const label = document.createElement("span");
-  label.className = "node-overview-action-btn-label";
-  btn.append(createOverviewBookmarkIcon(), label);
+  btn.appendChild(createOverviewBookmarkIcon());
   syncNodeOverviewBookmarkButton(btn, canonicalPath);
   btn.addEventListener("click", (event) => {
     event.preventDefault();
@@ -32300,11 +32915,9 @@ function createNodeOverviewFocusButton(nodePath, propEntries = null) {
   const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "node-overview-action-btn node-overview-focus-btn";
+  btn.className = "node-overview-action-btn node-overview-action-btn--icon node-overview-focus-btn";
   btn.dataset.path = resolvedPath;
-  const label = document.createElement("span");
-  label.className = "node-overview-action-btn-label";
-  btn.append(createOverviewFocusIcon(), label);
+  btn.appendChild(createOverviewFocusIcon());
   syncNodeOverviewFocusButton(btn, nodePath, propEntries);
   btn.addEventListener("click", (event) => {
     event.preventDefault();
@@ -32937,11 +33550,19 @@ function collectNodeOverviewMetaItems(entries) {
   return items;
 }
 
-function renderNodeOverviewPropsTable(metaItems) {
+function splitNodeOverviewMetaItems(entries) {
+  const awnItems = [];
+  const customItems = [];
+  for (const item of collectNodeOverviewMetaItems(entries)) {
+    if (isAwnFieldKey(item.key)) awnItems.push(item);
+    else customItems.push(item);
+  }
+  return { awnItems, customItems };
+}
+
+function renderNodeOverviewMetaTable(metaItems) {
   if (!metaItems.length) return null;
 
-  const metaSection = document.createElement("section");
-  metaSection.className = "node-overview-props";
   const metaTable = document.createElement("table");
   metaTable.className = "node-overview-meta-table";
   const tbody = document.createElement("tbody");
@@ -32957,25 +33578,59 @@ function renderNodeOverviewPropsTable(metaItems) {
     tbody.appendChild(row);
   }
   metaTable.appendChild(tbody);
-  metaSection.appendChild(metaTable);
+  return metaTable;
+}
+
+function renderNodeOverviewCustomPropsSection(customItems) {
+  if (!customItems.length) return null;
+
+  const section = document.createElement("section");
+  section.className = "node-overview-props node-overview-props-custom";
+
+  const head = document.createElement("div");
+  head.className = "node-overview-props-custom-head";
+  head.textContent = `Пользовательские · ${customItems.length}`;
+  section.append(head, renderNodeOverviewMetaTable(customItems));
+  return section;
+}
+
+function renderNodeOverviewAwnPropsFold(awnItems) {
+  if (!awnItems.length) return null;
+
+  const metaSection = document.createElement("section");
+  metaSection.className = "node-overview-props node-overview-props-awn";
+  metaSection.appendChild(renderNodeOverviewMetaTable(awnItems));
 
   const accordion = createOverviewAccordionSection(
-    OVERVIEW_PROPS_ACCORDION_GROUP_ID,
-    `Свойства · ${metaItems.length}`,
+    OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID,
+    `AWN · ${awnItems.length}`,
     metaSection,
     { defaultOpen: false }
   );
-  accordion.classList.add("node-overview-props-fold");
+  accordion.classList.add("node-overview-props-fold", "node-overview-awn-props-fold");
   return accordion;
 }
 
 function appendNavigationHeroProps(hero, propEntries = []) {
   if (!hero) return null;
-  const propsSection = renderNodeOverviewPropsTable(collectNodeOverviewMetaItems(propEntries));
-  if (!propsSection) return null;
-  propsSection.classList.add("node-navigation-props");
-  hero.appendChild(propsSection);
-  return propsSection;
+  const { awnItems, customItems } = splitNodeOverviewMetaItems(propEntries);
+  let lastNode = null;
+
+  const customSection = renderNodeOverviewCustomPropsSection(customItems);
+  if (customSection) {
+    customSection.classList.add("node-navigation-props");
+    hero.appendChild(customSection);
+    lastNode = customSection;
+  }
+
+  const awnFold = renderNodeOverviewAwnPropsFold(awnItems);
+  if (awnFold) {
+    awnFold.classList.add("node-navigation-props");
+    hero.appendChild(awnFold);
+    lastNode = awnFold;
+  }
+
+  return lastNode;
 }
 
 async function loadTypeCatalog(agentId = activeAgentId) {
@@ -35487,9 +36142,12 @@ function appendEntryOverviewManifestNavActions(wrap, navOptions = {}) {
   if (nav) wrap.appendChild(nav);
 }
 
-function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null) {
+function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null, heroTitle = "") {
   const { body } = splitFrontmatter(String(rawContent || ""));
-  const content = stripAwnDescCallouts(body).trim();
+  const content = stripLeadingDuplicateMarkdownHeading(
+    stripAwnDescCallouts(body).trim(),
+    heroTitle
+  ).trim();
   if (!content) return null;
 
   const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
@@ -37156,7 +37814,7 @@ async function renderEntryOverview() {
   );
   if (sectionList) sectionListAnchor.insertAdjacentElement("afterend", sectionList);
 
-  const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav);
+  const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   if (contentPanel) hub.appendChild(contentPanel);
 
   const attachmentsPanel = renderEntryOverviewAttachmentsPart(entries, rawBody);
@@ -37491,9 +38149,12 @@ function splitNavigationManifestAtHorizontalRule(content) {
   };
 }
 
-function renderNavigationManifestPart(manifestRaw = "") {
+function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
   const { body } = splitFrontmatter(manifestRaw);
-  const content = stripAwnDescCallouts(body).trim();
+  const content = stripLeadingDuplicateMarkdownHeading(
+    stripAwnDescCallouts(body).trim(),
+    heroTitle
+  ).trim();
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest";
@@ -38153,6 +38814,181 @@ function countGlobalMentionUnread(summaries) {
     count += Number(intake?.mentions?.unread) || 0;
   }
   return count;
+}
+
+function enrichMenuTreeRuntimeRollupClient(node) {
+  if (!node || typeof node !== "object") {
+    return { runtimeCron: false, runtimeHeartbeat: false, runtimeCronSchedule: "" };
+  }
+
+  const selfCron = Boolean(node.runtimeCron);
+  const selfHeartbeat = Boolean(node.runtimeHeartbeat);
+  const selfSchedule = String(node.runtimeCronSchedule || "").trim();
+
+  let runtimeCron = selfCron;
+  let runtimeHeartbeat = selfHeartbeat;
+
+  for (const item of node.items || []) {
+    const rolled = enrichMenuTreeRuntimeRollupClient(item);
+    if (rolled.runtimeCron) runtimeCron = true;
+    if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+  }
+
+  for (const section of node.sections || []) {
+    const rolled = enrichMenuTreeRuntimeRollupClient(section);
+    if (rolled.runtimeCron) runtimeCron = true;
+    if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+  }
+
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (node[nestedKey]) {
+      const rolled = enrichMenuTreeRuntimeRollupClient(node[nestedKey]);
+      if (rolled.runtimeCron) runtimeCron = true;
+      if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+    }
+  }
+
+  node.runtimeCronSelf = selfCron;
+  node.runtimeHeartbeatSelf = selfHeartbeat;
+  node.runtimeCron = runtimeCron;
+  node.runtimeHeartbeat = runtimeHeartbeat;
+  node.runtimeCronSchedule = selfSchedule;
+
+  return { runtimeCron, runtimeHeartbeat, runtimeCronSchedule: selfSchedule };
+}
+
+function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
+  if (!node || typeof node !== "object") return;
+  const map = menuRuntimeFlagsByAgent.get(agentId);
+  const path = normalizeMenuNodePath(node.path || node.indexPath || "");
+  const cached = path && map ? map.get(path) : null;
+
+  if (cached) {
+    node.runtimeCron = Boolean(node.runtimeCron || cached.runtimeCron);
+    node.runtimeHeartbeat = Boolean(node.runtimeHeartbeat || cached.runtimeHeartbeat);
+    if (!node.runtimeCronSchedule && cached.runtimeCronSchedule) {
+      node.runtimeCronSchedule = cached.runtimeCronSchedule;
+    }
+  }
+
+  for (const item of node.items || []) applyRuntimeFlagsCacheToMenuTree(item, agentId);
+  for (const section of node.sections || []) applyRuntimeFlagsCacheToMenuTree(section, agentId);
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (node[nestedKey]) applyRuntimeFlagsCacheToMenuTree(node[nestedKey], agentId);
+  }
+}
+
+function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
+  if (!menu) return menu;
+  applyRuntimeFlagsCacheToMenuTree(menu, agentId);
+  enrichMenuTreeRuntimeRollupClient(menu);
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (menu[nestedKey]) enrichMenuTreeRuntimeRollupClient(menu[nestedKey]);
+  }
+  return menu;
+}
+
+async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/runtime-registry", {}, agentId));
+    if (!response.ok) return;
+    const data = await response.json();
+    const map = new Map();
+    for (const row of data.rows || []) {
+      const path = normalizeMenuNodePath(row.manifestPath || "");
+      if (!path) continue;
+      map.set(path, {
+        runtimeCron: Boolean(row.runtimeCron),
+        runtimeCronSchedule: String(row.runtimeCronSchedule || "").trim(),
+        runtimeHeartbeat: Boolean(row.runtimeHeartbeat),
+        runtimeCronSelf: Boolean(row.runtimeCron),
+        runtimeHeartbeatSelf: Boolean(row.runtimeHeartbeat)
+      });
+    }
+    menuRuntimeFlagsByAgent.set(agentId, map);
+  } catch {
+    menuRuntimeFlagsByAgent.delete(agentId);
+  }
+}
+
+function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
+  const nextBadges = createMenuRuntimeBadges(source, agentId);
+  const badgesEl = host.querySelector(".menu-runtime-badges");
+
+  if (!nextBadges) {
+    badgesEl?.remove();
+    host.classList.remove("has-menu-runtime-badges");
+    return;
+  }
+
+  if (badgesEl) {
+    badgesEl.replaceWith(nextBadges);
+  } else {
+    const labelWrap = host.querySelector(".menu-folder-label");
+    if (labelWrap) labelWrap.appendChild(nextBadges);
+    else host.appendChild(nextBadges);
+  }
+  host.classList.add("has-menu-runtime-badges");
+}
+
+function refreshMenuTreeRuntimeBadges(agentId = activeAgentId) {
+  if (menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  syncMenuRuntimeBadges(agentId);
+}
+
+function syncMenuRuntimeBadges(agentId = activeAgentId) {
+  const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  if (!root) return;
+
+  const map = menuRuntimeFlagsByAgent.get(agentId);
+  for (const host of root.querySelectorAll(
+    ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path]"
+  )) {
+    const path = normalizeMenuNodePath(host.dataset.path || "");
+    if (!path || !isNodeMdPath(path) || isPartNodePath(path)) {
+      host.querySelector(".menu-runtime-badges")?.remove();
+      host.classList.remove("has-menu-runtime-badges");
+      continue;
+    }
+
+    const cached = map?.get(path);
+    const menu = menuCacheByAgent.get(agentId);
+    const node = findMenuTreeNodeByManifestPath(menu, path, agentId);
+    const source = node || (cached ? { path, ...cached } : null);
+    if (!source) {
+      host.querySelector(".menu-runtime-badges")?.remove();
+      host.classList.remove("has-menu-runtime-badges");
+      continue;
+    }
+    upsertMenuRuntimeBadges(host, source, agentId);
+  }
+}
+
+function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeAgentId) {
+  const normalized = normalizeMenuNodePath(manifestPath || "");
+  if (!menu || !normalized) return null;
+
+  function walk(node) {
+    if (!node || typeof node !== "object") return null;
+    const nodePath = normalizeMenuNodePath(node.path || node.indexPath || "");
+    if (nodePath === normalized) return node;
+    for (const item of node.items || []) {
+      const found = walk(item);
+      if (found) return found;
+    }
+    for (const section of node.sections || []) {
+      const found = walk(section);
+      if (found) return found;
+    }
+    for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+      const found = walk(node[nestedKey]);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const baseTree = getWorkspaceRootMenuTreeNode(menu, agentId);
+  return walk(baseTree) || walk(menu);
 }
 
 function upsertMenuIntakeBadges(host, intake, manifestPath) {
@@ -39590,7 +40426,7 @@ async function renderNodeNavigation() {
     if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
   }
 
-  const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "");
+  const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "", heroTitle);
   if (manifestPanel) hub.appendChild(manifestPanel);
 
   const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
@@ -39846,7 +40682,10 @@ async function renderNodeOverview() {
   const title = getOverviewTitleFromProps(entries);
   const desc = getOverviewDescription(manifestRaw, entries);
   const typeLabel = getPropsEntryValueByKey(entries, "awn-type");
-  const excerpt = getOverviewMarkdownBeforeDivider(manifestRaw);
+  const excerpt = stripLeadingDuplicateMarkdownHeading(
+    getOverviewMarkdownBeforeDivider(manifestRaw),
+    title
+  ).trim();
   const isOverviewArea = isAreaNodePath(activePath);
   const nodePathResolved = getResolvedNodePath(activePath);
   const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots] = await Promise.all([
@@ -40318,6 +41157,7 @@ function applyModeUi() {
   tabularSourceBtn?.classList.toggle("hidden", !showTabularControls);
   tabularTableBackBtn?.classList.toggle("hidden", !showTabularSourceEditor);
   workspaceRefreshBtn?.classList.toggle("hidden", !showWorkspaceRefresh);
+  syncWorkspaceRefreshButton();
   syncWorkspaceRevealFolderButton();
   if (graphMode) {
     renderNodeGraphView();
@@ -42052,6 +42892,9 @@ function getLabelFromPath(filePath) {
   if (isAgentContainerRootIndexPath(filePath)) {
     return getContainerRootMenuTitle();
   }
+  if (isAgentSharedRootIndexPath(filePath)) {
+    return getSharedRootMenuTitle();
+  }
   if (isAgentRootIndexPath(filePath)) {
     return getActiveAgentLabel() || getAgentTreeTitle();
   }
@@ -43223,6 +44066,15 @@ function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}
       )
     );
   }
+  if (menu.sharedTree && (includeHiddenSections || shouldShowSharedSectionInMenu(agentId))) {
+    entries.push(
+      ...collectFlatMenuEntries(
+        pruneMenuTreeForDisplay({ title: "", ...menu.sharedTree }, agentId),
+        [],
+        childOptions
+      )
+    );
+  }
   return entries;
 }
 
@@ -43290,6 +44142,9 @@ function menuSearchHasResults(menu) {
   if (menu.containerTree && filterMenuTree({ title: CONTAINER_SECTION_LABEL, ...menu.containerTree }, queryLower)) {
     return true;
   }
+  if (menu.sharedTree && filterMenuTree({ title: SHARED_SECTION_LABEL, ...menu.sharedTree }, queryLower)) {
+    return true;
+  }
   if (menu.systemTree && filterMenuTree({ title: AGENT_SYSTEM_SECTION_LABEL, ...menu.systemTree }, queryLower)) {
     return true;
   }
@@ -43338,6 +44193,16 @@ function isPinnedInsideContainerFolder(agentId = activeAgentId) {
   return pinned === container || pinned.startsWith(`${container}/`);
 }
 
+function isPinnedInsideSharedFolder(agentId = activeAgentId) {
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  const pinnedPath = getPinnedMenuFolderForTree(agentId);
+  if (!sharedFolder || !pinnedPath) return false;
+  const shared = normalizeFolderPath(sharedFolder);
+  const pinned = normalizeFolderPath(pinnedPath);
+  if (pinned === ".") return false;
+  return pinned === shared || pinned.startsWith(`${shared}/`);
+}
+
 function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder) return false;
@@ -43356,12 +44221,34 @@ function shouldShowContainerSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideContainerFolder(agentId);
 }
 
+function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  if (!sharedFolder) return false;
+  if (menuSearchQuery.trim()) return true;
+  const pinnedPath = getPinnedMenuFolderForTree(agentId);
+  if (!pinnedPath) return true;
+  return isPinnedInsideSharedFolder(agentId);
+}
+
 function clearMenuServiceSection(parentEl) {
   parentEl?.querySelectorAll(".menu-service-section").forEach((node) => node.remove());
 }
 
 function clearMenuContainerSection(parentEl) {
   parentEl?.querySelectorAll(".menu-container-section").forEach((node) => node.remove());
+}
+
+function clearMenuSharedSection(parentEl) {
+  parentEl?.querySelectorAll(".menu-shared-section").forEach((node) => node.remove());
+}
+
+function isSharedTreeCollapsed() {
+  return localStorage.getItem("agentcms.sharedTree.collapsed.v1") === "1";
+}
+
+function toggleSharedTreeCollapsed() {
+  localStorage.setItem("agentcms.sharedTree.collapsed.v1", isSharedTreeCollapsed() ? "0" : "1");
+  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
 }
 
 function clearMenuAgentSystemSection(parentEl) {
@@ -44128,6 +45015,17 @@ function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, p
   }
 }
 
+function renderSharedTreeBody(sharedTree, body, agentId = activeAgentId, parentSectionPath = null) {
+  const sharedFolder = parentSectionPath || getActiveAgentSharedFolder(agentId);
+  if (!sharedTree || !body) return;
+
+  const parentNode = { title: "", ...sharedTree };
+  const visibleChildren = getVisibleMenuChildren(parentNode, agentId, sharedFolder, 0);
+  for (const child of visibleChildren) {
+    renderMenuTreeChildInto(child, body, 1, sharedFolder, parentNode, agentId);
+  }
+}
+
 function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
@@ -44227,6 +45125,112 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   }
 
   parentEl.insertBefore(section, parentEl.firstChild);
+  normalizeMenuReservedSectionsOrder(parentEl);
+  refreshMenuSortDecorations(agentId);
+}
+
+function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  if (!sharedFolder || !sharedTree || !parentEl) return;
+  if (!shouldShowSharedSectionInMenu(agentId)) {
+    clearMenuSharedSection(parentEl);
+    return;
+  }
+
+  clearMenuSharedSection(parentEl);
+
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  let treeToRender = pruneMenuTreeForDisplay(
+    { title: SHARED_SECTION_TITLE, ...sharedTree },
+    agentId
+  );
+  if (queryLower) {
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+    if (!treeToRender) return;
+  }
+
+  const section = document.createElement("div");
+  section.className = "menu-shared-section";
+
+  const headRow = document.createElement("div");
+  headRow.className = "menu-folder-row menu-shared-head";
+
+  const visibleChildren = getVisibleMenuChildren(treeToRender);
+  const hasContent = visibleChildren.length > 0 || Boolean(treeToRender.indexPath);
+  const collapsed = queryLower ? false : isSharedTreeCollapsed();
+  const sharedManifestPath = treeToRender.indexPath || getSharedRootManifestPath();
+
+  headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleSharedTreeCollapsed));
+
+  if (sharedManifestPath) {
+    const sharedLabel = SHARED_SECTION_LABEL;
+    const folderButton = document.createElement("button");
+    folderButton.type = "button";
+    folderButton.className = "menu-folder menu-folder-shared-root";
+    folderButton.dataset.path = normalizeMenuNodePath(sharedManifestPath);
+    folderButton.title = SHARED_ROOT_HINT;
+    applyNodeColorVars(folderButton, treeToRender.color || "green", { isFolder: true });
+    setMenuLabelWithMarkers(
+      folderButton,
+      sharedLabel,
+      treeToRender,
+      "menu-folder-name",
+      { skipAgentMarker: true }
+    );
+    folderButton.addEventListener("click", (event) => {
+      const pathFromNode = event.currentTarget?.dataset?.path || "";
+      openNodeFromMenu(getLabelFromPath(pathFromNode) || sharedLabel, pathFromNode);
+    });
+    headRow.appendChild(folderButton);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-node-btn";
+    addBtn.textContent = "+";
+    addBtn.title = "Создать общую тему или part";
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openCreateNodeModal(sharedFolder, { agentId });
+    });
+    headRow.appendChild(addBtn);
+
+    if (isNodeSettingsTargetPath(sharedManifestPath)) {
+      headRow.appendChild(createNodeSettingsButton(sharedManifestPath));
+    }
+    headRow.appendChild(createBookmarkButton(sharedManifestPath));
+  } else {
+    const title = document.createElement("h3");
+    title.className = "menu-shared-title";
+    title.textContent = SHARED_SECTION_LABEL;
+    title.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : SHARED_ROOT_HINT;
+    if (hasContent) {
+      title.addEventListener("click", toggleSharedTreeCollapsed);
+    }
+    headRow.appendChild(title);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-node-btn";
+    addBtn.textContent = "+";
+    addBtn.title = "Создать общую тему или part";
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openCreateNodeModal(sharedFolder, { agentId });
+    });
+    headRow.appendChild(addBtn);
+  }
+
+  section.appendChild(headRow);
+
+  if (!collapsed) {
+    const body = document.createElement("div");
+    body.className = "tree-children menu-shared-body";
+    body.dataset.sortFolder = sharedFolder;
+    renderSharedTreeBody(treeToRender, body, agentId, sharedFolder);
+    section.appendChild(body);
+  }
+
+  insertMenuReservedNode(parentEl, section, "shared");
   normalizeMenuReservedSectionsOrder(parentEl);
   refreshMenuSortDecorations(agentId);
 }
@@ -44462,17 +45466,18 @@ function normalizeMenuReservedSectionsOrder(parentEl) {
   if (!parentEl) return;
   const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
+  const shared = parentEl.querySelector(":scope > .menu-shared-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
   const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
-  if (!system && !kit && !container && !configuration) return;
+  if (!system && !kit && !shared && !container && !configuration) return;
 
-  const reserved = new Set([system, kit, container, configuration].filter(Boolean));
+  const reserved = new Set([system, kit, shared, container, configuration].filter(Boolean));
   let insertRef = parentEl.firstChild;
   while (insertRef && reserved.has(insertRef)) {
     insertRef = insertRef.nextSibling;
   }
 
-  [system, kit, container, configuration].filter(Boolean).forEach((node) => {
+  [system, kit, shared, container, configuration].filter(Boolean).forEach((node) => {
     parentEl.insertBefore(node, insertRef);
   });
 
@@ -44501,10 +45506,12 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
+  const shared = parentEl.querySelector(":scope > .menu-shared-section");
   const container = parentEl.querySelector(":scope > .menu-container-section");
   const configuration = parentEl.querySelector(":scope > .menu-configuration-section");
   const showSystem = Boolean(system && hasVisibleAgentSystemSection(menu));
   const showKit = Boolean(kit && hasVisibleKitSection(menu, agentId));
+  const showShared = Boolean(shared && hasVisibleSharedSection(menu, agentId));
   const showContainer = Boolean(container && hasVisibleContainerSection(menu, agentId));
   const showConfiguration = Boolean(configuration && hasVisibleConfigurationSection(menu));
   const showWorkspace = hasVisibleWorkspaceRootTreeContent(menu, agentId);
@@ -44513,11 +45520,13 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
     ? configuration
     : showContainer
       ? container
-      : showKit
-        ? kit
-        : showSystem
-          ? system
-          : null;
+      : showShared
+        ? shared
+        : showKit
+          ? kit
+          : showSystem
+            ? system
+            : null;
   if (workspaceAnchor && showWorkspace) {
     workspaceAnchor.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
   }
@@ -44553,10 +45562,23 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     return;
   }
   const kitSection = parentEl.querySelector(":scope > .menu-service-section");
+  const sharedSection = parentEl.querySelector(":scope > .menu-shared-section");
   const containerSection = parentEl.querySelector(":scope > .menu-container-section");
   const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
-  if (slot === "container") {
+  if (slot === "shared") {
     if (kitSection) {
+      kitSection.insertAdjacentElement("afterend", node);
+    } else if (systemSection) {
+      systemSection.insertAdjacentElement("afterend", node);
+    } else {
+      parentEl.insertBefore(node, parentEl.firstChild);
+    }
+    return;
+  }
+  if (slot === "container") {
+    if (sharedSection) {
+      sharedSection.insertAdjacentElement("afterend", node);
+    } else if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
     } else if (systemSection) {
       systemSection.insertAdjacentElement("afterend", node);
@@ -44569,6 +45591,8 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
   if (slot === "configuration") {
     if (containerSection) {
       containerSection.insertAdjacentElement("afterend", node);
+    } else if (sharedSection) {
+      sharedSection.insertAdjacentElement("afterend", node);
     } else if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
     } else if (systemSection) {
@@ -44579,7 +45603,7 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     return;
   }
   if (slot === "divider") {
-    const anchor = configurationSection || containerSection || kitSection || systemSection;
+    const anchor = configurationSection || containerSection || sharedSection || kitSection || systemSection;
     if (anchor) {
       anchor.insertAdjacentElement("afterend", node);
     } else {
@@ -44600,6 +45624,7 @@ function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
   }
   const tree = { title: getAgentTreeTitle(agentId), ...menu };
   delete tree.serviceTree;
+  delete tree.sharedTree;
   delete tree.containerTree;
   delete tree.systemTree;
   delete tree.configurationTree;
@@ -44615,6 +45640,10 @@ function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeAgentId) {
   const visibleChildren = getVisibleMenuChildren(filtered, agentId, ".", 0);
   const repoItems = getMenuRepoServiceItems(filtered);
   return visibleChildren.length > 0 || repoItems.length > 0;
+}
+
+function hasVisibleSharedSection(menu, agentId = activeAgentId) {
+  return Boolean(menu?.sharedTree && shouldShowSharedSectionInMenu(agentId));
 }
 
 function hasVisibleContainerSection(menu, agentId = activeAgentId) {
@@ -44646,6 +45675,12 @@ function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId)
     renderServiceSection(menu.serviceTree, parentEl, agentId);
   } else {
     clearMenuServiceSection(parentEl);
+  }
+
+  if (menu?.sharedTree && shouldShowSharedSectionInMenu(agentId)) {
+    renderSharedSection(menu.sharedTree, parentEl, agentId);
+  } else {
+    clearMenuSharedSection(parentEl);
   }
 
   if (menu?.containerTree && shouldShowContainerSectionInMenu(agentId)) {
@@ -45588,6 +46623,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     renderSystemFiles(systemFilesCache);
     decorateMenuSortRows(target);
     refreshMenuTreeIntakeBadges(agentId);
+    refreshMenuTreeRuntimeBadges(agentId);
   }
 
   if (agentId === activeAgentId) {
@@ -46713,6 +47749,7 @@ async function loadFlatStorageSectionContent(mode, preserveSectionFolder = null)
 
 async function loadContentByMode(options = {}) {
   if (!activePath) return;
+  const forceReload = Boolean(options.forceReload);
   const preserveMediaSectionFolder = options.preserveMediaSectionFolder || null;
   const preserveExternalSectionFolder = options.preserveExternalSectionFolder || null;
   const preserveFlatStorageSectionFolder = options.preserveFlatStorageSectionFolder || null;
@@ -46737,6 +47774,12 @@ async function loadContentByMode(options = {}) {
   }
 
   if (activeContentMode === NODE_OVERVIEW_MODE) {
+    if (forceReload || !modeContentCache.description) {
+      const response = await fetch(buildApiUrl("/api/file", { path: getActiveNodeApiPath() }));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      modeContentCache.description = data.content || "";
+    }
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
     fileContentInputNode.value = "";
@@ -46774,6 +47817,12 @@ async function loadContentByMode(options = {}) {
   }
 
   if (activeContentMode === "description") {
+    if (forceReload || !modeContentCache.description) {
+      const response = await fetch(buildApiUrl("/api/file", { path: getActiveNodeApiPath() }));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      modeContentCache.description = data.content || "";
+    }
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
     syncTitleFieldsFromNode(activePath);
@@ -47732,6 +48781,10 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
     if (showToastOnSuccess) {
       showToast("YAML сохранен", "success");
     }
+    await refreshMenuRuntimeFlagsCache(activeAgentId);
+    const menu = menuCacheByAgent.get(activeAgentId);
+    if (menu) enrichMenuRuntimeFromCache(menu, activeAgentId);
+    refreshMenuTreeRuntimeBadges(activeAgentId);
     void refreshAllFocusPanels();
   } catch (error) {
     showToast("Ошибка YAML", "error");
@@ -48919,8 +49972,42 @@ function handleAgentRegistryClick(event) {
   setAgentWorkspaceView("runtime-registry");
 }
 
-async function fetchAgentRuntimeRegistry() {
-  const response = await fetch(buildApiUrl("/api/agent/runtime-registry"));
+let agentRuntimeRegistryFilterMode = "sync";
+
+function syncAgentRuntimeRegistryFilterUi() {
+  if (!agentRuntimeRegistryFilterNode) return;
+  for (const btn of agentRuntimeRegistryFilterNode.querySelectorAll("[data-runtime-filter]")) {
+    const mode = btn.getAttribute("data-runtime-filter") || "all";
+    const active = mode === agentRuntimeRegistryFilterMode;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  }
+}
+
+function initAgentRuntimeRegistryFilter() {
+  if (!agentRuntimeRegistryFilterNode || agentRuntimeRegistryFilterNode.dataset.bound === "1") return;
+  agentRuntimeRegistryFilterNode.dataset.bound = "1";
+  agentRuntimeRegistryFilterNode.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-runtime-filter]");
+    if (!btn) return;
+    const nextMode = btn.getAttribute("data-runtime-filter") === "all" ? "all" : "sync";
+    if (nextMode === agentRuntimeRegistryFilterMode) return;
+    agentRuntimeRegistryFilterMode = nextMode;
+    syncAgentRuntimeRegistryFilterUi();
+    if (agentWorkspaceView === "runtime-registry") {
+      void renderAgentRuntimeRegistryView();
+    }
+  });
+  syncAgentRuntimeRegistryFilterUi();
+}
+
+async function fetchAgentRuntimeRegistry(filterMode = agentRuntimeRegistryFilterMode) {
+  const params = new URLSearchParams();
+  if (filterMode === "sync") params.set("sync", "true");
+  const query = params.toString();
+  const response = await fetch(
+    buildApiUrl(`/api/agent/runtime-registry${query ? `?${query}` : ""}`)
+  );
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `HTTP ${response.status}`);
@@ -48958,18 +50045,30 @@ async function renderAgentRuntimeRegistryView() {
     const rows = Array.isArray(data.rows) ? data.rows : [];
 
     if (agentRuntimeRegistryStatsNode) {
+      const syncOnly = agentRuntimeRegistryFilterMode === "sync";
       agentRuntimeRegistryStatsNode.append(
-        createAgentWorkspaceStatElement(data.topicCount ?? rows.length, "тем"),
+        createAgentWorkspaceStatElement(data.topicCount ?? rows.length, syncOnly ? "sync-тем" : "тем"),
         createAgentWorkspaceStatElement(data.sessionStartCount ?? 0, "при старте", "ok"),
         createAgentWorkspaceStatElement(data.cronCount ?? 0, "cron", "warn"),
         createAgentWorkspaceStatElement(data.heartbeatCount ?? 0, "heartbeat", "ok")
       );
+      if (syncOnly && data.totalSyncCount != null) {
+        agentRuntimeRegistryStatsNode.append(
+          createAgentWorkspaceStatElement(data.totalSyncCount, "из всех", "muted")
+        );
+      }
     }
 
     if (!rows.length) {
       const empty = document.createElement("div");
       empty.className = "agent-runtime-registry-empty-state";
-      empty.innerHTML = `
+      const syncOnly = agentRuntimeRegistryFilterMode === "sync";
+      empty.innerHTML = syncOnly
+        ? `
+        <p class="agent-runtime-registry-empty-title">Нет тем с cron или heartbeat</p>
+        <p class="agent-runtime-registry-empty-text">Включите <code>awn-runtime-cron</code> или <code>awn-runtime-heartbeat</code> в manifest темы — она попадёт в карту синхронизации. Или переключитесь на «Все темы».</p>
+      `
+        : `
         <p class="agent-runtime-registry-empty-title">Тем пока нет</p>
         <p class="agent-runtime-registry-empty-text">Создайте темы в дереве workspace — они появятся в реестре с полями <code>awn-runtime-*</code>.</p>
       `;
@@ -52655,6 +53754,7 @@ function menuSortChildrenEqual(a, b) {
 function getMenuTreeSortableChildren(container) {
   return Array.from(container?.children || []).filter((el) => {
     if (el.classList.contains("menu-service-section")) return false;
+    if (el.classList.contains("menu-shared-section")) return false;
     if (el.classList.contains("menu-container-section")) return false;
     if (el.classList.contains("menu-tree-divider")) return false;
     if (el.classList.contains("system-file-row")) return false;
@@ -52906,6 +54006,20 @@ function patchContainerMenuAfterCreate(agentId = activeAgentId) {
   return true;
 }
 
+function patchSharedMenuAfterCreate(agentId = activeAgentId) {
+  if (!canIncrementalMenuPatch()) return false;
+  const menu = menuCacheByAgent.get(agentId);
+  if (!menu?.sharedTree) return false;
+  const childrenContainer = getWorkspacesTreeChildren(agentId);
+  if (!childrenContainer) return false;
+  if (!shouldShowSharedSectionInMenu(agentId)) {
+    clearMenuSharedSection(childrenContainer);
+    return true;
+  }
+  renderSharedSection(menu.sharedTree, childrenContainer, agentId);
+  return true;
+}
+
 function withPreservedMenuScroll(run) {
   const scrollTop = menuNode?.scrollTop ?? 0;
   const result = run();
@@ -52925,6 +54039,8 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
   const menu = await response.json();
+  await refreshMenuRuntimeFlagsCache(agentId);
+  enrichMenuRuntimeFromCache(menu, agentId);
   syncMenuCachesAfterFetch(menu, agentId);
   return menu;
 }
@@ -52940,8 +54056,15 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
           patched = patchServiceMenuAfterCreate(agentId);
         } else if (type === "container-root") {
           patched = patchContainerMenuAfterCreate(agentId);
+        } else if (type === "shared-root") {
+          patched = patchSharedMenuAfterCreate(agentId);
         } else if (type === "kit-root") {
           patched = patchServiceMenuAfterCreate(agentId);
+        } else if (
+          isAgentSharedNodePath(createdPath) ||
+          isAgentSharedNodePath(getCreateParentFolderForPatch(createdPath, type, agentId))
+        ) {
+          patched = patchSharedMenuAfterCreate(agentId);
         } else if (
           isAgentContainerNodePath(createdPath) ||
           isAgentContainerNodePath(getCreateParentFolderForPatch(createdPath, type, agentId))
@@ -53058,8 +54181,13 @@ async function createReservedRootFolder(type, options = {}) {
   const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
   const parentPath = options.parentPath || ".";
   const isKit = type === "kit-root";
-  const label = isKit ? SERVICE_SECTION_LABEL : CONTAINER_SECTION_LABEL;
-  const folderName = isKit ? AGENT_KIT_FOLDER_DEFAULT : CONTAINER_FOLDER_DEFAULT;
+  const isShared = type === "shared-root";
+  const label = isKit ? SERVICE_SECTION_LABEL : isShared ? SHARED_SECTION_LABEL : CONTAINER_SECTION_LABEL;
+  const folderName = isKit
+    ? AGENT_KIT_FOLDER_DEFAULT
+    : isShared
+      ? SHARED_FOLDER_DEFAULT
+      : CONTAINER_FOLDER_DEFAULT;
   try {
     const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
       method: "POST",
@@ -53084,6 +54212,10 @@ async function createReservedRootFolder(type, options = {}) {
 
 async function createKitRoot(options = {}) {
   return createReservedRootFolder("kit-root", options);
+}
+
+async function createSharedRoot(options = {}) {
+  return createReservedRootFolder("shared-root", options);
 }
 
 async function createContainerRoot(options = {}) {
@@ -54169,6 +55301,7 @@ agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
 });
 
 initAgentRegistryToolbar();
+initAgentRuntimeRegistryFilter();
 
 agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
@@ -54460,6 +55593,10 @@ createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
 createNodeKitScaffoldBtn?.addEventListener("click", () => {
   if (createNodeKitScaffoldBtn.disabled) return;
   void createKitRoot({ agentId: getCreateModalAgentId() });
+});
+createNodeSharedScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeSharedScaffoldBtn.disabled) return;
+  void createSharedRoot({ agentId: getCreateModalAgentId() });
 });
 createNodeContainerScaffoldBtn?.addEventListener("click", () => {
   if (createNodeContainerScaffoldBtn.disabled) return;

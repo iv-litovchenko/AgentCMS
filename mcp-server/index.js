@@ -28,6 +28,28 @@ function toolError(message) {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
+const runtimeFilterSchema = z.object({
+  sync: z
+    .boolean()
+    .optional()
+    .describe("If true: topics with cron OR heartbeat (same as runtime-map default)."),
+  cron: z.boolean().optional().describe("Include topics with awn-runtime-cron: true."),
+  heartbeat: z.boolean().optional().describe("Include topics with awn-runtime-heartbeat: true."),
+  mode: z
+    .enum(["any", "all"])
+    .optional()
+    .describe("any = cron OR heartbeat; all = cron AND heartbeat (when both flags enabled).")
+});
+
+function runtimeFilterQuery(args) {
+  const params = {};
+  if (args.sync === true) params.sync = "true";
+  if (args.cron !== undefined) params.cron = String(args.cron);
+  if (args.heartbeat !== undefined) params.heartbeat = String(args.heartbeat);
+  if (args.mode) params.mode = args.mode;
+  return params;
+}
+
 function wrap(handler) {
   return async (args) => {
     try {
@@ -57,7 +79,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: one-shot session bootstrap — agent/user manifests, session-start topics, AGENTS.md, API map, path hints.",
+    "START HERE: one-shot session bootstrap — agent/user manifests, session-start topics, runtimeSyncTopics (cron/heartbeat), AGENTS.md, API map, path hints.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
@@ -70,8 +92,18 @@ function createServer() {
     client.get("/api/menu")
   );
 
-  reg("get_runtime_registry", "Topic runtime registry (awn-runtime-load, cron, heartbeat).", z.object({}), () =>
-    client.get("/api/agent/runtime-registry")
+  reg(
+    "get_runtime_registry",
+    "Topic runtime registry (awn-runtime-load, cron, heartbeat). Optional filter: sync, cron, heartbeat, mode.",
+    runtimeFilterSchema,
+    (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
+  );
+
+  reg(
+    "get_runtime_map",
+    "Runtime sync map — topics with cron and/or heartbeat (like site map for agent automation sync).",
+    runtimeFilterSchema,
+    (args) => client.get("/api/agent/runtime-map", runtimeFilterQuery(args))
   );
 
   reg("get_storage_layout", "awn-storage slot layout (named-slots-v2) for all containers.", z.object({}), () =>
@@ -336,7 +368,7 @@ function createServer() {
 
   reg(
     "write_external_memory",
-    "Save note to awn-storage/main/.",
+    "Save note to awn-storage/main/. Auto-enriches .md with full slot_memory frontmatter (awn.content.record). Prefer create_external_memory for new records.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
@@ -415,7 +447,7 @@ function createServer() {
 
   reg(
     "write_storage_file",
-    "Write raw text file to storage slot (scripts, repository, exports). For typed .md records use create_storage_record.",
+    "Write text to storage slot. .md files auto-enriched with typed frontmatter; for new records prefer create_storage_record.",
     z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
     ({ path, folder, file, content }) => client.post("/api/storage/file", { path, folder, file, content })
   );

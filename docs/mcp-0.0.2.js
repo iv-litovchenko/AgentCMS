@@ -91,9 +91,15 @@ module.exports = {
         },
         {
           name: "get_runtime_registry",
-          description: "Реестр тем (awn-runtime-load, cron, heartbeat).",
-          parameters: "—",
+          description: "Реестр тем (awn-runtime-load, cron, heartbeat). Фильтр: sync, cron, heartbeat, mode.",
+          parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
           http: "GET /api/agent/runtime-registry"
+        },
+        {
+          name: "get_runtime_map",
+          description: "Карта тем с cron/heartbeat для синхронизации агента (как site map для automation).",
+          parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
+          http: "GET /api/agent/runtime-map"
         },
         {
           name: "get_storage_layout",

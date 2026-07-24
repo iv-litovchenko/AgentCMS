@@ -601,6 +601,8 @@ const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
 const DEFAULT_AGENT_CONTAINER_FOLDER = "awn-container";
 const DEFAULT_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
+const DEFAULT_AGENT_SHARED_FOLDER = "awn-shared";
+const DEFAULT_SHARED_FOLDER = "awn-shared";
 
 function isAgentKitFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
@@ -619,8 +621,17 @@ function isContainerFolderEntryName(name) {
   );
 }
 
+function isSharedFolderEntryName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return lower === DEFAULT_SHARED_FOLDER.toLowerCase();
+}
+
 function isReservedAgentRootFolderEntryName(name) {
-  return isAgentKitFolderEntryName(name) || isContainerFolderEntryName(name);
+  return (
+    isAgentKitFolderEntryName(name) ||
+    isContainerFolderEntryName(name) ||
+    isSharedFolderEntryName(name)
+  );
 }
 
 
@@ -968,6 +979,14 @@ function getAgentContainerFolder() {
     return null;
   }
   return DEFAULT_CONTAINER_FOLDER;
+}
+
+function getAgentSharedFolder() {
+  const store = agentContext.getStore();
+  if (store?.agentId && isPlatformAgentId(store.agentId)) {
+    return null;
+  }
+  return DEFAULT_SHARED_FOLDER;
 }
 
 function normalizeAgentActive(raw) {
@@ -1613,10 +1632,13 @@ module.exports = {
   DEFAULT_AGENT_KIT_FOLDER,
   isAgentKitFolderEntryName,
   DEFAULT_CONTAINER_FOLDER,
+  DEFAULT_SHARED_FOLDER,
   isContainerFolderEntryName,
+  isSharedFolderEntryName,
   isReservedAgentRootFolderEntryName,
   getAgentKitFolder,
   getAgentContainerFolder,
+  getAgentSharedFolder,
   WORKSPACE_TAXONOMY_FOLDER,
   LEGACY_WORKSPACE_TAXONOMY_FOLDER,
   PLATFORM_GLOBAL_TAXONOMY_FOLDER,

@@ -611,10 +611,18 @@ module.exports = {
         {
           method: "GET",
           path: "/api/agent/runtime-registry",
-          description: "Реестр тем с полями awn-runtime-load, cron, heartbeat.",
-          query: [],
+          description: "Реестр тем с полями awn-runtime-load, cron, heartbeat. Фильтр: ?sync=true или ?cron=&heartbeat=&mode=any|all.",
+          query: ["sync?", "cron?", "heartbeat?", "mode?"],
           body: null,
-          response: "{ rows[], topicCount, sessionStartCount, cronCount, heartbeatCount }"
+          response: "{ rows[], topicCount, sessionStartCount, cronCount, heartbeatCount, syncCount, filter?, totalTopicCount }"
+        },
+        {
+          method: "GET",
+          path: "/api/agent/runtime-map",
+          description: "Карта тем с cron и/или heartbeat — для синхронизации агента (аналог site-map для automation).",
+          query: ["sync?", "cron?", "heartbeat?", "mode?"],
+          body: null,
+          response: "{ version, model, filter, topics[], topicCount, cronCount, heartbeatCount, bothCount }"
         },
         {
           method: "GET",
@@ -635,10 +643,10 @@ module.exports = {
         {
           method: "GET",
           path: "/api/agent/session-context",
-          description: "Стартовый пакет для агента: serviceDocs (agent, user, agent.voice.tts, agent.voice.stt), session-start темы, AGENTS.md, карта API.",
+          description: "Стартовый пакет для агента: serviceDocs, session-start темы, runtimeSyncTopics (cron/heartbeat), AGENTS.md, карта API.",
           query: [],
           body: null,
-          response: "{ version, agentId, pathHints, apiMap, serviceDocs[], sessionStartTopics[], systemFiles[] }"
+          response: "{ version, agentId, pathHints, apiMap, serviceDocs[], sessionStartTopics[], runtimeSyncTopics[], systemFiles[] }"
         },
         {
           method: "GET",

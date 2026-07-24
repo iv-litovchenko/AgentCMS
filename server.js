@@ -299,8 +299,10 @@ const {
   isPlatformAgentId,
   getAgentKitFolder,
   getAgentContainerFolder,
+  getAgentSharedFolder,
   isAgentKitFolderEntryName,
   isContainerFolderEntryName,
+  isSharedFolderEntryName,
   isReservedAgentRootFolderEntryName,
   createSystemCatalogNodeSync,
   createSystemServiceDocSync,
@@ -1421,6 +1423,7 @@ async function collectAgentTopicManifestPaths() {
   const entries = collectManifestEntriesFromMenu(menu, []);
   if (menu.serviceTree) collectManifestEntriesFromMenu(menu.serviceTree, entries);
   if (menu.containerTree) collectManifestEntriesFromMenu(menu.containerTree, entries);
+  if (menu.sharedTree) collectManifestEntriesFromMenu(menu.sharedTree, entries);
   return [
     ...new Set(
       entries
@@ -2015,15 +2018,32 @@ const RUNTIME_LOAD_LABELS = {
   "session-start": "При старте сессии"
 };
 
+function readFrontmatterBooleanProp(frontmatter, key) {
+  const props = parseFrontmatterProps(frontmatter);
+  const normalizedKey = normalizeFrontmatterPropKey(key);
+  const entry = props.find((item) => normalizeFrontmatterPropKey(item.key) === normalizedKey);
+  if (entry?.kind === "bool") return Boolean(entry.value);
+  const scalar = getFrontmatterPropValue(props, key) || getYamlScalar(frontmatter, key);
+  if (!scalar) return false;
+  const value = String(scalar).trim().toLowerCase();
+  return value === "true" || value === "yes" || value === "1" || value === "да";
+}
+
 function extractRuntimePropsFromFrontmatter(frontmatter) {
-  const loadRaw = getYamlScalar(frontmatter, "awn-runtime-load") || "on-demand";
+  const props = parseFrontmatterProps(frontmatter);
+  const loadRaw =
+    getFrontmatterPropValue(props, "awn-runtime-load") ||
+    getYamlScalar(frontmatter, "awn-runtime-load") ||
+    "on-demand";
   const runtimeLoad = loadRaw === "session-start" ? "session-start" : "on-demand";
   return {
     runtimeLoad,
     runtimeLoadLabel: RUNTIME_LOAD_LABELS[runtimeLoad] || RUNTIME_LOAD_LABELS["on-demand"],
-    runtimeCron: getYamlBoolean(frontmatter, "awn-runtime-cron"),
-    runtimeCronSchedule: getYamlScalar(frontmatter, "awn-runtime-cron-schedule"),
-    runtimeHeartbeat: getYamlBoolean(frontmatter, "awn-runtime-heartbeat")
+    runtimeCron: readFrontmatterBooleanProp(frontmatter, "awn-runtime-cron"),
+    runtimeCronSchedule:
+      getFrontmatterPropValue(props, "awn-runtime-cron-schedule") ||
+      getYamlScalar(frontmatter, "awn-runtime-cron-schedule"),
+    runtimeHeartbeat: readFrontmatterBooleanProp(frontmatter, "awn-runtime-heartbeat")
   };
 }
 
@@ -2974,22 +2994,70 @@ async function resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile, 
   const validation = validateStorageFileRequest(relFile, storageFolder, { write: create });
   if (validation.error) return validation;
 
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, validation.folder, { create });
-  if (!folderAbsolute) {
-    return create
-      ? { error: "Storage folder not found" }
-      : { error: "Storage folder not found", status: 404 };
+  const localFolderAbsolute = await getNodeStorageSubfolderAbsolute(nodeAbsolute, validation.folder);
+  const localValid =
+    localFolderAbsolute &&
+    (await isExistingDirectory(localFolderAbsolute)) &&
+    isPathInsideDirectory(
+      localFolderAbsolute,
+      path.join(localFolderAbsolute, validation.normalizedRelFile)
+    );
+  const localFileAbsolute = localValid
+    ? path.join(localFolderAbsolute, validation.normalizedRelFile)
+    : null;
+
+  if (localFileAbsolute && (create || (await fileExists(localFileAbsolute)))) {
+    return {
+      folder: validation.folder,
+      normalizedRelFile: validation.normalizedRelFile,
+      folderAbsolute: localFolderAbsolute,
+      fileAbsolute: localFileAbsolute,
+      source: "topic"
+    };
   }
 
-  const fileAbsolute = path.join(folderAbsolute, validation.normalizedRelFile);
-  if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) return { error: "Invalid file path" };
+  if (!create) {
+    const sharedFolderAbsolute = await resolveSharedMountSubfolderAbsolute(nodeAbsolute, validation.folder);
+    if (sharedFolderAbsolute && (await isExistingDirectory(sharedFolderAbsolute))) {
+      const sharedFileAbsolute = path.join(sharedFolderAbsolute, validation.normalizedRelFile);
+      if (
+        isPathInsideDirectory(sharedFolderAbsolute, sharedFileAbsolute) &&
+        (await fileExists(sharedFileAbsolute))
+      ) {
+        const mount = resolveSharedMountSpecForStorageFolder(validation.folder);
+        return {
+          folder: validation.folder,
+          normalizedRelFile: validation.normalizedRelFile,
+          folderAbsolute: sharedFolderAbsolute,
+          fileAbsolute: sharedFileAbsolute,
+          source: "shared",
+          sharedThemeSlug: mount?.themeSlug || null,
+          sharedThemeManifestPath: mount ? getSharedThemeManifestRel(mount.themeSlug) : null
+        };
+      }
+    }
+  }
 
-  return {
-    folder: validation.folder,
-    normalizedRelFile: validation.normalizedRelFile,
-    folderAbsolute,
-    fileAbsolute
-  };
+  if (create) {
+    const folderAbsolute = await getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, validation.folder);
+    if (!folderAbsolute) {
+      return { error: "Storage folder not found" };
+    }
+    const fileAbsolute = path.join(folderAbsolute, validation.normalizedRelFile);
+    if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) return { error: "Invalid file path" };
+    return {
+      folder: validation.folder,
+      normalizedRelFile: validation.normalizedRelFile,
+      folderAbsolute,
+      fileAbsolute,
+      source: "topic"
+    };
+  }
+
+  if (localFolderAbsolute) {
+    return { error: "File not found", status: 404 };
+  }
+  return { error: "Storage folder not found", status: 404 };
 }
 
 function toMediaSidecarRelativePath(mediaRelPath) {
@@ -3386,6 +3454,97 @@ async function buildSlotContentFileContentForManifest(
     }
   }
   return joinNodeFrontmatter(frontmatter, body);
+}
+
+function mergeFrontmatterBlocks(baseFrontmatter, overlayFrontmatter) {
+  const overlayText = String(overlayFrontmatter || "").trim();
+  if (!overlayText) return String(baseFrontmatter || "").trim();
+  const overlayKeys = new Set();
+  const overlayLines = overlayText.split("\n").filter((line) => line.trim());
+  for (const line of overlayLines) {
+    const key = line.split(":")[0]?.trim().toLowerCase();
+    if (key) overlayKeys.add(key);
+  }
+  const baseLines = String(baseFrontmatter || "")
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      const key = trimmed.split(":")[0]?.trim().toLowerCase();
+      return key && !overlayKeys.has(key);
+    });
+  return [...baseLines, ...overlayLines].join("\n");
+}
+
+function inferTitleFromMarkdownContent(content, fileName = "") {
+  const { frontmatter, body } = splitNodeFrontmatter(String(content || ""));
+  const fromName = getYamlScalar(frontmatter, "awn-name");
+  if (String(fromName || "").trim()) {
+    return String(fromName).trim().replace(/^["']|["']$/g, "");
+  }
+  const heading = String(body || "")
+    .match(/^#{1,6}\s+(.+)$/m)?.[1]
+    ?.trim();
+  if (heading) return heading.replace(/^#+\s*/, "");
+  const stem = path.basename(String(fileName || ""), ".md");
+  return stripTopicPrefix(stem) || "Запись";
+}
+
+function countFrontmatterKeys(frontmatter) {
+  return String(frontmatter || "")
+    .split("\n")
+    .filter((line) => /^\s*[A-Za-z0-9_-]+\s*:/.test(line)).length;
+}
+
+function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record") {
+  const { CONTENT_KIND_TYPE_NAMES, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const expectedType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+  const rawType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+  if (!rawType) return true;
+  if (normalizeAwnContentTypeName(rawType) !== normalizeAwnContentTypeName(expectedType)) return true;
+  // Partial agent frontmatter (few keys) — дополняем до полного набора типа
+  return countFrontmatterKeys(frontmatter) < 8;
+}
+
+async function enrichTypedSlotMarkdownContent(
+  manifestRel,
+  slotKey,
+  content,
+  contentKind = "record",
+  options = {}
+) {
+  if (options.raw) {
+    return String(content ?? "");
+  }
+
+  const { CONTENT_KIND_TYPE_NAMES, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
+  const expectedType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
+  const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
+
+  if (!options.force && !shouldEnrichTypedSlotMarkdown(userFrontmatter, contentKind)) {
+    const stamped = applyAwnTimestampsToFrontmatter(userFrontmatter, {
+      diskFrontmatter: options.diskFrontmatter || userFrontmatter
+    });
+    return joinNodeFrontmatter(stamped, userBody);
+  }
+
+  const title = options.title || inferTitleFromMarkdownContent(content, options.fileName);
+  const template = await buildSlotContentFileContentForManifest(manifestRel, title, slotKey, contentKind, {
+    body: userBody || undefined,
+    frontmatterOverrides: options.frontmatterOverrides || null
+  });
+  const { frontmatter: templateFrontmatter, body: templateBody } = splitNodeFrontmatter(template);
+  let merged = mergeFrontmatterBlocks(templateFrontmatter, userFrontmatter);
+  const userType = String(getYamlScalar(userFrontmatter, "awn-type") || "").trim();
+  merged = upsertYamlScalarLine(
+    merged,
+    "awn-type",
+    normalizeAwnContentTypeName(userType || expectedType)
+  );
+  merged = applyAwnTimestampsToFrontmatter(merged, {
+    diskFrontmatter: options.diskFrontmatter || userFrontmatter
+  });
+  return joinNodeFrontmatter(merged, userBody || templateBody);
 }
 
 async function buildExternalRecordFileContentForManifest(manifestRel, title) {
@@ -3984,6 +4143,7 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
       indexPath: null,
       serviceTree: null,
       containerTree: null,
+      sharedTree: null,
       systemTree: null,
       workspaceMissing: true
     };
@@ -3995,8 +4155,10 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   );
   const kitFolder = getAgentKitFolder();
   const containerFolder = getAgentContainerFolder();
+  const sharedFolder = getAgentSharedFolder();
   let serviceTree = null;
   let containerTree = null;
+  let sharedTree = null;
   let systemTree = null;
 
   const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder);
@@ -4015,11 +4177,25 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
     );
   }
 
+  const sharedAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, sharedFolder);
+  if (sharedAbsolute) {
+    sharedTree = await normalizeSharedMenuTree(
+      await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, buildOptions),
+      sharedAbsolute
+    );
+  }
+
   if (agentSystemExists(agentRootAbsolute)) {
     systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
   }
 
-  return { ...menu, serviceTree, containerTree, systemTree };
+  enrichMenuTreeRuntimeRollup(menu);
+  if (serviceTree) enrichMenuTreeRuntimeRollup(serviceTree);
+  if (containerTree) enrichMenuTreeRuntimeRollup(containerTree);
+  if (sharedTree) enrichMenuTreeRuntimeRollup(sharedTree);
+  if (systemTree) enrichMenuTreeRuntimeRollup(systemTree);
+
+  return { ...menu, serviceTree, sharedTree, containerTree, systemTree };
 }
 
 async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = {}) {
@@ -4030,6 +4206,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
   const agentRoot = agentRootAbsolute || getAgentRoot();
   const containerFolder = getAgentContainerFolder();
   const kitFolder = getAgentKitFolder();
+  const sharedFolder = getAgentSharedFolder();
 
   const resolveBranchListOptions = (depth) => {
     const branchDepth = Number.isFinite(buildOptions.branchDepth)
@@ -4057,7 +4234,20 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
       0,
       resolveBranchListOptions(0)
     );
-    return normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
+    const branch = await normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
+    enrichMenuTreeRuntimeRollup(branch);
+    return branch;
+  }
+
+  if (sharedFolder && folderPath === sharedFolder) {
+    const sharedAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, sharedFolder);
+    if (!sharedAbsolute) {
+      throw new Error("Shared folder not found");
+    }
+    const tree = await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, resolveBranchListOptions(0));
+    const branch = await normalizeSharedMenuTree(tree, sharedAbsolute);
+    enrichMenuTreeRuntimeRollup(branch);
+    return branch;
   }
 
   if (kitFolder && folderPath === kitFolder) {
@@ -4066,7 +4256,9 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
       throw new Error("Service folder not found");
     }
     const tree = await listNodeMdFiles(kitAbsolute, kitFolder, 0, resolveBranchListOptions(0));
-    return normalizeServiceMenuTree(tree, kitAbsolute);
+    const branch = await normalizeServiceMenuTree(tree, kitAbsolute);
+    enrichMenuTreeRuntimeRollup(branch);
+    return branch;
   }
 
   const absolute = normalizeWorkspacePath(folderPath);
@@ -4082,13 +4274,14 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
   const depth = Math.max(0, segments.length - 1);
   const tree = await listNodeMdFiles(absolute, folderPath, depth, resolveBranchListOptions(depth));
 
+  let branch = tree;
   if (containerFolder && folderPath.startsWith(`${containerFolder}/`)) {
-    return normalizeNestedContainerMenuTree(tree, absolute, folderPath);
+    branch = await normalizeNestedContainerMenuTree(tree, absolute, folderPath);
+  } else if (kitFolder && folderPath.startsWith(`${kitFolder}/`)) {
+    branch = tree;
   }
-  if (kitFolder && folderPath.startsWith(`${kitFolder}/`)) {
-    return tree;
-  }
-  return tree;
+  enrichMenuTreeRuntimeRollup(branch);
+  return branch;
 }
 
 async function normalizeServiceMenuTree(tree, serviceAbsolute) {
@@ -4122,6 +4315,15 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
 }
 
 const CONTAINER_AREA_NAME = "Контейнер";
+const SHARED_AREA_NAME = "Общее";
+const SHARED_DEFAULT_THEMES = [
+  { slug: "inbox", title: "Входящие" },
+  { slug: "notes", title: "Заметки" },
+  { slug: "references", title: "Источники" },
+  { slug: "artefacts", title: "Артефакты" },
+  { slug: "scripts", title: "Скрипты" },
+  { slug: "media", title: "Медиа" }
+];
 
 async function normalizeContainerMenuTree(tree, containerAbsolute) {
   if (!tree || !containerAbsolute) return tree;
@@ -4155,9 +4357,190 @@ async function normalizeNestedContainerMenuTree(tree, containerAbsolute, contain
   return tree;
 }
 
+async function normalizeSharedMenuTree(tree, sharedAbsolute) {
+  if (!tree || !sharedAbsolute) return tree;
+  const sharedFolder = getAgentSharedFolder();
+  return normalizeNestedSharedMenuTree(tree, sharedAbsolute, sharedFolder || "");
+}
+
+async function normalizeNestedSharedMenuTree(tree, sharedAbsolute, sharedRelPrefix) {
+  if (!tree || !sharedAbsolute) return tree;
+  const prefix = String(sharedRelPrefix || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const sharedManifestRel = prefix ? `${prefix}/${AREA_MANIFEST_FILE}` : AREA_MANIFEST_FILE;
+  tree.indexPath = sharedManifestRel;
+  tree.color = null;
+  tree.tags = [];
+  tree.category = null;
+  tree.status = null;
+  tree.hasPreview = false;
+  tree.previewUrl = null;
+  if (sharedManifestRel) {
+    const indexMeta = await enrichMenuNodeItem(sharedManifestRel);
+    tree.title = await readNodeDisplayLabelForManifestRel(sharedManifestRel);
+    tree.color = indexMeta.color;
+    tree.tags = indexMeta.tags || [];
+    tree.category = indexMeta.category || null;
+    tree.status = indexMeta.status || null;
+    tree.hasPreview = indexMeta.hasPreview;
+    tree.previewUrl = indexMeta.previewUrl;
+  }
+  tree.sections = (tree.sections || []).filter((section) => section.title !== SHARED_AREA_NAME);
+  return tree;
+}
+
+async function bootstrapSharedDefaultThemes(sharedAbsolute, sharedFolder) {
+  if (!sharedAbsolute || !sharedFolder) return;
+  for (const theme of SHARED_DEFAULT_THEMES) {
+    const themeDir = path.join(sharedAbsolute, theme.slug);
+    await fs.mkdir(themeDir, { recursive: true });
+    const manifestAbsolute = path.join(themeDir, AREA_MANIFEST_FILE);
+    try {
+      await fs.access(manifestAbsolute);
+    } catch {
+      const frontmatter = buildManifestCreateFrontmatter("topic", theme.title, theme.slug);
+      await fs.writeFile(
+        manifestAbsolute,
+        joinNodeFrontmatter(frontmatter, `# ${theme.title}\n\nОбщие ресурсы: ${theme.title.toLowerCase()}.\n`),
+        "utf-8"
+      );
+    }
+    const themeManifestRel = `${sharedFolder}/${theme.slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+    await ensureManifestStorageSlotDir(themeManifestRel);
+    await appendMenuSortOrderEntry(themeDir, theme.slug);
+  }
+}
+
+const SHARED_MOUNT_SPECS = [
+  { slotKey: "inbox", themeSlug: "inbox", label: "Входящие", mode: "inbox" },
+  { slotKey: "note", themeSlug: "notes", label: "Заметки", mode: "note" },
+  { slotKey: "references", themeSlug: "references", label: "Источники", mode: "references" },
+  { slotKey: "artefacts", themeSlug: "artefacts", label: "Артефакты", mode: "artefacts" },
+  { slotKey: "scripts", themeSlug: "scripts", label: "Скрипты", mode: "scripts" },
+  { slotKey: "media", themeSlug: "media", label: "Медиа", mode: "media" }
+];
+
+const SHARED_MOUNT_SPECS_BY_SLOT = new Map(SHARED_MOUNT_SPECS.map((spec) => [spec.slotKey, spec]));
+const SHARED_MOUNT_SPECS_BY_THEME = new Map(SHARED_MOUNT_SPECS.map((spec) => [spec.themeSlug, spec]));
+
+function normalizeSharedAgentRel(relPath) {
+  return String(relPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+}
+
+function isPathUnderSharedFolder(relPath) {
+  const sharedFolder = getAgentSharedFolder();
+  if (!sharedFolder) return false;
+  const normalized = normalizeSharedAgentRel(relPath);
+  const prefix = normalizeSharedAgentRel(sharedFolder);
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
+function getSharedThemeManifestRel(themeSlug) {
+  const sharedFolder = getAgentSharedFolder();
+  if (!sharedFolder || !themeSlug) return null;
+  return `${sharedFolder}/${themeSlug}/${MANIFEST_FILE}`.replace(/\\/g, "/");
+}
+
+function getSharedThemeSlugFromManifestRel(manifestRel) {
+  const sharedFolder = getAgentSharedFolder();
+  if (!sharedFolder || !isPathUnderSharedFolder(manifestRel)) return null;
+  const normalized = normalizeSharedAgentRel(manifestRel);
+  const prefix = `${normalizeSharedAgentRel(sharedFolder)}/`;
+  if (!normalized.startsWith(prefix)) return null;
+  const tail = normalized.slice(prefix.length);
+  const slug = tail.split("/").filter(Boolean)[0] || null;
+  return slug && SHARED_MOUNT_SPECS_BY_THEME.has(slug) ? slug : slug;
+}
+
+function isTopicManifestEligibleForSharedMounts(manifestRel) {
+  const normalized = normalizeSharedAgentRel(manifestRel);
+  if (!normalized || isPathUnderSharedFolder(normalized)) return false;
+  return isTopicManifestFileName(path.basename(normalized));
+}
+
+function resolveSharedMountSpecForStorageFolder(subfolderName) {
+  const slotKey = resolveSlotKeyFromStorageFolderName(subfolderName);
+  if (slotKey && SHARED_MOUNT_SPECS_BY_SLOT.has(slotKey)) {
+    return SHARED_MOUNT_SPECS_BY_SLOT.get(slotKey);
+  }
+  const canonical = normalizeStorageSubfolderName(subfolderName);
+  if (canonical && SHARED_MOUNT_SPECS_BY_THEME.has(canonical)) {
+    return SHARED_MOUNT_SPECS_BY_THEME.get(canonical);
+  }
+  return null;
+}
+
+async function resolveSharedThemeNodeAbsolute(themeSlug) {
+  const manifestRel = getSharedThemeManifestRel(themeSlug);
+  if (!manifestRel) return null;
+  const manifestAbsolute = normalizeWorkspacePath(manifestRel);
+  if (!manifestAbsolute || !(await fileExists(manifestAbsolute))) return null;
+  return path.dirname(manifestAbsolute);
+}
+
+async function resolveSharedMountSubfolderAbsolute(topicNodeAbsolute, subfolderName) {
+  const topicRel = path.relative(getAgentRoot(), topicNodeAbsolute).replace(/\\/g, "/");
+  if (isPathUnderSharedFolder(topicRel)) return null;
+
+  const mount = resolveSharedMountSpecForStorageFolder(subfolderName);
+  if (!mount) return null;
+
+  const sharedNodeAbsolute = await resolveSharedThemeNodeAbsolute(mount.themeSlug);
+  if (!sharedNodeAbsolute) return null;
+
+  return getNodeStorageSubfolderAbsolute(sharedNodeAbsolute, subfolderName);
+}
+
+async function countSharedMountEntries(mount, themeNodeAbsolute) {
+  if (!mount || !themeNodeAbsolute) return 0;
+  const folderNames = mount.slotKey === "note" ? ["notes", "note"] : [mount.themeSlug, mount.slotKey];
+  let total = 0;
+  for (const folderName of folderNames) {
+    const folderAbsolute = await getNodeStorageSubfolderAbsolute(themeNodeAbsolute, folderName);
+    if (folderAbsolute) total += await countDirectoryFiles(folderAbsolute);
+  }
+  return total;
+}
+
+async function buildSharedMountsForTopic(manifestRel) {
+  if (!isTopicManifestEligibleForSharedMounts(manifestRel)) return [];
+
+  const mounts = [];
+  for (const spec of SHARED_MOUNT_SPECS) {
+    const themeManifestPath = getSharedThemeManifestRel(spec.themeSlug);
+    const themeNodeAbsolute = await resolveSharedThemeNodeAbsolute(spec.themeSlug);
+    if (!themeManifestPath || !themeNodeAbsolute) continue;
+
+    const entryCount = await countSharedMountEntries(spec, themeNodeAbsolute);
+    mounts.push({
+      slotKey: spec.slotKey,
+      themeSlug: spec.themeSlug,
+      themeManifestPath,
+      label: spec.label,
+      mode: spec.mode,
+      entryCount
+    });
+  }
+  return mounts;
+}
+
+async function buildSharedStorageContext(manifestRel) {
+  const normalized = normalizeSharedAgentRel(manifestRel);
+  if (!isPathUnderSharedFolder(normalized)) return null;
+  const themeSlug = getSharedThemeSlugFromManifestRel(normalized);
+  const mount = themeSlug ? SHARED_MOUNT_SPECS_BY_THEME.get(themeSlug) || null : null;
+  return {
+    isSharedTheme: Boolean(themeSlug),
+    themeSlug,
+    slotKey: mount?.slotKey || null,
+    label: mount?.label || null,
+    mode: mount?.mode || null,
+    rootManifestPath: getSharedThemeManifestRel(themeSlug) || null
+  };
+}
+
 function dedupeReservedRootMenuSections(menu) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentContainerFolder(), AGENT_SYSTEM_REL]
+    [getAgentKitFolder(), getAgentSharedFolder(), getAgentContainerFolder(), AGENT_SYSTEM_REL]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -4171,7 +4554,7 @@ function dedupeReservedRootMenuSections(menu) {
 
 function dedupeGitRepoReservedSections(sections, gitRootRel) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentContainerFolder()]
+    [getAgentKitFolder(), getAgentSharedFolder(), getAgentContainerFolder()]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -4816,6 +5199,12 @@ function isContainerFolderName(name) {
   return String(name || "").toLowerCase() === String(configured).toLowerCase();
 }
 
+function isSharedFolderName(name) {
+  const configured = getAgentSharedFolder();
+  if (!configured) return false;
+  return String(name || "").toLowerCase() === String(configured).toLowerCase();
+}
+
 function isKitFolderName(name) {
   const configured = getAgentKitFolder();
   if (!configured) return false;
@@ -5274,13 +5663,18 @@ async function scanNodeStorageRoot(manifestRelPath) {
   const bundleSlots =
     exists && storageRootAbs ? await scanStorageRootBundleSlots(storageRootAbs) : {};
 
+  const sharedMounts = await buildSharedMountsForTopic(normalizedPath);
+  const sharedContext = await buildSharedStorageContext(normalizedPath);
+
   return {
     exists,
     folders,
     looseFiles,
     bundleSlots,
     totalEntries,
-    storageRoot
+    storageRoot,
+    sharedMounts,
+    sharedContext
   };
 }
 
@@ -5315,6 +5709,7 @@ function collectAllMenuManifestEntries(menu) {
   const manifests = collectManifestEntriesFromMenu(menu, []);
   if (menu?.serviceTree) collectManifestEntriesFromMenu(menu.serviceTree, manifests);
   if (menu?.containerTree) collectManifestEntriesFromMenu(menu.containerTree, manifests);
+  if (menu?.sharedTree) collectManifestEntriesFromMenu(menu.sharedTree, manifests);
   return manifests;
 }
 
@@ -5559,6 +5954,7 @@ async function buildAgentSiteMap() {
 
   await walkTree(menu, null, "ws");
   if (menu.containerTree) await walkTree(menu.containerTree, null, "area");
+  if (menu.sharedTree) await walkTree(menu.sharedTree, null, "area");
 
   topics.sort((a, b) => a.title.localeCompare(b.title, "ru"));
   areas.sort((a, b) => a.title.localeCompare(b.title, "ru"));
@@ -5579,7 +5975,66 @@ async function buildAgentSiteMap() {
   };
 }
 
-async function buildAgentRuntimeRegistry() {
+function parseRuntimeFilterSearchParam(raw) {
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  return null;
+}
+
+function parseRuntimeFilterFromSearchParams(searchParams) {
+  const syncRaw = searchParams?.get?.("sync");
+  if (syncRaw === "true" || syncRaw === "1" || syncRaw === "yes") {
+    return { cron: true, heartbeat: true, mode: "any" };
+  }
+
+  const cronRaw = parseRuntimeFilterSearchParam(searchParams?.get?.("cron"));
+  const heartbeatRaw = parseRuntimeFilterSearchParam(searchParams?.get?.("heartbeat"));
+  const modeRaw = String(searchParams?.get?.("mode") || "").trim().toLowerCase();
+
+  if (cronRaw === null && heartbeatRaw === null && !modeRaw) return null;
+
+  return {
+    cron: cronRaw ?? true,
+    heartbeat: heartbeatRaw ?? true,
+    mode: modeRaw === "all" ? "all" : "any"
+  };
+}
+
+function matchesRuntimeFilter(row, filter) {
+  if (!filter) return true;
+
+  const hasCron = Boolean(row?.runtimeCron);
+  const hasHeartbeat = Boolean(row?.runtimeHeartbeat);
+
+  if (filter.mode === "all") {
+    if (filter.cron && !hasCron) return false;
+    if (filter.heartbeat && !hasHeartbeat) return false;
+    return hasCron || hasHeartbeat;
+  }
+
+  let match = false;
+  if (filter.cron && hasCron) match = true;
+  if (filter.heartbeat && hasHeartbeat) match = true;
+  return match;
+}
+
+function countRuntimeRegistryRows(rows) {
+  let sessionStartCount = 0;
+  let cronCount = 0;
+  let heartbeatCount = 0;
+  let syncCount = 0;
+
+  for (const row of rows) {
+    if (row.runtimeLoad === "session-start") sessionStartCount += 1;
+    if (row.runtimeCron) cronCount += 1;
+    if (row.runtimeHeartbeat) heartbeatCount += 1;
+    if (row.runtimeCron || row.runtimeHeartbeat) syncCount += 1;
+  }
+
+  return { sessionStartCount, cronCount, heartbeatCount, syncCount };
+}
+
+async function buildAgentRuntimeRegistry(filter = null) {
   const menu = await buildAgentMenu(getAgentRoot());
   const entries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
   const rows = [];
@@ -5610,21 +6065,110 @@ async function buildAgentRuntimeRegistry() {
 
   rows.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
 
-  let sessionStartCount = 0;
-  let cronCount = 0;
-  let heartbeatCount = 0;
-  for (const row of rows) {
-    if (row.runtimeLoad === "session-start") sessionStartCount += 1;
-    if (row.runtimeCron) cronCount += 1;
-    if (row.runtimeHeartbeat) heartbeatCount += 1;
-  }
+  const allCounts = countRuntimeRegistryRows(rows);
+  const visibleRows = filter ? rows.filter((row) => matchesRuntimeFilter(row, filter)) : rows;
+  const visibleCounts = filter ? countRuntimeRegistryRows(visibleRows) : allCounts;
 
   return {
-    rows,
-    topicCount: rows.length,
-    sessionStartCount,
+    rows: visibleRows,
+    topicCount: visibleRows.length,
+    sessionStartCount: visibleCounts.sessionStartCount,
+    cronCount: visibleCounts.cronCount,
+    heartbeatCount: visibleCounts.heartbeatCount,
+    syncCount: visibleCounts.syncCount,
+    filter: filter || null,
+    totalTopicCount: rows.length,
+    totalCronCount: allCounts.cronCount,
+    totalHeartbeatCount: allCounts.heartbeatCount,
+    totalSyncCount: allCounts.syncCount
+  };
+}
+
+async function buildManifestAreaLookup(menu) {
+  const areaByManifest = new Map();
+
+  async function walkTree(tree, parentArea = null) {
+    if (!tree) return;
+    let currentArea = parentArea;
+    if (tree.indexPath) {
+      const normalized = String(tree.indexPath).replace(/\\/g, "/");
+      currentArea = {
+        areaPath: normalized,
+        areaTitle: String(tree.title || "").trim() || normalized
+      };
+    }
+    for (const item of tree.items || []) {
+      if (!item?.path) continue;
+      const manifestPath = String(item.path).replace(/\\/g, "/");
+      areaByManifest.set(manifestPath, {
+        areaPath: currentArea?.areaPath || null,
+        areaTitle: currentArea?.areaTitle || null
+      });
+    }
+    for (const section of tree.sections || []) {
+      await walkTree(section, currentArea);
+    }
+  }
+
+  await walkTree(menu, null);
+  if (menu?.containerTree) await walkTree(menu.containerTree, null);
+  if (menu?.sharedTree) await walkTree(menu.sharedTree, null);
+  if (menu?.serviceTree) await walkTree(menu.serviceTree, null);
+
+  return areaByManifest;
+}
+
+const DEFAULT_RUNTIME_SYNC_FILTER = { cron: true, heartbeat: true, mode: "any" };
+
+async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const registry = await buildAgentRuntimeRegistry();
+  const areaByManifest = await buildManifestAreaLookup(menu);
+  const topics = [];
+
+  for (const row of registry.rows) {
+    if (!matchesRuntimeFilter(row, filter)) continue;
+
+    const area = areaByManifest.get(row.manifestPath) || {};
+    const syncKinds = [];
+    if (row.runtimeCron) syncKinds.push("cron");
+    if (row.runtimeHeartbeat) syncKinds.push("heartbeat");
+
+    topics.push({
+      manifestPath: row.manifestPath,
+      title: row.label,
+      label: row.label,
+      displayPath: row.displayPath,
+      areaPath: area.areaPath || null,
+      areaTitle: area.areaTitle || null,
+      runtimeLoad: row.runtimeLoad,
+      runtimeLoadLabel: row.runtimeLoadLabel,
+      runtimeCron: row.runtimeCron,
+      runtimeCronSchedule: row.runtimeCronSchedule,
+      runtimeHeartbeat: row.runtimeHeartbeat,
+      syncKinds,
+      syncKind: syncKinds.join("+") || null
+    });
+  }
+
+  topics.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
+
+  const cronCount = topics.filter((topic) => topic.runtimeCron).length;
+  const heartbeatCount = topics.filter((topic) => topic.runtimeHeartbeat).length;
+  const bothCount = topics.filter((topic) => topic.runtimeCron && topic.runtimeHeartbeat).length;
+
+  return {
+    version: 1,
+    model: "runtime-map",
+    filter,
+    hint: "Темы с awn-runtime-cron и/или awn-runtime-heartbeat — для синхронизации агента (cron/сердцебиение).",
+    topics,
+    topicCount: topics.length,
     cronCount,
-    heartbeatCount
+    heartbeatCount,
+    bothCount,
+    totalTopicCount: registry.totalTopicCount,
+    totalSyncCount: registry.totalSyncCount
   };
 }
 
@@ -5632,7 +6176,8 @@ const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   search: "GET /api/search?q=&scope=content|filename|description|tags",
-  runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-*",
+  runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
+  runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
@@ -5728,6 +6273,7 @@ async function buildAgentSessionContext() {
   }
 
   const registry = await buildAgentRuntimeRegistry();
+  const runtimeMap = await buildAgentRuntimeMap(DEFAULT_RUNTIME_SYNC_FILTER);
   const sessionStartTopics = [];
   for (const row of registry.rows) {
     if (row.runtimeLoad !== "session-start") continue;
@@ -5741,6 +6287,19 @@ async function buildAgentSessionContext() {
       content: file.content
     });
   }
+
+  const runtimeSyncTopics = runtimeMap.topics.map((topic) => ({
+    manifestPath: topic.manifestPath,
+    label: topic.label,
+    displayPath: topic.displayPath,
+    areaPath: topic.areaPath,
+    areaTitle: topic.areaTitle,
+    runtimeCron: topic.runtimeCron,
+    runtimeCronSchedule: topic.runtimeCronSchedule,
+    runtimeHeartbeat: topic.runtimeHeartbeat,
+    syncKind: topic.syncKind,
+    syncKinds: topic.syncKinds
+  }));
 
   const systemFiles = [];
   for (const name of ["AGENTS.md", "README.md"]) {
@@ -5764,7 +6323,8 @@ async function buildAgentSessionContext() {
     menuSummary = {
       topicCount: (menu.items || []).length,
       hasServiceTree: Boolean(menu.serviceTree),
-      hasContainerTree: Boolean(menu.containerTree)
+      hasContainerTree: Boolean(menu.containerTree),
+      hasSharedTree: Boolean(menu.sharedTree)
     };
   } catch {
     menuSummary = null;
@@ -5786,9 +6346,12 @@ async function buildAgentSessionContext() {
     serviceDocs,
     sessionStartTopics,
     sessionStartCount: sessionStartTopics.length,
+    runtimeSyncTopics,
+    runtimeSyncCount: runtimeSyncTopics.length,
     runtimeRegistryTopicCount: registry.topicCount,
+    runtimeMapHint: runtimeMap.hint,
     systemFiles,
-    hint: "Старт: get_session_context → awn-system/MAP.md → get_menu для контента."
+    hint: "Старт: get_session_context → awn-system/MAP.md → get_menu для контента. Синхронизация cron/heartbeat: get_runtime_map."
   };
 }
 
@@ -6193,6 +6756,13 @@ async function resolveNodeSubfolderAbsolute(nodeAbsolute, subfolderName, options
   const storageFolder = await getNodeStorageSubfolderAbsolute(nodeAbsolute, subfolderName);
   if (storageFolder && (await isExistingDirectory(storageFolder))) {
     return storageFolder;
+  }
+
+  if (options.allowShared !== false) {
+    const sharedFolder = await resolveSharedMountSubfolderAbsolute(nodeAbsolute, subfolderName);
+    if (sharedFolder && (await isExistingDirectory(sharedFolder))) {
+      return sharedFolder;
+    }
   }
 
   return null;
@@ -7110,6 +7680,7 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
   try {
     const { frontmatter } = await readNodeFrontmatterContent(nodeRelPath);
     const awnEmoji = getYamlScalar(frontmatter, "awn-emoji");
+    const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
     return {
       color: extractColorFromPropsYaml(frontmatter),
       tags: extractTagsFromProps(frontmatter),
@@ -7117,7 +7688,10 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       status: extractStatusFromProps(frontmatter),
       owner: extractOwnerFromProps(frontmatter),
       priority: extractPriorityFromProps(frontmatter),
-      awnEmoji: awnEmoji || null
+      awnEmoji: awnEmoji || null,
+      runtimeCron: runtime.runtimeCron,
+      runtimeCronSchedule: runtime.runtimeCronSchedule,
+      runtimeHeartbeat: runtime.runtimeHeartbeat
     };
   } catch {
     return {
@@ -7127,9 +7701,53 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       status: null,
       owner: null,
       priority: null,
-      awnEmoji: null
+      awnEmoji: null,
+      runtimeCron: false,
+      runtimeCronSchedule: "",
+      runtimeHeartbeat: false
     };
   }
+}
+
+function enrichMenuTreeRuntimeRollup(node) {
+  if (!node || typeof node !== "object") {
+    return { runtimeCron: false, runtimeHeartbeat: false, runtimeCronSchedule: "" };
+  }
+
+  const selfCron = Boolean(node.runtimeCron);
+  const selfHeartbeat = Boolean(node.runtimeHeartbeat);
+  const selfSchedule = String(node.runtimeCronSchedule || "").trim();
+
+  let runtimeCron = selfCron;
+  let runtimeHeartbeat = selfHeartbeat;
+
+  for (const item of node.items || []) {
+    const rolled = enrichMenuTreeRuntimeRollup(item);
+    if (rolled.runtimeCron) runtimeCron = true;
+    if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+  }
+
+  for (const section of node.sections || []) {
+    const rolled = enrichMenuTreeRuntimeRollup(section);
+    if (rolled.runtimeCron) runtimeCron = true;
+    if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+  }
+
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (node[nestedKey]) {
+      const rolled = enrichMenuTreeRuntimeRollup(node[nestedKey]);
+      if (rolled.runtimeCron) runtimeCron = true;
+      if (rolled.runtimeHeartbeat) runtimeHeartbeat = true;
+    }
+  }
+
+  node.runtimeCronSelf = selfCron;
+  node.runtimeHeartbeatSelf = selfHeartbeat;
+  node.runtimeCron = runtimeCron;
+  node.runtimeHeartbeat = runtimeHeartbeat;
+  node.runtimeCronSchedule = selfSchedule;
+
+  return { runtimeCron, runtimeHeartbeat, runtimeCronSchedule: selfSchedule };
 }
 
 async function readNodePropsColorForNodeRel(nodeRelPath) {
@@ -7155,6 +7773,9 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     status: meta.status || null,
     awnEmoji: meta.awnEmoji || null,
     awnTreeType: menuMeta.type || null,
+    runtimeCron: Boolean(meta.runtimeCron),
+    runtimeCronSchedule: String(meta.runtimeCronSchedule || "").trim(),
+    runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -7952,6 +8573,11 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     shell.status = indexMeta.status || null;
     shell.hasPreview = indexMeta.hasPreview;
     shell.previewUrl = indexMeta.previewUrl;
+    shell.runtimeCron = Boolean(indexMeta.runtimeCron);
+    shell.runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
+    shell.runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
+    shell.runtimeCronSelf = shell.runtimeCron;
+    shell.runtimeHeartbeatSelf = shell.runtimeHeartbeat;
   }
 
   return shell;
@@ -8011,7 +8637,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
         }
       }
 
-      if (!prefix && (isKitFolderName(entry.name) || isContainerFolderName(entry.name))) {
+      if (!prefix && (isKitFolderName(entry.name) || isSharedFolderName(entry.name) || isContainerFolderName(entry.name))) {
         continue;
       }
       if (isPartsFolderName(entry.name)) {
@@ -8135,6 +8761,9 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let status = null;
   let hasPreview = false;
   let previewUrl = null;
+  let runtimeCron = false;
+  let runtimeCronSchedule = "";
+  let runtimeHeartbeat = false;
   if (indexPath) {
     const indexMeta = await enrichMenuNodeItem(indexPath, options);
     color = indexMeta.color;
@@ -8143,6 +8772,9 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     status = indexMeta.status || null;
     hasPreview = indexMeta.hasPreview;
     previewUrl = indexMeta.previewUrl;
+    runtimeCron = Boolean(indexMeta.runtimeCron);
+    runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
+    runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
   }
 
   const baseNode = {
@@ -8159,6 +8791,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     status,
     hasPreview,
     previewUrl,
+    runtimeCron,
+    runtimeCronSchedule,
+    runtimeHeartbeat,
+    runtimeCronSelf: runtimeCron,
+    runtimeHeartbeatSelf: runtimeHeartbeat,
     hasGit: selfMarkers.hasGitSelf,
     hasObsidian: selfMarkers.hasObsidianSelf,
     ...selfMarkers
@@ -9401,9 +10038,23 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/runtime-map") {
+    try {
+      const filter = parseRuntimeFilterFromSearchParams(url.searchParams) || DEFAULT_RUNTIME_SYNC_FILTER;
+      const payload = await buildAgentRuntimeMap(filter);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read runtime map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/runtime-registry") {
     try {
-      const registry = await buildAgentRuntimeRegistry();
+      const filter = parseRuntimeFilterFromSearchParams(url.searchParams);
+      const registry = await buildAgentRuntimeRegistry(filter);
       return sendJson(res, 200, registry);
     } catch (error) {
       return sendJson(res, 500, {
@@ -10982,7 +11633,12 @@ async function handleApiForAgent(req, res, url) {
       const targetRelPath = manifestRelFromNodeAbsolute(fileAbsolute);
       const raw = await fs.readFile(fileAbsolute, "utf-8").catch(() => "");
       const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
+      const isNewFile = !raw.trim();
+      const stampedContent = await enrichTypedSlotMarkdownContent(resolvedManifest, "memory", content, "record", {
+        fileName: normalizedRelFile,
+        diskFrontmatter,
+        force: isNewFile
+      });
       await writeWorkspaceTextFileWithHistory(resolvedManifest, targetRelPath, stampedContent);
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content: stampedContent });
     } catch (error) {
@@ -11438,6 +12094,25 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/storage/shared-mounts") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const mounts = await buildSharedMountsForTopic(relPath);
+      const sharedContext = await buildSharedStorageContext(relPath);
+      return sendJson(res, 200, {
+        available: mounts.length > 0,
+        mounts,
+        sharedContext
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve shared mounts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/storage/markdown") {
     const relPath = url.searchParams.get("path");
     const relFile = url.searchParams.get("file");
@@ -11558,11 +12233,26 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(path.dirname(resolved.fileAbsolute), { recursive: true });
-      await fs.writeFile(resolved.fileAbsolute, content, "utf-8");
+      let finalContent = content;
+      const relFileLower = resolved.normalizedRelFile.toLowerCase();
+      if (relFileLower.endsWith(".md")) {
+        const slotKey = resolveSlotKeyFromStorageFolderName(resolved.folder);
+        if (slotKey) {
+          const manifestRel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
+          const raw = await fs.readFile(resolved.fileAbsolute, "utf-8").catch(() => "");
+          const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
+          finalContent = await enrichTypedSlotMarkdownContent(manifestRel, slotKey, content, "record", {
+            fileName: resolved.normalizedRelFile,
+            diskFrontmatter,
+            force: !raw.trim()
+          });
+        }
+      }
+      await fs.writeFile(resolved.fileAbsolute, finalContent, "utf-8");
       return sendJson(res, 200, {
         folder: resolved.folder,
         file: resolved.normalizedRelFile.replace(/\\/g, "/"),
-        content,
+        content: finalContent,
         exists: true
       });
     } catch (error) {
@@ -12789,25 +13479,35 @@ async function handleApiForAgent(req, res, url) {
         type !== "catalog" &&
         type !== "service-doc" &&
         type !== "container-root" &&
+        type !== "shared-root" &&
         type !== "kit-root"
       ) {
         return sendJson(res, 400, { error: "Invalid type" });
       }
 
-      if (type === "kit-root" || type === "container-root") {
+      if (type === "kit-root" || type === "container-root" || type === "shared-root") {
         const parentRel = String(payload.parentPath || ".").replace(/\\/g, "/").trim() || ".";
         const isKit = type === "kit-root";
-        if (isKit && parentRel !== ".") {
+        const isShared = type === "shared-root";
+        if ((isKit || isShared) && parentRel !== ".") {
           return sendJson(res, 400, { error: "Reserved folders can only be created at workspace root" });
         }
 
-        const folderName = isKit ? getAgentKitFolder() : getAgentContainerFolder();
-        const areaName = isKit ? SERVICE_AREA_NAME : CONTAINER_AREA_NAME;
+        const folderName = isKit
+          ? getAgentKitFolder()
+          : isShared
+            ? getAgentSharedFolder()
+            : getAgentContainerFolder();
+        const areaName = isKit ? SERVICE_AREA_NAME : isShared ? SHARED_AREA_NAME : CONTAINER_AREA_NAME;
         const areaType = isKit ? "service" : "area";
 
         if (!folderName) {
           return sendJson(res, 400, {
-            error: isKit ? "Agent kit folder is not configured" : "Container folder is not configured"
+            error: isKit
+              ? "Agent kit folder is not configured"
+              : isShared
+                ? "Shared folder is not configured"
+                : "Container folder is not configured"
           });
         }
 
@@ -12829,7 +13529,11 @@ async function handleApiForAgent(req, res, url) {
         const folderAbsolute = path.join(parentAbsolute, folderName);
         if (await dirExists(folderAbsolute)) {
           return sendJson(res, 409, {
-            error: isKit ? "Agent kit folder already exists" : "Container folder already exists"
+            error: isKit
+              ? "Agent kit folder already exists"
+              : isShared
+                ? "Shared folder already exists"
+                : "Container folder already exists"
           });
         }
 
@@ -12845,6 +13549,10 @@ async function handleApiForAgent(req, res, url) {
           joinNodeFrontmatter(manifestFrontmatter, ""),
           "utf-8"
         );
+
+        if (isShared) {
+          await bootstrapSharedDefaultThemes(folderAbsolute, folderName);
+        }
 
         const createdRel =
           parentRel === "."

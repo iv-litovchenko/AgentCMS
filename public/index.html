@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.90" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.98" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -938,12 +938,16 @@
         <div class="agent-canvas-head agent-runtime-registry-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Реестр тем</h2>
+            <h2 class="agent-canvas-title">Карта runtime</h2>
             <p class="agent-canvas-lead">
-              Темы workspace и их участие в runtime: <code>awn-runtime-load</code>, <code>awn-runtime-cron</code>, <code>awn-runtime-heartbeat</code>.
+              Темы с <code>awn-runtime-cron</code> и/или <code>awn-runtime-heartbeat</code> — для синхронизации агента. Полный реестр всех тем — переключатель ниже.
             </p>
           </div>
           <div class="agent-canvas-head-aside agent-runtime-registry-head-actions">
+            <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Фильтр реестра">
+              <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="sync" role="tab" aria-selected="true">Cron / heartbeat</button>
+              <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="all" role="tab" aria-selected="false">Все темы</button>
+            </div>
             <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats" aria-live="polite"></div>
             <button id="agent-runtime-registry-refresh-btn" class="agent-workspace-refresh-btn agent-runtime-registry-refresh-btn" type="button" title="Обновить реестр">
               Обновить
@@ -1359,8 +1363,8 @@
                     id="workspace-refresh-btn"
                     class="workspace-refresh-btn hidden"
                     type="button"
-                    title="Обновить данные с диска"
-                    aria-label="Обновить данные с диска"
+                    title="Обновить"
+                    aria-label="Обновить"
                   >
                     <svg class="workspace-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
@@ -1778,6 +1782,7 @@
                     <p class="topic-schema-lead">
                       Дополнительные поля сохраняются в <code>configuration.yml</code> → <code>awn_schema</code>.
                       Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
+                      <span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>
                     </p>
                   </div>
                 </header>
@@ -2198,6 +2203,10 @@
               <button id="create-node-kit-scaffold-btn" class="create-node-action-btn create-node-action-btn--service hidden" type="button" title="Правила, справочники и служебные темы агента.">
                 <span class="create-node-scaffold-title">Создать awn-agent-kit</span>
                 <span class="create-node-scaffold-hint">Правила, справочники и служебные темы агента.</span>
+              </button>
+              <button id="create-node-shared-scaffold-btn" class="create-node-action-btn create-node-action-btn--shared hidden" type="button" title="Общие темы и ресурсы для всех тем агента.">
+                <span class="create-node-scaffold-title">Создать awn-shared</span>
+                <span class="create-node-scaffold-hint">Скрипты, источники, медиа — один раз для всех тем.</span>
               </button>
               <button id="create-node-container-scaffold-btn" class="create-node-action-btn create-node-action-btn--container hidden" type="button" title="Области и темы рабочего контента агента.">
                 <span class="create-node-scaffold-title">Создать awn-container</span>
@@ -2725,7 +2734,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.243"></script>
+    <script src="/main.js?v=0.5.248"></script>
     <script src="/discuss-panel.js?v=0.5.226"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

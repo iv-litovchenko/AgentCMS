@@ -193,6 +193,39 @@ function getBaseFieldOrder(agentRoot = "", projectRoot = process.cwd()) {
   return keys.length ? keys : [...FALLBACK_BASE_FIELD_ORDER];
 }
 
+function isContentAwnTypeName(typeName) {
+  const normalized = normalizeAwnTypeName(typeName);
+  return (
+    normalized.startsWith("awn.content.") ||
+    normalized === "awn.record" ||
+    normalized === "awn.sidecar" ||
+    normalized === "awn.dialog" ||
+    normalized === "awn.comment"
+  );
+}
+
+/** Для awn.content.* — только awn.base (+ mixins записи), без nav/runtime полей страницы. */
+function getBaseFieldOrderForType(typeName, agentRoot = "", projectRoot = process.cwd()) {
+  if (!isContentAwnTypeName(typeName)) {
+    return getBaseFieldOrder(agentRoot, projectRoot);
+  }
+  const types = loadAgentTypes(agentRoot, projectRoot);
+  const byName = new Map(Object.entries(types));
+  const recordDef = resolveTypeDefinition("awn.content.record", byName);
+  const recordKeys = Object.keys(recordDef?.fields || {});
+  if (recordKeys.length) return recordKeys;
+  const baseFields = types["awn.base"]?.fields;
+  if (baseFields && typeof baseFields === "object") {
+    const keys = Object.keys(baseFields);
+    if (keys.length) return keys;
+  }
+  return FALLBACK_BASE_FIELD_ORDER.filter(
+    (key) =>
+      !["awn-main", "awn-category", "awn-owner", "awn-priority", "awn-color", "awn-sort"].includes(key) &&
+      !key.startsWith("awn-runtime")
+  );
+}
+
 function loadAgentTypes(agentRoot, projectRoot) {
   const catalogTypes = loadPageTypesFromCatalog(projectRoot, agentRoot);
   const legacyTypes = loadRecordTypesFromComponents(projectRoot, agentRoot);
@@ -305,16 +338,31 @@ function buildDefaultFrontmatter(typeName, options = {}) {
 
   const lines = [];
   const now = new Date().toISOString();
-  const baseOrder = getBaseFieldOrder(resolvedAgentRoot, resolvedProjectRoot);
+  const baseOrder = getBaseFieldOrderForType(resolvedTypeName, resolvedAgentRoot, resolvedProjectRoot);
 
   const orderedKeys = [
     ...baseOrder,
     ...Object.keys(fields).filter((k) => !baseOrder.includes(k))
   ];
 
+  const pageOnlyFields = new Set([
+    "awn-main",
+    "awn-category",
+    "awn-owner",
+    "awn-priority",
+    "awn-color",
+    "awn-sort",
+    "awn-runtime-load",
+    "awn-runtime-cron",
+    "awn-runtime-cron-schedule",
+    "awn-runtime-heartbeat"
+  ]);
+  const isContentType = isContentAwnTypeName(resolvedTypeName);
+
   const seen = new Set();
   for (const key of orderedKeys) {
     if (seen.has(key)) continue;
+    if (isContentType && pageOnlyFields.has(key)) continue;
     seen.add(key);
 
     if (key === "awn-type") {
