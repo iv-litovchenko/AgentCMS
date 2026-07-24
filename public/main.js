@@ -296,7 +296,6 @@ const nodeThreadBlockNode = document.getElementById("node-thread-block");
 const nodeThreadContentNode = document.getElementById("node-thread-content");
 const docSlabMainNode = document.querySelector(".doc-slab-main");
 const workspaceBodyNode = document.querySelector(".workspace-body");
-const workspacePaneNode = document.querySelector(".workspace-pane");
 const contentLoadingNode = document.getElementById("content-loading");
 const contentLoadingTextNode = document.getElementById("content-loading-text");
 const externalViewSelectNode = document.getElementById("external-view-select");

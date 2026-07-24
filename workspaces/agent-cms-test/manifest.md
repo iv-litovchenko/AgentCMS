@@ -1,21 +1,25 @@
 ---
-awn-preview: awn-storage/assets/preview/20260623192851.png
-awn-emoji: ""
 awn-name: "[Agent CMS] Test"
-awn-status: 🟢 Открыта
+awn-emoji: ""
+awn-status: open
+awn-description: Тестовый агент. CMS-модель встроена — см. awn-system/MAP.md и AGENTS.md
+awn-tags: []
 awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
-awn-update: 2026-06-23T19:28:51.532Z
-awn-description: Тестовый агент. CMS-модель встроена — см. awn-system/MAP.md и AGENTS.md
+awn-update: 2026-07-24T21:52:43.500Z
+awn-version: 15
+awn-preview: awn-storage/assets/preview/20260623192851.png
+awn-web-url: ""
 awn-main: false
 awn-category: ""
 awn-owner: ""
 awn-priority: ""
-awn-tags: []
 awn-color: "#000000"
-awn-version: 14
-awn-sort: ""
-awn-attachments: []
+awn-sort: 0
+awn-runtime-load: ""
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
 ---
 
 
