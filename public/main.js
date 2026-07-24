@@ -33941,24 +33941,24 @@ function isEditorSaveTrackingActive() {
     isNodeCanvasViewMode() ||
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
     activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
     activeContentMode === "inbox" ||
     activeContentMode === "note" ||
-    activeContentMode === NODE_THREAD_MODE ||
     activeContentMode === "quick-notes" ||
     activeContentMode === "references" ||
     activeContentMode === "artefacts" ||
     activeContentMode === "assets" ||
+    activeContentMode === "repository" ||
     activeContentMode === "temp"
   ) {
     return false;
   }
   if (activeContentMode === "external" && !activeExternalFilePath) return false;
   if (isMediaLibraryContentMode() && !isMediaAssetEditing()) return false;
-  if (activeContentMode === "temp") return false;
   if (activeContentMode === "tabular" && !isTabularSourceEditing()) return false;
   return true;
 }
@@ -50252,6 +50252,7 @@ function buildSaveContentPayload() {
 }
 
 async function saveContent() {
+  if (!isEditorSaveTrackingActive()) return;
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
   }
@@ -50580,14 +50581,7 @@ async function saveContent() {
                 ? "/api/env"
                 : "/api/file/content"
     );
-    if (
-      (activeContentMode === "external" && !activeExternalFilePath) ||
-      (isMediaLibraryContentMode() && !isMediaAssetEditing()) ||
-      (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
-      activeContentMode === "scripts" ||
-      activeContentMode === "node-preview" ||
-      activeContentMode === "graph"
-    ) {
+    if (!isEditorSaveTrackingActive()) {
       throw new Error("Этот режим доступен только для чтения");
     }
 
@@ -57650,8 +57644,8 @@ createNodeContainerTargetNode?.addEventListener("change", () => {
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "s") {
     event.preventDefault();
-    if (activeSystemFile || activePath) {
-      saveContent();
+    if (isEditorSaveTrackingActive() && (activeSystemFile || activePath)) {
+      void saveContent();
     }
   }
 });
