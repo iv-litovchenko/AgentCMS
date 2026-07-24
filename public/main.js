@@ -2,6 +2,13 @@ const sidebarWidthDecreaseBtn = document.getElementById("sidebar-width-decrease-
 const sidebarWidthIncreaseBtn = document.getElementById("sidebar-width-increase-btn");
 const menuNode = document.getElementById("menu");
 const menuScrollTopBtn = document.getElementById("menu-scroll-top-btn");
+const menuScrollProgressFillNode = document.getElementById("menu-scroll-progress-fill");
+const menuScrollDepthNode = document.getElementById("menu-scroll-depth");
+const workspacePaneNode = document.querySelector(".workspace-pane");
+const workspaceScrollTopBtn = document.getElementById("workspace-scroll-top-btn");
+const workspaceScrollProgressNode = document.getElementById("workspace-scroll-progress");
+const workspaceScrollDepthNode = document.getElementById("workspace-scroll-depth");
+const workspaceScrollChromeNode = document.querySelector(".workspace-scroll-chrome");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
@@ -44110,6 +44117,7 @@ function applyEditorAutoHeightUi() {
   if (!appRootNode) return;
   appRootNode.classList.toggle("editor-autoheight", shouldUseEditorAutoHeight());
   syncEditorFillMinHeightCssVar();
+  syncWorkspaceScrollChrome();
 }
 
 function applySourceEditorAutoHeightUi() {
@@ -48671,6 +48679,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 
   if (agentId === activeAgentId) {
     void syncMenuAgentStats(menu);
+    requestAnimationFrame(syncMenuScrollTopButton);
   }
 }
 
@@ -56054,14 +56063,82 @@ function withPreservedMenuScroll(run) {
   return result;
 }
 
-const MENU_SCROLL_TOP_THRESHOLD = 160;
+const MENU_SCROLL_TOP_THRESHOLD = 48;
+
+function getScrollMetrics(element) {
+  if (!element) {
+    return { scrollTop: 0, maxScroll: 0, percent: 0, screens: 0, scrollable: false };
+  }
+  const scrollTop = Math.max(0, element.scrollTop || 0);
+  const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight);
+  const percent = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 0;
+  const screens = element.clientHeight > 0 ? scrollTop / element.clientHeight : 0;
+  return {
+    scrollTop,
+    maxScroll,
+    percent,
+    screens,
+    scrollable: maxScroll > 8
+  };
+}
+
+function formatScrollDepthLabel(metrics) {
+  if (!metrics?.scrollable || metrics.percent <= 0) return "";
+  const screensLabel = metrics.screens >= 0.15 ? `${metrics.screens.toFixed(1)} экр.` : "";
+  return screensLabel ? `${metrics.percent}% · ${screensLabel}` : `${metrics.percent}%`;
+}
+
+function syncScrollChrome({
+  scrollElement,
+  topButton,
+  progressNode,
+  depthNode,
+  chromeNode = null,
+  topThreshold = MENU_SCROLL_TOP_THRESHOLD
+} = {}) {
+  if (!scrollElement) return;
+  const metrics = getScrollMetrics(scrollElement);
+  const depthLabel = formatScrollDepthLabel(metrics);
+  const showTop = metrics.scrollable && metrics.scrollTop > topThreshold;
+
+  if (topButton) {
+    topButton.classList.toggle("is-visible", showTop);
+    topButton.setAttribute("aria-hidden", showTop ? "false" : "true");
+    topButton.tabIndex = showTop ? 0 : -1;
+  }
+  if (progressNode) {
+    progressNode.style.width = `${metrics.percent}%`;
+  }
+  if (depthNode) {
+    depthNode.textContent = depthLabel;
+    depthNode.classList.toggle("hidden", !depthLabel);
+  }
+  if (chromeNode) {
+    chromeNode.classList.toggle("is-active", metrics.scrollable && metrics.percent > 0);
+  }
+}
 
 function syncMenuScrollTopButton() {
-  if (!menuNode || !menuScrollTopBtn) return;
-  const isVisible = menuNode.scrollTop > MENU_SCROLL_TOP_THRESHOLD;
-  menuScrollTopBtn.classList.toggle("is-visible", isVisible);
-  menuScrollTopBtn.setAttribute("aria-hidden", isVisible ? "false" : "true");
-  menuScrollTopBtn.tabIndex = isVisible ? 0 : -1;
+  syncScrollChrome({
+    scrollElement: menuNode,
+    topButton: menuScrollTopBtn,
+    progressNode: menuScrollProgressFillNode,
+    depthNode: menuScrollDepthNode
+  });
+}
+
+function getWorkspaceScrollElement() {
+  return appRootNode?.classList.contains("editor-autoheight") ? workspacePaneNode : null;
+}
+
+function syncWorkspaceScrollChrome() {
+  syncScrollChrome({
+    scrollElement: getWorkspaceScrollElement(),
+    topButton: workspaceScrollTopBtn,
+    progressNode: workspaceScrollProgressNode,
+    depthNode: workspaceScrollDepthNode,
+    chromeNode: workspaceScrollChromeNode
+  });
 }
 
 function setupMenuScrollTopButton() {
@@ -56070,7 +56147,24 @@ function setupMenuScrollTopButton() {
   menuScrollTopBtn.addEventListener("click", () => {
     menuNode.scrollTo({ top: 0, behavior: "smooth" });
   });
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => syncMenuScrollTopButton());
+    observer.observe(menuNode);
+  }
   syncMenuScrollTopButton();
+}
+
+function setupWorkspaceScrollChrome() {
+  if (!workspacePaneNode || !workspaceScrollTopBtn) return;
+  workspacePaneNode.addEventListener("scroll", syncWorkspaceScrollChrome, { passive: true });
+  workspaceScrollTopBtn.addEventListener("click", () => {
+    workspacePaneNode.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => syncWorkspaceScrollChrome());
+    observer.observe(workspacePaneNode);
+  }
+  syncWorkspaceScrollChrome();
 }
 
 async function fetchMenuData(agentId = activeAgentId, options = {}) {
@@ -57237,6 +57331,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 
 setupMenuSortDragDrop();
 setupMenuScrollTopButton();
+setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
 setupMenuNodeMoveDragDrop();

@@ -23,7 +23,13 @@
   const discussContextDropzoneNode = document.getElementById("discuss-context-dropzone");
   const discussAddCurrentBtn = document.getElementById("discuss-add-current-btn");
   const discussMessagesListNode = document.getElementById("discuss-messages-list");
+  const discussMessagesWrapNode = document.getElementById("discuss-messages-wrap");
+  const discussMessagesScrollTopBtn = document.getElementById("discuss-messages-scroll-top-btn");
+  const discussMessagesScrollProgressNode = document.getElementById("discuss-messages-scroll-progress");
+  const discussMessagesScrollDepthNode = document.getElementById("discuss-messages-scroll-depth");
   const discussMessagesEmptyNode = document.getElementById("discuss-messages-empty");
+  const workspacePaneNode = document.querySelector(".workspace-pane");
+  const discussAsideHeightMq = window.matchMedia("(max-width: 960px)");
   const discussComposerInputNode = document.getElementById("discuss-composer-input");
   const discussSendBtn = document.getElementById("discuss-send-btn");
   const discussClearBtn = document.getElementById("discuss-clear-btn");
@@ -372,8 +378,97 @@
       discussMessagesListNode.appendChild(li);
     });
 
-    if (hasMessages && discussMessagesListNode.lastElementChild) {
-      discussMessagesListNode.lastElementChild.scrollIntoView({ block: "nearest" });
+    if (hasMessages) {
+      requestAnimationFrame(() => {
+        scrollMessagesToBottom();
+        syncDiscussMessagesScrollChrome();
+      });
+    } else {
+      syncDiscussMessagesScrollChrome();
+    }
+  }
+
+  function getDiscussScrollMetrics() {
+    if (!discussMessagesWrapNode) {
+      return { scrollTop: 0, maxScroll: 0, percent: 0, screens: 0, scrollable: false };
+    }
+    const scrollTop = Math.max(0, discussMessagesWrapNode.scrollTop || 0);
+    const maxScroll = Math.max(0, discussMessagesWrapNode.scrollHeight - discussMessagesWrapNode.clientHeight);
+    const percent = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 0;
+    const screens = discussMessagesWrapNode.clientHeight > 0 ? scrollTop / discussMessagesWrapNode.clientHeight : 0;
+    return {
+      scrollTop,
+      maxScroll,
+      percent,
+      screens,
+      scrollable: maxScroll > 8
+    };
+  }
+
+  function formatDiscussScrollDepth(metrics) {
+    if (!metrics.scrollable || metrics.percent <= 0) return "";
+    const screensLabel = metrics.screens >= 0.15 ? `${metrics.screens.toFixed(1)} экр.` : "";
+    return screensLabel ? `${metrics.percent}% · ${screensLabel}` : `${metrics.percent}%`;
+  }
+
+  function syncDiscussMessagesScrollChrome() {
+    if (!discussMessagesWrapNode) return;
+    const metrics = getDiscussScrollMetrics();
+    const depthLabel = formatDiscussScrollDepth(metrics);
+    const showTop = metrics.scrollable && metrics.scrollTop > 48;
+
+    discussMessagesScrollTopBtn?.classList.toggle("is-visible", showTop);
+    if (discussMessagesScrollTopBtn) {
+      discussMessagesScrollTopBtn.setAttribute("aria-hidden", showTop ? "false" : "true");
+      discussMessagesScrollTopBtn.tabIndex = showTop ? 0 : -1;
+    }
+    if (discussMessagesScrollProgressNode) {
+      discussMessagesScrollProgressNode.style.width = `${metrics.percent}%`;
+    }
+    if (discussMessagesScrollDepthNode) {
+      discussMessagesScrollDepthNode.textContent = depthLabel;
+      discussMessagesScrollDepthNode.classList.toggle("hidden", !depthLabel);
+    }
+  }
+
+  function bindDiscussMessagesScrollChrome() {
+    if (!discussMessagesWrapNode) return;
+    discussMessagesWrapNode.addEventListener("scroll", syncDiscussMessagesScrollChrome, { passive: true });
+    discussMessagesScrollTopBtn?.addEventListener("click", () => {
+      discussMessagesWrapNode.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => syncDiscussMessagesScrollChrome());
+      observer.observe(discussMessagesWrapNode);
+    }
+    syncDiscussMessagesScrollChrome();
+  }
+
+  function scrollMessagesToBottom() {
+    if (!discussMessagesWrapNode) return;
+    discussMessagesWrapNode.scrollTop = discussMessagesWrapNode.scrollHeight;
+  }
+
+  function syncDiscussAsideHeight() {
+    if (!discussAsideNode) return;
+    if (discussAsideHeightMq.matches) {
+      discussAsideNode.style.height = "";
+      discussAsideNode.style.maxHeight = "";
+      return;
+    }
+    const paneHeight = workspacePaneNode?.clientHeight || 0;
+    if (paneHeight <= 0) return;
+    discussAsideNode.style.height = `${paneHeight}px`;
+    discussAsideNode.style.maxHeight = `${paneHeight}px`;
+  }
+
+  function bindDiscussAsideHeightSync() {
+    syncDiscussAsideHeight();
+    window.addEventListener("resize", syncDiscussAsideHeight);
+    discussAsideHeightMq.addEventListener("change", syncDiscussAsideHeight);
+    if (workspacePaneNode && typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => syncDiscussAsideHeight());
+      observer.observe(workspacePaneNode);
     }
   }
 
@@ -560,6 +655,8 @@
 
   bindTabs();
   bindResize();
+  bindDiscussAsideHeightSync();
+  bindDiscussMessagesScrollChrome();
   loadSession(getActiveAgentIdFromUrl());
   applyPanelWidth();
   renderAll();

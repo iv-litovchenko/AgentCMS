@@ -8556,6 +8556,7 @@ body.app-locked {
 .workspace-pane {
   grid-column: 3;
   grid-row: 2;
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -8563,6 +8564,31 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   background: var(--panel);
+}
+
+.workspace-scroll-chrome {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.workspace-scroll-chrome.is-active {
+  opacity: 1;
+}
+
+.workspace-scroll-top-btn {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 21;
+}
+
+.app:not(.editor-autoheight) .workspace-scroll-chrome,
+.app:not(.editor-autoheight) .workspace-scroll-top-btn {
+  display: none;
 }
 
 .app-header {
@@ -10894,29 +10920,58 @@ body.app-locked {
   flex: 1 1 auto;
   min-height: 0;
   margin-top: 0;
-  padding: 6px 10px 12px 12px;
+  padding: 6px 10px 56px 12px;
 }
 
-.sidebar-slab .agent-view-wrap,
-.sidebar-slab .menu-view-wrap,
-.sidebar-slab .menu-search-wrap,
-.sidebar-slab .menu-cards-filter-wrap {
-  margin-top: 0;
+.menu-scroll-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar-slab-menu .menu-pinned-banner {
-  margin: 0;
-}
-
-.sidebar-slab-menu .menu-cards-filter-wrap {
-  margin-top: 0;
-}
-
-.menu-scroll-top-btn {
+.menu-scroll-chrome {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 12;
+  inset: 0 0 auto 0;
+  z-index: 14;
+  pointer-events: none;
+}
+
+.scroll-progress-track {
+  height: 3px;
+  background: rgba(148, 163, 184, 0.24);
+}
+
+.scroll-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%);
+  transition: width 0.12s linear;
+}
+
+.scroll-depth-indicator {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+  white-space: nowrap;
+}
+
+.scroll-depth-indicator.hidden {
+  display: none;
+}
+
+.scroll-top-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -10947,14 +11002,14 @@ body.app-locked {
     background 0.16s ease;
 }
 
-.menu-scroll-top-btn.is-visible {
+.scroll-top-btn.is-visible {
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
-.menu-scroll-top-btn:hover {
+.scroll-top-btn:hover {
   background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 48%, #3b82f6 100%);
   box-shadow:
     0 16px 32px rgba(37, 99, 235, 0.42),
@@ -10962,16 +11017,16 @@ body.app-locked {
   transform: translateY(-2px) scale(1.02);
 }
 
-.menu-scroll-top-btn:focus-visible {
+.scroll-top-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.92);
   outline-offset: 2px;
 }
 
-.menu-scroll-top-btn:active {
+.scroll-top-btn:active {
   transform: translateY(0) scale(0.98);
 }
 
-.menu-scroll-top-btn-icon {
+.scroll-top-btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -10980,13 +11035,31 @@ body.app-locked {
   flex: 0 0 22px;
 }
 
-.menu-scroll-top-btn-label {
+.scroll-top-btn-label {
   line-height: 1;
   white-space: nowrap;
 }
 
-.sidebar-slab-menu:has(#menu-agent-stats:not(.hidden)) .menu-scroll-top-btn {
-  bottom: 68px;
+.menu-scroll-top-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 16;
+}
+
+.sidebar-slab .agent-view-wrap,
+.sidebar-slab .menu-view-wrap,
+.sidebar-slab .menu-search-wrap,
+.sidebar-slab .menu-cards-filter-wrap {
+  margin-top: 0;
+}
+
+.sidebar-slab-menu .menu-pinned-banner {
+  margin: 0;
+}
+
+.sidebar-slab-menu .menu-cards-filter-wrap {
+  margin-top: 0;
 }
 
 .menu-agent-stats {
@@ -30762,7 +30835,9 @@ body.document-viewer-open {
 /* ── Discuss panel (agent chat context) ── */
 
 .discuss-aside {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
   flex: 0 0 var(--discuss-panel-width, var(--sidebar-width, 280px));
@@ -30770,6 +30845,7 @@ body.document-viewer-open {
   min-height: 0;
   min-width: 280px;
   max-width: 520px;
+  overflow: hidden;
   border-left: 3px solid #6366f1;
   background: #fafbff;
   box-sizing: border-box;
@@ -30848,8 +30924,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .discuss-aside-view {
   display: none;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   flex-direction: column;
 }
 
@@ -31075,10 +31152,34 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .discuss-messages-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 10px 12px 10px 14px;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 96px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 12px 56px 14px;
+}
+
+.discuss-messages-scroll-chrome {
+  position: sticky;
+  top: -10px;
+  z-index: 3;
+  margin: -10px -12px 8px -14px;
+  pointer-events: none;
+}
+
+.discuss-messages-scroll-chrome .scroll-depth-indicator {
+  top: 10px;
+  right: 12px;
+}
+
+.discuss-messages-scroll-top-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
 }
 
 .discuss-messages-list {
@@ -31128,10 +31229,13 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .discuss-composer {
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-top: auto;
   border-top: 1px solid var(--border);
   padding: 10px 12px 12px 14px;
   background: #fff;
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.06);
+  z-index: 1;
 }
 
 .discuss-composer-input {

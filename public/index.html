@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.115" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.117" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -441,6 +441,13 @@
               </label>
             </div>
           </div>
+          <div class="menu-scroll-shell">
+            <div class="menu-scroll-chrome" aria-hidden="true">
+              <div class="menu-scroll-progress-track">
+                <div id="menu-scroll-progress-fill" class="menu-scroll-progress-fill"></div>
+              </div>
+              <div id="menu-scroll-depth" class="menu-scroll-depth scroll-depth-indicator hidden"></div>
+            </div>
           <nav id="menu" class="menu">
             <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
               <span class="menu-loading-spinner" aria-hidden="true"></span>
@@ -449,21 +456,22 @@
           </nav>
           <button
             id="menu-scroll-top-btn"
-            class="menu-scroll-top-btn"
+            class="menu-scroll-top-btn scroll-top-btn"
             type="button"
             title="Наверх"
             aria-label="Прокрутить дерево наверх"
             aria-hidden="true"
             tabindex="-1"
           >
-            <span class="menu-scroll-top-btn-icon" aria-hidden="true">
+            <span class="menu-scroll-top-btn-icon scroll-top-btn-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 19V5"></path>
                 <path d="M5 12l7-7 7 7"></path>
               </svg>
             </span>
-            <span class="menu-scroll-top-btn-label">Наверх</span>
+            <span class="menu-scroll-top-btn-label scroll-top-btn-label">Наверх</span>
           </button>
+          </div>
           <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
         </section>
       </aside>
@@ -1245,6 +1253,29 @@
       </main>
 
       <section class="workspace-pane">
+        <div class="workspace-scroll-chrome" aria-hidden="true">
+          <div class="scroll-progress-track">
+            <div id="workspace-scroll-progress" class="scroll-progress-fill"></div>
+          </div>
+          <div id="workspace-scroll-depth" class="scroll-depth-indicator hidden"></div>
+        </div>
+        <button
+          id="workspace-scroll-top-btn"
+          class="workspace-scroll-top-btn scroll-top-btn"
+          type="button"
+          title="Наверх"
+          aria-label="Прокрутить документ наверх"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <span class="scroll-top-btn-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5"></path>
+              <path d="M5 12l7-7 7 7"></path>
+            </svg>
+          </span>
+          <span class="scroll-top-btn-label">Наверх</span>
+        </button>
         <div class="workspace-body">
         <main class="content doc-stack">
           <section id="workspace-path-header" class="doc-slab doc-slab-path">
@@ -2148,8 +2179,31 @@
           </section>
 
           <section id="discuss-messages-wrap" class="discuss-messages-wrap" aria-label="Сообщения">
+            <div class="discuss-messages-scroll-chrome" aria-hidden="true">
+              <div class="scroll-progress-track">
+                <div id="discuss-messages-scroll-progress" class="scroll-progress-fill"></div>
+              </div>
+              <div id="discuss-messages-scroll-depth" class="scroll-depth-indicator hidden"></div>
+            </div>
             <ul id="discuss-messages-list" class="discuss-messages-list"></ul>
             <p id="discuss-messages-empty" class="discuss-messages-empty">Пока нет сообщений</p>
+            <button
+              id="discuss-messages-scroll-top-btn"
+              class="discuss-messages-scroll-top-btn scroll-top-btn"
+              type="button"
+              title="Наверх"
+              aria-label="Прокрутить сообщения наверх"
+              aria-hidden="true"
+              tabindex="-1"
+            >
+              <span class="scroll-top-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 19V5"></path>
+                  <path d="M5 12l7-7 7 7"></path>
+                </svg>
+              </span>
+              <span class="scroll-top-btn-label">Наверх</span>
+            </button>
           </section>
 
           <footer class="discuss-composer">
@@ -2778,8 +2832,8 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.266"></script>
-    <script src="/discuss-panel.js?v=0.5.226"></script>
+    <script src="/main.js?v=0.5.267"></script>
+    <script src="/discuss-panel.js?v=0.5.228"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>
