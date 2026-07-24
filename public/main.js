@@ -342,6 +342,8 @@ function removeYamlPanelLabel() {
 
 removeYamlPanelLabel();
 const propsFormFieldsNode = document.getElementById("props-form-fields");
+const editorCustomPropsBarNode = document.getElementById("editor-custom-props-bar");
+const editorCustomPropsFieldsNode = document.getElementById("editor-custom-props-fields");
 const propsYamlToggleBtn = document.getElementById("props-yaml-toggle");
 const propsAddFieldBtn = document.getElementById("props-add-field-btn");
 const propsEditSchemaBtn = document.getElementById("props-edit-schema-btn");
@@ -2185,9 +2187,7 @@ function syncNodeDescriptionHintUi() {
 
   titleNode.textContent = "Назначение, описание, инструкции, правила, документация, промт, роль";
   textNode.innerHTML =
-    "Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева. " +
-    "Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент, " +
-    "ниже — полный текст (кнопка «Читать все»).";
+    "Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.";
 }
 
 function openSelectedAgentWorkspaceView() {
@@ -25559,6 +25559,27 @@ function isAwnFieldKey(key) {
   return /^awn-/i.test(String(key || "").trim());
 }
 
+function isEditorCustomPropsFieldKey(key) {
+  const entryKey = normalizePropsKey(key);
+  if (!entryKey || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
+  if (entryKey === "awn-preview" || entryKey === "awn-attachments") return false;
+  return !isAwnFieldKey(entryKey);
+}
+
+function shouldShowEditorCustomPropsBar() {
+  if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return false;
+  if (propsRawYamlVisible) return false;
+  if (!canEditPropsForm()) return false;
+  return true;
+}
+
+function getPropsFormFieldContainers() {
+  const containers = [];
+  if (propsFormFieldsNode) containers.push(propsFormFieldsNode);
+  if (editorCustomPropsFieldsNode) containers.push(editorCustomPropsFieldsNode);
+  return containers;
+}
+
 function sortPropsFieldKeys(keys) {
   const list = [...keys];
   const standardKeys = getStandardPropsFieldKeys();
@@ -26066,6 +26087,57 @@ function buildFieldLabelElement(
   return label;
 }
 
+function buildPropsFieldKeyLabelElement(
+  key,
+  meta,
+  {
+    tag = "label",
+    className = "props-form-field-label props-form-field-label--with-key",
+    required = false,
+    title = ""
+  } = {}
+) {
+  const { key: normalizedKey, label: displayLabel } = getPropsFieldOverviewLabel(key);
+  const label = document.createElement(tag);
+  label.className = className;
+  if (required) label.classList.add("is-required");
+
+  const icon = resolveFieldLabelIcon(meta.typeId || meta.fieldDef?.type, key);
+  if (icon) {
+    label.classList.add("has-field-icon");
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "field-label-icon";
+    iconSpan.textContent = icon;
+    iconSpan.setAttribute("aria-hidden", "true");
+    label.appendChild(iconSpan);
+  }
+
+  const keyNode = document.createElement("span");
+  keyNode.className = "props-form-field-key-id";
+  keyNode.textContent = normalizedKey || key;
+  label.appendChild(keyNode);
+
+  const nameLabel =
+    displayLabel || (meta.label && String(meta.label).trim().toLowerCase() !== normalizedKey.toLowerCase()
+      ? meta.label
+      : "");
+  if (nameLabel) {
+    const labelNode = document.createElement("span");
+    labelNode.className = "props-form-field-key-label";
+    labelNode.textContent = ` (${nameLabel})`;
+    label.appendChild(labelNode);
+  }
+
+  if (title) {
+    label.title = title;
+  } else if (meta.hint) {
+    label.title = `${normalizedKey} — ${meta.hint}`;
+  } else {
+    label.title = nameLabel ? `${normalizedKey} — ${nameLabel}` : normalizedKey;
+  }
+  return label;
+}
+
 function awnEnumOptionsApi() {
   return globalThis.AwnEnumOptions || {};
 }
@@ -26420,6 +26492,74 @@ function getPropsFieldDef(key) {
   if (!normalized) return null;
   const typeDef = getActiveAwnTypeDef();
   return typeDef?.fields?.[normalized] || null;
+}
+
+function findPropsFieldDefInTopicSchemaTargets(key, cache = getTopicSchemaCache()) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || !cache) return null;
+
+  for (const { id } of getTopicSchemaTargetSpecs()) {
+    const merged = resolveTopicSchemaMergedType(id, cache);
+    const fieldDef = merged?.fields?.[normalized];
+    if (fieldDef) return fieldDef;
+  }
+
+  const sidecarMerged = resolveTopicSchemaMergedType("sidecar", cache);
+  return sidecarMerged?.fields?.[normalized] || null;
+}
+
+function isPropsFieldDefinedInActiveSchema(key) {
+  return Boolean(getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key));
+}
+
+function resolvePropsFieldDefForOverview(key) {
+  return getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key);
+}
+
+function getPropsFieldOverviewLabel(key) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return { key: String(key || "").trim(), label: "" };
+
+  const fieldDef = resolvePropsFieldDefForOverview(normalized);
+  let label = "";
+  if (fieldDef) {
+    label = getFieldDefDisplayName(fieldDef, normalized);
+  } else if (PROPS_FIELD_META[normalized]?.label) {
+    label = PROPS_FIELD_META[normalized].label;
+  } else {
+    const meta = getPropsFieldMeta(normalized);
+    if (meta?.label && meta.label !== normalized) label = meta.label;
+  }
+
+  if (label && label.trim().toLowerCase() === normalized.toLowerCase()) label = "";
+  return { key: normalized, label: label.trim() };
+}
+
+function formatPropsOverviewEnumValue(rawValue, fieldDef) {
+  if (!fieldDef) return null;
+  const options = getEnumOptionsForField(fieldDef);
+  if (!options.length) return null;
+
+  const api = awnEnumOptionsApi();
+  const raw = String(rawValue ?? "").trim();
+  if (!raw) return null;
+
+  const resolveOptionLabel = (storedKey) => {
+    const normalizedKey = normalizeEnumDisplayValue(storedKey, options);
+    for (const option of options) {
+      const optionKey = typeof api.enumOptionKey === "function" ? api.enumOptionKey(option) : option;
+      if (optionKey !== normalizedKey) continue;
+      return typeof api.enumOptionName === "function" ? api.enumOptionName(option) : String(option);
+    }
+    return null;
+  };
+
+  if (Array.isArray(rawValue)) {
+    const labels = rawValue.map((part) => resolveOptionLabel(part)).filter(Boolean);
+    return labels.length ? labels.join(", ") : null;
+  }
+
+  return resolveOptionLabel(raw);
 }
 
 function isPropsFieldLocked(key, fieldDef = getPropsFieldDef(key)) {
@@ -27823,8 +27963,6 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Инструкция для агента · markdown",
         items: [
-          "Превью в обзоре режется строкой <code>---</code>",
-          "Выше — краткий фрагмент, ниже — «Читать все»",
           "Картинки в тексте: <code>![alt](awn-storage/assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
           `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
@@ -28119,7 +28257,9 @@ function applyPropsFormViewMode() {
       propsInputNode.classList.add("hidden");
       setPropsYamlToggleLabel("Показать YAML");
     } else if (
-      propsFormFieldsNode?.querySelector('.props-form-value-wrap[data-field="value"], input[data-field="value"]')
+      getPropsFormFieldContainers().some((container) =>
+        container?.querySelector('.props-form-value-wrap[data-field="value"], input[data-field="value"]')
+      )
     ) {
       readPropsFormIntoEntries();
     }
@@ -28368,9 +28508,94 @@ function savePropsGroupCollapseState(groupId, isCollapsed) {
   }
 }
 
+function renderEditorCustomPropsBar() {
+  if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return;
+
+  editorCustomPropsFieldsNode.replaceChildren();
+  const showBar = shouldShowEditorCustomPropsBar();
+  if (!showBar) {
+    editorCustomPropsBarNode.classList.add("hidden");
+    return;
+  }
+
+  const userItems = [];
+  for (let index = 0; index < propsFormEntries.length; index += 1) {
+    const entry = propsFormEntries[index];
+    if (!isEditorCustomPropsFieldKey(entry.key)) continue;
+    userItems.push({ entry, index });
+  }
+
+  if (!userItems.length) {
+    editorCustomPropsBarNode.classList.add("hidden");
+    return;
+  }
+
+  editorCustomPropsBarNode.classList.remove("hidden");
+  const readOnly = isPropsFormReadOnly();
+  editorCustomPropsFieldsNode.classList.toggle("is-readonly", readOnly);
+
+  if (readOnly) {
+    const list = document.createElement("div");
+    list.className = "props-preview-list props-preview-list--compact editor-custom-props-preview";
+
+    for (const { entry, index } of userItems) {
+      const meta = getPropsFieldMeta(entry.key);
+      const displayValue = getPropsEntryOverviewDisplayValue(entry, entry.key);
+
+      const field = document.createElement("div");
+      field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
+      field.dataset.index = String(index);
+      field.title = entry.key || "";
+      if (!isPropsFieldDefinedInActiveSchema(entry.key)) {
+        field.classList.add("is-schema-undefined");
+      }
+
+      const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
+        tag: "span",
+        className: "props-preview-label props-preview-label--with-key"
+      });
+
+      const value = document.createElement("span");
+      value.className = "props-preview-value";
+      value.textContent = displayValue;
+      value.classList.toggle("is-empty", displayValue === "—");
+
+      field.append(label, value);
+      list.appendChild(field);
+    }
+    editorCustomPropsFieldsNode.appendChild(list);
+    return;
+  }
+
+  const needsPropsLibrary = userItems.some(({ entry }) => {
+    const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
+    return widget === "link" || widget === "file";
+  });
+  if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode()) {
+    void ensurePropsLibrariesLoaded().then(() => {
+      if (shouldShowEditorCustomPropsBar() && !propsRawYamlVisible) renderEditorCustomPropsBar();
+    });
+  }
+
+  for (const { entry, index } of userItems) {
+    const row = createPropsFormFieldRow(entry, index, { showFieldKey: true });
+    row.classList.add("editor-custom-props-field");
+    if (!isPropsFieldDefinedInActiveSchema(entry.key)) {
+      row.classList.add("is-schema-undefined");
+      row.title = "Свойство не определено в схеме слота";
+    }
+    editorCustomPropsFieldsNode.appendChild(row);
+  }
+}
+
 function renderPropsForm() {
-  if (!propsFormFieldsNode) return;
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
+  renderEditorCustomPropsBar();
+  if (!propsFormFieldsNode) return;
+  if (!shouldRenderPropsFormNow()) {
+    propsFormFieldsNode.replaceChildren();
+    return;
+  }
   renderPropsPreviewBlock();
   renderPropsAttachmentsBlock();
   propsFormFieldsNode.innerHTML = "";
@@ -28393,12 +28618,13 @@ function renderPropsForm() {
 
     for (let index = 0; index < propsFormEntries.length; index += 1) {
       const entry = propsFormEntries[index];
-      const meta = getPropsFieldMeta(entry.key);
-      const displayValue = getPropsEntryDisplayValue(entry);
-
-      if (normalizePropsKey(entry.key) === "awn-preview") {
+      const entryKey = normalizePropsKey(entry.key);
+      if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
         continue;
       }
+      if (!isAwnFieldKey(entryKey)) continue;
+      const meta = getPropsFieldMeta(entry.key);
+      const displayValue = getPropsEntryDisplayValue(entry);
 
       const field = document.createElement("div");
       field.className = "props-preview-field props-preview-field--compact";
@@ -28421,7 +28647,14 @@ function renderPropsForm() {
       field.append(label, value);
       list.appendChild(field);
     }
-    propsFormFieldsNode.appendChild(list);
+    if (!list.childElementCount) {
+      const empty = document.createElement("p");
+      empty.className = "props-form-empty props-form-empty--editor-custom-hint";
+      empty.textContent = "AWN-свойств пока нет.";
+      propsFormFieldsNode.appendChild(empty);
+    } else {
+      propsFormFieldsNode.appendChild(list);
+    }
     return;
   }
 
@@ -28430,7 +28663,10 @@ function renderPropsForm() {
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
     const entryKey = normalizePropsKey(entry.key);
-    if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
+    if (entryKey === "awn-preview" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
+      continue;
+    }
+    if (!isAwnFieldKey(entryKey)) continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
       standardEntries.push({ entry, index });
     } else {
@@ -28537,6 +28773,15 @@ function renderPropsForm() {
   for (const [gid, items] of grouped) {
     if (renderedGroups.has(gid) || !items.length) continue;
     appendPropsFieldGroup({ id: gid, name: null }, items, { collapsible: false });
+  }
+
+  if (!standardEntries.length && !customEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "props-form-empty props-form-empty--editor-custom-hint";
+    empty.textContent = readOnly
+      ? "AWN-свойств пока нет."
+      : "Пользовательские поля — над текстом. Здесь только AWN.";
+    propsFormFieldsNode.appendChild(empty);
   }
 
   syncRuntimePropsFormVisibility();
@@ -31436,7 +31681,7 @@ function syncRuntimePropsFormVisibility() {
   }
 }
 
-function createPropsFormFieldRow(entry, index) {
+function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
   const meta = getPropsFieldMeta(entry.key);
   const normalizedKey = normalizePropsKey(entry.key);
   const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
@@ -31460,14 +31705,16 @@ function createPropsFormFieldRow(entry, index) {
   head.className = "props-form-field-head";
 
   if (entry.key && !isPreviewField) {
-    const label = buildFieldLabelElement(meta.label || entry.key, {
-      tag: "label",
-      className: "props-form-field-label",
-      typeId: meta.typeId || meta.fieldDef?.type,
-      key: entry.key,
-      required: meta.required,
-      title: meta.hint ? `${entry.key} — ${meta.hint}` : entry.key
-    });
+    const label = showFieldKey
+      ? buildPropsFieldKeyLabelElement(entry.key, meta, { required: meta.required })
+      : buildFieldLabelElement(meta.label || entry.key, {
+          tag: "label",
+          className: "props-form-field-label",
+          typeId: meta.typeId || meta.fieldDef?.type,
+          key: entry.key,
+          required: meta.required,
+          title: meta.hint ? `${entry.key} — ${meta.hint}` : entry.key
+        });
     head.appendChild(label);
   } else if (!entry.key) {
     const keyInput = document.createElement("input");
@@ -31512,53 +31759,73 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
   }
   if (shouldRenderPropsFormNow()) {
     renderPropsForm();
-  } else if (propsFormFieldsNode) {
-    // Панель «Свойства» не отрисована — очищаем DOM, чтобы save не прочитал устаревшие поля другой темы.
-    propsFormFieldsNode.replaceChildren();
+  } else {
+    renderEditorCustomPropsBar();
+    if (propsFormFieldsNode) {
+      // Панель «Свойства» не отрисована — очищаем DOM, чтобы save не прочитал устаревшие поля другой темы.
+      propsFormFieldsNode.replaceChildren();
+    }
   }
 }
 
 function isPropsFormDomMounted() {
-  if (!propsFormFieldsNode || propsRawYamlVisible) return false;
-  return propsFormFieldsNode.querySelectorAll(".props-form-row").length > 0;
+  if (propsRawYamlVisible) return false;
+  return getPropsFormFieldContainers().some(
+    (container) => container.querySelectorAll(".props-form-row").length > 0
+  );
+}
+
+function readPropsFormRowEntry(row, baseEntry) {
+  const index = Number(row.dataset.index);
+  const keyInput = row.querySelector('[data-field="key"]');
+  const valueWrap = row.querySelector('.props-form-value-wrap[data-field="value"]');
+  const valueInput = row.querySelector('input[data-field="value"]:not([data-link-manual])');
+  const keyCode = row.querySelector(".props-form-field-key");
+  const base = baseEntry || { kind: "string", value: "" };
+  const key = normalizePropsKey(
+    keyInput
+      ? keyInput.value.trim()
+      : (row.dataset.propKey || keyCode?.textContent || base.key || "").trim()
+  );
+  let entry = { ...base, key };
+  const fieldDef = getPropsFieldDef(key);
+  if (fieldDef) {
+    entry.kind = fieldDefToEntryKind(fieldDef);
+  }
+  if (valueWrap) {
+    entry = applyFormValueToEntry(entry, readPropsFormValueFromControl(valueWrap));
+    entry.key = key;
+  } else if (valueInput) {
+    entry = applyFormValueToEntry(entry, valueInput.value);
+    entry.key = key;
+  }
+  return { index, entry };
 }
 
 function readPropsFormIntoEntries() {
-  if (!propsFormFieldsNode) return;
-  const rows = [...propsFormFieldsNode.querySelectorAll(".props-form-row")].sort(
-    (a, b) => Number(a.dataset.index) - Number(b.dataset.index)
+  const rows = getPropsFormFieldContainers().flatMap((container) =>
+    container ? [...container.querySelectorAll(".props-form-row")] : []
   );
   if (!rows.length) return;
-  const nextEntries = [];
 
-  rows.forEach((row) => {
+  const nextEntries = propsFormEntries.map((entry) => ({ ...entry }));
+
+  for (const row of rows) {
     const index = Number(row.dataset.index);
-    const keyInput = row.querySelector('[data-field="key"]');
-    const valueWrap = row.querySelector('.props-form-value-wrap[data-field="value"]');
-    const valueInput = row.querySelector('input[data-field="value"]:not([data-link-manual])');
-    const keyCode = row.querySelector(".props-form-field-key");
-    const base = propsFormEntries[index] || { kind: "string", value: "" };
-    const key = normalizePropsKey(
-      keyInput
-        ? keyInput.value.trim()
-        : (row.dataset.propKey || keyCode?.textContent || base.key || "").trim()
-    );
-    let entry = { ...base, key };
-    const fieldDef = getPropsFieldDef(key);
-    if (fieldDef) {
-      entry.kind = fieldDefToEntryKind(fieldDef);
-    }
-    if (valueWrap) {
-      entry = applyFormValueToEntry(entry, readPropsFormValueFromControl(valueWrap));
-      entry.key = key;
-    } else if (valueInput) {
-      entry = applyFormValueToEntry(entry, valueInput.value);
-      entry.key = key;
-    }
-    if (key || getPropsEntryDisplayValue(entry).trim()) {
+    const base =
+      Number.isFinite(index) && index >= 0
+        ? nextEntries[index] || propsFormEntries[index] || { kind: "string", value: "" }
+        : { kind: "string", value: "" };
+    const { entry } = readPropsFormRowEntry(row, base);
+    if (Number.isFinite(index) && index >= 0) {
+      while (nextEntries.length <= index) {
+        nextEntries.push({ key: "", kind: "string", value: "" });
+      }
+      nextEntries[index] = entry;
+    } else if (entry.key || getPropsEntryDisplayValue(entry).trim()) {
       nextEntries.push(entry);
     }
-  });
+  }
 
   propsFormEntries = mergePropsPreviewIntoEntries(nextEntries);
   propsFormEntries = mergePropsAttachmentsIntoEntries(propsFormEntries);
@@ -33512,17 +33779,94 @@ function resolveNodeOverviewPropsEntries() {
   return normalizePropsEntries(parsePropsYaml(propsInputNode.value || ""));
 }
 
-function getPropsEntryOverviewDisplayValue(entry) {
+function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   if (!entry) return "—";
   if (entry.kind === "null" || entry.value === null) return "—";
-  if (entry.kind === "bool") return entry.value ? "true" : "false";
+  if (entry.kind === "bool") return entry.value ? "Да" : "Нет";
   if (entry.kind === "array") {
+    const fieldDef = resolvePropsFieldDefForOverview(key);
+    const enumLabel = formatPropsOverviewEnumValue(entry.value, fieldDef);
+    if (enumLabel) return enumLabel;
     const text = (entry.value || []).map(String).filter((part) => part.trim()).join(", ");
     return text || "—";
   }
   if (entry.kind === "number") return String(entry.value);
+
+  const fieldDef = resolvePropsFieldDefForOverview(key);
+  const enumLabel = formatPropsOverviewEnumValue(entry.value, fieldDef);
+  if (enumLabel) return enumLabel;
+
   const text = String(entry.value ?? "").trim();
   return text || "—";
+}
+
+function appendNodeOverviewMetaKeyCell(container, key) {
+  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key);
+
+  const keyNode = document.createElement("span");
+  keyNode.className = "node-overview-meta-key-id";
+  keyNode.textContent = normalizedKey || key;
+  container.appendChild(keyNode);
+
+  if (label) {
+    const labelNode = document.createElement("span");
+    labelNode.className = "node-overview-meta-key-label";
+    labelNode.textContent = ` (${label})`;
+    container.appendChild(labelNode);
+    container.title = `${normalizedKey} — ${label}`;
+  } else {
+    container.title = normalizedKey || key;
+  }
+}
+
+function appendNodeOverviewMetaValueCell(container, item) {
+  const fieldDef = resolvePropsFieldDefForOverview(item.key);
+  const rawValue = item.rawValue ?? item.value;
+  const hasEnumOptions = Boolean(getEnumOptionsForField(fieldDef).length);
+  const enumLabel =
+    hasEnumOptions && rawValue && rawValue !== "—"
+      ? formatPropsOverviewEnumValue(rawValue, fieldDef)
+      : null;
+
+  container.classList.add("node-overview-meta-value");
+  if (item.value === "—") container.classList.add("is-empty");
+
+  const valueNode = document.createElement("span");
+  valueNode.className = "node-overview-meta-value-text";
+  if (enumLabel) valueNode.classList.add("node-overview-meta-value-enum");
+  valueNode.textContent = item.value;
+  container.appendChild(valueNode);
+}
+
+function renderNodeOverviewMetaTable(metaItems) {
+  if (!metaItems.length) return null;
+
+  const list = document.createElement("div");
+  list.className = "node-overview-meta-rows";
+  for (const item of metaItems) {
+    const row = document.createElement("div");
+    row.className = "node-overview-meta-row";
+
+    const keyCell = document.createElement("div");
+    keyCell.className = "node-overview-meta-key";
+    appendNodeOverviewMetaKeyCell(keyCell, item.key);
+
+    const valCell = document.createElement("div");
+    appendNodeOverviewMetaValueCell(valCell, item);
+
+    if (!isPropsFieldDefinedInActiveSchema(item.key)) {
+      row.classList.add("is-schema-undefined");
+      const schemaHint = "Свойство не определено в схеме слота";
+      if (!keyCell.title.includes(schemaHint)) {
+        keyCell.title = keyCell.title ? `${keyCell.title} · ${schemaHint}` : schemaHint;
+      }
+      valCell.title = schemaHint;
+    }
+
+    row.append(keyCell, valCell);
+    list.appendChild(row);
+  }
+  return list;
 }
 
 function collectNodeOverviewMetaItems(entries) {
@@ -33537,7 +33881,12 @@ function collectNodeOverviewMetaItems(entries) {
   const pushKey = (key) => {
     if (!key || seen.has(key) || !map.has(key)) return;
     seen.add(key);
-    items.push({ key, value: getPropsEntryOverviewDisplayValue(map.get(key)) });
+    const entry = map.get(key);
+    items.push({
+      key,
+      value: getPropsEntryOverviewDisplayValue(entry, key),
+      rawValue: getPropsEntryDisplayValue(entry)
+    });
   };
 
   for (const key of getStandardPropsFieldKeys()) {
@@ -33558,27 +33907,6 @@ function splitNodeOverviewMetaItems(entries) {
     else customItems.push(item);
   }
   return { awnItems, customItems };
-}
-
-function renderNodeOverviewMetaTable(metaItems) {
-  if (!metaItems.length) return null;
-
-  const metaTable = document.createElement("table");
-  metaTable.className = "node-overview-meta-table";
-  const tbody = document.createElement("tbody");
-  for (const item of metaItems) {
-    const row = document.createElement("tr");
-    const keyCell = document.createElement("th");
-    keyCell.scope = "row";
-    keyCell.textContent = item.key;
-    const valCell = document.createElement("td");
-    valCell.textContent = item.value;
-    if (item.value === "—") valCell.classList.add("is-empty");
-    row.append(keyCell, valCell);
-    tbody.appendChild(row);
-  }
-  metaTable.appendChild(tbody);
-  return metaTable;
 }
 
 function renderNodeOverviewCustomPropsSection(customItems) {
@@ -36150,35 +36478,15 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   ).trim();
   if (!content) return null;
 
-  const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
-
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest node-entry-overview-manifest";
 
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
-  setMarkdownPreviewHtml(preview, previewText, { nodePath });
+  setMarkdownPreviewHtml(preview, content, { nodePath });
   wrap.appendChild(preview);
 
   if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
-
-  if (isTruncated) {
-    const actions = document.createElement("div");
-    actions.className = "node-navigation-manifest-actions";
-
-    const expandBtn = document.createElement("button");
-    expandBtn.type = "button";
-    expandBtn.className = "node-navigation-expand-btn node-overview-action-btn";
-    expandBtn.textContent = "Читать все";
-    expandBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      setMarkdownPreviewHtml(preview, fullText, { nodePath });
-      actions.remove();
-    });
-
-    actions.appendChild(expandBtn);
-    wrap.appendChild(actions);
-  }
 
   return wrap;
 }
@@ -38126,29 +38434,6 @@ function renderNavigationMediaPart(mediaData) {
   return createNavigationMemoryPanel("media", "Медиа", body, mediaData);
 }
 
-function splitNavigationManifestAtHorizontalRule(content) {
-  const text = String(content || "").trim();
-  if (!text) return { previewText: "", fullText: "", isTruncated: false };
-
-  const lines = text.split(/\r?\n/);
-  const hrIndex = lines.findIndex((line) => /^\s*---\s*$/.test(line));
-  if (hrIndex === -1) {
-    return { previewText: text, fullText: text, isTruncated: false };
-  }
-
-  const previewText = lines.slice(0, hrIndex).join("\n").trim();
-  const afterText = lines.slice(hrIndex + 1).join("\n").trim();
-  if (!afterText) {
-    return { previewText: text, fullText: text, isTruncated: false };
-  }
-
-  return {
-    previewText,
-    fullText: text,
-    isTruncated: true
-  };
-}
-
 function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
   const { body } = splitFrontmatter(manifestRaw);
   const content = stripLeadingDuplicateMarkdownHeading(
@@ -38163,31 +38448,12 @@ function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
     return null;
   }
 
-  const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
   const nodePath = getResolvedNodePath(activePath);
 
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview node-navigation-agent-instruction file-content-preview";
-  setMarkdownPreviewHtml(preview, previewText, { nodePath });
+  setMarkdownPreviewHtml(preview, content, { nodePath });
   wrap.appendChild(preview);
-
-  if (isTruncated) {
-    const actions = document.createElement("div");
-    actions.className = "node-navigation-manifest-actions";
-
-    const expandBtn = document.createElement("button");
-    expandBtn.type = "button";
-    expandBtn.className = "node-navigation-expand-btn node-overview-action-btn";
-    expandBtn.textContent = "Читать все";
-    expandBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      setMarkdownPreviewHtml(preview, fullText, { nodePath });
-      actions.remove();
-    });
-
-    actions.appendChild(expandBtn);
-    wrap.appendChild(actions);
-  }
 
   return createNavigationMemoryPanel("description", "Инструкция для агента", wrap);
 }
@@ -39194,72 +39460,20 @@ async function syncExternalFileCommentsBlock() {
   const host = externalFileCommentsBlockNode;
   if (!host) return;
 
-  if (!isExternalFileEditing() || !activePath || !activeExternalFilePath) {
-    host.classList.add("hidden");
-    host.replaceChildren();
-    return;
-  }
-
-  host.classList.remove("hidden");
-  const seq = ++externalFileCommentsRenderSeq;
-  const filePath = activeExternalFilePath;
-  const title = getLabelFromPath(filePath) || filePath.split("/").pop() || "файл";
-
+  // Комментарии к записи — только в обзоре (entry overview), не под редактором.
+  externalFileCommentsRenderSeq += 1;
+  host.classList.add("hidden");
   host.replaceChildren();
-  const loading = document.createElement("p");
-  loading.className = "external-file-comments-loading";
-  loading.textContent = "Загрузка комментариев…";
-  host.appendChild(loading);
-
-  try {
-    await appendNodeCommentsBlockToContainer(host, {
-      manifestPath: getActiveNodeApiPath(),
-      nodeTitle: title,
-      mode: "external",
-      file: filePath
-    });
-    if (seq !== externalFileCommentsRenderSeq) return;
-    loading.remove();
-  } catch (error) {
-    if (seq !== externalFileCommentsRenderSeq) return;
-    loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
-  }
 }
 
 async function syncMediaFileCommentsBlock() {
   const host = mediaFileCommentsBlockNode;
   if (!host) return;
 
-  if (!isMediaAssetEditing() || !activePath || !activeMediaSidecarSourcePath) {
-    host.classList.add("hidden");
-    host.replaceChildren();
-    return;
-  }
-
-  host.classList.remove("hidden");
-  const seq = ++mediaFileCommentsRenderSeq;
-  const filePath = activeMediaSidecarSourcePath;
-  const title = getLabelFromPath(filePath) || filePath.split("/").pop() || "медиа";
-
+  // Комментарии к медиафайлу — только в обзоре записи, не под редактором.
+  mediaFileCommentsRenderSeq += 1;
+  host.classList.add("hidden");
   host.replaceChildren();
-  const loading = document.createElement("p");
-  loading.className = "media-file-comments-loading";
-  loading.textContent = "Загрузка комментариев…";
-  host.appendChild(loading);
-
-  try {
-    await appendNodeCommentsBlockToContainer(host, {
-      manifestPath: getActiveNodeApiPath(),
-      nodeTitle: title,
-      mode: "media",
-      file: filePath
-    });
-    if (seq !== mediaFileCommentsRenderSeq) return;
-    loading.remove();
-  } catch (error) {
-    if (seq !== mediaFileCommentsRenderSeq) return;
-    loading.textContent = `Не удалось загрузить комментарии: ${error.message}`;
-  }
 }
 
 async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
@@ -55432,20 +55646,21 @@ propsAddFieldBtn?.addEventListener("click", () => {
   propsFormEntries.push({ key: "", kind: "string", value: "" });
   syncYamlFromPropsForm();
   renderPropsForm();
-  const lastInput = propsFormFieldsNode?.querySelector(".props-form-row:last-child .props-form-key-input");
+  const lastInput =
+    editorCustomPropsFieldsNode?.querySelector(".props-form-row:last-child .props-form-key-input") ||
+    propsFormFieldsNode?.querySelector(".props-form-row:last-child .props-form-key-input");
   lastInput?.focus();
 });
 propsEditSchemaBtn?.addEventListener("click", openTopicSchemaFromPropsAside);
-propsFormFieldsNode?.addEventListener("input", () => {
+function handlePropsFormFieldsInput() {
   readPropsFormIntoEntries();
   syncYamlFromPropsForm();
   syncSaveButtonLamp();
-});
-propsFormFieldsNode?.addEventListener("change", () => {
-  readPropsFormIntoEntries();
-  syncYamlFromPropsForm();
-  syncSaveButtonLamp();
-});
+}
+propsFormFieldsNode?.addEventListener("input", handlePropsFormFieldsInput);
+propsFormFieldsNode?.addEventListener("change", handlePropsFormFieldsInput);
+editorCustomPropsFieldsNode?.addEventListener("input", handlePropsFormFieldsInput);
+editorCustomPropsFieldsNode?.addEventListener("change", handlePropsFormFieldsInput);
 propsInputNode?.addEventListener("input", () => {
   if (!propsRawYamlVisible) return;
   absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));

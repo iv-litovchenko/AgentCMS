@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.98" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.107" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -1702,8 +1702,6 @@
                   <p class="doc-slab-hint-title">Назначение, описание, инструкции, правила, документация, промт, роль</p>
                   <p class="doc-slab-hint-text">
                     Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
-                    Отдельная строка <code>---</code> ограничивает превью в обзоре: выше разделителя — краткий фрагмент,
-                    ниже — полный текст (кнопка «Читать все»).
                   </p>
                 </section>
               </div>
@@ -1799,6 +1797,9 @@
                   </footer>
                 </div>
               </section>
+              <div id="editor-custom-props-bar" class="editor-custom-props-bar hidden" aria-label="Пользовательские свойства">
+                <div id="editor-custom-props-fields" class="editor-custom-props-fields props-form-fields"></div>
+              </div>
               <div class="editor-surface">
                 <div id="agent-system-type-inspector" class="agent-system-type-inspector hidden" aria-label="Схема типа"></div>
                 <div id="editor-code-wrap" class="editor-code-wrap">
@@ -2734,7 +2735,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.248"></script>
+    <script src="/main.js?v=0.5.257"></script>
     <script src="/discuss-panel.js?v=0.5.226"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
