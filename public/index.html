@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.107" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.113" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -1704,6 +1704,12 @@
                     Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
                   </p>
                 </section>
+                <section id="system-file-hint" class="doc-slab doc-slab-hint hidden" aria-label="Подсказка к системному файлу">
+                  <p class="doc-slab-hint-title"></p>
+                  <p class="doc-slab-hint-text"></p>
+                  <pre class="doc-slab-hint-example hidden"></pre>
+                  <button type="button" class="doc-slab-hint-action hidden">Вставить шаблон</button>
+                </section>
               </div>
 
               <section class="doc-slab doc-slab-content">
@@ -2051,6 +2057,17 @@
 
         <aside id="discuss-aside" class="discuss-aside" aria-label="Панель обсуждения">
           <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели обсуждения" tabindex="0"></div>
+          <div
+            id="discuss-agent-preview-wrap"
+            class="discuss-agent-preview-wrap agent-preview-wrap agent-preview-portrait hidden"
+            title="Превью агента"
+            aria-hidden="true"
+          >
+            <div class="agent-preview-frame">
+              <img id="discuss-agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+              <span class="agent-preview-shine" aria-hidden="true"></span>
+            </div>
+          </div>
           <header class="discuss-aside-head">
             <div class="discuss-aside-tabs" role="tablist" aria-label="Панель справа">
               <button
@@ -2735,7 +2752,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.257"></script>
+    <script src="/main.js?v=0.5.264"></script>
     <script src="/discuss-panel.js?v=0.5.226"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

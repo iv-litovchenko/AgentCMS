@@ -652,7 +652,22 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     manifest:
       "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/main.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
     content:
-      "id,label,color\ngeneral,Общее,#64748b\nproject,Проекты,#2563eb\nreference,Справочники,#7c3aed\n"
+      "id,label,color\n" +
+      "general,Общее (по умолчанию),#64748b\n" +
+      "system,Системное (агент),#475569\n" +
+      "work,Работа и проекты,#2563eb\n" +
+      "finance,Финансы,#059669\n" +
+      "education,Образование,#7c3aed\n" +
+      "health,Здоровье,#e11d48\n" +
+      "hobby,Хобби,#d97706\n" +
+      "collections,Коллекции,#8b5cf6\n" +
+      "family,Семья,#db2777\n" +
+      "documents,Документы,#6366f1\n" +
+      "travel,Путешествия,#0ea5e9\n" +
+      "media,Медиа,#a855f7\n" +
+      "creative,Творчество,#f97316\n" +
+      "documentation,Документация,#94a3b8\n" +
+      "focus,Фокус и продуктивность,#14b8a6\n"
   },
   {
     preset: "tags",

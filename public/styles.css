@@ -14470,8 +14470,7 @@ body.app-locked {
 
 /* Редактор / просмотр / исходник: doc-body-grid уже на всю ширину — без второго бокового inset */
 .doc-body-main .doc-slab-content:has(> .doc-slab-main > .editor-surface:not(.hidden)) {
-  padding-left: 0;
-  padding-right: 0;
+  padding: 0;
   --doc-slab-content-inline-inset: 0px;
 }
 
@@ -16715,6 +16714,29 @@ body.app-locked {
 .node-navigation-hero > .node-overview-props-fold:last-child {
   border-bottom-left-radius: 13px;
   border-bottom-right-radius: 13px;
+}
+
+.node-navigation-hero > .node-overview-props-fold:has(+ .node-entry-overview-attachments) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.node-navigation-hero > .node-entry-overview-attachments {
+  margin: 0;
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.node-navigation-hero > .node-entry-overview-attachments:last-child {
+  border-bottom-left-radius: 13px;
+  border-bottom-right-radius: 13px;
+}
+
+.node-navigation-hero > .node-overview-props-custom:has(+ .node-entry-overview-attachments):last-of-type {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .node-overview-hero > .node-overview-props-fold:last-child {
@@ -19566,6 +19588,44 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 4px;
   background: rgba(254, 243, 199, 0.85);
   color: #92400e;
+}
+
+.doc-slab-hint-example {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(254, 243, 199, 0.55);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #78350f;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.doc-slab-hint-example.hidden {
+  display: none;
+}
+
+.doc-slab-hint-action {
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  cursor: pointer;
+}
+
+.doc-slab-hint-action:hover {
+  background: #fef3c7;
+}
+
+.doc-slab-hint-action.hidden {
+  display: none;
 }
 
 .doc-slab-toolbar {
@@ -30257,6 +30317,54 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .discuss-aside-view.is-active {
   display: flex;
+}
+
+.discuss-agent-preview-wrap {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.discuss-aside > .discuss-agent-preview-wrap.agent-preview-wrap {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #0f172a;
+}
+
+.discuss-aside > .discuss-agent-preview-wrap.agent-preview-portrait:not(.hidden) {
+  animation: none;
+}
+
+.discuss-aside > .discuss-agent-preview-wrap .agent-preview-frame {
+  border-radius: 0;
+  height: auto;
+  max-height: none;
+}
+
+.discuss-aside > .discuss-agent-preview-wrap .agent-preview-thumb {
+  display: block;
+  width: 100%;
+  height: 120px;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 28%;
+}
+
+.discuss-agent-preview-wrap.agent-preview-openable {
+  cursor: pointer;
+}
+
+.discuss-agent-preview-wrap.agent-preview-openable:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
 }
 
 .discuss-aside-shell-view {

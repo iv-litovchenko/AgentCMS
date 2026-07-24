@@ -216,6 +216,44 @@ const attachmentSidecarCancelBtn = document.getElementById("attachment-sidecar-c
 const attachmentSidecarSaveBtn = document.getElementById("attachment-sidecar-save-btn");
 const docBodyGridNode = document.getElementById("doc-body-grid");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
+const systemFileHintNode = document.getElementById("system-file-hint");
+
+const RECOMMENDED_AGENT_GITIGNORE = `# Секреты — не коммитить
+.env
+.env.*
+!.env.example
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+
+# Кэш и временные файлы
+.cache/
+.awn-cache/
+tmp/
+temp/
+*.tmp
+*.log
+
+# Зависимости (если есть npm-скрипты)
+node_modules/
+
+# Слоты awn-storage — media и repository (крупные файлы, внешние накопители)
+**/awn-storage/**/media/
+**/awn-storage/**/repository/
+`;
+
+const RECOMMENDED_AGENT_ENV_TEMPLATE = `# KEY=value — без кавычек, по одной переменной на строку
+# Секреты храните здесь, не в markdown и frontmatter тем.
+
+API_TOKEN=
+INBOX_WEBHOOK_SECRET=
+`;
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
 const editorViewClusterNode = document.querySelector(".editor-view-cluster");
 const editorViewToggleNode = document.getElementById("editor-view-toggle");
@@ -444,6 +482,8 @@ const agentsPickerPopoverCloseBtn = document.getElementById("agents-picker-popov
 const agentsPickerStageNode = document.getElementById("agents-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
+const discussAgentPreviewWrapNode = document.getElementById("discuss-agent-preview-wrap");
+const discussAgentPreviewThumbNode = document.getElementById("discuss-agent-preview-thumb");
 const appHomeLink = document.getElementById("app-home-link");
 const appHomeTitleNode = document.getElementById("app-home-title");
 const agentsRegistryModalNode = document.getElementById("agents-registry-modal");
@@ -2145,6 +2185,88 @@ function updateAgentPreviewCache(previewMeta) {
   };
 }
 
+function getSystemFileHintSpec(name) {
+  const normalized = normalizeSystemFileName(name);
+  if (normalized === ".gitignore") {
+    return {
+      title: "Git — что не попадает в репозиторий",
+      text:
+        "Корневой <code>.gitignore</code> workspace агента: секреты, кэш (<code>.awn-cache</code>), OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
+        "Контент тем (<code>awn-container/</code>, остальные слои <code>awn-storage/</code>) обычно коммитится — " +
+        "игнорируйте только то, что не должно уйти в git.",
+      example: RECOMMENDED_AGENT_GITIGNORE
+    };
+  }
+  if (normalized === ".env") {
+    return {
+      title: "Переменные окружения workspace",
+      text:
+        "Секреты, токены и ключи API — только здесь или в <code>.env</code> слота темы. " +
+        "Не храните пароли в markdown, frontmatter и памяти агента.",
+      example: RECOMMENDED_AGENT_ENV_TEMPLATE
+    };
+  }
+  return null;
+}
+
+function syncDocHeadBlockVisibility() {
+  const headBlock = document.querySelector(".doc-head-block");
+  if (!headBlock) return;
+  const hideHead =
+    titleEditorBlockNode?.classList.contains("hidden") &&
+    nodeDescriptionHintNode?.classList.contains("hidden") &&
+    systemFileHintNode?.classList.contains("hidden");
+  headBlock.classList.toggle("hidden", hideHead);
+}
+
+function insertSystemFileHintTemplate(template) {
+  if (!fileContentInputNode || !template) return;
+  const current = fileContentInputNode.value.trim();
+  if (current && !window.confirm("Заменить текущее содержимое рекомендуемым шаблоном?")) {
+    return;
+  }
+  fileContentInputNode.value = `${template.trim()}\n`;
+  fileContentInputNode.dispatchEvent(new Event("input", { bubbles: true }));
+  syncSaveButtonLamp();
+  fileContentInputNode.focus({ preventScroll: true });
+}
+
+function syncSystemFileHintUi() {
+  if (!systemFileHintNode) return;
+  const spec = activeSystemFile ? getSystemFileHintSpec(activeSystemFile) : null;
+  const visible = Boolean(spec && isPlainServiceStyleOpen() && activeSystemFile);
+
+  systemFileHintNode.classList.toggle("hidden", !visible);
+  nodeDescriptionHintNode?.classList.toggle("hidden", true);
+
+  const titleNode = systemFileHintNode.querySelector(".doc-slab-hint-title");
+  const textNode = systemFileHintNode.querySelector(".doc-slab-hint-text");
+  const exampleNode = systemFileHintNode.querySelector(".doc-slab-hint-example");
+  const actionBtn = systemFileHintNode.querySelector(".doc-slab-hint-action");
+  if (!titleNode || !textNode || !exampleNode || !actionBtn) {
+    syncDocHeadBlockVisibility();
+    return;
+  }
+
+  if (!visible) {
+    titleNode.textContent = "";
+    textNode.textContent = "";
+    exampleNode.textContent = "";
+    exampleNode.classList.add("hidden");
+    actionBtn.classList.add("hidden");
+    syncDocHeadBlockVisibility();
+    return;
+  }
+
+  titleNode.textContent = spec.title;
+  textNode.innerHTML = spec.text;
+  exampleNode.textContent = spec.example || "";
+  exampleNode.classList.toggle("hidden", !spec.example);
+  actionBtn.classList.toggle("hidden", !spec.example);
+  actionBtn.onclick = () => insertSystemFileHintTemplate(spec.example);
+  syncDocHeadBlockVisibility();
+}
+
 function syncNodeDescriptionHintUi() {
   if (!nodeDescriptionHintNode) return;
   const titleNode = nodeDescriptionHintNode.querySelector(".doc-slab-hint-title");
@@ -2210,15 +2332,27 @@ function syncAgentPreviewOpenUi() {
   const openHint = viewLabel ? `Открыть: ${viewLabel}` : "Открыть вид workspace";
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
 
-  for (const node of [agentPreviewWrapNode, agentPreviewPlaceholderNode]) {
+  for (const node of [agentPreviewWrapNode, agentPreviewPlaceholderNode, discussAgentPreviewWrapNode]) {
     if (!node) continue;
-    const isInteractive = openable && (node === agentPreviewWrapNode ? previewVisible : !previewVisible);
+    const isDiscussPreview = node === discussAgentPreviewWrapNode;
+    const isInteractive =
+      openable &&
+      (isDiscussPreview
+        ? previewVisible && !discussAgentPreviewWrapNode?.classList.contains("hidden")
+        : node === agentPreviewWrapNode
+          ? previewVisible
+          : !previewVisible);
     node.classList.toggle("agent-preview-openable", isInteractive);
     if (isInteractive) {
       node.setAttribute("role", "button");
       node.tabIndex = 0;
       node.setAttribute("aria-label", openHint);
-      node.title = node === agentPreviewPlaceholderNode ? `${openHint} (превью не задано)` : openHint;
+      node.title = isDiscussPreview
+        ? openHint
+        : node === agentPreviewPlaceholderNode
+          ? `${openHint} (превью не задано)`
+          : openHint;
+      if (isDiscussPreview) node.removeAttribute("aria-hidden");
     } else {
       node.classList.remove("agent-preview-openable");
       node.removeAttribute("role");
@@ -2226,6 +2360,9 @@ function syncAgentPreviewOpenUi() {
       node.removeAttribute("aria-label");
       if (node === agentPreviewWrapNode) {
         node.title = "Превью агента";
+      } else if (isDiscussPreview) {
+        node.title = "Превью агента";
+        if (node.classList.contains("hidden")) node.setAttribute("aria-hidden", "true");
       } else {
         const agent = getActiveAgentMeta();
         const label = String(agent?.name || agent?.id || "").trim();
@@ -2242,7 +2379,11 @@ function syncAgentPreviewPlaceholder({ broken = false } = {}) {
 }
 
 function syncAgentPreview(previewMeta = null) {
-  if (!agentPreviewThumbNode || !agentPreviewWrapNode) return;
+  const targets = [
+    { wrap: agentPreviewWrapNode, thumb: agentPreviewThumbNode, primary: true },
+    { wrap: discussAgentPreviewWrapNode, thumb: discussAgentPreviewThumbNode, primary: false }
+  ].filter((target) => target.wrap && target.thumb);
+  if (!targets.length) return;
 
   const agent = getActiveAgentMeta();
   const hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
@@ -2258,37 +2399,43 @@ function syncAgentPreview(previewMeta = null) {
       appendCacheBuster(appendAgentToApiUrl(previewUrl)),
       MEDIA_THUMB_MAX_PREVIEW
     );
-    const currentSrc = agentPreviewThumbNode.getAttribute("src") || "";
-    const srcChanged = currentSrc !== nextSrc;
-    const alreadyLoaded = !srcChanged && agentPreviewThumbNode.complete;
 
-    agentPreviewWrapNode.classList.remove("hidden");
-    if (srcChanged) {
-      agentPreviewWrapNode.classList.remove("is-revealed");
+    for (const target of targets) {
+      const currentSrc = target.thumb.getAttribute("src") || "";
+      const srcChanged = currentSrc !== nextSrc;
+      const alreadyLoaded = !srcChanged && target.thumb.complete;
+
+      target.wrap.classList.remove("hidden");
+      if (srcChanged) target.wrap.classList.remove("is-revealed");
+
+      target.thumb.onerror = () => {
+        target.wrap.classList.add("hidden");
+        target.wrap.classList.remove("is-revealed");
+        target.thumb.removeAttribute("src");
+        if (target.primary) syncAgentPreviewPlaceholder({ broken: true });
+      };
+      target.thumb.onload = () => {
+        target.thumb.onerror = null;
+        target.wrap.classList.add("is-revealed");
+        if (target.primary) syncAgentPreviewPlaceholder({ broken: false });
+      };
+
+      if (srcChanged) {
+        target.thumb.src = nextSrc;
+      } else if (alreadyLoaded && !target.wrap.classList.contains("is-revealed")) {
+        target.wrap.classList.add("is-revealed");
+      }
     }
-    agentPreviewThumbNode.onerror = () => {
-      agentPreviewWrapNode.classList.add("hidden");
-      agentPreviewWrapNode.classList.remove("is-revealed");
-      agentPreviewThumbNode.removeAttribute("src");
-      syncAgentPreviewPlaceholder({ broken: true });
-    };
-    agentPreviewThumbNode.onload = () => {
-      agentPreviewThumbNode.onerror = null;
-      agentPreviewWrapNode.classList.add("is-revealed");
-      syncAgentPreviewPlaceholder({ broken: false });
-    };
-    if (srcChanged) {
-      agentPreviewThumbNode.src = nextSrc;
-    } else if (alreadyLoaded && !agentPreviewWrapNode.classList.contains("is-revealed")) {
-      agentPreviewWrapNode.classList.add("is-revealed");
-    }
+
     syncAgentPreviewOpenUi();
     return;
   }
 
-  agentPreviewWrapNode.classList.add("hidden");
-  agentPreviewWrapNode.classList.remove("is-revealed");
-  agentPreviewThumbNode.removeAttribute("src");
+  for (const target of targets) {
+    target.wrap.classList.add("hidden");
+    target.wrap.classList.remove("is-revealed");
+    target.thumb.removeAttribute("src");
+  }
   syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
   syncAgentPreviewOpenUi();
 }
@@ -12825,7 +12972,8 @@ function createMenuTreeTypeIcon(host) {
     return icon;
   }
   if (host.classList.contains("menu-folder-service-root")) {
-    return null;
+    icon.classList.add("menu-tree-type-icon--folder");
+    return icon;
   }
   if (host.classList.contains("menu-folder--adopt")) {
     icon.classList.add("menu-tree-type-icon--folder", "menu-tree-type-icon--folder-adopt");
@@ -20638,12 +20786,32 @@ function formatExternalTableParent(item) {
   return parent;
 }
 
+function formatExternalTableFilePathBasenames(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "—";
+  const paths = raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!paths.length) return "—";
+  return paths
+    .map((path) => {
+      const normalized = path.replace(/\\/g, "/");
+      return normalized.split("/").pop() || normalized;
+    })
+    .join(", ");
+}
+
 function formatExternalTablePropDisplay(column, item) {
   const entries = Array.isArray(item.props) ? item.props : [];
   let value = getPropsEntryValueByKey(entries, column.key);
   if (!value && column.key === "awn-status") value = String(item.status || "").trim();
   if (!value && column.key === "awn-tags") value = String(item.tags || "").trim();
   if (!value) return "—";
+
+  if (column.key === "awn-attachments" || column.typeId === "awn.file") {
+    return formatExternalTableFilePathBasenames(value);
+  }
 
   if (column.key === "awn-type") {
     const typeDef = awnTypesCache?.types?.[value];
@@ -20704,6 +20872,13 @@ function appendExternalTableSchemaCell(row, column, item) {
   }
 
   cell.textContent = formatExternalTablePropDisplay(column, item);
+  if (column.key === "awn-attachments" || column.typeId === "awn.file") {
+    const entries = Array.isArray(item.props) ? item.props : [];
+    const fullValue = getPropsEntryValueByKey(entries, column.key);
+    if (fullValue && fullValue !== cell.textContent) {
+      cell.title = fullValue.replace(/,\s*/g, "\n");
+    }
+  }
   row.appendChild(cell);
 }
 
@@ -32756,6 +32931,7 @@ function applySystemFileUi() {
   syncEditorViewButtonsAvailability(false, false);
   applyEditorViewMode();
   syncSaveButtonLamp();
+  syncSystemFileHintUi();
 }
 
 function clearSystemFileViewUi() {
@@ -32768,6 +32944,7 @@ function clearSystemFileViewUi() {
   }
   saveSystemFileBtn?.classList.add("hidden");
   saveContentBtn?.classList.remove("hidden");
+  systemFileHintNode?.classList.add("hidden");
 }
 
 function syncGitRepoLooseMdPathHeaderUi() {
@@ -36548,6 +36725,17 @@ function renderEntryOverviewAttachmentsPart(entries, rawBody) {
   return section;
 }
 
+function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
+  const attachmentsPanel = renderEntryOverviewAttachmentsPart(entries, rawBody);
+  if (!attachmentsPanel || !hero) return null;
+  const anchor =
+    hero.querySelector(".node-overview-awn-props-fold") ||
+    hero.querySelector(".node-overview-props-custom");
+  if (anchor) anchor.insertAdjacentElement("afterend", attachmentsPanel);
+  else hero.appendChild(attachmentsPanel);
+  return attachmentsPanel;
+}
+
 function formatEntryOverviewHeroPathLabel(entries, relativePath) {
   const slug = getPropsEntryValueByKey(entries, "awn-slug");
   if (slug) return `slug: ${slug}`;
@@ -38092,7 +38280,7 @@ async function renderEntryOverview() {
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
-  hub.appendChild(
+  const hero =
     context.entryKind === "awn.media.asset"
       ? createEntryOverviewMediaAssetPanel(context, title, entries, nodeMeta, navigationIndex, {
           entryOverviewNav
@@ -38105,8 +38293,9 @@ async function renderEntryOverview() {
           showWorkspaceMarkers: false,
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav
-        })
-  );
+        });
+  hub.appendChild(hero);
+  appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
 
   await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
   if (isStale()) return;
@@ -38124,9 +38313,6 @@ async function renderEntryOverview() {
 
   const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   if (contentPanel) hub.appendChild(contentPanel);
-
-  const attachmentsPanel = renderEntryOverviewAttachmentsPart(entries, rawBody);
-  if (attachmentsPanel) hub.appendChild(attachmentsPanel);
 
   const topicManifestPath = getActiveNodeApiPath();
   nodeOverviewContentNode.replaceChildren(hub);
@@ -41253,11 +41439,8 @@ function applyModeUi() {
     activeContentMode !== "description" || previewMode || overviewLikeMode || isServiceStyleContentOpen()
   );
   syncNodeDescriptionHintUi();
-  document.querySelector(".doc-head-block")?.classList.toggle(
-    "hidden",
-    titleEditorBlockNode?.classList.contains("hidden") &&
-      nodeDescriptionHintNode?.classList.contains("hidden")
-  );
+  systemFileHintNode?.classList.add("hidden");
+  syncDocHeadBlockVisibility();
   const hideEditorViewToggle =
     forceEditOnly ||
     activeContentMode === "tabular" ||
@@ -45264,9 +45447,9 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   headRow.className = "menu-folder-row menu-service-head";
 
   const visibleChildren = getVisibleMenuChildren(treeToRender);
-  const hasContent = visibleChildren.length > 0 || Boolean(treeToRender.indexPath);
-  const collapsed = queryLower ? false : isServiceTreeCollapsed();
   const serviceManifestPath = treeToRender.indexPath || getServiceRootManifestPath();
+  const hasContent = visibleChildren.length > 0 || Boolean(serviceManifestPath);
+  const collapsed = queryLower ? false : isServiceTreeCollapsed();
 
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleServiceTreeCollapsed));
 
@@ -45370,9 +45553,9 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   headRow.className = "menu-folder-row menu-shared-head";
 
   const visibleChildren = getVisibleMenuChildren(treeToRender);
-  const hasContent = visibleChildren.length > 0 || Boolean(treeToRender.indexPath);
-  const collapsed = queryLower ? false : isSharedTreeCollapsed();
   const sharedManifestPath = treeToRender.indexPath || getSharedRootManifestPath();
+  const hasContent = visibleChildren.length > 0 || Boolean(sharedManifestPath);
+  const collapsed = queryLower ? false : isSharedTreeCollapsed();
 
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleSharedTreeCollapsed));
 
@@ -55485,6 +55668,8 @@ function openAgentTodoPreviewForEdit() {
 
 agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 agentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
+discussAgentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
+discussAgentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentTodoPreviewEditBtn?.addEventListener("click", (event) => {

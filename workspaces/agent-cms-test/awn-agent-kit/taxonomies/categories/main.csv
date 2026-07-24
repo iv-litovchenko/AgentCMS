@@ -1,0 +1,16 @@
+id,label,color
+general,Общее (по умолчанию),#64748b
+system,Системное (агент),#475569
+work,Работа и проекты,#2563eb
+finance,Финансы,#059669
+education,Образование,#7c3aed
+health,Здоровье,#e11d48
+hobby,Хобби,#d97706
+collections,Коллекции,#8b5cf6
+family,Семья,#db2777
+documents,Документы,#6366f1
+travel,Путешествия,#0ea5e9
+media,Медиа,#a855f7
+creative,Творчество,#f97316
+documentation,Документация,#94a3b8
+focus,Фокус и продуктивность,#14b8a6

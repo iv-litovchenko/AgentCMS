@@ -1,12 +1,16 @@
 id,label
-daily,Ежедневное
-idea,Идеи
-general,Общее
-project,Проекты
-reference,Справочники
-collections,collections
-dev,dev
-education,education
-focus,focus
-fun,fun
-system,system
+general,Общее (по умолчанию)
+system,Системное (агент)
+work,Работа и проекты
+finance,Финансы
+education,Образование
+health,Здоровье
+hobby,Хобби
+collections,Коллекции
+family,Семья
+documents,Документы
+travel,Путешествия
+media,Медиа
+creative,Творчество
+documentation,Документация
+focus,Фокус и продуктивность
