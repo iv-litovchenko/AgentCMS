@@ -205,7 +205,7 @@ const workspacePrintBtn = document.getElementById("workspace-print-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
-const titleEditorBlockNode = document.getElementById("title-editor-block");
+const titleEditorBlockNode = document.getElementById("editor-title-bar");
 const propsPreviewBlockNode = document.getElementById("props-preview-block");
 const propsAttachmentsBlockNode = document.getElementById("props-attachments-block");
 const attachmentSidecarModalNode = document.getElementById("attachment-sidecar-modal");
@@ -7458,6 +7458,12 @@ const NODE_THREAD_MODE = "thread";
 let activeEntryOverviewContext = null;
 let entryOverviewSearchQuery = "";
 let entryOverviewSearchState = null;
+const NAVIGATION_SECTION_SEARCH_MIN_ITEMS = 4;
+const NAVIGATION_EXTERNAL_SEARCH_MIN_ITEMS = 6;
+let navigationSubsectionsSearchQuery = "";
+let navigationExternalTocSearchQuery = "";
+/** @type {{ items: object[], folderLabels: Map, folderStatuses: Map, folderPaths: Set } | null} */
+let navigationExternalTocState = null;
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let lastNonTocEntryOverviewContext = null;
 
@@ -8656,9 +8662,37 @@ function findScanFolderForSlotKey(slotKey, folders = []) {
     name: matched.map((folder) => folder.name).join("+"),
     canonical: matched[0].canonical || matched[0].name,
     entryCount: matched.reduce((sum, folder) => sum + (Number(folder.entryCount) || 0), 0),
+    subfolderCount: matched.reduce((sum, folder) => sum + (Number(folder.subfolderCount) || 0), 0),
     slotKey,
     matched: true
   };
+}
+
+function applyRepositoryStorageSlotTreeCount(container, count) {
+  const btn = container?.querySelector('.storage-slot-tree-item[data-storage-slot="repository"]');
+  if (!btn) return;
+  const label = btn.querySelector(".media-section-tree-label")?.textContent?.trim() || "Репозитории";
+  const normalized = Number(count) || 0;
+  const badge = btn.querySelector(".media-section-tree-count");
+  if (badge) {
+    badge.textContent = normalized > 0 ? String(normalized) : "";
+    badge.dataset.baseCount = String(normalized);
+  }
+  btn.title = getRepositorySlotCounterTitle(label, normalized);
+}
+
+function refreshRepositoryStorageSlotTreeCount(container, manifestPath = getActiveNodeApiPath()) {
+  if (!container || !manifestPath) return;
+  void fetchFolderViewSummary(manifestPath, "repository").then((summary) => {
+    if (!container.isConnected) return;
+    if (
+      container.dataset.storageScanManifest &&
+      container.dataset.storageScanManifest !== String(manifestPath)
+    ) {
+      return;
+    }
+    applyRepositoryStorageSlotTreeCount(container, summary.subfolders);
+  });
 }
 
 function markScanFoldersConsumedForSlotKey(consumed, slotKey, folders = []) {
@@ -8945,6 +8979,12 @@ function getListViewMountRoot(mode = activeContentMode) {
   return listViewContentNode;
 }
 
+function getRepositoryStorageSlotScanCount(folder) {
+  const subfolders = Number(folder?.subfolderCount);
+  if (Number.isFinite(subfolders) && subfolders >= 0) return subfolders;
+  return Number(folder?.entryCount) || 0;
+}
+
 function getDataStorageSlotCountForScan(spec, folder, bundleSlot = null) {
   if (isStorageSlotCountOnly(spec)) {
     return Number(folder?.entryCount) || 0;
@@ -8953,8 +8993,22 @@ function getDataStorageSlotCountForScan(spec, folder, bundleSlot = null) {
     const count = Number(bundleSlot?.entryCount) || 0;
     return count > 0 ? count : null;
   }
+  if (spec?.key === "repository") {
+    const count = getRepositoryStorageSlotScanCount(folder);
+    return count > 0 ? count : null;
+  }
   const entryCount = Number(folder?.entryCount);
   return entryCount > 0 ? entryCount : null;
+}
+
+function getRepositorySlotCounterTitle(label, count) {
+  if (count <= 0) return `${label}: пусто`;
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  let noun = "репозиториев";
+  if (mod10 === 1 && mod100 !== 11) noun = "репозиторий";
+  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) noun = "репозитория";
+  return `${label}: ${count} ${noun}`;
 }
 
 function setActiveDataStorageSlotFromOverview(spec) {
@@ -9103,6 +9157,9 @@ function appendStorageSlotTreeItem(
   }
   const badge = btn.querySelector(".media-section-tree-count");
   if (badge && count !== null) badge.dataset.baseCount = String(count);
+  if (spec?.key === "repository" && count !== null) {
+    btn.title = getRepositorySlotCounterTitle(label, count);
+  }
 
   if (
     !disabled &&
@@ -9241,7 +9298,16 @@ function updateStorageSlotTreeCounts(container, scan = {}) {
       badge.textContent = "";
       delete badge.dataset.baseCount;
     }
+    if (spec?.key === "repository" && count !== null) {
+      const label = btn.querySelector(".media-section-tree-label")?.textContent?.trim() || spec.label;
+      btn.title = getRepositorySlotCounterTitle(label, count);
+    }
   });
+
+  refreshRepositoryStorageSlotTreeCount(
+    container,
+    container.dataset.storageScanManifest || getActiveNodeApiPath()
+  );
 }
 
 function renderStorageSlotTreeContent(
@@ -9336,6 +9402,7 @@ function renderStorageSlotTreeContent(
   ensureStorageTreePolicyFooter(container, activeContentMode);
   if (!useEntryOverviewNavigation) syncListViewHead();
   syncDataHubSharedContextBanner(getDataHubPanelBodyNode(), scan);
+  refreshRepositoryStorageSlotTreeCount(container, manifestPath);
 }
 
 async function renderStorageSlotTree(container, options = {}) {
@@ -9474,6 +9541,8 @@ let mediaAssetsExists = true;
 let activeStorageFolderExists = true;
 let externalFilesCache = [];
 let externalFoldersCache = [];
+let externalSectionSortOrders = {};
+let mediaSectionSortOrders = {};
 let tabularDataCache = { columns: [], rows: [], rowCount: 0 };
 let activeMemorySummary = null;
 let nodeOverviewRenderSeq = 0;
@@ -10480,6 +10549,14 @@ function createHeroTitleRow(title, statusRaw = "", options = {}) {
   titleText.className = options.titleTextClass || "node-navigation-hero-title-text";
   titleText.textContent = title;
   titleNode.appendChild(titleText);
+  const attachmentsCount =
+    options.attachmentsCount ?? countPropEntriesAttachments(options.propEntries || []);
+  const attachmentsBadge = createAttachmentsCountBadge(attachmentsCount, {
+    extraClass: "node-navigation-hero-attachments-badge"
+  });
+  if (attachmentsBadge) {
+    titleNode.appendChild(attachmentsBadge);
+  }
   row.appendChild(titleNode);
   return row;
 }
@@ -12993,6 +13070,7 @@ function createMenuTreeTypeIcon(host) {
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
   host.replaceChildren();
   host.classList.remove("has-menu-tree-status", "has-menu-runtime-badges");
+  host.title = String(labelText || "");
 
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
@@ -19036,6 +19114,12 @@ function mapMemorySectionFolderPaths(folderPaths) {
 
 function buildMemorySectionForest(flatSections) {
   const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
+  const sortOrders =
+    activeContentMode === "external"
+      ? externalSectionSortOrders
+      : activeContentMode === "media"
+        ? mediaSectionSortOrders
+        : {};
   const byPath = new Map();
   for (const section of flatSections) {
     byPath.set(section.folderPath, { ...section, children: [] });
@@ -19054,11 +19138,25 @@ function buildMemorySectionForest(flatSections) {
     }
   }
 
-  function sortNodes(nodes) {
-    nodes.sort((a, b) => collator.compare(a.folderPath, b.folderPath));
-    for (const node of nodes) sortNodes(node.children);
+  function sortNodes(nodes, parentPath) {
+    const order = sortOrders?.[parentPath || ""];
+    if (Array.isArray(order) && order.length) {
+      nodes.sort((a, b) => {
+        const aKey = a.folderPath.split("/").filter(Boolean).pop() || a.folderPath;
+        const bKey = b.folderPath.split("/").filter(Boolean).pop() || b.folderPath;
+        const ai = order.indexOf(aKey);
+        const bi = order.indexOf(bKey);
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        if (ai >= 0) return -1;
+        if (bi >= 0) return 1;
+        return collator.compare(a.folderPath, b.folderPath);
+      });
+    } else {
+      nodes.sort((a, b) => collator.compare(a.folderPath, b.folderPath));
+    }
+    for (const node of nodes) sortNodes(node.children, node.folderPath);
   }
-  sortNodes(roots);
+  sortNodes(roots, "");
   return roots;
 }
 
@@ -19122,6 +19220,20 @@ function syncExternalListSectionHead(sectionFolder) {
   }
 
   head.appendChild(title);
+
+  const searchWrap = createNavigationSectionSearchInput({
+    value: externalListFilterQuery,
+    placeholder: "Поиск по записям...",
+    ariaLabel: "Поиск по записям многофайловой памяти",
+    onInput: (value) => {
+      externalListFilterQuery = value;
+      const toolbarInput = main?.querySelector(".external-list-filter-input");
+      if (toolbarInput && toolbarInput.value !== value) toolbarInput.value = value;
+      rerenderExternalListViewBody();
+    }
+  });
+  head.appendChild(searchWrap);
+
   host.appendChild(head);
 }
 
@@ -19706,6 +19818,7 @@ function syncMediaViewSelectOptions() {
 
 function rerenderMediaListViewBody() {
   if (activeContentMode !== "media" || isMediaAssetEditing()) return;
+  syncMediaSectionTreeFromCaches();
   const body = listViewContentNode.querySelector(".media-list-view-body");
   if (body) {
     body.innerHTML = "";
@@ -19787,6 +19900,469 @@ function getMemorySectionUnregisteredTitle(sectionFolder, { context = "tree" } =
     return `Раздел «${segment}» без ${AREA_MANIFEST_FILE} — создайте описание раздела, чтобы открыть каталог`;
   }
   return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — нажмите ⚙, чтобы создать описание раздела`;
+}
+
+const MEMORY_FILE_DRAG_MIME = "application/x-yamlcms-memory-file";
+const MEMORY_SECTION_DRAG_SELECTOR =
+  ".media-section-tree-item[data-external-section], .media-section-tree-item[data-media-section]";
+let memorySectionSortDragRow = null;
+let memorySectionMoveDragBtn = null;
+let memorySectionMoveDropTargetBtn = null;
+let memoryFileDragPayload = null;
+
+function createMemoryFileDragHandle() {
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "memory-file-drag-handle menu-sort-handle";
+  handle.draggable = true;
+  handle.textContent = "⠿";
+  handle.title = "Перетащите в раздел";
+  handle.setAttribute("aria-label", "Перетащите в раздел");
+  handle.addEventListener("mousedown", (event) => event.stopPropagation());
+  handle.addEventListener("click", (event) => event.stopPropagation());
+  return handle;
+}
+
+function createMemorySectionSortHandle() {
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "memory-section-sort-handle menu-sort-handle";
+  handle.draggable = true;
+  handle.textContent = "⠿";
+  handle.title = "Перетащить для сортировки";
+  handle.setAttribute("aria-label", "Перетащить для сортировки");
+  handle.addEventListener("mousedown", (event) => event.stopPropagation());
+  handle.addEventListener("click", (event) => event.stopPropagation());
+  return handle;
+}
+
+function getMemorySectionFolderPathFromRow(row) {
+  const btn = row?.querySelector(MEMORY_SECTION_DRAG_SELECTOR);
+  return btn?.dataset.externalSection || btn?.dataset.mediaSection || "";
+}
+
+function getMemorySectionParentPath(folderPath) {
+  const parts = String(folderPath || "").split("/").filter(Boolean);
+  parts.pop();
+  return parts.join("/");
+}
+
+function getMemorySectionDepth(folderPath) {
+  return String(folderPath || "").split("/").filter(Boolean).length;
+}
+
+function isMemorySectionDirectChild(folderPath, parentPath) {
+  const parts = String(folderPath || "").split("/").filter(Boolean);
+  const parentParts = String(parentPath || "").split("/").filter(Boolean);
+  return parts.length === parentParts.length + 1 && getMemorySectionParentPath(folderPath) === parentPath;
+}
+
+function getMemorySectionSortBlockRows(row) {
+  const folderPath = getMemorySectionFolderPathFromRow(row);
+  if (!folderPath) return [row];
+  const depth = getMemorySectionDepth(folderPath);
+  const rows = [row];
+  let next = row.nextElementSibling;
+  while (next?.classList.contains("memory-section-sort-row")) {
+    const nextPath = getMemorySectionFolderPathFromRow(next);
+    if (!nextPath || getMemorySectionDepth(nextPath) <= depth) break;
+    rows.push(next);
+    next = next.nextElementSibling;
+  }
+  return rows;
+}
+
+function insertMemorySectionSortBlock(list, blockRows, targetRow, insertBefore) {
+  const fragment = document.createDocumentFragment();
+  for (const blockRow of blockRows) fragment.appendChild(blockRow);
+  if (insertBefore) list.insertBefore(fragment, targetRow);
+  else {
+    const targetBlock = getMemorySectionSortBlockRows(targetRow);
+    const after = targetBlock[targetBlock.length - 1]?.nextSibling || null;
+    list.insertBefore(fragment, after);
+  }
+}
+
+function collectMemorySectionSortOrder(list, parentPath) {
+  const order = [];
+  for (const row of list.querySelectorAll(".memory-section-sort-row")) {
+    const folderPath = getMemorySectionFolderPathFromRow(row);
+    if (!folderPath || !isMemorySectionDirectChild(folderPath, parentPath)) continue;
+    const key = folderPath.split("/").filter(Boolean).pop();
+    if (key) order.push(key);
+  }
+  return order;
+}
+
+function getMemorySectionSortScope(tree) {
+  if (tree?.classList.contains("external-section-tree")) {
+    return { type: "external", folder: "" };
+  }
+  if (tree?.classList.contains("flat-storage-section-tree")) return null;
+  if (tree?.classList.contains("media-section-tree")) {
+    const folder = isMediaLibraryContentMode() ? getMediaLibraryStorageSubfolder() : STORAGE_SUBFOLDER_MEDIA;
+    return {
+      type: "media",
+      folder: folder === STORAGE_SUBFOLDER_MEDIA ? "" : folder
+    };
+  }
+  return null;
+}
+
+async function persistMemorySectionSortOrder(list, parentPath, scope) {
+  const apiBase = getMemorySectionApiBase(scope);
+  if (!apiBase) {
+    showToast("Не удалось определить область сортировки", "error");
+    return;
+  }
+  const order = collectMemorySectionSortOrder(list, parentPath);
+  if (!order.length) {
+    showToast("Не удалось определить порядок разделов", "error");
+    return;
+  }
+  const body = { path: getActiveNodeApiPath(), parent: parentPath || "", order };
+  if (scope.type === "storage" || (scope.type === "media" && scope.folder)) body.folder = scope.folder;
+  try {
+    const response = await fetch(buildApiUrl(`${apiBase}/sort`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    await refreshMemorySectionViews({
+      externalMode: scope.type === "external",
+      mediaMode: scope.type === "media",
+      storageMode: scope.type === "storage" ? activeContentMode : null
+    });
+  } catch (error) {
+    showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
+    if (scope.type === "external") await refreshExternalMemoryCaches().catch(() => {});
+    else if (scope.type === "media") await refreshMediaCache().catch(() => {});
+    if (scope.type === "external") {
+      ensureExternalSectionTree(list.closest(".external-section-tree"));
+    } else if (scope.type === "media") {
+      ensureMediaSectionTree(list.closest(".media-section-tree"));
+    }
+  }
+}
+
+function clearMemorySectionMoveDropTarget() {
+  if (!memorySectionMoveDropTargetBtn) return;
+  memorySectionMoveDropTargetBtn.classList.remove("is-memory-section-move-drop-target");
+  memorySectionMoveDropTargetBtn = null;
+}
+
+function setMemorySectionMoveDropTarget(btn) {
+  if (memorySectionMoveDropTargetBtn === btn) return;
+  clearMemorySectionMoveDropTarget();
+  if (!btn) return;
+  memorySectionMoveDropTargetBtn = btn;
+  btn.classList.add("is-memory-section-move-drop-target");
+}
+
+function resolveMemorySectionDragMove(sourceSection, targetSection) {
+  const source = String(sourceSection || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  const target = String(targetSection || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  if (!source || !target || source === target) return null;
+  if (source.startsWith(`${target}/`) || target.startsWith(`${source}/`)) return null;
+  if (getMemorySectionParentPath(source) === target) return null;
+  return { source, target, parentPath: target };
+}
+
+function buildMemoryFileMoveTargetPath(filePath, targetSectionFolder) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const fileName = normalized.split("/").filter(Boolean).pop() || normalized;
+  const section = String(targetSectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  return section ? `${section}/${fileName}` : fileName;
+}
+
+function getMemoryFileParentPath(filePath) {
+  const parts = String(filePath || "").replace(/\\/g, "/").split("/").filter(Boolean);
+  parts.pop();
+  return parts.join("/");
+}
+
+function decorateMemorySectionSortRows(tree) {
+  if (!tree) return;
+  const scope = getMemorySectionSortScope(tree);
+  if (!scope) return;
+  tree.querySelectorAll(".memory-section-sort-handle").forEach((handle) => handle.remove());
+  tree.querySelectorAll(".memory-section-sort-row").forEach((row) => {
+    row.classList.remove("memory-section-sort-row", "is-dragging");
+    delete row.dataset.sortSection;
+  });
+  tree.querySelectorAll(MEMORY_SECTION_DRAG_SELECTOR).forEach((btn) => {
+    const folderPath = btn.dataset.externalSection || btn.dataset.mediaSection;
+    if (!folderPath) return;
+    const row = btn.closest(".media-section-tree-row");
+    if (!row) return;
+    row.classList.add("memory-section-sort-row");
+    row.dataset.sortSection = folderPath;
+    if (!row.querySelector(".memory-section-sort-handle")) {
+      row.insertBefore(createMemorySectionSortHandle(), btn);
+    }
+    btn.draggable = true;
+    if (!btn.dataset.sectionMoveHint) {
+      btn.dataset.sectionMoveHint = "1";
+      const hint = "Перетащите на другой раздел для перемещения";
+      btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
+    }
+  });
+}
+
+async function moveExternalFileToSection(filePath, targetSectionFolder) {
+  const nextPath = buildMemoryFileMoveTargetPath(filePath, targetSectionFolder);
+  if (nextPath === filePath) return;
+  const data = await moveExternalMemoryRecord(filePath, {
+    targetPath: getActiveNodeApiPath(),
+    targetFile: nextPath
+  });
+  notifyMarkdownLinkRewrite(data.linkRewrite);
+  await refreshExternalMemoryCaches();
+  if (activeExternalFilePath === filePath) {
+    activeExternalFilePath = data.file;
+    await openExternalFile(data.file);
+  } else {
+    rerenderExternalListViewBody();
+  }
+  showToast("Перемещено", "success");
+}
+
+async function moveMediaFileToSection(filePath, targetSectionFolder) {
+  const nextPath = buildMemoryFileMoveTargetPath(filePath, targetSectionFolder);
+  if (nextPath === filePath) return;
+  const data = await moveMediaStorageRecord(filePath, {
+    targetPath: getActiveNodeApiPath(),
+    targetFile: nextPath
+  });
+  notifyMarkdownLinkRewrite(data.linkRewrite);
+  await refreshMediaCache();
+  if (activeMediaSidecarSourcePath === filePath) {
+    await openMediaAsset(data.file);
+  } else {
+    rerenderMediaListViewBody();
+    renderMediaListViewBody(listViewContentNode?.querySelector(".media-list-view-body"));
+  }
+  showToast("Перемещено", "success");
+}
+
+function setupMemoryListDragDrop() {
+  const root = listViewContentNode;
+  if (!root || root.dataset.memoryDragBound === "1") return;
+  root.dataset.memoryDragBound = "1";
+
+  root.addEventListener("dragstart", (event) => {
+    const sectionHandle = event.target.closest(".memory-section-sort-handle");
+    if (sectionHandle) {
+      const row = sectionHandle.closest(".memory-section-sort-row");
+      if (!row) {
+        event.preventDefault();
+        return;
+      }
+      memorySectionSortDragRow = row;
+      row.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", row.dataset.sortSection || "");
+      return;
+    }
+
+    const fileHandle = event.target.closest(".memory-file-drag-handle");
+    if (!fileHandle) return;
+    const payloadHost =
+      fileHandle.closest(".external-table-row") ||
+      fileHandle.closest(".external-list-item") ||
+      fileHandle.closest(".media-file-item");
+    const filePath = payloadHost?.dataset.memoryFilePath;
+    const scope = payloadHost?.dataset.memoryFileScope;
+    if (!filePath || !scope) {
+      event.preventDefault();
+      return;
+    }
+    memoryFileDragPayload = { filePath, scope };
+    payloadHost?.classList.add("is-dragging-memory-file");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      MEMORY_FILE_DRAG_MIME,
+      JSON.stringify({ filePath, scope })
+    );
+    event.dataTransfer.setData("text/plain", filePath);
+  });
+
+  root.addEventListener("dragstart", (event) => {
+    if (event.target.closest(".memory-section-sort-handle")) return;
+    const sectionBtn = event.target.closest(MEMORY_SECTION_DRAG_SELECTOR);
+    if (!sectionBtn) return;
+    const folderPath = sectionBtn.dataset.externalSection || sectionBtn.dataset.mediaSection;
+    if (!folderPath) return;
+    memorySectionMoveDragBtn = sectionBtn;
+    sectionBtn.classList.add("is-dragging-memory-section");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      MEMORY_FILE_DRAG_MIME,
+      JSON.stringify({ kind: "section", folderPath, externalMode: Boolean(sectionBtn.dataset.externalSection), mediaMode: Boolean(sectionBtn.dataset.mediaSection) })
+    );
+    event.dataTransfer.setData("text/plain", folderPath);
+  }, true);
+
+  root.addEventListener("dragover", (event) => {
+    if (memorySectionSortDragRow) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      const targetRow = event.target.closest(".memory-section-sort-row");
+      if (!targetRow || targetRow === memorySectionSortDragRow) return;
+      const dragPath = getMemorySectionFolderPathFromRow(memorySectionSortDragRow);
+      const targetPath = getMemorySectionFolderPathFromRow(targetRow);
+      if (!dragPath || !targetPath) return;
+      if (getMemorySectionParentPath(dragPath) !== getMemorySectionParentPath(targetPath)) return;
+      const list = targetRow.parentElement;
+      if (!list) return;
+      const blockRows = getMemorySectionSortBlockRows(memorySectionSortDragRow);
+      if (blockRows.includes(targetRow)) return;
+      const rect = targetRow.getBoundingClientRect();
+      insertMemorySectionSortBlock(list, blockRows, targetRow, event.clientY < rect.top + rect.height / 2);
+      return;
+    }
+
+    if (memorySectionMoveDragBtn) {
+      const targetBtn = event.target.closest(MEMORY_SECTION_DRAG_SELECTOR);
+      if (!targetBtn || targetBtn === memorySectionMoveDragBtn) {
+        clearMemorySectionMoveDropTarget();
+        return;
+      }
+      const move = resolveMemorySectionDragMove(
+        memorySectionMoveDragBtn.dataset.externalSection || memorySectionMoveDragBtn.dataset.mediaSection,
+        targetBtn.dataset.externalSection || targetBtn.dataset.mediaSection
+      );
+      if (!move) {
+        clearMemorySectionMoveDropTarget();
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setMemorySectionMoveDropTarget(targetBtn);
+      return;
+    }
+
+    if (!memoryFileDragPayload) return;
+    const targetBtn = event.target.closest(MEMORY_SECTION_DRAG_SELECTOR);
+    if (!targetBtn) return;
+    const targetSection = targetBtn.dataset.externalSection || targetBtn.dataset.mediaSection || "";
+    const { filePath, scope } = memoryFileDragPayload;
+    const sameScope =
+      (scope === "external" && targetBtn.dataset.externalSection != null) ||
+      (scope === "media" && targetBtn.dataset.mediaSection != null);
+    if (!sameScope) return;
+    if (getMemoryFileParentPath(filePath) === targetSection) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setMemorySectionMoveDropTarget(targetBtn);
+  });
+
+  root.addEventListener("dragleave", (event) => {
+    if (root.contains(event.relatedTarget)) return;
+    clearMemorySectionMoveDropTarget();
+  });
+
+  root.addEventListener("drop", async (event) => {
+    if (memorySectionSortDragRow) {
+      event.preventDefault();
+      const row = memorySectionSortDragRow;
+      const list = row.closest(".media-section-tree-list");
+      const tree = list?.closest(".media-section-tree");
+      const scope = getMemorySectionSortScope(tree);
+      const parentPath = getMemorySectionParentPath(getMemorySectionFolderPathFromRow(row));
+      row.classList.remove("is-dragging");
+      memorySectionSortDragRow = null;
+      if (!list || !scope) return;
+      await persistMemorySectionSortOrder(list, parentPath, scope);
+      return;
+    }
+
+    if (memorySectionMoveDragBtn) {
+      const targetBtn = event.target.closest(MEMORY_SECTION_DRAG_SELECTOR);
+      clearMemorySectionMoveDropTarget();
+      if (!targetBtn || targetBtn === memorySectionMoveDragBtn) return;
+      const move = resolveMemorySectionDragMove(
+        memorySectionMoveDragBtn.dataset.externalSection || memorySectionMoveDragBtn.dataset.mediaSection,
+        targetBtn.dataset.externalSection || targetBtn.dataset.mediaSection
+      );
+      if (!move) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const sourceLabel =
+        getMemorySectionDisplayLabel(move.source) || move.source.split("/").pop() || move.source;
+      const targetLabel =
+        getMemorySectionDisplayLabel(move.target) || move.target.split("/").pop() || move.target;
+      const confirmed = await askConfirm(
+        `Переместить «${sourceLabel}» в «${targetLabel}»?`,
+        { okLabel: "Подтвердить" }
+      );
+      if (!confirmed) return;
+      const state = {
+        sectionFolder: move.source,
+        externalMode: Boolean(memorySectionMoveDragBtn.dataset.externalSection),
+        mediaMode: Boolean(memorySectionMoveDragBtn.dataset.mediaSection),
+        label: sourceLabel
+      };
+      try {
+        const data = await moveMemorySectionApi(move.source, move.parentPath, state);
+        await refreshMemorySectionViews(state);
+        if (state.externalMode && data.sectionPath) activeExternalSectionFolder = data.sectionPath;
+        else if (state.mediaMode && data.sectionPath) activeMediaSectionFolder = data.sectionPath;
+        refreshStorageSlotTree();
+        showToast("Раздел перемещён", "success");
+      } catch (error) {
+        showToast(`Ошибка перемещения: ${error.message}`, "error");
+      }
+      return;
+    }
+
+    if (!memoryFileDragPayload) return;
+    const targetBtn = event.target.closest(MEMORY_SECTION_DRAG_SELECTOR);
+    clearMemorySectionMoveDropTarget();
+    if (!targetBtn) return;
+    const targetSection = targetBtn.dataset.externalSection ?? targetBtn.dataset.mediaSection ?? "";
+    const { filePath, scope } = memoryFileDragPayload;
+    const sameScope =
+      (scope === "external" && targetBtn.dataset.externalSection != null) ||
+      (scope === "media" && targetBtn.dataset.mediaSection != null);
+    if (!sameScope || getMemoryFileParentPath(filePath) === targetSection) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const fileLabel = getExternalListItemDisplayTitle({ path: filePath, title: filePath.split("/").pop() });
+    const sectionLabel =
+      getMemorySectionDisplayLabel(targetSection) || targetSection.split("/").pop() || "корень";
+    const confirmed = await askConfirm(
+      `Переместить «${fileLabel}» в «${sectionLabel}»?`,
+      { okLabel: "Подтвердить" }
+    );
+    if (!confirmed) return;
+    try {
+      if (scope === "external") await moveExternalFileToSection(filePath, targetSection);
+      else if (scope === "media") await moveMediaFileToSection(filePath, targetSection);
+    } catch (error) {
+      showToast(`Ошибка перемещения: ${error.message}`, "error");
+    }
+  });
+
+  root.addEventListener("dragend", () => {
+    if (memorySectionSortDragRow) {
+      memorySectionSortDragRow.classList.remove("is-dragging");
+      memorySectionSortDragRow = null;
+    }
+    if (memorySectionMoveDragBtn) {
+      memorySectionMoveDragBtn.classList.remove("is-dragging-memory-section");
+      memorySectionMoveDragBtn = null;
+    }
+    if (memoryFileDragPayload) {
+      root.querySelector(".is-dragging-memory-file")?.classList.remove("is-dragging-memory-file");
+      memoryFileDragPayload = null;
+    }
+    clearMemorySectionMoveDropTarget();
+  });
 }
 
 function appendMemorySectionTreeLabel(parent, label, { isUnregistered = false } = {}) {
@@ -19874,8 +20450,15 @@ function appendMediaSectionTreeItem(
 
 function ensureMediaSectionTree(container) {
   if (!container) return;
-  if (container.querySelector(":scope > .media-section-tree-list")) {
+  if (
+    container.querySelector(":scope > .media-section-tree-list") &&
+    !isMemorySectionTreeStale(container, {
+      getExpectedCount: () => getMediaUserSections().length,
+      datasetAttr: "media-section"
+    })
+  ) {
     syncMediaSectionTreeActiveState();
+    decorateMemorySectionSortRows(container);
     return;
   }
   renderMediaSectionTree(container);
@@ -19930,6 +20513,7 @@ function renderMediaSectionTree(container) {
     });
   }
   ensureStorageTreePolicyFooter(container, activeContentMode);
+  decorateMemorySectionSortRows(container);
 }
 
 function ensureMediaListViewLayout() {
@@ -20333,9 +20917,9 @@ function getExternalItemSortValue(item, key) {
   switch (key) {
     case EXTERNAL_TABLE_FILE_COLUMN_KEY:
     case "file":
-      return String(item.title || "").trim() || getExternalCardFileName(item);
+      return getExternalListItemDisplayTitle(item);
     case "title":
-      return item.title || "";
+      return getExternalListItemDisplayTitle(item);
     case "section":
       return formatExternalCardSection(item);
     case "created":
@@ -20486,6 +21070,12 @@ function syncExternalListToolbarFromState() {
   const columnsBtn = toolbar.querySelector(".external-list-columns-btn");
   if (filterInput && filterInput.value !== externalListFilterQuery) {
     filterInput.value = externalListFilterQuery;
+  }
+  const sectionHeadSearch = listViewContentNode?.querySelector(
+    ".external-list-section-head .node-navigation-section-search-input"
+  );
+  if (sectionHeadSearch && sectionHeadSearch.value !== externalListFilterQuery) {
+    sectionHeadSearch.value = externalListFilterQuery;
   }
   syncExternalListSortSelectOptions(sortSelect);
   if (sortSelect && !sortSelect.querySelector(`option[value="${CSS.escape(externalListSort.key)}"]`)) {
@@ -20748,8 +21338,10 @@ function getExternalListItemDisplayTitle(item) {
   const props = Array.isArray(item?.props) ? item.props : [];
   const awnName = getPropsEntryValueByKey(props, "awn-name");
   const slug = getExternalCardFileName(item);
-  if (awnName) return resolveNodeDisplayName(awnName, slug);
-  return String(item?.title || "").trim() || slug;
+  const resolved = resolveNodeDisplayName(awnName, slug);
+  if (resolved && resolved !== slug) return resolved;
+  const title = normalizeYamlDisplayString(String(item?.title || "").trim());
+  return title || resolved || slug;
 }
 
 function formatExternalCardPathLine(item) {
@@ -20838,7 +21430,7 @@ function appendExternalTableSchemaCell(row, column, item) {
   if (column.key === EXTERNAL_TABLE_FILE_COLUMN_KEY) {
     cell.className = "external-table-file-cell";
     const fileName = getExternalCardFileName(item);
-    const title = String(item.title || "").trim();
+    const title = getExternalListItemDisplayTitle(item);
     cell.textContent = title || fileName;
     if (title && title !== fileName) cell.title = fileName;
     row.appendChild(cell);
@@ -20897,6 +21489,12 @@ function renderExternalTableView(container, mdItems) {
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
+  const dragHead = document.createElement("th");
+  dragHead.scope = "col";
+  dragHead.className = "external-table-drag-header";
+  dragHead.textContent = "";
+  dragHead.setAttribute("aria-label", "Перетаскивание");
+  headRow.appendChild(dragHead);
   for (const column of columns) {
     const th = document.createElement("th");
     th.scope = "col";
@@ -20932,6 +21530,9 @@ function renderExternalTableView(container, mdItems) {
   const tbody = document.createElement("tbody");
   for (const item of mdItems) {
     const row = document.createElement("tr");
+    row.className = "external-table-row";
+    row.dataset.memoryFilePath = item.path;
+    row.dataset.memoryFileScope = "external";
     row.tabIndex = 0;
     row.addEventListener("click", () => openExternalFile(item.path));
     row.addEventListener("contextmenu", (event) => {
@@ -20947,6 +21548,11 @@ function renderExternalTableView(container, mdItems) {
         openExternalFile(item.path);
       }
     });
+
+    const dragCell = document.createElement("td");
+    dragCell.className = "external-table-drag-cell";
+    dragCell.appendChild(createMemoryFileDragHandle());
+    row.appendChild(dragCell);
 
     for (const column of columns) {
       appendExternalTableSchemaCell(row, column, item);
@@ -21057,6 +21663,53 @@ function setActiveExternalSectionFolder(folderName, { rerender = true, skipRoute
   if (!skipRouteSync) syncAppRouteToUrl({ push: true });
 }
 
+function getRenderedMemorySectionCount(container, datasetAttr) {
+  return container.querySelectorAll(`.media-section-tree-item[data-${datasetAttr}]`).length;
+}
+
+function isMemorySectionTreeStale(container, { getExpectedCount, datasetAttr }) {
+  if (!container?.querySelector(":scope > .media-section-tree-list")) return false;
+  const expected = getExpectedCount();
+  const rendered = getRenderedMemorySectionCount(container, datasetAttr);
+  const hasEmpty = Boolean(container.querySelector(".media-section-tree-empty"));
+  if (expected === 0) return rendered > 0;
+  return hasEmpty || rendered !== expected;
+}
+
+function syncExternalSectionTreeFromCaches() {
+  const tree =
+    listViewContentNode?.querySelector(".external-section-tree") ||
+    listViewContentNode?.querySelector(".data-hub-panel .external-section-tree");
+  if (!tree) return;
+  if (
+    isMemorySectionTreeStale(tree, {
+      getExpectedCount: () => getExternalUserSections().length,
+      datasetAttr: "external-section"
+    })
+  ) {
+    renderExternalSectionTree(tree);
+    return;
+  }
+  syncExternalSectionTreeActiveState();
+  decorateMemorySectionSortRows(tree);
+}
+
+function syncMediaSectionTreeFromCaches() {
+  const tree = getMediaSectionTreeNode();
+  if (!tree) return;
+  if (
+    isMemorySectionTreeStale(tree, {
+      getExpectedCount: () => getMediaUserSections().length,
+      datasetAttr: "media-section"
+    })
+  ) {
+    renderMediaSectionTree(tree);
+    return;
+  }
+  syncMediaSectionTreeActiveState();
+  decorateMemorySectionSortRows(tree);
+}
+
 function syncExternalSectionTreeActiveState() {
   const tree = listViewContentNode.querySelector(".external-section-tree");
   if (!tree) return;
@@ -21070,8 +21723,15 @@ function syncExternalSectionTreeActiveState() {
 
 function ensureExternalSectionTree(container) {
   if (!container) return;
-  if (container.querySelector(":scope > .media-section-tree-list")) {
+  if (
+    container.querySelector(":scope > .media-section-tree-list") &&
+    !isMemorySectionTreeStale(container, {
+      getExpectedCount: () => getExternalUserSections().length,
+      datasetAttr: "external-section"
+    })
+  ) {
     syncExternalSectionTreeActiveState();
+    decorateMemorySectionSortRows(container);
     return;
   }
   renderExternalSectionTree(container);
@@ -21118,6 +21778,7 @@ function renderExternalSectionTree(container) {
     });
   }
   ensureStorageTreePolicyFooter(container, "external");
+  decorateMemorySectionSortRows(container);
 }
 
 function mountExternalListViewLayout(root) {
@@ -21180,6 +21841,7 @@ function ensureExternalListViewLayout() {
 function rerenderExternalListViewBody() {
   if (activeContentMode !== "external" || isExternalFileEditing()) return;
   externalListRenderToken += 1;
+  syncExternalSectionTreeFromCaches();
   const body = listViewContentNode.querySelector(".external-list-view-body");
   if (body) {
     renderExternalListViewBody(body);
@@ -21414,6 +22076,8 @@ function renderExternalViewContent(container, mdItems) {
   for (const item of mdItems) {
     const li = document.createElement("li");
     li.className = "list-item list-item-with-actions external-list-item";
+    li.dataset.memoryFilePath = item.path;
+    li.dataset.memoryFileScope = "external";
     li.style.cursor = "pointer";
     li.addEventListener("click", () => openExternalFile(item.path));
     li.addEventListener("contextmenu", (event) => {
@@ -21438,7 +22102,7 @@ function renderExternalViewContent(container, mdItems) {
     dateNode.textContent = formatExternalFileCreatedLabel(item.createdAt);
     if (item.createdAt) dateNode.title = `Создан: ${item.createdAt}`;
 
-    li.append(icon, titleNode, dateNode);
+    li.append(createMemoryFileDragHandle(), icon, titleNode, dateNode);
     listNode.appendChild(li);
   }
   container.appendChild(listNode);
@@ -23340,6 +24004,11 @@ function renderMediaFileRows(container, items, { icon = "📄", showSize = true 
   for (const item of items) {
     const li = document.createElement("li");
     li.className = "media-file-item";
+    li.dataset.memoryFilePath = item.path;
+    li.dataset.memoryFileScope = "media";
+
+    const dragHandle = createMemoryFileDragHandle();
+    li.appendChild(dragHandle);
 
     const iconNode = document.createElement("span");
     iconNode.className = "media-file-icon";
@@ -24012,8 +24681,11 @@ async function refreshMediaCache() {
     const data = await response.json();
     mediaAssetsExists = Boolean(data.exists);
     modeContentCache[mode] = data.content || "";
+    mediaSectionSortOrders =
+      data.sectionSortOrders && typeof data.sectionSortOrders === "object" ? data.sectionSortOrders : {};
     syncMediaFilesCache(data.content, data.groups, data.sectionManifests);
     syncMediaViewSelectOptions();
+    syncMediaSectionTreeFromCaches();
   } catch {
     // ignore cache refresh errors
   }
@@ -24038,6 +24710,8 @@ async function refreshExternalMemoryCaches() {
     const data = await filesResponse.json();
     externalFilesCache = Array.isArray(data.files) ? data.files : [];
     externalFoldersCache = Array.isArray(data.folders) ? data.folders : [];
+    externalSectionSortOrders =
+      data.sectionSortOrders && typeof data.sectionSortOrders === "object" ? data.sectionSortOrders : {};
   } else {
     throw new Error(`Request failed with ${filesResponse.status}`);
   }
@@ -24048,10 +24722,12 @@ async function refreshExternalMemoryCaches() {
     const listingData = await listingResponse.json();
     modeContentCache.external =
       listingData.content || buildExternalListingFallbackContent(externalFilesCache, externalFoldersCache);
+    syncExternalSectionTreeFromCaches();
     return Boolean(listingData.exists);
   }
 
   modeContentCache.external = buildExternalListingFallbackContent(externalFilesCache, externalFoldersCache);
+  syncExternalSectionTreeFromCaches();
   return externalFilesCache.length > 0;
 }
 
@@ -27020,10 +27696,59 @@ function ensureStandardPropsEntries(entries) {
 
 function formatYamlScalar(value) {
   const text = String(value ?? "");
-  if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
+  if (!text || /[:#\[\]{}&,*?"']|^\s|\s$/.test(text)) {
     return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
   return text;
+}
+
+function unescapeYamlDoubleQuotedString(text) {
+  return String(text)
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t");
+}
+
+function normalizeYamlDisplayString(value) {
+  const text = String(value ?? "").trim();
+  if (!text || !text.includes("\\")) return text;
+  if (text.includes('\\"') || text.includes("\\\\")) {
+    return unescapeYamlDoubleQuotedString(text);
+  }
+  return text;
+}
+
+function parseYamlScalarValue(raw) {
+  let value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  if (value[0] === '"') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      if (value.endsWith('"') && value.length >= 2) {
+        return unescapeYamlDoubleQuotedString(value.slice(1, -1));
+      }
+      const end = value.indexOf('"', 1);
+      if (end > 0) return value.slice(1, end);
+      return value.slice(1);
+    }
+  }
+
+  if (value[0] === "'") {
+    if (value.endsWith("'") && value.length >= 2) {
+      return value.slice(1, -1).replace(/''/g, "'");
+    }
+    const end = value.indexOf("'", 1);
+    if (end > 0) return value.slice(1, end);
+    return value.slice(1);
+  }
+
+  const commentAt = value.search(/\s#/);
+  if (commentAt >= 0) value = value.slice(0, commentAt).trim();
+  return normalizeYamlDisplayString(value);
 }
 
 function parsePropsYaml(text) {
@@ -27090,16 +27815,7 @@ function parsePropsYaml(text) {
       continue;
     }
 
-    if (
-      (rest.startsWith('"') && rest.endsWith('"')) ||
-      (rest.startsWith("'") && rest.endsWith("'"))
-    ) {
-      entries.push({ key, kind: "string", value: rest.slice(1, -1) });
-      index += 1;
-      continue;
-    }
-
-    entries.push({ key, kind: "string", value: rest });
+    entries.push({ key, kind: "string", value: String(parseYamlScalarValue(rest) ?? "") });
     index += 1;
   }
 
@@ -30681,6 +31397,172 @@ function syncPropsAttachmentsEntryFromWrap(wrap) {
   syncSaveButtonLamp();
 }
 
+let propsAttachmentSortDragItem = null;
+
+function getPropsAttachmentPathsFromList(list) {
+  if (!list) return [];
+  return [...list.querySelectorAll(".props-form-attachment-item[data-path]")]
+    .map((item) => item.dataset.path)
+    .filter(Boolean);
+}
+
+function createPropsAttachmentSortHandle() {
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "props-form-attachment-sort-handle menu-sort-handle";
+  handle.draggable = true;
+  handle.title = "Перетащить для сортировки";
+  handle.setAttribute("aria-label", "Перетащить для сортировки");
+  handle.textContent = "⠿";
+  handle.addEventListener("mousedown", (event) => event.stopPropagation());
+  handle.addEventListener("click", (event) => event.stopPropagation());
+  return handle;
+}
+
+function decoratePropsAttachmentSortRow(item, { sortable = false } = {}) {
+  if (!item || !sortable) return;
+  item.classList.add("props-form-attachment-sort-row");
+  if (item.querySelector(".props-form-attachment-sort-handle")) return;
+  item.insertBefore(createPropsAttachmentSortHandle(), item.firstChild);
+}
+
+async function saveEntryOverviewAttachmentsOrder(context, paths) {
+  if (!context?.relativePath) throw new Error("Не удалось определить запись");
+
+  const rawBody = await fetchEntryOverviewBody(context);
+  const { frontmatter, body } = splitFrontmatter(rawBody);
+  const entries = parsePropsYaml(frontmatter);
+  const key = "awn-attachments";
+  const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const base = index >= 0 ? entries[index] : { key, kind: "array", value: [] };
+  const nextEntry = { ...base, key, kind: "array", value: paths };
+  if (index >= 0) entries[index] = nextEntry;
+  else entries.push(nextEntry);
+  const nextContent = joinFrontmatter(stringifyPropsYaml(entries), body);
+
+  if (context.memoryKind === "external") {
+    const response = await fetch(buildApiUrl("/api/external/file"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: getActiveNodeApiPath(),
+        file: context.relativePath,
+        content: nextContent
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    await refreshExternalMemoryCaches();
+    return;
+  }
+
+  if (context.memoryKind === "media" && /\.md$/i.test(context.relativePath)) {
+    const response = await fetch(buildApiUrl("/api/media/markdown"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: getActiveNodeApiPath(),
+        file: context.relativePath,
+        content: nextContent
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    await refreshMediaCache();
+    return;
+  }
+
+  if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
+    const response = await fetch(buildApiUrl("/api/storage/markdown"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: getActiveNodeApiPath(),
+        folder: getFlatStorageSectionFolderName(context.memoryKind),
+        file: context.relativePath,
+        content: nextContent
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    await reloadFlatStorageFolderMode(context.memoryKind);
+    return;
+  }
+
+  throw new Error("Сортировка недоступна для этого типа записи");
+}
+
+async function applyPropsAttachmentsOrder(list, paths, options = {}) {
+  const { wrap, persist = "form", context } = options;
+  if (wrap) {
+    syncPropsAttachmentsHiddenInput(wrap, paths);
+    syncPropsAttachmentsEntryFromWrap(wrap);
+  }
+  if (persist !== "entryOverview" || !context) return;
+  await saveEntryOverviewAttachmentsOrder(context, paths);
+}
+
+function setupPropsAttachmentsListSort(list, options = {}) {
+  if (!list || options.sortable === false) return;
+  if (list.dataset.sortBound === "1") return;
+  list.dataset.sortBound = "1";
+  list.classList.add("is-attachments-sortable");
+
+  list.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".props-form-attachment-sort-handle");
+    if (!handle) return;
+    const item = handle.closest(".props-form-attachment-sort-row");
+    if (!item) {
+      event.preventDefault();
+      return;
+    }
+    propsAttachmentSortDragItem = item;
+    item.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", item.dataset.path || "");
+  });
+
+  list.addEventListener("dragover", (event) => {
+    if (!propsAttachmentSortDragItem) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const targetItem = event.target.closest(".props-form-attachment-sort-row");
+    if (!targetItem || targetItem === propsAttachmentSortDragItem) return;
+    const rect = targetItem.getBoundingClientRect();
+    const insertBefore = event.clientY < rect.top + rect.height / 2;
+    if (insertBefore) list.insertBefore(propsAttachmentSortDragItem, targetItem);
+    else list.insertBefore(propsAttachmentSortDragItem, targetItem.nextSibling);
+  });
+
+  list.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    if (!propsAttachmentSortDragItem) return;
+    propsAttachmentSortDragItem.classList.remove("is-dragging");
+    propsAttachmentSortDragItem = null;
+    const paths = getPropsAttachmentPathsFromList(list);
+    try {
+      await applyPropsAttachmentsOrder(list, paths, options);
+      if (options.persist === "entryOverview") {
+        showToast("Порядок вложений сохранён", "success");
+      }
+    } catch (error) {
+      showToast(`Не удалось сохранить порядок: ${error.message}`, "error");
+    }
+  });
+
+  list.addEventListener("dragend", () => {
+    if (!propsAttachmentSortDragItem) return;
+    propsAttachmentSortDragItem.classList.remove("is-dragging");
+    propsAttachmentSortDragItem = null;
+  });
+}
+
 function buildAttachmentMarkdownSnippet(path, { mode = "embed", label = "" } = {}) {
   const canonical = toCanonicalAssetsUploadRef(path, ATTACHMENTS_ASSETS_SUBDIR);
   if (!canonical) return "";
@@ -31458,6 +32340,7 @@ function createPropsAttachmentOrphanItem(path, wrap, { locked = false } = {}) {
 }
 
 async function refreshPropsAttachmentsOrphans(wrap, { locked = false } = {}) {
+  if (PROPS_ATTACHMENTS_UI_DISABLED) return;
   if (!wrap) return;
   const section = wrap.querySelector(".props-form-attachments-orphans");
   const list = wrap.querySelector(".props-form-attachments-orphans-list");
@@ -31487,8 +32370,10 @@ function renderPropsAttachmentsList(wrap, paths, { locked = false } = {}) {
   if (!list) return;
   const usedRefs = collectEditorAttachmentRefsSet();
   const extended = isPropsAttachmentUiExtended();
+  const sortable = !locked && paths.length >= 2;
   list.classList.toggle("props-form-attachments-list--simple", !extended);
   list.classList.toggle("props-form-attachments-list--extended", extended);
+  list.classList.toggle("is-attachments-sortable", sortable);
   list.replaceChildren();
 
   for (const path of paths) {
@@ -31496,11 +32381,49 @@ function renderPropsAttachmentsList(wrap, paths, { locked = false } = {}) {
     const item = extended
       ? createPropsAttachmentItemExtended(path, wrap, { locked, inBody })
       : createPropsAttachmentItemSimple(path, wrap, { locked, inBody });
+    decoratePropsAttachmentSortRow(item, { sortable });
     list.appendChild(item);
   }
 
+  setupPropsAttachmentsListSort(list, {
+    sortable,
+    wrap: locked ? null : wrap,
+    persist: "form"
+  });
+
   void hydrateAttachmentItemLabels(wrap);
-  void refreshPropsAttachmentsOrphans(wrap, { locked });
+  if (!PROPS_ATTACHMENTS_UI_DISABLED) {
+    void refreshPropsAttachmentsOrphans(wrap, { locked });
+  }
+}
+
+function createPropsFormAttachmentsDisabledControl(entry, meta) {
+  const wrap = createPropsFormValueWrap("attachments");
+  wrap.classList.add("props-form-value-wrap--attachments", "props-form-value-wrap--attachments-disabled");
+
+  const paths = parsePropsAttachmentsValue(entry);
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "props-form-value props-form-attachments-value";
+  hidden.value = JSON.stringify(paths);
+  hidden.dataset.field = "value";
+  hidden.disabled = true;
+  wrap.appendChild(hidden);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "props-form-attachments-disabled-input";
+  input.readOnly = true;
+  input.disabled = true;
+  input.value = paths.length
+    ? paths.map((path) => getAttachmentDisplayLabelFromPath(path)).join(", ")
+    : "";
+  input.placeholder = "—";
+  if (meta?.hint) input.title = meta.hint;
+  wrap.appendChild(input);
+
+  return wrap;
 }
 
 function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {}) {
@@ -31570,22 +32493,24 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     wrap.append(uploadZone, input);
   }
 
-  const orphansSection = document.createElement("div");
-  orphansSection.className = "props-form-attachments-orphans hidden";
+  if (!PROPS_ATTACHMENTS_UI_DISABLED) {
+    const orphansSection = document.createElement("div");
+    orphansSection.className = "props-form-attachments-orphans hidden";
 
-  const orphansTitle = document.createElement("h5");
-  orphansTitle.className = "props-form-attachments-orphans-title";
-  orphansTitle.textContent = "В папке, не в списке";
-  orphansTitle.title =
-    "Файлы в awn-storage/assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
-  orphansSection.appendChild(orphansTitle);
+    const orphansTitle = document.createElement("h5");
+    orphansTitle.className = "props-form-attachments-orphans-title";
+    orphansTitle.textContent = "В папке, не в списке";
+    orphansTitle.title =
+      "Файлы в awn-storage/assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
+    orphansSection.appendChild(orphansTitle);
 
-  const orphansList = document.createElement("div");
-  orphansList.className = "props-form-attachments-orphans-list";
-  orphansSection.appendChild(orphansList);
-  wrap.appendChild(orphansSection);
+    const orphansList = document.createElement("div");
+    orphansList.className = "props-form-attachments-orphans-list";
+    orphansSection.appendChild(orphansList);
+    wrap.appendChild(orphansSection);
+  }
 
-  if (!locked) {
+  if (!locked && !PROPS_ATTACHMENTS_UI_DISABLED) {
     const registeredList = wrap.querySelector(".props-form-attachments-list");
     registeredList?.addEventListener("dragover", (event) => {
       const types = event.dataTransfer?.types || [];
@@ -33000,7 +33925,7 @@ function getYamlScalarFromFrontmatter(frontmatter, key) {
   const text = String(frontmatter || "");
   const match = text.match(new RegExp(`^${key}:\\s*(.+)$`, "im"));
   if (!match) return "";
-  return match[1].trim().replace(/^["']|["']$/g, "");
+  return String(parseYamlScalarValue(match[1]) ?? "").trim();
 }
 
 function extractAwnDescFromBody(body) {
@@ -33831,7 +34756,13 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   const statusRaw = String(
     options.status || resolveAwnStatusFromPropEntries(options.propEntries || [])
   ).trim();
-  const titleRow = createHeroTitleRow(title, statusRaw);
+  const titleRow = createHeroTitleRow(title, statusRaw, {
+    propEntries: options.propEntries || [],
+    rowClass: options.titleRowClass,
+    titleClass: options.titleClass,
+    statusClass: options.statusClass,
+    titleTextClass: options.titleTextClass
+  });
 
   const pathNode = document.createElement("p");
   pathNode.className = "node-navigation-hero-path";
@@ -35109,31 +36040,38 @@ function buildNodeNavigationMemoryCounterSlots({
 }
 
 async function fetchFolderViewSummary(manifestPath, folder, agentId = activeAgentId) {
-  if (!manifestPath || !folder) return { exists: false, files: 0 };
+  if (!manifestPath || !folder) return { exists: false, files: 0, subfolders: 0 };
   try {
     const response = await fetch(
       buildApiUrl("/api/folder/view", { path: manifestPath, folder }, agentId)
     );
-    if (!response.ok) return { exists: false, files: 0 };
+    if (!response.ok) return { exists: false, files: 0, subfolders: 0 };
     const data = await response.json();
     return {
       exists: Boolean(data.exists),
-      files: Number(data.files) || 0
+      files: Number(data.files) || 0,
+      subfolders: Number(data.subfolders) || 0
     };
   } catch {
-    return { exists: false, files: 0 };
+    return { exists: false, files: 0, subfolders: 0 };
   }
+}
+
+function getFlatStorageSlotSummaryCount(slotKey, summary) {
+  if (slotKey === "repository") return Number(summary?.subfolders) || 0;
+  return Number(summary?.files) || 0;
 }
 
 async function fetchFlatStorageSectionSummary(manifestPath, slotKey) {
   const folders = getStorageFolderNamesForSlotKey(slotKey);
-  if (!folders.length) return { exists: false, files: 0 };
+  if (!folders.length) return { exists: false, files: 0, subfolders: 0 };
   const summaries = await Promise.all(
     folders.map((folder) => fetchFolderViewSummary(manifestPath, folder))
   );
   return {
     exists: summaries.some((summary) => summary.exists),
-    files: summaries.reduce((sum, summary) => sum + (Number(summary.files) || 0), 0)
+    files: summaries.reduce((sum, summary) => sum + getFlatStorageSlotSummaryCount(slotKey, summary), 0),
+    subfolders: summaries.reduce((sum, summary) => sum + (Number(summary.subfolders) || 0), 0)
   };
 }
 
@@ -35213,7 +36151,11 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
       const summary = folderByMode[spec.id] || { files: 0 };
       count = Number(summary.files) || 0;
       filled = count > 0;
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      if (spec.id === "repository") {
+        title = getRepositorySlotCounterTitle(spec.label, count);
+      } else {
+        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      }
     }
 
     return { ...spec, count, filled, tone, title };
@@ -35553,6 +36495,42 @@ function getNavigationMemoryBadgeText(modeId, data = {}) {
   return null;
 }
 
+function createNavigationSectionSearchInput(options = {}) {
+  const {
+    value = "",
+    placeholder = "Поиск...",
+    ariaLabel = placeholder,
+    onInput
+  } = options;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-section-search menu-search-wrap";
+
+  const inputId = `node-navigation-search-${Math.random().toString(36).slice(2, 9)}`;
+  const label = document.createElement("label");
+  label.className = "menu-search-bar node-navigation-section-search-bar";
+  label.htmlFor = inputId;
+
+  const input = document.createElement("input");
+  input.id = inputId;
+  input.type = "search";
+  input.className = "menu-search-input node-navigation-section-search-input";
+  input.placeholder = placeholder;
+  input.value = value;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", ariaLabel);
+  input.addEventListener("input", (event) => {
+    event.stopPropagation();
+    onInput?.(event.target.value || "");
+  });
+  input.addEventListener("click", (event) => event.stopPropagation());
+
+  label.append(createMenuSearchIconNode(), input);
+  wrap.appendChild(label);
+  return wrap;
+}
+
 function createNavigationSectionHead(title, options = {}) {
   const variant = [1, 2, 3].includes(options.titleVariant) ? options.titleVariant : 1;
   const viewModeId = options.viewModeId;
@@ -35579,6 +36557,17 @@ function createNavigationSectionHead(title, options = {}) {
   rule.setAttribute("aria-hidden", "true");
 
   head.append(titleNode, rule);
+
+  if (options.search?.enabled) {
+    head.appendChild(
+      createNavigationSectionSearchInput({
+        value: options.search.value ?? "",
+        placeholder: options.search.placeholder || "Поиск...",
+        ariaLabel: options.search.ariaLabel || options.search.placeholder || "Поиск",
+        onInput: options.search.onInput
+      })
+    );
+  }
 
   if (options.badgeText != null) {
     const badge = document.createElement("span");
@@ -35759,28 +36748,98 @@ function renderNavigationSubsectionsBlock(childEntries) {
 
   const folders = childEntries.filter((entry) => entry.isFolder);
   const topics = childEntries.filter((entry) => !entry.isFolder);
+  const totalCount = folders.length + topics.length;
+  const showSearch = totalCount >= NAVIGATION_SECTION_SEARCH_MIN_ITEMS;
 
   const body = document.createElement("div");
   body.className = "node-navigation-subsections";
 
+  const applySubsectionsSearch = () => {
+    const queryLower = navigationSubsectionsSearchQuery.trim().toLowerCase();
+    let totalVisible = 0;
+    body.querySelectorAll("[data-navigation-subsection-grid]").forEach((grid) => {
+      let visible = 0;
+      grid.querySelectorAll(".menu-card").forEach((card) => {
+        const haystack = card.dataset.navigationSearch || card.textContent || "";
+        const match = nodeMatchesQuery(haystack, queryLower);
+        card.classList.toggle("hidden", !match);
+        if (match) visible += 1;
+      });
+      totalVisible += visible;
+      grid.classList.toggle("hidden", visible === 0 && Boolean(queryLower));
+    });
+    body.querySelector(".node-navigation-section-search-empty")?.classList.toggle(
+      "hidden",
+      totalVisible > 0 || !queryLower
+    );
+  };
+
   if (folders.length) {
-    body.appendChild(createNavigationSectionHead("Подразделы"));
+    body.appendChild(
+      createNavigationSectionHead("Подразделы", {
+        search: showSearch
+          ? {
+              enabled: true,
+              value: navigationSubsectionsSearchQuery,
+              placeholder: "Поиск подразделов и тем...",
+              ariaLabel: "Поиск подразделов и тем",
+              onInput: (value) => {
+                navigationSubsectionsSearchQuery = value;
+                applySubsectionsSearch();
+              }
+            }
+          : null
+      })
+    );
     const folderGrid = document.createElement("div");
     folderGrid.className = "node-overview-children-grid";
+    folderGrid.dataset.navigationSubsectionGrid = "folders";
     for (const entry of folders) {
-      folderGrid.appendChild(createMenuCard(entry, { gallery: true }));
+      const card = createMenuCard(entry, { gallery: true });
+      card.dataset.navigationSearch = `${entry.label || ""} ${entry.path || ""}`.trim();
+      folderGrid.appendChild(card);
     }
     body.appendChild(folderGrid);
   }
 
   if (topics.length) {
-    body.appendChild(createNavigationSectionHead("Темы"));
+    if (!folders.length) {
+      body.appendChild(
+        createNavigationSectionHead("Темы", {
+          search: showSearch
+            ? {
+                enabled: true,
+                value: navigationSubsectionsSearchQuery,
+                placeholder: "Поиск тем...",
+                ariaLabel: "Поиск тем",
+                onInput: (value) => {
+                  navigationSubsectionsSearchQuery = value;
+                  applySubsectionsSearch();
+                }
+              }
+            : null
+        })
+      );
+    } else {
+      body.appendChild(createNavigationSectionHead("Темы"));
+    }
     const topicGrid = document.createElement("div");
     topicGrid.className = "node-overview-children-grid";
+    topicGrid.dataset.navigationSubsectionGrid = "topics";
     for (const entry of topics) {
-      topicGrid.appendChild(createMenuCard(entry, { gallery: true }));
+      const card = createMenuCard(entry, { gallery: true });
+      card.dataset.navigationSearch = `${entry.label || ""} ${entry.path || ""}`.trim();
+      topicGrid.appendChild(card);
     }
     body.appendChild(topicGrid);
+  }
+
+  if (showSearch) {
+    const empty = document.createElement("p");
+    empty.className = "node-navigation-section-search-empty hidden";
+    empty.textContent = "Ничего не найдено";
+    body.appendChild(empty);
+    applySubsectionsSearch();
   }
 
   return createNavigationSubsectionsBlock(body);
@@ -35881,6 +36940,114 @@ function appendNavBookTocStatusBadge(titleHost, status) {
   titleHost.insertBefore(badge, titleHost.firstChild);
 }
 
+function countPropEntriesAttachments(propEntries = []) {
+  const entry = (Array.isArray(propEntries) ? propEntries : []).find(
+    (item) => normalizePropsKey(item.key) === "awn-attachments"
+  );
+  return parsePropsAttachmentsValue(entry).length;
+}
+
+function countNavigationItemAttachments(item) {
+  const props = Array.isArray(item?.props) ? item.props : [];
+  return countPropEntriesAttachments(props);
+}
+
+function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
+  const normalized = Number(count);
+  if (!Number.isFinite(normalized) || normalized <= 0) return null;
+  const badge = document.createElement("span");
+  badge.className = `nav-book-toc-attachments-badge${extraClass ? ` ${extraClass}` : ""}`;
+  badge.textContent = `Вложений ${normalized}`;
+  const noun =
+    normalized % 10 === 1 && normalized % 100 !== 11
+      ? "вложение"
+      : normalized % 10 >= 2 && normalized % 10 <= 4 && (normalized % 100 < 10 || normalized % 100 >= 20)
+        ? "вложения"
+        : "вложений";
+  badge.title = `${normalized} ${noun}`;
+  badge.setAttribute("aria-label", badge.title);
+  return badge;
+}
+
+function populateNavBookTocLeaders(leadersHost, attachmentCount) {
+  if (!leadersHost) return;
+  const count = Number(attachmentCount);
+  if (Number.isFinite(count) && count > 0) {
+    const badge = createAttachmentsCountBadge(count);
+    if (!badge) return;
+    leadersHost.classList.add("has-nav-book-toc-attachments-badge");
+    leadersHost.replaceChildren(badge);
+    leadersHost.removeAttribute("aria-hidden");
+    return;
+  }
+  leadersHost.classList.remove("has-nav-book-toc-attachments-badge");
+  leadersHost.replaceChildren();
+  leadersHost.setAttribute("aria-hidden", "true");
+}
+
+function getNavigationItemFileExtension(item) {
+  const fromExt = String(item?.ext || "").trim();
+  if (fromExt) {
+    return (fromExt.startsWith(".") ? fromExt : `.${fromExt}`).toLowerCase();
+  }
+  const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+  const fileName = path.split("/").pop() || "";
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0) return "";
+  return fileName.slice(dot).toLowerCase();
+}
+
+function formatNavigationFileExtensionBadge(ext) {
+  const raw = String(ext || "").replace(/^\./, "").trim();
+  if (!raw) return "";
+  if (raw.length <= 4) return raw.toUpperCase();
+  return raw.slice(0, 4).toUpperCase();
+}
+
+function getNavigationTocFileIcon(item) {
+  const ext = getNavigationItemFileExtension(item);
+  if (ext) return getDocumentIcon(ext);
+  if (item?.group && NAVIGATION_MEDIA_GROUP_ICONS[item.group]) {
+    return NAVIGATION_MEDIA_GROUP_ICONS[item.group];
+  }
+  return "📎";
+}
+
+function getNavigationFileTypeTone(ext) {
+  const normalized = String(ext || "").toLowerCase();
+  if (normalized === ".pdf") return "pdf";
+  if ([".doc", ".docx"].includes(normalized)) return "doc";
+  if ([".xls", ".xlsx", ".csv"].includes(normalized)) return "sheet";
+  if ([".ppt", ".pptx"].includes(normalized)) return "slide";
+  if ([".md", ".txt", ".markdown"].includes(normalized)) return "text";
+  if ([".mp4", ".mov", ".avi", ".webm", ".mkv"].includes(normalized)) return "video";
+  if ([".mp3", ".wav", ".ogg", ".flac", ".m4a"].includes(normalized)) return "audio";
+  if ([".zip", ".rar", ".7z", ".tar", ".gz"].includes(normalized)) return "archive";
+  return "default";
+}
+
+function createNavBookTocLinkFileTypeLeading(item) {
+  const ext = getNavigationItemFileExtension(item);
+  const badge = formatNavigationFileExtensionBadge(ext);
+  if (!badge) return null;
+
+  const wrap = document.createElement("span");
+  wrap.className = `nav-book-toc-link-preview nav-book-toc-link-filetype nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`;
+  wrap.title = ext.replace(/^\./, "").toUpperCase();
+
+  const emoji = document.createElement("span");
+  emoji.className = "nav-book-toc-link-filetype-emoji";
+  emoji.textContent = getNavigationTocFileIcon(item);
+  emoji.setAttribute("aria-hidden", "true");
+
+  const label = document.createElement("span");
+  label.className = "nav-book-toc-link-filetype-ext";
+  label.textContent = badge;
+
+  wrap.append(emoji, label);
+  return wrap;
+}
+
 function createNavBookTocLinkLeading(item, nodePath = activePath) {
   const preview = resolveNavigationItemPreviewUi(item, nodePath);
   if (preview?.imageUrl && !preview.broken) {
@@ -35890,7 +37057,15 @@ function createNavBookTocLinkLeading(item, nodePath = activePath) {
       return previewWrap;
     }
   }
-  return createNavBookTocLinkIcon({ branch: true });
+
+  const leadingWrap = document.createElement("span");
+  leadingWrap.className = "nav-book-toc-link-leading";
+  leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
+
+  const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
+  if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
+
+  return leadingWrap;
 }
 
 function appendNavigationItemPreviewThumb(parent, item, preview, { className = "" } = {}) {
@@ -35938,9 +37113,12 @@ function prepareNavigationExternalItems(files, folders = []) {
       const segment = folderKey.split("/").pop() || folderKey;
       const props = Array.isArray(item.props) ? item.props : [];
       const awnName = getPropsEntryValueByKey(props, "awn-name");
-      const title = String(item.title || "").trim();
+      const title = normalizeYamlDisplayString(String(item.title || "").trim());
       const status = resolveNavigationItemStatus(item);
-      folderLabels.set(folderKey, title || resolveNodeDisplayName(awnName, segment));
+      folderLabels.set(
+        folderKey,
+        resolveNodeDisplayName(awnName, segment) || title || segment
+      );
       if (status) folderStatuses.set(folderKey, status);
       if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
       continue;
@@ -35951,12 +37129,12 @@ function prepareNavigationExternalItems(files, folders = []) {
     const slug = String(item.name || path.split("/").pop() || "").replace(/\.md$/i, "");
     const props = Array.isArray(item.props) ? item.props : [];
     const awnName = getPropsEntryValueByKey(props, "awn-name");
-    const title = String(item.title || "").trim();
+    const title = normalizeYamlDisplayString(String(item.title || "").trim());
     contentFiles.push({
       path,
       name: item.name,
       parent: item.parent,
-      title: title || resolveNodeDisplayName(awnName, slug),
+      title: resolveNodeDisplayName(awnName, slug) || title || slug,
       status: resolveNavigationItemStatus(item),
       props,
       hasPreview: Boolean(item.hasPreview),
@@ -36673,13 +37851,14 @@ function getEntryOverviewAttachmentPaths(entries) {
   return parsePropsAttachmentsValue(entry);
 }
 
-function renderEntryOverviewAttachmentsPart(entries, rawBody) {
+function renderEntryOverviewAttachmentsPart(entries, rawBody, context = null) {
   const paths = getEntryOverviewAttachmentPaths(entries);
   if (!paths.length) return null;
 
   const { body } = splitFrontmatter(String(rawBody || ""));
   const usedRefs = collectMarkdownAttachmentRefsSet(stripAwnDescCallouts(body));
   const meta = getPropsFieldMeta("awn-attachments");
+  const sortable = Boolean(context) && paths.length >= 2;
 
   const section = document.createElement("section");
   section.className = "node-entry-overview-attachments";
@@ -36698,26 +37877,41 @@ function renderEntryOverviewAttachmentsPart(entries, rawBody) {
   legend.innerHTML =
     '<span class="node-entry-overview-attachments-legend-item is-in-body">● в тексте</span>' +
     '<span class="node-entry-overview-attachments-legend-item is-unlinked">○ не вставлено</span>';
+  if (sortable) {
+    legend.innerHTML +=
+      '<span class="node-entry-overview-attachments-legend-item is-sortable">⠿ сортировка</span>';
+  }
   head.appendChild(legend);
   section.appendChild(head);
 
   const list = document.createElement("div");
   list.className =
     "node-entry-overview-attachments-list props-form-attachments-list props-form-attachments-list--simple";
+  if (sortable) list.classList.add("is-attachments-sortable");
 
   for (const path of paths) {
     const inBody = isAttachmentReferencedInEditorBody(path, usedRefs);
     const item = createPropsAttachmentItemSimple(path, null, { locked: true, inBody });
     item.classList.add("node-entry-overview-attachment-item");
+    decoratePropsAttachmentSortRow(item, { sortable });
     const assetUrl = resolveMarkdownAssetSrc(path, getPropsContextPath());
     if (assetUrl) {
       item.classList.add("is-openable");
       item.title = `Открыть: ${getAttachmentDisplayLabelFromPath(path)}`;
-      item.addEventListener("click", () => {
+      item.addEventListener("click", (event) => {
+        if (event.target.closest(".props-form-attachment-sort-handle")) return;
         window.open(assetUrl, "_blank", "noopener,noreferrer");
       });
     }
     list.appendChild(item);
+  }
+
+  if (sortable) {
+    setupPropsAttachmentsListSort(list, {
+      sortable: true,
+      persist: "entryOverview",
+      context
+    });
   }
 
   section.appendChild(list);
@@ -36726,7 +37920,11 @@ function renderEntryOverviewAttachmentsPart(entries, rawBody) {
 }
 
 function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
-  const attachmentsPanel = renderEntryOverviewAttachmentsPart(entries, rawBody);
+  const attachmentsPanel = renderEntryOverviewAttachmentsPart(
+    entries,
+    rawBody,
+    activeEntryOverviewContext
+  );
   if (!attachmentsPanel || !hero) return null;
   const anchor =
     hero.querySelector(".node-overview-awn-props-fold") ||
@@ -37065,7 +38263,11 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       const summary = folderByMode[spec.key] || { files: 0 };
       count = Number(summary.files) || 0;
       filled = count > 0;
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      if (spec.key === "repository") {
+        title = getRepositorySlotCounterTitle(spec.label, count);
+      } else {
+        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      }
     }
 
     return { id: spec.key, label: spec.label, spec, count, filled, tone, title };
@@ -37901,7 +39103,9 @@ function createEntryOverviewMediaAssetPanel(
     onEditClick: () => openEntryOverviewEdit(context)
   });
 
-  const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries));
+  const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries), {
+    propEntries: entries
+  });
 
   const headerRow = document.createElement("div");
   headerRow.className = "node-navigation-hero-header";
@@ -38399,12 +39603,12 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     appendNavBookTocStatusBadge(text, item.status);
     const textInner = document.createElement("span");
     textInner.className = "nav-book-toc-title-text";
-    textInner.textContent = item.title;
+    textInner.textContent = normalizeYamlDisplayString(item.title);
     text.appendChild(textInner);
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
-    leaders.setAttribute("aria-hidden", "true");
+    populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
 
     link.append(createNavBookTocLinkLeading(item, nodePath), text, leaders);
     link.addEventListener("click", (event) => {
@@ -38437,6 +39641,49 @@ function renderNavigationExternalBookToc(
   return nav;
 }
 
+function refreshNavigationExternalTocSearch(card) {
+  if (!card || !navigationExternalTocState) return;
+  const body = card.querySelector(".node-navigation-external");
+  if (!body) return;
+
+  body.querySelector(".node-navigation-book-toc")?.remove();
+  body.querySelector(".node-navigation-section-search-empty")?.remove();
+
+  const { items, folderLabels, folderStatuses, folderPaths } = navigationExternalTocState;
+  const queryLower = navigationExternalTocSearchQuery.trim().toLowerCase();
+  const filtered = filterEntryOverviewNavigationIndex(
+    {
+      contentFiles: items,
+      folderPaths: [...folderPaths],
+      folderLabels
+    },
+    queryLower
+  );
+  const filteredFolderPaths =
+    filtered.folderPaths instanceof Set
+      ? filtered.folderPaths
+      : new Set(filtered.folderPaths || []);
+
+  if (filtered.contentFiles.length || filteredFolderPaths.size) {
+    body.appendChild(
+      renderNavigationExternalBookToc(
+        filtered.contentFiles,
+        filtered.folderLabels,
+        filteredFolderPaths,
+        folderStatuses
+      )
+    );
+    return;
+  }
+
+  if (queryLower) {
+    const empty = document.createElement("p");
+    empty.className = "node-navigation-section-search-empty";
+    empty.textContent = "Ничего не найдено";
+    body.appendChild(empty);
+  }
+}
+
 function renderNavigationExternalPart(externalData) {
   const nonMarkdownFiles = Array.isArray(externalData.nonMarkdownFiles) ? externalData.nonMarkdownFiles : [];
   const { contentFiles, folderLabels, folderStatuses, folderPaths } = prepareNavigationExternalItems(
@@ -38446,16 +39693,51 @@ function renderNavigationExternalPart(externalData) {
   const mdItems = contentFiles.sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 
   if (!mdItems.length && folderPaths.size === 0 && !nonMarkdownFiles.length) {
+    navigationExternalTocState = null;
     return null;
   }
+
+  navigationExternalTocState = {
+    items: mdItems,
+    folderLabels,
+    folderStatuses,
+    folderPaths
+  };
 
   const body = document.createElement("div");
   body.className = "node-navigation-external";
   appendNavigationExternalNonMdNotice(body, nonMarkdownFiles);
+
+  const showSearch =
+    mdItems.length + folderPaths.size >= NAVIGATION_EXTERNAL_SEARCH_MIN_ITEMS;
+  const card = document.createElement("section");
+  card.className = "node-navigation-memory-card node-navigation-memory-card--external";
+  card.append(
+    createNavigationSectionHead("Многофайловая память", {
+      viewModeId: "external",
+      badgeText: getNavigationMemoryBadgeText("external", externalData),
+      badgeModeId: "external",
+      search: showSearch
+        ? {
+            enabled: true,
+            value: navigationExternalTocSearchQuery,
+            placeholder: "Поиск по записям...",
+            ariaLabel: "Поиск по записям многофайловой памяти",
+            onInput: (value) => {
+              navigationExternalTocSearchQuery = value;
+              refreshNavigationExternalTocSearch(card);
+            }
+          }
+        : null
+    }),
+    body
+  );
+
   if (mdItems.length || folderPaths.size > 0) {
-    body.appendChild(renderNavigationExternalBookToc(mdItems, folderLabels, folderPaths, folderStatuses));
+    refreshNavigationExternalTocSearch(card);
   }
-  return createNavigationMemoryPanel("external", "Многофайловая память", body, externalData);
+
+  return card;
 }
 
 function renderNavigationTabularPart(tabularData) {
@@ -41125,7 +42407,8 @@ async function renderNodeOverview() {
   const titleRow = createHeroTitleRow(title, statusRaw, {
     rowClass: "node-navigation-hero-title-row node-overview-title-row",
     titleClass: "node-overview-title",
-    statusClass: "node-navigation-hero-status"
+    statusClass: "node-navigation-hero-status",
+    propEntries: entries
   });
 
   const editManifestBtn = document.createElement("button");
@@ -41429,10 +42712,14 @@ function applyModeUi() {
     (activeContentMode === "description" || externalEditing || mediaSidecarEditing);
   const showDocAside = isDocAsideAvailable();
   const titleBlockVisible =
-    showDocAside &&
     (titleVisible || mediaSidecarEditing) &&
     !previewMode &&
-    !overviewLikeMode;
+    !overviewLikeMode &&
+    !canvasMode &&
+    !threadMode &&
+    !showListView &&
+    !topicSchemaMode &&
+    !configsMode;
   titleEditorBlockNode?.classList.toggle("hidden", !titleBlockVisible);
   nodeDescriptionHintNode?.classList.toggle(
     "hidden",
@@ -43639,7 +44926,7 @@ function getNodeSlugFromPath(filePath) {
 }
 
 function resolveNodeDisplayName(awnNameRaw, slug) {
-  const awnName = String(awnNameRaw || "").trim();
+  const awnName = normalizeYamlDisplayString(awnNameRaw);
   const slugLabel = String(slug || "").trim();
   if (!awnName) return slugLabel;
   if (awnName.toLowerCase() === "manifest") return slugLabel;
@@ -46935,6 +48222,119 @@ function setupMenuLinkDragToEditor() {
     if (!menuLinkDragBtn) return;
     menuLinkDragBtn.classList.remove("is-dragging-menu-link");
     menuLinkDragBtn = null;
+    clearMenuMoveDropTarget();
+  });
+}
+
+let menuMoveDropTargetBtn = null;
+
+function clearMenuMoveDropTarget() {
+  if (!menuMoveDropTargetBtn) return;
+  menuMoveDropTargetBtn.classList.remove("is-menu-move-drop-target");
+  menuMoveDropTargetBtn = null;
+}
+
+function setMenuMoveDropTarget(btn) {
+  if (menuMoveDropTargetBtn === btn) return;
+  clearMenuMoveDropTarget();
+  if (!btn) return;
+  menuMoveDropTargetBtn = btn;
+  btn.classList.add("is-menu-move-drop-target");
+}
+
+function resolveMenuDragMove(sourcePath, targetPath) {
+  const source = normalizeMenuNodePath(sourcePath);
+  const target = normalizeMenuNodePath(targetPath);
+  if (!source || !target || source === target) return null;
+  if (!getMenuContextMenuKind(source) || !getMenuContextMenuKind(target)) return null;
+
+  const parentPath = getFolderPathFromManifest(target) || ".";
+
+  if (isAreaNodePath(source)) {
+    const sourceFolder = getFolderPathFromManifest(source);
+    if (
+      sourceFolder &&
+      (parentPath === sourceFolder || parentPath.startsWith(`${sourceFolder}/`))
+    ) {
+      return null;
+    }
+    if (getNodeParentPathForMove(source) === parentPath) return null;
+  } else if ((getFolderPathFromManifest(source) || ".") === parentPath) {
+    return null;
+  }
+
+  return { source, target, parentPath };
+}
+
+function setupMenuNodeMoveDragDrop() {
+  if (!menuNode || menuNode.dataset.moveDragBound === "1") return;
+  menuNode.dataset.moveDragBound = "1";
+
+  menuNode.addEventListener("dragover", (event) => {
+    if (menuSortDragRow || !menuLinkDragBtn || !isMenuContextMenuTarget(menuLinkDragBtn)) return;
+    const targetBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
+    if (!targetBtn || targetBtn === menuLinkDragBtn || !isMenuContextMenuTarget(targetBtn)) {
+      clearMenuMoveDropTarget();
+      return;
+    }
+    const move = resolveMenuDragMove(
+      menuLinkDragBtn.dataset.path,
+      targetBtn.dataset.path
+    );
+    if (!move) {
+      clearMenuMoveDropTarget();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    setMenuMoveDropTarget(targetBtn);
+  });
+
+  menuNode.addEventListener("dragleave", (event) => {
+    if (!menuLinkDragBtn || menuNode.contains(event.relatedTarget)) return;
+    clearMenuMoveDropTarget();
+  });
+
+  menuNode.addEventListener("drop", async (event) => {
+    if (menuSortDragRow || !menuLinkDragBtn || !isMenuContextMenuTarget(menuLinkDragBtn)) return;
+    const targetBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
+    clearMenuMoveDropTarget();
+    if (!targetBtn || targetBtn === menuLinkDragBtn || !isMenuContextMenuTarget(targetBtn)) return;
+
+    const move = resolveMenuDragMove(
+      menuLinkDragBtn.dataset.path,
+      targetBtn.dataset.path
+    );
+    if (!move) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const sourceLabel = resolveMenuEntryLabel(move.source);
+    const targetLabel = resolveMenuEntryLabel(move.target);
+    const confirmed = await askConfirm(
+      `Переместить «${sourceLabel}» в «${targetLabel}»?`,
+      { okLabel: "Подтвердить" }
+    );
+    if (!confirmed) return;
+
+    try {
+      const data = await moveNodeByPath(move.source, move.parentPath);
+      invalidateMenuAgentCache(activeAgentId);
+      await refreshMenu();
+      if (data.path) {
+        await openNodeFromMenu(getLabelFromPath(data.path), data.path);
+      }
+      notifyMarkdownLinkRewrite(data.linkRewrite);
+      showToast("Перемещено", "success");
+    } catch (error) {
+      showToast(`Ошибка перемещения: ${error.message}`, "error");
+    }
+  });
+
+  menuNode.addEventListener("dragend", () => {
+    clearMenuMoveDropTarget();
   });
 }
 
@@ -55607,6 +57007,8 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
+setupMenuNodeMoveDragDrop();
+setupMemoryListDragDrop();
 setupEditorMenuLinkDrop();
 setupEditorAsideSelectionCapture();
 window.addEventListener("popstate", () => {

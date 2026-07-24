@@ -10,6 +10,7 @@ const agentRegistry = require("./agent-registry");
 const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
+const { parseYamlScalar } = require("./awn-yaml-utils");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const {
   clampThumbMax,
@@ -731,7 +732,7 @@ function applyAwnNameToFrontmatter(frontmatter, displayName, slug) {
 
 function formatYamlScalarForFrontmatter(value) {
   const text = String(value ?? "");
-  if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
+  if (!text || /[:#\[\]{}&,*?"']|^\s|\s$/.test(text)) {
     return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
   return text;
@@ -2003,7 +2004,7 @@ function getYamlScalar(frontmatter, key) {
   const text = String(frontmatter || "");
   const match = text.match(new RegExp(`^${key}:\\s*(.+)$`, "im"));
   if (!match) return "";
-  return match[1].trim().replace(/^["']|["']$/g, "");
+  return String(parseYamlScalar(match[1]) ?? "").trim();
 }
 
 function getYamlBoolean(frontmatter, key) {
@@ -2115,16 +2116,7 @@ function parseFrontmatterProps(frontmatter) {
       continue;
     }
 
-    if (
-      (rest.startsWith('"') && rest.endsWith('"')) ||
-      (rest.startsWith("'") && rest.endsWith("'"))
-    ) {
-      entries.push({ key, kind: "string", value: rest.slice(1, -1) });
-      index += 1;
-      continue;
-    }
-
-    entries.push({ key, kind: "string", value: rest });
+    entries.push({ key, kind: "string", value: String(parseYamlScalar(rest) ?? "") });
     index += 1;
   }
 
@@ -3805,6 +3797,72 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
     readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
     exists: true
   };
+}
+
+function addMemorySectionSortParentPaths(parentPaths, sectionRelPath) {
+  const normalized = String(sectionRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  parentPaths.add("");
+  if (!normalized) return;
+  const parts = normalized.split("/").filter(Boolean);
+  for (let i = 0; i < parts.length; i += 1) {
+    parentPaths.add(parts.slice(0, i).join("/"));
+  }
+}
+
+async function collectMemorySectionSortOrders(rootAbsolute, sectionRelPaths = []) {
+  const parentPaths = new Set();
+  for (const sectionRelPath of sectionRelPaths) {
+    addMemorySectionSortParentPaths(parentPaths, sectionRelPath);
+  }
+  const orders = {};
+  for (const parentRel of parentPaths) {
+    const dirAbsolute = parentRel
+      ? joinFolderRelativePath(rootAbsolute, parentRel)
+      : rootAbsolute;
+    if (!dirAbsolute || !isPathInsideDirectory(rootAbsolute, dirAbsolute)) continue;
+    const order = await readMenuSortOrder(dirAbsolute);
+    if (order?.length) orders[parentRel] = order;
+  }
+  return orders;
+}
+
+async function saveMemorySectionSortOrderRecord(
+  manifestRelPath,
+  scopeType,
+  storageFolder,
+  parentRelPath,
+  order
+) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const rootAbsolute = await resolveMemorySectionRootAbsolute(nodeAbsolute, scopeType, storageFolder);
+  if (!rootAbsolute) return { error: "Storage folder not found", status: 404 };
+
+  const parentRaw = String(parentRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  const dirAbsolute = parentRaw ? joinFolderRelativePath(rootAbsolute, parentRaw) : rootAbsolute;
+  if (!dirAbsolute || !isPathInsideDirectory(rootAbsolute, dirAbsolute)) {
+    return { error: "Invalid parent section path", status: 400 };
+  }
+
+  try {
+    const stat = await fs.stat(dirAbsolute);
+    if (!stat.isDirectory()) return { error: "Parent section not found", status: 404 };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { error: "Parent section not found", status: 404 };
+    throw error;
+  }
+
+  const nextOrder = Array.isArray(order)
+    ? order.map((name) => String(name || "").trim()).filter(Boolean)
+    : [];
+  const sortPath = path.join(dirAbsolute, MENU_SORT_FILE);
+  await fs.writeFile(sortPath, `${JSON.stringify({ order: nextOrder }, null, 2)}\n`, "utf-8");
+  return { parent: parentRaw, order: nextOrder };
 }
 
 async function deleteMemorySectionRecord(manifestRelPath, scopeType, storageFolder, sectionRelPath) {
@@ -5489,6 +5547,32 @@ async function countDirectoryFiles(dirAbsolute) {
   return count;
 }
 
+async function countDirectoryImmediateSubfolders(dirAbsolute) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+
+  let count = 0;
+  for (const entry of entries) {
+    if (entry.name === ".DS_Store" || entry.name.startsWith(".")) continue;
+    if (!entry.isDirectory()) continue;
+    if (shouldSkipDirectoryListing(entry.name)) continue;
+    count += 1;
+  }
+  return count;
+}
+
+function getStorageSlotFolderEntryCount(slotKey, folderAbsolute) {
+  if (!folderAbsolute) return Promise.resolve(0);
+  const resolvedSlotKey =
+    slotKey || resolveSlotKeyFromStorageFolderName(path.basename(folderAbsolute));
+  if (resolvedSlotKey === "repository") return countDirectoryImmediateSubfolders(folderAbsolute);
+  return countDirectoryFiles(folderAbsolute);
+}
+
 async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
   const layers = {};
   const existsBase = baseAbsolute ? await isExistingDirectory(baseAbsolute) : false;
@@ -5518,7 +5602,8 @@ async function inspectStorageLayersAtAbsolute(baseAbsolute, options = {}) {
       const folderAbsolute = await resolveFolderPathCaseInsensitive(baseAbsolute, folderName);
       if (folderAbsolute && (await isExistingDirectory(folderAbsolute))) {
         exists = true;
-        entryCount = await countDirectoryFiles(folderAbsolute);
+        const slotKey = resolveSlotKeyFromStorageFolderName(folderName);
+        entryCount = await getStorageSlotFolderEntryCount(slotKey, folderAbsolute);
       }
     }
     layers[folderName] = { kind: "folder", exists, entryCount };
@@ -5633,9 +5718,16 @@ async function scanNodeStorageRoot(manifestRelPath) {
       if (!entry.isDirectory()) continue;
 
       const folderAbsolute = await resolveFolderPathCaseInsensitive(storageRootAbs, entry.name);
-      const entryCount = folderAbsolute ? await countDirectoryFiles(folderAbsolute) : 0;
       const canonical = normalizeStorageSubfolderName(entry.name);
       const slotKey = resolveSlotKeyFromStorageFolderName(entry.name);
+      const subfolderCount = folderAbsolute
+        ? await countDirectoryImmediateSubfolders(folderAbsolute)
+        : 0;
+      const entryCount = folderAbsolute
+        ? slotKey === "repository"
+          ? subfolderCount
+          : await getStorageSlotFolderEntryCount(slotKey, folderAbsolute)
+        : 0;
       const policy =
         folderAbsolute && slotKey
           ? await scanStorageFolderPolicyViolations(folderAbsolute, slotKey)
@@ -5644,6 +5736,7 @@ async function scanNodeStorageRoot(manifestRelPath) {
         name: entry.name,
         canonical,
         entryCount,
+        subfolderCount,
         slotKey,
         matched: Boolean(slotKey),
         policyViolationCount: policy.count,
@@ -11566,7 +11659,25 @@ async function handleApiForAgent(req, res, url) {
       const enrichedFiles = await Promise.all(
         files.map((file) => enrichExternalMarkdownFilePreview(relPath, folderAbsolute, file))
       );
-      return sendJson(res, 200, { exists: true, files: enrichedFiles, folders, nonMarkdownFiles });
+      const sectionRelPaths = [];
+      for (const folder of folders) {
+        const folderPath = String(folder.path || folder.name || folder || "")
+          .replace(/\\/g, "/")
+          .replace(/\/$/, "");
+        if (folderPath) sectionRelPaths.push(folderPath);
+      }
+      for (const file of enrichedFiles) {
+        const parent = String(file.parent || "").replace(/\\/g, "/");
+        if (parent && parent !== ".") sectionRelPaths.push(parent);
+      }
+      const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+      return sendJson(res, 200, {
+        exists: true,
+        files: enrichedFiles,
+        folders,
+        nonMarkdownFiles,
+        sectionSortOrders
+      });
     } catch (error) {
       if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [] });
       return sendJson(res, 500, { error: "Failed to read external files", details: String(error.message || error) });
@@ -11995,6 +12106,23 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/external/section/sort") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await saveMemorySectionSortOrderRecord(
+        payload.path,
+        "external",
+        "",
+        payload.parent,
+        payload.order
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save external section sort", details: String(error.message || error) });
+    }
+  }
+
   if (req.method === "DELETE" && url.pathname === "/api/external/section") {
     const relPath = url.searchParams.get("path") || "";
     const section = url.searchParams.get("section") || "";
@@ -12045,6 +12173,23 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, result);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to move media section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/media/section/sort") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await saveMemorySectionSortOrderRecord(
+        payload.path,
+        "media",
+        payload.folder || "",
+        payload.parent,
+        payload.order
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save media section sort", details: String(error.message || error) });
     }
   }
 
@@ -12477,12 +12622,29 @@ async function handleApiForAgent(req, res, url) {
       const groups = groupMediaFiles(items);
       const { content, files } = buildMediaListContent(groups);
 
+      const sectionRelPaths = [];
+      for (const manifest of sectionManifests) {
+        const manifestPath = String(manifest.path || "").replace(/\\/g, "/");
+        if (!manifestPath) continue;
+        const folderKey = manifestPath.slice(0, manifestPath.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+        if (folderKey) sectionRelPaths.push(folderKey);
+      }
+      for (const item of items) {
+        const itemPath = String(item.path || "").replace(/\\/g, "/");
+        if (!itemPath) continue;
+        const parentParts = itemPath.split("/").filter(Boolean);
+        parentParts.pop();
+        if (parentParts.length) sectionRelPaths.push(parentParts.join("/"));
+      }
+      const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+
       return sendJson(res, 200, {
         exists: true,
         files,
         content,
         groups,
-        sectionManifests
+        sectionManifests,
+        sectionSortOrders
       });
     } catch (error) {
       if (error && error.code === "ENOENT") {
@@ -13293,9 +13455,11 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const chunks = await collectFolderEntries(folderAbsolute);
+      const subfolders = await countDirectoryImmediateSubfolders(folderAbsolute);
       return sendJson(res, 200, {
         exists: true,
         files: chunks.length,
+        subfolders,
         content: chunks.length > 0 ? chunks.join("\n") : ""
       });
     } catch (error) {

@@ -1803,6 +1803,57 @@
                   </footer>
                 </div>
               </section>
+              <div id="editor-title-bar" class="editor-title-bar hidden" aria-label="Название документа">
+                <div class="editor-title-fields">
+                  <div class="editor-title-field editor-title-field--name">
+                    <label
+                      class="editor-title-field-label"
+                      for="title-input"
+                      title="Отображаемое имя в меню и списках"
+                    >awn-name</label>
+                    <div class="editor-title-field-value">
+                      <div class="title-row">
+                        <input
+                          id="title-input"
+                          class="title-input"
+                          type="text"
+                          placeholder="Пусто — в меню показывается slug"
+                          aria-label="Отображаемое имя"
+                        />
+                        <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="title-slug-row" class="editor-title-field editor-title-field--slug slug-field-row hidden">
+                    <label
+                      class="editor-title-field-label"
+                      for="title-slug-input"
+                      title="Имя папки или файла на диске. Транслит из awn-name; можно открепить ✎ и ввести вручную."
+                    >Slug</label>
+                    <div class="editor-title-field-value">
+                      <div class="slug-input-row">
+                        <input
+                          id="title-slug-input"
+                          class="slug-input"
+                          type="text"
+                          placeholder="plavanie"
+                          aria-label="Slug — имя папки или файла"
+                          spellcheck="false"
+                          autocomplete="off"
+                          readonly
+                        />
+                        <button
+                          id="title-slug-unlink-btn"
+                          class="slug-unlink-btn"
+                          type="button"
+                          title="Редактировать slug вручную"
+                          aria-label="Редактировать slug вручную"
+                        >✎</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div id="editor-custom-props-bar" class="editor-custom-props-bar hidden" aria-label="Пользовательские свойства">
                 <div id="editor-custom-props-fields" class="editor-custom-props-fields props-form-fields"></div>
               </div>
@@ -1964,42 +2015,6 @@
                   <section class="doc-aside-fields-card" aria-label="Свойства документа">
                     <section id="props-preview-block" class="doc-aside-preview-block hidden" aria-label="Превью"></section>
                     <section id="props-attachments-block" class="doc-aside-attachments-block hidden" aria-label="Вложения"></section>
-                    <section id="title-editor-block" class="doc-aside-title-block doc-slab doc-slab-title hidden" aria-label="Название документа">
-                      <label class="doc-aside-title-label" for="title-input">Отображаемое имя (awn-name)</label>
-                      <div class="title-row">
-                        <input
-                          id="title-input"
-                          class="title-input"
-                          type="text"
-                          placeholder="Пусто — в меню показывается slug"
-                          aria-label="Отображаемое имя"
-                        />
-                        <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
-                      </div>
-                      <div id="title-slug-row" class="slug-field-row hidden">
-                        <label class="slug-field-label" for="title-slug-input">Имя на диске (slug)</label>
-                        <div class="slug-input-row">
-                          <input
-                            id="title-slug-input"
-                            class="slug-input"
-                            type="text"
-                            placeholder="plavanie"
-                            aria-label="Slug — имя папки или файла"
-                            spellcheck="false"
-                            autocomplete="off"
-                            readonly
-                          />
-                          <button
-                            id="title-slug-unlink-btn"
-                            class="slug-unlink-btn"
-                            type="button"
-                            title="Редактировать slug вручную"
-                            aria-label="Редактировать slug вручную"
-                          >✎</button>
-                        </div>
-                        <p class="slug-field-hint">Имя папки или файла на диске. Транслит из awn-name; можно открепить ✎ и ввести вручную.</p>
-                      </div>
-                    </section>
                     <header class="doc-aside-fields-card-head">
                       <h3 class="doc-aside-fields-card-title">Метаданные</h3>
                     </header>

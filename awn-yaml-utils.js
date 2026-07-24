@@ -3,13 +3,46 @@ const path = require("path");
 
 const YAML_FILE_RE = /\.ya?ml$/i;
 
+function unescapeYamlDoubleQuotedString(text) {
+  return String(text)
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t");
+}
+
+function normalizeYamlDisplayString(value) {
+  const text = String(value ?? "").trim();
+  if (!text || !text.includes("\\")) return text;
+  if (text.includes('\\"') || text.includes("\\\\")) {
+    return unescapeYamlDoubleQuotedString(text);
+  }
+  return text;
+}
+
 function parseYamlScalar(value) {
   let raw = String(value ?? "").trim();
   if (!raw) return "";
-  // Значение в кавычках: берём содержимое кавычек, игнорируя хвостовой inline-комментарий.
-  if (raw[0] === '"' || raw[0] === "'") {
-    const q = raw[0];
-    const end = raw.indexOf(q, 1);
+
+  if (raw[0] === '"') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      if (raw.endsWith('"') && raw.length >= 2) {
+        return unescapeYamlDoubleQuotedString(raw.slice(1, -1));
+      }
+      const end = raw.indexOf('"', 1);
+      if (end > 0) return raw.slice(1, end);
+      return raw.slice(1);
+    }
+  }
+
+  if (raw[0] === "'") {
+    if (raw.endsWith("'") && raw.length >= 2) {
+      return raw.slice(1, -1).replace(/''/g, "'");
+    }
+    const end = raw.indexOf("'", 1);
     if (end > 0) return raw.slice(1, end);
     return raw.slice(1);
   }
@@ -22,7 +55,7 @@ function parseYamlScalar(value) {
   if (raw === "true" || raw === "false") return raw === "true";
   if (raw === "null" || raw === "~") return null;
   if (/^-?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
-  return raw;
+  return normalizeYamlDisplayString(raw);
 }
 
 function nextSignificantYamlLine(lines, startIndex) {
@@ -171,6 +204,8 @@ module.exports = {
   YAML_FILE_RE,
   parseTypeYaml,
   parseYamlScalar,
+  unescapeYamlDoubleQuotedString,
+  normalizeYamlDisplayString,
   listYamlFilesSync,
   loadYamlFileSync
 };

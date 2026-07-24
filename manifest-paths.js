@@ -6,6 +6,7 @@
  */
 const path = require("path");
 const { resolveCanonicalTypeId } = require("./type-catalog-loader");
+const { normalizeYamlDisplayString } = require("./awn-yaml-utils");
 
 const EMPTY_TYPE_CATALOG = new Map();
 
@@ -195,7 +196,7 @@ function getManifestSlugFromRel(relPath) {
 }
 
 function resolveNodeDisplayName(nameRaw, slug) {
-  const name = String(nameRaw || "").trim();
+  const name = normalizeYamlDisplayString(nameRaw);
   const slugLabel = String(slug || "").trim();
   if (!name) return slugLabel;
   if (name.toLowerCase() === "manifest") return slugLabel;
