@@ -41910,6 +41910,24 @@ function getMarkdownIt() {
     return defaultHeadingOpen(tokens, idx, options, env, self);
   };
 
+  const defaultTableOpen =
+    markdownItInstance.renderer.rules.table_open ||
+    function renderDefaultTableOpen(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+  const defaultTableClose =
+    markdownItInstance.renderer.rules.table_close ||
+    function renderDefaultTableClose(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+
+  markdownItInstance.renderer.rules.table_open = function renderWrappedMarkdownTableOpen(tokens, idx, options, env, self) {
+    return `<div class="file-content-table-wrap">${defaultTableOpen(tokens, idx, options, env, self)}`;
+  };
+  markdownItInstance.renderer.rules.table_close = function renderWrappedMarkdownTableClose(tokens, idx, options, env, self) {
+    return `${defaultTableClose(tokens, idx, options, env, self)}</div>`;
+  };
+
   markdownItInstance.inline.ruler.before("link", "md_highlight", (state, silent) => {
     const start = state.pos;
     if (state.src.charCodeAt(start) !== 0x3d /* = */) return false;
