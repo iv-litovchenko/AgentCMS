@@ -56277,11 +56277,19 @@ function withPreservedMenuScroll(run) {
 }
 
 const MENU_SCROLL_TOP_THRESHOLD = 48;
-const SCROLL_TOP_DRAG_MAX_SHIFT_PX = 100;
+const SCROLL_TOP_DRAG_MAX_RADIUS_PX = 100;
 const SCROLL_TOP_DRAG_CLICK_THRESHOLD_PX = 6;
 
-function clampScrollTopShift(value, maxShift = SCROLL_TOP_DRAG_MAX_SHIFT_PX) {
-  return Math.min(maxShift, Math.max(0, Number(value) || 0));
+function constrainScrollTopOffset(offset, maxRadius = SCROLL_TOP_DRAG_MAX_RADIUS_PX) {
+  let x = Math.max(0, Number(offset.x) || 0);
+  let y = Math.max(0, Number(offset.y) || 0);
+  const radius = Math.hypot(x, y);
+  if (radius > maxRadius && radius > 0) {
+    const scale = maxRadius / radius;
+    x *= scale;
+    y *= scale;
+  }
+  return { x, y };
 }
 
 function applyScrollTopButtonOffset(button, offset = { x: 0, y: 0 }) {
@@ -56292,7 +56300,7 @@ function applyScrollTopButtonOffset(button, offset = { x: 0, y: 0 }) {
 
 function setupDraggableScrollTopButton(
   button,
-  { maxShift = SCROLL_TOP_DRAG_MAX_SHIFT_PX, onActivate } = {}
+  { maxRadius = SCROLL_TOP_DRAG_MAX_RADIUS_PX, onActivate } = {}
 ) {
   if (!button) return;
 
@@ -56324,10 +56332,13 @@ function setupDraggableScrollTopButton(
     dragState.moved = true;
     button.classList.add("is-dragging");
     event.preventDefault();
-    offset = {
-      x: clampScrollTopShift(dragState.baseX + deltaX, maxShift),
-      y: clampScrollTopShift(dragState.baseY + deltaY, maxShift)
-    };
+    offset = constrainScrollTopOffset(
+      {
+        x: dragState.baseX + deltaX,
+        y: dragState.baseY + deltaY
+      },
+      maxRadius
+    );
     applyScrollTopButtonOffset(button, offset);
   });
 
