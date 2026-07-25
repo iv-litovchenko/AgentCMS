@@ -157,10 +157,15 @@ module.exports = {
         {
           method: "GET",
           path: "/api/search",
-          description: "Поиск по workspace.",
-          query: ["q", "scope=content|filename|description", "limit=1..100"],
+          description: "Поиск по workspace (имя, мета темы, содержимое, теги).",
+          query: [
+            "q",
+            "scope=all|content|filename|tags",
+            "fileType=all|markdown|sidecar|pdf|office|spreadsheet|video|audio|image|archive|config|other",
+            "limit=1..100"
+          ],
           body: null,
-          response: "{ query, scope, results[], total }"
+          response: "{ query, scope, fileType?, results[], total }"
         }
       ]
     },

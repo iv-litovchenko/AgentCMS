@@ -6337,7 +6337,7 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
-  search: "GET /api/search?q=&scope=content|filename|description|tags",
+  search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&limit=",
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
   runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",

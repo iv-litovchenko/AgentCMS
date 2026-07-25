@@ -148,14 +148,39 @@ function createServer() {
 
   reg(
     "search_workspace",
-    "Search workspace.",
+    "Search workspace (same as UI header search). Default scope=all: filenames, topic meta (name/slug/tags), and file content. fileType filters by format.",
     z.object({
       query: z.string().min(1),
-      scope: z.enum(["content", "filename", "description", "tags"]).optional(),
+      scope: z
+        .enum(["all", "content", "filename", "description", "tags"])
+        .optional()
+        .describe("Search scope; default all (UI «Везде»)."),
+      fileType: z
+        .enum([
+          "all",
+          "markdown",
+          "sidecar",
+          "pdf",
+          "office",
+          "spreadsheet",
+          "video",
+          "audio",
+          "image",
+          "archive",
+          "config",
+          "other"
+        ])
+        .optional()
+        .describe("Filter by file format; default all."),
       limit: z.number().int().min(1).max(100).optional()
     }),
-    ({ query, scope, limit }) =>
-      client.get("/api/search", { q: query, scope: scope || "content", limit: limit || 25 })
+    ({ query, scope, fileType, limit }) =>
+      client.get("/api/search", {
+        q: query,
+        scope: scope || "all",
+        fileType: fileType || "all",
+        limit: limit || 30
+      })
   );
 
   reg("list_type_catalog", "Platform type catalog (pages, fields, md-blocks, content slots).", z.object({}), () =>
