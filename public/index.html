@@ -130,16 +130,19 @@
                 aria-controls="content-search-results"
                 aria-expanded="false"
               />
-              <select id="content-search-type" class="content-search-type" aria-label="Тип файлов">
+              <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
                 <option value="all" selected>Все типы</option>
-                <option value="topics">Темы и области</option>
-                <option value="content">Content / записи</option>
-                <option value="media">Медиа</option>
-                <option value="memory">Память темы</option>
-                <option value="storage">Inbox, скрипты и др.</option>
-                <option value="system">Системные</option>
-                <option value="service">Служебные файлы</option>
-                <option value="other">Прочие markdown</option>
+                <option value="markdown">Markdown</option>
+                <option value="sidecar">Sidecar</option>
+                <option value="pdf">PDF</option>
+                <option value="office">Word / PowerPoint</option>
+                <option value="spreadsheet">Excel / CSV</option>
+                <option value="video">Видео</option>
+                <option value="audio">Аудио</option>
+                <option value="image">Изображения</option>
+                <option value="archive">Архивы</option>
+                <option value="config">YAML / JSON / TXT</option>
+                <option value="other">Прочее</option>
               </select>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
@@ -2904,7 +2907,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.361"></script>
+    <script src="/main.js?v=0.5.362"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

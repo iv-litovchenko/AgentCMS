@@ -15089,39 +15089,50 @@ async function openContentSearchResult(result, { agentId = null } = {}) {
     return;
   }
 
-  if (!result.nodePath) return;
-
-  const label = getLabelFromPath(result.nodePath);
+  const label = result.nodePath ? getLabelFromPath(result.nodePath) : "";
   const mode = result.mode;
 
-  if (mode) {
+  if (result.nodePath && mode) {
     await selectNodeManifest(label, result.nodePath, mode);
-  } else {
+
+    if (mode === "external" && result.externalFile) {
+      await openExternalFile(result.externalFile);
+      return;
+    }
+
+    if (mode === "media" && result.externalFile) {
+      if (/\.md$/i.test(result.externalFile)) {
+        await openMediaMarkdownFile(result.externalFile);
+      } else {
+        await openMediaSidecar(result.externalFile);
+      }
+      return;
+    }
+
+    if (FLAT_STORAGE_SECTION_MODES.has(mode) && result.externalFile) {
+      const rel = String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, "");
+      const recordPath = rel.replace(/\.md$/i, "");
+      openFlatStorageRecordOverviewFromNavigation(
+        { path: recordPath, title: recordPath.split("/").pop() || recordPath },
+        mode
+      );
+      return;
+    }
+  } else if (result.nodePath && !mode) {
     await openNodeFromMenu(label, result.nodePath);
     return;
   }
 
-  if (mode === "external" && result.externalFile) {
-    await openExternalFile(result.externalFile);
-    return;
-  }
+  const filePath = String(result.filePath || result.canonicalPath || "").replace(/\\/g, "/");
+  if (!filePath) return;
 
-  if (mode === "media" && result.externalFile) {
-    if (/\.md$/i.test(result.externalFile)) {
-      await openMediaMarkdownFile(result.externalFile);
-    } else {
-      await openMediaSidecar(result.externalFile);
-    }
-    return;
-  }
-
-  if (FLAT_STORAGE_SECTION_MODES.has(mode) && result.externalFile) {
-    const rel = String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, "");
-    const recordPath = rel.replace(/\.md$/i, "");
-    openFlatStorageRecordOverviewFromNavigation(
-      { path: recordPath, title: recordPath.split("/").pop() || recordPath },
-      mode
-    );
+  try {
+    const chpuPath = workspaceRelToChpuPath(filePath);
+    const resolved = await fetchChpuResolve(chpuPath);
+    await applyChpuResolvedRoute(resolved);
+    syncAppRouteToUrl({ push: true });
+  } catch (error) {
+    showToast(`Не удалось открыть файл: ${error.message}`, "error");
   }
 }
 

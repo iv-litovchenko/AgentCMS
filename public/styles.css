@@ -9713,7 +9713,7 @@ body.app-locked {
 
 .content-search-type {
   flex: 0 0 auto;
-  max-width: 168px;
+  max-width: 190px;
   border: 0;
   border-left: 1px solid var(--border);
   background: #f1f5f9;

@@ -9056,10 +9056,69 @@ async function findNodePathInDirectory(dirAbsolute) {
   }
 }
 
+const SEARCHABLE_TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".yaml",
+  ".yml",
+  ".json",
+  ".txt",
+  ".csv"
+]);
+
+const SEARCHABLE_BINARY_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".bmp",
+  ".ico",
+  ".heic",
+  ".avif",
+  ".mp4",
+  ".mov",
+  ".mkv",
+  ".avi",
+  ".webm",
+  ".m4v",
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".ogg",
+  ".flac",
+  ".aac",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".zip",
+  ".rar",
+  ".7z",
+  ".tar",
+  ".gz"
+]);
+
+function getSearchableFileExtension(name) {
+  const base = path.posix.basename(String(name || "").replace(/\\/g, "/"));
+  if (base.toLowerCase().endsWith(".sidecar.md")) return ".sidecar.md";
+  return path.extname(base).toLowerCase();
+}
+
 function isSearchableFileName(name) {
   if (name === ".env" || name === ".gitignore") return true;
-  const ext = path.extname(name).toLowerCase();
-  return [".md", ".yaml", ".yml", ".json", ".txt"].includes(ext);
+  const ext = getSearchableFileExtension(name);
+  if (ext === ".sidecar.md") return true;
+  return SEARCHABLE_TEXT_EXTENSIONS.has(ext) || SEARCHABLE_BINARY_EXTENSIONS.has(ext);
+}
+
+function isTextSearchableFileName(name) {
+  if (name === ".env" || name === ".gitignore") return true;
+  const ext = getSearchableFileExtension(name);
+  return SEARCHABLE_TEXT_EXTENSIONS.has(ext) || ext === ".sidecar.md";
 }
 
 function shouldSkipSearchDirectory(name) {
@@ -9506,15 +9565,32 @@ const MARKDOWN_LINK_GROUP_LABELS = {
   other: "Прочие markdown"
 };
 
+const SEARCH_FILE_FORMAT_LABELS = {
+  markdown: "Markdown",
+  sidecar: "Sidecar",
+  pdf: "PDF",
+  office: "Word / PowerPoint",
+  spreadsheet: "Excel / CSV",
+  video: "Видео",
+  audio: "Аудио",
+  image: "Изображения",
+  archive: "Архивы",
+  config: "YAML / JSON / TXT",
+  other: "Прочее"
+};
+
 const SEARCH_FILE_TYPE_IDS = new Set([
   "all",
-  "topics",
-  "content",
-  "media",
-  "memory",
-  "storage",
-  "system",
-  "service",
+  "markdown",
+  "sidecar",
+  "pdf",
+  "office",
+  "spreadsheet",
+  "video",
+  "audio",
+  "image",
+  "archive",
+  "config",
   "other"
 ]);
 
@@ -9533,6 +9609,32 @@ const SEARCH_FLAT_STORAGE_MODES = new Set([
 function normalizeSearchFileType(value) {
   const type = String(value || "all").trim().toLowerCase();
   return SEARCH_FILE_TYPE_IDS.has(type) ? type : "all";
+}
+
+function classifySearchFileFormat(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  const lower = base.toLowerCase();
+
+  if (lower.endsWith(".sidecar.md")) return "sidecar";
+
+  const ext = path.extname(base).toLowerCase();
+  if (ext === ".md" || ext === ".markdown") return "markdown";
+  if (ext === ".pdf") return "pdf";
+  if ([".doc", ".docx", ".ppt", ".pptx"].includes(ext)) return "office";
+  if ([".xls", ".xlsx", ".csv"].includes(ext)) return "spreadsheet";
+  if ([".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"].includes(ext)) return "video";
+  if ([".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"].includes(ext)) return "audio";
+  if (
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".heic", ".avif"].includes(ext)
+  ) {
+    return "image";
+  }
+  if ([".zip", ".rar", ".7z", ".tar", ".gz"].includes(ext)) return "archive";
+  if ([".yaml", ".yml", ".json", ".txt"].includes(ext) || base === ".env" || base === ".gitignore") {
+    return "config";
+  }
+  return "other";
 }
 
 function classifyMarkdownLinkGroup(relPath, meta) {
@@ -9583,14 +9685,30 @@ function classifyMarkdownLinkGroup(relPath, meta) {
 
 function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all") {
   if (!meta) return null;
-  const fileType = classifyMarkdownLinkGroup(relPath, meta);
+  const fileType = classifySearchFileFormat(relPath);
   if (fileTypeFilter !== "all" && fileType !== fileTypeFilter) return null;
   return {
     ...meta,
     ...payload,
     filePath: meta.canonicalPath || relPath,
     fileType,
-    fileTypeLabel: MARKDOWN_LINK_GROUP_LABELS[fileType] || MARKDOWN_LINK_GROUP_LABELS.other
+    fileTypeLabel: SEARCH_FILE_FORMAT_LABELS[fileType] || SEARCH_FILE_FORMAT_LABELS.other
+  };
+}
+
+async function resolveSearchResultMeta(relPath) {
+  const meta = await classifySearchResult(relPath);
+  if (meta) return meta;
+
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  if (isAllowedSystemFileName(base)) {
+    return { systemFile: base, source: base };
+  }
+
+  return {
+    source: base || normalized,
+    canonicalPath: normalized
   };
 }
 
@@ -9866,7 +9984,7 @@ async function searchByFilename(query, limit = 30, fileType = "all") {
   for (const relPath of relFiles) {
     if (!matchesFilename(relPath, trimmed)) continue;
 
-    const meta = await classifySearchResult(relPath);
+    const meta = await resolveSearchResultMeta(relPath);
     const displayName = path.basename(relPath);
     const entry = buildSearchResultEntry(
       relPath,
@@ -9899,6 +10017,8 @@ async function searchByContent(query, limit = 30, fileType = "all") {
   const results = [];
 
   for (const relPath of relFiles) {
+    if (!isTextSearchableFileName(path.basename(relPath))) continue;
+
     const absolute = normalizeWorkspacePath(relPath);
     if (!absolute) continue;
 
@@ -9911,7 +10031,7 @@ async function searchByContent(query, limit = 30, fileType = "all") {
 
     if (!content.toLowerCase().includes(qLower)) continue;
 
-    const meta = await classifySearchResult(relPath);
+    const meta = await resolveSearchResultMeta(relPath);
     const entry = buildSearchResultEntry(
       relPath,
       meta,
