@@ -1,5 +1,0 @@
-Classes/
-Classes/Domain/
-Classes/Domain/Model/
-Classes/Domain/Model/Ext/
-ExtModel.php Classes/Domain/Model/Ext/Ext###KEY###.php

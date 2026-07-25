@@ -6,8 +6,8 @@ awn-description: ""
 awn-tags: []
 awn-type: awn.page.topic
 awn-create: "2026-07-25T01:45"
-awn-update: 2026-07-25T14:23:17.605Z
-awn-version: 8
+awn-update: 2026-07-25T13:37:00.944Z
+awn-version: 5
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -16,9 +16,9 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-sort: 0
-awn-runtime-load-always: true
+awn-runtime-load: session-start
 awn-runtime-cron: true
 awn-runtime-cron-schedule: "*/30 * * * *"
-awn-runtime-heartbeat: true
+awn-runtime-heartbeat: false
 awn-attachments: []
 ---

@@ -94,7 +94,7 @@ function createServer() {
 
   reg(
     "get_runtime_registry",
-    "Topic runtime registry (awn-runtime-load, cron, heartbeat). Optional filter: sync, cron, heartbeat, mode.",
+    "Topic runtime registry (awn-runtime-load-always, cron, heartbeat). Optional filter: sync, cron, heartbeat, mode.",
     runtimeFilterSchema,
     (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
   );

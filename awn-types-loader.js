@@ -353,7 +353,7 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     "awn-priority",
     "awn-color",
     "awn-sort",
-    "awn-runtime-load",
+    "awn-runtime-load-always",
     "awn-runtime-cron",
     "awn-runtime-cron-schedule",
     "awn-runtime-heartbeat"

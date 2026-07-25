@@ -2047,10 +2047,31 @@ function getYamlBoolean(frontmatter, key) {
   return value === "true" || value === "yes" || value === "1";
 }
 
-const RUNTIME_LOAD_LABELS = {
-  "on-demand": "По требованию",
-  "session-start": "При старте сессии"
+const RUNTIME_LOAD_ALWAYS_LABELS = {
+  true: "Всегда в контексте",
+  false: "По запросу"
 };
+
+function readLegacyRuntimeLoadAlways(frontmatter) {
+  const props = parseFrontmatterProps(frontmatter);
+  const loadRaw =
+    getFrontmatterPropValue(props, "awn-runtime-load") ||
+    getYamlScalar(frontmatter, "awn-runtime-load") ||
+    "";
+  const normalized = String(loadRaw).trim().toLowerCase();
+  return normalized === "session-start" || normalized === "true" || normalized === "yes" || normalized === "1";
+}
+
+function readRuntimeLoadAlwaysFromFrontmatter(frontmatter) {
+  const props = parseFrontmatterProps(frontmatter);
+  const alwaysRaw =
+    getFrontmatterPropValue(props, "awn-runtime-load-always") ??
+    getYamlScalar(frontmatter, "awn-runtime-load-always");
+  if (alwaysRaw !== null && alwaysRaw !== undefined && String(alwaysRaw).trim() !== "") {
+    return readFrontmatterBooleanProp(frontmatter, "awn-runtime-load-always");
+  }
+  return readLegacyRuntimeLoadAlways(frontmatter);
+}
 
 function readFrontmatterBooleanProp(frontmatter, key) {
   const props = parseFrontmatterProps(frontmatter);
@@ -2065,14 +2086,10 @@ function readFrontmatterBooleanProp(frontmatter, key) {
 
 function extractRuntimePropsFromFrontmatter(frontmatter) {
   const props = parseFrontmatterProps(frontmatter);
-  const loadRaw =
-    getFrontmatterPropValue(props, "awn-runtime-load") ||
-    getYamlScalar(frontmatter, "awn-runtime-load") ||
-    "on-demand";
-  const runtimeLoad = loadRaw === "session-start" ? "session-start" : "on-demand";
+  const runtimeLoadAlways = readRuntimeLoadAlwaysFromFrontmatter(frontmatter);
   return {
-    runtimeLoad,
-    runtimeLoadLabel: RUNTIME_LOAD_LABELS[runtimeLoad] || RUNTIME_LOAD_LABELS["on-demand"],
+    runtimeLoadAlways,
+    runtimeLoadLabel: RUNTIME_LOAD_ALWAYS_LABELS[String(Boolean(runtimeLoadAlways))] || RUNTIME_LOAD_ALWAYS_LABELS.false,
     runtimeCron: readFrontmatterBooleanProp(frontmatter, "awn-runtime-cron"),
     runtimeCronSchedule:
       getFrontmatterPropValue(props, "awn-runtime-cron-schedule") ||
@@ -6170,7 +6187,7 @@ function countRuntimeRegistryRows(rows) {
   let syncCount = 0;
 
   for (const row of rows) {
-    if (row.runtimeLoad === "session-start") sessionStartCount += 1;
+    if (row.runtimeLoadAlways) sessionStartCount += 1;
     if (row.runtimeCron) cronCount += 1;
     if (row.runtimeHeartbeat) heartbeatCount += 1;
     if (row.runtimeCron || row.runtimeHeartbeat) syncCount += 1;
@@ -6286,7 +6303,7 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
       displayPath: row.displayPath,
       areaPath: area.areaPath || null,
       areaTitle: area.areaTitle || null,
-      runtimeLoad: row.runtimeLoad,
+      runtimeLoadAlways: row.runtimeLoadAlways,
       runtimeLoadLabel: row.runtimeLoadLabel,
       runtimeCron: row.runtimeCron,
       runtimeCronSchedule: row.runtimeCronSchedule,
@@ -6421,13 +6438,13 @@ async function buildAgentSessionContext() {
   const runtimeMap = await buildAgentRuntimeMap(DEFAULT_RUNTIME_SYNC_FILTER);
   const sessionStartTopics = [];
   for (const row of registry.rows) {
-    if (row.runtimeLoad !== "session-start") continue;
+    if (!row.runtimeLoadAlways) continue;
     const file = await readWorkspaceManifestContent(row.manifestPath);
     sessionStartTopics.push({
       manifestPath: row.manifestPath,
       label: row.label,
       displayPath: row.displayPath,
-      runtimeLoad: row.runtimeLoad,
+      runtimeLoadAlways: row.runtimeLoadAlways,
       exists: file.exists,
       content: file.content
     });
@@ -7836,7 +7853,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       awnEmoji: awnEmoji || null,
       runtimeCron: runtime.runtimeCron,
       runtimeCronSchedule: runtime.runtimeCronSchedule,
-      runtimeHeartbeat: runtime.runtimeHeartbeat
+      runtimeHeartbeat: runtime.runtimeHeartbeat,
+      runtimeLoadAlways: runtime.runtimeLoadAlways
     };
   } catch {
     return {
@@ -7849,7 +7867,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       awnEmoji: null,
       runtimeCron: false,
       runtimeCronSchedule: "",
-      runtimeHeartbeat: false
+      runtimeHeartbeat: false,
+      runtimeLoadAlways: false
     };
   }
 }
@@ -7921,6 +7940,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     runtimeCron: Boolean(meta.runtimeCron),
     runtimeCronSchedule: String(meta.runtimeCronSchedule || "").trim(),
     runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
+    runtimeLoadAlways: Boolean(meta.runtimeLoadAlways),
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -8721,6 +8741,7 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     shell.runtimeCron = Boolean(indexMeta.runtimeCron);
     shell.runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
     shell.runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
+    shell.runtimeLoadAlways = Boolean(indexMeta.runtimeLoadAlways);
     shell.runtimeCronSelf = shell.runtimeCron;
     shell.runtimeHeartbeatSelf = shell.runtimeHeartbeat;
   }
@@ -8909,6 +8930,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let runtimeCron = false;
   let runtimeCronSchedule = "";
   let runtimeHeartbeat = false;
+  let runtimeLoadAlways = false;
   if (indexPath) {
     const indexMeta = await enrichMenuNodeItem(indexPath, options);
     color = indexMeta.color;
@@ -8920,6 +8942,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeCron = Boolean(indexMeta.runtimeCron);
     runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
     runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
+    runtimeLoadAlways = Boolean(indexMeta.runtimeLoadAlways);
   }
 
   const baseNode = {
@@ -8939,6 +8962,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeCron,
     runtimeCronSchedule,
     runtimeHeartbeat,
+    runtimeLoadAlways,
     runtimeCronSelf: runtimeCron,
     runtimeHeartbeatSelf: runtimeHeartbeat,
     hasGit: selfMarkers.hasGitSelf,
@@ -9687,12 +9711,15 @@ function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all") 
   if (!meta) return null;
   const fileType = classifySearchFileFormat(relPath);
   if (fileTypeFilter !== "all" && fileType !== fileTypeFilter) return null;
+  const display = resolveSearchResultDisplay(relPath, meta);
   return {
     ...meta,
     ...payload,
     filePath: meta.canonicalPath || relPath,
     fileType,
-    fileTypeLabel: SEARCH_FILE_FORMAT_LABELS[fileType] || SEARCH_FILE_FORMAT_LABELS.other
+    fileTypeLabel: SEARCH_FILE_FORMAT_LABELS[fileType] || SEARCH_FILE_FORMAT_LABELS.other,
+    displayName: display.displayName,
+    locationHint: display.locationHint
   };
 }
 
@@ -9869,22 +9896,301 @@ function buildSearchSnippet(content, query, radius = 64) {
 }
 
 function normalizeSearchScope(scope) {
-  const value = String(scope || "content").toLowerCase();
-  if (value === "filename" || value === "tags") return value;
-  return "content";
+  const value = String(scope || "all").toLowerCase();
+  if (value === "filename" || value === "tags" || value === "content" || value === "all") return value;
+  return "all";
 }
 
 function getSearchMinLength(scope) {
-  return scope === "filename" ? 1 : 2;
+  if (scope === "filename" || scope === "all") return 1;
+  return 2;
+}
+
+function scoreFilenameMatch(relPath, query) {
+  const qLower = String(query || "").toLowerCase();
+  const base = path.basename(relPath).toLowerCase();
+  if (!qLower) return 0;
+  if (base === qLower) return 200;
+  if (base.startsWith(qLower)) return 150;
+  const stem = base.replace(/\.sidecar\.md$/i, "").replace(/\.[^./]+$/i, "");
+  if (stem === qLower || stem.startsWith(qLower)) return 140;
+  if (base.includes(qLower)) return 120;
+  if (String(relPath || "").toLowerCase().includes(qLower)) return 80;
+  return 60;
+}
+
+function formatSearchMatchKindLabel(kinds = []) {
+  const set = new Set(Array.isArray(kinds) ? kinds : []);
+  const parts = [];
+  if (set.has("topic")) parts.push("тема");
+  if (set.has("filename") && set.has("content")) parts.push("имя и текст");
+  else if (set.has("filename")) parts.push("имя файла");
+  else if (set.has("content")) parts.push("в тексте");
+  return parts.join(" · ");
+}
+
+function formatSearchPathBreadcrumb(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "Workspace";
+  return normalized.split("/").filter(Boolean).join(" › ");
+}
+
+function scoreTopicMetaMatch(fields, query) {
+  const qLower = String(query || "").trim().toLowerCase();
+  if (!qLower) return 0;
+  const title = String(fields.title || "").toLowerCase();
+  const slug = String(fields.slug || "").toLowerCase();
+  const awnName = String(fields.awnName || "").toLowerCase();
+  const relPath = String(fields.relPath || "").toLowerCase();
+
+  if (title === qLower || awnName === qLower || slug === qLower) return 320;
+  if (title.startsWith(qLower) || awnName.startsWith(qLower) || slug.startsWith(qLower)) return 280;
+  if (title.includes(qLower) || awnName.includes(qLower) || slug.includes(qLower)) return 240;
+  if (relPath.includes(qLower)) return 200;
+  return 180;
+}
+
+async function resolveSearchResultEnrichment(relPath, meta) {
+  const normalized = String(relPath || meta?.canonicalPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  const manifestPath =
+    meta?.nodePath &&
+    (isTopicManifestFileName(path.posix.basename(meta.nodePath)) || isAreaManifestRelPath(meta.nodePath))
+      ? meta.nodePath
+      : isTopicManifestFileName(base) || isAreaManifestRelPath(normalized)
+        ? normalized
+        : meta?.nodePath || null;
+
+  const enrichment = {
+    fileName: meta?.externalFile ? path.posix.basename(meta.externalFile) : base,
+    pathBreadcrumb: formatSearchPathBreadcrumb(normalized),
+    kindLabel: "",
+    titleName: "",
+    topicName: "",
+    emoji: "",
+    previewUrl: null,
+    hasPreview: false
+  };
+
+  if (meta?.systemFile) {
+    enrichment.kindLabel = "Системный";
+    enrichment.titleName = base.replace(/\.md$/i, "") || base;
+    return enrichment;
+  }
+
+  if (manifestPath) {
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(manifestPath);
+      const slug = getManifestSlugFromRel(manifestPath);
+      const awnName = getYamlScalar(frontmatter, "awn-name") || "";
+      enrichment.titleName = resolveNodeDisplayName(awnName, slug);
+      enrichment.topicName = enrichment.titleName;
+      enrichment.emoji = getYamlScalar(frontmatter, "awn-emoji") || "";
+      const awnType = String(getYamlScalar(frontmatter, "awn-type") || "").toLowerCase();
+      if (awnType.includes("topic") || isTopicManifestFileName(path.posix.basename(manifestPath))) {
+        enrichment.kindLabel = "Тема";
+      } else if (isAreaManifestRelPath(manifestPath)) {
+        enrichment.kindLabel = "Область";
+      }
+
+      const preview = await getNodePreviewMeta(manifestPath);
+      enrichment.previewUrl = preview.previewUrl || null;
+      enrichment.hasPreview = Boolean(preview.hasPreview && preview.previewUrl);
+    } catch {
+      // ignore enrichment errors
+    }
+  }
+
+  if (meta?.nodePath && meta.nodePath !== manifestPath) {
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(meta.nodePath);
+      const slug = getManifestSlugFromRel(meta.nodePath);
+      enrichment.topicName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", slug);
+      if (!enrichment.previewUrl) {
+        const preview = await getNodePreviewMeta(meta.nodePath);
+        enrichment.previewUrl = preview.previewUrl || null;
+        enrichment.hasPreview = Boolean(preview.hasPreview && preview.previewUrl);
+      }
+    } catch {
+      // ignore enrichment errors
+    }
+  }
+
+  if (!enrichment.kindLabel) {
+    if (meta?.externalFile) enrichment.kindLabel = "Запись";
+    else if (meta?.mode === "internal") enrichment.kindLabel = "Память";
+    else if (meta?.source) enrichment.kindLabel = meta.source;
+    else enrichment.kindLabel = "Файл";
+  }
+
+  if (!enrichment.titleName) {
+    enrichment.titleName =
+      enrichment.fileName.replace(/\.(sidecar\.)?md$/i, "").replace(/\.[^./]+$/i, "") || base;
+  }
+
+  return enrichment;
+}
+
+async function enrichSearchResultEntry(entry) {
+  if (!entry) return entry;
+  const enrichment = await resolveSearchResultEnrichment(entry.filePath || entry.canonicalPath, entry);
+  const locationHint = enrichment.topicName
+    ? `${enrichment.topicName} · ${entry.source || SEARCH_SLOT_LABELS[entry.mode] || entry.mode || "файл"}`
+    : entry.locationHint;
+
+  return {
+    ...entry,
+    ...enrichment,
+    displayName: enrichment.titleName || entry.displayName,
+    locationHint
+  };
+}
+
+async function enrichSearchResults(results) {
+  return Promise.all((results || []).map((entry) => enrichSearchResultEntry(entry)));
+}
+
+async function searchByTopicMeta(query, limit = 30, fileType = "all") {
+  const trimmed = String(query || "").trim();
+  const normalizedFileType = normalizeSearchFileType(fileType);
+  if (trimmed.length < 1) {
+    return { query: trimmed, scope: "topic", fileType: normalizedFileType, results: [], total: 0 };
+  }
+
+  const relFiles = await collectSearchableFiles(getAgentRoot());
+  const manifests = relFiles.filter((relPath) => {
+    const base = path.posix.basename(relPath);
+    return isTopicManifestFileName(base) || isAreaManifestRelPath(relPath);
+  });
+
+  const qLower = trimmed.toLowerCase();
+  const results = [];
+
+  for (const relPath of manifests) {
+    let frontmatter = "";
+    let body = "";
+    try {
+      ({ frontmatter, body } = await readNodeFrontmatterContent(relPath));
+    } catch {
+      continue;
+    }
+
+    const slug = getManifestSlugFromRel(relPath);
+    const awnName = getYamlScalar(frontmatter, "awn-name") || "";
+    const title = resolveNodeDisplayName(awnName, slug);
+    const description = getYamlScalar(frontmatter, "awn-description") || "";
+    const tags = extractTagsFromProps(frontmatter).join(" ");
+    const haystack = [title, slug, awnName, description, tags, relPath].join("\n").toLowerCase();
+    if (!haystack.includes(qLower)) continue;
+
+    const meta = await classifySearchResult(relPath);
+    const entry = buildSearchResultEntry(
+      relPath,
+      meta,
+      {
+        snippet: buildSearchSnippet(body || description, trimmed),
+        matchCount: countTextMatches(haystack, trimmed)
+      },
+      normalizedFileType
+    );
+    if (!entry) continue;
+
+    results.push({
+      entry,
+      score: scoreTopicMetaMatch({ title, slug, awnName, relPath }, trimmed)
+    });
+  }
+
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.entry.filePath.localeCompare(b.entry.filePath, "ru");
+  });
+
+  const sliced = results.slice(0, limit).map((item) => ({
+    ...item.entry,
+    topicMatchScore: item.score
+  }));
+  return {
+    query: trimmed,
+    scope: "topic",
+    fileType: normalizedFileType,
+    results: sliced,
+    total: sliced.length
+  };
+}
+
+const SEARCH_SLOT_LABELS = {
+  external: "Content",
+  media: "Media",
+  inbox: "Inbox",
+  scripts: "Скрипты",
+  artefacts: "Артефакты",
+  repository: "Репозиторий",
+  temp: "Временные",
+  "quick-notes": "Заметки",
+  references: "Источники",
+  internal: "Память",
+  tabular: "Таблица",
+  todo: "TODO",
+  configs: "Конфигурации",
+  env: ".env",
+  description: "Описание темы"
+};
+
+function resolveSearchResultDisplay(relPath, meta) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  const displayName = base;
+
+  if (meta?.systemFile) {
+    return { displayName, locationHint: "Системный файл workspace" };
+  }
+
+  if (meta?.externalFile && meta?.nodePath) {
+    const topicRel = String(meta.nodePath).replace(/\\/g, "/");
+    const topicSlug = path.posix.basename(path.posix.dirname(topicRel));
+    const slotLabel = SEARCH_SLOT_LABELS[meta.mode] || meta.source || meta.mode || "файл";
+    return { displayName, locationHint: `${topicSlug} · ${slotLabel}` };
+  }
+
+  if (meta?.nodePath && meta.mode === "description") {
+    const topicSlug = path.posix.basename(String(meta.nodePath).replace(/\\/g, "/")).replace(/\.md$/i, "");
+    return { displayName, locationHint: `${topicSlug} · описание темы` };
+  }
+
+  if (meta?.nodePath && meta.source) {
+    const topicSlug = path.posix.basename(path.posix.dirname(String(meta.nodePath).replace(/\\/g, "/")));
+    return {
+      displayName,
+      locationHint: `${topicSlug} · ${SEARCH_SLOT_LABELS[meta.mode] || meta.source}`
+    };
+  }
+
+  const storageMatch = normalized.match(/^(.*)\/awn-storage\/([^/]+)\//i);
+  if (storageMatch) {
+    const topicSlug = path.posix.basename(storageMatch[1]);
+    const slotKey = storageMatch[2].toLowerCase();
+    const slotLabel =
+      SEARCH_SLOT_LABELS[slotKey] ||
+      slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
+    return { displayName, locationHint: `${topicSlug} · ${slotLabel}` };
+  }
+
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length >= 2) {
+    return { displayName, locationHint: parts.slice(-3, -1).join(" / ") || parts[0] };
+  }
+
+  return { displayName, locationHint: normalized || "Workspace" };
 }
 
 function matchesFilename(relPath, query) {
   const qLower = String(query || "").toLowerCase();
   const base = path.basename(relPath);
-  const displayName = base.replace(/\.(md|yaml|yml|json|txt)$/i, "");
+  const stem = base.replace(/\.sidecar\.md$/i, "").replace(/\.[^./]+$/i, "");
   return (
     base.toLowerCase().includes(qLower) ||
-    displayName.toLowerCase().includes(qLower) ||
+    stem.toLowerCase().includes(qLower) ||
     relPath.toLowerCase().includes(qLower)
   );
 }
@@ -9997,12 +10303,22 @@ async function searchByFilename(query, limit = 30, fileType = "all") {
     );
     if (!entry) continue;
 
-    results.push(entry);
-    if (results.length >= limit) break;
+    results.push({ entry, score: scoreFilenameMatch(relPath, trimmed) });
   }
 
-  results.sort((a, b) => a.filePath.localeCompare(b.filePath, "ru"));
-  return { query: trimmed, scope: "filename", fileType: normalizedFileType, results, total: results.length };
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.entry.filePath.localeCompare(b.entry.filePath, "ru");
+  });
+
+  const sliced = results.slice(0, limit).map((item) => item.entry);
+  return {
+    query: trimmed,
+    scope: "filename",
+    fileType: normalizedFileType,
+    results: sliced,
+    total: sliced.length
+  };
 }
 
 async function searchByContent(query, limit = 30, fileType = "all") {
@@ -10053,6 +10369,75 @@ async function searchByContent(query, limit = 30, fileType = "all") {
   });
 
   return { query: trimmed, scope: "content", fileType: normalizedFileType, results, total: results.length };
+}
+
+async function searchAll(query, limit = 30, fileType = "all") {
+  const trimmed = String(query || "").trim();
+  const normalizedFileType = normalizeSearchFileType(fileType);
+  if (!trimmed) {
+    return { query: trimmed, scope: "all", fileType: normalizedFileType, results: [], total: 0 };
+  }
+
+  const merged = new Map();
+
+  const addResult = (entry, kind, scoreBoost = 0) => {
+    if (!entry?.filePath) return;
+    const key = entry.filePath;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, {
+        ...entry,
+        matchKinds: [kind],
+        searchScore: scoreBoost + (entry.matchCount || 1)
+      });
+      return;
+    }
+    if (!existing.matchKinds.includes(kind)) existing.matchKinds.push(kind);
+    if (kind === "content" && entry.snippet) existing.snippet = entry.snippet;
+    existing.matchCount = Math.max(existing.matchCount || 0, entry.matchCount || 0);
+    existing.searchScore = Math.max(existing.searchScore || 0, scoreBoost + (entry.matchCount || 1));
+  };
+
+  const filenameData = await searchByFilename(trimmed, Math.max(limit * 3, 60), normalizedFileType);
+  for (const entry of filenameData.results) {
+    addResult(entry, "filename", scoreFilenameMatch(entry.filePath, trimmed));
+  }
+
+  if (trimmed.length >= 1) {
+    const topicData = await searchByTopicMeta(trimmed, Math.max(limit * 2, 40), normalizedFileType);
+    for (const entry of topicData.results) {
+      addResult(entry, "topic", entry.topicMatchScore || 240);
+    }
+  }
+
+  if (trimmed.length >= 2) {
+    const contentData = await searchByContent(trimmed, Math.max(limit * 3, 60), normalizedFileType);
+    for (const entry of contentData.results) {
+      addResult(entry, "content", (entry.matchCount || 1) * 5);
+    }
+  }
+
+  const results = [...merged.values()]
+    .sort((a, b) => {
+      if (b.searchScore !== a.searchScore) return b.searchScore - a.searchScore;
+      return a.filePath.localeCompare(b.filePath, "ru");
+    })
+    .slice(0, limit)
+    .map(({ searchScore, matchKinds, ...entry }) => ({
+      ...entry,
+      matchKinds,
+      matchKindLabel: formatSearchMatchKindLabel(matchKinds)
+    }));
+
+  const enrichedResults = await enrichSearchResults(results);
+
+  return {
+    query: trimmed,
+    scope: "all",
+    fileType: normalizedFileType,
+    results: enrichedResults,
+    total: enrichedResults.length
+  };
 }
 
 async function searchByDescription(query, limit = 30) {
@@ -10161,12 +10546,19 @@ async function searchByTags(query, limit = 30, fileType = "all") {
   return { query: trimmed, scope: "tags", fileType: normalizedFileType, results, total: results.length };
 }
 
-async function searchWorkspaceContent(query, limit = 30, scope = "content", fileType = "all") {
+async function searchWorkspaceContent(query, limit = 30, scope = "all", fileType = "all") {
   const normalizedScope = normalizeSearchScope(scope);
   const normalizedFileType = normalizeSearchFileType(fileType);
-  if (normalizedScope === "filename") return searchByFilename(query, limit, normalizedFileType);
-  if (normalizedScope === "tags") return searchByTags(query, limit, normalizedFileType);
-  return searchByContent(query, limit, normalizedFileType);
+  let data;
+  if (normalizedScope === "all") data = await searchAll(query, limit, normalizedFileType);
+  else if (normalizedScope === "filename") data = await searchByFilename(query, limit, normalizedFileType);
+  else if (normalizedScope === "tags") data = await searchByTags(query, limit, normalizedFileType);
+  else data = await searchByContent(query, limit, normalizedFileType);
+
+  if (normalizedScope !== "all" && Array.isArray(data?.results)) {
+    data.results = await enrichSearchResults(data.results);
+  }
+  return data;
 }
 
 async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content", fileType = "all") {
@@ -10221,7 +10613,7 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/search") {
     const query = url.searchParams.get("q") || "";
-    const scope = url.searchParams.get("scope") || "content";
+    const scope = url.searchParams.get("scope") || "all";
     const fileType = url.searchParams.get("fileType") || "all";
     const limitRaw = Number(url.searchParams.get("limit") || 30);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 30;
@@ -14861,7 +15253,7 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/search/global") {
     const query = url.searchParams.get("q") || "";
-    const scope = url.searchParams.get("scope") || "content";
+    const scope = url.searchParams.get("scope") || "all";
     const fileType = url.searchParams.get("fileType") || "all";
     const limitRaw = Number(url.searchParams.get("limit") || 50);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 50;

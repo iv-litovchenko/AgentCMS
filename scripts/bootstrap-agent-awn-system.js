@@ -223,14 +223,11 @@ domain: mixins
 status: active
 description: Загрузка в контекст агента, cron, heartbeat
 fields:
-  awn-runtime-load:
-    type: awn.enum
-    name: Загрузка в runtime
-    enum:
-      - key: on-demand
-        name: По запросу
-      - key: session-start
-        name: При старте сессии
+  awn-runtime-load-always:
+    type: awn.boolean
+    name: В контексте всегда
+    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
+    default: false
   awn-runtime-cron:
     type: awn.boolean
     name: Cron

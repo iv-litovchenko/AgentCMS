@@ -3,16 +3,11 @@ name: Runtime
 kind: mixin
 description: Участие элемента в реестре агента — загрузка, cron и heartbeat
 fields:
-  awn-runtime-load:
-    type: awn.enum
-    name: Загрузка
-    description: Когда элемент попадает в контекст агента
-    enum:
-      - key: session-start
-        name: При старте сессии
-      - key: on-demand
-        name: По требованию
-    default: on-demand
+  awn-runtime-load-always:
+    type: awn.boolean
+    name: В контексте всегда
+    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
+    default: false
   awn-runtime-cron:
     type: awn.boolean
     name: Cron

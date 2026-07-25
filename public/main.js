@@ -14542,6 +14542,26 @@ function createHeartbeatRuntimeMarkerSvg() {
   return svg;
 }
 
+function createContextAlwaysRuntimeMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg menu-runtime-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  for (const d of ["M12 2L3 7l9 5 9-5-9-5z", "M3 12l9 5 9-5", "M3 17l9 5 9-5"]) {
+    const layer = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    layer.setAttribute("d", d);
+    layer.setAttribute("fill", "none");
+    layer.setAttribute("stroke", "currentColor");
+    layer.setAttribute("stroke-width", "2");
+    layer.setAttribute("stroke-linecap", "round");
+    layer.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(layer);
+  }
+
+  return svg;
+}
+
 function resolveMenuRuntimeBadgeTitle(kind, source) {
   const selfKey = kind === "cron" ? "runtimeCronSelf" : "runtimeHeartbeatSelf";
   const hasSelf = source?.[selfKey];
@@ -14562,6 +14582,7 @@ function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
   const merged = { ...source };
 
   if (cached) {
+    merged.runtimeLoadAlways = Boolean(source.runtimeLoadAlways || cached.runtimeLoadAlways);
     merged.runtimeCron = Boolean(source.runtimeCron || cached.runtimeCron);
     merged.runtimeHeartbeat = Boolean(source.runtimeHeartbeat || cached.runtimeHeartbeat);
     if (!merged.runtimeCronSchedule) {
@@ -14580,12 +14601,22 @@ function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
 
 function createMenuRuntimeBadges(source, agentId = activeAgentId) {
   const resolved = resolveMenuRuntimeSource(source, agentId);
+  const hasContextAlways = Boolean(resolved?.runtimeLoadAlways);
   const hasCron = Boolean(resolved?.runtimeCron);
   const hasHeartbeat = Boolean(resolved?.runtimeHeartbeat);
-  if (!hasCron && !hasHeartbeat) return null;
+  if (!hasContextAlways && !hasCron && !hasHeartbeat) return null;
 
   const wrap = document.createElement("span");
   wrap.className = "menu-runtime-badges";
+
+  if (hasContextAlways) {
+    const badge = document.createElement("span");
+    badge.className = "menu-runtime-badge menu-runtime-badge--context";
+    badge.appendChild(createContextAlwaysRuntimeMarkerSvg());
+    badge.title = "Всегда в контексте";
+    badge.setAttribute("aria-label", "Всегда в контексте");
+    wrap.appendChild(badge);
+  }
 
   if (hasCron) {
     const badge = document.createElement("span");
@@ -14912,10 +14943,10 @@ function setLoading(message) {
 }
 
 function getContentSearchScope() {
-  const scope = contentSearchScopeNode?.value || "content";
-  if (scope === "filename") return scope;
+  const scope = contentSearchScopeNode?.value || "all";
+  if (scope === "filename" || scope === "content" || scope === "all") return scope;
   if (scope === "tags" && !contentSearchScopeNode?.selectedOptions?.[0]?.disabled) return scope;
-  return "content";
+  return "all";
 }
 
 function getContentSearchFileType() {
@@ -14923,21 +14954,148 @@ function getContentSearchFileType() {
 }
 
 function getContentSearchMinLength(scope = getContentSearchScope()) {
-  return scope === "filename" ? 1 : 2;
+  return scope === "filename" || scope === "all" ? 1 : 2;
 }
 
 function updateContentSearchPlaceholder() {
   if (!contentSearchInputNode) return;
   const scope = getContentSearchScope();
   if (scope === "filename") {
-    contentSearchInputNode.placeholder = "Поиск по названию файла...";
+    contentSearchInputNode.placeholder = "Поиск по имени файла...";
+    return;
+  }
+  if (scope === "content") {
+    contentSearchInputNode.placeholder = "Поиск по тексту внутри файлов...";
     return;
   }
   if (scope === "tags") {
     contentSearchInputNode.placeholder = "Поиск по тэгам...";
     return;
   }
-  contentSearchInputNode.placeholder = "Поиск по содержимому...";
+  contentSearchInputNode.placeholder = "Найти файл или текст...";
+}
+
+function getSearchResultDisplayName(item) {
+  return (
+    item?.displayName ||
+    (item?.externalFile ? String(item.externalFile).split("/").pop() : "") ||
+    (item?.filePath ? String(item.filePath).split("/").pop() : "") ||
+    item?.source ||
+    "Файл"
+  );
+}
+
+function getSearchResultLocationHint(item) {
+  if (item?.locationHint) return item.locationHint;
+  if (item?.systemFile) return "Системный файл workspace";
+  return item?.filePath || item?.nodePath || "";
+}
+
+function buildContentSearchResultItem(item, query, { showAgent = false, showFileType = true } = {}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "content-search-item";
+  btn.setAttribute("role", "option");
+
+  const body = document.createElement("div");
+  body.className = "content-search-item-body";
+
+  const media = document.createElement("div");
+  media.className = "content-search-item-media";
+  if (item.previewUrl) {
+    const img = document.createElement("img");
+    img.className = "content-search-item-preview";
+    img.src = item.previewUrl;
+    img.alt = "";
+    img.loading = "lazy";
+    media.appendChild(img);
+  } else if (item.emoji) {
+    media.classList.add("is-emoji");
+    media.textContent = item.emoji;
+  } else {
+    media.classList.add("is-placeholder");
+    media.textContent = String(item.kindLabel || item.fileTypeLabel || "•").slice(0, 1);
+  }
+  body.appendChild(media);
+
+  const main = document.createElement("div");
+  main.className = "content-search-item-main";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "content-search-item-title";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "content-search-item-name";
+  titleNode.textContent = item.displayName || item.titleName || getSearchResultDisplayName(item);
+  titleRow.appendChild(titleNode);
+
+  const badges = document.createElement("span");
+  badges.className = "content-search-item-badges";
+
+  if (showAgent && (item.agentName || item.agentId)) {
+    const agentBadge = document.createElement("span");
+    agentBadge.className = "content-search-item-badge content-search-item-badge--agent";
+    agentBadge.textContent = item.agentName || item.agentId;
+    badges.appendChild(agentBadge);
+  }
+
+  if (item.kindLabel) {
+    const kindBadge = document.createElement("span");
+    kindBadge.className = "content-search-item-badge content-search-item-badge--kind";
+    kindBadge.textContent = item.kindLabel;
+    badges.appendChild(kindBadge);
+  }
+
+  if (item.fileTypeLabel && showFileType) {
+    const typeBadge = document.createElement("span");
+    typeBadge.className = "content-search-item-badge content-search-item-badge--type";
+    typeBadge.textContent = item.fileTypeLabel;
+    badges.appendChild(typeBadge);
+  }
+
+  if (item.matchKindLabel) {
+    const matchBadge = document.createElement("span");
+    matchBadge.className = "content-search-item-badge content-search-item-badge--match";
+    matchBadge.textContent = item.matchKindLabel;
+    badges.appendChild(matchBadge);
+  } else if (item.matchCount > 1) {
+    const badge = document.createElement("span");
+    badge.className = "content-search-item-badge";
+    badge.textContent = String(item.matchCount);
+    badges.appendChild(badge);
+  }
+
+  if (badges.childElementCount) titleRow.appendChild(badges);
+  main.appendChild(titleRow);
+
+  const fileRow = document.createElement("div");
+  fileRow.className = "content-search-item-file";
+  const fileParts = [item.fileName || getSearchResultDisplayName(item)].filter(Boolean);
+  fileRow.textContent = fileParts.join(" · ");
+  main.appendChild(fileRow);
+
+  const metaNode = document.createElement("div");
+  metaNode.className = "content-search-item-meta";
+  metaNode.textContent = getSearchResultLocationHint(item);
+  main.appendChild(metaNode);
+
+  const pathNode = document.createElement("div");
+  pathNode.className = "content-search-item-path";
+  pathNode.textContent = item.pathBreadcrumb || item.systemFile || item.filePath || item.nodePath || "";
+  main.appendChild(pathNode);
+
+  const snippetText = item.snippet;
+  const titleText = item.displayName || item.titleName || getSearchResultDisplayName(item);
+  if (snippetText && snippetText !== titleText && snippetText !== item.fileName) {
+    const snippetNode = document.createElement("div");
+    snippetNode.className = "content-search-item-snippet";
+    snippetNode.innerHTML = highlightSearchSnippet(snippetText, query);
+    main.appendChild(snippetNode);
+  }
+
+  body.appendChild(main);
+  btn.appendChild(body);
+  return btn;
 }
 
 function hideContentSearchResults() {
@@ -14978,46 +15136,9 @@ function renderContentSearchResults(data) {
   }
 
   for (const item of results) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "content-search-item";
-    btn.setAttribute("role", "option");
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "content-search-item-title";
-
-    const titleNode = document.createElement("span");
-    titleNode.textContent = item.source || "Файл";
-    titleRow.appendChild(titleNode);
-
-    if (item.fileTypeLabel && getContentSearchFileType() === "all") {
-      const typeBadge = document.createElement("span");
-      typeBadge.className = "content-search-item-badge content-search-item-badge--type";
-      typeBadge.textContent = item.fileTypeLabel;
-      titleRow.appendChild(typeBadge);
-    }
-
-    if (item.matchCount) {
-      const badge = document.createElement("span");
-      badge.className = "content-search-item-badge";
-      badge.textContent = String(item.matchCount);
-      titleRow.appendChild(badge);
-    }
-
-    const pathNode = document.createElement("div");
-    pathNode.className = "content-search-item-path";
-    pathNode.textContent = item.systemFile || item.filePath || item.nodePath || "";
-
-    btn.appendChild(titleRow);
-    btn.appendChild(pathNode);
-
-    if (item.snippet) {
-      const snippetNode = document.createElement("div");
-      snippetNode.className = "content-search-item-snippet";
-      snippetNode.innerHTML = highlightSearchSnippet(item.snippet, query);
-      btn.appendChild(snippetNode);
-    }
-
+    const btn = buildContentSearchResultItem(item, query, {
+      showFileType: getContentSearchFileType() === "all"
+    });
     btn.addEventListener("click", () => {
       void openContentSearchResult(item);
     });
@@ -15072,6 +15193,104 @@ function scheduleContentSearch() {
   }, 280);
 }
 
+async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
+  hideHomeView();
+  const normalizedPath = String(filePath || "").replace(/\\/g, "/");
+  if (!normalizedPath) throw new Error("Путь к файлу пустой");
+
+  let resolved = null;
+  try {
+    resolved = await fetchChpuResolve(workspaceRelToChpuPath(normalizedPath));
+  } catch {
+    resolved = null;
+  }
+
+  if (resolved?.kind === "unknown") {
+    throw new Error("Файл не найден");
+  }
+
+  if (resolved?.kind === "systemFile") {
+    await selectSystemFile(resolved.systemFile, { skipRouteSync: true, edit: false });
+    return;
+  }
+
+  if (resolved?.kind === "record") {
+    const topicRoutePath = workspaceRelToChpuPath(resolved.topicManifestPath);
+    const topicEntry = resolveMenuEntryByDisplayPath(topicRoutePath);
+    if (!topicEntry?.path) throw new Error("Тема не найдена");
+    const contentMode = resolved.contentMode || getChpuMemoryKindForSlotFolder(resolved.slotFolder);
+    const label = topicEntry.label || getLabelFromPath(topicEntry.path);
+    await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
+    await openEntryOverviewFromResolvedRecord(resolved, contentMode);
+    return;
+  }
+
+  if (resolved?.kind === "manifest") {
+    const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
+    if (!entry?.path) throw new Error("Тема не найдена");
+    await openNodeFromMenu(entry.label || getLabelFromPath(entry.path), entry.path, {
+      skipRouteSync: true
+    });
+    return;
+  }
+
+  if (resolved?.kind === "file" && resolved.fileRelPath) {
+    const fileRel = String(resolved.fileRelPath).replace(/\\/g, "/");
+    if (isNodeManifestPath(fileRel) || isTopicManifestPath(fileRel)) {
+      await openNodeFromMenu(getLabelFromPath(fileRel), fileRel, { skipRouteSync: true });
+      return;
+    }
+  }
+
+  if (result.systemFile) {
+    await selectSystemFile(result.systemFile, { skipRouteSync: true, edit: false });
+    return;
+  }
+
+  if (result.nodePath && result.mode === "external" && result.externalFile) {
+    const label = getLabelFromPath(result.nodePath);
+    await selectNodeManifest(label, result.nodePath, "external", { skipRouteSync: true });
+    openExternalRecordOverviewFromNavigation({
+      path: String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\.md$/i, ""),
+      title: String(result.externalFile).split("/").pop() || result.externalFile
+    });
+    return;
+  }
+
+  if (result.nodePath && result.mode === "media" && result.externalFile) {
+    const label = getLabelFromPath(result.nodePath);
+    await selectNodeManifest(label, result.nodePath, "media", { skipRouteSync: true });
+    openMediaEntryOverviewFromNavigation({
+      path: String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, ""),
+      title: String(result.externalFile).split("/").pop() || result.externalFile
+    });
+    return;
+  }
+
+  if (result.nodePath && result.mode && FLAT_STORAGE_SECTION_MODES.has(result.mode) && result.externalFile) {
+    const label = getLabelFromPath(result.nodePath);
+    await selectNodeManifest(label, result.nodePath, result.mode, { skipRouteSync: true });
+    const rel = String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, "");
+    openFlatStorageRecordOverviewFromNavigation(
+      { path: rel.replace(/\.md$/i, ""), title: rel.split("/").pop() || rel },
+      result.mode
+    );
+    return;
+  }
+
+  if (result.nodePath) {
+    await openNodeFromMenu(getLabelFromPath(result.nodePath), result.nodePath, { skipRouteSync: true });
+    return;
+  }
+
+  if (resolved) {
+    await applyChpuResolvedRoute(resolved);
+    return;
+  }
+
+  throw new Error("Не удалось открыть файл");
+}
+
 async function openContentSearchResult(result, { agentId = null } = {}) {
   if (!result) return;
 
@@ -15085,51 +15304,19 @@ async function openContentSearchResult(result, { agentId = null } = {}) {
   appLandingSearchInputNode?.blur();
 
   if (result.systemFile) {
-    await selectSystemFile(result.systemFile);
+    await selectSystemFile(result.systemFile, { edit: false });
+    syncAppRouteToUrl({ push: true });
     return;
   }
 
-  const label = result.nodePath ? getLabelFromPath(result.nodePath) : "";
-  const mode = result.mode;
-
-  if (result.nodePath && mode) {
-    await selectNodeManifest(label, result.nodePath, mode);
-
-    if (mode === "external" && result.externalFile) {
-      await openExternalFile(result.externalFile);
-      return;
-    }
-
-    if (mode === "media" && result.externalFile) {
-      if (/\.md$/i.test(result.externalFile)) {
-        await openMediaMarkdownFile(result.externalFile);
-      } else {
-        await openMediaSidecar(result.externalFile);
-      }
-      return;
-    }
-
-    if (FLAT_STORAGE_SECTION_MODES.has(mode) && result.externalFile) {
-      const rel = String(result.externalFile).replace(/\\/g, "/").replace(/^\/+/, "");
-      const recordPath = rel.replace(/\.md$/i, "");
-      openFlatStorageRecordOverviewFromNavigation(
-        { path: recordPath, title: recordPath.split("/").pop() || recordPath },
-        mode
-      );
-      return;
-    }
-  } else if (result.nodePath && !mode) {
-    await openNodeFromMenu(label, result.nodePath);
-    return;
-  }
-
-  const filePath = String(result.filePath || result.canonicalPath || "").replace(/\\/g, "/");
-  if (!filePath) return;
+  const filePath = String(result.filePath || result.canonicalPath || result.nodePath || "").replace(
+    /\\/g,
+    "/"
+  );
+  if (!filePath && !result.systemFile) return;
 
   try {
-    const chpuPath = workspaceRelToChpuPath(filePath);
-    const resolved = await fetchChpuResolve(chpuPath);
-    await applyChpuResolvedRoute(resolved);
+    await openWorkspaceFilePreviewByRelPath(filePath, result);
     syncAppRouteToUrl({ push: true });
   } catch (error) {
     showToast(`Не удалось открыть файл: ${error.message}`, "error");
@@ -15137,19 +15324,31 @@ async function openContentSearchResult(result, { agentId = null } = {}) {
 }
 
 function getLandingSearchScope() {
-  const scope = appLandingSearchScopeNode?.value || "content";
-  return scope === "filename" ? "filename" : "content";
+  const scope = appLandingSearchScopeNode?.value || "all";
+  if (scope === "filename" || scope === "content" || scope === "all") return scope;
+  return "all";
 }
 
 function getLandingSearchMinLength(scope = getLandingSearchScope()) {
-  return scope === "filename" ? 1 : 2;
+  return scope === "filename" || scope === "all" ? 1 : 2;
 }
 
 function updateLandingSearchPlaceholder() {
   if (!appLandingSearchInputNode) return;
   const scope = getLandingSearchScope();
-  appLandingSearchInputNode.placeholder =
-    scope === "filename" ? "Поиск по названию файла..." : "Поиск по содержимому...";
+  if (scope === "filename") {
+    appLandingSearchInputNode.placeholder = "Поиск по имени файла...";
+    return;
+  }
+  if (scope === "content") {
+    appLandingSearchInputNode.placeholder = "Поиск по тексту внутри файлов...";
+    return;
+  }
+  if (scope === "tags") {
+    appLandingSearchInputNode.placeholder = "Поиск по тэгам...";
+    return;
+  }
+  appLandingSearchInputNode.placeholder = "Найти файл или текст...";
 }
 
 function hideLandingSearchResults() {
@@ -15272,46 +15471,7 @@ function renderLandingSearchResults(data) {
   }
 
   for (const item of results) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "content-search-item";
-    btn.setAttribute("role", "option");
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "content-search-item-title";
-
-    const titleNode = document.createElement("span");
-    titleNode.textContent = item.source || "Файл";
-    titleRow.appendChild(titleNode);
-
-    if (item.agentName || item.agentId) {
-      const agentBadge = document.createElement("span");
-      agentBadge.className = "content-search-item-badge content-search-item-badge--agent";
-      agentBadge.textContent = item.agentName || item.agentId;
-      titleRow.appendChild(agentBadge);
-    }
-
-    if (item.matchCount) {
-      const badge = document.createElement("span");
-      badge.className = "content-search-item-badge";
-      badge.textContent = String(item.matchCount);
-      titleRow.appendChild(badge);
-    }
-
-    const pathNode = document.createElement("div");
-    pathNode.className = "content-search-item-path";
-    pathNode.textContent = item.systemFile || item.filePath || item.nodePath || "";
-
-    btn.appendChild(titleRow);
-    btn.appendChild(pathNode);
-
-    if (item.snippet) {
-      const snippetNode = document.createElement("div");
-      snippetNode.className = "content-search-item-snippet";
-      snippetNode.innerHTML = highlightSearchSnippet(item.snippet, query);
-      btn.appendChild(snippetNode);
-    }
-
+    const btn = buildContentSearchResultItem(item, query, { showAgent: true, showFileType: true });
     btn.addEventListener("click", () => {
       void openContentSearchResult(item, { agentId: item.agentId });
     });
@@ -26734,7 +26894,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-color",
   "awn-version",
   "awn-sort",
-  "awn-runtime-load",
+  "awn-runtime-load-always",
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
   "awn-runtime-heartbeat"
@@ -26796,20 +26956,20 @@ const PROPS_FIELD_META = {
     label: "Теги",
     hint: "Общие и локальные теги; свои — через поле «Свои теги»"
   },
-  "awn-runtime-load": {
-    label: "Загрузка",
-    hint: "По требованию или при старте сессии агента"
+  "awn-runtime-load-always": {
+    label: "Всегда в контексте",
+    hint: "Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)"
   },
   "awn-runtime-cron": {
-    label: "Cron",
+    label: "Выполнение по расписанию",
     hint: "Участвует в планировщике по расписанию"
   },
   "awn-runtime-cron-schedule": {
-    label: "Расписание cron",
-    hint: "Шаблон, быстрый выбор времени или своё cron-выражение (5 полей)"
+    label: "",
+    hint: "День и время, шаблон или своё cron-выражение"
   },
   "awn-runtime-heartbeat": {
-    label: "Сердцебиение",
+    label: "Heartbeat",
     hint: "Участвует в периодическом heartbeat-прогоне"
   },
   "awn-version": {
@@ -28699,7 +28859,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.mixin.web-url": "Опциональный миксин — поле awn-web-url для ссылки на оригинал в интернете",
   "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
   "awn.mixin.runtime":
-    "Миксин runtime — awn-runtime-load, cron и heartbeat для реестра агента",
+    "Миксин runtime — awn-runtime-load-always, cron и heartbeat для реестра агента",
   "awn.workspace": "Корневой манифест workspace — _registration.md в корне агента",
   "awn.area": "Область (категория) — папка с _registration.md",
   "awn.topic": "Тема — standalone *.md манифест",
@@ -28764,7 +28924,9 @@ const PROPS_FIELD_ICONS = {
   "awn-web-url": "🔗",
   "awn-attachments": "📎",
   "awn-color": "🎨",
-  "awn-emoji": "😀"
+  "awn-emoji": "😀",
+  "awn-runtime-load-always": "",
+  "awn-runtime-cron-schedule": "🕐"
 };
 
 function resolveFieldLabelIcon(typeId, key = "") {
@@ -28773,7 +28935,38 @@ function resolveFieldLabelIcon(typeId, key = "") {
     return PROPS_FIELD_ICONS[normalized];
   }
   const id = resolveFieldTypeId(typeId || "");
-  return FIELD_TYPE_ICONS[id] || "";
+  return FIELD_TYPE_ICONS[id] || FIELD_TYPE_ICONS[normalizeCanonicalFieldTypeId(id)] || "";
+}
+
+function appendFieldLabelIcon(label, { typeId = "", key = "" } = {}) {
+  const normalizedKey = normalizePropsKey(key);
+  let svgFactory = null;
+  if (normalizedKey === "awn-runtime-load-always") {
+    svgFactory = createContextAlwaysRuntimeMarkerSvg;
+  } else if (normalizedKey === "awn-runtime-cron" || normalizedKey === "awn-runtime-cron-schedule") {
+    svgFactory = createCronRuntimeMarkerSvg;
+  } else if (normalizedKey === "awn-runtime-heartbeat") {
+    svgFactory = createHeartbeatRuntimeMarkerSvg;
+  }
+
+  if (svgFactory) {
+    label.classList.add("has-field-icon", "has-field-icon--svg");
+    const iconWrap = document.createElement("span");
+    iconWrap.className = `field-label-icon field-label-icon--${normalizedKey.replace(/^awn-/, "")}`;
+    iconWrap.setAttribute("aria-hidden", "true");
+    iconWrap.appendChild(svgFactory());
+    label.appendChild(iconWrap);
+    return;
+  }
+
+  const icon = resolveFieldLabelIcon(typeId, key);
+  if (!icon) return;
+  label.classList.add("has-field-icon");
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "field-label-icon";
+  iconSpan.textContent = icon;
+  iconSpan.setAttribute("aria-hidden", "true");
+  label.appendChild(iconSpan);
 }
 
 function buildFieldLabelElement(
@@ -28784,28 +28977,26 @@ function buildFieldLabelElement(
     typeId = "",
     key = "",
     required = false,
-    title = ""
+    title = "",
+    iconOnly = false
   } = {}
 ) {
   const label = document.createElement(tag);
   label.className = className;
   if (required) label.classList.add("is-required");
+  if (iconOnly) label.classList.add("props-form-field-label--icon-only");
   if (title) label.title = title;
 
-  const icon = resolveFieldLabelIcon(typeId, key);
-  if (icon) {
-    label.classList.add("has-field-icon");
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "field-label-icon";
-    iconSpan.textContent = icon;
-    iconSpan.setAttribute("aria-hidden", "true");
-    label.appendChild(iconSpan);
-  }
+  appendFieldLabelIcon(label, { typeId, key });
 
-  const textSpan = document.createElement("span");
-  textSpan.className = "field-label-text";
-  textSpan.textContent = text || "—";
-  label.appendChild(textSpan);
+  if (!iconOnly) {
+    const textSpan = document.createElement("span");
+    textSpan.className = "field-label-text";
+    textSpan.textContent = text || "—";
+    label.appendChild(textSpan);
+  } else if (title) {
+    label.setAttribute("aria-label", title);
+  }
   return label;
 }
 
@@ -28824,15 +29015,7 @@ function buildPropsFieldKeyLabelElement(
   label.className = className;
   if (required) label.classList.add("is-required");
 
-  const icon = resolveFieldLabelIcon(meta.typeId || meta.fieldDef?.type, key);
-  if (icon) {
-    label.classList.add("has-field-icon");
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "field-label-icon";
-    iconSpan.textContent = icon;
-    iconSpan.setAttribute("aria-hidden", "true");
-    label.appendChild(iconSpan);
-  }
+  appendFieldLabelIcon(label, { typeId: meta.typeId || meta.fieldDef?.type, key });
 
   const keyNode = document.createElement("span");
   keyNode.className = "props-form-field-key-id";
@@ -28871,6 +29054,19 @@ function resolveFieldTypeId(typeId) {
   if (!raw) return "awn.string";
   if (raw.startsWith("awn.")) return raw;
   return `awn.${raw}`;
+}
+
+function normalizeCanonicalFieldTypeId(typeId) {
+  const resolved = resolveFieldTypeId(typeId);
+  if (resolved.startsWith("awn.field.")) {
+    return `awn.${resolved.slice("awn.field.".length)}`;
+  }
+  return resolved;
+}
+
+function isBooleanFieldTypeId(typeId) {
+  const normalized = normalizeCanonicalFieldTypeId(typeId);
+  return normalized === "awn.boolean";
 }
 
 function isEnumFieldTypeId(typeId) {
@@ -29213,7 +29409,17 @@ function getPropsFieldDef(key) {
   const normalized = normalizePropsKey(key);
   if (!normalized) return null;
   const typeDef = getActiveAwnTypeDef();
-  return typeDef?.fields?.[normalized] || null;
+  const fromActive = typeDef?.fields?.[normalized];
+  if (fromActive) return fromActive;
+
+  const resolvedType = normalizeAwnTypeName(
+    getPropsEntryValueByKey(propsFormEntries, "awn-type") || resolveAwnTypeForContext()
+  );
+  const cachedType = resolvedType ? awnTypesCache?.types?.[resolvedType] : null;
+  const fromCache = cachedType?.fields?.[normalized];
+  if (fromCache) return fromCache;
+
+  return findPropsFieldDefInTopicSchemaTargets(normalized);
 }
 
 function findPropsFieldDefInTopicSchemaTargets(key, cache = getTopicSchemaCache()) {
@@ -29305,14 +29511,14 @@ function getPropsFieldMetaFromSchema(key) {
 }
 
 function fieldDefToEntryKind(fieldDef) {
-  const typeId = resolveFieldTypeId(fieldDef?.type || "awn.string");
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.string");
   if (typeId === "awn.file" && fieldDef?.multiple) return "array";
   const registry = awnTypesCache?.fieldRegistry || {};
-  const registryEntry = registry[typeId];
+  const registryEntry = registry[typeId] || registry[fieldDef?.type || ""];
   if (registryEntry?.storage) return registryEntry.storage;
   if (registryEntry?.kind && registryEntry.kind !== "field") return registryEntry.kind;
   if (typeId === "awn.integer" || typeId === "awn.number") return "number";
-  if (typeId === "awn.boolean") return "bool";
+  if (isBooleanFieldTypeId(typeId)) return "bool";
   if (isArrayFieldTypeId(typeId)) return "array";
   if (typeId === "awn.null") return "null";
   return "string";
@@ -29439,9 +29645,17 @@ function getPropsFieldMeta(key) {
     return { label: "Свойство", hint: "" };
   }
   const schemaMeta = getPropsFieldMetaFromSchema(normalized);
-  if (schemaMeta) return schemaMeta;
-  if (PROPS_FIELD_META[normalized]) {
-    return { ...PROPS_FIELD_META[normalized], typeId: null, fieldDef: null };
+  const override = PROPS_FIELD_META[normalized];
+  if (schemaMeta) {
+    if (!override) return schemaMeta;
+    return {
+      ...schemaMeta,
+      label: Object.prototype.hasOwnProperty.call(override, "label") ? override.label : schemaMeta.label,
+      hint: override.hint || schemaMeta.hint
+    };
+  }
+  if (override) {
+    return { ...override, typeId: null, fieldDef: null };
   }
   return { label: normalized, hint: "", typeId: "awn.string", fieldDef: null };
 }
@@ -29518,8 +29732,44 @@ function ensureAwnContextDefaults(entries) {
   return [...map.values()];
 }
 
+function findPropsEntryByKey(entries, key) {
+  const normalizedKey = normalizePropsKey(key);
+  return (entries || []).find((item) => normalizePropsKey(item.key) === normalizedKey) || null;
+}
+
+function readPropsEntryBoolean(entry) {
+  if (!entry || entry.kind === "null") return false;
+  if (entry.kind === "bool") return Boolean(entry.value);
+  const text = String(entry.value ?? "").trim().toLowerCase();
+  return text === "true" || text === "yes" || text === "1" || text === "да";
+}
+
+function migrateRuntimeLoadPropEntries(entries) {
+  const list = normalizePropsEntries(entries);
+  const legacyEntry = findPropsEntryByKey(list, "awn-runtime-load");
+  const alwaysEntry = findPropsEntryByKey(list, "awn-runtime-load-always");
+  if (!legacyEntry && !alwaysEntry) return list;
+
+  let always = false;
+  if (alwaysEntry) {
+    always = readPropsEntryBoolean(alwaysEntry);
+  } else if (legacyEntry) {
+    const raw = String(legacyEntry.kind === "bool" ? legacyEntry.value : legacyEntry.value ?? "")
+      .trim()
+      .toLowerCase();
+    always = raw === "session-start" || raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+  }
+
+  const filtered = list.filter((entry) => {
+    const key = normalizePropsKey(entry?.key);
+    return key !== "awn-runtime-load" && key !== "awn-runtime-load-always";
+  });
+  filtered.push({ key: "awn-runtime-load-always", kind: "bool", value: always });
+  return filtered;
+}
+
 function absorbPropsYamlEntries(entries) {
-  const normalized = normalizePropsEntries(entries);
+  const normalized = migrateRuntimeLoadPropEntries(normalizePropsEntries(entries));
   const hidden = [];
   const visible = [];
   for (const entry of normalized) {
@@ -31317,7 +31567,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-priority": "nav",
   "awn-color": "nav",
   "awn-sort": "nav",
-  "awn-runtime-load": "runtime",
+  "awn-runtime-load-always": "runtime",
   "awn-runtime-cron": "runtime",
   "awn-runtime-cron-schedule": "runtime",
   "awn-runtime-heartbeat": "runtime",
@@ -31667,6 +31917,14 @@ const PROPS_FORM_LOCKED_KEYS = new Set([
   "awn-color"
 ]);
 
+const PROPS_FIELD_WIDGET_FALLBACKS = {
+  "awn-main": "boolean",
+  "awn-runtime-cron": "boolean",
+  "awn-runtime-heartbeat": "boolean",
+  "awn-runtime-load-always": "boolean",
+  "awn-runtime-cron-schedule": "cron-schedule"
+};
+
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
   if (normalized === "awn-preview") return "preview";
@@ -31678,10 +31936,13 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (normalized === "awn-priority") return "catalog-priorities";
   if (normalized === "awn-color") return "catalog-colors";
   if (normalized === "awn-runtime-cron-schedule") return "cron-schedule";
+  if (!fieldDef && PROPS_FIELD_WIDGET_FALLBACKS[normalized]) {
+    return PROPS_FIELD_WIDGET_FALLBACKS[normalized];
+  }
 
-  const typeId = resolveFieldTypeId(fieldDef?.type || "");
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "");
   const registry = awnTypesCache?.fieldRegistry || {};
-  const registryEntry = registry[typeId];
+  const registryEntry = registry[typeId] || registry[fieldDef?.type || ""];
   const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
@@ -31689,7 +31950,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
     if (widget === "radio") return "radio";
     return "select";
   }
-  if (typeId === "awn.boolean" || widget === "toggle") return "boolean";
+  if (isBooleanFieldTypeId(typeId) || widget === "toggle") return "boolean";
   if (typeId === "awn.link" || widget === "link") return "link";
   if (typeId === "awn.file" || widget === "file") return "file";
   if (typeId === "awn.text" || widget === "textarea") return "textarea";
@@ -31707,7 +31968,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
     }
     return getEnumOptionsForField(fieldDef).length ? "enum-checkbox" : "array";
   }
-  return "text";
+  return PROPS_FIELD_WIDGET_FALLBACKS[normalized] || "text";
 }
 
 function getAgentCatalogPreset(preset) {
@@ -32417,9 +32678,10 @@ function syncPropsFormCronScheduleUi(wrap) {
   const timeInput = wrap.querySelector(".props-form-cron-time");
   const hintNode = wrap.querySelector(".props-form-cron-hint");
   const expr = String(expressionInput?.value || "").trim();
+  const presetId = matchCronSchedulePreset(expr);
 
   if (presetSelect) {
-    presetSelect.value = matchCronSchedulePreset(expr);
+    presetSelect.value = presetId;
   }
 
   const timed = parseCronTimeOfDay(expr);
@@ -32430,6 +32692,10 @@ function syncPropsFormCronScheduleUi(wrap) {
       timeInput.value = timed.time;
     }
   }
+
+  const isCustom = presetId === CRON_SCHEDULE_PRESET_CUSTOM;
+  expressionInput?.classList.toggle("hidden", !isCustom);
+  wrap.classList.toggle("is-custom-expression", isCustom);
 
   if (hintNode) {
     hintNode.textContent = describeCronScheduleExpression(expr);
@@ -32467,9 +32733,9 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
 
   const expressionInput = document.createElement("input");
   expressionInput.type = "text";
-  expressionInput.className = "props-form-value props-form-cron-expression";
+  expressionInput.className = "props-form-value props-form-cron-expression hidden";
   expressionInput.value = displayValue;
-  expressionInput.placeholder = meta.format || meta.hint || "0 9 * * *";
+  expressionInput.placeholder = "0 9 * * *";
   expressionInput.spellcheck = false;
   if (meta.hint) expressionInput.title = meta.hint;
 
@@ -32487,8 +32753,8 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
     const presetId = presetSelect.value;
     if (!presetId) return;
     if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) {
-      expressionInput.focus();
       syncPropsFormCronScheduleUi(wrap);
+      expressionInput.focus();
       return;
     }
     expressionInput.value = presetId;
@@ -34795,27 +35061,21 @@ function syncRuntimePropsFormVisibility() {
 function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
   const meta = getPropsFieldMeta(entry.key);
   const normalizedKey = normalizePropsKey(entry.key);
-  const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
   const isPreviewField = normalizedKey === "awn-preview";
   const isAttachmentsField = normalizedKey === "awn-attachments";
-  const isWideRuntimeField =
-    fieldWidget === "cron-schedule" ||
-    normalizedKey === "awn-runtime-load" ||
-    normalizedKey === "awn-runtime-cron-schedule";
+  const isCronScheduleField = normalizedKey === "awn-runtime-cron-schedule";
   const row = document.createElement("div");
-  row.className = isWideRuntimeField
-    ? "props-form-row props-form-field props-form-field--wide"
-    : "props-form-row props-form-field props-form-field--compact";
+  row.className = "props-form-row props-form-field props-form-field--compact";
   if (isPreviewField) row.classList.add("props-form-field--preview");
   if (isAttachmentsField) row.classList.add("props-form-field--attachments");
-  if (normalizedKey === "awn-runtime-cron-schedule") row.classList.add("props-form-field--cron-schedule");
+  if (isCronScheduleField) row.classList.add("props-form-field--cron-schedule");
   row.dataset.index = String(index);
   if (entry.key) row.dataset.propKey = entry.key;
 
   const head = document.createElement("div");
   head.className = "props-form-field-head";
 
-  if (entry.key && !isPreviewField) {
+  if (entry.key && !isPreviewField && !isCronScheduleField) {
     const label = showFieldKey
       ? buildPropsFieldKeyLabelElement(entry.key, meta, { required: meta.required })
       : buildFieldLabelElement(meta.label || entry.key, {
@@ -34838,7 +35098,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
   }
 
   const valueControl = createPropsFormValueControl(entry, meta);
-  if (isPreviewField) {
+  if (isPreviewField || isCronScheduleField) {
     row.append(valueControl);
   } else {
     row.append(head, valueControl);
@@ -36659,58 +36919,76 @@ async function refreshNodeCoverThumbInPlace() {
   );
 }
 
-const RUNTIME_LOAD_LABELS = {
-  "on-demand": "По требованию",
-  "session-start": "При старте сессии"
+const RUNTIME_LOAD_ALWAYS_LABELS = {
+  true: "Всегда в контексте",
+  false: "По запросу"
 };
 
-function findPropsEntryByKey(entries, key) {
-  const normalizedKey = normalizePropsKey(key);
-  return (entries || []).find((item) => normalizePropsKey(item.key) === normalizedKey) || null;
-}
-
-function readPropsEntryBoolean(entry) {
-  if (!entry || entry.kind === "null") return false;
-  if (entry.kind === "bool") return Boolean(entry.value);
-  const text = String(entry.value ?? "").trim().toLowerCase();
-  return text === "true" || text === "yes" || text === "1" || text === "да";
+function readRuntimeLoadAlwaysFromPropEntries(entries) {
+  const list = normalizePropsEntries(entries || []);
+  const alwaysEntry = findPropsEntryByKey(list, "awn-runtime-load-always");
+  if (alwaysEntry) return readPropsEntryBoolean(alwaysEntry);
+  const legacyEntry = findPropsEntryByKey(list, "awn-runtime-load");
+  if (!legacyEntry) return false;
+  const raw = String(legacyEntry.kind === "bool" ? legacyEntry.value : legacyEntry.value ?? "")
+    .trim()
+    .toLowerCase();
+  return raw === "session-start" || raw === "true" || raw === "yes" || raw === "1" || raw === "да";
 }
 
 function extractRuntimePropsFromPropEntries(entries) {
   const list = normalizePropsEntries(entries || []);
-  const loadEntry = findPropsEntryByKey(list, "awn-runtime-load");
-  const loadRaw = loadEntry
-    ? String(loadEntry.kind === "bool" ? (loadEntry.value ? "true" : "false") : loadEntry.value ?? "")
-        .trim()
-        .toLowerCase()
-    : "on-demand";
-  const runtimeLoad = loadRaw === "session-start" ? "session-start" : "on-demand";
+  const runtimeLoadAlways = readRuntimeLoadAlwaysFromPropEntries(list);
 
   return {
-    runtimeLoad,
-    runtimeLoadLabel: RUNTIME_LOAD_LABELS[runtimeLoad] || RUNTIME_LOAD_LABELS["on-demand"],
+    runtimeLoadAlways,
+    runtimeLoadLabel: RUNTIME_LOAD_ALWAYS_LABELS[String(Boolean(runtimeLoadAlways))] || RUNTIME_LOAD_ALWAYS_LABELS.false,
     runtimeCron: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-cron")),
     runtimeCronSchedule: String(getPropsEntryValueByKey(list, "awn-runtime-cron-schedule") || "").trim(),
     runtimeHeartbeat: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-heartbeat"))
   };
 }
 
-function createNavigationHeroRuntimeSlot({ id, caption, valueText, tone = "neutral", title = "" }) {
+function createRuntimeActiveCheckSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "node-navigation-runtime-check-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M20 6L9 17l-5-5");
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "2.5");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(path);
+  return svg;
+}
+
+function createNavigationHeroRuntimeSlot({ id, active = false, caption = "", title = "" }) {
   const slot = document.createElement("span");
-  slot.className = `node-slot-chip node-navigation-runtime-slot node-navigation-runtime-slot--${id} is-tone-${tone}`;
+  slot.className = `node-slot-chip node-navigation-runtime-slot node-navigation-runtime-slot--${id} ${
+    active ? "is-active" : "is-inactive"
+  }`;
   if (title) slot.title = title;
   slot.setAttribute("role", "img");
-  slot.setAttribute("aria-label", `${caption}: ${valueText}`);
+  slot.setAttribute("aria-label", `${caption}: ${active ? "включено" : "выключено"}`);
 
-  const label = document.createElement("span");
-  label.className = "node-slot-label node-navigation-runtime-slot-label";
-  label.textContent = caption;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "node-navigation-runtime-slot-icon";
+  if (id === "load") iconWrap.appendChild(createContextAlwaysRuntimeMarkerSvg());
+  else if (id === "cron") iconWrap.appendChild(createCronRuntimeMarkerSvg());
+  else if (id === "heartbeat") iconWrap.appendChild(createHeartbeatRuntimeMarkerSvg());
+  slot.appendChild(iconWrap);
 
-  const value = document.createElement("span");
-  value.className = "node-navigation-runtime-slot-value";
-  value.textContent = valueText;
+  if (active) {
+    const state = document.createElement("span");
+    state.className = "node-navigation-runtime-slot-state";
+    state.appendChild(createRuntimeActiveCheckSvg());
+    slot.appendChild(state);
+  }
 
-  slot.append(label, value);
   return slot;
 }
 
@@ -36718,29 +36996,25 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
   if (!parent || !Array.isArray(propEntries)) return;
 
   const runtime = extractRuntimePropsFromPropEntries(propEntries);
-  const cronInfo = formatRuntimeRegistryBoolCell(runtime.runtimeCron, runtime.runtimeCronSchedule);
-  const heartbeatInfo = formatRuntimeRegistryBoolCell(runtime.runtimeHeartbeat);
+  const cronSchedule = String(runtime.runtimeCronSchedule || "").trim();
 
   parent.append(
     createNavigationHeroRuntimeSlot({
       id: "load",
-      caption: "Загрузка",
-      valueText: runtime.runtimeLoadLabel,
-      tone: runtime.runtimeLoad === "session-start" ? "session" : "neutral",
-      title: "awn-runtime-load"
+      active: runtime.runtimeLoadAlways,
+      caption: "Всегда в контексте",
+      title: "awn-runtime-load-always"
     }),
     createNavigationHeroRuntimeSlot({
       id: "cron",
-      caption: "Крон",
-      valueText: cronInfo.text,
-      tone: cronInfo.tone === "on" ? "on" : "off",
-      title: cronInfo.title || "awn-runtime-cron"
+      active: runtime.runtimeCron,
+      caption: "Выполнение по расписанию",
+      title: cronSchedule ? `awn-runtime-cron · ${cronSchedule}` : "awn-runtime-cron"
     }),
     createNavigationHeroRuntimeSlot({
       id: "heartbeat",
+      active: runtime.runtimeHeartbeat,
       caption: "Сердцебиение",
-      valueText: heartbeatInfo.text,
-      tone: heartbeatInfo.tone === "on" ? "on" : "off",
       title: "awn-runtime-heartbeat"
     })
   );
@@ -43175,6 +43449,7 @@ function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
   const cached = path && map ? map.get(path) : null;
 
   if (cached) {
+    node.runtimeLoadAlways = Boolean(node.runtimeLoadAlways || cached.runtimeLoadAlways);
     node.runtimeCron = Boolean(node.runtimeCron || cached.runtimeCron);
     node.runtimeHeartbeat = Boolean(node.runtimeHeartbeat || cached.runtimeHeartbeat);
     if (!node.runtimeCronSchedule && cached.runtimeCronSchedule) {
@@ -43209,6 +43484,7 @@ async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
       const path = normalizeMenuNodePath(row.manifestPath || "");
       if (!path) continue;
       map.set(path, {
+        runtimeLoadAlways: Boolean(row.runtimeLoadAlways),
         runtimeCron: Boolean(row.runtimeCron),
         runtimeCronSchedule: String(row.runtimeCronSchedule || "").trim(),
         runtimeHeartbeat: Boolean(row.runtimeHeartbeat),
@@ -54608,9 +54884,9 @@ async function renderAgentRuntimeRegistryView() {
       loadCell.className = "agent-table-cell";
       const loadBadge = document.createElement("span");
       loadBadge.className = `agent-runtime-registry-badge is-load${
-        row.runtimeLoad === "session-start" ? " is-session-start" : ""
+        row.runtimeLoadAlways ? " is-session-start" : ""
       }`;
-      loadBadge.textContent = row.runtimeLoadLabel || "По требованию";
+      loadBadge.textContent = row.runtimeLoadLabel || "По запросу";
       loadCell.appendChild(loadBadge);
 
       const cronCell = document.createElement("td");

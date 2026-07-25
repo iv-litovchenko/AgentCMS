@@ -5,9 +5,9 @@ awn-status: draft
 awn-description: ""
 awn-tags: []
 awn-type: awn.page.topic
-awn-create: "2026-07-25T01:45"
-awn-update: 2026-07-25T14:23:17.605Z
-awn-version: 8
+awn-create: "2026-07-24T22:45:13.428Z"
+awn-update: 2026-07-24T23:06:54.232Z
+awn-version: 4
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -16,9 +16,8 @@ awn-owner: ""
 awn-priority: ""
 awn-color: ""
 awn-sort: 0
-awn-runtime-load-always: true
-awn-runtime-cron: true
-awn-runtime-cron-schedule: "*/30 * * * *"
-awn-runtime-heartbeat: true
-awn-attachments: []
+awn-runtime-load: ""
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
 ---
