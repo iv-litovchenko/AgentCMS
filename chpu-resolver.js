@@ -1,6 +1,6 @@
 /**
- * CHPU: /{agent}/{workspace-path}/[~view] — без .md в URL.
- * View: последний сегмент `~inbox`, legacy: суффикс `@inbox` на последнем сегменте.
+ * CHPU: /{agent}/{workspace-path}/[~ui-view]
+ * Слоты — часть path (awn-storage/inbox/…), ~ — только UI.
  */
 const path = require("path");
 const fs = require("fs").promises;
@@ -29,38 +29,91 @@ const SLOT_FOLDER_TO_MODE = Object.fromEntries(
   Object.entries(STORAGE_SUBFOLDER_BY_MODE).map(([mode, folder]) => [folder, mode])
 );
 
-const APP_ROUTE_VIEW_IDS = new Set([
-  "navigation",
-  "overview",
-  "entry-overview",
-  "description",
-  "internal",
-  "external",
-  "tabular",
-  "media",
-  "temp",
-  "todo",
-  "configs",
+const CHPU_UI_VIEW_IDS = new Set([
+  "edit",
+  "nav",
+  "map",
+  "hub",
+  "setup",
+  "schema",
   "env",
-  "scripts",
-  "artefacts",
-  "assets",
-  "repository",
-  "inbox",
-  "note",
-  "thread",
-  "quick-notes",
-  "references",
-  "node-preview",
-  "graph",
-  "mindmap",
-  "list"
+  "chat",
+  "tasks",
+  "list",
+  "preview"
 ]);
+
+const CHPU_LEGACY_UI_ALIASES = {
+  description: "edit",
+  edit: "edit",
+  navigation: "nav",
+  nav: "nav",
+  mindmap: "map",
+  map: "map",
+  overview: "hub",
+  hub: "hub",
+  configs: "setup",
+  setup: "setup",
+  "topic-schema": "schema",
+  schema: "schema",
+  env: "env",
+  thread: "chat",
+  chat: "chat",
+  todo: "tasks",
+  tasks: "tasks",
+  list: "list",
+  browse: "list",
+  "show-list": "list",
+  preview: "preview",
+  card: "preview",
+  toc: "preview",
+  "show-preview": "preview",
+  "entry-overview": "preview",
+  external: null,
+  internal: null,
+  inbox: null,
+  media: null,
+  note: null,
+  references: null,
+  artefacts: null,
+  assets: null,
+  repository: null,
+  scripts: null,
+  temp: null
+};
+
+const APP_ROUTE_VIEW_IDS = new Set([...CHPU_UI_VIEW_IDS, ...Object.keys(CHPU_LEGACY_UI_ALIASES)]);
+
+function normalizeChpuViewCandidate(candidate) {
+  const raw = candidate === "quick-notes" ? "note" : candidate;
+  if (CHPU_LEGACY_UI_ALIASES[raw] === null) return raw;
+  const aliased = CHPU_LEGACY_UI_ALIASES[raw] ?? raw;
+  if (CHPU_UI_VIEW_IDS.has(aliased)) return aliased;
+  if (APP_ROUTE_VIEW_IDS.has(raw)) return raw;
+  return null;
+}
+
+function attachChpuViews(result, views) {
+  if (!result) return result;
+  const viewList = Array.isArray(views) ? views.filter(Boolean) : [];
+  result.views = viewList;
+  result.view = viewList[0] || null;
+  return result;
+}
 
 async function fileExists(absolute) {
   try {
     await fs.access(absolute);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isDirectory(absolute) {
+  try {
+    const stat = await fs.stat(absolute);
+    return stat.isDirectory();
   } catch {
     return false;
   }
@@ -72,36 +125,38 @@ function splitChpuPath(rawPath) {
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
   if (!normalized) {
-    return { path: "", view: null };
+    return { path: "", views: [], view: null };
   }
 
   const segments = normalized.split("/").filter(Boolean);
-  let view = null;
-  if (segments.length) {
+  const views = [];
+  while (segments.length) {
     const last = segments[segments.length - 1];
     if (last.startsWith("~") && last.length > 1) {
-      const viewCandidate = last.slice(1);
-      const normalizedView = viewCandidate === "quick-notes" ? "note" : viewCandidate;
-      if (APP_ROUTE_VIEW_IDS.has(normalizedView)) {
-        view = normalizedView;
-        segments.pop();
-      }
-    } else {
-      const atIndex = last.lastIndexOf("@");
-      if (atIndex > 0) {
-        const viewCandidate = last.slice(atIndex + 1);
-        const normalizedView = viewCandidate === "quick-notes" ? "note" : viewCandidate;
-        if (APP_ROUTE_VIEW_IDS.has(normalizedView)) {
-          view = normalizedView;
-          const head = last.slice(0, atIndex);
-          if (head) segments[segments.length - 1] = head;
-          else segments.pop();
-        }
+      const normalizedView = normalizeChpuViewCandidate(last.slice(1));
+      if (!normalizedView) break;
+      views.unshift(normalizedView);
+      segments.pop();
+      continue;
+    }
+    break;
+  }
+
+  if (!views.length && segments.length) {
+    const last = segments[segments.length - 1];
+    const atIndex = last.lastIndexOf("@");
+    if (atIndex > 0) {
+      const normalizedView = normalizeChpuViewCandidate(last.slice(atIndex + 1));
+      if (normalizedView) {
+        views.push(normalizedView);
+        const head = last.slice(0, atIndex);
+        if (head) segments[segments.length - 1] = head;
+        else segments.pop();
       }
     }
   }
 
-  return { path: segments.join("/"), view };
+  return { path: segments.join("/"), views, view: views[0] || null };
 }
 
 function relFromAbsolute(agentRoot, absolute) {
@@ -171,6 +226,20 @@ async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePat
     };
   }
 
+  const sectionDirRel = `${topicDir}/${STORAGE_ROOT_FOLDER}/${slotFolder}/${resource}`.replace(/\\/g, "/");
+  const sectionDirAbs = path.join(agentRoot, sectionDirRel);
+  if (sectionDirAbs.startsWith(agentRoot) && (await isDirectory(sectionDirAbs))) {
+    return {
+      kind: "section",
+      topicManifestPath: topicManifestRel,
+      slotFolder,
+      contentMode: slotMode,
+      resourceRelPathInSlot: resource,
+      workspacePath: sectionDirRel,
+      view: null
+    };
+  }
+
   const resourceRelInSlot = /\.[a-z0-9]+$/i.test(resource) ? resource : `${resource}.md`;
   const recordRel = `${topicDir}/${STORAGE_ROOT_FOLDER}/${slotFolder}/${resourceRelInSlot}`.replace(/\\/g, "/");
   const recordAbs = path.join(agentRoot, recordRel);
@@ -191,14 +260,14 @@ async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePat
 
 async function resolveChpuPath(agentRoot, rawPath) {
   const agentRootResolved = path.resolve(agentRoot);
-  const { path: chpuPath, view } = splitChpuPath(rawPath);
+  const { path: chpuPath, views } = splitChpuPath(rawPath);
 
   if (!chpuPath) {
-    return { kind: "agentHome", workspacePath: "", view: view || null };
+    return attachChpuViews({ kind: "agentHome", workspacePath: "" }, views);
   }
 
   const system = await resolveSystemFile(agentRootResolved, chpuPath);
-  if (system) return system;
+  if (system) return attachChpuViews(system, views);
 
   const storageMatch = chpuPath.match(/^(.*)\/(?:awn-storage|storage)\/([^/]+)\/?(.*)$/i);
   if (storageMatch) {
@@ -210,37 +279,36 @@ async function resolveChpuPath(agentRoot, rawPath) {
       resourcePath
     );
     if (storageResolved) {
-      if (view) storageResolved.view = view;
-      return storageResolved;
+      return attachChpuViews(storageResolved, views);
     }
   }
 
   const manifestRel = `${chpuPath}/${MANIFEST_FILE}`.replace(/\\/g, "/");
   const manifestAbs = path.join(agentRootResolved, manifestRel);
   if (manifestAbs.startsWith(agentRootResolved) && (await fileExists(manifestAbs))) {
-    return {
-      kind: "manifest",
-      topicManifestPath: manifestRel,
-      workspacePath: chpuPath,
-      view: view || null
-    };
+    return attachChpuViews(
+      {
+        kind: "manifest",
+        topicManifestPath: manifestRel,
+        workspacePath: chpuPath
+      },
+      views
+    );
   }
 
   const directMd = await tryMarkdownFile(agentRootResolved, chpuPath);
   if (directMd) {
-    return {
-      kind: "file",
-      workspacePath: chpuPath,
-      fileRelPath: directMd.mdRel,
-      view: view || null
-    };
+    return attachChpuViews(
+      {
+        kind: "file",
+        workspacePath: chpuPath,
+        fileRelPath: directMd.mdRel
+      },
+      views
+    );
   }
 
-  return {
-    kind: "unknown",
-    workspacePath: chpuPath,
-    view: view || null
-  };
+  return attachChpuViews({ kind: "unknown", workspacePath: chpuPath }, views);
 }
 
 function workspacePathFromFileRel(fileRelPath) {

@@ -4447,26 +4447,45 @@ async function normalizeNestedSharedMenuTree(tree, sharedAbsolute, sharedRelPref
   return tree;
 }
 
+async function bootstrapSharedTheme(sharedAbsolute, sharedFolder, theme) {
+  if (!sharedAbsolute || !sharedFolder || !theme?.slug) return null;
+  const themeDir = path.join(sharedAbsolute, theme.slug);
+  if (await dirExists(themeDir)) {
+    const manifestAbsolute = path.join(themeDir, AREA_MANIFEST_FILE);
+    if (await fileExists(manifestAbsolute)) {
+      return `${sharedFolder}/${theme.slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+    }
+  } else {
+    await fs.mkdir(themeDir, { recursive: true });
+  }
+  const manifestAbsolute = path.join(themeDir, AREA_MANIFEST_FILE);
+  try {
+    await fs.access(manifestAbsolute);
+  } catch {
+    const frontmatter = buildManifestCreateFrontmatter("topic", theme.title, theme.slug);
+    await fs.writeFile(
+      manifestAbsolute,
+      joinNodeFrontmatter(frontmatter, `# ${theme.title}\n\nОбщие ресурсы: ${theme.title.toLowerCase()}.\n`),
+      "utf-8"
+    );
+  }
+  const themeManifestRel = `${sharedFolder}/${theme.slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+  await ensureManifestStorageSlotDir(themeManifestRel);
+  await appendMenuSortOrderEntry(themeDir, theme.slug);
+  return themeManifestRel;
+}
+
 async function bootstrapSharedDefaultThemes(sharedAbsolute, sharedFolder) {
   if (!sharedAbsolute || !sharedFolder) return;
   for (const theme of SHARED_DEFAULT_THEMES) {
-    const themeDir = path.join(sharedAbsolute, theme.slug);
-    await fs.mkdir(themeDir, { recursive: true });
-    const manifestAbsolute = path.join(themeDir, AREA_MANIFEST_FILE);
-    try {
-      await fs.access(manifestAbsolute);
-    } catch {
-      const frontmatter = buildManifestCreateFrontmatter("topic", theme.title, theme.slug);
-      await fs.writeFile(
-        manifestAbsolute,
-        joinNodeFrontmatter(frontmatter, `# ${theme.title}\n\nОбщие ресурсы: ${theme.title.toLowerCase()}.\n`),
-        "utf-8"
-      );
-    }
-    const themeManifestRel = `${sharedFolder}/${theme.slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
-    await ensureManifestStorageSlotDir(themeManifestRel);
-    await appendMenuSortOrderEntry(themeDir, theme.slug);
+    await bootstrapSharedTheme(sharedAbsolute, sharedFolder, theme);
   }
+}
+
+function findSharedThemePreset(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return null;
+  return SHARED_DEFAULT_THEMES.find((theme) => theme.slug === normalized) || null;
 }
 
 const SHARED_MOUNT_SPECS = [
@@ -12940,6 +12959,28 @@ async function handleApiForAgent(req, res, url) {
       const target = await resolveNodeContainerForReveal(relPath);
       return sendJson(res, 200, target);
     } catch (error) {
+      if (error?.code === "NOT_DIRECTORY") {
+        const absolute = normalizeWorkspacePath(relPath);
+        if (absolute) {
+          try {
+            const stat = await fs.stat(absolute);
+            if (stat.isFile()) {
+              const fileRel = path.relative(getAgentRoot(), absolute).replace(/\\/g, "/");
+              return sendJson(res, 200, {
+                folderRel: fileRel,
+                folderAbsolute: absolute,
+                fileAbsolute: absolute,
+                isFile: true
+              });
+            }
+          } catch (statError) {
+            if (statError?.code === "ENOENT") {
+              return sendJson(res, 404, { error: "File not found" });
+            }
+            throw statError;
+          }
+        }
+      }
       if (error?.code === "INVALID_PATH") {
         return sendJson(res, 400, { error: "Invalid file path" });
       }
@@ -13662,6 +13703,7 @@ async function handleApiForAgent(req, res, url) {
         type !== "service-doc" &&
         type !== "container-root" &&
         type !== "shared-root" &&
+        type !== "shared-theme" &&
         type !== "kit-root"
       ) {
         return sendJson(res, 400, { error: "Invalid type" });
@@ -13732,10 +13774,6 @@ async function handleApiForAgent(req, res, url) {
           "utf-8"
         );
 
-        if (isShared) {
-          await bootstrapSharedDefaultThemes(folderAbsolute, folderName);
-        }
-
         const createdRel =
           parentRel === "."
             ? `${folderName}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
@@ -13746,6 +13784,46 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),
           type
+        });
+      }
+
+      if (type === "shared-theme") {
+        const sharedFolder = getAgentSharedFolder();
+        if (!sharedFolder) {
+          return sendJson(res, 400, { error: "Shared folder is not configured" });
+        }
+        const parentRel = String(payload.parentPath || ".").replace(/\\/g, "/").trim() || ".";
+        if (parentRel !== sharedFolder) {
+          return sendJson(res, 400, {
+            error: "Shared theme presets can only be created in the shared folder root"
+          });
+        }
+
+        const preset = String(payload.preset || name || "").trim().toLowerCase();
+        const theme = findSharedThemePreset(preset);
+        if (!theme) {
+          return sendJson(res, 400, { error: "Unknown shared theme preset" });
+        }
+
+        const sharedAbsolute = path.join(getAgentRoot(), sharedFolder);
+        if (!(await dirExists(sharedAbsolute))) {
+          return sendJson(res, 400, { error: "Shared folder does not exist yet" });
+        }
+
+        const themeDir = path.join(sharedAbsolute, theme.slug);
+        if (await dirExists(themeDir)) {
+          return sendJson(res, 409, { error: "Shared theme already exists" });
+        }
+
+        const createdRel = await bootstrapSharedTheme(sharedAbsolute, sharedFolder, theme);
+        if (!createdRel) {
+          return sendJson(res, 500, { error: "Failed to create shared theme" });
+        }
+
+        return sendJson(res, 200, {
+          createdPath: toMenuDisplayCreatedPath(createdRel),
+          type,
+          preset: theme.slug
         });
       }
 

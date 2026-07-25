@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.148" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.327" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -1288,23 +1288,6 @@
                   </div>
                 </nav>
                 <div class="workspace-path-crumbs-actions">
-                  <button
-                    id="workspace-gdrive-sync-btn"
-                    class="workspace-gdrive-sync-btn workspace-toolbar-labeled-btn"
-                    type="button"
-                    disabled
-                    title="Google Диск — синхронизация (скоро)"
-                    aria-label="Google Диск — синхронизация (скоро)"
-                  >
-                    <span class="workspace-toolbar-btn-icon workspace-gdrive-sync-btn-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7.71 3.5 2.5 12.5h4.79L12.5 3.5H7.71z" fill="#0066DA"/>
-                        <path d="M16.29 3.5H12.5l4.79 9H21.5l-5.21-9z" fill="#00AC47"/>
-                        <path d="M2.5 12.5 7.71 21.5h9.58L21.5 12.5H2.5z" fill="#FFBA00"/>
-                      </svg>
-                    </span>
-                    <span class="workspace-toolbar-btn-label">Google Диск (синхронизация)</span>
-                  </button>
                   <div id="workspace-links-menu-wrap" class="workspace-links-menu-wrap">
                     <button
                       id="workspace-links-menu-btn"
@@ -1314,10 +1297,18 @@
                       aria-expanded="false"
                       aria-controls="workspace-links-menu-popover"
                       title="Ссылки"
+                      aria-label="Ссылки"
                     >
+                      <svg class="workspace-links-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.75" />
+                        <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.75" />
+                        <circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.75" />
+                        <path d="M8.59 13.51 15.42 17.49" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                        <path d="M15.41 6.51 8.59 10.49" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      </svg>
                       <span class="workspace-links-menu-btn-label">Ссылки</span>
                       <svg class="workspace-links-menu-btn-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                       </svg>
                     </button>
                     <div id="workspace-links-menu-popover" class="workspace-links-menu-popover hidden" role="menu" aria-label="Ссылки">
@@ -1331,7 +1322,7 @@
                             data-action="copy-link"
                             disabled
                           >
-                            Копировать ссылку
+                            Web-адрес
                           </button>
                         </li>
                         <li>
@@ -1343,7 +1334,7 @@
                             data-action="copy-full-path"
                             disabled
                           >
-                            Полный путь до файла
+                            Путь (полный)
                           </button>
                         </li>
                         <li>
@@ -1355,7 +1346,19 @@
                             data-action="copy-root-path"
                             disabled
                           >
-                            Полный путь до файла (от корня)
+                            Путь (от корня)
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            id="workspace-links-copy-editor-link-btn"
+                            class="workspace-links-menu-item"
+                            type="button"
+                            role="menuitem"
+                            data-action="copy-editor-link"
+                            disabled
+                          >
+                            Для ссылок
                           </button>
                         </li>
                         <li>
@@ -1375,13 +1378,38 @@
                   </div>
                   <button
                     id="workspace-print-btn"
-                    class="workspace-print-btn workspace-toolbar-labeled-btn"
+                    class="workspace-print-btn"
                     type="button"
-                    disabled
-                    title="Печать — скоро"
-                    aria-label="Печать — скоро"
+                    title="Печать"
+                    aria-label="Печать"
+                    aria-pressed="false"
                   >
-                    <span class="workspace-toolbar-btn-label">Печать</span>
+                    <svg class="workspace-print-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <rect
+                        x="6"
+                        y="14"
+                        width="12"
+                        height="7"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                      />
+                      <path d="M6 17h12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                    </svg>
                   </button>
                   <button
                     id="workspace-reveal-folder-btn"
@@ -1530,6 +1558,7 @@
               <div id="doc-actions" class="doc-actions breadcrumb-actions">
                 <button id="tabular-source-btn" class="tabular-source-btn hidden" type="button">Исходник CSV</button>
                 <button id="tabular-table-back-btn" class="tabular-table-back-btn hidden" type="button">← К таблице</button>
+                <button id="data-hub-bundle-back-btn" class="tabular-table-back-btn data-hub-bundle-back-btn hidden" type="button">← Закрыть</button>
                 <div class="editor-view-cluster" role="group" aria-label="Режим редактора">
                   <div id="editor-view-toggle" class="editor-view-toggle" role="tablist" aria-label="Режим отображения редактора">
                     <button
@@ -2324,7 +2353,7 @@
               </button>
               <button id="create-node-shared-scaffold-btn" class="create-node-action-btn create-node-action-btn--shared hidden" type="button" title="Общие темы и ресурсы для всех тем агента.">
                 <span class="create-node-scaffold-title">Создать awn-shared</span>
-                <span class="create-node-scaffold-hint">Скрипты, источники, медиа — один раз для всех тем.</span>
+                <span class="create-node-scaffold-hint">Папка общих тем — накопители добавляются по одному.</span>
               </button>
               <button id="create-node-container-scaffold-btn" class="create-node-action-btn create-node-action-btn--container hidden" type="button" title="Области и темы рабочего контента агента.">
                 <span class="create-node-scaffold-title">Создать awn-container</span>
@@ -2394,6 +2423,18 @@
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-rules" title="Agent.Rules.md — общие правила">Правила</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-tts" title="Agent.Voice.Tts.md — синтез речи">Голос TTS</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-stt" title="Agent.Voice.STT.md — распознавание речи">Голос STT</button>
+          </div>
+        </div>
+        <div id="create-node-shared-themes-wrap" class="create-node-shared-themes-wrap hidden">
+          <div class="popover-label">Стандартные накопители</div>
+          <p class="create-node-shared-themes-hint">Создавайте по одному — уже созданные кнопки будут неактивны.</p>
+          <div id="create-node-shared-themes-actions" class="create-node-shared-themes-actions">
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="inbox">Входящие</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="notes">Заметки</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="references">Источники</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="artefacts">Артефакты</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="scripts">Скрипты</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="media">Медиа</button>
           </div>
         </div>
         <hr id="create-node-divider" class="create-node-divider hidden" />
@@ -2852,7 +2893,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.297"></script>
+    <script src="/main.js?v=0.5.326"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
