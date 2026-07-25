@@ -29144,6 +29144,573 @@ async function saveTopicSchemaContent() {
   return data;
 }
 
+const sectionSchemaCacheByKey = new Map();
+const sectionSchemaExpandedKeys = new Set();
+let sectionSchemaEditorSeq = 0;
+
+function isEntryOverviewCategoryContext(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  return (
+    context.entryKind === "awn.record.category" ||
+    context.entryKind === "awn.media.category" ||
+    isSectionReadmePath(String(context.relativePath || ""))
+  );
+}
+
+function getSectionSchemaLayerForMemoryKind(memoryKind) {
+  if (memoryKind === "external") return STORAGE_SUBFOLDER_CONTENT;
+  if (memoryKind === "media") return STORAGE_SUBFOLDER_MEDIA;
+  return getFlatStorageSectionFolderName(memoryKind) || STORAGE_SUBFOLDER_CONTENT;
+}
+
+function getSectionFolderFromCategoryContext(context) {
+  const relativePath = String(context?.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!relativePath) return "";
+  if (/\/manifest\.md$/i.test(relativePath)) {
+    return relativePath.replace(/\/manifest\.md$/i, "");
+  }
+  return relativePath;
+}
+
+function resolveSectionSchemaParams(context, nodePath = activePath) {
+  const manifestPath = getTopicSchemaManifestPath(nodePath);
+  const sectionPath = getSectionFolderFromCategoryContext(context);
+  const layer = getSectionSchemaLayerForMemoryKind(context?.memoryKind || "external");
+  if (!manifestPath || !sectionPath) return null;
+  return { manifestPath, sectionPath, layer };
+}
+
+function getSectionSchemaCacheKey(params) {
+  return `${params.manifestPath}::${params.layer}::${params.sectionPath}`;
+}
+
+function getSectionSchemaTargetsForContext(context) {
+  if (context?.entryKind === "awn.media.category") {
+    return ["slot_media", "slot_media_category"];
+  }
+  return ["slot_memory", "slot_memory_category"];
+}
+
+function emptySectionSchemaState(context) {
+  const result = {};
+  for (const id of getSectionSchemaTargetsForContext(context)) {
+    result[id] = { fields: {} };
+  }
+  return result;
+}
+
+function getSectionSchemaExpandedKey(scope, target, key) {
+  return `${scope}:${target}:${key}`;
+}
+
+function isSectionSchemaFieldExpanded(scope, target, key) {
+  return sectionSchemaExpandedKeys.has(getSectionSchemaExpandedKey(scope, target, key));
+}
+
+function setSectionSchemaFieldExpanded(scope, target, key, expanded) {
+  const token = getSectionSchemaExpandedKey(scope, target, key);
+  if (expanded) sectionSchemaExpandedKeys.add(token);
+  else sectionSchemaExpandedKeys.delete(token);
+}
+
+function toggleSectionSchemaFieldExpanded(scope, target, key) {
+  const token = getSectionSchemaExpandedKey(scope, target, key);
+  if (sectionSchemaExpandedKeys.has(token)) {
+    sectionSchemaExpandedKeys.delete(token);
+    return false;
+  }
+  sectionSchemaExpandedKeys.add(token);
+  return true;
+}
+
+async function loadSectionSchemaForEntry(context, options = {}) {
+  const params = resolveSectionSchemaParams(context);
+  if (!params) return null;
+  const cacheKey = getSectionSchemaCacheKey(params);
+  if (!options.force) {
+    const cached = sectionSchemaCacheByKey.get(cacheKey);
+    if (cached) return cached;
+  }
+
+  const response = await fetch(
+    buildApiUrl("/api/file/section-schema", {
+      manifest: params.manifestPath,
+      section: params.sectionPath,
+      layer: params.layer
+    })
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  if (!awnTypesCache?.types) {
+    await loadAwnTypes(activeAgentId);
+  }
+  const payload = {
+    ...params,
+    cacheKey,
+    configPath: data.configPath || "",
+    configExists: Boolean(data.configExists),
+    awnSchema: normalizeTopicSchemaState(data.sectionAwnSchema || emptySectionSchemaState(context)),
+    inheritedSectionChain: Array.isArray(data.inheritedSectionChain) ? data.inheritedSectionChain : [],
+    topicAwnSchema: normalizeTopicSchemaState(data.topicAwnSchema || data.awnSchema),
+    baseTypes: data.baseTypes || {},
+    merged: data.merged || {},
+    fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {},
+    activeTarget: getSectionSchemaTargetsForContext(context)[0]
+  };
+  enrichTopicSchemaCacheFromTypes(payload);
+  sectionSchemaCacheByKey.set(cacheKey, payload);
+  return payload;
+}
+
+function invalidateTopicSchemaCacheForSection(params) {
+  if (!params?.manifestPath || !params.sectionPath) return;
+  const marker = buildStorageLayerRef(params.manifestPath, params.layer, params.sectionPath);
+  for (const key of topicSchemaCacheByManifest.keys()) {
+    const [, contentPath = ""] = String(key).split("::");
+    if (contentPath && (contentPath === marker || contentPath.startsWith(`${marker}/`))) {
+      topicSchemaCacheByManifest.delete(key);
+    }
+  }
+}
+
+async function saveSectionSchemaFromPanel(panel) {
+  const cache = panel?._sectionSchemaCache;
+  const params = panel?._sectionSchemaParams;
+  if (!cache || !params) throw new Error("Схема раздела не загружена");
+
+  readSectionSchemaFieldsFromPanel(panel, cache);
+
+  const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  const response = await fetch(buildApiUrl("/api/file/section-schema"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      manifestPath: params.manifestPath,
+      sectionPath: params.sectionPath,
+      layer: params.layer,
+      awnSchema: awnSchemaToSave
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+
+  const data = await response.json();
+  cache.awnSchema = normalizeTopicSchemaState(data.sectionAwnSchema || awnSchemaToSave);
+  cache.baseTypes = data.baseTypes || cache.baseTypes;
+  cache.merged = data.merged || cache.merged;
+  cache.configExists = Boolean(data.configExists);
+  cache.configPath = data.configPath || cache.configPath;
+  enrichTopicSchemaCacheFromTypes(cache);
+  invalidateTopicSchemaCacheForSection(params);
+  panel._sectionSchemaDirty = false;
+  panel.querySelector(".section-schema-save-btn")?.classList.remove("is-dirty");
+  renderSectionSchemaEditor(panel, cache);
+  return data;
+}
+
+function readSectionSchemaFieldFromRow(row, cache, target, scope) {
+  if (!row || !cache) return;
+  const oldKey = row.dataset.schemaRowKey;
+  if (!oldKey) return;
+
+  const keyInput = row.querySelector('[data-schema-field="key"]');
+  const typeSelect = row.querySelector('[data-schema-field="type"]');
+  const titleInput = row.querySelector('[data-schema-field="title"]');
+  const fields = cache.awnSchema[target].fields;
+
+  const nextKey = String(keyInput?.value || "").trim() || oldKey;
+  if (nextKey !== oldKey) {
+    fields[nextKey] = fields[oldKey];
+    delete fields[oldKey];
+    if (isSectionSchemaFieldExpanded(scope, target, oldKey)) {
+      setSectionSchemaFieldExpanded(scope, target, oldKey, false);
+      setSectionSchemaFieldExpanded(scope, target, nextKey, true);
+    }
+    row.dataset.schemaRowKey = nextKey;
+    row.querySelectorAll("[data-schema-key]").forEach((node) => {
+      node.dataset.schemaKey = nextKey;
+    });
+  }
+
+  const activeKey = row.dataset.schemaRowKey;
+  const fieldDef = fields[activeKey] || {};
+  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.string");
+  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
+
+  fieldDef.type = nextType;
+  const nextName = String(titleInput?.value || "").trim();
+  fieldDef.name = nextName;
+  if (nextName) fieldDef.title = nextName;
+  else delete fieldDef.title;
+
+  for (const propKey of Object.keys(getFieldDefSchemaProperties())) {
+    if (propKey === "type" || propKey === "title") continue;
+    if (!allowedSettings.has(propKey)) delete fieldDef[propKey];
+  }
+
+  row.querySelectorAll(".topic-schema-enum-options, .topic-schema-setting [data-schema-field]").forEach((control) => {
+    const propKey = control.dataset.schemaField;
+    if (!propKey || !allowedSettings.has(propKey)) return;
+    if (propKey === "enum" && typeof control.readEnumOptions === "function") {
+      const parsed = control.readEnumOptions();
+      if (shouldPersistFieldDefSetting(propKey, parsed, fieldDef)) fieldDef[propKey] = parsed;
+      else delete fieldDef[propKey];
+      return;
+    }
+    const propDef = getFieldTypeSettingPropDef(propKey);
+    const parsed = parseFieldDefSettingValue(
+      propKey,
+      propDef,
+      control.type === "checkbox" ? control.checked : control.value
+    );
+    if (shouldPersistFieldDefSetting(propKey, parsed, fieldDef)) fieldDef[propKey] = parsed;
+    else delete fieldDef[propKey];
+  });
+
+  fields[activeKey] = fieldDef;
+  row.classList.toggle("is-configured", topicSchemaFieldHasAdvancedSettings(fieldDef));
+  row.querySelector(".topic-schema-settings-toggle")?.classList.toggle(
+    "is-configured",
+    topicSchemaFieldHasAdvancedSettings(fieldDef)
+  );
+}
+
+function readSectionSchemaFieldsFromPanel(panel, cache) {
+  const target = cache.activeTarget;
+  panel.querySelectorAll(".topic-schema-field-row").forEach((row) => {
+    readSectionSchemaFieldFromRow(row, cache, target, cache.cacheKey);
+  });
+}
+
+function markSectionSchemaPanelDirty(panel) {
+  panel._sectionSchemaDirty = true;
+  panel.querySelector(".section-schema-save-btn")?.classList.add("is-dirty");
+}
+
+function renderSectionSchemaTargetTabs(panel, cache) {
+  const tabsNode = panel.querySelector(".topic-schema-target-tabs");
+  if (!tabsNode) return;
+  tabsNode.replaceChildren();
+  const row = document.createElement("div");
+  row.className = "topic-schema-target-tab-row topic-schema-target-tab-row--core";
+  for (const targetId of getSectionSchemaTargetsForContext({ entryKind: cache.entryKind })) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "topic-schema-target-tab topic-schema-target-tab--slot";
+    btn.dataset.target = targetId;
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", targetId === cache.activeTarget ? "true" : "false");
+    btn.classList.toggle("is-active", targetId === cache.activeTarget);
+    const configured = Object.keys(cache.awnSchema?.[targetId]?.fields || {}).length > 0;
+    btn.classList.toggle("is-configured", configured);
+    const labelNode = document.createElement("span");
+    labelNode.className = "topic-schema-target-tab-label";
+    labelNode.textContent = getTopicSchemaTargetLabel(targetId);
+    btn.appendChild(labelNode);
+    btn.title = getTopicSchemaTargetTypeName(targetId) || targetId;
+    btn.addEventListener("click", () => {
+      readSectionSchemaFieldsFromPanel(panel, cache);
+      cache.activeTarget = targetId;
+      renderSectionSchemaEditor(panel, cache);
+    });
+    row.appendChild(btn);
+  }
+  tabsNode.appendChild(row);
+}
+
+function renderSectionSchemaBaseFields(panel, cache) {
+  const baseNode = panel.querySelector(".topic-schema-base-fields");
+  const titleNode = panel.querySelector(".topic-schema-base-title");
+  if (!baseNode) return;
+  const target = cache.activeTarget;
+  const base = resolveTopicSchemaBaseType(target, cache);
+  const typeName = getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target];
+  if (titleNode) {
+    const label = getTopicSchemaTargetLabel(target);
+    titleNode.textContent = typeName
+      ? `Базовые поля · ${label} (${typeName})`
+      : "Базовые поля (read-only)";
+  }
+  if (!base?.fields) {
+    baseNode.textContent = "—";
+    return;
+  }
+  const parts = Object.entries(base.fields).map(([key, def]) => {
+    const title = def?.title ? ` (${def.title})` : "";
+    return `${key}${title} · ${getAwnFieldTypeLabel(def?.type)}`;
+  });
+  baseNode.textContent = parts.join(" · ") || "—";
+}
+
+function renderSectionSchemaCustomFields(panel, cache) {
+  const fieldsNode = panel.querySelector(".topic-schema-fields");
+  const emptyNode = panel.querySelector(".topic-schema-empty");
+  if (!fieldsNode || !emptyNode) return;
+
+  const target = cache.activeTarget;
+  if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
+  const keys = Object.keys(cache.awnSchema[target].fields || {});
+  const registryEntries = getTopicSchemaRegistryEntries(cache);
+  const scope = cache.cacheKey;
+
+  fieldsNode.replaceChildren();
+  if (!keys.length) {
+    emptyNode.classList.remove("hidden");
+    return;
+  }
+  emptyNode.classList.add("hidden");
+
+  keys.forEach((key, index) => {
+    const fieldDef = cache.awnSchema[target].fields[key] || {};
+    const expanded = isSectionSchemaFieldExpanded(scope, target, key);
+    const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
+    const row = document.createElement("div");
+    row.className = "topic-schema-field-row";
+    row.dataset.schemaRowKey = key;
+    row.classList.toggle("is-settings-open", expanded);
+    row.classList.toggle("is-configured", hasAdvancedSettings);
+
+    const compact = document.createElement("div");
+    compact.className = "topic-schema-field-compact";
+
+    const sort = document.createElement("div");
+    sort.className = "topic-schema-field-sort";
+    sort.append(
+      createTopicSchemaSortButton("move-up", key, { disabled: index === 0, title: "Выше" }),
+      createTopicSchemaSortButton("move-down", key, {
+        disabled: index === keys.length - 1,
+        title: "Ниже"
+      })
+    );
+
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.className = "topic-schema-inline-input";
+    keyInput.value = key;
+    keyInput.placeholder = "ключ";
+    keyInput.dataset.schemaKey = key;
+    keyInput.dataset.schemaField = "key";
+    keyInput.spellcheck = false;
+
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "topic-schema-inline-select";
+    typeSelect.dataset.schemaKey = key;
+    typeSelect.dataset.schemaField = "type";
+    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.string");
+
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "topic-schema-inline-input topic-schema-inline-input--title";
+    titleInput.value = getFieldDefDisplayName(fieldDef, key);
+    titleInput.placeholder = "name";
+    titleInput.dataset.schemaKey = key;
+    titleInput.dataset.schemaField = "title";
+
+    const settingsBtn = document.createElement("button");
+    settingsBtn.type = "button";
+    settingsBtn.className = "topic-schema-settings-toggle";
+    settingsBtn.dataset.schemaAction = "toggle-settings";
+    settingsBtn.dataset.schemaKey = key;
+    settingsBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    settingsBtn.classList.toggle("is-configured", hasAdvancedSettings);
+    settingsBtn.textContent = expanded ? "Скрыть" : "Настройки";
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "topic-schema-field-remove";
+    removeBtn.dataset.schemaKey = key;
+    removeBtn.dataset.schemaAction = "remove";
+    removeBtn.title = "Удалить поле";
+    removeBtn.textContent = "×";
+
+    compact.append(sort, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    row.appendChild(compact);
+    appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
+    fieldsNode.append(row);
+  });
+}
+
+function bindSectionSchemaPanelEvents(panel, cache, context) {
+  if (panel.dataset.schemaBound === "1") return;
+  panel.dataset.schemaBound = "1";
+
+  panel.addEventListener("input", (event) => {
+    const row = event.target.closest(".topic-schema-field-row");
+    if (!row) return;
+    readSectionSchemaFieldFromRow(row, cache, cache.activeTarget, cache.cacheKey);
+    if (event.target.dataset.schemaField === "type") {
+      renderSectionSchemaCustomFields(panel, cache);
+      markSectionSchemaPanelDirty(panel);
+      return;
+    }
+    markSectionSchemaPanelDirty(panel);
+  });
+
+  panel.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-schema-action]");
+    if (!btn) return;
+    const action = btn.dataset.schemaAction;
+    const key = btn.dataset.schemaKey;
+    const target = cache.activeTarget;
+    const scope = cache.cacheKey;
+
+    if (action === "remove" && key) {
+      delete cache.awnSchema[target].fields[key];
+      setSectionSchemaFieldExpanded(scope, target, key, false);
+      renderSectionSchemaEditor(panel, cache);
+      markSectionSchemaPanelDirty(panel);
+      return;
+    }
+    if ((action === "move-up" || action === "move-down") && key) {
+      const fields = cache.awnSchema[target].fields;
+      const keys = Object.keys(fields);
+      const index = keys.indexOf(key);
+      if (index < 0) return;
+      const nextIndex = action === "move-up" ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= keys.length) return;
+      keys.splice(index, 1);
+      keys.splice(nextIndex, 0, key);
+      const reordered = {};
+      for (const fieldKey of keys) reordered[fieldKey] = fields[fieldKey];
+      cache.awnSchema[target].fields = reordered;
+      renderSectionSchemaEditor(panel, cache);
+      markSectionSchemaPanelDirty(panel);
+      return;
+    }
+    if (action === "toggle-settings" && key) {
+      const expanded = toggleSectionSchemaFieldExpanded(scope, target, key);
+      const row = btn.closest(".topic-schema-field-row");
+      row?.classList.toggle("is-settings-open", expanded);
+      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      btn.textContent = expanded ? "Скрыть" : "Настройки";
+      row?.querySelector(".topic-schema-field-settings")?.classList.toggle("is-collapsed", !expanded);
+    }
+  });
+
+  panel.querySelector(".section-schema-add-btn")?.addEventListener("click", () => {
+    const target = cache.activeTarget;
+    if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
+    const fields = cache.awnSchema[target].fields;
+    let index = 1;
+    let key = `field_${index}`;
+    while (fields[key]) {
+      index += 1;
+      key = `field_${index}`;
+    }
+    fields[key] = { type: "awn.string", name: "", title: "" };
+    renderSectionSchemaEditor(panel, cache);
+    markSectionSchemaPanelDirty(panel);
+    panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] input[data-schema-field="key"]`)?.focus();
+  });
+
+  panel.querySelector(".section-schema-save-btn")?.addEventListener("click", () => {
+    const saveBtn = panel.querySelector(".section-schema-save-btn");
+    if (saveBtn?.disabled) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Сохраняю…";
+    void saveSectionSchemaFromPanel(panel)
+      .then(() => {
+        showToast(`Схема раздела сохранена в ${BUNDLE_CONFIG_FILE}`, "success");
+      })
+      .catch((error) => {
+        showToast(`Ошибка сохранения схемы: ${error.message}`, "error");
+      })
+      .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Сохранить схему";
+      });
+  });
+}
+
+function renderSectionSchemaEditor(panel, cache) {
+  if (!panel || !cache) return;
+  renderSectionSchemaTargetTabs(panel, cache);
+  renderSectionSchemaBaseFields(panel, cache);
+  renderSectionSchemaCustomFields(panel, cache);
+  const pathNode = panel.querySelector(".section-schema-path");
+  if (pathNode) {
+    pathNode.textContent = cache.configPath || `${cache.sectionPath}/${BUNDLE_CONFIG_FILE}`;
+  }
+  const chainNode = panel.querySelector(".section-schema-chain");
+  if (chainNode) {
+    const chain = cache.inheritedSectionChain || [];
+    chainNode.textContent = chain.length
+      ? chain.map((item) => item.sectionPrefix).join(" → ")
+      : "— только схема темы и типов";
+  }
+}
+
+function createEntryOverviewSectionSchemaPanel(context) {
+  const panel = document.createElement("section");
+  panel.className = "node-entry-overview-section-schema topic-schema-panel";
+  panel.setAttribute("aria-label", "Схема полей раздела");
+  panel.innerHTML = `
+    <header class="topic-schema-head">
+      <div>
+        <h3 class="topic-schema-title">📋 Схема полей раздела</h3>
+        <p class="topic-schema-lead">
+          Дополнительные поля для записей и подразделов внутри «${escapeHtml(
+            context.title || getSectionFolderFromCategoryContext(context)
+          )}».
+          <span class="topic-schema-lead-hint">Сохраняется в <code>${BUNDLE_CONFIG_FILE}</code> рядом с manifest раздела.</span>
+        </p>
+        <p class="section-schema-meta">
+          <span class="section-schema-meta-label">Файл:</span>
+          <code class="section-schema-path"></code>
+        </p>
+        <p class="section-schema-meta">
+          <span class="section-schema-meta-label">Наследование:</span>
+          <span class="section-schema-chain"></span>
+        </p>
+      </div>
+    </header>
+    <div class="topic-schema-target-tabs" role="tablist" aria-label="Цель схемы раздела"></div>
+    <section class="topic-schema-base-card" aria-label="Базовые поля типа">
+      <h4 class="topic-schema-base-title">Базовые поля (read-only)</h4>
+      <p class="topic-schema-base-fields"></p>
+    </section>
+    <div class="topic-schema-fields"></div>
+    <div class="topic-schema-add-area">
+      <p class="topic-schema-empty hidden">Дополнительных полей пока нет — добавьте поле кнопкой ниже.</p>
+      <footer class="topic-schema-footer section-schema-footer">
+        <button type="button" class="topic-schema-add-btn section-schema-add-btn">+ Поле</button>
+        <button type="button" class="section-schema-save-btn">Сохранить схему</button>
+      </footer>
+    </div>
+  `;
+  return panel;
+}
+
+async function appendEntryOverviewSectionSchemaPanel(hub, context) {
+  if (!isEntryOverviewCategoryContext(context)) return;
+  const params = resolveSectionSchemaParams(context);
+  if (!params) return;
+
+  const panel = createEntryOverviewSectionSchemaPanel(context);
+  panel.querySelector(".topic-schema-base-fields").textContent = "Загрузка…";
+  hub.appendChild(panel);
+
+  const editorSeq = ++sectionSchemaEditorSeq;
+  try {
+    const cache = await loadSectionSchemaForEntry(context);
+    if (editorSeq !== sectionSchemaEditorSeq || !panel.isConnected) return;
+    cache.entryKind = context.entryKind;
+    panel._sectionSchemaCache = cache;
+    panel._sectionSchemaParams = params;
+    bindSectionSchemaPanelEvents(panel, cache, context);
+    renderSectionSchemaEditor(panel, cache);
+  } catch (error) {
+    if (!panel.isConnected) return;
+    panel.querySelector(".topic-schema-base-fields").textContent = `Ошибка: ${error.message}`;
+  }
+}
+
 function isAwnFieldKey(key) {
   return /^awn-/i.test(String(key || "").trim());
 }
@@ -43346,6 +43913,11 @@ async function renderEntryOverview() {
     contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   }
   if (contentPanel) hub.appendChild(contentPanel);
+
+  if (isEntryOverviewCategoryContext(context)) {
+    await appendEntryOverviewSectionSchemaPanel(hub, context);
+    if (isStale()) return;
+  }
 
   appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: false });
 
