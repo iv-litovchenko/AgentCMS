@@ -2862,7 +2862,7 @@ function resolveMarkdownLinkToNodePath(href, options = {}) {
   return null;
 }
 
-async function openMarkdownLinkIndexItem(item) {
+async function openMarkdownLinkIndexItem(item, options = {}) {
   if (!item) return;
 
   if (item.systemFile) {
@@ -2872,15 +2872,46 @@ async function openMarkdownLinkIndexItem(item) {
 
   if (!item.nodePath) return;
 
+  const preferNavigation = Boolean(options.fromNavigationPreview || options.preferNavigation);
+  const preferOverview = Boolean(options.fromNavigationPreview || options.preferOverview);
+
+  if (item.mode === "description" && isTopicManifestPath(item.nodePath)) {
+    if (preferNavigation) {
+      await openNodeNavigation(getLabelFromPath(item.nodePath), item.nodePath);
+    } else {
+      await openMarkdownLinkNodePath(item.nodePath, options);
+    }
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ push: true });
+    }
+    return;
+  }
+
+  if (item.mode === "external" && item.externalFile && preferOverview) {
+    await selectNodeManifest(getLabelFromPath(item.nodePath), item.nodePath, "external");
+    openExternalRecordOverviewFromNavigation({
+      path: String(item.externalFile).replace(/\\/g, "/").replace(/\.md$/i, ""),
+      title: String(item.externalFile).split("/").pop() || item.externalFile
+    });
+    return;
+  }
+
   if (item.mode) {
     await selectNodeManifest(getLabelFromPath(item.nodePath), item.nodePath, item.mode);
   } else {
-    await openMarkdownLinkNodePath(item.nodePath);
+    await openMarkdownLinkNodePath(item.nodePath, options);
   }
 
   if (item.mode === "external" && item.externalFile) {
     setContentMode("external");
-    await openExternalFile(item.externalFile);
+    if (preferOverview) {
+      openExternalRecordOverviewFromNavigation({
+        path: String(item.externalFile).replace(/\\/g, "/").replace(/\.md$/i, ""),
+        title: String(item.externalFile).split("/").pop() || item.externalFile
+      });
+    } else {
+      await openExternalFile(item.externalFile);
+    }
   }
 }
 
@@ -3001,7 +3032,7 @@ async function openMarkdownLinkNodePath(nodePath, options = {}) {
   await openNodeFromMenu(label, normalized, options);
 }
 
-async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBasePath()) {
+async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBasePath(), options = {}) {
   const value = String(href || "").trim();
   if (!value) return;
 
@@ -3011,13 +3042,17 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
     return;
   }
 
-  const nodePath = resolveMarkdownLinkToNodePath(value, { sourcePath });
-  if (nodePath) {
-    await openMarkdownLinkNodePath(nodePath);
+  const targetRel = resolveMarkdownHrefToWorkspaceRel(value, sourcePath);
+  if (targetRel && (await tryOpenMarkdownLinkByWorkspaceRel(targetRel))) {
     return;
   }
 
-  const targetRel = resolveMarkdownHrefToWorkspaceRel(value, sourcePath);
+  const nodePath = resolveMarkdownLinkToNodePath(value, { sourcePath });
+  if (nodePath) {
+    await openMarkdownLinkNodePath(nodePath, options);
+    return;
+  }
+
   if (!targetRel) return;
 
   if (!(markdownLinkIndexCache.items || []).length) {
@@ -3028,11 +3063,7 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
     (item) => normalizeLinkFilePath(item.relPath).toLowerCase() === targetRel.toLowerCase()
   );
   if (indexItem && (indexItem.nodePath || indexItem.systemFile)) {
-    await openMarkdownLinkIndexItem(indexItem);
-    return;
-  }
-
-  if (await tryOpenMarkdownLinkByWorkspaceRel(targetRel)) {
+    await openMarkdownLinkIndexItem(indexItem, options);
     return;
   }
 
@@ -3044,9 +3075,11 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
     return;
   }
 
+  const owningManifest = resolveOwningManifestRelFromNodePath(targetRel);
+  const recordManifest = owningManifest || getResolvedNodePath(activePath);
   const record = (propsLibrariesCache.contentRecords || []).find((item) => {
     const recordRel = normalizeLinkFilePath(
-      `${getNodeStorageSubfolderPath(getResolvedNodePath(activePath), "external")}/${item.relativePath}`
+      `${getNodeStorageSubfolderPath(recordManifest, "external")}/${item.relativePath}`
     );
     return (
       recordRel.toLowerCase() === targetRel.toLowerCase() ||
@@ -3054,10 +3087,22 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
       item.relativePath.replace(/\.md$/i, "").toLowerCase() === targetRel.replace(/\.md$/i, "").toLowerCase()
     );
   });
-  if (record && activePath) {
-    await openNodeMemoryWorkspace(activeLabel || getLabelFromPath(activePath), activePath);
-    setContentMode("external");
-    await openExternalFile(record.relativePath);
+  if (record && recordManifest) {
+    const label = getLabelFromPath(recordManifest);
+    if (normalizeMenuNodePath(recordManifest) !== normalizeMenuNodePath(activePath)) {
+      await selectNodeManifest(label, recordManifest, "external");
+    } else {
+      await openNodeMemoryWorkspace(activeLabel || label, activePath);
+      setContentMode("external");
+    }
+    if (options.fromNavigationPreview || options.preferOverview) {
+      openExternalRecordOverviewFromNavigation({
+        path: record.relativePath.replace(/\.md$/i, ""),
+        title: record.label || record.relativePath.split("/").pop() || record.relativePath
+      });
+    } else {
+      await openExternalFile(record.relativePath);
+    }
     return;
   }
 
@@ -3944,7 +3989,7 @@ function applyRestoredHistoryContent(content) {
   switch (mode) {
     case "description":
       modeContentCache.description = content;
-      applyExternalFileContentUi(content);
+      void applyExternalFileContentUi(content);
       break;
     case "internal":
       modeContentCache.internal = content;
@@ -9334,6 +9379,11 @@ function updateEntryOverviewContextAfterFileRename(issue, nextFile, title) {
   return true;
 }
 
+function isMarkdownStorageFilePath(filePath) {
+  const base = String(filePath || "").replace(/\\/g, "/").split("/").pop() || "";
+  return /\.md$/i.test(base);
+}
+
 function getSlugIssueForSegment(rawName, displayName = "") {
   const current = String(rawName || "").trim();
   if (!current || isCanonicalStorageSlug(current)) return null;
@@ -9385,6 +9435,7 @@ function getEntryOverviewSlugIssue(context) {
   }
 
   if (memoryKind !== "external" && !isFlatEntryOverviewMemoryKind(memoryKind)) return null;
+  if (!isMarkdownStorageFilePath(relativePath)) return null;
 
   const filePath = normalizeDataHubMarkdownRelPath(relativePath);
   const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
@@ -9406,6 +9457,7 @@ function getDataHubSlugIssue(mode = activeContentMode) {
 
   if (mode === "external" && activeExternalFilePath) {
     const filePath = String(activeExternalFilePath).replace(/\\/g, "/");
+    if (!isMarkdownStorageFilePath(filePath)) return null;
     const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
     const cached = externalFilesCache.find(
       (item) => String(item.relativePath || item.path || "").replace(/\\/g, "/") === filePath
@@ -22204,17 +22256,26 @@ function buildSectionReadmeContent(title, awnType = "awn.record.category") {
   return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
 }
 
-async function buildSectionReadmeContentWithSchema(title, awnType = "awn.record.category", nodePath = activePath) {
+async function buildSectionReadmeContentWithSchema(
+  title,
+  awnType = "awn.record.category",
+  nodePath = activePath,
+  contentPath = ""
+) {
   if (!awnType) return buildSectionReadmeContent(title, null);
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
   const manifestPath = getTopicSchemaManifestPath(nodePath);
-  const schemaTarget = resolveAwnSchemaTargetForType(awnType);
+  const schemaTarget = resolveAwnSchemaTargetForType(awnType, resolveSchemaSlotKeyForContext());
   if (!manifestPath || !schemaTarget) {
     return buildSectionReadmeContent(safeTitle, awnType);
   }
   try {
     if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    const cache = await loadTopicSchemaForManifest(manifestPath);
+    const normalizedContentPath = String(contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const cache = await loadTopicSchemaForManifest(
+      manifestPath,
+      normalizedContentPath ? { contentPath: normalizedContentPath } : {}
+    );
     const mergedType = cache?.merged?.[schemaTarget];
     if (!mergedType?.fields || !Object.keys(mergedType.fields).length) {
       return buildSectionReadmeContent(safeTitle, awnType);
@@ -28424,34 +28485,58 @@ function isTopicSchemaModeAvailable(nodePath = getResolvedNodePath(activePath)) 
   return Boolean(getTopicSchemaManifestPath(nodePath));
 }
 
-function resolveAwnSchemaTargetForType(typeName) {
-  if (typeName === "awn.media.category") return "slot_media_category";
-  if (typeName === "awn.record.category") return "slot_memory_category";
-  if (typeName === "awn.sidecar") return "slot_media";
-  if (typeName === "awn.record") return "slot_memory";
+function resolveSchemaSlotKeyForContext() {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    return getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
+  }
+  return getDataStorageSlotForMode()?.key || null;
+}
+
+function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
+  const resolvedSlotKey = slotKey || resolveSchemaSlotKeyForContext();
+  if (resolvedSlotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
+    const bySlot = TopicSchemaSlotSpecs.resolveTopicSchemaTargetIdForAwnType(resolvedSlotKey, typeName);
+    if (bySlot) return bySlot;
+  }
+  const normalized =
+    typeof TopicSchemaSlotSpecs !== "undefined"
+      ? TopicSchemaSlotSpecs.normalizeAwnContentTypeName(typeName)
+      : typeName;
+  if (normalized === "awn.content.record.category" || typeName === "awn.media.category") {
+    return resolvedSlotKey === "media" ? "slot_media_category" : "slot_memory_category";
+  }
+  if (normalized === "awn.content.record" || typeName === "awn.record") {
+    return resolvedSlotKey === "media" ? "slot_media_record" : "slot_memory";
+  }
+  if (normalized === "awn.content.sidecar" || typeName === "awn.sidecar") {
+    if (resolvedSlotKey === "media") return "slot_media";
+    if (resolvedSlotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
+      return TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(resolvedSlotKey, { contentKind: "sidecar" });
+    }
+  }
   return "topic";
 }
 
 function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
   const typeName = resolveAwnTypeForContext(nodePath);
-  const slotKey = getDataStorageSlotForMode()?.key;
+  const slotKey = resolveSchemaSlotKeyForContext();
   if (slotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
     const bySlot = TopicSchemaSlotSpecs.resolveTopicSchemaTargetIdForAwnType(slotKey, typeName);
     if (bySlot) return bySlot;
   }
   if (typeName === "awn.media.category") return "slot_media_category";
-  if (typeName === "awn.record.category") {
+  if (typeName === "awn.record.category" || typeName === "awn.content.record.category") {
     return slotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
   if (slotKey) {
     if (typeName === "awn.sidecar" && slotKey === "media") return "slot_media";
     if (typeName === "awn.file" && slotKey === "repository") return "slot_repository";
-    if (typeName === "awn.record") {
+    if (typeName === "awn.record" || typeName === "awn.content.record") {
       const slotTarget = resolveStorageSlotSchemaTargetId(slotKey);
       if (slotTarget) return slotTarget;
     }
   }
-  return resolveAwnSchemaTargetForType(typeName);
+  return resolveAwnSchemaTargetForType(typeName, slotKey);
 }
 
 function getTopicSchemaCacheKey(manifestPath, contentPath = "") {
@@ -29186,11 +29271,49 @@ function getSectionSchemaCacheKey(params) {
   return `${params.manifestPath}::${params.layer}::${params.sectionPath}`;
 }
 
+function getSectionSchemaSlotKeyForContext(context) {
+  const memoryKind = context?.memoryKind || "external";
+  if (memoryKind === "external") return "memory";
+  if (memoryKind === "internal") return "main-single";
+  if (memoryKind === "tabular") return "main-single-csv";
+  if (memoryKind === "todo") return "todo-single";
+  if (memoryKind === "media") return "media";
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
+  return "memory";
+}
+
 function getSectionSchemaTargetsForContext(context) {
-  if (context?.entryKind === "awn.media.category") {
-    return ["slot_media", "slot_media_category"];
+  const slotKey = getSectionSchemaSlotKeyForContext(context);
+  if (typeof TopicSchemaSlotSpecs !== "undefined") {
+    return ["record", "category", "sidecar"]
+      .map((kind) => TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(slotKey, { contentKind: kind }))
+      .filter(Boolean);
   }
-  return ["slot_memory", "slot_memory_category"];
+  if (context?.entryKind === "awn.media.category" || context?.memoryKind === "media") {
+    return ["slot_media_record", "slot_media_category", "slot_media"];
+  }
+  return ["slot_memory", "slot_memory_category", "slot_memory_sidecar"];
+}
+
+function getSectionSchemaTargetTabLabel(targetId) {
+  if (typeof TopicSchemaSlotSpecs !== "undefined") {
+    const spec = TopicSchemaSlotSpecs.findTopicSchemaTargetSpecById(targetId);
+    if (spec?.contentKind && TopicSchemaSlotSpecs.CONTENT_KIND_TAB_LABELS?.[spec.contentKind]) {
+      return TopicSchemaSlotSpecs.CONTENT_KIND_TAB_LABELS[spec.contentKind];
+    }
+  }
+  return getTopicSchemaTargetLabel(targetId);
+}
+
+function getSectionSchemaTargetTabGroup(targetId) {
+  if (typeof TopicSchemaSlotSpecs !== "undefined") {
+    const spec = TopicSchemaSlotSpecs.findTopicSchemaTargetSpecById(targetId);
+    if (spec?.contentKind === "category") return "slot-meta";
+    if (spec?.contentKind === "sidecar") return "slot-sidecar";
+  }
+  if (String(targetId).endsWith("_category") || targetId === "slot_media_category") return "slot-meta";
+  if (String(targetId).endsWith("_sidecar") || targetId === "slot_media") return "slot-sidecar";
+  return "slot";
 }
 
 function emptySectionSchemaState(context) {
@@ -29257,6 +29380,8 @@ async function loadSectionSchemaForEntry(context, options = {}) {
     baseTypes: data.baseTypes || {},
     merged: data.merged || {},
     fieldRegistry: data.fieldRegistry || awnTypesCache?.fieldRegistry || {},
+    memoryKind: context?.memoryKind || "external",
+    entryKind: context?.entryKind || "",
     activeTarget: getSectionSchemaTargetsForContext(context)[0]
   };
   enrichTopicSchemaCacheFromTypes(payload);
@@ -29399,10 +29524,14 @@ function renderSectionSchemaTargetTabs(panel, cache) {
   tabsNode.replaceChildren();
   const row = document.createElement("div");
   row.className = "topic-schema-target-tab-row topic-schema-target-tab-row--core";
-  for (const targetId of getSectionSchemaTargetsForContext({ entryKind: cache.entryKind })) {
+  const schemaContext = { entryKind: cache.entryKind, memoryKind: cache.memoryKind };
+  for (const targetId of getSectionSchemaTargetsForContext(schemaContext)) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "topic-schema-target-tab topic-schema-target-tab--slot";
+    const tabGroup = getSectionSchemaTargetTabGroup(targetId);
+    if (tabGroup === "slot-meta") btn.classList.add("topic-schema-target-tab--slot-meta");
+    if (tabGroup === "slot-sidecar") btn.classList.add("topic-schema-target-tab--slot-sidecar");
     btn.dataset.target = targetId;
     btn.setAttribute("role", "tab");
     btn.setAttribute("aria-selected", targetId === cache.activeTarget ? "true" : "false");
@@ -29411,7 +29540,7 @@ function renderSectionSchemaTargetTabs(panel, cache) {
     btn.classList.toggle("is-configured", configured);
     const labelNode = document.createElement("span");
     labelNode.className = "topic-schema-target-tab-label";
-    labelNode.textContent = getTopicSchemaTargetLabel(targetId);
+    labelNode.textContent = getSectionSchemaTargetTabLabel(targetId);
     btn.appendChild(labelNode);
     btn.title = getTopicSchemaTargetTypeName(targetId) || targetId;
     btn.addEventListener("click", () => {
@@ -29432,7 +29561,7 @@ function renderSectionSchemaBaseFields(panel, cache) {
   const base = resolveTopicSchemaBaseType(target, cache);
   const typeName = getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target];
   if (titleNode) {
-    const label = getTopicSchemaTargetLabel(target);
+    const label = getSectionSchemaTargetTabLabel(target);
     titleNode.textContent = typeName
       ? `Базовые поля · ${label} (${typeName})`
       : "Базовые поля (read-only)";
@@ -29646,6 +29775,22 @@ function renderSectionSchemaEditor(panel, cache) {
   }
 }
 
+function wrapEntryOverviewSectionSchemaFold(panel, params) {
+  const accordionGroupId = `section-schema:${getSectionSchemaCacheKey(params)}`;
+  const fold = createOverviewAccordionSection(
+    accordionGroupId,
+    "📋 Схема полей раздела",
+    panel,
+    { defaultOpen: false }
+  );
+  fold.classList.add(
+    "node-overview-section-schema-fold",
+    "node-overview-props-fold",
+    "node-navigation-props"
+  );
+  return fold;
+}
+
 function createEntryOverviewSectionSchemaPanel(context) {
   const panel = document.createElement("section");
   panel.className = "node-entry-overview-section-schema topic-schema-panel";
@@ -29653,7 +29798,6 @@ function createEntryOverviewSectionSchemaPanel(context) {
   panel.innerHTML = `
     <header class="topic-schema-head">
       <div>
-        <h3 class="topic-schema-title">📋 Схема полей раздела</h3>
         <p class="topic-schema-lead">
           Дополнительные поля для записей и подразделов внутри «${escapeHtml(
             context.title || getSectionFolderFromCategoryContext(context)
@@ -29687,26 +29831,33 @@ function createEntryOverviewSectionSchemaPanel(context) {
   return panel;
 }
 
-async function appendEntryOverviewSectionSchemaPanel(hub, context) {
+async function appendEntryOverviewSectionSchemaPanel(container, context) {
   if (!isEntryOverviewCategoryContext(context)) return;
   const params = resolveSectionSchemaParams(context);
   if (!params) return;
 
   const panel = createEntryOverviewSectionSchemaPanel(context);
   panel.querySelector(".topic-schema-base-fields").textContent = "Загрузка…";
-  hub.appendChild(panel);
+  const fold = wrapEntryOverviewSectionSchemaFold(panel, params);
+  const anchor =
+    container.querySelector(".node-overview-awn-props-fold") ||
+    container.querySelector(".node-overview-props-custom") ||
+    container.querySelector(".node-navigation-hero-main");
+  if (anchor) anchor.insertAdjacentElement("afterend", fold);
+  else container.appendChild(fold);
 
   const editorSeq = ++sectionSchemaEditorSeq;
   try {
     const cache = await loadSectionSchemaForEntry(context);
-    if (editorSeq !== sectionSchemaEditorSeq || !panel.isConnected) return;
+    if (editorSeq !== sectionSchemaEditorSeq) return;
     cache.entryKind = context.entryKind;
+    cache.memoryKind = context.memoryKind || "external";
     panel._sectionSchemaCache = cache;
     panel._sectionSchemaParams = params;
     bindSectionSchemaPanelEvents(panel, cache, context);
     renderSectionSchemaEditor(panel, cache);
   } catch (error) {
-    if (!panel.isConnected) return;
+    if (editorSeq !== sectionSchemaEditorSeq) return;
     panel.querySelector(".topic-schema-base-fields").textContent = `Ошибка: ${error.message}`;
   }
 }
@@ -36632,14 +36783,40 @@ function buildNodeManifestContent() {
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
 }
 
+async function ensureTopicSchemaForActiveContext(options = {}) {
+  const manifestPath = getTopicSchemaManifestPath();
+  const contentPath =
+    options.contentPath !== undefined
+      ? String(options.contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
+      : getSchemaContentPathForContext();
+  if (!manifestPath || !contentPath) return null;
+  return loadTopicSchemaForManifest(manifestPath, {
+    contentPath,
+    force: options.force !== false
+  }).catch(() => null);
+}
+
 function applyExternalFileContentUi(rawContent) {
+  return applyStorageFileContentUi(rawContent, { mode: "external" });
+}
+
+function applyMediaSidecarContentUi(rawContent) {
+  return applyStorageFileContentUi(rawContent, { mode: "media" });
+}
+
+async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
+  await ensureTopicSchemaForActiveContext();
   const { frontmatter, body } = splitFrontmatter(rawContent);
   setPropsYamlContent(frontmatter);
-  const titleHint =
-    getNodeDisplayTitleFromFrontmatter(activeExternalFilePath, frontmatter) ||
-    titleInputNode?.value?.trim() ||
-    "";
-  fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
+  if (mode === "external") {
+    const titleHint =
+      getNodeDisplayTitleFromFrontmatter(activeExternalFilePath, frontmatter) ||
+      titleInputNode?.value?.trim() ||
+      "";
+    fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
+    return;
+  }
+  fileContentInputNode.value = body;
 }
 
 function buildExternalFileContent() {
@@ -36648,12 +36825,6 @@ function buildExternalFileContent() {
   }
   flushPropsYamlFromFormBeforeSave();
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
-}
-
-function applyMediaSidecarContentUi(rawContent) {
-  const { frontmatter, body } = splitFrontmatter(rawContent);
-  setPropsYamlContent(frontmatter);
-  fileContentInputNode.value = body;
 }
 
 function syncSectionReadmeDisplayNameIntoProps(displayName) {
@@ -36740,13 +36911,19 @@ async function openMediaMarkdownFile(filePath, options = {}) {
 
 async function ensureExternalSectionReadme(readmePath, sectionFolder) {
   const sectionLabel = String(sectionFolder || "").split("/").filter(Boolean).pop() || "Раздел";
+  const contentPath = getExternalItemContextPath({ path: readmePath });
   const response = await fetch(buildApiUrl("/api/external/file"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       path: getActiveNodeApiPath(),
       file: readmePath,
-      content: await buildSectionReadmeContentWithSchema(sectionLabel, "awn.record.category")
+      content: await buildSectionReadmeContentWithSchema(
+        sectionLabel,
+        "awn.record.category",
+        activePath,
+        contentPath
+      )
     })
   });
   if (!response.ok) {
@@ -36849,7 +37026,7 @@ function syncPropsInputPlaceholder() {
   }
 }
 
-function enableExternalFileEditor(filePath, content, options = {}) {
+async function enableExternalFileEditor(filePath, content, options = {}) {
   if (options.memoryEntryCloseTargetView != null) {
     assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
   } else if (memoryEntryCloseTargetView == null) {
@@ -36859,7 +37036,7 @@ function enableExternalFileEditor(filePath, content, options = {}) {
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
   showTitleEditableInput();
-  applyExternalFileContentUi(content || "");
+  await applyExternalFileContentUi(content || "");
   syncTitleFieldsFromNode(filePath);
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -36887,7 +37064,7 @@ async function openExternalFile(filePath, options = {}) {
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    enableExternalFileEditor(data.file, data.content || "", options);
+    await enableExternalFileEditor(data.file, data.content || "", options);
   } catch (error) {
     showToast(`Ошибка открытия файла ${STORAGE_SUBFOLDER_CONTENT}`, "error");
   }
@@ -41648,6 +41825,22 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
   }
 }
 
+async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
+  if (!context?.relPath || isEntryOverviewMemoryTocRoot(context)) return entries;
+  const manifestPath = getTopicSchemaManifestPath(getResolvedNodePath(activePath));
+  const contentPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!manifestPath || !contentPath || !/\/awn-storage\/[^/]+\/.+/i.test(contentPath)) {
+    return entries;
+  }
+  try {
+    await loadTopicSchemaForManifest(manifestPath, { contentPath });
+    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    return applyTypeSchemaToEntries(entries);
+  } catch {
+    return entries;
+  }
+}
+
 async function fetchEntryOverviewBody(context) {
   if (!context?.relativePath) return "";
   try {
@@ -41999,8 +42192,8 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
   );
   if (!attachmentsPanel || !hero) return null;
   const anchor =
-    hero.querySelector(".node-overview-awn-props-fold") ||
-    hero.querySelector(".node-overview-props-custom");
+    [...hero.querySelectorAll(".node-overview-props-fold, .node-overview-props-custom")].pop() ||
+    null;
   if (anchor) anchor.insertAdjacentElement("afterend", attachmentsPanel);
   else hero.appendChild(attachmentsPanel);
   return attachmentsPanel;
@@ -43814,12 +44007,15 @@ async function renderEntryOverview() {
     !nodeOverviewContentNode;
 
   const topicPath = getResolvedNodePath(activePath);
-  const [entries, rawBody, nodeMeta, navigationIndex] = await Promise.all([
+  let [entries, rawBody, nodeMeta, navigationIndex] = await Promise.all([
     isMemoryTocRoot ? [] : fetchEntryOverviewProperties(context.relPath, context),
     isMemoryTocRoot ? "" : fetchEntryOverviewBody(context),
     isMemoryTocRoot ? fetchNodeNavigationMeta(topicPath) : fetchNodeNavigationMeta(context.relPath),
     fetchEntryOverviewNavigationIndex(context, topicPath)
   ]);
+  if (!isMemoryTocRoot) {
+    entries = await enrichEntryOverviewPropertiesWithSchema(entries, context);
+  }
   if (isStale()) return;
 
   syncEntryOverviewKindClass(getEntryOverviewKindClass(context.entryKind));
@@ -43891,6 +44087,10 @@ async function renderEntryOverview() {
   if (context.entryKind !== "awn.media.asset") {
     appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex);
   }
+  if (isEntryOverviewCategoryContext(context)) {
+    await appendEntryOverviewSectionSchemaPanel(hero, context);
+    if (isStale()) return;
+  }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
   appendEntryOverviewSectionReadmeOffer(hub, context);
 
@@ -43913,11 +44113,6 @@ async function renderEntryOverview() {
     contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   }
   if (contentPanel) hub.appendChild(contentPanel);
-
-  if (isEntryOverviewCategoryContext(context)) {
-    await appendEntryOverviewSectionSchemaPanel(hub, context);
-    if (isStale()) return;
-  }
 
   appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: false });
 
@@ -45383,6 +45578,26 @@ function resolveWorkspaceNotificationOpenPath(event) {
   return manifestPath || pathValue || "";
 }
 
+function resolveWorkspaceNotificationStorageItemLabel(pathValue) {
+  const normalized = String(pathValue || "").replace(/\\/g, "/").trim();
+  if (!/\/awn-storage\//i.test(normalized)) return "";
+  if (/\/(?:config|configuration)\.yml$/i.test(normalized)) {
+    const parts = normalized.split("/").filter(Boolean);
+    return parts.length >= 2 ? parts[parts.length - 2] : "";
+  }
+  if (/\/manifest\.md$/i.test(normalized)) {
+    const parts = normalized.split("/").filter(Boolean);
+    if (parts.length >= 2 && parts[parts.length - 1].toLowerCase() === "manifest.md") {
+      return parts[parts.length - 2];
+    }
+  }
+  const base = normalized.split("/").pop() || "";
+  if (/\.md$/i.test(base) && base.toLowerCase() !== "manifest.md") {
+    return base.replace(/\.md$/i, "");
+  }
+  return "";
+}
+
 function enrichWorkspaceNotificationEvent(event) {
   if (!event || typeof event !== "object") return event;
   let topicName = event.topicName ? String(event.topicName).trim() : "";
@@ -45396,9 +45611,16 @@ function enrichWorkspaceNotificationEvent(event) {
       if (node?.label) topicName = String(node.label).trim();
     }
     if (!recordName && pathValue && pathValue !== manifestPath) {
-      const node = findMenuNodeInAgentMenu(currentMenuData, pathValue);
-      if (node?.label) recordName = String(node.label).trim();
+      const storageLabel = resolveWorkspaceNotificationStorageItemLabel(pathValue);
+      if (storageLabel) recordName = storageLabel;
+      else {
+        const node = findMenuNodeInAgentMenu(currentMenuData, pathValue);
+        if (node?.label) recordName = String(node.label).trim();
+      }
     }
+  } else if (!recordName && pathValue) {
+    const storageLabel = resolveWorkspaceNotificationStorageItemLabel(pathValue);
+    if (storageLabel) recordName = storageLabel;
   }
 
   const patch = {};
@@ -45411,8 +45633,8 @@ function getWorkspaceNotificationTitle(event) {
   const enriched = enrichWorkspaceNotificationEvent(event);
   return (
     enriched.recordName ||
-    enriched.topicName ||
     enriched.label ||
+    enriched.topicName ||
     enriched.path ||
     "—"
   );
@@ -45421,7 +45643,7 @@ function getWorkspaceNotificationTitle(event) {
 function getWorkspaceNotificationTopicHint(event) {
   const enriched = enrichWorkspaceNotificationEvent(event);
   const title = getWorkspaceNotificationTitle(event);
-  if (enriched.recordName && enriched.topicName && enriched.topicName !== title) {
+  if (enriched.topicName && enriched.topicName !== title) {
     return enriched.topicName;
   }
   return "";
@@ -48070,6 +48292,7 @@ function getMarkdownIt() {
         return defaultLinkOpen(tokens, idx, options, env, self);
       }
       if (/\.md(?:$|[#?])/i.test(href) && !/^https?:\/\//i.test(href)) {
+        token.attrs[hrefIdx][1] = "#";
         token.attrJoin("class", "md-file-link");
         token.attrSet("data-md-href", href);
         return defaultLinkOpen(tokens, idx, options, env, self);
@@ -48625,13 +48848,13 @@ function initPreviewWikilinkNavigation(root) {
     event.preventDefault();
     const path = link.dataset.nodePath;
     if (path) {
-      void openMarkdownLinkNodePath(path);
+      void openMarkdownLinkNodePath(path, { fromNavigationPreview: true });
       return;
     }
     const href = link.dataset.mdHref;
     if (href) {
       const sourcePath = root.dataset.linkBasePath || getCurrentEditorLinkBasePath();
-      void openMarkdownLinkTarget(href, sourcePath);
+      void openMarkdownLinkTarget(href, sourcePath, { fromNavigationPreview: true });
     }
   });
 }

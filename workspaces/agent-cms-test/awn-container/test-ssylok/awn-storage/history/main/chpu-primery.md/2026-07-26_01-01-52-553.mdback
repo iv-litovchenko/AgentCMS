@@ -1,37 +1,22 @@
 ---
 awn-name: Примеры ЧПУ
-awn-emoji: ""
-awn-status: draft
-awn-description: ""
-awn-tags: []
 awn-type: awn.content.record
-awn-create: "2026-07-25T05:15"
-awn-update: 2026-07-25T22:01:52.550Z
-awn-version: 4
-awn-preview: ""
-awn-web-url: ""
+awn-status: draft
+awn-create: "2026-07-25T02:15:00.000Z"
+awn-update: "2026-07-25T09:00:00.000Z"
+awn-version: 3
 awn-attachments: []
-awn-category: ""
-awn-color: ""
-awn-main: false
-awn-owner: ""
-awn-priority: ""
-awn-runtime-commands: false
-awn-runtime-cron: false
-awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: false
-awn-runtime-load-always: false
-awn-sort: 0
 ---
 
-# Примеры ЧПУ (v3.0)
+# Примеры ЧПУ (v3)
 
-**Path** = путь на диске, включая слот `awn-storage/{slot}/…`**`~…`** = только UI (не имя слота, не `external`)
+**Path** = путь на диске, включая слот `awn-storage/{slot}/…`  
+**`~…`** = только UI (не имя слота, не `external`)
 
 ## Словарь `~`
 
 | ~ | Экран | Селект «Вид данных» |
-| --- | ----- | ------------------- |
+|---|--------|----------------------|
 | `~list` | Список записей | **Список** |
 | `~preview` | Просмотр / оглавление / карточка | **Просмотр** |
 | `~edit` | Редактор manifest | — |

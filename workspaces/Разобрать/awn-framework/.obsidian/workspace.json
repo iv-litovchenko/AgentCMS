@@ -11,14 +11,12 @@
             "id": "384dc149335fc4b1",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "00_Documentation/ideas/chatgpt/AGENTS.md",
-                "mode": "source",
-                "source": false
+                "file": "00_Documentation/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png"
               },
-              "icon": "lucide-file",
-              "title": "AGENTS"
+              "icon": "lucide-image",
+              "title": "00ba2699-cfed-4189-9bb6-300aa7a3f5ca"
             }
           }
         ]
@@ -180,24 +178,34 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "384dc149335fc4b1",
+  "active": "5f12a83b1cc943d8",
   "lastOpenFiles": [
+    "00_Documentation/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png",
+    "Новая папка/awn.settings.md",
+    "00_Documentation/ideas/claude/AGENTS.md",
+    "00_Documentation/ideas/petr/Снимок экрана 2026-05-03 в 16.48.23.png",
+    "00_Documentation/ideas/claude/writing.node.md",
     "00_Documentation/ideas/qwen/finance-tracker.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🔗 link.manager.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/⚙️ system.loader.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧠 memory.manager.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧠 self.identity.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧩 core.node.md.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧩 node.architecture.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧪 knowledge.builder.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧭 context.interpreter.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🧹 system.refactor.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🚀 evolution.engine.node.md",
-    "00_Documentation/ideas/chatgpt/nodes/🛠 task.executor.node.md",
-    "00_Documentation/ideas/chatgpt/nodes-other/🔁 action.loop.node.md",
-    "00_Documentation/ideas/chatgpt/nodes-other/📥 inbox.node.md",
-    "00_Documentation/ideas/chatgpt/nodes-other/⚖️ decision.engine.node.md",
-    "00_Documentation/ideas/deepseek/AGENTS.md",
-    "00_Documentation/ideas/gemini/AGENTS.md.md"
+    "00_Documentation/ideas/qwen/AGENTS.md.md",
+    "00_Documentation/ideas/claude/health.node.md",
+    "00_Documentation/ideas/claude/changelog.md",
+    "00_Documentation/ideas/claude/identity.node.md",
+    "00_Documentation/ideas/claude/memory.node.md",
+    "00_Documentation/ideas/claude/node-creator.node.md",
+    "00_Documentation/ideas/claude/obsidian-rules.node.md",
+    "00_Documentation/ideas/claude/tasks.node.md",
+    "00_Documentation/ideas/chatgpt/AGENTS.md",
+    "02 Components/02 Nodes-types/01 Folders/00 Index.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/04 Book.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/05 Collection.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/zzz 06 Intro ИЛИ REPO.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/zzz 08 Skill.md",
+    "02 Components/02 Nodes-types/01 Folders/zzz Project.md",
+    "02 Components/02 Nodes-types/01 Folders/01 Workspace.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/02 Space.documentation.md",
+    "02 Components/02 Nodes-types/01 Folders/03 Cluster.documentation.md",
+    "README.md",
+    "02 Components/01 Awn-files/Documentation.documentation.md",
+    "02 Components/01 Awn-files/Configuration.documentation.md"
   ]
 }

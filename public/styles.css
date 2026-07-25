@@ -18253,6 +18253,33 @@ body.app-locked {
   box-shadow: none;
 }
 
+.node-overview-section-schema-fold > .node-overview-fold-head {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 55%, #f0f9ff 100%);
+}
+
+.node-overview-section-schema-fold > .node-overview-fold-head:hover {
+  background: linear-gradient(135deg, #bfdbfe 0%, #bae6fd 55%, #e0f2fe 100%);
+}
+
+.node-overview-section-schema-fold .node-overview-fold-title {
+  color: #1e40af;
+}
+
+.node-overview-section-schema-fold {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.node-overview-section-schema-fold .node-entry-overview-section-schema {
+  margin-top: 0;
+  padding: 12px 14px 14px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .node-navigation-hero {
   display: flex;
   flex-direction: column;

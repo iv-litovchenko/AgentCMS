@@ -670,6 +670,27 @@ async function readAwnNameFromWorkspaceRel(relPath) {
   }
 }
 
+function isStorageLayerActivityPath(relPath) {
+  return /(?:^|\/)awn-storage\//i.test(String(relPath || "").replace(/\\/g, "/"));
+}
+
+function isTopicManifestActivityPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!/manifest\.md$|_registration\.md$/i.test(normalized)) return false;
+  return !isStorageLayerActivityPath(normalized);
+}
+
+function resolveStorageSectionManifestRelFromActivityPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!isStorageLayerActivityPath(normalized)) return null;
+  if (/\/manifest\.md$/i.test(normalized)) return normalized;
+  const sectionManifest = normalized.replace(/\/(?:config|configuration)\.yml$/i, "/manifest.md");
+  if (sectionManifest !== normalized && /\/manifest\.md$/i.test(sectionManifest)) {
+    return sectionManifest;
+  }
+  return null;
+}
+
 async function resolveWorkspaceActivityDisplayNames({ pathValue, manifestPath, label }) {
   const normalizedPath = String(pathValue || "").replace(/\\/g, "/").trim();
   let manifestRel = manifestPath ? String(manifestPath).replace(/\\/g, "/").trim() : "";
@@ -679,22 +700,37 @@ async function resolveWorkspaceActivityDisplayNames({ pathValue, manifestPath, l
 
   let topicName = null;
   let recordName = null;
+  const labelValue = label ? String(label).trim() : "";
 
-  const isManifestPath = /manifest\.md$|_registration\.md$/i.test(normalizedPath);
-  const isRecordPath =
-    normalizedPath && /\.md$/i.test(normalizedPath) && !isManifestPath && normalizedPath !== manifestRel;
+  const isTopicManifest = isTopicManifestActivityPath(normalizedPath);
+  const sectionManifestRel = resolveStorageSectionManifestRelFromActivityPath(normalizedPath);
+  const isRecordMd =
+    normalizedPath &&
+    /\.md$/i.test(normalizedPath) &&
+    !isTopicManifest &&
+    !sectionManifestRel;
 
-  if (manifestRel && /manifest\.md$|_registration\.md$/i.test(manifestRel)) {
+  if (manifestRel && isTopicManifestActivityPath(manifestRel)) {
     topicName = await readAwnNameFromWorkspaceRel(manifestRel);
   }
-  if (isManifestPath) {
+  if (isTopicManifest) {
     topicName = topicName || (await readAwnNameFromWorkspaceRel(normalizedPath));
   }
-  if (isRecordPath) {
+  if (sectionManifestRel) {
+    recordName = await readAwnNameFromWorkspaceRel(sectionManifestRel);
+  }
+  if (isRecordMd) {
     recordName = await readAwnNameFromWorkspaceRel(normalizedPath);
   }
 
-  const displayName = recordName || topicName || (label ? String(label).trim() : null);
+  let displayName = recordName;
+  if (!displayName && !isTopicManifest) {
+    displayName = labelValue || path.posix.basename(normalizedPath) || null;
+  }
+  if (!displayName) {
+    displayName = topicName;
+  }
+
   return { topicName, recordName, displayName };
 }
 
@@ -912,6 +948,7 @@ function inferWorkspaceActivityFileKind(relPath) {
   if (normalized.endsWith("/main.md") || normalized.includes("/main/")) return "memory";
   if (normalized.endsWith("/todo.md")) return "todo";
   if (normalized.endsWith("/schema.yml") || normalized.endsWith("schema.yml")) return "schema";
+  if (normalized.endsWith("/config.yml") || normalized.endsWith("configuration.yml")) return "schema";
   if (normalized.endsWith("configuration.yml")) return "config";
   if (normalized.endsWith("/.env")) return "env";
   if (normalized.includes("/content/")) return "content";
@@ -3076,7 +3113,7 @@ async function buildObsidianUri(targetAbsolute) {
 async function renameIfExists(fromAbsolute, toAbsolute) {
   try {
     await fs.access(fromAbsolute);
-    await fs.rename(fromAbsolute, toAbsolute);
+    await renamePathCaseAware(fromAbsolute, toAbsolute);
   } catch (error) {
     if (error && error.code === "ENOENT") return;
     throw error;
@@ -3764,6 +3801,56 @@ function isPathInsideDirectory(parentDir, childPath) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+function pathsEqualCaseInsensitive(a, b) {
+  if (!a || !b) return false;
+  return path.resolve(String(a)).toLowerCase() === path.resolve(String(b)).toLowerCase();
+}
+
+function isCaseOnlyPathRename(fromAbsolute, toAbsolute) {
+  const fromResolved = path.resolve(fromAbsolute);
+  const toResolved = path.resolve(toAbsolute);
+  return fromResolved !== toResolved && pathsEqualCaseInsensitive(fromResolved, toResolved);
+}
+
+async function targetPathOccupiedByOther(fromAbsolute, toAbsolute) {
+  if (path.resolve(fromAbsolute) === path.resolve(toAbsolute)) return false;
+  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) return false;
+  try {
+    await fs.access(toAbsolute);
+    return true;
+  } catch (error) {
+    if (error && error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+async function renamePathCaseAware(fromAbsolute, toAbsolute) {
+  const fromResolved = path.resolve(fromAbsolute);
+  const toResolved = path.resolve(toAbsolute);
+  if (fromResolved === toResolved) return toAbsolute;
+
+  if (await targetPathOccupiedByOther(fromAbsolute, toAbsolute)) {
+    const error = new Error("Target path already exists");
+    error.code = "EEXIST";
+    throw error;
+  }
+
+  await fs.mkdir(path.dirname(toAbsolute), { recursive: true });
+
+  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) {
+    const tempAbsolute = path.join(
+      path.dirname(fromAbsolute),
+      `.case-rename-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    await fs.rename(fromAbsolute, tempAbsolute);
+    await fs.rename(tempAbsolute, toAbsolute);
+    return toAbsolute;
+  }
+
+  await fs.rename(fromAbsolute, toAbsolute);
+  return toAbsolute;
+}
+
 async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options = {}) {
   if (!folderAbsolute) return null;
   const raw = String(subdir || "").trim().replace(/\\/g, "/");
@@ -3817,7 +3904,13 @@ function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
   return null;
 }
 
-async function buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey = null) {
+async function buildStorageSectionReadmeContentForManifest(
+  manifestRel,
+  title,
+  awnType,
+  slotKey = null,
+  options = {}
+) {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
   if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null);
 
@@ -3825,11 +3918,14 @@ async function buildStorageSectionReadmeContentForManifest(manifestRel, title, a
   if (schemaTarget) {
     try {
       const configFile = await readNodeConfigFile(manifestRel);
-      const payload = getTopicSchemaPayload(
-        configFile.content || "",
-        getAgentRoot(),
-        getProjectRoot()
-      );
+      const payload = options.contentWorkspaceRel
+        ? getEffectiveSchemaPayloadForContentPath(
+            configFile.content || "",
+            options.contentWorkspaceRel,
+            getAgentRoot(),
+            getProjectRoot()
+          )
+        : getTopicSchemaPayload(configFile.content || "", getAgentRoot(), getProjectRoot());
       const mergedType = payload.merged[schemaTarget];
       if (mergedType?.fields && Object.keys(mergedType.fields).length) {
         const frontmatter = buildDefaultFrontmatter(awnType, {
@@ -4001,8 +4097,10 @@ async function enrichTypedSlotMarkdownContent(
   return joinNodeFrontmatter(merged, userBody || templateBody);
 }
 
-async function buildExternalRecordFileContentForManifest(manifestRel, title) {
-  return buildSlotContentFileContentForManifest(manifestRel, title, "memory", "record");
+async function buildExternalRecordFileContentForManifest(manifestRel, title, options = {}) {
+  return buildSlotContentFileContentForManifest(manifestRel, title, "memory", "record", {
+    contentWorkspaceRel: options.contentWorkspaceRel || null
+  });
 }
 
 async function createStorageRecordFile({
@@ -4104,14 +4202,15 @@ async function writeStorageSectionReadme(
   title,
   awnType = "awn.content.record.category",
   manifestRel = null,
-  slotKey = null
+  slotKey = null,
+  options = {}
 ) {
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
   try {
     await fs.access(readmeAbsolute);
   } catch {
     const content = manifestRel
-      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey)
+      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey, options)
       : buildStorageSectionReadmeContent(title, awnType);
     await fs.writeFile(readmeAbsolute, content, "utf-8");
   }
@@ -4199,13 +4298,10 @@ async function renameMemorySectionRecord(manifestRelPath, scopeType, storageFold
   if (nextRelPath !== ctx.sectionRelPath) {
     const nextAbsolute = joinFolderRelativePath(ctx.rootAbsolute, nextRelPath);
     if (!nextAbsolute) return { error: "Invalid section path", status: 400 };
-    try {
-      await fs.access(nextAbsolute);
+    if (await targetPathOccupiedByOther(sectionAbsolute, nextAbsolute)) {
       return { error: "Section already exists", status: 409 };
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
     }
-    await fs.rename(sectionAbsolute, nextAbsolute);
+    await renamePathCaseAware(sectionAbsolute, nextAbsolute);
     sectionAbsolute = nextAbsolute;
   }
 
@@ -4250,14 +4346,11 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
     return { error: "Cannot move section into itself", status: 400 };
   }
 
-  try {
-    await fs.access(destAbsolute);
+  if (await targetPathOccupiedByOther(ctx.sectionAbsolute, destAbsolute)) {
     return { error: "Target section already exists", status: 409 };
-  } catch (error) {
-    if (!error || error.code !== "ENOENT") throw error;
   }
 
-  await fs.rename(ctx.sectionAbsolute, destAbsolute);
+  await renamePathCaseAware(ctx.sectionAbsolute, destAbsolute);
   const sectionPath = path.relative(ctx.rootAbsolute, destAbsolute).replace(/\\/g, "/");
   return {
     sectionPath,
@@ -5286,15 +5379,11 @@ async function moveExternalMemoryFile(manifestRelPath, relFile, options = {}) {
     return { error: "File is already at the target location", status: 409 };
   }
 
-  try {
-    await fs.access(nextAbsolute);
+  if (await targetPathOccupiedByOther(ctx.fileAbsolute, nextAbsolute)) {
     return { error: "File with this name already exists", status: 409 };
-  } catch {
-    // target does not exist
   }
 
-  await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
-  await fs.rename(ctx.fileAbsolute, nextAbsolute);
+  await renamePathCaseAware(ctx.fileAbsolute, nextAbsolute);
 
   const content = await fs.readFile(nextAbsolute, "utf-8");
   let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
@@ -5388,15 +5477,11 @@ async function moveMediaStorageFile(manifestRelPath, relFile, options = {}) {
     return { error: "File is already at the target location", status: 409 };
   }
 
-  try {
-    await fs.access(nextAbsolute);
+  if (await targetPathOccupiedByOther(ctx.mediaAbsolute, nextAbsolute)) {
     return { error: "File with this name already exists", status: 409 };
-  } catch {
-    // target does not exist
   }
 
-  await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
-  await fs.rename(ctx.mediaAbsolute, nextAbsolute);
+  await renamePathCaseAware(ctx.mediaAbsolute, nextAbsolute);
 
   const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(ctx.mediaAbsolute);
   const nextSidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(nextAbsolute);
@@ -11806,14 +11891,11 @@ async function handleApiForAgent(req, res, url) {
         if (!targetFolderName) return sendJson(res, 400, { error: "Folder name cannot be empty" });
         const targetFolderAbsolute = path.join(parentAbsolutePath, targetFolderName);
 
-        try {
-          await fs.access(targetFolderAbsolute);
+        if (await targetPathOccupiedByOther(currentFolderAbsolute, targetFolderAbsolute)) {
           return sendJson(res, 409, { error: "Folder with this name already exists" });
-        } catch {
-          // Target does not exist, continue.
         }
 
-        await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
+        await renamePathCaseAware(currentFolderAbsolute, targetFolderAbsolute);
         await updateMenuSortOrderSlug(
           parentAbsolutePath,
           oldAreaSortSlug,
@@ -11853,11 +11935,8 @@ async function handleApiForAgent(req, res, url) {
             : path.join(dirRelPath, nextName).replace(/\\/g, "/");
 
         if (targetAbsolute !== absolute) {
-          try {
-            await fs.access(targetAbsolute);
+          if (await targetPathOccupiedByOther(absolute, targetAbsolute)) {
             return sendJson(res, 409, { error: "File with this name already exists" });
-          } catch {
-            // Target does not exist, continue.
           }
           const oldContentAbsolute = normalizeWorkspacePath(toContentFilePath(normalized));
           const newContentAbsolute = normalizeWorkspacePath(toContentFilePath(targetRelPath));
@@ -11865,7 +11944,7 @@ async function handleApiForAgent(req, res, url) {
           const newTodoAbsolute = normalizeWorkspacePath(toTodoFilePath(targetRelPath));
           const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
           const newConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(targetRelPath));
-          await fs.rename(absolute, targetAbsolute);
+          await renamePathCaseAware(absolute, targetAbsolute);
           if (oldContentAbsolute && newContentAbsolute) {
             await renameIfExists(oldContentAbsolute, newContentAbsolute);
           }
@@ -13360,7 +13439,14 @@ async function handleApiForAgent(req, res, url) {
 
       const fileAbsolute = joinFolderRelativePath(targetFolder, fileName);
       if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid external file path" });
-      const content = await buildExternalRecordFileContentForManifest(relPath, title);
+      const parentRel = path.relative(folderAbsolute, targetFolder).replace(/\\/g, "/").replace(/^\/+/, "");
+      const relInSlot = parentRel ? `${parentRel}/${fileName}` : fileName;
+      const contentWorkspaceRel = buildStorageLayerRef(
+        String(relPath || "").replace(/\\/g, "/"),
+        STORAGE_SUBFOLDER_CONTENT,
+        relInSlot
+      );
+      const content = await buildExternalRecordFileContentForManifest(relPath, title, { contentWorkspaceRel });
       await fs.writeFile(fileAbsolute, content, "utf-8");
       const createdRel = manifestRelFromNodeAbsolute(fileAbsolute);
       recordWorkspaceActivity({
@@ -13419,8 +13505,20 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.content.record.category", relPath, "memory");
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      const contentWorkspaceRel = buildStorageLayerRef(
+        String(relPath || "").replace(/\\/g, "/"),
+        STORAGE_SUBFOLDER_CONTENT,
+        `${sectionPath}/${AREA_MANIFEST_FILE}`
+      );
+      await writeStorageSectionReadme(
+        sectionAbsolute,
+        title,
+        "awn.content.record.category",
+        relPath,
+        "memory",
+        { contentWorkspaceRel }
+      );
       return sendJson(res, 200, {
         section: sectionName,
         sectionPath,
@@ -14031,14 +14129,10 @@ async function handleApiForAgent(req, res, url) {
       }
 
       if (path.resolve(resolved.fileAbsolute) !== path.resolve(nextAbsolute)) {
-        try {
-          await fs.access(nextAbsolute);
+        if (await targetPathOccupiedByOther(resolved.fileAbsolute, nextAbsolute)) {
           return sendJson(res, 409, { error: "File with this name already exists" });
-        } catch {
-          // target does not exist
         }
-        await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
-        await fs.rename(resolved.fileAbsolute, nextAbsolute);
+        await renamePathCaseAware(resolved.fileAbsolute, nextAbsolute);
       }
 
       const content = await fs.readFile(nextAbsolute, "utf-8");
@@ -14152,14 +14246,11 @@ async function handleApiForAgent(req, res, url) {
       const nextAbsolute = path.join(folderAbsolute, nextRelPath);
       if (!nextAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid target path" });
 
-      if (currentAbsolute !== nextAbsolute) {
-        try {
-          await fs.access(nextAbsolute);
+      if (path.resolve(currentAbsolute) !== path.resolve(nextAbsolute)) {
+        if (await targetPathOccupiedByOther(currentAbsolute, nextAbsolute)) {
           return sendJson(res, 409, { error: "File with this name already exists" });
-        } catch {
-          // target does not exist
         }
-        await fs.rename(currentAbsolute, nextAbsolute);
+        await renamePathCaseAware(currentAbsolute, nextAbsolute);
       }
 
       const content = await fs.readFile(nextAbsolute, "utf-8");

@@ -1,0 +1,9 @@
+awn_schema:
+  slot_memory:
+    fields:
+      field_1:
+        type: awn.string
+  slot_memory_category:
+    fields:
+      field_1:
+        type: awn.string
