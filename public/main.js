@@ -20571,34 +20571,70 @@ async function normalizeImageAttachmentFile(file, { pasted = false } = {}) {
   return new File([file], `${baseName}${ext}`, { type: mime });
 }
 
-const HEIC_IMAGE_MIME_TYPES = new Set(["image/heic", "image/heif"]);
-const HEIC_IMAGE_EXT_RE = /\.heic$|\.heif$/i;
+const WYSIWYG_ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml"
+]);
+const WYSIWYG_ALLOWED_IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|svg)$/i;
+const WYSIWYG_BLOCKED_IMAGE_MIME_TYPES = new Set([
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "image/tiff",
+  "image/bmp",
+  "image/x-ms-bmp"
+]);
+const WYSIWYG_BLOCKED_IMAGE_EXT_RE =
+  /\.(heic|heif|avif|tiff?|bmp|cr2|nef|arw|dng|orf|rw2|pef|srw|raf|3fr|fff|mrw|x3f|raw)$/i;
 const HEIC_FTYP_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "mif1", "msf1"]);
+const AVIF_FTYP_BRANDS = new Set(["avif", "avis"]);
 
-function isHeicImageFileSync(fileOrBlob) {
+function isWysiwygAllowedImageFileSync(fileOrBlob) {
   if (!fileOrBlob) return false;
   const mime = String(fileOrBlob.type || "").toLowerCase();
-  if (HEIC_IMAGE_MIME_TYPES.has(mime)) return true;
   const name = String(fileOrBlob.name || "").toLowerCase();
-  return HEIC_IMAGE_EXT_RE.test(name);
+  if (WYSIWYG_ALLOWED_IMAGE_MIME_TYPES.has(mime)) return true;
+  return WYSIWYG_ALLOWED_IMAGE_EXT_RE.test(name);
 }
 
-async function isHeicImageFile(fileOrBlob) {
-  if (isHeicImageFileSync(fileOrBlob)) return true;
+function isWysiwygBlockedImageFileSync(fileOrBlob) {
+  if (!fileOrBlob || isWysiwygAllowedImageFileSync(fileOrBlob)) return false;
+  const mime = String(fileOrBlob.type || "").toLowerCase();
+  const name = String(fileOrBlob.name || "").toLowerCase();
+  if (WYSIWYG_BLOCKED_IMAGE_MIME_TYPES.has(mime)) return true;
+  return WYSIWYG_BLOCKED_IMAGE_EXT_RE.test(name);
+}
+
+async function isWysiwygBlockedImageFile(fileOrBlob) {
+  if (isWysiwygBlockedImageFileSync(fileOrBlob)) return true;
+  if (isWysiwygAllowedImageFileSync(fileOrBlob)) return false;
   if (!fileOrBlob || typeof fileOrBlob.slice !== "function") return false;
   try {
     const header = new Uint8Array(await fileOrBlob.slice(0, 12).arrayBuffer());
-    if (header.length < 12) return false;
-    if (String.fromCharCode(...header.slice(4, 8)) !== "ftyp") return false;
-    const brand = String.fromCharCode(...header.slice(8, 12)).toLowerCase();
-    return HEIC_FTYP_BRANDS.has(brand);
+    if (header.length >= 2 && header[0] === 0x42 && header[1] === 0x4d) return true;
+    if (header.length >= 4) {
+      const tiffLe = header[0] === 0x49 && header[1] === 0x49 && header[2] === 0x2a;
+      const tiffBe = header[0] === 0x4d && header[1] === 0x4d && header[2] === 0x00 && header[3] === 0x2a;
+      if (tiffLe || tiffBe) return true;
+    }
+    if (header.length >= 12 && String.fromCharCode(...header.slice(4, 8)) === "ftyp") {
+      const brand = String.fromCharCode(...header.slice(8, 12)).toLowerCase();
+      if (HEIC_FTYP_BRANDS.has(brand) || AVIF_FTYP_BRANDS.has(brand)) return true;
+    }
   } catch {
     return false;
   }
+  return false;
 }
 
-function showWysiwygHeicBlockedToast() {
-  showToast("HEIC нельзя вставлять в визуальный редактор. Сохраните изображение как JPG или PNG.", "error");
+function showWysiwygBlockedImageToast() {
+  showToast(
+    "Этот формат изображения нельзя вставлять в визуальный редактор (HEIC, AVIF, TIFF, BMP, RAW). Используйте JPG, PNG, GIF, WebP или SVG.",
+    "error"
+  );
 }
 
 function isAllowedMarkdownAttachmentImage(file) {
@@ -47988,10 +48024,10 @@ function bindWysiwygPasteHandler() {
       const clipboard = event.clipboardData;
       if (!clipboard) return;
       const pastedImage = extractImageFileFromDataTransfer(clipboard);
-      if (pastedImage && isHeicImageFileSync(pastedImage)) {
+      if (pastedImage && isWysiwygBlockedImageFileSync(pastedImage)) {
         event.preventDefault();
         event.stopPropagation();
-        showWysiwygHeicBlockedToast();
+        showWysiwygBlockedImageToast();
         return;
       }
       const plain = clipboard.getData("text/plain");
@@ -48060,9 +48096,9 @@ function initWysiwygEditor() {
   );
 
   wysiwygEditorInstance.addHook("addImageBlobHook", (blob, callback) => {
-    void isHeicImageFile(blob).then((blocked) => {
+    void isWysiwygBlockedImageFile(blob).then((blocked) => {
       if (blocked) {
-        showWysiwygHeicBlockedToast();
+        showWysiwygBlockedImageToast();
         return;
       }
       const file = new File([blob], buildPastedAttachmentFileName({ type: blob.type }), {
