@@ -20571,6 +20571,36 @@ async function normalizeImageAttachmentFile(file, { pasted = false } = {}) {
   return new File([file], `${baseName}${ext}`, { type: mime });
 }
 
+const HEIC_IMAGE_MIME_TYPES = new Set(["image/heic", "image/heif"]);
+const HEIC_IMAGE_EXT_RE = /\.heic$|\.heif$/i;
+const HEIC_FTYP_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "mif1", "msf1"]);
+
+function isHeicImageFileSync(fileOrBlob) {
+  if (!fileOrBlob) return false;
+  const mime = String(fileOrBlob.type || "").toLowerCase();
+  if (HEIC_IMAGE_MIME_TYPES.has(mime)) return true;
+  const name = String(fileOrBlob.name || "").toLowerCase();
+  return HEIC_IMAGE_EXT_RE.test(name);
+}
+
+async function isHeicImageFile(fileOrBlob) {
+  if (isHeicImageFileSync(fileOrBlob)) return true;
+  if (!fileOrBlob || typeof fileOrBlob.slice !== "function") return false;
+  try {
+    const header = new Uint8Array(await fileOrBlob.slice(0, 12).arrayBuffer());
+    if (header.length < 12) return false;
+    if (String.fromCharCode(...header.slice(4, 8)) !== "ftyp") return false;
+    const brand = String.fromCharCode(...header.slice(8, 12)).toLowerCase();
+    return HEIC_FTYP_BRANDS.has(brand);
+  } catch {
+    return false;
+  }
+}
+
+function showWysiwygHeicBlockedToast() {
+  showToast("HEIC нельзя вставлять в визуальный редактор. Сохраните изображение как JPG или PNG.", "error");
+}
+
 function isAllowedMarkdownAttachmentImage(file) {
   if (!file) return false;
   const mime = String(file.type || "").toLowerCase();
@@ -47957,6 +47987,13 @@ function bindWysiwygPasteHandler() {
       if (editorViewMode !== "wysiwyg" || !wysiwygEditorInstance) return;
       const clipboard = event.clipboardData;
       if (!clipboard) return;
+      const pastedImage = extractImageFileFromDataTransfer(clipboard);
+      if (pastedImage && isHeicImageFileSync(pastedImage)) {
+        event.preventDefault();
+        event.stopPropagation();
+        showWysiwygHeicBlockedToast();
+        return;
+      }
       const plain = clipboard.getData("text/plain");
       const html = clipboard.getData("text/html");
       if (!shouldImportPlainTextAsMarkdown(plain, html)) return;
@@ -48023,10 +48060,15 @@ function initWysiwygEditor() {
   );
 
   wysiwygEditorInstance.addHook("addImageBlobHook", (blob, callback) => {
-    const file = new File([blob], buildPastedAttachmentFileName({ type: blob.type }), {
-      type: blob.type || "image/png"
-    });
-    void normalizeImageAttachmentFile(file, { pasted: true })
+    void isHeicImageFile(blob).then((blocked) => {
+      if (blocked) {
+        showWysiwygHeicBlockedToast();
+        return;
+      }
+      const file = new File([blob], buildPastedAttachmentFileName({ type: blob.type }), {
+        type: blob.type || "image/png"
+      });
+      return normalizeImageAttachmentFile(file, { pasted: true })
       .then((normalizedFile) =>
         uploadMediaAttachment(normalizedFile, { inlinePaste: true }).then((payload) => ({ payload, normalizedFile }))
       )
@@ -48054,6 +48096,7 @@ function initWysiwygEditor() {
       .catch((error) => {
         showToast(`Ошибка загрузки: ${error.message}`, "error");
       });
+    });
   });
 
   wysiwygEditorInstance.on("change", () => {
