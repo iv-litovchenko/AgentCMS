@@ -85,10 +85,10 @@ module.exports = {
         },
         {
           name: "search_workspace",
-          description: "Поиск по workspace (как в шапке UI). По умолчанию scope=all — имя, мета темы и текст файлов.",
+          description: "Поиск по workspace (как в шапке UI). По умолчанию scope=all — имя, мета темы и текст файлов. match=relaxed|strict, маски * и ?.",
           parameters:
-            "query, scope?: all|content|filename|description|tags, fileType?: all|markdown|sidecar|pdf|office|spreadsheet|video|audio|image|archive|config|other, limit?: 1..100",
-          http: "GET /api/search?q=&scope=&fileType=&limit="
+            "query, scope?: all|content|filename|description|tags, fileType?: all|markdown|sidecar|pdf|office|spreadsheet|video|audio|image|archive|config|other, match?: relaxed|strict, limit?: 1..100",
+          http: "GET /api/search?q=&scope=&fileType=&match=&limit="
         },
         {
           name: "get_runtime_registry",

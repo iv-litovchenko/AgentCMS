@@ -162,6 +162,7 @@ module.exports = {
             "q",
             "scope=all|content|filename|tags",
             "fileType=all|markdown|sidecar|pdf|office|spreadsheet|video|audio|image|archive|config|other",
+            "match=relaxed|strict",
             "limit=1..100"
           ],
           body: null,

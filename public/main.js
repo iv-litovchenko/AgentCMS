@@ -116,6 +116,9 @@ const menuSearchInputNode = document.getElementById("menu-search-input");
 const contentSearchInputNode = document.getElementById("content-search-input");
 const contentSearchScopeNode = document.getElementById("content-search-scope");
 const contentSearchTypeNode = document.getElementById("content-search-type");
+const contentSearchMatchNode = document.getElementById("content-search-match");
+const contentSearchHelpBtnNode = document.getElementById("content-search-help-btn");
+const contentSearchHelpPopoverNode = document.getElementById("content-search-help-popover");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const menuCardsFilterWrapNode = document.getElementById("menu-cards-filter-wrap");
 const menuCardsPreviewOnlyNode = document.getElementById("menu-cards-preview-only");
@@ -1246,6 +1249,21 @@ async function applyChpuManifestUiViews(uiViews, entry) {
   }
 }
 
+async function resolveChpuTopicEntry(resolved) {
+  const topicRoutePath = workspaceRelToChpuPath(resolved?.topicManifestPath);
+  const fromMenu = resolveMenuEntryByDisplayPath(topicRoutePath);
+  if (fromMenu?.path) return fromMenu;
+
+  const manifestPath = String(resolved?.topicManifestPath || "").replace(/\\/g, "/");
+  if (!manifestPath) return null;
+
+  return {
+    path: manifestPath,
+    label: getLabelFromPath(manifestPath),
+    displayPath: topicRoutePath
+  };
+}
+
 async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
   const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
   const recordPath = relInSlot.replace(/\.md$/i, "");
@@ -1395,9 +1413,9 @@ async function applyChpuResolvedRoute(resolved) {
   }
 
   if (resolved?.kind === "record" || resolved?.kind === "section" || resolved?.kind === "slotView") {
-    const topicRoutePath = workspaceRelToChpuPath(resolved.topicManifestPath);
-    const topicEntry = resolveMenuEntryByDisplayPath(topicRoutePath);
+    const topicEntry = await resolveChpuTopicEntry(resolved);
     if (!topicEntry?.path) {
+      const topicRoutePath = workspaceRelToChpuPath(resolved.topicManifestPath);
       showToast(`Тема «${topicRoutePath}» не найдена в workspace`, "error");
       showHomeView();
       return;
@@ -1405,6 +1423,30 @@ async function applyChpuResolvedRoute(resolved) {
     const label = topicEntry.label || getLabelFromPath(topicEntry.path);
     const contentMode = resolved.contentMode || getChpuMemoryKindForSlotFolder(resolved.slotFolder);
     hideHomeView();
+
+    const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
+    if (resolved.kind === "record") {
+      const hasEdit = uiViews.includes("edit");
+      if (hasEdit) {
+        await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
+        if (contentMode === "external") {
+          await openExternalFile(relInSlot, { skipRouteSync: true });
+          return;
+        }
+        if (contentMode === "media") {
+          if (/\.md$/i.test(relInSlot)) {
+            await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
+          } else {
+            await openMediaSidecar(relInSlot, { skipRouteSync: true });
+          }
+          return;
+        }
+      }
+      await selectFile(label, topicEntry.path);
+      await openEntryOverviewFromResolvedRecord(resolved, contentMode);
+      return;
+    }
+
     await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
 
     if (resolved.kind === "slotView") {
@@ -1414,7 +1456,6 @@ async function applyChpuResolvedRoute(resolved) {
       return;
     }
 
-    const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
     if (resolved.kind === "section") {
       const sectionFolder = getSectionFolderFromChpuResolved(resolved);
       if (hasList) {
@@ -1444,26 +1485,6 @@ async function applyChpuResolvedRoute(resolved) {
         return;
       }
       applyChpuSectionFolderSelection(contentMode, sectionFolder, { skipRouteSync: true });
-      return;
-    }
-
-    if (resolved.kind === "record") {
-      const hasEdit = uiViews.includes("edit");
-      if (hasEdit) {
-        if (contentMode === "external") {
-          await openExternalFile(relInSlot, { skipRouteSync: true });
-          return;
-        }
-        if (contentMode === "media") {
-          if (/\.md$/i.test(relInSlot)) {
-            await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
-          } else {
-            await openMediaSidecar(relInSlot, { skipRouteSync: true });
-          }
-          return;
-        }
-      }
-      await openEntryOverviewFromResolvedRecord(resolved, contentMode);
       return;
     }
   }
@@ -15000,6 +15021,25 @@ function getContentSearchFileType() {
   return contentSearchTypeNode?.value || "all";
 }
 
+function getContentSearchMatch() {
+  const match = contentSearchMatchNode?.value || "relaxed";
+  return match === "strict" ? "strict" : "relaxed";
+}
+
+function isContentSearchHelpOpen() {
+  return Boolean(contentSearchHelpPopoverNode && !contentSearchHelpPopoverNode.classList.contains("hidden"));
+}
+
+function setContentSearchHelpOpen(open) {
+  if (!contentSearchHelpPopoverNode || !contentSearchHelpBtnNode) return;
+  contentSearchHelpPopoverNode.classList.toggle("hidden", !open);
+  contentSearchHelpBtnNode.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function toggleContentSearchHelp() {
+  setContentSearchHelpOpen(!isContentSearchHelpOpen());
+}
+
 function getContentSearchMinLength(scope = getContentSearchScope()) {
   return scope === "filename" || scope === "all" ? 1 : 2;
 }
@@ -15199,10 +15239,11 @@ function renderContentSearchResults(data) {
 async function fetchContentSearch(
   query,
   scope = getContentSearchScope(),
-  fileType = getContentSearchFileType()
+  fileType = getContentSearchFileType(),
+  match = getContentSearchMatch()
 ) {
   const response = await fetch(
-    buildApiUrl("/api/search", { q: query, scope, fileType, limit: 30 })
+    buildApiUrl("/api/search", { q: query, scope, fileType, match, limit: 30 })
   );
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
@@ -15213,6 +15254,7 @@ function scheduleContentSearch() {
   const query = contentSearchInputNode.value.trim();
   const scope = getContentSearchScope();
   const fileType = getContentSearchFileType();
+  const match = getContentSearchMatch();
   const minLength = getContentSearchMinLength(scope);
   clearTimeout(contentSearchTimer);
   const requestId = ++contentSearchRequestId;
@@ -15224,12 +15266,12 @@ function scheduleContentSearch() {
 
   contentSearchTimer = setTimeout(async () => {
     if (query.length < minLength) {
-      renderContentSearchResults({ query, scope, fileType, results: [] });
+      renderContentSearchResults({ query, scope, fileType, match, results: [] });
       return;
     }
 
     try {
-      const data = await fetchContentSearch(query, scope, fileType);
+      const data = await fetchContentSearch(query, scope, fileType, match);
       if (requestId !== contentSearchRequestId) return;
       renderContentSearchResults(data);
     } catch {
@@ -15262,12 +15304,11 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
   }
 
   if (resolved?.kind === "record") {
-    const topicRoutePath = workspaceRelToChpuPath(resolved.topicManifestPath);
-    const topicEntry = resolveMenuEntryByDisplayPath(topicRoutePath);
+    const topicEntry = await resolveChpuTopicEntry(resolved);
     if (!topicEntry?.path) throw new Error("Тема не найдена");
     const contentMode = resolved.contentMode || getChpuMemoryKindForSlotFolder(resolved.slotFolder);
     const label = topicEntry.label || getLabelFromPath(topicEntry.path);
-    await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
+    await selectFile(label, topicEntry.path);
     await openEntryOverviewFromResolvedRecord(resolved, contentMode);
     return;
   }
@@ -16950,6 +16991,9 @@ async function applyContentModeChange() {
   if (activePath) {
     applyModeUi();
     await loadContentByMode();
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+      await renderEntryOverview();
+    }
     syncEditorLineNumbers();
   } else {
     applyModeUi();
@@ -32657,8 +32701,10 @@ function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {
 }
 
 const CRON_SCHEDULE_PRESET_CUSTOM = "__custom__";
+const CRON_SCHEDULE_PRESET_QUICK = "__quick__";
 const CRON_SCHEDULE_PRESETS = [
   { id: "", label: "— шаблон —" },
+  { id: CRON_SCHEDULE_PRESET_QUICK, label: "День и время…" },
   { id: "*/15 * * * *", label: "Каждые 15 минут" },
   { id: "*/30 * * * *", label: "Каждые 30 минут" },
   { id: "0 * * * *", label: "Каждый час" },
@@ -32671,11 +32717,15 @@ const CRON_SCHEDULE_PRESETS = [
 ];
 
 const CRON_DAY_MODES = [
-  { id: "daily", label: "Каждый день", dow: "* * *" },
-  { id: "weekdays", label: "По будням", dow: "* * 1-5" },
-  { id: "monday", label: "Понедельник", dow: "* * 1" },
-  { id: "friday", label: "Пятница", dow: "* * 5" },
-  { id: "sunday", label: "Воскресенье", dow: "* * 0" }
+  { id: "daily", label: "Каждый день", dow: "*" },
+  { id: "weekdays", label: "По будням", dow: "1-5" },
+  { id: "monday", label: "Понедельник", dow: "1" },
+  { id: "tuesday", label: "Вторник", dow: "2" },
+  { id: "wednesday", label: "Среда", dow: "3" },
+  { id: "thursday", label: "Четверг", dow: "4" },
+  { id: "friday", label: "Пятница", dow: "5" },
+  { id: "saturday", label: "Суббота", dow: "6" },
+  { id: "sunday", label: "Воскресенье", dow: "0" }
 ];
 
 function parseCronTimeOfDay(expression) {
@@ -32702,13 +32752,33 @@ function buildCronFromTimeAndDayMode(timeValue, dayModeId) {
   const minute = Number(minuteRaw);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "0 9 * * *";
   const mode = CRON_DAY_MODES.find((item) => item.id === dayModeId) || CRON_DAY_MODES[0];
-  return `${minute} ${hour} ${mode.dow}`;
+  return `${minute} ${hour} * * ${mode.dow}`;
+}
+
+function isCronTimedExpression(expression) {
+  return Boolean(parseCronTimeOfDay(expression));
+}
+
+function shouldShowCronQuickBuilder(expression, presetId) {
+  if (presetId === CRON_SCHEDULE_PRESET_QUICK) return true;
+  if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) return isCronTimedExpression(expression);
+  if (!String(expression || "").trim()) return true;
+  return isCronTimedExpression(expression);
 }
 
 function matchCronSchedulePreset(expression) {
   const expr = String(expression || "").trim();
   if (!expr) return "";
-  const preset = CRON_SCHEDULE_PRESETS.find((item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id === expr);
+  if (isCronTimedExpression(expr)) {
+    const exactPreset = CRON_SCHEDULE_PRESETS.find(
+      (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
+    );
+    if (exactPreset) return exactPreset.id;
+    return CRON_SCHEDULE_PRESET_QUICK;
+  }
+  const preset = CRON_SCHEDULE_PRESETS.find(
+    (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
+  );
   return preset?.id || CRON_SCHEDULE_PRESET_CUSTOM;
 }
 
@@ -32730,13 +32800,17 @@ function syncPropsFormCronScheduleUi(wrap) {
   if (!wrap) return;
   const expressionInput = wrap.querySelector(".props-form-cron-expression");
   const presetSelect = wrap.querySelector(".props-form-cron-preset");
+  const quickRow = wrap.querySelector(".props-form-cron-quick");
   const dayModeSelect = wrap.querySelector(".props-form-cron-day-mode");
   const timeInput = wrap.querySelector(".props-form-cron-time");
   const hintNode = wrap.querySelector(".props-form-cron-hint");
   const expr = String(expressionInput?.value || "").trim();
   const presetId = matchCronSchedulePreset(expr);
+  const showQuickBuilder = shouldShowCronQuickBuilder(expr, presetId);
+  const isCustom = presetId === CRON_SCHEDULE_PRESET_CUSTOM;
+  const expressionFocused = document.activeElement === expressionInput;
 
-  if (presetSelect) {
+  if (presetSelect && presetSelect.value !== presetId) {
     presetSelect.value = presetId;
   }
 
@@ -32746,11 +32820,15 @@ function syncPropsFormCronScheduleUi(wrap) {
       const mode = CRON_DAY_MODES.find((item) => item.dow === timed.dow) || CRON_DAY_MODES[0];
       dayModeSelect.value = mode.id;
       timeInput.value = timed.time;
+    } else if (showQuickBuilder && !expr) {
+      if (!dayModeSelect.value) dayModeSelect.value = CRON_DAY_MODES[0].id;
+      if (!timeInput.value) timeInput.value = "09:00";
     }
   }
 
-  const isCustom = presetId === CRON_SCHEDULE_PRESET_CUSTOM;
-  expressionInput?.classList.toggle("hidden", !isCustom);
+  quickRow?.classList.toggle("hidden", !showQuickBuilder);
+  wrap.classList.toggle("is-quick-builder", showQuickBuilder);
+  expressionInput?.classList.toggle("hidden", !isCustom && !expressionFocused);
   wrap.classList.toggle("is-custom-expression", isCustom);
 
   if (hintNode) {
@@ -32807,7 +32885,10 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
   const applyPreset = () => {
     if (locked) return;
     const presetId = presetSelect.value;
-    if (!presetId) return;
+    if (presetId === CRON_SCHEDULE_PRESET_QUICK || presetId === "") {
+      applyQuickBuilder();
+      return;
+    }
     if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) {
       syncPropsFormCronScheduleUi(wrap);
       expressionInput.focus();
@@ -32821,13 +32902,14 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
   timeInput.addEventListener("change", applyQuickBuilder);
   presetSelect.addEventListener("change", applyPreset);
   expressionInput.addEventListener("input", () => syncPropsFormCronScheduleUi(wrap));
+  expressionInput.addEventListener("blur", () => syncPropsFormCronScheduleUi(wrap));
 
   bindPropsFormLockedState(dayModeSelect, locked);
   bindPropsFormLockedState(timeInput, locked);
   bindPropsFormLockedState(presetSelect, locked);
   bindPropsFormLockedState(expressionInput, locked);
 
-  wrap.append(quickRow, presetSelect, expressionInput, hintNode);
+  wrap.append(presetSelect, quickRow, expressionInput, hintNode);
   syncPropsFormCronScheduleUi(wrap);
   return wrap;
 }
@@ -61313,8 +61395,18 @@ document.addEventListener("click", (event) => {
   if (contentSearchInputNode && contentSearchResultsNode) {
     const searchBar = document.querySelector(".content-search-bar");
     const insideSearch =
-      searchBar?.contains(event.target) || contentSearchResultsNode.contains(event.target);
+      searchBar?.contains(event.target) ||
+      contentSearchResultsNode.contains(event.target) ||
+      contentSearchHelpPopoverNode?.contains(event.target);
     if (!insideSearch) hideContentSearchResults();
+    if (
+      contentSearchHelpPopoverNode &&
+      contentSearchHelpBtnNode &&
+      !contentSearchHelpBtnNode.contains(event.target) &&
+      !contentSearchHelpPopoverNode.contains(event.target)
+    ) {
+      setContentSearchHelpOpen(false);
+    }
   }
 
   if (appLandingSearchInputNode && appLandingSearchResultsNode) {
@@ -61330,6 +61422,11 @@ contentSearchScopeNode?.addEventListener("change", () => {
   scheduleContentSearch();
 });
 contentSearchTypeNode?.addEventListener("change", scheduleContentSearch);
+contentSearchMatchNode?.addEventListener("change", scheduleContentSearch);
+contentSearchHelpBtnNode?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleContentSearchHelp();
+});
 contentSearchInputNode?.addEventListener("input", scheduleContentSearch);
 contentSearchInputNode?.addEventListener("focus", () => {
   if (contentSearchInputNode.value.trim()) scheduleContentSearch();

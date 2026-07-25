@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.377" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.379" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -131,20 +131,50 @@
                 aria-controls="content-search-results"
                 aria-expanded="false"
               />
-              <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
-                <option value="all" selected>Все типы</option>
-                <option value="markdown">Markdown</option>
-                <option value="sidecar">Sidecar</option>
-                <option value="pdf">PDF</option>
-                <option value="office">Word / PowerPoint</option>
-                <option value="spreadsheet">Excel / CSV</option>
-                <option value="video">Видео</option>
-                <option value="audio">Аудио</option>
-                <option value="image">Изображения</option>
-                <option value="archive">Архивы</option>
-                <option value="config">YAML / JSON / TXT</option>
-                <option value="other">Прочее</option>
+              <select id="content-search-match" class="content-search-match" aria-label="Режим поиска">
+                <option value="relaxed" selected>Мягкий</option>
+                <option value="strict">Точный</option>
               </select>
+              <div class="content-search-type-wrap">
+                <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
+                  <option value="all" selected>Все типы</option>
+                  <option value="markdown">Markdown</option>
+                  <option value="sidecar">Sidecar</option>
+                  <option value="pdf">PDF</option>
+                  <option value="office">Word / PowerPoint</option>
+                  <option value="spreadsheet">Excel / CSV</option>
+                  <option value="video">Видео</option>
+                  <option value="audio">Аудио</option>
+                  <option value="image">Изображения</option>
+                  <option value="archive">Архивы</option>
+                  <option value="config">YAML / JSON / TXT</option>
+                  <option value="other">Прочее</option>
+                </select>
+                <button
+                  type="button"
+                  id="content-search-help-btn"
+                  class="content-search-help-btn"
+                  aria-label="Подсказки по поиску"
+                  aria-expanded="false"
+                  aria-controls="content-search-help-popover"
+                  title="Подсказки по поиску"
+                >?</button>
+              </div>
+            </div>
+            <div
+              id="content-search-help-popover"
+              class="content-search-help-popover hidden"
+              role="dialog"
+              aria-label="Подсказки по поиску"
+            >
+              <div class="content-search-help-title">Как искать</div>
+              <ul class="content-search-help-list">
+                <li><strong>Мягкий</strong> — слова через пробел: все должны встретиться. Пробелы, дефисы и точки в именах не мешают (<code>world war</code> → <code>world-of-warcraft</code>).</li>
+                <li><strong>Точный</strong> — подстрока как есть: выберите режим «Точный» или возьмите фразу в кавычки <code>"exact phrase"</code>.</li>
+                <li><strong>Маски</strong> — <code>*</code> любые символы, <code>?</code> один символ: <code>report*.pdf</code>, <code>img_???</code>.</li>
+                <li><strong>Область</strong> — «Везде» ищет в именах, метаданных тем и тексте файлов.</li>
+                <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
+              </ul>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
           </div>
@@ -2909,7 +2939,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.376"></script>
+    <script src="/main.js?v=0.5.379"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

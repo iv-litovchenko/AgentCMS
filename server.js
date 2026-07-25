@@ -6338,7 +6338,7 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
-  search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&limit=",
+  search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
   runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
@@ -9875,9 +9875,28 @@ async function buildAgentMarkdownLinkIndex() {
   };
 }
 
-function countTextMatches(content, query) {
+function countTextMatches(content, query, parsed = null) {
+  const p = parsed || parseSearchQuery(query);
+  const text = String(content || "");
+  if (!p.raw) return 0;
+
+  if (p.mode === "strict") {
+    return countTextMatchesLiteral(text, p.literal);
+  }
+  if (p.mode === "wildcard" && p.regex) {
+    const m = text.match(new RegExp(p.regex.source, `${p.regex.flags}g`));
+    return m ? m.length : 0;
+  }
+  let total = 0;
+  for (const term of p.terms) {
+    total += countTextMatchesLiteral(text, term);
+  }
+  return total || (matchesSearchHaystack(text, p) ? 1 : 0);
+}
+
+function countTextMatchesLiteral(content, literal) {
   const lower = String(content || "").toLowerCase();
-  const q = String(query || "").toLowerCase();
+  const q = String(literal || "").toLowerCase();
   if (!q) return 0;
   let count = 0;
   let pos = 0;
@@ -9888,15 +9907,135 @@ function countTextMatches(content, query) {
   return count;
 }
 
-function buildSearchSnippet(content, query, radius = 64) {
+function normalizeSearchCompact(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\s_\-./]+/g, "");
+}
+
+function normalizeSearchMatchMode(value) {
+  const mode = String(value || "relaxed").trim().toLowerCase();
+  return mode === "strict" ? "strict" : "relaxed";
+}
+
+function buildSearchWildcardRegExp(pattern) {
+  let source = "";
+  for (const ch of String(pattern || "")) {
+    if (ch === "*") source += ".*";
+    else if (ch === "?") source += ".";
+    else source += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(source, "i");
+}
+
+function parseSearchQuery(rawQuery, options = {}) {
+  const forceMatch = options.match ? normalizeSearchMatchMode(options.match) : null;
+  const raw = String(rawQuery || "").trim();
+  if (!raw) {
+    return { raw: "", mode: "relaxed", terms: [], literal: "", display: "", regex: null, match: "relaxed" };
+  }
+
+  if (forceMatch === "strict") {
+    return { raw, mode: "strict", terms: [raw], literal: raw, display: raw, regex: null, match: "strict" };
+  }
+
+  const strictQuoted = raw.match(/^"([\s\S]+)"$/);
+  if (strictQuoted) {
+    const literal = strictQuoted[1].trim();
+    return {
+      raw,
+      mode: "strict",
+      terms: [literal],
+      literal,
+      display: literal,
+      regex: null,
+      match: "strict"
+    };
+  }
+
+  if (/[*?]/.test(raw)) {
+    return {
+      raw,
+      mode: "wildcard",
+      terms: [],
+      literal: raw,
+      display: raw,
+      regex: buildSearchWildcardRegExp(raw),
+      match: "relaxed"
+    };
+  }
+
+  const terms = raw.split(/\s+/).filter(Boolean);
+  return {
+    raw,
+    mode: "relaxed",
+    terms,
+    literal: raw,
+    display: raw,
+    regex: null,
+    match: forceMatch || "relaxed"
+  };
+}
+
+function matchesSearchHaystack(haystack, parsed) {
+  const text = String(haystack || "");
+  if (!text || !parsed?.raw) return false;
+
+  if (parsed.mode === "strict") {
+    return text.toLowerCase().includes(parsed.literal.toLowerCase());
+  }
+  if (parsed.mode === "wildcard" && parsed.regex) {
+    return parsed.regex.test(text);
+  }
+
+  const lower = text.toLowerCase();
+  const compact = normalizeSearchCompact(text);
+  return parsed.terms.every((term) => {
+    const token = String(term || "").toLowerCase();
+    if (!token) return true;
+    if (lower.includes(token)) return true;
+    const compactToken = normalizeSearchCompact(term);
+    return compactToken.length >= 2 && compact.includes(compactToken);
+  });
+}
+
+function buildSearchSnippet(content, query, radius = 64, parsed = null) {
+  const p = parsed || parseSearchQuery(query);
   const text = String(content || "");
   const lower = text.toLowerCase();
-  const q = String(query || "").toLowerCase();
-  const idx = lower.indexOf(q);
+  let idx = -1;
+  let highlightLen = 0;
+
+  if (p.mode === "strict") {
+    idx = lower.indexOf(p.literal.toLowerCase());
+    highlightLen = p.literal.length;
+  } else if (p.mode === "wildcard" && p.regex) {
+    const match = text.match(p.regex);
+    if (match && match.index != null) {
+      idx = match.index;
+      highlightLen = match[0].length;
+    }
+  } else {
+    for (const term of p.terms) {
+      const token = term.toLowerCase();
+      idx = lower.indexOf(token);
+      if (idx !== -1) {
+        highlightLen = term.length;
+        break;
+      }
+      const compactIdx = normalizeSearchCompact(text).indexOf(normalizeSearchCompact(term));
+      if (compactIdx !== -1 && normalizeSearchCompact(term).length >= 2) {
+        idx = 0;
+        highlightLen = Math.min(term.length, text.length);
+        break;
+      }
+    }
+  }
+
   if (idx === -1) return "";
 
   const start = Math.max(0, idx - radius);
-  const end = Math.min(text.length, idx + q.length + radius);
+  const end = Math.min(text.length, idx + highlightLen + radius);
   let snippet = text.slice(start, end).replace(/\s+/g, " ").trim();
   if (start > 0) snippet = `…${snippet}`;
   if (end < text.length) snippet = `${snippet}…`;
@@ -9914,17 +10053,40 @@ function getSearchMinLength(scope) {
   return 2;
 }
 
-function scoreFilenameMatch(relPath, query) {
-  const qLower = String(query || "").toLowerCase();
+function scoreFilenameMatch(relPath, query, parsed = null) {
+  const p = parsed || parseSearchQuery(query);
   const base = path.basename(relPath).toLowerCase();
-  if (!qLower) return 0;
-  if (base === qLower) return 200;
-  if (base.startsWith(qLower)) return 150;
   const stem = base.replace(/\.sidecar\.md$/i, "").replace(/\.[^./]+$/i, "");
-  if (stem === qLower || stem.startsWith(qLower)) return 140;
-  if (base.includes(qLower)) return 120;
-  if (String(relPath || "").toLowerCase().includes(qLower)) return 80;
-  return 60;
+  if (!p.raw) return 0;
+
+  if (p.mode === "strict") {
+    const qLower = p.literal.toLowerCase();
+    if (base === qLower) return 200;
+    if (base.startsWith(qLower)) return 150;
+    if (stem === qLower || stem.startsWith(qLower)) return 140;
+    if (base.includes(qLower)) return 120;
+    if (String(relPath || "").toLowerCase().includes(qLower)) return 80;
+    return 0;
+  }
+
+  if (p.mode === "wildcard" && p.regex) {
+    if (p.regex.test(base) || p.regex.test(stem)) return 150;
+    if (p.regex.test(relPath)) return 100;
+    return 0;
+  }
+
+  let score = 60;
+  if (p.terms.every((term) => stem.includes(term.toLowerCase()))) score = 180;
+  else if (p.terms.every((term) => base.includes(term.toLowerCase()))) score = 150;
+  else if (matchesSearchHaystack(base, p) || matchesSearchHaystack(stem, p)) score = 130;
+  else if (matchesSearchHaystack(relPath, p)) score = 90;
+  else return 0;
+
+  const compactStem = normalizeSearchCompact(stem);
+  if (p.terms.length > 1 && p.terms.every((term) => compactStem.includes(normalizeSearchCompact(term)))) {
+    score += 20;
+  }
+  return score;
 }
 
 function formatSearchMatchKindLabel(kinds = []) {
@@ -9943,19 +10105,42 @@ function formatSearchPathBreadcrumb(relPath) {
   return normalized.split("/").filter(Boolean).join(" › ");
 }
 
-function scoreTopicMetaMatch(fields, query) {
-  const qLower = String(query || "").trim().toLowerCase();
-  if (!qLower) return 0;
+function scoreTopicMetaMatch(fields, query, parsed = null) {
+  const p = parsed || parseSearchQuery(query);
+  if (!p.raw) return 0;
+  const haystack = [
+    fields.title,
+    fields.slug,
+    fields.awnName,
+    fields.relPath,
+    fields.description,
+    fields.tags
+  ]
+    .filter(Boolean)
+    .join("\n");
+  if (!matchesSearchHaystack(haystack, p)) return 0;
+
+  if (p.mode === "strict") {
+    const qLower = p.literal.toLowerCase();
+    const title = String(fields.title || "").toLowerCase();
+    const slug = String(fields.slug || "").toLowerCase();
+    const awnName = String(fields.awnName || "").toLowerCase();
+    const relPath = String(fields.relPath || "").toLowerCase();
+    if (title === qLower || awnName === qLower || slug === qLower) return 320;
+    if (title.startsWith(qLower) || awnName.startsWith(qLower) || slug.startsWith(qLower)) return 280;
+    if (title.includes(qLower) || awnName.includes(qLower) || slug.includes(qLower)) return 240;
+    if (relPath.includes(qLower)) return 200;
+    return 180;
+  }
+
+  let score = 180;
   const title = String(fields.title || "").toLowerCase();
   const slug = String(fields.slug || "").toLowerCase();
   const awnName = String(fields.awnName || "").toLowerCase();
-  const relPath = String(fields.relPath || "").toLowerCase();
-
-  if (title === qLower || awnName === qLower || slug === qLower) return 320;
-  if (title.startsWith(qLower) || awnName.startsWith(qLower) || slug.startsWith(qLower)) return 280;
-  if (title.includes(qLower) || awnName.includes(qLower) || slug.includes(qLower)) return 240;
-  if (relPath.includes(qLower)) return 200;
-  return 180;
+  if (p.terms.every((term) => title.includes(term.toLowerCase()))) score = 300;
+  else if (p.terms.every((term) => awnName.includes(term.toLowerCase()))) score = 280;
+  else if (p.terms.every((term) => slug.includes(term.toLowerCase()))) score = 260;
+  return score;
 }
 
 async function resolveSearchResultEnrichment(relPath, meta) {
@@ -10058,11 +10243,12 @@ async function enrichSearchResults(results) {
   return Promise.all((results || []).map((entry) => enrichSearchResultEntry(entry)));
 }
 
-async function searchByTopicMeta(query, limit = 30, fileType = "all") {
+async function searchByTopicMeta(query, limit = 30, fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
+  const parsed = parseSearchQuery(trimmed, { match });
   if (trimmed.length < 1) {
-    return { query: trimmed, scope: "topic", fileType: normalizedFileType, results: [], total: 0 };
+    return { query: trimmed, scope: "topic", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
   const relFiles = await collectSearchableFiles(getAgentRoot());
@@ -10071,7 +10257,6 @@ async function searchByTopicMeta(query, limit = 30, fileType = "all") {
     return isTopicManifestFileName(base) || isAreaManifestRelPath(relPath);
   });
 
-  const qLower = trimmed.toLowerCase();
   const results = [];
 
   for (const relPath of manifests) {
@@ -10088,16 +10273,16 @@ async function searchByTopicMeta(query, limit = 30, fileType = "all") {
     const title = resolveNodeDisplayName(awnName, slug);
     const description = getYamlScalar(frontmatter, "awn-description") || "";
     const tags = extractTagsFromProps(frontmatter).join(" ");
-    const haystack = [title, slug, awnName, description, tags, relPath].join("\n").toLowerCase();
-    if (!haystack.includes(qLower)) continue;
+    const haystack = [title, slug, awnName, description, tags, relPath].join("\n");
+    if (!matchesSearchHaystack(haystack, parsed)) continue;
 
     const meta = await classifySearchResult(relPath);
     const entry = buildSearchResultEntry(
       relPath,
       meta,
       {
-        snippet: buildSearchSnippet(body || description, trimmed),
-        matchCount: countTextMatches(haystack, trimmed)
+        snippet: buildSearchSnippet(body || description, trimmed, 64, parsed),
+        matchCount: countTextMatches(haystack, trimmed, parsed)
       },
       normalizedFileType
     );
@@ -10105,7 +10290,7 @@ async function searchByTopicMeta(query, limit = 30, fileType = "all") {
 
     results.push({
       entry,
-      score: scoreTopicMetaMatch({ title, slug, awnName, relPath }, trimmed)
+      score: scoreTopicMetaMatch({ title, slug, awnName, relPath, description, tags }, trimmed, parsed)
     });
   }
 
@@ -10122,6 +10307,7 @@ async function searchByTopicMeta(query, limit = 30, fileType = "all") {
     query: trimmed,
     scope: "topic",
     fileType: normalizedFileType,
+    match: parsed.match,
     results: sliced,
     total: sliced.length
   };
@@ -10192,14 +10378,14 @@ function resolveSearchResultDisplay(relPath, meta) {
   return { displayName, locationHint: normalized || "Workspace" };
 }
 
-function matchesFilename(relPath, query) {
-  const qLower = String(query || "").toLowerCase();
+function matchesFilename(relPath, query, parsed = null) {
+  const p = parsed || parseSearchQuery(query);
   const base = path.basename(relPath);
   const stem = base.replace(/\.sidecar\.md$/i, "").replace(/\.[^./]+$/i, "");
   return (
-    base.toLowerCase().includes(qLower) ||
-    stem.toLowerCase().includes(qLower) ||
-    relPath.toLowerCase().includes(qLower)
+    matchesSearchHaystack(base, p) ||
+    matchesSearchHaystack(stem, p) ||
+    matchesSearchHaystack(relPath, p)
   );
 }
 
@@ -10285,18 +10471,19 @@ async function collectNodeMdFiles(dirAbsolute, prefix = "", files = []) {
   return files;
 }
 
-async function searchByFilename(query, limit = 30, fileType = "all") {
+async function searchByFilename(query, limit = 30, fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
+  const parsed = parseSearchQuery(trimmed, { match });
   if (!trimmed) {
-    return { query: trimmed, scope: "filename", fileType: normalizedFileType, results: [], total: 0 };
+    return { query: trimmed, scope: "filename", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
   const relFiles = await collectSearchableFiles(getAgentRoot());
   const results = [];
 
   for (const relPath of relFiles) {
-    if (!matchesFilename(relPath, trimmed)) continue;
+    if (!matchesFilename(relPath, trimmed, parsed)) continue;
 
     const meta = await resolveSearchResultMeta(relPath);
     const displayName = path.basename(relPath);
@@ -10311,7 +10498,7 @@ async function searchByFilename(query, limit = 30, fileType = "all") {
     );
     if (!entry) continue;
 
-    results.push({ entry, score: scoreFilenameMatch(relPath, trimmed) });
+    results.push({ entry, score: scoreFilenameMatch(relPath, trimmed, parsed) });
   }
 
   results.sort((a, b) => {
@@ -10324,20 +10511,22 @@ async function searchByFilename(query, limit = 30, fileType = "all") {
     query: trimmed,
     scope: "filename",
     fileType: normalizedFileType,
+    match: parsed.match,
     results: sliced,
     total: sliced.length
   };
 }
 
-async function searchByContent(query, limit = 30, fileType = "all") {
+async function searchByContent(query, limit = 30, fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
-  if (trimmed.length < 2) {
-    return { query: trimmed, scope: "content", fileType: normalizedFileType, results: [], total: 0 };
+  const parsed = parseSearchQuery(trimmed, { match });
+  const minLen = parsed.mode === "wildcard" ? 1 : 2;
+  if (trimmed.length < minLen) {
+    return { query: trimmed, scope: "content", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
   const relFiles = await collectSearchableFiles(getAgentRoot());
-  const qLower = trimmed.toLowerCase();
   const results = [];
 
   for (const relPath of relFiles) {
@@ -10353,15 +10542,15 @@ async function searchByContent(query, limit = 30, fileType = "all") {
       continue;
     }
 
-    if (!content.toLowerCase().includes(qLower)) continue;
+    if (!matchesSearchHaystack(content, parsed)) continue;
 
     const meta = await resolveSearchResultMeta(relPath);
     const entry = buildSearchResultEntry(
       relPath,
       meta,
       {
-        snippet: buildSearchSnippet(content, trimmed),
-        matchCount: countTextMatches(content, trimmed)
+        snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+        matchCount: countTextMatches(content, trimmed, parsed)
       },
       normalizedFileType
     );
@@ -10376,14 +10565,15 @@ async function searchByContent(query, limit = 30, fileType = "all") {
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "content", fileType: normalizedFileType, results, total: results.length };
+  return { query: trimmed, scope: "content", fileType: normalizedFileType, match: parsed.match, results, total: results.length };
 }
 
-async function searchAll(query, limit = 30, fileType = "all") {
+async function searchAll(query, limit = 30, fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
+  const parsed = parseSearchQuery(trimmed, { match });
   if (!trimmed) {
-    return { query: trimmed, scope: "all", fileType: normalizedFileType, results: [], total: 0 };
+    return { query: trimmed, scope: "all", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
   const merged = new Map();
@@ -10406,20 +10596,21 @@ async function searchAll(query, limit = 30, fileType = "all") {
     existing.searchScore = Math.max(existing.searchScore || 0, scoreBoost + (entry.matchCount || 1));
   };
 
-  const filenameData = await searchByFilename(trimmed, Math.max(limit * 3, 60), normalizedFileType);
+  const filenameData = await searchByFilename(trimmed, Math.max(limit * 3, 60), normalizedFileType, match);
   for (const entry of filenameData.results) {
-    addResult(entry, "filename", scoreFilenameMatch(entry.filePath, trimmed));
+    addResult(entry, "filename", scoreFilenameMatch(entry.filePath, trimmed, parsed));
   }
 
   if (trimmed.length >= 1) {
-    const topicData = await searchByTopicMeta(trimmed, Math.max(limit * 2, 40), normalizedFileType);
+    const topicData = await searchByTopicMeta(trimmed, Math.max(limit * 2, 40), normalizedFileType, match);
     for (const entry of topicData.results) {
       addResult(entry, "topic", entry.topicMatchScore || 240);
     }
   }
 
-  if (trimmed.length >= 2) {
-    const contentData = await searchByContent(trimmed, Math.max(limit * 3, 60), normalizedFileType);
+  const contentMinLen = parsed.mode === "wildcard" ? 1 : 2;
+  if (trimmed.length >= contentMinLen) {
+    const contentData = await searchByContent(trimmed, Math.max(limit * 3, 60), normalizedFileType, match);
     for (const entry of contentData.results) {
       addResult(entry, "content", (entry.matchCount || 1) * 5);
     }
@@ -10443,6 +10634,7 @@ async function searchAll(query, limit = 30, fileType = "all") {
     query: trimmed,
     scope: "all",
     fileType: normalizedFileType,
+    match: parsed.match,
     results: enrichedResults,
     total: enrichedResults.length
   };
@@ -10491,15 +10683,16 @@ async function searchByDescription(query, limit = 30) {
   return { query: trimmed, scope: "description", results, total: results.length };
 }
 
-async function searchByTags(query, limit = 30, fileType = "all") {
+async function searchByTags(query, limit = 30, fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
-  if (trimmed.length < 2) {
-    return { query: trimmed, scope: "tags", fileType: normalizedFileType, results: [], total: 0 };
+  const parsed = parseSearchQuery(trimmed, { match });
+  const minLen = parsed.mode === "wildcard" ? 1 : 2;
+  if (trimmed.length < minLen) {
+    return { query: trimmed, scope: "tags", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
   const relFiles = await collectNodeMdFiles(getAgentRoot());
-  const qLower = trimmed.toLowerCase();
   const lookup = await getAgentCatalogLookupMaps();
   const tagMap = lookup?.tags;
   const results = [];
@@ -10515,11 +10708,26 @@ async function searchByTags(query, limit = 30, fileType = "all") {
     if (!propsContent.trim()) continue;
 
     const tags = extractTagsFromProps(propsContent);
-    const matchingTags = tags.filter((tag) => {
+    let matchingTags = tags.filter((tag) => {
       const label = tagMap?.get(tag) || tag;
-      return tag.toLowerCase().includes(qLower) || String(label).toLowerCase().includes(qLower);
+      return matchesSearchHaystack(`${tag} ${label}`, parsed);
     });
-    if (matchingTags.length === 0) continue;
+    if (matchingTags.length === 0) {
+      const combined = tags.map((tag) => `${tagMap?.get(tag) || tag} ${tag}`).join(" ");
+      if (!matchesSearchHaystack(combined, parsed)) continue;
+      matchingTags = tags.filter((tag) => {
+        const label = tagMap?.get(tag) || tag;
+        if (parsed.mode === "relaxed" && parsed.terms.length > 0) {
+          return parsed.terms.some(
+            (term) =>
+              tag.toLowerCase().includes(term.toLowerCase()) ||
+              String(label).toLowerCase().includes(term.toLowerCase())
+          );
+        }
+        return true;
+      });
+      if (matchingTags.length === 0) matchingTags = tags;
+    }
 
     const snippetTags = matchingTags.map((tag) => {
       const label = tagMap?.get(tag);
@@ -10551,17 +10759,18 @@ async function searchByTags(query, limit = 30, fileType = "all") {
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "tags", fileType: normalizedFileType, results, total: results.length };
+  return { query: trimmed, scope: "tags", fileType: normalizedFileType, match: parsed.match, results, total: results.length };
 }
 
-async function searchWorkspaceContent(query, limit = 30, scope = "all", fileType = "all") {
+async function searchWorkspaceContent(query, limit = 30, scope = "all", fileType = "all", match = "relaxed") {
   const normalizedScope = normalizeSearchScope(scope);
   const normalizedFileType = normalizeSearchFileType(fileType);
+  const normalizedMatch = normalizeSearchMatchMode(match);
   let data;
-  if (normalizedScope === "all") data = await searchAll(query, limit, normalizedFileType);
-  else if (normalizedScope === "filename") data = await searchByFilename(query, limit, normalizedFileType);
-  else if (normalizedScope === "tags") data = await searchByTags(query, limit, normalizedFileType);
-  else data = await searchByContent(query, limit, normalizedFileType);
+  if (normalizedScope === "all") data = await searchAll(query, limit, normalizedFileType, normalizedMatch);
+  else if (normalizedScope === "filename") data = await searchByFilename(query, limit, normalizedFileType, normalizedMatch);
+  else if (normalizedScope === "tags") data = await searchByTags(query, limit, normalizedFileType, normalizedMatch);
+  else data = await searchByContent(query, limit, normalizedFileType, normalizedMatch);
 
   if (normalizedScope !== "all" && Array.isArray(data?.results)) {
     data.results = await enrichSearchResults(data.results);
@@ -10569,7 +10778,7 @@ async function searchWorkspaceContent(query, limit = 30, scope = "all", fileType
   return data;
 }
 
-async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content", fileType = "all") {
+async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content", fileType = "all", match = "relaxed") {
   const trimmed = String(query || "").trim();
   const normalizedScope = normalizeSearchScope(scope);
   const normalizedFileType = normalizeSearchFileType(fileType);
@@ -10583,7 +10792,7 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 
     try {
       const data = await runWithAgent(agentId, () =>
-        searchWorkspaceContent(trimmed, perAgentLimit, normalizedScope, normalizedFileType)
+        searchWorkspaceContent(trimmed, perAgentLimit, normalizedScope, normalizedFileType, match)
       );
       const agentName = agent.name || agent.id;
       for (const item of data?.results || []) {
@@ -10623,11 +10832,12 @@ async function handleApiForAgent(req, res, url) {
     const query = url.searchParams.get("q") || "";
     const scope = url.searchParams.get("scope") || "all";
     const fileType = url.searchParams.get("fileType") || "all";
+    const match = url.searchParams.get("match") || "relaxed";
     const limitRaw = Number(url.searchParams.get("limit") || 30);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 30;
 
     try {
-      const data = await searchWorkspaceContent(query, limit, scope, fileType);
+      const data = await searchWorkspaceContent(query, limit, scope, fileType, match);
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to search content", details: String(error.message || error) });

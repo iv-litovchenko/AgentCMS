@@ -148,7 +148,7 @@ function createServer() {
 
   reg(
     "search_workspace",
-    "Search workspace (same as UI header search). Default scope=all: filenames, topic meta (name/slug/tags), and file content. fileType filters by format.",
+    "Search workspace (same as UI header search). Default scope=all: filenames, topic meta (name/slug/tags), and file content. match=relaxed (soft, multi-word, ignores spaces/hyphens) or strict. Wildcards * and ? in query.",
     z.object({
       query: z.string().min(1),
       scope: z
@@ -172,13 +172,18 @@ function createServer() {
         ])
         .optional()
         .describe("Filter by file format; default all."),
+      match: z
+        .enum(["relaxed", "strict"])
+        .optional()
+        .describe("Match mode: relaxed (default, LIKE %%, multi-word) or strict substring."),
       limit: z.number().int().min(1).max(100).optional()
     }),
-    ({ query, scope, fileType, limit }) =>
+    ({ query, scope, fileType, match, limit }) =>
       client.get("/api/search", {
         q: query,
         scope: scope || "all",
         fileType: fileType || "all",
+        match: match || "relaxed",
         limit: limit || 30
       })
   );
