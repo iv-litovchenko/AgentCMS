@@ -9498,11 +9498,42 @@ function getMarkdownLinkAwnTypeLabel(typeId, typesMap = null) {
 const MARKDOWN_LINK_GROUP_LABELS = {
   topics: "Темы и области",
   content: "Content / записи",
+  media: "Медиа",
   memory: "Память темы",
+  storage: "Inbox, скрипты и др.",
   service: "Служебные файлы",
   system: "Системные",
   other: "Прочие markdown"
 };
+
+const SEARCH_FILE_TYPE_IDS = new Set([
+  "all",
+  "topics",
+  "content",
+  "media",
+  "memory",
+  "storage",
+  "system",
+  "service",
+  "other"
+]);
+
+const SEARCH_FLAT_STORAGE_MODES = new Set([
+  "scripts",
+  "inbox",
+  "note",
+  "quick-notes",
+  "references",
+  "artefacts",
+  "repository",
+  "temp",
+  "assets"
+]);
+
+function normalizeSearchFileType(value) {
+  const type = String(value || "all").trim().toLowerCase();
+  return SEARCH_FILE_TYPE_IDS.has(type) ? type : "all";
+}
 
 function classifyMarkdownLinkGroup(relPath, meta) {
   const normalized = String(relPath || "").replace(/\\/g, "/");
@@ -9514,6 +9545,14 @@ function classifyMarkdownLinkGroup(relPath, meta) {
 
   if (meta?.externalFile && meta?.mode === "external") {
     return "content";
+  }
+
+  if (meta?.externalFile && meta?.mode === "media") {
+    return "media";
+  }
+
+  if (meta?.mode && SEARCH_FLAT_STORAGE_MODES.has(meta.mode)) {
+    return "storage";
   }
 
   if (
@@ -9540,6 +9579,19 @@ function classifyMarkdownLinkGroup(relPath, meta) {
   }
 
   return "other";
+}
+
+function buildSearchResultEntry(relPath, meta, payload, fileTypeFilter = "all") {
+  if (!meta) return null;
+  const fileType = classifyMarkdownLinkGroup(relPath, meta);
+  if (fileTypeFilter !== "all" && fileType !== fileTypeFilter) return null;
+  return {
+    ...meta,
+    ...payload,
+    filePath: meta.canonicalPath || relPath,
+    fileType,
+    fileTypeLabel: MARKDOWN_LINK_GROUP_LABELS[fileType] || MARKDOWN_LINK_GROUP_LABELS.other
+  };
 }
 
 const MARKDOWN_LINK_KIND_LABELS = {
@@ -9801,9 +9853,12 @@ async function collectNodeMdFiles(dirAbsolute, prefix = "", files = []) {
   return files;
 }
 
-async function searchByFilename(query, limit = 30) {
+async function searchByFilename(query, limit = 30, fileType = "all") {
   const trimmed = String(query || "").trim();
-  if (!trimmed) return { query: trimmed, scope: "filename", results: [], total: 0 };
+  const normalizedFileType = normalizeSearchFileType(fileType);
+  if (!trimmed) {
+    return { query: trimmed, scope: "filename", fileType: normalizedFileType, results: [], total: 0 };
+  }
 
   const relFiles = await collectSearchableFiles(getAgentRoot());
   const results = [];
@@ -9812,27 +9867,31 @@ async function searchByFilename(query, limit = 30) {
     if (!matchesFilename(relPath, trimmed)) continue;
 
     const meta = await classifySearchResult(relPath);
-    if (!meta) continue;
-
     const displayName = path.basename(relPath);
-    results.push({
-      ...meta,
-      filePath: meta.canonicalPath || relPath,
-      snippet: displayName,
-      matchCount: 1
-    });
+    const entry = buildSearchResultEntry(
+      relPath,
+      meta,
+      {
+        snippet: displayName,
+        matchCount: 1
+      },
+      normalizedFileType
+    );
+    if (!entry) continue;
 
+    results.push(entry);
     if (results.length >= limit) break;
   }
 
   results.sort((a, b) => a.filePath.localeCompare(b.filePath, "ru"));
-  return { query: trimmed, scope: "filename", results, total: results.length };
+  return { query: trimmed, scope: "filename", fileType: normalizedFileType, results, total: results.length };
 }
 
-async function searchByContent(query, limit = 30) {
+async function searchByContent(query, limit = 30, fileType = "all") {
   const trimmed = String(query || "").trim();
+  const normalizedFileType = normalizeSearchFileType(fileType);
   if (trimmed.length < 2) {
-    return { query: trimmed, scope: "content", results: [], total: 0 };
+    return { query: trimmed, scope: "content", fileType: normalizedFileType, results: [], total: 0 };
   }
 
   const relFiles = await collectSearchableFiles(getAgentRoot());
@@ -9853,15 +9912,18 @@ async function searchByContent(query, limit = 30) {
     if (!content.toLowerCase().includes(qLower)) continue;
 
     const meta = await classifySearchResult(relPath);
-    if (!meta) continue;
+    const entry = buildSearchResultEntry(
+      relPath,
+      meta,
+      {
+        snippet: buildSearchSnippet(content, trimmed),
+        matchCount: countTextMatches(content, trimmed)
+      },
+      normalizedFileType
+    );
+    if (!entry) continue;
 
-    results.push({
-      ...meta,
-      filePath: meta.canonicalPath || relPath,
-      snippet: buildSearchSnippet(content, trimmed),
-      matchCount: countTextMatches(content, trimmed)
-    });
-
+    results.push(entry);
     if (results.length >= limit) break;
   }
 
@@ -9870,7 +9932,7 @@ async function searchByContent(query, limit = 30) {
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "content", results, total: results.length };
+  return { query: trimmed, scope: "content", fileType: normalizedFileType, results, total: results.length };
 }
 
 async function searchByDescription(query, limit = 30) {
@@ -9916,10 +9978,11 @@ async function searchByDescription(query, limit = 30) {
   return { query: trimmed, scope: "description", results, total: results.length };
 }
 
-async function searchByTags(query, limit = 30) {
+async function searchByTags(query, limit = 30, fileType = "all") {
   const trimmed = String(query || "").trim();
+  const normalizedFileType = normalizeSearchFileType(fileType);
   if (trimmed.length < 2) {
-    return { query: trimmed, scope: "tags", results: [], total: 0 };
+    return { query: trimmed, scope: "tags", fileType: normalizedFileType, results: [], total: 0 };
   }
 
   const relFiles = await collectNodeMdFiles(getAgentRoot());
@@ -9950,15 +10013,23 @@ async function searchByTags(query, limit = 30) {
       return label && label !== tag ? `${label} (#${tag})` : `#${tag}`;
     });
 
-    results.push({
+    const meta = {
       nodePath: relPath,
       mode: "description",
-      source: "Тэги",
-      filePath: relPath,
-      snippet: snippetTags.join(", "),
-      matchCount: matchingTags.length
-    });
+      source: "Тэги"
+    };
+    const entry = buildSearchResultEntry(
+      relPath,
+      meta,
+      {
+        snippet: snippetTags.join(", "),
+        matchCount: matchingTags.length
+      },
+      normalizedFileType
+    );
+    if (!entry) continue;
 
+    results.push(entry);
     if (results.length >= limit) break;
   }
 
@@ -9967,19 +10038,21 @@ async function searchByTags(query, limit = 30) {
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "tags", results, total: results.length };
+  return { query: trimmed, scope: "tags", fileType: normalizedFileType, results, total: results.length };
 }
 
-async function searchWorkspaceContent(query, limit = 30, scope = "content") {
+async function searchWorkspaceContent(query, limit = 30, scope = "content", fileType = "all") {
   const normalizedScope = normalizeSearchScope(scope);
-  if (normalizedScope === "filename") return searchByFilename(query, limit);
-  if (normalizedScope === "tags") return searchByTags(query, limit);
-  return searchByContent(query, limit);
+  const normalizedFileType = normalizeSearchFileType(fileType);
+  if (normalizedScope === "filename") return searchByFilename(query, limit, normalizedFileType);
+  if (normalizedScope === "tags") return searchByTags(query, limit, normalizedFileType);
+  return searchByContent(query, limit, normalizedFileType);
 }
 
-async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content") {
+async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "content", fileType = "all") {
   const trimmed = String(query || "").trim();
   const normalizedScope = normalizeSearchScope(scope);
+  const normalizedFileType = normalizeSearchFileType(fileType);
   const ids = Array.isArray(agentIds) ? agentIds.filter(Boolean) : [];
   const perAgentLimit = Math.max(5, Math.ceil(limit / Math.max(ids.length, 1)));
   const merged = [];
@@ -9990,7 +10063,7 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 
     try {
       const data = await runWithAgent(agentId, () =>
-        searchWorkspaceContent(trimmed, perAgentLimit, normalizedScope)
+        searchWorkspaceContent(trimmed, perAgentLimit, normalizedScope, normalizedFileType)
       );
       const agentName = agent.name || agent.id;
       for (const item of data?.results || []) {
@@ -10029,11 +10102,12 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/search") {
     const query = url.searchParams.get("q") || "";
     const scope = url.searchParams.get("scope") || "content";
+    const fileType = url.searchParams.get("fileType") || "all";
     const limitRaw = Number(url.searchParams.get("limit") || 30);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 30;
 
     try {
-      const data = await searchWorkspaceContent(query, limit, scope);
+      const data = await searchWorkspaceContent(query, limit, scope, fileType);
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to search content", details: String(error.message || error) });
@@ -12515,6 +12589,78 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/storage/file/rename") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const relFile = payload.file;
+      const storageFolder = String(payload.folder || "").trim();
+      const title = String(payload.title || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!relFile) return sendJson(res, 400, { error: "Missing file path" });
+      if (!storageFolder) return sendJson(res, 400, { error: "Missing storage folder" });
+      if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
+
+      const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+      if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+      const resolved = await resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile);
+      if (resolved.error) {
+        return sendJson(res, resolved.status === 404 ? 404 : 400, { error: resolved.error });
+      }
+
+      const normalizedRelFile = resolved.normalizedRelFile;
+      let nextRelPath = normalizedRelFile;
+      if (normalizedRelFile.toLowerCase().endsWith(".md")) {
+        const nextName = toExternalMarkdownFileName(title);
+        if (!nextName) return sendJson(res, 400, { error: "Invalid file name" });
+        const dirRelPath = path.dirname(normalizedRelFile);
+        nextRelPath = (dirRelPath && dirRelPath !== "."
+          ? path.join(dirRelPath, nextName)
+          : nextName).replace(/\\/g, "/");
+      } else {
+        const dirRelPath = path.dirname(normalizedRelFile);
+        const ext = path.extname(normalizedRelFile);
+        const nextBase =
+          sanitizeSlugInput(String(title || "").replace(/\.md$/i, "")) ||
+          transliterateToSlug(String(title || "").replace(/\.md$/i, ""));
+        if (!nextBase) return sendJson(res, 400, { error: "Invalid file name" });
+        const nextName = `${nextBase}${ext}`;
+        nextRelPath = (dirRelPath && dirRelPath !== "."
+          ? path.join(dirRelPath, nextName)
+          : nextName).replace(/\\/g, "/");
+      }
+
+      const nextAbsolute = path.join(resolved.folderAbsolute, nextRelPath);
+      if (!isPathInsideDirectory(resolved.folderAbsolute, nextAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid target path" });
+      }
+
+      if (path.resolve(resolved.fileAbsolute) !== path.resolve(nextAbsolute)) {
+        try {
+          await fs.access(nextAbsolute);
+          return sendJson(res, 409, { error: "File with this name already exists" });
+        } catch {
+          // target does not exist
+        }
+        await fs.mkdir(path.dirname(nextAbsolute), { recursive: true });
+        await fs.rename(resolved.fileAbsolute, nextAbsolute);
+      }
+
+      const content = await fs.readFile(nextAbsolute, "utf-8");
+      return sendJson(res, 200, {
+        folder: resolved.folder,
+        file: nextRelPath.replace(/\\/g, "/"),
+        content,
+        linkRewrite: { filesUpdated: 0, linksUpdated: 0, files: [] }
+      });
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : "";
+      if (code === "ENOENT") return sendJson(res, 404, { error: "Storage file not found" });
+      return sendJson(res, 500, { error: "Failed to rename storage file", details: String(error.message || error) });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/media/markdown") {
     const relPath = url.searchParams.get("path");
     const relFile = url.searchParams.get("file");
@@ -14596,6 +14742,7 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/search/global") {
     const query = url.searchParams.get("q") || "";
     const scope = url.searchParams.get("scope") || "content";
+    const fileType = url.searchParams.get("fileType") || "all";
     const limitRaw = Number(url.searchParams.get("limit") || 50);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 50;
 
@@ -14613,11 +14760,11 @@ async function handleApi(req, res, url) {
     }
 
     if (agentIds.length === 0) {
-      return sendJson(res, 200, { query, scope, results: [], total: 0, agents: [] });
+      return sendJson(res, 200, { query, scope, fileType, results: [], total: 0, agents: [] });
     }
 
     try {
-      const data = await searchGlobalAcrossAgents(query, agentIds, limit, scope);
+      const data = await searchGlobalAcrossAgents(query, agentIds, limit, scope, fileType);
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, {

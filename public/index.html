@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.353" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.356" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -130,6 +130,17 @@
                 aria-controls="content-search-results"
                 aria-expanded="false"
               />
+              <select id="content-search-type" class="content-search-type" aria-label="Тип файлов">
+                <option value="all" selected>Все типы</option>
+                <option value="topics">Темы и области</option>
+                <option value="content">Content / записи</option>
+                <option value="media">Медиа</option>
+                <option value="memory">Память темы</option>
+                <option value="storage">Inbox, скрипты и др.</option>
+                <option value="system">Системные</option>
+                <option value="service">Служебные файлы</option>
+                <option value="other">Прочие markdown</option>
+              </select>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
           </div>
@@ -2893,7 +2904,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.353"></script>
+    <script src="/main.js?v=0.5.361"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

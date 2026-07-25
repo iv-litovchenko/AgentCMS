@@ -1,6 +1,6 @@
 ---
 awn-attachments: []
-awn-name: ООП
+awn-name: "ООП"
 awn-emoji: ""
 awn-status: draft
 awn-description: ""
