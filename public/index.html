@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.393" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.413" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -1012,6 +1012,39 @@
 
       <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд агента">
         <div id="home2-content" class="home2-content"></div>
+      </main>
+
+      <main id="not-found-pane" class="not-found-pane agent-canvas-pane hidden" aria-labelledby="app-not-found-title">
+        <div class="not-found-bg" aria-hidden="true"></div>
+        <div class="not-found-orbit not-found-orbit--one" aria-hidden="true"></div>
+        <div class="not-found-orbit not-found-orbit--two" aria-hidden="true"></div>
+        <div class="not-found-inner">
+          <div class="not-found-visual" aria-hidden="true">
+            <div class="not-found-code">404</div>
+            <div class="not-found-mascot not-found-mascot--lost">
+              <div class="not-found-mascot-antenna"></div>
+              <div class="not-found-mascot-face">
+                <span class="not-found-mascot-eye"></span>
+                <span class="not-found-mascot-eye"></span>
+                <span class="not-found-mascot-mouth"></span>
+              </div>
+            </div>
+          </div>
+          <p class="not-found-eyebrow">Страница не найдена</p>
+          <h2 id="app-not-found-title" class="not-found-title">Такого пути нет в workspace</h2>
+          <p class="not-found-lead">
+            Адрес не совпал ни с одной темой, записью или файлом агента.
+            Проверьте путь в дереве слева или вернитесь на главную.
+          </p>
+          <div class="not-found-path-card">
+            <span class="not-found-path-label">Запрошенный путь</span>
+            <code id="app-not-found-path" class="not-found-path"></code>
+          </div>
+          <div class="not-found-actions">
+            <button type="button" id="app-not-found-home-btn" class="not-found-btn not-found-btn--primary">На главную агента</button>
+            <button type="button" id="app-not-found-back-btn" class="not-found-btn">Назад</button>
+          </div>
+        </div>
       </main>
 
       <main id="agent-large-files-pane" class="agent-canvas-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
@@ -2988,7 +3021,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.407"></script>
+    <script src="/main.js?v=0.5.413"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

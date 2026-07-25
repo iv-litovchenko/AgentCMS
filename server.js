@@ -64,6 +64,8 @@ const {
   normalizeNodeAssetsStorageRef,
   buildStorageLayerRef,
   buildSlotInlineUploadRef,
+  parseStorageLayerRef,
+  pickManifestRelFromStorageLayerRef,
   BUNDLE_BODY_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
@@ -137,6 +139,12 @@ const {
   extractDefaultLandingModeFromNodeConfig,
   getTopicSchemaPayload
 } = require("./awn-types-loader");
+const {
+  getEffectiveSchemaPayloadForContentPath,
+  toSectionConfigRelPath,
+  listSectionFolderPrefixes,
+  isSectionConfigRelPath
+} = require("./section-schema");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
 const { getMergedCatalogsPayload, getCatalogLookupMaps, resolveCatalogPropValue, resolveCatalogTagsList } = require("./catalog-loader");
@@ -3858,11 +3866,14 @@ async function buildSlotContentFileContentForManifest(
   let frontmatter = "";
   try {
     const configFile = await readNodeConfigFile(manifestRel);
-    const payload = getTopicSchemaPayload(
-      configFile.content || "",
-      getAgentRoot(),
-      getProjectRoot()
-    );
+    const payload = options.contentWorkspaceRel
+      ? getEffectiveSchemaPayloadForContentPath(
+          configFile.content || "",
+          options.contentWorkspaceRel,
+          getAgentRoot(),
+          getProjectRoot()
+        )
+      : getTopicSchemaPayload(configFile.content || "", getAgentRoot(), getProjectRoot());
     const mergedType = schemaTarget ? payload.merged[schemaTarget] : null;
     if (mergedType?.fields && Object.keys(mergedType.fields).length) {
       frontmatter = buildDefaultFrontmatter(awnType, {
@@ -4057,6 +4068,10 @@ async function createStorageRecordFile({
         }
       : null;
 
+  const parentRel = path.relative(folderAbsolute, targetFolder).replace(/\\/g, "/").replace(/^\/+/, "");
+  const relInSlotPreview = parentRel ? `${parentRel}/${fileName}` : fileName;
+  const contentWorkspaceRel = buildStorageLayerRef(manifestRelPath, canonicalFolder, relInSlotPreview);
+
   const content = await buildSlotContentFileContentForManifest(
     manifestRelPath,
     fileTitle,
@@ -4064,7 +4079,8 @@ async function createStorageRecordFile({
     "record",
     {
       body: textBody || undefined,
-      frontmatterOverrides
+      frontmatterOverrides,
+      contentWorkspaceRel
     }
   );
 
@@ -9438,6 +9454,18 @@ async function serveStatic(reqPath, res) {
         // fall through to 404
       }
     }
+    try {
+      const notFoundHtmlPath = path.join(getPublicDir(), "404.html");
+      const content = await fs.readFile(notFoundHtmlPath);
+      res.writeHead(404, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      res.end(content);
+      return;
+    } catch {
+      // fall through to plain 404
+    }
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Not found");
   }
@@ -12808,6 +12836,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/file/topic-schema") {
     const relPath = url.searchParams.get("path");
+    const contentPath = String(url.searchParams.get("contentPath") || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
 
     const manifestCtx = await resolveApiManifestContext(relPath);
@@ -12815,12 +12846,23 @@ async function handleApiForAgent(req, res, url) {
 
     try {
       const configFile = await readNodeConfigFile(manifestCtx.rel);
-      const payload = getTopicSchemaPayload(configFile.content, getAgentRoot(), getProjectRoot());
+      const payload = contentPath
+        ? getEffectiveSchemaPayloadForContentPath(
+            configFile.content,
+            contentPath,
+            getAgentRoot(),
+            getProjectRoot()
+          )
+        : getTopicSchemaPayload(configFile.content, getAgentRoot(), getProjectRoot());
       return sendJson(res, 200, {
         path: manifestCtx.rel,
+        contentPath: contentPath || null,
         configPath: configFile.path,
         configExists: configFile.exists,
         awnSchema: payload.awnSchema,
+        topicAwnSchema: payload.topicAwnSchema || payload.awnSchema,
+        sectionAwnSchema: payload.sectionAwnSchema || null,
+        sectionChain: payload.sectionChain || [],
         baseTypes: payload.baseTypes,
         merged: payload.merged,
         fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
@@ -12880,6 +12922,139 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save topic schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/section-schema") {
+    const manifestPath = String(url.searchParams.get("manifest") || url.searchParams.get("path") || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const sectionPath = String(url.searchParams.get("section") || url.searchParams.get("sectionPath") || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+|\/+$/g, "");
+    const layer = String(url.searchParams.get("layer") || "main").trim();
+    if (!manifestPath || !sectionPath) {
+      return sendJson(res, 400, { error: "Missing manifest and section query parameters" });
+    }
+
+    const manifestCtx = await resolveApiManifestContext(manifestPath);
+    if (!manifestCtx) return sendJson(res, 400, { error: "Invalid manifest path" });
+
+    try {
+      const configRelPath = toSectionConfigRelPath(manifestCtx.rel, layer, sectionPath);
+      if (!configRelPath) return sendJson(res, 400, { error: "Invalid section path" });
+      const configAbsolute = normalizeWorkspacePath(configRelPath);
+      let content = "";
+      let exists = false;
+      if (configAbsolute) {
+        try {
+          content = await fs.readFile(configAbsolute, "utf-8");
+          exists = true;
+        } catch (error) {
+          if (!error || error.code !== "ENOENT") throw error;
+        }
+      }
+      const topicConfig = await readNodeConfigFile(manifestCtx.rel);
+      const contentWorkspaceRel = buildStorageLayerRef(
+        manifestCtx.rel,
+        layer,
+        `${sectionPath}/${MANIFEST_FILE}`
+      );
+      const payload = getEffectiveSchemaPayloadForContentPath(
+        topicConfig.content,
+        contentWorkspaceRel,
+        getAgentRoot(),
+        getProjectRoot()
+      );
+      const sectionOnlySchema = extractAwnSchemaFromConfig(content);
+      return sendJson(res, 200, {
+        manifestPath: manifestCtx.rel,
+        sectionPath,
+        layer,
+        configPath: configRelPath,
+        configExists: exists,
+        content,
+        sectionAwnSchema: sectionOnlySchema,
+        awnSchema: payload.awnSchema,
+        topicAwnSchema: payload.topicAwnSchema || payload.awnSchema,
+        inheritedSectionChain: payload.sectionChain || [],
+        baseTypes: payload.baseTypes,
+        merged: payload.merged
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read section schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/section-schema") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestPath = String(payload.manifestPath || payload.path || "").replace(/\\/g, "/");
+      const sectionPath = String(payload.sectionPath || payload.section || "")
+        .replace(/\\/g, "/")
+        .replace(/^\/+|\/+$/g, "");
+      const layer = String(payload.layer || "main").trim();
+      let awnSchema;
+      if (payload.awnSchema && typeof payload.awnSchema === "object") {
+        awnSchema = normalizeAwnSchema(payload.awnSchema);
+      } else if (typeof payload.content === "string" && payload.content.trim()) {
+        awnSchema = extractAwnSchemaFromConfig(payload.content);
+      } else {
+        awnSchema = normalizeAwnSchema(undefined);
+      }
+      if (!manifestPath || !sectionPath) {
+        return sendJson(res, 400, { error: "Missing manifestPath and sectionPath" });
+      }
+
+      const manifestCtx = await resolveApiManifestContext(manifestPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid manifest path" });
+
+      const configRelPath = toSectionConfigRelPath(manifestCtx.rel, layer, sectionPath);
+      if (!configRelPath) return sendJson(res, 400, { error: "Invalid section path" });
+      const configAbsolute = normalizeWorkspacePath(configRelPath);
+      if (!configAbsolute) return sendJson(res, 400, { error: "Invalid section config path" });
+
+      const existingContent = (await fs.readFile(configAbsolute, "utf-8").catch(() => "")) || "";
+      const nextContent = applyAwnSchemaToConfig(existingContent, awnSchema);
+      await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
+      if (!String(nextContent).trim()) {
+        await removeIfExists(configAbsolute);
+      } else {
+        await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, nextContent);
+      }
+
+      const topicConfig = await readNodeConfigFile(manifestCtx.rel);
+      const contentWorkspaceRel = buildStorageLayerRef(
+        manifestCtx.rel,
+        layer,
+        `${sectionPath}/${MANIFEST_FILE}`
+      );
+      const schemaPayload = getEffectiveSchemaPayloadForContentPath(
+        topicConfig.content,
+        contentWorkspaceRel,
+        getAgentRoot(),
+        getProjectRoot()
+      );
+      return sendJson(res, 200, {
+        manifestPath: manifestCtx.rel,
+        sectionPath,
+        layer,
+        configPath: configRelPath,
+        content: nextContent,
+        exists: Boolean(String(nextContent).trim()),
+        sectionAwnSchema: awnSchema,
+        awnSchema: schemaPayload.awnSchema,
+        merged: schemaPayload.merged,
+        sectionChain: schemaPayload.sectionChain || []
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save section schema",
         details: String(error.message || error)
       });
     }

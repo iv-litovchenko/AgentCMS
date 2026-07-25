@@ -1,0 +1,14 @@
+# Схема раздела «Демо-раздел» — наследуется записями внутри и во вложенных подразделах.
+awn_schema:
+  slot_memory:
+    fields:
+      awn-section-tag:
+        type: awn.string
+        name: Тег раздела
+        hint: Поле из config.yml раздела; видно у записей в demo-razdel
+  slot_memory_category:
+    fields:
+      awn-section-note:
+        type: awn.text
+        name: Заметка раздела
+        hint: Только для manifest.md категорий в этом разделе

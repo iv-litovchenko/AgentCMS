@@ -25,6 +25,10 @@ const APP_SPLASH_MIN_MS = 420;
 const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const home2PaneNode = document.getElementById("home-pane-2");
+const notFoundPaneNode = document.getElementById("not-found-pane");
+const notFoundPathNode = document.getElementById("app-not-found-path");
+const notFoundHomeBtn = document.getElementById("app-not-found-home-btn");
+const notFoundBackBtn = document.getElementById("app-not-found-back-btn");
 const home2ContentNode = document.getElementById("home2-content");
 const agentAwnTypesPaneNode = document.getElementById("agent-awn-types-pane");
 const agentAwnTypesContentNode = document.getElementById("agent-awn-types-content");
@@ -1411,8 +1415,7 @@ async function applyChpuResolvedRoute(resolved) {
   }
 
   if (resolved?.kind === "unknown") {
-    showToast(`Путь не найден: ${resolved.workspacePath || ""}`, "error");
-    showHomeView();
+    showNotFoundView(formatNotFoundRequestPath(resolved.workspacePath));
     return;
   }
 
@@ -1420,8 +1423,7 @@ async function applyChpuResolvedRoute(resolved) {
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
     const topicEntry = entry?.path ? entry : await resolveChpuTopicEntry(resolved);
     if (!topicEntry?.path) {
-      showToast(`Тема «${resolved.workspacePath}» не найдена в workspace`, "error");
-      showHomeView();
+      showNotFoundView(formatNotFoundRequestPath(resolved.workspacePath));
       return;
     }
     const label = topicEntry.label || getLabelFromPath(topicEntry.path);
@@ -2147,8 +2149,7 @@ async function applyAppRouteFromUrl() {
 
   const entry = resolveMenuEntryByDisplayPath(route.displayPath);
   if (!entry?.path) {
-    showToast(`Тема «${route.displayPath}» не найдена в workspace`, "error");
-    showHomeView();
+    showNotFoundView(formatNotFoundRequestPath(route.displayPath || location.pathname));
     return true;
   }
 
@@ -2874,7 +2875,7 @@ async function openMarkdownLinkIndexItem(item) {
   if (item.mode) {
     await selectNodeManifest(getLabelFromPath(item.nodePath), item.nodePath, item.mode);
   } else {
-    await openNodeFromMenu(getLabelFromPath(item.nodePath), item.nodePath);
+    await openMarkdownLinkNodePath(item.nodePath);
   }
 
   if (item.mode === "external" && item.externalFile) {
@@ -2891,19 +2892,47 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel) {
   if (parsed?.relativePath) {
     const manifestPath = resolveOwningManifestRelFromNodePath(normalized);
     if (!manifestPath) return false;
+    const label = getLabelFromPath(manifestPath);
+    const relPath = String(parsed.relativePath).replace(/\\/g, "/");
 
     if (parsed.layer === STORAGE_SUBFOLDER_CONTENT) {
-      await selectNodeManifest(getLabelFromPath(manifestPath), manifestPath, "external");
-      await openExternalFile(parsed.relativePath);
+      await selectNodeManifest(label, manifestPath, "external");
+      if (/\/manifest\.md$/i.test(relPath)) {
+        openExternalCategoryOverviewFromNavigation(relPath.replace(/\/manifest\.md$/i, ""));
+      } else {
+        openExternalRecordOverviewFromNavigation({
+          path: relPath.replace(/\.md$/i, ""),
+          title: relPath.split("/").pop() || relPath
+        });
+      }
       return true;
     }
 
     if (parsed.layer === STORAGE_SUBFOLDER_MEDIA) {
-      await selectNodeManifest(getLabelFromPath(manifestPath), manifestPath, "media");
-      if (/\.md$/i.test(parsed.relativePath)) {
-        await openMediaMarkdownFile(parsed.relativePath);
+      await selectNodeManifest(label, manifestPath, "media");
+      if (/\/manifest\.md$/i.test(relPath)) {
+        openMediaCategoryOverviewFromNavigation(relPath.replace(/\/manifest\.md$/i, ""));
+      } else if (/\.md$/i.test(relPath)) {
+        openMediaEntryOverviewFromNavigation({
+          path: relPath,
+          title: relPath.split("/").pop() || relPath
+        });
       } else {
-        openMediaAsset(parsed.relativePath, manifestPath);
+        openMediaAsset(relPath, manifestPath);
+      }
+      return true;
+    }
+
+    const flatMode = CHPU_SLOT_FOLDER_TO_MODE[parsed.layer];
+    if (flatMode && FLAT_STORAGE_SECTION_MODES.has(flatMode)) {
+      await selectNodeManifest(label, manifestPath, flatMode);
+      if (/\/manifest\.md$/i.test(relPath)) {
+        openFlatStorageCategoryOverviewFromNavigation(relPath.replace(/\/manifest\.md$/i, ""), flatMode);
+      } else {
+        openFlatStorageRecordOverviewFromNavigation(
+          { path: relPath.replace(/\.md$/i, ""), title: relPath.split("/").pop() || relPath },
+          flatMode
+        );
       }
       return true;
     }
@@ -2926,20 +2955,65 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel) {
   }
 
   if (/manifest\.md$/i.test(normalized)) {
-    await openNodeFromMenu(getLabelFromPath(normalized), normalized);
+    await openMarkdownLinkNodePath(normalized);
     return true;
   }
 
   return false;
 }
 
+async function tryOpenSameOriginAppUrl(href) {
+  let url;
+  try {
+    url = new URL(href, location.origin);
+  } catch {
+    return false;
+  }
+  if (url.origin !== location.origin) return false;
+
+  const route = parseAppRoute(url.pathname);
+  if (route.type === "root" || route.type === "legacy") return false;
+
+  if (route.agentId) {
+    const selectable = getSelectableAgents();
+    if (!selectable.some((agent) => agent.id === route.agentId)) return false;
+    if (route.agentId !== activeAgentId) {
+      await switchActiveAgent(route.agentId);
+    }
+  }
+
+  history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  await applyAppRouteFromUrl();
+  return true;
+}
+
+async function openMarkdownLinkNodePath(nodePath, options = {}) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!normalized) return;
+  const label = getLabelFromPath(normalized);
+  if (isTopicManifestPath(normalized)) {
+    await openNodeNavigation(label, normalized);
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ push: true });
+    }
+    return;
+  }
+  await openNodeFromMenu(label, normalized, options);
+}
+
 async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBasePath()) {
   const value = String(href || "").trim();
   if (!value) return;
 
+  if (/^https?:\/\//i.test(value)) {
+    if (await tryOpenSameOriginAppUrl(value)) return;
+    window.open(value, "_blank", "noopener,noreferrer");
+    return;
+  }
+
   const nodePath = resolveMarkdownLinkToNodePath(value, { sourcePath });
   if (nodePath) {
-    await openNodeFromMenu(getLabelFromPath(nodePath), nodePath);
+    await openMarkdownLinkNodePath(nodePath);
     return;
   }
 
@@ -2953,12 +3027,20 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
   const indexItem = (markdownLinkIndexCache.items || []).find(
     (item) => normalizeLinkFilePath(item.relPath).toLowerCase() === targetRel.toLowerCase()
   );
-  if (indexItem) {
+  if (indexItem && (indexItem.nodePath || indexItem.systemFile)) {
     await openMarkdownLinkIndexItem(indexItem);
     return;
   }
 
   if (await tryOpenMarkdownLinkByWorkspaceRel(targetRel)) {
+    return;
+  }
+
+  if (indexItem) {
+    await openWorkspaceFilePreviewByRelPath(targetRel, {
+      label: indexItem.label || getLabelFromPath(targetRel),
+      nodePath: resolveOwningManifestRelFromNodePath(targetRel) || undefined
+    });
     return;
   }
 
@@ -2982,7 +3064,10 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
   const systemName = normalizeSystemFileName(targetRel.split("/").pop() || targetRel);
   if (systemFilesCache.some((file) => normalizeSystemFileName(file.name) === systemName)) {
     await selectSystemFile(systemName);
+    return;
   }
+
+  showToast(`Ссылка не найдена: ${value}`, "error");
 }
 
 function resolveWikilinkToNodePath(target, alias) {
@@ -9088,7 +9173,7 @@ async function openTopicSchemaForStorageSlot(slotKey) {
     return;
   }
   try {
-    await loadTopicSchemaForManifest(activePath, { force: true });
+    await loadTopicSchemaForManifest(activePath, { force: true, topicOnly: true });
     renderTopicSchemaEditor();
   } catch (error) {
     showToast(`Не удалось открыть схему: ${error.message}`, "error");
@@ -28369,9 +28454,25 @@ function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activeP
   return resolveAwnSchemaTargetForType(typeName);
 }
 
-function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath()) {
-  if (!manifestPath) return null;
-  return topicSchemaCacheByManifest.get(manifestPath) || null;
+function getTopicSchemaCacheKey(manifestPath, contentPath = "") {
+  const manifest = String(manifestPath || "").replace(/\\/g, "/");
+  const content = String(contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return content ? `${manifest}\0${content}` : manifest;
+}
+
+function getSchemaContentPathForContext(nodePath = activePath) {
+  const ctx = getPropsContextPath(nodePath);
+  const normalized = String(ctx || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  if (/\/awn-storage\/[^/]+\/.+/i.test(normalized)) return normalized;
+  return "";
+}
+
+function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath(), contentPath = "") {
+  const schemaContentPath = contentPath || getSchemaContentPathForContext();
+  const cacheKey = getTopicSchemaCacheKey(manifestPath, schemaContentPath);
+  if (!cacheKey) return null;
+  return topicSchemaCacheByManifest.get(cacheKey) || null;
 }
 
 function getTopicSchemaSavePayload() {
@@ -28387,12 +28488,23 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     resolveTopicManifestFromBundlePath(normalized);
   if (!manifestPath) return null;
 
+  const contentPath = (() => {
+    if (options.contentPath !== undefined) {
+      return String(options.contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    }
+    if (options.topicOnly === true || activeContentMode === "topic-schema") return "";
+    return getSchemaContentPathForContext(nodePath);
+  })();
+  const cacheKey = getTopicSchemaCacheKey(manifestPath, contentPath);
+
   if (!options.force) {
-    const cached = topicSchemaCacheByManifest.get(manifestPath);
+    const cached = topicSchemaCacheByManifest.get(cacheKey);
     if (cached) return cached;
   }
 
-  const response = await fetch(buildApiUrl("/api/file/topic-schema", { path: manifestPath }));
+  const query = { path: manifestPath };
+  if (contentPath) query.contentPath = contentPath;
+  const response = await fetch(buildApiUrl("/api/file/topic-schema", query));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   if (!awnTypesCache?.types) {
@@ -28406,15 +28518,19 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   }
   const payload = {
     manifestPath,
+    contentPath: contentPath || "",
     configPath: data.configPath || "",
     configExists: Boolean(data.configExists),
     awnSchema: normalizeTopicSchemaState(data.awnSchema),
+    topicAwnSchema: normalizeTopicSchemaState(data.topicAwnSchema || data.awnSchema),
+    sectionAwnSchema: data.sectionAwnSchema ? normalizeTopicSchemaState(data.sectionAwnSchema) : null,
+    sectionChain: Array.isArray(data.sectionChain) ? data.sectionChain : [],
     baseTypes: data.baseTypes || {},
     merged: data.merged || {},
     fieldRegistry
   };
   enrichTopicSchemaCacheFromTypes(payload);
-  topicSchemaCacheByManifest.set(manifestPath, payload);
+  topicSchemaCacheByManifest.set(cacheKey, payload);
   return payload;
 }
 
@@ -39925,7 +40041,7 @@ function createNavigationEmptyPlaceholder() {
   return empty;
 }
 
-function renderNavigationInternalPart(internalData, { areaMode = false } = {}) {
+function renderNavigationInternalPart(internalData, { areaMode = false, nodePath } = {}) {
   const body = document.createElement("div");
   body.className = "node-navigation-internal";
   if (areaMode) body.classList.add("node-navigation-internal--area");
@@ -39934,7 +40050,9 @@ function renderNavigationInternalPart(internalData, { areaMode = false } = {}) {
   if (content) {
     const preview = document.createElement("div");
     preview.className = "node-navigation-preview file-content-preview";
-    setMarkdownPreviewHtml(preview, content, { nodePath: getResolvedNodePath(activePath) });
+    const manifestPath = nodePath || getResolvedNodePath(activePath);
+    const linkBasePath = manifestPath ? resolveNodeSidecarRelPath(manifestPath, "content") : "";
+    setMarkdownPreviewHtml(preview, content, { linkBasePath: linkBasePath || manifestPath });
     body.appendChild(preview);
 
     const note = document.createElement("p");
@@ -46330,7 +46448,7 @@ async function renderNodeNavigation() {
   if (isStale()) return;
 
   if (isArea) {
-    const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true });
+    const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
     if (areaInternalPanel) hub.appendChild(areaInternalPanel);
   } else {
     const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
@@ -46354,7 +46472,7 @@ async function renderNodeNavigation() {
   if (!isArea) {
     const panels = [
       renderNavigationExternalPart(externalData),
-      renderNavigationInternalPart(internalData),
+      renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
       renderNavigationMediaPart(mediaData)
     ].filter(Boolean);
@@ -47384,6 +47502,21 @@ function getMarkdownIt() {
         token.attrSet("data-md-href", href);
         return defaultLinkOpen(tokens, idx, options, env, self);
       }
+      if (/^https?:\/\//i.test(href)) {
+        try {
+          const url = new URL(href, location.origin);
+          if (url.origin === location.origin) {
+            const route = parseAppRoute(url.pathname);
+            if (route.type !== "root" && route.type !== "legacy") {
+              token.attrJoin("class", "md-file-link");
+              token.attrSet("data-md-href", href);
+              return defaultLinkOpen(tokens, idx, options, env, self);
+            }
+          }
+        } catch {
+          // external link fallback below
+        }
+      }
       token.attrSet("target", "_blank");
       token.attrSet("rel", "noopener noreferrer");
     }
@@ -47673,10 +47806,15 @@ async function hydrateAwnFenceBlocks(rootNode) {
   }
 }
 
-function setMarkdownPreviewHtml(element, markdown, { nodePath } = {}) {
+function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath } = {}) {
   if (!element) return;
   const resolvedNodePath =
-    getPropsContextPath() || nodePath || getActiveTitleEditorPath() || getActiveNodeApiPath();
+    linkBasePath ||
+    getPropsContextPath() ||
+    nodePath ||
+    getActiveTitleEditorPath() ||
+    getActiveNodeApiPath();
+  element.dataset.linkBasePath = resolvedNodePath;
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
   applySyntaxHighlighting(element, { nodePath: resolvedNodePath });
   void typesetMarkdownDiagrams(element);
@@ -47915,11 +48053,14 @@ function initPreviewWikilinkNavigation(root) {
     event.preventDefault();
     const path = link.dataset.nodePath;
     if (path) {
-      void openNodeFromMenu(getLabelFromPath(path), path);
+      void openMarkdownLinkNodePath(path);
       return;
     }
     const href = link.dataset.mdHref;
-    if (href) void openMarkdownLinkTarget(href);
+    if (href) {
+      const sourcePath = root.dataset.linkBasePath || getCurrentEditorLinkBasePath();
+      void openMarkdownLinkTarget(href, sourcePath);
+    }
   });
 }
 
@@ -48686,29 +48827,54 @@ function isPlainTextLikeClipboardHtml(html) {
   return stripped.length === 0;
 }
 
+function isRichClipboardHtml(html) {
+  const raw = String(html || "").trim();
+  if (!raw) return false;
+  return /<(table|thead|tbody|tr|td|th|img|video|iframe|svg|figure)\b/i.test(raw);
+}
+
+function preservePlainTextLineBreaksForMarkdown(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!normalized.includes("\n")) return normalized;
+
+  const lines = normalized.split("\n");
+  const paragraphs = [];
+  let current = [];
+
+  const flush = () => {
+    if (!current.length) return;
+    if (current.length === 1) {
+      paragraphs.push(current[0]);
+    } else {
+      paragraphs.push(
+        current.map((line, index) => (index < current.length - 1 ? `${line}  ` : line)).join("\n")
+      );
+    }
+    current = [];
+  };
+
+  for (const line of lines) {
+    if (line.trim() === "") flush();
+    else current.push(line.replace(/\s+$/, ""));
+  }
+  flush();
+
+  let result = paragraphs.join("\n\n");
+  if (normalized.endsWith("\n") && !result.endsWith("\n")) result += "\n";
+  return result;
+}
+
 function shouldImportPlainTextAsMarkdown(plain, html) {
-  const text = String(plain || "");
-  if (!text.trim()) return false;
-  if (text.includes("\n") && (isTrivialWysiwygClipboardHtml(html) || isPlainTextLikeClipboardHtml(html))) {
-    return true;
-  }
-  if (!text.includes("\n")) return false;
-  if (!isTrivialWysiwygClipboardHtml(html) && !isPlainTextLikeClipboardHtml(html)) return false;
-  if (/^#{1,6}\s/m.test(text)) return true;
-  if (/```/.test(text)) return true;
-  if (/^\s*[-*+]\s/m.test(text)) return true;
-  if (/^\s*\d+\.\s/m.test(text)) return true;
-  if (
-    /^\s*#/.test(text) &&
-    /(\||`|\$\(|\bgrep\b|\bpkill\b|\bsleep\b|\bnohup\b|\bps aux\b)/im.test(text)
-  ) {
-    return true;
-  }
-  return false;
+  const text = String(plain || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!text.trim() || !text.includes("\n")) return false;
+  if (isRichClipboardHtml(html)) return false;
+  if (isTrivialWysiwygClipboardHtml(html) || isPlainTextLikeClipboardHtml(html)) return true;
+  // Multiline plain text: Toast UI HTML paste collapses single line breaks.
+  return true;
 }
 
 function normalizeWysiwygPasteSnippet(plain) {
-  const text = String(plain || "");
+  const text = String(plain || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const trimmed = text.replace(/\s+$/, "");
   const shellBodyPattern = /(\bpkill\b|\bgrep\b|\bnohup\b|\bps aux\b|\bsleep\b)/im;
   const headingThenShell = trimmed.match(/^(#{1,6}\s+.+)\n\s*\n([\s\S]+)$/);
@@ -48719,7 +48885,8 @@ function normalizeWysiwygPasteSnippet(plain) {
   if (/^\s*#/.test(trimmed) && shellBodyPattern.test(trimmed)) {
     return `\`\`\`bash\n${trimmed}\n\`\`\`\n`;
   }
-  return text.endsWith("\n") ? text : `${text}\n`;
+  const preserved = preservePlainTextLineBreaksForMarkdown(trimmed);
+  return preserved.endsWith("\n") ? preserved : `${preserved}\n`;
 }
 
 function bindWysiwygPasteHandler() {
@@ -54300,7 +54467,7 @@ async function loadContentByMode(options = {}) {
       if (topicSchemaActiveTarget === "topic") {
         syncTopicSchemaActiveTargetToStorageSlot();
       }
-      await loadTopicSchemaForManifest(activePath, { force: true });
+      await loadTopicSchemaForManifest(activePath, { force: true, topicOnly: true });
       fileContentInputNode.value = "";
       applyModeUi();
       renderTopicSchemaEditor();
@@ -54962,6 +55129,11 @@ async function loadPropertiesForActivePath() {
   }
   if (isMediaAssetEditing()) {
     return;
+  }
+  const manifestPath = getTopicSchemaManifestPath();
+  const contentPath = getSchemaContentPathForContext();
+  if (manifestPath && contentPath) {
+    await loadTopicSchemaForManifest(manifestPath, { contentPath, force: true }).catch(() => null);
   }
   try {
     const response = await fetch(buildApiUrl("/api/file/properties", { path: getPropertiesApiPath() }));
@@ -59477,6 +59649,7 @@ function syncAppHomeButton() {
 function hideAllAgentCanvasPanes() {
   homePaneNode?.classList.add("hidden");
   home2PaneNode?.classList.add("hidden");
+  notFoundPaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
   agentBrokenLinksPaneNode?.classList.add("hidden");
@@ -59514,7 +59687,7 @@ function showAppLandingView(hint = "") {
   activeAgentId = null;
   resetGitWorkspaceViewToDefault();
   appRootNode.classList.add("app-landing-view");
-  appRootNode.classList.remove("home-view", "system-file-view");
+  appRootNode.classList.remove("home-view", "system-file-view", "not-found-view");
   hideContentSearchResults();
   if (contentSearchInputNode) contentSearchInputNode.value = "";
   clearSystemFileViewUi();
@@ -59562,7 +59735,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
   appRootNode.classList.add("home-view");
-  appRootNode.classList.remove("system-file-view");
+  appRootNode.classList.remove("system-file-view", "not-found-view");
   clearSystemFileViewUi();
   if (homeHintNode) {
     homeHintNode.textContent = hint;
@@ -59580,6 +59753,44 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   syncAppRouteToUrl({ replace: true });
 }
 
+function formatNotFoundRequestPath(requestedPath = "") {
+  const raw = String(requestedPath || "").trim();
+  if (raw) {
+    if (raw.startsWith("/")) return raw;
+    return `/${raw.replace(/^\/+/, "")}`;
+  }
+  return `${location.pathname}${location.search}${location.hash}`;
+}
+
+function showNotFoundView(requestedPath = "") {
+  hideAppLandingView();
+  hideContentLoading({ force: true });
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  applyNodeWorkspaceViewUi();
+  activePath = null;
+  activeLabel = null;
+  clearActiveSystemFile();
+  activeExternalFilePath = null;
+  clearMediaSidecarEditor();
+  appRootNode.classList.add("not-found-view");
+  appRootNode.classList.remove("home-view", "system-file-view");
+  clearSystemFileViewUi();
+  hideAllAgentCanvasPanes();
+  notFoundPaneNode?.classList.remove("hidden");
+  if (notFoundPathNode) {
+    notFoundPathNode.textContent = formatNotFoundRequestPath(requestedPath);
+  }
+  titleInputNode.value = "";
+  fileContentInputNode.value = "";
+  setPropsYamlContent("");
+  fileContentInputNode.readOnly = false;
+  updateActiveButton();
+  syncAppHomeButton();
+  updateBreadcrumbsForActiveMode();
+  updateWorkspaceShareLinkButton();
+}
+
 function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   if (!activeAgentId) {
     showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
@@ -59590,7 +59801,7 @@ function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
 
 function hideHomeView() {
   hideAppLandingView();
-  appRootNode.classList.remove("home-view");
+  appRootNode.classList.remove("home-view", "not-found-view");
   hideAllAgentCanvasPanes();
   syncAppHomeButton();
 }
@@ -61910,6 +62121,18 @@ updateContentSearchPlaceholder();
 appHomeLink?.addEventListener("click", (event) => {
   event.preventDefault();
   showAppLandingView();
+});
+
+notFoundHomeBtn?.addEventListener("click", () => {
+  showHomeView();
+});
+
+notFoundBackBtn?.addEventListener("click", () => {
+  if (history.length > 1) {
+    history.back();
+    return;
+  }
+  showHomeView();
 });
 
 appLandingManageBtn?.addEventListener("click", () => {

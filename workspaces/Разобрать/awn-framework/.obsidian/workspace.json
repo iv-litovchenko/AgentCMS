@@ -11,10 +11,14 @@
             "id": "384dc149335fc4b1",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "00_Documentation/ideas/chatgpt/AGENTS.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "Новая вкладка"
+              "title": "AGENTS"
             }
           }
         ]
@@ -177,5 +181,23 @@
     }
   },
   "active": "384dc149335fc4b1",
-  "lastOpenFiles": []
+  "lastOpenFiles": [
+    "00_Documentation/ideas/qwen/finance-tracker.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🔗 link.manager.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/⚙️ system.loader.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧠 memory.manager.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧠 self.identity.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧩 core.node.md.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧩 node.architecture.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧪 knowledge.builder.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧭 context.interpreter.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🧹 system.refactor.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🚀 evolution.engine.node.md",
+    "00_Documentation/ideas/chatgpt/nodes/🛠 task.executor.node.md",
+    "00_Documentation/ideas/chatgpt/nodes-other/🔁 action.loop.node.md",
+    "00_Documentation/ideas/chatgpt/nodes-other/📥 inbox.node.md",
+    "00_Documentation/ideas/chatgpt/nodes-other/⚖️ decision.engine.node.md",
+    "00_Documentation/ideas/deepseek/AGENTS.md",
+    "00_Documentation/ideas/gemini/AGENTS.md.md"
+  ]
 }

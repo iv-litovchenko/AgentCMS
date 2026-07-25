@@ -153,6 +153,7 @@ module.exports = {
   resolveConfigurationSchemaAbsolute,
   toTopicConfigurationSchemaRel,
   extractAwnSchemaFromConfigurationSchemaContent,
+  mergeAwnSchemaLayers,
   readTopicOnlyAwnSchema,
   readEffectiveTopicAwnSchema,
   readWorkspaceLayerAwnSchema,

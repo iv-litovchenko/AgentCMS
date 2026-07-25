@@ -2,10 +2,9 @@
 2. ЧПУ (и все же мы соатвляем  agent-*...) - помоему это не корректно
 3. Загрузка больших объемов файлов типа слайдера в `медцентре`
 
-![20260725154948](awn-storage/assets/pasted/20260725154948.png)**Корзина**
+![20260725154948](awn-storage/assets/pasted/20260725154948.png)Корзина
 awn-recycle-path-origin
 awn-recycle-date
-
 пароли
 
 **Тест схемы и конфигурации**
@@ -17,14 +16,3 @@ awn-recycle-date
 
 agent-cms-test у нас ничего нет жестко заточенного на этого агента
 если я удалить его решу ничего не сломается?
-
-```
-npm run start:https
-
-cd ~/Desktop/YamlCMS  Запустите CMS...
-
-HOST=0.0.0.0 npm start
-
-ipconfig getifaddr end
-http://192.168.0.102:3000/shell/mobile/index.html
-```
