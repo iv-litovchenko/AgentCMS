@@ -22139,6 +22139,7 @@ button.node-navigation-memory-title:focus-visible {
 .field-label-icon--runtime-cron,
 .field-label-icon--runtime-cron-schedule,
 .field-label-icon--runtime-heartbeat,
+.field-label-icon--runtime-commands,
 .field-label-icon--runtime-load-always {
   display: inline-flex;
   align-items: center;
@@ -22166,6 +22167,12 @@ button.node-navigation-memory-title:focus-visible {
   color: #be123c;
   background: #ffe4e6;
   border: 1px solid rgba(251, 113, 133, 0.45);
+}
+
+.field-label-icon--runtime-commands {
+  color: #047857;
+  background: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.45);
 }
 
 .field-label-icon .menu-runtime-marker-svg {

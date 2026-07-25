@@ -1447,29 +1447,24 @@ async function applyChpuResolvedRoute(resolved) {
       return;
     }
 
-    if (hasPreview) {
+    if (resolved.kind === "record") {
+      const hasEdit = uiViews.includes("edit");
+      if (hasEdit) {
+        if (contentMode === "external") {
+          await openExternalFile(relInSlot, { skipRouteSync: true });
+          return;
+        }
+        if (contentMode === "media") {
+          if (/\.md$/i.test(relInSlot)) {
+            await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
+          } else {
+            await openMediaSidecar(relInSlot, { skipRouteSync: true });
+          }
+          return;
+        }
+      }
       await openEntryOverviewFromResolvedRecord(resolved, contentMode);
       return;
-    }
-
-    const recordPath = relInSlot.replace(/\.md$/i, "");
-    if (contentMode === "external") {
-      await openExternalFile(relInSlot, { skipRouteSync: true });
-      return;
-    }
-    if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
-      openFlatStorageRecordOverviewFromNavigation(
-        { path: recordPath, title: recordPath.split("/").pop() || recordPath },
-        contentMode
-      );
-      return;
-    }
-    if (contentMode === "media") {
-      if (/\.md$/i.test(relInSlot)) {
-        await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
-      } else {
-        await openMediaSidecar(relInSlot, { skipRouteSync: true });
-      }
     }
   }
 }
@@ -1548,13 +1543,17 @@ function getChpuWorkspacePathFromState() {
 
   if (activeContentMode === "external" && activeExternalFilePath) {
     const filePath = String(activeExternalFilePath).replace(/\\/g, "/").replace(/\.md$/i, "");
-    return `${topicRoute}/awn-storage/main/${filePath}`;
+    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/main/${filePath}`, "edit", {
+      force: true
+    });
   }
 
   if (isMediaLibraryContentMode() && (activeMediaSidecarSourcePath || activeMediaMarkdownPath)) {
     const mediaFile = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath).replace(/\\/g, "/");
     const baseName = mediaFile.replace(/\.sidecar\.md$/i, "").replace(/\.md$/i, "");
-    return `${topicRoute}/awn-storage/media/${baseName}`;
+    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/media/${baseName}`, "edit", {
+      force: true
+    });
   }
 
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
