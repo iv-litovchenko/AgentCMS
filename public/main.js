@@ -106,6 +106,8 @@ const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitCreateBtn = document.getElementById("app-landing-orbit-create-btn");
 const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
+const appLandingSearchSpinnerNode = document.getElementById("app-landing-search-spinner");
+const appLandingSearchBarNode = document.querySelector(".app-landing-search-bar");
 const appLandingSearchScopeNode = document.getElementById("app-landing-search-scope");
 const appLandingSearchResultsNode = document.getElementById("app-landing-search-results");
 const appLandingSearchAgentsNode = document.getElementById("app-landing-search-agents");
@@ -114,6 +116,8 @@ const appLandingSearchAgentsNoneBtn = document.getElementById("app-landing-searc
 const appLandingSearchAgentsActiveBtn = document.getElementById("app-landing-search-agents-active");
 const menuSearchInputNode = document.getElementById("menu-search-input");
 const contentSearchInputNode = document.getElementById("content-search-input");
+const contentSearchSpinnerNode = document.getElementById("content-search-spinner");
+const contentSearchBarNode = document.querySelector(".content-search-bar");
 const contentSearchScopeNode = document.getElementById("content-search-scope");
 const contentSearchTypeNode = document.getElementById("content-search-type");
 const contentSearchMatchNode = document.getElementById("content-search-match");
@@ -801,6 +805,18 @@ const MEDIA_ROUTE_LIST_VIEWS = new Set([
   "other"
 ]);
 
+const MEDIA_FILTER_CHPU_VIEWS = new Set([
+  "all",
+  "images",
+  "audio",
+  "video",
+  "documents",
+  "archives",
+  "other"
+]);
+
+const MEDIA_VIEW_MODE_STORAGE_KEY = "yamlcms.mediaViewMode";
+
 /**
  * CHPU UI-сегменты (~…) — только представление, не слоты.
  * Слоты всегда в path: …/awn-storage/{slot}/…
@@ -910,8 +926,61 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
 function normalizeChpuUiView(raw) {
   const key = String(raw || "").trim();
   if (!key) return null;
+  if (MEDIA_FILTER_CHPU_VIEWS.has(key)) return key;
   const aliased = CHPU_LEGACY_UI_ALIASES[key] || key;
   return CHPU_UI_VIEW_IDS.has(aliased) ? aliased : null;
+}
+
+function extractMediaFilterFromChpuViews(uiViews) {
+  for (const view of uiViews || []) {
+    if (MEDIA_FILTER_CHPU_VIEWS.has(view)) return view;
+  }
+  return null;
+}
+
+function getMediaViewModeStorageKey(nodePath = getActiveNodeApiPath()) {
+  const agentId = activeAgentId || "main";
+  const manifestPath = String(nodePath || "").replace(/\\/g, "/");
+  return `${MEDIA_VIEW_MODE_STORAGE_KEY}:${agentId}:${manifestPath}`;
+}
+
+function loadStoredMediaViewMode(nodePath = getActiveNodeApiPath()) {
+  try {
+    const stored = localStorage.getItem(getMediaViewModeStorageKey(nodePath));
+    return MEDIA_ROUTE_LIST_VIEWS.has(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredMediaViewMode(mode, nodePath = getActiveNodeApiPath()) {
+  if (!MEDIA_ROUTE_LIST_VIEWS.has(mode)) return;
+  try {
+    localStorage.setItem(getMediaViewModeStorageKey(nodePath), mode);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function getEffectiveMediaViewMode() {
+  if (activeMediaSectionFolder && mediaViewMode === "dashboard") return "all";
+  return mediaViewMode;
+}
+
+function appendChpuMediaFilterToPath(pathValue) {
+  if (!isMediaLibraryContentMode() || isMediaAssetEditing()) return pathValue;
+  if (!isChpuDataListShellMode("media")) return pathValue;
+  const mode = getEffectiveMediaViewMode();
+  if (!mode || mode === "dashboard") return pathValue;
+  if (mode === "all" && !activeMediaSectionFolder) return pathValue;
+  return appendChpuViewToWorkspacePath(pathValue, mode, { force: true });
+}
+
+function applyMediaFilterFromChpuViews(uiViews) {
+  const filter = extractMediaFilterFromChpuViews(uiViews);
+  if (!filter) return;
+  mediaViewMode = filter;
+  saveStoredMediaViewMode(filter);
 }
 
 function partitionChpuViews(rawViews) {
@@ -1450,6 +1519,7 @@ async function applyChpuResolvedRoute(resolved) {
     await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
 
     if (resolved.kind === "slotView") {
+      applyMediaFilterFromChpuViews(uiViews);
       if (!hasList) {
         openEntryOverviewMemoryTocFromNavigation(contentMode);
       }
@@ -1457,6 +1527,7 @@ async function applyChpuResolvedRoute(resolved) {
     }
 
     if (resolved.kind === "section") {
+      applyMediaFilterFromChpuViews(uiViews);
       const sectionFolder = getSectionFolderFromChpuResolved(resolved);
       if (hasList) {
         applyChpuSectionFolderSelection(contentMode, sectionFolder, { skipRouteSync: true });
@@ -1609,6 +1680,7 @@ function getChpuWorkspacePathFromState() {
       let slotPath = `${topicRoute}/awn-storage/${slotFolder}`;
       const sectionPath = getChpuActiveStorageSectionPath(activeContentMode);
       if (sectionPath) slotPath = `${slotPath}/${sectionPath}`;
+      slotPath = appendChpuMediaFilterToPath(slotPath);
       return suffix ? appendChpuViewToWorkspacePath(slotPath, suffix) : slotPath;
     }
   }
@@ -1780,6 +1852,8 @@ function setWorkspacePrintMode(active) {
   workspacePrintModeActive = Boolean(active);
   appRootNode?.classList.toggle("app-print-mode", workspacePrintModeActive);
   document.body.classList.toggle("app-print-mode", workspacePrintModeActive);
+  docBodyGridNode?.classList.toggle("is-print-layout", workspacePrintModeActive);
+  workspaceBodyNode?.classList.toggle("is-print-layout", workspacePrintModeActive);
   workspacePrintBtn?.classList.toggle("is-active", workspacePrintModeActive);
   workspacePrintBtn?.setAttribute("aria-pressed", workspacePrintModeActive ? "true" : "false");
   if (workspacePrintBtn) {
@@ -2083,11 +2157,13 @@ async function applyMediaRouteStateFromUrl(route) {
   } else if (activeMediaSectionFolder) {
     if (mediaViewMode === "dashboard") mediaViewMode = "all";
   } else {
-    mediaViewMode = "dashboard";
+    const stored = loadStoredMediaViewMode();
+    mediaViewMode = stored || "dashboard";
   }
+  saveStoredMediaViewMode(mediaViewMode);
   pruneActiveMediaSectionFolder();
   syncMediaViewSelectOptions();
-  if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+  if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
   applyModeUi();
   renderListViewContent();
 }
@@ -2991,6 +3067,17 @@ function resolveManifestPathForNodeApi(nodePath) {
 
 function getActiveNodeApiPath() {
   return resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
+}
+
+function getAgentWorkspaceRootManifestPath() {
+  const indexPath = normalizeMenuNodePath(currentMenuData?.indexPath || "");
+  if (indexPath && isNodeManifestPath(indexPath)) return indexPath;
+  return MANIFEST_FILE;
+}
+
+function getAttachmentUploadNodePath() {
+  if (activeSystemFile) return getAgentWorkspaceRootManifestPath();
+  return getActiveNodeApiPath();
 }
 
 function getOverviewNodeApiPath(nodePath = activePath) {
@@ -8344,6 +8431,8 @@ let lastNonTocEntryOverviewContext = null;
 
 const MEMORY_ENTRY_VIEW_OVERVIEW = "view";
 const MEMORY_ENTRY_VIEW_LIST = "list";
+/** Куда вернуться по «Закрыть» после редактирования записи: просмотр или список. */
+let memoryEntryCloseTargetView = null;
 
 const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.record": "Запись",
@@ -14193,43 +14282,131 @@ function returnToNodeNavigation() {
   setContentMode(NODE_NAVIGATION_MODE);
 }
 
+function isEditorDirty() {
+  return (
+    isEditorSaveTrackingActive() &&
+    savedEditorSnapshot !== null &&
+    getEditorSavePayload() !== savedEditorSnapshot
+  );
+}
+
+function confirmDiscardEditorChanges() {
+  if (!isEditorDirty()) return true;
+  return window.confirm("Есть несохранённые изменения. Закрыть без сохранения?");
+}
+
+function captureMemoryEntryCloseTargetView() {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    return MEMORY_ENTRY_VIEW_OVERVIEW;
+  }
+  if (isDataHubBundleSlotShellMode() && dataHubBundleEntryView === MEMORY_ENTRY_VIEW_OVERVIEW) {
+    return MEMORY_ENTRY_VIEW_OVERVIEW;
+  }
+  if (activeContentMode === "external" && !activeExternalFilePath) {
+    return MEMORY_ENTRY_VIEW_LIST;
+  }
+  if (isMediaLibraryContentMode() && !isMediaAssetEditing()) {
+    return MEMORY_ENTRY_VIEW_LIST;
+  }
+  if (lastNonTocEntryOverviewContext) {
+    return MEMORY_ENTRY_VIEW_OVERVIEW;
+  }
+  return MEMORY_ENTRY_VIEW_LIST;
+}
+
+function assignMemoryEntryCloseTargetView(value) {
+  memoryEntryCloseTargetView = value === MEMORY_ENTRY_VIEW_LIST ? MEMORY_ENTRY_VIEW_LIST : MEMORY_ENTRY_VIEW_OVERVIEW;
+}
+
+function buildEntryOverviewContextFromExternalPath(filePath) {
+  const rel = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const relPath = getExternalItemContextPath({ path: rel });
+  return {
+    relPath,
+    memoryKind: "external",
+    relativePath: rel,
+    title: rel.split("/").pop() || rel,
+    entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: "external" }),
+    status: ""
+  };
+}
+
+function buildEntryOverviewContextFromMediaPath(filePath) {
+  const rel = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const relPath = getMediaItemContextPath(rel);
+  const isMarkdown = /\.md$/i.test(rel);
+  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: "media" });
+  if (!isMarkdown) entryKind = "awn.media.asset";
+  return {
+    relPath,
+    memoryKind: "media",
+    relativePath: rel,
+    title: rel.split("/").pop() || rel,
+    entryKind,
+    status: ""
+  };
+}
+
+async function closeExternalFileEditorToTargetView() {
+  const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
+  const closingFile = activeExternalFilePath;
+  memoryEntryCloseTargetView = null;
+  activeExternalFilePath = null;
+  setPropsYamlContent("");
+  titleInputNode.value = "";
+  syncPropsInputPlaceholder();
+  editorViewMode = "preview";
+
+  if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW) {
+    syncAppRouteToUrl({ replace: true });
+    const context =
+      lastNonTocEntryOverviewContext?.memoryKind === "external"
+        ? lastNonTocEntryOverviewContext
+        : buildEntryOverviewContextFromExternalPath(closingFile);
+    await openEntryOverviewFromNavigation(context);
+    return;
+  }
+
+  await refreshExternalFileListView();
+}
+
+async function closeMediaSidecarEditorToTargetView() {
+  const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
+  const sourceFile = activeMediaSidecarSourcePath || activeMediaMarkdownPath;
+  memoryEntryCloseTargetView = null;
+  clearMediaSidecarEditor();
+  fileContentInputNode.value = "";
+
+  if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && sourceFile) {
+    syncAppRouteToUrl({ replace: true });
+    const context =
+      lastNonTocEntryOverviewContext?.memoryKind === "media"
+        ? lastNonTocEntryOverviewContext
+        : buildEntryOverviewContextFromMediaPath(sourceFile);
+    await openEntryOverviewFromNavigation(context);
+    return;
+  }
+
+  applyModeUi();
+  renderListViewContent();
+  updateBreadcrumbsForActiveMode();
+  syncAppRouteToUrl({ replace: true });
+}
+
 function handleWorkspaceCloseClick() {
+  if (!confirmDiscardEditorChanges()) return;
+
   if (isMediaAssetEditing()) {
-    closeMediaSidecarEditor();
+    void closeMediaSidecarEditorToTargetView();
     return;
   }
   if (isExternalFileEditing()) {
-    closeExternalFileEditor();
+    void closeExternalFileEditorToTargetView();
     return;
   }
   if (isDataHubBundleSlotShellMode()) {
-    if (
-      isDataHubBundleEditorMode() &&
-      getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO &&
-      activeContentMode === "todo" &&
-      isEditorSaveTrackingActive()
-    ) {
-      const dirty =
-        savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
-      if (dirty) {
-        void saveContent().then(() => closeDataHubBundleEditor());
-        return;
-      }
-    }
     closeDataHubBundleEditor();
     return;
-  }
-  if (
-    getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO &&
-    activeContentMode === "todo" &&
-    isEditorSaveTrackingActive()
-  ) {
-    const dirty =
-      savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
-    if (dirty) {
-      void saveContent().then(() => returnToNodeNavigation());
-      return;
-    }
   }
   returnToNodeNavigation();
 }
@@ -14253,16 +14430,13 @@ function syncWorkspaceCloseButtonsVisibility() {
     bundleSlotShellMode;
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
-  const backToList = mediaSidecarEditing || externalEditing;
   const labelNode = nodeWorkspaceCloseBtn?.querySelector(".workspace-toolbar-btn-label");
   if (labelNode) {
-    labelNode.textContent = backToList ? "К списку" : "Закрыть";
+    labelNode.textContent = "Закрыть";
   }
   if (nodeWorkspaceCloseBtn) {
-    nodeWorkspaceCloseBtn.title = backToList
-      ? "Вернуться к списку"
-      : "Закрыть — вернуться к навигации";
-    nodeWorkspaceCloseBtn.setAttribute("aria-label", backToList ? "К списку" : "Закрыть");
+    nodeWorkspaceCloseBtn.title = "Закрыть";
+    nodeWorkspaceCloseBtn.setAttribute("aria-label", "Закрыть");
   }
 }
 
@@ -15062,8 +15236,22 @@ function updateContentSearchPlaceholder() {
   contentSearchInputNode.placeholder = "Найти файл или текст...";
 }
 
+function getSearchResultTitle(item) {
+  if (item?.titleName) return item.titleName;
+  if (item?.awnName) {
+    const fileStem = String(item.fileName || item.externalFile || item.filePath || "")
+      .split("/")
+      .pop()
+      .replace(/\.(sidecar\.)?md$/i, "")
+      .replace(/\.[^./]+$/i, "");
+    return resolveNodeDisplayName(item.awnName, fileStem);
+  }
+  return getSearchResultDisplayName(item);
+}
+
 function getSearchResultDisplayName(item) {
   return (
+    item?.titleName ||
     item?.displayName ||
     (item?.externalFile ? String(item.externalFile).split("/").pop() : "") ||
     (item?.filePath ? String(item.filePath).split("/").pop() : "") ||
@@ -15113,7 +15301,7 @@ function buildContentSearchResultItem(item, query, { showAgent = false, showFile
 
   const titleNode = document.createElement("span");
   titleNode.className = "content-search-item-name";
-  titleNode.textContent = item.displayName || item.titleName || getSearchResultDisplayName(item);
+  titleNode.textContent = getSearchResultTitle(item);
   titleRow.appendChild(titleNode);
 
   const badges = document.createElement("span");
@@ -15172,7 +15360,7 @@ function buildContentSearchResultItem(item, query, { showAgent = false, showFile
   main.appendChild(pathNode);
 
   const snippetText = item.snippet;
-  const titleText = item.displayName || item.titleName || getSearchResultDisplayName(item);
+  const titleText = getSearchResultTitle(item);
   if (snippetText && snippetText !== titleText && snippetText !== item.fileName) {
     const snippetNode = document.createElement("div");
     snippetNode.className = "content-search-item-snippet";
@@ -15186,8 +15374,44 @@ function buildContentSearchResultItem(item, query, { showAgent = false, showFile
 }
 
 function hideContentSearchResults() {
+  setContentSearchLoading(false);
   contentSearchResultsNode?.classList.add("hidden");
   contentSearchInputNode?.setAttribute("aria-expanded", "false");
+}
+
+function buildContentSearchLoadingMarkup() {
+  return `<div class="content-search-loading" role="status" aria-live="polite">
+    <span class="content-search-loading-spinner" aria-hidden="true"></span>
+    <span class="content-search-loading-text">Ищем…</span>
+  </div>`;
+}
+
+function setContentSearchLoading(loading) {
+  const active = Boolean(loading);
+  contentSearchSpinnerNode?.classList.toggle("hidden", !active);
+  contentSearchBarNode?.classList.toggle("is-loading", active);
+  contentSearchInputNode?.setAttribute("aria-busy", active ? "true" : "false");
+}
+
+function renderContentSearchLoading() {
+  if (!contentSearchResultsNode) return;
+  contentSearchResultsNode.innerHTML = buildContentSearchLoadingMarkup();
+  contentSearchResultsNode.classList.remove("hidden");
+  contentSearchInputNode?.setAttribute("aria-expanded", "true");
+}
+
+function setLandingSearchLoading(loading) {
+  const active = Boolean(loading);
+  appLandingSearchSpinnerNode?.classList.toggle("hidden", !active);
+  appLandingSearchBarNode?.classList.toggle("is-loading", active);
+  appLandingSearchInputNode?.setAttribute("aria-busy", active ? "true" : "false");
+}
+
+function renderLandingSearchLoading() {
+  if (!appLandingSearchResultsNode) return;
+  appLandingSearchResultsNode.innerHTML = buildContentSearchLoadingMarkup();
+  appLandingSearchResultsNode.classList.remove("hidden");
+  appLandingSearchInputNode?.setAttribute("aria-expanded", "true");
 }
 
 function highlightSearchSnippet(snippet, query) {
@@ -15199,6 +15423,7 @@ function highlightSearchSnippet(snippet, query) {
 
 function renderContentSearchResults(data) {
   if (!contentSearchResultsNode) return;
+  setContentSearchLoading(false);
   const query = data?.query || "";
   const scope = data?.scope || getContentSearchScope();
   const results = Array.isArray(data?.results) ? data.results : [];
@@ -15260,15 +15485,20 @@ function scheduleContentSearch() {
   const requestId = ++contentSearchRequestId;
 
   if (!query) {
+    setContentSearchLoading(false);
     hideContentSearchResults();
     return;
   }
 
+  setContentSearchLoading(false);
   contentSearchTimer = setTimeout(async () => {
     if (query.length < minLength) {
       renderContentSearchResults({ query, scope, fileType, match, results: [] });
       return;
     }
+
+    setContentSearchLoading(true);
+    renderContentSearchLoading();
 
     try {
       const data = await fetchContentSearch(query, scope, fileType, match);
@@ -15276,6 +15506,7 @@ function scheduleContentSearch() {
       renderContentSearchResults(data);
     } catch {
       if (requestId !== contentSearchRequestId) return;
+      setContentSearchLoading(false);
       contentSearchResultsNode.innerHTML = `<div class="content-search-empty">Ошибка поиска</div>`;
       contentSearchResultsNode.classList.remove("hidden");
     }
@@ -15440,6 +15671,7 @@ function updateLandingSearchPlaceholder() {
 }
 
 function hideLandingSearchResults() {
+  setLandingSearchLoading(false);
   appLandingSearchResultsNode?.classList.add("hidden");
   appLandingSearchInputNode?.setAttribute("aria-expanded", "false");
 }
@@ -15526,6 +15758,7 @@ function renderLandingSearchAgents() {
 
 function renderLandingSearchResults(data) {
   if (!appLandingSearchResultsNode) return;
+  setLandingSearchLoading(false);
   const query = data?.query || "";
   const scope = data?.scope || getLandingSearchScope();
   const results = Array.isArray(data?.results) ? data.results : [];
@@ -15588,15 +15821,20 @@ function scheduleLandingSearch() {
   const requestId = ++landingSearchRequestId;
 
   if (!query) {
+    setLandingSearchLoading(false);
     hideLandingSearchResults();
     return;
   }
 
+  setLandingSearchLoading(false);
   landingSearchTimer = setTimeout(async () => {
     if (query.length < minLength || getLandingSearchSelectedAgentIds().length === 0) {
       renderLandingSearchResults({ query, scope, results: [] });
       return;
     }
+
+    setLandingSearchLoading(true);
+    renderLandingSearchLoading();
 
     try {
       const data = await fetchLandingGlobalSearch(query, scope);
@@ -15604,6 +15842,7 @@ function scheduleLandingSearch() {
       renderLandingSearchResults(data);
     } catch {
       if (requestId !== landingSearchRequestId) return;
+      setLandingSearchLoading(false);
       appLandingSearchResultsNode.innerHTML = `<div class="content-search-empty">Ошибка поиска</div>`;
       appLandingSearchResultsNode.classList.remove("hidden");
     }
@@ -19798,6 +20037,9 @@ function buildMarkdownAttachmentRef(relativeAssetsPath, _nodePath) {
 }
 
 function getUploadStorageContextPath() {
+  if (activeSystemFile) {
+    return getAgentWorkspaceRootManifestPath();
+  }
   return getPropsContextPath() || getResolvedNodePath(activePath || getActiveNodeApiPath());
 }
 
@@ -19883,6 +20125,9 @@ function isStorageLayerEditorPath(relPath) {
 }
 
 function getMarkdownAssetSourcePath(nodePath) {
+  if (activeSystemFile) {
+    return getAgentWorkspaceRootManifestPath();
+  }
   const propsContext = String(getPropsContextPath() || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const explicit = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
 
@@ -20367,7 +20612,11 @@ function extractImageFileFromDataTransfer(dataTransfer) {
 }
 
 function canPasteMarkdownAttachment() {
-  if (!activePath || activeSystemFile) return false;
+  if (!activePath && !activeSystemFile) return false;
+  if (activeSystemFile) {
+    if (!isSystemFileEditing()) return false;
+    if (!isSystemFileMd(activeSystemFile)) return false;
+  }
   if (isCurrentModeReadOnly()) return false;
   if (isCurrentModeListTemplate()) return false;
   if (editorViewMode === "preview") return false;
@@ -20621,9 +20870,7 @@ function setupEditorAsideSelectionCapture() {
 
 function getEditorScrollSnapshot() {
   const ta = fileContentInputNode;
-  const wysiwygScrollEl =
-    editorWysiwygWrapNode?.querySelector(".toastui-editor-contents") ||
-    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const wysiwygScrollEl = getWysiwygScrollElement();
   const workspaceBody = document.querySelector(".workspace-body");
   return {
     textareaScrollTop: ta?.scrollTop ?? 0,
@@ -20636,9 +20883,7 @@ function getEditorScrollSnapshot() {
 function restoreEditorScrollSnapshot(snapshot) {
   if (!snapshot) return;
   const ta = fileContentInputNode;
-  const wysiwygScrollEl =
-    editorWysiwygWrapNode?.querySelector(".toastui-editor-contents") ||
-    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const wysiwygScrollEl = getWysiwygScrollElement();
   const workspaceBody = document.querySelector(".workspace-body");
   if (ta) ta.scrollTop = snapshot.textareaScrollTop;
   if (wysiwygScrollEl) wysiwygScrollEl.scrollTop = snapshot.wysiwygScrollTop;
@@ -20994,7 +21239,7 @@ function buildWysiwygHighlightToolbarItem() {
 async function uploadMediaAttachment(
   file,
   {
-    nodePath = getActiveNodeApiPath(),
+    nodePath = getAttachmentUploadNodePath(),
     subdir = null,
     inlinePaste = false,
     pastedNaming = false,
@@ -21002,8 +21247,9 @@ async function uploadMediaAttachment(
   } = {}
 ) {
   if (!file) return null;
-  if (!nodePath) {
-    throw new Error("Сначала откройте тему");
+  const resolvedNodePath = nodePath || getAttachmentUploadNodePath();
+  if (!resolvedNodePath) {
+    throw new Error(activeSystemFile ? "Не удалось определить workspace для служебного файла" : "Сначала откройте тему");
   }
   const usePastedNaming = inlinePaste || pastedNaming;
   const effectiveSubdir = inlinePaste
@@ -21015,7 +21261,7 @@ async function uploadMediaAttachment(
   const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: usePastedNaming });
   const data = await readFileAsBase64(normalizedFile);
   const uploadManifestPath = getUploadStorageContextPath();
-  const uploadNodePath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  const uploadNodePath = resolveManifestPathForNodeApi(getResolvedNodePath(resolvedNodePath) || resolvedNodePath);
   const response = await fetch(buildApiUrl("/api/media/file"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -21886,7 +22132,7 @@ function formatMediaViewSelectLabel(mode) {
 
 function syncMediaViewSelectOptions() {
   if (!mediaViewSelectNode) return;
-  const currentValue = mediaViewMode;
+  const currentValue = getEffectiveMediaViewMode();
   for (const option of mediaViewSelectNode.options) {
     if (option.disabled || option.value === "sep") continue;
     const label = formatMediaViewSelectLabel(option.value);
@@ -21914,13 +22160,17 @@ function setActiveMediaSectionFolder(folderName, { rerender = true, skipRouteSyn
   if (next === activeMediaSectionFolder) {
     syncMediaSectionTreeActiveState();
     syncMediaViewSelectOptions();
-    if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+    if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
     return;
   }
   activeMediaSectionFolder = next;
+  if (activeMediaSectionFolder && mediaViewMode === "dashboard") {
+    mediaViewMode = "all";
+    saveStoredMediaViewMode(mediaViewMode);
+  }
   syncMediaSectionTreeActiveState();
   syncMediaViewSelectOptions();
-  if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+  if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
   if (rerender) rerenderMediaListViewBody();
   updateBreadcrumbsForActiveMode();
   if (!skipRouteSync) syncAppRouteToUrl({ push: true });
@@ -21935,13 +22185,14 @@ function setMediaViewMode(mode, { rerender = true, skipRouteSync = false, clearS
   if (unchanged) {
     syncMediaSectionTreeActiveState();
     syncMediaViewSelectOptions();
-    if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+    if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
     return;
   }
 
   mediaViewMode = mode;
+  saveStoredMediaViewMode(mode);
   if (clearsSection) activeMediaSectionFolder = null;
-  if (mediaViewSelectNode) mediaViewSelectNode.value = mode;
+  if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
   syncMediaSectionTreeActiveState();
   syncMediaViewSelectOptions();
   if (rerender) rerenderMediaListViewBody();
@@ -22697,24 +22948,26 @@ function renderMediaListViewBody(container) {
   }
   pruneActiveMediaSectionFolder();
   syncMediaViewSelectOptions();
+  if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
+  const viewMode = getEffectiveMediaViewMode();
   const mediaTree = getMediaSectionTreeNode();
   if (mediaTree) ensureMediaSectionTree(mediaTree);
   syncStorageSectionsPanelUi();
   syncMediaListSectionHead(isStorageSectionsPanelVisible() ? activeMediaSectionFolder : null);
-  if (mediaViewMode === "dashboard" && (!activeMediaSectionFolder || !isStorageSectionsPanelVisible())) {
+  if (viewMode === "dashboard" && (!activeMediaSectionFolder || !isStorageSectionsPanelVisible())) {
     renderMediaUsageDashboard(container);
     return;
   }
   if (isStorageSectionsPanelVisible() && activeMediaSectionFolder) {
-    if (mediaViewMode === "all") {
+    if (viewMode === "all") {
       renderMediaSectionFolderView(container, activeMediaSectionFolder);
       return;
     }
-    renderMediaFilteredView(container);
+    renderMediaFilteredView(container, viewMode);
     return;
   }
-  if (mediaViewMode !== "all") {
-    renderMediaFilteredView(container);
+  if (viewMode !== "all") {
+    renderMediaFilteredView(container, viewMode);
     return;
   }
   renderMediaAllFilesSections(container);
@@ -22861,6 +23114,15 @@ function getExternalItemContextPath(item, nodePath = activePath) {
   const base = getResolvedNodePath(nodePath);
   if (!rel) return getNodeStorageSubfolderPath(base, "external");
   return `${getNodeStorageSubfolderPath(base, "external")}/${rel}`.replace(/\/+/g, "/");
+}
+
+function normalizeExternalMemoryMdRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return "";
+  if (/\.md$/i.test(normalized)) return normalized;
+  const baseName = normalized.split("/").pop() || "";
+  if (/\.[a-z0-9]+$/i.test(baseName)) return normalized;
+  return `${normalized}.md`;
 }
 
 function resolveExternalItemPreviewUi(item, nodePath = activePath) {
@@ -23705,7 +23967,79 @@ function getExternalChildSections(sectionFolder) {
     .sort((a, b) => collator.compare(a.label, b.label));
 }
 
+let entryOverviewExternalCreateActive = false;
+let entryOverviewExternalCreateParentOverride = null;
+
+function isEntryOverviewExternalMemory(context = activeEntryOverviewContext) {
+  return (
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
+    context?.memoryKind === "external" &&
+    Boolean(activePath)
+  );
+}
+
+function resolveEntryOverviewExternalCreateParent(context = activeEntryOverviewContext) {
+  if (!context) return null;
+  if (isEntryOverviewMemoryTocRoot(context)) return null;
+  const sectionFolder = getEntryOverviewSectionFolderPath(context);
+  if (sectionFolder) return sectionFolder;
+  const parentFolder = getEntryOverviewParentFolderPath(context);
+  return parentFolder || null;
+}
+
+function beginEntryOverviewExternalCreate(context = activeEntryOverviewContext) {
+  entryOverviewExternalCreateActive = true;
+  entryOverviewExternalCreateParentOverride = resolveEntryOverviewExternalCreateParent(context);
+}
+
+function endEntryOverviewExternalCreate() {
+  entryOverviewExternalCreateActive = false;
+  entryOverviewExternalCreateParentOverride = null;
+}
+
+function canCreateExternalMemoryNow() {
+  if (!activePath) return false;
+  if (activeContentMode === "external" && !activeExternalFilePath) return true;
+  return isEntryOverviewExternalMemory();
+}
+
+function canCreateExternalSectionNow() {
+  if (!activePath) return false;
+  if (activeContentMode === "external" && !activeExternalFilePath) return true;
+  return isEntryOverviewExternalMemory();
+}
+
+async function refreshAfterExternalWorkspaceCreate({ openForEdit = false } = {}) {
+  const fromEntryOverview = isEntryOverviewExternalMemory();
+  endEntryOverviewExternalCreate();
+  try {
+    await refreshExternalMemoryCaches();
+  } catch {
+    // ignore cache refresh errors in overview create flow
+  }
+  if (fromEntryOverview) {
+    if (!openForEdit) {
+      await renderEntryOverview();
+    }
+    return;
+  }
+  await loadContentByMode();
+}
+
+async function openCreatedExternalMemoryForEdit(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    await openMemoryModeFromOverview("external", normalized);
+    return;
+  }
+  await openExternalFile(normalized);
+}
+
 function getActiveExternalSectionParentForCreate() {
+  if (entryOverviewExternalCreateActive) {
+    return entryOverviewExternalCreateParentOverride;
+  }
   if (!isStorageSectionsPanelVisible()) return null;
   if (activeExternalSectionFolder) return activeExternalSectionFolder;
   const route = parseAppRoute(location.pathname);
@@ -26293,22 +26627,22 @@ function renderMediaVideoList(container, items) {
   container.appendChild(list);
 }
 
-function renderMediaFilteredView(container) {
-  const items = getMediaItemsForView(mediaViewMode);
+function renderMediaFilteredView(container, viewMode = getEffectiveMediaViewMode()) {
+  const items = getMediaItemsForView(viewMode);
 
-  if (mediaViewMode === "images") {
+  if (viewMode === "images") {
     renderMediaImagesGrid(container, items);
     return;
   }
-  if (mediaViewMode === "audio") {
+  if (viewMode === "audio") {
     renderMediaAudioList(container, items);
     return;
   }
-  if (mediaViewMode === "video") {
+  if (viewMode === "video") {
     renderMediaVideoList(container, items);
     return;
   }
-  if (mediaViewMode === "documents") {
+  if (viewMode === "documents") {
     renderMediaFileRows(
       container,
       items,
@@ -26323,11 +26657,11 @@ function renderMediaFilteredView(container) {
     }
     return;
   }
-  if (mediaViewMode === "archives") {
+  if (viewMode === "archives") {
     renderMediaFileRows(container, items, { icon: "📦", showSize: true });
     return;
   }
-  if (mediaViewMode === "other") {
+  if (viewMode === "other") {
     renderMediaFileRows(container, items, { icon: "📎", showSize: true });
   }
 }
@@ -26807,6 +27141,7 @@ async function refreshMediaCache() {
 }
 
 function closeMediaSidecarEditor() {
+  memoryEntryCloseTargetView = null;
   clearMediaSidecarEditor();
   fileContentInputNode.value = "";
   applyModeUi();
@@ -26847,6 +27182,7 @@ async function refreshExternalMemoryCaches() {
 }
 
 function closeExternalFileEditor() {
+  memoryEntryCloseTargetView = null;
   void refreshExternalFileListView();
 }
 
@@ -26878,6 +27214,11 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
 }
 
 function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options = {}) {
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
   activeMediaMarkdownPath = null;
   activeMediaSidecarSourcePath = sourceFilePath;
   activeMediaSidecarPath = sidecarPath;
@@ -35522,6 +35863,11 @@ function getMediaMarkdownTitleValue(filePath, frontmatter = "") {
 }
 
 function enableMediaMarkdownEditor(filePath, content, options = {}) {
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
   activeMediaMarkdownPath = filePath;
   activeMediaSidecarSourcePath = null;
   activeMediaSidecarPath = null;
@@ -35665,6 +36011,11 @@ function syncPropsInputPlaceholder() {
 }
 
 function enableExternalFileEditor(filePath, content, options = {}) {
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
   activeExternalFilePath = filePath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
@@ -35675,6 +36026,7 @@ function enableExternalFileEditor(filePath, content, options = {}) {
   editorViewMode = "preview";
   applyModeUi();
   setEditorViewMode("preview", { skipRouteSync: true });
+  syncNodeMemoryEntryViewControls();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
@@ -35682,9 +36034,17 @@ function enableExternalFileEditor(filePath, content, options = {}) {
 
 async function openExternalFile(filePath, options = {}) {
   if (!activePath) return;
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
   try {
     const response = await fetch(
-      buildApiUrl("/api/external/file", { path: getActiveNodeApiPath(), file: filePath })
+      buildApiUrl("/api/external/file", {
+        path: getActiveNodeApiPath(),
+        file: normalizeExternalMemoryMdRelPath(filePath)
+      })
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
@@ -35804,8 +36164,15 @@ function setCreateMemoryModalBusy(busy) {
   for (const radio of createMemoryAfterRadios) radio.disabled = busy;
 }
 
-async function openCreateMemoryModal() {
-  if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
+async function openCreateMemoryModal(entryOverviewContext = null) {
+  const fromEntryOverview =
+    entryOverviewContext || (isEntryOverviewExternalMemory() ? activeEntryOverviewContext : null);
+  if (fromEntryOverview) {
+    if (!activePath) return;
+    beginEntryOverviewExternalCreate(fromEntryOverview);
+  } else if (!canCreateExternalMemoryNow()) {
+    return;
+  }
   resetCreateMemoryNameInputs();
   syncCreateMemoryAfterRadiosFromStorage();
   activeCreateMemoryMask = await loadActiveCreateMemoryMask();
@@ -35823,6 +36190,7 @@ function closeCreateMemoryModal() {
   syncCreateMemoryModalMaskUi("");
   setCreateMemoryModalBusy(false);
   createMemoryOkBtn.textContent = "Создать";
+  endEntryOverviewExternalCreate();
 }
 
 async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
@@ -35875,7 +36243,7 @@ async function createExternalMemoryFile(displayName, slug) {
 }
 
 async function createExternalMemory() {
-  if (!activePath || activeContentMode !== "external" || activeExternalFilePath) return;
+  if (!canCreateExternalMemoryNow()) return;
 
   if (activeCreateMemoryMask) {
     setCreateMemoryModalBusy(true);
@@ -35886,10 +36254,11 @@ async function createExternalMemory() {
         getCreateMemoryMaskName()
       );
       persistCreateMemoryAfterChoice();
+      const openForEdit = shouldOpenCreatedMemoryForEdit();
       closeCreateMemoryModal();
-      await loadContentByMode();
-      if (data.file && shouldOpenCreatedMemoryForEdit()) {
-        await openExternalFile(data.file);
+      await refreshAfterExternalWorkspaceCreate({ openForEdit });
+      if (data.file && openForEdit) {
+        await openCreatedExternalMemoryForEdit(data.file);
       }
       showToast("Запись создана", "success");
     } catch (error) {
@@ -35927,10 +36296,11 @@ async function createExternalMemory() {
 
     if (created > 0) {
       persistCreateMemoryAfterChoice();
+      const openForEdit = shouldOpenCreatedMemoryForEdit();
       closeCreateMemoryModal();
-      await loadContentByMode();
-      if (lastFile && shouldOpenCreatedMemoryForEdit()) {
-        await openExternalFile(lastFile);
+      await refreshAfterExternalWorkspaceCreate({ openForEdit });
+      if (lastFile && openForEdit) {
+        await openCreatedExternalMemoryForEdit(lastFile);
       }
     }
 
@@ -35972,10 +36342,16 @@ function buildCreatedMediaSectionPath(parentFolder, sectionName, sectionPathFrom
   return parent ? `${parent}/${section}` : section;
 }
 
-function openCreateSectionModal(targetMode = "external") {
+function openCreateSectionModal(targetMode = "external", { entryOverviewContext = null } = {}) {
   if (!activePath) return;
   if (targetMode === "external") {
-    if (activeContentMode !== "external" || activeExternalFilePath) return;
+    const fromEntryOverview =
+      entryOverviewContext || (isEntryOverviewExternalMemory() ? activeEntryOverviewContext : null);
+    if (fromEntryOverview) {
+      beginEntryOverviewExternalCreate(fromEntryOverview);
+    } else if (!canCreateExternalSectionNow()) {
+      return;
+    }
   } else if (isMediaLibraryContentMode(targetMode)) {
     if (activeContentMode !== targetMode || isMediaAssetEditing()) return;
   } else if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
@@ -36018,12 +36394,13 @@ function closeCreateSectionModal() {
   renameExternalFileState = null;
   resetCreateSectionModalLabels();
   createSectionOkBtn.textContent = "Создать";
+  endEntryOverviewExternalCreate();
 }
 
 async function createWorkspaceSection() {
   if (!activePath) return;
   if (createSectionTargetMode === "external") {
-    if (activeContentMode !== "external" || activeExternalFilePath) return;
+    if (!canCreateExternalSectionNow()) return;
   } else if (isMediaLibraryContentMode(createSectionTargetMode)) {
     if (activeContentMode !== createSectionTargetMode || isMediaAssetEditing()) return;
   } else if (FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode)) {
@@ -36107,11 +36484,16 @@ async function createWorkspaceSection() {
     const createdFlatStorageSectionPath = isFlatStorageTarget
       ? buildCreatedMediaSectionPath(flatStorageParentFolder, data.section, data.sectionPath)
       : "";
-    await loadContentByMode({
-      preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder,
-      preserveExternalSectionFolder: createdExternalSectionPath || externalParentFolder,
-      preserveFlatStorageSectionFolder: createdFlatStorageSectionPath || flatStorageParentFolder
-    });
+    const fromEntryOverview = isEntryOverviewExternalMemory();
+    if (createSectionTargetMode === "external" && fromEntryOverview) {
+      await refreshAfterExternalWorkspaceCreate();
+    } else {
+      await loadContentByMode({
+        preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder,
+        preserveExternalSectionFolder: createdExternalSectionPath || externalParentFolder,
+        preserveFlatStorageSectionFolder: createdFlatStorageSectionPath || flatStorageParentFolder
+      });
+    }
     if (createdMediaSectionPath) {
       activeMediaSectionFolder = createdMediaSectionPath;
       mediaViewMode = "all";
@@ -36121,8 +36503,10 @@ async function createWorkspaceSection() {
     }
     if (createdExternalSectionPath) {
       activeExternalSectionFolder = createdExternalSectionPath;
-      rerenderExternalListViewBody();
-      syncAppRouteToUrl({ push: true });
+      if (!fromEntryOverview) {
+        rerenderExternalListViewBody();
+        syncAppRouteToUrl({ push: true });
+      }
     }
     if (createdFlatStorageSectionPath && isFlatStorageTarget) {
       activeFlatStorageSectionFolder[createSectionTargetMode] = createdFlatStorageSectionPath;
@@ -36236,6 +36620,8 @@ function applySystemFileUi() {
   nodeOverviewBlockNode?.classList.remove("is-node-navigation", "is-container-node");
   titleEditorBlockNode.classList.add("hidden");
   setTitleLockedDisplay(getServiceStyleContentLabel());
+  editorViewClusterNode?.classList.remove("hidden");
+  editorViewClusterNode?.classList.remove("is-line-numbers-only");
   editorViewToggleNode?.classList.remove("hidden");
 
   const editing = isSystemFileEditing();
@@ -36268,6 +36654,7 @@ function applySystemFileUi() {
   fileContentInputNode.readOnly = !editing;
   fileContentInputNode.disabled = false;
   syncEditorViewButtonsAvailability(false, false);
+  editorLineNumbersBtn?.classList.toggle("hidden", !isMd || editorViewMode !== "source");
   if (editorViewWysiwygBtn) {
     editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled();
   }
@@ -36488,6 +36875,7 @@ async function pickDefaultMemoryMode(nodePath = activePath) {
 }
 
 async function openMemoryModeFromOverview(modeId, externalFile = null) {
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
   if (isAreaContentModeBlocked(modeId)) return;
   if (!applyContentModeState(modeId)) return;
   syncAppRouteToUrl({ replace: true });
@@ -40183,6 +40571,9 @@ function getMemoryEntryViewSelectValue() {
   if (isDataHubBundleSlotShellMode()) {
     return dataHubBundleEntryView;
   }
+  if (isExternalFileEditing() || isMediaAssetEditing()) {
+    return memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
+  }
   if (isCurrentModeListTemplate() && editorViewMode !== "source") {
     return MEMORY_ENTRY_VIEW_LIST;
   }
@@ -40237,6 +40628,7 @@ function applyMemoryEntryViewChange(memoryKind, value) {
   if (resolvedKind === "list-only") return;
 
   if (value === MEMORY_ENTRY_VIEW_LIST) {
+    assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_LIST);
     if (isBundleEntryOverviewMemoryKind(resolvedKind)) {
       if (applyDataHubBundleEntryViewChange(resolvedKind, MEMORY_ENTRY_VIEW_LIST)) return;
     }
@@ -40266,6 +40658,8 @@ function applyMemoryEntryViewChange(memoryKind, value) {
   if (isBundleEntryOverviewMemoryKind(resolvedKind)) {
     if (applyDataHubBundleEntryViewChange(resolvedKind, MEMORY_ENTRY_VIEW_OVERVIEW)) return;
   }
+
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
 
   if (
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
@@ -40309,6 +40703,7 @@ function syncNodeMemoryEntryViewControls() {
 
 async function openEntryOverviewFromNavigation(context, options = {}) {
   if (!activePath) return;
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
   const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
   if (!isMemoryTocRoot && !context?.relPath) return;
   if (!isMemoryTocRoot) snapshotNonTocEntryOverviewContext(context);
@@ -40395,9 +40790,11 @@ function openMediaCategoryOverviewFromNavigation(folderPath) {
   });
 }
 
-async function fetchEntryOverviewProperties(relPath) {
+async function fetchEntryOverviewProperties(relPath, context = null) {
   try {
-    const response = await fetch(buildApiUrl("/api/file/properties", { path: relPath }));
+    const apiPath =
+      context?.memoryKind === "external" ? normalizeExternalMemoryMdRelPath(relPath) : relPath;
+    const response = await fetch(buildApiUrl("/api/file/properties", { path: apiPath }));
     if (!response.ok) return [];
     const data = await response.json();
     return normalizePropsEntries(parsePropsYaml(data.content || ""));
@@ -40413,7 +40810,7 @@ async function fetchEntryOverviewBody(context) {
       const response = await fetch(
         buildApiUrl("/api/external/file", {
           path: getActiveNodeApiPath(),
-          file: context.relativePath
+          file: normalizeExternalMemoryMdRelPath(context.relativePath)
         })
       );
       if (!response.ok) return "";
@@ -40799,6 +41196,47 @@ function createEntryOverviewSearchBar(context) {
   return wrap;
 }
 
+function createEntryOverviewExternalBrowseActions(context) {
+  if (context?.memoryKind !== "external" || !activePath) return null;
+
+  const actions = document.createElement("div");
+  actions.className = "node-entry-overview-browse-actions";
+
+  const sectionBtn = document.createElement("button");
+  sectionBtn.type = "button";
+  sectionBtn.className = "external-create-section-btn";
+  sectionBtn.textContent = "+ Раздел";
+  sectionBtn.title = "Создать раздел";
+  sectionBtn.addEventListener("click", () => {
+    openCreateSectionModal("external", { entryOverviewContext: context });
+  });
+
+  const recordBtn = document.createElement("button");
+  recordBtn.type = "button";
+  recordBtn.className = "save-btn external-create-btn";
+  recordBtn.textContent = "+ Запись";
+  recordBtn.title = "Создать запись";
+  recordBtn.addEventListener("click", () => {
+    void openCreateMemoryModal(context);
+  });
+
+  actions.append(sectionBtn, recordBtn);
+  return actions;
+}
+
+function createEntryOverviewBrowseToolbar(context) {
+  const searchBar = createEntryOverviewSearchBar(context);
+  if (!searchBar) return null;
+
+  const actions = createEntryOverviewExternalBrowseActions(context);
+  if (!actions) return searchBar;
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "node-entry-overview-browse-toolbar";
+  toolbar.append(searchBar, actions);
+  return toolbar;
+}
+
 function entryOverviewItemMatchesQuery(item, folderLabels, queryLower) {
   if (!queryLower) return true;
   const path = String(item?.path || "").replace(/\\/g, "/");
@@ -40909,8 +41347,8 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
   panel.className = "node-entry-overview-browse-panel";
 
   if (showSearch) {
-    const searchBar = createEntryOverviewSearchBar(context);
-    if (searchBar) panel.appendChild(searchBar);
+    const toolbar = createEntryOverviewBrowseToolbar(context);
+    if (toolbar) panel.appendChild(toolbar);
   }
   if (listBlock) panel.appendChild(listBlock);
 
@@ -42424,7 +42862,7 @@ async function renderEntryOverview() {
 
   const topicPath = getResolvedNodePath(activePath);
   const [entries, rawBody, nodeMeta, navigationIndex] = await Promise.all([
-    isMemoryTocRoot ? [] : fetchEntryOverviewProperties(context.relPath),
+    isMemoryTocRoot ? [] : fetchEntryOverviewProperties(context.relPath, context),
     isMemoryTocRoot ? "" : fetchEntryOverviewBody(context),
     isMemoryTocRoot ? fetchNodeNavigationMeta(topicPath) : fetchNodeNavigationMeta(context.relPath),
     fetchEntryOverviewNavigationIndex(context, topicPath)
@@ -45879,7 +46317,7 @@ function applyModeUi() {
   }
   if (showMediaControls) {
     syncMediaViewSelectOptions();
-    if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+    if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
   }
   syncStorageSectionsPanelUi();
   syncWorkspaceCloseButtonsVisibility();
@@ -46912,7 +47350,17 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
-  return false;
+  return editorViewMode === "wysiwyg";
+}
+
+function getWysiwygScrollElement() {
+  if (shouldUseEditorAutoHeight()) {
+    return workspacePaneNode;
+  }
+  return (
+    editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .toastui-editor-contents") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror")
+  );
 }
 
 function getEditorFillMinHeightPx() {
@@ -47415,17 +47863,117 @@ function normalizeMarkdownInlineAssetRefs(markdown) {
   return normalized;
 }
 
+function stripWysiwygBreakArtifacts(markdown) {
+  return String(markdown || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/&lt;br\s*\/?&gt;/gi, "\n");
+}
+
 function normalizeWysiwygExportedMarkdown(markdown) {
   // Toast UI Editor escapes markdown-significant chars in plain text (no option to disable).
   let normalized = restoreBrokenImagePathsInExportedMarkdown(
-    convertHighlightHtmlToMarkdown(String(markdown || ""))
+    convertHighlightHtmlToMarkdown(stripWysiwygBreakArtifacts(markdown))
   );
+  normalized = normalized.replace(/\\([#|,.\[\]()!])/g, "$1");
   normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
   return normalizeMarkdownInlineAssetRefs(normalized);
 }
 
+function isTrivialWysiwygClipboardHtml(html) {
+  const raw = String(html || "").trim();
+  if (!raw) return true;
+  const stripped = raw
+    .replace(/<meta[^>]*>/gi, "")
+    .replace(/<html[^>]*>/gi, "")
+    .replace(/<\/html>/gi, "")
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<body[^>]*>/gi, "")
+    .replace(/<\/body>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .trim();
+  return !stripped || /^<br\s*\/?>$/i.test(stripped);
+}
+
+function isPlainTextLikeClipboardHtml(html) {
+  const raw = String(html || "").trim();
+  if (!raw) return true;
+  const stripped = raw
+    .replace(/<meta[^>]*>/gi, "")
+    .replace(/<html[^>]*>/gi, "")
+    .replace(/<\/html>/gi, "")
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<body[^>]*>/gi, "")
+    .replace(/<\/body>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<\/?(?:div|p|span|br|wbr|font|b|i|u)[^>]*>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  return stripped.length === 0;
+}
+
+function shouldImportPlainTextAsMarkdown(plain, html) {
+  const text = String(plain || "");
+  if (!text.trim()) return false;
+  if (text.includes("\n") && (isTrivialWysiwygClipboardHtml(html) || isPlainTextLikeClipboardHtml(html))) {
+    return true;
+  }
+  if (!text.includes("\n")) return false;
+  if (!isTrivialWysiwygClipboardHtml(html) && !isPlainTextLikeClipboardHtml(html)) return false;
+  if (/^#{1,6}\s/m.test(text)) return true;
+  if (/```/.test(text)) return true;
+  if (/^\s*[-*+]\s/m.test(text)) return true;
+  if (/^\s*\d+\.\s/m.test(text)) return true;
+  if (
+    /^\s*#/.test(text) &&
+    /(\||`|\$\(|\bgrep\b|\bpkill\b|\bsleep\b|\bnohup\b|\bps aux\b)/im.test(text)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function normalizeWysiwygPasteSnippet(plain) {
+  const text = String(plain || "");
+  const trimmed = text.replace(/\s+$/, "");
+  const shellBodyPattern = /(\bpkill\b|\bgrep\b|\bnohup\b|\bps aux\b|\bsleep\b)/im;
+  const headingThenShell = trimmed.match(/^(#{1,6}\s+.+)\n\s*\n([\s\S]+)$/);
+  if (headingThenShell && shellBodyPattern.test(headingThenShell[2])) {
+    const body = headingThenShell[2].trimEnd();
+    return `${headingThenShell[1]}\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
+  }
+  if (/^\s*#/.test(trimmed) && shellBodyPattern.test(trimmed)) {
+    return `\`\`\`bash\n${trimmed}\n\`\`\`\n`;
+  }
+  return text.endsWith("\n") ? text : `${text}\n`;
+}
+
+function bindWysiwygPasteHandler() {
+  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  if (!pm || pm.dataset.awnPasteBound === "1") return;
+  pm.dataset.awnPasteBound = "1";
+  pm.addEventListener(
+    "paste",
+    (event) => {
+      if (editorViewMode !== "wysiwyg" || !wysiwygEditorInstance) return;
+      const clipboard = event.clipboardData;
+      if (!clipboard) return;
+      const plain = clipboard.getData("text/plain");
+      const html = clipboard.getData("text/html");
+      if (!shouldImportPlainTextAsMarkdown(plain, html)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const snippet = normalizeWysiwygPasteSnippet(plain);
+      if (!insertMarkdownAtWysiwygCursor(snippet)) {
+        showToast("Не удалось вставить текст в WYSIWYG", "error");
+      }
+    },
+    true
+  );
+}
+
 function normalizeWysiwygImportedMarkdown(markdown) {
-  return convertHighlightMarkdownToHtml(normalizeEmbeddedDataUriMarkdown(String(markdown || "")));
+  const normalized = stripWysiwygBreakArtifacts(normalizeEmbeddedDataUriMarkdown(String(markdown || "")));
+  return convertHighlightMarkdownToHtml(normalized);
 }
 
 function syncSourceFromWysiwygEditor() {
@@ -47444,11 +47992,12 @@ function initWysiwygEditor() {
 
   destroyWysiwygEditor();
   editorWysiwygWrapNode.innerHTML = "";
+  editorWysiwygWrapNode.classList.toggle("auto-height", shouldUseEditorAutoHeight());
 
   try {
     wysiwygEditorInstance = new EditorClass({
       el: editorWysiwygWrapNode,
-      height: "100%",
+      height: shouldUseEditorAutoHeight() ? "auto" : "100%",
       initialEditType: "wysiwyg",
       previewStyle: "vertical",
       hideModeSwitch: true,
@@ -47490,7 +48039,7 @@ function initWysiwygEditor() {
               parseStorageAssetsRef(
                 payload?.workspaceRef ||
                   buildAssetsUploadRef(
-                    resolveManifestPathForNodeApi(getResolvedNodePath(activePath)),
+                    getUploadStorageContextPath(),
                     PASTED_ASSETS_SUBDIR,
                     relativeFile
                   )
@@ -47498,9 +48047,7 @@ function initWysiwygEditor() {
             );
         callback(displayUrl, getAttachmentAltText(normalizedFile.name || file.name));
         syncSourceFromWysiwygEditor();
-        const slotDir = getNamedStorageSlotDirRel(
-          resolveManifestPathForNodeApi(getResolvedNodePath(activePath))
-        );
+        const slotDir = getNamedStorageSlotDirRel(getUploadStorageContextPath());
         showToast(`Изображение сохранено в ${slotDir}/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`, "success");
         void refreshMediaListIfVisible();
       })
@@ -47524,6 +48071,7 @@ function initWysiwygEditor() {
   }
   requestAnimationFrame(() => {
     bindWysiwygSelectionCapture();
+    bindWysiwygPasteHandler();
     bindWysiwygLinkNavigation();
     setupWysiwygLinkPopupEnhancement();
     setupWysiwygBrokenImageFallbacks();
@@ -52899,6 +53447,13 @@ async function loadContentByMode(options = {}) {
         activeMediaSectionFolder = String(sectionToRestore).replace(/\\/g, "/").replace(/\/$/, "");
         pruneActiveMediaSectionFolder();
       }
+      const storedView = loadStoredMediaViewMode();
+      if (storedView) {
+        mediaViewMode = storedView;
+      } else if (activeMediaSectionFolder && mediaViewMode === "dashboard") {
+        mediaViewMode = "all";
+      }
+      if (mediaViewSelectNode) mediaViewSelectNode.value = getEffectiveMediaViewMode();
       applyModeUi();
       renderListViewContent();
     } catch (error) {
@@ -59153,9 +59708,7 @@ function getWorkspaceScrollContext() {
 
   const wysiwygWrap = workspacePaneNode.querySelector("#editor-wysiwyg-wrap:not(.hidden)");
   if (wysiwygWrap) {
-    const wysiwygScrollEl =
-      wysiwygWrap.querySelector(".toastui-editor-ww-container .toastui-editor-contents") ||
-      wysiwygWrap.querySelector(".ProseMirror");
+    const wysiwygScrollEl = getWysiwygScrollElement();
     if (wysiwygScrollEl) return { scrollElement: wysiwygScrollEl, hostTarget: wysiwygWrap };
   }
 

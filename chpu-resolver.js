@@ -40,7 +40,14 @@ const CHPU_UI_VIEW_IDS = new Set([
   "chat",
   "todo",
   "list",
-  "preview"
+  "preview",
+  "all",
+  "images",
+  "audio",
+  "video",
+  "documents",
+  "archives",
+  "other"
 ]);
 
 const CHPU_LEGACY_UI_ALIASES = {

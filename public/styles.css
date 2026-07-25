@@ -1727,6 +1727,15 @@ body.app-locked {
   outline: none;
 }
 
+.app-landing-search-bar .content-search-spinner {
+  margin-right: 12px;
+}
+
+.app-landing-search-bar.is-loading {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: #fff;
+}
+
 .app-landing-search-results {
   position: absolute;
   z-index: 40;
@@ -9707,16 +9716,70 @@ body.app-locked {
   color: #94a3b8;
 }
 
-content-search-input:focus {
+.content-search-input:focus {
   outline: none;
+}
+
+.content-search-spinner {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: content-search-spin 0.65s linear infinite;
+}
+
+.content-search-spinner.hidden {
+  display: none;
+}
+
+.content-search-bar.is-loading {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: #fff;
+}
+
+.content-search-bar.is-loading .content-search-input::placeholder {
+  color: #64748b;
+}
+
+.content-search-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.content-search-loading-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: content-search-spin 0.65s linear infinite;
+}
+
+.content-search-loading-text {
+  line-height: 1.3;
+}
+
+@keyframes content-search-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .content-search-match {
   flex: 0 0 auto;
   max-width: 108px;
   border: 0;
-  border-left: 1px solid var(--border);
-  background: #f8fafc;
+  border-right: 1px solid var(--border);
+  background: #eef3ff;
   color: #334155;
   padding: 8px 22px 8px 10px;
   font-size: 12px;
@@ -17217,6 +17280,37 @@ content-search-input:focus {
   margin: 0;
 }
 
+.node-entry-overview-browse-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.node-entry-overview-browse-toolbar .node-entry-overview-search-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.node-entry-overview-browse-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.node-entry-overview-browse-actions .external-create-section-btn,
+.node-entry-overview-browse-actions .external-create-btn {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 .node-entry-overview-search-wrap {
   margin: 0;
   width: 100%;
@@ -21385,6 +21479,12 @@ button.node-navigation-memory-title:focus-visible {
   flex-direction: column;
 }
 
+.app.editor-autoheight .editor-surface > .workspace-scroll-host {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+}
+
 .doc-slab-content .doc-slab-main > .node-thread {
   flex: 1;
   min-height: 0;
@@ -23853,30 +23953,53 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-wysiwyg-wrap .toastui-editor-main-container,
-.editor-wysiwyg-wrap .toastui-editor-ww-container,
-.editor-wysiwyg-wrap .toastui-editor-contents,
-.editor-wysiwyg-wrap .ProseMirror {
+.editor-wysiwyg-wrap .toastui-editor-ww-container {
   min-height: 0;
+  flex: 1;
   height: 100%;
+  max-height: 100%;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-ww-container .toastui-editor-contents {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  height: 100% !important;
+  max-height: 100%;
   padding: 0 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-defaultUI .ProseMirror {
-  padding: 12px 16px !important;
+  padding: 12px 16px 28px !important;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   height: auto !important;
-  min-height: var(--editor-fill-min-height, 280px);
+  min-height: 0;
   overflow-x: hidden !important;
   overflow-y: visible !important;
+}
+
+.editor-wysiwyg-wrap.auto-height,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-defaultUI,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-main,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-main-container,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-ww-container,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-ww-container > .toastui-editor,
+.editor-wysiwyg-wrap.auto-height .toastui-editor.ww-mode,
+.editor-wysiwyg-wrap.auto-height .toastui-editor-ww-container .toastui-editor-contents,
+.editor-wysiwyg-wrap.auto-height .ProseMirror {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.editor-wysiwyg-wrap.auto-height .toastui-editor-defaultUI .ProseMirror {
+  min-height: var(--editor-fill-min-height, 280px);
+  padding-bottom: 48px !important;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-contents {
@@ -32811,7 +32934,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
   cursor: not-allowed;
 }
 
-/* Режим печати: только центральное содержимое */
+/* Режим печати: только содержимое документа, без UI-хрома и боковых панелей */
 .app-print-mode .app-header,
 .app-print-mode .sidebar-shell,
 .app-print-mode .sidebar-resize-bar,
@@ -32820,8 +32943,14 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .discuss-aside-resizer,
 .app-print-mode #workspace-path-header,
 .app-print-mode .workspace-scroll-chrome-store,
+.app-print-mode .workspace-scroll-chrome,
+.app-print-mode .scroll-top-btn,
 .app-print-mode .doc-head-block,
 .app-print-mode .doc-props-aside,
+.app-print-mode #yaml-form-panel,
+.app-print-mode .doc-aside-toolbar,
+.app-print-mode .doc-aside-fields-card,
+.app-print-mode .doc-aside-panel-footer,
 .app-print-mode #editor-custom-props-bar,
 .app-print-mode #editor-title-bar,
 .app-print-mode .editor-code-wrap,
@@ -32871,6 +33000,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-toolbar,
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar,
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-mode-switch,
+.app-print-mode .editor-view-cluster,
 .app-print-mode .workspace-links-menu-wrap,
 .app-print-mode .workspace-print-btn,
 .app-print-mode .workspace-reveal-folder-btn,
@@ -32883,49 +33013,99 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode.app,
 #app-root.app.app-print-mode {
   grid-template-columns: 1fr !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .app-print-mode .workspace-pane,
 .app-print-mode .workspace-body,
+.app-print-mode .workspace-body.is-print-layout,
 .app-print-mode .content.doc-stack,
 .app-print-mode #doc-body-grid,
+.app-print-mode #doc-body-grid.is-print-layout,
+.app-print-mode #doc-body-grid.has-props-aside,
+.app-print-mode #doc-body-grid.is-print-layout.has-props-aside,
 .app-print-mode .doc-body-main,
+.app-print-mode .doc-slab-content,
 .app-print-mode .doc-slab-main,
 .app-print-mode .workspace-scroll-host,
+.app-print-mode .editor-surface,
 .app-print-mode #node-overview-block,
 .app-print-mode #node-overview-content,
 .app-print-mode .node-navigation-hub {
   width: 100% !important;
   max-width: none !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: visible !important;
 }
 
 .app-print-mode .workspace-pane {
-  flex: 1 1 auto;
   grid-column: 1 / -1 !important;
+  border: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
 }
 
-.app-print-mode .doc-body-grid,
-.app-print-mode .doc-body-grid.has-props-aside {
+.app-print-mode .workspace-body,
+.app-print-mode .workspace-body.is-print-layout {
+  display: block !important;
+  padding: 0 !important;
+  background: #fff !important;
+}
+
+.app-print-mode .workspace-body > .content.doc-stack {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.app-print-mode .content.doc-stack {
+  padding: 0 !important;
+  gap: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+
+.app-print-mode #doc-body-grid,
+.app-print-mode #doc-body-grid.has-props-aside,
+.app-print-mode #doc-body-grid.is-print-layout,
+.app-print-mode #doc-body-grid.is-print-layout.has-props-aside {
+  display: block !important;
   grid-template-columns: minmax(0, 1fr) !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  overflow: visible !important;
 }
 
 .app-print-mode .doc-body-main,
-.app-print-mode .doc-slab-main,
-.app-print-mode .workspace-scroll-host {
-  max-width: none;
+.app-print-mode #doc-body-grid.has-props-aside .doc-body-main {
+  border: 0 !important;
+  border-right: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
 }
 
 .app-print-mode .doc-slab-content,
-.app-print-mode .doc-slab {
+.app-print-mode .doc-slab,
+.app-print-mode .doc-slab-main {
   border: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background: #fff !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .app-print-mode .media-list-view-split,
 .app-print-mode .external-list-view-split,
 .app-print-mode .data-hub-list-view-split {
-  display: block;
+  display: block !important;
 }
 
 .app-print-mode .external-list-view-main,
@@ -32935,8 +33115,8 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .external-list-view-split > :not(.storage-slot-tree):not(.media-section-tree),
 .app-print-mode .media-list-view-split > :not(.media-section-tree),
 .app-print-mode .data-hub-list-view-split > :not(.storage-slot-tree) {
-  width: 100%;
-  max-width: none;
+  width: 100% !important;
+  max-width: none !important;
 }
 
 .app-print-mode .doc-slab-content,
@@ -32952,7 +33132,14 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .node-navigation-todo-content,
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-contents,
 .app-print-mode .editor-wysiwyg-wrap .ProseMirror {
-  max-width: none;
+  max-width: none !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-defaultUI,
@@ -32961,6 +33148,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .editor-wysiwyg-wrap .toastui-editor-ww-container {
   border: 0 !important;
   box-shadow: none !important;
+  background: #fff !important;
 }
 
 .app-print-mode .node-navigation-memory-card,
@@ -32968,22 +33156,135 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .node-entry-overview-manifest {
   border: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background: #fff !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
 
+.app-print-mode .file-content-preview blockquote,
+.app-print-mode .toastui-editor-contents blockquote,
+.app-print-mode .ProseMirror blockquote {
+  border: 0 !important;
+  border-left: 0 !important;
+  background: transparent !important;
+  padding-left: 0 !important;
+  color: inherit !important;
+}
+
+.app-print-mode .file-content-preview pre,
+.app-print-mode .file-content-preview pre:has(> code.hljs),
+.app-print-mode .toastui-editor-contents pre,
+.app-print-mode .ProseMirror pre,
+.app-print-mode .file-content-preview .code-preview-with-line-numbers,
+.app-print-mode .file-content-preview .code-preview-line-numbers {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-print-mode .file-content-preview code,
+.app-print-mode .file-content-preview pre code,
+.app-print-mode .file-content-preview pre code.hljs,
+.app-print-mode .toastui-editor-contents code,
+.app-print-mode .ProseMirror code {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit !important;
+}
+
+.app-print-mode .file-content-preview table,
+.app-print-mode .toastui-editor-contents table,
+.app-print-mode .ProseMirror table {
+  border: 0 !important;
+  border-collapse: collapse !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-print-mode .file-content-preview thead,
+.app-print-mode .file-content-preview tbody tr,
+.app-print-mode .file-content-preview tbody tr:nth-child(even),
+.app-print-mode .file-content-preview tbody tr:hover,
+.app-print-mode .toastui-editor-contents thead,
+.app-print-mode .toastui-editor-contents tbody tr,
+.app-print-mode .ProseMirror thead,
+.app-print-mode .ProseMirror tbody tr {
+  background: transparent !important;
+}
+
+.app-print-mode .file-content-preview th,
+.app-print-mode .file-content-preview td,
+.app-print-mode .toastui-editor-contents th,
+.app-print-mode .toastui-editor-contents td,
+.app-print-mode .ProseMirror th,
+.app-print-mode .ProseMirror td {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-print-mode .file-content-preview mark,
+.app-print-mode .file-content-preview .md-highlight,
+.app-print-mode .toastui-editor-contents mark,
+.app-print-mode .ProseMirror mark {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.app-print-mode .file-content-preview a,
+.app-print-mode .toastui-editor-contents a,
+.app-print-mode .ProseMirror a {
+  color: inherit !important;
+  text-decoration: underline !important;
+}
+
+.app-print-mode .file-content-preview hr,
+.app-print-mode .toastui-editor-contents hr,
+.app-print-mode .ProseMirror hr {
+  border: 0 !important;
+  border-top: 1px solid #000 !important;
+  background: transparent !important;
+}
+
+.app-print-mode .file-content-preview img,
+.app-print-mode .toastui-editor-contents img,
+.app-print-mode .ProseMirror img {
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
   .app-header,
   .app-footer,
   #app-footer,
   .sidebar-shell,
   .sidebar-resize-bar,
+  #discuss-aside,
+  .discuss-aside,
+  .discuss-aside-resizer,
   #workspace-path-header,
   .workspace-scroll-chrome-store,
+  .workspace-scroll-chrome,
+  .scroll-top-btn,
   .doc-head-block,
   .doc-props-aside,
+  #yaml-form-panel,
+  .doc-aside-toolbar,
+  .doc-aside-fields-card,
+  .doc-aside-panel-footer,
   #editor-custom-props-bar,
+  #editor-title-bar,
+  .editor-code-wrap,
+  #editor-line-numbers,
   .list-view-head,
   .external-list-section-head,
   .external-list-toolbar,
@@ -33000,26 +33301,92 @@ body.is-discuss-resizing .discuss-aside-resizer {
   .media-file-comments,
   #node-config-panel,
   #topic-schema-panel,
+  .editor-view-cluster,
   .workspace-print-btn,
   .workspace-links-menu-wrap,
   .workspace-reveal-folder-btn,
-  .workspace-refresh-btn {
+  .workspace-refresh-btn,
+  .editor-wysiwyg-wrap .toastui-editor-toolbar,
+  .editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar {
     display: none !important;
   }
 
-  .app {
+  html,
+  body,
+  .app,
+  #app-root.app {
     grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
   .workspace-pane {
     width: 100% !important;
     max-width: none !important;
     grid-column: 1 / -1 !important;
+    border: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
   }
 
+  .workspace-body,
+  .workspace-body.is-print-layout {
+    display: block !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .workspace-body > .content.doc-stack {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .content.doc-stack {
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  #doc-body-grid,
+  #doc-body-grid.has-props-aside,
+  #doc-body-grid.is-print-layout,
+  #doc-body-grid.is-print-layout.has-props-aside,
   .doc-body-grid,
   .doc-body-grid.has-props-aside {
+    display: block !important;
     grid-template-columns: minmax(0, 1fr) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  .doc-body-main,
+  .doc-body-grid.has-props-aside .doc-body-main {
+    border: 0 !important;
+    border-right: 0 !important;
+    background: #fff !important;
+  }
+
+  .doc-slab-content,
+  .doc-slab-main,
+  .editor-surface,
+  .workspace-scroll-host,
+  .file-content-preview,
+  .node-overview-content,
+  .editor-wysiwyg-wrap .toastui-editor-contents,
+  .editor-wysiwyg-wrap .ProseMirror {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    background: #fff !important;
+    color: #000 !important;
+    border: 0 !important;
+    box-shadow: none !important;
   }
 
   .media-list-view-split,
@@ -33036,13 +33403,80 @@ body.is-discuss-resizing .discuss-aside-resizer {
     max-width: none !important;
   }
 
-  body,
-  .app,
-  .workspace-body,
-  .content,
-  .doc-slab-main {
-    overflow: visible !important;
-    height: auto !important;
+  .file-content-preview blockquote,
+  .toastui-editor-contents blockquote,
+  .ProseMirror blockquote {
+    border: 0 !important;
+    background: transparent !important;
+    padding-left: 0 !important;
+    color: inherit !important;
+  }
+
+  .file-content-preview pre,
+  .file-content-preview pre:has(> code.hljs),
+  .toastui-editor-contents pre,
+  .ProseMirror pre {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .file-content-preview code,
+  .file-content-preview pre code,
+  .file-content-preview pre code.hljs,
+  .toastui-editor-contents code,
+  .ProseMirror code {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: inherit !important;
+  }
+
+  .file-content-preview table,
+  .toastui-editor-contents table,
+  .ProseMirror table,
+  .file-content-preview th,
+  .file-content-preview td,
+  .toastui-editor-contents th,
+  .toastui-editor-contents td,
+  .ProseMirror th,
+  .ProseMirror td {
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .file-content-preview thead,
+  .file-content-preview tbody tr,
+  .file-content-preview tbody tr:nth-child(even),
+  .toastui-editor-contents thead,
+  .toastui-editor-contents tbody tr,
+  .ProseMirror thead,
+  .ProseMirror tbody tr {
+    background: transparent !important;
+  }
+
+  .file-content-preview mark,
+  .file-content-preview .md-highlight,
+  .toastui-editor-contents mark,
+  .ProseMirror mark {
+    background: transparent !important;
+    color: inherit !important;
+    padding: 0 !important;
+  }
+
+  .file-content-preview a,
+  .toastui-editor-contents a,
+  .ProseMirror a {
+    color: inherit !important;
+  }
+
+  .file-content-preview img,
+  .toastui-editor-contents img,
+  .ProseMirror img {
+    box-shadow: none !important;
+    border: 0 !important;
+    max-width: 100% !important;
   }
 }
 

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.379" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.391" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -121,6 +121,10 @@
                 <option value="content">Только текст</option>
                 <option value="tags">Теги</option>
               </select>
+              <select id="content-search-match" class="content-search-match" aria-label="Режим поиска">
+                <option value="relaxed" selected>Мягкий</option>
+                <option value="strict">Точный</option>
+              </select>
               <input
                 id="content-search-input"
                 class="content-search-input"
@@ -131,10 +135,12 @@
                 aria-controls="content-search-results"
                 aria-expanded="false"
               />
-              <select id="content-search-match" class="content-search-match" aria-label="Режим поиска">
-                <option value="relaxed" selected>Мягкий</option>
-                <option value="strict">Точный</option>
-              </select>
+              <span
+                id="content-search-spinner"
+                class="content-search-spinner hidden"
+                aria-hidden="true"
+                title="Поиск…"
+              ></span>
               <div class="content-search-type-wrap">
                 <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
                   <option value="all" selected>Все типы</option>
@@ -584,6 +590,12 @@
                     aria-expanded="false"
                     aria-controls="app-landing-search-results"
                   />
+                  <span
+                    id="app-landing-search-spinner"
+                    class="content-search-spinner hidden"
+                    aria-hidden="true"
+                    title="Поиск…"
+                  ></span>
                 </div>
                 <div id="app-landing-search-results" class="app-landing-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
               </div>
@@ -2939,7 +2951,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.379"></script>
+    <script src="/main.js?v=0.5.394"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

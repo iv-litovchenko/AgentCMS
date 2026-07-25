@@ -10143,16 +10143,43 @@ function scoreTopicMetaMatch(fields, query, parsed = null) {
   return score;
 }
 
+async function readSearchFileAwnMeta(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  const base = path.posix.basename(normalized);
+  if (!/\.md$/i.test(base)) {
+    return { titleName: "", awnName: "", emoji: "" };
+  }
+
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(normalized);
+    const awnName = getYamlScalar(frontmatter, "awn-name") || "";
+    const slug =
+      base.replace(/\.sidecar\.md$/i, ".md").replace(/\.md$/i, "") ||
+      base.replace(/\.[^./]+$/i, "");
+    return {
+      titleName: resolveNodeDisplayName(awnName, slug),
+      awnName,
+      emoji: getYamlScalar(frontmatter, "awn-emoji") || ""
+    };
+  } catch {
+    return { titleName: "", awnName: "", emoji: "" };
+  }
+}
+
 async function resolveSearchResultEnrichment(relPath, meta) {
   const normalized = String(relPath || meta?.canonicalPath || "").replace(/\\/g, "/");
   const base = path.posix.basename(normalized);
+  const isTopicOrAreaManifest =
+    isTopicManifestFileName(base) || isAreaManifestRelPath(normalized);
   const manifestPath =
     meta?.nodePath &&
     (isTopicManifestFileName(path.posix.basename(meta.nodePath)) || isAreaManifestRelPath(meta.nodePath))
       ? meta.nodePath
-      : isTopicManifestFileName(base) || isAreaManifestRelPath(normalized)
+      : isTopicOrAreaManifest
         ? normalized
         : meta?.nodePath || null;
+  const manifestNormalized = manifestPath ? String(manifestPath).replace(/\\/g, "/") : "";
+  const isSelfManifest = Boolean(manifestNormalized && manifestNormalized === normalized);
 
   const enrichment = {
     fileName: meta?.externalFile ? path.posix.basename(meta.externalFile) : base,
@@ -10160,6 +10187,7 @@ async function resolveSearchResultEnrichment(relPath, meta) {
     kindLabel: "",
     titleName: "",
     topicName: "",
+    awnName: "",
     emoji: "",
     previewUrl: null,
     hasPreview: false
@@ -10175,10 +10203,14 @@ async function resolveSearchResultEnrichment(relPath, meta) {
     try {
       const { frontmatter } = await readNodeFrontmatterContent(manifestPath);
       const slug = getManifestSlugFromRel(manifestPath);
-      const awnName = getYamlScalar(frontmatter, "awn-name") || "";
-      enrichment.titleName = resolveNodeDisplayName(awnName, slug);
-      enrichment.topicName = enrichment.titleName;
-      enrichment.emoji = getYamlScalar(frontmatter, "awn-emoji") || "";
+      const manifestAwnName = getYamlScalar(frontmatter, "awn-name") || "";
+      const manifestTitle = resolveNodeDisplayName(manifestAwnName, slug);
+      enrichment.topicName = manifestTitle;
+      enrichment.awnName = manifestAwnName;
+      if (isSelfManifest) {
+        enrichment.titleName = manifestTitle;
+        enrichment.emoji = getYamlScalar(frontmatter, "awn-emoji") || "";
+      }
       const awnType = String(getYamlScalar(frontmatter, "awn-type") || "").toLowerCase();
       if (awnType.includes("topic") || isTopicManifestFileName(path.posix.basename(manifestPath))) {
         enrichment.kindLabel = "Тема";
@@ -10207,6 +10239,13 @@ async function resolveSearchResultEnrichment(relPath, meta) {
     } catch {
       // ignore enrichment errors
     }
+  }
+
+  if (!isSelfManifest) {
+    const fileMeta = await readSearchFileAwnMeta(normalized);
+    if (fileMeta.titleName) enrichment.titleName = fileMeta.titleName;
+    if (fileMeta.awnName) enrichment.awnName = fileMeta.awnName;
+    if (fileMeta.emoji) enrichment.emoji = fileMeta.emoji;
   }
 
   if (!enrichment.kindLabel) {
