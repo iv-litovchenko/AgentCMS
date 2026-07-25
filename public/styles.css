@@ -8641,17 +8641,6 @@ body.app-locked {
   opacity: 1;
 }
 
-.sidebar > .scroll-top-btn--docked {
-  position: sticky;
-  bottom: 14px;
-  align-self: flex-end;
-  flex-shrink: 0;
-  margin-top: -46px;
-  margin-right: calc(14px + var(--scroll-top-shift-x, 0px));
-  margin-bottom: calc(14px + var(--scroll-top-shift-y, 0px));
-  z-index: 26;
-}
-
 .workspace-scroll-host > .scroll-top-btn--docked,
 .discuss-messages-scroll-host > .scroll-top-btn--docked {
   position: absolute;
@@ -9948,9 +9937,29 @@ body.app-locked {
   font-variant-numeric: tabular-nums;
 }
 
-.sidebar {
+.sidebar-shell {
   grid-column: 1;
   grid-row: 2 / 3;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-shell > .scroll-top-btn--docked {
+  position: absolute;
+  right: calc(14px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(14px + var(--scroll-top-shift-y, 0px));
+  z-index: 26;
+  margin: 0;
+}
+
+.sidebar {
+  grid-column: auto;
+  grid-row: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--panel);
   padding: 0;
@@ -11281,7 +11290,7 @@ body.app-locked {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  padding: 8px 12px 8px;
+  padding: 8px 12px 6px;
   border-top: 1px solid var(--border);
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
@@ -30765,7 +30774,7 @@ button.node-navigation-memory-title:focus-visible {
   .agent-canvas-pane,
   .home-pane,
   .home-pane-2,
-  .sidebar,
+  .sidebar-shell,
   .workspace-pane {
     grid-column: 1;
   }
@@ -30789,6 +30798,7 @@ button.node-navigation-memory-title:focus-visible {
   }
 
   .sidebar,
+  .sidebar-shell,
   .sidebar-resize-bar,
   .workspace-pane,
   .app-footer {
