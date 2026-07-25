@@ -661,6 +661,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
       "health,Здоровье,#e11d48\n" +
       "hobby,Хобби,#d97706\n" +
       "collections,Коллекции,#8b5cf6\n" +
+      "world-objects,Объекты мира,#78716c\n" +
       "family,Семья,#db2777\n" +
       "documents,Документы,#6366f1\n" +
       "travel,Путешествия,#0ea5e9\n" +
