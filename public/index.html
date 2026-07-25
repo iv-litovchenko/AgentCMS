@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.117" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.133" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -160,6 +160,12 @@
       </header>
 
       <aside class="sidebar">
+        <div class="sidebar-scroll-chrome" aria-hidden="true">
+          <div class="scroll-progress-track">
+            <div id="sidebar-scroll-progress" class="scroll-progress-fill"></div>
+          </div>
+          <div id="sidebar-scroll-depth" class="scroll-depth-indicator hidden"></div>
+        </div>
         <section class="sidebar-slab sidebar-slab-agent" aria-label="Агент">
           <div class="sidebar-agent-select-block">
             <div class="sidebar-agent-toolbar">
@@ -312,7 +318,16 @@
             </div>
             <span id="sidebar-focus-count" class="agent-focus-count hidden" aria-hidden="true"></span>
           </div>
-          <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
+          <div id="sidebar-focus-list-shell" class="sidebar-focus-list-shell">
+            <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list">
+              <div class="sidebar-focus-scroll-chrome" aria-hidden="true">
+                <div class="scroll-progress-track">
+                  <div id="sidebar-focus-scroll-progress" class="scroll-progress-fill"></div>
+                </div>
+                <div id="sidebar-focus-scroll-depth" class="scroll-depth-indicator hidden"></div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
@@ -442,38 +457,32 @@
             </div>
           </div>
           <div class="menu-scroll-shell">
-            <div class="menu-scroll-chrome" aria-hidden="true">
-              <div class="menu-scroll-progress-track">
-                <div id="menu-scroll-progress-fill" class="menu-scroll-progress-fill"></div>
+            <nav id="menu" class="menu">
+              <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
+                <span class="menu-loading-spinner" aria-hidden="true"></span>
+                <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
               </div>
-              <div id="menu-scroll-depth" class="menu-scroll-depth scroll-depth-indicator hidden"></div>
-            </div>
-          <nav id="menu" class="menu">
-            <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
-              <span class="menu-loading-spinner" aria-hidden="true"></span>
-              <span id="menu-loading-text" class="menu-loading-text">Загрузка...</span>
-            </div>
-          </nav>
-          <button
-            id="menu-scroll-top-btn"
-            class="menu-scroll-top-btn scroll-top-btn"
-            type="button"
-            title="Наверх"
-            aria-label="Прокрутить дерево наверх"
-            aria-hidden="true"
-            tabindex="-1"
-          >
-            <span class="menu-scroll-top-btn-icon scroll-top-btn-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 19V5"></path>
-                <path d="M5 12l7-7 7 7"></path>
-              </svg>
-            </span>
-            <span class="menu-scroll-top-btn-label scroll-top-btn-label">Наверх</span>
-          </button>
+            </nav>
           </div>
           <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
         </section>
+        <button
+          id="sidebar-scroll-top-btn"
+          class="sidebar-scroll-top-btn scroll-top-btn"
+          type="button"
+          title="Наверх"
+          aria-label="Прокрутить боковую панель наверх"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <span class="scroll-top-btn-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5"></path>
+              <path d="M5 12l7-7 7 7"></path>
+            </svg>
+          </span>
+          <span class="scroll-top-btn-label">Наверх</span>
+        </button>
       </aside>
 
       <div class="sidebar-resize-bar" aria-label="Ширина меню">
@@ -1253,29 +1262,31 @@
       </main>
 
       <section class="workspace-pane">
-        <div class="workspace-scroll-chrome" aria-hidden="true">
-          <div class="scroll-progress-track">
-            <div id="workspace-scroll-progress" class="scroll-progress-fill"></div>
+        <div id="workspace-scroll-chrome-store" class="workspace-scroll-chrome-store" hidden aria-hidden="true">
+          <div class="workspace-scroll-chrome" aria-hidden="true">
+            <div class="scroll-progress-track">
+              <div id="workspace-scroll-progress" class="scroll-progress-fill"></div>
+            </div>
+            <div id="workspace-scroll-depth" class="scroll-depth-indicator hidden"></div>
           </div>
-          <div id="workspace-scroll-depth" class="scroll-depth-indicator hidden"></div>
+          <button
+            id="workspace-scroll-top-btn"
+            class="workspace-scroll-top-btn scroll-top-btn"
+            type="button"
+            title="Наверх"
+            aria-label="Прокрутить документ наверх"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <span class="scroll-top-btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5"></path>
+                <path d="M5 12l7-7 7 7"></path>
+              </svg>
+            </span>
+            <span class="scroll-top-btn-label">Наверх</span>
+          </button>
         </div>
-        <button
-          id="workspace-scroll-top-btn"
-          class="workspace-scroll-top-btn scroll-top-btn"
-          type="button"
-          title="Наверх"
-          aria-label="Прокрутить документ наверх"
-          aria-hidden="true"
-          tabindex="-1"
-        >
-          <span class="scroll-top-btn-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 19V5"></path>
-              <path d="M5 12l7-7 7 7"></path>
-            </svg>
-          </span>
-          <span class="scroll-top-btn-label">Наверх</span>
-        </button>
         <div class="workspace-body">
         <main class="content doc-stack">
           <section id="workspace-path-header" class="doc-slab doc-slab-path">
@@ -2197,7 +2208,7 @@
               tabindex="-1"
             >
               <span class="scroll-top-btn-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 19V5"></path>
                   <path d="M5 12l7-7 7 7"></path>
                 </svg>
@@ -2256,27 +2267,43 @@
         </div>
       </section>
 
-      <footer class="app-footer">
-        <div class="app-footer-top">
-          <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
-          <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
+      <footer class="app-footer" id="app-footer">
+        <div class="app-footer-bar">
+          <div class="app-footer-top">
+            <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
+            <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
+          </div>
+          <button
+            id="app-footer-toggle-btn"
+            class="app-footer-toggle-btn"
+            type="button"
+            aria-expanded="false"
+            aria-controls="app-footer-details"
+          >
+            <span id="app-footer-toggle-label" class="app-footer-toggle-label">Подробнее</span>
+            <svg class="app-footer-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
-        <p class="app-footer-text">
-          Тема — граница смысла: один контекст, одно намерение, одна ответственность.
-          Не смешивай задачи в одном файле — разводи их по дереву.
-          Память накапливается заметка за заметкой, а система остаётся прозрачной.
-          <span class="app-footer-quote">«Файл — это не папка, а намерение.»</span>
-        </p>
-        <p class="app-footer-concept">
-          Мышление алгоритмами и структурами данных:
-          класс = форма, новый тип в системе (пример: цифра),
-          объект = экземпляр в «реальном мире» (пример: единица «1»).
-        </p>
-        <p class="app-footer-concept">
-          Проблема большого контекста: загрузил книгу на 1000 страниц — неизвестно, что LLM посчитает важным, а что нет.
-          Без правильных вопросов и без человека не обойтись.
-        </p>
-        <p class="app-footer-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
+        <div id="app-footer-details" class="app-footer-details hidden">
+          <p class="app-footer-text">
+            Тема — граница смысла: один контекст, одно намерение, одна ответственность.
+            Не смешивай задачи в одном файле — разводи их по дереву.
+            Память накапливается заметка за заметкой, а система остаётся прозрачной.
+            <span class="app-footer-quote">«Файл — это не папка, а намерение.»</span>
+          </p>
+          <p class="app-footer-concept">
+            Мышление алгоритмами и структурами данных:
+            класс = форма, новый тип в системе (пример: цифра),
+            объект = экземпляр в «реальном мире» (пример: единица «1»).
+          </p>
+          <p class="app-footer-concept">
+            Проблема большого контекста: загрузил книгу на 1000 страниц — неизвестно, что LLM посчитает важным, а что нет.
+            Без правильных вопросов и без человека не обойтись.
+          </p>
+          <p class="app-footer-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
+        </div>
       </footer>
     </div>
 
@@ -2832,8 +2859,8 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.269"></script>
-    <script src="/discuss-panel.js?v=0.5.228"></script>
+    <script src="/main.js?v=0.5.279"></script>
+    <script src="/discuss-panel.js?v=0.5.230"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

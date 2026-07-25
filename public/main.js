@@ -1,18 +1,28 @@
 const sidebarWidthDecreaseBtn = document.getElementById("sidebar-width-decrease-btn");
 const sidebarWidthIncreaseBtn = document.getElementById("sidebar-width-increase-btn");
 const menuNode = document.getElementById("menu");
-const menuScrollTopBtn = document.getElementById("menu-scroll-top-btn");
-const menuScrollProgressFillNode = document.getElementById("menu-scroll-progress-fill");
-const menuScrollDepthNode = document.getElementById("menu-scroll-depth");
+const sidebarNode = document.querySelector(".sidebar");
+const sidebarScrollChromeNode = document.querySelector(".sidebar-scroll-chrome");
+const sidebarScrollProgressNode = document.getElementById("sidebar-scroll-progress");
+const sidebarScrollDepthNode = document.getElementById("sidebar-scroll-depth");
+const sidebarScrollTopBtn = document.getElementById("sidebar-scroll-top-btn");
+const sidebarFocusScrollChromeNode = document.querySelector(".sidebar-focus-scroll-chrome");
+const sidebarFocusScrollProgressNode = document.getElementById("sidebar-focus-scroll-progress");
+const sidebarFocusScrollDepthNode = document.getElementById("sidebar-focus-scroll-depth");
 const workspacePaneNode = document.querySelector(".workspace-pane");
+const workspaceScrollChromeStoreNode = document.getElementById("workspace-scroll-chrome-store");
 const workspaceScrollTopBtn = document.getElementById("workspace-scroll-top-btn");
 const workspaceScrollProgressNode = document.getElementById("workspace-scroll-progress");
 const workspaceScrollDepthNode = document.getElementById("workspace-scroll-depth");
-const workspaceScrollChromeNode = document.querySelector(".workspace-scroll-chrome");
+const workspaceScrollChromeNode = document.querySelector("#workspace-scroll-chrome-store .workspace-scroll-chrome");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
+const appFooterNode = document.getElementById("app-footer");
+const appFooterToggleBtn = document.getElementById("app-footer-toggle-btn");
+const appFooterToggleLabelNode = document.getElementById("app-footer-toggle-label");
+const appFooterDetailsNode = document.getElementById("app-footer-details");
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 420;
 const APP_SPLASH_HIDE_MS = 460;
@@ -872,17 +882,45 @@ function parseViewRouteTail(tail, view) {
   return result;
 }
 
-function parseAppRoute(pathname = location.pathname) {
-  const normalized = String(pathname || "/").replace(/\/+$/, "") || "/";
-  if (normalized === "/" || normalized === "/index.html") {
-    return { type: "root" };
-  }
+const CHPU_RESERVED_ROOT_SEGMENTS = new Set(["api", "shell", "vendor", "a"]);
 
-  const parts = normalized.split("/").filter(Boolean);
-  if (parts[0] !== "a" || !parts[1]) {
-    return { type: "legacy" };
+function isChpuAgentRouteCandidate(firstSegment) {
+  const segment = String(firstSegment || "").trim();
+  if (!segment || CHPU_RESERVED_ROOT_SEGMENTS.has(segment.toLowerCase())) return false;
+  if (agentsCache.length) {
+    return agentsCache.some((agent) => agent.id === decodeURIComponent(segment));
   }
+  return true;
+}
 
+function appendChpuViewToWorkspacePath(basePath, view) {
+  const normalizedView = view === "quick-notes" ? "note" : view;
+  if (!normalizedView || !APP_ROUTE_VIEW_IDS.has(normalizedView)) return basePath;
+  const trimmed = String(basePath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const viewSegment = `~${normalizedView}`;
+  if (!trimmed) return viewSegment;
+  return `${trimmed}/${viewSegment}`;
+}
+
+function workspaceRelToChpuPath(relPath) {
+  return String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/manifest\.md$/i, "")
+    .replace(/\.md$/i, "")
+    .replace(/\.sidecar\.md$/i, "");
+}
+
+async function fetchChpuResolve(chpuPath) {
+  const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: chpuPath }));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+function parseLegacyAppRouteParts(parts) {
   const agentId = decodeURIComponent(parts[1]);
   let rest = parts.slice(2).map((segment) => decodeURIComponent(segment));
 
@@ -938,6 +976,176 @@ function parseAppRoute(pathname = location.pathname) {
   return { type: "node", agentId, displayPath, ...routeFields };
 }
 
+function parseChpuAppRouteParts(parts) {
+  const agentId = decodeURIComponent(parts[0]);
+  const chpuPath = parts
+    .slice(1)
+    .map((segment) => decodeURIComponent(segment))
+    .join("/");
+  return { type: "chpu", agentId, chpuPath };
+}
+
+async function applyChpuResolvedRoute(resolved) {
+  const view = resolved?.view || null;
+
+  if (resolved?.kind === "agentHome") {
+    showHomeView();
+    return;
+  }
+
+  if (resolved?.kind === "systemFile") {
+    hideHomeView();
+    await selectSystemFile(resolved.systemFile, { skipRouteSync: true });
+    return;
+  }
+
+  if (resolved?.kind === "unknown") {
+    showToast(`Путь не найден: ${resolved.workspacePath || ""}`, "error");
+    showHomeView();
+    return;
+  }
+
+  if (resolved?.kind === "manifest") {
+    const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
+    if (!entry?.path) {
+      showToast(`Тема «${resolved.workspacePath}» не найдена в workspace`, "error");
+      showHomeView();
+      return;
+    }
+    const label = entry.label || getLabelFromPath(entry.path);
+    hideHomeView();
+    if (view && APP_ROUTE_VIEW_IDS.has(view)) {
+      const memoryModes = new Set(["internal", "external", "tabular", "media", "assets"]);
+      const landingMode =
+        isContainerNodePath(entry.path) && memoryModes.has(view) ? NODE_NAVIGATION_MODE : view;
+      await selectNodeManifest(label, entry.path, landingMode, { skipRouteSync: true });
+      await applyAppRouteResourceFromUrl({ view, mediaSectionPath: null });
+    } else {
+      await openNodeFromMenu(label, entry.path, { skipRouteSync: true });
+    }
+    return;
+  }
+
+  if (resolved?.kind === "file" && resolved.fileRelPath) {
+    hideHomeView();
+    const fileRel = String(resolved.fileRelPath).replace(/\\/g, "/");
+    if (isNodeManifestPath(fileRel) || isTopicManifestPath(fileRel)) {
+      await openNodeFromMenu(getLabelFromPath(fileRel), fileRel, { skipRouteSync: true });
+      return;
+    }
+    if (isGitRepoLooseFilePath(fileRel)) {
+      await selectRepoLooseFile(getLabelFromPath(fileRel), fileRel, { skipRouteSync: true });
+      return;
+    }
+  }
+
+  if (resolved?.kind === "record" || resolved?.kind === "section" || resolved?.kind === "slotView") {
+    const topicRoutePath = workspaceRelToChpuPath(resolved.topicManifestPath);
+    const topicEntry = resolveMenuEntryByDisplayPath(topicRoutePath);
+    if (!topicEntry?.path) {
+      showToast(`Тема «${topicRoutePath}» не найдена в workspace`, "error");
+      showHomeView();
+      return;
+    }
+    const label = topicEntry.label || getLabelFromPath(topicEntry.path);
+    const contentMode = view || resolved.contentMode;
+    hideHomeView();
+    await selectNodeManifest(label, topicEntry.path, contentMode, { skipRouteSync: true });
+
+    if (resolved.kind === "slotView") return;
+
+    const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
+    if (resolved.kind === "section") {
+      const sectionFolder = relInSlot.replace(/\/manifest\.md$/i, "");
+      if (contentMode === "external") {
+        openExternalCategoryOverviewFromNavigation(sectionFolder);
+      } else if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
+        openFlatStorageCategoryOverviewFromNavigation(sectionFolder, contentMode);
+      }
+      return;
+    }
+
+    const recordPath = relInSlot.replace(/\.md$/i, "");
+    if (contentMode === "external") {
+      await openExternalFile(relInSlot, { skipRouteSync: true });
+      return;
+    }
+    if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
+      openFlatStorageRecordOverviewFromNavigation(
+        { path: recordPath, title: recordPath.split("/").pop() || recordPath },
+        contentMode
+      );
+      return;
+    }
+    if (contentMode === "media") {
+      if (/\.md$/i.test(relInSlot)) {
+        await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
+      } else {
+        await openMediaSidecar(relInSlot, { skipRouteSync: true });
+      }
+    }
+  }
+}
+
+function getChpuWorkspacePathFromState() {
+  if (activeSystemFile) {
+    return workspaceRelToChpuPath(activeSystemFile);
+  }
+  if (!activePath) return "";
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    const topicRoute = getNodeRoutePath(getResolvedNodePath(activePath));
+    const filePath = String(activeExternalFilePath).replace(/\\/g, "/").replace(/\.md$/i, "");
+    return `${topicRoute}/awn-storage/main/${filePath}`;
+  }
+
+  if (isMediaLibraryContentMode() && (activeMediaSidecarSourcePath || activeMediaMarkdownPath)) {
+    const topicRoute = getNodeRoutePath(getResolvedNodePath(activePath));
+    const mediaFile = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath).replace(/\\/g, "/");
+    const baseName = mediaFile.replace(/\.sidecar\.md$/i, "").replace(/\.md$/i, "");
+    return `${topicRoute}/awn-storage/media/${baseName}`;
+  }
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    return workspaceRelToChpuPath(activeEntryOverviewContext.relPath);
+  }
+
+  const topicRoute = getNodeRoutePath(getResolvedNodePath(activePath));
+  const defaultView = getNodeDefaultView(activePath)?.mode || null;
+  const shouldAttachView =
+    activeContentMode &&
+    APP_ROUTE_VIEW_IDS.has(activeContentMode) &&
+    activeContentMode !== "description" &&
+    activeContentMode !== NODE_ENTRY_OVERVIEW_MODE &&
+    activeContentMode !== defaultView &&
+    !(activeContentMode === "external" && activeExternalFilePath) &&
+    !(isMediaLibraryContentMode() && (activeMediaSidecarSourcePath || activeMediaMarkdownPath));
+
+  if (shouldAttachView) {
+    return appendChpuViewToWorkspacePath(topicRoute, activeContentMode);
+  }
+
+  return topicRoute;
+}
+
+function parseAppRoute(pathname = location.pathname) {
+  const normalized = String(pathname || "/").replace(/\/+$/, "") || "/";
+  if (normalized === "/" || normalized === "/index.html") {
+    return { type: "root" };
+  }
+
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts[0] === "a" && parts[1]) {
+    return parseLegacyAppRouteParts(parts);
+  }
+
+  if (isChpuAgentRouteCandidate(parts[0])) {
+    return parseChpuAppRouteParts(parts);
+  }
+
+  return { type: "legacy" };
+}
+
 function getAgentIdFromAppLocation() {
   const route = parseAppRoute(location.pathname);
   if (route.agentId) return route.agentId;
@@ -955,108 +1163,22 @@ function buildAppPathFromState() {
   }
 
   if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile) {
-    return `/a/${encodeURIComponent(agentId)}`;
+    return `/${encodeURIComponent(agentId)}`;
   }
 
-  if (activeSystemFile) {
-    return `/a/${encodeURIComponent(agentId)}/sys/${encodeURIComponent(activeSystemFile)}`;
+  if (!activePath && !activeSystemFile) {
+    return `/${encodeURIComponent(agentId)}`;
   }
 
-  if (!activePath) {
-    return `/a/${encodeURIComponent(agentId)}`;
+  const workspacePath = getChpuWorkspacePathFromState();
+  let path = `/${encodeURIComponent(agentId)}`;
+  if (workspacePath) {
+    path += `/${workspacePath
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join("/")}`;
   }
-
-  const routePath = normalizeBreadcrumbPath(getNodeRoutePath(getResolvedNodePath(activePath)));
-  const segments = routePath
-    .split("/")
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment));
-
-  let path = `/a/${encodeURIComponent(agentId)}`;
-  if (segments.length) {
-    path += `/${segments.join("/")}`;
-  }
-
-  if (activeContentMode && APP_ROUTE_VIEW_IDS.has(activeContentMode)) {
-    path += `/v/${encodeURIComponent(activeContentMode)}`;
-    if (activeDataStorageAllItems && getDataStorageSlotForMode()) {
-      path += "/slots";
-    } else if (activeContentMode === "external" && activeExternalFilePath) {
-      const fileSegments = String(activeExternalFilePath)
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment));
-      if (fileSegments.length) {
-        path += `/f/${fileSegments.join("/")}`;
-      }
-    } else if (activeContentMode === "external" && activeExternalSectionFolder && isStorageSectionsPanelVisible()) {
-      const sectionSegments = String(activeExternalSectionFolder)
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment));
-      if (sectionSegments.length) {
-        path += `/s/${sectionSegments.join("/")}`;
-      }
-    } else if (isFlatStorageSectionMode() && getActiveFlatStorageSectionFolder() && isStorageSectionsPanelVisible()) {
-      const sectionSegments = String(getActiveFlatStorageSectionFolder())
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment));
-      if (sectionSegments.length) {
-        path += `/s/${sectionSegments.join("/")}`;
-      }
-    } else if (
-      isMediaLibraryContentMode() &&
-      (activeMediaSidecarSourcePath || activeMediaMarkdownPath)
-    ) {
-      const fileSegments = String(activeMediaSidecarSourcePath || activeMediaMarkdownPath)
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment));
-      if (fileSegments.length) {
-        path += `/f/${fileSegments.join("/")}`;
-      }
-    } else if (isMediaLibraryContentMode()) {
-      const viewForUrl = mediaViewMode || "dashboard";
-      if (activeMediaSectionFolder && isStorageSectionsPanelVisible()) {
-        const sectionSegments = String(activeMediaSectionFolder)
-          .split("/")
-          .filter(Boolean)
-          .map((segment) => encodeURIComponent(segment));
-        if (sectionSegments.length) {
-          path += `/s/${sectionSegments.join("/")}`;
-        }
-      }
-      const omitDefaultView = activeMediaSectionFolder && isStorageSectionsPanelVisible()
-        ? viewForUrl === "all"
-        : viewForUrl === "dashboard";
-      if (!omitDefaultView && MEDIA_ROUTE_LIST_VIEWS.has(viewForUrl)) {
-        path += `/m/${encodeURIComponent(viewForUrl)}`;
-      }
-    } else if (
-      (activeContentMode === "tabular" && isTabularSourceEditing()) ||
-      (isFlatStorageListSourceToggleMode() && editorViewMode === "source")
-    ) {
-      path += "/source";
-    } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
-      const kind = ENTRY_OVERVIEW_ROUTE_KINDS.has(activeEntryOverviewContext.memoryKind)
-        ? activeEntryOverviewContext.memoryKind
-        : "external";
-      path += `/${encodeURIComponent(kind)}`;
-      if (isEntryOverviewMemoryTocRoot(activeEntryOverviewContext)) {
-        path += "/toc";
-      } else if (activeEntryOverviewContext.relativePath) {
-        const fileSegments = String(activeEntryOverviewContext.relativePath)
-          .split("/")
-          .filter(Boolean)
-          .map((segment) => encodeURIComponent(segment));
-        if (fileSegments.length) {
-          path += `/f/${fileSegments.join("/")}`;
-        }
-      }
-    }
-  }
-
   return path;
 }
 
@@ -1229,6 +1351,20 @@ async function applyAppRouteFromUrl() {
     await selectSystemFile(route.systemFile, { skipRouteSync: true });
     syncAppRouteToUrl({ replace: true });
     return true;
+  }
+
+  if (route.type === "chpu") {
+    hideHomeView();
+    try {
+      const resolved = await fetchChpuResolve(route.chpuPath || "");
+      await applyChpuResolvedRoute(resolved);
+      syncAppRouteToUrl({ replace: true });
+      return true;
+    } catch (error) {
+      showToast(`Ошибка маршрута: ${error.message}`, "error");
+      showHomeView();
+      return true;
+    }
   }
 
   if (route.type === "agentHome") {
@@ -1465,7 +1601,7 @@ async function loadAgents() {
     activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
   }
-  const deferRouteSync = route.type === "node" || route.type === "systemFile";
+  const deferRouteSync = route.type === "node" || route.type === "systemFile" || route.type === "chpu";
   if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
   }
@@ -3978,7 +4114,9 @@ function renderLandingFocusTable(items) {
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
   if (!panelNode || !listNode) return;
+  const focusScrollChrome = listNode.querySelector(".sidebar-focus-scroll-chrome");
   listNode.replaceChildren();
+  if (focusScrollChrome) listNode.appendChild(focusScrollChrome);
   if (!activeAgentId) {
     panelNode.classList.add("hidden");
     return;
@@ -4030,13 +4168,9 @@ function renderGlobalFocusPanel() {
 }
 
 function renderAgentFocusPanels() {
-  const count = agentFocusItemsCache.length;
-  if (sidebarFocusCountNode) {
-    sidebarFocusCountNode.textContent = String(count);
-    sidebarFocusCountNode.classList.toggle("hidden", !activeAgentId);
-  }
   renderFocusPanel(homeFocusNode, homeFocusListNode, agentFocusItemsCache, "home");
   renderFocusPanel(sidebarFocusNode, sidebarFocusListNode, agentFocusItemsCache, "sidebar");
+  syncSidebarFocusScrollChrome();
   updateNodeOverviewHeroActionStates();
 }
 
@@ -42840,6 +42974,7 @@ async function renderNodeOverview() {
 
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);
+  requestAnimationFrame(() => syncWorkspaceScrollChrome());
 }
 
 function applyModeUi() {
@@ -43122,6 +43257,7 @@ function applyModeUi() {
   }
   syncSaveButtonLamp();
   window.AgentDiscussPanel?.sync?.();
+  requestAnimationFrame(() => syncWorkspaceScrollChrome());
 }
 
 function escapeHtml(value) {
@@ -44071,7 +44207,7 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
-  return editorViewMode === "wysiwyg" && isWysiwygEditorEnabled();
+  return false;
 }
 
 function getEditorFillMinHeightPx() {
@@ -44607,7 +44743,7 @@ function initWysiwygEditor() {
   try {
     wysiwygEditorInstance = new EditorClass({
       el: editorWysiwygWrapNode,
-      height: "auto",
+      height: "100%",
       initialEditType: "wysiwyg",
       previewStyle: "vertical",
       hideModeSwitch: true,
@@ -56049,10 +56185,10 @@ function patchSharedMenuAfterCreate(agentId = activeAgentId) {
 }
 
 function withPreservedMenuScroll(run) {
-  const scrollTop = menuNode?.scrollTop ?? 0;
+  const scrollContainer = document.querySelector(".sidebar");
+  const scrollTop = scrollContainer?.scrollTop ?? 0;
   const result = run();
-  if (menuNode) menuNode.scrollTop = scrollTop;
-  syncMenuScrollTopButton();
+  if (scrollContainer) scrollContainer.scrollTop = scrollTop;
   return result;
 }
 
@@ -56111,22 +56247,192 @@ function syncScrollChrome({
   }
 }
 
-function syncMenuScrollTopButton() {
+function setupAppFooterToggle() {
+  if (!appFooterNode || !appFooterToggleBtn || !appFooterDetailsNode) return;
+
+  const setExpanded = (expanded) => {
+    appFooterNode.classList.toggle("is-expanded", expanded);
+    appFooterDetailsNode.classList.toggle("hidden", !expanded);
+    appFooterToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (appFooterToggleLabelNode) {
+      appFooterToggleLabelNode.textContent = expanded ? "Свернуть" : "Подробнее";
+    }
+  };
+
+  appFooterToggleBtn.addEventListener("click", () => {
+    setExpanded(!appFooterNode.classList.contains("is-expanded"));
+  });
+
+  setExpanded(false);
+}
+
+function getFocusListScrollIndex(listNode) {
+  if (!listNode) return { index: 0, total: 0 };
+  const items = [...listNode.querySelectorAll(".agent-focus-chip-row")];
+  const total = items.length;
+  if (!total) return { index: 0, total: 0 };
+
+  const scrollTop = listNode.scrollTop;
+  const viewportBottom = scrollTop + listNode.clientHeight;
+  let index = 1;
+
+  for (let i = 0; i < items.length; i++) {
+    const itemTop = items[i].offsetTop;
+    const itemBottom = itemTop + items[i].offsetHeight;
+    if (itemBottom > scrollTop + 4) {
+      index = i + 1;
+      break;
+    }
+    index = i + 1;
+  }
+
+  for (let i = items.length - 1; i >= 0; i--) {
+    const itemTop = items[i].offsetTop;
+    if (itemTop < viewportBottom - 4) {
+      index = Math.max(index, i + 1);
+      break;
+    }
+  }
+
+  return { index, total };
+}
+
+function formatSidebarFocusCountLabel(listNode) {
+  const { index, total } = getFocusListScrollIndex(listNode);
+  if (!total) return "";
+  if (total === 1) return "1 из 1";
+  return `${index} из ${total}`;
+}
+
+function syncSidebarFocusScrollChrome() {
+  if (!sidebarFocusListNode) return;
   syncScrollChrome({
-    scrollElement: menuNode,
-    topButton: menuScrollTopBtn,
-    progressNode: menuScrollProgressFillNode,
-    depthNode: menuScrollDepthNode
+    scrollElement: sidebarFocusListNode,
+    progressNode: sidebarFocusScrollProgressNode,
+    depthNode: sidebarFocusScrollDepthNode,
+    chromeNode: sidebarFocusScrollChromeNode
+  });
+  if (sidebarFocusCountNode) {
+    const label = formatSidebarFocusCountLabel(sidebarFocusListNode);
+    sidebarFocusCountNode.textContent = label;
+    sidebarFocusCountNode.classList.toggle("hidden", !label || !activeAgentId);
+  }
+}
+
+function syncSidebarScrollChrome() {
+  syncScrollChrome({
+    scrollElement: sidebarNode,
+    topButton: sidebarScrollTopBtn,
+    progressNode: sidebarScrollProgressNode,
+    depthNode: sidebarScrollDepthNode,
+    chromeNode: sidebarScrollChromeNode
   });
 }
 
+let workspaceScrollBinding = null;
+let workspaceScrollHostTarget = null;
+
+function getWorkspaceScrollContext() {
+  if (!workspacePaneNode) return { scrollElement: null, hostTarget: null };
+
+  const overview = workspacePaneNode.querySelector(
+    ".doc-slab-main > #node-overview-block.node-overview:not(.hidden), .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
+  );
+  if (overview) return { scrollElement: overview, hostTarget: overview };
+
+  if (fileContentPreviewNode && !fileContentPreviewNode.classList.contains("hidden")) {
+    return { scrollElement: fileContentPreviewNode, hostTarget: fileContentPreviewNode };
+  }
+
+  const wysiwygWrap = workspacePaneNode.querySelector("#editor-wysiwyg-wrap:not(.hidden)");
+  if (wysiwygWrap) {
+    const proseMirror = wysiwygWrap.querySelector(".ProseMirror");
+    if (proseMirror) return { scrollElement: proseMirror, hostTarget: wysiwygWrap };
+  }
+
+  const codeWrap = workspacePaneNode.querySelector("#editor-code-wrap");
+  if (codeWrap && !codeWrap.classList.contains("hidden")) {
+    const codeInput = codeWrap.querySelector(".file-content-input");
+    if (codeInput) return { scrollElement: codeInput, hostTarget: codeWrap };
+  }
+
+  return { scrollElement: null, hostTarget: null };
+}
+
 function getWorkspaceScrollElement() {
-  return appRootNode?.classList.contains("editor-autoheight") ? workspacePaneNode : null;
+  return getWorkspaceScrollContext().scrollElement;
+}
+
+function mountWorkspaceScrollChrome(hostNode) {
+  if (!hostNode) return;
+  if (workspaceScrollChromeNode && workspaceScrollChromeNode.parentElement !== hostNode) {
+    hostNode.insertBefore(workspaceScrollChromeNode, hostNode.firstChild);
+  }
+  if (workspaceScrollTopBtn && workspaceScrollTopBtn.parentElement !== hostNode) {
+    hostNode.appendChild(workspaceScrollTopBtn);
+  }
+}
+
+function teardownWorkspaceScrollHost() {
+  if (workspaceScrollChromeStoreNode) {
+    if (workspaceScrollChromeNode && workspaceScrollChromeNode.parentElement !== workspaceScrollChromeStoreNode) {
+      workspaceScrollChromeStoreNode.appendChild(workspaceScrollChromeNode);
+    }
+    if (workspaceScrollTopBtn && workspaceScrollTopBtn.parentElement !== workspaceScrollChromeStoreNode) {
+      workspaceScrollChromeStoreNode.appendChild(workspaceScrollTopBtn);
+    }
+  }
+
+  workspacePaneNode?.querySelectorAll(".workspace-scroll-host").forEach((hostNode) => {
+    const parentNode = hostNode.parentNode;
+    if (!parentNode) return;
+    while (hostNode.firstChild) {
+      parentNode.insertBefore(hostNode.firstChild, hostNode);
+    }
+    hostNode.remove();
+  });
+
+  workspaceScrollHostTarget = null;
+}
+
+function ensureWorkspaceScrollHost(hostTarget) {
+  if (!hostTarget?.parentNode) return null;
+
+  const existingHost = hostTarget.parentElement?.classList.contains("workspace-scroll-host")
+    ? hostTarget.parentElement
+    : null;
+  if (existingHost && workspaceScrollHostTarget === hostTarget) {
+    mountWorkspaceScrollChrome(existingHost);
+    return existingHost;
+  }
+
+  teardownWorkspaceScrollHost();
+
+  const hostNode = document.createElement("div");
+  hostNode.className = "workspace-scroll-host";
+  hostTarget.parentNode.insertBefore(hostNode, hostTarget);
+  hostNode.appendChild(hostTarget);
+  workspaceScrollHostTarget = hostTarget;
+  mountWorkspaceScrollChrome(hostNode);
+  return hostNode;
 }
 
 function syncWorkspaceScrollChrome() {
+  const { scrollElement, hostTarget } = getWorkspaceScrollContext();
+  if (hostTarget) {
+    ensureWorkspaceScrollHost(hostTarget);
+  } else {
+    teardownWorkspaceScrollHost();
+  }
+
+  if (scrollElement !== workspaceScrollBinding) {
+    workspaceScrollBinding?.removeEventListener("scroll", syncWorkspaceScrollChrome);
+    workspaceScrollBinding = scrollElement;
+    workspaceScrollBinding?.addEventListener("scroll", syncWorkspaceScrollChrome, { passive: true });
+  }
+
   syncScrollChrome({
-    scrollElement: getWorkspaceScrollElement(),
+    scrollElement,
     topButton: workspaceScrollTopBtn,
     progressNode: workspaceScrollProgressNode,
     depthNode: workspaceScrollDepthNode,
@@ -56134,24 +56440,35 @@ function syncWorkspaceScrollChrome() {
   });
 }
 
+function syncMenuScrollTopButton() {
+  syncSidebarScrollChrome();
+}
+
 function setupMenuScrollTopButton() {
-  if (!menuNode || !menuScrollTopBtn) return;
-  menuNode.addEventListener("scroll", syncMenuScrollTopButton, { passive: true });
-  menuScrollTopBtn.addEventListener("click", () => {
-    menuNode.scrollTo({ top: 0, behavior: "smooth" });
+  if (!sidebarNode) return;
+  sidebarNode.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
+  sidebarScrollTopBtn?.addEventListener("click", () => {
+    sidebarNode.scrollTo({ top: 0, behavior: "smooth" });
   });
+  sidebarFocusListNode?.addEventListener("scroll", syncSidebarFocusScrollChrome, { passive: true });
   if (typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(() => syncMenuScrollTopButton());
-    observer.observe(menuNode);
+    const observer = new ResizeObserver(() => {
+      syncSidebarScrollChrome();
+      syncSidebarFocusScrollChrome();
+      syncWorkspaceScrollChrome();
+    });
+    observer.observe(sidebarNode);
+    if (sidebarFocusListNode) observer.observe(sidebarFocusListNode);
+    if (workspacePaneNode) observer.observe(workspacePaneNode);
   }
-  syncMenuScrollTopButton();
+  syncSidebarScrollChrome();
+  syncSidebarFocusScrollChrome();
 }
 
 function setupWorkspaceScrollChrome() {
   if (!workspacePaneNode || !workspaceScrollTopBtn) return;
-  workspacePaneNode.addEventListener("scroll", syncWorkspaceScrollChrome, { passive: true });
   workspaceScrollTopBtn.addEventListener("click", () => {
-    workspacePaneNode.scrollTo({ top: 0, behavior: "smooth" });
+    getWorkspaceScrollElement()?.scrollTo({ top: 0, behavior: "smooth" });
   });
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => syncWorkspaceScrollChrome());
@@ -57323,6 +57640,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 });
 
 setupMenuSortDragDrop();
+setupAppFooterToggle();
 setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();

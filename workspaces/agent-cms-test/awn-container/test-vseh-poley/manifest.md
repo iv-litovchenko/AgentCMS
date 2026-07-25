@@ -1,39 +1,39 @@
 ---
-awn-preview: awn-storage/assets/preview/20260623203544.png
-awn-emoji: 🧪
 awn-name: Тест всех полей
+awn-emoji: 🧪
 awn-status: 🟢 Открыта
-awn-type: awn.page.topic
-awn-create: "2026-06-21T12:00"
-awn-update: 2026-06-23T20:36:31.965Z
 awn-description: Демо-тема для проверки всех виджетов кастомных полей (topic / record / sidecar)
-awn-main: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
 awn-tags:
   - reference
   - demo
+awn-type: awn.page.topic
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-07-25T00:26:22.081Z
+awn-version: 5
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-main: true
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
 awn-color: "#7c3aed"
-awn-version: 4
 awn-sort: ""
-awn-attachments: []
+demo_string: Пример однострочной строки
+demo_text: ""
+demo_integer: 42
+demo_number: 3.14
+demo_boolean: true
+demo_null: null
 demo_array:
   - alpha
   - beta
   - gamma
-demo_boolean: true
-demo_color: "#2563eb"
+demo_enum: В работе
+demo_link: "[[PHP]]"
 demo_date: 2026-06-21
 demo_datetime: "2026-06-21T12:00"
-demo_enum: В работе
-demo_integer: 42
-demo_link: "[[PHP]]"
-demo_null: null
-demo_number: 3.14
-demo_string: Пример однострочной строки
-demo_text: ""
 demo_url: "https://example.com/all-field-types"
+demo_color: "#2563eb"
+awn-attachments: []
 ---
 
 # All Field Types — демонстрация типов полей

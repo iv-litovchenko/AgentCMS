@@ -7,6 +7,7 @@ const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./agent-registry");
+const { resolveChpuPath, isChpuReservedRootSegment } = require("./chpu-resolver");
 const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
@@ -8903,7 +8904,11 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
 
 function isSpaAppRoute(reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
-  return normalized.startsWith("/a/");
+  if (normalized.startsWith("/a/")) return true;
+  const firstSegment = normalized.split("/").filter(Boolean)[0];
+  if (!firstSegment || isChpuReservedRootSegment(firstSegment)) return false;
+  const agentId = decodeURIComponent(firstSegment);
+  return getAgentsPublicList().some((agent) => agent.id === agentId);
 }
 
 async function serveIndexHtml(res) {
@@ -10219,6 +10224,19 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to save menu sort",
         details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/chpu/resolve") {
+    const chpuPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const resolved = await resolveChpuPath(getAgentRoot(), chpuPath);
+      return sendJson(res, 200, resolved);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve CHPU path",
+        details: String(error.message || error)
       });
     }
   }

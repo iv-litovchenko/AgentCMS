@@ -10,9 +10,9 @@ awn-attachments: []
 
 # Примеры ЧПУ (новая схема URL)
 
-> **Статус:** черновик спецификации + эталонные ссылки для `agent-cms-test`.  
+> **Статус:** v1 реализован в роутере — ссылки ниже должны открываться в браузере после перезагрузки.  
 > **Формат:** `/{agent}/{workspace-path}` — без `.md`, без `/a/`, без `/v/`.  
-> **Вид UI:** суффикс `@view` только когда нужен не редактор.
+> **Вид UI:** сегмент `/~view` в конце пути — только когда нужен не редактор.
 
 Базовый хост в примерах: `https://localhost:3000` (или ваш деплой).
 
@@ -23,10 +23,10 @@ awn-attachments: []
 ```
 /{agent}/{path...}           → редактирование ресурса (дефолт)
 /{agent}/{path...}/          → папка / раздел (manifest или list)
-/{agent}/{path...}@{view}    → другой UI (список, обзор, слот…)
+/{agent}/{path...}/~{view}    → другой UI (список, обзор, слот…)
 ```
 
-**Резолвер** (на сервере) для `{path}` без `@`:
+**Резолвер** (на сервере) для `{path}` без `/~view`:
 
 1. `{path}/manifest.md` — узел меню (workspace, area, topic, раздел)
 2. `{path}.md` — markdown-запись
@@ -57,44 +57,44 @@ awn-attachments: []
 
 ---
 
-## 3. Тема «Тест ссылок» — виды UI (`@view`)
+## 3. Тема «Тест ссылок» — виды UI (`/~view`)
 
-Без `@` — редактор/manifest. С `@` — представление в интерфейсе.
+Без `/~view` — редактор/manifest. С `/~view` — представление в интерфейсе.
 
 | Вид | Новый URL | Примечание |
 |-----|-----------|------------|
-| Обзор темы | `/agent-cms-test/awn-container/test-ssylok@overview` | карточка / сводка |
-| Навигация | `/agent-cms-test/awn-container/test-ssylok@navigation` | подтемы, слоты |
-| Mindmap | `/agent-cms-test/awn-container/test-ssylok@mindmap` | карта тем |
-| Inbox (список) | `/agent-cms-test/awn-container/test-ssylok@inbox` | слот inbox |
-| Main (список) | `/agent-cms-test/awn-container/test-ssylok@main` | слот main |
-| Note / быстрые | `/agent-cms-test/awn-container/test-ssylok@note` | quick-notes |
-| References | `/agent-cms-test/awn-container/test-ssylok@references` | |
-| Media (библиотека) | `/agent-cms-test/awn-container/test-ssylok@media` | дашборд медиа |
-| External memory | `/agent-cms-test/awn-container/test-ssylok@external` | |
-| Tabular | `/agent-cms-test/awn-container/test-ssylok@tabular` | таблица |
-| Todo | `/agent-cms-test/awn-container/test-ssylok@todo` | |
-| Thread (диалог) | `/agent-cms-test/awn-container/test-ssylok@thread` | |
-| Configs | `/agent-cms-test/awn-container/test-ssylok@configs` | node-config |
-| Env | `/agent-cms-test/awn-container/test-ssylok@env` | |
-| Scripts | `/agent-cms-test/awn-container/test-ssylok@scripts` | |
+| Обзор темы | `/agent-cms-test/awn-container/test-ssylok/~overview` | карточка / сводка |
+| Навигация | `/agent-cms-test/awn-container/test-ssylok/~navigation` | подтемы, слоты |
+| Mindmap | `/agent-cms-test/awn-container/test-ssylok/~mindmap` | карта тем |
+| Inbox (список) | `/agent-cms-test/awn-container/test-ssylok/~inbox` | слот inbox |
+| Main (список) | `/agent-cms-test/awn-container/test-ssylok/~main` | слот main |
+| Note / быстрые | `/agent-cms-test/awn-container/test-ssylok/~note` | quick-notes |
+| References | `/agent-cms-test/awn-container/test-ssylok/~references` | |
+| Media (библиотека) | `/agent-cms-test/awn-container/test-ssylok/~media` | дашборд медиа |
+| External memory | `/agent-cms-test/awn-container/test-ssylok/~external` | |
+| Tabular | `/agent-cms-test/awn-container/test-ssylok/~tabular` | таблица |
+| Todo | `/agent-cms-test/awn-container/test-ssylok/~todo` | |
+| Thread (диалог) | `/agent-cms-test/awn-container/test-ssylok/~thread` | |
+| Configs | `/agent-cms-test/awn-container/test-ssylok/~configs` | node-config |
+| Env | `/agent-cms-test/awn-container/test-ssylok/~env` | |
+| Scripts | `/agent-cms-test/awn-container/test-ssylok/~scripts` | |
 
 ---
 
 ## 4. Inbox в «Тест ссылок» (фикстуры этой темы)
 
-| Ресурс | Новый URL | `@list` (таблица раздела) |
+| Ресурс | Новый URL | `/~list` (таблица раздела) |
 |--------|-----------|---------------------------|
-| Inbox целиком | `@inbox` (см. выше) | — |
-| Раздел «Демо-раздел» | `/agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel` | `…/demo-razdel@list` |
+| Inbox целиком | `/~inbox` (см. выше) | — |
+| Раздел «Демо-раздел» | `/agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel` | `…/demo-razdel/~list` |
 | Запись «Первая запись» | `/agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel/pervaya-zapis` | — |
 
 Полные ссылки:
 
 ```
-/agent-cms-test/awn-container/test-ssylok@inbox
+/agent-cms-test/awn-container/test-ssylok/~inbox
 /agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel
-/agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel@list
+/agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel/~list
 /agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel/pervaya-zapis
 ```
 
@@ -104,9 +104,9 @@ awn-attachments: []
 
 | Тема | Manifest (редактор) | Inbox-список |
 |------|---------------------|--------------|
-| Тест картинок | `/agent-cms-test/awn-container/test-kartinok` | `…/test-kartinok@inbox` |
-| Тест файлов | `/agent-cms-test/awn-container/test-faylov` | `…/test-faylov@inbox` |
-| PHP | `/agent-cms-test/awn-container/php` | `…/php@inbox` |
+| Тест картинок | `/agent-cms-test/awn-container/test-kartinok` | `…/test-kartinok/~inbox` |
+| Тест файлов | `/agent-cms-test/awn-container/test-faylov` | `…/test-faylov/~inbox` |
+| PHP | `/agent-cms-test/awn-container/php` | `…/php/~inbox` |
 
 Пример записи в другой теме (main/test):
 
@@ -170,10 +170,10 @@ Sidecar к медиа (markdown-описание):
 | Сценарий | Legacy | Новый |
 |----------|--------|-------|
 | Тема, описание | `/a/agent-cms-test/awn-container/test-ssylok` | `/agent-cms-test/awn-container/test-ssylok` |
-| Inbox-список | `/a/.../test-ssylok/v/inbox` | `/agent-cms-test/awn-container/test-ssylok@inbox` |
+| Inbox-список | `/a/.../test-ssylok/v/inbox` | `/agent-cms-test/awn-container/test-ssylok/~inbox` |
 | Запись inbox | `/a/.../v/inbox/f/demo-razdel/pervaya-zapis.md` | `/agent-cms-test/.../demo-razdel/pervaya-zapis` |
-| Раздел inbox | `/a/.../v/inbox/s/demo-razdel` | `/agent-cms-test/.../demo-razdel` или `…@list` |
-| Media dashboard | `/a/.../test-ssylok/v/media` | `/agent-cms-test/awn-container/test-ssylok@media` |
+| Раздел inbox | `/a/.../v/inbox/s/demo-razdel` | `/agent-cms-test/.../demo-razdel` или `…/~list` |
+| Media dashboard | `/a/.../test-ssylok/v/media` | `/agent-cms-test/awn-container/test-ssylok/~media` |
 | Файл в media | `/a/.../v/media/f/20260618173131.png` | `/agent-cms-test/awn-container/test-kartinok/awn-storage/media/20260618173131` |
 
 ---
@@ -181,20 +181,21 @@ Sidecar к медиа (markdown-описание):
 ## 9. Правила для авторов ссылок
 
 1. **Не пишите `.md`** в URL — резолвер добавит сам.
-2. **`@` только для UI-режима**, не для «обычного» файла.
-3. **Один `@` на URL** — после последнего логического сегмента пути темы/слота.
+2. **`/~view` только для UI-режима**, не для «обычного» файла.
+3. **Один `/~view` на URL** — последний сегмент пути.
 4. **Cross-agent:** всегда полный путь с `/agent-id/…`.
-5. **Папка vs файл:** leaf без `/` → запись; каталог → manifest или `@list`.
+5. **Папка vs файл:** leaf без `/` → запись; каталог → manifest или `/~list`.
 6. **Пробелы и кириллица** — slug в пути (`test-ssylok`, не «Тест ссылок»).
+7. **Legacy:** старый `@view` в суффиксе сегмента ещё читается, но новые ссылки — через `/~view`.
 
 ---
 
 ## 10. Чеклист для реализации роутера
 
-- [ ] SPA fallback: `/{agent}/…` → `index.html` (не только `/a/`)
-- [ ] `GET /api/resolve?agent=&path=` → `{ kind, relPath, defaultView }`
-- [ ] Парсинг `@view` в последнем сегменте
-- [ ] Редиректы legacy `/a/…/v/…` → новый формат
+- [x] SPA fallback: `/{agent}/…` → `index.html`
+- [x] `GET /api/chpu/resolve?path=` → `{ kind, … }`
+- [x] Парсинг `/~view` в последнем сегменте (legacy `@view` — читается)
+- [ ] Редиректы legacy `/a/…/v/…` → новый формат (legacy пока читается, URL переписывается при навигации)
 - [ ] Markdown: автолинки `/agent/…` в preview
 
 ---
@@ -204,7 +205,7 @@ Sidecar к медиа (markdown-описание):
 ```text
 /agent-cms-test/
 /agent-cms-test/awn-container/test-ssylok
-/agent-cms-test/awn-container/test-ssylok@inbox
+/agent-cms-test/awn-container/test-ssylok/~inbox
 /agent-cms-test/awn-container/test-ssylok/awn-storage/inbox/demo-razdel/pervaya-zapis
 /agent-cms-test/awn-container/test-ssylok/awn-storage/main/chpu-primery
 /agent-cms-test/awn-container/test-kartinok/awn-storage/media/20260618173131

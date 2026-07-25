@@ -429,6 +429,9 @@
       discussMessagesScrollDepthNode.textContent = depthLabel;
       discussMessagesScrollDepthNode.classList.toggle("hidden", !depthLabel);
     }
+    discussMessagesWrapNode
+      .querySelector(".discuss-messages-scroll-chrome")
+      ?.classList.toggle("is-active", metrics.scrollable && metrics.percent > 0);
   }
 
   function bindDiscussMessagesScrollChrome() {
