@@ -146,7 +146,8 @@ const agentMap3PaneNode = document.getElementById("agent-map3-pane");
 const agentMap3StatsNode = document.getElementById("agent-map3-stats");
 const agentMap3ViewportNode = document.getElementById("agent-map3-viewport");
 const agentMap3BoardNode = document.getElementById("agent-map3-board");
-const agentPreviewPlaceholderNode = document.getElementById("agent-preview-placeholder");
+document.getElementById("agent-preview-placeholder")?.remove();
+const agentPreviewPlaceholderNode = null;
 const agentTodoPreviewWrapNode = document.getElementById("agent-todo-preview-wrap");
 const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
@@ -38479,13 +38480,7 @@ function refreshEntryOverviewListFromSearch() {
   hub.querySelector(".node-entry-overview-section-list")?.remove();
 
   if (state.isMemoryTocRoot) {
-    const toc = renderEntryOverviewFullMemoryToc(state.context, filteredIndex);
-    if (toc) {
-      const anchor =
-        hub.querySelector(".node-entry-overview-search-wrap") ||
-        hub.querySelector(".node-entry-overview-memory-trail");
-      anchor?.insertAdjacentElement("afterend", toc);
-    }
+    appendEntryOverviewMemoryToc(hub, state.context, state.navigationIndex);
     return;
   }
 
@@ -38498,18 +38493,23 @@ function refreshEntryOverviewListFromSearch() {
   anchor?.insertAdjacentElement("afterend", sectionList);
 }
 
-function appendEntryOverviewSearchAndLists(hub, context, navigationIndex, options = {}) {
-  const searchHost = options.slotPanel || hub;
-  const searchBar = createEntryOverviewSearchBar(context);
-  if (searchBar) searchHost.appendChild(searchBar);
-
-  if (!options.isMemoryTocRoot) return;
-
+function appendEntryOverviewMemoryToc(hub, context, navigationIndex) {
   const memoryToc = renderEntryOverviewFullMemoryToc(
     context,
     getEntryOverviewFilteredNavigationIndex(navigationIndex)
   );
-  if (memoryToc) hub.appendChild(memoryToc);
+  if (!memoryToc) return null;
+
+  const anchor =
+    hub.querySelector(".node-entry-overview-slot-panel") ||
+    hub.querySelector(".node-entry-overview-search-wrap") ||
+    hub.querySelector(".node-entry-overview-memory-trail");
+  if (anchor) {
+    anchor.insertAdjacentElement("afterend", memoryToc);
+  } else {
+    hub.appendChild(memoryToc);
+  }
+  return memoryToc;
 }
 
 function getEntryOverviewTopicTitle() {
@@ -39267,6 +39267,104 @@ function buildEntryOverviewMediaAssetItem(context, navigationIndex = null) {
   };
 }
 
+async function fetchEntryOverviewTextPreview(context, nodePath = activePath, sizeHint = null) {
+  const relativePath = String(context?.relativePath || "").replace(/\\/g, "/");
+  if (!relativePath) throw new Error("Пустой путь");
+
+  if (sizeHint != null && sizeHint > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+    return { tooLarge: true, size: sizeHint };
+  }
+
+  const memoryKind = String(context?.memoryKind || "");
+  const apiPath = getResolvedNodePath(nodePath) || getActiveNodeApiPath();
+  const storageFolder =
+    memoryKind === "external"
+      ? getStorageSubfolderForMode("external")
+      : isFlatEntryOverviewMemoryKind(memoryKind)
+        ? getFlatStorageSectionFolderName(memoryKind)
+        : null;
+
+  if (storageFolder) {
+    const response = await fetch(
+      buildApiUrl("/api/storage/file", {
+        path: apiPath,
+        folder: storageFolder,
+        file: relativePath
+      })
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const text = String(data.content ?? "");
+    if (text.length > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+      return { tooLarge: true, size: text.length };
+    }
+    if (text.includes("\0")) return { binary: true };
+    return { text };
+  }
+
+  return fetchMediaAssetTextPreview(relativePath, nodePath, sizeHint);
+}
+
+async function hydrateEntryOverviewCodePreview(
+  previewNode,
+  context,
+  nodePath = activePath,
+  sizeHint = null
+) {
+  if (!previewNode || !context) return;
+
+  try {
+    const result = await fetchEntryOverviewTextPreview(context, nodePath, sizeHint);
+    if (result.binary) {
+      previewNode.innerHTML =
+        '<p class="node-entry-overview-media-asset-code-notice">Бинарный файл — превью кода недоступно.</p>';
+      return;
+    }
+    if (result.tooLarge) {
+      const sizeLabel = formatFileSize(result.size || sizeHint || 0);
+      previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Файл слишком большой для превью (${sizeLabel}).</p>`;
+      return;
+    }
+
+    const lang = getCodePreviewLanguage(context.relativePath) || "plaintext";
+    previewNode.innerHTML = renderCodePreviewHtml(result.text || "", lang);
+    applySyntaxHighlighting(previewNode, { nodePath: context.relativePath });
+  } catch (error) {
+    previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Не удалось загрузить превью: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function createEntryOverviewCodePreviewSection(context, nodePath = activePath, sizeHint = null) {
+  const section = document.createElement("section");
+  section.className = "node-entry-overview-code-preview";
+
+  const frame = document.createElement("div");
+  frame.className = "node-entry-overview-media-asset-showcase is-kind-code";
+
+  const preview = document.createElement("div");
+  preview.className = "node-entry-overview-media-asset-code-preview file-content-preview";
+  preview.innerHTML = '<p class="node-entry-overview-media-asset-code-loading">Загрузка…</p>';
+  frame.appendChild(preview);
+  section.appendChild(frame);
+
+  void hydrateEntryOverviewCodePreview(preview, context, nodePath, sizeHint);
+  return section;
+}
+
+function appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex = null) {
+  if (!hero || !isEntryOverviewTextCodeAsset(context?.relativePath)) return null;
+  const indexed = findEntryOverviewMediaItemMeta(navigationIndex, context.relativePath);
+  const section = createEntryOverviewCodePreviewSection(
+    context,
+    context.relPath || activePath,
+    indexed?.size ?? null
+  );
+  const main = hero.querySelector(".node-navigation-hero-main");
+  if (main) main.insertAdjacentElement("afterend", section);
+  else hero.appendChild(section);
+  return section;
+}
+
 async function fetchMediaAssetTextPreview(relativePath, nodePath = activePath, sizeHint = null) {
   if (sizeHint != null && sizeHint > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
     return { tooLarge: true, size: sizeHint };
@@ -39296,47 +39394,8 @@ async function fetchMediaAssetTextPreview(relativePath, nodePath = activePath, s
   return { text: new TextDecoder("utf-8", { fatal: false }).decode(buffer) };
 }
 
-async function hydrateEntryOverviewMediaAssetCodePreview(
-  previewNode,
-  relativePath,
-  nodePath = activePath,
-  sizeHint = null
-) {
-  if (!previewNode) return;
-
-  try {
-    const result = await fetchMediaAssetTextPreview(relativePath, nodePath, sizeHint);
-    if (result.binary) {
-      previewNode.innerHTML =
-        '<p class="node-entry-overview-media-asset-code-notice">Бинарный файл — превью кода недоступно.</p>';
-      return;
-    }
-    if (result.tooLarge) {
-      const sizeLabel = formatFileSize(result.size || sizeHint || 0);
-      previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Файл слишком большой для превью (${sizeLabel}).</p>`;
-      return;
-    }
-
-    const lang = getCodePreviewLanguage(relativePath) || "plaintext";
-    previewNode.innerHTML = renderCodePreviewHtml(result.text || "", lang);
-    applySyntaxHighlighting(previewNode, { nodePath: relativePath });
-  } catch (error) {
-    previewNode.innerHTML = `<p class="node-entry-overview-media-asset-code-notice">Не удалось загрузить превью: ${escapeHtml(error.message)}</p>`;
-  }
-}
-
 function createEntryOverviewMediaAssetCodeShowcase(context, nodePath = activePath, sizeHint = null) {
-  const relativePath = String(context.relativePath || "");
-  const showcase = document.createElement("div");
-  showcase.className = "node-entry-overview-media-asset-showcase is-kind-code";
-
-  const preview = document.createElement("div");
-  preview.className = "node-entry-overview-media-asset-code-preview file-content-preview";
-  preview.innerHTML = '<p class="node-entry-overview-media-asset-code-loading">Загрузка…</p>';
-  showcase.appendChild(preview);
-
-  void hydrateEntryOverviewMediaAssetCodePreview(preview, relativePath, nodePath, sizeHint);
-  return showcase;
+  return createEntryOverviewCodePreviewSection(context, nodePath, sizeHint);
 }
 
 function createEntryOverviewMediaAssetShowcase(
@@ -39437,7 +39496,9 @@ function createEntryOverviewMediaAssetPanel(
   const heroNav = createEntryOverviewSiblingNav({ ...(entryOverviewNav || {}), variant: "hero" });
   if (heroNav) panel.appendChild(heroNav);
 
-  panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath, navigationIndex));
+  if (assetKind !== "code") {
+    panel.appendChild(createEntryOverviewMediaAssetShowcase(context, assetKind, nodePath, navigationIndex));
+  }
 
   const main = document.createElement("div");
   main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
@@ -39491,6 +39552,9 @@ function createEntryOverviewMediaAssetPanel(
 
   main.append(body);
   panel.appendChild(main);
+  if (assetKind === "code") {
+    appendEntryOverviewCodePreviewAfterHeroMain(panel, context, navigationIndex);
+  }
   appendNavigationHeroProps(panel, entries);
   return panel;
 }
@@ -39802,12 +39866,12 @@ async function renderEntryOverview() {
     if (isStale()) return;
     if (slotBar) slotPanel.appendChild(slotBar);
 
-    entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
-    appendEntryOverviewSearchAndLists(hub, context, navigationIndex, {
-      isMemoryTocRoot: true,
-      slotPanel
-    });
+    const searchBar = createEntryOverviewSearchBar(context);
+    if (searchBar) slotPanel.appendChild(searchBar);
     if (slotPanel.childElementCount) hub.appendChild(slotPanel);
+
+    entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
+    appendEntryOverviewMemoryToc(hub, context, navigationIndex);
 
     nodeOverviewContentNode.replaceChildren(hub);
     scheduleWorkspaceScrollChromeSync();
@@ -39856,6 +39920,9 @@ async function renderEntryOverview() {
           entryOverviewNav
         });
   hub.appendChild(hero);
+  if (context.entryKind !== "awn.media.asset") {
+    appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex);
+  }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
 
   await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
@@ -39872,7 +39939,10 @@ async function renderEntryOverview() {
   );
   if (sectionList) sectionListAnchor.insertAdjacentElement("afterend", sectionList);
 
-  const contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
+  const isCodePreviewFile = isEntryOverviewTextCodeAsset(context.relativePath);
+  const contentPanel = !isCodePreviewFile
+    ? renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title)
+    : null;
   if (contentPanel) hub.appendChild(contentPanel);
 
   const topicManifestPath = getActiveNodeApiPath();
@@ -56207,14 +56277,14 @@ function withPreservedMenuScroll(run) {
 }
 
 const MENU_SCROLL_TOP_THRESHOLD = 48;
-const SCROLL_TOP_DRAG_MAX_SHIFT_PX = 320;
+const SCROLL_TOP_DRAG_MAX_SHIFT_PX = 100;
 const SCROLL_TOP_DRAG_CLICK_THRESHOLD_PX = 6;
 
 function clampScrollTopShift(value, maxShift = SCROLL_TOP_DRAG_MAX_SHIFT_PX) {
   return Math.min(maxShift, Math.max(0, Number(value) || 0));
 }
 
-function applyScrollTopButtonOffset(button, offset) {
+function applyScrollTopButtonOffset(button, offset = { x: 0, y: 0 }) {
   if (!button) return;
   button.style.setProperty("--scroll-top-shift-x", `${offset.x}px`);
   button.style.setProperty("--scroll-top-shift-y", `${offset.y}px`);
@@ -56263,9 +56333,7 @@ function setupDraggableScrollTopButton(
 
   const finishDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
-    if (dragState.moved) {
-      suppressClick = true;
-    }
+    if (dragState.moved) suppressClick = true;
     dragState = null;
     button.classList.remove("is-dragging");
     try {
@@ -56321,7 +56389,24 @@ function syncScrollChrome({
   chromeNode = null,
   topThreshold = MENU_SCROLL_TOP_THRESHOLD
 } = {}) {
-  if (!scrollElement) return;
+  if (!scrollElement) {
+    if (topButton) {
+      topButton.classList.remove("is-visible");
+      topButton.setAttribute("aria-hidden", "true");
+      topButton.tabIndex = -1;
+    }
+    if (progressNode) {
+      progressNode.style.width = "0%";
+    }
+    if (depthNode) {
+      depthNode.textContent = "";
+      depthNode.classList.add("hidden");
+    }
+    if (chromeNode) {
+      chromeNode.classList.remove("is-active");
+    }
+    return;
+  }
   const metrics = getScrollMetrics(scrollElement);
   const depthLabel = formatScrollDepthLabel(metrics);
   const showTop = metrics.scrollable && metrics.scrollTop > topThreshold;

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.141" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.145" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -270,12 +270,6 @@
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
             <div class="sidebar-agent-avatar-block">
-              <div
-                id="agent-preview-placeholder"
-                class="agent-preview-placeholder"
-                title="Превью не задано"
-                aria-hidden="true"
-              ></div>
               <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
                 <div class="agent-preview-frame">
                   <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
@@ -461,10 +455,10 @@
         </section>
         <button
           id="sidebar-scroll-top-btn"
-          class="sidebar-scroll-top-btn scroll-top-btn"
+          class="sidebar-scroll-top-btn scroll-top-btn scroll-top-btn--docked"
           type="button"
-          title="Наверх — перетащите, чтобы сдвинуть"
-          aria-label="Прокрутить боковую панель наверх. Перетащите, чтобы сдвинуть кнопку."
+          title="Наверх — перетащите влево/вправо, чтобы сдвинуть"
+          aria-label="Прокрутить боковую панель наверх. Перетащите влево или вправо, чтобы сдвинуть кнопку."
           aria-hidden="true"
           tabindex="-1"
         >
@@ -1264,10 +1258,10 @@
           </div>
           <button
             id="workspace-scroll-top-btn"
-            class="workspace-scroll-top-btn scroll-top-btn"
+            class="workspace-scroll-top-btn scroll-top-btn scroll-top-btn--docked"
             type="button"
-            title="Наверх — перетащите, чтобы сдвинуть"
-            aria-label="Прокрутить документ наверх. Перетащите, чтобы сдвинуть кнопку."
+            title="Наверх — перетащите влево/вправо, чтобы сдвинуть"
+            aria-label="Прокрутить документ наверх. Перетащите влево или вправо, чтобы сдвинуть кнопку."
             aria-hidden="true"
             tabindex="-1"
           >
@@ -2183,6 +2177,7 @@
           </section>
 
           <div class="discuss-messages-panel">
+          <div class="discuss-messages-scroll-host">
           <section id="discuss-messages-wrap" class="discuss-messages-wrap" aria-label="Сообщения">
             <div class="discuss-messages-scroll-chrome">
               <div class="scroll-progress-track" aria-hidden="true">
@@ -2195,10 +2190,10 @@
           </section>
             <button
               id="discuss-messages-scroll-top-btn"
-              class="discuss-messages-scroll-top-btn scroll-top-btn"
+              class="discuss-messages-scroll-top-btn scroll-top-btn scroll-top-btn--docked"
               type="button"
-              title="Наверх"
-              aria-label="Прокрутить сообщения наверх"
+              title="Наверх — перетащите влево/вправо, чтобы сдвинуть"
+              aria-label="Прокрутить сообщения наверх. Перетащите влево или вправо, чтобы сдвинуть кнопку."
               aria-hidden="true"
               tabindex="-1"
             >
@@ -2210,6 +2205,7 @@
               </span>
               <span class="scroll-top-btn-label">Наверх</span>
             </button>
+          </div>
           </div>
 
           <footer class="discuss-composer">
@@ -2854,8 +2850,8 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.287"></script>
-    <script src="/discuss-panel.js?v=0.5.234"></script>
+    <script src="/main.js?v=0.5.293"></script>
+    <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

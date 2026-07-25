@@ -8641,11 +8641,24 @@ body.app-locked {
   opacity: 1;
 }
 
-.workspace-scroll-host > .workspace-scroll-top-btn {
-  position: absolute;
-  right: calc(16px + var(--scroll-top-shift-x, 0px));
-  bottom: calc(16px + var(--scroll-top-shift-y, 0px));
+.sidebar > .scroll-top-btn--docked {
+  position: sticky;
+  bottom: 14px;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin-top: -46px;
+  margin-right: calc(14px + var(--scroll-top-shift-x, 0px));
+  margin-bottom: calc(14px + var(--scroll-top-shift-y, 0px));
   z-index: 26;
+}
+
+.workspace-scroll-host > .scroll-top-btn--docked,
+.discuss-messages-scroll-host > .scroll-top-btn--docked {
+  position: absolute;
+  right: calc(14px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(14px + var(--scroll-top-shift-y, 0px));
+  z-index: 26;
+  margin: 0;
 }
 
 .workspace-scroll-chrome {
@@ -9970,14 +9983,6 @@ body.app-locked {
   opacity: 1;
 }
 
-.sidebar-scroll-top-btn {
-  position: absolute;
-  right: calc(10px + var(--scroll-top-shift-x, 0px));
-  bottom: calc(8px + var(--scroll-top-shift-y, 0px));
-  z-index: 19;
-  margin: 0;
-}
-
 .sidebar-focus-list-shell {
   position: relative;
   min-width: 0;
@@ -10729,6 +10734,12 @@ body.app-locked {
   margin: 0;
 }
 
+.sidebar-agent-avatar-block:not(:has(.agent-preview-wrap:not(.hidden))):not(
+    :has(.agent-todo-preview-wrap:not(.hidden))
+  ) {
+  display: none;
+}
+
 .sidebar-agent-avatar-block {
   position: relative;
   flex-shrink: 0;
@@ -10737,6 +10748,7 @@ body.app-locked {
 }
 
 .agent-preview-placeholder {
+  display: none !important;
   width: 100%;
   height: 136px;
   box-sizing: border-box;
@@ -16495,6 +16507,15 @@ body.app-locked {
 
 .node-entry-overview-media-asset-showcase.is-kind-code {
   background: #0f172a;
+}
+
+.node-entry-overview-code-preview {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.node-navigation-hero > .node-entry-overview-code-preview {
+  margin-top: 2px;
 }
 
 .node-entry-overview-media-asset-code-preview {
@@ -30744,6 +30765,7 @@ button.node-navigation-memory-title:focus-visible {
   .agent-canvas-pane,
   .home-pane,
   .home-pane-2,
+  .sidebar,
   .workspace-pane {
     grid-column: 1;
   }
@@ -31398,6 +31420,20 @@ body.is-discuss-resizing .discuss-aside-resizer {
   flex-direction: column;
 }
 
+.discuss-messages-scroll-host {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.discuss-messages-scroll-host > .discuss-messages-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .discuss-messages-wrap {
   position: relative;
   flex: 1 1 auto;
@@ -31422,24 +31458,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .discuss-messages-scroll-chrome .scroll-depth-indicator {
   top: 10px;
   right: 12px;
-}
-
-.discuss-messages-scroll-top-btn {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 4;
-  cursor: pointer;
-  touch-action: auto;
-}
-
-.discuss-messages-scroll-top-btn:hover,
-.discuss-messages-scroll-top-btn:active {
-  transform: translateY(0) scale(1);
-}
-
-.discuss-messages-scroll-top-btn.is-visible:hover {
-  transform: translateY(0) scale(1.02);
 }
 
 .discuss-messages-list {

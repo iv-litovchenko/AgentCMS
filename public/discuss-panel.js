@@ -436,9 +436,17 @@
   function bindDiscussMessagesScrollChrome() {
     if (!discussMessagesWrapNode) return;
     discussMessagesWrapNode.addEventListener("scroll", syncDiscussMessagesScrollChrome, { passive: true });
-    discussMessagesScrollTopBtn?.addEventListener("click", () => {
-      discussMessagesWrapNode.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    if (typeof window.setupDraggableScrollTopButton === "function") {
+      window.setupDraggableScrollTopButton(discussMessagesScrollTopBtn, {
+        onActivate: () => {
+          discussMessagesWrapNode.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    } else {
+      discussMessagesScrollTopBtn?.addEventListener("click", () => {
+        discussMessagesWrapNode.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => syncDiscussMessagesScrollChrome());
       observer.observe(discussMessagesWrapNode);
