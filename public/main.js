@@ -355,7 +355,7 @@ const agentSystemTypeInspectorNode = document.getElementById("agent-system-type-
 const editorLineNumbersNode = document.getElementById("editor-line-numbers");
 const tabularSourceBtn = document.getElementById("tabular-source-btn");
 const tabularTableBackBtn = document.getElementById("tabular-table-back-btn");
-const dataHubBundleBackBtn = document.getElementById("data-hub-bundle-back-btn");
+const dataHubBundleEditBtn = document.getElementById("data-hub-bundle-edit-btn");
 const titleInputNode = document.getElementById("title-input");
 const titleSlugRowNode = document.getElementById("title-slug-row");
 const titleSlugInputNode = document.getElementById("title-slug-input");
@@ -802,7 +802,7 @@ const CHPU_UI_VIEW_IDS = new Set([
   "schema",
   "env",
   "chat",
-  "tasks",
+  "todo",
   "list",
   "preview"
 ]);
@@ -823,8 +823,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   env: "env",
   thread: "chat",
   chat: "chat",
-  todo: "tasks",
-  tasks: "tasks",
+  todo: "todo",
+  tasks: "todo",
   list: "list",
   browse: "list",
   "show-list": "list",
@@ -878,8 +878,7 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   assets: "assets",
   repository: "repository",
   scripts: "scripts",
-  temp: "temp",
-  todo: "todo"
+  temp: "temp"
 };
 
 const CHPU_SLOT_FOLDER_TO_MODE = {
@@ -942,7 +941,7 @@ function chpuUiViewToContentMode(uiView) {
       return "env";
     case "chat":
       return NODE_THREAD_MODE;
-    case "tasks":
+    case "todo":
       return "todo";
     default:
       return null;
@@ -968,7 +967,7 @@ function contentModeToChpuUiView(mode) {
     case NODE_THREAD_MODE:
       return "chat";
     case "todo":
-      return "tasks";
+      return "todo";
     default:
       return null;
   }
@@ -1355,6 +1354,28 @@ async function applyChpuResolvedRoute(resolved) {
           "internal",
           { skipRouteSync: true }
         );
+        if (shouldUseDataHubListShell("internal")) {
+          openDataHubBundleSlotEditor("internal");
+        }
+        return;
+      }
+    }
+
+    const todoMatch = fileRel.match(/^(.*)\/todo\.md$/i);
+    if (todoMatch) {
+      const manifestRel = `${todoMatch[1]}/manifest.md`;
+      const topicRoute = workspaceRelToChpuPath(manifestRel);
+      const topicEntry = resolveMenuEntryByDisplayPath(topicRoute);
+      if (topicEntry?.path) {
+        await selectNodeManifest(
+          topicEntry.label || getLabelFromPath(manifestRel),
+          topicEntry.path,
+          "todo",
+          { skipRouteSync: true }
+        );
+        if (shouldUseDataHubListShell("todo")) {
+          openDataHubBundleSlotEditor("todo");
+        }
         return;
       }
     }
@@ -1510,6 +1531,10 @@ function getChpuWorkspacePathFromState() {
 
   if (activeContentMode === "internal") {
     return `${topicRoute}/main`;
+  }
+
+  if (activeContentMode === "todo" && isDataHubBundleEditorMode()) {
+    return `${topicRoute}/todo`;
   }
 
   if (activeContentMode === "tabular" && isTabularSourceEditing()) {
@@ -8992,6 +9017,549 @@ function syncDataHubSharedContextBanner(panelBody, scan = activeStorageRootScan)
   panelBody.insertBefore(banner, panelBody.firstChild);
 }
 
+const STORAGE_CANONICAL_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function isCanonicalStorageSlug(value) {
+  const raw = String(value || "").trim();
+  return Boolean(raw && STORAGE_CANONICAL_SLUG_RE.test(raw));
+}
+
+function suggestCanonicalStorageSlug(rawName, displayName = "") {
+  const fromDisplay = transliterateDisplayToSlug(String(displayName || "").trim());
+  if (fromDisplay && isCanonicalStorageSlug(fromDisplay)) return fromDisplay;
+  const sanitized = sanitizeSlugValue(rawName);
+  if (sanitized && isCanonicalStorageSlug(sanitized)) return sanitized;
+  const transliterated = transliterateDisplayToSlug(rawName);
+  if (transliterated && isCanonicalStorageSlug(transliterated)) return transliterated;
+  return sanitized || transliterated || "";
+}
+
+function getSlugIssueForSegment(rawName, displayName = "") {
+  const current = String(rawName || "").trim();
+  if (!current || isCanonicalStorageSlug(current)) return null;
+  const suggested = suggestCanonicalStorageSlug(current, displayName);
+  if (!suggested || suggested === current) return null;
+  return {
+    current,
+    suggested,
+    displayName: String(displayName || "").trim() || current
+  };
+}
+
+function getEntryOverviewSlugIssue(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return null;
+
+  const memoryKind = context.memoryKind || "external";
+  const relativePath = String(context.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!relativePath) return null;
+
+  const isCategory =
+    context.entryKind === "awn.record.category" ||
+    context.entryKind === "awn.media.category" ||
+    isSectionReadmePath(relativePath);
+
+  if (isCategory) {
+    const sectionFolder = relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    const segment = sectionFolder.split("/").filter(Boolean).pop() || "";
+    const displayName = context.title || segment;
+    const issue = getSlugIssueForSegment(segment, displayName);
+    if (!issue) return null;
+    const state =
+      memoryKind === "external"
+        ? { externalMode: true }
+        : memoryKind === "media"
+          ? { mediaMode: true }
+          : isFlatEntryOverviewMemoryKind(memoryKind)
+            ? { storageMode: memoryKind }
+            : null;
+    if (!state) return null;
+    return {
+      kind: "memory-section",
+      sectionFolder,
+      state,
+      label: displayName,
+      ...issue
+    };
+  }
+
+  if (memoryKind !== "external" && !isFlatEntryOverviewMemoryKind(memoryKind)) return null;
+
+  const filePath = relativePath.replace(/\.md$/i, "");
+  const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
+  const displayName = context.title || base;
+  const issue = getSlugIssueForSegment(base, displayName);
+  if (!issue) return null;
+  return { kind: "external-file", filePath, label: displayName, ...issue };
+}
+
+function getDataHubSlugIssue(mode = activeContentMode) {
+  if (!activePath) return null;
+
+  if (mode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    return getEntryOverviewSlugIssue(activeEntryOverviewContext);
+  }
+
+  if (mode === "external" && activeExternalFilePath) {
+    const filePath = String(activeExternalFilePath).replace(/\\/g, "/");
+    const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
+    const cached = externalFilesCache.find(
+      (item) => String(item.relativePath || item.path || "").replace(/\\/g, "/") === filePath
+    );
+    const displayName = String(cached?.title || "").trim() || base;
+    const issue = getSlugIssueForSegment(base, displayName);
+    if (!issue) return null;
+    return { kind: "external-file", filePath, label: displayName, ...issue };
+  }
+
+  const sectionFolder =
+    mode === "external"
+      ? activeExternalSectionFolder
+      : mode === "media"
+        ? activeMediaSectionFolder
+        : isFlatStorageSectionMode(mode)
+          ? activeFlatStorageSectionFolder[mode]
+          : null;
+
+  if (
+    sectionFolder &&
+    (shouldUseDataHubListShell(mode) || mode === "external" || mode === "media")
+  ) {
+    const normalized = String(sectionFolder).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const segment = normalized.split("/").filter(Boolean).pop() || "";
+    const displayName = getMemorySectionDisplayLabel(normalized) || segment;
+    const issue = getSlugIssueForSegment(segment, displayName);
+    if (!issue) return null;
+    const state =
+      mode === "external"
+        ? { externalMode: true }
+        : mode === "media"
+          ? { mediaMode: true }
+          : isFlatStorageSectionMode(mode)
+            ? { storageMode: mode }
+            : null;
+    if (!state) return null;
+    return {
+      kind: "memory-section",
+      sectionFolder: normalized,
+      state,
+      label: displayName,
+      ...issue
+    };
+  }
+
+  if (
+    (mode === NODE_OVERVIEW_MODE || mode === NODE_NAVIGATION_MODE || mode === "description") &&
+    isNodeManifestContextPath()
+  ) {
+    return getNodeManifestSlugIssue();
+  }
+
+  return null;
+}
+
+function getNodeManifestSlugIssue(nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!normalized || !isNodeManifestPath(normalized) || isPartNodePath(normalized)) return null;
+  if (isAgentRootIndexPath(normalized)) return null;
+  if (isSystemReferenceManifestPath(normalized)) return null;
+  if (isReservedRootManifestPath(normalized)) return null;
+
+  const folderPath = getFolderPathFromManifest(normalized);
+  const segment = folderPath.split("/").filter(Boolean).pop() || "";
+  if (!segment) return null;
+
+  const displayName =
+    getOverviewTitleFromProps(resolveNodeOverviewPropsEntries()) ||
+    String(activeLabel || "").trim() ||
+    getLabelFromPath(normalized);
+  const issue = getSlugIssueForSegment(segment, displayName);
+  if (!issue) return null;
+
+  return {
+    kind: "node-manifest",
+    nodePath: normalized,
+    folderPath,
+    label: displayName,
+    ...issue
+  };
+}
+
+function resolveDataHubSlugWarningMountNode(mode = activeContentMode) {
+  const panelBody = getDataHubPanelBodyNode();
+  if (
+    (mode === NODE_ENTRY_OVERVIEW_MODE ||
+      mode === NODE_OVERVIEW_MODE ||
+      mode === NODE_NAVIGATION_MODE) &&
+    nodeOverviewContentNode
+  ) {
+    return nodeOverviewContentNode;
+  }
+  if (shouldUseDataHubListShell(mode) && panelBody && !isExternalFileEditing() && !isMediaAssetEditing()) {
+    return panelBody;
+  }
+  if (getDataHubSlugIssue(mode) && docSlabMainNode) {
+    return docSlabMainNode;
+  }
+  return panelBody;
+}
+
+function getMemoryKindForSlugIssue(issue) {
+  if (issue?.state?.externalMode) return "external";
+  if (issue?.state?.mediaMode) return "media";
+  if (issue?.state?.storageMode) return issue.state.storageMode;
+  return null;
+}
+
+function canApplyDataHubSlugFix(issue) {
+  if (!issue) return false;
+  if (issue.kind === "node-manifest" || issue.kind === "external-file") return true;
+  if (issue.kind !== "memory-section") return false;
+  const memoryKind = getMemoryKindForSlugIssue(issue);
+  if (!memoryKind) return false;
+  return sectionReadmeExistsForMemoryKind(issue.sectionFolder, memoryKind);
+}
+
+const WORKSPACE_SYSTEM_NOTICE_ICON_SVG = {
+  info:
+    '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>',
+  danger:
+    '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>'
+};
+
+function createWorkspaceSystemNoticeIcon(variant) {
+  const icon = document.createElement("span");
+  icon.className = `workspace-system-notice-icon workspace-system-notice-icon--${variant}`;
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = WORKSPACE_SYSTEM_NOTICE_ICON_SVG[variant] || "";
+  return icon;
+}
+
+function wrapWorkspaceSystemNoticeContent(root, variant) {
+  const body = document.createElement("div");
+  body.className = "workspace-system-notice-body";
+  while (root.firstChild) {
+    body.appendChild(root.firstChild);
+  }
+  root.prepend(createWorkspaceSystemNoticeIcon(variant));
+  root.appendChild(body);
+  return root;
+}
+
+function buildDataHubSlugWarningElement(issue) {
+  const warn = document.createElement("div");
+  warn.className = "workspace-system-notice workspace-system-notice--danger data-hub-slug-warning";
+  warn.setAttribute("role", "alert");
+
+  const title = document.createElement("p");
+  title.className = "workspace-system-notice-title data-hub-slug-warning-title";
+  title.textContent = "Некорректный slug";
+  warn.appendChild(title);
+
+  const message = document.createElement("p");
+  message.className = "workspace-system-notice-message data-hub-slug-warning-message";
+  message.textContent = `Текущий элемент «${issue.current}» содержит недопустимые символы или регистр. Рекомендуется slug «${issue.suggested}».`;
+  warn.appendChild(message);
+
+  const canFix = canApplyDataHubSlugFix(issue);
+  const actions = document.createElement("div");
+  actions.className = "workspace-system-notice-actions data-hub-slug-warning-actions";
+
+  const actionBtn = document.createElement("button");
+  actionBtn.type = "button";
+  actionBtn.className =
+    "workspace-system-notice-action workspace-system-notice-action--primary data-hub-slug-warning-action";
+  actionBtn.textContent = "Преобразовать";
+  actionBtn.disabled = !canFix;
+  actionBtn.addEventListener("click", () => {
+    void applyDataHubSlugFix(issue, actionBtn);
+  });
+  actions.appendChild(actionBtn);
+
+  if (!canFix) {
+    const hint = document.createElement("span");
+    hint.className = "workspace-system-notice-action-hint";
+    hint.textContent = "Сначала необходимо создать описание раздела.";
+    actions.appendChild(hint);
+  }
+
+  warn.appendChild(actions);
+
+  return wrapWorkspaceSystemNoticeContent(warn, "danger");
+}
+
+async function applyDataHubSlugFix(issue, triggerBtn = null) {
+  if (!issue) return;
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) {
+    showToast("Не выбран топик", "error");
+    return;
+  }
+
+  if (triggerBtn) {
+    triggerBtn.disabled = true;
+    triggerBtn.textContent = "Преобразование…";
+  }
+
+  try {
+    if (issue.kind === "external-file") {
+      const response = await fetch(buildApiUrl("/api/external/file/rename"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: manifestPath,
+          file: issue.filePath,
+          title: issue.suggested
+        })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Request failed with ${response.status}`);
+      }
+      const data = await response.json();
+      notifyMarkdownLinkRewrite(data.linkRewrite);
+      if (activeExternalFilePath === issue.filePath) {
+        activeExternalFilePath = String(data.file || issue.filePath).replace(/\\/g, "/");
+        updateBreadcrumbsForActiveMode();
+        syncAppRouteToUrl({ replace: true });
+      } else if (
+        activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
+        activeEntryOverviewContext &&
+        String(activeEntryOverviewContext.relativePath || "")
+          .replace(/\\/g, "/")
+          .replace(/\.md$/i, "") === issue.filePath
+      ) {
+        const nextFile = String(data.file || issue.filePath).replace(/\\/g, "/");
+        activeEntryOverviewContext = {
+          ...activeEntryOverviewContext,
+          relativePath: nextFile,
+          relPath: getEntryOverviewItemContextPath(
+            nextFile,
+            activeEntryOverviewContext.memoryKind || "external"
+          ),
+          title: issue.suggested
+        };
+        syncAppRouteToUrl({ replace: true });
+        await renderEntryOverview();
+      }
+      invalidateStorageRootScanCache();
+      await loadContentByMode({ forceReload: true });
+      renderListViewContent();
+      applyModeUi();
+      showToast(`Файл переименован в «${issue.suggested}.md»`, "success");
+      return;
+    }
+
+    if (issue.kind === "node-manifest") {
+      const nodePath = getResolvedNodePath(issue.nodePath);
+      const renameResponse = await fetch(buildApiUrl("/api/file/title"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: nodePath, title: issue.suggested })
+      });
+      if (!renameResponse.ok) {
+        const errorData = await renameResponse.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${renameResponse.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const renameData = await renameResponse.json();
+      const nextPath = renameData.path;
+      notifyMarkdownLinkRewrite(renameData.linkRewrite);
+
+      if (isNodeManifestPath(nodePath) && isNodeManifestPath(nextPath) && !isPartNodePath(nodePath)) {
+        patchTreePaths(getFolderPathFromManifest(nodePath), getFolderPathFromManifest(nextPath));
+      } else if (isTopicManifestPath(nodePath)) {
+        patchTreePaths(nodePath, nextPath);
+      }
+
+      try {
+        await refreshMenu({ agentId: activeAgentId });
+      } catch {
+        // ignore
+      }
+
+      const normalizedOld = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+      const normalizedActive = normalizeMenuNodePath(getResolvedNodePath(activePath));
+      if (normalizedOld && normalizedActive === normalizedOld) {
+        activePath = nextPath;
+        activeLabel = issue.label || issue.suggested;
+        invalidateNodeConfigCache(activePath);
+        await loadContentByMode({ forceReload: true });
+      }
+      applyModeUi();
+      syncAppRouteToUrl({ replace: true });
+      showToast(`Slug преобразован в «${issue.suggested}»`, "success");
+      return;
+    }
+
+    if (issue.kind === "memory-section") {
+      const data = await renameMemorySectionApi(
+        issue.sectionFolder,
+        { title: issue.label || issue.displayName, slug: issue.suggested },
+        issue.state
+      );
+      if (issue.state?.externalMode && data.sectionPath) {
+        activeExternalSectionFolder = data.sectionPath;
+      } else if (issue.state?.mediaMode && data.sectionPath) {
+        activeMediaSectionFolder = data.sectionPath;
+      } else if (issue.state?.storageMode && data.sectionPath) {
+        activeFlatStorageSectionFolder[issue.state.storageMode] = data.sectionPath;
+      }
+      if (
+        activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
+        activeEntryOverviewContext &&
+        issue.kind === "memory-section"
+      ) {
+        const oldFolder = String(issue.sectionFolder || "").replace(/\\/g, "/");
+        const nextFolder = String(data.sectionPath || issue.suggested || "").replace(/\\/g, "/");
+        const memoryKind = activeEntryOverviewContext.memoryKind || "external";
+        activeEntryOverviewContext = {
+          ...activeEntryOverviewContext,
+          relativePath: `${nextFolder}/${AREA_MANIFEST_FILE}`,
+          relPath: getEntryOverviewItemContextPath(
+            `${nextFolder}/${AREA_MANIFEST_FILE}`,
+            memoryKind
+          ),
+          title: nextFolder.split("/").pop() || issue.suggested
+        };
+        if (
+          oldFolder &&
+          String(activeEntryOverviewContext.relativePath || "").startsWith(`${oldFolder}/`)
+        ) {
+          activeEntryOverviewContext.relativePath = String(
+            activeEntryOverviewContext.relativePath
+          ).replace(oldFolder, nextFolder);
+          activeEntryOverviewContext.relPath = getEntryOverviewItemContextPath(
+            activeEntryOverviewContext.relativePath,
+            memoryKind
+          );
+        }
+        syncAppRouteToUrl({ replace: true });
+        await renderEntryOverview();
+      }
+      invalidateStorageRootScanCache();
+      await refreshMemorySectionViews(issue.state);
+      refreshStorageSlotTree();
+      renderListViewContent();
+      applyModeUi();
+      showToast(`Раздел переименован в «${issue.suggested}»`, "success");
+      return;
+    }
+  } catch (error) {
+    showToast(`Не удалось преобразовать slug: ${error.message}`, "error");
+  } finally {
+    if (triggerBtn) {
+      triggerBtn.disabled = !canApplyDataHubSlugFix(issue);
+      triggerBtn.textContent = "Преобразовать";
+    }
+    syncDataHubSlugWarning(activeContentMode);
+  }
+}
+
+function sectionReadmeExistsForMemoryKind(sectionFolder, memoryKind) {
+  if (memoryKind === "external") return externalSectionReadmeExists(sectionFolder);
+  if (memoryKind === "media") return mediaSectionReadmeExists(sectionFolder);
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    return flatStorageSectionReadmeExists(memoryKind, sectionFolder);
+  }
+  return true;
+}
+
+function openSectionReadmeForMemoryKind(readmePath, sectionFolder, memoryKind) {
+  if (memoryKind === "external") {
+    void openExternalSectionReadme(readmePath, sectionFolder);
+    return;
+  }
+  if (memoryKind === "media") {
+    void openMediaSectionReadme(readmePath, sectionFolder);
+    return;
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    void openFlatStorageSectionReadme(memoryKind, readmePath, sectionFolder);
+  }
+}
+
+function appendEntryOverviewSectionReadmeOffer(hub, context) {
+  const sectionFolder = getEntryOverviewSectionFolderPath(context);
+  if (!sectionFolder || sectionReadmeExistsForMemoryKind(sectionFolder, context.memoryKind)) {
+    return;
+  }
+
+  const host = document.createElement("div");
+  host.className = "node-entry-overview-section-readme-offer";
+  const categoryType =
+    context.entryKind === "awn.media.category" ? "awn.media.category" : "awn.record.category";
+  appendSectionReadmeOffer(host, sectionFolder, {
+    categoryType,
+    onCreate: (readmePath) =>
+      openSectionReadmeForMemoryKind(readmePath, sectionFolder, context.memoryKind)
+  });
+  hub.appendChild(host);
+}
+
+function insertDataHubSlugWarningElement(warn, mount) {
+  if (!mount) return;
+
+  const readmeHost = mount.querySelector(".node-entry-overview-section-readme-offer");
+  if (readmeHost) {
+    readmeHost.insertAdjacentElement("afterend", warn);
+    return;
+  }
+
+  const readmeCard = mount.querySelector(".section-readme-card--offer");
+  if (readmeCard) {
+    readmeCard.insertAdjacentElement("afterend", warn);
+    return;
+  }
+
+  const listBody = mount.querySelector(".external-list-view-body, .media-list-view-body");
+  if (listBody) {
+    listBody.insertBefore(warn, listBody.firstChild);
+    return;
+  }
+
+  const sharedBanner = mount.querySelector(".data-hub-shared-context-banner");
+  if (sharedBanner) {
+    sharedBanner.insertAdjacentElement("afterend", warn);
+    return;
+  }
+
+  const hero =
+    mount.querySelector(".node-navigation-hub > .node-navigation-hero") ||
+    mount.querySelector(":scope > .node-navigation-hero");
+  if (hero) {
+    hero.insertAdjacentElement("afterend", warn);
+    return;
+  }
+
+  const titleBar = mount.querySelector("#editor-title-bar");
+  if (titleBar && mount === docSlabMainNode) {
+    titleBar.insertAdjacentElement("afterend", warn);
+    return;
+  }
+
+  mount.insertBefore(warn, mount.firstChild);
+}
+
+function syncDataHubSlugWarning(mode = activeContentMode) {
+  document.querySelectorAll(".data-hub-slug-warning").forEach((node) => node.remove());
+  const issue = getDataHubSlugIssue(mode);
+  if (!issue) return;
+
+  const mount = resolveDataHubSlugWarningMountNode(mode);
+  if (!mount) return;
+
+  const warn = buildDataHubSlugWarningElement(issue);
+  insertDataHubSlugWarningElement(warn, mount);
+}
+
+function syncDataHubPanelChrome(panelBody, scan = activeStorageRootScan, mode = activeContentMode) {
+  syncDataHubSharedContextBanner(panelBody, scan);
+  syncDataHubSlugWarning(mode);
+}
+
 function getDataStorageSlotForMode(mode = activeContentMode) {
   return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.modes.has(mode)) || null;
 }
@@ -10378,7 +10946,7 @@ function renderStorageSlotTreeContent(
   }
   ensureStorageTreePolicyFooter(container, activeContentMode);
   if (!useEntryOverviewNavigation) syncListViewHead();
-  syncDataHubSharedContextBanner(getDataHubPanelBodyNode(), scan);
+  syncDataHubPanelChrome(getDataHubPanelBodyNode(), scan);
   refreshRepositoryStorageSlotTreeCount(container, manifestPath);
 }
 
@@ -13510,6 +14078,23 @@ function handleWorkspaceCloseClick() {
     closeExternalFileEditor();
     return;
   }
+  if (isDataHubBundleSlotShellMode()) {
+    if (
+      isDataHubBundleEditorMode() &&
+      getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO &&
+      activeContentMode === "todo" &&
+      isEditorSaveTrackingActive()
+    ) {
+      const dirty =
+        savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
+      if (dirty) {
+        void saveContent().then(() => closeDataHubBundleEditor());
+        return;
+      }
+    }
+    closeDataHubBundleEditor();
+    return;
+  }
   if (
     getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO &&
     activeContentMode === "todo" &&
@@ -13533,13 +14118,15 @@ function syncWorkspaceCloseButtonsVisibility() {
   const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
   const mediaSidecarEditing = isMediaAssetEditing();
   const externalEditing = isExternalFileEditing();
+  const bundleSlotShellMode = isDataHubBundleSlotShellMode();
   const showClose =
     mediaSidecarEditing ||
     externalEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memorySlotActive && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
     (mediaSlotActive && isMediaLibraryContentMode()) ||
-    (todoDomain && activeContentMode === "todo");
+    (todoDomain && activeContentMode === "todo") ||
+    bundleSlotShellMode;
   nodeWorkspaceCloseBtn?.classList.toggle("hidden", !showClose);
 
   const backToList = mediaSidecarEditing || externalEditing;
@@ -14072,7 +14659,20 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
 
   if (markers) labelWrap.appendChild(markers);
   nameNode.appendChild(titleText);
-  labelWrap.appendChild(nameNode);
+  const subtitleText = String(options.subtitle || "").trim();
+  if (subtitleText) {
+    host.title = `${labelText} · ${subtitleText}`;
+    const textStack = document.createElement("span");
+    textStack.className = "menu-label-text-stack";
+    textStack.appendChild(nameNode);
+    const subtitleNode = document.createElement("span");
+    subtitleNode.className = "menu-flat-item-path";
+    subtitleNode.textContent = subtitleText;
+    textStack.appendChild(subtitleNode);
+    labelWrap.appendChild(textStack);
+  } else {
+    labelWrap.appendChild(nameNode);
+  }
   if (runtimeBadges) {
     labelWrap.appendChild(runtimeBadges);
     host.classList.add("has-menu-runtime-badges");
@@ -20779,25 +21379,31 @@ function appendSectionReadmeOffer(
   { categoryType = "awn.record.category", onCreate }
 ) {
   const card = document.createElement("article");
-  card.className = "section-readme-card section-readme-card--offer";
+  card.className =
+    "workspace-system-notice workspace-system-notice--info workspace-system-notice--offer section-readme-card section-readme-card--offer";
 
   const title = document.createElement("h5");
-  title.className = "section-readme-card-title";
+  title.className = "workspace-system-notice-title section-readme-card-title";
   title.textContent = "Описание раздела";
 
   const hint = document.createElement("p");
-  hint.className = "section-readme-card-hint";
+  hint.className = "workspace-system-notice-message section-readme-card-hint";
   hint.textContent =
     "Файл с описанием ещё не создан. Добавьте описание каталога — это необязательно, но помогает задать имя и свойства раздела.";
 
+  const actions = document.createElement("div");
+  actions.className = "workspace-system-notice-actions";
+
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "section-readme-card-btn";
+  btn.className =
+    "workspace-system-notice-action workspace-system-notice-action--accent section-readme-card-btn";
   btn.textContent = "Создать описание раздела";
   btn.addEventListener("click", () => onCreate(getSectionReadmeRelPath(sectionFolder)));
 
-  card.append(title, hint, btn);
-  container.prepend(card);
+  actions.appendChild(btn);
+  card.append(title, hint, actions);
+  container.prepend(wrapWorkspaceSystemNoticeContent(card, "info"));
 }
 
 function getMediaSectionFileCounts(sectionFolder) {
@@ -23196,6 +23802,7 @@ function renderExternalListViewBody(container) {
     );
     syncExternalListToolbarFromState();
     renderExternalSectionFolderView(container, activeExternalSectionFolder, preparedItems);
+    syncDataHubSlugWarning("external");
     return;
   }
 
@@ -23203,6 +23810,7 @@ function renderExternalListViewBody(container) {
   syncExternalListToolbarMeta(preparedItems.length, countExternalFilesInSection(null));
   syncExternalListToolbarFromState();
   renderExternalViewContent(container, preparedItems);
+  syncDataHubSlugWarning("external");
 }
 
 function getFlatStorageSectionTreeLabel(mode) {
@@ -23590,10 +24198,12 @@ function renderFlatStorageListViewBody(container, mode) {
 
   if (isStorageSectionsPanelVisible() && activeFlatStorageSectionFolder[mode]) {
     renderFlatStorageSectionFolderView(container, mode, activeFlatStorageSectionFolder[mode]);
+    syncDataHubSlugWarning(mode);
     return;
   }
 
   renderFlatStorageAllItemsView(container, mode);
+  syncDataHubSlugWarning(mode);
 }
 
 function updateMediaBulkUploadProgressUI() {
@@ -24097,22 +24707,18 @@ function appendMediaItemActionButtons(target, item) {
   );
 }
 
-function appendEntryOverviewMediaAssetActionButtons(target, item, { onEditClick } = {}) {
-  if (onEditClick) {
-    target.appendChild(createNodeOverviewEditButton(onEditClick));
-  }
+function appendEntryOverviewMediaAssetActionButtons(target, item) {
   target.append(
-    createMediaSidecarEditButton(item),
+    createMediaSidecarEditButton(item, { label: "Редактировать" }),
     createMediaOpenButton(item),
-    createMediaRevealInFinderButton(item),
-    createMediaLinkPathButton(item)
+    createMediaRevealInFinderButton(item)
   );
 }
 
 function createMediaMoveButton(item) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "list-item-action-btn";
+  btn.className = "media-action-btn media-action-btn-icon-only";
   btn.textContent = "↦";
   btn.title = "Переместить";
   btn.setAttribute("aria-label", "Переместить");
@@ -24127,7 +24733,7 @@ function createMediaMoveButton(item) {
 function createMediaDeleteButton(item) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "list-item-action-btn list-item-action-btn--danger";
+  btn.className = "media-action-btn media-action-btn-icon-only media-action-btn--danger";
   btn.textContent = "×";
   btn.title = "Удалить";
   btn.setAttribute("aria-label", "Удалить");
@@ -24298,12 +24904,12 @@ async function moveActiveResource() {
   }
 }
 
-function createMediaSidecarEditButton(item) {
+function createMediaSidecarEditButton(item, { label = "Редактировать sidecar" } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "media-action-btn media-action-btn-icon-only";
-  btn.title = "Редактировать sidecar";
-  btn.setAttribute("aria-label", "Редактировать sidecar");
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
   btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_EDIT));
   btn.addEventListener("click", (event) => {
     guardMediaActionClick(event, () => {
@@ -29051,7 +29657,7 @@ function isDocAsideAvailable() {
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
-  if (activeContentMode === "configs") return false;
+  if (activeContentMode === "configs" || activeContentMode === "env") return false;
   return true;
 }
 
@@ -36877,13 +37483,6 @@ function appendTabularPreviewTable(parent, tabularData, { maxRows = 200, showMet
     return;
   }
 
-  if (showMeta) {
-    const meta = document.createElement("p");
-    meta.className = "tabular-meta";
-    meta.textContent = `${rowCount} строк · ${columns.length} колонок`;
-    parent.appendChild(meta);
-  }
-
   const wrap = document.createElement("div");
   wrap.className = "tabular-table-wrap";
   const table = document.createElement("table");
@@ -36909,15 +37508,33 @@ function appendTabularPreviewTable(parent, tabularData, { maxRows = 200, showMet
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
+
+  if (showMeta || rows.length > maxRows) {
+    const tfoot = document.createElement("tfoot");
+    const colSpan = Math.max(columns.length, 1);
+    if (showMeta) {
+      const metaRow = document.createElement("tr");
+      const metaCell = document.createElement("th");
+      metaCell.className = "tabular-table-footer tabular-meta";
+      metaCell.colSpan = colSpan;
+      metaCell.textContent = `${rowCount} строк · ${columns.length} колонок`;
+      metaRow.appendChild(metaCell);
+      tfoot.appendChild(metaRow);
+    }
+    if (rows.length > maxRows) {
+      const noteRow = document.createElement("tr");
+      const noteCell = document.createElement("th");
+      noteCell.className = "tabular-table-footer tabular-meta tabular-meta--muted";
+      noteCell.colSpan = colSpan;
+      noteCell.textContent = `Показаны первые ${maxRows} из ${rowCount} строк.`;
+      noteRow.appendChild(noteCell);
+      tfoot.appendChild(noteRow);
+    }
+    table.appendChild(tfoot);
+  }
+
   wrap.appendChild(table);
   parent.appendChild(wrap);
-
-  if (rows.length > maxRows) {
-    const note = document.createElement("p");
-    note.className = "tabular-meta tabular-meta--muted";
-    note.textContent = `Показаны первые ${maxRows} из ${rowCount} строк.`;
-    parent.appendChild(note);
-  }
 }
 
 function renderTabularTableView(container) {
@@ -36946,6 +37563,11 @@ function closeTabularSourceEditor() {
 }
 
 function closeDataHubBundleEditor(mode = activeContentMode) {
+  if (isDataHubBundlePreviewActive(mode)) {
+    returnToNodeNavigation();
+    return;
+  }
+
   const spec = getDataStorageSlotForMode(mode);
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (memoryKind) {
@@ -38404,6 +39026,51 @@ function createNavBookTocLinkFileTypeLeading(item) {
   return wrap;
 }
 
+function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath) {
+  const wrap = document.createElement("span");
+  wrap.className = "nav-book-toc-link-preview";
+
+  const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+  if (isEntryOverviewMediaImageItem(item) && path) {
+    const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
+    if (
+      appendNavigationItemPreviewThumb(wrap, item, previewUi, {
+        className: "nav-book-toc-link-preview-img"
+      })
+    ) {
+      return wrap;
+    }
+    const fallback = document.createElement("span");
+    fallback.className = "nav-book-toc-link-filetype-emoji";
+    fallback.textContent = "🖼";
+    fallback.setAttribute("aria-hidden", "true");
+    wrap.appendChild(fallback);
+    return wrap;
+  }
+
+  const ext = getNavigationItemFileExtension(item);
+  const badge = formatNavigationFileExtensionBadge(ext);
+  wrap.classList.add(
+    "nav-book-toc-link-filetype",
+    `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
+  );
+
+  const emoji = document.createElement("span");
+  emoji.className = "nav-book-toc-link-filetype-emoji";
+  emoji.textContent = getMediaIconForItem(item);
+  emoji.setAttribute("aria-hidden", "true");
+  wrap.appendChild(emoji);
+
+  if (badge) {
+    const label = document.createElement("span");
+    label.className = "nav-book-toc-link-filetype-ext";
+    label.textContent = badge;
+    wrap.appendChild(label);
+  }
+
+  return wrap;
+}
+
 function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
   const preview = resolveNavigationItemPreviewUi(item, nodePath);
   if (preview?.imageUrl && !preview.broken) {
@@ -39277,6 +39944,23 @@ function appendEntryOverviewManifestNavActions(wrap, navOptions = {}) {
   if (nav) wrap.appendChild(nav);
 }
 
+function renderEntryOverviewTabularContentPart(context, nodePath = activePath, navOptions = null) {
+  const wrap = document.createElement("div");
+  wrap.className =
+    "node-navigation-manifest node-entry-overview-manifest node-entry-overview-tabular-manifest";
+
+  const preview = document.createElement("div");
+  preview.className =
+    "node-navigation-preview file-content-preview node-entry-overview-tabular-manifest-body";
+  preview.innerHTML = '<p class="node-entry-overview-tabular-loading">Загрузка…</p>';
+  wrap.appendChild(preview);
+
+  if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
+
+  void hydrateEntryOverviewTabularPreview(preview, context, nodePath);
+  return wrap;
+}
+
 function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null, heroTitle = "") {
   const { body } = splitFrontmatter(String(rawContent || ""));
   const content = stripLeadingDuplicateMarkdownHeading(
@@ -39389,7 +40073,13 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
 function formatEntryOverviewHeroPathLabel(entries, relativePath) {
   const slug = getPropsEntryValueByKey(entries, "awn-slug");
   if (slug) return `slug: ${slug}`;
-  const base = String(relativePath || "").split("/").pop() || "";
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (isSectionReadmePath(normalized)) {
+    const folderPath = normalized.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    const segment = folderPath.split("/").filter(Boolean).pop() || "";
+    return segment ? `slug: ${segment}` : "slug: —";
+  }
+  const base = normalized.split("/").pop() || "";
   const stem = base.replace(/\.md$/i, "");
   return stem ? `slug: ${stem}` : "slug: —";
 }
@@ -39573,46 +40263,148 @@ function getEntryOverviewFilteredNavigationIndex(navigationIndex) {
   return filterEntryOverviewNavigationIndex(navigationIndex, queryLower);
 }
 
+function getEntryOverviewSectionListMountAnchor(hub) {
+  if (!hub) return null;
+  return (
+    hub.querySelector(".node-entry-overview-manifest") ||
+    hub.querySelector(".node-entry-overview-tabular-preview") ||
+    hub.querySelector(".node-entry-overview-section-readme-offer") ||
+    hub.querySelector(".node-overview-type-registry-fold") ||
+    hub.querySelector(".node-entry-overview-section-list-anchor") ||
+    hub.querySelector(".node-navigation-props") ||
+    hub.querySelector(".node-navigation-hero")
+  );
+}
+
+function shouldShowEntryOverviewSectionSearch(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (!isDataEntryOverviewMemoryKind(context.memoryKind)) return false;
+  if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
+  return getEntryOverviewSectionFolderPath(context) !== null;
+}
+
+function appendEntryOverviewSlotPanel(hub, context, topicPath) {
+  const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
+  if (!slotBar) return null;
+
+  const slotPanel = document.createElement("div");
+  slotPanel.className = "node-entry-overview-slot-panel";
+  slotPanel.appendChild(slotBar);
+  hub.appendChild(slotPanel);
+  return slotPanel;
+}
+
+function getEntryOverviewBrowsePanelMountAnchor(hub, { isMemoryTocRoot = false } = {}) {
+  if (!hub) return null;
+  if (isMemoryTocRoot) {
+    return (
+      hub.querySelector(".node-entry-overview-slot-panel") ||
+      hub.querySelector(".node-entry-overview-memory-trail") ||
+      null
+    );
+  }
+  return getEntryOverviewSectionListMountAnchor(hub);
+}
+
+function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot = false } = {}) {
+  const filteredIndex = getEntryOverviewFilteredNavigationIndex(navigationIndex);
+  if (isMemoryTocRoot) {
+    return renderEntryOverviewFullMemoryToc(context, filteredIndex);
+  }
+  return renderEntryOverviewSectionList(context, filteredIndex);
+}
+
+function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false } = {}) {
+  const showSearch = isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context);
+  const listBlock = renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
+  if (!showSearch && !listBlock) return null;
+
+  const panel = document.createElement("div");
+  panel.className = "node-entry-overview-browse-panel";
+
+  if (showSearch) {
+    const searchBar = createEntryOverviewSearchBar(context);
+    if (searchBar) panel.appendChild(searchBar);
+  }
+  if (listBlock) panel.appendChild(listBlock);
+
+  return panel.childElementCount ? panel : null;
+}
+
+function refreshEntryOverviewBrowseList(panel, context, navigationIndex, isMemoryTocRoot) {
+  panel
+    .querySelector(".node-entry-overview-memory-toc, .node-entry-overview-section-list")
+    ?.remove();
+
+  const listBlock = renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
+  if (listBlock) panel.appendChild(listBlock);
+}
+
+function mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot = false } = {}) {
+  if (!panel || !hub) return null;
+
+  if (!isMemoryTocRoot) {
+    const manifestNav = hub.querySelector(
+      ".node-entry-overview-manifest > .node-navigation-manifest-nav"
+    );
+    if (manifestNav) {
+      manifestNav.insertAdjacentElement("beforebegin", panel);
+      return panel;
+    }
+  }
+
+  const anchor = getEntryOverviewBrowsePanelMountAnchor(hub, { isMemoryTocRoot });
+  if (anchor) {
+    anchor.insertAdjacentElement("afterend", panel);
+  } else {
+    hub.appendChild(panel);
+  }
+  return panel;
+}
+
+function appendEntryOverviewBrowsePanel(
+  hub,
+  context,
+  navigationIndex,
+  { isMemoryTocRoot = false } = {}
+) {
+  const panel = createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot });
+  if (!panel) return null;
+  return mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot });
+}
+
 function refreshEntryOverviewListFromSearch() {
   const state = entryOverviewSearchState;
   const hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub");
   if (!state || !hub) return;
 
-  const filteredIndex = getEntryOverviewFilteredNavigationIndex(state.navigationIndex);
-  hub.querySelector(".node-entry-overview-memory-toc")?.remove();
-  hub.querySelector(".node-entry-overview-section-list")?.remove();
-
-  if (state.isMemoryTocRoot) {
-    appendEntryOverviewMemoryToc(hub, state.context, state.navigationIndex);
+  const browsePanel = hub.querySelector(".node-entry-overview-browse-panel");
+  if (browsePanel) {
+    refreshEntryOverviewBrowseList(
+      browsePanel,
+      state.context,
+      state.navigationIndex,
+      state.isMemoryTocRoot
+    );
     return;
   }
 
-  const sectionList = renderEntryOverviewSectionList(state.context, filteredIndex);
-  if (!sectionList) return;
-  const anchor =
-    hub.querySelector(".node-entry-overview-section-list-anchor") ||
-    hub.querySelector(".node-navigation-props") ||
-    hub.querySelector(".node-navigation-hero");
-  anchor?.insertAdjacentElement("afterend", sectionList);
-}
+  hub.querySelector(".node-entry-overview-memory-toc")?.remove();
+  hub.querySelector(".node-entry-overview-section-list")?.remove();
 
-function appendEntryOverviewMemoryToc(hub, context, navigationIndex) {
-  const memoryToc = renderEntryOverviewFullMemoryToc(
-    context,
-    getEntryOverviewFilteredNavigationIndex(navigationIndex)
-  );
-  if (!memoryToc) return null;
+  const listBlock = renderEntryOverviewBrowseListBlock(state.context, state.navigationIndex, {
+    isMemoryTocRoot: state.isMemoryTocRoot
+  });
+  if (!listBlock) return;
 
-  const anchor =
-    hub.querySelector(".node-entry-overview-slot-panel") ||
-    hub.querySelector(".node-entry-overview-search-wrap") ||
-    hub.querySelector(".node-entry-overview-memory-trail");
+  const anchor = getEntryOverviewBrowsePanelMountAnchor(hub, {
+    isMemoryTocRoot: state.isMemoryTocRoot
+  });
   if (anchor) {
-    anchor.insertAdjacentElement("afterend", memoryToc);
+    anchor.insertAdjacentElement("afterend", listBlock);
   } else {
-    hub.appendChild(memoryToc);
+    hub.appendChild(listBlock);
   }
-  return memoryToc;
 }
 
 function getEntryOverviewTopicTitle() {
@@ -40119,7 +40911,9 @@ function renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTi
 function getEntryOverviewSectionFolderPath(context) {
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const isCategory =
-    context.entryKind === "awn.record.category" || context.entryKind === "awn.media.category";
+    context.entryKind === "awn.record.category" ||
+    context.entryKind === "awn.media.category" ||
+    isSectionReadmePath(relativePath);
   if (!isCategory || !isSectionReadmePath(relativePath)) return null;
   return relativePath.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
 }
@@ -40281,17 +41075,20 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
   const { tree, folderLabels, folderStatuses } = built;
   if (!tree.folders.size && !tree.files.length) return null;
 
+  const sectionTitle =
+    context.memoryKind === "media" ? "Содержимое раздела" : "Записи раздела";
+
   const section = document.createElement("section");
-  section.className = "node-entry-overview-section-list";
+  section.className = "node-entry-overview-memory-toc node-entry-overview-section-list";
 
   const head = document.createElement("h3");
-  head.className = "node-entry-overview-section-list-title";
-  head.textContent = context.memoryKind === "media" ? "Содержимое раздела" : "Записи раздела";
+  head.className = "node-entry-overview-section-list-title visually-hidden";
+  head.textContent = sectionTitle;
   section.appendChild(head);
 
   const nav = document.createElement("nav");
-  nav.className = "node-entry-overview-section-list-nav node-navigation-book-toc";
-  nav.setAttribute("aria-label", head.textContent);
+  nav.className = "node-navigation-book-toc node-entry-overview-memory-toc-nav";
+  nav.setAttribute("aria-label", sectionTitle);
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
@@ -40740,11 +41537,10 @@ function createEntryOverviewTabularPreviewSection(context, nodePath = activePath
 
 function appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex = null) {
   if (!hero || !context) return null;
+  if (isEntryOverviewTabularPreviewContext(context)) return null;
 
   let section = null;
-  if (isEntryOverviewTabularPreviewContext(context)) {
-    section = createEntryOverviewTabularPreviewSection(context, activePath);
-  } else if (isEntryOverviewTextCodeAsset(context.relativePath)) {
+  if (isEntryOverviewTextCodeAsset(context.relativePath)) {
     const indexed = findEntryOverviewMediaItemMeta(navigationIndex, context.relativePath);
     section = createEntryOverviewCodePreviewSection(context, activePath, indexed?.size ?? null);
   }
@@ -40900,9 +41696,7 @@ function createEntryOverviewMediaAssetPanel(
 
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";
-  appendEntryOverviewMediaAssetActionButtons(actions, mediaItem, {
-    onEditClick: () => openEntryOverviewEdit(context)
-  });
+  appendEntryOverviewMediaAssetActionButtons(actions, mediaItem);
 
   const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries), {
     propEntries: entries
@@ -41256,21 +42050,15 @@ async function renderEntryOverview() {
     const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, "Оглавление", topicTitle);
     if (memoryTrail) hub.appendChild(memoryTrail);
 
-    const slotPanel = document.createElement("div");
-    slotPanel.className = "node-entry-overview-slot-panel";
-    const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
     if (isStale()) return;
-    if (slotBar) slotPanel.appendChild(slotBar);
-
-    const searchBar = createEntryOverviewSearchBar(context);
-    if (searchBar) slotPanel.appendChild(searchBar);
-    if (slotPanel.childElementCount) hub.appendChild(slotPanel);
+    appendEntryOverviewSlotPanel(hub, context, topicPath);
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
-    appendEntryOverviewMemoryToc(hub, context, navigationIndex);
+    appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: true });
 
     nodeOverviewContentNode.replaceChildren(hub);
     scheduleWorkspaceScrollChromeSync();
+    syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
     return;
   }
 
@@ -41293,9 +42081,8 @@ async function renderEntryOverview() {
   const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTitle);
   if (memoryTrail) hub.appendChild(memoryTrail);
 
-  const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
   if (isStale()) return;
-  if (slotBar) hub.appendChild(slotBar);
+  appendEntryOverviewSlotPanel(hub, context, topicPath);
 
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
 
@@ -41320,6 +42107,7 @@ async function renderEntryOverview() {
     appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex);
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
+  appendEntryOverviewSectionReadmeOffer(hub, context);
 
   await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
   if (isStale()) return;
@@ -41329,19 +42117,19 @@ async function renderEntryOverview() {
   sectionListAnchor.setAttribute("aria-hidden", "true");
   hub.appendChild(sectionListAnchor);
 
-  const sectionList = renderEntryOverviewSectionList(
-    context,
-    getEntryOverviewFilteredNavigationIndex(navigationIndex)
-  );
-  if (sectionList) sectionListAnchor.insertAdjacentElement("afterend", sectionList);
-
   const isCodePreviewFile =
     isEntryOverviewTextCodeAsset(context.relativePath) &&
     !isEntryOverviewTabularPreviewContext(context);
-  const contentPanel = !isCodePreviewFile
-    ? renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title)
-    : null;
+  const isTabularPreview = isEntryOverviewTabularPreviewContext(context);
+  let contentPanel = null;
+  if (isTabularPreview) {
+    contentPanel = renderEntryOverviewTabularContentPart(context, context.relPath, entryOverviewNav);
+  } else if (!isCodePreviewFile) {
+    contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
+  }
   if (contentPanel) hub.appendChild(contentPanel);
+
+  appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: false });
 
   const topicManifestPath = getActiveNodeApiPath();
   nodeOverviewContentNode.replaceChildren(hub);
@@ -41352,10 +42140,14 @@ async function renderEntryOverview() {
       nodeTitle: title,
       mode: context.memoryKind === "media" ? "media" : "external",
       file: context.relativePath
-    }).then(() => scheduleWorkspaceScrollChromeSync());
+    }).then(() => {
+      scheduleWorkspaceScrollChromeSync();
+      syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
+    });
   }
 
   scheduleWorkspaceScrollChromeSync();
+  syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
@@ -41439,9 +42231,11 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
 
     link.append(
-      createNavBookTocLinkLeading(item, nodePath, {
-        showFileTypeLeading: handlers.showFileTypeLeading !== false
-      }),
+      handlers.linkLeadingMode === "media"
+        ? createNavigationMediaBookTocLinkLeading(item, nodePath)
+        : createNavBookTocLinkLeading(item, nodePath, {
+            showFileTypeLeading: handlers.showFileTypeLeading !== false
+          }),
       text,
       leaders
     );
@@ -41702,6 +42496,7 @@ function renderNavigationMediaPart(mediaData) {
     folderLabels,
     folderStatuses,
     nodePath,
+    linkLeadingMode: "media",
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   });
@@ -42533,13 +43328,22 @@ function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeAgen
   return walk(baseTree) || walk(menu);
 }
 
+function getMenuIntakeBadgesMount(host) {
+  const cardMeta = host.querySelector(".menu-card-title-meta");
+  if (cardMeta) return cardMeta;
+  const labelWrap = host.querySelector(".menu-folder-label");
+  if (labelWrap) return labelWrap;
+  return host;
+}
+
 function upsertMenuIntakeBadges(host, intake, manifestPath) {
   const pending = Number(intake?.inbox?.pending) || 0;
   const total = Number(intake?.inbox?.total) || 0;
   const unread = getThreadUnreadCount(manifestPath, intake);
   const mentionUnread = Number(intake?.mentions?.unread) || 0;
   const showInboxCount = pending > 0 || total > 0;
-  let badgesEl = host.querySelector(".menu-intake-badges");
+  const mount = getMenuIntakeBadgesMount(host);
+  let badgesEl = mount.querySelector(".menu-intake-badges");
 
   if (!showInboxCount && !unread && !mentionUnread) {
     badgesEl?.remove();
@@ -42548,11 +43352,17 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
   }
 
   if (!badgesEl) {
+    const legacyBadges = host.querySelector(":scope > .menu-intake-badges");
+    if (legacyBadges && mount !== host) {
+      badgesEl = legacyBadges;
+      mount.appendChild(badgesEl);
+    }
+  }
+
+  if (!badgesEl) {
     badgesEl = document.createElement("span");
     badgesEl.className = "menu-intake-badges";
-    const labelWrap = host.querySelector(".menu-folder-label");
-    if (labelWrap) labelWrap.appendChild(badgesEl);
-    else host.appendChild(badgesEl);
+    mount.appendChild(badgesEl);
   }
 
   badgesEl.replaceChildren();
@@ -43963,6 +44773,7 @@ async function renderNodeNavigation() {
   nodeOverviewContentNode.replaceChildren(hub);
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
+  syncDataHubSlugWarning(NODE_NAVIGATION_MODE);
   } catch (error) {
     console.error("renderNodeNavigation failed", error);
     nodeOverviewContentNode.replaceChildren();
@@ -44434,6 +45245,7 @@ async function renderNodeOverview() {
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);
   scheduleWorkspaceScrollChromeSync();
+  syncDataHubSlugWarning(NODE_OVERVIEW_MODE);
 }
 
 function applyModeUi() {
@@ -44484,7 +45296,10 @@ function applyModeUi() {
   const showExternalControls = activeContentMode === "external" && !externalEditing;
   const showMediaControls = isMediaLibraryContentMode() && !mediaSidecarEditing;
   const showFlatStorageSectionControls = isFlatStorageSectionMode() && isFlatStorageListMode();
-  const showTabularControls = activeContentMode === "tabular" && !isTabularSourceEditing();
+  const showDataHubBundleEdit = isDataHubBundlePreviewActive();
+  const bundleSlotShellMode = isDataHubBundleSlotShellMode();
+  const showTabularControls =
+    activeContentMode === "tabular" && !isTabularSourceEditing() && !showDataHubBundleEdit;
   const showWorkspaceRefresh = isWorkspaceRefreshAvailable();
   const showMindmapLayout =
     mindmapMode || (showExternalControls && externalViewMode === "mindmap");
@@ -44495,6 +45310,8 @@ function applyModeUi() {
     showExternalControls ||
     showMediaControls ||
     showTabularControls ||
+    showDataHubBundleEdit ||
+    bundleSlotShellMode ||
     activeContentMode === "inbox" ||
     activeContentMode === "note" ||
     activeContentMode === NODE_THREAD_MODE ||
@@ -44515,6 +45332,8 @@ function applyModeUi() {
       !showExternalControls &&
       !showMediaControls &&
       !showTabularControls &&
+      !showDataHubBundleEdit &&
+      !bundleSlotShellMode &&
       !mediaSidecarEditing &&
       !externalEditing &&
       !showWorkspaceRefresh &&
@@ -44550,9 +45369,8 @@ function applyModeUi() {
     threadMode ||
     canvasMode ||
     (hideContentEditor && !canvasMode && !listViewWithSourceToggle && !bundleEditorMode);
-  const showDataHubBundleBack = isDataHubBundleEditorMode();
   const showTabularSourceEditor =
-    activeContentMode === "tabular" && isTabularSourceEditing() && !showDataHubBundleBack;
+    activeContentMode === "tabular" && isTabularSourceEditing() && !bundleSlotShellMode;
   const hideEditorViewCluster = hideEditorViewToggle && !showTabularSourceEditor;
   editorViewClusterNode?.classList.toggle("hidden", hideEditorViewCluster);
   editorViewToggleNode?.classList.toggle("hidden", hideEditorViewToggle);
@@ -44661,8 +45479,8 @@ function applyModeUi() {
   syncStorageSectionsPanelUi();
   syncWorkspaceCloseButtonsVisibility();
   tabularSourceBtn?.classList.toggle("hidden", !showTabularControls);
+  dataHubBundleEditBtn?.classList.toggle("hidden", !showDataHubBundleEdit);
   tabularTableBackBtn?.classList.toggle("hidden", !showTabularSourceEditor);
-  dataHubBundleBackBtn?.classList.toggle("hidden", !showDataHubBundleBack);
   workspaceRefreshBtn?.classList.toggle("hidden", !showWorkspaceRefresh);
   syncWorkspaceRefreshButton();
   syncWorkspaceRevealFolderButton();
@@ -44726,6 +45544,7 @@ function applyModeUi() {
   if (isGitRepoLooseMdEditing()) {
     updateBreadcrumbsForActiveMode();
   }
+  syncDataHubSlugWarning(activeContentMode);
   syncSaveButtonLamp();
   window.AgentDiscussPanel?.sync?.();
   } finally {
@@ -44847,12 +45666,13 @@ function highlightCodeString(source, language) {
 function renderCodePreviewHtml(source, language, options = {}) {
   const lang = normalizeHighlightLanguage(language);
   const langClass = lang ? `language-${escapeHtml(lang)} hljs` : "hljs";
-  const codeHtml = highlightCodeString(source, lang);
+  const normalizedSource = String(source ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const codeHtml = highlightCodeString(normalizedSource, lang);
   if (!options.lineNumbers) {
     return `<pre><code class="${langClass}">${codeHtml}</code></pre>`;
   }
 
-  const lineCount = Math.max(1, String(source ?? "").split("\n").length);
+  const lineCount = Math.max(1, normalizedSource.split("\n").length);
   const lineNumbers = Array.from({ length: lineCount }, (_, index) => index + 1).join("\n");
   return `<div class="code-preview-with-line-numbers"><div class="code-preview-line-numbers" aria-hidden="true">${lineNumbers}</div><pre><code class="${langClass}">${codeHtml}</code></pre></div>`;
 }
@@ -49319,9 +50139,18 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
   openBtn.className = "menu-card-body";
   if (entry.isFolder) card.classList.add("menu-card--folder");
 
+  const titleRow = document.createElement("div");
+  titleRow.className = "menu-card-title-row";
+
   const titleNode = document.createElement("div");
   titleNode.className = "menu-card-title";
   titleNode.textContent = entry.label;
+
+  const titleMeta = document.createElement("div");
+  titleMeta.className = "menu-card-title-meta";
+
+  titleRow.appendChild(titleNode);
+  titleRow.appendChild(titleMeta);
 
   if (gallery) {
     const cover = document.createElement("div");
@@ -49341,10 +50170,10 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
 
     const foot = document.createElement("div");
     foot.className = "menu-card-foot";
-    foot.appendChild(titleNode);
+    foot.appendChild(titleRow);
     openBtn.appendChild(foot);
   } else {
-    openBtn.appendChild(titleNode);
+    openBtn.appendChild(titleRow);
 
     if (!systemFile && entry.hasPreview && entry.previewUrl) {
       const cover = document.createElement("div");
@@ -49436,7 +50265,11 @@ function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = active
       entry.color,
       { isFolder: isNodeManifestPath(entry.path) && !isPartNodePath(entry.path) }
     );
-    setMenuLabelWithMarkers(btn, entry.displayPath || entry.label, entry, "menu-item-name");
+    const pathHint =
+      entry.displayPath && entry.displayPath !== entry.label ? entry.displayPath : "";
+    setMenuLabelWithMarkers(btn, entry.label || entry.displayPath, entry, "menu-item-name", {
+      subtitle: pathHint
+    });
     btn.addEventListener("click", (event) => {
       const pathFromNode = event.currentTarget?.dataset?.path || "";
       openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
@@ -49497,7 +50330,11 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
         entry.color,
         { isFolder: isNodeManifestPath(entry.path) && !isPartNodePath(entry.path) }
       );
-      setMenuLabelWithMarkers(btn, entry.displayPath || entry.label, entry, "menu-item-name");
+      const pathHint =
+        entry.displayPath && entry.displayPath !== entry.label ? entry.displayPath : "";
+      setMenuLabelWithMarkers(btn, entry.label || entry.displayPath, entry, "menu-item-name", {
+        subtitle: pathHint
+      });
       btn.addEventListener("click", (event) => {
         const pathFromNode = event.currentTarget?.dataset?.path || "";
         openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
@@ -60009,8 +60846,11 @@ tabularSourceBtn?.addEventListener("click", () => {
   refreshEditorViewContent();
   updateBreadcrumbsForActiveMode();
 });
+dataHubBundleEditBtn?.addEventListener("click", () => {
+  openDataHubBundleSlotEditor();
+  syncAppRouteToUrl({ push: true });
+});
 tabularTableBackBtn?.addEventListener("click", () => closeTabularSourceEditor());
-dataHubBundleBackBtn?.addEventListener("click", () => closeDataHubBundleEditor());
 workspaceRefreshBtn?.addEventListener("click", () => {
   void refreshWorkspaceContent();
 });

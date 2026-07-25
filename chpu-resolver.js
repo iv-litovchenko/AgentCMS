@@ -38,7 +38,7 @@ const CHPU_UI_VIEW_IDS = new Set([
   "schema",
   "env",
   "chat",
-  "tasks",
+  "todo",
   "list",
   "preview"
 ]);
@@ -59,8 +59,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   env: "env",
   thread: "chat",
   chat: "chat",
-  todo: "tasks",
-  tasks: "tasks",
+  todo: "todo",
+  tasks: "todo",
   list: "list",
   browse: "list",
   "show-list": "list",

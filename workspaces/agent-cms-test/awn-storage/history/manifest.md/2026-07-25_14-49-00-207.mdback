@@ -6,9 +6,9 @@ awn-description: Тестовый агент. CMS-модель встроена 
 awn-tags: []
 awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
-awn-update: 2026-07-25T11:49:51.764Z
-awn-version: 19
-awn-preview: awn-storage/assets/preview/20260725114949.png
+awn-update: 2026-07-25T11:48:43.914Z
+awn-version: 16
+awn-preview: awn-storage/assets/preview/20260623192851.png
 awn-web-url: ""
 awn-main: false
 awn-category: ""
@@ -22,4 +22,7 @@ awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 ---
 
-00
+![20260620211717](awn-storage/assets/pasted/20260620211717.png)
+![20260620195847](awn-storage/assets/pasted/20260620195847.png)
+![20260620194707](awn-storage/assets/pasted/20260620194707.png)
+![20260620195642](awn-storage/assets/pasted/20260620195642.png)

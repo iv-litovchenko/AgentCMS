@@ -871,10 +871,39 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
   return normalizedTarget;
 }
 
+function resolveSystemFileHistoryManifestRel() {
+  return MANIFEST_FILE;
+}
+
+function resolveSystemFileHistoryTargetRel(systemName) {
+  const canonical = canonicalSystemFileName(systemName);
+  if (!canonical) return null;
+  const absolute = resolveSystemFileAbsolute(canonical);
+  if (!absolute) return null;
+  return normalizeHistoryTargetRelPath(manifestRelFromNodeAbsolute(absolute));
+}
+
+function getSystemFileHistoryManifestCandidates(primaryManifestRel = resolveSystemFileHistoryManifestRel()) {
+  const kitManifest = getServiceAreaManifestRel(getAgentKitFolder());
+  return [...new Set([primaryManifestRel, kitManifest].filter(Boolean))];
+}
+
+async function readHistoryVersionFileWithManifestFallbacks({
+  manifestRelPath,
+  targetRelPath,
+  version,
+  manifestFallbacks = []
+}) {
+  for (const manifest of [...new Set([manifestRelPath, ...manifestFallbacks].filter(Boolean))]) {
+    const result = await readHistoryVersionFile({ manifestRelPath: manifest, targetRelPath, version });
+    if (result) return result;
+  }
+  return null;
+}
+
 async function resolveHistoryManifestRel({ manifestRelPath, mode, systemName }) {
   if (mode === "system") {
-    const serviceFolder = getAgentKitFolder();
-    return serviceFolder ? getServiceAreaManifestRel(serviceFolder) : null;
+    return resolveSystemFileHistoryManifestRel();
   }
   if (!manifestRelPath) return null;
   return resolveExistingWorkspaceRelPath(manifestRelPath);
@@ -913,10 +942,7 @@ async function resolveMediaSidecarWorkspaceRel(manifestRelPath, relFile) {
 
 async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName }) {
   if (mode === "system") {
-    const serviceFolder = getAgentKitFolder();
-    const name = String(systemName || "").trim();
-    if (!serviceFolder || !name) return null;
-    return normalizeHistoryTargetRelPath(`${serviceFolder}/${name}`);
+    return resolveSystemFileHistoryTargetRel(systemName);
   }
 
   const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRelPath);
@@ -1972,12 +1998,18 @@ async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName
 
   const versions = [];
   const seenVersions = new Set();
-  for (const historyDirRel of listHistoryVersionDirCandidates(historyManifestRel, targetRelPath)) {
-    const dirVersions = await readHistoryVersionsFromDir(historyDirRel);
-    for (const entry of dirVersions) {
-      if (seenVersions.has(entry.version)) continue;
-      seenVersions.add(entry.version);
-      versions.push(entry);
+  const manifestCandidates =
+    mode === "system"
+      ? getSystemFileHistoryManifestCandidates(historyManifestRel)
+      : [historyManifestRel];
+  for (const manifest of manifestCandidates) {
+    for (const historyDirRel of listHistoryVersionDirCandidates(manifest, targetRelPath)) {
+      const dirVersions = await readHistoryVersionsFromDir(historyDirRel);
+      for (const entry of dirVersions) {
+        if (seenVersions.has(entry.version)) continue;
+        seenVersions.add(entry.version);
+        versions.push(entry);
+      }
     }
   }
   versions.sort((left, right) => right.version.localeCompare(left.version));
@@ -10306,9 +10338,10 @@ async function handleApiForAgent(req, res, url) {
       const absolute = resolveSystemFileAbsolute(canonical);
       if (!absolute) return sendJson(res, 400, { error: "Invalid system file name" });
 
-      const serviceManifestRel = getServiceAreaManifestRel(getAgentKitFolder());
-      const targetRelPath = manifestRelFromNodeAbsolute(absolute);
+      const serviceManifestRel = resolveSystemFileHistoryManifestRel();
+      const targetRelPath = resolveSystemFileHistoryTargetRel(canonical);
       if (serviceManifestRel && targetRelPath) {
+        await ensureManifestStorageSlotDir(serviceManifestRel);
         await writeWorkspaceTextFileWithHistory(serviceManifestRel, targetRelPath, content);
       } else {
         await fs.mkdir(path.dirname(absolute), { recursive: true });
@@ -10664,10 +10697,14 @@ async function handleApiForAgent(req, res, url) {
       if (!historyManifestRel || !targetRelPath) {
         return sendJson(res, 400, { error: "Invalid history target" });
       }
-      const versionFile = await readHistoryVersionFile({
+      const versionFile = await readHistoryVersionFileWithManifestFallbacks({
         manifestRelPath: historyManifestRel,
         targetRelPath,
-        version
+        version,
+        manifestFallbacks:
+          mode === "system"
+            ? getSystemFileHistoryManifestCandidates(historyManifestRel).slice(1)
+            : []
       });
       if (!versionFile) return sendJson(res, 404, { error: "History version not found" });
       return sendJson(res, 200, {
@@ -10703,10 +10740,14 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 400, { error: "Invalid history target" });
       }
 
-      const versionFile = await readHistoryVersionFile({
+      const versionFile = await readHistoryVersionFileWithManifestFallbacks({
         manifestRelPath: historyManifestRel,
         targetRelPath,
-        version
+        version,
+        manifestFallbacks:
+          mode === "system"
+            ? getSystemFileHistoryManifestCandidates(historyManifestRel).slice(1)
+            : []
       });
       if (!versionFile) return sendJson(res, 404, { error: "History version not found" });
 
