@@ -1,9 +1,0 @@
-param_1: null
-param_2: ауц
-
-awn_schema:
-  topic:
-    fields:
-      field_2:
-        type: awn.string
-        name: Строка
