@@ -4012,10 +4012,10 @@ function applyRestoredHistoryContent(content) {
       fileContentInputNode.value = content;
       break;
     case "external":
-      applyExternalFileContentUi(content);
+      void applyExternalFileContentUi(content);
       break;
     case "media":
-      applyMediaSidecarContentUi(content);
+      void applyMediaSidecarContentUi(content);
       break;
     default:
       fileContentInputNode.value = content;
@@ -36872,7 +36872,7 @@ function getMediaMarkdownTitleValue(filePath, frontmatter = "") {
   return getYamlScalarFromFrontmatter(frontmatter, "awn-name").trim();
 }
 
-function enableMediaMarkdownEditor(filePath, content, options = {}) {
+async function enableMediaMarkdownEditor(filePath, content, options = {}) {
   if (options.memoryEntryCloseTargetView != null) {
     assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
   } else if (memoryEntryCloseTargetView == null) {
@@ -36884,7 +36884,7 @@ function enableMediaMarkdownEditor(filePath, content, options = {}) {
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
   showTitleEditableInput();
-  applyMediaSidecarContentUi(content || "");
+  await applyMediaSidecarContentUi(content || "");
   syncTitleFieldsFromNode(filePath);
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -36903,7 +36903,7 @@ async function openMediaMarkdownFile(filePath, options = {}) {
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    enableMediaMarkdownEditor(data.file, data.content || "", options);
+    await enableMediaMarkdownEditor(data.file, data.content || "", options);
   } catch {
     showToast("Ошибка открытия markdown-файла", "error");
   }
@@ -41827,13 +41827,12 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
 
 async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
   if (!context?.relPath || isEntryOverviewMemoryTocRoot(context)) return entries;
-  const manifestPath = getTopicSchemaManifestPath(getResolvedNodePath(activePath));
   const contentPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifestPath || !contentPath || !/\/awn-storage\/[^/]+\/.+/i.test(contentPath)) {
+  if (!contentPath || !/\/awn-storage\/[^/]+\/.+/i.test(contentPath)) {
     return entries;
   }
   try {
-    await loadTopicSchemaForManifest(manifestPath, { contentPath });
+    await ensureTopicSchemaForActiveContext({ contentPath });
     if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
     return applyTypeSchemaToEntries(entries);
   } catch {
@@ -55683,7 +55682,7 @@ async function saveContent() {
       const renameData = await renameResponse.json();
       activeExternalFilePath = renameData.file;
       updateBreadcrumbsForActiveMode();
-      applyExternalFileContentUi(renameData.content || "");
+      await applyExternalFileContentUi(renameData.content || "");
       syncTitleFieldsFromNode(renameData.file);
       await refreshExternalMemoryCaches();
       rerenderExternalListViewBody();
@@ -55900,7 +55899,7 @@ async function saveContent() {
     }
     if (activeContentMode === "env") modeContentCache.env = data.content || "";
     if (activeContentMode === "external" && activeExternalFilePath) {
-      applyExternalFileContentUi(data.content || "");
+      await applyExternalFileContentUi(data.content || "");
       saveSucceeded = true;
       showToast(`Файл ${STORAGE_SUBFOLDER_CONTENT} сохранен`, "success");
       return;
@@ -55925,11 +55924,7 @@ async function loadPropertiesForActivePath() {
   if (isMediaAssetEditing()) {
     return;
   }
-  const manifestPath = getTopicSchemaManifestPath();
-  const contentPath = getSchemaContentPathForContext();
-  if (manifestPath && contentPath) {
-    await loadTopicSchemaForManifest(manifestPath, { contentPath, force: true }).catch(() => null);
-  }
+  await ensureTopicSchemaForActiveContext();
   try {
     const response = await fetch(buildApiUrl("/api/file/properties", { path: getPropertiesApiPath() }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);

@@ -11,12 +11,14 @@
             "id": "384dc149335fc4b1",
             "type": "leaf",
             "state": {
-              "type": "image",
+              "type": "markdown",
               "state": {
-                "file": "00_Documentation/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png"
+                "file": "00_Documentation/ideas/qwen/finance-tracker.node.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-image",
-              "title": "00ba2699-cfed-4189-9bb6-300aa7a3f5ca"
+              "icon": "lucide-file",
+              "title": "finance-tracker.node"
             }
           }
         ]
@@ -178,15 +180,17 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "5f12a83b1cc943d8",
+  "active": "384dc149335fc4b1",
   "lastOpenFiles": [
-    "00_Documentation/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png",
+    "00_Documentation/ideas/qwen/AGENTS.md.md",
     "Новая папка/awn.settings.md",
+    "00_Documentation/v5-ideas/README.fix.md",
+    "Новая папка/awn.settings2.md",
+    "00_Documentation/assets/00ba2699-cfed-4189-9bb6-300aa7a3f5ca.png",
     "00_Documentation/ideas/claude/AGENTS.md",
     "00_Documentation/ideas/petr/Снимок экрана 2026-05-03 в 16.48.23.png",
     "00_Documentation/ideas/claude/writing.node.md",
     "00_Documentation/ideas/qwen/finance-tracker.node.md",
-    "00_Documentation/ideas/qwen/AGENTS.md.md",
     "00_Documentation/ideas/claude/health.node.md",
     "00_Documentation/ideas/claude/changelog.md",
     "00_Documentation/ideas/claude/identity.node.md",
@@ -205,7 +209,6 @@
     "02 Components/02 Nodes-types/01 Folders/02 Space.documentation.md",
     "02 Components/02 Nodes-types/01 Folders/03 Cluster.documentation.md",
     "README.md",
-    "02 Components/01 Awn-files/Documentation.documentation.md",
-    "02 Components/01 Awn-files/Configuration.documentation.md"
+    "02 Components/01 Awn-files/Documentation.documentation.md"
   ]
 }
