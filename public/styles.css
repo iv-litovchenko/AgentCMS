@@ -1330,11 +1330,6 @@ body.app-locked {
 }
 
 .agent-focus-panel--sidebar .agent-focus-list--compact {
-  max-height: 132px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   padding: 2px 1px 1px;
   box-sizing: border-box;
 }
@@ -8648,8 +8643,8 @@ body.app-locked {
 
 .workspace-scroll-host > .workspace-scroll-top-btn {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: calc(16px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(16px + var(--scroll-top-shift-y, 0px));
   z-index: 26;
 }
 
@@ -9967,16 +9962,20 @@ body.app-locked {
   transition: opacity 0.2s ease;
 }
 
+.sidebar-scroll-chrome .scroll-progress-track {
+  position: relative;
+}
+
 .sidebar-scroll-chrome.is-active {
   opacity: 1;
 }
 
 .sidebar-scroll-top-btn {
-  position: sticky;
-  bottom: 8px;
-  align-self: flex-end;
-  margin: 0 10px 8px auto;
-  z-index: 17;
+  position: absolute;
+  right: calc(10px + var(--scroll-top-shift-x, 0px));
+  bottom: calc(8px + var(--scroll-top-shift-y, 0px));
+  z-index: 19;
+  margin: 0;
 }
 
 .sidebar-focus-list-shell {
@@ -9986,33 +9985,13 @@ body.app-locked {
 }
 
 .agent-focus-panel--sidebar .agent-focus-list--compact {
-  max-height: 132px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   padding: 0 1px 1px;
   box-sizing: border-box;
 }
 
-.agent-focus-panel--sidebar .sidebar-focus-scroll-chrome {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  margin: 0 0 -3px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.agent-focus-panel--sidebar .sidebar-focus-scroll-chrome.is-active {
-  opacity: 1;
-}
-
 .sidebar-scroll-chrome .scroll-depth-indicator,
 .workspace-scroll-host .scroll-depth-indicator,
-.agent-focus-panel--sidebar .scroll-depth-indicator,
-.discuss-messages-wrap .scroll-depth-indicator {
+.discuss-messages-scroll-chrome .scroll-depth-indicator {
   top: 8px;
   right: 12px;
 }
@@ -11129,7 +11108,7 @@ body.app-locked {
   flex: 0 0 auto;
   min-height: auto;
   margin-top: 0;
-  padding: 6px 10px 12px 12px;
+  padding: 6px 10px 6px 12px;
   overflow: visible;
 }
 
@@ -11197,7 +11176,11 @@ body.app-locked {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  --scroll-top-shift-x: 0px;
+  --scroll-top-shift-y: 0px;
   box-shadow:
     0 12px 28px rgba(37, 99, 235, 0.34),
     0 2px 8px rgba(15, 23, 42, 0.12);
@@ -11211,6 +11194,14 @@ body.app-locked {
     visibility 0.24s ease,
     box-shadow 0.16s ease,
     background 0.16s ease;
+}
+
+.scroll-top-btn.is-dragging,
+.scroll-top-btn.is-dragging:hover,
+.scroll-top-btn.is-dragging:active {
+  cursor: grabbing;
+  transition: none;
+  transform: translateY(0) scale(1);
 }
 
 .scroll-top-btn.is-visible {
@@ -11278,7 +11269,7 @@ body.app-locked {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  padding: 8px 12px 10px;
+  padding: 8px 12px 8px;
   border-top: 1px solid var(--border);
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
@@ -16336,7 +16327,8 @@ body.app-locked {
   border: 0;
   border-radius: 0;
   background: transparent;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 .node-overview.is-entry-overview::before,
@@ -16681,8 +16673,28 @@ body.app-locked {
   line-height: 1.35;
 }
 
+.node-overview.is-entry-overview .node-navigation-hub {
+  gap: 12px;
+}
+
+.node-entry-overview-slot-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.node-entry-overview-slot-panel .node-entry-overview-slot-counters {
+  margin-bottom: 0;
+  min-height: 0;
+}
+
+.node-entry-overview-slot-panel .node-entry-overview-search-wrap {
+  margin: 0;
+}
+
 .node-entry-overview-search-wrap {
-  margin: 8px 0 0;
+  margin: 0;
   width: 100%;
 }
 
@@ -26214,12 +26226,13 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .node-entry-overview-slot-counters {
-  margin-bottom: 12px;
-  min-height: 72px;
+  margin-bottom: 0;
+  min-height: 0;
 }
 
 .node-entry-overview-slot-counters[data-loading="true"] {
   visibility: hidden;
+  min-height: 72px;
 }
 
 .node-entry-overview-slot-counters .node-navigation-workspace-counter.is-active {
@@ -31376,15 +31389,24 @@ body.is-discuss-resizing .discuss-aside-resizer {
   line-height: 1.4;
 }
 
-.discuss-messages-wrap {
+.discuss-messages-panel {
   position: relative;
   flex: 1 1 auto;
   min-height: 96px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.discuss-messages-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 10px 12px 56px 14px;
+  padding: 10px 12px 14px 14px;
 }
 
 .discuss-messages-scroll-chrome {
@@ -31407,6 +31429,17 @@ body.is-discuss-resizing .discuss-aside-resizer {
   right: 12px;
   bottom: 12px;
   z-index: 4;
+  cursor: pointer;
+  touch-action: auto;
+}
+
+.discuss-messages-scroll-top-btn:hover,
+.discuss-messages-scroll-top-btn:active {
+  transform: translateY(0) scale(1);
+}
+
+.discuss-messages-scroll-top-btn.is-visible:hover {
+  transform: translateY(0) scale(1.02);
 }
 
 .discuss-messages-list {

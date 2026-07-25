@@ -6,9 +6,6 @@ const sidebarScrollChromeNode = document.querySelector(".sidebar-scroll-chrome")
 const sidebarScrollProgressNode = document.getElementById("sidebar-scroll-progress");
 const sidebarScrollDepthNode = document.getElementById("sidebar-scroll-depth");
 const sidebarScrollTopBtn = document.getElementById("sidebar-scroll-top-btn");
-const sidebarFocusScrollChromeNode = document.querySelector(".sidebar-focus-scroll-chrome");
-const sidebarFocusScrollProgressNode = document.getElementById("sidebar-focus-scroll-progress");
-const sidebarFocusScrollDepthNode = document.getElementById("sidebar-focus-scroll-depth");
 const workspacePaneNode = document.querySelector(".workspace-pane");
 const workspaceScrollChromeStoreNode = document.getElementById("workspace-scroll-chrome-store");
 const workspaceScrollTopBtn = document.getElementById("workspace-scroll-top-btn");
@@ -4114,11 +4111,10 @@ function renderLandingFocusTable(items) {
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
   if (!panelNode || !listNode) return;
-  const focusScrollChrome = listNode.querySelector(".sidebar-focus-scroll-chrome");
   listNode.replaceChildren();
-  if (focusScrollChrome) listNode.appendChild(focusScrollChrome);
   if (!activeAgentId) {
     panelNode.classList.add("hidden");
+    syncSidebarFocusCount();
     return;
   }
   panelNode.classList.remove("hidden");
@@ -4127,11 +4123,13 @@ function renderSidebarFocusPanel(panelNode, listNode, items) {
     empty.className = "agent-focus-empty";
     empty.textContent = "Нет записей с awn-main: true — отметьте тему в свойствах (⭐ Фокус).";
     listNode.appendChild(empty);
+    syncSidebarFocusCount();
     return;
   }
   for (const focusItem of items) {
     listNode.appendChild(createFocusItem(focusItem, "sidebar"));
   }
+  syncSidebarFocusCount();
 }
 
 function renderFocusPanel(panelNode, listNode, items, variant) {
@@ -4170,7 +4168,7 @@ function renderGlobalFocusPanel() {
 function renderAgentFocusPanels() {
   renderFocusPanel(homeFocusNode, homeFocusListNode, agentFocusItemsCache, "home");
   renderFocusPanel(sidebarFocusNode, sidebarFocusListNode, agentFocusItemsCache, "sidebar");
-  syncSidebarFocusScrollChrome();
+  syncSidebarFocusCount();
   updateNodeOverviewHeroActionStates();
 }
 
@@ -38140,7 +38138,7 @@ function createEntryOverviewSiblingNav({
     upBtn.type = "button";
     upBtn.className =
       "node-navigation-manifest-nav-btn node-navigation-manifest-nav-btn--up node-overview-action-btn";
-    upBtn.textContent = "Наверх";
+    upBtn.textContent = "На уровень выше";
     upBtn.title = upTitle || "Оглавление";
     upBtn.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -38501,8 +38499,9 @@ function refreshEntryOverviewListFromSearch() {
 }
 
 function appendEntryOverviewSearchAndLists(hub, context, navigationIndex, options = {}) {
+  const searchHost = options.slotPanel || hub;
   const searchBar = createEntryOverviewSearchBar(context);
-  if (searchBar) hub.appendChild(searchBar);
+  if (searchBar) searchHost.appendChild(searchBar);
 
   if (!options.isMemoryTocRoot) return;
 
@@ -39794,16 +39793,24 @@ async function renderEntryOverview() {
     hub.className = "node-navigation-hub";
 
     const topicTitle = getEntryOverviewTopicTitle();
-    const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
-    if (isStale()) return;
-    if (slotBar) hub.appendChild(slotBar);
     const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, "Оглавление", topicTitle);
     if (memoryTrail) hub.appendChild(memoryTrail);
 
+    const slotPanel = document.createElement("div");
+    slotPanel.className = "node-entry-overview-slot-panel";
+    const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
+    if (isStale()) return;
+    if (slotBar) slotPanel.appendChild(slotBar);
+
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
-    appendEntryOverviewSearchAndLists(hub, context, navigationIndex, { isMemoryTocRoot: true });
+    appendEntryOverviewSearchAndLists(hub, context, navigationIndex, {
+      isMemoryTocRoot: true,
+      slotPanel
+    });
+    if (slotPanel.childElementCount) hub.appendChild(slotPanel);
 
     nodeOverviewContentNode.replaceChildren(hub);
+    scheduleWorkspaceScrollChromeSync();
     return;
   }
 
@@ -39822,13 +39829,13 @@ async function renderEntryOverview() {
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
 
-  const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
-  if (isStale()) return;
-  if (slotBar) hub.appendChild(slotBar);
-
   const topicTitle = getEntryOverviewTopicTitle();
   const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTitle);
   if (memoryTrail) hub.appendChild(memoryTrail);
+
+  const slotBar = acquireEntryOverviewDataSlotBar(context, topicPath);
+  if (isStale()) return;
+  if (slotBar) hub.appendChild(slotBar);
 
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
 
@@ -39877,8 +39884,10 @@ async function renderEntryOverview() {
       nodeTitle: title,
       mode: context.memoryKind === "media" ? "media" : "external",
       file: context.relativePath
-    });
+    }).then(() => scheduleWorkspaceScrollChromeSync());
   }
+
+  scheduleWorkspaceScrollChromeSync();
 }
 
 function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
@@ -42505,6 +42514,7 @@ async function renderNodeNavigation() {
   }
   nodeOverviewContentNode.replaceChildren(hub);
   hideContentLoading({ force: true });
+  scheduleWorkspaceScrollChromeSync();
   } catch (error) {
     console.error("renderNodeNavigation failed", error);
     nodeOverviewContentNode.replaceChildren();
@@ -42513,6 +42523,7 @@ async function renderNodeNavigation() {
     errorNode.textContent = `Ошибка загрузки навигации: ${error.message || error}`;
     nodeOverviewContentNode.appendChild(errorNode);
     hideContentLoading({ force: true });
+    scheduleWorkspaceScrollChromeSync();
   }
 }
 
@@ -42974,7 +42985,7 @@ async function renderNodeOverview() {
 
   if (isStale()) return;
   nodeOverviewContentNode.replaceChildren(fragment);
-  requestAnimationFrame(() => syncWorkspaceScrollChrome());
+  scheduleWorkspaceScrollChromeSync();
 }
 
 function applyModeUi() {
@@ -42988,6 +42999,7 @@ function applyModeUi() {
     syncWorkspaceRevealFolderButton();
     return;
   }
+  try {
   clearSystemFileViewUi();
   syncGitRepoLooseMdPathHeaderUi();
 
@@ -43257,7 +43269,9 @@ function applyModeUi() {
   }
   syncSaveButtonLamp();
   window.AgentDiscussPanel?.sync?.();
-  requestAnimationFrame(() => syncWorkspaceScrollChrome());
+  } finally {
+    scheduleWorkspaceScrollChromeSync();
+  }
 }
 
 function escapeHtml(value) {
@@ -56193,6 +56207,89 @@ function withPreservedMenuScroll(run) {
 }
 
 const MENU_SCROLL_TOP_THRESHOLD = 48;
+const SCROLL_TOP_DRAG_MAX_SHIFT_PX = 320;
+const SCROLL_TOP_DRAG_CLICK_THRESHOLD_PX = 6;
+
+function clampScrollTopShift(value, maxShift = SCROLL_TOP_DRAG_MAX_SHIFT_PX) {
+  return Math.min(maxShift, Math.max(0, Number(value) || 0));
+}
+
+function applyScrollTopButtonOffset(button, offset) {
+  if (!button) return;
+  button.style.setProperty("--scroll-top-shift-x", `${offset.x}px`);
+  button.style.setProperty("--scroll-top-shift-y", `${offset.y}px`);
+}
+
+function setupDraggableScrollTopButton(
+  button,
+  { maxShift = SCROLL_TOP_DRAG_MAX_SHIFT_PX, onActivate } = {}
+) {
+  if (!button) return;
+
+  let offset = { x: 0, y: 0 };
+  applyScrollTopButtonOffset(button, offset);
+
+  let dragState = null;
+  let suppressClick = false;
+
+  button.addEventListener("pointerdown", (event) => {
+    if (!button.classList.contains("is-visible")) return;
+    if (event.button !== 0) return;
+    dragState = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: offset.x,
+      baseY: offset.y,
+      moved: false
+    };
+    button.setPointerCapture(event.pointerId);
+  });
+
+  button.addEventListener("pointermove", (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const deltaX = dragState.startX - event.clientX;
+    const deltaY = dragState.startY - event.clientY;
+    if (!dragState.moved && Math.hypot(deltaX, deltaY) < SCROLL_TOP_DRAG_CLICK_THRESHOLD_PX) return;
+    dragState.moved = true;
+    button.classList.add("is-dragging");
+    event.preventDefault();
+    offset = {
+      x: clampScrollTopShift(dragState.baseX + deltaX, maxShift),
+      y: clampScrollTopShift(dragState.baseY + deltaY, maxShift)
+    };
+    applyScrollTopButtonOffset(button, offset);
+  });
+
+  const finishDrag = (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    if (dragState.moved) {
+      suppressClick = true;
+    }
+    dragState = null;
+    button.classList.remove("is-dragging");
+    try {
+      button.releasePointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  button.addEventListener("pointerup", finishDrag);
+  button.addEventListener("pointercancel", finishDrag);
+
+  button.addEventListener("click", (event) => {
+    if (suppressClick) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressClick = false;
+      return;
+    }
+    onActivate?.();
+  });
+}
+
+window.setupDraggableScrollTopButton = setupDraggableScrollTopButton;
 
 function getScrollMetrics(element) {
   if (!element) {
@@ -56213,8 +56310,7 @@ function getScrollMetrics(element) {
 
 function formatScrollDepthLabel(metrics) {
   if (!metrics?.scrollable || metrics.percent <= 0) return "";
-  const screensLabel = metrics.screens >= 0.15 ? `${metrics.screens.toFixed(1)} экр.` : "";
-  return screensLabel ? `${metrics.percent}% · ${screensLabel}` : `${metrics.percent}%`;
+  return `${metrics.percent}%`;
 }
 
 function syncScrollChrome({
@@ -56266,57 +56362,11 @@ function setupAppFooterToggle() {
   setExpanded(false);
 }
 
-function getFocusListScrollIndex(listNode) {
-  if (!listNode) return { index: 0, total: 0 };
-  const items = [...listNode.querySelectorAll(".agent-focus-chip-row")];
-  const total = items.length;
-  if (!total) return { index: 0, total: 0 };
-
-  const scrollTop = listNode.scrollTop;
-  const viewportBottom = scrollTop + listNode.clientHeight;
-  let index = 1;
-
-  for (let i = 0; i < items.length; i++) {
-    const itemTop = items[i].offsetTop;
-    const itemBottom = itemTop + items[i].offsetHeight;
-    if (itemBottom > scrollTop + 4) {
-      index = i + 1;
-      break;
-    }
-    index = i + 1;
-  }
-
-  for (let i = items.length - 1; i >= 0; i--) {
-    const itemTop = items[i].offsetTop;
-    if (itemTop < viewportBottom - 4) {
-      index = Math.max(index, i + 1);
-      break;
-    }
-  }
-
-  return { index, total };
-}
-
-function formatSidebarFocusCountLabel(listNode) {
-  const { index, total } = getFocusListScrollIndex(listNode);
-  if (!total) return "";
-  if (total === 1) return "1 из 1";
-  return `${index} из ${total}`;
-}
-
-function syncSidebarFocusScrollChrome() {
-  if (!sidebarFocusListNode) return;
-  syncScrollChrome({
-    scrollElement: sidebarFocusListNode,
-    progressNode: sidebarFocusScrollProgressNode,
-    depthNode: sidebarFocusScrollDepthNode,
-    chromeNode: sidebarFocusScrollChromeNode
-  });
-  if (sidebarFocusCountNode) {
-    const label = formatSidebarFocusCountLabel(sidebarFocusListNode);
-    sidebarFocusCountNode.textContent = label;
-    sidebarFocusCountNode.classList.toggle("hidden", !label || !activeAgentId);
-  }
+function syncSidebarFocusCount() {
+  if (!sidebarFocusCountNode) return;
+  const total = activeAgentId ? agentFocusItemsCache.length : 0;
+  sidebarFocusCountNode.textContent = total ? String(total) : "";
+  sidebarFocusCountNode.classList.toggle("hidden", !total);
 }
 
 function syncSidebarScrollChrome() {
@@ -56440,6 +56490,13 @@ function syncWorkspaceScrollChrome() {
   });
 }
 
+function scheduleWorkspaceScrollChromeSync() {
+  requestAnimationFrame(() => {
+    syncWorkspaceScrollChrome();
+    requestAnimationFrame(() => syncWorkspaceScrollChrome());
+  });
+}
+
 function syncMenuScrollTopButton() {
   syncSidebarScrollChrome();
 }
@@ -56447,32 +56504,35 @@ function syncMenuScrollTopButton() {
 function setupMenuScrollTopButton() {
   if (!sidebarNode) return;
   sidebarNode.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
-  sidebarScrollTopBtn?.addEventListener("click", () => {
-    sidebarNode.scrollTo({ top: 0, behavior: "smooth" });
+  setupDraggableScrollTopButton(sidebarScrollTopBtn, {
+    onActivate: () => {
+      sidebarNode.scrollTo({ top: 0, behavior: "smooth" });
+    }
   });
-  sidebarFocusListNode?.addEventListener("scroll", syncSidebarFocusScrollChrome, { passive: true });
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => {
       syncSidebarScrollChrome();
-      syncSidebarFocusScrollChrome();
       syncWorkspaceScrollChrome();
     });
     observer.observe(sidebarNode);
-    if (sidebarFocusListNode) observer.observe(sidebarFocusListNode);
     if (workspacePaneNode) observer.observe(workspacePaneNode);
   }
   syncSidebarScrollChrome();
-  syncSidebarFocusScrollChrome();
+  syncSidebarFocusCount();
 }
 
 function setupWorkspaceScrollChrome() {
   if (!workspacePaneNode || !workspaceScrollTopBtn) return;
-  workspaceScrollTopBtn.addEventListener("click", () => {
-    getWorkspaceScrollElement()?.scrollTo({ top: 0, behavior: "smooth" });
+  setupDraggableScrollTopButton(workspaceScrollTopBtn, {
+    onActivate: () => {
+      getWorkspaceScrollElement()?.scrollTo({ top: 0, behavior: "smooth" });
+    }
   });
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver(() => syncWorkspaceScrollChrome());
     observer.observe(workspacePaneNode);
+    if (nodeOverviewBlockNode) observer.observe(nodeOverviewBlockNode);
+    if (nodeOverviewContentNode) observer.observe(nodeOverviewContentNode);
   }
   syncWorkspaceScrollChrome();
 }

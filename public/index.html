@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.133" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.141" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -160,8 +160,8 @@
       </header>
 
       <aside class="sidebar">
-        <div class="sidebar-scroll-chrome" aria-hidden="true">
-          <div class="scroll-progress-track">
+        <div class="sidebar-scroll-chrome">
+          <div class="scroll-progress-track" aria-hidden="true">
             <div id="sidebar-scroll-progress" class="scroll-progress-fill"></div>
           </div>
           <div id="sidebar-scroll-depth" class="scroll-depth-indicator hidden"></div>
@@ -316,17 +316,10 @@
                 Фокус <span class="agent-focus-sub agent-focus-sub--inline">(быстрый навигатор)</span>
               </h3>
             </div>
-            <span id="sidebar-focus-count" class="agent-focus-count hidden" aria-hidden="true"></span>
+            <span id="sidebar-focus-count" class="agent-focus-count hidden"></span>
           </div>
           <div id="sidebar-focus-list-shell" class="sidebar-focus-list-shell">
-            <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list">
-              <div class="sidebar-focus-scroll-chrome" aria-hidden="true">
-                <div class="scroll-progress-track">
-                  <div id="sidebar-focus-scroll-progress" class="scroll-progress-fill"></div>
-                </div>
-                <div id="sidebar-focus-scroll-depth" class="scroll-depth-indicator hidden"></div>
-              </div>
-            </div>
+            <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
           </div>
         </section>
 
@@ -470,8 +463,8 @@
           id="sidebar-scroll-top-btn"
           class="sidebar-scroll-top-btn scroll-top-btn"
           type="button"
-          title="Наверх"
-          aria-label="Прокрутить боковую панель наверх"
+          title="Наверх — перетащите, чтобы сдвинуть"
+          aria-label="Прокрутить боковую панель наверх. Перетащите, чтобы сдвинуть кнопку."
           aria-hidden="true"
           tabindex="-1"
         >
@@ -1263,8 +1256,8 @@
 
       <section class="workspace-pane">
         <div id="workspace-scroll-chrome-store" class="workspace-scroll-chrome-store" hidden aria-hidden="true">
-          <div class="workspace-scroll-chrome" aria-hidden="true">
-            <div class="scroll-progress-track">
+          <div class="workspace-scroll-chrome">
+            <div class="scroll-progress-track" aria-hidden="true">
               <div id="workspace-scroll-progress" class="scroll-progress-fill"></div>
             </div>
             <div id="workspace-scroll-depth" class="scroll-depth-indicator hidden"></div>
@@ -1273,8 +1266,8 @@
             id="workspace-scroll-top-btn"
             class="workspace-scroll-top-btn scroll-top-btn"
             type="button"
-            title="Наверх"
-            aria-label="Прокрутить документ наверх"
+            title="Наверх — перетащите, чтобы сдвинуть"
+            aria-label="Прокрутить документ наверх. Перетащите, чтобы сдвинуть кнопку."
             aria-hidden="true"
             tabindex="-1"
           >
@@ -2189,15 +2182,17 @@
             </div>
           </section>
 
+          <div class="discuss-messages-panel">
           <section id="discuss-messages-wrap" class="discuss-messages-wrap" aria-label="Сообщения">
-            <div class="discuss-messages-scroll-chrome" aria-hidden="true">
-              <div class="scroll-progress-track">
+            <div class="discuss-messages-scroll-chrome">
+              <div class="scroll-progress-track" aria-hidden="true">
                 <div id="discuss-messages-scroll-progress" class="scroll-progress-fill"></div>
               </div>
               <div id="discuss-messages-scroll-depth" class="scroll-depth-indicator hidden"></div>
             </div>
             <ul id="discuss-messages-list" class="discuss-messages-list"></ul>
             <p id="discuss-messages-empty" class="discuss-messages-empty">Пока нет сообщений</p>
+          </section>
             <button
               id="discuss-messages-scroll-top-btn"
               class="discuss-messages-scroll-top-btn scroll-top-btn"
@@ -2215,7 +2210,7 @@
               </span>
               <span class="scroll-top-btn-label">Наверх</span>
             </button>
-          </section>
+          </div>
 
           <footer class="discuss-composer">
             <textarea
@@ -2859,8 +2854,8 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.279"></script>
-    <script src="/discuss-panel.js?v=0.5.230"></script>
+    <script src="/main.js?v=0.5.287"></script>
+    <script src="/discuss-panel.js?v=0.5.234"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
   </html>

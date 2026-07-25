@@ -407,8 +407,7 @@
 
   function formatDiscussScrollDepth(metrics) {
     if (!metrics.scrollable || metrics.percent <= 0) return "";
-    const screensLabel = metrics.screens >= 0.15 ? `${metrics.screens.toFixed(1)} экр.` : "";
-    return screensLabel ? `${metrics.percent}% · ${screensLabel}` : `${metrics.percent}%`;
+    return `${metrics.percent}%`;
   }
 
   function syncDiscussMessagesScrollChrome() {
