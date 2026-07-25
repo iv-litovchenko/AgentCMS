@@ -237,6 +237,11 @@ fields:
   awn-runtime-heartbeat:
     type: awn.boolean
     name: Heartbeat
+  awn-runtime-commands:
+    type: awn.boolean
+    name: Выполнение команд
+    description: В инструкции темы есть команды для выполнения (визуальный маркер)
+    default: false
 `,
   "mixins/attachments.yml": `id: awn.mixin.attachments
 name: Вложения

@@ -14542,6 +14542,43 @@ function createHeartbeatRuntimeMarkerSvg() {
   return svg;
 }
 
+function createCommandsRuntimeMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg menu-runtime-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const frame = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  frame.setAttribute("x", "4");
+  frame.setAttribute("y", "5");
+  frame.setAttribute("width", "16");
+  frame.setAttribute("height", "14");
+  frame.setAttribute("rx", "2");
+  frame.setAttribute("fill", "none");
+  frame.setAttribute("stroke", "currentColor");
+  frame.setAttribute("stroke-width", "2");
+  svg.appendChild(frame);
+
+  const prompt = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  prompt.setAttribute("d", "M8 10l2 2-2 2");
+  prompt.setAttribute("fill", "none");
+  prompt.setAttribute("stroke", "currentColor");
+  prompt.setAttribute("stroke-width", "2");
+  prompt.setAttribute("stroke-linecap", "round");
+  prompt.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(prompt);
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  line.setAttribute("d", "M13 14h4");
+  line.setAttribute("fill", "none");
+  line.setAttribute("stroke", "currentColor");
+  line.setAttribute("stroke-width", "2");
+  line.setAttribute("stroke-linecap", "round");
+  svg.appendChild(line);
+
+  return svg;
+}
+
 function createContextAlwaysRuntimeMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -14585,6 +14622,7 @@ function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
     merged.runtimeLoadAlways = Boolean(source.runtimeLoadAlways || cached.runtimeLoadAlways);
     merged.runtimeCron = Boolean(source.runtimeCron || cached.runtimeCron);
     merged.runtimeHeartbeat = Boolean(source.runtimeHeartbeat || cached.runtimeHeartbeat);
+    merged.runtimeCommands = Boolean(source.runtimeCommands || cached.runtimeCommands);
     if (!merged.runtimeCronSchedule) {
       merged.runtimeCronSchedule = String(cached.runtimeCronSchedule || "").trim();
     }
@@ -14604,7 +14642,8 @@ function createMenuRuntimeBadges(source, agentId = activeAgentId) {
   const hasContextAlways = Boolean(resolved?.runtimeLoadAlways);
   const hasCron = Boolean(resolved?.runtimeCron);
   const hasHeartbeat = Boolean(resolved?.runtimeHeartbeat);
-  if (!hasContextAlways && !hasCron && !hasHeartbeat) return null;
+  const hasCommands = Boolean(resolved?.runtimeCommands);
+  if (!hasContextAlways && !hasCron && !hasHeartbeat && !hasCommands) return null;
 
   const wrap = document.createElement("span");
   wrap.className = "menu-runtime-badges";
@@ -14639,6 +14678,15 @@ function createMenuRuntimeBadges(source, agentId = activeAgentId) {
     const title = resolveMenuRuntimeBadgeTitle("heartbeat", resolved);
     badge.title = title;
     badge.setAttribute("aria-label", title);
+    wrap.appendChild(badge);
+  }
+
+  if (hasCommands) {
+    const badge = document.createElement("span");
+    badge.className = "menu-runtime-badge menu-runtime-badge--commands";
+    badge.appendChild(createCommandsRuntimeMarkerSvg());
+    badge.title = "Выполнение команд";
+    badge.setAttribute("aria-label", "Выполнение команд");
     wrap.appendChild(badge);
   }
 
@@ -26897,7 +26945,8 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-load-always",
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
-  "awn-runtime-heartbeat"
+  "awn-runtime-heartbeat",
+  "awn-runtime-commands"
 ];
 
 function getStandardPropsFieldKeys() {
@@ -26971,6 +27020,10 @@ const PROPS_FIELD_META = {
   "awn-runtime-heartbeat": {
     label: "Heartbeat",
     hint: "Участвует в периодическом heartbeat-прогоне"
+  },
+  "awn-runtime-commands": {
+    label: "Выполнение команд",
+    hint: "В инструкции темы есть команды для выполнения (визуальный маркер)"
   },
   "awn-version": {
     label: "Версия",
@@ -28947,6 +29000,8 @@ function appendFieldLabelIcon(label, { typeId = "", key = "" } = {}) {
     svgFactory = createCronRuntimeMarkerSvg;
   } else if (normalizedKey === "awn-runtime-heartbeat") {
     svgFactory = createHeartbeatRuntimeMarkerSvg;
+  } else if (normalizedKey === "awn-runtime-commands") {
+    svgFactory = createCommandsRuntimeMarkerSvg;
   }
 
   if (svgFactory) {
@@ -31571,6 +31626,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-runtime-cron": "runtime",
   "awn-runtime-cron-schedule": "runtime",
   "awn-runtime-heartbeat": "runtime",
+  "awn-runtime-commands": "runtime",
   "awn-type": "system",
   "awn-create": "system",
   "awn-update": "system",
@@ -31921,6 +31977,7 @@ const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-main": "boolean",
   "awn-runtime-cron": "boolean",
   "awn-runtime-heartbeat": "boolean",
+  "awn-runtime-commands": "boolean",
   "awn-runtime-load-always": "boolean",
   "awn-runtime-cron-schedule": "cron-schedule"
 };
@@ -36945,7 +37002,8 @@ function extractRuntimePropsFromPropEntries(entries) {
     runtimeLoadLabel: RUNTIME_LOAD_ALWAYS_LABELS[String(Boolean(runtimeLoadAlways))] || RUNTIME_LOAD_ALWAYS_LABELS.false,
     runtimeCron: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-cron")),
     runtimeCronSchedule: String(getPropsEntryValueByKey(list, "awn-runtime-cron-schedule") || "").trim(),
-    runtimeHeartbeat: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-heartbeat"))
+    runtimeHeartbeat: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-heartbeat")),
+    runtimeCommands: readPropsEntryBoolean(findPropsEntryByKey(list, "awn-runtime-commands"))
   };
 }
 
@@ -36980,6 +37038,7 @@ function createNavigationHeroRuntimeSlot({ id, active = false, caption = "", tit
   if (id === "load") iconWrap.appendChild(createContextAlwaysRuntimeMarkerSvg());
   else if (id === "cron") iconWrap.appendChild(createCronRuntimeMarkerSvg());
   else if (id === "heartbeat") iconWrap.appendChild(createHeartbeatRuntimeMarkerSvg());
+  else if (id === "commands") iconWrap.appendChild(createCommandsRuntimeMarkerSvg());
   slot.appendChild(iconWrap);
 
   if (active) {
@@ -37016,6 +37075,12 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
       active: runtime.runtimeHeartbeat,
       caption: "Сердцебиение",
       title: "awn-runtime-heartbeat"
+    }),
+    createNavigationHeroRuntimeSlot({
+      id: "commands",
+      active: runtime.runtimeCommands,
+      caption: "Выполнение команд",
+      title: "awn-runtime-commands"
     })
   );
 }
@@ -43472,6 +43537,15 @@ function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
     if (menu[nestedKey]) enrichMenuTreeRuntimeRollupClient(menu[nestedKey]);
   }
   return menu;
+}
+
+function patchMenuNodeRuntimeCommandsFromProps(manifestPath, propEntries) {
+  const menu = menuCacheByAgent.get(activeAgentId);
+  const node = findMenuTreeNodeByManifestPath(menu, manifestPath, activeAgentId);
+  if (!node) return;
+  node.runtimeCommands = readPropsEntryBoolean(
+    findPropsEntryByKey(normalizePropsEntries(propEntries || []), "awn-runtime-commands")
+  );
 }
 
 async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
@@ -53535,6 +53609,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
       showToast("YAML сохранен", "success");
     }
     await refreshMenuRuntimeFlagsCache(activeAgentId);
+    patchMenuNodeRuntimeCommandsFromProps(activePath, mergePropsFormEntries());
     const menu = menuCacheByAgent.get(activeAgentId);
     if (menu) enrichMenuRuntimeFromCache(menu, activeAgentId);
     refreshMenuTreeRuntimeBadges(activeAgentId);

@@ -2094,7 +2094,8 @@ function extractRuntimePropsFromFrontmatter(frontmatter) {
     runtimeCronSchedule:
       getFrontmatterPropValue(props, "awn-runtime-cron-schedule") ||
       getYamlScalar(frontmatter, "awn-runtime-cron-schedule"),
-    runtimeHeartbeat: readFrontmatterBooleanProp(frontmatter, "awn-runtime-heartbeat")
+    runtimeHeartbeat: readFrontmatterBooleanProp(frontmatter, "awn-runtime-heartbeat"),
+    runtimeCommands: readFrontmatterBooleanProp(frontmatter, "awn-runtime-commands")
   };
 }
 
@@ -7854,7 +7855,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       runtimeCron: runtime.runtimeCron,
       runtimeCronSchedule: runtime.runtimeCronSchedule,
       runtimeHeartbeat: runtime.runtimeHeartbeat,
-      runtimeLoadAlways: runtime.runtimeLoadAlways
+      runtimeLoadAlways: runtime.runtimeLoadAlways,
+      runtimeCommands: runtime.runtimeCommands
     };
   } catch {
     return {
@@ -7868,7 +7870,8 @@ async function readNodeMenuMetaForNodeRel(nodeRelPath) {
       runtimeCron: false,
       runtimeCronSchedule: "",
       runtimeHeartbeat: false,
-      runtimeLoadAlways: false
+      runtimeLoadAlways: false,
+      runtimeCommands: false
     };
   }
 }
@@ -7941,6 +7944,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     runtimeCronSchedule: String(meta.runtimeCronSchedule || "").trim(),
     runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
     runtimeLoadAlways: Boolean(meta.runtimeLoadAlways),
+    runtimeCommands: Boolean(meta.runtimeCommands),
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -8742,6 +8746,7 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     shell.runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
     shell.runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
     shell.runtimeLoadAlways = Boolean(indexMeta.runtimeLoadAlways);
+    shell.runtimeCommands = Boolean(indexMeta.runtimeCommands);
     shell.runtimeCronSelf = shell.runtimeCron;
     shell.runtimeHeartbeatSelf = shell.runtimeHeartbeat;
   }
@@ -8931,6 +8936,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let runtimeCronSchedule = "";
   let runtimeHeartbeat = false;
   let runtimeLoadAlways = false;
+  let runtimeCommands = false;
   if (indexPath) {
     const indexMeta = await enrichMenuNodeItem(indexPath, options);
     color = indexMeta.color;
@@ -8943,6 +8949,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeCronSchedule = String(indexMeta.runtimeCronSchedule || "").trim();
     runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
     runtimeLoadAlways = Boolean(indexMeta.runtimeLoadAlways);
+    runtimeCommands = Boolean(indexMeta.runtimeCommands);
   }
 
   const baseNode = {
@@ -8963,6 +8970,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeCronSchedule,
     runtimeHeartbeat,
     runtimeLoadAlways,
+    runtimeCommands,
     runtimeCronSelf: runtimeCron,
     runtimeHeartbeatSelf: runtimeHeartbeat,
     hasGit: selfMarkers.hasGitSelf,

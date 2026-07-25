@@ -11544,6 +11544,12 @@ body.app-locked {
   border: 1px solid rgba(251, 113, 133, 0.45);
 }
 
+.menu-runtime-badge--commands {
+  color: #047857;
+  background: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+}
+
 .menu-runtime-badge--context {
   color: #2563eb;
   background: #dbeafe;
@@ -18211,6 +18217,12 @@ body.app-locked {
   color: #be123c;
   background: #ffe4e6;
   border: 1px solid rgba(251, 113, 133, 0.45);
+}
+
+.node-navigation-runtime-slot--commands .node-navigation-runtime-slot-icon {
+  color: #047857;
+  background: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.45);
 }
 
 .node-navigation-runtime-slot-icon .menu-runtime-marker-svg {

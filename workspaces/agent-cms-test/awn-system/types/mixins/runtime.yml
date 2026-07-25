@@ -3,7 +3,7 @@ name: Runtime
 kind: mixin
 domain: mixins
 status: active
-description: Загрузка в контекст агента, cron, heartbeat
+description: Загрузка в контекст агента, cron, heartbeat, команды
 fields:
   awn-runtime-load-always:
     type: awn.field.boolean
@@ -24,3 +24,9 @@ fields:
     type: awn.field.boolean
     name: Heartbeat
     group: runtime
+  awn-runtime-commands:
+    type: awn.field.boolean
+    name: Выполнение команд
+    group: runtime
+    description: В инструкции темы есть команды для выполнения (визуальный маркер)
+    default: false

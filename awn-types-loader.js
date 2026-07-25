@@ -356,7 +356,8 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     "awn-runtime-load-always",
     "awn-runtime-cron",
     "awn-runtime-cron-schedule",
-    "awn-runtime-heartbeat"
+    "awn-runtime-heartbeat",
+    "awn-runtime-commands"
   ]);
   const isContentType = isContentAwnTypeName(resolvedTypeName);
 

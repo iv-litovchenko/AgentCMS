@@ -24,3 +24,8 @@ fields:
     name: Сердцебиение
     description: Участвует в периодическом heartbeat-прогоне
     default: false
+  awn-runtime-commands:
+    type: awn.boolean
+    name: Выполнение команд
+    description: В инструкции темы есть команды для выполнения (визуальный маркер)
+    default: false
