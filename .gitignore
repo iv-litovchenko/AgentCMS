@@ -35,6 +35,7 @@ Desktop.ini
 
 # Cache & temp
 .cache/
+.agent-cms/
 tmp/
 temp/
 *.tmp

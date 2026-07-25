@@ -826,6 +826,23 @@ function createServer() {
     }
   );
 
+  reg(
+    "notify_user",
+    "Push an arbitrary notification to the Agent CMS bell in the header. Use when you want to inform the user without creating or editing a file.",
+    z.object({
+      title: z.string().min(1).describe("Short title in the notification list"),
+      message: z.string().optional().describe("Optional longer body text"),
+      path: nodePath.optional().describe("Optional manifest.md — opens the topic when the user clicks the notification")
+    }),
+    ({ title, message, path }) =>
+      client.post("/api/agent/activity/notify", {
+        title,
+        message,
+        manifestPath: path,
+        path
+      })
+  );
+
   reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
     client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.392" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.393" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -198,6 +198,43 @@
             >
               💡
             </button>
+            <div class="header-notifications-wrap">
+              <button
+                id="workspace-notifications-btn"
+                class="header-tool-btn header-tool-btn--notifications"
+                type="button"
+                title="Уведомления об изменениях workspace"
+                aria-label="Уведомления"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="workspace-notifications-popover"
+              >
+                🔔
+                <span id="workspace-notifications-badge" class="header-notifications-badge hidden" aria-hidden="true">0</span>
+              </button>
+              <div
+                id="workspace-notifications-popover"
+                class="workspace-notifications-popover hidden"
+                role="dialog"
+                aria-label="Уведомления workspace"
+              >
+                <div class="workspace-notifications-head">
+                  <div>
+                    <p class="workspace-notifications-title">Уведомления</p>
+                    <p class="workspace-notifications-hint" id="workspace-notifications-hint">Изменения через MCP и интерфейс</p>
+                  </div>
+                  <button
+                    id="workspace-notifications-close-btn"
+                    class="workspace-notifications-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div id="workspace-notifications-list" class="workspace-notifications-list" role="list"></div>
+              </div>
+            </div>
             <button
               id="app-lock-logout-btn"
               class="header-tool-btn header-tool-btn--logout hidden"
@@ -2951,7 +2988,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.398"></script>
+    <script src="/main.js?v=0.5.407"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

@@ -34,7 +34,10 @@ export class AgentCmsClient {
     const url = this.buildUrl(path, query, { agentScope });
     const init = {
       method,
-      headers: { Accept: "application/json" }
+      headers: {
+        Accept: "application/json",
+        "X-Activity-Source": "mcp"
+      }
     };
     if (body !== undefined) {
       init.headers["Content-Type"] = "application/json";

@@ -49,6 +49,21 @@
 | Sidecar | `read_media_sidecar` / `write_media_sidecar` |
 | Свойства узла | `read_node_properties` / `write_node_properties` |
 | Схема полей топика | `read_topic_schema` / `write_topic_schema` (YAML content) |
+| **Уведомление пользователю (🔔 CMS)** | **`notify_user`** — title, message?, path? (manifest) |
+| Сообщение в Agent Shell (голос/UI) | **`shell_post_message`** — body (thread/inbox, **не** колокольчик) |
+
+## Уведомления пользователю
+
+* **Колокольчик 🔔 в шапке CMS** — журнал `.agent-cms/activity.jsonl` (per-agent).
+* **Автоматически** попадают create/update/delete/move файлов через MCP и UI.
+* **Произвольный текст** — MCP **`notify_user`** (`POST /api/agent/activity/notify`):
+
+  ```json
+  { "title": "Готово", "message": "42 записи импортировано", "path": "awn-container/tema/manifest.md" }
+  ```
+
+  `path` — опционально: по клику откроется тема.
+* **Не путать** с **`shell_post_message`** — это сообщение в **Agent Shell** (thread/диалог), не в колокольчик CMS.
 
 ## Схема типов
 

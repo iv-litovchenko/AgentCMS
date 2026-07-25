@@ -12,8 +12,9 @@ module.exports = {
     "path → manifest.md темы/области (напр. awn-container/finansydohody/manifest.md; legacy _registration.md).",
     "file → имя .md в awn-storage/main/ или media/ относительно темы.",
     "Старт сессии: один вызов get_session_context — не делайте grep/curl/ls по репозиторию.",
-    "60 tools — полный список ниже.",
-    "awn-mask-file (маска имён в main/) — read_node_config → awnMaskFile; create_external_memory подхватывает маску автоматически."
+    "87 tools — полный список ниже.",
+    "awn-mask-file (маска имён в main/) — read_node_config → awnMaskFile; create_external_memory подхватывает маску автоматически.",
+    "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
   cursorConfig: {
     command: "node",
@@ -551,6 +552,56 @@ module.exports = {
           description: "Записать системный файл.",
           parameters: "name, content",
           http: "POST /api/system-file"
+        }
+      ]
+    },
+    {
+      id: "notifications",
+      title: "Уведомления пользователю (CMS 🔔)",
+      tools: [
+        {
+          name: "notify_user",
+          description:
+            "Произвольное уведомление в колокольчик Agent CMS (не Agent Shell). Операции create/update/delete/move через MCP попадают в журнал автоматически.",
+          parameters: "title, message?, path? (manifest.md — открыть тему по клику)",
+          http: "POST /api/agent/activity/notify"
+        }
+      ]
+    },
+    {
+      id: "shell",
+      title: "Agent Shell (голос / mobile UI)",
+      tools: [
+        {
+          name: "shell_get_status",
+          description: "Статус Shell, настройки и последний ответ агента.",
+          parameters: "—",
+          http: "GET /api/shell/status"
+        },
+        {
+          name: "shell_post_message",
+          description:
+            "Сообщение в thread/inbox Agent Shell (голосовой UI). Не уведомление в колокольчик CMS — для этого notify_user.",
+          parameters: "body, author?",
+          http: "POST /api/shell/message"
+        },
+        {
+          name: "shell_stop_tts",
+          description: "Остановить озвучку Shell TTS.",
+          parameters: "—",
+          http: "POST /api/shell/stop-tts"
+        },
+        {
+          name: "shell_camera_snapshot",
+          description: "Кадр с камеры Shell UI (live/speech/manual).",
+          parameters: "waitMs?, reason?, kind?: live|speech|manual",
+          http: "POST /api/shell/camera/snapshot · GET /api/shell/camera/latest"
+        },
+        {
+          name: "shell_screenshot",
+          description: "Снимок экрана Shell UI (live/speech/manual).",
+          parameters: "waitMs?, reason?, kind?: live|speech|manual",
+          http: "POST /api/shell/screen/snapshot · GET /api/shell/screen/latest"
         }
       ]
     }

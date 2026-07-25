@@ -540,6 +540,22 @@ const mdShowcaseCloseBtn = document.getElementById("md-showcase-close-btn");
 const mdShowcaseContentNode = document.getElementById("md-showcase-content");
 let mdShowcaseCache = null;
 const componentsIdeasBtn = document.getElementById("components-ideas-btn");
+const workspaceNotificationsBtn = document.getElementById("workspace-notifications-btn");
+const workspaceNotificationsBadgeNode = document.getElementById("workspace-notifications-badge");
+const workspaceNotificationsPopoverNode = document.getElementById("workspace-notifications-popover");
+const workspaceNotificationsListNode = document.getElementById("workspace-notifications-list");
+const workspaceNotificationsCloseBtn = document.getElementById("workspace-notifications-close-btn");
+const workspaceNotificationsHintNode = document.getElementById("workspace-notifications-hint");
+const WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX = "yamlcms.workspaceNotificationsSeenId";
+let workspaceNotificationsEvents = [];
+let workspaceNotificationsLatestId = 0;
+let workspaceNotificationsSeenId = 0;
+let workspaceNotificationsOpen = false;
+let workspaceNotificationsPollTimer = null;
+let workspaceNotificationsTruncated = false;
+let workspaceNotificationsFileLines = 0;
+let workspaceNotificationsAudioCtx = null;
+let workspaceNotificationsInitialLoadDone = false;
 const componentsIdeasModalNode = document.getElementById("components-ideas-modal");
 const componentsIdeasCloseBtn = document.getElementById("components-ideas-close-btn");
 const componentsIdeasSubtitleNode = document.getElementById("components-ideas-subtitle");
@@ -1402,26 +1418,27 @@ async function applyChpuResolvedRoute(resolved) {
 
   if (resolved?.kind === "manifest") {
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
-    if (!entry?.path) {
+    const topicEntry = entry?.path ? entry : await resolveChpuTopicEntry(resolved);
+    if (!topicEntry?.path) {
       showToast(`Тема «${resolved.workspacePath}» не найдена в workspace`, "error");
       showHomeView();
       return;
     }
-    const label = entry.label || getLabelFromPath(entry.path);
+    const label = topicEntry.label || getLabelFromPath(topicEntry.path);
     hideHomeView();
     if (legacySlotFolder) {
-      await applyChpuLegacySlotViews(legacySlotFolder, uiViews, entry);
+      await applyChpuLegacySlotViews(legacySlotFolder, uiViews, topicEntry);
       return;
     }
     if (manifestUiMode) {
-      await selectNodeManifest(label, entry.path, manifestUiMode, { skipRouteSync: true });
+      await selectNodeManifest(label, topicEntry.path, manifestUiMode, { skipRouteSync: true });
       return;
     }
     if (uiViews.length) {
-      await applyChpuManifestUiViews(uiViews, entry);
+      await applyChpuManifestUiViews(uiViews, topicEntry);
       return;
     }
-    await openNodeFromMenu(label, entry.path, { skipRouteSync: true });
+    await openNodeFromMenu(label, topicEntry.path, { skipRouteSync: true });
     return;
   }
 
@@ -7069,6 +7086,13 @@ async function switchActiveAgent(nextAgentId) {
     closeCreateNodeModal();
     activeAgentId = nextAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    workspaceNotificationsEvents = [];
+    workspaceNotificationsLatestId = 0;
+    workspaceNotificationsTruncated = false;
+    workspaceNotificationsFileLines = 0;
+    workspaceNotificationsInitialLoadDone = false;
+    loadWorkspaceNotificationsSeenId(nextAgentId);
+    void refreshWorkspaceNotifications(false);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
     hideAppLandingView();
@@ -15574,6 +15598,8 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
   const normalizedPath = String(filePath || "").replace(/\\/g, "/");
   if (!normalizedPath) throw new Error("Путь к файлу пустой");
 
+  if (await tryOpenMarkdownLinkByWorkspaceRel(normalizedPath)) return;
+
   let resolved = null;
   try {
     resolved = await fetchChpuResolve(workspaceRelToChpuPath(normalizedPath));
@@ -15601,11 +15627,13 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
   }
 
   if (resolved?.kind === "manifest") {
-    const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
-    if (!entry?.path) throw new Error("Тема не найдена");
-    await openNodeFromMenu(entry.label || getLabelFromPath(entry.path), entry.path, {
-      skipRouteSync: true
-    });
+    const topicEntry = await resolveChpuTopicEntry(resolved);
+    if (!topicEntry?.path) throw new Error("Тема не найдена");
+    await openNodeFromMenu(
+      result.label || topicEntry.label || getLabelFromPath(topicEntry.path),
+      topicEntry.path,
+      { skipRouteSync: true }
+    );
     return;
   }
 
@@ -15615,6 +15643,7 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
       await openNodeFromMenu(getLabelFromPath(fileRel), fileRel, { skipRouteSync: true });
       return;
     }
+    if (await tryOpenMarkdownLinkByWorkspaceRel(fileRel)) return;
   }
 
   if (result.systemFile) {
@@ -15653,7 +15682,12 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
     return;
   }
 
-  if (result.nodePath) {
+  if (result.nodePath && normalizedPath === String(result.nodePath).replace(/\\/g, "/")) {
+    await openNodeFromMenu(getLabelFromPath(result.nodePath), result.nodePath, { skipRouteSync: true });
+    return;
+  }
+
+  if (result.nodePath && isNodeManifestPath(normalizedPath)) {
     await openNodeFromMenu(getLabelFromPath(result.nodePath), result.nodePath, { skipRouteSync: true });
     return;
   }
@@ -41077,9 +41111,12 @@ function appendTopicSiblingNavBottom(container, navOptions) {
   });
   if (!nav) return null;
   nav.classList.add("node-navigation-topic-nav-bottom");
-  const hero = container.querySelector(":scope > .node-navigation-hero");
-  if (hero) hero.insertAdjacentElement("afterend", nav);
-  else container.appendChild(nav);
+  const commentsSection = container.querySelector(":scope > .node-comments");
+  if (commentsSection) {
+    commentsSection.insertAdjacentElement("beforebegin", nav);
+  } else {
+    container.appendChild(nav);
+  }
   return nav;
 }
 
@@ -44570,6 +44607,505 @@ function syncChannelAutoPoll() {
   }
 }
 
+const WORKSPACE_NOTIFICATION_ACTION_LABELS = {
+  create: "Создано",
+  update: "Обновлено",
+  delete: "Удалено",
+  move: "Перемещено",
+  notify: "Уведомление"
+};
+
+const WORKSPACE_NOTIFICATION_ACTION_ICONS = {
+  create: "➕",
+  update: "✏️",
+  delete: "🗑",
+  move: "↔️",
+  notify: "💬"
+};
+
+const WORKSPACE_NOTIFICATION_SOURCE_LABELS = {
+  mcp: "MCP",
+  ui: "UI",
+  api: "API",
+  system: "система"
+};
+
+function getWorkspaceNotificationsSeenStorageKey(agentId = activeAgentId) {
+  return agentId ? `${WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX}.${agentId}` : WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX;
+}
+
+function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+  try {
+    const raw = localStorage.getItem(getWorkspaceNotificationsSeenStorageKey(agentId));
+    const parsed = Number(raw);
+    workspaceNotificationsSeenId = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  } catch {
+    workspaceNotificationsSeenId = 0;
+  }
+}
+
+function saveWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+  try {
+    localStorage.setItem(getWorkspaceNotificationsSeenStorageKey(agentId), String(workspaceNotificationsSeenId));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function syncWorkspaceNotificationsHint() {
+  if (!workspaceNotificationsHintNode) return;
+  if (workspaceNotificationsTruncated) {
+    workspaceNotificationsHintNode.textContent = `Показаны последние ${workspaceNotificationsEvents.length} из ${workspaceNotificationsFileLines || "многих"} · старые в .agent-cms/activity-archive.jsonl`;
+    return;
+  }
+  workspaceNotificationsHintNode.textContent = "MCP, UI и notify_user · .agent-cms/activity.jsonl";
+}
+
+function getWorkspaceNotificationUnreadCount() {
+  return workspaceNotificationsEvents.filter((event) => event.id > workspaceNotificationsSeenId).length;
+}
+
+function formatWorkspaceNotificationAction(action) {
+  return WORKSPACE_NOTIFICATION_ACTION_LABELS[String(action || "").toLowerCase()] || "Изменено";
+}
+
+function formatWorkspaceNotificationSource(source) {
+  const normalized = String(source || "system").toLowerCase();
+  return WORKSPACE_NOTIFICATION_SOURCE_LABELS[normalized] || normalized.toUpperCase();
+}
+
+function resolveWorkspaceNotificationManifestPath(event) {
+  if (event?.manifestPath) return String(event.manifestPath).replace(/\\/g, "/");
+  const pathValue = String(event?.path || "").replace(/\\/g, "/");
+  if (!pathValue || pathValue.startsWith(".agent-cms/")) return null;
+  if (pathValue.endsWith("/manifest.md") || pathValue.endsWith("_registration.md")) return pathValue;
+  const manifestIndex = pathValue.indexOf("/manifest.md");
+  if (manifestIndex >= 0) return pathValue.slice(0, manifestIndex + "/manifest.md".length);
+  const owned = resolveOwningManifestRelFromNodePath(pathValue);
+  if (owned && /manifest\.md$|_registration\.md$/i.test(owned)) return owned;
+  return null;
+}
+
+function resolveWorkspaceNotificationOpenPath(event) {
+  const pathValue = String(event?.path || "").replace(/\\/g, "/").trim();
+  const manifestPath = resolveWorkspaceNotificationManifestPath(event);
+  if (pathValue && !pathValue.startsWith(".agent-cms/")) return pathValue;
+  return manifestPath || pathValue || "";
+}
+
+function enrichWorkspaceNotificationEvent(event) {
+  if (!event || typeof event !== "object") return event;
+  let topicName = event.topicName ? String(event.topicName).trim() : "";
+  let recordName = event.recordName ? String(event.recordName).trim() : "";
+  const pathValue = String(event?.path || "").replace(/\\/g, "/").trim();
+  const manifestPath = resolveWorkspaceNotificationManifestPath(event);
+
+  if (currentMenuData) {
+    if (!topicName && manifestPath) {
+      const node = findMenuNodeInAgentMenu(currentMenuData, manifestPath);
+      if (node?.label) topicName = String(node.label).trim();
+    }
+    if (!recordName && pathValue && pathValue !== manifestPath) {
+      const node = findMenuNodeInAgentMenu(currentMenuData, pathValue);
+      if (node?.label) recordName = String(node.label).trim();
+    }
+  }
+
+  const patch = {};
+  if (topicName) patch.topicName = topicName;
+  if (recordName) patch.recordName = recordName;
+  return Object.keys(patch).length ? { ...event, ...patch } : event;
+}
+
+function getWorkspaceNotificationTitle(event) {
+  const enriched = enrichWorkspaceNotificationEvent(event);
+  return (
+    enriched.recordName ||
+    enriched.topicName ||
+    enriched.label ||
+    enriched.path ||
+    "—"
+  );
+}
+
+function getWorkspaceNotificationTopicHint(event) {
+  const enriched = enrichWorkspaceNotificationEvent(event);
+  const title = getWorkspaceNotificationTitle(event);
+  if (enriched.recordName && enriched.topicName && enriched.topicName !== title) {
+    return enriched.topicName;
+  }
+  return "";
+}
+
+function syncWorkspaceNotificationsBadge() {
+  if (!workspaceNotificationsBtn || !workspaceNotificationsBadgeNode) return;
+  const unread = getWorkspaceNotificationUnreadCount();
+  workspaceNotificationsBtn.classList.toggle("has-unread", unread > 0);
+  workspaceNotificationsBadgeNode.classList.toggle("hidden", unread <= 0);
+  workspaceNotificationsBadgeNode.textContent = unread > 99 ? "99+" : String(unread);
+}
+
+function positionWorkspaceNotificationsPopover() {
+  const popover = workspaceNotificationsPopoverNode;
+  const anchor = workspaceNotificationsBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(360, window.innerWidth - 24);
+  const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+  const top = rect.bottom + 8;
+  const maxHeight = Math.max(180, window.innerHeight - top - 16);
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+}
+
+function renderWorkspaceNotificationsList() {
+  if (!workspaceNotificationsListNode) return;
+  workspaceNotificationsListNode.replaceChildren();
+  if (!workspaceNotificationsEvents.length) {
+    const empty = document.createElement("p");
+    empty.className = "workspace-notifications-empty";
+    empty.textContent = "Пока нет изменений. Действия агента через MCP появятся здесь.";
+    workspaceNotificationsListNode.appendChild(empty);
+    return;
+  }
+
+  for (const event of workspaceNotificationsEvents) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "workspace-notification-row";
+    if (event.id > workspaceNotificationsSeenId) row.classList.add("is-unread");
+    row.setAttribute("role", "listitem");
+    row.dataset.notificationId = String(event.id);
+
+    const icon = document.createElement("span");
+    const actionKey = String(event.action || "update").toLowerCase();
+    icon.className = `workspace-notification-icon is-${actionKey}`;
+    icon.textContent = WORKSPACE_NOTIFICATION_ACTION_ICONS[actionKey] || "•";
+    row.appendChild(icon);
+
+    const body = document.createElement("span");
+    body.className = "workspace-notification-body";
+
+    const top = document.createElement("span");
+    top.className = "workspace-notification-top";
+
+    const action = document.createElement("span");
+    action.className = "workspace-notification-action";
+    action.textContent = formatWorkspaceNotificationAction(event.action);
+    top.appendChild(action);
+
+    const source = document.createElement("span");
+    source.className = `workspace-notification-source is-${String(event.source || "system").toLowerCase()}`;
+    source.textContent = formatWorkspaceNotificationSource(event.source);
+    top.appendChild(source);
+    body.appendChild(top);
+
+    const label = document.createElement("span");
+    label.className = "workspace-notification-label";
+    label.textContent = getWorkspaceNotificationTitle(event);
+    body.appendChild(label);
+
+    const topicHint = getWorkspaceNotificationTopicHint(event);
+    if (topicHint) {
+      const topicNode = document.createElement("span");
+      topicNode.className = "workspace-notification-topic";
+      topicNode.textContent = topicHint;
+      body.appendChild(topicNode);
+    }
+
+    if (event.message && event.message !== getWorkspaceNotificationTitle(event)) {
+      const messageNode = document.createElement("span");
+      messageNode.className = "workspace-notification-message";
+      messageNode.textContent = event.message;
+      body.appendChild(messageNode);
+    }
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "workspace-notification-path";
+    const pathText = event.path || "";
+    pathNode.textContent =
+      pathText.startsWith(".agent-cms/") && event.action === "notify" ? "" : pathText;
+    if (pathNode.textContent) body.appendChild(pathNode);
+
+    const time = document.createElement("span");
+    time.className = "workspace-notification-time";
+    time.textContent = formatNodeMetaDateTime(event.at);
+    body.appendChild(time);
+
+    row.appendChild(body);
+    row.addEventListener("click", (clickEvent) => {
+      clickEvent.stopPropagation();
+      void openWorkspaceNotification(event);
+    });
+    workspaceNotificationsListNode.appendChild(row);
+  }
+}
+
+function buildWorkspaceNotificationOpenContext(event) {
+  const openPath = resolveWorkspaceNotificationOpenPath(event);
+  const manifestPath = resolveWorkspaceNotificationManifestPath(event);
+  const label = getWorkspaceNotificationTitle(event) || event?.label || "";
+  const context = {
+    openPath,
+    label,
+    nodePath: manifestPath || undefined,
+    mode: undefined,
+    externalFile: undefined
+  };
+
+  const parsed = parseStorageLayerRef(openPath);
+  if (!parsed?.relativePath) return context;
+
+  const ownerManifest = manifestPath || resolveOwningManifestRelFromNodePath(openPath);
+  if (ownerManifest) context.nodePath = ownerManifest;
+
+  if (parsed.layer === STORAGE_SUBFOLDER_CONTENT) {
+    context.mode = "external";
+    context.externalFile = parsed.relativePath;
+    return context;
+  }
+  if (parsed.layer === STORAGE_SUBFOLDER_MEDIA) {
+    context.mode = "media";
+    context.externalFile = parsed.relativePath;
+    return context;
+  }
+  const flatMode = CHPU_SLOT_FOLDER_TO_MODE[parsed.layer];
+  if (flatMode && FLAT_STORAGE_SECTION_MODES.has(flatMode)) {
+    context.mode = flatMode;
+    context.externalFile = parsed.relativePath;
+  }
+  return context;
+}
+
+async function openWorkspaceNotification(event) {
+  closeWorkspaceNotificationsPopover();
+
+  const { openPath, label, nodePath, mode, externalFile } = buildWorkspaceNotificationOpenContext(event);
+
+  if (!openPath || (openPath.startsWith(".agent-cms/") && !nodePath)) {
+    showToast(label || event?.message || "Уведомление", "info");
+    return;
+  }
+
+  if (/_registration\.md$/i.test(openPath)) {
+    await openNodeFromMenu(label || getLabelFromPath(openPath), openPath, { skipRouteSync: true });
+    syncAppRouteToUrl({ push: true });
+    return;
+  }
+
+  try {
+    if (await tryOpenMarkdownLinkByWorkspaceRel(openPath)) {
+      syncAppRouteToUrl({ push: true });
+      return;
+    }
+
+    await openWorkspaceFilePreviewByRelPath(openPath, {
+      label,
+      nodePath,
+      mode,
+      externalFile
+    });
+    syncAppRouteToUrl({ push: true });
+  } catch (error) {
+    if (nodePath) {
+      try {
+        await openNodeFromMenu(label || getLabelFromPath(nodePath), nodePath, { skipRouteSync: true });
+        syncAppRouteToUrl({ push: true });
+        return;
+      } catch {
+        // fall through to menu lookup
+      }
+    }
+    if (currentMenuData) {
+      const menuNode = findMenuNodeInAgentMenu(currentMenuData, openPath);
+      if (menuNode?.path) {
+        try {
+          await openNodeFromMenu(
+            label || menuNode.label || getLabelFromPath(menuNode.path),
+            menuNode.path,
+            { skipRouteSync: true }
+          );
+          syncAppRouteToUrl({ push: true });
+          return;
+        } catch {
+          // fall through
+        }
+      }
+    }
+    showToast(`Не удалось открыть: ${error.message}`, "error");
+  }
+}
+
+function markWorkspaceNotificationsRead() {
+  if (workspaceNotificationsLatestId > workspaceNotificationsSeenId) {
+    workspaceNotificationsSeenId = workspaceNotificationsLatestId;
+    saveWorkspaceNotificationsSeenId();
+  }
+  syncWorkspaceNotificationsBadge();
+  renderWorkspaceNotificationsList();
+}
+
+function openWorkspaceNotificationsPopover() {
+  if (!workspaceNotificationsPopoverNode || !workspaceNotificationsBtn) return;
+  workspaceNotificationsOpen = true;
+  workspaceNotificationsPopoverNode.classList.remove("hidden");
+  workspaceNotificationsBtn.setAttribute("aria-expanded", "true");
+  markWorkspaceNotificationsRead();
+  positionWorkspaceNotificationsPopover();
+}
+
+function closeWorkspaceNotificationsPopover() {
+  if (!workspaceNotificationsPopoverNode || !workspaceNotificationsBtn) return;
+  workspaceNotificationsOpen = false;
+  workspaceNotificationsPopoverNode.classList.add("hidden");
+  workspaceNotificationsBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleWorkspaceNotificationsPopover() {
+  if (workspaceNotificationsOpen) closeWorkspaceNotificationsPopover();
+  else openWorkspaceNotificationsPopover();
+}
+
+function primeWorkspaceNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!workspaceNotificationsAudioCtx) {
+      workspaceNotificationsAudioCtx = new AudioCtx();
+    }
+    if (workspaceNotificationsAudioCtx.state === "suspended") {
+      void workspaceNotificationsAudioCtx.resume();
+    }
+  } catch {
+    // ignore autoplay restrictions until user gesture
+  }
+}
+
+function playWorkspaceNotificationSound() {
+  if (document.hidden) return;
+  try {
+    primeWorkspaceNotificationSound();
+    const ctx = workspaceNotificationsAudioCtx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const playTone = (frequency, startOffset, duration, volume = 0.1) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + startOffset;
+      const end = start + duration;
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(end + 0.02);
+    };
+
+    playTone(880, 0, 0.12, 0.09);
+    playTone(1174.66, 0.1, 0.16, 0.07);
+  } catch {
+    // ignore audio errors
+  }
+}
+
+async function fetchWorkspaceActivityEvents({ since = 0, limit = 50 } = {}) {
+  const response = await fetch(
+    buildApiUrl("/api/agent/activity", {
+      since: since > 0 ? since : undefined,
+      limit
+    })
+  );
+  if (!response.ok) throw new Error(`activity:${response.status}`);
+  return response.json();
+}
+
+async function refreshWorkspaceNotifications(mergeOnly = false) {
+  if (!activeAgentId) return;
+  try {
+    const payload = await fetchWorkspaceActivityEvents({
+      since: mergeOnly && workspaceNotificationsLatestId > 0 ? workspaceNotificationsLatestId : 0,
+      limit: mergeOnly ? 100 : 50
+    });
+    const incoming = Array.isArray(payload?.events) ? payload.events : [];
+    workspaceNotificationsLatestId = Number(payload?.latestId) || workspaceNotificationsLatestId;
+    workspaceNotificationsTruncated = Boolean(payload?.truncated);
+    workspaceNotificationsFileLines = Number(payload?.fileLines) || incoming.length;
+
+    let addedNewCount = 0;
+    if (mergeOnly && incoming.length) {
+      const known = new Set(workspaceNotificationsEvents.map((event) => event.id));
+      for (const event of incoming) {
+        if (!known.has(event.id)) {
+          workspaceNotificationsEvents.unshift(event);
+          addedNewCount += 1;
+        }
+      }
+      workspaceNotificationsEvents.sort((a, b) => b.id - a.id);
+      workspaceNotificationsEvents = workspaceNotificationsEvents.slice(0, 100);
+    } else if (!mergeOnly) {
+      workspaceNotificationsEvents = incoming.slice().sort((a, b) => b.id - a.id);
+    }
+
+    syncWorkspaceNotificationsBadge();
+    syncWorkspaceNotificationsHint();
+    if (workspaceNotificationsOpen) renderWorkspaceNotificationsList();
+
+    const unread = getWorkspaceNotificationUnreadCount();
+    const shouldAnnounce =
+      workspaceNotificationsInitialLoadDone &&
+      mergeOnly &&
+      addedNewCount > 0 &&
+      unread > 0 &&
+      !workspaceNotificationsOpen;
+    if (shouldAnnounce) {
+      const latest = incoming[0];
+      playWorkspaceNotificationSound();
+      const latestTitle = getWorkspaceNotificationTitle(latest);
+      const toastText =
+        latest.action === "notify" && latest.message
+          ? latestTitle && latestTitle !== "—" && !latest.message.startsWith(latestTitle)
+            ? `${latestTitle}: ${latest.message}`
+            : latest.message
+          : `${formatWorkspaceNotificationAction(latest.action)} (${formatWorkspaceNotificationSource(latest.source)}): ${latestTitle}`;
+      showToast(toastText, "info");
+    }
+    workspaceNotificationsInitialLoadDone = true;
+  } catch {
+    // ignore transient activity fetch errors
+  }
+}
+
+function initWorkspaceNotifications() {
+  loadWorkspaceNotificationsSeenId();
+  void refreshWorkspaceNotifications(false);
+  workspaceNotificationsPollTimer = window.setInterval(() => {
+    if (document.hidden || !activeAgentId) return;
+    void refreshWorkspaceNotifications(true);
+  }, 15000);
+
+  workspaceNotificationsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    primeWorkspaceNotificationSound();
+    toggleWorkspaceNotificationsPopover();
+  });
+  workspaceNotificationsCloseBtn?.addEventListener("click", closeWorkspaceNotificationsPopover);
+  window.addEventListener("resize", positionWorkspaceNotificationsPopover);
+  document.addEventListener("click", (event) => {
+    if (!workspaceNotificationsOpen) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (workspaceNotificationsPopoverNode?.contains(target)) return;
+    if (workspaceNotificationsBtn?.contains(target)) return;
+    closeWorkspaceNotificationsPopover();
+  });
+}
+
 function syncChannelLiveUpdates() {
   stopChannelEventStream();
   stopChannelAutoPoll();
@@ -44582,6 +45118,7 @@ function syncChannelLiveUpdates() {
       void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
       if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+      void refreshWorkspaceNotifications(true);
     }, CHANNEL_POLL_INTERVAL_MS);
     return;
   }
@@ -44593,6 +45130,7 @@ function syncChannelLiveUpdates() {
       void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
       if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+      void refreshWorkspaceNotifications(true);
     });
     channelEventSource.addEventListener("reconnect", () => {
       stopChannelEventStream();
@@ -44606,6 +45144,7 @@ function syncChannelLiveUpdates() {
         void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
         if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
+        void refreshWorkspaceNotifications(true);
       }, CHANNEL_POLL_INTERVAL_MS);
     };
   } catch {
@@ -45783,7 +46322,6 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav
     })
   );
-  appendTopicSiblingNavBottom(hub, topicSiblingNav);
 
   await appendNodeOverviewTypeRegistryFold(hub, nodePath);
   if (isStale()) return;
@@ -45831,6 +46369,8 @@ async function renderNodeNavigation() {
   if (panelsWrap.children.length) {
     hub.appendChild(panelsWrap);
   }
+
+  appendTopicSiblingNavBottom(hub, topicSiblingNav);
 
   if (getActiveNodeApiPath()) {
     await appendNodeCommentsBlockToContainer(hub, {
@@ -62327,4 +62867,5 @@ initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
+initWorkspaceNotifications();
 

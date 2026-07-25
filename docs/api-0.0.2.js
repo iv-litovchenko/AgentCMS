@@ -664,6 +664,25 @@ module.exports = {
         },
         {
           method: "GET",
+          path: "/api/agent/activity",
+          description:
+            "Журнал активности для колокольчика 🔔 в UI: create/update/delete/move/notify через MCP и UI. Хранится в .agent-cms/activity.jsonl (per-agent).",
+          query: ["since?", "limit?"],
+          body: null,
+          response:
+            "{ events[{ id, action, path, manifestPath?, label?, topicName?, recordName?, message?, source, at }], latestId, total, fileLines, truncated, limits }"
+        },
+        {
+          method: "POST",
+          path: "/api/agent/activity/notify",
+          description:
+            "Произвольное уведомление пользователю в колокольчик CMS. Не путать с /api/shell/message (диалог Agent Shell).",
+          query: [],
+          body: "{ title?, message?, text?, body?, path?, manifestPath?, label? }",
+          response: "{ event: { id, action: notify, label, message?, path, manifestPath?, source, at } }"
+        },
+        {
+          method: "GET",
           path: "/api/public/images",
           agentScope: false,
           description: "Список изображений в public/ (галерея UI).",

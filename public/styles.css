@@ -8893,6 +8893,253 @@ body.app-locked {
   color: #14532d;
 }
 
+.header-notifications-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.header-tool-btn--notifications {
+  position: relative;
+  width: 43px;
+  padding: 0;
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.header-tool-btn--notifications:hover {
+  border-color: #fbbf24;
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.header-tool-btn--notifications.has-unread {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+}
+
+.header-notifications-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.header-notifications-badge.hidden {
+  display: none;
+}
+
+.workspace-notifications-popover {
+  position: fixed;
+  z-index: 1100;
+  width: min(360px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+}
+
+.workspace-notifications-popover.hidden {
+  display: none;
+}
+
+.workspace-notifications-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.workspace-notifications-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.workspace-notifications-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.workspace-notifications-close {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.workspace-notifications-close:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.workspace-notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+}
+
+.workspace-notifications-empty {
+  margin: 0;
+  padding: 16px 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.workspace-notification-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.workspace-notification-row:hover {
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.workspace-notification-row.is-unread {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.workspace-notification-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  background: #e2e8f0;
+}
+
+.workspace-notification-icon.is-create {
+  background: #dcfce7;
+}
+
+.workspace-notification-icon.is-update {
+  background: #dbeafe;
+}
+
+.workspace-notification-icon.is-delete {
+  background: #fee2e2;
+}
+
+.workspace-notification-icon.is-move {
+  background: #ede9fe;
+}
+
+.workspace-notification-icon.is-notify {
+  background: #fce7f3;
+}
+
+.workspace-notification-message {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.workspace-notification-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-notification-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workspace-notification-action {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.workspace-notification-source {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.workspace-notification-source.is-mcp {
+  color: #7c3aed;
+}
+
+.workspace-notification-label {
+  font-size: 12px;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-notification-topic {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-notification-path {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-notification-time {
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
 .header-tool-btn--logout {
   border-color: #fecaca;
   background: #fef2f2;

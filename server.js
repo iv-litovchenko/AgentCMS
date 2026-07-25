@@ -4,6 +4,7 @@ const os = require("os");
 const fsSync = require("fs");
 const fs = require("fs/promises");
 const path = require("path");
+const { AsyncLocalStorage } = require("async_hooks");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./agent-registry");
@@ -576,6 +577,395 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
+const WORKSPACE_ACTIVITY_DIR = ".agent-cms";
+const WORKSPACE_ACTIVITY_FILE = "activity.jsonl";
+const WORKSPACE_ACTIVITY_ARCHIVE_FILE = "activity-archive.jsonl";
+const WORKSPACE_ACTIVITY_MEMORY_LIMIT = 250;
+const WORKSPACE_ACTIVITY_FILE_LINE_LIMIT = 5000;
+const WORKSPACE_ACTIVITY_FILE_TRIM_TO = 3000;
+const WORKSPACE_ACTIVITY_LOAD_LIMIT = 500;
+const WORKSPACE_ACTIVITY_FILE_MAX_BYTES = 4 * 1024 * 1024;
+const workspaceActivityStorage = new AsyncLocalStorage();
+const workspaceActivityByAgentRoot = new Map();
+const workspaceActivityLoadPromises = new Map();
+
+function getWorkspaceActivityArchiveFileAbsolute(agentRoot = getAgentRoot()) {
+  if (!agentRoot) return null;
+  const absolute = path.join(agentRoot, WORKSPACE_ACTIVITY_DIR, WORKSPACE_ACTIVITY_ARCHIVE_FILE);
+  if (!absolute.startsWith(agentRoot)) return null;
+  return absolute;
+}
+
+function getWorkspaceActivityFileAbsolute(agentRoot = getAgentRoot()) {
+  if (!agentRoot) return null;
+  const absolute = path.join(agentRoot, WORKSPACE_ACTIVITY_DIR, WORKSPACE_ACTIVITY_FILE);
+  if (!absolute.startsWith(agentRoot)) return null;
+  return absolute;
+}
+
+function getWorkspaceActivityStore(agentRoot = getAgentRoot()) {
+  if (!agentRoot) return null;
+  let store = workspaceActivityByAgentRoot.get(agentRoot);
+  if (!store) {
+    store = {
+      seq: 0,
+      events: [],
+      fileLines: 0,
+      fileTruncated: false,
+      loaded: false,
+      recordQueue: Promise.resolve(),
+      writeQueue: Promise.resolve()
+    };
+    workspaceActivityByAgentRoot.set(agentRoot, store);
+  }
+  return store;
+}
+
+function parseWorkspaceActivityLine(line) {
+  try {
+    const event = JSON.parse(line);
+    if (!event || typeof event !== "object") return null;
+    const id = Number(event.id);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    return {
+      id,
+      action: String(event.action || "update"),
+      path: String(event.path || "").replace(/\\/g, "/"),
+      manifestPath: event.manifestPath ? String(event.manifestPath).replace(/\\/g, "/") : null,
+      label: event.label ? String(event.label) : null,
+      topicName: event.topicName ? String(event.topicName) : null,
+      recordName: event.recordName ? String(event.recordName) : null,
+      message: event.message ? String(event.message) : null,
+      fileKind: event.fileKind ? String(event.fileKind) : null,
+      source: event.source ? String(event.source) : "system",
+      route: event.route ? String(event.route) : null,
+      at: event.at ? String(event.at) : new Date().toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function readAwnNameFromWorkspaceRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return null;
+  try {
+    const resolved = await resolveExistingWorkspaceRelPath(normalized);
+    const absolute = normalizeWorkspacePath(resolved || normalized);
+    if (!absolute) return null;
+    const raw = await fs.readFile(absolute, "utf-8");
+    const { frontmatter } = splitNodeFrontmatter(raw);
+    const name = getYamlScalar(frontmatter, "awn-name");
+    return name ? String(name).trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveWorkspaceActivityDisplayNames({ pathValue, manifestPath, label }) {
+  const normalizedPath = String(pathValue || "").replace(/\\/g, "/").trim();
+  let manifestRel = manifestPath ? String(manifestPath).replace(/\\/g, "/").trim() : "";
+  if (!manifestRel && normalizedPath) {
+    manifestRel = resolveOwningManifestRelFromNodePath(normalizedPath);
+  }
+
+  let topicName = null;
+  let recordName = null;
+
+  const isManifestPath = /manifest\.md$|_registration\.md$/i.test(normalizedPath);
+  const isRecordPath =
+    normalizedPath && /\.md$/i.test(normalizedPath) && !isManifestPath && normalizedPath !== manifestRel;
+
+  if (manifestRel && /manifest\.md$|_registration\.md$/i.test(manifestRel)) {
+    topicName = await readAwnNameFromWorkspaceRel(manifestRel);
+  }
+  if (isManifestPath) {
+    topicName = topicName || (await readAwnNameFromWorkspaceRel(normalizedPath));
+  }
+  if (isRecordPath) {
+    recordName = await readAwnNameFromWorkspaceRel(normalizedPath);
+  }
+
+  const displayName = recordName || topicName || (label ? String(label).trim() : null);
+  return { topicName, recordName, displayName };
+}
+
+async function archiveWorkspaceActivityLines(agentRoot, lines) {
+  const archiveAbsolute = getWorkspaceActivityArchiveFileAbsolute(agentRoot);
+  if (!archiveAbsolute || !lines.length) return;
+  await fs.mkdir(path.dirname(archiveAbsolute), { recursive: true });
+  await fs.appendFile(archiveAbsolute, `${lines.join("\n")}\n`, "utf-8");
+}
+
+async function trimWorkspaceActivityFile(agentRoot) {
+  const fileAbsolute = getWorkspaceActivityFileAbsolute(agentRoot);
+  const store = getWorkspaceActivityStore(agentRoot);
+  if (!fileAbsolute || !store) return;
+
+  store.writeQueue = store.writeQueue.then(async () => {
+    let raw = "";
+    try {
+      raw = await fs.readFile(fileAbsolute, "utf-8");
+    } catch (error) {
+      if (error && error.code === "ENOENT") return;
+      throw error;
+    }
+    const lines = raw.split("\n").filter(Boolean);
+    store.fileLines = lines.length;
+    const stat = await fs.stat(fileAbsolute).catch(() => null);
+    const overBytes = stat && stat.size > WORKSPACE_ACTIVITY_FILE_MAX_BYTES;
+    const overLines = lines.length > WORKSPACE_ACTIVITY_FILE_LINE_LIMIT;
+    if (!overBytes && !overLines) return;
+
+    const keepCount = overBytes
+      ? Math.min(WORKSPACE_ACTIVITY_FILE_TRIM_TO, lines.length)
+      : WORKSPACE_ACTIVITY_FILE_TRIM_TO;
+    if (lines.length <= keepCount) return;
+
+    const dropped = lines.slice(0, lines.length - keepCount);
+    const kept = lines.slice(-keepCount);
+    await archiveWorkspaceActivityLines(agentRoot, dropped);
+    await fs.writeFile(fileAbsolute, `${kept.join("\n")}\n`, "utf-8");
+    store.fileLines = kept.length;
+    store.fileTruncated = true;
+  });
+
+  await store.writeQueue;
+}
+
+async function maybeTrimWorkspaceActivityFile(agentRoot) {
+  const fileAbsolute = getWorkspaceActivityFileAbsolute(agentRoot);
+  const store = getWorkspaceActivityStore(agentRoot);
+  if (!fileAbsolute || !store) return;
+  if (store.fileLines > WORKSPACE_ACTIVITY_FILE_LINE_LIMIT) {
+    await trimWorkspaceActivityFile(agentRoot);
+    return;
+  }
+  const stat = await fs.stat(fileAbsolute).catch(() => null);
+  if (stat && stat.size > WORKSPACE_ACTIVITY_FILE_MAX_BYTES) {
+    await trimWorkspaceActivityFile(agentRoot);
+  }
+}
+
+async function loadWorkspaceActivityFromFile(agentRoot) {
+  const store = getWorkspaceActivityStore(agentRoot);
+  const fileAbsolute = getWorkspaceActivityFileAbsolute(agentRoot);
+  if (!store || !fileAbsolute) return;
+
+  store.loaded = true;
+  store.events = [];
+  store.seq = 0;
+  store.fileLines = 0;
+  store.fileTruncated = false;
+
+  let raw = "";
+  try {
+    raw = await fs.readFile(fileAbsolute, "utf-8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") return;
+    throw error;
+  }
+
+  const lines = raw.split("\n").filter(Boolean);
+  store.fileLines = lines.length;
+  store.fileTruncated = lines.length > WORKSPACE_ACTIVITY_LOAD_LIMIT;
+
+  const parsed = [];
+  for (const line of lines) {
+    const event = parseWorkspaceActivityLine(line);
+    if (event) parsed.push(event);
+  }
+  parsed.sort((a, b) => a.id - b.id);
+  const tail = parsed.slice(-WORKSPACE_ACTIVITY_LOAD_LIMIT);
+  store.seq = tail.length ? tail[tail.length - 1].id : 0;
+  store.events = tail.slice().reverse();
+}
+
+async function ensureWorkspaceActivityLoaded(agentRoot = getAgentRoot()) {
+  const store = getWorkspaceActivityStore(agentRoot);
+  if (!store || store.loaded) return;
+  if (!workspaceActivityLoadPromises.has(agentRoot)) {
+    workspaceActivityLoadPromises.set(
+      agentRoot,
+      loadWorkspaceActivityFromFile(agentRoot).finally(() => {
+        workspaceActivityLoadPromises.delete(agentRoot);
+      })
+    );
+  }
+  await workspaceActivityLoadPromises.get(agentRoot);
+}
+
+function queueWorkspaceActivityFileAppend(agentRoot, event) {
+  const store = getWorkspaceActivityStore(agentRoot);
+  const fileAbsolute = getWorkspaceActivityFileAbsolute(agentRoot);
+  if (!store || !fileAbsolute) return;
+
+  const line = `${JSON.stringify(event)}\n`;
+  store.writeQueue = store.writeQueue
+    .then(async () => {
+      await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
+      await fs.appendFile(fileAbsolute, line, "utf-8");
+      store.fileLines += 1;
+      await maybeTrimWorkspaceActivityFile(agentRoot);
+    })
+    .catch(() => {});
+}
+
+async function recordWorkspaceActivityAsync({
+  action,
+  path: relPath,
+  label = null,
+  message = null,
+  fileKind = null,
+  manifestPath = null,
+  source = null,
+  route = null
+} = {}) {
+  const agentRoot = getAgentRoot();
+  const actionName = String(action || "").trim();
+  const normalizedPath = String(relPath || "").replace(/\\/g, "/").trim();
+  const isNotify = actionName === "notify";
+  if (!agentRoot || !actionName) return null;
+  if (!isNotify && !normalizedPath) return null;
+
+  const store = getWorkspaceActivityStore(agentRoot);
+  if (!store) return null;
+
+  store.recordQueue = store.recordQueue.then(async () => {
+    await ensureWorkspaceActivityLoaded(agentRoot);
+    const ctx = getWorkspaceActivityContext();
+    const pathValue = normalizedPath || `${WORKSPACE_ACTIVITY_DIR}/notification`;
+    const labelValue =
+      label ||
+      (isNotify ? "Уведомление" : path.posix.basename(pathValue) || pathValue);
+    const names = await resolveWorkspaceActivityDisplayNames({
+      pathValue,
+      manifestPath,
+      label: labelValue
+    });
+    store.seq += 1;
+    const event = {
+      id: store.seq,
+      action: actionName,
+      path: pathValue,
+      manifestPath: manifestPath ? String(manifestPath).replace(/\\/g, "/") : null,
+      label: names.displayName || labelValue,
+      topicName: names.topicName,
+      recordName: names.recordName,
+      message: message ? String(message) : null,
+      fileKind: fileKind || (isNotify ? "notification" : inferWorkspaceActivityFileKind(pathValue)),
+      source: source || ctx?.source || "system",
+      route: route || ctx?.route || null,
+      at: new Date().toISOString()
+    };
+    store.events.unshift(event);
+    if (store.events.length > WORKSPACE_ACTIVITY_MEMORY_LIMIT) {
+      store.events.length = WORKSPACE_ACTIVITY_MEMORY_LIMIT;
+    }
+    queueWorkspaceActivityFileAppend(agentRoot, event);
+    return event;
+  });
+
+  return store.recordQueue;
+}
+
+function pushWorkspaceActivityContext(req, url) {
+  return {
+    source: inferWorkspaceActivitySource(req),
+    route: `${req.method} ${url.pathname}`,
+    pathname: url.pathname,
+    method: req.method
+  };
+}
+
+function popWorkspaceActivityContext() {
+  // kept for compatibility with older call sites; AsyncLocalStorage scopes the context
+}
+
+function getWorkspaceActivityContext() {
+  return workspaceActivityStorage.getStore() || null;
+}
+
+function inferWorkspaceActivitySource(req) {
+  const explicit = String(req.headers["x-activity-source"] || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  const ua = String(req.headers["user-agent"] || "").toLowerCase();
+  if (ua.includes("mozilla") || ua.includes("chrome") || ua.includes("safari") || ua.includes("firefox")) {
+    return "ui";
+  }
+  if (ua.includes("node") || ua.includes("undici")) return "mcp";
+  return "api";
+}
+
+function inferWorkspaceActivityFileKind(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").toLowerCase();
+  if (!normalized) return "other";
+  if (normalized.endsWith("/manifest.md") || normalized.endsWith("_registration.md")) return "manifest";
+  if (normalized.endsWith("/main.md") || normalized.includes("/main/")) return "memory";
+  if (normalized.endsWith("/todo.md")) return "todo";
+  if (normalized.endsWith("/schema.yml") || normalized.endsWith("schema.yml")) return "schema";
+  if (normalized.endsWith("configuration.yml")) return "config";
+  if (normalized.endsWith("/.env")) return "env";
+  if (normalized.includes("/content/")) return "content";
+  if (normalized.includes("/media/")) return "media";
+  if (normalized.includes("/assets/")) return "assets";
+  if (normalized.endsWith(".md")) return "content";
+  return "other";
+}
+
+function recordWorkspaceActivity(params = {}) {
+  void recordWorkspaceActivityAsync(params);
+  return null;
+}
+
+function getWorkspaceActivitySeq(agentRoot = getAgentRoot()) {
+  const store = getWorkspaceActivityStore(agentRoot);
+  return store?.seq || 0;
+}
+
+async function listWorkspaceActivityEvents({ since = 0, limit = 50 } = {}) {
+  const agentRoot = getAgentRoot();
+  await ensureWorkspaceActivityLoaded(agentRoot);
+  const store = getWorkspaceActivityStore(agentRoot);
+  const sinceId = Number(since) || 0;
+  const cappedLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const eventsSource = store?.events || [];
+  const events =
+    sinceId > 0
+      ? eventsSource.filter((event) => event.id > sinceId)
+      : eventsSource.slice(0, cappedLimit);
+  return {
+    events: sinceId > 0 ? events.slice(0, cappedLimit) : events,
+    latestId: store?.seq || 0,
+    total: eventsSource.length,
+    fileLines: store?.fileLines || 0,
+    truncated: Boolean(store?.fileTruncated || (store?.fileLines || 0) > eventsSource.length),
+    limits: {
+      memory: WORKSPACE_ACTIVITY_MEMORY_LIMIT,
+      file: WORKSPACE_ACTIVITY_FILE_LINE_LIMIT,
+      fileMaxBytes: WORKSPACE_ACTIVITY_FILE_MAX_BYTES,
+      archiveFile: `${WORKSPACE_ACTIVITY_DIR}/${WORKSPACE_ACTIVITY_ARCHIVE_FILE}`,
+      api: 200
+    }
+  };
+}
+
+function recordWorkspaceNodeCreateFromResponse(createdPath) {
+  const normalized = String(createdPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return null;
+  return recordWorkspaceActivity({
+    action: "create",
+    path: normalized,
+    label: path.posix.basename(path.dirname(normalized)) || normalized,
+    fileKind: "manifest"
+  });
+}
+
+async function withWorkspaceActivityContext(req, url, fn) {
+  const context = pushWorkspaceActivityContext(req, url);
+  return workspaceActivityStorage.run(context, () => fn());
+}
+
 async function readJsonBody(req, maxSize = 1_000_000) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -861,6 +1251,7 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
   const normalizedTarget = normalizeHistoryTargetRelPath(targetRelPath);
   const targetAbsolute = normalizeWorkspacePath(normalizedTarget);
   if (!targetAbsolute) throw new Error("Invalid target path");
+  const existed = await fs.stat(targetAbsolute).catch(() => null);
   await snapshotFileHistoryBeforeWrite({
     manifestRelPath,
     targetRelPath: normalizedTarget,
@@ -868,6 +1259,12 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
   });
   await fs.mkdir(path.dirname(targetAbsolute), { recursive: true });
   await fs.writeFile(targetAbsolute, content, "utf-8");
+  recordWorkspaceActivity({
+    action: existed ? "update" : "create",
+    path: normalizedTarget,
+    manifestPath: manifestRelPath,
+    label: path.posix.basename(normalizedTarget)
+  });
   return normalizedTarget;
 }
 
@@ -1462,7 +1859,7 @@ async function collectAgentTopicManifestPaths() {
   ].slice(0, 120);
 }
 
-async function buildAgentChannelSignature() {
+async function buildAgentChannelSignature(agentRoot = getAgentRoot()) {
   const paths = await collectAgentTopicManifestPaths();
   const batch = await buildIntakeBatchSummary(paths);
   const digest = {};
@@ -1473,14 +1870,17 @@ async function buildAgentChannelSignature() {
       m: Number(summary?.mentions?.unread) || 0
     };
   }
+  if (agentRoot) await ensureWorkspaceActivityLoaded(agentRoot);
   return JSON.stringify({
     topics: paths.length,
     totals: batch.totals,
-    digest
+    digest,
+    activitySeq: getWorkspaceActivitySeq(agentRoot)
   });
 }
 
 async function streamAgentChannelEvents(req, res) {
+  const agentRoot = getAgentRoot();
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
@@ -1499,7 +1899,7 @@ async function streamAgentChannelEvents(req, res) {
   const tick = async () => {
     if (closed) return;
     try {
-      const sig = await buildAgentChannelSignature();
+      const sig = await buildAgentChannelSignature(agentRoot);
       if (sig !== lastSig) {
         lastSig = sig;
         res.write(`event: update\ndata: ${sig}\n\n`);
@@ -11083,6 +11483,48 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/activity") {
+    try {
+      const sinceRaw = Number(url.searchParams.get("since"));
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await listWorkspaceActivityEvents({
+        since: Number.isFinite(sinceRaw) && sinceRaw > 0 ? sinceRaw : 0,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace activity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/activity/notify") {
+    try {
+      const payload = await readJsonBody(req);
+      const title = String(payload.title || payload.label || "").trim();
+      const message = String(payload.message || payload.text || payload.body || "").trim();
+      const manifestPath = String(payload.manifestPath || payload.path || "").trim();
+      if (!title && !message) {
+        return sendJson(res, 400, { error: "title or message is required" });
+      }
+      const event = await recordWorkspaceActivityAsync({
+        action: "notify",
+        path: manifestPath || `${WORKSPACE_ACTIVITY_DIR}/notification`,
+        manifestPath: manifestPath || null,
+        label: title || message.slice(0, 120),
+        message: message || title
+      });
+      return sendJson(res, 200, { event });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to push workspace notification",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/markdown-index") {
     try {
       const index = await buildAgentMarkdownLinkIndex();
@@ -12745,6 +13187,14 @@ async function handleApiForAgent(req, res, url) {
       if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid external file path" });
       const content = await buildExternalRecordFileContentForManifest(relPath, title);
       await fs.writeFile(fileAbsolute, content, "utf-8");
+      const createdRel = manifestRelFromNodeAbsolute(fileAbsolute);
+      recordWorkspaceActivity({
+        action: "create",
+        path: createdRel || `${relPath.replace(/\\/g, "/")}/${fileName}`,
+        manifestPath: relPath.replace(/\\/g, "/"),
+        label: title,
+        fileKind: "memory"
+      });
 
       return sendJson(res, 200, {
         file: path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/"),
@@ -14516,6 +14966,11 @@ async function handleApiForAgent(req, res, url) {
 
       const result = await moveNodeManifest(relPath, parentPath);
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      recordWorkspaceActivity({
+        action: "move",
+        path: String(relPath).replace(/\\/g, "/"),
+        label: path.posix.basename(String(relPath).replace(/\\/g, "/"))
+      });
       return sendJson(res, 200, result);
     } catch (error) {
       return sendRenameError(res, error);
@@ -14539,6 +14994,12 @@ async function handleApiForAgent(req, res, url) {
         }
         const folderAbsolute = path.dirname(absolute);
         await fs.rm(folderAbsolute, { recursive: true, force: false });
+        recordWorkspaceActivity({
+          action: "delete",
+          path: relPath.replace(/\\/g, "/"),
+          label: path.posix.basename(path.dirname(relPath.replace(/\\/g, "/"))),
+          fileKind: "manifest"
+        });
         return sendJson(res, 200, { deleted: relPath, deletedType: "folder" });
       }
 
@@ -14556,6 +15017,12 @@ async function handleApiForAgent(req, res, url) {
           // slot may not exist
         }
       }
+      recordWorkspaceActivity({
+        action: "delete",
+        path: relPath.replace(/\\/g, "/"),
+        label: path.posix.basename(path.dirname(relPath.replace(/\\/g, "/"))),
+        fileKind: "manifest"
+      });
       return sendJson(res, 200, { deleted: relPath, deletedType: "file" });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";
@@ -14737,6 +15204,7 @@ async function handleApiForAgent(req, res, url) {
         await ensureManifestStorageSlotDir(createdRel);
         await appendMenuSortOrderEntry(folderAbsolute, folderName);
 
+        recordWorkspaceNodeCreateFromResponse(toMenuDisplayCreatedPath(createdRel));
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),
           type
@@ -14776,6 +15244,7 @@ async function handleApiForAgent(req, res, url) {
           return sendJson(res, 500, { error: "Failed to create shared theme" });
         }
 
+        recordWorkspaceNodeCreateFromResponse(toMenuDisplayCreatedPath(createdRel));
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),
           type,
@@ -14883,6 +15352,7 @@ async function handleApiForAgent(req, res, url) {
         if (adoptResult.error) {
           return sendJson(res, adoptResult.status || 400, { error: adoptResult.error });
         }
+        recordWorkspaceNodeCreateFromResponse(adoptResult.createdPath);
         return sendJson(res, 200, {
           createdPath: adoptResult.createdPath,
           type: adoptResult.type
@@ -14918,6 +15388,7 @@ async function handleApiForAgent(req, res, url) {
         await ensureManifestStorageSlotDir(createdRel);
         await appendMenuSortOrderEntry(parentAbsolute, folderName);
 
+        recordWorkspaceNodeCreateFromResponse(toMenuDisplayCreatedPath(createdRel));
         return sendJson(res, 200, {
           createdPath: toMenuDisplayCreatedPath(createdRel),
           type: "folder"
@@ -14955,6 +15426,7 @@ async function handleApiForAgent(req, res, url) {
       const createdRel = createdPath.replace(/\\/g, "/");
       await ensureManifestStorageSlotDir(createdRel);
       await appendMenuSortOrderEntry(parentAbsolute, folderName);
+      recordWorkspaceNodeCreateFromResponse(toMenuDisplayCreatedPath(createdRel));
       return sendJson(res, 200, {
         createdPath: toMenuDisplayCreatedPath(createdRel),
         type: "file"
@@ -15549,7 +16021,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 400, { error: "Unknown agent", agentId });
   }
 
-  return runWithAgent(agent.id, () => handleApiForAgent(req, res, url));
+  return runWithAgent(agent.id, () => withWorkspaceActivityContext(req, url, () => handleApiForAgent(req, res, url)));
 }
 
 function createRequestHandler() {

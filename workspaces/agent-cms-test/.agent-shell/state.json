@@ -1,13 +1,13 @@
 {
   "phase": "waiting",
-  "phrase": "",
+  "phrase": "1 validation error for URLSource\nurl\n  Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='/Users/macbook/.copaw/wo...ws/dalnoboyschiki_1.jpg', input_type=str]\n   ",
   "metrics": "",
   "lastAgentMessageId": "msg_b73ac4ee-d2de-49cb-931b-ac057f260e25",
-  "lastShellReply": "[tts]Готово, поправил категорию на eda.[/tts]\n\nГотово! Категория исправлена с `food` → `eda`. Теперь запись выглядит так:\n\n- 🏪 **Вкусс Вилл** — питание\n- 💰 **900 руб**\n- 🏷️ Категория: **🍔 Еда**\n\nЕщё что-то нужно записать или поправить?",
-  "qwenpawChatUpdatedAt": "2026-07-05T18:35:15.470265Z",
+  "lastShellReply": "",
+  "qwenpawChatUpdatedAt": "2026-07-25T18:52:56.807523Z",
   "stopTtsAt": 1783275094262,
   "sidecarSeenAt": 0,
   "pttHeld": false,
   "lastTtsClientId": "c7b3e1d3-ee8a-444e-bd74-7813f9293f23",
-  "updatedAt": "2026-07-05T18:39:29.905Z"
+  "updatedAt": "2026-07-25T18:53:03.664Z"
 }
