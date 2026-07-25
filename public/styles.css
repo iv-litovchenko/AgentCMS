@@ -19894,6 +19894,11 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 10px;
 }
 
+.node-navigation-topic-nav-bottom {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
 .node-navigation-manifest-nav .node-navigation-manifest-nav-btn:first-child,
 .node-entry-overview-hero-nav .node-navigation-manifest-nav-btn:first-child {
   justify-self: start;

@@ -10467,6 +10467,70 @@ function isDataHubBundleEditorMode(mode = activeContentMode) {
   return isDataHubBundleSlotShellMode(mode) && dataHubBundleEntryView === MEMORY_ENTRY_VIEW_LIST;
 }
 
+async function ensureDataHubBundleEditorContent(mode = activeContentMode) {
+  if (!activePath) return;
+  const apiPath = getActiveNodeApiPath();
+  if (!apiPath) return;
+
+  fileContentInputNode.readOnly = false;
+
+  if (mode === "internal") {
+    const response = await fetch(buildApiUrl("/api/memory/internal", { path: apiPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    modeContentCache.internal = data.content || "";
+    fileContentInputNode.value = modeContentCache.internal;
+    return;
+  }
+
+  if (mode === "todo") {
+    const response = await fetch(buildApiUrl("/api/todo", { path: apiPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    modeContentCache.todo = data.content || "";
+    fileContentInputNode.value = modeContentCache.todo;
+    return;
+  }
+
+  if (mode === "tabular") {
+    const response = await fetch(buildApiUrl("/api/memory/tabular", { path: apiPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    modeContentCache.tabular = data.content || "";
+    tabularDataCache = {
+      columns: Array.isArray(data.columns) ? data.columns : [],
+      rows: Array.isArray(data.rows) ? data.rows : [],
+      rowCount: data.rowCount || 0
+    };
+    fileContentInputNode.value = data.content || "";
+  }
+}
+
+function activateDataHubBundleEditorUi(mode = activeContentMode) {
+  if (!isDataHubBundleEditorMode(mode)) return;
+  if (mode === "tabular") {
+    setEditorViewMode("source", { skipRouteSync: true });
+  } else if (isWysiwygEditorEnabled()) {
+    setEditorViewMode("wysiwyg", { skipRouteSync: true });
+  } else {
+    setEditorViewMode("source", { skipRouteSync: true });
+  }
+  refreshEditorViewContent();
+  syncDataHubBundleEditorPlacement();
+  applyModeUi();
+  syncSaveButtonLamp();
+}
+
+function finishDataHubBundleEditorOpen(mode = activeContentMode) {
+  if (!isDataHubBundleEditorMode(mode)) return;
+  void ensureDataHubBundleEditorContent(mode)
+    .catch(() => {
+      fileContentInputNode.value = "";
+      fileContentInputNode.readOnly = false;
+    })
+    .finally(() => activateDataHubBundleEditorUi(mode));
+}
+
 function openDataHubBundleSlotEditor(mode = activeContentMode) {
   const spec = getDataStorageSlotForMode(mode);
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
@@ -10476,16 +10540,8 @@ function openDataHubBundleSlotEditor(mode = activeContentMode) {
     dataHubBundleEntryView = MEMORY_ENTRY_VIEW_LIST;
     renderListViewContent();
     syncNodeMemoryEntryViewSelect();
+    finishDataHubBundleEditorOpen(mode);
   }
-  if (mode === "tabular") {
-    setEditorViewMode("source");
-  } else if (isWysiwygEditorEnabled()) {
-    setEditorViewMode("wysiwyg");
-  } else {
-    setEditorViewMode("source");
-  }
-  syncDataHubBundleEditorPlacement();
-  applyModeUi();
 }
 
 function syncDataHubBundleEditorPlacement() {
@@ -40680,8 +40736,12 @@ function applyDataHubBundleEntryViewChange(resolvedKind, value) {
   }
 
   renderListViewContent();
-  syncDataHubBundleEditorPlacement();
-  applyModeUi();
+  if (value === MEMORY_ENTRY_VIEW_LIST) {
+    finishDataHubBundleEditorOpen(listMode);
+  } else {
+    syncDataHubBundleEditorPlacement();
+    applyModeUi();
+  }
   syncNodeMemoryEntryViewSelect();
   syncAppRouteToUrl({ replace: true });
   return true;
@@ -40916,7 +40976,111 @@ async function fetchEntryOverviewBody(context) {
 }
 
 function getEntryOverviewManifestItemLabel(item) {
-  return item?.title || item?.displayName || item?.name || item?.path?.split("/").pop() || "";
+  return (
+    item?.title ||
+    item?.label ||
+    item?.displayName ||
+    item?.name ||
+    item?.path?.split("/").pop() ||
+    ""
+  );
+}
+
+function findMenuNodeParentContext(menuRoot, targetPath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(targetPath));
+  if (!menuRoot || !normalized) return null;
+
+  function searchInNode(node) {
+    if (!node) return null;
+
+    const siblings = collectDirectChildNodeEntries(node);
+    const index = siblings.findIndex((entry) => normalizeMenuNodePath(entry.path) === normalized);
+    if (index >= 0) {
+      return { parentNode: node, siblings, index };
+    }
+
+    for (const child of getOrderedMenuChildren(node)) {
+      if (child.kind !== "folder") continue;
+      const section = child.entry;
+      if (!section || section.empty) continue;
+      const found = searchInNode(section);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const trees = [getWorkspaceRootMenuTreeNode(menuRoot)];
+  if (menuRoot.serviceTree) trees.push({ title: "", ...menuRoot.serviceTree });
+  if (menuRoot.containerTree) trees.push({ title: "", ...menuRoot.containerTree });
+
+  for (const tree of trees) {
+    const found = searchInNode(tree);
+    if (found) return found;
+  }
+  return null;
+}
+
+function resolveTopicUpNavigation(parentContext, nodePath = activePath) {
+  const parentNode = parentContext?.parentNode;
+  if (!parentNode) return null;
+  const parentPath = normalizeMenuNodePath(parentNode.indexPath);
+  if (!parentPath) return null;
+  if (normalizeMenuNodePath(getResolvedNodePath(nodePath)) === parentPath) return null;
+  return {
+    path: parentPath,
+    label: parentNode.title || getLabelFromPath(parentPath)
+  };
+}
+
+function buildTopicSiblingNavOptions(nodePath = activePath) {
+  if (!currentMenuData || !nodePath || isGitRepoLooseFilePath(nodePath)) return null;
+
+  const baseTree = { title: getAgentTreeTitle(), ...currentMenuData };
+  const parentContext = findMenuNodeParentContext(baseTree, nodePath);
+  if (!parentContext) return null;
+
+  const { siblings, index } = parentContext;
+  const prev = index > 0 ? siblings[index - 1] : null;
+  const next = index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null;
+  const up = resolveTopicUpNavigation(parentContext, nodePath);
+
+  if (!prev && !next && !up) return null;
+
+  const openTopic = (entry) => {
+    if (!entry?.path) return;
+    void openNodeNavigation(
+      getEntryOverviewManifestItemLabel(entry),
+      entry.path
+    );
+  };
+
+  return {
+    prevItem: prev,
+    nextItem: next,
+    onFileClick: openTopic,
+    onUpClick: up
+      ? () => {
+          void openNodeNavigation(up.label, up.path);
+        }
+      : null,
+    upTitle: up?.label || "На уровень выше",
+    ariaLabel: "Навигация по темам"
+  };
+}
+
+function appendTopicSiblingNavBottom(container, navOptions) {
+  if (!container || !navOptions) return null;
+  const nav = createEntryOverviewSiblingNav({
+    ...navOptions,
+    variant: "manifest",
+    ariaLabel: navOptions.ariaLabel || "Навигация по темам"
+  });
+  if (!nav) return null;
+  nav.classList.add("node-navigation-topic-nav-bottom");
+  const hero = container.querySelector(":scope > .node-navigation-hero");
+  if (hero) hero.insertAdjacentElement("afterend", nav);
+  else container.appendChild(nav);
+  return nav;
 }
 
 function createEntryOverviewSiblingNav({
@@ -40925,7 +41089,8 @@ function createEntryOverviewSiblingNav({
   onFileClick,
   onUpClick,
   upTitle = "",
-  variant = "manifest"
+  variant = "manifest",
+  ariaLabel = "Навигация по записям раздела"
 } = {}) {
   if (!prevItem && !nextItem && !onUpClick) return null;
 
@@ -40933,7 +41098,7 @@ function createEntryOverviewSiblingNav({
   nav.className =
     variant === "hero" ? "node-entry-overview-hero-nav" : "node-navigation-manifest-nav";
   nav.setAttribute("role", "navigation");
-  nav.setAttribute("aria-label", "Навигация по записям раздела");
+  nav.setAttribute("aria-label", ariaLabel);
 
   if (prevItem) {
     const prevBtn = document.createElement("button");
@@ -45606,15 +45771,19 @@ async function renderNodeNavigation() {
   const hub = document.createElement("div");
   hub.className = "node-navigation-hub";
 
+  const topicSiblingNav = buildTopicSiblingNavOptions(nodePath);
+
   hub.appendChild(
     createNavigationHero(preview, heroTitle, nodePath, {
       meta: nodeMeta,
       propEntries: entries,
       descriptionRaw: modeContentCache.description || "",
       settingsSlots: slotStripGroups.settings || [],
-      onEditClick: openDescriptionFromOverview
+      onEditClick: openDescriptionFromOverview,
+      entryOverviewNav: topicSiblingNav
     })
   );
+  appendTopicSiblingNavBottom(hub, topicSiblingNav);
 
   await appendNodeOverviewTypeRegistryFold(hub, nodePath);
   if (isStale()) return;
@@ -46220,7 +46389,7 @@ function applyModeUi() {
     showMediaControls ||
     showTabularControls ||
     showDataHubBundleEdit ||
-    bundleSlotShellMode ||
+    (bundleSlotShellMode && !bundleEditorMode) ||
     activeContentMode === "inbox" ||
     activeContentMode === "note" ||
     activeContentMode === NODE_THREAD_MODE ||
@@ -48203,7 +48372,7 @@ function applyEditorViewMode() {
     return;
   }
 
-  if (!activeSystemFile && isCurrentModeListTemplate()) {
+  if (!activeSystemFile && isCurrentModeListTemplate() && !isDataHubBundleEditorMode()) {
     editorCodeWrapNode?.classList.add("hidden");
     editorWysiwygWrapNode?.classList.add("hidden");
     fileContentPreviewNode.classList.add("hidden");
@@ -53389,6 +53558,7 @@ async function loadContentByMode(options = {}) {
       fileContentInputNode.value = modeContentCache.internal;
       applyModeUi();
       refreshEditorViewContent();
+      if (isDataHubBundleEditorMode("internal")) activateDataHubBundleEditorUi("internal");
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения краткой памяти: ${error.message}`;
       fileContentInputNode.readOnly = true;
@@ -53629,6 +53799,7 @@ async function loadContentByMode(options = {}) {
       fileContentInputNode.value = modeContentCache.todo;
       applyModeUi();
       refreshEditorViewContent();
+      if (isDataHubBundleEditorMode("todo")) activateDataHubBundleEditorUi("todo");
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения TODO: ${error.message}`;
       fileContentInputNode.readOnly = true;
