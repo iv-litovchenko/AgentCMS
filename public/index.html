@@ -2789,10 +2789,17 @@
           </div>
           <div id="create-free-memory-upload-wrap" class="create-free-memory-upload-wrap hidden">
             <input id="create-free-memory-upload-input" type="file" multiple class="hidden" />
-            <button id="create-free-memory-upload-btn" class="create-node-action-btn create-node-action-btn--upload" type="button" title="Загрузить файлы в выбранную папку">
+            <button
+              id="create-free-memory-upload-btn"
+              class="create-node-action-btn create-node-action-btn--upload is-disabled"
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="Загрузка файлов временно отключена"
+            >
               Загрузить файлы
             </button>
-            <p class="create-free-memory-upload-hint">Изображения, markdown, PDF и другие файлы — без manifest.md</p>
+            <p class="create-free-memory-upload-hint">Загрузка файлов временно отключена</p>
           </div>
         </div>
       </div>

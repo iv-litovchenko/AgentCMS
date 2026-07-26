@@ -6,8 +6,8 @@ awn-description: ""
 awn-tags: []
 awn-type: awn.page.topic
 awn-create: "2026-07-26T18:45"
-awn-update: 2026-07-26T23:03:20.802Z
-awn-version: 5
+awn-update: 2026-07-26T22:54:42.806Z
+awn-version: 4
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -25,11 +25,6 @@ awn-attachments: []
 ---
 
 Это тестовое сообщение
-э
-
-[Тест всех полей](../test-vseh-poley/manifest.md)
-[Тест ссылок](../test-ssylok/manifest.md)
-[PHP](../php/manifest.md)
 
 ауцауц
 
@@ -50,6 +45,8 @@ awn-attachments: []
 
 пкупку
 
+
 лшдол
+
 
 тло

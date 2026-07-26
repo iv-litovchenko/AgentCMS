@@ -352,11 +352,86 @@ const SYSTEM_FILE_NAMES = [
   ROOT_SYSTEM_TODO_FILE
 ];
 
+const CORE_SYSTEM_FILE_NAMES = new Set([
+  "AGENTS.md",
+  ROOT_SYSTEM_NOTE_FILE,
+  ROOT_SYSTEM_TODO_FILE,
+  ".env",
+  ".gitignore"
+]);
+
+const SYSTEM_FILE_LIST_EXCLUDED_NAMES = new Set([
+  ".ds_store",
+  "thumbs.db",
+  "desktop.ini",
+  MANIFEST_FILE.toLowerCase()
+]);
+
+const SYSTEM_FILE_CONFIG_BASENAMES = new Set([
+  ".env",
+  ".gitignore",
+  ".dockerignore",
+  ".editorconfig",
+  ".npmrc",
+  ".nvmrc",
+  ".prettierrc",
+  ".eslintrc",
+  "dockerfile",
+  "makefile",
+  "procfile",
+  "awn-dependencies.json",
+  "docker-compose.yml",
+  "docker-compose.yaml"
+]);
+
+const SYSTEM_FILE_CONFIG_EXTENSIONS = new Set([
+  ".json",
+  ".yml",
+  ".yaml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf",
+  ".properties",
+  ".env"
+]);
+
+function isSafeSystemFileBasename(name) {
+  const base = String(name || "").trim();
+  if (!base || base === "." || base === "..") return false;
+  if (base.includes("/") || base.includes("\\") || base.includes("\0")) return false;
+  if (path.basename(base) !== base) return false;
+  return true;
+}
+
+function isCoreSystemFileName(name) {
+  return CORE_SYSTEM_FILE_NAMES.has(String(name || "").trim());
+}
+
+function resolveSystemFileOpenMode(name, exists) {
+  if (isCoreSystemFileName(name)) return "system";
+  return exists ? "adopt" : "system";
+}
+
+function classifySystemFileGroup(name) {
+  const base = String(name || "").trim();
+  const lower = base.toLowerCase();
+  if (lower.endsWith(".md")) return "md";
+  if (SYSTEM_FILE_CONFIG_BASENAMES.has(lower)) return "config";
+  if (lower.startsWith(".env.") || lower.startsWith("docker-compose.")) return "config";
+  const ext = path.extname(lower);
+  if (ext && SYSTEM_FILE_CONFIG_EXTENSIONS.has(ext)) return "config";
+  if (lower.startsWith(".") && !lower.includes(".", 1)) return "config";
+  return "other";
+}
+
 function canonicalSystemFileName(name) {
   const normalized = normalizeSystemFileRequestName(name);
+  if (!isSafeSystemFileBasename(normalized)) return null;
   if (SYSTEM_FILE_NAMES.includes(normalized)) return normalized;
   if (isAwnDependenciesFileName(normalized)) return normalized;
-  return null;
+  // Any other single-segment root basename (actual root inventory files).
+  return normalized;
 }
 
 function isAllowedSystemFileName(name) {
@@ -370,6 +445,53 @@ function resolveSystemFileAbsolute(name) {
   const absolute = path.join(agentRoot, canonical);
   if (!absolute.startsWith(agentRoot)) return null;
   return absolute;
+}
+
+function buildSystemFileListEntry(meta, { scaffold = false } = {}) {
+  const name = meta?.name || "";
+  const exists = Boolean(meta?.exists);
+  return {
+    name,
+    exists,
+    empty: Boolean(meta?.empty ?? !exists),
+    group: classifySystemFileGroup(name),
+    openMode: resolveSystemFileOpenMode(name, exists),
+    scaffold: Boolean(scaffold)
+  };
+}
+
+async function listAgentRootSystemFiles() {
+  const byName = new Map();
+
+  for (const name of SYSTEM_FILE_NAMES) {
+    const meta = await getSystemFileMeta(name);
+    const entry = buildSystemFileListEntry(meta, { scaffold: true });
+    byName.set(String(entry.name).toLowerCase(), entry);
+  }
+
+  const agentRoot = getAgentRoot();
+  let entries = [];
+  try {
+    entries = await fs.readdir(agentRoot, { withFileTypes: true });
+  } catch {
+    entries = [];
+  }
+
+  for (const entry of entries) {
+    if (!entry?.isFile?.()) continue;
+    const name = String(entry.name || "").trim();
+    if (!isSafeSystemFileBasename(name)) continue;
+    if (SYSTEM_FILE_LIST_EXCLUDED_NAMES.has(name.toLowerCase())) continue;
+    const key = name.toLowerCase();
+    if (byName.has(key)) continue;
+    const meta = await getSystemFileMeta(name);
+    if (!meta.exists) continue;
+    byName.set(key, buildSystemFileListEntry(meta, { scaffold: false }));
+  }
+
+  return [...byName.values()].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "en")
+  );
 }
 
 async function resolveExistingSystemFileAbsolute(name) {
@@ -3718,7 +3840,8 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
     .replace(/\\/g, "/")
     .replace(/\/+$/, "")
     .trim();
-  const folderAbsolute = normalizeWorkspacePath(normalizedFolder);
+  const isAgentRoot = !normalizedFolder || normalizedFolder === ".";
+  const folderAbsolute = isAgentRoot ? getAgentRoot() : normalizeWorkspacePath(normalizedFolder);
   if (!folderAbsolute) {
     return { exists: false, error: "Invalid folder path" };
   }
@@ -3732,6 +3855,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
   }
   if (!stat.isDirectory()) return { exists: false };
 
+  const folderPathKey = isAgentRoot ? "." : normalizedFolder;
   const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
   const folders = [];
   const images = [];
@@ -3745,7 +3869,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name)) continue;
-      const childRel = path.posix.join(normalizedFolder, entry.name);
+      const childRel = isAgentRoot ? entry.name : path.posix.join(normalizedFolder, entry.name);
       const childAbsolute = path.join(folderAbsolute, entry.name);
       const itemCount = await countFolderImmediateEntries(childAbsolute);
       folders.push({ name: entry.name, folderPath: childRel, itemCount });
@@ -3755,7 +3879,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
     if (!entry.isFile()) continue;
     if (isHiddenMenuEntry(entry.name)) continue;
 
-    const fileRel = path.posix.join(normalizedFolder, entry.name);
+    const fileRel = isAgentRoot ? entry.name : path.posix.join(normalizedFolder, entry.name);
     const fileAbsolute = path.join(folderAbsolute, entry.name);
     const fileStat = await fs.stat(fileAbsolute);
     const ext = path.extname(entry.name).toLowerCase();
@@ -3806,8 +3930,8 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
 
   return {
     exists: true,
-    folderPath: normalizedFolder,
-    title: path.basename(normalizedFolder),
+    folderPath: folderPathKey,
+    title: isAgentRoot ? path.basename(getAgentRoot()) : path.basename(normalizedFolder),
     folders,
     images,
     pages,
@@ -12824,10 +12948,7 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/system-files") {
     try {
-      const files = [];
-      for (const name of SYSTEM_FILE_NAMES) {
-        files.push(await getSystemFileMeta(name));
-      }
+      const files = await listAgentRootSystemFiles();
       return sendJson(res, 200, { files });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to check system files", details: String(error.message || error) });

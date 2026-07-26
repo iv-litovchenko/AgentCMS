@@ -772,13 +772,37 @@ const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "README.md"
 ]);
 const SYSTEM_FILE_TO_CHPU_PATH = {
-  "AGENTS.md": "agents",
-  "NOTE.md": "note",
-  "TODO.md": "todo",
-  "README.md": "readme",
-  ".env": "env",
-  ".gitignore": "gitignore"
+  "AGENTS.md": "AGENTS",
+  "NOTE.md": "NOTE",
+  "TODO.md": "TODO",
+  "README.md": "README",
+  ".env": ".env",
+  ".gitignore": ".gitignore"
 };
+const CORE_SYSTEM_FILES = new Set([
+  "AGENTS.md",
+  ROOT_SYSTEM_NOTE_FILE,
+  ROOT_SYSTEM_TODO_FILE,
+  ".env",
+  ".gitignore"
+]);
+const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
+  { name: ".env", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  { name: ".gitignore", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  { name: "AGENTS.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true }
+];
+const SYSTEM_FILE_GROUP_ORDER = ["md", "config", "other"];
+const SYSTEM_FILE_GROUP_LABELS = {
+  md: "Markdown",
+  config: "Конфиги",
+  other: "Прочее"
+};
+const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
@@ -2762,6 +2786,9 @@ function collectMenuNodePaths(node, acc = []) {
   for (const section of node.sections || []) {
     collectMenuNodePaths(section, acc);
   }
+  if (node.containerTree) collectMenuNodePaths(node.containerTree, acc);
+  if (node.serviceTree) collectMenuNodePaths(node.serviceTree, acc);
+  if (node.sharedTree) collectMenuNodePaths(node.sharedTree, acc);
   return acc;
 }
 
@@ -3001,7 +3028,7 @@ async function openMarkdownLinkIndexItem(item, options = {}) {
   }
 }
 
-async function tryOpenMarkdownLinkByWorkspaceRel(targetRel) {
+async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
   const normalized = normalizeLinkFilePath(targetRel);
   if (!normalized) return false;
 
@@ -3072,8 +3099,18 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel) {
   }
 
   if (/manifest\.md$/i.test(normalized)) {
-    await openMarkdownLinkNodePath(normalized);
-    return true;
+    const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+    if (menu) {
+      const paths = collectMenuNodePaths({ title: getAgentTreeTitle(), ...menu });
+      const exact = paths.find(
+        (candidate) => normalizeLinkFilePath(candidate).toLowerCase() === normalized.toLowerCase()
+      );
+      if (exact) {
+        await openMarkdownLinkNodePath(exact, options);
+        return true;
+      }
+    }
+    return false;
   }
 
   return false;
@@ -3129,7 +3166,7 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
   }
 
   const targetRel = resolveMarkdownHrefToWorkspaceRel(value, sourcePath);
-  if (targetRel && (await tryOpenMarkdownLinkByWorkspaceRel(targetRel))) {
+  if (targetRel && (await tryOpenMarkdownLinkByWorkspaceRel(targetRel, options))) {
     return;
   }
 
@@ -18461,8 +18498,19 @@ function isFolderBrowseUploadAvailable() {
 function setWorkspaceFolderUploadBusy(busy) {
   workspaceFolderUploadInFlight = Boolean(busy);
   createFreeMemoryUploadBtn?.classList.toggle("is-uploading", workspaceFolderUploadInFlight);
-  if (createFreeMemoryUploadBtn) createFreeMemoryUploadBtn.disabled = workspaceFolderUploadInFlight;
+  syncCreateFreeMemoryUploadUi();
   syncFolderBrowseUploadButton();
+}
+
+function syncCreateFreeMemoryUploadUi() {
+  if (!createFreeMemoryUploadBtn) return;
+  const disabled = FREE_MEMORY_UPLOAD_DISABLED || workspaceFolderUploadInFlight;
+  createFreeMemoryUploadBtn.disabled = disabled;
+  createFreeMemoryUploadBtn.setAttribute("aria-disabled", disabled ? "true" : "false");
+  createFreeMemoryUploadBtn.title = FREE_MEMORY_UPLOAD_DISABLED
+    ? "Загрузка файлов временно отключена"
+    : "Загрузить файлы в свободную папку";
+  createFreeMemoryUploadBtn.classList.toggle("is-disabled", FREE_MEMORY_UPLOAD_DISABLED);
 }
 
 function syncFolderBrowseUploadButton() {
@@ -18788,6 +18836,7 @@ function syncCreateNodeActionsUi() {
   createFolderBtn?.classList.toggle("hidden", showManifestOption);
   createFreeMemoryBtn?.classList.toggle("hidden", !showFreeMemoryOptions || showManifestOption);
   createFreeMemoryUploadWrapNode?.classList.toggle("hidden", !showFreeMemoryOptions || showManifestOption);
+  syncCreateFreeMemoryUploadUi();
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
   createNodeActionsNode?.classList.toggle("has-free-memory-option", showFreeMemoryOptions && !showManifestOption);
   if (createManifestBtn && showManifestOption) {
@@ -47653,11 +47702,12 @@ function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
   wrap.className = "node-navigation-manifest";
 
   if (content) {
-    const nodePath = getResolvedNodePath(activePath);
     const manifestPath = getActiveNodeApiPath();
+    const nodePath = manifestPath || getResolvedNodePath(activePath);
     const preview = document.createElement("div");
     preview.className =
       "node-navigation-preview node-navigation-agent-instruction file-content-preview";
+    preview.dataset.linkBasePath = nodePath;
     const inlineDiff = filterManifestBodyDiffPayload(
       getActiveLiveSyncInlineDiffForView(manifestPath)
     );
@@ -52067,7 +52117,7 @@ async function tryOpenUnknownPathAsAdoptFile(workspacePath) {
   if (!fileName || fileName.startsWith(".") || !fileName.includes(".")) return false;
 
   const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(filePath));
-  if (!folderPath || folderPath === ".") return false;
+  if (!folderPath) return false;
 
   let data;
   try {
@@ -52078,14 +52128,23 @@ async function tryOpenUnknownPathAsAdoptFile(workspacePath) {
   if (!data?.exists) return false;
 
   const listed = collectFolderBrowseListingItems(data);
-  if (!listed.some((item) => item.path === filePath)) return false;
+  if (!listed.some((item) => item.path === filePath || item.path === fileName)) return false;
 
-  await openFolderBrowseFile(fileName, filePath, { folderPath, skipRouteSync: true });
+  await openFolderBrowseFile(fileName, filePath.includes("/") ? filePath : fileName, {
+    folderPath,
+    skipRouteSync: true
+  });
   return true;
 }
 
 async function fetchWorkspaceFolderPage(filePath) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/page", { file: filePath }));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function fetchWorkspaceFolderText(filePath) {
+  const response = await fetch(buildApiUrl("/api/workspace/folder/text", { file: filePath }));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
@@ -53067,7 +53126,25 @@ async function renderFolderBrowseFileView() {
       audio.src = buildWorkspaceFolderBrowseFileUrl(filePath);
       body.appendChild(audio);
     } else {
-      body.classList.add("folder-browse-file-body--empty");
+      body.textContent = "Загрузка…";
+      hub.appendChild(body);
+      if (isStale()) return;
+      nodeOverviewContentNode.replaceChildren(hub);
+      hideContentLoading({ force: true });
+      try {
+        const data = await fetchWorkspaceFolderText(filePath);
+        if (isStale()) return;
+        body.className = "folder-browse-file-body file-content-preview";
+        const pre = document.createElement("pre");
+        pre.className = "folder-browse-file-text";
+        pre.textContent = data.content || "";
+        body.replaceChildren(pre);
+      } catch (error) {
+        body.className = "folder-browse-file-body folder-browse-file-body--empty";
+        body.textContent = `Не удалось открыть как текст: ${error.message || error}`;
+      }
+      scheduleWorkspaceScrollChromeSync();
+      return;
     }
 
     hub.appendChild(body);
@@ -57281,9 +57358,15 @@ function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}
 
 function normalizeSystemFileName(name) {
   const base = String(name || "").trim();
-  if (base.toLowerCase() === "todo.md") return ROOT_SYSTEM_TODO_FILE;
-  if (base.toLowerCase() === "note.md") return ROOT_SYSTEM_NOTE_FILE;
-  if (base.toLowerCase() === "notes.md") return ROOT_SYSTEM_NOTE_FILE;
+  const lower = base.toLowerCase();
+  if (lower === "todo.md" || lower === "todo") return ROOT_SYSTEM_TODO_FILE;
+  if (lower === "note.md" || lower === "note" || lower === "notes.md" || lower === "notes") {
+    return ROOT_SYSTEM_NOTE_FILE;
+  }
+  if (lower === "agents.md" || lower === "agents") return "AGENTS.md";
+  if (lower === "readme.md" || lower === "readme") return "README.md";
+  if (lower === ".env" || lower === "env") return ".env";
+  if (lower === ".gitignore" || lower === "gitignore") return ".gitignore";
   return base;
 }
 
@@ -57291,15 +57374,50 @@ function getSystemFileMenuLabel(name) {
   return normalizeSystemFileName(name);
 }
 
+function classifySystemFileGroup(name) {
+  const base = String(name || "").trim();
+  const lower = base.toLowerCase();
+  if (lower.endsWith(".md")) return "md";
+  const configNames = new Set([
+    ".env",
+    ".gitignore",
+    ".dockerignore",
+    ".editorconfig",
+    ".npmrc",
+    ".nvmrc",
+    ".prettierrc",
+    ".eslintrc",
+    "dockerfile",
+    "makefile",
+    "procfile",
+    "awn-dependencies.json",
+    "docker-compose.yml",
+    "docker-compose.yaml"
+  ]);
+  if (configNames.has(lower)) return "config";
+  if (lower.startsWith(".env.") || lower.startsWith("docker-compose.")) return "config";
+  if (/\.(json|ya?ml|toml|ini|cfg|conf|properties|env)$/i.test(lower)) return "config";
+  if (lower.startsWith(".") && !lower.includes(".", 1)) return "config";
+  return "other";
+}
+
+function isCoreSystemFileName(name) {
+  return CORE_SYSTEM_FILES.has(normalizeSystemFileName(name));
+}
+
+function resolveSystemFileOpenMode(name, exists) {
+  if (isCoreSystemFileName(name)) return "system";
+  return exists ? "adopt" : "system";
+}
+
 function collectSystemFileMenuEntries(files) {
   return (Array.isArray(files) ? files : [])
-    .filter((file) => {
-      const systemFile = normalizeSystemFileName(file?.name);
-      if (!/\.md$/i.test(systemFile)) return true;
-      return MENU_TREE_VISIBLE_SYSTEM_MD.has(systemFile);
-    })
+    .filter((file) => Boolean(normalizeSystemFileName(file?.name)))
     .map((file) => {
     const systemFile = normalizeSystemFileName(file.name);
+    const exists = Boolean(file.exists);
+    const group = file.group || classifySystemFileGroup(systemFile);
+    const openMode = file.openMode || resolveSystemFileOpenMode(systemFile, exists);
     return {
       path: null,
       systemFile,
@@ -57308,11 +57426,30 @@ function collectSystemFileMenuEntries(files) {
       color: "slate",
       hasPreview: false,
       previewUrl: null,
-      exists: file.exists,
-      empty: Boolean(file.empty ?? !file.exists),
+      exists,
+      empty: Boolean(file.empty ?? !exists),
+      group,
+      openMode,
+      scaffold: Boolean(file.scaffold),
       isSystemFile: true
     };
   });
+}
+
+function groupSystemFileMenuEntries(entries) {
+  const groups = new Map(SYSTEM_FILE_GROUP_ORDER.map((id) => [id, []]));
+  for (const entry of entries) {
+    const groupId = SYSTEM_FILE_GROUP_ORDER.includes(entry.group) ? entry.group : "other";
+    if (!groups.has(groupId)) groups.set(groupId, []);
+    groups.get(groupId).push(entry);
+  }
+  return SYSTEM_FILE_GROUP_ORDER
+    .map((id) => ({
+      id,
+      label: SYSTEM_FILE_GROUP_LABELS[id] || id,
+      entries: groups.get(id) || []
+    }))
+    .filter((group) => group.entries.length > 0);
 }
 
 function buildSystemFileItemClassName(file) {
@@ -58737,6 +58874,7 @@ function syncMenuSystemFilesDivider(parentEl, hasSystemFiles) {
   clearMenuSystemFilesDivider(parentEl);
   if (!parentEl || !hasSystemFiles) return;
   const anchor =
+    parentEl.querySelector(":scope > .system-file-group-label") ||
     parentEl.querySelector(":scope > .menu-item-row.system-file-row") ||
     parentEl.querySelector(":scope > .menu-tree-divider--system-files");
   const divider = createMenuTreeDivider("system-files");
@@ -60110,35 +60248,76 @@ function sortSystemFilesByName(files) {
   );
 }
 
+function clearSystemFileMenuNodes(container) {
+  if (!container) return;
+  container.querySelectorAll(".system-file-row, .system-file-group-label").forEach((node) => node.remove());
+  clearMenuSystemFilesDivider(container);
+}
+
+function createSystemFileGroupLabel(label, groupId) {
+  const node = document.createElement("div");
+  node.className = "system-file-group-label";
+  node.dataset.systemFileGroup = groupId;
+  node.textContent = label;
+  return node;
+}
+
+async function openRootSystemMenuFile(file) {
+  const systemFile = normalizeSystemFileName(file?.systemFile || file?.name);
+  if (!systemFile) return;
+  const exists = Boolean(file?.exists);
+  const openMode = file?.openMode || resolveSystemFileOpenMode(systemFile, exists);
+  if (openMode === "adopt" && exists) {
+    await openFolderBrowseFile(file.label || systemFile, systemFile, { folderPath: "." });
+    return;
+  }
+  await selectSystemFile(systemFile);
+}
+
 function renderSystemFiles(files) {
   const container = getWorkspacesTreeChildren();
   if (!container) return;
 
-  container.querySelectorAll(".system-file-row").forEach((node) => node.remove());
-  clearMenuSystemFilesDivider(container);
+  clearSystemFileMenuNodes(container);
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const visibleFiles = filterMenuEntriesByQuery(
     collectSystemFileMenuEntries(sortSystemFilesByName(files)),
     queryLower
   );
+  const groups = groupSystemFileMenuEntries(visibleFiles);
 
-  syncMenuSystemFilesDivider(container, visibleFiles.length > 0);
+  syncMenuSystemFilesDivider(container, groups.length > 0);
 
-  for (const file of visibleFiles) {
-    const row = document.createElement("div");
-    row.className = "menu-item-row system-file-row";
+  for (const group of groups) {
+    container.appendChild(createSystemFileGroupLabel(group.label, group.id));
+    for (const file of group.entries) {
+      const row = document.createElement("div");
+      row.className = "menu-item-row system-file-row";
+      row.dataset.systemFileGroup = group.id;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = buildSystemFileItemClassName(file);
-    btn.classList.add("system-file-item");
-    btn.textContent = file.label;
-    btn.dataset.systemFile = file.systemFile;
-    btn.addEventListener("click", () => selectSystemFile(file.systemFile));
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = buildSystemFileItemClassName(file);
+      btn.classList.add("system-file-item");
+      if (file.openMode === "adopt") btn.classList.add("system-file-item--adopt");
+      btn.textContent = file.label;
+      btn.dataset.systemFile = file.systemFile;
+      btn.dataset.systemFileGroup = group.id;
+      btn.dataset.openMode = file.openMode || "system";
+      btn.title =
+        file.openMode === "adopt"
+          ? "Открыть как свободную память"
+          : file.exists
+            ? "Открыть служебный файл"
+            : "Создать и заполнить";
+      btn.addEventListener("click", () => {
+        void openRootSystemMenuFile(file);
+      });
 
-    row.appendChild(btn);
-    container.appendChild(row);
+      row.appendChild(btn);
+      container.appendChild(row);
+    }
   }
 
   enableMenuLinkDragSources(getMenuQueryRoot());
@@ -60150,22 +60329,21 @@ async function loadSystemFiles(options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     systemFilesCache = sortSystemFilesByName(
-      (Array.isArray(data.files) ? data.files : []).map((file) => ({
-        ...file,
-        name: normalizeSystemFileName(file.name)
-      }))
+      (Array.isArray(data.files) ? data.files : []).map((file) => {
+        const name = normalizeSystemFileName(file.name);
+        const exists = Boolean(file.exists);
+        return {
+          ...file,
+          name,
+          exists,
+          empty: Boolean(file.empty ?? !exists),
+          group: file.group || classifySystemFileGroup(name),
+          openMode: file.openMode || resolveSystemFileOpenMode(name, exists)
+        };
+      })
     );
   } catch {
-    systemFilesCache = sortSystemFilesByName([
-      { name: ".env", exists: false, empty: true },
-      { name: ".gitignore", exists: false, empty: true },
-      { name: "AGENTS.md", exists: false, empty: true },
-      { name: "awn-dependencies.json", exists: false, empty: true },
-      { name: "docker-compose.yml", exists: false, empty: true },
-      { name: "README.md", exists: false, empty: true },
-      { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true },
-      { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true }
-    ]);
+    systemFilesCache = sortSystemFilesByName(SYSTEM_FILE_SCAFFOLD_FALLBACK);
   }
   if (options.skipRender) return;
   if (currentMenuData) {
@@ -60205,7 +60383,12 @@ function updateActiveButton() {
   }
   for (const item of root.querySelectorAll(".system-file-item")) {
     const name = normalizeSystemFileName(item.dataset.systemFile || "");
-    item.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
+    const asSystem = Boolean(activeSystemFile) && name === activeSystemFile;
+    const asAdopt =
+      activeContentMode === FOLDER_BROWSE_FILE_MODE &&
+      Boolean(activeFolderBrowseFilePath) &&
+      normalizeCreateParentPath(activeFolderBrowseFilePath) === name;
+    item.classList.toggle("active", asSystem || asAdopt);
   }
   for (const card of (appRootNode || document).querySelectorAll(".menu-card-body[data-path]")) {
     const itemPath = normalizeMenuNodePath(card.dataset.path || "");
@@ -67226,12 +67409,14 @@ function getMenuTreeSortableChildren(container) {
     if (el.classList.contains("menu-container-section")) return false;
     if (el.classList.contains("menu-tree-divider")) return false;
     if (el.classList.contains("system-file-row")) return false;
+    if (el.classList.contains("system-file-group-label")) return false;
     return el.classList.contains("menu-section") || el.classList.contains("menu-item-row");
   });
 }
 
 function getMenuTreeInsertAnchor(container) {
   return (
+    container?.querySelector(":scope > .system-file-group-label") ||
     container?.querySelector(":scope > .menu-item-row.system-file-row") ||
     container?.querySelector(":scope > .menu-tree-divider--system-files") ||
     null
@@ -69593,6 +69778,7 @@ createManifestBtn?.addEventListener("click", () => createNode("manifest"));
 createFolderBtn?.addEventListener("click", () => createNode("folder"));
 createFreeMemoryBtn?.addEventListener("click", () => createNode("free-memory-folder"));
 createFreeMemoryUploadBtn?.addEventListener("click", () => {
+  if (FREE_MEMORY_UPLOAD_DISABLED || createFreeMemoryUploadBtn.disabled) return;
   createFreeMemoryUploadInputNode?.click();
 });
 createFreeMemoryUploadInputNode?.addEventListener("change", () => {

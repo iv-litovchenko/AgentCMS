@@ -11,6 +11,7 @@ const {
 } = require("./manifest-paths");
 
 const SYSTEM_FILE_CHPU_ALIASES = new Map([
+  // Preferred CHPU (no .md) + with extension + short/lowercase legacy aliases
   ["agents", "AGENTS.md"],
   ["agents.md", "AGENTS.md"],
   ["note", "NOTE.md"],
@@ -21,8 +22,27 @@ const SYSTEM_FILE_CHPU_ALIASES = new Map([
   ["todo.md", "TODO.md"],
   ["readme", "README.md"],
   ["readme.md", "README.md"],
+  [".env", ".env"],
   ["env", ".env"],
+  [".gitignore", ".gitignore"],
   ["gitignore", ".gitignore"]
+]);
+
+const SYSTEM_FILE_TO_CHPU_PATH = new Map([
+  ["AGENTS.md", "AGENTS"],
+  ["NOTE.md", "NOTE"],
+  ["TODO.md", "TODO"],
+  ["README.md", "README"],
+  [".env", ".env"],
+  [".gitignore", ".gitignore"]
+]);
+
+const CORE_SYSTEM_FILE_NAMES = new Set([
+  "AGENTS.md",
+  "NOTE.md",
+  "TODO.md",
+  ".env",
+  ".gitignore"
 ]);
 
 const SLOT_FOLDER_TO_MODE = Object.fromEntries(
@@ -172,17 +192,62 @@ function relFromAbsolute(agentRoot, absolute) {
 }
 
 async function resolveSystemFile(agentRoot, chpuPath) {
-  const key = String(chpuPath || "").trim().toLowerCase();
-  const canonical = SYSTEM_FILE_CHPU_ALIASES.get(key) || null;
-  if (!canonical) return null;
+  const raw = String(chpuPath || "").trim();
+  if (!raw || raw.includes("/") || raw.includes("\\")) return null;
+
+  const key = raw.toLowerCase();
+  let canonical = SYSTEM_FILE_CHPU_ALIASES.get(key) || null;
+
+  if (!canonical) {
+    // Prefer exact / case-insensitive match only for core system files.
+    try {
+      const entries = await fs.readdir(agentRoot, { withFileTypes: true });
+      const hit = entries.find(
+        (entry) => entry?.isFile?.() && String(entry.name || "").toLowerCase() === key
+      );
+      if (hit && CORE_SYSTEM_FILE_NAMES.has(hit.name)) canonical = hit.name;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!canonical || !CORE_SYSTEM_FILE_NAMES.has(canonical)) return null;
+
   const absolute = path.join(agentRoot, canonical);
   if (!absolute.startsWith(agentRoot)) return null;
-  if (!(await fileExists(absolute))) return null;
   return {
     kind: "systemFile",
     systemFile: canonical,
-    workspacePath: chpuPath,
-    view: null
+    workspacePath: SYSTEM_FILE_TO_CHPU_PATH.get(canonical) || canonical,
+    view: null,
+    exists: await fileExists(absolute)
+  };
+}
+
+async function resolveRootAdoptFile(agentRoot, chpuPath) {
+  const raw = String(chpuPath || "").trim();
+  if (!raw || raw.includes("/") || raw.includes("\\")) return null;
+  if (raw.toLowerCase() === "manifest.md") return null;
+
+  let name = null;
+  const key = raw.toLowerCase();
+  try {
+    const entries = await fs.readdir(agentRoot, { withFileTypes: true });
+    const hit = entries.find(
+      (entry) => entry?.isFile?.() && String(entry.name || "").toLowerCase() === key
+    );
+    if (hit) name = hit.name;
+  } catch {
+    return null;
+  }
+  if (!name || CORE_SYSTEM_FILE_NAMES.has(name)) return null;
+
+  return {
+    kind: "adoptFile",
+    filePath: name,
+    folderPath: ".",
+    workspacePath: name,
+    title: name
   };
 }
 
@@ -277,6 +342,9 @@ async function resolveChpuPath(agentRoot, rawPath) {
   const system = await resolveSystemFile(agentRootResolved, chpuPath);
   if (system) return attachChpuViews(system, views);
 
+  const rootAdopt = await resolveRootAdoptFile(agentRootResolved, chpuPath);
+  if (rootAdopt) return attachChpuViews(rootAdopt, views);
+
   const storageMatch = chpuPath.match(/^(.*)\/(?:awn-storage|storage)\/([^/]+)\/?(.*)$/i);
   if (storageMatch) {
     const [, topicDir, slotFolder, resourcePath] = storageMatch;
@@ -338,21 +406,41 @@ async function resolveChpuPath(agentRoot, rawPath) {
     try {
       const stat = await fs.stat(fileAbs);
       if (stat.isFile()) {
-        const parentRel = path.posix.dirname(chpuPath.replace(/\\/g, "/"));
-        if (parentRel && parentRel !== ".") {
-          const parentAbs = path.join(agentRootResolved, parentRel);
-          const areaManifestAbs = path.join(parentAbs, MANIFEST_FILE);
-          if (!(await fileExists(areaManifestAbs))) {
-            return attachChpuViews(
-              {
-                kind: "adoptFile",
-                filePath: chpuPath.replace(/\\/g, "/"),
-                folderPath: parentRel,
-                workspacePath: chpuPath.replace(/\\/g, "/"),
-                title: path.basename(chpuPath)
-              },
-              views
-            );
+        const normalized = chpuPath.replace(/\\/g, "/");
+        const baseName = path.basename(normalized);
+        if (String(baseName).toLowerCase() === "manifest.md") {
+          // workspace root manifest is handled elsewhere
+        } else {
+          const parentRel = path.posix.dirname(normalized);
+          const isRootFile = !parentRel || parentRel === ".";
+          if (isRootFile) {
+            if (!CORE_SYSTEM_FILE_NAMES.has(baseName)) {
+              return attachChpuViews(
+                {
+                  kind: "adoptFile",
+                  filePath: baseName,
+                  folderPath: ".",
+                  workspacePath: baseName,
+                  title: baseName
+                },
+                views
+              );
+            }
+          } else {
+            const parentAbs = path.join(agentRootResolved, parentRel);
+            const areaManifestAbs = path.join(parentAbs, MANIFEST_FILE);
+            if (!(await fileExists(areaManifestAbs))) {
+              return attachChpuViews(
+                {
+                  kind: "adoptFile",
+                  filePath: normalized,
+                  folderPath: parentRel,
+                  workspacePath: normalized,
+                  title: baseName
+                },
+                views
+              );
+            }
           }
         }
       }
@@ -385,6 +473,7 @@ function isChpuReservedRootSegment(segment) {
 module.exports = {
   APP_ROUTE_VIEW_IDS,
   SYSTEM_FILE_CHPU_ALIASES,
+  SYSTEM_FILE_TO_CHPU_PATH,
   SLOT_FOLDER_TO_MODE,
   splitChpuPath,
   resolveChpuPath,
