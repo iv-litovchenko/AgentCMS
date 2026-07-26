@@ -3520,11 +3520,11 @@ function syncAgentPreview(previewMeta = null) {
   let hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
   let previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
 
-  if (!previewMeta && agentSliderPlaybackOrder.length > 0) {
+  if (!previewMeta && agentSliderPlaybackOrder.length > 0 && agentSliderCatalog.loadedForAgentId === agent?.id) {
     const slide = agentSliderPlaybackOrder[agentSliderIndex % agentSliderPlaybackOrder.length];
     if (slide?.mediaFile) {
       hasPreview = true;
-      previewUrl = buildAgentSliderMediaApiUrl(slide.mediaFile);
+      previewUrl = buildAgentSliderMediaApiUrl(slide.mediaFile, agent.id);
     }
   }
 
@@ -4228,10 +4228,10 @@ function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
   }
 }
 
-function buildAgentSliderMediaApiUrl(mediaFile) {
+function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeAgentId) {
   const relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relFile) return "";
-  return buildApiUrl("/api/media/file", { path: MANIFEST_FILE, file: relFile });
+  return buildApiUrl("/api/media/file", { path: MANIFEST_FILE, file: relFile }, agentId);
 }
 
 function stopAgentSliderRotation() {
@@ -4268,7 +4268,7 @@ async function refreshAgentSliderCatalog(force = false) {
   }
 
   try {
-    const response = await fetch(buildApiUrl("/api/agents/slider", { path: agent.path }));
+    const response = await fetch(buildApiUrl("/api/agents/slider", {}, agent.id));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     agentSliderCatalog = {
@@ -4289,10 +4289,10 @@ async function refreshAgentSliderCatalog(force = false) {
   return agentSliderCatalog;
 }
 
-async function uploadAgentSliderFile(agentPath, file) {
+async function uploadAgentSliderFile(agentPath, file, agentId = activeAgentId) {
   if (!agentPath) throw new Error("Workspace не задан");
   const data = await readFileAsBase64(file);
-  const response = await fetch("/api/agents/slider", {
+  const response = await fetch(buildApiUrl("/api/agents/slider", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -4310,10 +4310,10 @@ async function uploadAgentSliderFile(agentPath, file) {
   return response.json();
 }
 
-async function deleteAgentSliderFile(agentPath, fileName) {
+async function deleteAgentSliderFile(agentPath, fileName, agentId = activeAgentId) {
   if (!agentPath) throw new Error("Workspace не задан");
   const response = await fetch(
-    buildApiUrl("/api/agents/slider", { path: agentPath, file: fileName }),
+    buildApiUrl("/api/agents/slider", { file: fileName }, agentId),
     { method: "DELETE" }
   );
   if (!response.ok) {
@@ -4330,6 +4330,7 @@ function renderAgentSliderModalGrid() {
 
   const files = agentSliderCatalog.files || [];
   agentSliderEmptyNoteNode?.classList.toggle("hidden", files.length > 0);
+  const sliderAgentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
 
   for (const file of files) {
     const item = document.createElement("article");
@@ -4345,7 +4346,7 @@ function renderAgentSliderModalGrid() {
     img.loading = "lazy";
     img.decoding = "async";
     img.src = appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(buildAgentSliderMediaApiUrl(file.mediaFile))),
+      appendCacheBuster(buildAgentSliderMediaApiUrl(file.mediaFile, sliderAgentId)),
       MEDIA_THUMB_MAX_GRID
     );
     thumbWrap.appendChild(img);
@@ -4367,7 +4368,7 @@ function renderAgentSliderModalGrid() {
         const agent = getActiveAgentMeta();
         if (!agent?.path) return;
         try {
-          await deleteAgentSliderFile(agent.path, file.name);
+          await deleteAgentSliderFile(agent.path, file.name, agent.id);
           await refreshAgentSliderCatalog(true);
           renderAgentSliderModalGrid();
           syncAgentPreview();
@@ -4396,7 +4397,11 @@ function openAgentSliderModal() {
   void (async () => {
     await refreshAgentSliderCatalog(true);
     if (agentSliderModalPathNode) {
-      agentSliderModalPathNode.textContent = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
+      const agentLabel = String(agent.name || agent.id || "").trim();
+      const folderPath = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
+      agentSliderModalPathNode.textContent = agentLabel
+        ? `${agentLabel} · ${folderPath}`
+        : folderPath;
     }
     renderAgentSliderModalGrid();
     agentSliderModalNode.classList.remove("hidden");
@@ -4422,10 +4427,12 @@ async function uploadAgentSliderFiles(fileList) {
 
   agentSliderUploadZoneNode?.classList.add("is-uploading");
   let uploaded = 0;
+  const uploadAgentId = agent.id;
+  const uploadAgentPath = agent.path;
 
   try {
     for (const file of files) {
-      await uploadAgentSliderFile(agent.path, file);
+      await uploadAgentSliderFile(uploadAgentPath, file, uploadAgentId);
       uploaded += 1;
     }
     await refreshAgentSliderCatalog(true);

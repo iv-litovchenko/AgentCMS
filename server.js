@@ -7963,6 +7963,28 @@ const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
 const AGENT_SLIDER_FOLDER_REF = `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${AGENT_SLIDER_ASSETS_SUBDIR}`;
 const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"]);
 
+function resolveAgentSliderWorkspacePath(url, payload = null) {
+  const agentId = String(url.searchParams.get("agent") || "").trim();
+  if (agentId) {
+    const agent = resolveAgent(agentId);
+    if (!agent) {
+      throw Object.assign(new Error(`Unknown agent: ${agentId}`), { status: 400 });
+    }
+    if (agent.folderExists === false) {
+      throw Object.assign(new Error(`Workspace not found for agent «${agent.name || agentId}»`), {
+        status: 400
+      });
+    }
+    return assertSafeAgentPath(agent.path);
+  }
+
+  const workspacePath = String(url.searchParams.get("path") || payload?.path || "").trim();
+  if (!workspacePath) {
+    throw Object.assign(new Error("Missing agent query parameter"), { status: 400 });
+  }
+  return assertSafeAgentPath(workspacePath);
+}
+
 function resolveAgentWorkspaceManifestAbsoluteSync(agentPath) {
   const safePath = assertSafeAgentPath(agentPath);
   const workspaceAbsolute = resolveAgentRootAbsolute(safePath);
@@ -16376,10 +16398,8 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/slider") {
-    const workspacePath = String(url.searchParams.get("path") || "").trim();
-    if (!workspacePath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
-      const agentPath = assertSafeAgentPath(workspacePath);
+      const agentPath = resolveAgentSliderWorkspacePath(url);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
       if (!manifestAbsolute) {
         return sendJson(res, 400, {
@@ -16389,10 +16409,11 @@ async function handleApi(req, res, url) {
       const files = await listAgentSliderImages(agentPath);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
-        files
+        files,
+        agentPath
       });
     } catch (error) {
-      return sendJson(res, 400, {
+      return sendJson(res, error?.status || 400, {
         error: "Failed to list agent slider images",
         details: String(error?.message || error)
       });
@@ -16402,10 +16423,7 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/slider") {
     try {
       const payload = await readJsonBody(req, 12_000_000);
-      const workspacePath = String(payload?.path || "").trim();
-      if (!workspacePath) return sendJson(res, 400, { error: "Missing path" });
-
-      const agentPath = assertSafeAgentPath(workspacePath);
+      const agentPath = resolveAgentSliderWorkspacePath(url, payload);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
       if (!manifestAbsolute) {
         return sendJson(res, 400, {
@@ -16451,13 +16469,14 @@ async function handleApi(req, res, url) {
       const storedName = path.basename(targetAbsolute);
       return sendJson(res, 200, {
         folderPath: AGENT_SLIDER_FOLDER_REF,
+        agentPath,
         file: {
           name: storedName,
           mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${storedName}`
         }
       });
     } catch (error) {
-      return sendJson(res, 400, {
+      return sendJson(res, error?.status || 400, {
         error: "Failed to upload slider image",
         details: String(error?.message || error)
       });
@@ -16465,13 +16484,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "DELETE" && url.pathname === "/api/agents/slider") {
-    const workspacePath = String(url.searchParams.get("path") || "").trim();
     const fileName = String(url.searchParams.get("file") || "").trim();
-    if (!workspacePath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!fileName) return sendJson(res, 400, { error: "Missing file query parameter" });
 
     try {
-      const agentPath = assertSafeAgentPath(workspacePath);
+      const agentPath = resolveAgentSliderWorkspacePath(url);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
       if (!manifestAbsolute) {
         return sendJson(res, 400, {
@@ -16496,7 +16513,7 @@ async function handleApi(req, res, url) {
       if (error && error.code === "ENOENT") {
         return sendJson(res, 404, { error: "Slider image not found" });
       }
-      return sendJson(res, 400, {
+      return sendJson(res, error?.status || 400, {
         error: "Failed to delete slider image",
         details: String(error?.message || error)
       });
