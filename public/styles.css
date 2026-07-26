@@ -19437,11 +19437,15 @@ body.app-locked {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .folder-browse-other-link {
+  flex: 1 1 auto;
+  min-width: 0;
   display: block;
   padding: 0;
   border: 0;
@@ -19452,8 +19456,14 @@ body.app-locked {
   word-break: break-word;
 }
 
-.folder-browse-other-main .folder-browse-item-meta {
-  margin-top: 0;
+.folder-browse-inline-size {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.folder-browse-other-main .folder-browse-inline-size {
+  font-size: 11px;
 }
 
 .folder-browse-file-icon {
@@ -19613,6 +19623,20 @@ body.app-locked {
 .folder-browse-media-name-wrap {
   min-width: 0;
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.folder-browse-media-name-wrap .folder-browse-media-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.folder-browse-media-name-wrap .folder-browse-inline-size {
+  flex: 0 0 auto;
+  font-size: 11px;
 }
 
 .folder-browse-media-item {
@@ -19702,6 +19726,11 @@ body.app-locked {
   position: relative;
   cursor: pointer;
   user-select: none;
+}
+
+.folder-browse-item-card {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .folder-browse-item-card {

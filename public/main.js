@@ -50614,7 +50614,7 @@ function syncFolderBrowseSelectionUi() {
   syncFolderBrowseSelectionToolbar(hub?.querySelector(".folder-browse-toolbar"));
   syncFolderBrowseDeleteSelectedButton();
   for (const card of hub?.querySelectorAll("[data-folder-browse-path]") || []) {
-    const path = card.dataset.folderBrowsePath;
+    const path = normalizeFolderBrowseItemPath(card.dataset.folderBrowsePath);
     card.classList.toggle("is-selected", folderBrowseSelectedPaths.has(path));
   }
 }
@@ -50626,7 +50626,7 @@ function getFolderBrowseSelectionScopePaths(scopeCard) {
     ) || nodeOverviewContentNode?.querySelector(".folder-browse-hub");
   if (!scope) return [];
   return [...scope.querySelectorAll(".folder-browse-item-card[data-folder-browse-path]")]
-    .map((el) => el.dataset.folderBrowsePath)
+    .map((el) => normalizeFolderBrowseItemPath(el.dataset.folderBrowsePath))
     .filter(Boolean);
 }
 
@@ -50740,13 +50740,21 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
 }
 
 function getFolderBrowseItemIsDirectory(path) {
-  const normalized = String(path || "").replace(/\\/g, "/");
+  const normalized = normalizeFolderBrowseItemPath(path);
   for (const card of nodeOverviewContentNode?.querySelectorAll("[data-folder-browse-path]") || []) {
     if (card.dataset.folderBrowsePath === normalized) {
       return card.dataset.isDirectory === "1";
     }
   }
   return false;
+}
+
+function appendFolderBrowseInlineFileSize(container, item) {
+  if (!item?.size) return;
+  const sizeNode = document.createElement("span");
+  sizeNode.className = "folder-browse-size-badge folder-browse-inline-size";
+  sizeNode.textContent = formatFileSize(item.size);
+  container.appendChild(sizeNode);
 }
 
 function appendFolderBrowseItemMeta(card, item, { ext } = {}) {
@@ -51171,8 +51179,9 @@ function renderFolderBrowseMediaListSection(section, items, { kind = "video", fo
     const nameNode = document.createElement("span");
     nameNode.className = "folder-browse-media-name";
     nameNode.textContent = item.name;
+    nameNode.title = item.name;
     nameWrap.appendChild(nameNode);
-    appendFolderBrowseItemMeta(nameWrap, item);
+    appendFolderBrowseInlineFileSize(nameWrap, item);
     head.appendChild(nameWrap);
     row.appendChild(head);
 
@@ -51213,8 +51222,9 @@ function renderFolderBrowseOtherFilesSection(section, items, folderPath) {
     const label = document.createElement("span");
     label.className = "folder-browse-other-link";
     label.textContent = item.name;
+    label.title = item.name;
     main.appendChild(label);
-    appendFolderBrowseItemMeta(main, item);
+    appendFolderBrowseInlineFileSize(main, item);
     row.appendChild(main);
 
     appendFolderBrowseViewButton(row, {
