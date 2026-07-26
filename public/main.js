@@ -77,6 +77,8 @@ const appLandingFocusSortDirNode = document.getElementById("app-landing-focus-so
 const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
 const sidebarFocusNode = document.getElementById("sidebar-focus");
+const sidebarFocusToggleBtn = document.getElementById("sidebar-focus-toggle");
+const sidebarFocusListShellNode = document.getElementById("sidebar-focus-list-shell");
 const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
 const sidebarFocusCountNode = document.getElementById("sidebar-focus-count");
 const appLandingHintNode = document.getElementById("app-landing-hint");
@@ -173,10 +175,13 @@ const agentMap3BoardNode = document.getElementById("agent-map3-board");
 document.getElementById("agent-preview-placeholder")?.remove();
 const agentPreviewPlaceholderNode = null;
 const agentTodoPreviewWrapNode = document.getElementById("agent-todo-preview-wrap");
+const agentTodoPreviewToggleBtn = document.getElementById("agent-todo-preview-toggle");
 const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
-const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 140;
+const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 64;
+const SIDEBAR_FOCUS_EXPANDED_KEY = "agentcms.sidebarFocusExpanded.v1";
+const SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY = "agentcms.sidebarNotePreviewExpanded.v1";
 const agentTablePaneNode = document.getElementById("agent-table-pane");
 const agentTableContentNode = document.getElementById("agent-table-content");
 const agentTableStatsNode = document.getElementById("agent-table-stats");
@@ -3573,6 +3578,64 @@ function hideAgentTodoPreview() {
   }
 }
 
+function isSidebarNotePreviewExpanded() {
+  try {
+    return localStorage.getItem(SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function syncSidebarNotePreviewAccordion() {
+  if (!agentTodoPreviewWrapNode || agentTodoPreviewWrapNode.classList.contains("hidden")) return;
+  const expanded = isSidebarNotePreviewExpanded();
+  agentTodoPreviewWrapNode.classList.toggle("is-note-collapsed", !expanded);
+  agentTodoPreviewToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+}
+
+function setSidebarNotePreviewExpanded(expanded) {
+  try {
+    localStorage.setItem(SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore
+  }
+  syncSidebarNotePreviewAccordion();
+  if (expanded) scheduleAgentTodoPreviewExpandSync();
+}
+
+function toggleSidebarNotePreviewExpanded() {
+  setSidebarNotePreviewExpanded(!isSidebarNotePreviewExpanded());
+}
+
+function isSidebarFocusExpanded() {
+  try {
+    return localStorage.getItem(SIDEBAR_FOCUS_EXPANDED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function syncSidebarFocusAccordionUi() {
+  if (!sidebarFocusNode || sidebarFocusNode.classList.contains("hidden")) return;
+  const expanded = isSidebarFocusExpanded();
+  sidebarFocusNode.classList.toggle("is-collapsed", !expanded);
+  sidebarFocusToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (sidebarFocusListShellNode) sidebarFocusListShellNode.hidden = !expanded;
+}
+
+function setSidebarFocusExpanded(expanded) {
+  try {
+    localStorage.setItem(SIDEBAR_FOCUS_EXPANDED_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore
+  }
+  syncSidebarFocusAccordionUi();
+}
+
+function toggleSidebarFocusExpanded() {
+  setSidebarFocusExpanded(!isSidebarFocusExpanded());
+}
+
 function isAgentTodoPreviewExpanded() {
   return Boolean(agentTodoPreviewWrapNode?.classList.contains("is-expanded"));
 }
@@ -3655,6 +3718,7 @@ function syncAgentTodoPreviewFromEditor() {
     nodePath: ROOT_SYSTEM_NOTE_FILE
   });
   agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
+  syncSidebarNotePreviewAccordion();
   scheduleAgentTodoPreviewExpandSync();
 }
 
@@ -3680,6 +3744,7 @@ async function syncAgentTodoPreview() {
       nodePath: noteData.fileName
     });
     agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
+    syncSidebarNotePreviewAccordion();
     scheduleAgentTodoPreviewExpandSync();
   } catch {
     if (seq !== agentTodoPreviewSeq) return;
@@ -5184,12 +5249,14 @@ function renderSidebarFocusPanel(panelNode, listNode, items) {
     empty.textContent = "Нет записей с awn-main: true — отметьте тему в свойствах (⭐ Фокус).";
     listNode.appendChild(empty);
     syncSidebarFocusCount();
+    syncSidebarFocusAccordionUi();
     return;
   }
   for (const focusItem of items) {
     listNode.appendChild(createFocusItem(focusItem, "sidebar"));
   }
   syncSidebarFocusCount();
+  syncSidebarFocusAccordionUi();
 }
 
 function renderFocusPanel(panelNode, listNode, items, variant) {
@@ -42301,16 +42368,23 @@ function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) 
     }
   }
 
+  const showBranch = options.showBranchLeading !== false;
+  const showFileType = options.showFileTypeLeading !== false;
+  if (!showBranch && !showFileType) {
+    return null;
+  }
+
   const leadingWrap = document.createElement("span");
   leadingWrap.className = "nav-book-toc-link-leading";
-  leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
-
-  if (options.showFileTypeLeading !== false) {
+  if (showBranch) {
+    leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
+  }
+  if (showFileType) {
     const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
     if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
   }
 
-  return leadingWrap;
+  return leadingWrap.childElementCount ? leadingWrap : null;
 }
 
 function appendNavigationItemPreviewThumb(parent, item, preview, { className = "" } = {}) {
@@ -44519,10 +44593,16 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     onFolderClick,
     onFileClick,
     showFileTypeLeading: false,
+    showBranchLeading: false,
+    treeStyle: context.memoryKind === "media" ? undefined : "guide",
     linkLeadingMode: context.memoryKind === "media" ? "media" : undefined
   };
 
   appendNavigationBookTocList(list, tree, 0, listHandlers);
+
+  if (context.memoryKind !== "media") {
+    nav.classList.add("nav-book-toc-tree--guide");
+  }
 
   nav.appendChild(list);
   section.appendChild(nav);
@@ -45238,8 +45318,11 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     folderDescriptions,
     folderStatuses,
     showFileTypeLeading: false,
+    showBranchLeading: false,
+    treeStyle: "guide",
     ...handlers
   });
+  nav.classList.add("nav-book-toc-tree--guide");
   nav.appendChild(list);
   section.appendChild(nav);
   return section;
@@ -45395,6 +45478,74 @@ function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
   return icon;
 }
 
+const NAV_TOC_COLLAPSED_KEY = "agentcms.navTocCollapsed.v1";
+
+let navTocCollapsedOverridesCache = null;
+
+function getNavTocCollapsedOverrides() {
+  if (navTocCollapsedOverridesCache) return navTocCollapsedOverridesCache;
+  try {
+    const raw = localStorage.getItem(NAV_TOC_COLLAPSED_KEY);
+    navTocCollapsedOverridesCache =
+      raw && typeof JSON.parse(raw) === "object" && !Array.isArray(JSON.parse(raw))
+        ? JSON.parse(raw)
+        : {};
+  } catch {
+    navTocCollapsedOverridesCache = {};
+  }
+  return navTocCollapsedOverridesCache;
+}
+
+function getNavTocCollapseStorageKey(nodePath, folderPath) {
+  const base = normalizeMenuNodePath(nodePath || activePath || "");
+  const folder = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  return folder ? `${base}::${folder}` : base;
+}
+
+function countNavigationFolderItems(folderNode) {
+  if (!folderNode) return 0;
+  let count = Array.isArray(folderNode.files) ? folderNode.files.length : 0;
+  if (folderNode.folders instanceof Map) {
+    for (const [, child] of folderNode.folders) {
+      count += countNavigationFolderItems(child);
+    }
+  }
+  return count;
+}
+
+function isNavTocFolderCollapsed(nodePath, folderPath, depth = 0) {
+  const key = getNavTocCollapseStorageKey(nodePath, folderPath);
+  const overrides = getNavTocCollapsedOverrides();
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+    return Boolean(overrides[key]);
+  }
+  return depth >= 1;
+}
+
+function setNavTocFolderCollapsed(nodePath, folderPath, collapsed) {
+  const key = getNavTocCollapseStorageKey(nodePath, folderPath);
+  const overrides = getNavTocCollapsedOverrides();
+  overrides[key] = Boolean(collapsed);
+  navTocCollapsedOverridesCache = overrides;
+  try {
+    localStorage.setItem(NAV_TOC_COLLAPSED_KEY, JSON.stringify(overrides));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed) {
+  folderItem.classList.toggle("is-collapsed", collapsed);
+  if (subList) subList.hidden = collapsed;
+  if (toggleBtn) {
+    toggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    toggleBtn.setAttribute("aria-label", collapsed ? "Развернуть подтему" : "Свернуть подтему");
+  }
+  if (countNode) countNode.hidden = !collapsed;
+}
+
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
@@ -45411,6 +45562,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
   for (const [, folderNode] of folderEntries) {
     const folderItem = document.createElement("li");
     folderItem.className = "nav-book-toc-folder";
+    if (handlers.treeStyle === "guide") {
+      folderItem.classList.add(depth === 0 ? "nav-book-toc-folder--root" : "nav-book-toc-folder--nested");
+    }
     if (folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels)) {
       folderItem.classList.add("nav-book-toc-folder--unregistered");
     }
@@ -45421,7 +45575,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     if (!isUnregisteredFolder) folderLabel.type = "button";
     folderLabel.className = "nav-book-toc-folder-label";
     if (isUnregisteredFolder) folderLabel.classList.add("nav-book-toc-folder-label--static");
-    folderLabel.style.setProperty("--toc-depth", String(depth));
     const folderIcon = document.createElement("span");
     folderIcon.className = "nav-book-toc-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
@@ -45435,7 +45588,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
         onFolderClick(folderNode.folderPath);
       });
     }
-    folderItem.appendChild(folderLabel);
 
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
@@ -45445,7 +45597,54 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderDescriptions,
       folderStatuses
     });
-    folderItem.appendChild(subList);
+
+    const childCount = countNavigationFolderItems(folderNode);
+    const collapsible = handlers.collapsible !== false && childCount > 0;
+    const collapsed =
+      collapsible && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+
+    const head = document.createElement("div");
+    head.className = "nav-book-toc-folder-head";
+
+    let toggleBtn = null;
+    let countNode = null;
+
+    if (collapsible) {
+      toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "nav-book-toc-folder-toggle";
+      const chevron = document.createElement("span");
+      chevron.className = "nav-book-toc-folder-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      toggleBtn.appendChild(chevron);
+      toggleBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const nextCollapsed = !folderItem.classList.contains("is-collapsed");
+        setNavTocFolderCollapsed(nodePath, folderNode.folderPath, nextCollapsed);
+        applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, nextCollapsed);
+      });
+      head.appendChild(toggleBtn);
+
+      countNode = document.createElement("span");
+      countNode.className = "nav-book-toc-folder-count";
+      countNode.textContent = String(childCount);
+      countNode.title = `${childCount} записей`;
+    } else {
+      const spacer = document.createElement("span");
+      spacer.className = "nav-book-toc-folder-toggle-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      head.appendChild(spacer);
+    }
+
+    head.append(folderLabel);
+    if (countNode) head.appendChild(countNode);
+    folderItem.append(head, subList);
+
+    if (collapsible) {
+      applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
+    }
+
     parentList.appendChild(folderItem);
   }
 
@@ -45456,7 +45655,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const link = document.createElement("button");
     link.type = "button";
     link.className = "nav-book-toc-link";
-    link.style.setProperty("--toc-depth", String(depth));
     const itemDescription = getNavigationAwnDescription(item);
     link.title = itemDescription ? `${item.path} (${itemDescription})` : item.path;
 
@@ -45470,15 +45668,16 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     leaders.className = "nav-book-toc-leaders";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
 
-    link.append(
+    const leading =
       handlers.linkLeadingMode === "media"
         ? createNavigationMediaBookTocLinkLeading(item, nodePath)
         : createNavBookTocLinkLeading(item, nodePath, {
-            showFileTypeLeading: handlers.showFileTypeLeading !== false
-          }),
-      text,
-      leaders
-    );
+            showFileTypeLeading: handlers.showFileTypeLeading,
+            showBranchLeading: handlers.showBranchLeading
+          });
+
+    if (leading) link.appendChild(leading);
+    link.append(text, leaders);
     link.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -45498,7 +45697,7 @@ function renderNavigationExternalBookToc(
   folderDescriptions = new Map()
 ) {
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
   nav.setAttribute("aria-label", "Оглавление многофайловой памяти");
 
   const list = document.createElement("ul");
@@ -45509,7 +45708,9 @@ function renderNavigationExternalBookToc(
     folderLabels,
     folderDescriptions,
     folderStatuses,
-    showFileTypeLeading: false
+    showFileTypeLeading: false,
+    showBranchLeading: false,
+    treeStyle: "guide"
   });
   nav.appendChild(list);
   return nav;
@@ -64230,10 +64431,20 @@ agentTodoPreviewEditBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   openAgentTodoPreviewForEdit();
 });
+agentTodoPreviewToggleBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleSidebarNotePreviewExpanded();
+});
 agentTodoPreviewExpandBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleAgentTodoPreviewExpand();
 });
+sidebarFocusToggleBtn?.addEventListener("click", () => {
+  toggleSidebarFocusExpanded();
+});
+
+syncSidebarFocusAccordionUi();
+syncSidebarNotePreviewAccordion();
 
 agentGitBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("git");

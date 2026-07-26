@@ -1,9 +1,0 @@
-{
-  "order": [
-    "_base",
-    "string",
-    "text",
-    "array",
-    "boolean"
-  ]
-}

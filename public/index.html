@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.440" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.444" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -365,7 +365,17 @@
                   <span class="agent-preview-shine" aria-hidden="true"></span>
                 </div>
               </div>
-              <div id="agent-todo-preview-wrap" class="agent-todo-preview-wrap hidden">
+              <div id="agent-todo-preview-wrap" class="agent-todo-preview-wrap is-note-collapsed hidden">
+                <button
+                  id="agent-todo-preview-toggle"
+                  type="button"
+                  class="agent-todo-preview-head"
+                  aria-expanded="false"
+                  aria-controls="agent-todo-preview-content"
+                >
+                  <span class="agent-todo-preview-chevron" aria-hidden="true"></span>
+                  <span class="agent-todo-preview-label">NOTE.md (заметки)</span>
+                </button>
                 <button
                   id="agent-todo-preview-edit-btn"
                   class="agent-todo-preview-edit-btn"
@@ -378,30 +388,38 @@
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
                 </button>
-                <div class="agent-todo-preview-label">NOTE.md (заметки)</div>
-                <div id="agent-todo-preview-body" class="agent-todo-preview-body file-content-preview"></div>
-                <button
-                  id="agent-todo-preview-expand-btn"
-                  class="agent-todo-preview-expand-btn hidden"
-                  type="button"
-                >
-                  Развернуть всё
-                </button>
+                <div id="agent-todo-preview-content" class="agent-todo-preview-content">
+                  <div id="agent-todo-preview-body" class="agent-todo-preview-body file-content-preview"></div>
+                  <button
+                    id="agent-todo-preview-expand-btn"
+                    class="agent-todo-preview-expand-btn hidden"
+                    type="button"
+                  >
+                    Развернуть всё
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="sidebar-focus" class="sidebar-slab sidebar-slab-focus agent-focus-panel agent-focus-panel--sidebar hidden" aria-labelledby="sidebar-focus-title">
-          <div class="agent-focus-head agent-focus-head--compact">
-            <div class="agent-focus-head-main agent-focus-head-main--inline">
-              <h3 id="sidebar-focus-title" class="agent-focus-title">
+        <section id="sidebar-focus" class="sidebar-slab sidebar-slab-focus agent-focus-panel agent-focus-panel--sidebar sidebar-focus-accordion is-collapsed hidden" aria-label="Фокус">
+          <button
+            id="sidebar-focus-toggle"
+            type="button"
+            class="sidebar-focus-toggle agent-focus-head agent-focus-head--compact"
+            aria-expanded="false"
+            aria-controls="sidebar-focus-list-shell"
+          >
+            <span class="sidebar-focus-toggle-main">
+              <span class="sidebar-focus-chevron" aria-hidden="true"></span>
+              <span id="sidebar-focus-title" class="agent-focus-title">
                 Фокус <span class="agent-focus-sub agent-focus-sub--inline">(быстрый навигатор)</span>
-              </h3>
-            </div>
+              </span>
+            </span>
             <span id="sidebar-focus-count" class="agent-focus-count hidden"></span>
-          </div>
-          <div id="sidebar-focus-list-shell" class="sidebar-focus-list-shell">
+          </button>
+          <div id="sidebar-focus-list-shell" class="sidebar-focus-list-shell" hidden>
             <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
           </div>
         </section>
@@ -3065,7 +3083,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.439"></script>
+    <script src="/main.js?v=0.5.442"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

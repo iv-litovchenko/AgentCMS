@@ -1,6 +1,0 @@
-id: awn.topic
-name: Тема
-kind: type
-extends: awn.base
-description: Тема (файл)
-fields:
