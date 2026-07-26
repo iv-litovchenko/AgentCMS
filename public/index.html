@@ -2178,12 +2178,62 @@
               <div id="editor-custom-props-bar" class="editor-custom-props-bar hidden" aria-label="Пользовательские свойства">
                 <div id="editor-custom-props-fields" class="editor-custom-props-fields props-form-fields"></div>
               </div>
+              <div
+                id="live-file-update-banner"
+                class="live-file-update-banner hidden"
+                role="status"
+                aria-live="polite"
+              >
+                <div class="live-file-update-banner-main">
+                  <span class="live-file-update-banner-icon" aria-hidden="true">✨</span>
+                  <div class="live-file-update-banner-copy">
+                    <strong id="live-file-update-banner-title" class="live-file-update-banner-title">
+                      Файл изменён агентом
+                    </strong>
+                    <span id="live-file-update-banner-detail" class="live-file-update-banner-detail"></span>
+                  </div>
+                </div>
+                <div class="live-file-update-banner-actions">
+                  <button id="live-file-update-show-diff-btn" type="button" class="live-file-update-btn">
+                    Показать diff
+                  </button>
+                  <button
+                    id="live-file-update-reload-btn"
+                    type="button"
+                    class="live-file-update-btn live-file-update-btn--primary hidden"
+                  >
+                    Обновить
+                  </button>
+                  <button id="live-file-update-ack-btn" type="button" class="live-file-update-btn">
+                    Увидел
+                  </button>
+                </div>
+              </div>
+              <div id="live-file-diff-panel" class="live-file-diff-panel hidden" aria-label="Изменения агента">
+                <div class="live-file-diff-panel-head">
+                  <span id="live-file-diff-panel-title" class="live-file-diff-panel-title">Изменения</span>
+                  <button
+                    id="live-file-diff-panel-close-btn"
+                    type="button"
+                    class="live-file-diff-panel-close"
+                    aria-label="Закрыть diff"
+                  >
+                    ×
+                  </button>
+                </div>
+                <pre id="live-file-diff-panel-body" class="live-file-diff-panel-body"></pre>
+              </div>
               <div class="editor-surface">
                 <div id="agent-system-type-inspector" class="agent-system-type-inspector hidden" aria-label="Схема типа"></div>
                 <div id="editor-code-wrap" class="editor-code-wrap">
                   <pre id="editor-line-numbers" class="editor-line-numbers" aria-hidden="true">1</pre>
                   <textarea id="file-content-input" class="file-content-input" spellcheck="false" wrap="off"></textarea>
                 </div>
+                <div
+                  id="live-sync-wysiwyg-diff-removed"
+                  class="live-sync-wysiwyg-diff-removed hidden"
+                  aria-label="Удалённые строки"
+                ></div>
                 <div id="editor-wysiwyg-wrap" class="editor-wysiwyg-wrap hidden"></div>
                 <div id="file-content-preview" class="file-content-preview hidden"></div>
               </div>
@@ -2657,8 +2707,12 @@
             </div>
           </div>
         </div>
+        <div id="create-node-shared-taxonomies-scaffold-wrap" class="create-node-shared-taxonomies-wrap hidden">
+          <div class="popover-label">Таксономии (справочники)</div>
+          <button id="create-node-shared-taxonomies-scaffold-btn" class="create-node-action-btn create-node-action-btn--taxonomy" type="button" title="Область для справочников агента">Таксономии</button>
+        </div>
         <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
-          <div class="popover-label">Справочники</div>
+          <div class="popover-label">Таксономии (справочники)</div>
           <div id="create-node-catalog-actions" class="create-node-catalog-actions">
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="categories">Категории</button>
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="tags" title="Список #tag, как в Obsidian">Теги</button>
@@ -2666,6 +2720,17 @@
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="users">Пользователи</button>
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="priorities">Приоритеты</button>
             <button type="button" class="create-node-action-btn create-node-catalog-btn" data-catalog-preset="colors">Палитра</button>
+          </div>
+        </div>
+        <div id="create-node-shared-themes-wrap" class="create-node-shared-themes-wrap hidden">
+          <div class="popover-label">Стандартные накопители</div>
+          <div id="create-node-shared-themes-actions" class="create-node-shared-themes-actions">
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="inbox">Входящие</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="notes">Заметки</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="references">Источники</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="artefacts">Артефакты</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="scripts">Скрипты</button>
+            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="media">Медиа</button>
           </div>
         </div>
         <div id="create-node-service-docs-wrap" class="create-node-service-docs-wrap hidden">
@@ -2677,18 +2742,6 @@
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-rules" title="Agent.Rules.md — общие правила">Правила</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-tts" title="Agent.Voice.Tts.md — синтез речи">Голос TTS</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-stt" title="Agent.Voice.STT.md — распознавание речи">Голос STT</button>
-          </div>
-        </div>
-        <div id="create-node-shared-themes-wrap" class="create-node-shared-themes-wrap hidden">
-          <div class="popover-label">Стандартные накопители</div>
-          <p class="create-node-shared-themes-hint">Создавайте по одному — уже созданные кнопки будут неактивны.</p>
-          <div id="create-node-shared-themes-actions" class="create-node-shared-themes-actions">
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="inbox">Входящие</button>
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="notes">Заметки</button>
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="references">Источники</button>
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="artefacts">Артефакты</button>
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="scripts">Скрипты</button>
-            <button type="button" class="create-node-action-btn create-node-shared-theme-btn" data-shared-theme-preset="media">Медиа</button>
           </div>
         </div>
         <hr id="create-node-divider" class="create-node-divider hidden" />
@@ -2729,10 +2782,10 @@
           </label>
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
-          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (manifest.md)">Подхватить (область)</button>
-          <button id="create-free-memory-btn" class="create-node-action-btn create-node-action-btn--free-memory hidden" type="button" title="Папка без manifest.md — для файлов и черновиков">Свободная память</button>
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
+          <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (manifest.md)">Подхватить (область)</button>
           <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.md)">Файл (тема)</button>
+          <button id="create-free-memory-btn" class="create-node-action-btn create-node-action-btn--free-memory hidden" type="button" title="Папка без manifest.md — для файлов и черновиков">Свободная память</button>
           </div>
           <div id="create-free-memory-upload-wrap" class="create-free-memory-upload-wrap hidden">
             <input id="create-free-memory-upload-input" type="file" multiple class="hidden" />

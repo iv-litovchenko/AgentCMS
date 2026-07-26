@@ -249,6 +249,17 @@ const workspacePrintBtn = document.getElementById("workspace-print-btn");
 const workspacePathHeaderNode = document.getElementById("workspace-path-header");
 const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
+const liveFileUpdateBannerNode = document.getElementById("live-file-update-banner");
+const liveFileUpdateBannerTitleNode = document.getElementById("live-file-update-banner-title");
+const liveFileUpdateBannerDetailNode = document.getElementById("live-file-update-banner-detail");
+const liveFileUpdateShowDiffBtn = document.getElementById("live-file-update-show-diff-btn");
+const liveFileUpdateReloadBtn = document.getElementById("live-file-update-reload-btn");
+const liveFileUpdateAckBtn = document.getElementById("live-file-update-ack-btn");
+const liveFileDiffPanelNode = document.getElementById("live-file-diff-panel");
+const liveFileDiffPanelTitleNode = document.getElementById("live-file-diff-panel-title");
+const liveFileDiffPanelCloseBtn = document.getElementById("live-file-diff-panel-close-btn");
+const liveFileDiffPanelBodyNode = document.getElementById("live-file-diff-panel-body");
+const liveSyncWysiwygDiffRemovedNode = document.getElementById("live-sync-wysiwyg-diff-removed");
 const titleEditorBlockNode = document.getElementById("editor-title-bar");
 const propsPreviewBlockNode = document.getElementById("props-preview-block");
 const propsWebUrlBlockNode = document.getElementById("props-web-url-block");
@@ -497,6 +508,8 @@ const createNodeServiceDocsWrapNode = document.getElementById("create-node-servi
 const createNodeServiceDocsActionsNode = document.getElementById("create-node-service-docs-actions");
 const createNodeSharedThemesWrapNode = document.getElementById("create-node-shared-themes-wrap");
 const createNodeSharedThemesActionsNode = document.getElementById("create-node-shared-themes-actions");
+const createNodeSharedTaxonomiesScaffoldWrapNode = document.getElementById("create-node-shared-taxonomies-scaffold-wrap");
+const createNodeSharedTaxonomiesScaffoldBtn = document.getElementById("create-node-shared-taxonomies-scaffold-btn");
 const createNodeStructureLabelNode = document.getElementById("create-node-structure-label");
 const createNodeDividerNode = document.getElementById("create-node-divider");
 const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
@@ -801,6 +814,8 @@ const SHARED_THEME_PRESETS = [
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
   SHARED_THEME_PRESETS.map((item) => [item.slug, item.label])
 );
+const SHARED_TAXONOMIES_SLUG = "taxonomies";
+const SHARED_TAXONOMIES_LABEL = "Таксономии";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
@@ -8375,6 +8390,7 @@ async function switchActiveAgent(nextAgentId) {
     workspaceNotificationsInitialLoadDone = false;
     loadWorkspaceNotificationsSeenId(nextAgentId);
     void refreshWorkspaceNotifications(false);
+    resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
     hideAppLandingView();
@@ -9863,6 +9879,8 @@ const NODE_THREAD_MODE = "thread";
 let activeEntryOverviewContext = null;
 let entryOverviewSearchQuery = "";
 let entryOverviewSearchState = null;
+let entryOverviewLoadedBody = "";
+let entryOverviewLoadedBodyPath = "";
 const NAVIGATION_SECTION_SEARCH_MIN_ITEMS = 4;
 const NAVIGATION_EXTERNAL_SEARCH_MIN_ITEMS = 6;
 let navigationSubsectionsSearchQuery = "";
@@ -18187,13 +18205,78 @@ function getCatalogPresetManifestCandidates(serviceFolder, preset) {
   return paths;
 }
 
-function isCatalogPresetPresent(agentId, preset) {
+function getSharedTaxonomiesFolder(agentId = getCreateModalAgentId()) {
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  if (!sharedFolder) return "";
+  return `${sharedFolder}/${SHARED_TAXONOMIES_SLUG}`.replace(/\\/g, "/");
+}
+
+function getSharedTaxonomiesManifestCandidates(agentId = getCreateModalAgentId()) {
+  const folder = getSharedTaxonomiesFolder(agentId);
+  if (!folder) return [];
+  return [`${folder}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")];
+}
+
+function getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset) {
+  const fileName = SERVICE_CATALOG_PRESET_FILES[preset];
+  if (!taxonomyFolder || !fileName) return [];
+  const stems = [fileName, String(preset || "").trim()];
+  const paths = [];
+  for (const stem of stems) {
+    if (!stem) continue;
+    paths.push(`${taxonomyFolder}/${stem}.md`.replace(/\\/g, "/"));
+    paths.push(`${taxonomyFolder}/${stem}/manifest.md`.replace(/\\/g, "/"));
+  }
+  return paths;
+}
+
+function getCatalogPresetManifestCandidatesForAgent(agentId, preset) {
+  const paths = [];
+  const taxonomyFolder = getSharedTaxonomiesFolder(agentId);
+  if (taxonomyFolder) {
+    paths.push(...getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset));
+  }
   const serviceFolder = getActiveAgentKitFolder(agentId);
-  if (!serviceFolder) return false;
-  return isServiceManifestCandidatePresent(
-    agentId,
-    getCatalogPresetManifestCandidates(serviceFolder, preset)
+  if (serviceFolder) {
+    paths.push(...getCatalogPresetManifestCandidates(serviceFolder, preset));
+  }
+  return paths;
+}
+
+function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
+  if (isSharedManifestCandidatePresent(agentId, getSharedTaxonomiesManifestCandidates(agentId))) {
+    return true;
+  }
+  const taxonomyFolder = getSharedTaxonomiesFolder(agentId);
+  if (!taxonomyFolder) return false;
+  return Object.keys(SERVICE_CATALOG_PRESET_FILES).some((preset) =>
+    isSharedManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset))
   );
+}
+
+function isSharedTaxonomiesCreateParent(parentPath) {
+  const taxonomyFolder = getSharedTaxonomiesFolder(getCreateModalAgentId());
+  if (!taxonomyFolder) return false;
+  return normalizeCreateParentPath(parentPath || ".") === taxonomyFolder;
+}
+
+function shouldShowCatalogInCreateModal() {
+  const agentId = getCreateModalAgentId();
+  if (!isAgentSharedFolderPresent(agentId)) return false;
+  if (!isSharedTaxonomiesAreaPresent(agentId)) return false;
+  return isSharedRootCreateParent(createModalBaseParentPath) || isSharedTaxonomiesCreateParent(createModalBaseParentPath);
+}
+
+function shouldShowSharedTaxonomiesScaffoldInCreateModal() {
+  const agentId = getCreateModalAgentId();
+  if (!isAgentSharedFolderPresent(agentId)) return false;
+  if (isSharedTaxonomiesAreaPresent(agentId)) return false;
+  return isSharedRootCreateParent(createModalBaseParentPath);
+}
+
+function isCatalogPresetPresent(agentId, preset) {
+  return isServiceManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesForAgent(agentId, preset))
+    || isSharedManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesForAgent(agentId, preset));
 }
 
 function getServiceDocManifestCandidates(serviceFolder, preset) {
@@ -18305,6 +18388,18 @@ function syncCreateNodeServicePresetsUi() {
   syncCreateNodeCatalogButtonsUi();
   syncCreateNodeServiceDocButtonsUi();
   syncCreateNodeSharedThemeButtonsUi();
+  syncCreateNodeSharedTaxonomiesScaffoldUi();
+}
+
+function syncCreateNodeSharedTaxonomiesScaffoldUi() {
+  if (!createNodeSharedTaxonomiesScaffoldBtn) return;
+  const agentId = getCreateModalAgentId();
+  const exists = isSharedTaxonomiesAreaPresent(agentId);
+  createNodeSharedTaxonomiesScaffoldBtn.disabled = exists;
+  createNodeSharedTaxonomiesScaffoldBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+  createNodeSharedTaxonomiesScaffoldBtn.title = exists
+    ? `«${SHARED_TAXONOMIES_LABEL}» уже созданы`
+    : "Область для справочников агента";
 }
 
 function isServiceRootCreateParent(parentPath) {
@@ -18720,7 +18815,11 @@ function syncCreateNodeActionsUi() {
   const showRootReserved = shouldShowReservedFoldersInCreateModal(getCreateModalAgentId());
   const showNestedGitContainerScaffold = shouldShowNestedGitContainerScaffold(getCreateModalAgentId());
   const showRootScaffoldBlock = (atWorkspaceRoot && showRootReserved) || showNestedGitContainerScaffold;
-  createNodeCatalogWrapNode?.classList.toggle("hidden", !serviceRoot);
+  createNodeCatalogWrapNode?.classList.toggle("hidden", !shouldShowCatalogInCreateModal());
+  createNodeSharedTaxonomiesScaffoldWrapNode?.classList.toggle(
+    "hidden",
+    !shouldShowSharedTaxonomiesScaffoldInCreateModal()
+  );
   createNodeServiceDocsWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeSharedThemesWrapNode?.classList.toggle(
     "hidden",
@@ -18728,7 +18827,13 @@ function syncCreateNodeActionsUi() {
   );
   createNodeDividerNode?.classList.toggle(
     "hidden",
-    !(serviceRoot || showRootScaffoldBlock || (sharedRoot && isAgentSharedFolderPresent(getCreateModalAgentId())))
+    !(
+      serviceRoot ||
+      showRootScaffoldBlock ||
+      (sharedRoot && isAgentSharedFolderPresent(getCreateModalAgentId())) ||
+      shouldShowCatalogInCreateModal() ||
+      shouldShowSharedTaxonomiesScaffoldInCreateModal()
+    )
   );
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
   createNodeActionsNode?.classList.toggle("create-node-actions--service", inServiceTree);
@@ -18831,9 +18936,9 @@ function renderCreateNodeDynamicTypes(data) {
     }
   }
 
-  // "taxonomy" group → "Справочники" section
+  // "taxonomy" group → "Справочники" section (only in shared taxonomies context)
   const taxGroup = data.groups.find((g) => g.id === "taxonomy");
-  if (taxGroup?.types?.length && createNodeCatalogActionsNode) {
+  if (taxGroup?.types?.length && createNodeCatalogActionsNode && shouldShowCatalogInCreateModal()) {
     createNodeCatalogActionsNode.replaceChildren();
     for (const type of taxGroup.types) {
       const preset = type.preset || type.slug || type.id.split(".").pop();
@@ -39756,6 +39861,7 @@ function commitEditorSaveBaseline() {
   }
   savedEditorSnapshot = getEditorSavePayload();
   syncSaveButtonLamp();
+  void markLiveSyncOwnSaveForActivePath();
 }
 
 function applySystemFileUi() {
@@ -41812,9 +41918,52 @@ function pickLatestIso(...values) {
 const AGENT_INSTRUCTION_CONTEXT_TITLE = "Инструкция и контекст для агента";
 const AGENT_INSTRUCTION_EMPTY_TEXT = "Контекст и инструкция для агента не определены.";
 
-function getNodeDescriptionHasContent(raw = "") {
+function extractManifestDisplayBody(raw = "", heroTitle = "") {
   const { body } = splitFrontmatter(raw);
-  return Boolean(stripAwnDescCallouts(body).trim());
+  return stripLeadingDuplicateMarkdownHeading(
+    stripAwnDescCallouts(body).trim(),
+    heroTitle
+  ).trim();
+}
+
+function getNodeDescriptionHasContent(raw = "") {
+  return Boolean(extractManifestDisplayBody(raw));
+}
+
+function isManifestFrontmatterDiffLine(text) {
+  const line = String(text ?? "").trim();
+  if (!line) return false;
+  if (line === "---") return true;
+  if (/^awn-[a-z0-9-]+:/i.test(line)) return true;
+  if (/^(true|false|null|\[\])$/i.test(line)) return true;
+  if (/^-\s*(?:\[\]|""|''|true|false|null|\d+)/i.test(line)) return true;
+  if (/^-\s+"[^"]*"/.test(line)) return true;
+  if (/^-\s+'[^']*'/.test(line)) return true;
+  return false;
+}
+
+function filterManifestBodyDiffPayload(diffPayload) {
+  if (!diffPayload?.diff?.entries?.length) return diffPayload;
+  const entries = diffPayload.diff.entries.filter(
+    (entry) => !isManifestFrontmatterDiffLine(entry.text)
+  );
+  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+    return null;
+  }
+  let added = 0;
+  let removed = 0;
+  for (const entry of entries) {
+    if (entry.type === "add") added += 1;
+    if (entry.type === "remove") removed += 1;
+  }
+  return {
+    ...diffPayload,
+    diff: {
+      ...diffPayload.diff,
+      entries,
+      stats: { added, removed }
+    }
+  };
 }
 
 const NODE_SLOT_SETTINGS_ROW_TITLE = "Настройки:";
@@ -42934,7 +43083,19 @@ function renderNavigationInternalPart(internalData, { areaMode = false, nodePath
     preview.className = "node-navigation-preview file-content-preview";
     const manifestPath = nodePath || getResolvedNodePath(activePath);
     const linkBasePath = manifestPath ? resolveNodeSidecarRelPath(manifestPath, "content") : "";
-    setMarkdownPreviewHtml(preview, content, { linkBasePath: linkBasePath || manifestPath });
+    const workspacePath = internalData?.path || linkBasePath || manifestPath;
+    const inlineDiff = getActiveLiveSyncInlineDiffForView(workspacePath);
+    if (
+      inlineDiff &&
+      renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, linkBasePath || manifestPath)
+    ) {
+      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+    } else {
+      setMarkdownPreviewHtml(preview, content, {
+        linkBasePath: linkBasePath || manifestPath,
+        workspacePath
+      });
+    }
     body.appendChild(preview);
 
     const note = document.createElement("p");
@@ -44653,7 +44814,16 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
 
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
-  setMarkdownPreviewHtml(preview, content, { nodePath });
+  const workspacePath = nodePath;
+  const inlineDiff = getActiveLiveSyncInlineDiffForView(workspacePath);
+  if (
+    inlineDiff &&
+    renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
+  ) {
+    nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+  } else {
+    setMarkdownPreviewHtml(preview, content, { nodePath, workspacePath });
+  }
   wrap.appendChild(preview);
 
   if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
@@ -46832,6 +47002,13 @@ async function renderEntryOverview() {
     ? "Оглавление"
     : resolveEntryOverviewDisplayTitle(context, entries, navigationIndex);
   if (!isMemoryTocRoot) {
+    entryOverviewLoadedBody = String(rawBody || "");
+    entryOverviewLoadedBodyPath = normalizeLiveSyncStoragePath(context.relPath || "");
+  } else {
+    entryOverviewLoadedBody = "";
+    entryOverviewLoadedBodyPath = "";
+  }
+  if (!isMemoryTocRoot) {
     entries = await enrichEntryOverviewPropertiesWithSchema(entries, context);
   }
   if (isStale()) return;
@@ -47454,21 +47631,45 @@ function renderNavigationMediaPart(mediaData) {
   return createNavigationMemoryPanel("media", "Медиа", body, mediaData);
 }
 
+async function ensureNavigationManifestCached(options = {}) {
+  const forceReload = Boolean(options.forceReload);
+  if (!forceReload && getNodeDescriptionHasContent(modeContentCache.description)) return;
+  const apiPath = getActiveNodeApiPath();
+  if (!apiPath) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
+    if (!response.ok) return;
+    const data = await response.json();
+    modeContentCache.description = data.content || "";
+  } catch {
+    // ignore transient manifest read errors in navigation
+  }
+}
+
 function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
-  const { body } = splitFrontmatter(manifestRaw);
-  const content = stripLeadingDuplicateMarkdownHeading(
-    stripAwnDescCallouts(body).trim(),
-    heroTitle
-  ).trim();
+  const content = extractManifestDisplayBody(manifestRaw, heroTitle);
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest";
 
   if (content) {
     const nodePath = getResolvedNodePath(activePath);
+    const manifestPath = getActiveNodeApiPath();
     const preview = document.createElement("div");
-    preview.className = "node-navigation-preview node-navigation-agent-instruction file-content-preview";
-    setMarkdownPreviewHtml(preview, content, { nodePath });
+    preview.className =
+      "node-navigation-preview node-navigation-agent-instruction file-content-preview";
+    const inlineDiff = filterManifestBodyDiffPayload(
+      getActiveLiveSyncInlineDiffForView(manifestPath)
+    );
+    if (
+      inlineDiff &&
+      renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
+    ) {
+      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+    } else {
+      preview.innerHTML = renderMarkdownToHtml(content, { nodePath });
+      hydrateMarkdownPreviewElement(preview, nodePath);
+    }
     wrap.appendChild(preview);
   } else {
     const empty = document.createElement("p");
@@ -47494,7 +47695,9 @@ function renderNavigationTodoPart(todoData) {
     content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
   const preview = document.createElement("div");
   preview.className = "node-navigation-todo-content file-content-preview";
-  setMarkdownPreviewHtml(preview, previewSource, { nodePath: getResolvedNodePath(activePath) });
+  const nodePath = getResolvedNodePath(activePath);
+  const todoPath = resolveNodeSidecarRelPath(nodePath, "todo");
+  setMarkdownPreviewHtml(preview, previewSource, { nodePath, workspacePath: todoPath });
   wrap.appendChild(preview);
 
   if (content.length > previewLimit) {
@@ -48438,6 +48641,1245 @@ function stopChannelEventStream() {
   }
 }
 
+const LIVE_SYNC_ACK_STORAGE_PREFIX = "yamlcms:live-sync-ack:";
+let liveSyncLastActivityId = 0;
+let liveSyncBaselineReady = false;
+let liveSyncInFlight = false;
+let liveSyncPendingChange = null;
+let liveSyncMtimeByPath = new Map();
+let liveSyncMtimeBaselineReady = false;
+let liveSyncOwnSaveUntilByPath = new Map();
+let liveSyncInlineDiffState = null;
+const LIVE_SYNC_OWN_SAVE_GRACE_MS = 4000;
+
+function normalizeLiveSyncPath(value) {
+  return String(value || "")
+    .replace(/\\/g, "/")
+    .trim()
+    .replace(/^\/+/, "")
+    .toLowerCase();
+}
+
+function getLiveSyncAckStorageKey(agentId = activeAgentId) {
+  return `${LIVE_SYNC_ACK_STORAGE_PREFIX}${agentId || "main"}`;
+}
+
+function normalizeLiveSyncStoragePath(value) {
+  return String(value || "")
+    .replace(/\\/g, "/")
+    .trim()
+    .replace(/^\/+/, "");
+}
+
+function normalizeLiveSyncFileKey(pathValue) {
+  let normalized = normalizeLiveSyncStoragePath(pathValue).toLowerCase();
+  normalized = normalized.replace(/\/awn-storage\/main\/main\.md$/, "/main.md");
+  normalized = normalized.replace(/\/awn-storage\/main\.md$/, "/main.md");
+  normalized = normalized.replace(/\/awn-storage\/todo\/todo\.md$/, "/todo.md");
+  normalized = normalized.replace(/\/awn-storage\/todo\.md$/, "/todo.md");
+  normalized = normalized.replace(/\/awn-storage\/main\/main\.csv$/, "/main.csv");
+  normalized = normalized.replace(/\/awn-storage\/main\.csv$/, "/main.csv");
+  return normalized;
+}
+
+function liveSyncPathsReferToSameFile(pathA, pathB) {
+  const a = normalizeLiveSyncPath(pathA);
+  const b = normalizeLiveSyncPath(pathB);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (normalizeLiveSyncFileKey(pathA) === normalizeLiveSyncFileKey(pathB)) return true;
+
+  const sidecarPath = /\.sidecar\.md$/i.test(a) ? a : /\.sidecar\.md$/i.test(b) ? b : "";
+  if (sidecarPath) {
+    const otherPath = sidecarPath === a ? b : a;
+    const sidecarBase = normalizeLiveSyncPath(String(sidecarPath).replace(/\.sidecar\.md$/i, ""));
+    const otherBase = normalizeLiveSyncPath(String(otherPath).replace(/\.[^/]+$/i, ""));
+    if (sidecarBase && otherBase && sidecarBase === otherBase) return true;
+  }
+
+  return false;
+}
+
+function getLiveSyncActiveTopicDir() {
+  const manifestPath = normalizeLiveSyncStoragePath(getActiveNodeApiPath());
+  if (!manifestPath) return "";
+  return manifestPath.replace(/\/[^/]+\.md$/i, "");
+}
+
+function liveSyncPathBelongsToActiveTopic(pathValue) {
+  const topicDir = getLiveSyncActiveTopicDir();
+  if (!topicDir) return false;
+  const pathNorm = normalizeLiveSyncStoragePath(pathValue);
+  if (!pathNorm) return false;
+  if (pathNorm === topicDir) return true;
+  return pathNorm.startsWith(`${topicDir}/`);
+}
+
+function isLiveSyncBroadTopicWatchMode() {
+  if (activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_OVERVIEW_MODE) {
+    return true;
+  }
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) return false;
+  return (
+    isEntryOverviewMemoryTocRoot(activeEntryOverviewContext) ||
+    isEntryOverviewCategoryContext(activeEntryOverviewContext)
+  );
+}
+
+const LIVE_SYNC_NAVIGATION_EXTERNAL_WATCH_LIMIT = 120;
+
+function collectLiveSyncNavigationStoragePaths(paths) {
+  const nodePath = getResolvedNodePath(activePath);
+  if (nodePath) {
+    paths.add(normalizeLiveSyncStoragePath(resolveNodeSidecarRelPath(nodePath, "tabular")));
+  }
+
+  if (!navigationExternalTocState) return;
+
+  let count = 0;
+  for (const item of navigationExternalTocState.items || []) {
+    if (count >= LIVE_SYNC_NAVIGATION_EXTERNAL_WATCH_LIMIT) break;
+    const relPath = getExternalItemContextPath(item, nodePath);
+    if (relPath) {
+      paths.add(normalizeLiveSyncStoragePath(relPath));
+      count += 1;
+    }
+  }
+
+  if (navigationExternalTocState.sectionManifestByFolder instanceof Map) {
+    for (const item of navigationExternalTocState.sectionManifestByFolder.values()) {
+      const relPath = getExternalItemContextPath(item, nodePath);
+      if (relPath) paths.add(normalizeLiveSyncStoragePath(relPath));
+    }
+  }
+}
+
+function collectLiveSyncEntryOverviewWatchPaths(paths) {
+  const ctx = activeEntryOverviewContext;
+  if (!ctx) return;
+
+  const nodePath = getResolvedNodePath(activePath);
+  if (!isEntryOverviewMemoryTocRoot(ctx) && ctx.relPath) {
+    paths.add(normalizeLiveSyncStoragePath(ctx.relPath));
+  }
+
+  const navIndex = entryOverviewSearchState?.navigationIndex;
+  if (!navIndex) return;
+
+  let count = 0;
+  const addPath = (relPath) => {
+    if (!relPath || count >= LIVE_SYNC_NAVIGATION_EXTERNAL_WATCH_LIMIT) return;
+    paths.add(normalizeLiveSyncStoragePath(relPath));
+    count += 1;
+  };
+
+  if (ctx.memoryKind === "external") {
+    for (const item of navIndex.contentFiles || []) {
+      addPath(getExternalItemContextPath(item, nodePath));
+    }
+    if (navIndex.sectionManifestByFolder instanceof Map) {
+      for (const item of navIndex.sectionManifestByFolder.values()) {
+        addPath(getExternalItemContextPath(item, nodePath));
+      }
+    }
+    return;
+  }
+
+  if (ctx.memoryKind === "media") {
+    for (const item of navIndex.contentFiles || []) {
+      addPath(getMediaItemContextPath(item.path, nodePath));
+    }
+    if (navIndex.sectionManifestByFolder instanceof Map) {
+      for (const item of navIndex.sectionManifestByFolder.values()) {
+        const manifestPath = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+        if (manifestPath) addPath(getMediaItemContextPath(manifestPath, nodePath));
+      }
+    }
+  }
+}
+
+function appendLiveSyncMediaEditorPaths(paths) {
+  if (!isMediaLibraryContentMode()) return;
+  const manifestPath = getActiveNodeApiPath();
+  if (!manifestPath) return;
+
+  if (activeMediaSidecarSourcePath) {
+    const sourceRel = buildStorageLayerRef(manifestPath, "media", activeMediaSidecarSourcePath);
+    if (sourceRel) paths.add(normalizeLiveSyncStoragePath(sourceRel));
+    if (activeMediaSidecarPath) {
+      const sidecarRel = buildStorageLayerRef(manifestPath, "media", activeMediaSidecarPath);
+      if (sidecarRel) paths.add(normalizeLiveSyncStoragePath(sidecarRel));
+    }
+  }
+
+  if (activeMediaMarkdownPath) {
+    const markdownRel = buildStorageLayerRef(manifestPath, "media", activeMediaMarkdownPath);
+    if (markdownRel) paths.add(normalizeLiveSyncStoragePath(markdownRel));
+  }
+}
+
+function getLiveSyncAckEntry(path, agentId = activeAgentId) {
+  const ackMap = loadLiveSyncAckMap(agentId);
+  const raw = ackMap[normalizeLiveSyncPath(path)];
+  if (typeof raw === "number") return { activity: raw, mtime: null };
+  if (raw && typeof raw === "object") {
+    return {
+      activity: Number(raw.activity) || 0,
+      mtime: raw.mtime ? String(raw.mtime) : null
+    };
+  }
+  return { activity: 0, mtime: null };
+}
+
+function loadLiveSyncAckMap(agentId = activeAgentId) {
+  try {
+    const raw = localStorage.getItem(getLiveSyncAckStorageKey(agentId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLiveSyncAckMap(map, agentId = activeAgentId) {
+  try {
+    localStorage.setItem(getLiveSyncAckStorageKey(agentId), JSON.stringify(map));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function isLiveSyncEventAcknowledged(path, eventId, agentId = activeAgentId) {
+  const ack = getLiveSyncAckEntry(path, agentId);
+  return eventId > 0 && ack.activity >= eventId;
+}
+
+function isLiveSyncExternalAcknowledged(path, mtime, agentId = activeAgentId) {
+  const ackMtime = getLiveSyncAckEntry(path, agentId).mtime;
+  if (!mtime || !ackMtime) return false;
+  return String(ackMtime) >= String(mtime);
+}
+
+function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, agentId = activeAgentId) {
+  if (!path) return;
+  const ackMap = loadLiveSyncAckMap(agentId);
+  const key = normalizeLiveSyncPath(path);
+  const prev = getLiveSyncAckEntry(path, agentId);
+  const next = {
+    activity: Math.max(prev.activity, Number(eventId) || 0),
+    mtime: mtime ? String(mtime) : prev.mtime
+  };
+  if (mtime && prev.mtime) {
+    next.mtime = String(prev.mtime) >= String(mtime) ? prev.mtime : String(mtime);
+  }
+  ackMap[key] = next;
+  saveLiveSyncAckMap(ackMap, agentId);
+}
+
+function resetLiveSyncSession(agentId = activeAgentId) {
+  liveSyncLastActivityId = Number(workspaceNotificationsLatestId) || 0;
+  liveSyncBaselineReady = false;
+  liveSyncMtimeBaselineReady = false;
+  liveSyncMtimeByPath = new Map();
+  liveSyncOwnSaveUntilByPath = new Map();
+  liveSyncPendingChange = null;
+  clearLiveSyncInlineDiffState();
+  hideLiveFileUpdateBanner();
+  hideLiveFileDiffPanel();
+}
+
+function liveSyncDiffHasVisibleChanges(diffPayload) {
+  const stats = diffPayload?.diff?.stats;
+  if (stats && (stats.added || stats.removed)) return true;
+  const entries = diffPayload?.diff?.entries;
+  return Array.isArray(entries) && entries.some((entry) => entry.type === "add" || entry.type === "remove");
+}
+
+function getActiveLiveSyncInlineDiffForView(workspacePath = null) {
+  if (!liveSyncInlineDiffState?.diffPayload) return null;
+  const diffPath = liveSyncInlineDiffState.path;
+  if (!diffPath) return null;
+
+  if (workspacePath) {
+    return liveSyncPathsReferToSameFile(workspacePath, diffPath)
+      ? liveSyncInlineDiffState.diffPayload
+      : null;
+  }
+
+  for (const pathValue of getActiveLiveSyncWatchPaths()) {
+    if (liveSyncPathsReferToSameFile(pathValue, diffPath)) {
+      return liveSyncInlineDiffState.diffPayload;
+    }
+  }
+  return null;
+}
+
+function clearLiveSyncInlineDiffState() {
+  liveSyncInlineDiffState = null;
+  editorSurfaceNode?.classList.remove("is-live-diff-active");
+  nodeOverviewBlockNode?.classList.remove("is-live-diff-active");
+  editorCodeWrapNode?.classList.remove("is-live-diff-source");
+  liveSyncWysiwygDiffRemovedNode?.classList.add("hidden");
+  liveSyncWysiwygDiffRemovedNode?.replaceChildren();
+  document.querySelectorAll(".live-diff-embedded-active").forEach((node) => {
+    node.classList.remove("live-diff-embedded-active");
+  });
+  editorWysiwygWrapNode
+    ?.querySelectorAll(".live-diff-wysiwyg-add")
+    .forEach((node) => node.classList.remove("live-diff-wysiwyg-add"));
+}
+
+function setLiveSyncInlineDiffState(diffPayload, pathValue) {
+  if (!liveSyncDiffHasVisibleChanges(diffPayload)) {
+    clearLiveSyncInlineDiffState();
+    return;
+  }
+  liveSyncInlineDiffState = {
+    path: normalizeLiveSyncStoragePath(pathValue),
+    diffPayload,
+    oldContent: diffPayload?.oldContent ?? "",
+    newContent: diffPayload?.newContent ?? ""
+  };
+  editorSurfaceNode?.classList.add("is-live-diff-active");
+  refreshLiveSyncInlineDiffView();
+}
+
+function refreshLiveSyncInlineDiffView() {
+  if (!liveSyncInlineDiffState?.diffPayload) {
+    clearLiveSyncInlineDiffState();
+    return;
+  }
+
+  if (activeContentMode === NODE_NAVIGATION_MODE) {
+    void renderNodeNavigation();
+    return;
+  }
+  if (activeContentMode === NODE_OVERVIEW_MODE) {
+    void renderNodeOverview();
+    return;
+  }
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    void renderEntryOverview();
+    return;
+  }
+
+  if (editorViewMode === "preview") {
+    renderPreviewFromEditor();
+  } else if (editorViewMode === "wysiwyg") {
+    applyWysiwygLiveDiffHighlights();
+  } else if (editorViewMode === "source") {
+    applySourceLiveDiffGutter();
+    syncEditorLineNumbers();
+  }
+}
+
+function hydrateMarkdownPreviewElement(element, nodePath) {
+  applySyntaxHighlighting(element, { nodePath });
+  void typesetMarkdownDiagrams(element);
+  void hydrateAwnFenceBlocks(element);
+  enhanceMarkdownPreviewImages(element);
+}
+
+function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath) {
+  if (!element || !diffPayload) return false;
+  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
+  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+    return false;
+  }
+
+  const isNavigationPreview = element.classList.contains("node-navigation-preview");
+  const addedLines = buildLiveDiffAddedLineSet(diffPayload);
+  const removedEntries = entries.filter((entry) => entry.type === "remove");
+
+  if (isNavigationPreview) {
+    const root = document.createElement("div");
+    root.className = "live-diff-embedded-root";
+
+    let sameBuffer = [];
+    const flushSame = () => {
+      if (!sameBuffer.length) return;
+      const chunk = document.createElement("div");
+      chunk.className = "live-diff-embedded-chunk";
+      chunk.innerHTML = renderMarkdownToHtml(sameBuffer.join("\n"), { nodePath });
+      for (const block of chunk.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote")) {
+        if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
+          block.classList.add("live-diff-embedded-block-add");
+        }
+      }
+      root.appendChild(chunk);
+      sameBuffer = [];
+    };
+
+    for (const entry of entries) {
+      if (entry.type === "same") {
+        sameBuffer.push(entry.text ?? "");
+        continue;
+      }
+      flushSame();
+      const row = document.createElement("div");
+      row.className = `live-diff-embedded-row live-diff-embedded-row--${entry.type}`;
+      if (entry.type === "add") {
+        const inner = document.createElement("div");
+        inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
+        row.appendChild(inner);
+      } else {
+        row.textContent = entry.text ?? "";
+      }
+      root.appendChild(row);
+    }
+    flushSame();
+    element.replaceChildren(root);
+    element.classList.add("live-diff-embedded-active");
+    hydrateMarkdownPreviewElement(element, nodePath);
+    return true;
+  }
+
+  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath });
+  element.classList.add("live-diff-embedded-active");
+
+  for (const block of element.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td")) {
+    if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
+      block.classList.add("live-diff-embedded-block-add");
+    }
+  }
+
+  if (removedEntries.length) {
+    const anchor = element.querySelector("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td");
+    for (const entry of removedEntries) {
+      const ghost = document.createElement("span");
+      ghost.className = "live-diff-embedded-inline-remove";
+      ghost.textContent = entry.text ?? "";
+      if (anchor) {
+        anchor.insertAdjacentElement("beforebegin", ghost);
+      } else {
+        element.prepend(ghost);
+      }
+    }
+  }
+
+  hydrateMarkdownPreviewElement(element, nodePath);
+  return true;
+}
+
+function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
+  if (!element || !diffPayload) return false;
+  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
+  if (!entries.length) return false;
+
+  const root = document.createElement("div");
+  root.className = "live-diff-inline-root";
+
+  let buffer = [];
+  const flushBuffer = () => {
+    if (!buffer.length) return;
+    const chunk = document.createElement("div");
+    chunk.className = "live-diff-md-chunk";
+    chunk.innerHTML = renderMarkdownToHtml(buffer.join("\n"), { nodePath });
+    root.appendChild(chunk);
+    buffer = [];
+  };
+
+  for (const entry of entries) {
+    if (entry.type === "same") {
+      buffer.push(entry.text ?? "");
+      continue;
+    }
+    flushBuffer();
+    const row = document.createElement("div");
+    row.className = `live-diff-inline-row live-diff-inline-row--${entry.type}`;
+    row.dataset.liveDiff = entry.type;
+    if (entry.type === "add") {
+      const inner = document.createElement("div");
+      inner.className = "live-diff-inline-content";
+      inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
+      row.appendChild(inner);
+    } else {
+      row.textContent = entry.text ?? "";
+    }
+    root.appendChild(row);
+  }
+  flushBuffer();
+
+  element.replaceChildren(root);
+  hydrateMarkdownPreviewElement(element, nodePath);
+  return true;
+}
+
+function buildLiveDiffAddedLineSet(diffPayload) {
+  const set = new Set();
+  for (const entry of diffPayload?.diff?.entries || []) {
+    if (entry.type === "add" && entry.text != null) set.add(String(entry.text));
+  }
+  return set;
+}
+
+function blockMatchesLiveDiffAddedLine(blockText, addedLines) {
+  const text = String(blockText || "").trim();
+  if (!text || !addedLines.size) return false;
+  if (addedLines.has(text)) return true;
+  for (const line of addedLines) {
+    const normalized = String(line || "").trim();
+    if (normalized && normalized === text) return true;
+  }
+  return false;
+}
+
+function applyWysiwygLiveDiffHighlights() {
+  const diffPayload = getActiveLiveSyncInlineDiffForView();
+  const host = liveSyncWysiwygDiffRemovedNode;
+  const proseMirror =
+    editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .ProseMirror") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+
+  proseMirror?.querySelectorAll(".live-diff-wysiwyg-add").forEach((node) => {
+    node.classList.remove("live-diff-wysiwyg-add");
+  });
+
+  if (!diffPayload || editorViewMode !== "wysiwyg") {
+    host?.classList.add("hidden");
+    host?.replaceChildren();
+    return;
+  }
+
+  const removedEntries = diffPayload.diff.entries.filter((entry) => entry.type === "remove");
+  if (host) {
+    if (removedEntries.length) {
+      host.classList.remove("hidden");
+      host.replaceChildren();
+      const title = document.createElement("div");
+      title.className = "live-sync-wysiwyg-diff-removed-title";
+      title.textContent = "Удалено агентом / снаружи";
+      host.appendChild(title);
+      for (const entry of removedEntries) {
+        const line = document.createElement("div");
+        line.className = "live-sync-wysiwyg-diff-removed-line";
+        line.textContent = entry.text ?? "";
+        host.appendChild(line);
+      }
+    } else {
+      host.classList.add("hidden");
+      host.replaceChildren();
+    }
+  }
+
+  if (!proseMirror) return;
+
+  const editorDirty =
+    isEditorSaveTrackingActive() &&
+    savedEditorSnapshot !== null &&
+    getEditorSavePayload() !== savedEditorSnapshot;
+  if (editorDirty) return;
+
+  const addedLines = buildLiveDiffAddedLineSet(diffPayload);
+  for (const block of proseMirror.querySelectorAll(
+    "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, td, th"
+  )) {
+    if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
+      block.classList.add("live-diff-wysiwyg-add");
+    }
+  }
+}
+
+function applySourceLiveDiffGutter() {
+  const diffPayload = getActiveLiveSyncInlineDiffForView();
+  if (!diffPayload || editorViewMode !== "source") {
+    editorCodeWrapNode?.classList.remove("is-live-diff-source");
+    return;
+  }
+
+  editorCodeWrapNode?.classList.add("is-live-diff-source");
+  if (!editorLineNumbersNode || !editorLineNumbersEnabled) return;
+
+  const addedLines = new Set();
+  const removedLines = new Set();
+  for (const entry of diffPayload.diff.entries || []) {
+    if (entry.type === "add" && entry.newLine) addedLines.add(Number(entry.newLine));
+    if (entry.type === "remove" && entry.oldLine) removedLines.add(Number(entry.oldLine));
+  }
+
+  const lineCount = Math.max(1, fileContentInputNode.value.split("\n").length);
+  const parts = [];
+  for (let index = 0; index < lineCount; index += 1) {
+    const lineNo = index + 1;
+    let className = "live-diff-gutter-line";
+    if (addedLines.has(lineNo)) className += " live-diff-gutter-add";
+    else if (removedLines.has(lineNo)) className += " live-diff-gutter-remove";
+    parts.push(`<span class="${className}">${lineNo}</span>`);
+  }
+  editorLineNumbersNode.innerHTML = parts.join("");
+}
+
+function isLiveSyncEligibleEvent(event) {
+  if (!event || typeof event !== "object") return false;
+  const action = String(event.action || "").trim().toLowerCase();
+  if (action !== "update" && action !== "create") return false;
+  const source = String(event.source || "").trim().toLowerCase();
+  if (source === "ui") return false;
+  const pathValue = String(event.path || "").replace(/\\/g, "/").trim();
+  if (!pathValue || pathValue.startsWith(".agent-cms/")) return false;
+  return true;
+}
+
+function getActiveLiveSyncWatchPaths() {
+  const paths = new Set();
+  if (activeSystemFile) {
+    paths.add(normalizeLiveSyncStoragePath(normalizeSystemFileName(activeSystemFile)));
+    return paths;
+  }
+  if (!activePath) return paths;
+
+  const nodePath = getResolvedNodePath(activePath);
+  const manifestPath = getActiveNodeApiPath();
+
+  if (
+    activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_OVERVIEW_MODE
+  ) {
+    if (manifestPath) paths.add(normalizeLiveSyncStoragePath(manifestPath));
+    if (nodePath) {
+      paths.add(normalizeLiveSyncStoragePath(resolveNodeSidecarRelPath(nodePath, "content")));
+      paths.add(normalizeLiveSyncStoragePath(resolveNodeSidecarRelPath(nodePath, "todo")));
+      paths.add(normalizeLiveSyncStoragePath(resolveNodeSidecarRelPath(nodePath, "tabular")));
+    }
+    collectLiveSyncNavigationStoragePaths(paths);
+    return paths;
+  }
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    collectLiveSyncEntryOverviewWatchPaths(paths);
+    return paths;
+  }
+
+  const editorPath = getWorkspaceEditorLinkTargetRel();
+  if (editorPath) paths.add(normalizeLiveSyncStoragePath(editorPath));
+  appendLiveSyncMediaEditorPaths(paths);
+  return paths;
+}
+
+function getLiveSyncLoadedContentForPath(pathValue) {
+  const pathNorm = normalizeLiveSyncPath(pathValue);
+  if (!pathNorm) return "";
+
+  if (activeSystemFile && pathNorm === normalizeLiveSyncPath(normalizeSystemFileName(activeSystemFile))) {
+    return fileContentInputNode?.value || "";
+  }
+
+  const manifestPath = normalizeLiveSyncPath(getActiveNodeApiPath());
+  const nodePath = getResolvedNodePath(activePath);
+  const internalPath = normalizeLiveSyncPath(resolveNodeSidecarRelPath(nodePath, "content"));
+  const todoPath = normalizeLiveSyncPath(resolveNodeSidecarRelPath(nodePath, "todo"));
+  const tabularPath = normalizeLiveSyncPath(resolveNodeSidecarRelPath(nodePath, "tabular"));
+  const externalPath = normalizeLiveSyncPath(getWorkspaceEditorLinkTargetRel());
+
+  if (pathNorm === manifestPath) {
+    return modeContentCache.description ?? fileContentInputNode?.value ?? "";
+  }
+  if (pathNorm === internalPath) {
+    return modeContentCache.internal ?? fileContentInputNode?.value ?? "";
+  }
+  if (pathNorm === todoPath) {
+    return modeContentCache.todo ?? fileContentInputNode?.value ?? "";
+  }
+  if (pathNorm === tabularPath || liveSyncPathsReferToSameFile(pathNorm, tabularPath)) {
+    return modeContentCache.tabular ?? fileContentInputNode?.value ?? "";
+  }
+  if (pathNorm === externalPath || liveSyncPathsReferToSameFile(pathNorm, externalPath)) {
+    return fileContentInputNode?.value ?? modeContentCache.external ?? "";
+  }
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    const entryPath = normalizeLiveSyncPath(activeEntryOverviewContext.relPath);
+    if (liveSyncPathsReferToSameFile(pathNorm, entryPath)) {
+      return entryOverviewLoadedBody || "";
+    }
+  }
+
+  if (isMediaLibraryContentMode()) {
+    const manifestRel = getActiveNodeApiPath();
+    if (activeMediaSidecarPath) {
+      const sidecarRel = normalizeLiveSyncPath(
+        buildStorageLayerRef(manifestRel, "media", activeMediaSidecarPath)
+      );
+      if (liveSyncPathsReferToSameFile(pathNorm, sidecarRel)) {
+        return fileContentInputNode?.value ?? "";
+      }
+    }
+    if (activeMediaMarkdownPath) {
+      const markdownRel = normalizeLiveSyncPath(
+        buildStorageLayerRef(manifestRel, "media", activeMediaMarkdownPath)
+      );
+      if (liveSyncPathsReferToSameFile(pathNorm, markdownRel)) {
+        return fileContentInputNode?.value ?? "";
+      }
+    }
+  }
+
+  return fileContentInputNode?.value ?? "";
+}
+
+function isLiveSyncOwnSaveActive(pathValue) {
+  const until = Number(liveSyncOwnSaveUntilByPath.get(normalizeLiveSyncPath(pathValue))) || 0;
+  return until > Date.now();
+}
+
+async function markLiveSyncOwnSaveForActivePath() {
+  const paths = getActiveLiveSyncWatchPaths();
+  if (!paths.size) return;
+  const until = Date.now() + LIVE_SYNC_OWN_SAVE_GRACE_MS;
+  for (const pathValue of paths) {
+    liveSyncOwnSaveUntilByPath.set(normalizeLiveSyncPath(pathValue), until);
+  }
+  try {
+    const revisions = await fetchLiveFileRevisions([...paths]);
+    for (const [path, revision] of Object.entries(revisions || {})) {
+      if (revision?.mtime) {
+        liveSyncMtimeByPath.set(normalizeLiveSyncPath(path), String(revision.mtime));
+      }
+    }
+  } catch {
+    // ignore revision refresh errors after save
+  }
+}
+
+async function fetchLiveFileRevisions(paths) {
+  const response = await fetch(buildApiUrl("/api/file/revisions"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paths: [...paths] })
+  });
+  if (!response.ok) throw new Error(`revisions:${response.status}`);
+  const payload = await response.json();
+  return payload?.revisions || {};
+}
+
+function setLiveSyncMtimeBaseline(pathValue, mtime) {
+  if (!pathValue || !mtime) return;
+  liveSyncMtimeByPath.set(normalizeLiveSyncPath(pathValue), String(mtime));
+}
+
+async function ensureLiveSyncMtimeBaseline(watchPaths) {
+  if (!watchPaths.size) {
+    liveSyncMtimeBaselineReady = false;
+    liveSyncMtimeByPath = new Map();
+    return;
+  }
+
+  const revisions = await fetchLiveFileRevisions([...watchPaths]);
+  liveSyncMtimeByPath = new Map();
+  for (const pathValue of watchPaths) {
+    const revision =
+      revisions[pathValue] ||
+      revisions[
+        Object.keys(revisions).find((key) => normalizeLiveSyncPath(key) === normalizeLiveSyncPath(pathValue)) ||
+          ""
+      ];
+    if (revision?.mtime) {
+      setLiveSyncMtimeBaseline(pathValue, revision.mtime);
+    }
+  }
+  liveSyncMtimeBaselineReady = true;
+}
+
+function liveSyncEventMatchesWatch(event, watchPaths) {
+  const eventPath = String(event?.path || "").replace(/\\/g, "/").trim();
+  if (!eventPath || !watchPaths.size) return false;
+
+  for (const watchPath of watchPaths) {
+    if (liveSyncPathsReferToSameFile(eventPath, watchPath)) return true;
+  }
+
+  const manifestPath = resolveWorkspaceNotificationManifestPath(event);
+  if (manifestPath) {
+    for (const watchPath of watchPaths) {
+      if (liveSyncPathsReferToSameFile(manifestPath, watchPath)) return true;
+    }
+  }
+
+  if (isLiveSyncBroadTopicWatchMode()) {
+    const eventPath = String(event?.path || "").replace(/\\/g, "/").trim();
+    if (eventPath && liveSyncPathBelongsToActiveTopic(eventPath)) return true;
+  }
+
+  return false;
+}
+
+function formatLiveSyncPathLabel(pathValue) {
+  const normalized = String(pathValue || "").replace(/\\/g, "/").trim();
+  if (!normalized) return "файл";
+  const parts = normalized.split("/").filter(Boolean);
+  return parts.slice(-2).join("/") || normalized;
+}
+
+function formatLiveSyncDiffStats(stats) {
+  const added = Number(stats?.added) || 0;
+  const removed = Number(stats?.removed) || 0;
+  if (!added && !removed) return "без видимых строковых изменений";
+  const chunks = [];
+  if (added) chunks.push(`+${added}`);
+  if (removed) chunks.push(`-${removed}`);
+  return chunks.join(" / ");
+}
+
+async function fetchLiveFileDiff(pathValue, oldContent = null) {
+  if (oldContent != null) {
+    const response = await fetch(buildApiUrl("/api/file/diff"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: pathValue, oldContent })
+    });
+    if (!response.ok) throw new Error(`diff:${response.status}`);
+    return response.json();
+  }
+  const response = await fetch(buildApiUrl("/api/file/diff", { path: pathValue }));
+  if (!response.ok) throw new Error(`diff:${response.status}`);
+  return response.json();
+}
+
+function hideLiveFileDiffPanel() {
+  liveFileDiffPanelNode?.classList.add("hidden");
+  if (!liveSyncInlineDiffState) {
+    editorSurfaceNode?.classList.remove("is-live-diff-active");
+  }
+}
+
+function renderLiveFileDiffPanel(diffPayload, pathValue) {
+  if (!liveFileDiffPanelNode || !liveFileDiffPanelBodyNode) return;
+  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
+  liveFileDiffPanelTitleNode.textContent = `Изменения: ${formatLiveSyncPathLabel(pathValue)}`;
+  liveFileDiffPanelBodyNode.replaceChildren();
+
+  if (diffPayload?.diff?.truncated) {
+    const note = document.createElement("div");
+    note.className = "live-file-diff-line";
+    note.textContent = "Diff слишком большой — показаны только сводка и обновлённый текст.";
+    liveFileDiffPanelBodyNode.appendChild(note);
+  }
+
+  let rendered = 0;
+  for (const entry of entries) {
+    if (entry.type === "same") continue;
+    rendered += 1;
+    const line = document.createElement("div");
+    line.className = `live-file-diff-line live-file-diff-line--${entry.type}`;
+    const prefix = entry.type === "add" ? "+ " : "- ";
+    line.textContent = `${prefix}${entry.text ?? ""}`;
+    liveFileDiffPanelBodyNode.appendChild(line);
+  }
+
+  if (!rendered && !diffPayload?.diff?.truncated) {
+    const empty = document.createElement("div");
+    empty.className = "live-file-diff-line";
+    empty.textContent = "Строковых изменений не найдено.";
+    liveFileDiffPanelBodyNode.appendChild(empty);
+  }
+
+  liveFileDiffPanelNode.classList.remove("hidden");
+}
+
+function hideLiveFileUpdateBanner() {
+  liveFileUpdateBannerNode?.classList.add("hidden");
+}
+
+function showLiveFileUpdateBanner(change) {
+  if (!liveFileUpdateBannerNode || !change) return;
+  liveSyncPendingChange = change;
+
+  const label = formatLiveSyncPathLabel(change.path);
+  const statsText = formatLiveSyncDiffStats(change.diff?.stats);
+  const dirty = Boolean(change.dirty);
+  const external = change.kind === "external" || change.source === "external";
+
+  if (liveFileUpdateBannerTitleNode) {
+    if (dirty) {
+      liveFileUpdateBannerTitleNode.textContent = external
+        ? "Файл изменён снаружи — есть ваши правки"
+        : "Файл изменён агентом — есть ваши правки";
+    } else {
+      liveFileUpdateBannerTitleNode.textContent = external
+        ? "Файл обновлён снаружи"
+        : "Файл обновлён агентом";
+    }
+  }
+  if (liveFileUpdateBannerDetailNode) {
+    const sourceHint = external ? "Cursor или другой редактор" : "агент";
+    liveFileUpdateBannerDetailNode.textContent = dirty
+      ? `${label}: ${statsText}. Изменение от ${sourceHint}. Обновление перезапишет несохранённые правки.`
+      : `${label}: ${statsText}${external ? " (Cursor / внешний редактор)" : ""}.`;
+  }
+
+  liveFileUpdateReloadBtn?.classList.toggle("hidden", !dirty);
+  liveFileUpdateShowDiffBtn?.classList.toggle(
+    "hidden",
+    !change.diff?.stats || (!change.diff.stats.added && !change.diff.stats.removed)
+  );
+
+  liveFileUpdateBannerNode.classList.remove("hidden");
+}
+
+async function applyLiveFileReload(change) {
+  if (!change?.path) return;
+
+  const pathNorm = normalizeLiveSyncPath(change.path);
+  const manifestPath = normalizeLiveSyncPath(getActiveNodeApiPath());
+  const internalPath = normalizeLiveSyncPath(
+    resolveNodeSidecarRelPath(getResolvedNodePath(activePath), "content")
+  );
+  const todoPath = normalizeLiveSyncPath(resolveNodeSidecarRelPath(getResolvedNodePath(activePath), "todo"));
+  const tabularPath = normalizeLiveSyncPath(
+    resolveNodeSidecarRelPath(getResolvedNodePath(activePath), "tabular")
+  );
+
+  if (activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_OVERVIEW_MODE) {
+    const manifestChanged = liveSyncPathsReferToSameFile(change.path, manifestPath);
+    if (liveSyncPathsReferToSameFile(change.path, tabularPath)) {
+      modeContentCache.tabular = "";
+    }
+    const needsManifestReload =
+      manifestChanged ||
+      !getNodeDescriptionHasContent(modeContentCache.description);
+    if (needsManifestReload) {
+      await loadContentByMode({ forceReload: true });
+    }
+    if (activeContentMode === NODE_NAVIGATION_MODE) {
+      await ensureNavigationManifestCached({ forceReload: manifestChanged });
+      await renderNodeNavigation();
+    } else if (activeContentMode === NODE_OVERVIEW_MODE) {
+      await renderNodeOverview();
+    }
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    const ctx = activeEntryOverviewContext;
+    const entryPath = normalizeLiveSyncPath(ctx.relPath);
+    const isTocOrCategory =
+      isEntryOverviewMemoryTocRoot(ctx) || isEntryOverviewCategoryContext(ctx);
+
+    if (isTocOrCategory && liveSyncPathBelongsToActiveTopic(change.path)) {
+      await renderEntryOverview();
+      commitEditorSaveBaseline();
+      return;
+    }
+
+    if (!isEntryOverviewMemoryTocRoot(ctx) && liveSyncPathsReferToSameFile(change.path, entryPath)) {
+      entryOverviewLoadedBody = "";
+      entryOverviewLoadedBodyPath = "";
+      await renderEntryOverview();
+      commitEditorSaveBaseline();
+      return;
+    }
+  }
+
+  if (activeContentMode === "description" && liveSyncPathsReferToSameFile(change.path, manifestPath)) {
+    modeContentCache.description = "";
+    await loadContentByMode({ forceReload: true });
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  if (activeContentMode === "internal" && liveSyncPathsReferToSameFile(change.path, internalPath)) {
+    modeContentCache.internal = "";
+    await loadContentByMode({ forceReload: true });
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  if (activeContentMode === "todo" && liveSyncPathsReferToSameFile(change.path, todoPath)) {
+    modeContentCache.todo = "";
+    await loadContentByMode({ forceReload: true });
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  if (activeContentMode === "tabular" && liveSyncPathsReferToSameFile(change.path, tabularPath)) {
+    modeContentCache.tabular = "";
+    tabularDataCache = { columns: [], rows: [], rowCount: 0 };
+    await loadContentByMode({ forceReload: true, preserveTabularSource: true });
+    commitEditorSaveBaseline();
+    return;
+  }
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    const externalPath = normalizeLiveSyncPath(getWorkspaceEditorLinkTargetRel());
+    if (liveSyncPathsReferToSameFile(change.path, externalPath)) {
+      modeContentCache.external = "";
+      await openExternalFile(activeExternalFilePath, { skipRouteSync: true });
+      commitEditorSaveBaseline();
+      return;
+    }
+  }
+
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath) {
+    const manifestRel = getActiveNodeApiPath();
+    const sourceRel = normalizeLiveSyncPath(
+      buildStorageLayerRef(manifestRel, "media", activeMediaSidecarSourcePath)
+    );
+    const sidecarRel = activeMediaSidecarPath
+      ? normalizeLiveSyncPath(buildStorageLayerRef(manifestRel, "media", activeMediaSidecarPath))
+      : "";
+    if (
+      liveSyncPathsReferToSameFile(change.path, sourceRel) ||
+      (sidecarRel && liveSyncPathsReferToSameFile(change.path, sidecarRel))
+    ) {
+      await openMediaSidecar(activeMediaSidecarSourcePath, { skipRouteSync: true });
+      commitEditorSaveBaseline();
+      return;
+    }
+  }
+
+  if (isMediaLibraryContentMode() && activeMediaMarkdownPath) {
+    const markdownRel = normalizeLiveSyncPath(
+      buildStorageLayerRef(getActiveNodeApiPath(), "media", activeMediaMarkdownPath)
+    );
+    if (liveSyncPathsReferToSameFile(change.path, markdownRel)) {
+      await openMediaMarkdownFile(activeMediaMarkdownPath, { skipRouteSync: true });
+      commitEditorSaveBaseline();
+      return;
+    }
+  }
+
+  if (activeSystemFile && pathNorm === normalizeLiveSyncPath(normalizeSystemFileName(activeSystemFile))) {
+    await selectAgentSystemFile(activeLabel, activeSystemFile, { skipRouteSync: true, forceReload: true });
+    commitEditorSaveBaseline();
+  }
+}
+
+async function presentLiveFileChange(change, diffPayload = null) {
+  if (!change?.path) return;
+
+  const diffData =
+    diffPayload ||
+    (change.diff ? { diff: change.diff, oldContent: change.oldContent, newContent: change.newContent } : null);
+
+  if (liveSyncDiffHasVisibleChanges(diffData)) {
+    setLiveSyncInlineDiffState(diffData, change.path);
+  }
+
+  if (!change.dirty) {
+    await applyLiveFileReload(change);
+  }
+  void markLiveSyncOwnSaveForActivePath();
+
+  showLiveFileUpdateBanner(change);
+  if (liveSyncDiffHasVisibleChanges(diffData)) {
+    renderLiveFileDiffPanel(diffData, change.path);
+  } else {
+    hideLiveFileDiffPanel();
+    clearLiveSyncInlineDiffState();
+  }
+}
+
+async function handleLiveFileChange(event) {
+  const pathValue = String(event.path || "").replace(/\\/g, "/").trim();
+  if (!pathValue || isLiveSyncEventAcknowledged(pathValue, event.id)) return;
+
+  let diffPayload = null;
+  try {
+    diffPayload = await fetchLiveFileDiff(pathValue);
+  } catch {
+    diffPayload = null;
+  }
+
+  const dirty =
+    isEditorSaveTrackingActive() &&
+    savedEditorSnapshot !== null &&
+    getEditorSavePayload() !== savedEditorSnapshot;
+
+  await presentLiveFileChange(
+    {
+      kind: "agent",
+      eventId: event.id,
+      path: pathValue,
+      source: event.source,
+      diff: diffPayload?.diff || null,
+      dirty
+    },
+    diffPayload
+  );
+}
+
+async function handleExternalLiveFileChange(pathValue, revision) {
+  const mtime = revision?.mtime ? String(revision.mtime) : "";
+  if (!pathValue || !mtime) return;
+  if (isLiveSyncExternalAcknowledged(pathValue, mtime)) return;
+  if (isLiveSyncOwnSaveActive(pathValue)) {
+    setLiveSyncMtimeBaseline(pathValue, mtime);
+    return;
+  }
+
+  const previousMtime = liveSyncMtimeByPath.get(normalizeLiveSyncPath(pathValue));
+  if (previousMtime && previousMtime === mtime) return;
+
+  const oldContent = getLiveSyncLoadedContentForPath(pathValue);
+  let diffPayload = null;
+  try {
+    diffPayload = await fetchLiveFileDiff(pathValue, oldContent);
+  } catch {
+    diffPayload = null;
+  }
+
+  if (!diffPayload?.changed && oldContent === (diffPayload?.newContent ?? oldContent)) {
+    setLiveSyncMtimeBaseline(pathValue, mtime);
+    return;
+  }
+
+  const dirty =
+    isEditorSaveTrackingActive() &&
+    savedEditorSnapshot !== null &&
+    getEditorSavePayload() !== savedEditorSnapshot;
+
+  await presentLiveFileChange(
+    {
+      kind: "external",
+      eventId: 0,
+      mtime,
+      path: pathValue,
+      source: "external",
+      diff: diffPayload?.diff || null,
+      dirty
+    },
+    diffPayload
+  );
+}
+
+async function syncLiveFileExternalRevisions(watchPaths) {
+  if (!watchPaths.size) {
+    liveSyncMtimeBaselineReady = false;
+    liveSyncMtimeByPath = new Map();
+    return;
+  }
+
+  if (!liveSyncMtimeBaselineReady) {
+    await ensureLiveSyncMtimeBaseline(watchPaths);
+    return;
+  }
+
+  const revisions = await fetchLiveFileRevisions([...watchPaths]);
+  for (const pathValue of watchPaths) {
+    const revision =
+      revisions[pathValue] ||
+      revisions[
+        Object.keys(revisions).find((key) => normalizeLiveSyncPath(key) === normalizeLiveSyncPath(pathValue)) ||
+          ""
+      ];
+    if (!revision) continue;
+
+    const nextMtime = revision.mtime ? String(revision.mtime) : "";
+    const prevMtime = liveSyncMtimeByPath.get(normalizeLiveSyncPath(pathValue)) || "";
+    if (!nextMtime || nextMtime === prevMtime) continue;
+
+    if (!prevMtime) {
+      setLiveSyncMtimeBaseline(pathValue, nextMtime);
+      continue;
+    }
+
+    if (!revision.exists) {
+      setLiveSyncMtimeBaseline(pathValue, nextMtime);
+      continue;
+    }
+
+    await handleExternalLiveFileChange(pathValue, revision);
+    setLiveSyncMtimeBaseline(pathValue, nextMtime);
+  }
+}
+
+async function syncLiveFileUpdates() {
+  if (liveSyncInFlight || document.hidden || !activeAgentId) return;
+  liveSyncInFlight = true;
+  try {
+    const watchPaths = getActiveLiveSyncWatchPaths();
+
+    const payload = await fetchWorkspaceActivityEvents({
+      since: liveSyncBaselineReady && liveSyncLastActivityId > 0 ? liveSyncLastActivityId : 0,
+      limit: 100
+    });
+    const latestId = Number(payload?.latestId) || liveSyncLastActivityId;
+
+    if (!liveSyncBaselineReady) {
+      liveSyncLastActivityId = latestId;
+      liveSyncBaselineReady = true;
+    } else if (watchPaths.size) {
+      const incoming = Array.isArray(payload?.events) ? payload.events : [];
+      const relevant = incoming
+        .filter(isLiveSyncEligibleEvent)
+        .filter((event) => liveSyncEventMatchesWatch(event, watchPaths))
+        .sort((a, b) => a.id - b.id);
+
+      for (const event of relevant) {
+        liveSyncLastActivityId = Math.max(liveSyncLastActivityId, Number(event.id) || 0);
+        await handleLiveFileChange(event);
+      }
+
+      liveSyncLastActivityId = Math.max(liveSyncLastActivityId, latestId);
+    } else {
+      liveSyncLastActivityId = Math.max(liveSyncLastActivityId, latestId);
+    }
+
+    await syncLiveFileExternalRevisions(watchPaths);
+  } catch {
+    // ignore transient live sync errors
+  } finally {
+    liveSyncInFlight = false;
+  }
+}
+
+function initLiveFileSync() {
+  resetLiveSyncSession();
+
+  liveFileUpdateAckBtn?.addEventListener("click", () => {
+    const change = liveSyncPendingChange;
+    if (!change) {
+      hideLiveFileUpdateBanner();
+      hideLiveFileDiffPanel();
+      return;
+    }
+    acknowledgeLiveSyncChange(change.path, {
+      eventId: change.eventId,
+      mtime: change.mtime || null
+    });
+    hideLiveFileUpdateBanner();
+    hideLiveFileDiffPanel();
+    clearLiveSyncInlineDiffState();
+    liveSyncPendingChange = null;
+    if (editorViewMode === "preview") renderPreviewFromEditor();
+    else if (editorViewMode === "source") syncEditorLineNumbers();
+  });
+
+  liveFileUpdateReloadBtn?.addEventListener("click", () => {
+    const change = liveSyncPendingChange;
+    if (!change) return;
+    const confirmed = window.confirm(
+      "Перезагрузить файл и отменить несохранённые правки?"
+    );
+    if (!confirmed) return;
+    void (async () => {
+      await applyLiveFileReload(change);
+      showLiveFileUpdateBanner({ ...change, dirty: false });
+    })();
+  });
+
+  liveFileUpdateShowDiffBtn?.addEventListener("click", () => {
+    const change = liveSyncPendingChange;
+    if (!change) return;
+    void (async () => {
+      try {
+        const oldContent =
+          change.kind === "external" ? getLiveSyncLoadedContentForPath(change.path) : null;
+        const diffPayload = await fetchLiveFileDiff(change.path, oldContent);
+        renderLiveFileDiffPanel(diffPayload, change.path);
+      } catch (error) {
+        showToast(`Не удалось загрузить diff: ${error.message}`, "error");
+      }
+    })();
+  });
+
+  liveFileDiffPanelCloseBtn?.addEventListener("click", () => {
+    hideLiveFileDiffPanel();
+  });
+}
+
 function syncChannelAutoPoll() {
   stopChannelAutoPoll();
   if (document.hidden || !activePath) return;
@@ -48965,6 +50407,7 @@ function initWorkspaceNotifications() {
   workspaceNotificationsPollTimer = window.setInterval(() => {
     if (document.hidden || !activeAgentId) return;
     void refreshWorkspaceNotifications(true);
+    void syncLiveFileUpdates();
   }, 15000);
 
   workspaceNotificationsBtn?.addEventListener("click", (event) => {
@@ -48997,6 +50440,7 @@ function syncChannelLiveUpdates() {
       if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
+      void syncLiveFileUpdates();
     }, CHANNEL_POLL_INTERVAL_MS);
     return;
   }
@@ -49009,6 +50453,7 @@ function syncChannelLiveUpdates() {
       if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
+      void syncLiveFileUpdates();
     });
     channelEventSource.addEventListener("reconnect", () => {
       stopChannelEventStream();
@@ -49023,6 +50468,7 @@ function syncChannelLiveUpdates() {
         if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
         void refreshWorkspaceNotifications(true);
+        void syncLiveFileUpdates();
       }, CHANNEL_POLL_INTERVAL_MS);
     };
   } catch {
@@ -50881,8 +52327,11 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
     if (isFolderBrowseSelectionActionTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === "function") {
+      event.stopImmediatePropagation();
+    }
     if (typeof onActivate === "function") void onActivate();
-  });
+  }, true);
 }
 
 function getFolderBrowseItemIsDirectory(path) {
@@ -51754,6 +53203,9 @@ async function renderNodeNavigation() {
     await loadPropertiesForActivePath();
     if (isStale()) return;
   }
+
+  await ensureNavigationManifestCached();
+  if (isStale()) return;
 
   const nodePath = getResolvedNodePath(activePath);
   const childEntries = getNavigationSubsectionEntries();
@@ -53200,7 +54652,7 @@ async function hydrateAwnFenceBlocks(rootNode) {
   }
 }
 
-function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath } = {}) {
+function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath, workspacePath } = {}) {
   if (!element) return;
   const resolvedNodePath =
     linkBasePath ||
@@ -53209,11 +54661,28 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath } = 
     getActiveTitleEditorPath() ||
     getActiveNodeApiPath();
   element.dataset.linkBasePath = resolvedNodePath;
+
+  const inlineDiff =
+    element === fileContentPreviewNode
+      ? getActiveLiveSyncInlineDiffForView()
+      : getActiveLiveSyncInlineDiffForView(workspacePath);
+
+  if (inlineDiff) {
+    if (renderPreviewWithEmbeddedDiff(element, markdown, inlineDiff, resolvedNodePath)) {
+      editorSurfaceNode?.classList.add("is-live-diff-active");
+      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+      return;
+    }
+    if (renderInlineDiffIntoElement(element, inlineDiff, resolvedNodePath)) {
+      editorSurfaceNode?.classList.add("is-live-diff-active");
+      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+      return;
+    }
+  }
+
+  element.classList.remove("live-diff-embedded-active");
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
-  applySyntaxHighlighting(element, { nodePath: resolvedNodePath });
-  void typesetMarkdownDiagrams(element);
-  void hydrateAwnFenceBlocks(element);
-  enhanceMarkdownPreviewImages(element);
+  hydrateMarkdownPreviewElement(element, resolvedNodePath);
 }
 
 let previewLightboxNode = null;
@@ -53488,8 +54957,10 @@ function refreshEditorViewContent() {
   if (editorViewMode === "wysiwyg") {
     destroyWysiwygEditor();
     initWysiwygEditor();
+    applyWysiwygLiveDiffHighlights();
     return;
   }
+  applySourceLiveDiffGutter();
   syncEditorLineNumbers();
   applySourceEditorAutoHeightUi();
 }
@@ -53640,6 +55111,11 @@ function applyEditorLineNumbersUi() {
 
 function syncEditorLineNumbers() {
   if (!editorLineNumbersNode || !editorLineNumbersEnabled) return;
+  if (getActiveLiveSyncInlineDiffForView() && editorViewMode === "source") {
+    applySourceLiveDiffGutter();
+    return;
+  }
+  editorCodeWrapNode?.classList.remove("is-live-diff-source");
   const lineCount = Math.max(1, fileContentInputNode.value.split("\n").length);
   editorLineNumbersNode.textContent = Array.from({ length: lineCount }, (_, index) => index + 1).join("\n");
 }
@@ -54420,6 +55896,7 @@ function initWysiwygEditor() {
     bindWysiwygLinkNavigation();
     setupWysiwygLinkPopupEnhancement();
     setupWysiwygBrokenImageFallbacks();
+    applyWysiwygLiveDiffHighlights();
     syncEditorFillMinHeightCssVar();
     scheduleWorkspaceScrollChromeSync();
   });
@@ -56911,7 +58388,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
     addBtn.type = "button";
     addBtn.className = "add-node-btn";
     addBtn.textContent = "+";
-    addBtn.title = "Создать общую тему или part";
+    addBtn.title = "Создать общую тему, таксономии или part";
     addBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       openCreateNodeModal(sharedFolder, { agentId });
@@ -56936,7 +58413,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
     addBtn.type = "button";
     addBtn.className = "add-node-btn";
     addBtn.textContent = "+";
-    addBtn.title = "Создать общую тему или part";
+    addBtn.title = "Создать общую тему, таксономии или part";
     addBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       openCreateNodeModal(sharedFolder, { agentId });
@@ -59538,6 +61015,12 @@ async function selectFile(label, filePath) {
   }
   activePath = nextPath;
   activeLabel = label;
+  hideLiveFileUpdateBanner();
+  hideLiveFileDiffPanel();
+  clearLiveSyncInlineDiffState();
+  liveSyncPendingChange = null;
+  liveSyncMtimeBaselineReady = false;
+  liveSyncMtimeByPath = new Map();
   activeFolderBrowsePath = null;
   activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
@@ -59687,6 +61170,12 @@ async function loadContentByMode(options = {}) {
   }
 
   if (activeContentMode === NODE_NAVIGATION_MODE) {
+    if (forceReload || !getNodeDescriptionHasContent(modeContentCache.description)) {
+      const response = await fetch(buildApiUrl("/api/file", { path: getActiveNodeApiPath() }));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      modeContentCache.description = data.content || "";
+    }
     fileContentInputNode.value = "";
     applyModeUi();
     updateBreadcrumbsForActiveMode();
@@ -59763,6 +61252,7 @@ async function loadContentByMode(options = {}) {
   }
 
   if (activeContentMode === "tabular") {
+    const preserveTabularSource = Boolean(options.preserveTabularSource && isTabularSourceEditing());
     try {
       const response = await fetch(buildApiUrl("/api/memory/tabular", { path: getActiveNodeApiPath() }));
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -59774,9 +61264,15 @@ async function loadContentByMode(options = {}) {
         rowCount: data.rowCount || 0
       };
       fileContentInputNode.value = data.content || "";
-      editorViewMode = "preview";
+      if (!preserveTabularSource) {
+        editorViewMode = "preview";
+      }
       applyModeUi();
-      renderListViewContent();
+      if (preserveTabularSource) {
+        refreshEditorViewContent();
+      } else {
+        renderListViewContent();
+      }
     } catch (error) {
       fileContentInputNode.value = `Ошибка чтения табличной памяти: ${error.message}`;
       fileContentInputNode.readOnly = true;
@@ -65502,7 +66998,15 @@ function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
 }
 
 function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
-  if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
+  if (type === "catalog" || type === "taxonomy") {
+    const taxFolder = getSharedTaxonomiesFolder(agentId);
+    const normalizedCreated = String(createdPath || "").replace(/\\/g, "/");
+    if (taxFolder && normalizedCreated.startsWith(`${taxFolder}/`)) {
+      return taxFolder;
+    }
+    return getActiveAgentKitFolder(agentId) || ".";
+  }
+  if (type === "service-doc") {
     return getActiveAgentKitFolder(agentId) || ".";
   }
   const manifestFolder = getFolderPathFromManifest(normalizeMenuNodePath(createdPath)) || ".";
@@ -66375,7 +67879,14 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
     if (canIncrementalMenuPatch()) {
       withPreservedMenuScroll(() => {
         if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
-          patched = patchServiceMenuAfterCreate(agentId);
+          if (
+            (type === "catalog" || type === "taxonomy") &&
+            isAgentSharedNodePath(createdPath)
+          ) {
+            patched = patchSharedMenuAfterCreate(agentId);
+          } else {
+            patched = patchServiceMenuAfterCreate(agentId);
+          }
         } else if (type === "container-root") {
           patched = patchContainerMenuAfterCreate(agentId);
         } else if (type === "shared-root") {
@@ -66549,6 +68060,52 @@ async function createSharedRoot(options = {}) {
   return createReservedRootFolder("shared-root", options);
 }
 
+async function createSharedTaxonomiesArea(options = {}) {
+  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  if (!sharedFolder) {
+    showToast("Папка awn-shared не настроена", "error");
+    return;
+  }
+  if (!isAgentSharedFolderPresent(agentId)) {
+    showToast(`Сначала создайте «${SHARED_SECTION_LABEL}»`, "error");
+    return;
+  }
+  if (isSharedTaxonomiesAreaPresent(agentId)) {
+    showToast(`«${SHARED_TAXONOMIES_LABEL}» уже созданы`, "error");
+    syncCreateNodeActionsUi();
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        parentPath: sharedFolder,
+        type: "folder",
+        name: SHARED_TAXONOMIES_LABEL,
+        displayName: SHARED_TAXONOMIES_LABEL,
+        slug: SHARED_TAXONOMIES_SLUG
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    await applyMenuUpdateAfterCreate({ createdPath: data.createdPath, type: "folder", agentId });
+    syncCreateNodeActionsUi();
+    showToast(`Область «${SHARED_TAXONOMIES_LABEL}» создана`, "success");
+    if (options.openAfterCreate !== false && data.createdPath) {
+      closeCreateNodeModal();
+      await openNodeFromMenu(SHARED_TAXONOMIES_LABEL, data.createdPath);
+    }
+  } catch (error) {
+    showToast(formatCreateNodeErrorMessage(error.message), "error");
+  }
+}
+
 async function createSharedThemePreset(preset, options = {}) {
   const slug = String(preset || "").trim().toLowerCase();
   const label = SHARED_THEME_PRESET_LABELS[slug] || slug;
@@ -66687,7 +68244,17 @@ async function createNode(type, options = {}) {
     };
     if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
       payload.preset = options.preset || name;
-      payload.parentPath = getActiveAgentKitFolder(agentId) || createTargetParentPath;
+      if (type === "service-doc") {
+        payload.parentPath = getActiveAgentKitFolder(agentId) || createTargetParentPath;
+      } else {
+        const taxonomyFolder = getSharedTaxonomiesFolder(agentId);
+        if (!taxonomyFolder || !isSharedTaxonomiesAreaPresent(agentId)) {
+          showToast(`Сначала создайте область «${SHARED_TAXONOMIES_LABEL}» в «${SHARED_SECTION_LABEL}»`, "error");
+          return;
+        }
+        payload.parentPath = taxonomyFolder;
+        payload.catalogBase = "taxonomy-root";
+      }
     }
     if (options.awnType) {
       payload.awnType = String(options.awnType);
@@ -68076,6 +69643,11 @@ createNodeCatalogActionsNode?.addEventListener("click", (event) => {
   if (!button || button.disabled) return;
   const preset = button.getAttribute("data-catalog-preset");
   if (!preset) return;
+  if (!isSharedTaxonomiesAreaPresent(getCreateModalAgentId())) {
+    showToast(`Сначала создайте область «${SHARED_TAXONOMIES_LABEL}»`, "error");
+    syncCreateNodeServicePresetsUi();
+    return;
+  }
   if (isCatalogPresetPresent(getCreateModalAgentId(), preset)) {
     const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
     showToast(`Справочник «${label}» уже создан`, "error");
@@ -68083,6 +69655,10 @@ createNodeCatalogActionsNode?.addEventListener("click", (event) => {
     return;
   }
   void createNode("catalog", { preset });
+});
+createNodeSharedTaxonomiesScaffoldBtn?.addEventListener("click", () => {
+  if (createNodeSharedTaxonomiesScaffoldBtn.disabled) return;
+  void createSharedTaxonomiesArea({ agentId: getCreateModalAgentId(), openAfterCreate: false });
 });
 createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-service-doc-preset]");
@@ -68730,5 +70306,6 @@ initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
 initWorkspaceNotifications();
+initLiveFileSync();
 initNavPreviewHoverZoom();
 

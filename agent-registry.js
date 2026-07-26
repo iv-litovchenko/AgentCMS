@@ -1579,17 +1579,24 @@ function findServiceDocScaffold(presetBase) {
   return scaffold && scaffold.kind === "service-doc" ? scaffold : null;
 }
 
-function getSystemReferenceRelPaths(scaffold) {
+function getSystemReferenceRelPaths(scaffold, options = {}) {
   if (scaffold.kind === "service-doc") {
     return {
       manifest: toTopicFileName(scaffold.fileName),
       content: null
     };
   }
-  const catalogDir = DEFAULT_SERVICE_CATALOG_FOLDER;
-  const manifest = path.join(catalogDir, toTopicFileName(scaffold.fileName)).replace(/\\/g, "/");
   const bundleFile =
     scaffold.bundleFile === BUNDLE_TABULAR_FILE ? BUNDLE_TABULAR_FILE : BUNDLE_CONTENT_FILE;
+  if (options.baseKind === "taxonomy-root") {
+    const manifest = toTopicFileName(scaffold.fileName);
+    return {
+      manifest,
+      content: getNamedStorageBundleRel(manifest, bundleFile)
+    };
+  }
+  const catalogDir = DEFAULT_SERVICE_CATALOG_FOLDER;
+  const manifest = path.join(catalogDir, toTopicFileName(scaffold.fileName)).replace(/\\/g, "/");
   return {
     manifest,
     content: getNamedStorageBundleRel(manifest, bundleFile)
@@ -1621,7 +1628,7 @@ function isSystemReferenceManifestRel(relPath, kitFolder = getAgentKitFolder()) 
   return false;
 }
 
-function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
+function createSystemReferenceNodeSync(serviceAbsolute, presetBase, options = {}) {
   if (!serviceAbsolute) {
     const error = new Error("Service folder path is required");
     error.code = "EINVAL";
@@ -1635,7 +1642,7 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
     throw error;
   }
 
-  const rel = getSystemReferenceRelPaths(scaffold);
+  const rel = getSystemReferenceRelPaths(scaffold, options);
   const manifestPath = path.join(serviceAbsolute, rel.manifest);
 
   if (fs.existsSync(manifestPath)) {
@@ -1645,7 +1652,10 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
   }
 
   if (scaffold.kind === "catalog") {
-    const catalogAbsolute = path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
+    const catalogAbsolute =
+      options.baseKind === "taxonomy-root"
+        ? serviceAbsolute
+        : path.join(serviceAbsolute, DEFAULT_SERVICE_CATALOG_FOLDER);
     const contentPath = path.join(serviceAbsolute, rel.content);
     fs.mkdirSync(catalogAbsolute, { recursive: true });
     fs.mkdirSync(path.dirname(contentPath), { recursive: true });
@@ -1673,14 +1683,14 @@ function createSystemReferenceNodeSync(serviceAbsolute, presetBase) {
   return rel.manifest;
 }
 
-function createSystemCatalogNodeSync(serviceAbsolute, presetBase) {
+function createSystemCatalogNodeSync(serviceAbsolute, presetBase, options = {}) {
   const scaffold = findCatalogScaffold(presetBase);
   if (!scaffold) {
     const error = new Error("Unknown catalog preset");
     error.code = "EINVAL";
     throw error;
   }
-  return createSystemReferenceNodeSync(serviceAbsolute, presetBase);
+  return createSystemReferenceNodeSync(serviceAbsolute, presetBase, options);
 }
 
 function createSystemServiceDocSync(serviceAbsolute, presetBase) {

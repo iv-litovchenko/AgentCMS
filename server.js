@@ -333,6 +333,7 @@ const {
   findServiceDocScaffold,
   findCatalogScaffold,
   DEFAULT_SERVICE_CATALOG_FOLDER,
+  WORKSPACE_TAXONOMY_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   isSystemReferenceManifestRel,
   isAwnDependenciesFileName,
@@ -2484,6 +2485,169 @@ async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName
   return { manifestPath: historyManifestRel, target: relativeTarget, versions };
 }
 
+function computeLineDiffEntries(oldText, newText) {
+  const a = String(oldText ?? "").split("\n");
+  const b = String(newText ?? "").split("\n");
+  const m = a.length;
+  const n = b.length;
+  const maxCells = 250000;
+  if (m * n > maxCells) {
+    return { truncated: true, entries: [], stats: { added: 0, removed: 0, unchanged: 0 } };
+  }
+
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i -= 1) {
+    for (let j = n - 1; j >= 0; j -= 1) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  const entries = [];
+  let i = 0;
+  let j = 0;
+  let added = 0;
+  let removed = 0;
+  let unchanged = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && a[i] === b[j]) {
+      entries.push({ type: "same", oldLine: i + 1, newLine: j + 1, text: b[j] });
+      unchanged += 1;
+      i += 1;
+      j += 1;
+    } else if (j < n && (i >= m || dp[i][j + 1] >= dp[i + 1][j])) {
+      entries.push({ type: "add", newLine: j + 1, text: b[j] });
+      added += 1;
+      j += 1;
+    } else {
+      entries.push({ type: "remove", oldLine: i + 1, text: a[i] });
+      removed += 1;
+      i += 1;
+    }
+  }
+
+  return { truncated: false, entries, stats: { added, removed, unchanged } };
+}
+
+async function getLatestHistorySnapshotForTarget(manifestRelPath, targetRelPath) {
+  const manifestCandidates =
+    manifestRelPath === resolveSystemFileHistoryManifestRel()
+      ? getSystemFileHistoryManifestCandidates(manifestRelPath)
+      : [manifestRelPath];
+
+  for (const manifest of manifestCandidates) {
+    for (const historyDirRel of listHistoryVersionDirCandidates(manifest, targetRelPath)) {
+      const versions = await readHistoryVersionsFromDir(historyDirRel);
+      if (!versions.length) continue;
+      const latest = versions[0];
+      const file = await readHistoryVersionFile({
+        manifestRelPath: manifest,
+        targetRelPath,
+        version: latest.version
+      });
+      if (file) {
+        return {
+          content: file.content,
+          version: latest.version,
+          versionRelPath: file.versionRelPath
+        };
+      }
+    }
+  }
+  return null;
+}
+
+async function buildWorkspaceFileDiff(workspaceRelPath, { oldContent = null } = {}) {
+  const normalizedPath = String(workspaceRelPath || "").replace(/\\/g, "/").trim();
+  if (!normalizedPath || normalizedPath.startsWith(".agent-cms/")) return null;
+
+  const resolvedPath = await resolveExistingWorkspaceRelPath(normalizedPath);
+  if (!resolvedPath) return null;
+
+  const targetRelPath = normalizeHistoryTargetRelPath(resolvedPath);
+  const manifestRelPath = resolveOwningManifestRelFromNodePath(resolvedPath);
+  const { content: newContent, exists } = await readWorkspaceTextFileIfExists(resolvedPath);
+  if (!exists) {
+    return { path: resolvedPath, exists: false, changed: false };
+  }
+
+  const snapshot =
+    oldContent != null ? null : await getLatestHistorySnapshotForTarget(manifestRelPath, targetRelPath);
+  const baselineContent = oldContent != null ? String(oldContent) : snapshot?.content ?? "";
+  if (baselineContent === newContent) {
+    return {
+      path: resolvedPath,
+      exists: true,
+      changed: false,
+      newContent,
+      oldContent: baselineContent,
+      version: snapshot?.version || null,
+      diff: {
+        truncated: false,
+        entries: [],
+        stats: { added: 0, removed: 0, unchanged: newContent.split("\n").length }
+      }
+    };
+  }
+
+  const diff = computeLineDiffEntries(baselineContent, newContent);
+  return {
+    path: resolvedPath,
+    exists: true,
+    changed: true,
+    newContent,
+    oldContent: baselineContent,
+    version: snapshot?.version || null,
+    diff
+  };
+}
+
+async function readWorkspaceFileRevision(workspaceRelPath) {
+  const normalizedPath = String(workspaceRelPath || "").replace(/\\/g, "/").trim();
+  if (!normalizedPath || normalizedPath.startsWith(".agent-cms/")) return null;
+
+  const resolvedPath = await resolveExistingWorkspaceRelPath(normalizedPath);
+  if (!resolvedPath) return null;
+
+  const absolute = normalizeWorkspacePath(resolvedPath);
+  if (!absolute) return null;
+
+  try {
+    const stat = await fs.stat(absolute);
+    if (!stat.isFile()) {
+      return { path: resolvedPath, exists: false, mtime: null, size: 0 };
+    }
+    return {
+      path: resolvedPath,
+      exists: true,
+      mtime: stat.mtime ? stat.mtime.toISOString() : null,
+      size: stat.size
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return { path: resolvedPath, exists: false, mtime: null, size: 0 };
+    }
+    throw error;
+  }
+}
+
+async function readWorkspaceFileRevisions(relPaths = []) {
+  const revisions = {};
+  const uniquePaths = [
+    ...new Set(
+      relPaths
+        .map((value) => String(value || "").replace(/\\/g, "/").trim())
+        .filter(Boolean)
+    )
+  ].slice(0, 40);
+
+  for (const relPath of uniquePaths) {
+    const revision = await readWorkspaceFileRevision(relPath);
+    if (revision) revisions[revision.path] = revision;
+  }
+
+  return revisions;
+}
+
 async function readExistingBundleFile(relNodePath, bundleFileName) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
   for (const rel of getNamedStorageBundleRelCandidates(resolvedRelPath, bundleFileName)) {
@@ -2782,7 +2946,11 @@ async function readInternalMemoryContent(relPath) {
   const memoryRelPath = toContentFilePath(resolvedRelPath);
   if (!memoryRelPath) return { path: memoryRelPath, content: "", exists: false };
   const bundleHit = await readExistingBundleFile(resolvedRelPath, BUNDLE_CONTENT_FILE);
-  return { path: memoryRelPath, content: bundleHit.content, exists: bundleHit.exists };
+  return {
+    path: bundleHit.exists ? bundleHit.path : memoryRelPath,
+    content: bundleHit.content,
+    exists: bundleHit.exists
+  };
 }
 
 async function readTodoContent(relPath) {
@@ -9211,12 +9379,26 @@ async function getAgentCatalogsPayload() {
   if (isPlatformAgentId(getActiveAgentId())) {
     return getMergedCatalogsPayload(getProjectRoot(), null, { globalOnly: true });
   }
+  const agentRoot = getAgentRoot();
+  const sharedFolder = getAgentSharedFolder();
   const serviceFolder = getAgentKitFolder();
-  let serviceAbsolute = null;
-  if (serviceFolder) {
-    serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
+  let catalogAbsolute = null;
+
+  if (sharedFolder) {
+    const sharedTaxonomiesAbsolute = path.join(agentRoot, sharedFolder, WORKSPACE_TAXONOMY_FOLDER);
+    try {
+      await fs.access(sharedTaxonomiesAbsolute);
+      catalogAbsolute = sharedTaxonomiesAbsolute;
+    } catch {
+      // fall through to legacy kit folder
+    }
   }
-  return getMergedCatalogsPayload(getProjectRoot(), serviceAbsolute);
+
+  if (!catalogAbsolute && serviceFolder) {
+    catalogAbsolute = await resolveAgentSubfolderAbsolute(agentRoot, serviceFolder);
+  }
+
+  return getMergedCatalogsPayload(getProjectRoot(), catalogAbsolute);
 }
 
 async function readNodeDisplayLabelForManifestRel(manifestRel) {
@@ -13064,6 +13246,68 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/file/diff") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await buildWorkspaceFileDiff(relPath);
+      if (!payload) return sendJson(res, 404, { error: "File not found" });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build file diff",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/diff") {
+    try {
+      const payload = await readJsonBody(req, 8_000_000);
+      const relPath = String(payload.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const diffPayload = await buildWorkspaceFileDiff(relPath, {
+        oldContent: Object.prototype.hasOwnProperty.call(payload, "oldContent") ? payload.oldContent : null
+      });
+      if (!diffPayload) return sendJson(res, 404, { error: "File not found" });
+      return sendJson(res, 200, diffPayload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build file diff",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/revision") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const revision = await readWorkspaceFileRevision(relPath);
+      if (!revision) return sendJson(res, 404, { error: "File not found" });
+      return sendJson(res, 200, revision);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read file revision",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/revisions") {
+    try {
+      const payload = await readJsonBody(req);
+      const paths = Array.isArray(payload.paths) ? payload.paths : [];
+      const revisions = await readWorkspaceFileRevisions(paths);
+      return sendJson(res, 200, { revisions });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read file revisions",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/file/history/restore") {
     try {
       const payload = await readJsonBody(req);
@@ -16496,6 +16740,7 @@ async function handleApiForAgent(req, res, url) {
       const content = await fs.readFile(fileAbsolute);
       res.writeHead(200, {
         "Content-Type": contentType,
+        "Content-Disposition": "inline",
         "Cache-Control": "public, max-age=3600"
       });
       res.end(content);
@@ -16890,16 +17135,25 @@ async function handleApiForAgent(req, res, url) {
       const serviceFolder = getAgentKitFolder();
 
       if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
-        if (!serviceFolder) {
-          return sendJson(res, 400, { error: "Service folder is not configured for this agent" });
-        }
-        if (parentRelPath !== serviceFolder) {
-          return sendJson(res, 400, {
-            error:
-              type === "catalog" || type === "taxonomy"
-                ? "Catalog presets can only be created in the service folder root"
-                : "Service docs can only be created in the service folder root"
-          });
+        if (type === "service-doc") {
+          if (!serviceFolder) {
+            return sendJson(res, 400, { error: "Service folder is not configured for this agent" });
+          }
+          if (parentRelPath !== serviceFolder) {
+            return sendJson(res, 400, { error: "Service docs can only be created in the service folder root" });
+          }
+        } else {
+          const sharedFolder = getAgentSharedFolder();
+          const sharedTaxonomiesRel = sharedFolder
+            ? `${sharedFolder}/${WORKSPACE_TAXONOMY_FOLDER}`.replace(/\\/g, "/")
+            : "";
+          const allowedCatalogParents = [sharedTaxonomiesRel];
+          if (serviceFolder) allowedCatalogParents.push(serviceFolder);
+          if (!allowedCatalogParents.includes(parentRelPath)) {
+            return sendJson(res, 400, {
+              error: "Catalog presets can only be created in the shared taxonomies area"
+            });
+          }
         }
 
         const preset = String(payload.preset || name || "").trim().toLowerCase();
@@ -16916,15 +17170,27 @@ async function handleApiForAgent(req, res, url) {
           });
         }
 
-        const serviceAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), serviceFolder);
-        if (!serviceAbsolute) return sendJson(res, 400, { error: "Invalid service folder path" });
+        const sharedFolder = getAgentSharedFolder();
+        const sharedTaxonomiesRel = sharedFolder
+          ? `${sharedFolder}/${WORKSPACE_TAXONOMY_FOLDER}`.replace(/\\/g, "/")
+          : "";
+        const catalogBaseKind =
+          type !== "service-doc" && parentRelPath === sharedTaxonomiesRel ? "taxonomy-root" : "kit-root";
+        const catalogBaseRel =
+          type === "service-doc"
+            ? serviceFolder
+            : catalogBaseKind === "taxonomy-root"
+              ? sharedTaxonomiesRel
+              : serviceFolder;
+        const catalogBaseAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), catalogBaseRel);
+        if (!catalogBaseAbsolute) return sendJson(res, 400, { error: "Invalid catalog folder path" });
 
         try {
           const createdFile =
             type === "catalog" || type === "taxonomy"
-              ? createSystemCatalogNodeSync(serviceAbsolute, preset)
-              : createSystemServiceDocSync(serviceAbsolute, preset);
-          const createdPath = path.join(serviceFolder, createdFile).replace(/\\/g, "/");
+              ? createSystemCatalogNodeSync(catalogBaseAbsolute, preset, { baseKind: catalogBaseKind })
+              : createSystemServiceDocSync(catalogBaseAbsolute, preset);
+          const createdPath = path.join(catalogBaseRel, createdFile).replace(/\\/g, "/");
           return sendJson(res, 200, { createdPath, type, preset });
         } catch (error) {
           const code = error && error.code ? String(error.code) : "";
