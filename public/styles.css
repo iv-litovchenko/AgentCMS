@@ -19476,69 +19476,20 @@ body.app-locked {
   padding: 0 2px 4px;
 }
 
-.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-list--root {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-list--root > .nav-book-toc-folder--root {
-  margin-left: 0;
-}
-
-.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-folder > .nav-book-toc-list {
-  margin-left: 0;
-  padding-left: 0;
-  border-left: 0;
-}
-
-.node-entry-overview-memory-toc
-  .nav-book-toc-tree--guide
-  .nav-book-toc-folder
-  > .nav-book-toc-list
-  .nav-book-toc-link::before,
-.node-entry-overview-memory-toc
-  .nav-book-toc-tree--guide
-  .nav-book-toc-list--root
-  > .nav-book-toc-entry--root-level
-  .nav-book-toc-link::before {
-  display: none;
-}
-
+.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-list--root,
 .node-navigation-memory-card .nav-book-toc-tree--guide .nav-book-toc-list--root,
 .node-entry-overview-browse-panel .nav-book-toc-tree--guide .nav-book-toc-list--root {
-  margin: 0;
-  padding: 0 0 8px;
+  padding-left: 0;
   border-left: 0;
 }
 
+.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-list--root > .nav-book-toc-folder--root,
 .node-navigation-memory-card .nav-book-toc-tree--guide .nav-book-toc-list--root > .nav-book-toc-folder--root,
 .node-entry-overview-browse-panel .nav-book-toc-tree--guide .nav-book-toc-list--root > .nav-book-toc-folder--root {
   margin-left: 0;
 }
 
-.node-navigation-memory-card .nav-book-toc-tree--guide .nav-book-toc-folder > .nav-book-toc-list,
-.node-entry-overview-browse-panel .nav-book-toc-tree--guide .nav-book-toc-folder > .nav-book-toc-list {
-  margin-left: 0;
-  padding-left: 0;
-  border-left: 0;
-}
-
-.node-navigation-memory-card
-  .nav-book-toc-tree--guide
-  .nav-book-toc-folder
-  > .nav-book-toc-list
-  .nav-book-toc-link::before,
-.node-navigation-memory-card
-  .nav-book-toc-tree--guide
-  .nav-book-toc-list--root
-  > .nav-book-toc-entry--root-level
-  .nav-book-toc-link::before,
-.node-entry-overview-browse-panel
-  .nav-book-toc-tree--guide
-  .nav-book-toc-folder
-  > .nav-book-toc-list
-  .nav-book-toc-link::before,
-.node-entry-overview-browse-panel
+.node-entry-overview-memory-toc
   .nav-book-toc-tree--guide
   .nav-book-toc-list--root
   > .nav-book-toc-entry--root-level
@@ -22459,9 +22410,9 @@ button.node-navigation-memory-title:focus-visible {
   cursor: pointer;
 }
 
-.node-navigation-memory-card .nav-book-toc-folder > .nav-book-toc-list,
+.node-navigation-memory-body .nav-book-toc-folder > .nav-book-toc-list,
 .node-entry-overview-memory-toc .nav-book-toc-folder > .nav-book-toc-list {
-  border-left: 0;
+  border-left-color: #cbd5e1;
 }
 
 .nav-book-toc-folder-label:hover .nav-book-toc-folder-text,
