@@ -19,6 +19,14 @@ const storageSlotFile = z
   .string()
   .min(1)
   .describe("Relative file path inside the slot folder, e.g. fetch.py or exports/report.json");
+const workspaceFolderPath = z
+  .string()
+  .min(1)
+  .describe("Workspace folder path without manifest.md, e.g. awn-container/Материалы/PINE-TV");
+const workspaceFilePath = z
+  .string()
+  .min(1)
+  .describe("Relative workspace file path, e.g. awn-container/Материалы/notes/readme.md");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -469,6 +477,62 @@ function createServer() {
     "List inbox/, scripts/, etc.",
     z.object({ path: nodePath, folder: z.string().min(1) }),
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
+  );
+
+  reg(
+    "list_adopt_folders",
+    "List workspace folders without manifest.md (adopt folders) — raw disk folders visible in menu but not yet CMS areas.",
+    z.object({}),
+    () => client.get("/api/workspace/folder/adopt")
+  );
+
+  reg(
+    "browse_workspace_folder",
+    "Browse one level of an adopt folder: images, markdown pages, videos, nested folders (no manifest required).",
+    z.object({ folderPath: workspaceFolderPath }),
+    ({ folderPath }) => client.get("/api/workspace/folder/browse", { folderPath })
+  );
+
+  reg(
+    "scan_workspace_folder",
+    "Recursive inventory of adopt folder for topic triage: flat items with kind/path/excerpt. Use depth=all + includeBody for full material review.",
+    z.object({
+      folderPath: workspaceFolderPath,
+      depth: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("1 = immediate only, 2+ = nested levels, all/0 = full tree (max 500 items)."),
+      includeBody: z.boolean().optional().describe("Include truncated markdown/text body for pages and text files."),
+      maxBodyChars: z.number().int().min(200).max(20000).optional()
+    }),
+    ({ folderPath, depth, includeBody, maxBodyChars }) =>
+      client.get("/api/workspace/folder/scan", {
+        folderPath,
+        ...(depth != null ? { depth: String(depth) } : {}),
+        ...(includeBody ? { includeBody: "true" } : {}),
+        ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
+      })
+  );
+
+  reg(
+    "read_workspace_page",
+    "Read markdown page from adopt folder (.md with frontmatter + body).",
+    z.object({ file: workspaceFilePath }),
+    ({ file }) => client.get("/api/workspace/folder/page", { file })
+  );
+
+  reg(
+    "read_workspace_text_file",
+    "Read text file from adopt folder (.md, .txt, .csv, .json, .yaml, .pine, …).",
+    z.object({
+      file: workspaceFilePath,
+      maxBytes: z.number().int().min(1024).max(120000).optional()
+    }),
+    ({ file, maxBytes }) =>
+      client.get("/api/workspace/folder/text", {
+        file,
+        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {})
+      })
   );
 
   reg(

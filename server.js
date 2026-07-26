@@ -3259,6 +3259,523 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
   return files;
 }
 
+const WORKSPACE_BROWSE_IMAGE_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".heic",
+  ".avif",
+  ".bmp"
+]);
+const WORKSPACE_BROWSE_VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".mkv", ".avi", ".webm"]);
+const WORKSPACE_BROWSE_AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"]);
+
+function isWorkspaceBrowseImageFile(name) {
+  return WORKSPACE_BROWSE_IMAGE_EXTENSIONS.has(path.extname(String(name || "")).toLowerCase());
+}
+
+function buildWorkspaceFolderFileUrl(fileRel, options = {}) {
+  const params = new URLSearchParams({ file: String(fileRel || "").replace(/\\/g, "/") });
+  if (options.thumb) params.set("thumb", "1");
+  if (options.max) params.set("max", String(options.max || 480));
+  return `/api/workspace/folder/file?${params.toString()}`;
+}
+
+function extractMarkdownExcerpt(body, maxLen = 240) {
+  const text = String(body || "")
+    .replace(/^#+\s.+$/gm, "")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`#>*_~|-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "";
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen).trim()}…`;
+}
+
+function extractFirstMarkdownImageSrc(body) {
+  const match = String(body || "").match(/!\[[^\]]*\]\(([^)]+)\)/);
+  if (!match) return null;
+  const src = String(match[1] || "").trim();
+  if (!src || /^https?:\/\//i.test(src)) return src || null;
+  return src.replace(/\\/g, "/");
+}
+
+async function countFolderImmediateEntries(folderAbsolute) {
+  try {
+    const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+    return entries.filter((entry) => !entry.name.startsWith(".") && !shouldSkipDirectoryListing(entry.name)).length;
+  } catch {
+    return 0;
+  }
+}
+
+async function enrichWorkspaceFolderMarkdownPage(fileRelPath) {
+  const normalizedRel = String(fileRelPath || "").replace(/\\/g, "/").trim();
+  const fileAbsolute = normalizeWorkspacePath(normalizedRel);
+  const baseName = path.basename(normalizedRel);
+  const base = {
+    name: baseName,
+    path: normalizedRel,
+    isManifest: baseName.toLowerCase() === "manifest.md"
+  };
+  if (!fileAbsolute) {
+    return {
+      ...base,
+      title: baseName.replace(/\.md$/i, ""),
+      excerpt: "",
+      previewUrl: null,
+      status: null,
+      tags: null,
+      manifestPath: null,
+      updatedAt: null
+    };
+  }
+
+  try {
+    const raw = await fs.readFile(fileAbsolute, "utf-8");
+    const stat = await fs.stat(fileAbsolute);
+    const { frontmatter, body } = splitNodeFrontmatter(raw);
+    const props = parseFrontmatterProps(frontmatter);
+    const previewRaw =
+      getFrontmatterPropValue(props, "awn-preview") || getYamlScalar(frontmatter, "awn-preview") || "";
+    let previewUrl = null;
+    const previewValue = String(previewRaw || "").trim();
+    if (/^https?:\/\//i.test(previewValue)) {
+      previewUrl = previewValue;
+    } else {
+      const inlineImg = extractFirstMarkdownImageSrc(body);
+      if (inlineImg) {
+        if (/^https?:\/\//i.test(inlineImg)) {
+          previewUrl = inlineImg;
+        } else {
+          const folderRel = path.posix.dirname(normalizedRel);
+          const resolved = path.posix.normalize(path.posix.join(folderRel, inlineImg));
+          if (normalizeWorkspacePath(resolved)) {
+            previewUrl = buildWorkspaceFolderFileUrl(resolved, { thumb: true, max: 480 });
+          }
+        }
+      }
+    }
+
+    const slug = normalizedRel.replace(/\.md$/i, "").split("/").pop() || baseName;
+    const awnName =
+      getFrontmatterPropValue(props, "awn-name") || getYamlScalar(frontmatter, "awn-name") || "";
+    const title = resolveNodeDisplayName(awnName, slug);
+    const isManifest = base.isManifest;
+    return {
+      ...base,
+      title,
+      excerpt: extractMarkdownExcerpt(body),
+      previewUrl,
+      status: getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null,
+      tags: getFrontmatterPropValue(props, "awn-tags") || getYamlScalar(frontmatter, "awn-tags") || null,
+      manifestPath: isManifest ? normalizedRel : null,
+      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
+    };
+  } catch {
+    return {
+      ...base,
+      title: baseName.replace(/\.md$/i, ""),
+      excerpt: "",
+      previewUrl: null,
+      status: null,
+      tags: null,
+      manifestPath: base.isManifest ? normalizedRel : null,
+      updatedAt: null
+    };
+  }
+}
+
+async function browseWorkspaceFolderImmediate(folderRelPath) {
+  const normalizedFolder = String(folderRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .trim();
+  const folderAbsolute = normalizeWorkspacePath(normalizedFolder);
+  if (!folderAbsolute) {
+    return { exists: false, error: "Invalid folder path" };
+  }
+
+  let stat;
+  try {
+    stat = await fs.stat(folderAbsolute);
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { exists: false };
+    throw error;
+  }
+  if (!stat.isDirectory()) return { exists: false };
+
+  const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+  const folders = [];
+  const images = [];
+  const pages = [];
+  const videos = [];
+  const audio = [];
+  const other = [];
+  const collator = (a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true });
+
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+
+    if (entry.isDirectory()) {
+      if (shouldSkipDirectoryListing(entry.name)) continue;
+      const childRel = path.posix.join(normalizedFolder, entry.name);
+      const childAbsolute = path.join(folderAbsolute, entry.name);
+      const itemCount = await countFolderImmediateEntries(childAbsolute);
+      folders.push({ name: entry.name, folderPath: childRel, itemCount });
+      continue;
+    }
+
+    if (!entry.isFile()) continue;
+
+    const fileRel = path.posix.join(normalizedFolder, entry.name);
+    const fileAbsolute = path.join(folderAbsolute, entry.name);
+    const fileStat = await fs.stat(fileAbsolute);
+    const ext = path.extname(entry.name).toLowerCase();
+    const base = {
+      name: entry.name,
+      path: fileRel,
+      size: fileStat.size,
+      updatedAt: fileStat.mtime ? fileStat.mtime.toISOString() : null
+    };
+
+    if (isWorkspaceBrowseImageFile(entry.name)) {
+      images.push({
+        ...base,
+        previewUrl: buildWorkspaceFolderFileUrl(fileRel, { thumb: true, max: 480 })
+      });
+      continue;
+    }
+
+    if (ext === ".md") {
+      pages.push(await enrichWorkspaceFolderMarkdownPage(fileRel));
+      continue;
+    }
+
+    if (WORKSPACE_BROWSE_VIDEO_EXTENSIONS.has(ext)) {
+      videos.push({ ...base, previewUrl: buildWorkspaceFolderFileUrl(fileRel) });
+      continue;
+    }
+
+    if (WORKSPACE_BROWSE_AUDIO_EXTENSIONS.has(ext)) {
+      audio.push({ ...base, previewUrl: buildWorkspaceFolderFileUrl(fileRel) });
+      continue;
+    }
+
+    other.push({ ...base, ext });
+  }
+
+  folders.sort(collator);
+  images.sort(collator);
+  pages.sort((a, b) =>
+    String(a.title || a.name || "").localeCompare(String(b.title || b.name || ""), "ru", {
+      sensitivity: "base",
+      numeric: true
+    })
+  );
+  videos.sort(collator);
+  audio.sort(collator);
+  other.sort(collator);
+
+  return {
+    exists: true,
+    folderPath: normalizedFolder,
+    title: path.basename(normalizedFolder),
+    folders,
+    images,
+    pages,
+    videos,
+    audio,
+    other,
+    counts: {
+      folders: folders.length,
+      images: images.length,
+      pages: pages.length,
+      videos: videos.length,
+      audio: audio.length,
+      other: other.length
+    }
+  };
+}
+
+const WORKSPACE_TEXT_FILE_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".csv",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".html",
+  ".htm",
+  ".xml",
+  ".log",
+  ".pine"
+]);
+const WORKSPACE_FOLDER_SCAN_MAX_ITEMS = 500;
+const WORKSPACE_TEXT_FILE_MAX_BYTES = 120_000;
+
+function resolveWorkspaceFolderScanDepth(raw) {
+  const value = String(raw ?? "1").trim().toLowerCase();
+  if (value === "all" || value === "0") return Number.POSITIVE_INFINITY;
+  const num = Number.parseInt(value, 10);
+  if (Number.isFinite(num) && num >= 1) return num;
+  return 1;
+}
+
+function isWorkspaceTextFile(name) {
+  return WORKSPACE_TEXT_FILE_EXTENSIONS.has(path.extname(String(name || "")).toLowerCase());
+}
+
+function summarizeWorkspaceFolderScanItems(items = []) {
+  const counts = {
+    folders: 0,
+    images: 0,
+    pages: 0,
+    videos: 0,
+    audio: 0,
+    files: 0,
+    total: items.length
+  };
+  for (const item of items) {
+    if (item.kind === "folder") counts.folders += 1;
+    else if (item.kind === "image") counts.images += 1;
+    else if (item.kind === "page") counts.pages += 1;
+    else if (item.kind === "video") counts.videos += 1;
+    else if (item.kind === "audio") counts.audio += 1;
+    else counts.files += 1;
+  }
+  return counts;
+}
+
+function collectAdoptFoldersFromMenuNode(node, results = [], parentPath = null) {
+  if (!node || typeof node !== "object") return results;
+
+  const sections = Array.isArray(node.sections) ? node.sections : [];
+  for (const section of sections) {
+    const folderPath = String(section.folderPath || "")
+      .replace(/\\/g, "/")
+      .trim();
+    if (folderPath && !section.indexPath) {
+      results.push({
+        title: section.title || path.basename(folderPath),
+        folderPath,
+        empty: Boolean(section.empty),
+        parentPath,
+        childTopics: Array.isArray(section.items) ? section.items.length : 0,
+        childFolders: Array.isArray(section.sections) ? section.sections.length : 0,
+        hasGitSelf: Boolean(section.hasGitSelf),
+        hasObsidianSelf: Boolean(section.hasObsidianSelf),
+        hasAgentSelf: Boolean(section.hasAgentSelf),
+        hasSkillSelf: Boolean(section.hasSkillSelf)
+      });
+    }
+    if (folderPath) {
+      collectAdoptFoldersFromMenuNode(section, results, folderPath);
+    }
+  }
+
+  return results;
+}
+
+async function listWorkspaceAdoptFolders() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const folders = [];
+  collectAdoptFoldersFromMenuNode(menu, folders, null);
+  if (menu.containerTree) collectAdoptFoldersFromMenuNode(menu.containerTree, folders, getAgentContainerFolder());
+  if (menu.sharedTree) collectAdoptFoldersFromMenuNode(menu.sharedTree, folders, getAgentSharedFolder());
+  if (menu.serviceTree) collectAdoptFoldersFromMenuNode(menu.serviceTree, folders, getAgentKitFolder());
+
+  const deduped = [];
+  const seen = new Set();
+  for (const entry of folders) {
+    if (!entry.folderPath || seen.has(entry.folderPath)) continue;
+    seen.add(entry.folderPath);
+    deduped.push(entry);
+  }
+
+  deduped.sort((a, b) =>
+    String(a.folderPath || "").localeCompare(String(b.folderPath || ""), "ru", {
+      sensitivity: "base",
+      numeric: true
+    })
+  );
+
+  return { folders: deduped, count: deduped.length };
+}
+
+async function scanWorkspaceFolder(folderRelPath, options = {}) {
+  const normalizedFolder = String(folderRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .trim();
+  const folderAbsolute = normalizeWorkspacePath(normalizedFolder);
+  if (!folderAbsolute) {
+    return { exists: false, error: "Invalid folder path" };
+  }
+
+  try {
+    const stat = await fs.stat(folderAbsolute);
+    if (!stat.isDirectory()) return { exists: false };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { exists: false };
+    throw error;
+  }
+
+  const maxDepth = resolveWorkspaceFolderScanDepth(options.depth);
+  const includeBody = Boolean(options.includeBody);
+  const maxBodyChars = Math.min(
+    Math.max(Number.parseInt(String(options.maxBodyChars || "4000"), 10) || 4000, 200),
+    20_000
+  );
+  const items = [];
+  let truncated = false;
+
+  async function walk(currentRel, depth) {
+    if (truncated || depth > maxDepth) return;
+    const browse = await browseWorkspaceFolderImmediate(currentRel);
+    if (!browse.exists) return;
+
+    for (const folder of browse.folders || []) {
+      if (items.length >= WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+        truncated = true;
+        return;
+      }
+      items.push({
+        kind: "folder",
+        name: folder.name,
+        path: folder.folderPath,
+        folderPath: folder.folderPath,
+        parentFolder: currentRel,
+        depth,
+        itemCount: folder.itemCount || 0
+      });
+      if (depth < maxDepth) {
+        await walk(folder.folderPath, depth + 1);
+      }
+    }
+
+    const appendItems = (entries, kind) => {
+      for (const entry of entries || []) {
+        if (items.length >= WORKSPACE_FOLDER_SCAN_MAX_ITEMS) {
+          truncated = true;
+          return;
+        }
+        items.push({
+          kind,
+          name: entry.name,
+          path: entry.path,
+          parentFolder: currentRel,
+          depth,
+          size: entry.size ?? null,
+          updatedAt: entry.updatedAt ?? null,
+          title: entry.title ?? null,
+          excerpt: entry.excerpt ?? null,
+          tags: entry.tags ?? null,
+          status: entry.status ?? null,
+          manifestPath: entry.manifestPath ?? null,
+          ext: entry.ext ?? null
+        });
+      }
+    };
+
+    appendItems(browse.images, "image");
+    appendItems(browse.pages, "page");
+    appendItems(browse.videos, "video");
+    appendItems(browse.audio, "audio");
+    appendItems(browse.other, "file");
+  }
+
+  await walk(normalizedFolder, 1);
+
+  if (includeBody) {
+    for (const item of items) {
+      if (item.kind !== "page" && item.kind !== "file") continue;
+      if (!item.path || !isWorkspaceTextFile(item.path)) continue;
+      const fileAbsolute = normalizeWorkspacePath(item.path);
+      if (!fileAbsolute) continue;
+      try {
+        const stat = await fs.stat(fileAbsolute);
+        if (!stat.isFile() || stat.size > WORKSPACE_TEXT_FILE_MAX_BYTES) {
+          item.bodyTruncated = true;
+          continue;
+        }
+        const raw = await fs.readFile(fileAbsolute, "utf-8");
+        const { body } = item.kind === "page" ? splitNodeFrontmatter(raw) : { body: raw };
+        item.body =
+          body.length > maxBodyChars ? `${body.slice(0, maxBodyChars).trim()}…` : body;
+        item.bodyTruncated = body.length > maxBodyChars;
+      } catch {
+        // skip unreadable files
+      }
+    }
+  }
+
+  return {
+    exists: true,
+    folderPath: normalizedFolder,
+    depth: Number.isFinite(maxDepth) ? maxDepth : "all",
+    truncated,
+    counts: summarizeWorkspaceFolderScanItems(items),
+    items
+  };
+}
+
+async function readWorkspaceTextFile(fileRelPath, options = {}) {
+  const normalizedRel = String(fileRelPath || "").replace(/\\/g, "/").trim();
+  const fileAbsolute = normalizeWorkspacePath(normalizedRel);
+  if (!fileAbsolute) return { exists: false, error: "Invalid file path" };
+  if (!isWorkspaceTextFile(normalizedRel)) {
+    return { exists: false, error: "Not a supported text file" };
+  }
+
+  try {
+    const stat = await fs.stat(fileAbsolute);
+    if (!stat.isFile()) return { exists: false, error: "File not found" };
+    const maxBytes = Math.min(
+      Math.max(Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) || WORKSPACE_TEXT_FILE_MAX_BYTES, 1024),
+      WORKSPACE_TEXT_FILE_MAX_BYTES
+    );
+    const truncated = stat.size > maxBytes;
+    const buffer = truncated
+      ? Buffer.alloc(maxBytes)
+      : await fs.readFile(fileAbsolute);
+    if (truncated) {
+      const fd = await fs.open(fileAbsolute, "r");
+      try {
+        await fd.read(buffer, 0, maxBytes, 0);
+      } finally {
+        await fd.close();
+      }
+    }
+    const content = buffer.toString("utf-8");
+    const ext = path.extname(normalizedRel).toLowerCase();
+    const result = {
+      exists: true,
+      path: normalizedRel,
+      name: path.basename(normalizedRel),
+      size: stat.size,
+      truncated,
+      content
+    };
+    if (ext === ".md") {
+      const { frontmatter, body } = splitNodeFrontmatter(content);
+      result.frontmatter = frontmatter;
+      result.body = body;
+      result.page = await enrichWorkspaceFolderMarkdownPage(normalizedRel);
+    }
+    return result;
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { exists: false, error: "File not found" };
+    throw error;
+  }
+}
+
 async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, fileEntry) {
   const fileAbsolute = path.join(folderAbsolute, fileEntry.relativePath);
   try {
@@ -3267,7 +3784,8 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
     const props = parseFrontmatterProps(frontmatter);
     const previewRaw = getFrontmatterPropValue(props, "awn-preview") || getYamlScalar(frontmatter, "awn-preview");
     const previewMeta = await resolveAwnPreviewFieldMeta(manifestRelPath, previewRaw);
-    const slug = fileEntry.name.replace(/\.md$/i, "");
+    const slug =
+      getManifestSlugFromRel(fileEntry.relativePath) || fileEntry.name.replace(/\.md$/i, "");
     const awnName =
       getFrontmatterPropValue(props, "awn-name") ||
       getYamlScalar(frontmatter, "awn-name") ||
@@ -3284,9 +3802,11 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       previewFile: previewMeta.previewFile || null
     };
   } catch {
+    const slug =
+      getManifestSlugFromRel(fileEntry.relativePath) || fileEntry.name.replace(/\.md$/i, "");
     return {
       ...fileEntry,
-      title: fileEntry.name.replace(/\.md$/i, ""),
+      title: slug,
       props: [],
       status: null,
       tags: null,
@@ -3911,15 +4431,13 @@ function resolveStorageCreateParentRel(rawParent, { layer = STORAGE_SUBFOLDER_CO
   return normalizeStorageSlotParentRel(rawParent, { layer, manifestRelPath });
 }
 
-function buildStorageSectionReadmeContent(title, awnType = "awn.content.record.category") {
-  const safeTitle = String(title || "Раздел").trim() || "Раздел";
-  const quotedTitle = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeTitle)
-    ? `"${safeTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
-    : safeTitle;
-  if (!awnType) {
-    return `---\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
-  }
-  return `---\nawn-type: ${awnType}\nawn-name: ${quotedTitle}\n---\n\n> Описание раздела.\n`;
+function buildStorageSectionReadmeContent(title, awnType = "awn.content.record.category", folderSlug = "") {
+  const segment =
+    String(folderSlug || "").trim() || String(title || "Раздел").trim() || "Раздел";
+  let frontmatter = awnType ? `awn-type: ${awnType}` : "";
+  frontmatter = applyAwnNameToFrontmatter(frontmatter, title, segment);
+  if (!frontmatter.trim()) return `\n> Описание раздела.\n`;
+  return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
 }
 
 function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
@@ -3942,7 +4460,8 @@ async function buildStorageSectionReadmeContentForManifest(
   options = {}
 ) {
   const safeTitle = String(title || "Раздел").trim() || "Раздел";
-  if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null);
+  const folderSlug = String(options.folderSlug || "").trim();
+  if (!awnType) return buildStorageSectionReadmeContent(safeTitle, null, folderSlug);
 
   const schemaTarget = resolveAwnSchemaTargetForSectionType(awnType, slotKey);
   if (schemaTarget) {
@@ -3963,12 +4482,13 @@ async function buildStorageSectionReadmeContentForManifest(
           );
       const mergedType = payload.merged[schemaTarget];
       if (mergedType?.fields && Object.keys(mergedType.fields).length) {
-        const frontmatter = buildDefaultFrontmatter(awnType, {
+        let frontmatter = buildDefaultFrontmatter(awnType, {
           name: safeTitle,
           agentRoot: getAgentRoot(),
           projectRoot: getProjectRoot(),
           typeDef: mergedType
         });
+        frontmatter = applyAwnNameToFrontmatter(frontmatter, safeTitle, folderSlug);
         return `---\n${frontmatter}\n---\n\n> Описание раздела.\n`;
       }
     } catch {
@@ -3976,7 +4496,7 @@ async function buildStorageSectionReadmeContentForManifest(
     }
   }
 
-  return buildStorageSectionReadmeContent(safeTitle, awnType);
+  return buildStorageSectionReadmeContent(safeTitle, awnType, folderSlug);
 }
 
 async function buildSlotContentFileContentForManifest(
@@ -4252,9 +4772,13 @@ async function writeStorageSectionReadme(
   try {
     await fs.access(readmeAbsolute);
   } catch {
+    const folderSlug = path.basename(sectionAbsolute);
     const content = manifestRel
-      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey, options)
-      : buildStorageSectionReadmeContent(title, awnType);
+      ? await buildStorageSectionReadmeContentForManifest(manifestRel, title, awnType, slotKey, {
+          ...options,
+          folderSlug
+        })
+      : buildStorageSectionReadmeContent(title, awnType, folderSlug);
     await fs.writeFile(readmeAbsolute, content, "utf-8");
   }
 }
@@ -4349,9 +4873,11 @@ async function renameMemorySectionRecord(manifestRelPath, scopeType, storageFold
   }
 
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
-  const raw = (await readMemorySectionReadmeContent(readmeAbsolute)) || buildStorageSectionReadmeContent(display);
+  const raw =
+    (await readMemorySectionReadmeContent(readmeAbsolute)) ||
+    buildStorageSectionReadmeContent(display, "awn.content.record.category", nextSlug);
   const { frontmatter, body } = splitNodeFrontmatter(raw);
-  const nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-name", display);
+  const nextFrontmatter = applyAwnNameToFrontmatter(frontmatter, display, nextSlug);
   await writeMemorySectionReadmeContent(readmeAbsolute, joinNodeFrontmatter(nextFrontmatter, body));
 
   const sectionPath = path.relative(ctx.rootAbsolute, sectionAbsolute).replace(/\\/g, "/");
@@ -6915,7 +7441,12 @@ const SESSION_CONTEXT_API_MAP = {
   mainNote: "GET /api/external/file?path=<manifest.md>&file=<name.md> — awn-storage/main/",
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
-  topicIntake: "GET /api/topic/intake?path=<manifest.md>"
+  topicIntake: "GET /api/topic/intake?path=<manifest.md>",
+  adoptFolders: "GET /api/workspace/folder/adopt — папки без manifest.md (adopt)",
+  workspaceFolderBrowse: "GET /api/workspace/folder/browse?folderPath=<path> — содержимое папки (1 уровень)",
+  workspaceFolderScan: "GET /api/workspace/folder/scan?folderPath=<path>&depth=1|2|all&includeBody=true — рекурсивный инвентарь для разбора тем",
+  workspaceFolderPage: "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из adopt-папки",
+  workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из adopt-папки"
 };
 
 const SESSION_PATH_HINTS = {
@@ -6925,7 +7456,10 @@ const SESSION_PATH_HINTS = {
   mainNote: "Параметр file в memory tools — .md внутри awn-storage/main/ темы",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
-  storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>"
+  storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
+  adoptFolder: "Папки без manifest.md: list adopt → browse/scan по folderPath → read page/text для разбора материалов",
+  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
+  adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
 };
 
 async function readWorkspaceManifestContent(relPath) {
@@ -7961,7 +8495,7 @@ async function resolveUniqueMediaFileAbsolute(folderAbsolute, fileName) {
 
 const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
 const AGENT_SLIDER_FOLDER_REF = `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${AGENT_SLIDER_ASSETS_SUBDIR}`;
-const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"]);
+const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg"]);
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {
   const agentId = String(url.searchParams.get("agent") || "").trim();
@@ -7994,9 +8528,20 @@ function resolveAgentWorkspaceManifestAbsoluteSync(agentPath) {
 }
 
 async function resolveAgentSliderFolderAbsolute(agentPath, options = {}) {
-  const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
-  if (!manifestAbsolute) return null;
-  return resolveInlineAssetsFolderAbsolute(manifestAbsolute, AGENT_SLIDER_ASSETS_SUBDIR, options);
+  const safePath = assertSafeAgentPath(agentPath);
+  const workspaceAbsolute = resolveAgentRootAbsolute(safePath);
+  const folderAbsolute = path.join(workspaceAbsolute, AGENT_SLIDER_FOLDER_REF);
+  if (options.create) {
+    await fs.mkdir(folderAbsolute, { recursive: true });
+    return folderAbsolute;
+  }
+  try {
+    const stat = await fs.stat(folderAbsolute);
+    return stat.isDirectory() ? folderAbsolute : null;
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 async function listAgentSliderImages(agentPath) {
@@ -8040,12 +8585,7 @@ async function getAgentPreviewMeta(agent) {
         previewUrl: `/api/agents/workspace-preview?path=${encodeURIComponent(enriched.path)}`
       };
     }
-
-    return await runWithAgent(enriched.id, async () => {
-      const manifestRel =
-        (await resolveExistingNodeManifestRel(getAgentRoot())) || AREA_MANIFEST_FILE;
-      return getNodePreviewMeta(manifestRel);
-    });
+    return { hasPreview: false, previewUrl: null };
   } catch {
     return { hasPreview: false, previewUrl: null };
   }
@@ -15445,6 +15985,145 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/adopt") {
+    try {
+      const data = await listWorkspaceAdoptFolders();
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list adopt folders",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/scan") {
+    const folderPath = String(url.searchParams.get("folderPath") || "").trim();
+    if (!folderPath) return sendJson(res, 400, { error: "Missing folderPath query parameter" });
+
+    try {
+      const data = await scanWorkspaceFolder(folderPath, {
+        depth: url.searchParams.get("depth") || "1",
+        includeBody: url.searchParams.get("includeBody") === "true",
+        maxBodyChars: url.searchParams.get("maxBodyChars") || "4000"
+      });
+      if (data.error) return sendJson(res, 400, { error: data.error });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan workspace folder",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/text") {
+    const fileRel = String(url.searchParams.get("file") || "").trim();
+    if (!fileRel) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    try {
+      const data = await readWorkspaceTextFile(fileRel, {
+        maxBytes: url.searchParams.get("maxBytes") || undefined
+      });
+      if (data.error) return sendJson(res, data.exists === false ? 404 : 400, { error: data.error });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace text file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/browse") {
+    const folderPath = String(url.searchParams.get("folderPath") || "").trim();
+    if (!folderPath) return sendJson(res, 400, { error: "Missing folderPath query parameter" });
+
+    try {
+      const data = await browseWorkspaceFolderImmediate(folderPath);
+      if (data.error) return sendJson(res, 400, { error: data.error });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to browse workspace folder",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/page") {
+    const fileRel = String(url.searchParams.get("file") || "").trim();
+    if (!fileRel) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    const fileAbsolute = normalizeWorkspacePath(fileRel);
+    if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+    if (!fileRel.toLowerCase().endsWith(".md")) {
+      return sendJson(res, 400, { error: "Not a markdown file" });
+    }
+
+    try {
+      const raw = await fs.readFile(fileAbsolute, "utf-8");
+      const { frontmatter, body } = splitNodeFrontmatter(raw);
+      const page = await enrichWorkspaceFolderMarkdownPage(fileRel);
+      return sendJson(res, 200, {
+        exists: true,
+        path: fileRel.replace(/\\/g, "/"),
+        frontmatter,
+        body,
+        content: raw,
+        page
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 404, { error: "File not found" });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to read workspace page",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/file") {
+    const fileRel = String(url.searchParams.get("file") || "").trim();
+    if (!fileRel) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    const fileAbsolute = normalizeWorkspacePath(fileRel);
+    if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+    try {
+      const stat = await fs.stat(fileAbsolute);
+      if (!stat.isFile()) return sendJson(res, 404, { error: "File not found" });
+
+      const ext = path.extname(fileAbsolute).toLowerCase();
+      if (isWorkspaceBrowseImageFile(fileAbsolute)) {
+        const sent = await sendImageFileResponse(res, fileAbsolute, {
+          thumb: wantsThumbVariant(url.searchParams),
+          thumbMax: clampThumbMax(url.searchParams.get("max"))
+        });
+        if (!sent) return sendJson(res, 404, { error: "File not found" });
+        return;
+      }
+
+      const contentType = MIME_TYPES[ext] || "application/octet-stream";
+      const content = await fs.readFile(fileAbsolute);
+      res.writeHead(200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=3600"
+      });
+      res.end(content);
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 404, { error: "File not found" });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to read workspace file",
+        details: String(error.message || error)
+      });
+    }
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/folder/view") {
     const relPath = url.searchParams.get("path");
     const folderName = url.searchParams.get("folder");
@@ -16423,6 +17102,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/slider") {
     try {
       const payload = await readJsonBody(req, 12_000_000);
+      const agentId = String(url.searchParams.get("agent") || "").trim();
+      if (!agentId) {
+        return sendJson(res, 400, { error: "Missing agent query parameter" });
+      }
       const agentPath = resolveAgentSliderWorkspacePath(url, payload);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
       if (!manifestAbsolute) {

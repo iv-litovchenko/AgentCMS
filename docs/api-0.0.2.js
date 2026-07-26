@@ -468,6 +468,54 @@ module.exports = {
         },
         {
           method: "GET",
+          path: "/api/workspace/folder/adopt",
+          description: "Список adopt-папок без manifest.md (сырые папки на диске).",
+          query: [],
+          body: null,
+          response: "{ folders[], count }"
+        },
+        {
+          method: "GET",
+          path: "/api/workspace/folder/browse",
+          description: "Содержимое adopt-папки на одном уровне: images, pages, videos, folders.",
+          query: ["folderPath"],
+          body: null,
+          response: "{ exists, folderPath, folders[], images[], pages[], videos[], audio[], other[], counts }"
+        },
+        {
+          method: "GET",
+          path: "/api/workspace/folder/scan",
+          description: "Рекурсивный инвентарь adopt-папки для разбора материалов по темам.",
+          query: ["folderPath", "depth", "includeBody", "maxBodyChars"],
+          body: null,
+          response: "{ exists, folderPath, depth, truncated, counts, items[] }"
+        },
+        {
+          method: "GET",
+          path: "/api/workspace/folder/page",
+          description: "Markdown-страница из adopt-папки (frontmatter + body).",
+          query: ["file"],
+          body: null,
+          response: "{ exists, path, frontmatter, body, content, page }"
+        },
+        {
+          method: "GET",
+          path: "/api/workspace/folder/text",
+          description: "Текстовый файл из adopt-папки (.md, .txt, .csv, .json, .yaml, .pine, …).",
+          query: ["file", "maxBytes"],
+          body: null,
+          response: "{ exists, path, content, truncated?, body?, page? }"
+        },
+        {
+          method: "GET",
+          path: "/api/workspace/folder/file",
+          description: "Бинарный файл из adopt-папки (изображение, видео, pdf).",
+          query: ["file", "thumb", "max"],
+          body: null,
+          response: "Binary (Content-Type по расширению)"
+        },
+        {
+          method: "GET",
           path: "/api/storage/file",
           description: "Прочитать текстовый файл из слота awn-storage (scripts, artefacts, repository, …).",
           query: ["path", "folder", "file"],
