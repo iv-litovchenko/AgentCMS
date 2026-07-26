@@ -3520,8 +3520,8 @@ function syncAgentPreview(previewMeta = null) {
   let hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
   let previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
 
-  if (!previewMeta && agentSliderCatalog.files.length > 0) {
-    const slide = agentSliderCatalog.files[agentSliderIndex % agentSliderCatalog.files.length];
+  if (!previewMeta && agentSliderPlaybackOrder.length > 0) {
+    const slide = agentSliderPlaybackOrder[agentSliderIndex % agentSliderPlaybackOrder.length];
     if (slide?.mediaFile) {
       hasPreview = true;
       previewUrl = buildAgentSliderMediaApiUrl(slide.mediaFile);
@@ -4202,8 +4202,31 @@ async function removeAgentPreviewFile(agentPath) {
 const AGENT_SLIDER_FOLDER_REF = "awn-storage/assets/slider";
 const AGENT_SLIDER_ROTATE_MS = 12000;
 let agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+let agentSliderPlaybackOrder = [];
 let agentSliderRotateTimer = null;
 let agentSliderIndex = 0;
+
+function shuffleAgentSliderFiles(files) {
+  const shuffled = files.slice();
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
+  agentSliderPlaybackOrder = shuffleAgentSliderFiles(agentSliderCatalog.files || []);
+  if (resetIndex) {
+    agentSliderIndex = agentSliderPlaybackOrder.length
+      ? Math.floor(Math.random() * agentSliderPlaybackOrder.length)
+      : 0;
+    return;
+  }
+  if (agentSliderIndex >= agentSliderPlaybackOrder.length) {
+    agentSliderIndex = 0;
+  }
+}
 
 function buildAgentSliderMediaApiUrl(mediaFile) {
   const relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
@@ -4220,9 +4243,12 @@ function stopAgentSliderRotation() {
 
 function restartAgentSliderRotation() {
   stopAgentSliderRotation();
-  if (agentSliderCatalog.files.length < 2) return;
+  if (agentSliderPlaybackOrder.length < 2) return;
   agentSliderRotateTimer = setInterval(() => {
-    agentSliderIndex = (agentSliderIndex + 1) % agentSliderCatalog.files.length;
+    agentSliderIndex = (agentSliderIndex + 1) % agentSliderPlaybackOrder.length;
+    if (agentSliderIndex === 0) {
+      agentSliderPlaybackOrder = shuffleAgentSliderFiles(agentSliderCatalog.files || []);
+    }
     syncAgentPreview();
   }, AGENT_SLIDER_ROTATE_MS);
 }
@@ -4231,6 +4257,7 @@ async function refreshAgentSliderCatalog(force = false) {
   const agent = getActiveAgentMeta();
   if (!agent?.path) {
     agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+    agentSliderPlaybackOrder = [];
     agentSliderIndex = 0;
     stopAgentSliderRotation();
     return agentSliderCatalog;
@@ -4257,9 +4284,7 @@ async function refreshAgentSliderCatalog(force = false) {
     };
   }
 
-  if (agentSliderIndex >= agentSliderCatalog.files.length) {
-    agentSliderIndex = 0;
-  }
+  rebuildAgentSliderPlaybackOrder({ resetIndex: true });
   restartAgentSliderRotation();
   return agentSliderCatalog;
 }
@@ -9743,7 +9768,7 @@ const NAVIGATION_SECTION_SEARCH_MIN_ITEMS = 4;
 const NAVIGATION_EXTERNAL_SEARCH_MIN_ITEMS = 6;
 let navigationSubsectionsSearchQuery = "";
 let navigationExternalTocSearchQuery = "";
-/** @type {{ items: object[], folderLabels: Map, folderDescriptions: Map, folderStatuses: Map, folderPaths: Set } | null} */
+/** @type {{ items: object[], folderLabels: Map, folderDescriptions: Map, folderStatuses: Map, sectionManifestByFolder: Map, folderPaths: Set } | null} */
 let navigationExternalTocState = null;
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let lastNonTocEntryOverviewContext = null;
@@ -13710,7 +13735,7 @@ function createHeroTitleRow(title, statusRaw = "", options = {}) {
   row.className = options.rowClass || "node-navigation-hero-title-row";
   const titleNode = document.createElement("h2");
   titleNode.className = options.titleClass || "node-navigation-hero-title";
-  const badge = createMenuTreeStatusBadge(statusRaw);
+  const badge = createMenuTreeStatusBadge(normalizeNavigationStatusForDisplay(statusRaw));
   if (badge) {
     badge.classList.add(options.statusClass || "node-navigation-hero-status");
     titleNode.appendChild(badge);
@@ -40106,9 +40131,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       thumbClass: options.thumbClass
     });
 
-  const statusRaw = String(
-    options.status || resolveAwnStatusFromPropEntries(options.propEntries || [])
-  ).trim();
+  const statusRaw = normalizeNavigationStatusForDisplay(
+    String(options.status || resolveAwnStatusFromPropEntries(options.propEntries || "")).trim()
+  );
   const titleRow = createHeroTitleRow(title, statusRaw, {
     propEntries: options.propEntries || [],
     rowClass: options.titleRowClass,
@@ -42408,7 +42433,7 @@ function appendNavBookTocTitleText(parent, title, description) {
 
 function appendNavBookTocStatusBadge(titleHost, status) {
   if (!titleHost) return;
-  const badge = createMenuTreeStatusBadge(status);
+  const badge = createMenuTreeStatusBadge(normalizeNavigationStatusForDisplay(status));
   if (!badge) return;
   badge.classList.add("nav-book-toc-status");
   titleHost.insertBefore(badge, titleHost.firstChild);
@@ -42669,6 +42694,7 @@ const NAV_PREVIEW_HOVER_SELECTOR =
 
 let navPreviewHoverPopoverNode = null;
 let navPreviewHoverPopoverImgNode = null;
+let navPreviewHoverPopoverArrowNode = null;
 let navPreviewHoverAnchorNode = null;
 let navPreviewHoverHideTimer = 0;
 
@@ -42698,16 +42724,21 @@ function positionNavPreviewHoverPopover(anchorNode) {
 
   let left;
   let top = rect.top + rect.height / 2 - popSize / 2;
+  let anchorSide = "right";
 
   if (isTocPreview) {
     left = rect.left - popSize - 10;
     if (left < 12) {
       left = rect.right + 10;
+      anchorSide = "left";
     }
   } else {
     left = rect.right + 10;
     if (left + popSize > window.innerWidth - 12) {
       left = rect.left - popSize - 10;
+      anchorSide = "right";
+    } else {
+      anchorSide = "left";
     }
   }
 
@@ -42715,6 +42746,15 @@ function positionNavPreviewHoverPopover(anchorNode) {
   if (top < 12) top = 12;
   if (top + popSize > window.innerHeight - 12) {
     top = window.innerHeight - popSize - 12;
+  }
+
+  const anchorCenterY = rect.top + rect.height / 2;
+  const arrowOffset = Math.max(16, Math.min(popSize - 16, anchorCenterY - top));
+  navPreviewHoverPopoverNode.dataset.anchorSide = anchorSide;
+  navPreviewHoverPopoverNode.style.setProperty("--arrow-offset", `${Math.round(arrowOffset)}px`);
+  if (navPreviewHoverPopoverArrowNode) {
+    navPreviewHoverPopoverArrowNode.dataset.anchorSide = anchorSide;
+    navPreviewHoverPopoverArrowNode.textContent = anchorSide === "right" ? "▸" : "◂";
   }
 
   navPreviewHoverPopoverNode.style.left = `${Math.round(left)}px`;
@@ -42749,7 +42789,11 @@ function showNavPreviewHoverPopover(anchorNode) {
     navPreviewHoverPopoverImgNode = document.createElement("img");
     navPreviewHoverPopoverImgNode.className = "nav-preview-hover-popover-img";
     navPreviewHoverPopoverImgNode.alt = "";
+    navPreviewHoverPopoverArrowNode = document.createElement("span");
+    navPreviewHoverPopoverArrowNode.className = "nav-preview-hover-popover-arrow";
+    navPreviewHoverPopoverArrowNode.setAttribute("aria-hidden", "true");
     navPreviewHoverPopoverNode.appendChild(navPreviewHoverPopoverImgNode);
+    navPreviewHoverPopoverNode.appendChild(navPreviewHoverPopoverArrowNode);
     document.body.appendChild(navPreviewHoverPopoverNode);
   }
 
@@ -42807,10 +42851,62 @@ function initNavPreviewHoverZoom() {
   window.addEventListener("resize", hideNavPreviewHoverPopover);
 }
 
+function normalizeNavigationFolderKey(folderPath) {
+  return String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+}
+
+function normalizeNavigationStatusForDisplay(rawStatus) {
+  const raw = String(rawStatus || "").trim();
+  if (!raw) return "";
+  const options = getMenuAwnStatusOptions();
+  const api = awnEnumOptionsApi();
+  if (typeof api.resolveEnumStoredKey === "function") {
+    const storedKey = api.resolveEnumStoredKey(raw, options);
+    if (storedKey) {
+      const display =
+        typeof api.resolveEnumDisplayName === "function"
+          ? api.resolveEnumDisplayName(storedKey, options)
+          : storedKey;
+      return String(display || storedKey).trim();
+    }
+  }
+  return normalizeEnumDisplayValue(raw, options) || raw;
+}
+
+function findNavigationSectionManifestItem(folderPath, sectionManifestByFolder) {
+  const folderKey = normalizeNavigationFolderKey(folderPath);
+  if (!folderKey) return null;
+
+  if (sectionManifestByFolder instanceof Map && sectionManifestByFolder.has(folderKey)) {
+    return sectionManifestByFolder.get(folderKey);
+  }
+
+  const readmePath = getSectionReadmeRelPath(folderKey);
+  const fromCache = externalFilesCache.find(
+    (item) => String(item.relativePath || item.path || "").replace(/\\/g, "/") === readmePath
+  );
+  if (fromCache) return fromCache;
+
+  return null;
+}
+
+function resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder) {
+  const folderKey = normalizeNavigationFolderKey(folderNode?.folderPath);
+  if (!folderKey) return "";
+
+  const manifestItem = findNavigationSectionManifestItem(folderKey, sectionManifestByFolder);
+  let raw = manifestItem ? resolveNavigationItemStatus(manifestItem) : "";
+  if (!raw && folderStatuses instanceof Map) {
+    raw = String(folderStatuses.get(folderKey) || "").trim();
+  }
+  return normalizeNavigationStatusForDisplay(raw);
+}
+
 function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
   const folderDescriptions = new Map();
   const folderStatuses = new Map();
+  const sectionManifestByFolder = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
 
@@ -42837,6 +42933,7 @@ function prepareNavigationExternalItems(files, folders = []) {
         resolveNodeDisplayName(awnName, segment) || title || segment
       );
       if (description) folderDescriptions.set(folderKey, description);
+      sectionManifestByFolder.set(folderKey, item);
       if (status) folderStatuses.set(folderKey, status);
       if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
       continue;
@@ -42865,12 +42962,20 @@ function prepareNavigationExternalItems(files, folders = []) {
     }
   }
 
-  return { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths };
+  return {
+    contentFiles,
+    folderLabels,
+    folderDescriptions,
+    folderStatuses,
+    sectionManifestByFolder,
+    folderPaths
+  };
 }
 
 function prepareNavigationMediaItems(groups, sectionManifests = []) {
   const folderLabels = new Map();
   const folderStatuses = new Map();
+  const sectionManifestByFolder = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
 
@@ -42882,6 +42987,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
     const title = String(manifest.displayName || "").trim();
     const status = resolveNavigationItemStatus(manifest);
     folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
+    sectionManifestByFolder.set(folderKey, manifest);
     if (status) folderStatuses.set(folderKey, status);
     if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
   }
@@ -42935,7 +43041,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
     }
   }
 
-  return { contentFiles, folderLabels, folderStatuses, folderPaths };
+  return { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths };
 }
 
 function ensureNavigationTreeFolders(root, folderPaths, folderLabels) {
@@ -42976,7 +43082,7 @@ function populateNavBookTocFolderLabel(
   folderIcon,
   folderNode,
   folderLabels,
-  { context = "navigation", folderStatuses, folderDescriptions } = {}
+  { context = "navigation", folderStatuses, folderDescriptions, sectionManifestByFolder } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
   const description =
@@ -43001,7 +43107,11 @@ function populateNavBookTocFolderLabel(
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
-  const folderStatus = resolveNavigationFolderStatus(folderNode, folderStatuses);
+  const folderStatus = resolveNavigationFolderStatus(
+    folderNode,
+    folderStatuses,
+    sectionManifestByFolder
+  );
   appendNavBookTocStatusBadge(folderText, folderStatus);
   appendNavBookTocTitleText(folderText, label, description);
   folderLabel.append(folderIcon, folderText);
@@ -45091,7 +45201,7 @@ function buildEntryOverviewSectionTree(navigationIndex, folderPath) {
   }
 
   root.files.sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
-  return { tree: root, folderLabels, folderDescriptions: navigationIndex.folderDescriptions, folderStatuses };
+  return { tree: root, folderLabels, folderDescriptions: navigationIndex.folderDescriptions, folderStatuses, sectionManifestByFolder: navigationIndex.sectionManifestByFolder };
 }
 
 function renderEntryOverviewSectionList(context, navigationIndex) {
@@ -45101,7 +45211,7 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
   const built = buildEntryOverviewSectionTree(navigationIndex, folderPath);
   if (!built) return null;
 
-  const { tree, folderLabels, folderDescriptions, folderStatuses } = built;
+  const { tree, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder } = built;
   if (!tree.folders.size && !tree.files.length) return null;
 
   const sectionTitle =
@@ -45127,6 +45237,7 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    sectionManifestByFolder,
     nodePath: getResolvedNodePath(activePath),
     onFolderClick,
     onFileClick,
@@ -45917,6 +46028,7 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
+  const sectionManifestByFolder = handlers.sectionManifestByFolder || new Map();
   const nodePath = handlers.nodePath || getResolvedNodePath(activePath);
   const onFolderClick = handlers.onFolderClick || openMediaCategoryOverviewFromNavigation;
   const onFileClick = handlers.onFileClick || openMediaEntryOverviewFromNavigation;
@@ -45944,7 +46056,8 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
     folderIcon.setAttribute("aria-hidden", "true");
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
-      folderDescriptions
+      folderDescriptions,
+      sectionManifestByFolder
     });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
@@ -45959,7 +46072,8 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       ...handlers,
       folderLabels,
       folderDescriptions,
-      folderStatuses
+      folderStatuses,
+      sectionManifestByFolder
     });
 
     const childCount = countNavigationFolderItems(folderNode);
@@ -46024,6 +46138,9 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
   for (const item of otherFiles) {
     const entry = document.createElement("li");
     entry.className = "nav-book-toc-entry nav-book-toc-entry--media";
+    if (depth === 0) {
+      entry.classList.add("nav-book-toc-entry--root-level");
+    }
     entry.appendChild(createEntryOverviewMediaFileLink(item, nodePath, onFileClick));
     parentList.appendChild(entry);
   }
@@ -46032,7 +46149,8 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
 function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
   if (!navigationIndex) return null;
 
-  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths } = navigationIndex;
+  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder, folderPaths } =
+    navigationIndex;
   const mdItems = [...(contentFiles || [])].sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 
   if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
@@ -46042,6 +46160,7 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    sectionManifestByFolder,
     nodePath,
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
@@ -46071,7 +46190,8 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     return renderEntryOverviewMediaMemoryToc(context, navigationIndex);
   }
 
-  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths } = navigationIndex;
+  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder, folderPaths } =
+    navigationIndex;
   const mdItems = [...(contentFiles || [])].sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 
   if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
@@ -46093,6 +46213,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    sectionManifestByFolder,
     showFileTypeLeading: false,
     showBranchLeading: false,
     treeStyle: "guide",
@@ -46328,15 +46449,11 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
   }
 }
 
-function resolveNavigationFolderStatus(folderNode, folderStatuses) {
-  if (!(folderStatuses instanceof Map) || !folderNode?.folderPath) return "";
-  return String(folderStatuses.get(folderNode.folderPath) || "").trim();
-}
-
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
+  const sectionManifestByFolder = handlers.sectionManifestByFolder || new Map();
   const nodePath = handlers.nodePath || activePath;
   const onFolderClick = handlers.onFolderClick || openExternalCategoryOverviewFromNavigation;
   const onFileClick =
@@ -46367,7 +46484,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     folderIcon.setAttribute("aria-hidden", "true");
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
-      folderDescriptions
+      folderDescriptions,
+      sectionManifestByFolder
     });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
@@ -46382,7 +46500,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       ...handlers,
       folderLabels,
       folderDescriptions,
-      folderStatuses
+      folderStatuses,
+      sectionManifestByFolder
     });
 
     const childCount = countNavigationFolderItems(folderNode);
@@ -46486,7 +46605,8 @@ function renderNavigationExternalBookToc(
   folderLabels = new Map(),
   folderPaths = new Set(),
   folderStatuses = new Map(),
-  folderDescriptions = new Map()
+  folderDescriptions = new Map(),
+  sectionManifestByFolder = new Map()
 ) {
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
@@ -46500,6 +46620,7 @@ function renderNavigationExternalBookToc(
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    sectionManifestByFolder,
     showFileTypeLeading: false,
     showBranchLeading: false,
     treeStyle: "guide"
@@ -46516,14 +46637,17 @@ function refreshNavigationExternalTocSearch(card) {
   body.querySelector(".node-navigation-book-toc")?.remove();
   body.querySelector(".node-navigation-section-search-empty")?.remove();
 
-  const { items, folderLabels, folderDescriptions, folderStatuses, folderPaths } = navigationExternalTocState;
+  const { items, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder, folderPaths } =
+    navigationExternalTocState;
   const queryLower = navigationExternalTocSearchQuery.trim().toLowerCase();
   const filtered = filterEntryOverviewNavigationIndex(
     {
       contentFiles: items,
       folderPaths: [...folderPaths],
       folderLabels,
-      folderDescriptions
+      folderDescriptions,
+      folderStatuses,
+      sectionManifestByFolder
     },
     queryLower
   );
@@ -46539,7 +46663,8 @@ function refreshNavigationExternalTocSearch(card) {
         filtered.folderLabels,
         filteredFolderPaths,
         filtered.folderStatuses,
-        filtered.folderDescriptions
+        filtered.folderDescriptions,
+        filtered.sectionManifestByFolder
       )
     );
     return;
@@ -46555,7 +46680,7 @@ function refreshNavigationExternalTocSearch(card) {
 
 function renderNavigationExternalPart(externalData) {
   const nonMarkdownFiles = Array.isArray(externalData.nonMarkdownFiles) ? externalData.nonMarkdownFiles : [];
-  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths } = prepareNavigationExternalItems(
+  const { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths, sectionManifestByFolder } = prepareNavigationExternalItems(
     externalData.files || [],
     externalData.folders || []
   );
@@ -46571,6 +46696,7 @@ function renderNavigationExternalPart(externalData) {
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    sectionManifestByFolder,
     folderPaths
   };
 
@@ -46708,7 +46834,7 @@ function appendNavigationMediaImageStrip(parent, items, nodePath) {
 
 function renderNavigationMediaPart(mediaData) {
   const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
-  const { contentFiles, folderLabels, folderStatuses, folderPaths } = prepareNavigationMediaItems(
+  const { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths } = prepareNavigationMediaItems(
     groups,
     mediaData?.sectionManifests || []
   );
@@ -46737,6 +46863,7 @@ function renderNavigationMediaPart(mediaData) {
   appendNavigationBookTocList(list, tree, 0, {
     folderLabels,
     folderStatuses,
+    sectionManifestByFolder,
     nodePath,
     linkLeadingMode: "media",
     onFolderClick: openMediaCategoryOverviewFromNavigation,

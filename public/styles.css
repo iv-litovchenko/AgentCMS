@@ -19497,23 +19497,77 @@ body.app-locked {
   display: none;
 }
 
+.node-navigation-memory-card .nav-book-toc-tree--guide .nav-book-toc-folder--root > .nav-book-toc-list,
+.node-entry-overview-browse-panel .nav-book-toc-tree--guide .nav-book-toc-folder--root > .nav-book-toc-list,
+.node-entry-overview-memory-toc .nav-book-toc-tree--guide .nav-book-toc-folder--root > .nav-book-toc-list {
+  margin: 4px 0 2px var(--nav-toc-spine);
+  padding: 2px 0 4px var(--nav-toc-branch-pad);
+  border-left: 1.5px solid var(--nav-toc-line);
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--root > .nav-book-toc-folder-head {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-label {
+  padding: 6px 8px 6px 0;
+}
+
 .node-entry-overview-memory-toc-nav {
   margin: 0;
 }
 
 .node-entry-overview-media-toc .node-entry-overview-media-grid-wrap {
   list-style: none;
+  position: relative;
   margin: 6px 0 10px;
   padding: 0;
 }
 
-.node-entry-overview-media-toc
+.nav-book-toc-tree--guide .nav-book-toc-folder > .nav-book-toc-list .node-entry-overview-media-grid-wrap::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--nav-toc-branch-pad));
+  top: 18px;
+  width: calc(var(--nav-toc-branch-pad) - 1px);
+  border-top: 1.5px solid var(--nav-toc-line);
+  pointer-events: none;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-entry--media {
+  position: relative;
+  margin: 4px 0;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder > .nav-book-toc-list .nav-book-toc-entry--media::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--nav-toc-branch-pad));
+  top: 50%;
+  width: calc(var(--nav-toc-branch-pad) - 1px);
+  border-top: 1.5px solid var(--nav-toc-line);
+  pointer-events: none;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-list--root > .nav-book-toc-entry--media.nav-book-toc-entry--root-level::before {
+  left: calc(-1 * var(--nav-toc-spine));
+  width: calc(var(--nav-toc-spine) - 1px);
+}
+
+.node-entry-overview-browse-panel
   .nav-book-toc-tree--guide
-  .nav-book-toc-folder
-  > .nav-book-toc-list:has(.node-entry-overview-media-grid-wrap) {
-  margin-left: 0;
-  padding-left: 0;
-  border-left: 0;
+  .nav-book-toc-list--root
+  > .nav-book-toc-entry--media.nav-book-toc-entry--root-level::before,
+.node-entry-overview-memory-toc
+  .nav-book-toc-tree--guide
+  .nav-book-toc-list--root
+  > .nav-book-toc-entry--media.nav-book-toc-entry--root-level::before {
+  display: none;
+}
+
+.node-entry-overview-media-toc .node-entry-overview-media-item {
+  box-sizing: border-box;
 }
 
 .node-entry-overview-media-grid {
@@ -22289,15 +22343,30 @@ button.node-navigation-memory-title:focus-visible {
   border-radius: 8px;
   background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 5px 8px 5px 6px;
+  gap: 6px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder--nested > .nav-book-toc-folder-head {
   border: 0;
   background: transparent;
   box-shadow: none;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   min-height: 26px;
-  gap: 4px;
+  gap: 6px;
+  padding-left: 2px;
+  position: relative;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--nested > .nav-book-toc-folder-head::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--nav-toc-branch-pad));
+  top: 50%;
+  width: calc(var(--nav-toc-branch-pad) - 1px);
+  border-top: 1.5px solid var(--nav-toc-line);
+  pointer-events: none;
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-toggle-spacer {
@@ -22365,7 +22434,15 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-text .nav-book-toc-status {
-  margin-right: 2px;
+  margin-right: 4px;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-text .nav-book-toc-status {
+  margin-right: 4px;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-link-text .nav-book-toc-status {
+  margin-right: 4px;
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-label {
@@ -22383,6 +22460,10 @@ button.node-navigation-memory-title:focus-visible {
 .nav-book-toc-tree--guide .nav-book-toc-folder--unregistered.nav-book-toc-folder--root .nav-book-toc-folder-head {
   background: #f8fafc;
   border-style: dashed;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--unregistered.nav-book-toc-folder--root .nav-book-toc-folder-label {
+  padding-left: 2px;
 }
 
 .nav-book-toc-folder.is-collapsed > .nav-book-toc-list {
@@ -22522,6 +22603,35 @@ button.node-navigation-memory-title:focus-visible {
     0 18px 44px rgba(15, 23, 42, 0.22),
     0 0 0 1px rgba(255, 255, 255, 0.65) inset;
   pointer-events: none;
+  overflow: visible;
+}
+
+.nav-preview-hover-popover-arrow {
+  position: absolute;
+  top: var(--arrow-offset, 84px);
+  width: 18px;
+  height: 18px;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  background: #fff;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.nav-preview-hover-popover-arrow[data-anchor-side="right"] {
+  right: -9px;
+}
+
+.nav-preview-hover-popover-arrow[data-anchor-side="left"] {
+  left: -9px;
 }
 
 .nav-preview-hover-popover.is-large {
