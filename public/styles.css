@@ -572,7 +572,7 @@ body.app-locked {
   flex-direction: column;
   align-items: stretch;
   padding: 0;
-  background: #f8fafc;
+  background: transparent;
   position: relative;
 }
 
@@ -2313,29 +2313,29 @@ body.app-locked {
   align-self: center;
 }
 
-.app-landing-pane--flow .app-landing-search-bar {
+.app-landing-pane--flow.is-landing-bg-sky .app-landing-search-bar {
   border-color: rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.55);
 }
 
-.app-landing-pane--flow .app-landing-search-agents-btn {
+.app-landing-pane--flow.is-landing-bg-sky .app-landing-search-agents-btn {
   border-right-color: rgba(148, 163, 184, 0.28);
   background-color: rgba(30, 41, 59, 0.72);
   color: rgba(226, 232, 240, 0.92);
 }
 
-.app-landing-pane--flow .content-search-scope,
-.app-landing-pane--flow .content-search-input {
+.app-landing-pane--flow.is-landing-bg-sky .content-search-scope,
+.app-landing-pane--flow.is-landing-bg-sky .content-search-input {
   background: transparent;
   color: #f8fafc;
 }
 
-.app-landing-pane--flow .content-search-scope {
+.app-landing-pane--flow.is-landing-bg-sky .content-search-scope {
   border-right-color: rgba(148, 163, 184, 0.28);
   color: rgba(226, 232, 240, 0.88);
 }
 
-.app-landing-pane--flow .content-search-input::placeholder {
+.app-landing-pane--flow.is-landing-bg-sky .content-search-input::placeholder {
   color: rgba(148, 163, 184, 0.72);
 }
 
@@ -2473,29 +2473,29 @@ body.app-locked {
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.96), rgba(37, 99, 235, 0.92));
 }
 
-.app-landing-pane--hub .app-landing-search-bar {
+.app-landing-pane--hub.is-landing-bg-sky .app-landing-search-bar {
   border-color: rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.72);
   backdrop-filter: blur(10px);
 }
 
-.app-landing-pane--hub .app-landing-search-agents-btn {
+.app-landing-pane--hub.is-landing-bg-sky .app-landing-search-agents-btn {
   border-right-color: rgba(148, 163, 184, 0.28);
   background-color: rgba(30, 41, 59, 0.82);
   color: rgba(226, 232, 240, 0.92);
 }
 
-.app-landing-pane--hub .content-search-scope,
-.app-landing-pane--hub .content-search-input {
+.app-landing-pane--hub.is-landing-bg-sky .content-search-scope,
+.app-landing-pane--hub.is-landing-bg-sky .content-search-input {
   background: transparent;
   color: #f8fafc;
 }
 
-.app-landing-pane--hub .content-search-scope {
+.app-landing-pane--hub.is-landing-bg-sky .content-search-scope {
   border-right-color: rgba(148, 163, 184, 0.28);
 }
 
-.app-landing-pane--hub .content-search-input::placeholder {
+.app-landing-pane--hub.is-landing-bg-sky .content-search-input::placeholder {
   color: rgba(148, 163, 184, 0.72);
 }
 
@@ -3119,6 +3119,38 @@ body.app-locked {
 }
 
 .app-landing-view-toggle-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.app-landing-bg-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.app-landing-bg-toggle-btn {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.app-landing-bg-toggle-btn.is-active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.app-landing-bg-toggle-btn:focus-visible {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
@@ -4251,8 +4283,8 @@ body.app-locked {
   }
 }
 
-.app-landing-pane.is-screensaver {
-  background: #030712;
+.app-landing-pane.is-screensaver.is-landing-bg-sky {
+  background: transparent;
 }
 
 .app-landing-pane.is-screensaver .app-landing-hero {
@@ -4277,7 +4309,7 @@ body.app-locked {
   gap: 16px;
 }
 
-.app-landing-pane.is-screensaver .app-landing-dock {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-dock {
   position: relative;
   z-index: 4;
   padding: 10px 12px;
@@ -4291,7 +4323,7 @@ body.app-locked {
   backdrop-filter: blur(12px);
 }
 
-.app-landing-pane.is-screensaver .app-landing-search-bar {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-search-bar {
   border-color: rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.55);
 }
@@ -4347,24 +4379,24 @@ body.app-locked {
   background: #fff;
 }
 
-.app-landing-pane.is-screensaver .app-landing-search-agents-btn {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-search-agents-btn {
   border-right-color: rgba(148, 163, 184, 0.28);
   background-color: rgba(30, 41, 59, 0.72);
   color: rgba(226, 232, 240, 0.92);
 }
 
-.app-landing-pane.is-screensaver .content-search-scope,
-.app-landing-pane.is-screensaver .content-search-input {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .content-search-scope,
+.app-landing-pane.is-screensaver.is-landing-bg-sky .content-search-input {
   background: transparent;
   color: #f8fafc;
 }
 
-.app-landing-pane.is-screensaver .content-search-scope {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .content-search-scope {
   border-right-color: rgba(148, 163, 184, 0.28);
   color: rgba(226, 232, 240, 0.88);
 }
 
-.app-landing-pane.is-screensaver .content-search-input::placeholder {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .content-search-input::placeholder {
   color: rgba(148, 163, 184, 0.72);
 }
 
@@ -4373,41 +4405,44 @@ body.app-locked {
   display: none;
 }
 
-.app-landing-pane.is-screensaver .app-landing-header {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-header {
   border-bottom-color: rgba(148, 163, 184, 0.22);
 }
 
-.app-landing-pane.is-screensaver .app-landing-title {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-title {
   color: #f8fafc;
 }
 
-.app-landing-pane.is-screensaver .app-landing-sub {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-sub {
   color: rgba(226, 232, 240, 0.72);
 }
 
-.app-landing-pane.is-screensaver .app-landing-manage-btn {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-manage-btn {
   border-color: rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.55);
   color: #e2e8f0;
   backdrop-filter: blur(6px);
 }
 
-.app-landing-pane.is-screensaver .app-landing-manage-btn:hover {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-manage-btn:hover {
   border-color: rgba(199, 210, 254, 0.55);
   background: rgba(30, 27, 75, 0.72);
 }
 
-.app-landing-pane.is-screensaver .app-landing-view-toggle {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-view-toggle,
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-bg-toggle {
   border-color: rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(6px);
 }
 
-.app-landing-pane.is-screensaver .app-landing-view-toggle-btn {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-view-toggle-btn,
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-bg-toggle-btn {
   color: rgba(226, 232, 240, 0.72);
 }
 
-.app-landing-pane.is-screensaver .app-landing-view-toggle-btn.is-active {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-view-toggle-btn.is-active,
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-bg-toggle-btn.is-active {
   background: rgba(250, 204, 21, 0.92);
   color: #422006;
 }
@@ -4418,7 +4453,7 @@ body.app-locked {
   pointer-events: none;
 }
 
-.app-landing-pane.is-screensaver .app-landing-orbit-hub-copy {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-orbit-hub-copy {
   padding: 26px 24px 22px;
   border-color: rgba(199, 210, 254, 0.28);
   background:
@@ -4430,21 +4465,21 @@ body.app-locked {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.app-landing-pane.is-screensaver .app-landing-orbit-hub-title {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-orbit-hub-title {
   font-size: clamp(1.5rem, 3.6vw, 2rem);
 }
 
-.app-landing-pane.is-screensaver .app-landing-orbit-hub-lead {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-orbit-hub-lead {
   font-size: 13px;
   color: rgba(226, 232, 240, 0.84);
 }
 
-.app-landing-pane.is-screensaver .app-landing-orbit-hub-tagline {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-orbit-hub-tagline {
   font-size: 12px;
   color: rgba(203, 213, 225, 0.78);
 }
 
-.app-landing-pane.is-screensaver .app-landing-orbit {
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-orbit {
   min-height: calc(100vh - 220px);
   border-radius: 20px;
   background:
@@ -4452,6 +4487,204 @@ body.app-locked {
     radial-gradient(ellipse 45% 40% at 18% 22%, rgba(99, 102, 241, 0.18), transparent 60%),
     radial-gradient(ellipse 40% 35% at 82% 28%, rgba(59, 130, 246, 0.14), transparent 55%);
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit {
+  min-height: calc(100vh - 220px);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 100%, rgba(191, 219, 254, 0.45), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 18% 22%, rgba(147, 197, 253, 0.22), transparent 60%);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-hub-copy {
+  border-color: rgba(148, 163, 184, 0.28);
+  background:
+    radial-gradient(ellipse 95% 75% at 50% 0%, rgba(147, 197, 253, 0.35), transparent 60%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(224, 242, 254, 0.78));
+  box-shadow:
+    0 16px 40px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-hub-eyebrow {
+  color: rgba(79, 70, 229, 0.78);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-hub-title {
+  font-size: clamp(1.5rem, 3.6vw, 2rem);
+  background: linear-gradient(135deg, #0f172a 0%, #4338ca 45%, #2563eb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-hub-lead {
+  color: #334155;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-orbit-hub-tagline {
+  color: #64748b;
+}
+
+.app-landing-pane.is-landing-bg-light .app-landing-attention {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.app-landing-pane--grid.is-landing-bg-sky .app-landing-intro-lead {
+  color: rgba(226, 232, 240, 0.86);
+}
+
+.app-landing-pane--grid.is-landing-bg-sky .app-landing-intro-tagline {
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.app-landing-pane--hub.is-landing-bg-light .app-landing-intro-lead,
+.app-landing-pane--hub.is-landing-bg-light .app-landing-intro-tagline {
+  color: #64748b;
+}
+
+.app-landing-pane--hub.is-landing-bg-light .app-landing-intro-lead {
+  color: #334155;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-row {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-row .app-landing-hub-agent-name {
+  color: #0f172a;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-row .app-landing-hub-agent-hint {
+  color: #64748b;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-section-title {
+  color: #64748b;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-twig {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-hub-empty {
+  color: #94a3b8;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card-title {
+  color: #0f172a;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card-agent-name {
+  color: #64748b;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card-media {
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 20%, rgba(147, 197, 253, 0.35), transparent 65%),
+    #f1f5f9;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-empty,
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-empty-hint {
+  color: #64748b;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-empty-wrap {
+  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-empty {
+  color: #334155;
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-dock {
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    linear-gradient(165deg, rgba(15, 23, 42, 0.82), rgba(30, 27, 75, 0.58));
+  box-shadow:
+    0 16px 40px rgba(2, 6, 23, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-search-bar {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-search-agents-btn {
+  border-right-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(30, 41, 59, 0.72);
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .content-search-scope,
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .content-search-input {
+  background: transparent;
+  color: #f8fafc;
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .content-search-scope {
+  border-right-color: rgba(148, 163, 184, 0.28);
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .content-search-input::placeholder {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-manage-btn {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  backdrop-filter: blur(6px);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-manage-btn:hover {
+  border-color: rgba(199, 210, 254, 0.55);
+  background: rgba(30, 27, 75, 0.72);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-view-toggle,
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-bg-toggle {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-view-toggle-btn,
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-bg-toggle-btn {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-view-toggle-btn.is-active,
+.app-landing-pane.is-landing-bg-sky:not(.is-screensaver) .app-landing-bg-toggle-btn.is-active {
+  background: rgba(250, 204, 21, 0.92);
+  color: #422006;
 }
 
 .app-landing-agent-card {
