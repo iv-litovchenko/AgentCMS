@@ -23823,10 +23823,12 @@ button.node-navigation-memory-title:focus-visible {
   text-transform: none;
   color: #94a3b8;
   font-weight: 600;
+  cursor: pointer;
 }
 
-.nav-book-toc-folder-label--static {
-  cursor: default;
+.nav-book-toc-folder-label--unregistered:hover .nav-book-toc-folder-text,
+.nav-book-toc-folder-label--unregistered:focus-visible .nav-book-toc-folder-text {
+  color: var(--accent);
 }
 
 .nav-book-toc-folder-label--unregistered:hover,

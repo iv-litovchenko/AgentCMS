@@ -1228,6 +1228,17 @@ function extractAwnMaskFileFromNodeConfigContent(content) {
   return extractAwnMaskFileValue(bundle.awn_settings);
 }
 
+function normalizeStorageRecordFields(rawFields) {
+  if (!rawFields || typeof rawFields !== "object" || Array.isArray(rawFields)) return null;
+  const normalized = {};
+  for (const [key, value] of Object.entries(rawFields)) {
+    const safeKey = String(key || "").trim();
+    if (!safeKey || value === null || value === undefined) continue;
+    normalized[safeKey] = value;
+  }
+  return Object.keys(normalized).length ? normalized : null;
+}
+
 async function resolveExternalFileMaskForManifest(manifestRelPath, explicitMask = "") {
   const trimmed = String(explicitMask || "").trim();
   if (trimmed) return trimmed;
@@ -4815,7 +4826,8 @@ async function createStorageRecordFile({
   fileMask = "",
   source = "",
   author = "",
-  status = ""
+  status = "",
+  fields = null
 }) {
   const canonicalFolder = normalizeStorageSubfolderName(storageFolder);
   if (!canonicalFolder || !isAllowedStorageSubfolderName(canonicalFolder)) {
@@ -4828,21 +4840,37 @@ async function createStorageRecordFile({
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
   if (!nodeAbsolute) throw new Error("Invalid file path");
 
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, canonicalFolder, { create: true });
+  const schemaManifestRel = resolveExternalMemorySchemaManifestRel(manifestRelPath);
+  const isMainSlot =
+    slotKey === "memory" ||
+    canonicalFolder === STORAGE_SUBFOLDER_MAIN ||
+    canonicalFolder === STORAGE_SUBFOLDER_CONTENT;
+
+  let folderAbsolute;
+  let parentRaw;
+  if (isMainSlot) {
+    folderAbsolute = await resolveExternalMemoryFolderAbsolute(manifestRelPath, { create: true });
+    parentRaw = resolveExternalMemoryCreateParentRel(manifestRelPath, parent);
+  } else {
+    folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, canonicalFolder, { create: true });
+    parentRaw = resolveStorageCreateParentRel(parent, {
+      layer: canonicalFolder,
+      manifestRelPath
+    });
+  }
   if (!folderAbsolute) throw new Error("Storage folder unavailable");
 
-  const parentRaw = resolveStorageCreateParentRel(parent, {
-    layer: canonicalFolder,
-    manifestRelPath
-  });
-  const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
+  const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw, { create: true });
   if (!targetFolder) {
     throw new Error(parentRaw ? "Parent section not found" : "Invalid storage folder path");
   }
 
   let fileName = null;
   let fileTitle = String(title || "").trim() || "Запись";
-  const mask = String(fileMask || "").trim();
+  let mask = String(fileMask || "").trim();
+  if (!mask && isMainSlot) {
+    mask = await resolveExternalFileMaskForManifest(schemaManifestRel);
+  }
 
   if (mask) {
     fileName = await resolveExternalFileNameFromMask(targetFolder, mask, {
@@ -4862,21 +4890,23 @@ async function createStorageRecordFile({
   }
 
   const textBody = String(body || "").trim();
-  const frontmatterOverrides =
-    slotKey === "inbox"
-      ? {
-          "awn-status": String(status || "new").trim() || "new",
-          "awn-source": String(source || "mcp").trim() || "mcp",
-          ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
-        }
-      : null;
+  const customFields = normalizeStorageRecordFields(fields);
+  let frontmatterOverrides = customFields ? { ...customFields } : null;
+  if (slotKey === "inbox") {
+    frontmatterOverrides = {
+      ...(frontmatterOverrides || {}),
+      "awn-status": String(status || "new").trim() || "new",
+      "awn-source": String(source || "mcp").trim() || "mcp",
+      ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
+    };
+  }
 
   const parentRel = path.relative(folderAbsolute, targetFolder).replace(/\\/g, "/").replace(/^\/+/, "");
   const relInSlotPreview = parentRel ? `${parentRel}/${fileName}` : fileName;
-  const contentWorkspaceRel = buildStorageLayerRef(manifestRelPath, canonicalFolder, relInSlotPreview);
+  const contentWorkspaceRel = buildStorageLayerRef(schemaManifestRel, canonicalFolder, relInSlotPreview);
 
   const content = await buildSlotContentFileContentForManifest(
-    manifestRelPath,
+    schemaManifestRel,
     fileTitle,
     slotKey,
     "record",
@@ -15094,7 +15124,8 @@ async function handleApiForAgent(req, res, url) {
         fileMask: payload.fileMask || payload.mask,
         source: payload.source,
         author: payload.author,
-        status: payload.status
+        status: payload.status,
+        fields: payload.fields
       });
       return sendJson(res, 200, result);
     } catch (error) {

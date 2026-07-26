@@ -24369,7 +24369,7 @@ function isMemorySectionUnregistered(sectionFolder, readmeExists) {
 function getMemorySectionUnregisteredTitle(sectionFolder, { context = "tree" } = {}) {
   const segment = String(sectionFolder || "").split("/").filter(Boolean).pop() || "раздел";
   if (context === "navigation") {
-    return `Раздел «${segment}» без ${AREA_MANIFEST_FILE} — создайте описание раздела, чтобы открыть каталог`;
+    return `Раздел «${segment}» без ${AREA_MANIFEST_FILE} — откройте каталог или создайте описание раздела`;
   }
   return `Папка «${segment}» без ${AREA_MANIFEST_FILE} — нажмите ⚙, чтобы создать описание раздела`;
 }
@@ -43694,22 +43694,13 @@ function populateNavBookTocFolderLabel(
       ? `${label} (${description})`
       : label;
   folderLabel.classList.toggle("nav-book-toc-folder-label--unregistered", isUnregistered);
-  if (isUnregistered) {
-    folderIcon.textContent = "📁";
-    folderLabel.replaceChildren();
-    folderLabel.append(folderIcon);
-    appendMemorySectionTreeLabel(folderLabel, label, { isUnregistered: true, description });
-    return;
-  }
   folderIcon.textContent = "📁";
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
-  const folderStatus = resolveNavigationFolderStatus(
-    folderNode,
-    folderStatuses,
-    sectionManifestByFolder
-  );
+  const folderStatus = isUnregistered
+    ? ""
+    : resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder);
   appendNavBookTocStatusBadge(folderText, folderStatus);
   appendNavBookTocTitleText(folderText, label, description);
   folderLabel.append(folderIcon, folderText);
@@ -45752,54 +45743,49 @@ function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
   };
 }
 
+function findNavigationTreeFolderNode(root, folderPath) {
+  const segments = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "")
+    .split("/")
+    .filter(Boolean);
+  let cursor = root;
+  for (const segment of segments) {
+    if (!cursor?.folders?.has(segment)) return null;
+    cursor = cursor.folders.get(segment);
+  }
+  return cursor;
+}
+
 function buildEntryOverviewSectionTree(navigationIndex, folderPath) {
   if (!navigationIndex) return null;
 
   const { contentFiles, folderLabels, folderStatuses, folderPaths } = navigationIndex;
   const normalizedFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
-  const prefix = normalizedFolder ? `${normalizedFolder}/` : "";
 
-  const root = { label: "", folderPath: normalizedFolder, folders: new Map(), files: [] };
+  const fullTree = buildNavigationPathTree(contentFiles || [], folderLabels);
+  ensureNavigationTreeFolders(fullTree, folderPaths, folderLabels);
 
-  for (const fp of folderPaths || []) {
-    const path = String(fp).replace(/\\/g, "/").replace(/\/$/, "");
-    if (isMemorySectionInfrastructureFolderPath(path)) continue;
-    if (normalizedFolder) {
-      if (path === normalizedFolder || !path.startsWith(prefix)) continue;
-      const rel = path.slice(prefix.length);
-      if (!rel || rel.includes("/")) continue;
-      root.folders.set(rel, {
-        label: folderLabels.get(path) || rel,
-        folderPath: path,
-        folders: new Map(),
-        files: []
-      });
-      continue;
-    }
-    if (path.includes("/")) continue;
-    root.folders.set(path, {
-      label: folderLabels.get(path) || path,
-      folderPath: path,
-      folders: new Map(),
-      files: []
-    });
+  let tree = fullTree;
+  if (normalizedFolder) {
+    const folderNode = findNavigationTreeFolderNode(fullTree, normalizedFolder);
+    tree = {
+      label: "",
+      folderPath: normalizedFolder,
+      folders: folderNode?.folders || new Map(),
+      files: folderNode ? [...folderNode.files] : []
+    };
   }
 
-  for (const item of contentFiles || []) {
-    const path = String(item.path || "").replace(/\\/g, "/");
-    if (!path || isSectionReadmePath(path) || isMemorySectionInfrastructureFilePath(path)) continue;
-    if (normalizedFolder) {
-      if (!path.startsWith(prefix)) continue;
-      const rel = path.slice(prefix.length);
-      if (!rel || rel.includes("/")) continue;
-    } else if (path.includes("/")) {
-      continue;
-    }
-    root.files.push(item);
-  }
+  if (!tree.folders.size && !tree.files.length) return null;
 
-  root.files.sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
-  return { tree: root, folderLabels, folderDescriptions: navigationIndex.folderDescriptions, folderStatuses, sectionManifestByFolder: navigationIndex.sectionManifestByFolder };
+  return {
+    tree,
+    folderLabels,
+    folderDescriptions: navigationIndex.folderDescriptions,
+    folderStatuses,
+    sectionManifestByFolder: navigationIndex.sectionManifestByFolder
+  };
 }
 
 function renderEntryOverviewSectionList(context, navigationIndex) {
@@ -45841,15 +45827,17 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     onFileClick,
     showFileTypeLeading: false,
     showBranchLeading: false,
-    treeStyle: context.memoryKind === "media" ? undefined : "guide",
+    treeStyle: "guide",
     linkLeadingMode: context.memoryKind === "media" ? "media" : undefined
   };
 
-  appendNavigationBookTocList(list, tree, 0, listHandlers);
-
-  if (context.memoryKind !== "media") {
-    nav.classList.add("nav-book-toc-tree--guide");
+  if (context.memoryKind === "media") {
+    appendEntryOverviewMediaBookTocList(list, tree, 0, listHandlers);
+  } else {
+    appendNavigationBookTocList(list, tree, 0, listHandlers);
   }
+
+  nav.classList.add("nav-book-toc-tree--guide");
 
   nav.appendChild(list);
   section.appendChild(nav);
@@ -46643,12 +46631,9 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       folderItem.classList.add("nav-book-toc-folder--unregistered");
     }
 
-    const isUnregisteredFolder =
-      folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels);
-    const folderLabel = document.createElement(isUnregisteredFolder ? "span" : "button");
-    if (!isUnregisteredFolder) folderLabel.type = "button";
+    const folderLabel = document.createElement("button");
+    folderLabel.type = "button";
     folderLabel.className = "nav-book-toc-folder-label";
-    if (isUnregisteredFolder) folderLabel.classList.add("nav-book-toc-folder-label--static");
     const folderIcon = document.createElement("span");
     folderIcon.className = "nav-book-toc-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
@@ -46657,12 +46642,10 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       folderDescriptions,
       sectionManifestByFolder
     });
-    if (!isUnregisteredFolder) {
-      folderLabel.addEventListener("click", (event) => {
-        event.stopPropagation();
-        onFolderClick(folderNode.folderPath);
-      });
-    }
+    folderLabel.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onFolderClick(folderNode.folderPath);
+    });
 
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
@@ -47071,12 +47054,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderItem.classList.add("nav-book-toc-folder--unregistered");
     }
 
-    const isUnregisteredFolder =
-      folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels);
-    const folderLabel = document.createElement(isUnregisteredFolder ? "span" : "button");
-    if (!isUnregisteredFolder) folderLabel.type = "button";
+    const folderLabel = document.createElement("button");
+    folderLabel.type = "button";
     folderLabel.className = "nav-book-toc-folder-label";
-    if (isUnregisteredFolder) folderLabel.classList.add("nav-book-toc-folder-label--static");
     const folderIcon = document.createElement("span");
     folderIcon.className = "nav-book-toc-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
@@ -47085,12 +47065,10 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderDescriptions,
       sectionManifestByFolder
     });
-    if (!isUnregisteredFolder) {
-      folderLabel.addEventListener("click", (event) => {
-        event.stopPropagation();
-        onFolderClick(folderNode.folderPath);
-      });
-    }
+    folderLabel.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onFolderClick(folderNode.folderPath);
+    });
 
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";

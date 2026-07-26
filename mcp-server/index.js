@@ -275,7 +275,7 @@ function createServer() {
 
   reg(
     "create_external_memory",
-    "Create note in awn-storage/main/. Uses awn-mask-file from node config when fileMask omitted. Placeholders: {YYYY},{YY},{MM},{DD},{WW},{id}.",
+    "Create note in awn-storage/main/. path = topic manifest.md (e.g. awn-container/finansy/manifest.md). parent = section inside main/ (e.g. raskhody or raskhody/2026/07/26). Do NOT include awn-storage/main/ in parent or file paths.",
     z.object({
       path: nodePath,
       title: z.string().optional(),
@@ -284,7 +284,7 @@ function createServer() {
       parent: z
         .string()
         .optional()
-        .describe("Section folder inside main/, e.g. dohody or rashody/2026 — not awn-storage/main/...")
+        .describe("Section folder inside main/, e.g. raskhody or raskhody/2026/07/26 — never awn-storage/main/...")
     }),
     ({ path, title, displayName, fileMask, parent }) =>
       client.post("/api/external/file/create", {
@@ -409,7 +409,7 @@ function createServer() {
 
   reg(
     "write_external_memory",
-    "Save note to awn-storage/main/. Auto-enriches .md with full slot_memory frontmatter (awn.content.record). Prefer create_external_memory for new records.",
+    "Save note to awn-storage/main/. path = topic manifest.md OR section manifest.md inside main/. file = relative path only (e.g. 2026/07/26/note.md or raskhody/note.md) — never awn-storage/main/... inside file.",
     z.object({ path: nodePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
@@ -551,7 +551,7 @@ function createServer() {
 
   reg(
     "create_storage_record",
-    "Create typed .md record in storage slot (inbox/, notes/, references/, artefacts/, scripts/). Frontmatter: awn-type awn.content.record + slot schema defaults.",
+    "Create typed .md record in storage slot (main/, inbox/, notes/, …). For main/: reads awn-mask-file from config when fileMask omitted ({YYYY}/{MM}/{DD}/{id}). Pass fields for custom schema keys (summa, kategoriya-rashoda, …).",
     z.object({
       path: nodePath,
       folder: storageSlotFolder,
@@ -561,11 +561,12 @@ function createServer() {
       parent: z.string().optional(),
       body: z.string().optional(),
       fileMask: z.string().optional(),
+      fields: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
       source: z.string().optional(),
       author: z.string().optional(),
       status: z.string().optional()
     }),
-    ({ path, folder, title, displayName, slug, parent, body, fileMask, source, author, status }) =>
+    ({ path, folder, title, displayName, slug, parent, body, fileMask, fields, source, author, status }) =>
       client.post("/api/storage/file/create", {
         path,
         folder,
@@ -576,6 +577,7 @@ function createServer() {
         body,
         fileMask,
         mask: fileMask,
+        fields,
         source,
         author,
         status

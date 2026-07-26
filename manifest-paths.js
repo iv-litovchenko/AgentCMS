@@ -766,6 +766,7 @@ function normalizeStorageSlotParentRel(parentRaw, options = {}) {
     }
   }
 
+  normalized = stripEmbeddedStorageLayerSegments(normalized);
   return normalized.replace(/\/manifest\.md$/i, "").replace(/\/$/, "");
 }
 
@@ -793,6 +794,29 @@ function parseExternalSectionManifestRel(manifestRel) {
   };
 }
 
+function stripEmbeddedStorageLayerSegments(relPath) {
+  let normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized) return "";
+
+  const storagePattern = `(?:${STORAGE_ROOT_FOLDER}|${LEGACY_STORAGE_ROOT_FOLDER})`;
+  const layerPattern = "(?:main|memory|content)";
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const next = normalized.replace(
+      new RegExp(`(^|/)${storagePattern}/${layerPattern}/`, "gi"),
+      "$1"
+    );
+    if (next !== normalized) {
+      normalized = next.replace(/\/+/g, "/").replace(/^\/+/, "");
+      changed = true;
+    }
+  }
+  return normalized.replace(/\/$/, "");
+}
+
 function normalizeExternalMemoryFileRel(relFile, options = {}) {
   let normalized = String(relFile || "")
     .trim()
@@ -809,6 +833,8 @@ function normalizeExternalMemoryFileRel(relFile, options = {}) {
       normalized = normalized.slice(sectionPrefix.length);
     }
   }
+
+  normalized = stripEmbeddedStorageLayerSegments(normalized);
 
   const parsed = parseStorageLayerRef(normalized);
   if (parsed?.relativePath) {
@@ -828,6 +854,7 @@ function normalizeExternalMemoryFileRel(relFile, options = {}) {
     normalized = dirPart ? `${dirPart}/${fileName}` : fileName;
   }
 
+  normalized = stripEmbeddedStorageLayerSegments(normalized);
   return normalized.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
@@ -1369,6 +1396,7 @@ module.exports = {
   normalizeStorageSlotParentRel,
   parseExternalSectionManifestRel,
   normalizeExternalMemoryFileRel,
+  stripEmbeddedStorageLayerSegments,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
