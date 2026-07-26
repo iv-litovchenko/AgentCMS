@@ -1,13 +1,13 @@
 ---
-awn-name: Online редактирование
+awn-name: "Online редактирование"
 awn-emoji: ""
 awn-status: draft
 awn-description: ""
 awn-tags: []
 awn-type: awn.page.topic
-awn-create: "2026-07-26T18:45"
-awn-update: 2026-07-26T21:49:01.201Z
-awn-version: 2
+awn-create: 2026-07-26T15:45:06.111Z
+awn-update: 2026-07-26T15:45:06.111Z
+awn-version: 1
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -15,17 +15,10 @@ awn-category: ""
 awn-owner: ""
 awn-priority: ""
 awn-color: ""
-awn-sort: 0
+awn-sort: ""
 awn-runtime-load-always: false
-awn-runtime-cron: false
+awn-runtime-cron: ""
 awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: false
+awn-runtime-heartbeat: ""
 awn-runtime-commands: false
-awn-attachments: []
 ---
-
-Это тестовое сообщение
-
-
-
-ауцауц
