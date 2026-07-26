@@ -143,10 +143,13 @@ const STORAGE_FILE_WRITE_SLOT_FOLDERS = [
   STORAGE_SUBFOLDER_MAIN
 ];
 
+const STORAGE_SUBFOLDER_SLIDER = "slider";
+
 const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
   STORAGE_SUBFOLDER_PASTED,
   STORAGE_SUBFOLDER_PREVIEW,
-  STORAGE_SUBFOLDER_ATTACHMENTS
+  STORAGE_SUBFOLDER_ATTACHMENTS,
+  STORAGE_SUBFOLDER_SLIDER
 ];
 
 const STORAGE_SUBFOLDER_BY_MODE = {
@@ -951,12 +954,12 @@ function extractCanonicalInlineAssetsRef(workspaceRelPath) {
   const normalized = String(workspaceRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
 
-  const inlineAssetsMatch = normalized.match(/\/assets\/(pasted|preview|attachments)\/(.+)$/i);
+  const inlineAssetsMatch = normalized.match(/\/assets\/(pasted|preview|attachments|slider)\/(.+)$/i);
   if (inlineAssetsMatch?.[1] && inlineAssetsMatch[2]) {
     return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${inlineAssetsMatch[1]}/${inlineAssetsMatch[2]}`;
   }
 
-  const shortSubdirMatch = normalized.match(/(?:^|\/)(pasted|preview|attachments)\/(.+)$/i);
+  const shortSubdirMatch = normalized.match(/(?:^|\/)(pasted|preview|attachments|slider)\/(.+)$/i);
   if (shortSubdirMatch?.[1] && shortSubdirMatch[2] && !/\/assets\//i.test(normalized)) {
     return `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${shortSubdirMatch[1]}/${shortSubdirMatch[2]}`;
   }
@@ -1231,6 +1234,7 @@ module.exports = {
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_PASTED,
   STORAGE_SUBFOLDER_ATTACHMENTS,
+  STORAGE_SUBFOLDER_SLIDER,
   STORAGE_ASSETS_INLINE_SUBFOLDERS,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,

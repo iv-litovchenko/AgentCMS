@@ -4996,7 +4996,7 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
 }
 
 const CONTAINER_AREA_NAME = "Контейнер";
-const SHARED_AREA_NAME = "Общие темы";
+const SHARED_AREA_NAME = "Общие темы и ресурсы";
 const SHARED_DEFAULT_THEMES = [
   { slug: "inbox", title: "Входящие" },
   { slug: "notes", title: "Заметки" },
@@ -7957,6 +7957,55 @@ async function resolveUniqueMediaFileAbsolute(folderAbsolute, fileName) {
     if (index > 999) return null;
   }
   return path.join(folderAbsolute, candidate);
+}
+
+const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
+const AGENT_SLIDER_FOLDER_REF = `${STORAGE_ROOT_FOLDER}/${STORAGE_SUBFOLDER_ASSETS}/${AGENT_SLIDER_ASSETS_SUBDIR}`;
+const AGENT_SLIDER_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"]);
+
+function resolveAgentWorkspaceManifestAbsoluteSync(agentPath) {
+  const safePath = assertSafeAgentPath(agentPath);
+  const workspaceAbsolute = resolveAgentRootAbsolute(safePath);
+  const manifest = readWorkspaceManifestSync(workspaceAbsolute);
+  if (!manifest) return null;
+  return path.join(workspaceAbsolute, AREA_MANIFEST_FILE);
+}
+
+async function resolveAgentSliderFolderAbsolute(agentPath, options = {}) {
+  const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
+  if (!manifestAbsolute) return null;
+  return resolveInlineAssetsFolderAbsolute(manifestAbsolute, AGENT_SLIDER_ASSETS_SUBDIR, options);
+}
+
+async function listAgentSliderImages(agentPath) {
+  const folderAbsolute = await resolveAgentSliderFolderAbsolute(agentPath);
+  if (!folderAbsolute) return [];
+
+  let entries = [];
+  try {
+    entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    throw error;
+  }
+
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || entry.name.startsWith(".")) continue;
+    const ext = path.extname(entry.name).toLowerCase();
+    if (!AGENT_SLIDER_IMAGE_EXTENSIONS.has(ext)) continue;
+    const fileAbsolute = path.join(folderAbsolute, entry.name);
+    const stat = await fs.stat(fileAbsolute);
+    files.push({
+      name: entry.name,
+      mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${entry.name}`,
+      size: stat.size,
+      updatedAt: stat.mtime ? stat.mtime.toISOString() : null
+    });
+  }
+
+  files.sort((a, b) => a.name.localeCompare(b.name, "ru", { sensitivity: "base", numeric: true }));
+  return files;
 }
 
 async function getAgentPreviewMeta(agent) {
@@ -16324,6 +16373,134 @@ async function handleApi(req, res, url) {
       return sendJson(res, 500, { error: "Failed to read workspace preview", details: String(error.message || error) });
     }
     return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/slider") {
+    const workspacePath = String(url.searchParams.get("path") || "").trim();
+    if (!workspacePath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentPath = assertSafeAgentPath(workspacePath);
+      const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
+      if (!manifestAbsolute) {
+        return sendJson(res, 400, {
+          error: `В «${agentPath}» нет ${MANIFEST_FILE} с type: workspace`
+        });
+      }
+      const files = await listAgentSliderImages(agentPath);
+      return sendJson(res, 200, {
+        folderPath: AGENT_SLIDER_FOLDER_REF,
+        files
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to list agent slider images",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agents/slider") {
+    try {
+      const payload = await readJsonBody(req, 12_000_000);
+      const workspacePath = String(payload?.path || "").trim();
+      if (!workspacePath) return sendJson(res, 400, { error: "Missing path" });
+
+      const agentPath = assertSafeAgentPath(workspacePath);
+      const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
+      if (!manifestAbsolute) {
+        return sendJson(res, 400, {
+          error: `В «${agentPath}» нет ${MANIFEST_FILE} с type: workspace`
+        });
+      }
+
+      const data = payload?.data;
+      const fileName = payload?.fileName;
+      const mimeType = payload?.mimeType;
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing image data" });
+
+      const buffer = Buffer.from(data, "base64");
+      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      if (buffer.length > 10 * 1024 * 1024) {
+        return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
+      }
+
+      const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
+      if (!imageExt) {
+        return sendJson(res, 400, {
+          error: "Invalid image format",
+          details: "Allowed formats: JPG, PNG, GIF, WEBP, AVIF"
+        });
+      }
+      if (!validateMediaImageBufferByExt(buffer, imageExt)) {
+        return sendJson(res, 400, {
+          error: "Invalid image file",
+          details: "File content does not match the selected image format"
+        });
+      }
+
+      const folderAbsolute = await resolveAgentSliderFolderAbsolute(agentPath, { create: true });
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid slider folder path" });
+
+      const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "slide";
+      const targetAbsolute = await resolveUniqueMediaFileAbsolute(folderAbsolute, `${safeBase}${imageExt}`);
+      if (!targetAbsolute || !targetAbsolute.startsWith(folderAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid slider file path" });
+      }
+
+      await fs.writeFile(targetAbsolute, buffer);
+      const storedName = path.basename(targetAbsolute);
+      return sendJson(res, 200, {
+        folderPath: AGENT_SLIDER_FOLDER_REF,
+        file: {
+          name: storedName,
+          mediaFile: `${AGENT_SLIDER_ASSETS_SUBDIR}/${storedName}`
+        }
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to upload slider image",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/agents/slider") {
+    const workspacePath = String(url.searchParams.get("path") || "").trim();
+    const fileName = String(url.searchParams.get("file") || "").trim();
+    if (!workspacePath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!fileName) return sendJson(res, 400, { error: "Missing file query parameter" });
+
+    try {
+      const agentPath = assertSafeAgentPath(workspacePath);
+      const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
+      if (!manifestAbsolute) {
+        return sendJson(res, 400, {
+          error: `В «${agentPath}» нет ${MANIFEST_FILE} с type: workspace`
+        });
+      }
+
+      const folderAbsolute = await resolveAgentSliderFolderAbsolute(agentPath);
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid slider folder path" });
+
+      const safeName = sanitizeMediaFileName(fileName);
+      if (!safeName) return sendJson(res, 400, { error: "Invalid file name" });
+
+      const fileAbsolute = path.join(folderAbsolute, safeName);
+      if (!fileAbsolute.startsWith(folderAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid slider file path" });
+      }
+
+      await fs.unlink(fileAbsolute);
+      return sendJson(res, 200, { deleted: safeName });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 404, { error: "Slider image not found" });
+      }
+      return sendJson(res, 400, {
+        error: "Failed to delete slider image",
+        details: String(error?.message || error)
+      });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/api/agents/validate-paths") {

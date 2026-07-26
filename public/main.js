@@ -529,6 +529,14 @@ const agentsPickerPopoverCloseBtn = document.getElementById("agents-picker-popov
 const agentsPickerStageNode = document.getElementById("agents-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
+const agentPreviewSliderInfoBtn = document.getElementById("agent-preview-slider-info-btn");
+const agentSliderModalNode = document.getElementById("agent-slider-modal");
+const agentSliderModalPathNode = document.getElementById("agent-slider-modal-path");
+const agentSliderGridNode = document.getElementById("agent-slider-grid");
+const agentSliderEmptyNoteNode = document.getElementById("agent-slider-empty-note");
+const agentSliderUploadZoneNode = document.getElementById("agent-slider-upload-zone");
+const agentSliderFileInputNode = document.getElementById("agent-slider-file-input");
+const agentSliderModalCloseBtn = document.getElementById("agent-slider-modal-close-btn");
 const discussAgentPreviewWrapNode = document.getElementById("discuss-agent-preview-wrap");
 const discussAgentPreviewThumbNode = document.getElementById("discuss-agent-preview-thumb");
 const appHomeLink = document.getElementById("app-home-link");
@@ -765,11 +773,11 @@ function isPlatformAgent(agent) {
   return agent?.virtual === true || isPlatformAgentId(agent?.id);
 }
 /** Универсальный заголовок служебной секции в дереве (не имя агента). */
-const SERVICE_AREA_NAME = "Агент и пользователи";
-const SERVICE_SECTION_LABEL = "Агент и пользователи";
+const SERVICE_AREA_NAME = "Агентская среда";
+const SERVICE_SECTION_LABEL = "Агентская среда";
 const CONTAINER_SECTION_LABEL = "Контейнер";
 const SHARED_FOLDER_DEFAULT = "awn-shared";
-const SHARED_SECTION_LABEL = "Общие темы";
+const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
   "Общие темы и ресурсы для всех тем агента: скрипты, источники, медиа и другие накопители.";
@@ -3426,7 +3434,7 @@ function syncNodeDescriptionHintUi() {
     return;
   }
   if (isAgentSharedRootIndexPath(resolvedPath)) {
-    titleNode.textContent = "Общее — назначение области";
+    titleNode.textContent = "Общие темы и ресурсы — назначение области";
     textNode.innerHTML =
       "Общие темы и ресурсы для всех тем агента внутри <code>awn-shared/</code>: скрипты, источники, медиа и другие накопители. " +
       "Создайте файл один раз — используйте из любой темы через ссылки или mount. " +
@@ -3451,19 +3459,15 @@ function openSelectedAgentWorkspaceView() {
 }
 
 function syncAgentPreviewOpenUi() {
-  const canOpen = Boolean(activeAgentId && agentViewSelect);
-  const view = String(agentViewSelect?.value || agentWorkspaceView || "dashboard").trim();
-  const option = agentViewSelect?.querySelector(`option[value="${view}"]`);
-  const openable = canOpen && view && option && !option.disabled;
-  const viewLabel = String(option?.textContent || "").trim();
-  const openHint = viewLabel ? `Открыть: ${viewLabel}` : "Открыть вид workspace";
+  const canOpen = Boolean(activeAgentId && getActiveAgentMeta()?.path);
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
+  const openHint = "Слайдер вдохновения";
 
   for (const node of [agentPreviewWrapNode, agentPreviewPlaceholderNode, discussAgentPreviewWrapNode]) {
     if (!node) continue;
     const isDiscussPreview = node === discussAgentPreviewWrapNode;
     const isInteractive =
-      openable &&
+      canOpen &&
       (isDiscussPreview
         ? previewVisible && !discussAgentPreviewWrapNode?.classList.contains("hidden")
         : node === agentPreviewWrapNode
@@ -3486,7 +3490,7 @@ function syncAgentPreviewOpenUi() {
       node.removeAttribute("tabindex");
       node.removeAttribute("aria-label");
       if (node === agentPreviewWrapNode) {
-        node.title = "Превью агента";
+        node.title = "Слайдер вдохновения";
       } else if (isDiscussPreview) {
         node.title = "Превью агента";
         if (node.classList.contains("hidden")) node.setAttribute("aria-hidden", "true");
@@ -3513,8 +3517,16 @@ function syncAgentPreview(previewMeta = null) {
   if (!targets.length) return;
 
   const agent = getActiveAgentMeta();
-  const hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
-  const previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
+  let hasPreview = previewMeta ? Boolean(previewMeta.hasPreview) : Boolean(agent?.hasPreview);
+  let previewUrl = previewMeta?.previewUrl ?? agent?.previewUrl ?? null;
+
+  if (!previewMeta && agentSliderCatalog.files.length > 0) {
+    const slide = agentSliderCatalog.files[agentSliderIndex % agentSliderCatalog.files.length];
+    if (slide?.mediaFile) {
+      hasPreview = true;
+      previewUrl = buildAgentSliderMediaApiUrl(slide.mediaFile);
+    }
+  }
 
   if (previewMeta) {
     updateAgentPreviewCache(previewMeta);
@@ -3559,6 +3571,12 @@ function syncAgentPreview(previewMeta = null) {
   }
 
   for (const target of targets) {
+    if (target.primary && getActiveAgentMeta()?.path) {
+      target.wrap.classList.remove("hidden");
+      target.wrap.classList.remove("is-revealed");
+      target.thumb.removeAttribute("src");
+      continue;
+    }
     target.wrap.classList.add("hidden");
     target.wrap.classList.remove("is-revealed");
     target.thumb.removeAttribute("src");
@@ -4181,9 +4199,237 @@ async function removeAgentPreviewFile(agentPath) {
   return response.json();
 }
 
+const AGENT_SLIDER_FOLDER_REF = "awn-storage/assets/slider";
+const AGENT_SLIDER_ROTATE_MS = 12000;
+let agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+let agentSliderRotateTimer = null;
+let agentSliderIndex = 0;
+
+function buildAgentSliderMediaApiUrl(mediaFile) {
+  const relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relFile) return "";
+  return buildApiUrl("/api/media/file", { path: MANIFEST_FILE, file: relFile });
+}
+
+function stopAgentSliderRotation() {
+  if (agentSliderRotateTimer) {
+    clearInterval(agentSliderRotateTimer);
+    agentSliderRotateTimer = null;
+  }
+}
+
+function restartAgentSliderRotation() {
+  stopAgentSliderRotation();
+  if (agentSliderCatalog.files.length < 2) return;
+  agentSliderRotateTimer = setInterval(() => {
+    agentSliderIndex = (agentSliderIndex + 1) % agentSliderCatalog.files.length;
+    syncAgentPreview();
+  }, AGENT_SLIDER_ROTATE_MS);
+}
+
+async function refreshAgentSliderCatalog(force = false) {
+  const agent = getActiveAgentMeta();
+  if (!agent?.path) {
+    agentSliderCatalog = { folderPath: AGENT_SLIDER_FOLDER_REF, files: [], loadedForAgentId: null };
+    agentSliderIndex = 0;
+    stopAgentSliderRotation();
+    return agentSliderCatalog;
+  }
+
+  if (!force && agentSliderCatalog.loadedForAgentId === agent.id) {
+    return agentSliderCatalog;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agents/slider", { path: agent.path }));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    agentSliderCatalog = {
+      folderPath: String(data.folderPath || AGENT_SLIDER_FOLDER_REF).trim() || AGENT_SLIDER_FOLDER_REF,
+      files: Array.isArray(data.files) ? data.files : [],
+      loadedForAgentId: agent.id
+    };
+  } catch {
+    agentSliderCatalog = {
+      folderPath: AGENT_SLIDER_FOLDER_REF,
+      files: [],
+      loadedForAgentId: agent.id
+    };
+  }
+
+  if (agentSliderIndex >= agentSliderCatalog.files.length) {
+    agentSliderIndex = 0;
+  }
+  restartAgentSliderRotation();
+  return agentSliderCatalog;
+}
+
+async function uploadAgentSliderFile(agentPath, file) {
+  if (!agentPath) throw new Error("Workspace не задан");
+  const data = await readFileAsBase64(file);
+  const response = await fetch("/api/agents/slider", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: agentPath,
+      data,
+      fileName: file.name,
+      mimeType: file.type
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
+  }
+  return response.json();
+}
+
+async function deleteAgentSliderFile(agentPath, fileName) {
+  if (!agentPath) throw new Error("Workspace не задан");
+  const response = await fetch(
+    buildApiUrl("/api/agents/slider", { path: agentPath, file: fileName }),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
+  }
+  return response.json();
+}
+
+function renderAgentSliderModalGrid() {
+  if (!agentSliderGridNode) return;
+  agentSliderGridNode.replaceChildren();
+
+  const files = agentSliderCatalog.files || [];
+  agentSliderEmptyNoteNode?.classList.toggle("hidden", files.length > 0);
+
+  for (const file of files) {
+    const item = document.createElement("article");
+    item.className = "agent-slider-grid-item";
+    item.setAttribute("role", "listitem");
+
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "agent-slider-grid-thumb-wrap";
+
+    const img = document.createElement("img");
+    img.className = "agent-slider-grid-thumb";
+    img.alt = file.name || "Слайд";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src = appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(buildAgentSliderMediaApiUrl(file.mediaFile))),
+      MEDIA_THUMB_MAX_GRID
+    );
+    thumbWrap.appendChild(img);
+
+    const meta = document.createElement("div");
+    meta.className = "agent-slider-grid-meta";
+
+    const name = document.createElement("span");
+    name.className = "agent-slider-grid-name";
+    name.textContent = file.name || "";
+    name.title = file.name || "";
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "agent-slider-grid-delete-btn";
+    deleteBtn.textContent = "Удалить";
+    deleteBtn.addEventListener("click", () => {
+      void (async () => {
+        const agent = getActiveAgentMeta();
+        if (!agent?.path) return;
+        try {
+          await deleteAgentSliderFile(agent.path, file.name);
+          await refreshAgentSliderCatalog(true);
+          renderAgentSliderModalGrid();
+          syncAgentPreview();
+          showToast("Изображение удалено", "success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          showToast(message || "Не удалось удалить", "error");
+        }
+      })();
+    });
+
+    meta.append(name, deleteBtn);
+    item.append(thumbWrap, meta);
+    agentSliderGridNode.appendChild(item);
+  }
+}
+
+function openAgentSliderModal() {
+  if (!agentSliderModalNode) return;
+  const agent = getActiveAgentMeta();
+  if (!agent?.path) {
+    showToast("Сначала выберите агента", "error");
+    return;
+  }
+
+  void (async () => {
+    await refreshAgentSliderCatalog(true);
+    if (agentSliderModalPathNode) {
+      agentSliderModalPathNode.textContent = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
+    }
+    renderAgentSliderModalGrid();
+    agentSliderModalNode.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+  })();
+}
+
+function closeAgentSliderModal() {
+  if (!agentSliderModalNode) return;
+  agentSliderModalNode.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function uploadAgentSliderFiles(fileList) {
+  const agent = getActiveAgentMeta();
+  if (!agent?.path) {
+    showToast("Сначала выберите агента", "error");
+    return;
+  }
+
+  const files = Array.from(fileList || []).filter(Boolean);
+  if (!files.length) return;
+
+  agentSliderUploadZoneNode?.classList.add("is-uploading");
+  let uploaded = 0;
+
+  try {
+    for (const file of files) {
+      await uploadAgentSliderFile(agent.path, file);
+      uploaded += 1;
+    }
+    await refreshAgentSliderCatalog(true);
+    renderAgentSliderModalGrid();
+    syncAgentPreview();
+    showToast(uploaded === 1 ? "Изображение добавлено" : `Добавлено изображений: ${uploaded}`, "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message || "Ошибка загрузки", "error");
+  } finally {
+    agentSliderUploadZoneNode?.classList.remove("is-uploading");
+    if (agentSliderFileInputNode) agentSliderFileInputNode.value = "";
+  }
+}
+
+async function showAgentSliderFolderPath() {
+  const folderPath = agentSliderCatalog.folderPath || AGENT_SLIDER_FOLDER_REF;
+  try {
+    await navigator.clipboard.writeText(folderPath);
+    showToast(`Путь скопирован: ${folderPath}`, "success");
+  } catch {
+    showToast(`Папка: ${folderPath}`, "info");
+  }
+}
+
 async function refreshAgentPreviewAfterFileChange(agentPath) {
   await loadAgents();
   syncAgentsRegistryDraftPreview(agentPath);
+  await refreshAgentSliderCatalog(true);
   syncAgentPreview();
 }
 
@@ -5570,7 +5816,7 @@ function renderAgentSelect() {
         ? previousValue
         : "";
   agentSelectNode.value = nextValue;
-  syncAgentPreview();
+  void refreshAgentSliderCatalog(true).then(() => syncAgentPreview());
   refreshAgentsPickerIfOpen();
 }
 
@@ -8036,6 +8282,7 @@ async function switchActiveAgent(nextAgentId) {
     if (hasCachedView) {
       activateMenuAgentPane(activeAgentId);
       updateActiveButton();
+      await refreshAgentSliderCatalog(true);
       syncAgentPreview({
         hasPreview: cachedMenu.hasPreview,
         previewUrl: cachedMenu.previewUrl
@@ -17616,24 +17863,7 @@ function syncCreateNodeReservedScaffoldButtonsUi(agentId = getCreateModalAgentId
 }
 
 function syncCreateNodeRootSystemFilesUi() {
-  const normalized = normalizeCreateParentPath(createModalBaseParentPath || ".");
-  const show = normalized === ".";
-  createNodeRootSystemWrapNode?.classList.toggle("hidden", !show);
-
-  const buttons = [
-    [createNodeAgentsScaffoldBtn, "AGENTS.md"],
-    [createNodeNoteScaffoldBtn, ROOT_SYSTEM_NOTE_FILE],
-    [createNodeTodoScaffoldBtn, ROOT_SYSTEM_TODO_FILE],
-    [createNodeReadmeScaffoldBtn, "README.md"]
-  ];
-  for (const [button, fileName] of buttons) {
-    if (!button) continue;
-    const meta = getSystemFileCacheEntry(fileName);
-    const exists = Boolean(meta?.exists);
-    button.disabled = exists;
-    button.setAttribute("aria-disabled", exists ? "true" : "false");
-    button.title = exists ? `${fileName} уже создан` : `Создать ${fileName}`;
-  }
+  createNodeRootSystemWrapNode?.classList.add("hidden");
 }
 
 function syncCreateNodeReservedFoldersUi() {
@@ -18046,7 +18276,7 @@ async function loadAndRenderCreateNodeDynamicTypes() {
 function renderCreateNodeDynamicTypes(data) {
   if (!data?.groups?.length) return;
 
-  // "agent" group → "Агент и пользователи" section
+  // "agent" group → "Агентская среда" section
   const agentGroup = data.groups.find((g) => g.id === "agent");
   if (agentGroup?.types?.length && createNodeServiceDocsWrapNode) {
     const actionsNode = createNodeServiceDocsWrapNode.querySelector(".create-node-service-docs-actions");
@@ -42145,10 +42375,10 @@ function buildNavigationPathTree(items, folderLabels = new Map()) {
 }
 
 function resolveNavigationItemStatus(item) {
-  const direct = String(item?.status || "").trim();
-  if (direct) return direct;
   const props = Array.isArray(item?.props) ? item.props : [];
-  return String(getPropsEntryValueByKey(props, "awn-status") || "").trim();
+  const fromProps = String(getPropsEntryValueByKey(props, "awn-status") || "").trim();
+  if (fromProps) return fromProps;
+  return String(item?.status || "").trim();
 }
 
 function getNavigationAwnDescription(source) {
@@ -42746,7 +42976,7 @@ function populateNavBookTocFolderLabel(
   folderIcon,
   folderNode,
   folderLabels,
-  { context = "navigation", folderStatuses, folderDescriptions, inheritedFolderStatus = "" } = {}
+  { context = "navigation", folderStatuses, folderDescriptions } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
   const description =
@@ -42771,11 +43001,7 @@ function populateNavBookTocFolderLabel(
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
-  const folderStatus = resolveNavigationFolderStatus(
-    folderNode,
-    folderStatuses,
-    inheritedFolderStatus
-  );
+  const folderStatus = resolveNavigationFolderStatus(folderNode, folderStatuses);
   appendNavBookTocStatusBadge(folderText, folderStatus);
   appendNavBookTocTitleText(folderText, label, description);
   folderLabel.append(folderIcon, folderText);
@@ -45687,13 +45913,7 @@ function appendEntryOverviewMediaImageGrid(parent, items, nodePath, onFileClick)
   parent.appendChild(wrap);
 }
 
-function appendEntryOverviewMediaBookTocList(
-  parentList,
-  node,
-  depth = 0,
-  handlers = {},
-  inheritedFolderStatus = ""
-) {
+function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
@@ -45724,8 +45944,7 @@ function appendEntryOverviewMediaBookTocList(
     folderIcon.setAttribute("aria-hidden", "true");
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
-      folderDescriptions,
-      inheritedFolderStatus
+      folderDescriptions
     });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
@@ -45734,22 +45953,14 @@ function appendEntryOverviewMediaBookTocList(
       });
     }
 
-    const folderStatus = resolveNavigationFolderStatus(
-      folderNode,
-      folderStatuses,
-      inheritedFolderStatus
-    );
-    const childInheritedStatus = folderStatus || inheritedFolderStatus;
-
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
-    appendEntryOverviewMediaBookTocList(
-      subList,
-      folderNode,
-      depth + 1,
-      { ...handlers, folderLabels, folderDescriptions, folderStatuses },
-      childInheritedStatus
-    );
+    appendEntryOverviewMediaBookTocList(subList, folderNode, depth + 1, {
+      ...handlers,
+      folderLabels,
+      folderDescriptions,
+      folderStatuses
+    });
 
     const childCount = countNavigationFolderItems(folderNode);
     const collapsible = handlers.collapsible !== false && childCount > 0;
@@ -46117,35 +46328,12 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
   }
 }
 
-function resolveNavigationFolderStatus(folderNode, folderStatuses, inheritedStatus = "") {
-  if (folderStatuses instanceof Map && folderNode?.folderPath) {
-    const direct = String(folderStatuses.get(folderNode.folderPath) || "").trim();
-    if (direct) return direct;
-  }
-  const aggregated = aggregateNavigationFolderStatus(folderNode);
-  if (aggregated) return aggregated;
-  return String(inheritedStatus || "").trim();
+function resolveNavigationFolderStatus(folderNode, folderStatuses) {
+  if (!(folderStatuses instanceof Map) || !folderNode?.folderPath) return "";
+  return String(folderStatuses.get(folderNode.folderPath) || "").trim();
 }
 
-function aggregateNavigationFolderStatus(folderNode) {
-  if (!folderNode) return "";
-  for (const item of folderNode.files || []) {
-    const status = resolveNavigationItemStatus(item);
-    if (status) return status;
-  }
-  if (folderNode.folders instanceof Map) {
-    const childFolders = Array.from(folderNode.folders.values()).sort((a, b) =>
-      compareNavigationPathsNatural(a.folderPath || "", b.folderPath || "")
-    );
-    for (const child of childFolders) {
-      const status = aggregateNavigationFolderStatus(child);
-      if (status) return status;
-    }
-  }
-  return "";
-}
-
-function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}, inheritedFolderStatus = "") {
+function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
@@ -46179,8 +46367,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {},
     folderIcon.setAttribute("aria-hidden", "true");
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
-      folderDescriptions,
-      inheritedFolderStatus
+      folderDescriptions
     });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
@@ -46189,13 +46376,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {},
       });
     }
 
-    const folderStatus = resolveNavigationFolderStatus(
-      folderNode,
-      folderStatuses,
-      inheritedFolderStatus
-    );
-    const childInheritedStatus = folderStatus || inheritedFolderStatus;
-
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
     appendNavigationBookTocList(subList, folderNode, depth + 1, {
@@ -46203,7 +46383,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {},
       folderLabels,
       folderDescriptions,
       folderStatuses
-    }, childInheritedStatus);
+    });
 
     const childCount = countNavigationFolderItems(folderNode);
     const collapsible = handlers.collapsible !== false && childCount > 0;
@@ -54299,7 +54479,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
 
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let treeToRender = pruneMenuTreeForDisplay(
-    { title: getSharedRootMenuTitle(agentId), ...sharedTree },
+    { title: SHARED_SECTION_LABEL, ...sharedTree },
     agentId
   );
   if (queryLower) {
@@ -54321,7 +54501,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   headRow.appendChild(createFolderToggleButton(hasContent, collapsed, toggleSharedTreeCollapsed));
 
   if (sharedManifestPath) {
-    const sharedLabel = getSharedRootMenuTitle(agentId);
+    const sharedLabel = SHARED_SECTION_LABEL;
     const folderButton = document.createElement("button");
     folderButton.type = "button";
     folderButton.className = "menu-folder menu-folder-shared-root";
@@ -54475,7 +54655,7 @@ function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId
   folderButton.className = "menu-folder menu-folder-service-root";
   folderButton.dataset.path = normalizeMenuNodePath(serviceManifestPath);
   applyNodeColorVars(folderButton, serviceTree.color, { isFolder: true });
-  const serviceLabel = String(serviceTree.title || "").trim() || getServiceRootMenuTitle(agentId);
+  const serviceLabel = SERVICE_SECTION_LABEL;
   setMenuLabelWithMarkers(folderButton, serviceLabel, serviceTree, "menu-folder-name", { skipAgentMarker: true });
   folderButton.addEventListener("click", (event) => {
     const pathFromNode = event.currentTarget?.dataset?.path || "";
@@ -55239,7 +55419,9 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
 
     if (node.indexPath) {
       const folderRow = document.createElement("div");
-      folderRow.className = "menu-folder-row";
+      folderRow.className = isRootFolder
+        ? "menu-folder-row menu-workspace-head"
+        : "menu-folder-row";
 
       folderRow.appendChild(
         createFolderToggleButton(hasContent, isCollapsedEffective, toggleSectionCollapsed, {
@@ -55302,7 +55484,14 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       folderRow.appendChild(addBtn);
       folderRow.appendChild(createNodeSettingsButton(node.indexPath));
       folderRow.appendChild(createBookmarkButton(node.indexPath));
-      sectionNode.appendChild(folderRow);
+      if (isRootFolder) {
+        const workspaceSection = document.createElement("div");
+        workspaceSection.className = "menu-workspace-section";
+        workspaceSection.appendChild(folderRow);
+        sectionNode.appendChild(workspaceSection);
+      } else {
+        sectionNode.appendChild(folderRow);
+      }
     } else {
       const sectionRow = document.createElement("div");
       const isEmptyFolder = Boolean(node.empty);
@@ -65026,8 +65215,52 @@ agentViewSelect?.addEventListener("change", () => {
 function handleAgentPreviewOpenActivate(event) {
   if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
   if (event.type === "keydown") event.preventDefault();
+  if (event.currentTarget === agentPreviewWrapNode || event.currentTarget === agentPreviewPlaceholderNode) {
+    openAgentSliderModal();
+    return;
+  }
   openSelectedAgentWorkspaceView();
 }
+
+agentPreviewSliderInfoBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  void showAgentSliderFolderPath();
+});
+
+agentSliderModalCloseBtn?.addEventListener("click", () => closeAgentSliderModal());
+agentSliderModalNode?.addEventListener("click", (event) => {
+  if (event.target === agentSliderModalNode) closeAgentSliderModal();
+});
+
+agentSliderUploadZoneNode?.addEventListener("click", () => agentSliderFileInputNode?.click());
+agentSliderUploadZoneNode?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    agentSliderFileInputNode?.click();
+  }
+});
+agentSliderUploadZoneNode?.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  agentSliderUploadZoneNode.classList.add("drag-over");
+});
+agentSliderUploadZoneNode?.addEventListener("dragleave", () => {
+  agentSliderUploadZoneNode?.classList.remove("drag-over");
+});
+agentSliderUploadZoneNode?.addEventListener("drop", (event) => {
+  event.preventDefault();
+  agentSliderUploadZoneNode?.classList.remove("drag-over");
+  void uploadAgentSliderFiles(event.dataTransfer?.files);
+});
+agentSliderFileInputNode?.addEventListener("change", () => {
+  void uploadAgentSliderFiles(agentSliderFileInputNode.files);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && agentSliderModalNode && !agentSliderModalNode.classList.contains("hidden")) {
+    closeAgentSliderModal();
+  }
+});
 
 function openAgentTodoPreviewForEdit() {
   void selectSystemFile(ROOT_SYSTEM_NOTE_FILE);

@@ -359,10 +359,19 @@
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
             <div class="sidebar-agent-avatar-block">
-              <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Превью агента">
+              <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Слайдер вдохновения">
                 <div class="agent-preview-frame">
                   <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
                   <span class="agent-preview-shine" aria-hidden="true"></span>
+                  <button
+                    id="agent-preview-slider-info-btn"
+                    type="button"
+                    class="agent-preview-slider-btn agent-preview-slider-info-btn"
+                    title="Путь к папке слайдера"
+                    aria-label="Показать путь к папке слайдера"
+                  >
+                    ?
+                  </button>
                 </div>
               </div>
               <div id="agent-todo-preview-wrap" class="agent-todo-preview-wrap is-note-collapsed hidden">
@@ -2527,6 +2536,42 @@
       <ul id="resource-context-menu-list" class="menu-context-menu-list"></ul>
     </div>
 
+    <div id="agent-slider-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="agent-slider-modal-title">
+      <div class="modal-card agent-slider-modal-card">
+        <div class="create-node-header">
+          <div id="agent-slider-modal-title" class="modal-message">Слайдер вдохновения</div>
+          <button id="agent-slider-modal-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <p id="agent-slider-modal-path" class="agent-slider-modal-path"></p>
+        <section class="preview-upload agent-slider-modal-upload">
+          <div class="preview-upload-card">
+            <div
+              id="agent-slider-upload-zone"
+              class="preview-upload-zone"
+              tabindex="0"
+              role="button"
+              aria-label="Загрузить изображение в слайдер"
+            >
+              <input
+                id="agent-slider-file-input"
+                type="file"
+                accept=".jpg,.jpeg,.png,.gif,.webp,.avif,image/jpeg,image/png,image/gif,image/webp,image/avif"
+                multiple
+                hidden
+              />
+              <div class="preview-upload-placeholder">
+                <span class="preview-upload-icon" aria-hidden="true">✨</span>
+                <p class="preview-upload-title">Добавить вдохновение</p>
+                <p class="preview-upload-hint">JPG, PNG, GIF, WEBP · клик или перетащите</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div id="agent-slider-grid" class="agent-slider-grid" role="list" aria-label="Изображения слайдера"></div>
+        <p id="agent-slider-empty-note" class="agent-slider-empty-note hidden">Папка пуста — загрузите первое изображение.</p>
+      </div>
+    </div>
+
     <div id="create-node-modal" class="modal-overlay hidden">
       <div class="modal-card create-node-card">
         <div class="create-node-header">
@@ -2551,47 +2596,6 @@
               </button>
             </div>
           </div>
-          <div id="create-node-root-system-wrap" class="create-node-root-system-wrap hidden">
-            <div class="popover-label">Системные файлы workspace</div>
-            <div class="create-node-root-system-actions create-node-reserved-actions">
-              <button
-                id="create-node-agents-scaffold-btn"
-                class="create-node-action-btn create-node-action-btn--system-md"
-                type="button"
-                title="Создать AGENTS.md"
-              >
-                <span class="create-node-scaffold-title">Создать AGENTS.md</span>
-                <span class="create-node-scaffold-hint">Инструкции для LLM-агента.</span>
-              </button>
-              <button
-                id="create-node-note-scaffold-btn"
-                class="create-node-action-btn create-node-action-btn--system-md"
-                type="button"
-                title="Создать NOTE.md"
-              >
-                <span class="create-node-scaffold-title">Создать NOTE.md</span>
-                <span class="create-node-scaffold-hint">Быстрая заметка в сайдбаре.</span>
-              </button>
-              <button
-                id="create-node-todo-scaffold-btn"
-                class="create-node-action-btn create-node-action-btn--system-md"
-                type="button"
-                title="Создать TODO.md"
-              >
-                <span class="create-node-scaffold-title">Создать TODO.md</span>
-                <span class="create-node-scaffold-hint">Список задач workspace.</span>
-              </button>
-              <button
-                id="create-node-readme-scaffold-btn"
-                class="create-node-action-btn create-node-action-btn--system-md"
-                type="button"
-                title="Создать README.md"
-              >
-                <span class="create-node-scaffold-title">Создать README.md</span>
-                <span class="create-node-scaffold-hint">Описание workspace.</span>
-              </button>
-            </div>
-          </div>
         </div>
         <div id="create-node-catalog-wrap" class="create-node-catalog-wrap hidden">
           <div class="popover-label">Справочники</div>
@@ -2605,7 +2609,7 @@
           </div>
         </div>
         <div id="create-node-service-docs-wrap" class="create-node-service-docs-wrap hidden">
-          <div class="popover-label">Агент и пользователи</div>
+          <div class="popover-label">Агентская среда</div>
           <div id="create-node-service-docs-actions" class="create-node-service-docs-actions">
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent" title="Agent.md — об агенте">Агент</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="user" title="User.md — о пользователе">Пользователь</button>
