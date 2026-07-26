@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.430" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.440" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -584,8 +584,8 @@
       </div>
 
       <main id="app-landing-pane" class="app-landing-pane hidden" aria-label="Главная Agent CMS">
-        <section class="app-landing-hero" aria-label="Приветствие">
-          <div class="app-landing-sky" aria-hidden="true">
+        <div class="app-landing-backdrop" aria-hidden="true">
+          <div class="app-landing-sky">
             <div class="app-landing-nebula"></div>
             <div class="app-landing-stars app-landing-stars--far"></div>
             <div class="app-landing-stars app-landing-stars--mid"></div>
@@ -597,120 +597,270 @@
               <span class="app-landing-meteor"></span>
             </div>
           </div>
-          <div class="app-landing-hero-inner">
-            <p class="app-landing-hero-eyebrow">Workspaces / *.md</p>
-            <h2 class="app-landing-hero-title">Agent CMS</h2>
-            <p class="app-landing-hero-lead">Контекст для LLM-агентов</p>
-            <p class="app-landing-hero-tagline">Тема за темой, задача за задачей.</p>
-          </div>
-        </section>
+        </div>
 
-        <section class="app-landing-body" aria-labelledby="app-landing-agents-title">
+        <section class="app-landing-body" aria-label="Главная Agent CMS">
           <div class="app-landing-inner">
-            <section class="app-landing-search" aria-label="Поиск по агентам">
-              <div class="app-landing-search-bar-wrap">
-                <div class="app-landing-search-bar content-search-bar">
-                  <div class="app-landing-search-agents-wrap">
-                    <button
-                      type="button"
-                      id="app-landing-search-agents-btn"
-                      class="app-landing-search-agents-btn"
+            <div class="app-landing-dock">
+              <section class="app-landing-search" aria-label="Поиск по агентам">
+                <div class="app-landing-search-bar-wrap">
+                  <div class="app-landing-search-bar content-search-bar">
+                    <select id="app-landing-search-scope" class="content-search-scope" aria-label="Область поиска">
+                      <option value="all" selected>Везде</option>
+                      <option value="filename">Только имя</option>
+                      <option value="content">Только текст</option>
+                      <option value="tags">Теги</option>
+                    </select>
+                    <input
+                      id="app-landing-search-input"
+                      class="content-search-input"
+                      type="search"
+                      placeholder="Найти файл или текст..."
+                      autocomplete="off"
                       aria-expanded="false"
-                      aria-controls="app-landing-search-agents-panel"
-                      aria-haspopup="listbox"
-                    >
-                      <span id="app-landing-search-agents-summary">Все агенты</span>
-                    </button>
-                    <div
-                      id="app-landing-search-agents-panel"
-                      class="app-landing-search-agents-panel hidden"
-                      role="listbox"
-                      aria-label="Агенты для поиска"
-                    >
-                      <div class="app-landing-search-agents-panel-toolbar">
-                        <button type="button" id="app-landing-search-agents-all" class="app-landing-search-link-btn">Все</button>
-                        <button type="button" id="app-landing-search-agents-none" class="app-landing-search-link-btn">Снять</button>
-                        <button type="button" id="app-landing-search-agents-active" class="app-landing-search-link-btn">Только активные</button>
+                      aria-controls="app-landing-search-results"
+                    />
+                    <span
+                      id="app-landing-search-spinner"
+                      class="content-search-spinner hidden"
+                      aria-hidden="true"
+                      title="Поиск…"
+                    ></span>
+                    <div class="app-landing-search-agents-wrap">
+                      <button
+                        type="button"
+                        id="app-landing-search-agents-btn"
+                        class="app-landing-search-agents-btn"
+                        aria-expanded="false"
+                        aria-controls="app-landing-search-agents-panel"
+                        aria-haspopup="listbox"
+                      >
+                        <span id="app-landing-search-agents-summary">Все агенты</span>
+                      </button>
+                      <div
+                        id="app-landing-search-agents-panel"
+                        class="app-landing-search-agents-panel hidden"
+                        role="listbox"
+                        aria-label="Агенты для поиска"
+                      >
+                        <div class="app-landing-search-agents-panel-toolbar">
+                          <button type="button" id="app-landing-search-agents-all" class="app-landing-search-link-btn">Все</button>
+                          <button type="button" id="app-landing-search-agents-none" class="app-landing-search-link-btn">Снять</button>
+                          <button type="button" id="app-landing-search-agents-active" class="app-landing-search-link-btn">Только активные</button>
+                        </div>
+                        <div id="app-landing-search-agents" class="app-landing-search-agents-list"></div>
                       </div>
-                      <div id="app-landing-search-agents" class="app-landing-search-agents-list"></div>
                     </div>
                   </div>
-                  <select id="app-landing-search-scope" class="content-search-scope" aria-label="Область поиска">
-                    <option value="all" selected>Везде</option>
-                    <option value="filename">Только имя</option>
-                    <option value="content">Только текст</option>
-                    <option value="tags">Теги</option>
-                  </select>
-                  <input
-                    id="app-landing-search-input"
-                    class="content-search-input"
-                    type="search"
-                    placeholder="Найти файл или текст..."
-                    autocomplete="off"
-                    aria-expanded="false"
-                    aria-controls="app-landing-search-results"
-                  />
-                  <span
-                    id="app-landing-search-spinner"
-                    class="content-search-spinner hidden"
-                    aria-hidden="true"
-                    title="Поиск…"
-                  ></span>
+                  <div id="app-landing-search-results" class="app-landing-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
                 </div>
-                <div id="app-landing-search-results" class="app-landing-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
-              </div>
-            </section>
+              </section>
 
-            <header class="app-landing-header">
-              <div class="app-landing-header-copy">
-                <h3 id="app-landing-agents-title" class="app-landing-title">Выберите агента</h3>
-                <p class="app-landing-sub">Каждый агент — отдельный workspace с темами, памятью и файлами</p>
-              </div>
-              <div class="app-landing-header-actions">
-                <div class="app-landing-view-toggle" role="tablist" aria-label="Вид списка агентов">
+              <div class="app-landing-dock-actions">
+                <div class="app-landing-view-toggle" role="tablist" aria-label="Вид главной">
                   <button
                     type="button"
-                    id="app-landing-view-grid-btn"
+                    id="app-landing-view-orbit-btn"
                     class="app-landing-view-toggle-btn is-active"
                     role="tab"
                     aria-selected="true"
+                    aria-controls="app-landing-orbit"
+                  >
+                    Карта
+                  </button>
+                  <button
+                    type="button"
+                    id="app-landing-view-hub-btn"
+                    class="app-landing-view-toggle-btn"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="app-landing-hub"
+                  >
+                    Ветки
+                  </button>
+                  <button
+                    type="button"
+                    id="app-landing-view-grid-btn"
+                    class="app-landing-view-toggle-btn"
+                    role="tab"
+                    aria-selected="false"
                     aria-controls="app-landing-agents"
                   >
                     Список
                   </button>
                   <button
                     type="button"
-                    id="app-landing-view-orbit-btn"
+                    id="app-landing-view-flow-btn"
                     class="app-landing-view-toggle-btn"
                     role="tab"
                     aria-selected="false"
-                    aria-controls="app-landing-orbit"
+                    aria-controls="app-landing-flow"
                   >
-                    Заставка
+                    Поток
                   </button>
                 </div>
-                <button id="app-landing-manage-btn" class="app-landing-manage-btn" type="button" title="Реестр агентов">
-                  ⚙ Реестр
-                </button>
+                <div class="app-landing-bg-toggle" role="group" aria-label="Фон главной">
+                  <button
+                    type="button"
+                    id="app-landing-bg-light-btn"
+                    class="app-landing-bg-toggle-btn"
+                    title="Светлый фон"
+                    aria-pressed="false"
+                  >
+                    Светлый
+                  </button>
+                  <button
+                    type="button"
+                    id="app-landing-bg-sky-btn"
+                    class="app-landing-bg-toggle-btn is-active"
+                    title="Звёздное небо"
+                    aria-pressed="true"
+                  >
+                    Небо
+                  </button>
+                </div>
                 <button
                   id="app-landing-settings-btn"
                   class="app-landing-manage-btn app-landing-settings-btn"
                   type="button"
                   title="Настройки групп агентов"
                 >
-                  Настройки
+                  Группы
                 </button>
+                <button id="app-landing-manage-btn" class="app-landing-manage-btn" type="button" title="Реестр агентов">⚙</button>
                 <button
                   id="app-landing-create-agent-btn"
                   class="app-landing-manage-btn app-landing-create-agent-btn"
                   type="button"
                   title="Добавить нового агента"
                 >
-                  + Добавить агента
+                  +
                 </button>
               </div>
-            </header>
-            <div id="app-landing-agents" class="app-landing-agents" role="list"></div>
+            </div>
+
+            <div class="app-landing-intro">
+              <p class="app-landing-intro-lead">Контекст для LLM-агентов</p>
+              <p class="app-landing-intro-tagline">Тема за темой, задача за задачей.</p>
+            </div>
+
+            <div id="app-landing-focus-toolbar" class="app-landing-focus-toolbar app-landing-focus-toolbar--dock hidden" aria-hidden="true">
+              <span id="app-landing-focus-filter-count" class="app-landing-focus-toolbar-count"></span>
+              <span id="app-landing-focus-count" class="app-landing-focus-count hidden" aria-hidden="true"></span>
+              <div class="app-landing-focus-toolbar-controls">
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Статус</span>
+                  <select id="app-landing-focus-filter-status" class="agent-focus-toolbar-select" aria-label="Фильтр по статусу">
+                    <option value="">Все</option>
+                    <option value="🟢 Открыта">🟢 Открыта</option>
+                    <option value="🟡 Черновик">🟡 Черновик</option>
+                    <option value="🔴 Закрыта">🔴 Закрыта</option>
+                  </select>
+                </label>
+                <div class="agent-focus-toolbar-field agent-focus-toolbar-field--types">
+                  <span class="agent-focus-toolbar-label">Тип</span>
+                  <div id="app-landing-focus-filter-type-wrap" class="agent-focus-type-filter">
+                    <button
+                      id="app-landing-focus-filter-type-btn"
+                      type="button"
+                      class="agent-focus-type-filter-btn"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      aria-controls="app-landing-focus-filter-type-panel"
+                    >Все типы</button>
+                    <div
+                      id="app-landing-focus-filter-type-panel"
+                      class="agent-focus-type-filter-panel hidden"
+                      role="group"
+                      aria-label="Фильтр по типу"
+                    ></div>
+                  </div>
+                </div>
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Категория</span>
+                  <select id="app-landing-focus-filter-category" class="agent-focus-toolbar-select" aria-label="Фильтр по категории">
+                    <option value="">Все</option>
+                  </select>
+                </label>
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Тег</span>
+                  <select id="app-landing-focus-filter-tag" class="agent-focus-toolbar-select" aria-label="Фильтр по тегу">
+                    <option value="">Все</option>
+                  </select>
+                </label>
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Владелец</span>
+                  <select id="app-landing-focus-filter-owner" class="agent-focus-toolbar-select" aria-label="Фильтр по владельцу">
+                    <option value="">Все</option>
+                  </select>
+                </label>
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Приоритет</span>
+                  <select id="app-landing-focus-filter-priority" class="agent-focus-toolbar-select" aria-label="Фильтр по приоритету">
+                    <option value="">Все</option>
+                  </select>
+                </label>
+                <label class="agent-focus-toolbar-field">
+                  <span class="agent-focus-toolbar-label">Сортировка</span>
+                  <select id="app-landing-focus-sort" class="agent-focus-toolbar-select" aria-label="Сортировка">
+                    <option value="topic">Тема</option>
+                    <option value="agent">Агент</option>
+                    <option value="awn-status">Статус</option>
+                    <option value="awn-type">Тип</option>
+                    <option value="awn-create">Создан</option>
+                    <option value="awn-update">Изменён</option>
+                  </select>
+                </label>
+                <button
+                  id="app-landing-focus-sort-dir"
+                  type="button"
+                  class="agent-focus-toolbar-sort-dir"
+                  title="Направление сортировки"
+                  aria-label="Направление сортировки"
+                >↑</button>
+              </div>
+            </div>
+
+            <div id="app-landing-orbit" class="app-landing-orbit" aria-label="Карта workspace">
+              <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <svg id="app-landing-orbit-focus-links" class="app-landing-orbit-focus-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div class="app-landing-orbit-hub" aria-hidden="true">
+                <div class="app-landing-orbit-hub-aura">
+                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--outer"></span>
+                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--inner"></span>
+                  <span class="app-landing-orbit-hub-glow"></span>
+                </div>
+                <div class="app-landing-orbit-hub-copy">
+                  <p class="app-landing-orbit-hub-eyebrow">Workspaces / *.md</p>
+                  <h2 class="app-landing-orbit-hub-title">Agent CMS</h2>
+                  <p class="app-landing-orbit-hub-lead">Контекст для LLM-агентов</p>
+                  <p class="app-landing-orbit-hub-tagline">Тема за темой, задача за задачей.</p>
+                </div>
+              </div>
+              <div id="app-landing-orbit-bubbles" class="app-landing-orbit-bubbles" role="list"></div>
+              <div id="app-landing-orbit-twigs" class="app-landing-orbit-twigs" role="list" aria-label="Темы фокуса"></div>
+              <div id="app-landing-orbit-attention" class="app-landing-orbit-attention hidden" aria-hidden="true" aria-label="Распределение внимания по агентам"></div>
+            </div>
+
+            <div id="app-landing-hub" class="app-landing-hub hidden" role="list" aria-label="Workspaces и темы фокуса"></div>
+
+            <div id="app-landing-agents" class="app-landing-agents app-landing-grid-panel hidden" role="list"></div>
+
+            <div id="app-landing-flow" class="app-landing-flow hidden" aria-label="Поток тем фокуса">
+              <div id="app-landing-flow-grid" class="app-landing-flow-grid" role="list"></div>
+            </div>
+
+            <div
+              id="app-landing-attention"
+              class="app-landing-attention hidden"
+              aria-label="Распределение внимания по агентам"
+            ></div>
+
+            <section id="app-landing-focus" class="app-landing-focus hidden" aria-hidden="true">
+              <h3 id="app-landing-focus-title" class="hidden">Фокус</h3>
+              <div id="app-landing-focus-list" class="app-landing-focus-grid"></div>
+            </section>
+
             <div id="app-landing-groups" class="app-landing-groups hidden" aria-hidden="true">
               <div class="app-landing-groups-toolbar">
                 <p class="app-landing-groups-note">Группы хранятся в <code>awn-agents-groups.json</code>. Перетащите за ⠿ группы и агентов внутри группы.</p>
@@ -803,129 +953,7 @@
                 </div>
               </div>
             </div>
-            <div id="app-landing-orbit" class="app-landing-orbit hidden" aria-hidden="true">
-              <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
-              <div class="app-landing-orbit-hub" aria-hidden="true">
-                <div class="app-landing-orbit-hub-aura">
-                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--outer"></span>
-                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--inner"></span>
-                  <span class="app-landing-orbit-hub-glow"></span>
-                </div>
-                <div class="app-landing-orbit-hub-copy">
-                  <p class="app-landing-orbit-hub-eyebrow">Workspaces / *.md</p>
-                  <h2 class="app-landing-orbit-hub-title">Agent CMS</h2>
-                  <p class="app-landing-orbit-hub-lead">Контекст для LLM-агентов</p>
-                  <p class="app-landing-orbit-hub-tagline">Тема за темой, задача за задачей.</p>
-                </div>
-              </div>
-              <div id="app-landing-orbit-bubbles" class="app-landing-orbit-bubbles" role="list"></div>
-              <div
-                id="app-landing-orbit-attention"
-                class="app-landing-orbit-attention hidden"
-                aria-label="Распределение внимания по агентам"
-              ></div>
-              <button
-                type="button"
-                id="app-landing-orbit-create-btn"
-                class="app-landing-orbit-create-btn"
-                title="Создать агента"
-              >
-                +
-              </button>
-            </div>
             <p id="app-landing-hint" class="app-landing-hint hidden" role="status"></p>
-            <section id="app-landing-focus" class="app-landing-focus agent-focus-panel agent-focus-panel--landing hidden" aria-labelledby="app-landing-focus-title">
-              <div class="agent-focus-head agent-focus-head--compact">
-                <div class="agent-focus-head-main">
-                  <h3 id="app-landing-focus-title" class="agent-focus-title">Фокус</h3>
-                  <p class="agent-focus-sub">awn-main · быстрый навигатор</p>
-                </div>
-                <span id="app-landing-focus-count" class="agent-focus-count" aria-hidden="true"></span>
-              </div>
-              <div id="app-landing-focus-toolbar" class="agent-focus-toolbar hidden">
-                <span id="app-landing-focus-filter-count" class="agent-focus-toolbar-count"></span>
-                <div class="agent-focus-toolbar-controls">
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Статус</span>
-                    <select id="app-landing-focus-filter-status" class="agent-focus-toolbar-select" aria-label="Фильтр по статусу">
-                      <option value="">Все</option>
-                      <option value="🟢 Открыта">🟢 Открыта</option>
-                      <option value="🟡 Черновик">🟡 Черновик</option>
-                      <option value="🔴 Закрыта">🔴 Закрыта</option>
-                    </select>
-                  </label>
-                  <div class="agent-focus-toolbar-field agent-focus-toolbar-field--types">
-                    <span class="agent-focus-toolbar-label">Тип</span>
-                    <div id="app-landing-focus-filter-type-wrap" class="agent-focus-type-filter">
-                      <button
-                        id="app-landing-focus-filter-type-btn"
-                        type="button"
-                        class="agent-focus-type-filter-btn"
-                        aria-haspopup="true"
-                        aria-expanded="false"
-                        aria-controls="app-landing-focus-filter-type-panel"
-                      >Все типы</button>
-                      <div
-                        id="app-landing-focus-filter-type-panel"
-                        class="agent-focus-type-filter-panel hidden"
-                        role="group"
-                        aria-label="Фильтр по типу"
-                      ></div>
-                    </div>
-                  </div>
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Категория</span>
-                    <select id="app-landing-focus-filter-category" class="agent-focus-toolbar-select" aria-label="Фильтр по категории">
-                      <option value="">Все</option>
-                    </select>
-                  </label>
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Тег</span>
-                    <select id="app-landing-focus-filter-tag" class="agent-focus-toolbar-select" aria-label="Фильтр по тегу">
-                      <option value="">Все</option>
-                    </select>
-                  </label>
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Владелец</span>
-                    <select id="app-landing-focus-filter-owner" class="agent-focus-toolbar-select" aria-label="Фильтр по владельцу">
-                      <option value="">Все</option>
-                    </select>
-                  </label>
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Приоритет</span>
-                    <select id="app-landing-focus-filter-priority" class="agent-focus-toolbar-select" aria-label="Фильтр по приоритету">
-                      <option value="">Все</option>
-                    </select>
-                  </label>
-                  <label class="agent-focus-toolbar-field">
-                    <span class="agent-focus-toolbar-label">Сортировка</span>
-                    <select id="app-landing-focus-sort" class="agent-focus-toolbar-select" aria-label="Сортировка">
-                      <option value="topic">Тема</option>
-                      <option value="agent">Агент</option>
-                      <option value="awn-status">Статус</option>
-                      <option value="awn-type">Тип</option>
-                      <option value="awn-create">Создан</option>
-                      <option value="awn-update">Изменён</option>
-                    </select>
-                  </label>
-                  <button
-                    id="app-landing-focus-sort-dir"
-                    type="button"
-                    class="agent-focus-toolbar-sort-dir"
-                    title="Направление сортировки"
-                    aria-label="Направление сортировки"
-                  >↑</button>
-                </div>
-              </div>
-              <div class="agent-focus-table-wrap">
-                <div class="agent-focus-table-scroll">
-                  <table class="agent-focus-table" aria-describedby="app-landing-focus-title">
-                    <thead id="app-landing-focus-head"></thead>
-                    <tbody id="app-landing-focus-list"></tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
 
             <section id="app-landing-platform" class="app-landing-platform hidden" aria-labelledby="app-landing-platform-title"></section>
           </div>
@@ -3031,13 +3059,13 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/document-viewer.js?v=1"></script>
-    <script src="/app-lock.js?v=4"></script>
+    <script src="/app-lock.js?v=5"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.430"></script>
+    <script src="/main.js?v=0.5.439"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

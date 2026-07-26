@@ -21,7 +21,7 @@ const appFooterToggleBtn = document.getElementById("app-footer-toggle-btn");
 const appFooterToggleLabelNode = document.getElementById("app-footer-toggle-label");
 const appFooterDetailsNode = document.getElementById("app-footer-details");
 const appSplashNode = document.getElementById("app-splash");
-const APP_SPLASH_MIN_MS = 420;
+const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const home2PaneNode = document.getElementById("home-pane-2");
@@ -60,8 +60,8 @@ const appLandingAgentsNode = document.getElementById("app-landing-agents");
 const appLandingPlatformNode = document.getElementById("app-landing-platform");
 const appLandingFocusNode = document.getElementById("app-landing-focus");
 const appLandingFocusListNode = document.getElementById("app-landing-focus-list");
-const appLandingFocusHeadNode = document.getElementById("app-landing-focus-head");
 const appLandingFocusCountNode = document.getElementById("app-landing-focus-count");
+const appLandingFocusFiltersBtnNode = document.getElementById("app-landing-focus-filters-btn");
 const appLandingFocusToolbarNode = document.getElementById("app-landing-focus-toolbar");
 const appLandingFocusFilterCountNode = document.getElementById("app-landing-focus-filter-count");
 const appLandingFocusFilterStatusNode = document.getElementById("app-landing-focus-filter-status");
@@ -85,6 +85,10 @@ const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn"
 const appLandingCreateAgentBtn = document.getElementById("app-landing-create-agent-btn");
 const appLandingViewGridBtn = document.getElementById("app-landing-view-grid-btn");
 const appLandingViewOrbitBtn = document.getElementById("app-landing-view-orbit-btn");
+const appLandingViewHubBtn = document.getElementById("app-landing-view-hub-btn");
+const appLandingViewFlowBtn = document.getElementById("app-landing-view-flow-btn");
+const appLandingBgLightBtn = document.getElementById("app-landing-bg-light-btn");
+const appLandingBgSkyBtn = document.getElementById("app-landing-bg-sky-btn");
 const appLandingGroupsNode = document.getElementById("app-landing-groups");
 const appLandingGroupsContentNode = document.getElementById("app-landing-groups-content");
 const appLandingGroupsCreateBtn = document.getElementById("app-landing-groups-create-btn");
@@ -108,7 +112,12 @@ const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
 const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-attention");
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
-const appLandingOrbitCreateBtn = document.getElementById("app-landing-orbit-create-btn");
+const appLandingOrbitFocusLinksNode = document.getElementById("app-landing-orbit-focus-links");
+const appLandingOrbitTwigsNode = document.getElementById("app-landing-orbit-twigs");
+const appLandingAttentionNode = document.getElementById("app-landing-attention");
+const appLandingHubNode = document.getElementById("app-landing-hub");
+const appLandingFlowNode = document.getElementById("app-landing-flow");
+const appLandingFlowGridNode = document.getElementById("app-landing-flow-grid");
 const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
 const appLandingSearchSpinnerNode = document.getElementById("app-landing-search-spinner");
 const appLandingSearchBarNode = document.querySelector(".app-landing-search-bar");
@@ -4516,11 +4525,23 @@ function syncLandingFocusCatalogFilterOptions() {
   }
 }
 
+function setLandingFocusFiltersOpen(open) {
+  if (!appLandingFocusToolbarNode || !appLandingFocusFiltersBtnNode) return;
+  const isOpen = Boolean(open);
+  appLandingFocusToolbarNode.classList.toggle("is-open", isOpen);
+  appLandingFocusToolbarNode.classList.toggle("hidden", !isOpen);
+  appLandingFocusFiltersBtnNode.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  appLandingFocusFiltersBtnNode.classList.toggle("is-active", isOpen);
+}
+
 function syncLandingFocusToolbarUi() {
   if (!appLandingFocusToolbarNode) return;
 
   const hasItems = globalFocusItemsCache.length > 0;
-  appLandingFocusToolbarNode.classList.toggle("hidden", !hasItems);
+  appLandingFocusFiltersBtnNode?.classList.toggle("hidden", !hasItems);
+  if (!hasItems) {
+    setLandingFocusFiltersOpen(false);
+  }
 
   if (appLandingFocusFilterStatusNode) {
     appLandingFocusFilterStatusNode.value = landingFocusFilter.status || "";
@@ -4541,6 +4562,14 @@ function syncLandingFocusToolbarUi() {
     appLandingFocusFilterCountNode.textContent =
       shown === total ? `${total} записей` : `${shown} из ${total}`;
   }
+  if (appLandingFocusCountNode) {
+    appLandingFocusCountNode.textContent = total
+      ? shown === total
+        ? String(total)
+        : `${shown}/${total}`
+      : "";
+    appLandingFocusCountNode.classList.toggle("hidden", total === 0);
+  }
 }
 
 function bindLandingFocusToolbar() {
@@ -4548,6 +4577,11 @@ function bindLandingFocusToolbar() {
   appLandingFocusToolbarNode.dataset.bound = "1";
 
   loadLandingFocusUiState();
+
+  appLandingFocusFiltersBtnNode?.addEventListener("click", () => {
+    const willOpen = !appLandingFocusToolbarNode.classList.contains("is-open");
+    setLandingFocusFiltersOpen(willOpen);
+  });
 
   appLandingFocusFilterStatusNode?.addEventListener("change", () => {
     landingFocusFilter.status = appLandingFocusFilterStatusNode.value || "";
@@ -4692,7 +4726,9 @@ function syncFocusPanelActiveState() {
     chip.setAttribute("aria-current", isActive ? "page" : "false");
   }
 
-  for (const item of document.querySelectorAll(".agent-focus-item[data-focus-path]")) {
+  for (const item of document.querySelectorAll(
+    ".agent-focus-item[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
+  )) {
     const isActive =
       !activeSystemFile &&
       Boolean(resolvedActive) &&
@@ -5015,70 +5051,122 @@ function createLandingFocusTableRow(focusItem, columns) {
   return row;
 }
 
-function syncLandingFocusTableColgroup(table, columns) {
-  if (!table || !Array.isArray(columns) || !columns.length) return;
-  const existing = table.querySelector("colgroup");
-  if (existing) existing.remove();
+function createLandingFocusTile(focusItem) {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName,
+      path: focusItem.agentPath
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || focusItem.agentName || focusItem.agentId;
+  const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+  const status = getFocusPropDisplayValue(focusItem, "awn-status");
 
-  const colgroup = document.createElement("colgroup");
-  const propColumns = columns.filter((columnId) => columnId !== "agent" && columnId !== "topic");
-  const propWidth = propColumns.length ? 64 / propColumns.length : 0;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-focus-tile";
+  btn.setAttribute("role", "listitem");
+  if (nodePath) btn.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
+  if (!registryActive) btn.classList.add("is-registry-off");
+  btn.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
+  btn.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
+  );
 
-  for (const columnId of columns) {
-    const col = document.createElement("col");
-    if (columnId === "agent" || columnId === "topic") {
-      col.style.width = "18%";
-    } else if (propWidth > 0) {
-      col.style.width = `${propWidth}%`;
-    }
-    colgroup.appendChild(col);
+  const media = document.createElement("span");
+  media.className = "app-landing-focus-tile-media";
+  const nodeEmoji = resolveAwnEmoji(awnProps);
+  const agentEmoji = resolveAwnEmoji(agent.awnProps);
+  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji: nodeEmoji || agentEmoji,
+    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+    emojiClass: "app-landing-focus-tile-emoji",
+    initialsClass: "app-landing-focus-tile-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-focus-tile"
+  });
+
+  const copy = document.createElement("span");
+  copy.className = "app-landing-focus-tile-copy";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "app-landing-focus-tile-title";
+  titleNode.textContent = label;
+
+  const metaNode = document.createElement("span");
+  metaNode.className = "app-landing-focus-tile-meta";
+  metaNode.textContent = agentLabel;
+
+  copy.append(titleNode, metaNode);
+
+  if (status) {
+    const statusNode = document.createElement("span");
+    statusNode.className = "app-landing-focus-tile-status";
+    statusNode.textContent = status;
+    copy.appendChild(statusNode);
   }
 
-  table.insertBefore(colgroup, table.firstChild);
+  btn.append(media, copy);
+  btn.addEventListener("click", () => {
+    void openFocusItem(focusItem);
+  });
+  return btn;
 }
 
-function renderLandingFocusTable(items) {
+function renderLandingFocusGrid(items) {
   if (!appLandingFocusNode || !appLandingFocusListNode) return;
 
   appLandingFocusListNode.replaceChildren();
-  if (appLandingFocusHeadNode) appLandingFocusHeadNode.replaceChildren();
 
   if (!globalFocusItemsCache.length) {
     appLandingFocusNode.classList.add("hidden");
+    setLandingFocusFiltersOpen(false);
     return;
   }
 
   appLandingFocusNode.classList.remove("hidden");
-  const columnSource = items.length ? items : globalFocusItemsCache;
-  const columns = getLandingFocusTableColumns(columnSource);
-  const focusTable = appLandingFocusListNode.closest(".agent-focus-table");
-  syncLandingFocusTableColgroup(focusTable, columns);
-
-  if (appLandingFocusHeadNode) {
-    const headRow = document.createElement("tr");
-    for (const columnId of columns) {
-      const th = document.createElement("th");
-      th.scope = "col";
-      th.textContent = getLandingFocusColumnLabel(columnId);
-      headRow.appendChild(th);
-    }
-    appLandingFocusHeadNode.appendChild(headRow);
-  }
 
   if (!items.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.className = "agent-focus-table-empty";
-    cell.colSpan = Math.max(columns.length, 1);
-    cell.textContent = "Нет записей по выбранным фильтрам";
-    row.appendChild(cell);
-    appLandingFocusListNode.appendChild(row);
+    const empty = document.createElement("p");
+    empty.className = "app-landing-focus-empty";
+    empty.textContent = "Нет записей по выбранным фильтрам";
+    appLandingFocusListNode.appendChild(empty);
     return;
   }
 
   for (const focusItem of items) {
-    appLandingFocusListNode.appendChild(createLandingFocusTableRow(focusItem, columns));
+    appLandingFocusListNode.appendChild(createLandingFocusTile(focusItem));
   }
+  syncFocusPanelActiveState();
+}
+
+function renderGlobalFocusPanel() {
+  syncLandingFocusToolbarUi();
+  const processed = getProcessedLandingFocusItems();
+  if (getLandingAgentsView() === "hub") {
+    renderAppLandingHub(processed);
+    return;
+  }
+  if (getLandingAgentsView() === "orbit") {
+    setLandingOrbitFocusCache(processed);
+    return;
+  }
+  if (getLandingAgentsView() === "grid") {
+    renderAppLandingList(processed);
+    return;
+  }
+  if (getLandingAgentsView() === "flow") {
+    renderAppLandingFlow(processed);
+    return;
+  }
+  renderLandingFocusGrid(processed);
 }
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
@@ -5119,22 +5207,6 @@ function renderFocusPanel(panelNode, listNode, items, variant) {
   for (const focusItem of items) {
     listNode.appendChild(createFocusItem(focusItem, variant));
   }
-}
-
-function renderGlobalFocusPanel() {
-  syncLandingFocusToolbarUi();
-  const processed = getProcessedLandingFocusItems();
-  if (appLandingFocusCountNode) {
-    const total = globalFocusItemsCache.length;
-    const shown = processed.length;
-    appLandingFocusCountNode.textContent = total
-      ? shown === total
-        ? String(total)
-        : `${shown}/${total}`
-      : "";
-    appLandingFocusCountNode.classList.toggle("hidden", total === 0);
-  }
-  renderLandingFocusTable(processed);
 }
 
 function renderAgentFocusPanels() {
@@ -5710,6 +5782,48 @@ async function renderAppLandingPlatformSection() {
   }
 }
 
+function createAppLandingAgentTile(agent) {
+  const registryActive = isAgentRegistryActive(agent);
+  const isOrchestrator = agent.orchestrator === true;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-agent-tile";
+  if (!registryActive) btn.classList.add("is-registry-off");
+  if (isOrchestrator) btn.classList.add("is-orchestrator");
+  const label = agent.name || agent.id;
+  btn.title = registryActive
+    ? `Открыть ${label}`
+    : `${label} — неактивен, включите в реестре`;
+  btn.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть агента ${label}` : `Агент ${label} неактивен`
+  );
+
+  const media = document.createElement("div");
+  media.className = "app-landing-agent-tile-media";
+  mountPreviewOrFallback(media, {
+    previewUrl: getRegistryAgentPreviewUrl(agent),
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "app-landing-agent-tile-emoji",
+    initialsClass: "app-landing-agent-tile-fallback"
+  });
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "app-landing-agent-tile-name";
+  nameNode.textContent = label;
+
+  btn.append(media, nameNode);
+  btn.addEventListener("click", () => {
+    if (!registryActive) {
+      showToast("Агент выключен — включите в реестре (⚙)", "error");
+      return;
+    }
+    selectAgentOption(agent.id);
+  });
+  return btn;
+}
+
 function createAppLandingAgentCard(agent) {
   const registryActive = isAgentRegistryActive(agent);
   const isOrchestrator = agent.orchestrator === true;
@@ -5802,11 +5916,11 @@ function renderAppLandingOrchestratorSection(agent) {
   head.appendChild(titleNode);
 
   const grid = document.createElement("div");
-  grid.className = "app-landing-group-agents app-landing-orchestrator-agents";
+  grid.className = "app-landing-group-agents app-landing-orchestrator-agents is-tile-grid";
 
   const wrap = document.createElement("div");
   wrap.className = "app-landing-group-agent-wrap app-landing-orchestrator-agent-wrap";
-  wrap.appendChild(createAppLandingAgentCard(agent));
+  wrap.appendChild(createAppLandingAgentTile(agent));
   grid.appendChild(wrap);
 
   section.append(head, grid);
@@ -6337,6 +6451,15 @@ function createLandingGroupAppearanceBtn(group) {
 }
 
 function applyLandingGroupSectionBackground(section, group) {
+  if (section?.classList.contains("is-display-only")) {
+    section.classList.remove(
+      "has-background",
+      "is-group-appearance-light",
+      "is-group-appearance-dark"
+    );
+    section.style.removeProperty("--group-bg-image");
+    return;
+  }
   if (!section || !group?.backgroundUrl) {
     section?.classList.remove(
       "has-background",
@@ -6464,6 +6587,7 @@ function renderAppLandingGroupSection(group, { editable = true } = {}) {
   const grid = document.createElement("div");
   grid.className = "app-landing-group-agents";
   if (!isReadonly) grid.dataset.groupId = group.id;
+  if (!editable) grid.classList.add("is-tile-grid");
 
   if (!group.agents.length) {
     const empty = document.createElement("p");
@@ -6517,7 +6641,7 @@ function renderAppLandingGroupSection(group, { editable = true } = {}) {
         wrap.appendChild(removeBtn);
       }
 
-      wrap.appendChild(createAppLandingAgentCard(agent));
+      wrap.appendChild(!editable ? createAppLandingAgentTile(agent) : createAppLandingAgentCard(agent));
       grid.appendChild(wrap);
     }
   }
@@ -6764,11 +6888,16 @@ function isAgentsSettingsViewActive() {
 }
 
 function openAgentsSettingsView() {
-  setLandingAgentsView("settings");
+  if (getLandingAgentsView() === "settings") {
+    setLandingAgentsView("hub");
+  } else {
+    setLandingAgentsView("settings");
+  }
 }
 
 function refreshLandingAgentsListIfVisible() {
-  if (getLandingAgentsView() === "grid") {
+  const view = getLandingAgentsView();
+  if (view === "hub" || view === "grid" || view === "orbit" || view === "flow") {
     void renderAppLandingAgents();
   }
 }
@@ -6793,16 +6922,28 @@ function hashAgentIdForOrbit(id) {
 function getLandingAgentsView() {
   try {
     const saved = localStorage.getItem(LANDING_AGENTS_VIEW_KEY);
-    if (saved === "orbit") return "orbit";
+    if (saved === "hub") return "hub";
     if (saved === "settings" || saved === "groups") return "settings";
+    if (saved === "grid") return "grid";
+    if (saved === "flow") return "flow";
+    if (saved === "orbit") return "orbit";
   } catch {
     // ignore
   }
-  return "grid";
+  return "orbit";
 }
 
 function setLandingAgentsView(view) {
-  const next = view === "orbit" ? "orbit" : view === "settings" ? "settings" : "grid";
+  const next =
+    view === "settings" || view === "groups"
+      ? "settings"
+      : view === "grid"
+        ? "grid"
+        : view === "hub"
+          ? "hub"
+          : view === "flow"
+            ? "flow"
+            : "orbit";
   localStorage.setItem(LANDING_AGENTS_VIEW_KEY, next);
   syncLandingAgentsViewUi();
 }
@@ -6828,34 +6969,448 @@ function getOrbitBubbleLayout(index, total, agentId) {
 
 function syncLandingAgentsViewUi() {
   const view = getLandingAgentsView();
+  const isHub = view === "hub";
   const isOrbit = view === "orbit";
   const isSettings = view === "settings";
+  const isGrid = view === "grid";
+  const isFlow = view === "flow";
+  const isCanvasView = isHub || isOrbit || isFlow;
 
-  appLandingPaneNode?.classList.toggle("is-screensaver", isOrbit);
-  appLandingAgentsNode?.classList.toggle("hidden", isOrbit || isSettings);
-  appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
-  appLandingGroupsNode?.setAttribute("aria-hidden", isSettings ? "false" : "true");
+  appLandingPaneNode?.classList.toggle("is-screensaver", isCanvasView);
+  appLandingPaneNode?.classList.toggle("app-landing-pane--hub", isHub);
+  appLandingPaneNode?.classList.toggle("app-landing-pane--grid", isGrid);
+  appLandingPaneNode?.classList.toggle("app-landing-pane--flow", isFlow);
+
+  appLandingHubNode?.classList.toggle("hidden", !isHub);
+  appLandingHubNode?.setAttribute("aria-hidden", isHub ? "false" : "true");
   appLandingOrbitNode?.classList.toggle("hidden", !isOrbit);
   appLandingOrbitNode?.setAttribute("aria-hidden", isOrbit ? "false" : "true");
+  appLandingFlowNode?.classList.toggle("hidden", !isFlow);
+  appLandingFlowNode?.setAttribute("aria-hidden", isFlow ? "false" : "true");
 
-  appLandingViewGridBtn?.classList.toggle("is-active", view === "grid");
-  appLandingViewOrbitBtn?.classList.toggle("is-active", isOrbit);
-  appLandingViewGridBtn?.setAttribute("aria-selected", view === "grid" ? "true" : "false");
-  appLandingViewOrbitBtn?.setAttribute("aria-selected", isOrbit ? "true" : "false");
-  appLandingSettingsBtn?.classList.toggle("is-active", isSettings);
+  appLandingAgentsNode?.classList.toggle("hidden", !isGrid);
+  appLandingFocusNode?.classList.add("hidden");
+  appLandingAttentionNode?.classList.toggle("hidden", !(isHub || isOrbit || isFlow));
 
-  const subNode = document.querySelector(".app-landing-sub");
-  if (subNode) {
-    subNode.textContent = isOrbit
-      ? "Кружки в воздухе — выберите workspace"
-      : isSettings
-        ? "Распределите агентов по группам — настройки в workspaces/agent-cms-core/agents-groups/groups.json"
-        : "Каждый агент — отдельный workspace с темами, памятью и файлами";
+  appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
+  appLandingGroupsNode?.setAttribute("aria-hidden", isSettings ? "false" : "true");
+
+  if (appLandingSettingsBtn) {
+    appLandingSettingsBtn.textContent = isSettings ? "← Назад" : "Группы";
   }
+
+  appLandingViewGridBtn?.classList.toggle("is-active", isGrid);
+  appLandingViewOrbitBtn?.classList.toggle("is-active", isOrbit);
+  appLandingViewHubBtn?.classList.toggle("is-active", isHub);
+  appLandingViewFlowBtn?.classList.toggle("is-active", isFlow);
+  appLandingViewGridBtn?.setAttribute("aria-selected", isGrid ? "true" : "false");
+  appLandingViewOrbitBtn?.setAttribute("aria-selected", isOrbit ? "true" : "false");
+  appLandingViewHubBtn?.setAttribute("aria-selected", isHub ? "true" : "false");
+  appLandingViewFlowBtn?.setAttribute("aria-selected", isFlow ? "true" : "false");
+  appLandingSettingsBtn?.classList.toggle("is-active", isSettings);
+  appLandingFocusFiltersBtnNode?.classList.toggle("hidden", true);
 
   if (isSettings) {
     void renderAppLandingGroups();
   }
+  if (isHub) {
+    renderAppLandingHub(getProcessedLandingFocusItems());
+  }
+  if (isOrbit) {
+    renderAppLandingOrbit();
+  }
+  if (isGrid) {
+    renderAppLandingList(getProcessedLandingFocusItems());
+  }
+  if (isFlow) {
+    renderAppLandingFlow(getProcessedLandingFocusItems());
+  }
+  if (isHub || isOrbit || isFlow) {
+    renderAppLandingAttention(buildMockAgentAttentionShares(getAgentsForLandingGrid()));
+  } else {
+    appLandingAttentionNode?.classList.add("hidden");
+  }
+
+  syncLandingBgUi();
+}
+
+const HUB_FOCUS_TWIG_LIMIT = 8;
+
+function groupFocusItemsByAgent(items = []) {
+  const byAgent = new Map();
+  for (const item of items) {
+    const agentId = String(item?.agentId || "").trim();
+    if (!agentId) continue;
+    if (!byAgent.has(agentId)) byAgent.set(agentId, []);
+    byAgent.get(agentId).push(item);
+  }
+  return byAgent;
+}
+
+function createAppLandingHubTwig(focusItem) {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const status = getFocusPropDisplayValue(focusItem, "awn-status");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-hub-twig";
+  if (nodePath) btn.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
+  if (!registryActive) btn.classList.add("is-registry-off");
+  btn.title = nodePath || label;
+  btn.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
+  );
+
+  const dot = document.createElement("span");
+  dot.className = "app-landing-hub-twig-dot";
+  dot.setAttribute("aria-hidden", "true");
+
+  const text = document.createElement("span");
+  text.className = "app-landing-hub-twig-label";
+  text.textContent = label;
+
+  btn.append(dot, text);
+  if (status) {
+    const statusNode = document.createElement("span");
+    statusNode.className = "app-landing-hub-twig-status";
+    statusNode.textContent = status;
+    btn.appendChild(statusNode);
+  }
+
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void openFocusItem(focusItem);
+  });
+  return btn;
+}
+
+function createAppLandingHubRow(agent, focusItems = [], options = {}) {
+  const isList = options.variant === "list";
+  const registryActive = isAgentRegistryActive(agent);
+  const isOrchestrator = agent.orchestrator === true;
+  const label = agent.name || agent.id;
+
+  const row = document.createElement("article");
+  row.className = "app-landing-hub-row";
+  if (isList) row.classList.add("app-landing-hub-row--list");
+  if (!registryActive) row.classList.add("is-registry-off");
+  if (isOrchestrator) row.classList.add("is-orchestrator");
+  row.setAttribute("role", "listitem");
+  row.dataset.agentId = agent.id;
+
+  const agentBtn = document.createElement("button");
+  agentBtn.type = "button";
+  agentBtn.className = "app-landing-hub-agent";
+  agentBtn.title = registryActive
+    ? `Открыть workspace ${label}`
+    : `${label} — неактивен, включите в реестре`;
+
+  const node = document.createElement("span");
+  node.className = "app-landing-hub-node";
+  mountPreviewOrFallback(node, {
+    previewUrl: getRegistryAgentPreviewUrl(agent),
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "app-landing-hub-node-emoji",
+    initialsClass: "app-landing-hub-node-initials"
+  });
+
+  const copy = document.createElement("span");
+  copy.className = "app-landing-hub-agent-copy";
+  const nameNode = document.createElement("span");
+  nameNode.className = "app-landing-hub-agent-name";
+  nameNode.textContent = label;
+  const hintNode = document.createElement("span");
+  hintNode.className = "app-landing-hub-agent-hint";
+  hintNode.textContent = isOrchestrator ? "Оркестратор" : "Workspace";
+  copy.append(nameNode, hintNode);
+  agentBtn.append(node, copy);
+  agentBtn.addEventListener("click", () => {
+    if (!registryActive) {
+      showToast("Агент выключен — включите в реестре (⚙)", "error");
+      return;
+    }
+    selectAgentOption(agent.id);
+  });
+
+  const branches = document.createElement("div");
+  branches.className = "app-landing-hub-branches";
+
+  if (focusItems.length) {
+    const twigs = document.createElement("div");
+    twigs.className = `app-landing-hub-twigs${isList ? " app-landing-hub-twigs--list" : ""}`;
+    twigs.setAttribute("role", "list");
+    twigs.setAttribute("aria-label", `Темы фокуса — ${label}`);
+
+    const limit = isList ? 16 : HUB_FOCUS_TWIG_LIMIT;
+    const shown = focusItems.slice(0, limit);
+    for (const focusItem of shown) {
+      twigs.appendChild(createAppLandingHubTwig(focusItem));
+    }
+
+    const overflow = focusItems.length - shown.length;
+    if (overflow > 0) {
+      const more = document.createElement("span");
+      more.className = "app-landing-hub-more";
+      more.textContent = `+${overflow}`;
+      more.title = `Ещё ${overflow} тем у ${label}`;
+      twigs.appendChild(more);
+    }
+
+    if (!isList) {
+      const stem = document.createElement("span");
+      stem.className = "app-landing-hub-stem";
+      stem.setAttribute("aria-hidden", "true");
+      branches.append(stem, twigs);
+    } else {
+      branches.appendChild(twigs);
+    }
+  } else {
+    const empty = document.createElement("span");
+    empty.className = "app-landing-hub-empty";
+    empty.textContent = "Нет тем фокуса";
+    branches.appendChild(empty);
+  }
+
+  row.append(agentBtn, branches);
+  return row;
+}
+
+function appendAppLandingHubAgents(container, agents, focusByAgent, options = {}) {
+  for (const agent of agents) {
+    container.appendChild(createAppLandingHubRow(agent, focusByAgent.get(agent.id) || [], options));
+  }
+}
+
+function renderAppLandingHub(focusItems = getProcessedLandingFocusItems()) {
+  if (!appLandingHubNode) return;
+  if (getLandingAgentsView() !== "hub") return;
+
+  appLandingHubNode.replaceChildren();
+  const focusByAgent = groupFocusItemsByAgent(focusItems);
+  const agents = getAgentsForLandingGrid();
+
+  if (!agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-hub-page-empty";
+    empty.textContent = "Нет агентов. Нажмите «+ Агент» или откройте реестр (⚙).";
+    appLandingHubNode.appendChild(empty);
+    syncFocusPanelActiveState();
+    return;
+  }
+
+  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
+
+  if (orchestrator) {
+    const orchSection = document.createElement("section");
+    orchSection.className = "app-landing-hub-section app-landing-hub-section--orchestrator";
+    orchSection.appendChild(createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || []));
+    appLandingHubNode.appendChild(orchSection);
+  }
+
+  if (landingAgentsGroupsCache.length > 0) {
+    const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
+
+    for (const group of grouped) {
+      const section = document.createElement("section");
+      section.className = "app-landing-hub-section";
+      const title = document.createElement("h3");
+      title.className = "app-landing-hub-section-title";
+      title.textContent = group.name || "Группа";
+      section.appendChild(title);
+      appendAppLandingHubAgents(section, group.agents, focusByAgent);
+      appLandingHubNode.appendChild(section);
+    }
+
+    if (ungrouped.length) {
+      const section = document.createElement("section");
+      section.className = "app-landing-hub-section";
+      const title = document.createElement("h3");
+      title.className = "app-landing-hub-section-title";
+      title.textContent = landingAgentsUngroupedCache.name || "Без группы";
+      section.appendChild(title);
+      appendAppLandingHubAgents(section, ungrouped, focusByAgent);
+      appLandingHubNode.appendChild(section);
+    }
+  } else {
+    appendAppLandingHubAgents(appLandingHubNode, rest, focusByAgent);
+  }
+
+  syncFocusPanelActiveState();
+}
+
+function renderAppLandingList(focusItems = getProcessedLandingFocusItems()) {
+  if (!appLandingAgentsNode) return;
+  if (getLandingAgentsView() !== "grid") return;
+
+  appLandingAgentsNode.replaceChildren();
+  appLandingAgentsNode.className = "app-landing-agents app-landing-agents--list app-landing-grid-panel";
+  const focusByAgent = groupFocusItemsByAgent(focusItems);
+  const agents = getAgentsForLandingGrid();
+
+  if (!agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-list-empty";
+    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр (⚙).";
+    appLandingAgentsNode.appendChild(empty);
+    return;
+  }
+
+  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
+  if (orchestrator) {
+    appLandingAgentsNode.appendChild(
+      createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || [], { variant: "list" })
+    );
+  }
+  appendAppLandingHubAgents(appLandingAgentsNode, rest, focusByAgent, { variant: "list" });
+  syncFocusPanelActiveState();
+}
+
+function createAppLandingFlowCard(focusItem) {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName,
+      path: focusItem.agentPath
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
+  const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+  const status = getFocusPropDisplayValue(focusItem, "awn-status");
+  const typeLabel = getFocusPropDisplayValue(focusItem, "awn-type") || getFocusItemType(focusItem);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-flow-card";
+  btn.setAttribute("role", "listitem");
+  btn.dataset.agentId = focusItem.agentId;
+  if (nodePath) btn.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
+  if (!registryActive) btn.classList.add("is-registry-off");
+  btn.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
+  btn.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
+  );
+
+  const media = document.createElement("span");
+  media.className = "app-landing-flow-card-media";
+  const nodeEmoji = resolveAwnEmoji(awnProps);
+  const agentEmoji = resolveAwnEmoji(agent.awnProps);
+  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji: nodeEmoji || agentEmoji,
+    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+    emojiClass: "app-landing-flow-card-emoji",
+    initialsClass: "app-landing-flow-card-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-flow-card"
+  });
+
+  const body = document.createElement("span");
+  body.className = "app-landing-flow-card-body";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "app-landing-flow-card-title";
+  titleNode.textContent = label;
+
+  const meta = document.createElement("span");
+  meta.className = "app-landing-flow-card-meta";
+
+  const agentChip = document.createElement("span");
+  agentChip.className = "app-landing-flow-card-agent";
+  const agentAvatar = document.createElement("span");
+  agentAvatar.className = "app-landing-flow-card-agent-avatar";
+  mountPreviewOrFallback(agentAvatar, {
+    previewUrl: getRegistryAgentPreviewUrl(agent),
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "app-landing-flow-card-agent-emoji",
+    initialsClass: "app-landing-flow-card-agent-initials"
+  });
+  const agentName = document.createElement("span");
+  agentName.className = "app-landing-flow-card-agent-name";
+  agentName.textContent = agentLabel;
+  agentChip.append(agentAvatar, agentName);
+
+  meta.appendChild(agentChip);
+
+  if (status || typeLabel) {
+    const tags = document.createElement("span");
+    tags.className = "app-landing-flow-card-tags";
+    if (status) {
+      const statusTag = document.createElement("span");
+      statusTag.className = "app-landing-flow-card-tag app-landing-flow-card-tag--status";
+      statusTag.textContent = status;
+      tags.appendChild(statusTag);
+    }
+    if (typeLabel) {
+      const typeTag = document.createElement("span");
+      typeTag.className = "app-landing-flow-card-tag app-landing-flow-card-tag--type";
+      typeTag.textContent = typeLabel;
+      tags.appendChild(typeTag);
+    }
+    meta.appendChild(tags);
+  }
+
+  body.append(titleNode, meta);
+  btn.append(media, body);
+  btn.addEventListener("click", () => {
+    void openFocusItem(focusItem);
+  });
+  return btn;
+}
+
+function renderAppLandingFlow(focusItems = getProcessedLandingFocusItems()) {
+  if (!appLandingFlowGridNode) return;
+  if (getLandingAgentsView() !== "flow") return;
+
+  appLandingFlowGridNode.replaceChildren();
+  const agents = getAgentsForLandingGrid();
+
+  if (!agents.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-flow-empty";
+    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр (⚙).";
+    appLandingFlowGridNode.appendChild(empty);
+    syncFocusPanelActiveState();
+    return;
+  }
+
+  if (!focusItems.length) {
+    const empty = document.createElement("div");
+    empty.className = "app-landing-flow-empty-wrap";
+
+    const lead = document.createElement("p");
+    lead.className = "app-landing-flow-empty";
+    lead.textContent = "Пока нет тем в фокусе.";
+
+    const hint = document.createElement("p");
+    hint.className = "app-landing-flow-empty-hint";
+    hint.textContent = "Отметьте тему звёздочкой (awn-main: true) — она появится здесь и на других видах.";
+
+    empty.append(lead, hint);
+    appLandingFlowGridNode.appendChild(empty);
+    syncFocusPanelActiveState();
+    return;
+  }
+
+  for (const focusItem of focusItems) {
+    appLandingFlowGridNode.appendChild(createAppLandingFlowCard(focusItem));
+  }
+  syncFocusPanelActiveState();
 }
 
 const ORBIT_LINK_CENTER = { x: 50, y: 48 };
@@ -6955,6 +7510,7 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
 
   item.append(...children);
   bindOrbitAttentionHover(item, agent.id);
+  bindOrbitItemFocusHover(item, agent, index);
   return item;
 }
 
@@ -6993,7 +7549,7 @@ function renderAppLandingOrbit() {
     empty.className = "app-landing-orbit-empty";
     empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
     appLandingOrbitBubblesNode.appendChild(empty);
-    renderAppLandingOrbitAttention([]);
+    renderAppLandingAttention([]);
     return;
   }
 
@@ -7007,7 +7563,141 @@ function renderAppLandingOrbit() {
   });
 
   renderAppLandingOrbitLinks(agents);
-  renderAppLandingOrbitAttention(shares);
+  renderAppLandingAttention(buildMockAgentAttentionShares(agents));
+  setLandingOrbitFocusCache(getProcessedLandingFocusItems());
+}
+
+const ORBIT_FOCUS_TWIG_LIMIT = 8;
+let landingOrbitFocusByAgent = new Map();
+let landingOrbitFocusHoverAgentId = null;
+let landingOrbitFocusHideTimer = null;
+
+function setLandingOrbitFocusCache(items = []) {
+  landingOrbitFocusByAgent = groupFocusItemsByAgent(items);
+  if (landingOrbitFocusHoverAgentId) {
+    const agents = getAgentsForLandingGrid();
+    const agentIndex = agents.findIndex((agent) => agent.id === landingOrbitFocusHoverAgentId);
+    if (agentIndex >= 0) {
+      paintOrbitAgentFocusGraph(landingOrbitFocusHoverAgentId, agentIndex);
+      return;
+    }
+  }
+  clearOrbitAgentFocusDisplay();
+}
+
+function clearOrbitAgentFocusDisplay() {
+  landingOrbitFocusHoverAgentId = null;
+  appLandingOrbitTwigsNode?.replaceChildren();
+  appLandingOrbitFocusLinksNode?.replaceChildren();
+  appLandingOrbitTwigsNode?.classList.remove("is-visible");
+  appLandingOrbitFocusLinksNode?.classList.remove("is-visible");
+}
+
+function cancelOrbitAgentFocusHide() {
+  if (landingOrbitFocusHideTimer) {
+    clearTimeout(landingOrbitFocusHideTimer);
+    landingOrbitFocusHideTimer = null;
+  }
+}
+
+function scheduleOrbitAgentFocusHide() {
+  cancelOrbitAgentFocusHide();
+  landingOrbitFocusHideTimer = window.setTimeout(() => {
+    clearOrbitAgentFocusDisplay();
+  }, 160);
+}
+
+function getOrbitGraphTwigLayout(focusIndex, focusTotal, agentLayout, focusItem) {
+  const hash = hashAgentIdForOrbit(String(focusItem?.nodePath || focusItem?.agentId || focusIndex));
+  const count = Math.max(focusTotal, 1);
+  const baseAngle = (hash % 360) * (Math.PI / 180);
+  const ring = Math.floor(focusIndex / 6);
+  const slot = focusIndex % 6;
+  const angle = baseAngle + (slot / 6) * Math.PI * 2 + ring * 0.45;
+  const dist = 11 + ring * 5 + (hash % 4);
+  return {
+    x: Math.min(96, Math.max(4, agentLayout.x + Math.cos(angle) * dist)),
+    y: Math.min(92, Math.max(6, agentLayout.y + Math.sin(angle) * dist * 0.78))
+  };
+}
+
+function paintOrbitAgentFocusGraph(agentId, agentIndex) {
+  if (!appLandingOrbitTwigsNode || !appLandingOrbitFocusLinksNode) return;
+  if (getLandingAgentsView() !== "orbit") return;
+
+  const agentFocusItems = landingOrbitFocusByAgent.get(agentId) || [];
+  landingOrbitFocusHoverAgentId = agentId;
+  appLandingOrbitTwigsNode.replaceChildren();
+  appLandingOrbitFocusLinksNode.replaceChildren();
+
+  if (!agentFocusItems.length) {
+    appLandingOrbitTwigsNode.classList.remove("is-visible");
+    appLandingOrbitFocusLinksNode.classList.remove("is-visible");
+    return;
+  }
+
+  const agents = getAgentsForLandingGrid();
+  const agent = agents.find((entry) => entry.id === agentId);
+  const agentLayout = getOrbitBubbleLayout(agentIndex, agents.length, agentId);
+  const shown = agentFocusItems.slice(0, ORBIT_FOCUS_TWIG_LIMIT);
+  const svgNs = "http://www.w3.org/2000/svg";
+
+  shown.forEach((focusItem, focusIndex) => {
+    const twigLayout = getOrbitGraphTwigLayout(focusIndex, shown.length, agentLayout, focusItem);
+    const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
+    const nodePath = String(focusItem.nodePath || "").trim();
+
+    const line = document.createElementNS(svgNs, "line");
+    line.setAttribute("x1", String(agentLayout.x));
+    line.setAttribute("y1", String(agentLayout.y));
+    line.setAttribute("x2", String(twigLayout.x));
+    line.setAttribute("y2", String(twigLayout.y));
+    line.classList.add("app-landing-orbit-focus-link");
+    if (nodePath) line.dataset.focusPath = nodePath;
+    appLandingOrbitFocusLinksNode.appendChild(line);
+
+    const twig = document.createElement("button");
+    twig.type = "button";
+    twig.className = "app-landing-orbit-twig";
+    twig.setAttribute("role", "listitem");
+    twig.style.setProperty("--twig-x", `${twigLayout.x}%`);
+    twig.style.setProperty("--twig-y", `${twigLayout.y}%`);
+    if (nodePath) twig.dataset.focusPath = nodePath;
+    if (isFocusItemActive(focusItem)) twig.classList.add("is-active");
+    twig.textContent = label;
+    twig.title = nodePath || label;
+    twig.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void openFocusItem(focusItem);
+    });
+    twig.addEventListener("mouseenter", cancelOrbitAgentFocusHide);
+    twig.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
+    appLandingOrbitTwigsNode.appendChild(twig);
+  });
+
+  appLandingOrbitTwigsNode.classList.add("is-visible");
+  appLandingOrbitFocusLinksNode.classList.add("is-visible");
+  syncFocusPanelActiveState();
+}
+
+function bindOrbitItemFocusHover(item, agent, agentIndex) {
+  if (!item || !agent?.id) return;
+  item.addEventListener("mouseenter", () => {
+    cancelOrbitAgentFocusHide();
+    paintOrbitAgentFocusGraph(agent.id, agentIndex);
+  });
+  item.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
+  item.addEventListener("focusin", () => {
+    cancelOrbitAgentFocusHide();
+    paintOrbitAgentFocusGraph(agent.id, agentIndex);
+  });
+  item.addEventListener("focusout", (event) => {
+    if (!item.contains(event.relatedTarget)) scheduleOrbitAgentFocusHide();
+  });
+}
+
+function renderAppLandingOrbitFocus(items = []) {
+  setLandingOrbitFocusCache(items);
 }
 
 const ORBIT_ATTENTION_PALETTE = [
@@ -7082,23 +7772,40 @@ function setOrbitAttentionHighlight(agentId) {
       segment.classList.toggle("is-highlighted", hasHighlight && isMatch);
       segment.classList.toggle("is-dimmed", hasHighlight && !isMatch);
     });
+
+  appLandingAttentionNode
+    ?.querySelectorAll(".app-landing-orbit-attention-stack-segment[data-agent-id]")
+    .forEach((segment) => {
+      const isMatch = segment.dataset.agentId === agentId;
+      segment.classList.toggle("is-highlighted", hasHighlight && isMatch);
+      segment.classList.toggle("is-dimmed", hasHighlight && !isMatch);
+    });
+
+  appLandingFlowGridNode
+    ?.querySelectorAll(".app-landing-flow-card[data-agent-id]")
+    .forEach((card) => {
+      const isMatch = card.dataset.agentId === agentId;
+      card.classList.toggle("is-attention-highlighted", hasHighlight && isMatch);
+      card.classList.toggle("is-attention-dimmed", hasHighlight && !isMatch);
+    });
 }
 
 function clearOrbitAttentionHighlight() {
   setOrbitAttentionHighlight(null);
 }
 
-function renderAppLandingOrbitAttention(shares) {
-  if (!appLandingOrbitAttentionNode) return;
-  appLandingOrbitAttentionNode.replaceChildren();
+function renderAppLandingAttention(shares) {
+  const target = appLandingAttentionNode || appLandingOrbitAttentionNode;
+  if (!target) return;
+  target.replaceChildren();
   clearOrbitAttentionHighlight();
 
   if (!Array.isArray(shares) || !shares.length) {
-    appLandingOrbitAttentionNode.classList.add("hidden");
+    target.classList.add("hidden");
     return;
   }
 
-  appLandingOrbitAttentionNode.classList.remove("hidden");
+  target.classList.remove("hidden");
 
   const stackedBar = document.createElement("div");
   stackedBar.className = "app-landing-orbit-attention-stack";
@@ -7124,7 +7831,11 @@ function renderAppLandingOrbitAttention(shares) {
     stackedBar.appendChild(segment);
   }
 
-  appLandingOrbitAttentionNode.append(stackedBar);
+  target.append(stackedBar);
+}
+
+function renderAppLandingOrbitAttention(shares) {
+  renderAppLandingAttention(shares);
 }
 
 async function renderAppLandingAgents() {
@@ -7182,13 +7893,14 @@ async function renderAppLandingAgents() {
         const item = document.createElement("div");
         item.className = "app-landing-agent-item";
         item.setAttribute("role", "listitem");
-        item.appendChild(createAppLandingAgentCard(agent));
+        item.appendChild(createAppLandingAgentTile(agent));
         appLandingAgentsNode.appendChild(item);
       }
     }
   }
 
   renderAppLandingOrbit();
+  renderAppLandingHub(getProcessedLandingFocusItems());
   void loadGlobalFocusItems();
   syncLandingAgentsViewUi();
   renderAgentSelect();
@@ -8989,7 +9701,33 @@ let contentSearchRequestId = 0;
 let landingSearchTimer = null;
 let landingSearchRequestId = 0;
 const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
-const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v1";
+const LANDING_AGENTS_VIEW_KEY = "agentcms.landingAgentsView.v6";
+const LANDING_BG_KEY = "agentcms.landingBg.v1";
+
+function getLandingBg() {
+  try {
+    const saved = localStorage.getItem(LANDING_BG_KEY);
+    if (saved === "light") return "light";
+  } catch {
+    // ignore
+  }
+  return "sky";
+}
+
+function setLandingBg(mode) {
+  localStorage.setItem(LANDING_BG_KEY, mode === "light" ? "light" : "sky");
+  syncLandingBgUi();
+}
+
+function syncLandingBgUi() {
+  const isSky = getLandingBg() === "sky";
+  appLandingPaneNode?.classList.toggle("is-landing-bg-sky", isSky);
+  appLandingPaneNode?.classList.toggle("is-landing-bg-light", !isSky);
+  appLandingBgSkyBtn?.classList.toggle("is-active", isSky);
+  appLandingBgLightBtn?.classList.toggle("is-active", !isSky);
+  appLandingBgSkyBtn?.setAttribute("aria-pressed", isSky ? "true" : "false");
+  appLandingBgLightBtn?.setAttribute("aria-pressed", isSky ? "false" : "true");
+}
 const NODE_OPEN_MEMORY_MODE = "internal";
 const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env"]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
@@ -62684,9 +63422,6 @@ async function init() {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
     }
 
-    // Сразу убираем splash — иначе «Загружаем важное…» перекрывает форму входа.
-    finishSplash();
-
     if (window.agentAppLock?.whenUnlocked) {
       await window.agentAppLock.whenUnlocked();
     }
@@ -62715,10 +63450,10 @@ async function init() {
 
     syncAppRouteToUrl({ replace: true });
   } catch (error) {
-    finishSplash();
     showAppLandingView(`Ошибка загрузки: ${error.message}`);
   } finally {
     window.clearTimeout(splashFailsafe);
+    finishSplash();
     setMenuLoading(false);
   }
 }
@@ -64366,8 +65101,24 @@ appLandingSearchAgentsActiveBtn?.addEventListener("click", () => {
   );
 });
 
+document.addEventListener("click", (event) => {
+  if (!appLandingSearchAgentsPanelNode || appLandingSearchAgentsPanelNode.classList.contains("hidden")) return;
+  const target = event.target;
+  if (target instanceof Node && (appLandingSearchAgentsPanelNode.contains(target) || appLandingSearchAgentsBtnNode?.contains(target))) {
+    return;
+  }
+  setLandingSearchAgentsPanelOpen(false);
+});
+
+appLandingOrbitTwigsNode?.addEventListener("mouseenter", cancelOrbitAgentFocusHide);
+appLandingOrbitTwigsNode?.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
+
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
+appLandingViewHubBtn?.addEventListener("click", () => setLandingAgentsView("hub"));
+appLandingViewFlowBtn?.addEventListener("click", () => setLandingAgentsView("flow"));
+appLandingBgLightBtn?.addEventListener("click", () => setLandingBg("light"));
+appLandingBgSkyBtn?.addEventListener("click", () => setLandingBg("sky"));
 appLandingSettingsBtn?.addEventListener("click", openAgentsSettingsView);
 appLandingCreateAgentBtn?.addEventListener("click", openCreateAgentFromLanding);
 appLandingGroupsCreateBtn?.addEventListener("click", () => {
@@ -64387,7 +65138,6 @@ appLandingGroupCreateModalNode?.addEventListener("click", (event) => {
   if (event.target === appLandingGroupCreateModalNode) closeAppLandingGroupCreateModal();
 });
 setupLandingGroupBackgroundModal();
-appLandingOrbitCreateBtn?.addEventListener("click", openCreateAgentFromLanding);
 appLandingCreateCancelBtn?.addEventListener("click", closeAppLandingCreateModal);
 appLandingCreateSubmitBtn?.addEventListener("click", () => {
   void submitAppLandingCreate();

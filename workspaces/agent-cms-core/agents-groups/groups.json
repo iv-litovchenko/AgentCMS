@@ -4,9 +4,7 @@
       "id": "platform",
       "title": "Работа",
       "agentIds": [
-        "agent-medcenter",
-        "agent-mosconst",
-        "agent-career"
+        "agent-medcenter"
       ],
       "background": "workspaces/agent-cms-core/agents-groups/platform.png",
       "appearance": "dark"
@@ -24,9 +22,7 @@
       "id": "текущее",
       "title": "Текущее",
       "agentIds": [
-        "agent-focus",
-        "agent-inbox",
-        "agent-ideas"
+        "agent-focus"
       ]
     },
     {

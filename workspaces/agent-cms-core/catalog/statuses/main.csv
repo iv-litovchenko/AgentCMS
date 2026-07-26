@@ -10,3 +10,7 @@ open,🟢 Открыта
 active,active
 archive,archive
 disabled,disabled
+done,done
+in-progress,in-progress
+new,new
+planned,planned

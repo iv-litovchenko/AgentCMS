@@ -6,8 +6,7 @@
     },
     {
       "path": "workspaces/agent-cms-test",
-      "environment": "local",
-      "default": true
+      "environment": "local"
     },
     {
       "path": "/Users/macbook/Desktop/agent-english",
@@ -19,7 +18,8 @@
     },
     {
       "path": "/Users/macbook/Desktop/agent-focus",
-      "environment": "local"
+      "environment": "local",
+      "default": true
     },
     {
       "path": "/Users/macbook/Desktop/agent-atlas",

@@ -1,6 +1,9 @@
-id,label
-team,Команда
-me,Я
-guest,гость
-Assistant.Ai/Cron/RandomNumberHourly.node.md,Assistant.Ai/Cron/RandomNumberHourly.node.md
-EnglishLearning,EnglishLearning
+id,label,email
+guest,гость,
+имядомена,ИмяДомена,
+team,Команда,
+путь-к-ноде-node-md,Путь/К/Ноде.node.md,
+me,Я,
+assets-имя-файла-ext,Assets/имя-файла.ext,
+Assistant.Ai/Cron/RandomNumberHourly.node.md,Assistant.Ai/Cron/RandomNumberHourly.node.md,
+EnglishLearning,EnglishLearning,

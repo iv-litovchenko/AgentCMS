@@ -110,7 +110,16 @@
     updateLogoutButton();
   }
 
+  function hideSplashForLock() {
+    document.body.classList.remove("app-booting");
+    const splashNode = document.getElementById("app-splash");
+    if (!splashNode || splashNode.classList.contains("app-splash--hide")) return;
+    splashNode.classList.add("app-splash--hide");
+    window.setTimeout(() => splashNode.remove(), 460);
+  }
+
   function showLockScreen() {
+    hideSplashForLock();
     lockNode?.classList.remove("hidden");
     document.body.classList.add("app-locked");
     updateLogoutButton();
