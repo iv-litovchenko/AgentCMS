@@ -50784,7 +50784,7 @@ function applyFolderBrowseItemSelection(itemPath, { multi = false, shift = false
 function isFolderBrowseSelectionActionTarget(target) {
   return Boolean(
     target?.closest?.(
-      ".folder-browse-select-toggle, .folder-browse-card-actions, .folder-browse-view-btn, .folder-browse-action-btn, .folder-browse-lightbox-btn, [data-fancybox]"
+      ".folder-browse-select-toggle, .folder-browse-thumb-actions, .folder-browse-inline-actions, .folder-browse-view-btn, .folder-browse-action-btn, .folder-browse-lightbox-btn, [data-fancybox]"
     )
   );
 }
@@ -51359,8 +51359,8 @@ function renderFolderBrowsePagesSection(section, items, folderPath) {
       const fallback = document.createElement("div");
       fallback.className = "folder-browse-page-thumb folder-browse-page-thumb--empty";
       fallback.setAttribute("aria-hidden", "true");
-      fallback.appendChild(createFolderBrowseQuickActionsBar(page, { overlay: true }));
       body.appendChild(fallback);
+      card.appendChild(createFolderBrowseQuickActionsBar(page, { overlay: true }));
     }
 
     const bodyNode = document.createElement("div");
@@ -51421,15 +51421,8 @@ function renderFolderBrowseMediaListSection(section, items, { kind = "video", fo
     nameWrap.appendChild(nameNode);
     appendFolderBrowseInlineFileSize(nameWrap, item);
     head.appendChild(nameWrap);
+    head.appendChild(createFolderBrowseQuickActionsBar(item));
     row.appendChild(head);
-
-    const actions = document.createElement("div");
-    actions.className = "folder-browse-card-actions folder-browse-card-actions--inline";
-    appendFolderBrowseItemActionButtons(actions, item, {
-      showOriginal: true,
-      onOpen: () => openFolderBrowseFile(item.name, item.path, { folderPath })
-    });
-    row.appendChild(actions);
 
     bindFolderBrowseSelectableCard(row, {
       path: item.path,
@@ -51465,14 +51458,7 @@ function renderFolderBrowseOtherFilesSection(section, items, folderPath) {
     main.appendChild(label);
     appendFolderBrowseInlineFileSize(main, item);
     row.appendChild(main);
-
-    const actions = document.createElement("div");
-    actions.className = "folder-browse-card-actions folder-browse-card-actions--inline";
-    appendFolderBrowseItemActionButtons(actions, item, {
-      showOriginal: true,
-      onOpen: () => openFolderBrowseFile(item.name, item.path, { folderPath })
-    });
-    row.appendChild(actions);
+    row.appendChild(createFolderBrowseQuickActionsBar(item));
 
     bindFolderBrowseSelectableCard(row, {
       path: item.path,

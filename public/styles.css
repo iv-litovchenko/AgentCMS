@@ -19128,6 +19128,7 @@ body.app-locked {
 }
 
 .folder-browse-image-thumb {
+  position: relative;
   aspect-ratio: 1;
   margin: 0;
   padding: 0;
@@ -19292,6 +19293,7 @@ body.app-locked {
 }
 
 .folder-browse-page-thumb {
+  position: relative;
   aspect-ratio: 16 / 9;
   background: transparent;
   display: flex;
@@ -19387,6 +19389,68 @@ body.app-locked {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 12px;
   background: transparent;
+}
+
+.folder-browse-media-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-browse-thumb-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.folder-browse-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: flex-start;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.folder-browse-item-card:hover .folder-browse-thumb-actions,
+.folder-browse-item-card.is-selected .folder-browse-thumb-actions,
+.folder-browse-thumb-actions:focus-within,
+.folder-browse-item-card:hover .folder-browse-inline-actions,
+.folder-browse-item-card.is-selected .folder-browse-inline-actions,
+.folder-browse-inline-actions:focus-within,
+.folder-browse-hub:has(.folder-browse-item-card.is-selected) .folder-browse-thumb-actions,
+.folder-browse-hub:has(.folder-browse-item-card.is-selected) .folder-browse-inline-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.folder-browse-thumb-actions .folder-browse-action-btn,
+.folder-browse-thumb-actions .folder-browse-lightbox-btn {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+}
+
+.folder-browse-page-card > .folder-browse-thumb-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
 }
 
 .folder-browse-media-name {
@@ -19650,15 +19714,6 @@ body.app-locked {
   font-weight: 700;
 }
 
-.folder-browse-media-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px 0;
-  flex: 1;
-  min-width: 0;
-}
-
 .folder-browse-media-name-wrap {
   min-width: 0;
   flex: 1;
@@ -19676,11 +19731,6 @@ body.app-locked {
 .folder-browse-media-name-wrap .folder-browse-inline-size {
   flex: 0 0 auto;
   font-size: 11px;
-}
-
-.folder-browse-media-item {
-  display: flex;
-  flex-direction: column;
 }
 
 .node-overview.is-folder-browse {
