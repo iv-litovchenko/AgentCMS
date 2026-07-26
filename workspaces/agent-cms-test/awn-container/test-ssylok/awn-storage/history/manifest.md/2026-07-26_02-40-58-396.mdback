@@ -6,8 +6,8 @@ awn-description: ""
 awn-tags: []
 awn-type: awn.page.topic
 awn-create: "2026-07-25T01:45"
-awn-update: 2026-07-25T23:40:58.394Z
-awn-version: 11
+awn-update: 2026-07-25T23:35:57.865Z
+awn-version: 10
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -24,3 +24,5 @@ awn-runtime-commands: true
 field_test_ws_merge: ""
 awn-attachments: []
 ---
+
+Тест

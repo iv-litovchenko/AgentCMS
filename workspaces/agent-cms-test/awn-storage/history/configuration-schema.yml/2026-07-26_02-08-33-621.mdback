@@ -1,0 +1,12 @@
+version: 1
+layer: workspace
+description: >
+  Дополнения схемы для workspace агента. Merge поверх awn-system/configuration-schema.yml.
+
+# Пример — новое поле для всех topic:
+# awn_schema:
+#   topic:
+#     fields:
+#       awn-priority:
+#         type: awn.field.enum
+#         name: Приоритет

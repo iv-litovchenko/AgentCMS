@@ -28,6 +28,10 @@
     {
       "path": "/Users/macbook/Desktop/agent-crypto",
       "environment": "local"
+    },
+    {
+      "path": "/Users/macbook/downloads",
+      "environment": "local"
     }
   ]
 }

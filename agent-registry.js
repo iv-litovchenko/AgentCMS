@@ -39,6 +39,7 @@ const {
   getAgentsGroupsAssetsAbsolute,
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
+const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const agentContext = new AsyncLocalStorage();
 
@@ -50,8 +51,10 @@ function joinNodeFrontmatter(frontmatter, body) {
   return `---\n${fm}\n---\n\n${mdBody}`;
 }
 
-/** Agent CMS — канонические имена файлов платформы и workspace. */
-const WORKSPACE_AWN_TYPE = "awn.workspace";
+/** Канонический тип корневого манифеста workspace (CHPU / реестр). */
+const WORKSPACE_AWN_TYPE = "awn.page.ws";
+const WORKSPACE_AWN_TYPE_LEGACY = "awn.workspace";
+const WORKSPACE_AWN_TYPES = new Set([WORKSPACE_AWN_TYPE, WORKSPACE_AWN_TYPE_LEGACY]);
 const WORKSPACE_STATUS_INACTIVE = "🔴 Закрыта";
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 const AWN_MAP_FILE = "awn-map.json";
@@ -241,9 +244,13 @@ function readWorkspaceReginfoRawSync(workspaceRootAbsolute) {
   }
 }
 
+function isWorkspaceAwnType(typeName) {
+  return WORKSPACE_AWN_TYPES.has(String(typeName || "").trim());
+}
+
 function isWorkspaceReginfoRaw(raw) {
   if (!raw) return false;
-  return getYamlScalar(raw.frontmatter, "awn-type") === WORKSPACE_AWN_TYPE;
+  return isWorkspaceAwnType(getYamlScalar(raw.frontmatter, "awn-type"));
 }
 
 function isWorkspaceReginfoAtPath(workspaceRootAbsolute) {
@@ -774,8 +781,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
   }
 ];
-const AGENT_FOLDER_PREFIX = "agent-";
-const AGENT_FOLDER_NAME_RE = /^agent-[a-z0-9][a-z0-9_-]*$/;
+const AGENT_FOLDER_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/;
 
 const SKIP_SCAN_DIRS = new Set([
   "node_modules",
@@ -791,6 +797,45 @@ const SKIP_SCAN_DIRS = new Set([
 function isAgentFolderName(name) {
   const folderName = String(name || "").trim().toLowerCase();
   return AGENT_FOLDER_NAME_RE.test(folderName);
+}
+
+function slugifyAgentFolderSegment(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+  return sanitizeSlugInput(transliterateToSlug(text) || text) || "";
+}
+
+function normalizeAgentFolderName(rawFolderName) {
+  return slugifyAgentFolderSegment(rawFolderName);
+}
+
+function assertAgentIdAvailable(agentId, { excludePath = "" } = {}) {
+  const id = String(agentId || "").trim().toLowerCase();
+  if (!id) {
+    throw new Error("ID агента не может быть пустым");
+  }
+  loadRegistrySync();
+  const excludeKey = excludePath ? normalizeRegistryPathKey(excludePath) : "";
+  const taken = agents.some((agent) => {
+    if (excludeKey && normalizeRegistryPathKey(agent.path) === excludeKey) return false;
+    return String(agent.id || "").trim().toLowerCase() === id;
+  });
+  if (taken) {
+    throw new Error(`Агент с ID «${id}» уже есть в реестре`);
+  }
+}
+
+function normalizeAgentWorkspacePath(rawPath) {
+  const trimmed = String(rawPath || "").trim().replace(/[\\/]+$/, "");
+  if (!trimmed) return trimmed;
+  const folderName = path.basename(trimmed);
+  if (!folderName || folderName === "." || folderName === "..") return trimmed;
+  const normalizedFolder = normalizeAgentFolderName(folderName);
+  if (!normalizedFolder || normalizedFolder === folderName) return trimmed;
+  const parent = trimmed.slice(0, Math.max(0, trimmed.length - folderName.length)).replace(/[\\/]+$/, "");
+  if (!parent) return normalizedFolder;
+  const sep = trimmed.includes("\\") ? "\\" : "/";
+  return `${parent}${sep}${normalizedFolder}`;
 }
 
 let projectRoot = null;
@@ -1020,7 +1065,7 @@ function pickDefaultAgentId(agentList) {
 function deriveAgentIdFromPath(agentPath, fallbackIndex = 0) {
   const rootAbsolute = resolveAgentRootAbsolute(agentPath);
   const folderName = path.basename(String(rootAbsolute || "").replace(/[\\/]+$/, ""));
-  return slugifyAgentId(folderName, fallbackIndex);
+  return agentFolderNameToSlug(folderName, fallbackIndex);
 }
 
 function isWorkspaceDirectoryExisting(rootAbsolute) {
@@ -1156,6 +1201,11 @@ function getAgentsPublicList() {
   }
 
   return list;
+}
+
+function agentFolderNameToSlug(folderName, fallbackIndex = 0) {
+  const slug = String(folderName || "").trim().toLowerCase();
+  return slug || `agent-${fallbackIndex + 1}`;
 }
 
 function slugifyAgentId(raw, fallbackIndex = 0) {
@@ -1396,7 +1446,7 @@ function scanForAgentManifests(dirAbsolute, depth, maxDepth, results, seen) {
           manifest: manifest || null,
           name: manifest?.name || folderName,
           comment: manifest?.comment || "",
-          id: slugifyAgentId(folderName, results.length),
+          id: agentFolderNameToSlug(folderName, results.length),
           hasPreview: Boolean(previewAbsolute),
           previewRel: manifest?.preview || null
         });
@@ -1448,7 +1498,7 @@ function getAgentManifestPreviewAbsolute(agent) {
 }
 
 function createAgentWorkspace(options = {}) {
-  const workspacePath = String(options.path || "").trim();
+  const workspacePath = normalizeAgentWorkspacePath(String(options.path || "").trim());
   if (!workspacePath) {
     throw new Error("Укажите путь workspace");
   }
@@ -1456,14 +1506,14 @@ function createAgentWorkspace(options = {}) {
   const resolvedPath = assertSafeAgentPath(workspacePath);
   const workspaceAbsolute = resolveAgentRootAbsolute(resolvedPath);
   const folderName = path.basename(workspaceAbsolute);
-  if (folderName !== folderName.toLowerCase()) {
-    throw new Error(`Название папки «${folderName}» должно быть в нижнем регистре`);
-  }
   if (!isAgentFolderName(folderName)) {
     throw new Error(
-      `Папка агента должна начинаться с «${AGENT_FOLDER_PREFIX}» (например ${AGENT_FOLDER_PREFIX}my-project), сейчас: «${folderName}»`
+      `ID агента (имя папки) «${folderName}»: латиница, цифры, дефис и подчёркивание`
     );
   }
+
+  const id = agentFolderNameToSlug(folderName, 0);
+  assertAgentIdAvailable(id, { excludePath: resolvedPath });
 
   if (fs.existsSync(workspaceAbsolute)) {
     if (!fs.statSync(workspaceAbsolute).isDirectory()) {
@@ -1485,8 +1535,7 @@ function createAgentWorkspace(options = {}) {
     { recursive: true }
   );
 
-  const id = slugifyAgentId(folderName, 0);
-  let agentFrontmatter = buildDefaultFrontmatter("awn.workspace", {
+  let agentFrontmatter = buildDefaultFrontmatter(WORKSPACE_AWN_TYPE, {
     name,
     agentRoot: workspaceAbsolute,
     projectRoot
@@ -1667,6 +1716,10 @@ module.exports = {
   createSystemReferenceNodeSync,
   createSystemServiceDocSync,
   WORKSPACE_AWN_TYPE,
+  WORKSPACE_AWN_TYPE_LEGACY,
+  WORKSPACE_AWN_TYPES,
+  isWorkspaceAwnType,
+  agentFolderNameToSlug,
   AWN_MAP_FILE,
   AWN_AGENTS_REGISTRY_FILE,
   AWN_SHELL_FILE,

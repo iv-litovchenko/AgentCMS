@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { getManifestContainerDirRel } = require("./manifest-paths");
+const { getManifestContainerDirRel, isAreaManifestRelPath, isManifestMdRelPath } = require("./manifest-paths");
 const { AGENT_SYSTEM_REL } = require("./platform-sources");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const {
@@ -109,16 +109,40 @@ function readTopicConfigurationSchemaFile(manifestRel, agentRoot) {
   return extractAwnSchemaFromConfigurationSchemaContent(readTextFile(absolute));
 }
 
-function readTopicOnlyAwnSchema(manifestRel, agentRoot, configContent = "") {
+function readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent = "") {
   const topicFromFile = readTopicConfigurationSchemaFile(manifestRel, agentRoot);
   if (topicFromFile) return normalizeAwnSchema(topicFromFile);
   return extractAwnSchemaFromConfig(configContent);
 }
 
+/** @deprecated alias */
+function readTopicOnlyAwnSchema(manifestRel, agentRoot, configContent = "") {
+  return readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent);
+}
+
+function resolveAreaManifestRelForNode(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  if (!isManifestMdRelPath(normalized) || isAreaManifestRelPath(normalized)) return null;
+  let dir = path.posix.dirname(normalized);
+  while (dir && dir !== ".") {
+    const candidate = `${dir}/manifest.md`;
+    if (candidate !== normalized && isAreaManifestRelPath(candidate)) return candidate;
+    dir = path.posix.dirname(dir);
+  }
+  return null;
+}
+
 function readEffectiveTopicAwnSchema(manifestRel, agentRoot, configContent = "") {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const workspaceLayer = readWorkspaceLayerAwnSchema(agentRoot);
+  if (isAreaManifestRelPath(normalized)) {
+    return mergeAwnSchemaLayers(workspaceLayer, readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent));
+  }
+  const areaManifestRel = resolveAreaManifestRelForNode(normalized);
   return mergeAwnSchemaLayers(
-    readWorkspaceLayerAwnSchema(agentRoot),
-    readTopicOnlyAwnSchema(manifestRel, agentRoot, configContent)
+    workspaceLayer,
+    areaManifestRel ? readNodeOnlyAwnSchema(areaManifestRel, agentRoot) : null,
+    readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent)
   );
 }
 
@@ -128,21 +152,86 @@ function readTopicLayerAwnSchema(manifestRel, agentRoot, configContent = "") {
 }
 
 function composeTopicConfigurationSchemaYaml(awnSchema) {
+  return composeConfigurationSchemaYaml(awnSchema, "topic");
+}
+
+function composeWorkspaceConfigurationSchemaYaml(awnSchema) {
+  return composeConfigurationSchemaYaml(awnSchema, "workspace");
+}
+
+function composeConfigurationSchemaYaml(awnSchema, layer = "topic") {
   const schemaYaml = stringifyAwnSchemaYaml(awnSchema);
   if (!String(schemaYaml || "").trim()) return "";
-  return ["version: 1", "layer: topic", "", schemaYaml, ""].join("\n");
+  return ["version: 1", `layer: ${layer}`, "", schemaYaml, ""].join("\n");
+}
+
+function composeAreaConfigurationSchemaYaml(awnSchema) {
+  return composeConfigurationSchemaYaml(awnSchema, "area");
+}
+
+function getEffectiveTopicSchemaPayload(manifestRel, agentRoot, projectRoot, configContent = "") {
+  const effectiveSchema = readEffectiveTopicAwnSchema(manifestRel, agentRoot, configContent);
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const topicAwnSchema = isAreaManifestRelPath(normalized)
+    ? emptyAwnSchema()
+    : readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent);
+  const areaManifestRel = isAreaManifestRelPath(normalized)
+    ? normalized
+    : resolveAreaManifestRelForNode(normalized);
+  const areaAwnSchema = areaManifestRel
+    ? readNodeOnlyAwnSchema(areaManifestRel, agentRoot)
+    : emptyAwnSchema();
+  const workspaceAwnSchema = readWorkspaceLayerAwnSchema(agentRoot);
+  const { getTopicSchemaPayload } = require("./awn-types-loader");
+  const payload = getTopicSchemaPayload(configContent, agentRoot, projectRoot, {
+    awnSchema: effectiveSchema
+  });
+  return {
+    ...payload,
+    topicAwnSchema,
+    areaAwnSchema,
+    workspaceAwnSchema
+  };
+}
+
+function getWorkspaceSchemaPayloadFull(agentRoot, projectRoot) {
+  const { getWorkspaceSchemaPayload } = require("./awn-types-loader");
+  const workspaceAwnSchema = readWorkspaceLayerAwnSchema(agentRoot);
+  const payload = getWorkspaceSchemaPayload(agentRoot, projectRoot);
+  return {
+    ...payload,
+    workspaceAwnSchema
+  };
+}
+
+async function writeWorkspaceConfigurationSchema(awnSchema, writeFileFn, removeFileFn) {
+  const content = composeWorkspaceConfigurationSchemaYaml(awnSchema);
+  const schemaRel = WORKSPACE_CONFIGURATION_SCHEMA_REL;
+  if (content.trim()) {
+    await writeFileFn(schemaRel, schemaRel, content);
+    return { schemaRel, exists: true, content };
+  }
+  await removeFileFn(schemaRel);
+  return { schemaRel, exists: false, content: "" };
 }
 
 async function writeTopicConfigurationSchema(manifestRel, awnSchema, writeFileFn, removeFileFn) {
   const schemaRel = toTopicConfigurationSchemaRel(manifestRel);
   if (!schemaRel) throw new Error("Invalid topic path");
-  const content = composeTopicConfigurationSchemaYaml(awnSchema);
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const content = isAreaManifestRelPath(normalized)
+    ? composeAreaConfigurationSchemaYaml(awnSchema)
+    : composeTopicConfigurationSchemaYaml(awnSchema);
   if (content.trim()) {
     await writeFileFn(manifestRel, schemaRel, content);
     return { schemaRel, exists: true, content };
   }
   await removeFileFn(schemaRel);
   return { schemaRel, exists: false, content: "" };
+}
+
+function readNodeHasOwnSchemaLayer(manifestRel, agentRoot, configContent = "") {
+  return topicSchemaHasFields(readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent));
 }
 
 module.exports = {
@@ -158,5 +247,14 @@ module.exports = {
   readEffectiveTopicAwnSchema,
   readWorkspaceLayerAwnSchema,
   composeTopicConfigurationSchemaYaml,
-  writeTopicConfigurationSchema
+  composeWorkspaceConfigurationSchemaYaml,
+  composeAreaConfigurationSchemaYaml,
+  readNodeOnlyAwnSchema,
+  resolveAreaManifestRelForNode,
+  topicSchemaHasFields,
+  getEffectiveTopicSchemaPayload,
+  getWorkspaceSchemaPayloadFull,
+  writeTopicConfigurationSchema,
+  writeWorkspaceConfigurationSchema,
+  readNodeHasOwnSchemaLayer
 };

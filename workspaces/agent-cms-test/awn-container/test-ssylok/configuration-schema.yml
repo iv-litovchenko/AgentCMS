@@ -1,0 +1,9 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      field_test_ws_merge:
+        type: awn.string
+        name: Topic test

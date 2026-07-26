@@ -510,6 +510,8 @@ const TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS = buildTopicSchemaStorageSlotTarget
 const AWN_SCHEMA_LEGACY_TARGET_MIGRATIONS = buildTopicSchemaLegacyTargetMigrations();
 
 const AWN_SCHEMA_TARGETS = [
+  "workspace",
+  "area",
   "topic",
   "sidecar",
   ...TOPIC_SCHEMA_STORAGE_SLOT_TARGET_SPECS.map((item) => item.id),
@@ -517,6 +519,8 @@ const AWN_SCHEMA_TARGETS = [
 ];
 
 const AWN_SCHEMA_TARGET_TYPE_NAMES = {
+  workspace: "awn.page.ws",
+  area: "awn.page.area",
   topic: "awn.topic",
   sidecar: "awn.sidecar",
   settings: "awn.settings",
@@ -699,10 +703,13 @@ function applyAwnSchemaToConfig(content, awnSchema) {
   return composeNodeConfigBundle(bundle);
 }
 
-function getTopicSchemaPayload(configContent, agentRoot, projectRoot) {
+function getTopicSchemaPayload(configContent, agentRoot, projectRoot, options = {}) {
   const types = loadAgentTypes(agentRoot, projectRoot);
   const typesByName = new Map(Object.entries(types));
-  const awnSchema = extractAwnSchemaFromConfig(configContent);
+  const awnSchema =
+    options.awnSchema !== undefined
+      ? normalizeAwnSchema(options.awnSchema)
+      : extractAwnSchemaFromConfig(configContent);
   const baseTypes = {};
   const merged = {};
 
@@ -716,6 +723,12 @@ function getTopicSchemaPayload(configContent, agentRoot, projectRoot) {
   }
 
   return { awnSchema, baseTypes, merged };
+}
+
+function getWorkspaceSchemaPayload(agentRoot, projectRoot) {
+  const { readWorkspaceLayerAwnSchema } = require("./configuration-schema");
+  const awnSchema = normalizeAwnSchema(readWorkspaceLayerAwnSchema(agentRoot));
+  return getTopicSchemaPayload("", agentRoot, projectRoot, { awnSchema });
 }
 
 function resolveMergedTypeForManifest(configContent, agentRoot, projectRoot, contextKind) {
@@ -754,6 +767,7 @@ module.exports = {
   settingsObjectToEntries,
   settingsEntriesToObject,
   getTopicSchemaPayload,
+  getWorkspaceSchemaPayload,
   resolveMergedTypeForManifest,
   AWN_SCHEMA_TARGETS,
   AWN_SCHEMA_TARGET_TYPE_NAMES,

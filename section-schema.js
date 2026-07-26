@@ -115,12 +115,16 @@ function recomputeMergedTypes(combinedAwnSchema, agentRoot, projectRoot) {
   return { baseTypes, merged };
 }
 
-function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectionAwnSchemas = []) {
-  const base = getTopicSchemaPayload(configContent, agentRoot, projectRoot);
+function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectionAwnSchemas = [], manifestRel = "") {
+  const { getEffectiveTopicSchemaPayload } = require("./configuration-schema");
+  const base = manifestRel
+    ? getEffectiveTopicSchemaPayload(manifestRel, agentRoot, projectRoot, configContent)
+    : getTopicSchemaPayload(configContent, agentRoot, projectRoot);
   if (!sectionAwnSchemas.length) {
     return {
       ...base,
-      topicAwnSchema: base.awnSchema,
+      topicAwnSchema: base.topicAwnSchema || base.awnSchema,
+      workspaceAwnSchema: base.workspaceAwnSchema || null,
       sectionAwnSchema: null,
       sectionChain: []
     };
@@ -130,7 +134,8 @@ function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectio
   const combinedAwnSchema = mergeAwnSchemaLayers(base.awnSchema, sectionAwnSchema);
   const { baseTypes, merged } = recomputeMergedTypes(combinedAwnSchema, agentRoot, projectRoot);
   return {
-    topicAwnSchema: base.awnSchema,
+    topicAwnSchema: base.topicAwnSchema || base.awnSchema,
+    workspaceAwnSchema: base.workspaceAwnSchema || null,
     awnSchema: combinedAwnSchema,
     sectionAwnSchema,
     baseTypes,
@@ -147,7 +152,15 @@ function getEffectiveSchemaPayloadForContentPath(
   const agentRootAbs = path.resolve(String(agentRoot || ""));
   const { chain } = readSectionSchemaLayersForContentPath(contentWorkspaceRel, agentRootAbs);
   const sectionAwnSchemas = chain.map((item) => item.awnSchema);
-  const payload = getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectionAwnSchemas);
+  const parsed = parseStorageLayerRef(contentWorkspaceRel);
+  const manifestRel = parsed ? pickManifestRelFromStorageLayerRef(parsed) : "";
+  const payload = getEffectiveSchemaPayload(
+    configContent,
+    agentRoot,
+    projectRoot,
+    sectionAwnSchemas,
+    manifestRel
+  );
   return {
     ...payload,
     sectionChain: chain.map((item) => ({

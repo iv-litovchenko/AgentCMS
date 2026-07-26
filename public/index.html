@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.415" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.430" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
   </head>
@@ -607,12 +607,35 @@
 
         <section class="app-landing-body" aria-labelledby="app-landing-agents-title">
           <div class="app-landing-inner">
-            <section class="app-landing-search" aria-labelledby="app-landing-search-title">
-              <h3 id="app-landing-search-title" class="app-landing-search-title">Поиск по агентам</h3>
-              <p class="app-landing-search-sub">Найдите тему или файл в выбранных workspace</p>
+            <section class="app-landing-search" aria-label="Поиск по агентам">
               <div class="app-landing-search-bar-wrap">
-                <div class="app-landing-search-bar">
-                  <select id="app-landing-search-scope" class="app-landing-search-scope" aria-label="Область поиска">
+                <div class="app-landing-search-bar content-search-bar">
+                  <div class="app-landing-search-agents-wrap">
+                    <button
+                      type="button"
+                      id="app-landing-search-agents-btn"
+                      class="app-landing-search-agents-btn"
+                      aria-expanded="false"
+                      aria-controls="app-landing-search-agents-panel"
+                      aria-haspopup="listbox"
+                    >
+                      <span id="app-landing-search-agents-summary">Все агенты</span>
+                    </button>
+                    <div
+                      id="app-landing-search-agents-panel"
+                      class="app-landing-search-agents-panel hidden"
+                      role="listbox"
+                      aria-label="Агенты для поиска"
+                    >
+                      <div class="app-landing-search-agents-panel-toolbar">
+                        <button type="button" id="app-landing-search-agents-all" class="app-landing-search-link-btn">Все</button>
+                        <button type="button" id="app-landing-search-agents-none" class="app-landing-search-link-btn">Снять</button>
+                        <button type="button" id="app-landing-search-agents-active" class="app-landing-search-link-btn">Только активные</button>
+                      </div>
+                      <div id="app-landing-search-agents" class="app-landing-search-agents-list"></div>
+                    </div>
+                  </div>
+                  <select id="app-landing-search-scope" class="content-search-scope" aria-label="Область поиска">
                     <option value="all" selected>Везде</option>
                     <option value="filename">Только имя</option>
                     <option value="content">Только текст</option>
@@ -620,7 +643,7 @@
                   </select>
                   <input
                     id="app-landing-search-input"
-                    class="app-landing-search-input"
+                    class="content-search-input"
                     type="search"
                     placeholder="Найти файл или текст..."
                     autocomplete="off"
@@ -636,13 +659,6 @@
                 </div>
                 <div id="app-landing-search-results" class="app-landing-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
               </div>
-              <div class="app-landing-search-agents-toolbar">
-                <span class="app-landing-search-agents-label">Искать в:</span>
-                <button type="button" id="app-landing-search-agents-all" class="app-landing-search-link-btn">Все</button>
-                <button type="button" id="app-landing-search-agents-none" class="app-landing-search-link-btn">Снять</button>
-                <button type="button" id="app-landing-search-agents-active" class="app-landing-search-link-btn">Только активные</button>
-              </div>
-              <div id="app-landing-search-agents" class="app-landing-search-agents" role="group" aria-label="Агенты для поиска"></div>
             </section>
 
             <header class="app-landing-header">
@@ -919,7 +935,7 @@
       <div id="app-landing-create-modal" class="modal-overlay hidden">
         <div class="modal-card agents-registry-create-card app-landing-create-card">
           <div class="modal-message">Создать агента</div>
-          <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> с префиксом <code>agent-</code>. В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
+          <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> (slug: латиница, цифры, дефис). В корне появятся <code>manifest.md</code> (<code>awn.page.ws</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
           <label class="agents-registry-field agents-registry-create-field">
             <span>Название агента</span>
             <input id="app-landing-create-name-input" type="text" placeholder="Мой агент" spellcheck="false" autocomplete="off" required />
@@ -930,8 +946,8 @@
           </label>
           <label class="agents-registry-field agents-registry-create-path-field">
             <span>Workspace (ID в имени папки)</span>
-            <input id="app-landing-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/agent-my-project" spellcheck="false" autocomplete="off" />
-            <p class="agents-registry-create-footnote">Название папки — только в нижнем регистре.</p>
+            <input id="app-landing-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-project" spellcheck="false" autocomplete="off" />
+            <p class="agents-registry-create-footnote">Имя папки — slug из названия (транслит). ID должен быть уникальным.</p>
           </label>
           <div class="modal-actions">
             <button id="app-landing-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -2738,7 +2754,7 @@
     <div id="agents-registry-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-card">
         <div class="modal-message">Агенты</div>
-        <p class="agents-registry-hint">Платформа хранит список workspace: путь, среду и «по умолчанию». Название, описание, статус активности и превью — в корневом <code>_registration.md</code> (<code>awn.workspace</code>): <code>awn-name</code>, <code>awn-description</code>, <code>awn-status</code>, <code>awn-preview</code>.</p>
+        <p class="agents-registry-hint">Платформа хранит список workspace: путь, среду и «по умолчанию». Название, описание, статус активности и превью — в корневом <code>manifest.md</code> (<code>awn.page.ws</code>): <code>awn-name</code>, <code>awn-description</code>, <code>awn-status</code>, <code>awn-preview</code>.</p>
         <div class="agents-registry-toolbar">
           <span class="agents-registry-toolbar-label">Сортировка:</span>
           <button type="button" class="agents-registry-sort-btn" data-sort="name">Имя</button>
@@ -2749,7 +2765,7 @@
         <div class="agents-registry-footer">
           <div class="agents-registry-footer-actions">
             <button id="agents-registry-create-btn" class="external-create-btn" type="button">+ Создать агента</button>
-            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти _registration.md (awn.workspace)</button>
+            <button id="agents-registry-add-btn" class="agents-registry-sort-btn" type="button">Найти manifest.md (awn.page.ws)</button>
           </div>
           <div class="modal-actions">
             <button id="agents-registry-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -2758,7 +2774,7 @@
           <ul class="agents-registry-status-legend" aria-label="Статусы workspace">
             <li>
               <span class="agents-registry-legend-dot" data-state="manifest" aria-hidden="true"></span>
-              <span>_registration.md (awn.workspace) найден</span>
+              <span>manifest.md (awn.page.ws) найден</span>
             </li>
             <li>
               <span class="agents-registry-legend-dot" data-state="missing" aria-hidden="true"></span>
@@ -2776,7 +2792,7 @@
     <div id="agents-registry-create-modal" class="modal-overlay hidden">
       <div class="modal-card agents-registry-create-card">
         <div class="modal-message">Создать агента</div>
-        <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> с префиксом <code>agent-</code>. В корне появятся <code>_registration.md</code> (<code>awn.workspace</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
+        <p class="agents-registry-hint">Укажите путь к папке workspace (будет создана, если её нет). <strong>Имя последней папки в пути — ID агента</strong> (slug: латиница, цифры, дефис). В корне появятся <code>manifest.md</code> (<code>awn.page.ws</code>) и слот <code>awn-storage/</code> для превью. Папки <code>awn-agent-kit</code> и <code>awn-container</code> добавляются отдельно: кнопка + у Root.</p>
         <label class="agents-registry-field agents-registry-create-field">
           <span>Название агента</span>
           <input id="agents-registry-create-name-input" type="text" placeholder="Мой агент" spellcheck="false" autocomplete="off" required />
@@ -2787,8 +2803,8 @@
         </label>
         <label class="agents-registry-field agents-registry-create-path-field">
           <span>Workspace (ID в имени папки)</span>
-          <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/agent-my-project" spellcheck="false" autocomplete="off" />
-          <p class="agents-registry-create-footnote">Название папки — только в нижнем регистре.</p>
+          <input id="agents-registry-create-path-input" class="agents-registry-path-input" type="text" placeholder="./workspaces/my-project" spellcheck="false" autocomplete="off" />
+          <p class="agents-registry-create-footnote">Имя папки — slug из названия (транслит). ID должен быть уникальным.</p>
         </label>
         <div class="modal-actions">
           <button id="agents-registry-create-cancel-btn" class="save-btn" type="button">Отмена</button>
@@ -2801,7 +2817,7 @@
       <div class="modal-card agents-registry-discover-card">
         <div class="agents-registry-discover-header">
           <div>
-            <div class="modal-message">Найти _registration.md (awn.workspace)</div>
+            <div class="modal-message">Найти manifest.md (awn.page.ws)</div>
             <p class="agents-registry-discover-subtitle">Сканирование Desktop, домашней папки и проекта</p>
           </div>
           <button id="agents-registry-discover-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
@@ -3021,7 +3037,7 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.421"></script>
+    <script src="/main.js?v=0.5.430"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

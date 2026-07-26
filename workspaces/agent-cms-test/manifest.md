@@ -1,7 +1,7 @@
 ---
 awn-name: "[Agent CMS] Test"
 awn-emoji: ""
-awn-status: open
+awn-status: 🟢 Открыта
 awn-description: Тестовый агент. CMS-модель встроена — см. awn-system/MAP.md и AGENTS.md
 awn-tags: []
 awn-type: awn.page.ws
@@ -21,5 +21,6 @@ awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 ---
+
 
 00

@@ -145,6 +145,16 @@ const {
   listSectionFolderPrefixes,
   isSectionConfigRelPath
 } = require("./section-schema");
+const {
+  getEffectiveTopicSchemaPayload,
+  getWorkspaceSchemaPayloadFull,
+  writeTopicConfigurationSchema,
+  writeWorkspaceConfigurationSchema,
+  readWorkspaceLayerAwnSchema,
+  readNodeHasOwnSchemaLayer,
+  topicSchemaHasFields,
+  WORKSPACE_CONFIGURATION_SCHEMA_REL
+} = require("./configuration-schema");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
 const { getMergedCatalogsPayload, getCatalogLookupMaps, resolveCatalogPropValue, resolveCatalogTagsList } = require("./catalog-loader");
@@ -3925,7 +3935,12 @@ async function buildStorageSectionReadmeContentForManifest(
             getAgentRoot(),
             getProjectRoot()
           )
-        : getTopicSchemaPayload(configFile.content || "", getAgentRoot(), getProjectRoot());
+        : getEffectiveTopicSchemaPayload(
+            manifestRel,
+            getAgentRoot(),
+            getProjectRoot(),
+            configFile.content || ""
+          );
       const mergedType = payload.merged[schemaTarget];
       if (mergedType?.fields && Object.keys(mergedType.fields).length) {
         const frontmatter = buildDefaultFrontmatter(awnType, {
@@ -3969,7 +3984,12 @@ async function buildSlotContentFileContentForManifest(
           getAgentRoot(),
           getProjectRoot()
         )
-      : getTopicSchemaPayload(configFile.content || "", getAgentRoot(), getProjectRoot());
+      : getEffectiveTopicSchemaPayload(
+          manifestRel,
+          getAgentRoot(),
+          getProjectRoot(),
+          configFile.content || ""
+        );
     const mergedType = schemaTarget ? payload.merged[schemaTarget] : null;
     if (mergedType?.fields && Object.keys(mergedType.fields).length) {
       frontmatter = buildDefaultFrontmatter(awnType, {
@@ -4808,10 +4828,23 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   }
 
   enrichMenuTreeRuntimeRollup(menu);
-  if (serviceTree) enrichMenuTreeRuntimeRollup(serviceTree);
-  if (containerTree) enrichMenuTreeRuntimeRollup(containerTree);
-  if (sharedTree) enrichMenuTreeRuntimeRollup(sharedTree);
-  if (systemTree) enrichMenuTreeRuntimeRollup(systemTree);
+  enrichMenuTreeSchemaRollup(menu);
+  if (serviceTree) {
+    enrichMenuTreeRuntimeRollup(serviceTree);
+    enrichMenuTreeSchemaRollup(serviceTree);
+  }
+  if (containerTree) {
+    enrichMenuTreeRuntimeRollup(containerTree);
+    enrichMenuTreeSchemaRollup(containerTree);
+  }
+  if (sharedTree) {
+    enrichMenuTreeRuntimeRollup(sharedTree);
+    enrichMenuTreeSchemaRollup(sharedTree);
+  }
+  if (systemTree) {
+    enrichMenuTreeRuntimeRollup(systemTree);
+    enrichMenuTreeSchemaRollup(systemTree);
+  }
 
   return { ...menu, serviceTree, sharedTree, containerTree, systemTree };
 }
@@ -4854,6 +4887,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     );
     const branch = await normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -4865,6 +4899,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeSharedMenuTree(tree, sharedAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -4876,6 +4911,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(kitAbsolute, kitFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeServiceMenuTree(tree, kitAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -4899,6 +4935,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     branch = tree;
   }
   enrichMenuTreeRuntimeRollup(branch);
+  enrichMenuTreeSchemaRollup(branch);
   return branch;
 }
 
@@ -8423,16 +8460,59 @@ async function readNodePropsColorForNodeRel(nodeRelPath) {
   return meta.color;
 }
 
+async function readNodeHasOwnSchemaLayerForMenu(nodeRelPath) {
+  const normalized = String(nodeRelPath || "").replace(/\\/g, "/");
+  if (await isWorkspaceRootManifestRel(normalized)) {
+    return topicSchemaHasFields(readWorkspaceLayerAwnSchema(getAgentRoot()));
+  }
+  try {
+    const configFile = await readNodeConfigFile(normalized);
+    return readNodeHasOwnSchemaLayer(normalized, getAgentRoot(), configFile.content || "");
+  } catch {
+    return false;
+  }
+}
+
+function enrichMenuTreeSchemaRollup(node) {
+  if (!node || typeof node !== "object") {
+    return { hasCustomSchema: false };
+  }
+
+  let hasCustomSchema = Boolean(node.hasCustomSchema);
+
+  for (const item of node.items || []) {
+    const rolled = enrichMenuTreeSchemaRollup(item);
+    if (rolled.hasCustomSchema) hasCustomSchema = true;
+  }
+
+  for (const section of node.sections || []) {
+    const rolled = enrichMenuTreeSchemaRollup(section);
+    if (rolled.hasCustomSchema) hasCustomSchema = true;
+  }
+
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (node[nestedKey]) {
+      const rolled = enrichMenuTreeSchemaRollup(node[nestedKey]);
+      if (rolled.hasCustomSchema) hasCustomSchema = true;
+    }
+  }
+
+  node.hasCustomSchemaSelf = Boolean(node.hasCustomSchema);
+  node.hasCustomSchema = hasCustomSchema;
+  return { hasCustomSchema };
+}
+
 async function enrichMenuNodeItem(nodeRelPath, options = {}) {
   const normalizedPath = String(nodeRelPath || "").replace(/\\/g, "/");
   const cache = options.menuMetaCache;
   if (cache?.has(normalizedPath)) {
     return cache.get(normalizedPath);
   }
-  const [meta, previewMeta, menuMeta] = await Promise.all([
+  const [meta, previewMeta, menuMeta, hasCustomSchema] = await Promise.all([
     readNodeMenuMetaForNodeRel(normalizedPath),
     getNodePreviewMeta(normalizedPath),
-    readManifestMenuMeta(normalizedPath)
+    readManifestMenuMeta(normalizedPath),
+    readNodeHasOwnSchemaLayerForMenu(normalizedPath)
   ]);
   const result = {
     color: meta.color,
@@ -8446,6 +8526,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
     runtimeLoadAlways: Boolean(meta.runtimeLoadAlways),
     runtimeCommands: Boolean(meta.runtimeCommands),
+    hasCustomSchema: Boolean(hasCustomSchema),
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -12932,7 +13013,12 @@ async function handleApiForAgent(req, res, url) {
             getAgentRoot(),
             getProjectRoot()
           )
-        : getTopicSchemaPayload(configFile.content, getAgentRoot(), getProjectRoot());
+        : getEffectiveTopicSchemaPayload(
+            manifestCtx.rel,
+            getAgentRoot(),
+            getProjectRoot(),
+            configFile.content
+          );
       return sendJson(res, 200, {
         path: manifestCtx.rel,
         contentPath: contentPath || null,
@@ -12940,6 +13026,8 @@ async function handleApiForAgent(req, res, url) {
         configExists: configFile.exists,
         awnSchema: payload.awnSchema,
         topicAwnSchema: payload.topicAwnSchema || payload.awnSchema,
+        areaAwnSchema: payload.areaAwnSchema || null,
+        workspaceAwnSchema: payload.workspaceAwnSchema || null,
         sectionAwnSchema: payload.sectionAwnSchema || null,
         sectionChain: payload.sectionChain || [],
         baseTypes: payload.baseTypes,
@@ -12976,31 +13064,118 @@ async function handleApiForAgent(req, res, url) {
       if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
 
       const configFile = await readNodeConfigFile(manifestCtx.rel);
-      const configRelPath = toNodeConfigFilePath(manifestCtx.rel);
-      const configAbsolute = normalizeWorkspacePath(configRelPath);
-      if (!configAbsolute) return sendJson(res, 400, { error: "Invalid node config path" });
 
-      const nextContent = applyAwnSchemaToConfig(configFile.content, awnSchema);
-      await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
-      if (!String(nextContent).trim()) {
-        await removeIfExists(configAbsolute);
-      } else {
-        await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, nextContent);
-      }
+      const writeResult = await writeTopicConfigurationSchema(
+        manifestCtx.rel,
+        awnSchema,
+        async (manifestRel, schemaRel, content) => {
+          await writeWorkspaceTextFileWithHistory(manifestRel, schemaRel, content);
+        },
+        removeIfExists
+      );
 
-      const schemaPayload = getTopicSchemaPayload(nextContent, getAgentRoot(), getProjectRoot());
+      const schemaPayload = getEffectiveTopicSchemaPayload(
+        manifestCtx.rel,
+        getAgentRoot(),
+        getProjectRoot(),
+        configFile.content
+      );
       return sendJson(res, 200, {
         path: manifestCtx.rel,
-        configPath: configRelPath,
-        content: nextContent,
-        exists: Boolean(String(nextContent).trim()),
+        configPath: writeResult.schemaRel,
+        schemaPath: writeResult.schemaRel,
+        content: writeResult.content,
+        exists: writeResult.exists,
         awnSchema: schemaPayload.awnSchema,
+        topicAwnSchema: schemaPayload.topicAwnSchema || schemaPayload.awnSchema,
+        workspaceAwnSchema: schemaPayload.workspaceAwnSchema || null,
         baseTypes: schemaPayload.baseTypes,
         merged: schemaPayload.merged
       });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save topic schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/file/workspace-schema") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    const manifestCtx = await resolveApiManifestContext(relPath);
+    if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+    if (!(await isWorkspaceRootManifestRel(manifestCtx.rel))) {
+      return sendJson(res, 400, { error: "Workspace schema is only available at agent root" });
+    }
+
+    try {
+      const payload = getWorkspaceSchemaPayloadFull(getAgentRoot(), getProjectRoot());
+      const workspaceAwnSchema = payload.workspaceAwnSchema || payload.awnSchema;
+      return sendJson(res, 200, {
+        path: manifestCtx.rel,
+        schemaPath: WORKSPACE_CONFIGURATION_SCHEMA_REL,
+        schemaExists: Boolean(readWorkspaceLayerAwnSchema(getAgentRoot())),
+        awnSchema: workspaceAwnSchema,
+        workspaceAwnSchema,
+        baseTypes: payload.baseTypes,
+        merged: payload.merged,
+        fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/file/workspace-schema") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      let awnSchema;
+      if (payload.awnSchema && typeof payload.awnSchema === "object") {
+        awnSchema = normalizeAwnSchema(payload.awnSchema);
+      } else if (typeof payload.content === "string" && payload.content.trim()) {
+        const { extractAwnSchemaFromConfigurationSchemaContent } = require("./configuration-schema");
+        awnSchema =
+          extractAwnSchemaFromConfigurationSchemaContent(payload.content) || normalizeAwnSchema(undefined);
+      } else {
+        awnSchema = normalizeAwnSchema(undefined);
+      }
+
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      if (!(await isWorkspaceRootManifestRel(manifestCtx.rel))) {
+        return sendJson(res, 400, { error: "Workspace schema is only available at agent root" });
+      }
+
+      const writeResult = await writeWorkspaceConfigurationSchema(
+        awnSchema,
+        async (_manifestRel, schemaRel, content) => {
+          await writeWorkspaceTextFileWithHistory(manifestCtx.rel, schemaRel, content);
+        },
+        removeIfExists
+      );
+
+      const schemaPayload = getWorkspaceSchemaPayloadFull(getAgentRoot(), getProjectRoot());
+      return sendJson(res, 200, {
+        path: manifestCtx.rel,
+        schemaPath: writeResult.schemaRel,
+        content: writeResult.content,
+        exists: writeResult.exists,
+        awnSchema: schemaPayload.awnSchema,
+        workspaceAwnSchema: schemaPayload.workspaceAwnSchema || schemaPayload.awnSchema,
+        baseTypes: schemaPayload.baseTypes,
+        merged: schemaPayload.merged
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save workspace schema",
         details: String(error.message || error)
       });
     }
