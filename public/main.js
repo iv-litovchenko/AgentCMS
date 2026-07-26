@@ -21176,7 +21176,7 @@ function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
 const MEDIA_THUMB_MAX_SMALL = 160;
 const MEDIA_THUMB_MAX_DEFAULT = 320;
 const MEDIA_THUMB_MAX_GRID = 480;
-const MEDIA_THUMB_MAX_PREVIEW = 640;
+const MEDIA_THUMB_MAX_PREVIEW = 800;
 const MEDIA_THUMB_MAX_AVATAR = 640;
 
 function buildMediaThumbUrl(filePath, nodePath = activePath, max = MEDIA_THUMB_MAX_DEFAULT) {
@@ -32257,6 +32257,15 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
       if (fieldDef) {
         entry.kind = fieldDefToEntryKind(fieldDef);
       }
+      if (entry.kind === "array" && !Array.isArray(entry.value)) {
+        entry = {
+          ...entry,
+          value: String(entry.value ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        };
+      }
       if (Array.isArray(fieldDef?.enum) && fieldDef.enum.length) {
         const api = awnEnumOptionsApi();
         if (isArrayFieldTypeId(fieldDef.type)) {
@@ -38024,7 +38033,7 @@ function normalizePropsEntriesAssetRefs(entries) {
       return normalized ? applyFormValueToEntry(entry, normalized) : entry;
     }
     if (key === "awn-attachments" && entry.kind === "array") {
-      const paths = Array.isArray(entry.value) ? entry.value.map(String).filter(Boolean) : [];
+      const paths = parsePropsAttachmentsValue(entry);
       const normalized = paths
         .map((itemPath) => normalizeAttachmentRefForCompare(itemPath) || itemPath)
         .filter(Boolean);
@@ -40007,9 +40016,15 @@ function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   if (entry.kind === "bool") return entry.value ? "Да" : "Нет";
   if (entry.kind === "array") {
     const fieldDef = resolvePropsFieldDefForOverview(key);
-    const enumLabel = formatPropsOverviewEnumValue(entry.value, fieldDef);
+    const values = Array.isArray(entry.value)
+      ? entry.value
+      : String(entry.value ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+    const enumLabel = formatPropsOverviewEnumValue(values, fieldDef);
     if (enumLabel) return enumLabel;
-    const text = (entry.value || []).map(String).filter((part) => part.trim()).join(", ");
+    const text = values.map(String).filter((part) => part.trim()).join(", ");
     return text || "—";
   }
   if (entry.kind === "number") return String(entry.value);
@@ -42215,7 +42230,15 @@ function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
   if (!Number.isFinite(normalized) || normalized <= 0) return null;
   const badge = document.createElement("span");
   badge.className = `nav-book-toc-attachments-badge${extraClass ? ` ${extraClass}` : ""}`;
-  badge.textContent = `Вложений ${normalized}`;
+  badge.innerHTML =
+    '<svg class="nav-book-toc-attachments-badge-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  if (normalized > 1) {
+    const countNode = document.createElement("span");
+    countNode.className = "nav-book-toc-attachments-badge-count";
+    countNode.textContent = String(normalized);
+    countNode.setAttribute("aria-hidden", "true");
+    badge.appendChild(countNode);
+  }
   const noun =
     normalized % 10 === 1 && normalized % 100 !== 11
       ? "вложение"
@@ -42411,6 +42434,149 @@ function appendNavigationItemPreviewThumb(parent, item, preview, { className = "
   return true;
 }
 
+const NAV_PREVIEW_HOVER_SELECTOR =
+  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
+
+let navPreviewHoverPopoverNode = null;
+let navPreviewHoverPopoverImgNode = null;
+let navPreviewHoverAnchorNode = null;
+let navPreviewHoverHideTimer = 0;
+
+function resolveNavPreviewHoverSourceImg(anchorNode) {
+  if (!anchorNode) return null;
+  if (anchorNode.classList.contains("nav-book-toc-link")) {
+    return anchorNode.querySelector(".nav-book-toc-link-preview-img");
+  }
+  if (anchorNode.classList.contains("nav-book-toc-link-preview")) {
+    return anchorNode.querySelector(".nav-book-toc-link-preview-img");
+  }
+  return anchorNode.querySelector(".node-overview-thumb");
+}
+
+function positionNavPreviewHoverPopover(anchorNode) {
+  if (!navPreviewHoverPopoverNode || !anchorNode) return;
+
+  const rect = anchorNode.getBoundingClientRect();
+  const isHeroThumb = anchorNode.classList.contains("node-overview-thumb-wrap");
+  const isTocPreview =
+    anchorNode.classList.contains("nav-book-toc-link") ||
+    anchorNode.classList.contains("nav-book-toc-link-preview");
+  const popSize = isHeroThumb ? 240 : 168;
+  navPreviewHoverPopoverNode.classList.toggle("is-large", isHeroThumb);
+  navPreviewHoverPopoverNode.style.width = `${popSize}px`;
+  navPreviewHoverPopoverNode.style.height = `${popSize}px`;
+
+  let left;
+  let top = rect.top + rect.height / 2 - popSize / 2;
+
+  if (isTocPreview) {
+    left = rect.left - popSize - 10;
+    if (left < 12) {
+      left = rect.right + 10;
+    }
+  } else {
+    left = rect.right + 10;
+    if (left + popSize > window.innerWidth - 12) {
+      left = rect.left - popSize - 10;
+    }
+  }
+
+  if (left < 12) left = 12;
+  if (top < 12) top = 12;
+  if (top + popSize > window.innerHeight - 12) {
+    top = window.innerHeight - popSize - 12;
+  }
+
+  navPreviewHoverPopoverNode.style.left = `${Math.round(left)}px`;
+  navPreviewHoverPopoverNode.style.top = `${Math.round(top)}px`;
+}
+
+function hideNavPreviewHoverPopover() {
+  navPreviewHoverAnchorNode = null;
+  if (!navPreviewHoverPopoverNode) return;
+  navPreviewHoverPopoverNode.classList.add("hidden");
+  if (navPreviewHoverPopoverImgNode) navPreviewHoverPopoverImgNode.removeAttribute("src");
+}
+
+function scheduleNavPreviewHoverHide() {
+  clearTimeout(navPreviewHoverHideTimer);
+  navPreviewHoverHideTimer = window.setTimeout(hideNavPreviewHoverPopover, 60);
+}
+
+function showNavPreviewHoverPopover(anchorNode) {
+  const sourceImg = resolveNavPreviewHoverSourceImg(anchorNode);
+  const imageUrl = String(sourceImg?.currentSrc || sourceImg?.src || "").trim();
+  if (!sourceImg || !imageUrl || sourceImg.classList.contains("broken-image-placeholder")) return;
+
+  const hoverAnchor = anchorNode.classList.contains("nav-book-toc-link-preview")
+    ? anchorNode.closest(".nav-book-toc-link") || anchorNode
+    : anchorNode;
+
+  if (!navPreviewHoverPopoverNode) {
+    navPreviewHoverPopoverNode = document.createElement("div");
+    navPreviewHoverPopoverNode.className = "nav-preview-hover-popover hidden";
+    navPreviewHoverPopoverNode.setAttribute("aria-hidden", "true");
+    navPreviewHoverPopoverImgNode = document.createElement("img");
+    navPreviewHoverPopoverImgNode.className = "nav-preview-hover-popover-img";
+    navPreviewHoverPopoverImgNode.alt = "";
+    navPreviewHoverPopoverNode.appendChild(navPreviewHoverPopoverImgNode);
+    document.body.appendChild(navPreviewHoverPopoverNode);
+  }
+
+  clearTimeout(navPreviewHoverHideTimer);
+  navPreviewHoverAnchorNode = hoverAnchor;
+  navPreviewHoverPopoverImgNode.src = imageUrl;
+  navPreviewHoverPopoverNode.classList.remove("hidden");
+  positionNavPreviewHoverPopover(hoverAnchor);
+}
+
+function initNavPreviewHoverZoom() {
+  if (document.documentElement.dataset.navPreviewHoverZoomInit) return;
+  document.documentElement.dataset.navPreviewHoverZoomInit = "1";
+
+  document.addEventListener(
+    "pointerover",
+    (event) => {
+      const preview = event.target.closest?.(NAV_PREVIEW_HOVER_SELECTOR);
+      if (preview) {
+        showNavPreviewHoverPopover(preview);
+        return;
+      }
+      if (navPreviewHoverAnchorNode && !event.target.closest?.(".nav-preview-hover-popover")) {
+        scheduleNavPreviewHoverHide();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "pointerout",
+    (event) => {
+      if (!navPreviewHoverAnchorNode) return;
+      const fromPreview = event.target.closest?.(NAV_PREVIEW_HOVER_SELECTOR);
+      if (!fromPreview || fromPreview !== navPreviewHoverAnchorNode) return;
+      const related = event.relatedTarget;
+      if (related && (fromPreview.contains(related) || navPreviewHoverPopoverNode?.contains(related))) {
+        return;
+      }
+      scheduleNavPreviewHoverHide();
+    },
+    true
+  );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (navPreviewHoverAnchorNode && !navPreviewHoverPopoverNode?.classList.contains("hidden")) {
+        positionNavPreviewHoverPopover(navPreviewHoverAnchorNode);
+      }
+    },
+    true
+  );
+
+  window.addEventListener("resize", hideNavPreviewHoverPopover);
+}
+
 function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
   const folderDescriptions = new Map();
@@ -42508,7 +42674,9 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
         const segment = folderKey.split("/").pop() || folderKey;
         const title = String(item.displayName || "").trim();
         const status = resolveNavigationItemStatus(item);
-        folderLabels.set(folderKey, title || resolveNodeDisplayName("", segment));
+        if (title || !folderLabels.has(folderKey)) {
+          folderLabels.set(folderKey, title || folderLabels.get(folderKey) || resolveNodeDisplayName("", segment));
+        }
         if (status) folderStatuses.set(folderKey, status);
         if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
         continue;
@@ -42518,13 +42686,15 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
       if (isMemorySectionInfrastructureFilePath(path)) continue;
 
       const baseName = item.name || path.split("/").pop() || path;
-      const title = String(item.displayName || "").trim() || baseName;
+      const displayName = String(item.displayName || "").trim();
+      const slug = baseName.replace(/\.md$/i, "");
+      const title = displayName || resolveNodeDisplayName("", slug) || baseName;
       contentFiles.push({
         path,
         name: baseName,
         group: item.group || groupName,
         title,
-        displayName: String(item.displayName || "").trim(),
+        displayName,
         size: item.size ?? null,
         ext: item.ext || "",
         status: resolveNavigationItemStatus(item)
@@ -42576,7 +42746,7 @@ function populateNavBookTocFolderLabel(
   folderIcon,
   folderNode,
   folderLabels,
-  { context = "navigation", folderStatuses, folderDescriptions } = {}
+  { context = "navigation", folderStatuses, folderDescriptions, inheritedFolderStatus = "" } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
   const description =
@@ -42601,10 +42771,11 @@ function populateNavBookTocFolderLabel(
   folderLabel.replaceChildren();
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
-  let folderStatus = "";
-  if (folderStatuses instanceof Map && folderNode.folderPath) {
-    folderStatus = String(folderStatuses.get(folderNode.folderPath) || "").trim();
-  }
+  const folderStatus = resolveNavigationFolderStatus(
+    folderNode,
+    folderStatuses,
+    inheritedFolderStatus
+  );
   appendNavBookTocStatusBadge(folderText, folderStatus);
   appendNavBookTocTitleText(folderText, label, description);
   folderLabel.append(folderIcon, folderText);
@@ -42743,7 +42914,7 @@ function openFlatStorageCategoryOverviewFromNavigation(folderPath, memoryKind) {
     relPath,
     memoryKind,
     relativePath,
-    title: folder.split("/").pop() || folder,
+    title: resolveMemorySectionFolderLabel(folder),
     entryKind: "awn.record.category"
   });
 }
@@ -43035,6 +43206,7 @@ function syncNodeMemoryEntryViewControls() {
 
 async function openEntryOverviewFromNavigation(context, options = {}) {
   if (!activePath) return;
+  hideHomeView();
   assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
   const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
   if (!isMemoryTocRoot && !context?.relPath) return;
@@ -43077,6 +43249,95 @@ function openExternalRecordOverviewFromNavigation(item) {
   });
 }
 
+function resolveMemorySectionFolderLabel(folderPath, navigationIndex = null) {
+  const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  if (!folder) return "";
+  const segment = folder.split("/").filter(Boolean).pop() || folder;
+
+  const labelMaps = [
+    navigationIndex?.folderLabels,
+    navigationExternalTocState?.folderLabels,
+    entryOverviewSearchState?.navigationIndex?.folderLabels
+  ];
+  for (const labels of labelMaps) {
+    if (!(labels instanceof Map)) continue;
+    const label = String(labels.get(folder) || "").trim();
+    if (label) return label;
+  }
+
+  const readmePath = getSectionReadmeRelPath(folder);
+  const externalFile = externalFilesCache.find(
+    (item) => String(item.relativePath || item.path || "").replace(/\\/g, "/") === readmePath
+  );
+  if (externalFile) {
+    const props = Array.isArray(externalFile.props) ? externalFile.props : [];
+    const resolved = resolveNodeDisplayName(getPropsEntryValueByKey(props, "awn-name"), segment);
+    if (resolved) return resolved;
+    const cachedTitle = String(externalFile.title || "").trim();
+    if (cachedTitle && cachedTitle.toLowerCase() !== "manifest") return cachedTitle;
+  }
+
+  for (const groupItems of Object.values(mediaFilesCache)) {
+    if (!Array.isArray(groupItems)) continue;
+    const mediaItem = groupItems.find((item) => String(item.path || "").replace(/\\/g, "/") === readmePath);
+    if (!mediaItem) continue;
+    const displayName = String(mediaItem.displayName || mediaItem.title || "").trim();
+    if (displayName) return displayName;
+  }
+
+  return segment;
+}
+
+function getEntryOverviewTopicApiPath() {
+  return getOverviewNodeApiPath(getResolvedNodePath(activePath));
+}
+
+function resolveNavigationIndexItemTitle(relativePath, navigationIndex) {
+  const path = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!path || !navigationIndex) return "";
+
+  if (isSectionReadmePath(path)) {
+    const folder = path.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+    const label = navigationIndex.folderLabels instanceof Map ? navigationIndex.folderLabels.get(folder) : "";
+    if (String(label || "").trim()) return String(label).trim();
+  }
+
+  const item = (navigationIndex.contentFiles || []).find(
+    (entry) => String(entry.path || "").replace(/\\/g, "/") === path
+  );
+  return String(item?.title || item?.displayName || "").trim();
+}
+
+function resolveEntryOverviewDisplayTitle(context, entries, navigationIndex) {
+  const relativePath = String(context?.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+
+  if (isEntryOverviewCategoryContext(context)) {
+    const sectionFolder = getSectionFolderFromCategoryContext(context);
+    const segment = sectionFolder.split("/").filter(Boolean).pop() || sectionFolder || relativePath;
+    const manifestPath = sectionFolder ? `${sectionFolder}/${AREA_MANIFEST_FILE}` : relativePath;
+
+    const fromNav =
+      resolveNavigationIndexItemTitle(manifestPath, navigationIndex) ||
+      resolveMemorySectionFolderLabel(sectionFolder, navigationIndex);
+    if (fromNav) return fromNav;
+
+    const awnName = getPropsEntryValueByKey(entries, "awn-name");
+    return resolveNodeDisplayName(awnName, segment) || segment || "Раздел";
+  }
+
+  const slug = (relativePath.split("/").pop() || "").replace(/\.md$/i, "");
+  const fromNav = resolveNavigationIndexItemTitle(relativePath, navigationIndex);
+  if (fromNav) return fromNav;
+
+  const awnName = getPropsEntryValueByKey(entries, "awn-name");
+  return (
+    resolveNodeDisplayName(awnName, slug) ||
+    String(context?.title || "").trim() ||
+    slug ||
+    "Запись"
+  );
+}
+
 function openExternalCategoryOverviewFromNavigation(folderPath) {
   const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
   if (!folder) return;
@@ -43086,7 +43347,7 @@ function openExternalCategoryOverviewFromNavigation(folderPath) {
     relPath,
     memoryKind: "external",
     relativePath,
-    title: folder.split("/").pop() || folder,
+    title: resolveMemorySectionFolderLabel(folder),
     entryKind: "awn.record.category"
   });
 }
@@ -43117,13 +43378,64 @@ function openMediaCategoryOverviewFromNavigation(folderPath) {
     relPath,
     memoryKind: "media",
     relativePath,
-    title: folder.split("/").pop() || folder,
+    title: resolveMemorySectionFolderLabel(folder),
     entryKind: "awn.media.category"
   });
 }
 
 async function fetchEntryOverviewProperties(relPath, context = null) {
   try {
+    const topicApiPath = getEntryOverviewTopicApiPath();
+    if (context?.memoryKind === "external" && context.relativePath) {
+      const response = await fetch(
+        buildApiUrl("/api/external/file", {
+          path: topicApiPath,
+          file: normalizeExternalMemoryMdRelPath(context.relativePath)
+        })
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
+      }
+    }
+    if (context?.memoryKind === "media" && context.relativePath) {
+      if (/\.md$/i.test(String(context.relativePath || ""))) {
+        const response = await fetch(
+          buildApiUrl("/api/media/markdown", {
+            path: topicApiPath,
+            file: context.relativePath
+          })
+        );
+        if (response.ok) {
+          const data = await response.json();
+          return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
+        }
+      } else {
+        const response = await fetch(
+          buildApiUrl("/api/media/sidecar", buildTopicMediaSidecarApiParams(context.relativePath))
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.exists || String(data.content || "").trim()) {
+            return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
+          }
+        }
+      }
+    }
+    if (isFlatEntryOverviewMemoryKind(context?.memoryKind) && context.relativePath) {
+      const response = await fetch(
+        buildApiUrl("/api/storage/markdown", {
+          path: topicApiPath,
+          folder: getFlatStorageSectionFolderName(context.memoryKind),
+          file: context.relativePath
+        })
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
+      }
+    }
+
     const apiPath =
       context?.memoryKind === "external" ? normalizeExternalMemoryMdRelPath(relPath) : relPath;
     const response = await fetch(buildApiUrl("/api/file/properties", { path: apiPath }));
@@ -45249,6 +45561,263 @@ function isEntryOverviewMediaImageItem(item) {
   return [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp", ".ico"].includes(fromName);
 }
 
+function getEntryOverviewMediaItemMetaLine(item) {
+  const parts = [];
+  const groupLabel = NAVIGATION_MEDIA_GROUP_LABELS[item?.group];
+  if (groupLabel) parts.push(groupLabel);
+  const displayName = String(item?.displayName || item?.title || "").trim();
+  if (item?.name && item.name !== displayName) parts.push(item.name);
+  if (item?.path && item.path !== item?.name) parts.push(item.path);
+  if (item?.size) parts.push(formatFileSize(item.size));
+  return parts.join(" · ");
+}
+
+function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
+  const link = document.createElement("button");
+  link.type = "button";
+  link.className = "node-entry-overview-media-item";
+  link.title = item.path || item.name || "";
+
+  const preview = document.createElement("span");
+  preview.className = "node-entry-overview-media-item-preview";
+
+  if (isEntryOverviewMediaImageItem(item)) {
+    const img = document.createElement("img");
+    img.alt = item.title || item.name || "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+    img.addEventListener("error", () => {
+      preview.classList.add("is-fallback");
+      img.remove();
+      const fallback = document.createElement("span");
+      fallback.className = "node-entry-overview-media-item-fallback";
+      fallback.textContent = "🖼";
+      preview.appendChild(fallback);
+    });
+    preview.appendChild(img);
+  } else {
+    preview.classList.add("is-icon");
+    preview.textContent = getMediaIconForItem(item);
+  }
+
+  const body = document.createElement("span");
+  body.className = "node-entry-overview-media-item-body";
+
+  const title = document.createElement("span");
+  title.className = "node-entry-overview-media-item-title";
+  title.textContent = String(item.displayName || item.title || item.name || item.path || "").trim();
+
+  const meta = document.createElement("span");
+  meta.className = "node-entry-overview-media-item-meta";
+  meta.textContent = getEntryOverviewMediaItemMetaLine(item);
+
+  body.append(title, meta);
+  link.append(preview, body);
+  appendNavBookTocStatusBadge(link, resolveNavigationItemStatus(item));
+  link.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onFileClick(item);
+  });
+  return link;
+}
+
+function createEntryOverviewMediaGridCard(item, nodePath, onFileClick) {
+  const card = document.createElement("article");
+  card.className = "node-entry-overview-media-grid-card";
+  card.setAttribute("role", "listitem");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-entry-overview-media-grid-btn";
+  btn.title = item.path || item.name || "";
+
+  const thumb = document.createElement("span");
+  thumb.className = "node-entry-overview-media-grid-thumb";
+  const img = document.createElement("img");
+  img.alt = item.title || item.name || "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+  img.addEventListener("error", () => {
+    thumb.classList.add("is-fallback");
+    img.remove();
+    const fallback = document.createElement("span");
+    fallback.className = "node-entry-overview-media-item-fallback";
+    fallback.textContent = "🖼";
+    thumb.appendChild(fallback);
+  });
+  thumb.appendChild(img);
+
+  const caption = document.createElement("span");
+  caption.className = "node-entry-overview-media-grid-caption";
+  caption.textContent = String(item.displayName || item.title || item.name || "").trim();
+
+  const meta = document.createElement("span");
+  meta.className = "node-entry-overview-media-grid-meta";
+  meta.textContent = getEntryOverviewMediaItemMetaLine(item);
+
+  btn.append(thumb, caption, meta);
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onFileClick(item);
+  });
+  card.appendChild(btn);
+  return card;
+}
+
+function fillEntryOverviewMediaImageGrid(grid, items, nodePath, onFileClick) {
+  for (const item of items) {
+    grid.appendChild(createEntryOverviewMediaGridCard(item, nodePath, onFileClick));
+  }
+}
+
+function appendEntryOverviewMediaImageGrid(parent, items, nodePath, onFileClick) {
+  const images = items.filter(isEntryOverviewMediaImageItem);
+  if (!images.length) return;
+
+  const wrap = document.createElement("li");
+  wrap.className = "node-entry-overview-media-grid-wrap";
+  const grid = document.createElement("div");
+  grid.className = "node-entry-overview-media-grid";
+  grid.setAttribute("role", "list");
+  grid.setAttribute("aria-label", "Изображения");
+  fillEntryOverviewMediaImageGrid(grid, images, nodePath, onFileClick);
+  wrap.appendChild(grid);
+  parent.appendChild(wrap);
+}
+
+function appendEntryOverviewMediaBookTocList(
+  parentList,
+  node,
+  depth = 0,
+  handlers = {},
+  inheritedFolderStatus = ""
+) {
+  const folderLabels = handlers.folderLabels || new Map();
+  const folderDescriptions = handlers.folderDescriptions || new Map();
+  const folderStatuses = handlers.folderStatuses || new Map();
+  const nodePath = handlers.nodePath || getResolvedNodePath(activePath);
+  const onFolderClick = handlers.onFolderClick || openMediaCategoryOverviewFromNavigation;
+  const onFileClick = handlers.onFileClick || openMediaEntryOverviewFromNavigation;
+  const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
+    compareNavigationPathsNatural(a[0], b[0])
+  );
+  const fileEntries = [...node.files].sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
+
+  for (const [, folderNode] of folderEntries) {
+    const folderItem = document.createElement("li");
+    folderItem.className = "nav-book-toc-folder";
+    folderItem.classList.add(depth === 0 ? "nav-book-toc-folder--root" : "nav-book-toc-folder--nested");
+    if (folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels)) {
+      folderItem.classList.add("nav-book-toc-folder--unregistered");
+    }
+
+    const isUnregisteredFolder =
+      folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels);
+    const folderLabel = document.createElement(isUnregisteredFolder ? "span" : "button");
+    if (!isUnregisteredFolder) folderLabel.type = "button";
+    folderLabel.className = "nav-book-toc-folder-label";
+    if (isUnregisteredFolder) folderLabel.classList.add("nav-book-toc-folder-label--static");
+    const folderIcon = document.createElement("span");
+    folderIcon.className = "nav-book-toc-folder-icon";
+    folderIcon.setAttribute("aria-hidden", "true");
+    populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
+      folderStatuses,
+      folderDescriptions,
+      inheritedFolderStatus
+    });
+    if (!isUnregisteredFolder) {
+      folderLabel.addEventListener("click", (event) => {
+        event.stopPropagation();
+        onFolderClick(folderNode.folderPath);
+      });
+    }
+
+    const folderStatus = resolveNavigationFolderStatus(
+      folderNode,
+      folderStatuses,
+      inheritedFolderStatus
+    );
+    const childInheritedStatus = folderStatus || inheritedFolderStatus;
+
+    const subList = document.createElement("ul");
+    subList.className = "nav-book-toc-list";
+    appendEntryOverviewMediaBookTocList(
+      subList,
+      folderNode,
+      depth + 1,
+      { ...handlers, folderLabels, folderDescriptions, folderStatuses },
+      childInheritedStatus
+    );
+
+    const childCount = countNavigationFolderItems(folderNode);
+    const collapsible = handlers.collapsible !== false && childCount > 0;
+    const collapsed =
+      collapsible && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+
+    const head = document.createElement("div");
+    head.className = "nav-book-toc-folder-head";
+
+    let toggleBtn = null;
+    let countNode = null;
+
+    if (collapsible) {
+      toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "nav-book-toc-folder-toggle";
+      toggleBtn.setAttribute("aria-expanded", "true");
+      toggleBtn.title = "Свернуть ветку";
+      const chevron = document.createElement("span");
+      chevron.className = "nav-book-toc-folder-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      toggleBtn.appendChild(chevron);
+      toggleBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const nextCollapsed = !folderItem.classList.contains("is-collapsed");
+        setNavTocFolderCollapsed(nodePath, folderNode.folderPath, nextCollapsed);
+        applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, nextCollapsed);
+      });
+      head.appendChild(toggleBtn);
+
+      countNode = document.createElement("span");
+      countNode.className = "nav-book-toc-folder-count";
+      countNode.textContent = String(childCount);
+      countNode.title = `${childCount} записей`;
+    } else {
+      const spacer = document.createElement("span");
+      spacer.className = "nav-book-toc-folder-toggle-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      head.appendChild(spacer);
+    }
+
+    head.append(folderLabel);
+    if (countNode) head.appendChild(countNode);
+    folderItem.append(head, subList);
+
+    if (collapsible) {
+      applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
+    }
+
+    parentList.appendChild(folderItem);
+  }
+
+  const imageFiles = fileEntries.filter(isEntryOverviewMediaImageItem);
+  const otherFiles = fileEntries.filter((item) => !isEntryOverviewMediaImageItem(item));
+
+  if (imageFiles.length) {
+    appendEntryOverviewMediaImageGrid(parentList, imageFiles, nodePath, onFileClick);
+  }
+
+  for (const item of otherFiles) {
+    const entry = document.createElement("li");
+    entry.className = "nav-book-toc-entry nav-book-toc-entry--media";
+    entry.appendChild(createEntryOverviewMediaFileLink(item, nodePath, onFileClick));
+    parentList.appendChild(entry);
+  }
+}
+
 function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
   if (!navigationIndex) return null;
 
@@ -45271,18 +45840,14 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
   section.className = "node-entry-overview-memory-toc node-entry-overview-media-toc";
 
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc node-entry-overview-memory-toc-nav";
+  nav.className = "node-navigation-book-toc node-entry-overview-memory-toc-nav nav-book-toc-tree--guide";
   nav.setAttribute("aria-label", "Оглавление медиа");
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
   const tree = buildNavigationPathTree(mdItems, folderLabels);
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
-  appendNavigationBookTocList(list, tree, 0, {
-    ...handlers,
-    showFileTypeLeading: false,
-    linkLeadingMode: "media"
-  });
+  appendEntryOverviewMediaBookTocList(list, tree, 0, handlers);
   nav.appendChild(list);
   section.appendChild(nav);
   return section;
@@ -45346,6 +45911,9 @@ async function renderEntryOverview() {
     isMemoryTocRoot ? fetchNodeNavigationMeta(topicPath) : fetchNodeNavigationMeta(context.relPath),
     fetchEntryOverviewNavigationIndex(context, topicPath)
   ]);
+  const displayTitle = isMemoryTocRoot
+    ? "Оглавление"
+    : resolveEntryOverviewDisplayTitle(context, entries, navigationIndex);
   if (!isMemoryTocRoot) {
     entries = await enrichEntryOverviewPropertiesWithSchema(entries, context);
   }
@@ -45376,11 +45944,10 @@ async function renderEntryOverview() {
     return;
   }
 
-  const title =
-    getPropsEntryValueByKey(entries, "awn-name") ||
-    context.title ||
-    context.relativePath.split("/").pop() ||
-    "Запись";
+  const title = displayTitle;
+  if (activeEntryOverviewContext && activeEntryOverviewContext.title !== title) {
+    activeEntryOverviewContext = { ...activeEntryOverviewContext, title };
+  }
   const previewPath = getPropsEntryValueByKey(entries, "awn-preview");
   let preview = previewPath ? buildPreviewUiFromPath(previewPath, context.relPath) : null;
   if (!preview?.imageUrl && context.entryKind !== "awn.media.asset") {
@@ -45541,12 +46108,44 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
   if (subList) subList.hidden = collapsed;
   if (toggleBtn) {
     toggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    toggleBtn.setAttribute("aria-label", collapsed ? "Развернуть подтему" : "Свернуть подтему");
+    toggleBtn.setAttribute("aria-label", collapsed ? "Развернуть ветку" : "Свернуть ветку");
+    toggleBtn.title = collapsed ? "Развернуть ветку" : "Свернуть ветку";
   }
-  if (countNode) countNode.hidden = !collapsed;
+  if (countNode) {
+    countNode.hidden = false;
+    countNode.classList.toggle("is-expanded-visible", !collapsed);
+  }
 }
 
-function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
+function resolveNavigationFolderStatus(folderNode, folderStatuses, inheritedStatus = "") {
+  if (folderStatuses instanceof Map && folderNode?.folderPath) {
+    const direct = String(folderStatuses.get(folderNode.folderPath) || "").trim();
+    if (direct) return direct;
+  }
+  const aggregated = aggregateNavigationFolderStatus(folderNode);
+  if (aggregated) return aggregated;
+  return String(inheritedStatus || "").trim();
+}
+
+function aggregateNavigationFolderStatus(folderNode) {
+  if (!folderNode) return "";
+  for (const item of folderNode.files || []) {
+    const status = resolveNavigationItemStatus(item);
+    if (status) return status;
+  }
+  if (folderNode.folders instanceof Map) {
+    const childFolders = Array.from(folderNode.folders.values()).sort((a, b) =>
+      compareNavigationPathsNatural(a.folderPath || "", b.folderPath || "")
+    );
+    for (const child of childFolders) {
+      const status = aggregateNavigationFolderStatus(child);
+      if (status) return status;
+    }
+  }
+  return "";
+}
+
+function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}, inheritedFolderStatus = "") {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
   const folderStatuses = handlers.folderStatuses || new Map();
@@ -45580,7 +46179,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     folderIcon.setAttribute("aria-hidden", "true");
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
-      folderDescriptions
+      folderDescriptions,
+      inheritedFolderStatus
     });
     if (!isUnregisteredFolder) {
       folderLabel.addEventListener("click", (event) => {
@@ -45589,6 +46189,13 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       });
     }
 
+    const folderStatus = resolveNavigationFolderStatus(
+      folderNode,
+      folderStatuses,
+      inheritedFolderStatus
+    );
+    const childInheritedStatus = folderStatus || inheritedFolderStatus;
+
     const subList = document.createElement("ul");
     subList.className = "nav-book-toc-list";
     appendNavigationBookTocList(subList, folderNode, depth + 1, {
@@ -45596,7 +46203,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderLabels,
       folderDescriptions,
       folderStatuses
-    });
+    }, childInheritedStatus);
 
     const childCount = countNavigationFolderItems(folderNode);
     const collapsible = handlers.collapsible !== false && childCount > 0;
@@ -45613,6 +46220,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       toggleBtn = document.createElement("button");
       toggleBtn.type = "button";
       toggleBtn.className = "nav-book-toc-folder-toggle";
+      toggleBtn.setAttribute("aria-expanded", "true");
+      toggleBtn.title = "Свернуть ветку";
       const chevron = document.createElement("span");
       chevron.className = "nav-book-toc-folder-chevron";
       chevron.setAttribute("aria-hidden", "true");
@@ -45651,6 +46260,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
   for (const item of fileEntries) {
     const entry = document.createElement("li");
     entry.className = "nav-book-toc-entry";
+    if (handlers.treeStyle === "guide" && depth === 0) {
+      entry.classList.add("nav-book-toc-entry--root-level");
+    }
 
     const link = document.createElement("button");
     link.type = "button";
@@ -45660,7 +46272,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const text = document.createElement("span");
     text.className = "nav-book-toc-link-text";
-    appendNavBookTocStatusBadge(text, item.status);
+    appendNavBookTocStatusBadge(text, resolveNavigationItemStatus(item));
     appendNavBookTocTitleText(text, item.title, itemDescription);
     appendNavBookTocWebUrlLink(text, getNavigationItemWebUrl(item));
 
@@ -65388,4 +66000,5 @@ initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
 initWorkspaceNotifications();
+initNavPreviewHoverZoom();
 

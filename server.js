@@ -66,6 +66,7 @@ const {
   buildSlotInlineUploadRef,
   parseStorageLayerRef,
   pickManifestRelFromStorageLayerRef,
+  normalizeStorageSlotParentRel,
   BUNDLE_BODY_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
@@ -3753,6 +3754,21 @@ async function collectMediaFilesStructured(
           }
         }
       }
+      if (!displayName && ext === ".md") {
+        try {
+          const raw = await fs.readFile(absolute, "utf-8");
+          const { frontmatter } = splitNodeFrontmatter(raw);
+          const slug = entry.name.replace(/\.md$/i, "");
+          displayName = resolveNodeDisplayName(getYamlScalar(frontmatter, "awn-name") || "", slug);
+          if (!status) {
+            const props = parseFrontmatterProps(frontmatter);
+            status =
+              getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null;
+          }
+        } catch {
+          // markdown may be unreadable
+        }
+      }
     } catch {
       // keep size 0
     }
@@ -3889,6 +3905,10 @@ async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options 
   } catch {
     return null;
   }
+}
+
+function resolveStorageCreateParentRel(rawParent, { layer = STORAGE_SUBFOLDER_CONTENT, manifestRelPath = "" } = {}) {
+  return normalizeStorageSlotParentRel(rawParent, { layer, manifestRelPath });
 }
 
 function buildStorageSectionReadmeContent(title, awnType = "awn.content.record.category") {
@@ -4149,7 +4169,10 @@ async function createStorageRecordFile({
   const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, canonicalFolder, { create: true });
   if (!folderAbsolute) throw new Error("Storage folder unavailable");
 
-  const parentRaw = String(parent || "").trim().replace(/\\/g, "/");
+  const parentRaw = resolveStorageCreateParentRel(parent, {
+    layer: canonicalFolder,
+    manifestRelPath
+  });
   const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
   if (!targetFolder) {
     throw new Error(parentRaw ? "Parent section not found" : "Invalid storage folder path");
@@ -4344,7 +4367,10 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
   if (ctx.error) return ctx;
 
   const sectionName = path.basename(ctx.sectionAbsolute);
-  const parentRaw = String(targetParent || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const parentRaw = resolveStorageCreateParentRel(targetParent, {
+    layer: storageFolder,
+    manifestRelPath
+  });
   const targetFolder = await resolveMediaTargetFolderAbsolute(ctx.rootAbsolute, parentRaw);
   if (!targetFolder) {
     return { error: parentRaw ? "Parent section not found" : "Invalid target parent", status: 400 };
@@ -13589,7 +13615,10 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
 
-      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const parentRaw = resolveStorageCreateParentRel(payload.parent, {
+        layer: STORAGE_SUBFOLDER_CONTENT,
+        manifestRelPath: relPath
+      });
       const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
       if (!targetFolder) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
@@ -13661,7 +13690,10 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
 
-      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const parentRaw = resolveStorageCreateParentRel(payload.parent, {
+        layer: STORAGE_SUBFOLDER_CONTENT,
+        manifestRelPath: relPath
+      });
       const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
       if (!baseFolder) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
@@ -13727,7 +13759,10 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folderName, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
 
-      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const parentRaw = resolveStorageCreateParentRel(payload.parent, {
+        layer: folderName,
+        manifestRelPath: relPath
+      });
       const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
       if (!baseFolder) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid media folder path" });
@@ -13792,7 +13827,10 @@ async function handleApiForAgent(req, res, url) {
       const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid storage folder path" });
 
-      const parentRaw = String(payload.parent || "").trim().replace(/\\/g, "/");
+      const parentRaw = resolveStorageCreateParentRel(payload.parent, {
+        layer: storageFolder,
+        manifestRelPath: relPath
+      });
       const baseFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
       if (!baseFolder) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid storage folder path" });

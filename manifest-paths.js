@@ -719,6 +719,53 @@ function pickManifestRelFromStorageLayerRef(parsed) {
   return parsed?.manifestCandidates?.[0] || null;
 }
 
+function normalizeStorageSlotParentRel(parentRaw, options = {}) {
+  const expectedLayer =
+    normalizeStorageSubfolderName(options.layer || STORAGE_SUBFOLDER_MAIN) || STORAGE_SUBFOLDER_MAIN;
+  let normalized = String(parentRaw || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized || normalized === ".") return "";
+
+  normalized = normalized.replace(/\/manifest\.md$/i, "");
+
+  const manifestRel = String(options.manifestRelPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (manifestRel) {
+    const topicDir = manifestRel.replace(/\/manifest\.md$/i, "");
+    if (topicDir && normalized.toLowerCase().startsWith(`${topicDir.toLowerCase()}/`)) {
+      normalized = normalized.slice(topicDir.length + 1);
+    }
+  }
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (parsed?.relativePath) {
+    normalized = String(parsed.relativePath).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  } else {
+    normalized = stripStorageRootPrefix(normalized);
+    const layerCandidates = listStorageSubfolderNameCandidates(expectedLayer);
+    for (const layerName of layerCandidates) {
+      const prefix = `${layerName}/`;
+      if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
+        normalized = normalized.slice(prefix.length);
+        break;
+      }
+    }
+    normalized = stripStorageRootPrefix(normalized);
+    for (const layerName of layerCandidates) {
+      const prefix = `${layerName}/`;
+      if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
+        normalized = normalized.slice(prefix.length);
+        break;
+      }
+    }
+  }
+
+  return normalized.replace(/\/manifest\.md$/i, "").replace(/\/$/, "");
+}
+
 function resolveOwningManifestRelFromNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
@@ -1253,6 +1300,7 @@ module.exports = {
   normalizeNodeAssetsStorageRef,
   buildSlotInlineUploadRef,
   pickManifestRelFromStorageLayerRef,
+  normalizeStorageSlotParentRel,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,

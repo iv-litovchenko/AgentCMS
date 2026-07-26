@@ -14,7 +14,7 @@ const THUMB_IMAGE_EXTENSIONS = new Set([
 ]);
 
 const DEFAULT_THUMB_MAX = 320;
-const MAX_THUMB_MAX = 640;
+const MAX_THUMB_MAX = 800;
 
 let sharpModule = null;
 let sharpLoadAttempted = false;
@@ -80,7 +80,6 @@ async function readOrCreateImageThumb(sourceAbsolute, agentRoot, maxSize) {
     .rotate()
     .resize({
       width: clampedMax,
-      height: clampedMax,
       fit: "inside",
       withoutEnlargement: true
     })

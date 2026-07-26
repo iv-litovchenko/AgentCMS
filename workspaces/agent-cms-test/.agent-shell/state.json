@@ -1,6 +1,6 @@
 {
   "phase": "waiting",
-  "phrase": "1 validation error for URLSource\nurl\n  Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='/Users/macbook/.copaw/wo...ws/dalnoboyschiki_1.jpg', input_type=str]\n   ",
+  "phrase": "Готов к сообщению",
   "metrics": "",
   "lastAgentMessageId": "msg_b73ac4ee-d2de-49cb-931b-ac057f260e25",
   "lastShellReply": "",
@@ -9,5 +9,5 @@
   "sidecarSeenAt": 0,
   "pttHeld": false,
   "lastTtsClientId": "c7b3e1d3-ee8a-444e-bd74-7813f9293f23",
-  "updatedAt": "2026-07-25T18:53:03.664Z"
+  "updatedAt": "2026-07-26T13:59:54.802Z"
 }

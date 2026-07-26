@@ -273,7 +273,10 @@ function createServer() {
       title: z.string().optional(),
       displayName: z.string().optional(),
       fileMask: z.string().optional(),
-      parent: z.string().optional()
+      parent: z
+        .string()
+        .optional()
+        .describe("Section folder inside main/, e.g. dohody or rashody/2026 — not awn-storage/main/...")
     }),
     ({ path, title, displayName, fileMask, parent }) =>
       client.post("/api/external/file/create", {

@@ -11,14 +11,12 @@
             "id": "384dc149335fc4b1",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "00_Documentation/ideas/petr/Sammary.md",
-                "mode": "source",
-                "source": false
+                "file": "00_Documentation/ideas/petr/Снимок экрана 2026-05-03 в 17.57.05.png"
               },
-              "icon": "lucide-file",
-              "title": "Sammary"
+              "icon": "lucide-image",
+              "title": "Снимок экрана 2026-05-03 в 17.57.05"
             }
           }
         ]
@@ -182,8 +180,10 @@
   },
   "active": "384dc149335fc4b1",
   "lastOpenFiles": [
-    "00_Documentation/ideas/qwen/finance-tracker.node.md",
+    "00_Documentation/ideas/petr/Снимок экрана 2026-05-03 в 17.54.31.png",
+    "00_Documentation/ideas/petr/Снимок экрана 2026-05-03 в 17.53.14.png",
     "00_Documentation/ideas/petr/Sammary.md",
+    "00_Documentation/ideas/qwen/finance-tracker.node.md",
     "00_Documentation/ideas/qwen/AGENTS.md.md",
     "Новая папка/awn.settings.md",
     "00_Documentation/v5-ideas/README.fix.md",
@@ -208,7 +208,6 @@
     "02 Components/02 Nodes-types/01 Folders/zzz Project.md",
     "02 Components/02 Nodes-types/01 Folders/01 Workspace.documentation.md",
     "02 Components/02 Nodes-types/01 Folders/02 Space.documentation.md",
-    "02 Components/02 Nodes-types/01 Folders/03 Cluster.documentation.md",
-    "README.md"
+    "02 Components/02 Nodes-types/01 Folders/03 Cluster.documentation.md"
   ]
 }
