@@ -473,7 +473,6 @@ const folderBrowseUploadBtn = document.getElementById("folder-browse-upload-btn"
 const folderBrowseUploadInputNode = document.getElementById("folder-browse-upload-input");
 const folderBrowseDeleteSelectedBtn = document.getElementById("folder-browse-delete-selected-btn");
 const folderBrowseFileRenameBtn = document.getElementById("folder-browse-file-rename-btn");
-const folderBrowseFileDeleteBtn = document.getElementById("folder-browse-file-delete-btn");
 const workspaceRevealFolderBtn = document.getElementById("workspace-reveal-folder-btn");
 const toastNode = document.getElementById("toast");
 const createNodeModalNode = document.getElementById("create-node-modal");
@@ -13082,6 +13081,7 @@ function toggleAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   if (menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
+    if (agentId === activeAgentId) updateActiveButton();
   }
 }
 
@@ -28478,7 +28478,6 @@ const WORKSPACE_CRUMBS_ACTION_ORDER = [
   "workspace-reveal-folder-btn",
   "workspace-refresh-btn",
   "folder-browse-file-rename-btn",
-  "folder-browse-file-delete-btn",
   "folder-browse-delete-selected-btn"
 ];
 
@@ -50611,8 +50610,8 @@ function normalizeFolderBrowseItemPath(itemPath) {
 
 function syncFolderBrowseSelectionUi() {
   const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
-  syncFolderBrowseSelectionToolbar(hub?.querySelector(".folder-browse-toolbar"));
   syncFolderBrowseDeleteSelectedButton();
+  syncFolderBrowseFileActionButtons();
   for (const card of hub?.querySelectorAll("[data-folder-browse-path]") || []) {
     const path = normalizeFolderBrowseItemPath(card.dataset.folderBrowsePath);
     card.classList.toggle("is-selected", folderBrowseSelectedPaths.has(path));
@@ -50682,10 +50681,42 @@ function isFolderBrowseSelectionActionTarget(target) {
   );
 }
 
+let folderBrowseModifierKeys = { meta: false, ctrl: false, shift: false };
+let folderBrowseModifierTrackingBound = false;
+
+function bindFolderBrowseModifierTracking() {
+  if (folderBrowseModifierTrackingBound) return;
+  folderBrowseModifierTrackingBound = true;
+  const syncModifierKeys = (event) => {
+    folderBrowseModifierKeys = {
+      meta: Boolean(event.getModifierState?.("Meta")),
+      ctrl: Boolean(event.getModifierState?.("Control")),
+      shift: Boolean(event.getModifierState?.("Shift"))
+    };
+  };
+  const resetModifierKeys = () => {
+    folderBrowseModifierKeys = { meta: false, ctrl: false, shift: false };
+  };
+  window.addEventListener("keydown", syncModifierKeys, true);
+  window.addEventListener("keyup", syncModifierKeys, true);
+  window.addEventListener("blur", resetModifierKeys);
+}
+
 function readFolderBrowsePointerModifiers(event) {
   return {
-    multi: Boolean(event.metaKey || event.ctrlKey),
-    shift: Boolean(event.shiftKey)
+    multi: Boolean(
+      event?.metaKey ||
+        event?.ctrlKey ||
+        folderBrowseModifierKeys.meta ||
+        folderBrowseModifierKeys.ctrl ||
+        event?.getModifierState?.("Meta") ||
+        event?.getModifierState?.("Control")
+    ),
+    shift: Boolean(
+      event?.shiftKey ||
+        folderBrowseModifierKeys.shift ||
+        event?.getModifierState?.("Shift")
+    )
   };
 }
 
@@ -50695,36 +50726,54 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
   card.dataset.isDirectory = isDirectory ? "1" : "0";
   card.classList.toggle("is-selected", folderBrowseSelectedPaths.has(normalized));
 
-  let pendingSelectModifiers = null;
+  bindFolderBrowseModifierTracking();
 
-  const rememberPointerModifiers = (event) => {
-    if (event.button !== 0) return;
-    if (isFolderBrowseSelectionActionTarget(event.target)) return;
-    pendingSelectModifiers = readFolderBrowsePointerModifiers(event);
-    if (pendingSelectModifiers.multi) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+  let pointerDown = false;
+  let suppressClick = false;
+
+  const runSelection = (event) => {
+    const modifiers = readFolderBrowsePointerModifiers(event);
+    applyFolderBrowseItemSelection(normalized, {
+      multi: modifiers.multi,
+      shift: modifiers.shift,
+      scopeCard: card
+    });
   };
 
-  card.addEventListener("pointerdown", rememberPointerModifiers, true);
-  card.addEventListener("mousedown", rememberPointerModifiers, true);
+  card.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.button !== 0) return;
+      if (isFolderBrowseSelectionActionTarget(event.target)) return;
+      pointerDown = true;
+      if (readFolderBrowsePointerModifiers(event).multi) event.preventDefault();
+    },
+    true
+  );
+
+  card.addEventListener("pointerup", (event) => {
+    if (event.button !== 0 || !pointerDown) return;
+    pointerDown = false;
+    if (isFolderBrowseSelectionActionTarget(event.target)) return;
+    suppressClick = true;
+    event.preventDefault();
+    event.stopPropagation();
+    runSelection(event);
+  });
+
+  card.addEventListener("pointercancel", () => {
+    pointerDown = false;
+  });
 
   card.addEventListener("click", (event) => {
     if (isFolderBrowseSelectionActionTarget(event.target)) return;
-    const stored = pendingSelectModifiers;
-    pendingSelectModifiers = null;
-    const multi = Boolean(stored?.multi || event.metaKey || event.ctrlKey);
-    const shift = Boolean(stored?.shift || event.shiftKey);
-    if (multi || shift) {
+    if (suppressClick) {
+      suppressClick = false;
       event.preventDefault();
       event.stopPropagation();
+      return;
     }
-    applyFolderBrowseItemSelection(normalized, {
-      multi,
-      shift,
-      scopeCard: card
-    });
+    runSelection(event);
   });
 
   card.addEventListener("dragstart", (event) => {
@@ -50735,6 +50784,7 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
     if (isFolderBrowseSelectionActionTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
+    suppressClick = false;
     if (typeof onActivate === "function") void onActivate();
   });
 }
@@ -50802,8 +50852,9 @@ function getFolderBrowseNavigableFilePaths(data) {
 }
 
 function getFolderBrowseAdjacentFilePath(data, currentPath, delta) {
-  const paths = getFolderBrowseNavigableFilePaths(data);
-  const index = paths.indexOf(currentPath);
+  const paths = getFolderBrowseNavigableFilePaths(data).map(normalizeFolderBrowseItemPath);
+  const normalized = normalizeFolderBrowseItemPath(currentPath);
+  const index = paths.indexOf(normalized);
   if (index < 0 || paths.length < 2) return null;
   return paths[(index + delta + paths.length) % paths.length];
 }
@@ -50813,8 +50864,12 @@ async function navigateFolderBrowseAdjacentFile(delta) {
   try {
     const data = await fetchWorkspaceFolderBrowse(activeFolderBrowsePath);
     const nextPath = getFolderBrowseAdjacentFilePath(data, activeFolderBrowseFilePath, delta);
-    if (!nextPath || nextPath === activeFolderBrowseFilePath) return;
-    const item = collectFolderBrowseListingItems(data).find((entry) => entry.path === nextPath);
+    if (!nextPath || normalizeFolderBrowseItemPath(nextPath) === normalizeFolderBrowseItemPath(activeFolderBrowseFilePath)) {
+      return;
+    }
+    const item = collectFolderBrowseListingItems(data).find(
+      (entry) => normalizeFolderBrowseItemPath(entry.path) === normalizeFolderBrowseItemPath(nextPath)
+    );
     const label = item?.title || item?.name || nextPath.split("/").pop() || nextPath;
     await openFolderBrowseFile(label, nextPath, { folderPath: activeFolderBrowsePath, skipRouteSync: true });
     syncAppRouteToUrl({ replace: true });
@@ -50826,8 +50881,102 @@ async function navigateFolderBrowseAdjacentFile(delta) {
 function syncFolderBrowseFileActionButtons() {
   const inFileMode =
     activeContentMode === FOLDER_BROWSE_FILE_MODE && Boolean(activeFolderBrowseFilePath);
-  folderBrowseFileRenameBtn?.classList.toggle("hidden", !inFileMode);
-  folderBrowseFileDeleteBtn?.classList.toggle("hidden", !inFileMode);
+  const singleSelected =
+    activeContentMode === FOLDER_BROWSE_MODE && folderBrowseSelectedPaths.size === 1;
+  folderBrowseFileRenameBtn?.classList.toggle("hidden", inFileMode || !singleSelected);
+}
+
+const FOLDER_BROWSE_FILE_RENAME_ICON = `
+  <svg class="folder-browse-file-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.375-9.375z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+`;
+
+const FOLDER_BROWSE_FILE_DELETE_ICON = `
+  <svg class="folder-browse-file-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+  </svg>
+`;
+
+const FOLDER_BROWSE_FILE_DOWNLOAD_ICON = `
+  <svg class="folder-browse-file-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    <path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+  </svg>
+`;
+
+function appendFolderBrowseFileHeroActions(container, { filePath, fileName, downloadUrl }) {
+  const actions = document.createElement("div");
+  actions.className = "folder-browse-file-hero-actions";
+
+  const renameBtn = document.createElement("button");
+  renameBtn.type = "button";
+  renameBtn.className = "folder-browse-file-rename-btn";
+  renameBtn.title = "Переименовать файл";
+  renameBtn.setAttribute("aria-label", "Переименовать файл");
+  renameBtn.innerHTML = FOLDER_BROWSE_FILE_RENAME_ICON;
+  renameBtn.addEventListener("click", () => {
+    void promptRenameWorkspaceFolderItem({
+      path: filePath,
+      label: activeLabel || fileName,
+      isDirectory: false
+    });
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "folder-browse-file-delete-btn";
+  deleteBtn.title = "Удалить файл";
+  deleteBtn.setAttribute("aria-label", "Удалить файл");
+  deleteBtn.innerHTML = FOLDER_BROWSE_FILE_DELETE_ICON;
+  deleteBtn.addEventListener("click", () => {
+    void deleteWorkspaceFolderItemByPath(filePath, activeLabel || fileName);
+  });
+
+  const downloadBtn = document.createElement("a");
+  downloadBtn.className = "folder-browse-file-download-btn";
+  downloadBtn.href = downloadUrl;
+  downloadBtn.download = "";
+  downloadBtn.title = "Скачать файл";
+  downloadBtn.setAttribute("aria-label", "Скачать файл");
+  downloadBtn.innerHTML = FOLDER_BROWSE_FILE_DOWNLOAD_ICON;
+
+  actions.append(renameBtn, deleteBtn, downloadBtn);
+  container.appendChild(actions);
+}
+
+function appendFolderBrowseFileSiblingNav(container, browseData, filePath) {
+  if (!browseData || !filePath) return;
+  const paths = getFolderBrowseNavigableFilePaths(browseData).map(normalizeFolderBrowseItemPath);
+  const normalized = normalizeFolderBrowseItemPath(filePath);
+  const index = paths.indexOf(normalized);
+  if (index < 0) return;
+
+  const allItems = collectFolderBrowseListingItems(browseData);
+  const itemByPath = (pathValue) =>
+    allItems.find(
+      (entry) => normalizeFolderBrowseItemPath(entry.path) === normalizeFolderBrowseItemPath(pathValue)
+    );
+
+  const nav = createEntryOverviewSiblingNav({
+    prevItem: index > 0 ? itemByPath(paths[index - 1]) : null,
+    nextItem: index < paths.length - 1 ? itemByPath(paths[index + 1]) : null,
+    variant: "manifest",
+    ariaLabel: "Навигация по файлам папки",
+    onFileClick: (item) => {
+      if (!item?.path) return;
+      void openFolderBrowseFile(item.title || item.name, item.path, {
+        folderPath: activeFolderBrowsePath,
+        skipRouteSync: true
+      }).then(() => syncAppRouteToUrl({ replace: true }));
+    }
+  });
+  if (nav) container.appendChild(nav);
 }
 
 async function promptRenameWorkspaceFolderItem({ path, label, isDirectory = false }) {
@@ -51258,7 +51407,6 @@ function renderFolderBrowseHeader(hub, data) {
     </div>
   `;
   hub.appendChild(card);
-  renderFolderBrowseToolbar(hub);
   mountFolderBrowseUploadArea(hub);
 }
 
@@ -51291,37 +51439,53 @@ async function renderFolderBrowseFileView() {
     const hub = document.createElement("div");
     hub.className = "folder-browse-hub folder-browse-file-hub";
 
-    const navPaths = getFolderBrowseNavigableFilePaths(browseData);
-    const navIndex = navPaths.indexOf(filePath);
-    const hasPrev = navIndex > 0;
-    const hasNext = navIndex >= 0 && navIndex < navPaths.length - 1;
     const formatLabel = getFolderBrowseFormatBadge(fileName, fileItem?.ext);
     const sizeLabel = fileItem?.size ? formatFileSize(fileItem.size) : "";
+    const downloadUrl = buildWorkspaceFolderBrowseFileUrl(filePath);
 
     const header = document.createElement("header");
     header.className = "folder-browse-file-header";
-    header.innerHTML = `
-      <div class="folder-browse-file-nav" role="group" aria-label="Навигация по файлам">
-        <button type="button" class="folder-browse-file-nav-btn" data-action="prev" ${hasPrev ? "" : "disabled"} title="Предыдущий файл" aria-label="Предыдущий файл">↑</button>
-        <button type="button" class="folder-browse-file-nav-btn" data-action="next" ${hasNext ? "" : "disabled"} title="Следующий файл" aria-label="Следующий файл">↓</button>
-      </div>
-      <div class="folder-browse-file-hero">
-        <span class="folder-browse-file-icon folder-browse-file-hero-icon ${getFolderBrowseFileIconClass(fileName, fileItem?.ext)}" aria-hidden="true">${escapeHtml(formatLabel.slice(0, 4))}</span>
-        <div class="folder-browse-file-hero-body">
-          <h1 class="folder-browse-file-title">${escapeHtml(activeLabel || fileName)}</h1>
-          <div class="folder-browse-file-hero-meta">
-            <span class="folder-browse-format-badge">${escapeHtml(formatLabel)}</span>
-            ${sizeLabel ? `<span class="folder-browse-size-badge">${escapeHtml(sizeLabel)}</span>` : ""}
-          </div>
-        </div>
-      </div>
-    `;
-    header.querySelector('[data-action="prev"]')?.addEventListener("click", () => {
-      void navigateFolderBrowseAdjacentFile(-1);
-    });
-    header.querySelector('[data-action="next"]')?.addEventListener("click", () => {
-      void navigateFolderBrowseAdjacentFile(1);
-    });
+    appendFolderBrowseFileSiblingNav(header, browseData, filePath);
+
+    const heroRow = document.createElement("div");
+    heroRow.className = "folder-browse-file-hero-row";
+
+    const hero = document.createElement("div");
+    hero.className = "folder-browse-file-hero";
+
+    const icon = document.createElement("span");
+    icon.className = `folder-browse-file-icon folder-browse-file-hero-icon ${getFolderBrowseFileIconClass(fileName, fileItem?.ext)}`;
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = formatLabel.slice(0, 4);
+    hero.appendChild(icon);
+
+    const heroBody = document.createElement("div");
+    heroBody.className = "folder-browse-file-hero-body";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "folder-browse-file-title-row";
+
+    const title = document.createElement("h1");
+    title.className = "folder-browse-file-title";
+    title.textContent = activeLabel || fileName;
+    titleRow.appendChild(title);
+
+    appendFolderBrowseFileHeroActions(titleRow, { filePath, fileName, downloadUrl });
+    heroBody.appendChild(titleRow);
+
+    if (sizeLabel) {
+      const meta = document.createElement("div");
+      meta.className = "folder-browse-file-hero-meta";
+      const sizeBadge = document.createElement("span");
+      sizeBadge.className = "folder-browse-size-badge";
+      sizeBadge.textContent = sizeLabel;
+      meta.appendChild(sizeBadge);
+      heroBody.appendChild(meta);
+    }
+
+    hero.appendChild(heroBody);
+    heroRow.appendChild(hero);
+    header.appendChild(heroRow);
     hub.appendChild(header);
     mountFolderBrowseUploadArea(hub);
 
@@ -51376,13 +51540,7 @@ async function renderFolderBrowseFileView() {
       audio.src = buildWorkspaceFolderBrowseFileUrl(filePath);
       body.appendChild(audio);
     } else {
-      const download = document.createElement("a");
-      download.className = "folder-browse-file-download";
-      download.href = buildWorkspaceFolderBrowseFileUrl(filePath);
-      download.target = "_blank";
-      download.rel = "noopener noreferrer";
-      download.textContent = "Скачать файл";
-      body.appendChild(download);
+      body.classList.add("folder-browse-file-body--empty");
     }
 
     hub.appendChild(body);
@@ -58280,6 +58438,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
   if (agentId === activeAgentId) {
     void syncMenuAgentStats(menu);
     requestAnimationFrame(syncMenuScrollTopButton);
+    updateActiveButton();
   }
 }
 
@@ -58465,18 +58624,28 @@ async function loadSystemFiles(options = {}) {
   void syncAgentTodoPreview();
 }
 
+function isMenuTreeButtonActive(item, { resolvedActive, resolvedFolderBrowse } = {}) {
+  if (activeSystemFile) return false;
+
+  const rawFolderPath = item.dataset.folderPath;
+  if (rawFolderPath != null && rawFolderPath !== "") {
+    if (activePath || !activeFolderBrowsePath) return false;
+    return normalizeCreateParentPath(rawFolderPath) === resolvedFolderBrowse;
+  }
+
+  const itemPath = normalizeMenuNodePath(item.dataset.path || "");
+  return Boolean(resolvedActive) && itemPath === resolvedActive;
+}
+
 function updateActiveButton() {
   const root = getMenuQueryRoot();
-  const resolvedActive = normalizeMenuNodePath(activePath || "");
-  const resolvedFolderBrowse = normalizeCreateParentPath(activeFolderBrowsePath || "");
+  const resolvedActive = activePath ? normalizeMenuNodePath(getResolvedNodePath(activePath)) : "";
+  const resolvedFolderBrowse = activeFolderBrowsePath
+    ? normalizeCreateParentPath(activeFolderBrowsePath)
+    : null;
   const items = root.querySelectorAll(".menu-item, .menu-folder");
   for (const item of items) {
-    const folderPath = normalizeCreateParentPath(item.dataset.folderPath || "");
-    const isActive =
-      !activeSystemFile &&
-      (folderPath
-        ? !activePath && folderPath === resolvedFolderBrowse
-        : normalizeMenuNodePath(item.dataset.path || "") === resolvedActive);
+    const isActive = isMenuTreeButtonActive(item, { resolvedActive, resolvedFolderBrowse });
     item.classList.toggle("active", isActive);
   }
   for (const item of root.querySelectorAll(".system-file-item")) {
@@ -58484,8 +58653,8 @@ function updateActiveButton() {
     item.classList.toggle("active", Boolean(activeSystemFile) && name === activeSystemFile);
   }
   for (const card of (appRootNode || document).querySelectorAll(".menu-card-body[data-path]")) {
-    const isActive =
-      !activeSystemFile && normalizeMenuNodePath(card.dataset.path || "") === resolvedActive;
+    const itemPath = normalizeMenuNodePath(card.dataset.path || "");
+    const isActive = !activeSystemFile && Boolean(resolvedActive) && itemPath === resolvedActive;
     card.classList.toggle("active", isActive);
     card.closest(".menu-card")?.classList.toggle("active", isActive);
   }
@@ -67812,18 +67981,14 @@ folderBrowseDeleteSelectedBtn?.addEventListener("click", () => {
   void deleteWorkspaceFolderSelection();
 });
 folderBrowseFileRenameBtn?.addEventListener("click", () => {
-  if (!activeFolderBrowseFilePath) return;
-  const fileName = activeFolderBrowseFilePath.split("/").pop() || activeFolderBrowseFilePath;
+  if (activeContentMode !== FOLDER_BROWSE_MODE || folderBrowseSelectedPaths.size !== 1) return;
+  const path = normalizeFolderBrowseItemPath(Array.from(folderBrowseSelectedPaths)[0]);
+  if (!path) return;
   void promptRenameWorkspaceFolderItem({
-    path: activeFolderBrowseFilePath,
-    label: activeLabel || fileName,
-    isDirectory: false
+    path,
+    label: path.split("/").pop(),
+    isDirectory: getFolderBrowseItemIsDirectory(path)
   });
-});
-folderBrowseFileDeleteBtn?.addEventListener("click", () => {
-  if (!activeFolderBrowseFilePath) return;
-  const fileName = activeFolderBrowseFilePath.split("/").pop() || activeFolderBrowseFilePath;
-  void deleteWorkspaceFolderItemByPath(activeFolderBrowseFilePath, activeLabel || fileName);
 });
 createFileBtn?.addEventListener("click", () => {
   createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "file");

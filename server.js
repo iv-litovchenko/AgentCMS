@@ -67,6 +67,8 @@ const {
   parseStorageLayerRef,
   pickManifestRelFromStorageLayerRef,
   normalizeStorageSlotParentRel,
+  parseExternalSectionManifestRel,
+  normalizeExternalMemoryFileRel,
   BUNDLE_BODY_FILE,
   BUNDLE_CONTENT_FILE,
   BUNDLE_TABULAR_FILE,
@@ -1363,14 +1365,12 @@ async function resolveHistoryManifestRel({ manifestRelPath, mode, systemName }) 
 }
 
 async function resolveExternalFileWorkspaceRel(manifestRelPath, relFile) {
-  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
-  if (!nodeAbsolute) return null;
-  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  const normalizedRelFile = normalizeExternalMemoryFileRelForManifest(manifestRelPath, relFile);
   if (!normalizedRelFile) return null;
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+  const folderAbsolute = await resolveExternalMemoryFolderAbsolute(manifestRelPath);
   if (!folderAbsolute) return null;
   const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
-  if (!fileAbsolute.startsWith(folderAbsolute)) return null;
+  if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) return null;
   return manifestRelFromNodeAbsolute(fileAbsolute);
 }
 
@@ -6047,12 +6047,12 @@ async function resolveExternalFileOpContext(manifestRelPath, relFile) {
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
   if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
 
-  const normalizedRelFile = normalizeRelativeFilePath(relFile);
+  const normalizedRelFile = normalizeExternalMemoryFileRelForManifest(manifestRelPath, relFile);
   if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
     return { error: "Only .md files are allowed", status: 400 };
   }
 
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+  const folderAbsolute = await resolveExternalMemoryFolderAbsolute(manifestRelPath);
   if (!folderAbsolute) return { error: "External folder not found", status: 404 };
 
   const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
@@ -8342,6 +8342,61 @@ async function ensureExternalRelativeParentDirs(folderAbsolute, relativePath) {
 
 async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
   return getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+}
+
+async function resolveExternalMemoryFolderAbsolute(manifestRelPath, options = {}) {
+  const section = parseExternalSectionManifestRel(manifestRelPath);
+  if (section?.sectionDirRel) {
+    const sectionAbsolute = normalizeWorkspacePath(section.sectionDirRel);
+    if (sectionAbsolute) {
+      if (options.create) {
+        await fs.mkdir(sectionAbsolute, { recursive: true });
+      } else if (!(await isExistingDirectory(sectionAbsolute))) {
+        return null;
+      }
+      return sectionAbsolute;
+    }
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return null;
+
+  let folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT, options);
+  if (!folderAbsolute && options.create) {
+    folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
+  }
+  return folderAbsolute;
+}
+
+function normalizeExternalMemoryFileRelForManifest(manifestRelPath, relFile) {
+  const section = parseExternalSectionManifestRel(manifestRelPath);
+  return normalizeExternalMemoryFileRel(relFile, {
+    sectionRel: section?.sectionRel || "",
+    layer: section?.layer || STORAGE_SUBFOLDER_MAIN,
+    manifestRelPath: section?.topicManifestRel || manifestRelPath
+  });
+}
+
+function resolveExternalMemorySchemaManifestRel(manifestRelPath) {
+  return parseExternalSectionManifestRel(manifestRelPath)?.topicManifestRel || manifestRelPath;
+}
+
+function resolveExternalMemoryCreateParentRel(manifestRelPath, parentRaw) {
+  const section = parseExternalSectionManifestRel(manifestRelPath);
+  let parentRel = resolveStorageCreateParentRel(parentRaw, {
+    layer: STORAGE_SUBFOLDER_CONTENT,
+    manifestRelPath: section?.topicManifestRel || manifestRelPath
+  });
+  if (!section?.sectionRel || !parentRel) return parentRel;
+
+  if (parentRel.toLowerCase() === section.sectionRel.toLowerCase()) {
+    return "";
+  }
+  const sectionPrefix = `${section.sectionRel}/`;
+  if (parentRel.toLowerCase().startsWith(sectionPrefix.toLowerCase())) {
+    return parentRel.slice(sectionPrefix.length);
+  }
+  return parentRel;
 }
 
 function getNodePreviewSidecarBaseRel(relNodePath) {
@@ -14269,16 +14324,18 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const normalizedRelFile = normalizeRelativeFilePath(relFile);
+    const normalizedRelFile = normalizeExternalMemoryFileRelForManifest(relPath, relFile);
     if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
       return sendJson(res, 400, { error: "Only .md files are allowed" });
     }
 
-    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
+    const folderAbsolute = await resolveExternalMemoryFolderAbsolute(relPath);
     if (!folderAbsolute) return sendJson(res, 404, { error: "External folder not found" });
 
     const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
-    if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid external file path" });
+    if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) {
+      return sendJson(res, 400, { error: "Invalid external file path" });
+    }
 
     try {
       const content = await fs.readFile(fileAbsolute, "utf-8");
@@ -14302,21 +14359,20 @@ async function handleApiForAgent(req, res, url) {
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-      const normalizedRelFile = normalizeRelativeFilePath(relFile);
+      const normalizedRelFile = normalizeExternalMemoryFileRelForManifest(relPath, relFile);
       if (!normalizedRelFile || !normalizedRelFile.toLowerCase().endsWith(".md")) {
         return sendJson(res, 400, { error: "Only .md files are allowed" });
       }
 
-      let folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
-      if (!folderAbsolute) {
-        folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
-      }
+      let folderAbsolute = await resolveExternalMemoryFolderAbsolute(relPath, { create: true });
       if (!folderAbsolute) return sendJson(res, 404, { error: "External folder not found" });
 
       const fileAbsolute = path.join(folderAbsolute, normalizedRelFile);
-      if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid external file path" });
+      if (!isPathInsideDirectory(folderAbsolute, fileAbsolute)) {
+        return sendJson(res, 400, { error: "Invalid external file path" });
+      }
 
-      const resolvedManifest = manifestRelFromNodeAbsolute(nodeAbsolute);
+      const resolvedManifest = resolveExternalMemorySchemaManifestRel(relPath);
       const targetRelPath = manifestRelFromNodeAbsolute(fileAbsolute);
       const raw = await fs.readFile(fileAbsolute, "utf-8").catch(() => "");
       const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
@@ -14370,13 +14426,10 @@ async function handleApiForAgent(req, res, url) {
         fileMask = await resolveExternalFileMaskForManifest(relPath);
       }
 
-      const folderAbsolute = await getOrCreateExternalFolderAbsolute(nodeAbsolute);
+      const folderAbsolute = await resolveExternalMemoryFolderAbsolute(relPath, { create: true });
       if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
 
-      const parentRaw = resolveStorageCreateParentRel(payload.parent, {
-        layer: STORAGE_SUBFOLDER_CONTENT,
-        manifestRelPath: relPath
-      });
+      const parentRaw = resolveExternalMemoryCreateParentRel(relPath, payload.parent);
       const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
       if (!targetFolder) {
         return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });

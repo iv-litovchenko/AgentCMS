@@ -769,6 +769,68 @@ function normalizeStorageSlotParentRel(parentRaw, options = {}) {
   return normalized.replace(/\/manifest\.md$/i, "").replace(/\/$/, "");
 }
 
+function parseExternalSectionManifestRel(manifestRel) {
+  const normalized = normalizeManifestRelPath(manifestRel);
+  if (!isExternalSectionReadmeRelPath(normalized)) return null;
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (!parsed) return null;
+
+  const relativePath = String(parsed.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath || !/\/manifest\.md$/i.test(relativePath)) return null;
+
+  const sectionRel = relativePath.replace(/\/manifest\.md$/i, "").replace(/\/$/, "");
+  if (!sectionRel || sectionRel.includes("..")) return null;
+
+  const topicManifestRel = pickManifestRelFromStorageLayerRef(parsed);
+  if (!topicManifestRel) return null;
+
+  return {
+    topicManifestRel,
+    layer: parsed.layer,
+    sectionRel,
+    sectionDirRel: `${parsed.slotDir}/${parsed.layer}/${sectionRel}`
+  };
+}
+
+function normalizeExternalMemoryFileRel(relFile, options = {}) {
+  let normalized = String(relFile || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized || normalized.includes("..")) return "";
+
+  const sectionRel = String(options.sectionRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (sectionRel) {
+    const sectionPrefix = `${sectionRel}/`;
+    if (normalized.toLowerCase().startsWith(sectionPrefix.toLowerCase())) {
+      normalized = normalized.slice(sectionPrefix.length);
+    }
+  }
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (parsed?.relativePath) {
+    normalized = String(parsed.relativePath).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  } else {
+    const layer =
+      normalizeStorageSubfolderName(options.layer || STORAGE_SUBFOLDER_MAIN) || STORAGE_SUBFOLDER_MAIN;
+    const manifestRelPath = String(options.manifestRelPath || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const fileName = path.posix.basename(normalized);
+    let dirPart = path.posix.dirname(normalized);
+    if (dirPart === ".") dirPart = "";
+    if (dirPart) {
+      dirPart = normalizeStorageSlotParentRel(dirPart, { layer, manifestRelPath });
+    }
+    normalized = dirPart ? `${dirPart}/${fileName}` : fileName;
+  }
+
+  return normalized.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
 function resolveOwningManifestRelFromNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
@@ -1305,6 +1367,8 @@ module.exports = {
   buildSlotInlineUploadRef,
   pickManifestRelFromStorageLayerRef,
   normalizeStorageSlotParentRel,
+  parseExternalSectionManifestRel,
+  normalizeExternalMemoryFileRel,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
