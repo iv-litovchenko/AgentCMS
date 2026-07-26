@@ -3308,10 +3308,153 @@ function extractFirstMarkdownImageSrc(body) {
 async function countFolderImmediateEntries(folderAbsolute) {
   try {
     const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
-    return entries.filter((entry) => !entry.name.startsWith(".") && !shouldSkipDirectoryListing(entry.name)).length;
+    return entries.filter((entry) => {
+      if (entry.isDirectory()) return !shouldSkipDirectoryListing(entry.name);
+      if (entry.isFile()) return !isHiddenMenuEntry(entry.name);
+      return false;
+    }).length;
   } catch {
     return 0;
   }
+}
+
+async function isFreeMemoryFolderAbsolute(folderAbsolute) {
+  if (!folderAbsolute) return false;
+  const manifestAbs = path.join(folderAbsolute, AREA_MANIFEST_FILE);
+  const topicManifestAbs = path.join(folderAbsolute, MANIFEST_FILE);
+  return !(await fileExists(manifestAbs)) && !(await fileExists(topicManifestAbs));
+}
+
+async function resolveWorkspaceFreeMemoryPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return { error: "Missing path", status: 400 };
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return { error: "Invalid path", status: 400 };
+
+  let stat;
+  try {
+    stat = await fs.stat(absolute);
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { error: "Path not found", status: 404 };
+    throw error;
+  }
+
+  if (stat.isDirectory()) {
+    if (!(await isFreeMemoryFolderAbsolute(absolute))) {
+      return { error: "Path is not free memory", status: 400 };
+    }
+    return { absolute, relPath: normalized, isDirectory: true };
+  }
+
+  if (stat.isFile()) {
+    const parentRel = path.posix.dirname(normalized);
+    if (!parentRel || parentRel === ".") return { error: "Invalid file path", status: 400 };
+    const parentAbsolute = path.dirname(absolute);
+    if (!(await isFreeMemoryFolderAbsolute(parentAbsolute))) {
+      return { error: "Path is not free memory", status: 400 };
+    }
+    return {
+      absolute,
+      relPath: normalized,
+      isDirectory: false,
+      parentRel,
+      parentAbsolute
+    };
+  }
+
+  return { error: "Invalid path", status: 400 };
+}
+
+async function renameWorkspaceFreeMemoryPath(relPath, newNameRaw) {
+  const ctx = await resolveWorkspaceFreeMemoryPath(relPath);
+  if (ctx.error) return ctx;
+
+  let newName = sanitizeMediaFileName(newNameRaw);
+  if (!newName) return { error: "Invalid name", status: 400 };
+  if (!ctx.isDirectory) {
+    const oldExt = path.extname(ctx.relPath);
+    if (!path.extname(newName) && oldExt) newName = `${newName}${oldExt}`;
+  }
+
+  const parentAbsolute = ctx.isDirectory ? path.dirname(ctx.absolute) : ctx.parentAbsolute;
+  const parentRel = ctx.isDirectory ? path.posix.dirname(ctx.relPath) : ctx.parentRel;
+  const targetAbsolute = path.join(parentAbsolute, newName);
+  if (!isPathInsideDirectory(getAgentRoot(), targetAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+  if (path.resolve(targetAbsolute) === path.resolve(ctx.absolute)) {
+    return { path: ctx.relPath, name: newName };
+  }
+
+  try {
+    await fs.access(targetAbsolute);
+    return { error: "Target already exists", status: 409 };
+  } catch {
+    // Target does not exist.
+  }
+
+  await fs.rename(ctx.absolute, targetAbsolute);
+  const newRel =
+    parentRel && parentRel !== "."
+      ? `${parentRel}/${newName}`.replace(/\/+/g, "/")
+      : newName;
+  return { path: newRel, name: newName, oldPath: ctx.relPath };
+}
+
+async function moveWorkspaceFreeMemoryPath(relPath, parentPathRaw) {
+  const ctx = await resolveWorkspaceFreeMemoryPath(relPath);
+  if (ctx.error) return ctx;
+
+  const parentPath = String(parentPathRaw ?? "").replace(/\\/g, "/").trim() || ".";
+  const parentAbsolute = await resolveExistingWorkspaceDirAbsolute(parentPath === "." ? "" : parentPath);
+  if (!parentAbsolute) return { error: "Invalid parent path", status: 400 };
+  if (!(await isFreeMemoryFolderAbsolute(parentAbsolute))) {
+    return { error: "Target folder is not free memory", status: 400 };
+  }
+
+  const baseName = path.basename(ctx.absolute);
+  const targetAbsolute = path.join(parentAbsolute, baseName);
+  if (!isPathInsideDirectory(getAgentRoot(), targetAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+  if (path.resolve(targetAbsolute) === path.resolve(ctx.absolute)) {
+    return { path: ctx.relPath };
+  }
+  if (ctx.isDirectory && isPathInsideDirectory(ctx.absolute, parentAbsolute)) {
+    return { error: "Cannot move folder into itself", status: 400 };
+  }
+
+  try {
+    await fs.access(targetAbsolute);
+    return { error: "Target already exists", status: 409 };
+  } catch {
+    // Target does not exist.
+  }
+
+  await fs.rename(ctx.absolute, targetAbsolute);
+  const newRel =
+    parentPath && parentPath !== "."
+      ? `${parentPath.replace(/\/+$/, "")}/${baseName}`.replace(/\/+/g, "/")
+      : baseName;
+  return { path: newRel, oldPath: ctx.relPath };
+}
+
+async function deleteWorkspaceFreeMemoryPaths(pathsRaw) {
+  const paths = Array.isArray(pathsRaw) ? pathsRaw : [];
+  if (!paths.length) return { error: "Missing paths", status: 400 };
+
+  const deleted = [];
+  for (const relPath of paths) {
+    const ctx = await resolveWorkspaceFreeMemoryPath(relPath);
+    if (ctx.error) return ctx;
+    if (ctx.isDirectory) {
+      await fs.rm(ctx.absolute, { recursive: true, force: false });
+    } else {
+      await fs.rm(ctx.absolute, { force: false });
+    }
+    deleted.push(ctx.relPath);
+  }
+  return { deleted };
 }
 
 async function enrichWorkspaceFolderMarkdownPage(fileRelPath) {
@@ -3421,8 +3564,6 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
     String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true });
 
   for (const entry of entries) {
-    if (entry.name.startsWith(".")) continue;
-
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name)) continue;
       const childRel = path.posix.join(normalizedFolder, entry.name);
@@ -3433,6 +3574,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
     }
 
     if (!entry.isFile()) continue;
+    if (isHiddenMenuEntry(entry.name)) continue;
 
     const fileRel = path.posix.join(normalizedFolder, entry.name);
     const fileAbsolute = path.join(folderAbsolute, entry.name);
@@ -7442,11 +7584,16 @@ const SESSION_CONTEXT_API_MAP = {
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
-  adoptFolders: "GET /api/workspace/folder/adopt — папки без manifest.md (adopt)",
+  adoptFolders: "GET /api/workspace/folder/adopt — свободная память: папки без manifest.md",
+  workspaceFolderUpload:
+    "POST /api/workspace/folder/upload — загрузить файл(ы) в папку свободной памяти (folderPath, data base64, fileName)",
+  workspaceFolderRename: "POST /api/workspace/folder/rename — переименовать файл или папку (path, newName)",
+  workspaceFolderMove: "POST /api/workspace/folder/move — переместить файл или папку (path, parentPath)",
+  workspaceFolderDelete: "POST /api/workspace/folder/delete — удалить файлы/папки (paths[])",
   workspaceFolderBrowse: "GET /api/workspace/folder/browse?folderPath=<path> — содержимое папки (1 уровень)",
   workspaceFolderScan: "GET /api/workspace/folder/scan?folderPath=<path>&depth=1|2|all&includeBody=true — рекурсивный инвентарь для разбора тем",
-  workspaceFolderPage: "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из adopt-папки",
-  workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из adopt-папки"
+  workspaceFolderPage: "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из свободной памяти",
+  workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из свободной памяти"
 };
 
 const SESSION_PATH_HINTS = {
@@ -7457,7 +7604,7 @@ const SESSION_PATH_HINTS = {
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
-  adoptFolder: "Папки без manifest.md: list adopt → browse/scan по folderPath → read page/text для разбора материалов",
+  adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
   adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
   adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
 };
@@ -15985,6 +16132,162 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/upload") {
+    try {
+      const payload = await readJsonBody(req, 12_000_000);
+      const folderPath = String(payload.folderPath || "").trim().replace(/\\/g, "/");
+      const data = payload.data;
+      const fileName = String(payload.fileName || "").trim();
+      const mimeType = String(payload.mimeType || "").trim();
+      if (!folderPath) return sendJson(res, 400, { error: "Missing folderPath" });
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
+      if (!fileName) return sendJson(res, 400, { error: "Missing file name" });
+
+      const folderAbsolute = await resolveExistingWorkspaceDirAbsolute(folderPath);
+      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid folder path" });
+
+      const folderStat = await fs.stat(folderAbsolute).catch(() => null);
+      if (!folderStat?.isDirectory()) {
+        return sendJson(res, 404, { error: "Folder not found" });
+      }
+
+      const manifestAbs = path.join(folderAbsolute, AREA_MANIFEST_FILE);
+      const topicManifestAbs = path.join(folderAbsolute, MANIFEST_FILE);
+      if ((await fileExists(manifestAbs)) || (await fileExists(topicManifestAbs))) {
+        return sendJson(res, 400, {
+          error: "Target folder is a registered area or topic; use media or memory upload instead"
+        });
+      }
+
+      const buffer = Buffer.from(data, "base64");
+      if (!buffer.length) return sendJson(res, 400, { error: "Empty file data" });
+      if (buffer.length > 45 * 1024 * 1024) {
+        return sendJson(res, 400, { error: "File is too large (max 45 MB)" });
+      }
+
+      const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
+      let storedRelFile = null;
+
+      if (imageExt) {
+        if (!validateMediaImageBufferByExt(buffer, imageExt)) {
+          return sendJson(res, 400, { error: "Invalid image file", details: "File content does not match format" });
+        }
+        const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "image";
+        const targetAbsolute = await resolveUniqueMediaFileAbsolute(folderAbsolute, `${safeBase}${imageExt}`);
+        if (!targetAbsolute || !isPathInsideDirectory(folderAbsolute, targetAbsolute)) {
+          return sendJson(res, 400, { error: "Invalid file path" });
+        }
+        await fs.writeFile(targetAbsolute, buffer);
+        storedRelFile = path.relative(folderAbsolute, targetAbsolute).replace(/\\/g, "/");
+      } else {
+        const safeName = sanitizeMediaFileName(fileName);
+        if (!safeName) return sendJson(res, 400, { error: "Invalid file name" });
+        const targetAbsolute = await resolveUniqueMediaFileAbsolute(folderAbsolute, safeName);
+        if (!targetAbsolute || !isPathInsideDirectory(folderAbsolute, targetAbsolute)) {
+          return sendJson(res, 400, { error: "Invalid file path" });
+        }
+        await fs.writeFile(targetAbsolute, buffer);
+        storedRelFile = path.relative(folderAbsolute, targetAbsolute).replace(/\\/g, "/");
+      }
+
+      const storedPath = `${folderPath.replace(/\\/g, "/").replace(/\/+$/, "")}/${storedRelFile}`.replace(
+        /\/+/g,
+        "/"
+      );
+      return sendJson(res, 200, {
+        folderPath,
+        file: storedRelFile,
+        path: storedPath,
+        size: buffer.length
+      });
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : "";
+      if (code === "EPERM" || code === "EACCES") {
+        return sendJson(res, 403, {
+          error: "No permission to write in agent workspace",
+          details: String(error.message || error)
+        });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to upload workspace folder file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/rename") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload.path || "").trim();
+      const newName = String(payload.newName || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!newName) return sendJson(res, 400, { error: "Missing newName" });
+
+      const result = await renameWorkspaceFreeMemoryPath(relPath, newName);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+
+      recordWorkspaceActivity({
+        action: "rename",
+        path: String(result.path || relPath).replace(/\\/g, "/"),
+        label: path.posix.basename(String(result.path || relPath).replace(/\\/g, "/"))
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "rename workspace folder item");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload.path || "").trim();
+      const parentPath = payload.parentPath;
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (parentPath === undefined || parentPath === null) {
+        return sendJson(res, 400, { error: "Missing parentPath" });
+      }
+
+      const result = await moveWorkspaceFreeMemoryPath(relPath, parentPath);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+
+      recordWorkspaceActivity({
+        action: "move",
+        path: String(result.path || relPath).replace(/\\/g, "/"),
+        label: path.posix.basename(String(result.path || relPath).replace(/\\/g, "/"))
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "move workspace folder item");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/delete") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await deleteWorkspaceFreeMemoryPaths(payload.paths);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+
+      for (const deletedPath of result.deleted || []) {
+        recordWorkspaceActivity({
+          action: "delete",
+          path: String(deletedPath).replace(/\\/g, "/"),
+          label: path.posix.basename(String(deletedPath).replace(/\\/g, "/"))
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : "";
+      if (code === "ENOENT") return sendJson(res, 404, { error: "Path not found" });
+      if (code === "EPERM" || code === "EACCES") {
+        return sendJson(res, 403, { error: "No permission to delete" });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to delete workspace folder item",
+        details: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/workspace/folder/adopt") {
     try {
       const data = await listWorkspaceAdoptFolders();
@@ -16351,6 +16654,7 @@ async function handleApiForAgent(req, res, url) {
         type !== "file" &&
         type !== "manifest" &&
         type !== "topic-manifest" &&
+        type !== "free-memory-folder" &&
         type !== "catalog" &&
         type !== "service-doc" &&
         type !== "container-root" &&
@@ -16481,7 +16785,7 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      if (type === "folder" || type === "file" || type === "manifest" || type === "topic-manifest") {
+      if (type === "folder" || type === "file" || type === "manifest" || type === "topic-manifest" || type === "free-memory-folder") {
         parentPathResolved = await resolveGitRepoCreateParentPath(parentPathResolved);
       }
 
@@ -16585,6 +16889,34 @@ async function handleApiForAgent(req, res, url) {
         return sendJson(res, 200, {
           createdPath: adoptResult.createdPath,
           type: adoptResult.type
+        });
+      }
+
+      if (type === "free-memory-folder") {
+        const { displayName, folderSlug } = resolveNodeCreateNames(payload);
+        const folderName = toFolderName(folderSlug);
+        if (!folderName) return sendJson(res, 400, { error: "Invalid folder name" });
+
+        const folderAbsolute = path.join(parentAbsolute, folderName);
+        try {
+          await fs.access(folderAbsolute);
+          return sendJson(res, 409, { error: "Folder already exists" });
+        } catch {
+          // continue
+        }
+
+        await fs.mkdir(folderAbsolute, { recursive: false });
+        await appendMenuSortOrderEntry(parentAbsolute, folderName);
+
+        const createdRel =
+          parentPathResolved && parentPathResolved !== "."
+            ? `${parentPathResolved}/${folderName}`.replace(/\\/g, "/")
+            : folderName;
+        recordWorkspaceNodeCreateFromResponse(createdRel);
+        return sendJson(res, 200, {
+          createdPath: createdRel,
+          type: "free-memory-folder",
+          title: displayName || folderName
         });
       }
 

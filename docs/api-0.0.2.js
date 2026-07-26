@@ -469,7 +469,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/adopt",
-          description: "Список adopt-папок без manifest.md (сырые папки на диске).",
+          description: "Список папок свободной памяти (без manifest.md на диске).",
           query: [],
           body: null,
           response: "{ folders[], count }"
@@ -477,7 +477,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/browse",
-          description: "Содержимое adopt-папки на одном уровне: images, pages, videos, folders.",
+          description: "Содержимое свободной памяти на одном уровне: images, pages, videos, folders.",
           query: ["folderPath"],
           body: null,
           response: "{ exists, folderPath, folders[], images[], pages[], videos[], audio[], other[], counts }"
@@ -485,7 +485,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/scan",
-          description: "Рекурсивный инвентарь adopt-папки для разбора материалов по темам.",
+          description: "Рекурсивный инвентарь свободной памяти для разбора материалов по темам.",
           query: ["folderPath", "depth", "includeBody", "maxBodyChars"],
           body: null,
           response: "{ exists, folderPath, depth, truncated, counts, items[] }"
@@ -493,7 +493,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/page",
-          description: "Markdown-страница из adopt-папки (frontmatter + body).",
+          description: "Markdown-страница из свободной памяти (frontmatter + body).",
           query: ["file"],
           body: null,
           response: "{ exists, path, frontmatter, body, content, page }"
@@ -501,7 +501,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/text",
-          description: "Текстовый файл из adopt-папки (.md, .txt, .csv, .json, .yaml, .pine, …).",
+          description: "Текстовый файл из свободной памяти (.md, .txt, .csv, .json, .yaml, .pine, …).",
           query: ["file", "maxBytes"],
           body: null,
           response: "{ exists, path, content, truncated?, body?, page? }"
@@ -509,7 +509,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/workspace/folder/file",
-          description: "Бинарный файл из adopt-папки (изображение, видео, pdf).",
+          description: "Бинарный файл из свободной памяти (изображение, видео, pdf).",
           query: ["file", "thumb", "max"],
           body: null,
           response: "Binary (Content-Type по расширению)"

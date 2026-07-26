@@ -465,31 +465,31 @@ module.exports = {
         },
         {
           name: "list_adopt_folders",
-          description: "Список adopt-папок без manifest.md.",
+          description: "Список папок свободной памяти (без manifest.md).",
           parameters: "—",
           http: "GET /api/workspace/folder/adopt"
         },
         {
           name: "browse_workspace_folder",
-          description: "Содержимое adopt-папки на одном уровне.",
+          description: "Содержимое свободной памяти на одном уровне.",
           parameters: "folderPath",
           http: "GET /api/workspace/folder/browse"
         },
         {
           name: "scan_workspace_folder",
-          description: "Рекурсивный инвентарь adopt-папки для разбора по темам.",
+          description: "Рекурсивный инвентарь свободной памяти для разбора по темам.",
           parameters: "folderPath, depth?, includeBody?, maxBodyChars?",
           http: "GET /api/workspace/folder/scan"
         },
         {
           name: "read_workspace_page",
-          description: "Markdown-страница из adopt-папки.",
+          description: "Markdown-страница из свободной памяти.",
           parameters: "file",
           http: "GET /api/workspace/folder/page"
         },
         {
           name: "read_workspace_text_file",
-          description: "Текстовый файл из adopt-папки.",
+          description: "Текстовый файл из свободной памяти.",
           parameters: "file, maxBytes?",
           http: "GET /api/workspace/folder/text"
         },

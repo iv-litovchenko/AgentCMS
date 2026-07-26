@@ -7,9 +7,10 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.446" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.468" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
+    <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
   </head>
   <body class="app-booting">
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
@@ -493,7 +494,7 @@
                 <p class="menu-settings-popover-title">Настройки дерева</p>
                 <label class="menu-settings-option" for="menu-tree-show-empty-folders">
                   <input id="menu-tree-show-empty-folders" type="checkbox" />
-                  <span>Отображать папки без тем</span>
+                  <span>Показывать свободную память</span>
                 </label>
                 <label class="menu-settings-option" for="menu-tree-show-active-topics-only">
                   <input id="menu-tree-show-active-topics-only" type="checkbox" />
@@ -1575,6 +1576,32 @@
                       </ul>
                     </div>
                   </div>
+                  <input id="folder-browse-upload-input" type="file" multiple class="hidden" />
+                  <button
+                    id="folder-browse-upload-btn"
+                    class="folder-browse-upload-btn hidden"
+                    type="button"
+                    title="Загрузить файлы в текущую папку"
+                    aria-label="Загрузить файлы"
+                  >
+                    <svg class="folder-browse-upload-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M12 16V4m0 0 4 4m-4-4-4 4"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    <span class="folder-browse-upload-btn-label">Загрузить</span>
+                  </button>
                   <button
                     id="workspace-print-btn"
                     class="workspace-print-btn"
@@ -1609,13 +1636,14 @@
                       />
                       <path d="M6 17h12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
                     </svg>
+                    <span class="workspace-print-btn-label">Печать</span>
                   </button>
                   <button
                     id="workspace-reveal-folder-btn"
                     class="workspace-reveal-folder-btn hidden"
                     type="button"
-                    title="Открыть папку в Finder"
-                    aria-label="Открыть папку в Finder"
+                    title="Открыть"
+                    aria-label="Открыть"
                   >
                     <svg class="workspace-reveal-folder-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
@@ -1633,6 +1661,7 @@
                         opacity="0.35"
                       />
                     </svg>
+                    <span class="workspace-reveal-folder-btn-label">Открыть</span>
                   </button>
                   <button
                     id="workspace-refresh-btn"
@@ -1650,6 +1679,43 @@
                         stroke-linejoin="round"
                       />
                     </svg>
+                    <span class="workspace-refresh-btn-label">Обновить</span>
+                  </button>
+                  <button
+                    id="folder-browse-file-rename-btn"
+                    class="folder-browse-file-rename-btn hidden"
+                    type="button"
+                    title="Переименовать файл"
+                    aria-label="Переименовать"
+                  >
+                    <svg class="folder-browse-file-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    id="folder-browse-file-delete-btn"
+                    class="folder-browse-file-delete-btn hidden"
+                    type="button"
+                    title="Удалить файл"
+                    aria-label="Удалить"
+                  >
+                    <svg class="folder-browse-file-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                  <button
+                    id="folder-browse-delete-selected-btn"
+                    class="folder-browse-delete-selected-btn hidden"
+                    type="button"
+                    title="Удалить выбранные элементы"
+                    aria-label="Удалить выбранные"
+                    disabled
+                  >
+                    Удалить (<span class="folder-browse-delete-selected-count">0</span>)
                   </button>
                 </div>
               </div>
@@ -2678,8 +2744,16 @@
           <div id="create-node-structure-label" class="popover-label create-node-structure-label hidden">Структура</div>
           <div class="create-node-actions" id="create-node-actions">
           <button id="create-manifest-btn" class="create-node-action-btn create-node-action-btn--primary hidden" type="button" title="Подхватить папку как область (manifest.md)">Подхватить (область)</button>
+          <button id="create-free-memory-btn" class="create-node-action-btn create-node-action-btn--free-memory hidden" type="button" title="Папка без manifest.md — для файлов и черновиков">Свободная память</button>
           <button id="create-folder-btn" class="create-node-action-btn" type="button" title="Новая папка с манифестом области">Папка (область)</button>
           <button id="create-file-btn" class="create-node-action-btn" type="button" title="Новый файл темы (*.md)">Файл (тема)</button>
+          </div>
+          <div id="create-free-memory-upload-wrap" class="create-free-memory-upload-wrap hidden">
+            <input id="create-free-memory-upload-input" type="file" multiple class="hidden" />
+            <button id="create-free-memory-upload-btn" class="create-node-action-btn create-node-action-btn--upload" type="button" title="Загрузить файлы в выбранную папку">
+              Загрузить файлы
+            </button>
+            <p class="create-free-memory-upload-hint">Изображения, markdown, PDF и другие файлы — без manifest.md</p>
           </div>
         </div>
       </div>
@@ -3095,7 +3169,8 @@
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
-    <script src="/main.js?v=0.5.444"></script>
+    <script src="/vendor/fancybox/fancybox.umd.js"></script>
+    <script src="/main.js?v=0.5.469"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

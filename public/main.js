@@ -304,6 +304,7 @@ const editorViewClusterNode = document.querySelector(".editor-view-cluster");
 const editorViewToggleNode = document.getElementById("editor-view-toggle");
 const docActionsNode = document.getElementById("doc-actions");
 const workspacePathToolbarNode = document.getElementById("workspace-path-toolbar");
+const workspacePathCrumbsActionsNode = document.querySelector(".workspace-path-crumbs-actions");
 const listViewBlockNode = document.getElementById("list-view-block");
 const previewUploadBlockNode = document.getElementById("preview-upload-block");
 const previewUploadZoneNode = document.getElementById("preview-upload-zone");
@@ -468,6 +469,11 @@ const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
 const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
+const folderBrowseUploadBtn = document.getElementById("folder-browse-upload-btn");
+const folderBrowseUploadInputNode = document.getElementById("folder-browse-upload-input");
+const folderBrowseDeleteSelectedBtn = document.getElementById("folder-browse-delete-selected-btn");
+const folderBrowseFileRenameBtn = document.getElementById("folder-browse-file-rename-btn");
+const folderBrowseFileDeleteBtn = document.getElementById("folder-browse-file-delete-btn");
 const workspaceRevealFolderBtn = document.getElementById("workspace-reveal-folder-btn");
 const toastNode = document.getElementById("toast");
 const createNodeModalNode = document.getElementById("create-node-modal");
@@ -480,6 +486,10 @@ let titleSlugLinked = true;
 let createSlugLinked = true;
 const createFolderBtn = document.getElementById("create-folder-btn");
 const createManifestBtn = document.getElementById("create-manifest-btn");
+const createFreeMemoryBtn = document.getElementById("create-free-memory-btn");
+const createFreeMemoryUploadWrapNode = document.getElementById("create-free-memory-upload-wrap");
+const createFreeMemoryUploadBtn = document.getElementById("create-free-memory-upload-btn");
+const createFreeMemoryUploadInputNode = document.getElementById("create-free-memory-upload-input");
 const createNodeActionsNode = document.getElementById("create-node-actions");
 const createFileBtn = document.getElementById("create-file-btn");
 const createNodeCatalogWrapNode = document.getElementById("create-node-catalog-wrap");
@@ -1069,6 +1079,8 @@ function chpuUiViewToContentMode(uiView) {
       return NODE_THREAD_MODE;
     case "todo":
       return "todo";
+    case "folder":
+      return "folder-browse";
     default:
       return null;
   }
@@ -1094,6 +1106,8 @@ function contentModeToChpuUiView(mode) {
       return "chat";
     case "todo":
       return "todo";
+    case "folder-browse":
+      return "folder";
     default:
       return null;
   }
@@ -1440,7 +1454,33 @@ async function applyChpuResolvedRoute(resolved) {
   }
 
   if (resolved?.kind === "unknown") {
+    if (await tryOpenUnknownPathAsAdoptFile(resolved.workspacePath)) {
+      hideHomeView();
+      return;
+    }
     showNotFoundView(formatNotFoundRequestPath(resolved.workspacePath));
+    return;
+  }
+
+  if (resolved?.kind === "adoptFolder") {
+    hideHomeView();
+    const folderPath = String(resolved.folderPath || resolved.workspacePath || "").replace(/\\/g, "/");
+    const label =
+      resolved.title ||
+      folderPath.split("/").filter(Boolean).pop() ||
+      folderPath;
+    await openFolderBrowseFromMenu(label, folderPath, { skipRouteSync: true });
+    return;
+  }
+
+  if (resolved?.kind === "adoptFile") {
+    hideHomeView();
+    const filePath = String(resolved.filePath || resolved.workspacePath || "").replace(/\\/g, "/");
+    const folderPath = String(
+      resolved.folderPath || getFolderBrowseParentPath(filePath)
+    ).replace(/\\/g, "/");
+    const label = resolved.title || filePath.split("/").pop() || filePath;
+    await openFolderBrowseFile(label, filePath, { folderPath, skipRouteSync: true });
     return;
   }
 
@@ -1673,6 +1713,13 @@ function getChpuWorkspacePathFromState() {
     }
     return chpuPath;
   }
+  if (activeFolderBrowseFilePath && activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+    return normalizeCreateParentPath(activeFolderBrowseFilePath);
+  }
+  if (activeFolderBrowsePath && activeContentMode === FOLDER_BROWSE_MODE) {
+    const folderPath = normalizeCreateParentPath(activeFolderBrowsePath);
+    return appendChpuViewToWorkspacePath(folderPath, "folder", { force: true });
+  }
   if (!activePath) return "";
 
   const topicRoute = getNodeRoutePath(getResolvedNodePath(activePath));
@@ -1771,11 +1818,11 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile) {
+  if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath) {
     return `/${encodeURIComponent(agentId)}`;
   }
 
-  if (!activePath && !activeSystemFile) {
+  if (!activePath && !activeSystemFile && !activeFolderBrowsePath) {
     return `/${encodeURIComponent(agentId)}`;
   }
 
@@ -1820,7 +1867,7 @@ function updateWorkspaceShareLinkButton() {
   const inWorkspace =
     hasAgent &&
     !appRootNode?.classList.contains("home-view") &&
-    Boolean(activePath || activeSystemFile);
+    Boolean(activePath || activeSystemFile || activeFolderBrowsePath);
   const actionsEnabled = WORKSPACE_SHARE_ACTIONS_ENABLED && inWorkspace;
 
   workspaceLinksMenuWrap?.classList.toggle("hidden", !inWorkspace);
@@ -9805,6 +9852,10 @@ function getOverviewModeGroups() {
 const NODE_OVERVIEW_MODE = "overview";
 const NODE_NAVIGATION_MODE = "navigation";
 const FOLDER_BROWSE_MODE = "folder-browse";
+const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
+const FREE_MEMORY_LABEL = "Свободная память";
+const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
+const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
 const NODE_ENTRY_OVERVIEW_MODE = "entry-overview";
 const NODE_MINDMAP_MODE = "mindmap";
 const NODE_THREAD_MODE = "thread";
@@ -9930,7 +9981,11 @@ let systemFileEditActive = false;
 let activePath = null;
 let activeLabel = null;
 let activeFolderBrowsePath = null;
+let activeFolderBrowseFilePath = null;
 let folderBrowseExpandedPagePath = null;
+let folderBrowseImagesColumns = loadFolderBrowseImagesColumns();
+let folderBrowseSelectedPaths = new Set();
+let folderBrowseSelectionAnchor = null;
 
 function clearActiveSystemFile() {
   activeSystemFile = null;
@@ -11299,7 +11354,9 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (mode === NODE_OVERVIEW_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
   const entryOverviewDomain = resolveEntryOverviewWorkspaceDomain();
   if (mode === NODE_ENTRY_OVERVIEW_MODE && entryOverviewDomain) return entryOverviewDomain;
-  if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE) return NODE_WORKSPACE_DOMAIN_NAVIGATION;
+  if (mode === NODE_NAVIGATION_MODE || mode === NODE_MINDMAP_MODE || mode === FOLDER_BROWSE_MODE || mode === FOLDER_BROWSE_FILE_MODE) {
+    return NODE_WORKSPACE_DOMAIN_NAVIGATION;
+  }
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
   if (mode === NODE_THREAD_MODE) return NODE_WORKSPACE_DOMAIN_THREAD;
@@ -13834,6 +13891,11 @@ const MENU_CONTEXT_MENU_ACTIONS = {
     { id: "move", label: "Переместить" },
     { id: "delete", label: "Удалить" },
     { id: "convert-to-area", label: "Преобразовать в область" }
+  ],
+  adoptFolder: [
+    { id: "rename", label: "Переименовать" },
+    { id: "move", label: "Переместить" },
+    { id: "delete", label: "Удалить" }
   ]
 };
 
@@ -14064,6 +14126,12 @@ function getMenuContextMenuKind(nodePath) {
   return null;
 }
 
+function isAdoptFolderContextMenuTarget(button) {
+  return Boolean(
+    button?.classList?.contains("menu-folder--adopt") && button.dataset.folderPath
+  );
+}
+
 function isMenuContextMenuTarget(button) {
   if (!button?.dataset?.path) return false;
   if (button.classList.contains("menu-folder--adopt")) return false;
@@ -14191,16 +14259,32 @@ function handleMenuContextMenuAction(actionId) {
   }
 
   if (actionId === "rename") {
+    if (state.kind === "adoptFolder") {
+      void promptRenameWorkspaceFolderItem({
+        path: state.path,
+        label: state.label,
+        isDirectory: true
+      });
+      return;
+    }
     openRenameMenuNodeModal(state);
     return;
   }
 
   if (actionId === "move") {
+    if (state.kind === "adoptFolder") {
+      void promptMoveWorkspaceFolderItem(state.path);
+      return;
+    }
     void promptMoveNodeFromMenu(state.path);
     return;
   }
 
   if (actionId === "delete") {
+    if (state.kind === "adoptFolder") {
+      void deleteWorkspaceFolderItemByPath(state.path, state.label);
+      return;
+    }
     void deleteNodeByPath(state.path, state.label || getLabelFromPath(state.path));
   }
 }
@@ -15031,6 +15115,25 @@ async function handleMenuContextMenuStatusAction(nextStatus) {
   }
 }
 
+function openAdoptFolderContextMenu(event, target) {
+  event.preventDefault();
+  event.stopPropagation();
+  const folderPath = normalizeCreateParentPath(target.dataset.folderPath || ".");
+  if (!folderPath || folderPath === ".") return;
+  const label =
+    target.querySelector(".menu-folder-name")?.textContent?.trim() ||
+    folderPath.split("/").pop() ||
+    folderPath;
+  menuContextMenuState = {
+    kind: "adoptFolder",
+    path: folderPath,
+    label,
+    isDirectory: true
+  };
+  renderMenuContextMenuItems("adoptFolder", folderPath);
+  positionMenuContextMenu(event.clientX, event.clientY);
+}
+
 function openMenuContextMenu(event, target) {
   if (!menuContextMenuNode || !menuContextMenuListNode) return;
   const path = normalizeMenuNodePath(target.dataset.path);
@@ -15054,6 +15157,11 @@ function openMenuContextMenu(event, target) {
 }
 
 function handleMenuContextMenuEvent(event) {
+  const adoptTarget = event.target.closest(".menu-folder--adopt[data-folder-path]");
+  if (adoptTarget) {
+    openAdoptFolderContextMenu(event, adoptTarget);
+    return;
+  }
   const target = event.target.closest(".menu-item[data-path], .menu-folder[data-path]");
   if (!target || !isMenuContextMenuTarget(target)) return;
   openMenuContextMenu(event, target);
@@ -15701,7 +15809,8 @@ function applyNodeWorkspaceViewUi() {
   const artefactsSlotActive = isDataStorageSlotActive("artefacts");
   const assetsSlotActive = isDataStorageSlotActive("assets");
   const repositorySlotActive = isDataStorageSlotActive("repository");
-  const navigationDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION;
+  const navigationDomain =
+    workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION && activeContentMode !== FOLDER_BROWSE_MODE;
   const inboxSlotActive = isDataStorageSlotActive("inbox");
   const noteSlotActive = isDataStorageSlotActive("note") || isDataStorageSlotActive("quick-notes");
   const mainSingleSlotActive = isDataStorageSlotActive("main-single");
@@ -17732,7 +17841,7 @@ function getContainerRootHint(agentId = activeAgentId) {
 }
 
 function getWorkspaceRootAddButtonTitle(agentId = activeAgentId) {
-  const lines = ["Создать область или тему."];
+  const lines = ["Создать область, тему или свободную память."];
   if (!isAgentKitFolderPresent(agentId)) {
     lines.push(`${AGENT_KIT_FOLDER_DEFAULT}: ${KIT_ROOT_HINT}`);
   }
@@ -18226,9 +18335,352 @@ function isContainerSubfolderCreateParent(parentPath) {
   return isAgentContainerNodePath(normalized);
 }
 
+function shouldShowFreeMemoryCreateOptions() {
+  if (isCreateAdoptFolderContext()) return false;
+  if (isServiceRootCreateParent(createModalBaseParentPath)) return false;
+  if (isServiceSubfolderCreateParent(createModalBaseParentPath)) return false;
+  return true;
+}
+
+function getCreateModalUploadFolderPath() {
+  if (
+    activeFolderBrowsePath &&
+    (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE)
+  ) {
+    return normalizeCreateParentPath(activeFolderBrowsePath);
+  }
+  return normalizeCreateParentPath(createTargetParentPath || createModalBaseParentPath || ".");
+}
+
+let workspaceFolderUploadInFlight = false;
+let folderBrowseUploadPanelOpen = false;
+let folderBrowseUploadState = { active: false, done: 0, total: 0, failed: 0, label: "" };
+
+function isFolderBrowseUploadAvailable() {
+  return Boolean(
+    activeFolderBrowsePath &&
+      (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE)
+  );
+}
+
+function setWorkspaceFolderUploadBusy(busy) {
+  workspaceFolderUploadInFlight = Boolean(busy);
+  createFreeMemoryUploadBtn?.classList.toggle("is-uploading", workspaceFolderUploadInFlight);
+  if (createFreeMemoryUploadBtn) createFreeMemoryUploadBtn.disabled = workspaceFolderUploadInFlight;
+  syncFolderBrowseUploadButton();
+}
+
+function syncFolderBrowseUploadButton() {
+  if (!folderBrowseUploadBtn) return;
+  const available = isFolderBrowseUploadAvailable();
+  folderBrowseUploadBtn.classList.toggle("hidden", !available);
+  folderBrowseUploadBtn.disabled = workspaceFolderUploadInFlight;
+  folderBrowseUploadBtn.classList.toggle("is-uploading", workspaceFolderUploadInFlight);
+  folderBrowseUploadBtn.classList.toggle("is-active", available && folderBrowseUploadPanelOpen);
+  folderBrowseUploadBtn.setAttribute(
+    "aria-expanded",
+    available && folderBrowseUploadPanelOpen ? "true" : "false"
+  );
+}
+
+function setFolderBrowseUploadPanelOpen(open) {
+  folderBrowseUploadPanelOpen = Boolean(open);
+  syncFolderBrowseUploadPanelUi();
+}
+
+function syncFolderBrowseUploadPanelUi() {
+  const host = nodeOverviewContentNode?.querySelector(".folder-browse-upload-host");
+  if (host) host.classList.toggle("is-open", folderBrowseUploadPanelOpen);
+  syncFolderBrowseUploadButton();
+}
+
+function updateFolderBrowseUploadProgressUI() {
+  const zone = nodeOverviewContentNode?.querySelector(".folder-browse-upload-host .media-bulk-upload-zone");
+  if (zone) syncFolderBrowseUploadZoneUi(zone);
+}
+
+function syncFolderBrowseUploadZoneUi(zone) {
+  const idle = zone.querySelector(".media-bulk-upload-idle");
+  const progress = zone.querySelector(".media-bulk-upload-progress");
+  const fill = zone.querySelector(".media-bulk-upload-progress-fill");
+  const label = zone.querySelector(".media-bulk-upload-progress-label");
+  const percent = zone.querySelector(".media-bulk-upload-progress-percent");
+
+  const { active, done, total, label: statusLabel } = folderBrowseUploadState;
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+
+  zone.classList.toggle("is-uploading", active);
+  zone.classList.toggle("is-dragover", false);
+  idle?.classList.toggle("hidden", active);
+  progress?.classList.toggle("hidden", !active);
+  if (fill) fill.style.width = `${pct}%`;
+  if (percent) percent.textContent = `${pct}%`;
+  if (label) {
+    label.textContent = statusLabel || (active ? `Загружено ${done} из ${total}` : "");
+  }
+}
+
+function getActiveFolderBrowseUploadPath() {
+  return normalizeCreateParentPath(activeFolderBrowsePath);
+}
+
+function mountFolderBrowseUploadArea(hub) {
+  if (!hub || hub.querySelector(".folder-browse-upload-host")) return;
+  const host = document.createElement("div");
+  host.className = "media-bulk-upload-host folder-browse-upload-host";
+  host.classList.toggle("is-open", folderBrowseUploadPanelOpen);
+  hub.appendChild(host);
+  mountFolderBrowseUploadZone(host);
+  syncFolderBrowseUploadPanelUi();
+}
+
+function mountFolderBrowseUploadZone(host) {
+  host.innerHTML = "";
+  const folderLabel =
+    activeLabel ||
+    getActiveFolderBrowseUploadPath().split("/").filter(Boolean).pop() ||
+    FREE_MEMORY_LABEL;
+
+  const panel = document.createElement("div");
+  panel.className = "media-bulk-upload-panel";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "media-bulk-upload-close modal-close-btn";
+  closeBtn.setAttribute("aria-label", "Закрыть");
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (workspaceFolderUploadInFlight) return;
+    setFolderBrowseUploadPanelOpen(false);
+  });
+
+  const zone = document.createElement("div");
+  zone.className = "media-bulk-upload-zone";
+  zone.tabIndex = 0;
+  zone.setAttribute("role", "button");
+  zone.setAttribute("aria-label", `Загрузка файлов в «${folderLabel}»`);
+
+  const idle = document.createElement("div");
+  idle.className = "media-bulk-upload-idle";
+  const icon = document.createElement("div");
+  icon.className = "media-bulk-upload-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "📤";
+  const title = document.createElement("p");
+  title.className = "media-bulk-upload-title";
+  title.textContent = "Перетащите файлы сюда";
+  const hint = document.createElement("p");
+  hint.className = "media-bulk-upload-hint";
+  hint.textContent = `или нажмите для выбора · загрузка в «${folderLabel}»`;
+  idle.append(icon, title, hint);
+
+  const progress = document.createElement("div");
+  progress.className = "media-bulk-upload-progress hidden";
+  const percent = document.createElement("div");
+  percent.className = "media-bulk-upload-progress-percent";
+  percent.textContent = "0%";
+  const track = document.createElement("div");
+  track.className = "media-bulk-upload-progress-track";
+  track.setAttribute("aria-hidden", "true");
+  const fill = document.createElement("div");
+  fill.className = "media-bulk-upload-progress-fill";
+  track.appendChild(fill);
+  const progressLabel = document.createElement("p");
+  progressLabel.className = "media-bulk-upload-progress-label";
+  progressLabel.textContent = "Загрузка…";
+  progress.append(percent, track, progressLabel);
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.hidden = true;
+  input.className = "folder-browse-upload-zone-input";
+
+  zone.append(idle, progress);
+  panel.append(closeBtn, zone);
+  host.append(panel, input);
+
+  wireFolderBrowseUploadZone(zone, input);
+  syncFolderBrowseUploadZoneUi(zone);
+}
+
+function wireFolderBrowseUploadZone(zone, input) {
+  const pickFiles = () => {
+    if (workspaceFolderUploadInFlight) return;
+    input.click();
+  };
+
+  zone.addEventListener("click", () => {
+    if (workspaceFolderUploadInFlight) return;
+    pickFiles();
+  });
+
+  zone.addEventListener("keydown", (event) => {
+    if (workspaceFolderUploadInFlight) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pickFiles();
+    }
+  });
+
+  input.addEventListener("change", () => {
+    const files = input.files ? [...input.files] : [];
+    input.value = "";
+    if (files.length) {
+      void uploadWorkspaceFolderFiles(getActiveFolderBrowseUploadPath(), files, { trackProgress: true });
+    }
+  });
+
+  zone.addEventListener("dragover", (event) => {
+    if (workspaceFolderUploadInFlight) return;
+    event.preventDefault();
+    zone.classList.add("is-dragover");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("is-dragover");
+  });
+
+  zone.addEventListener("drop", (event) => {
+    if (workspaceFolderUploadInFlight) return;
+    event.preventDefault();
+    zone.classList.remove("is-dragover");
+    const files = event.dataTransfer?.files ? [...event.dataTransfer.files] : [];
+    if (files.length) {
+      void uploadWorkspaceFolderFiles(getActiveFolderBrowseUploadPath(), files, { trackProgress: true });
+    }
+  });
+}
+
+async function uploadWorkspaceFolderFile(folderPath, file) {
+  if (!file) return null;
+  const targetPath = normalizeCreateParentPath(folderPath);
+  if (!targetPath || targetPath === ".") {
+    throw new Error("Выберите папку для загрузки");
+  }
+  const data = await readFileAsBase64(file);
+  const response = await fetch(buildApiUrl("/api/workspace/folder/upload"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      folderPath: targetPath,
+      data,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream"
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${errorData.error || `Request failed with ${response.status}`}${details}`);
+  }
+  return response.json();
+}
+
+async function uploadWorkspaceFolderFiles(folderPath, fileList, options = {}) {
+  const files = Array.from(fileList || []).filter(Boolean);
+  if (!files.length) return { uploaded: 0, folderPath: normalizeCreateParentPath(folderPath) };
+
+  const targetPath = normalizeCreateParentPath(folderPath);
+  if (!targetPath || targetPath === ".") {
+    showToast("Выберите папку для загрузки", "error");
+    return { uploaded: 0, folderPath: targetPath };
+  }
+
+  const trackProgress = Boolean(options.trackProgress);
+  if (trackProgress) {
+    folderBrowseUploadState = {
+      active: true,
+      done: 0,
+      total: files.length,
+      failed: 0,
+      label: "Подготовка…"
+    };
+    updateFolderBrowseUploadProgressUI();
+  }
+
+  setWorkspaceFolderUploadBusy(true);
+  let uploaded = 0;
+  try {
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      if (trackProgress) {
+        folderBrowseUploadState.label = `${file.name} · ${i + 1} из ${files.length}`;
+        updateFolderBrowseUploadProgressUI();
+      }
+      try {
+        await uploadWorkspaceFolderFile(targetPath, file);
+        uploaded += 1;
+      } catch (error) {
+        if (trackProgress) {
+          folderBrowseUploadState.failed += 1;
+          const message = error instanceof Error ? error.message : String(error);
+          showToast(`${file.name}: ${message}`, "error");
+        } else {
+          throw error;
+        }
+      }
+      if (trackProgress) {
+        folderBrowseUploadState.done = i + 1;
+        updateFolderBrowseUploadProgressUI();
+      }
+    }
+    await fetchMenuData(getCreateModalAgentId());
+    const agentId = getCreateModalAgentId();
+    withPreservedMenuScroll(() => {
+      if (!patchMenuTreeAtFolder(targetPath, agentId)) {
+        const parentFolder = normalizeMenuPatchFolderPath(
+          targetPath.split("/").slice(0, -1).join("/") || ".",
+          agentId
+        );
+        patchMenuTreeAtFolder(parentFolder, agentId);
+      }
+    });
+    if (
+      (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) &&
+      normalizeCreateParentPath(activeFolderBrowsePath) === targetPath
+    ) {
+      if (activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+        await renderFolderBrowseFileView();
+      } else {
+        await renderFolderBrowseView();
+      }
+    }
+    if (uploaded > 0) {
+      showToast(
+        uploaded === 1 ? "Файл загружен" : `Загружено файлов: ${uploaded}`,
+        "success"
+      );
+    } else if (trackProgress && folderBrowseUploadState.failed > 0) {
+      showToast("Не удалось загрузить файлы", "error");
+    }
+    return { uploaded, folderPath: targetPath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(
+      uploaded > 0
+        ? `Загружено ${uploaded} из ${files.length}. Ошибка: ${message}`
+        : `Не удалось загрузить: ${message}`,
+      uploaded > 0 ? "warning" : "error"
+    );
+    return { uploaded, folderPath: targetPath };
+  } finally {
+    if (trackProgress) {
+      folderBrowseUploadState.active = false;
+      folderBrowseUploadState.label = "";
+      updateFolderBrowseUploadProgressUI();
+    }
+    setWorkspaceFolderUploadBusy(false);
+    if (createFreeMemoryUploadInputNode) createFreeMemoryUploadInputNode.value = "";
+    if (folderBrowseUploadInputNode) folderBrowseUploadInputNode.value = "";
+  }
+}
+
 function syncCreateNodeActionsUi() {
   const showManifestOption = isCreateAdoptFolderContext();
   const adoptInsideArea = isCreateAdoptInsideEstablishedArea();
+  const showFreeMemoryOptions = shouldShowFreeMemoryCreateOptions();
   const serviceRoot = isServiceRootCreateParent(createModalBaseParentPath);
   const serviceSubfolder = isServiceSubfolderCreateParent(createModalBaseParentPath);
   const inServiceTree = serviceRoot || serviceSubfolder;
@@ -18239,7 +18691,10 @@ function syncCreateNodeActionsUi() {
 
   createManifestBtn?.classList.toggle("hidden", !showManifestOption);
   createFolderBtn?.classList.toggle("hidden", showManifestOption);
+  createFreeMemoryBtn?.classList.toggle("hidden", !showFreeMemoryOptions || showManifestOption);
+  createFreeMemoryUploadWrapNode?.classList.toggle("hidden", !showFreeMemoryOptions || showManifestOption);
   createNodeActionsNode?.classList.toggle("has-manifest-option", showManifestOption);
+  createNodeActionsNode?.classList.toggle("has-free-memory-option", showFreeMemoryOptions && !showManifestOption);
   if (createManifestBtn && showManifestOption) {
     createManifestBtn.classList.toggle("create-node-action-btn--primary", !adoptInsideArea);
   }
@@ -18280,9 +18735,11 @@ function syncCreateNodeActionsUi() {
   if (createNameInputNode) {
     createNameInputNode.placeholder = inServiceTree
       ? "Например: statuses"
-      : inContainerTree
-        ? "Например: sport"
-        : "Например: Плавание";
+      : showFreeMemoryOptions && !showManifestOption
+        ? "Например: Материалы"
+        : inContainerTree
+          ? "Например: sport"
+          : "Например: Плавание";
   }
   syncCreateNodeContainerTargetUi();
   syncCreateNodeServicePresetsUi();
@@ -18298,8 +18755,8 @@ function updateCreateNodeModalContext(parentPath) {
   if (createNodeModalTitleNode) {
     if (isCreateAdoptFolderContext()) {
       createNodeModalTitleNode.textContent = isCreateAdoptInsideEstablishedArea()
-        ? `Папка «${label}» — без темы`
-        : `Папка «${label}» — без области`;
+        ? `${FREE_MEMORY_LABEL}: «${label}» — без темы`
+        : `${FREE_MEMORY_LABEL}: «${label}»`;
     } else {
       createNodeModalTitleNode.textContent = `Создать в «${label}»`;
     }
@@ -18772,6 +19229,7 @@ function applyContentModeState(mode) {
   if (
     mode === NODE_OVERVIEW_MODE ||
     mode === NODE_NAVIGATION_MODE ||
+    mode === FOLDER_BROWSE_MODE ||
     mode === NODE_ENTRY_OVERVIEW_MODE ||
     mode === NODE_THREAD_MODE
   ) {
@@ -19627,6 +20085,12 @@ function getStorageListBreadcrumbPath(overrides = {}) {
 
 function getBreadcrumbPathForActiveMode(overrides = {}) {
   if (activeSystemFile) return activeSystemFile;
+  if (activeFolderBrowseFilePath && activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+    return normalizeCreateParentPath(activeFolderBrowseFilePath);
+  }
+  if (activeFolderBrowsePath && activeContentMode === FOLDER_BROWSE_MODE) {
+    return normalizeCreateParentPath(activeFolderBrowsePath);
+  }
   if (appRootNode.classList.contains("home-view") || !activePath) {
     return getHomeBreadcrumbPath();
   }
@@ -27973,19 +28437,59 @@ function isNodeManifestContextPath(nodePath = activePath) {
 }
 
 function isWorkspaceRefreshAvailable() {
-  return Boolean(activePath || activeSystemFile);
+  return Boolean(
+    activePath ||
+      activeSystemFile ||
+      (activeFolderBrowsePath &&
+        (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE))
+  );
+}
+
+function getActiveRevealFolderPath() {
+  if (
+    activeFolderBrowsePath &&
+    (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE)
+  ) {
+    return normalizeCreateParentPath(activeFolderBrowsePath);
+  }
+  if (activePath && !activeSystemFile) {
+    return getResolvedNodePath(activePath);
+  }
+  return "";
 }
 
 function isRevealNodeFolderAvailable() {
-  return Boolean(activePath && !activeSystemFile);
+  return Boolean(getActiveRevealFolderPath());
 }
 
 function syncWorkspaceRevealFolderButton() {
   if (!workspaceRevealFolderBtn) return;
-  const label = getRevealFolderLabel();
-  workspaceRevealFolderBtn.title = label;
-  workspaceRevealFolderBtn.setAttribute("aria-label", label);
+  const detailLabel = getRevealFolderLabel();
+  workspaceRevealFolderBtn.title = detailLabel;
+  workspaceRevealFolderBtn.setAttribute("aria-label", detailLabel);
   workspaceRevealFolderBtn.classList.toggle("hidden", !isRevealNodeFolderAvailable());
+}
+
+const WORKSPACE_CRUMBS_ACTION_ORDER = [
+  "workspace-links-menu-wrap",
+  "folder-browse-upload-input",
+  "folder-browse-upload-btn",
+  "workspace-print-btn",
+  "workspace-reveal-folder-btn",
+  "workspace-refresh-btn",
+  "folder-browse-file-rename-btn",
+  "folder-browse-file-delete-btn",
+  "folder-browse-delete-selected-btn"
+];
+
+function syncWorkspaceCrumbsActionsOrder() {
+  if (!workspacePathCrumbsActionsNode) return;
+  for (const id of WORKSPACE_CRUMBS_ACTION_ORDER) {
+    const node = document.getElementById(id);
+    if (node?.parentElement === workspacePathCrumbsActionsNode) {
+      workspacePathCrumbsActionsNode.appendChild(node);
+    }
+  }
 }
 
 function syncWorkspaceRefreshButton() {
@@ -28030,6 +28534,19 @@ async function refreshWorkspaceContent() {
 
     if (activeSystemFile) {
       await selectSystemFile(activeSystemFile, { skipRouteSync: true });
+      return;
+    }
+
+    if (
+      (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) &&
+      activeFolderBrowsePath
+    ) {
+      await refreshMenu({ agentId: activeAgentId });
+      if (activeContentMode === FOLDER_BROWSE_FILE_MODE && activeFolderBrowseFilePath) {
+        await renderFolderBrowseFileView();
+      } else {
+        await renderFolderBrowseView();
+      }
       return;
     }
 
@@ -39811,8 +40328,8 @@ function getRevealFolderShortLabel() {
 }
 
 async function revealNodeFolderInExplorer() {
-  if (!activePath) return;
-  const resolvedPath = getResolvedNodePath(activePath);
+  const resolvedPath = getActiveRevealFolderPath();
+  if (!resolvedPath) return;
   try {
     if (window.desktopApp?.revealFolder) {
       await window.desktopApp.revealFolder(resolvedPath, activeAgentId);
@@ -49634,6 +50151,46 @@ function buildWorkspaceFolderBrowseFileUrl(fileRel, options = {}) {
   return buildApiUrl("/api/workspace/folder/file", params);
 }
 
+function resolveWorkspaceFolderBrowseAssetUrl(previewUrl, fileRel, options = {}) {
+  const rel = String(fileRel || "").replace(/\\/g, "/").trim();
+  if (rel) {
+    return buildWorkspaceFolderBrowseFileUrl(rel, options);
+  }
+  const raw = String(previewUrl || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.includes("/api/workspace/folder/file")) {
+    try {
+      const url = new URL(raw, location.origin);
+      const file = url.searchParams.get("file");
+      if (!file) return raw;
+      const params = { file };
+      if (url.searchParams.get("thumb")) {
+        params.thumb = "1";
+        params.max = url.searchParams.get("max") || String(options.max ?? MEDIA_THUMB_MAX_GRID);
+      }
+      return buildApiUrl("/api/workspace/folder/file", params);
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+function attachFolderBrowseImageFallback(img) {
+  img.addEventListener(
+    "error",
+    () => {
+      const wrap = img.closest(".folder-browse-image-thumb, .folder-browse-page-thumb");
+      wrap?.classList.add("folder-browse-image-thumb--error");
+      if (img.isConnected) {
+        img.remove();
+      }
+    },
+    { once: true }
+  );
+}
+
 function resolveWorkspaceBrowseRelPath(folderPath, relativePath) {
   const base = normalizeCreateParentPath(folderPath || ".");
   const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\.?\//, "");
@@ -49656,7 +50213,7 @@ function rewriteWorkspaceMarkdownAssetUrls(markdown, folderPath) {
 function buildFolderBrowseStatLine(counts = {}) {
   const parts = [];
   if (counts.images) parts.push(`${counts.images} изображ.`);
-  if (counts.pages) parts.push(`${counts.pages} страниц`);
+  if (counts.pages) parts.push(`${counts.pages} стр.`);
   if (counts.videos) parts.push(`${counts.videos} видео`);
   if (counts.audio) parts.push(`${counts.audio} аудио`);
   if (counts.folders) parts.push(`${counts.folders} папок`);
@@ -49664,14 +50221,119 @@ function buildFolderBrowseStatLine(counts = {}) {
   return parts.join(" · ");
 }
 
-function createFolderBrowseSection(title, emptyMessage) {
+function loadFolderBrowseImagesColumns() {
+  const stored = Number(readStorageItem(FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY));
+  return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(stored) ? stored : 3;
+}
+
+function saveFolderBrowseImagesColumns(columns) {
+  writeStorageItem(FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY, String(columns));
+}
+
+function setFolderBrowseImagesColumns(columns) {
+  if (!FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(columns)) return;
+  folderBrowseImagesColumns = columns;
+  saveFolderBrowseImagesColumns(columns);
+  syncFolderBrowseImagesColumnUi();
+}
+
+function resolveFolderBrowseGridImageUrl(fileRel, columns = folderBrowseImagesColumns) {
+  const rel = String(fileRel || "").replace(/\\/g, "/");
+  if (!rel) return "";
+  if (columns === 1) {
+    return buildWorkspaceFolderBrowseFileUrl(rel);
+  }
+  return buildWorkspaceFolderBrowseFileUrl(rel, { thumb: true, max: MEDIA_THUMB_MAX_GRID });
+}
+
+function syncFolderBrowseImagesColumnUi() {
+  const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
+  if (!hub) return;
+  const grid = hub.querySelector(".folder-browse-images-grid");
+  if (grid) {
+    for (const cols of FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS) {
+      grid.classList.toggle(`folder-browse-images-grid--cols-${cols}`, folderBrowseImagesColumns === cols);
+    }
+  }
+  for (const btn of hub.querySelectorAll(".folder-browse-images-cols-btn")) {
+    const cols = Number(btn.dataset.cols);
+    const active = cols === folderBrowseImagesColumns;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+  for (const card of hub.querySelectorAll(".folder-browse-image-card")) {
+    const path = card.dataset.folderBrowsePath;
+    const img = card.querySelector(".folder-browse-image-thumb img");
+    if (!path || !img) continue;
+    const nextSrc = resolveFolderBrowseGridImageUrl(path);
+    if (img.getAttribute("src") !== nextSrc) {
+      img.src = nextSrc;
+    }
+    card.querySelector(".folder-browse-image-thumb")?.classList.toggle(
+      "folder-browse-image-thumb--original",
+      folderBrowseImagesColumns === 1
+    );
+  }
+}
+
+function createFolderBrowseImagesColumnsToggle() {
+  const control = document.createElement("div");
+  control.className = "folder-browse-images-cols-control";
+  const label = document.createElement("span");
+  label.className = "folder-browse-images-cols-label";
+  label.textContent = "Колонок:";
+  const toggle = document.createElement("div");
+  toggle.className = "folder-browse-images-cols-toggle";
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "Количество колонок");
+  for (const cols of FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "folder-browse-images-cols-btn";
+    btn.dataset.cols = String(cols);
+    btn.textContent = String(cols);
+    btn.title = cols === 1 ? "1 колонка" : `${cols} колонки`;
+    const active = folderBrowseImagesColumns === cols;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+    btn.addEventListener("click", () => {
+      setFolderBrowseImagesColumns(cols);
+    });
+    toggle.appendChild(btn);
+  }
+  control.append(label, toggle);
+  return control;
+}
+
+function createFolderBrowseSection(title, emptyMessage, count = null, options = {}) {
   const section = document.createElement("section");
   section.className = "folder-browse-section";
+  const head = document.createElement("div");
+  head.className = "folder-browse-section-head";
   const heading = document.createElement("h2");
   heading.className = "folder-browse-section-title";
   heading.textContent = title;
-  section.appendChild(heading);
+  if (Number.isFinite(count) && count > 0) {
+    const countNode = document.createElement("span");
+    countNode.className = "folder-browse-section-count";
+    countNode.textContent = String(count);
+    heading.appendChild(countNode);
+  }
+  if (options.imageColumnsToggle) {
+    head.classList.add("folder-browse-section-head--with-actions");
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "folder-browse-section-title-wrap";
+    titleWrap.appendChild(heading);
+    head.append(titleWrap, createFolderBrowseImagesColumnsToggle());
+  } else {
+    head.appendChild(heading);
+  }
+  section.appendChild(head);
+  const body = document.createElement("div");
+  body.className = "folder-browse-section-body";
+  section.appendChild(body);
   section.dataset.emptyMessage = emptyMessage || "";
+  section._folderBrowseBody = body;
   return section;
 }
 
@@ -49679,7 +50341,11 @@ function appendFolderBrowseEmpty(section, message) {
   const empty = document.createElement("p");
   empty.className = "folder-browse-empty";
   empty.textContent = message;
-  section.appendChild(empty);
+  (section._folderBrowseBody || section).appendChild(empty);
+}
+
+function getFolderBrowseSectionBody(section) {
+  return section._folderBrowseBody || section;
 }
 
 async function openFolderBrowseFromMenu(label, folderPath, options = {}) {
@@ -49693,7 +50359,9 @@ async function openFolderBrowseFromMenu(label, folderPath, options = {}) {
   activePath = null;
   activeLabel = label || normalizedFolder.split("/").pop() || normalizedFolder;
   activeFolderBrowsePath = normalizedFolder;
+  activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
+  clearFolderBrowseSelection();
   activeExternalFilePath = null;
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
@@ -49702,8 +50370,124 @@ async function openFolderBrowseFromMenu(label, folderPath, options = {}) {
   updateActiveButton();
   applyModeUi();
   if (!options.skipRouteSync) {
-    syncAppRouteToUrl({ replace: true });
+    syncAppRouteToUrl({ push: true });
   }
+}
+
+function getFolderBrowseParentPath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return ".";
+  return normalized.slice(0, idx);
+}
+
+function clearFolderBrowseSelection() {
+  folderBrowseSelectedPaths.clear();
+  folderBrowseSelectionAnchor = null;
+  syncFolderBrowseSelectionUi();
+}
+
+function isFolderBrowseSelectionMode() {
+  return activeContentMode === FOLDER_BROWSE_MODE && Boolean(activeFolderBrowsePath);
+}
+
+function getFolderBrowseFormatBadge(name, ext) {
+  const rawExt = String(ext || "").replace(/^\./, "");
+  if (rawExt) return rawExt.toUpperCase();
+  const fromName = String(name || "").split(".").pop() || "";
+  if (fromName && fromName !== name) return fromName.toUpperCase();
+  return "FILE";
+}
+
+function getFolderBrowseFileIconClass(name, ext) {
+  const rawExt = String(ext || "").replace(/^\./, "").toLowerCase();
+  const fromName = String(name || "").split(".").pop()?.toLowerCase() || "";
+  const token = rawExt || fromName || "file";
+  return `folder-browse-file-icon--${token.replace(/[^a-z0-9]+/g, "") || "file"}`;
+}
+
+function appendFolderBrowseFileIcon(container, name, ext) {
+  const icon = document.createElement("span");
+  icon.className = `folder-browse-file-icon ${getFolderBrowseFileIconClass(name, ext)}`;
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = getFolderBrowseFormatBadge(name, ext).slice(0, 4);
+  container.appendChild(icon);
+  return icon;
+}
+
+function appendFolderBrowseViewButton(container, { label = "Просмотр", onActivate } = {}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "folder-browse-view-btn";
+  btn.textContent = label;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof onActivate === "function") void onActivate();
+  });
+  container.appendChild(btn);
+  return btn;
+}
+
+function getFolderBrowseFileKindFromName(name) {
+  const ext = String(name || "").toLowerCase().match(/\.[^.]+$/)?.[0] || "";
+  if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".avif", ".heic"].includes(ext)) {
+    return "image";
+  }
+  if (ext === ".md") return "page";
+  if ([".mp4", ".webm", ".mov", ".mkv", ".m4v"].includes(ext)) return "video";
+  if ([".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"].includes(ext)) return "audio";
+  return "other";
+}
+
+async function openFolderBrowseFile(label, filePath, options = {}) {
+  const normalizedFile = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalizedFile) return;
+  const parentFolder = normalizeCreateParentPath(
+    options.folderPath || getFolderBrowseParentPath(normalizedFile)
+  );
+
+  hideHomeView();
+  nodeOverviewRenderSeq += 1;
+  clearActiveSystemFile();
+  clearActiveThreadScope();
+  activePath = null;
+  activeLabel = label || normalizedFile.split("/").pop() || normalizedFile;
+  activeFolderBrowsePath = parentFolder;
+  activeFolderBrowseFilePath = normalizedFile;
+  folderBrowseExpandedPagePath = null;
+  clearFolderBrowseSelection();
+  activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  clearMediaSidecarEditor();
+  applyContentModeState(FOLDER_BROWSE_FILE_MODE);
+  updateActiveButton();
+  applyModeUi();
+  updateBreadcrumbsForActiveMode();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
+}
+
+function destroyFolderBrowseFancybox() {
+  if (typeof Fancybox === "undefined") return;
+  try {
+    Fancybox.close(true);
+    Fancybox.destroy();
+  } catch {
+    // ignore
+  }
+}
+
+function initFolderBrowseFancybox(container, items = []) {
+  if (typeof Fancybox === "undefined" || !container) return;
+  destroyFolderBrowseFancybox();
+  const gallery = Array.isArray(items) ? items : [];
+  Fancybox.bind(container, "[data-fancybox='folder-browse']", {
+    groupAll: true,
+    Carousel: { infinite: gallery.length > 1 }
+  });
 }
 
 async function fetchWorkspaceFolderBrowse(folderPath) {
@@ -49714,47 +50498,535 @@ async function fetchWorkspaceFolderBrowse(folderPath) {
   return response.json();
 }
 
+function collectFolderBrowseListingItems(data) {
+  if (!data) return [];
+  return [
+    ...(data.folders || []).map((item) => ({ ...item, path: item.folderPath })),
+    ...(data.images || []),
+    ...(data.pages || []),
+    ...(data.videos || []),
+    ...(data.audio || []),
+    ...(data.other || [])
+  ];
+}
+
+async function tryOpenUnknownPathAsAdoptFile(workspacePath) {
+  const filePath = String(workspacePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!filePath) return false;
+  const fileName = filePath.split("/").pop() || "";
+  if (!fileName || fileName.startsWith(".") || !fileName.includes(".")) return false;
+
+  const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(filePath));
+  if (!folderPath || folderPath === ".") return false;
+
+  let data;
+  try {
+    data = await fetchWorkspaceFolderBrowse(folderPath);
+  } catch {
+    return false;
+  }
+  if (!data?.exists) return false;
+
+  const listed = collectFolderBrowseListingItems(data);
+  if (!listed.some((item) => item.path === filePath)) return false;
+
+  await openFolderBrowseFile(fileName, filePath, { folderPath, skipRouteSync: true });
+  return true;
+}
+
 async function fetchWorkspaceFolderPage(filePath) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/page", { file: filePath }));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
 
+async function renameWorkspaceFolderItem(path, newName) {
+  const response = await fetch(buildApiUrl("/api/workspace/folder/rename"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, newName })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function moveWorkspaceFolderItem(path, parentPath) {
+  const response = await fetch(buildApiUrl("/api/workspace/folder/move"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, parentPath })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function deleteWorkspaceFolderItems(paths) {
+  const response = await fetch(buildApiUrl("/api/workspace/folder/delete"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paths })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+function syncFolderBrowseSelectionToolbar(toolbar) {
+  if (!toolbar) return;
+  const count = folderBrowseSelectedPaths.size;
+  toolbar.classList.toggle("is-active", count > 0);
+  const countNode = toolbar.querySelector(".folder-browse-toolbar-count");
+  if (countNode) countNode.textContent = String(count);
+  const renameBtn = toolbar.querySelector('[data-action="rename"]');
+  if (renameBtn) renameBtn.disabled = count !== 1;
+}
+
+function syncFolderBrowseDeleteSelectedButton() {
+  if (!folderBrowseDeleteSelectedBtn) return;
+  const count = folderBrowseSelectedPaths.size;
+  const inBrowse =
+    activeFolderBrowsePath &&
+    (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE);
+  const visible = inBrowse && count > 0;
+  folderBrowseDeleteSelectedBtn.classList.toggle("hidden", !visible);
+  folderBrowseDeleteSelectedBtn.disabled = count === 0;
+  const countNode = folderBrowseDeleteSelectedBtn.querySelector(".folder-browse-delete-selected-count");
+  if (countNode) countNode.textContent = String(count);
+  const label = count === 1 ? "Удалить выбранный элемент" : `Удалить ${count} выбранных`;
+  folderBrowseDeleteSelectedBtn.title = count > 0 ? label : "Удалить выбранные элементы";
+  folderBrowseDeleteSelectedBtn.setAttribute("aria-label", count > 0 ? label : "Удалить выбранные");
+}
+
+function normalizeFolderBrowseItemPath(itemPath) {
+  return String(itemPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function syncFolderBrowseSelectionUi() {
+  const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
+  syncFolderBrowseSelectionToolbar(hub?.querySelector(".folder-browse-toolbar"));
+  syncFolderBrowseDeleteSelectedButton();
+  for (const card of hub?.querySelectorAll("[data-folder-browse-path]") || []) {
+    const path = card.dataset.folderBrowsePath;
+    card.classList.toggle("is-selected", folderBrowseSelectedPaths.has(path));
+  }
+}
+
+function getFolderBrowseSelectionScopePaths(scopeCard) {
+  const scope =
+    scopeCard?.closest(
+      ".folder-browse-images-grid, .folder-browse-folder-grid, .folder-browse-pages-grid, .folder-browse-media-list, .folder-browse-other-list"
+    ) || nodeOverviewContentNode?.querySelector(".folder-browse-hub");
+  if (!scope) return [];
+  return [...scope.querySelectorAll(".folder-browse-item-card[data-folder-browse-path]")]
+    .map((el) => el.dataset.folderBrowsePath)
+    .filter(Boolean);
+}
+
+function applyFolderBrowseItemSelection(itemPath, { multi = false, shift = false, scopeCard = null } = {}) {
+  const normalized = normalizeFolderBrowseItemPath(itemPath);
+  if (!normalized) return;
+
+  if (shift) {
+    const paths = getFolderBrowseSelectionScopePaths(scopeCard);
+    let anchor = folderBrowseSelectionAnchor;
+    if (!anchor && folderBrowseSelectedPaths.size > 0) {
+      anchor = normalizeFolderBrowseItemPath(Array.from(folderBrowseSelectedPaths)[0]);
+    }
+    if (!anchor && paths.length) anchor = paths[0];
+    const start = anchor ? paths.indexOf(anchor) : -1;
+    const end = paths.indexOf(normalized);
+    if (start >= 0 && end >= 0) {
+      if (!multi) folderBrowseSelectedPaths.clear();
+      const [from, to] = start <= end ? [start, end] : [end, start];
+      for (let i = from; i <= to; i += 1) folderBrowseSelectedPaths.add(paths[i]);
+      folderBrowseSelectionAnchor = normalized;
+      syncFolderBrowseSelectionUi();
+      return;
+    }
+  }
+
+  if (multi) {
+    if (folderBrowseSelectedPaths.has(normalized)) folderBrowseSelectedPaths.delete(normalized);
+    else folderBrowseSelectedPaths.add(normalized);
+    folderBrowseSelectionAnchor = normalized;
+    syncFolderBrowseSelectionUi();
+    return;
+  }
+
+  if (folderBrowseSelectedPaths.size === 1 && folderBrowseSelectedPaths.has(normalized)) {
+    folderBrowseSelectedPaths.clear();
+    folderBrowseSelectionAnchor = null;
+    syncFolderBrowseSelectionUi();
+    return;
+  }
+
+  folderBrowseSelectedPaths.clear();
+  folderBrowseSelectedPaths.add(normalized);
+  folderBrowseSelectionAnchor = normalized;
+  syncFolderBrowseSelectionUi();
+}
+
+function isFolderBrowseSelectionActionTarget(target) {
+  return Boolean(
+    target?.closest?.(
+      ".folder-browse-view-btn, .folder-browse-lightbox-btn, [data-fancybox], .folder-browse-card-actions a[href]"
+    )
+  );
+}
+
+function readFolderBrowsePointerModifiers(event) {
+  return {
+    multi: Boolean(event.metaKey || event.ctrlKey),
+    shift: Boolean(event.shiftKey)
+  };
+}
+
+function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onActivate }) {
+  const normalized = normalizeFolderBrowseItemPath(path);
+  card.dataset.folderBrowsePath = normalized;
+  card.dataset.isDirectory = isDirectory ? "1" : "0";
+  card.classList.toggle("is-selected", folderBrowseSelectedPaths.has(normalized));
+
+  let pendingSelectModifiers = null;
+
+  const rememberPointerModifiers = (event) => {
+    if (event.button !== 0) return;
+    if (isFolderBrowseSelectionActionTarget(event.target)) return;
+    pendingSelectModifiers = readFolderBrowsePointerModifiers(event);
+    if (pendingSelectModifiers.multi) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  card.addEventListener("pointerdown", rememberPointerModifiers, true);
+  card.addEventListener("mousedown", rememberPointerModifiers, true);
+
+  card.addEventListener("click", (event) => {
+    if (isFolderBrowseSelectionActionTarget(event.target)) return;
+    const stored = pendingSelectModifiers;
+    pendingSelectModifiers = null;
+    const multi = Boolean(stored?.multi || event.metaKey || event.ctrlKey);
+    const shift = Boolean(stored?.shift || event.shiftKey);
+    if (multi || shift) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    applyFolderBrowseItemSelection(normalized, {
+      multi,
+      shift,
+      scopeCard: card
+    });
+  });
+
+  card.addEventListener("dragstart", (event) => {
+    if (event.target instanceof HTMLImageElement) event.preventDefault();
+  });
+
+  card.addEventListener("dblclick", (event) => {
+    if (isFolderBrowseSelectionActionTarget(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof onActivate === "function") void onActivate();
+  });
+}
+
+function getFolderBrowseItemIsDirectory(path) {
+  const normalized = String(path || "").replace(/\\/g, "/");
+  for (const card of nodeOverviewContentNode?.querySelectorAll("[data-folder-browse-path]") || []) {
+    if (card.dataset.folderBrowsePath === normalized) {
+      return card.dataset.isDirectory === "1";
+    }
+  }
+  return false;
+}
+
+function appendFolderBrowseItemMeta(card, item, { ext } = {}) {
+  const meta = document.createElement("div");
+  meta.className = "folder-browse-item-meta";
+  const badge = document.createElement("span");
+  badge.className = "folder-browse-format-badge";
+  badge.textContent = getFolderBrowseFormatBadge(item.name, ext || item.ext);
+  meta.appendChild(badge);
+  if (item.size) {
+    const sizeNode = document.createElement("span");
+    sizeNode.className = "folder-browse-size-badge";
+    sizeNode.textContent = formatFileSize(item.size);
+    meta.appendChild(sizeNode);
+  }
+  card.appendChild(meta);
+}
+
+function appendFolderBrowseImageFooter(card, item) {
+  const footer = document.createElement("div");
+  footer.className = "folder-browse-image-footer";
+  const nameNode = document.createElement("span");
+  nameNode.className = "folder-browse-image-name";
+  nameNode.textContent = item.name;
+  nameNode.title = item.name;
+  footer.appendChild(nameNode);
+  if (item.size) {
+    const sizeNode = document.createElement("span");
+    sizeNode.className = "folder-browse-image-size";
+    sizeNode.textContent = formatFileSize(item.size);
+    footer.appendChild(sizeNode);
+  }
+  card.appendChild(footer);
+}
+
+function getFolderBrowseNavigableFilePaths(data) {
+  if (!data) return [];
+  return [
+    ...(data.images || []).map((item) => item.path),
+    ...(data.pages || []).map((item) => item.path),
+    ...(data.videos || []).map((item) => item.path),
+    ...(data.audio || []).map((item) => item.path),
+    ...(data.other || []).map((item) => item.path)
+  ];
+}
+
+function getFolderBrowseAdjacentFilePath(data, currentPath, delta) {
+  const paths = getFolderBrowseNavigableFilePaths(data);
+  const index = paths.indexOf(currentPath);
+  if (index < 0 || paths.length < 2) return null;
+  return paths[(index + delta + paths.length) % paths.length];
+}
+
+async function navigateFolderBrowseAdjacentFile(delta) {
+  if (!activeFolderBrowseFilePath || !activeFolderBrowsePath) return;
+  try {
+    const data = await fetchWorkspaceFolderBrowse(activeFolderBrowsePath);
+    const nextPath = getFolderBrowseAdjacentFilePath(data, activeFolderBrowseFilePath, delta);
+    if (!nextPath || nextPath === activeFolderBrowseFilePath) return;
+    const item = collectFolderBrowseListingItems(data).find((entry) => entry.path === nextPath);
+    const label = item?.title || item?.name || nextPath.split("/").pop() || nextPath;
+    await openFolderBrowseFile(label, nextPath, { folderPath: activeFolderBrowsePath, skipRouteSync: true });
+    syncAppRouteToUrl({ replace: true });
+  } catch (error) {
+    showToast(`Ошибка навигации: ${error.message}`, "error");
+  }
+}
+
+function syncFolderBrowseFileActionButtons() {
+  const inFileMode =
+    activeContentMode === FOLDER_BROWSE_FILE_MODE && Boolean(activeFolderBrowseFilePath);
+  folderBrowseFileRenameBtn?.classList.toggle("hidden", !inFileMode);
+  folderBrowseFileDeleteBtn?.classList.toggle("hidden", !inFileMode);
+}
+
+async function promptRenameWorkspaceFolderItem({ path, label, isDirectory = false }) {
+  const currentName = label || path.split("/").pop() || path;
+  const nextName = window.prompt(isDirectory ? "Новое имя папки:" : "Новое имя файла:", currentName);
+  if (nextName == null) return;
+  const trimmed = nextName.trim();
+  if (!trimmed || trimmed === currentName) return;
+  try {
+    const data = await renameWorkspaceFolderItem(path, trimmed);
+    invalidateMenuAgentCache(activeAgentId);
+    await refreshMenu();
+    if (activeFolderBrowseFilePath === path && data.path) {
+      await openFolderBrowseFile(trimmed, data.path, { folderPath: activeFolderBrowsePath, skipRouteSync: true });
+      syncAppRouteToUrl({ replace: true });
+    } else if (normalizeCreateParentPath(activeFolderBrowsePath) === path) {
+      await openFolderBrowseFromMenu(trimmed, data.path, { skipRouteSync: true });
+      syncAppRouteToUrl({ replace: true });
+    } else if (normalizeCreateParentPath(activeFolderBrowsePath) === getFolderBrowseParentPath(path)) {
+      clearFolderBrowseSelection();
+      await renderFolderBrowseView();
+    }
+    showToast("Переименовано", "success");
+  } catch (error) {
+    showToast(`Ошибка переименования: ${error.message}`, "error");
+  }
+}
+
+async function promptMoveWorkspaceFolderItem(path) {
+  const parentPath = await askMoveTarget({
+    title: "Переместить",
+    hint: "Укажите родительскую папку (путь от корня workspace).",
+    pathLabel: "Родительская папка",
+    defaultPath: getFolderBrowseParentPath(path)
+  });
+  if (parentPath == null || parentPath === "") return;
+  try {
+    const data = await moveWorkspaceFolderItem(path, parentPath);
+    invalidateMenuAgentCache(activeAgentId);
+    await refreshMenu();
+    if (activeFolderBrowseFilePath === path && data.path) {
+      await openFolderBrowseFile(getLabelFromPath(data.path), data.path, {
+        folderPath: parentPath,
+        skipRouteSync: true
+      });
+      syncAppRouteToUrl({ replace: true });
+    } else if (normalizeCreateParentPath(activeFolderBrowsePath) === path && data.path) {
+      await openFolderBrowseFromMenu(getLabelFromPath(data.path), data.path, { skipRouteSync: true });
+      syncAppRouteToUrl({ replace: true });
+    } else {
+      clearFolderBrowseSelection();
+      await renderFolderBrowseView();
+    }
+    showToast("Перемещено", "success");
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+  }
+}
+
+async function deleteWorkspaceFolderSelection(paths = null) {
+  const targets = paths ? paths.slice() : Array.from(folderBrowseSelectedPaths);
+  if (!targets.length) return;
+  const question =
+    targets.length === 1
+      ? `Удалить «${targets[0].split("/").pop()}»?`
+      : `Удалить выбранные элементы (${targets.length})?`;
+  const confirmed = await askConfirm(question);
+  if (!confirmed) return;
+  try {
+    await deleteWorkspaceFolderItems(targets);
+    invalidateMenuAgentCache(activeAgentId);
+    clearFolderBrowseSelection();
+    if (activeFolderBrowseFilePath && targets.includes(activeFolderBrowseFilePath)) {
+      activeFolderBrowseFilePath = null;
+      applyContentModeState(FOLDER_BROWSE_MODE);
+      syncAppRouteToUrl({ replace: true });
+    }
+    await refreshMenu();
+    await renderFolderBrowseView();
+    showToast("Удалено", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
+  }
+}
+
+async function deleteWorkspaceFolderItemByPath(path, label) {
+  const confirmed = await askConfirm(`Удалить «${label || path.split("/").pop()}»?`);
+  if (!confirmed) return;
+  try {
+    await deleteWorkspaceFolderItems([path]);
+    invalidateMenuAgentCache(activeAgentId);
+    if (activeFolderBrowseFilePath === path) {
+      activeFolderBrowseFilePath = null;
+      applyContentModeState(FOLDER_BROWSE_MODE);
+      syncAppRouteToUrl({ replace: true });
+    } else if (normalizeCreateParentPath(activeFolderBrowsePath) === path) {
+      const parentPath = getFolderBrowseParentPath(path);
+      activeFolderBrowseFilePath = null;
+      if (parentPath && parentPath !== ".") {
+        await openFolderBrowseFromMenu(getLabelFromPath(parentPath), parentPath, { skipRouteSync: true });
+        syncAppRouteToUrl({ replace: true });
+      } else {
+        activeFolderBrowsePath = null;
+        showHomeView();
+      }
+      await refreshMenu();
+      showToast("Удалено", "success");
+      return;
+    }
+    await refreshMenu();
+    if (activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+      await openFolderBrowseFromMenu(activeLabel, activeFolderBrowsePath, { skipRouteSync: true });
+    } else {
+      clearFolderBrowseSelection();
+      await renderFolderBrowseView();
+    }
+    showToast("Удалено", "success");
+  } catch (error) {
+    showToast(`Ошибка удаления: ${error.message}`, "error");
+  }
+}
+
+function renderFolderBrowseToolbar(hub) {
+  const toolbar = document.createElement("div");
+  toolbar.className = "folder-browse-toolbar";
+  toolbar.innerHTML = `
+    <span class="folder-browse-toolbar-label">Выбрано: <span class="folder-browse-toolbar-count">0</span></span>
+    <button type="button" class="folder-browse-toolbar-btn" data-action="rename">Переименовать</button>
+    <button type="button" class="folder-browse-toolbar-btn folder-browse-toolbar-btn--ghost" data-action="clear">Снять выбор</button>
+  `;
+  toolbar.querySelector('[data-action="rename"]')?.addEventListener("click", () => {
+    const path = Array.from(folderBrowseSelectedPaths)[0];
+    if (!path) return;
+    void promptRenameWorkspaceFolderItem({
+      path,
+      label: path.split("/").pop(),
+      isDirectory: getFolderBrowseItemIsDirectory(path)
+    });
+  });
+  toolbar.querySelector('[data-action="clear"]')?.addEventListener("click", () => {
+    clearFolderBrowseSelection();
+    syncFolderBrowseSelectionUi();
+  });
+  syncFolderBrowseSelectionToolbar(toolbar);
+  hub.appendChild(toolbar);
+}
+
 function renderFolderBrowseImagesSection(section, items, folderPath) {
+  const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
     appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет изображений");
     return;
   }
   const grid = document.createElement("div");
-  grid.className = "media-images-grid folder-browse-images-grid";
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${folderBrowseImagesColumns}`;
   for (const item of items) {
     const card = document.createElement("article");
-    card.className = "media-image-card folder-browse-image-card";
+    card.className = "folder-browse-image-card folder-browse-item-card";
+    card.title = `${item.name} — клик: выделить, Cmd/Ctrl+клик или Shift+клик: несколько, «Просмотр»: открыть`;
+
+    const body = document.createElement("div");
+    body.className = "folder-browse-image-open";
     const imgWrap = document.createElement("div");
-    imgWrap.className = "media-image-thumb";
+    imgWrap.className = "folder-browse-image-thumb";
+    if (folderBrowseImagesColumns === 1) {
+      imgWrap.classList.add("folder-browse-image-thumb--original");
+    }
     const img = document.createElement("img");
     img.alt = item.name;
     img.loading = "lazy";
-    img.src = item.previewUrl || buildWorkspaceFolderBrowseFileUrl(item.path, { thumb: true, max: MEDIA_THUMB_MAX_GRID });
-    img.addEventListener("click", () => {
-      window.open(buildWorkspaceFolderBrowseFileUrl(item.path), "_blank", "noopener,noreferrer");
-    });
+    img.src = resolveFolderBrowseGridImageUrl(item.path);
+    attachFolderBrowseImageFallback(img);
     imgWrap.appendChild(img);
-    const nameNode = document.createElement("div");
-    nameNode.className = "media-image-name";
-    nameNode.textContent = item.name;
-    const metaNode = document.createElement("div");
-    metaNode.className = "folder-browse-file-meta";
-    metaNode.textContent = formatFileSize(item.size);
-    card.appendChild(imgWrap);
-    card.appendChild(nameNode);
-    card.appendChild(metaNode);
+    body.appendChild(imgWrap);
+    appendFolderBrowseImageFooter(body, item);
+    card.appendChild(body);
+
+    const lightboxLink = document.createElement("a");
+    lightboxLink.className = "folder-browse-lightbox-btn";
+    lightboxLink.href = buildWorkspaceFolderBrowseFileUrl(item.path);
+    lightboxLink.dataset.fancybox = "folder-browse";
+    lightboxLink.dataset.caption = item.name;
+    lightboxLink.title = "Lightbox";
+    lightboxLink.textContent = "⤢";
+    lightboxLink.addEventListener("click", (event) => event.stopPropagation());
+
+    const actions = document.createElement("div");
+    actions.className = "folder-browse-card-actions";
+    appendFolderBrowseViewButton(actions, {
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+    actions.appendChild(lightboxLink);
+    card.appendChild(actions);
+
+    bindFolderBrowseSelectableCard(card, {
+      path: item.path,
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+
     grid.appendChild(card);
   }
-  section.appendChild(grid);
+  body.appendChild(grid);
+  initFolderBrowseFancybox(body.closest(".folder-browse-hub") || body, items);
 }
 
-function renderFolderBrowseFoldersSection(section, items, label) {
+function renderFolderBrowseFoldersSection(section, items) {
+  const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
     appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет вложенных папок");
     return;
@@ -49762,58 +51034,42 @@ function renderFolderBrowseFoldersSection(section, items, label) {
   const grid = document.createElement("div");
   grid.className = "folder-browse-folder-grid";
   for (const item of items) {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "folder-browse-folder-card";
-    card.innerHTML = `
-      <span class="folder-browse-folder-icon" aria-hidden="true">📁</span>
-      <span class="folder-browse-folder-name">${escapeHtml(item.name)}</span>
-      <span class="folder-browse-folder-meta">${item.itemCount || 0} элементов</span>
+    const card = document.createElement("article");
+    card.className = "folder-browse-folder-card folder-browse-item-card";
+    card.title = `${item.name} — клик: выделить, «Открыть»: перейти в папку`;
+
+    const body = document.createElement("div");
+    body.className = "folder-browse-folder-open";
+    body.innerHTML = `
+      <span class="folder-browse-folder-icon" aria-hidden="true"></span>
+      <div class="folder-browse-folder-body">
+        <span class="folder-browse-folder-name">${escapeHtml(item.name)}</span>
+        <span class="folder-browse-folder-meta">${item.itemCount || 0} эл.</span>
+      </div>
     `;
-    card.addEventListener("click", () => {
-      void openFolderBrowseFromMenu(item.name, item.folderPath);
+    card.appendChild(body);
+
+    const actions = document.createElement("div");
+    actions.className = "folder-browse-card-actions";
+    appendFolderBrowseViewButton(actions, {
+      label: "Открыть",
+      onActivate: () => openFolderBrowseFromMenu(item.name, item.folderPath)
     });
+    card.appendChild(actions);
+
+    bindFolderBrowseSelectableCard(card, {
+      path: item.folderPath,
+      isDirectory: true,
+      onActivate: () => openFolderBrowseFromMenu(item.name, item.folderPath)
+    });
+
     grid.appendChild(card);
   }
-  section.appendChild(grid);
-}
-
-async function toggleFolderBrowsePagePreview(card, page, folderPath) {
-  const existing = card.querySelector(".folder-browse-page-preview");
-  const hub = card.closest(".folder-browse-hub");
-  if (hub) {
-    for (const expandedCard of hub.querySelectorAll(".folder-browse-page-card.is-expanded")) {
-      if (expandedCard !== card) {
-        expandedCard.classList.remove("is-expanded");
-        expandedCard.querySelector(".folder-browse-page-preview")?.remove();
-      }
-    }
-  }
-  if (existing) {
-    existing.remove();
-    folderBrowseExpandedPagePath = null;
-    card.classList.remove("is-expanded");
-    return;
-  }
-
-  card.classList.add("is-expanded");
-  folderBrowseExpandedPagePath = page.path;
-  const preview = document.createElement("div");
-  preview.className = "folder-browse-page-preview file-content-preview";
-  preview.textContent = "Загрузка…";
-  card.appendChild(preview);
-
-  try {
-    const data = await fetchWorkspaceFolderPage(page.path);
-    const body = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", folderPath);
-    preview.innerHTML = renderMarkdownToHtml(body, { nodePath: page.path });
-    void typesetMarkdownDiagrams(preview);
-  } catch (error) {
-    preview.textContent = `Ошибка загрузки: ${error.message || error}`;
-  }
+  body.appendChild(grid);
 }
 
 function renderFolderBrowsePagesSection(section, items, folderPath) {
+  const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
     appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет markdown-страниц");
     return;
@@ -49822,88 +51078,80 @@ function renderFolderBrowsePagesSection(section, items, folderPath) {
   grid.className = "folder-browse-pages-grid";
   for (const page of items) {
     const card = document.createElement("article");
-    card.className = "folder-browse-page-card";
-    if (folderBrowseExpandedPagePath === page.path) {
-      card.classList.add("is-expanded");
-    }
+    card.className = "folder-browse-page-card folder-browse-item-card";
+    card.title = `${page.title || page.name} — клик: выделить, «Просмотр»: открыть страницу`;
 
-    const openBtn = document.createElement("button");
-    openBtn.type = "button";
-    openBtn.className = "folder-browse-page-open";
-    if (page.previewUrl) {
+    const body = document.createElement("div");
+    body.className = "folder-browse-page-open";
+    const previewSrc = resolveWorkspaceFolderBrowseAssetUrl(page.previewUrl, null, {
+      thumb: true,
+      max: MEDIA_THUMB_MAX_GRID
+    });
+    if (previewSrc) {
       const thumb = document.createElement("div");
       thumb.className = "folder-browse-page-thumb";
       const img = document.createElement("img");
       img.alt = page.title || page.name;
       img.loading = "lazy";
-      img.src = page.previewUrl;
+      img.src = previewSrc;
+      attachFolderBrowseImageFallback(img);
       thumb.appendChild(img);
-      openBtn.appendChild(thumb);
+      body.appendChild(thumb);
     } else {
       const fallback = document.createElement("div");
       fallback.className = "folder-browse-page-thumb folder-browse-page-thumb--empty";
-      fallback.textContent = "📄";
-      openBtn.appendChild(fallback);
+      fallback.setAttribute("aria-hidden", "true");
+      body.appendChild(fallback);
     }
 
-    const body = document.createElement("div");
-    body.className = "folder-browse-page-body";
+    const bodyNode = document.createElement("div");
+    bodyNode.className = "folder-browse-page-body";
     const titleNode = document.createElement("div");
     titleNode.className = "folder-browse-page-title";
     titleNode.textContent = page.title || page.name;
-    body.appendChild(titleNode);
+    bodyNode.appendChild(titleNode);
     if (page.excerpt) {
       const excerptNode = document.createElement("p");
       excerptNode.className = "folder-browse-page-excerpt";
       excerptNode.textContent = page.excerpt;
-      body.appendChild(excerptNode);
+      bodyNode.appendChild(excerptNode);
     }
-    const metaParts = [];
-    if (page.status) metaParts.push(page.status);
-    if (page.updatedAt) metaParts.push(new Date(page.updatedAt).toLocaleString("ru-RU"));
-    if (metaParts.length) {
-      const metaNode = document.createElement("div");
-      metaNode.className = "folder-browse-file-meta";
-      metaNode.textContent = metaParts.join(" · ");
-      body.appendChild(metaNode);
-    }
-    openBtn.appendChild(body);
+    appendFolderBrowseItemMeta(bodyNode, page, { ext: ".md" });
+    body.appendChild(bodyNode);
 
-    openBtn.addEventListener("click", () => {
-      if (page.manifestPath) {
-        void openNodeFromMenu(page.title || page.name, page.manifestPath);
-        return;
-      }
-      void toggleFolderBrowsePagePreview(card, page, folderPath);
-    });
+    card.appendChild(body);
 
     const actions = document.createElement("div");
-    actions.className = "folder-browse-page-actions";
-    const previewBtn = document.createElement("button");
-    previewBtn.type = "button";
-    previewBtn.className = "ghost-btn folder-browse-page-preview-btn";
-    previewBtn.textContent = page.manifestPath ? "Открыть тему" : "Просмотр";
-    previewBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (page.manifestPath) {
-        void openNodeFromMenu(page.title || page.name, page.manifestPath);
-        return;
+    actions.className = "folder-browse-card-actions";
+    appendFolderBrowseViewButton(actions, {
+      onActivate: () => {
+        if (page.manifestPath) {
+          void openNodeFromMenu(page.title || page.name, page.manifestPath);
+          return;
+        }
+        void openFolderBrowseFile(page.title || page.name, page.path, { folderPath });
       }
-      void toggleFolderBrowsePagePreview(card, page, folderPath);
     });
-    actions.appendChild(previewBtn);
-    card.appendChild(openBtn);
     card.appendChild(actions);
-    grid.appendChild(card);
 
-    if (folderBrowseExpandedPagePath === page.path) {
-      void toggleFolderBrowsePagePreview(card, page, folderPath);
-    }
+    bindFolderBrowseSelectableCard(card, {
+      path: page.path,
+      onActivate: () => {
+        if (page.manifestPath) {
+          void openNodeFromMenu(page.title || page.name, page.manifestPath);
+          return;
+        }
+        void openFolderBrowseFile(page.title || page.name, page.path, { folderPath });
+      }
+    });
+
+    grid.appendChild(card);
   }
-  section.appendChild(grid);
+  body.appendChild(grid);
 }
 
-function renderFolderBrowseMediaListSection(section, items, { kind = "video" } = {}) {
+function renderFolderBrowseMediaListSection(section, items, { kind = "video", folderPath } = {}) {
+  const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
     appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет файлов");
     return;
@@ -49912,35 +51160,41 @@ function renderFolderBrowseMediaListSection(section, items, { kind = "video" } =
   list.className = "folder-browse-media-list";
   for (const item of items) {
     const row = document.createElement("article");
-    row.className = "folder-browse-media-item";
-    const meta = document.createElement("div");
-    meta.className = "folder-browse-media-meta";
-    meta.innerHTML = `
-      <div class="media-file-name">${escapeHtml(item.name)}</div>
-      <div class="folder-browse-file-meta">${escapeHtml(formatFileSize(item.size))}</div>
-    `;
-    row.appendChild(meta);
-    if (kind === "video") {
-      const video = document.createElement("video");
-      video.className = "media-video-player";
-      video.controls = true;
-      video.preload = "metadata";
-      video.src = item.previewUrl || buildWorkspaceFolderBrowseFileUrl(item.path);
-      row.appendChild(video);
-    } else {
-      const audio = document.createElement("audio");
-      audio.className = "media-audio-player";
-      audio.controls = true;
-      audio.preload = "none";
-      audio.src = item.previewUrl || buildWorkspaceFolderBrowseFileUrl(item.path);
-      row.appendChild(audio);
-    }
+    row.className = "folder-browse-media-item folder-browse-item-card";
+    row.title = `${item.name} — клик: выделить, «Просмотр»: открыть файл`;
+
+    const head = document.createElement("div");
+    head.className = "folder-browse-media-head";
+    appendFolderBrowseFileIcon(head, item.name, item.ext);
+    const nameWrap = document.createElement("div");
+    nameWrap.className = "folder-browse-media-name-wrap";
+    const nameNode = document.createElement("span");
+    nameNode.className = "folder-browse-media-name";
+    nameNode.textContent = item.name;
+    nameWrap.appendChild(nameNode);
+    appendFolderBrowseItemMeta(nameWrap, item);
+    head.appendChild(nameWrap);
+    row.appendChild(head);
+
+    const actions = document.createElement("div");
+    actions.className = "folder-browse-card-actions folder-browse-card-actions--inline";
+    appendFolderBrowseViewButton(actions, {
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+    row.appendChild(actions);
+
+    bindFolderBrowseSelectableCard(row, {
+      path: item.path,
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+
     list.appendChild(row);
   }
-  section.appendChild(list);
+  body.appendChild(list);
 }
 
-function renderFolderBrowseOtherFilesSection(section, items) {
+function renderFolderBrowseOtherFilesSection(section, items, folderPath) {
+  const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
     appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет других файлов");
     return;
@@ -49949,64 +51203,197 @@ function renderFolderBrowseOtherFilesSection(section, items) {
   list.className = "folder-browse-other-list";
   for (const item of items) {
     const row = document.createElement("li");
-    row.className = "folder-browse-other-item";
-    const link = document.createElement("a");
-    link.className = "folder-browse-other-link";
-    link.href = buildWorkspaceFolderBrowseFileUrl(item.path);
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = item.name;
-    const meta = document.createElement("span");
-    meta.className = "folder-browse-file-meta";
-    meta.textContent = formatFileSize(item.size);
-    row.appendChild(link);
-    row.appendChild(meta);
+    row.className = "folder-browse-other-item folder-browse-item-card";
+    row.title = `${item.name} — клик: выделить, «Просмотр»: открыть файл`;
+
+    appendFolderBrowseFileIcon(row, item.name, item.ext);
+
+    const main = document.createElement("div");
+    main.className = "folder-browse-other-main";
+    const label = document.createElement("span");
+    label.className = "folder-browse-other-link";
+    label.textContent = item.name;
+    main.appendChild(label);
+    appendFolderBrowseItemMeta(main, item);
+    row.appendChild(main);
+
+    appendFolderBrowseViewButton(row, {
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+
+    bindFolderBrowseSelectableCard(row, {
+      path: item.path,
+      onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
+    });
+
     list.appendChild(row);
   }
-  section.appendChild(list);
+  body.appendChild(list);
 }
 
-function renderFolderBrowseBreadcrumbs(hub, folderPath, label) {
-  const nav = document.createElement("nav");
-  nav.className = "folder-browse-breadcrumbs";
-  nav.setAttribute("aria-label", "Путь к папке");
-  const parts = normalizeCreateParentPath(folderPath).split("/").filter(Boolean);
-  const crumbs = document.createElement("div");
-  crumbs.className = "folder-browse-breadcrumbs-track";
-  parts.forEach((part, index) => {
-    if (index > 0) {
-      const sep = document.createElement("span");
-      sep.className = "folder-browse-breadcrumb-sep";
-      sep.textContent = "/";
-      crumbs.appendChild(sep);
-    }
-    const crumbPath = parts.slice(0, index + 1).join("/");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "folder-browse-breadcrumb";
-    btn.textContent = part;
-    btn.addEventListener("click", () => {
-      void openFolderBrowseFromMenu(part, crumbPath);
-    });
-    crumbs.appendChild(btn);
-  });
-  nav.appendChild(crumbs);
-  hub.appendChild(nav);
+function renderFolderBrowseHeader(hub, data) {
+  const folderPath = data.folderPath;
+  const label = activeLabel || data.title || folderPath.split("/").filter(Boolean).pop() || folderPath;
 
-  const hero = document.createElement("header");
-  hero.className = "folder-browse-hero";
-  hero.innerHTML = `
-    <div class="folder-browse-hero-icon" aria-hidden="true">📁</div>
-    <div class="folder-browse-hero-body">
-      <h1 class="folder-browse-hero-title">${escapeHtml(label || parts[parts.length - 1] || folderPath)}</h1>
-      <p class="folder-browse-hero-path">${escapeHtml(folderPath)}</p>
+  const card = document.createElement("header");
+  card.className = "folder-browse-hero-card";
+  card.innerHTML = `
+    <div class="folder-browse-hero-main">
+      <div class="folder-browse-hero-body">
+        <div class="folder-browse-hero-title-row">
+          <h1 class="folder-browse-hero-title">${escapeHtml(label)}</h1>
+          <span class="folder-browse-hero-badge">${escapeHtml(FREE_MEMORY_LABEL)}</span>
+        </div>
+      </div>
     </div>
   `;
-  hub.appendChild(hero);
+  hub.appendChild(card);
+  renderFolderBrowseToolbar(hub);
+  mountFolderBrowseUploadArea(hub);
+}
+
+async function renderFolderBrowseFileView() {
+  if (!nodeOverviewContentNode || !activeFolderBrowseFilePath) return;
+
+  const renderSeq = ++nodeOverviewRenderSeq;
+  const filePath = activeFolderBrowseFilePath;
+  const folderPath = activeFolderBrowsePath;
+  const isStale = () =>
+    renderSeq !== nodeOverviewRenderSeq ||
+    activeContentMode !== FOLDER_BROWSE_FILE_MODE ||
+    activeFolderBrowseFilePath !== filePath ||
+    !nodeOverviewContentNode;
+
+  destroyFolderBrowseFancybox();
+
+  const fileName = filePath.split("/").pop() || filePath;
+  const kind = getFolderBrowseFileKindFromName(fileName);
+
+  try {
+    let browseData = null;
+    let fileItem = null;
+    if (folderPath) {
+      browseData = await fetchWorkspaceFolderBrowse(folderPath);
+      if (isStale()) return;
+      fileItem = collectFolderBrowseListingItems(browseData).find((item) => item.path === filePath) || null;
+    }
+
+    const hub = document.createElement("div");
+    hub.className = "folder-browse-hub folder-browse-file-hub";
+
+    const navPaths = getFolderBrowseNavigableFilePaths(browseData);
+    const navIndex = navPaths.indexOf(filePath);
+    const hasPrev = navIndex > 0;
+    const hasNext = navIndex >= 0 && navIndex < navPaths.length - 1;
+    const formatLabel = getFolderBrowseFormatBadge(fileName, fileItem?.ext);
+    const sizeLabel = fileItem?.size ? formatFileSize(fileItem.size) : "";
+
+    const header = document.createElement("header");
+    header.className = "folder-browse-file-header";
+    header.innerHTML = `
+      <div class="folder-browse-file-nav" role="group" aria-label="Навигация по файлам">
+        <button type="button" class="folder-browse-file-nav-btn" data-action="prev" ${hasPrev ? "" : "disabled"} title="Предыдущий файл" aria-label="Предыдущий файл">↑</button>
+        <button type="button" class="folder-browse-file-nav-btn" data-action="next" ${hasNext ? "" : "disabled"} title="Следующий файл" aria-label="Следующий файл">↓</button>
+      </div>
+      <div class="folder-browse-file-hero">
+        <span class="folder-browse-file-icon folder-browse-file-hero-icon ${getFolderBrowseFileIconClass(fileName, fileItem?.ext)}" aria-hidden="true">${escapeHtml(formatLabel.slice(0, 4))}</span>
+        <div class="folder-browse-file-hero-body">
+          <h1 class="folder-browse-file-title">${escapeHtml(activeLabel || fileName)}</h1>
+          <div class="folder-browse-file-hero-meta">
+            <span class="folder-browse-format-badge">${escapeHtml(formatLabel)}</span>
+            ${sizeLabel ? `<span class="folder-browse-size-badge">${escapeHtml(sizeLabel)}</span>` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+    header.querySelector('[data-action="prev"]')?.addEventListener("click", () => {
+      void navigateFolderBrowseAdjacentFile(-1);
+    });
+    header.querySelector('[data-action="next"]')?.addEventListener("click", () => {
+      void navigateFolderBrowseAdjacentFile(1);
+    });
+    hub.appendChild(header);
+    mountFolderBrowseUploadArea(hub);
+
+    const body = document.createElement("div");
+    body.className = "folder-browse-file-body";
+
+    if (kind === "image") {
+      const images = browseData?.images || [];
+      const wrap = document.createElement("div");
+      wrap.className = "folder-browse-file-image-wrap";
+      const link = document.createElement("a");
+      link.href = buildWorkspaceFolderBrowseFileUrl(filePath);
+      link.dataset.fancybox = "folder-browse";
+      link.dataset.caption = fileName;
+      const img = document.createElement("img");
+      img.className = "folder-browse-file-image";
+      img.alt = fileName;
+      img.src = buildWorkspaceFolderBrowseFileUrl(filePath);
+      attachFolderBrowseImageFallback(img);
+      link.appendChild(img);
+      wrap.appendChild(link);
+      body.appendChild(wrap);
+      initFolderBrowseFancybox(hub, images);
+    } else if (kind === "page") {
+      body.className += " file-content-preview";
+      body.textContent = "Загрузка…";
+      hub.appendChild(body);
+      if (isStale()) return;
+      nodeOverviewContentNode.replaceChildren(hub);
+      hideContentLoading({ force: true });
+      try {
+        const data = await fetchWorkspaceFolderPage(filePath);
+        if (isStale()) return;
+        const markdown = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", folderPath);
+        body.innerHTML = renderMarkdownToHtml(markdown, { nodePath: filePath });
+        void typesetMarkdownDiagrams(body);
+      } catch (error) {
+        body.textContent = `Ошибка загрузки: ${error.message || error}`;
+      }
+      scheduleWorkspaceScrollChromeSync();
+      return;
+    } else if (kind === "video") {
+      const video = document.createElement("video");
+      video.className = "media-video-player folder-browse-file-player";
+      video.controls = true;
+      video.src = buildWorkspaceFolderBrowseFileUrl(filePath);
+      body.appendChild(video);
+    } else if (kind === "audio") {
+      const audio = document.createElement("audio");
+      audio.className = "media-audio-player folder-browse-file-player";
+      audio.controls = true;
+      audio.src = buildWorkspaceFolderBrowseFileUrl(filePath);
+      body.appendChild(audio);
+    } else {
+      const download = document.createElement("a");
+      download.className = "folder-browse-file-download";
+      download.href = buildWorkspaceFolderBrowseFileUrl(filePath);
+      download.target = "_blank";
+      download.rel = "noopener noreferrer";
+      download.textContent = "Скачать файл";
+      body.appendChild(download);
+    }
+
+    hub.appendChild(body);
+    if (isStale()) return;
+    nodeOverviewContentNode.replaceChildren(hub);
+    hideContentLoading({ force: true });
+    scheduleWorkspaceScrollChromeSync();
+  } catch (error) {
+    nodeOverviewContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "folder-browse-empty";
+    errorNode.textContent = `Ошибка загрузки файла: ${error.message || error}`;
+    nodeOverviewContentNode.appendChild(errorNode);
+    hideContentLoading({ force: true });
+  }
 }
 
 async function renderFolderBrowseView() {
   if (!nodeOverviewContentNode || !activeFolderBrowsePath) return;
+
+  destroyFolderBrowseFancybox();
 
   const renderSeq = ++nodeOverviewRenderSeq;
   const folderPath = activeFolderBrowsePath;
@@ -50034,54 +51421,49 @@ async function renderFolderBrowseView() {
     const hub = document.createElement("div");
     hub.className = "folder-browse-hub";
 
-    renderFolderBrowseBreadcrumbs(hub, data.folderPath, activeLabel);
-
-    const statsLine = buildFolderBrowseStatLine(data.counts || {});
-    if (statsLine) {
-      const stats = document.createElement("p");
-      stats.className = "folder-browse-stats";
-      stats.textContent = statsLine;
-      hub.appendChild(stats);
-    }
-
-    const hint = document.createElement("p");
-    hint.className = "folder-browse-hint";
-    hint.textContent = `Папка без ${AREA_MANIFEST_FILE} — содержимое показано без входа во вложенные разделы меню. Нажмите + в дереве, чтобы подхватить как область.`;
-    hub.appendChild(hint);
+    renderFolderBrowseHeader(hub, data);
 
     if (data.images?.length) {
-      const imagesSection = createFolderBrowseSection("Изображения", "Нет изображений");
+      const imagesSection = createFolderBrowseSection("Изображения", "Нет изображений", data.images.length, {
+        imageColumnsToggle: true
+      });
       renderFolderBrowseImagesSection(imagesSection, data.images, data.folderPath);
       hub.appendChild(imagesSection);
     }
 
     if (data.pages?.length) {
-      const pagesSection = createFolderBrowseSection("Страницы", "Нет markdown-страниц");
+      const pagesSection = createFolderBrowseSection("Страницы", "Нет markdown-страниц", data.pages.length);
       renderFolderBrowsePagesSection(pagesSection, data.pages, data.folderPath);
       hub.appendChild(pagesSection);
     }
 
     if (data.videos?.length) {
-      const videosSection = createFolderBrowseSection("Видео", "Нет видеофайлов");
-      renderFolderBrowseMediaListSection(videosSection, data.videos, { kind: "video" });
+      const videosSection = createFolderBrowseSection("Видео", "Нет видеофайлов", data.videos.length);
+      renderFolderBrowseMediaListSection(videosSection, data.videos, {
+        kind: "video",
+        folderPath: data.folderPath
+      });
       hub.appendChild(videosSection);
     }
 
     if (data.audio?.length) {
-      const audioSection = createFolderBrowseSection("Аудио", "Нет аудиофайлов");
-      renderFolderBrowseMediaListSection(audioSection, data.audio, { kind: "audio" });
+      const audioSection = createFolderBrowseSection("Аудио", "Нет аудиофайлов", data.audio.length);
+      renderFolderBrowseMediaListSection(audioSection, data.audio, {
+        kind: "audio",
+        folderPath: data.folderPath
+      });
       hub.appendChild(audioSection);
     }
 
     if (data.folders?.length) {
-      const foldersSection = createFolderBrowseSection("Вложенные папки", "Нет вложенных папок");
-      renderFolderBrowseFoldersSection(foldersSection, data.folders, activeLabel);
+      const foldersSection = createFolderBrowseSection("Папки", "Нет вложенных папок", data.folders.length);
+      renderFolderBrowseFoldersSection(foldersSection, data.folders);
       hub.appendChild(foldersSection);
     }
 
     if (data.other?.length) {
-      const otherSection = createFolderBrowseSection("Другие файлы", "Нет других файлов");
-      renderFolderBrowseOtherFilesSection(otherSection, data.other);
+      const otherSection = createFolderBrowseSection("Файлы", "Нет других файлов", data.other.length);
+      renderFolderBrowseOtherFilesSection(otherSection, data.other, data.folderPath);
       hub.appendChild(otherSection);
     }
 
@@ -50757,7 +52139,8 @@ function applyModeUi() {
   const configsMode = activeContentMode === "configs";
   const overviewMode = activeContentMode === NODE_OVERVIEW_MODE;
   const navigationMode = activeContentMode === NODE_NAVIGATION_MODE;
-  const folderBrowseMode = activeContentMode === FOLDER_BROWSE_MODE;
+  const folderBrowseMode =
+    activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE;
   const entryOverviewMode = activeContentMode === NODE_ENTRY_OVERVIEW_MODE;
   const entryOverviewMediaMode =
     entryOverviewMode && activeEntryOverviewContext?.memoryKind === "media";
@@ -50806,8 +52189,9 @@ function applyModeUi() {
   const hideDocActions =
     previewMode ||
     graphMode ||
-    (!activePath && !activeSystemFile) ||
-    (overviewLikeMode && !showWorkspaceRefresh) ||
+    folderBrowseMode ||
+    (!activePath && !activeSystemFile && !activeFolderBrowsePath) ||
+    (overviewLikeMode && !folderBrowseMode) ||
     (threadMode && !showWorkspaceRefresh) ||
     (hideSaveDeleteInToolbar &&
       !showExternalControls &&
@@ -50883,6 +52267,7 @@ function applyModeUi() {
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode);
   nodeOverviewBlockNode?.classList.toggle("is-folder-browse", folderBrowseMode);
+  workspacePathHeaderNode?.classList.toggle("is-folder-browse", folderBrowseMode);
   nodeOverviewBlockNode?.classList.toggle("is-node-media", entryOverviewMediaMode);
   nodeOverviewBlockNode?.classList.toggle("is-entry-overview", entryOverviewMode);
   if (!entryOverviewMode) {
@@ -50915,9 +52300,13 @@ function applyModeUi() {
       activeContentMode === "repository"
   );
   docActionsNode?.classList.toggle("hidden", hideToolbar);
+  const showPathToolbarNav = isNodeWorkspaceToolbarDomainActive();
   workspacePathToolbarNode?.classList.toggle(
     "hidden",
-    graphMode || (!activePath && !activeSystemFile)
+    graphMode ||
+      folderBrowseMode ||
+      (!activePath && !activeSystemFile && !activeFolderBrowsePath) ||
+      (hideToolbar && !showPathToolbarNav)
   );
   saveContentBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar);
   saveSystemFileBtn?.classList.toggle("hidden", hideSaveDeleteInToolbar || !activeSystemFile);
@@ -50965,7 +52354,11 @@ function applyModeUi() {
   tabularTableBackBtn?.classList.toggle("hidden", !showTabularSourceEditor);
   workspaceRefreshBtn?.classList.toggle("hidden", !showWorkspaceRefresh);
   syncWorkspaceRefreshButton();
+  syncFolderBrowseUploadButton();
+  syncFolderBrowseDeleteSelectedButton();
+  syncFolderBrowseFileActionButtons();
   syncWorkspaceRevealFolderButton();
+  syncWorkspaceCrumbsActionsOrder();
   if (graphMode) {
     renderNodeGraphView();
   } else if (mindmapMode) {
@@ -50976,6 +52369,14 @@ function applyModeUi() {
     return;
   } else if (navigationMode) {
     void renderNodeNavigation();
+    syncSaveButtonLamp();
+    return;
+  } else if (folderBrowseMode) {
+    if (activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+      void renderFolderBrowseFileView();
+    } else {
+      void renderFolderBrowseView();
+    }
     syncSaveButtonLamp();
     return;
   } else if (entryOverviewMode) {
@@ -53502,7 +54903,57 @@ function appendBreadcrumbCrumb(label, { className = "", isCurrent = false, onCli
   filePathNode.appendChild(crumbNode);
 }
 
+function renderFolderBrowseBreadcrumbs(filePath) {
+  placeTitleFixedInTitleRow();
+  titleFixedValueNode?.classList.add("hidden");
+
+  const normalized = normalizeBreadcrumbPath(filePath);
+  const parts = normalized.split("/").filter(Boolean);
+  const isFileView =
+    activeContentMode === FOLDER_BROWSE_FILE_MODE && Boolean(activeFolderBrowseFilePath);
+  const folderPartCount = isFileView ? Math.max(parts.length - 1, 0) : parts.length;
+
+  clearFilePathNode();
+  filePathNode.classList.toggle("is-empty", parts.length === 0);
+
+  for (let index = 0; index < folderPartCount; index += 1) {
+    const part = parts[index];
+    const folderPath = parts.slice(0, index + 1).join("/");
+    const label = formatCreateParentLabel(folderPath);
+    const isCurrentFolder = !isFileView && index === folderPartCount - 1;
+
+    appendBreadcrumbCrumb(label, {
+      isCurrent: isCurrentFolder,
+      className: "is-folder-browse-folder",
+      onClick:
+        isCurrentFolder
+          ? null
+          : () => {
+              void openFolderBrowseFromMenu(label, folderPath);
+            },
+      title: part !== label ? part : ""
+    });
+
+    if (index < folderPartCount - 1 || isFileView) appendBreadcrumbSeparator();
+  }
+
+  if (isFileView && parts.length) {
+    const fileName = parts[parts.length - 1];
+    appendBreadcrumbCrumb(fileName, {
+      isCurrent: true,
+      className: "is-folder-browse-file is-muted"
+    });
+  }
+
+  updateWorkspaceShareLinkButton();
+}
+
 function renderBreadcrumbs(filePath) {
+  if (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) {
+    renderFolderBrowseBreadcrumbs(filePath);
+    return;
+  }
+
   if (isServiceStyleContentOpen()) {
     const label = getServiceStyleContentLabel();
     const parts = String(filePath || label || "")
@@ -56200,8 +57651,8 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         folderLabel.className = "menu-folder menu-folder--adopt";
         folderLabel.dataset.folderPath = node.folderPath || sectionFolderPath || ".";
         folderLabel.title = isEmptyFolder
-          ? "Папка на диске без области — клик: просмотр содержимого; +: подхватить"
-          : `Папка без ${AREA_MANIFEST_FILE} — клик: просмотр содержимого; +: подхватить как область`;
+          ? `${FREE_MEMORY_LABEL} — клик: просмотр; +: оформить как область`
+          : `${FREE_MEMORY_LABEL} — клик: просмотр; +: оформить как область`;
         setMenuLabelWithMarkers(
           folderLabel,
           formatMenuTreeSortLabel(node.title, parentMenuNode, node.title),
@@ -56226,7 +57677,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         addBtn.type = "button";
         addBtn.className = "add-node-btn";
         addBtn.textContent = "+";
-        addBtn.title = "Подхватить папку как область";
+        addBtn.title = `Оформить ${FREE_MEMORY_LABEL.toLowerCase()} как область`;
         addBtn.addEventListener("click", (event) => {
           event.stopPropagation();
           const adoptPath = node.folderPath || sectionFolderPath || ".";
@@ -57047,6 +58498,7 @@ async function selectSystemFile(name, options = {}) {
   activePath = null;
   activeLabel = null;
   activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
   activeExternalFilePath = null;
   nodeSettingsViewActive = false;
@@ -57094,6 +58546,7 @@ async function selectRepoLooseFile(label, filePath, options = {}) {
   activePath = normalizedPath;
   activeLabel = label || getLabelFromPath(normalizedPath);
   activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
   activeExternalFilePath = null;
   nodeSettingsViewActive = false;
@@ -57829,6 +59282,7 @@ async function selectFile(label, filePath) {
   activePath = nextPath;
   activeLabel = label;
   activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
   resetPropsLibrariesCache();
   activeExternalFilePath = null;
@@ -63508,6 +64962,9 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   applyNodeWorkspaceViewUi();
   activePath = null;
   activeLabel = null;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
   clearActiveSystemFile();
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
@@ -63547,6 +65004,10 @@ function showNotFoundView(requestedPath = "") {
   applyNodeWorkspaceViewUi();
   activePath = null;
   activeLabel = null;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  setFolderBrowseUploadPanelOpen(false);
   clearActiveSystemFile();
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
@@ -63793,6 +65254,10 @@ function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentI
     parentFolder = manifestFolder;
   } else if (type === "folder") {
     const parts = manifestFolder.split("/").filter(Boolean);
+    parts.pop();
+    parentFolder = parts.length ? parts.join("/") : ".";
+  } else if (type === "free-memory-folder") {
+    const parts = String(createdPath || "").replace(/\\/g, "/").split("/").filter(Boolean);
     parts.pop();
     parentFolder = parts.length ? parts.join("/") : ".";
   } else {
@@ -64672,6 +66137,10 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
           isAgentContainerNodePath(getCreateParentFolderForPatch(createdPath, type, agentId))
         ) {
           patched = patchContainerMenuAfterCreate(agentId);
+        } else if (type === "free-memory-folder") {
+          const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
+          expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
+          patched = patchMenuTreeAtFolder(parentFolder, agentId);
         } else {
           const parentFolder = getCreateParentFolderForPatch(createdPath, type, agentId);
           expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId);
@@ -64939,7 +66408,7 @@ async function createNode(type, options = {}) {
   }
   const isManifestAdopt = type === "manifest" && isCreateAdoptFolderContext();
   const isTopicManifestAdopt = type === "topic-manifest" && isCreateAdoptFolderContext();
-  if ((type === "folder" || type === "file" || isManifestAdopt || isTopicManifestAdopt) && !slug) {
+  if ((type === "folder" || type === "file" || type === "free-memory-folder" || isManifestAdopt || isTopicManifestAdopt) && !slug) {
     showToast("Введите slug (имя на диске)", "error");
     return;
   }
@@ -64950,7 +66419,14 @@ async function createNode(type, options = {}) {
       type,
       name: type === "manifest" || type === "topic-manifest" ? folderLabel : displayName || folderLabel,
       displayName: type === "manifest" || type === "topic-manifest" ? displayName || folderLabel : displayName,
-      slug: type === "folder" || type === "file" || isManifestAdopt || isTopicManifestAdopt ? slug : ""
+      slug:
+        type === "folder" ||
+        type === "file" ||
+        type === "free-memory-folder" ||
+        isManifestAdopt ||
+        isTopicManifestAdopt
+          ? slug
+          : ""
     };
     if (type === "catalog" || type === "taxonomy" || type === "service-doc") {
       payload.preset = options.preset || name;
@@ -64985,12 +66461,18 @@ async function createNode(type, options = {}) {
           ? `Область подхвачена (${AREA_MANIFEST_FILE})`
           : type === "topic-manifest"
             ? `Тема подхвачена (${AREA_MANIFEST_FILE})`
+          : type === "free-memory-folder"
+            ? `${FREE_MEMORY_LABEL} создана`
           : type === "folder"
             ? "Папка-область создана"
             : "Файл (тема) создан";
     if (data.createdPath) {
       try {
-        await openNodeFromMenu(getLabelFromPath(data.createdPath), data.createdPath);
+        if (type === "free-memory-folder") {
+          await openFolderBrowseFromMenu(displayName || getLabelFromPath(data.createdPath), data.createdPath);
+        } else {
+          await openNodeFromMenu(getLabelFromPath(data.createdPath), data.createdPath);
+        }
       } catch (selectError) {
         const selectMessage = selectError instanceof Error ? selectError.message : String(selectError);
         showToast(`${createdLabel} (не удалось открыть: ${selectMessage})`, "success");
@@ -66285,6 +67767,54 @@ attachmentSidecarSaveBtn?.addEventListener("click", () => {
 });
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));
 createFolderBtn?.addEventListener("click", () => createNode("folder"));
+createFreeMemoryBtn?.addEventListener("click", () => createNode("free-memory-folder"));
+createFreeMemoryUploadBtn?.addEventListener("click", () => {
+  createFreeMemoryUploadInputNode?.click();
+});
+createFreeMemoryUploadInputNode?.addEventListener("change", () => {
+  const files = createFreeMemoryUploadInputNode?.files;
+  if (!files?.length) return;
+  const folderPath = getCreateModalUploadFolderPath();
+  void uploadWorkspaceFolderFiles(folderPath, files).then(({ uploaded }) => {
+    if (uploaded > 0) {
+      closeCreateNodeModal();
+      void openFolderBrowseFromMenu(formatCreateParentLabel(folderPath), folderPath);
+    }
+  });
+});
+folderBrowseUploadBtn?.addEventListener("click", () => {
+  if (!isFolderBrowseUploadAvailable()) return;
+  if (!folderBrowseUploadPanelOpen) {
+    setFolderBrowseUploadPanelOpen(true);
+    const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
+    if (hub && !hub.querySelector(".folder-browse-upload-host")) {
+      mountFolderBrowseUploadArea(hub);
+    }
+    hub?.querySelector(".folder-browse-upload-host")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    });
+    return;
+  }
+  if (!workspaceFolderUploadInFlight) setFolderBrowseUploadPanelOpen(false);
+});
+folderBrowseDeleteSelectedBtn?.addEventListener("click", () => {
+  void deleteWorkspaceFolderSelection();
+});
+folderBrowseFileRenameBtn?.addEventListener("click", () => {
+  if (!activeFolderBrowseFilePath) return;
+  const fileName = activeFolderBrowseFilePath.split("/").pop() || activeFolderBrowseFilePath;
+  void promptRenameWorkspaceFolderItem({
+    path: activeFolderBrowseFilePath,
+    label: activeLabel || fileName,
+    isDirectory: false
+  });
+});
+folderBrowseFileDeleteBtn?.addEventListener("click", () => {
+  if (!activeFolderBrowseFilePath) return;
+  const fileName = activeFolderBrowseFilePath.split("/").pop() || activeFolderBrowseFilePath;
+  void deleteWorkspaceFolderItemByPath(activeFolderBrowseFilePath, activeLabel || fileName);
+});
 createFileBtn?.addEventListener("click", () => {
   createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "file");
 });

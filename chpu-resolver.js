@@ -47,7 +47,8 @@ const CHPU_UI_VIEW_IDS = new Set([
   "video",
   "documents",
   "archives",
-  "other"
+  "other",
+  "folder"
 ]);
 
 const CHPU_LEGACY_UI_ALIASES = {
@@ -313,6 +314,51 @@ async function resolveChpuPath(agentRoot, rawPath) {
       },
       views
     );
+  }
+
+  const folderAbs = path.join(agentRootResolved, chpuPath);
+  if (folderAbs.startsWith(agentRootResolved) && (await isDirectory(folderAbs))) {
+    const areaManifestAbs = path.join(folderAbs, MANIFEST_FILE);
+    const hasAreaManifest = await fileExists(areaManifestAbs);
+    if (!hasAreaManifest) {
+      return attachChpuViews(
+        {
+          kind: "adoptFolder",
+          folderPath: chpuPath.replace(/\\/g, "/"),
+          workspacePath: chpuPath.replace(/\\/g, "/"),
+          title: path.basename(chpuPath)
+        },
+        views
+      );
+    }
+  }
+
+  const fileAbs = path.join(agentRootResolved, chpuPath);
+  if (fileAbs.startsWith(agentRootResolved) && (await fileExists(fileAbs))) {
+    try {
+      const stat = await fs.stat(fileAbs);
+      if (stat.isFile()) {
+        const parentRel = path.posix.dirname(chpuPath.replace(/\\/g, "/"));
+        if (parentRel && parentRel !== ".") {
+          const parentAbs = path.join(agentRootResolved, parentRel);
+          const areaManifestAbs = path.join(parentAbs, MANIFEST_FILE);
+          if (!(await fileExists(areaManifestAbs))) {
+            return attachChpuViews(
+              {
+                kind: "adoptFile",
+                filePath: chpuPath.replace(/\\/g, "/"),
+                folderPath: parentRel,
+                workspacePath: chpuPath.replace(/\\/g, "/"),
+                title: path.basename(chpuPath)
+              },
+              views
+            );
+          }
+        }
+      }
+    } catch {
+      // fall through to unknown
+    }
   }
 
   return attachChpuViews({ kind: "unknown", workspacePath: chpuPath }, views);

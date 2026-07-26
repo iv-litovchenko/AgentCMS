@@ -481,21 +481,21 @@ function createServer() {
 
   reg(
     "list_adopt_folders",
-    "List workspace folders without manifest.md (adopt folders) — raw disk folders visible in menu but not yet CMS areas.",
+    "List free memory folders (Свободная память): disk folders without manifest.md — visible in menu but not yet CMS areas.",
     z.object({}),
     () => client.get("/api/workspace/folder/adopt")
   );
 
   reg(
     "browse_workspace_folder",
-    "Browse one level of an adopt folder: images, markdown pages, videos, nested folders (no manifest required).",
+    "Browse one level of free memory (Свободная память): images, markdown pages, videos, nested folders.",
     z.object({ folderPath: workspaceFolderPath }),
     ({ folderPath }) => client.get("/api/workspace/folder/browse", { folderPath })
   );
 
   reg(
     "scan_workspace_folder",
-    "Recursive inventory of adopt folder for topic triage: flat items with kind/path/excerpt. Use depth=all + includeBody for full material review.",
+    "Recursive inventory of free memory folder for topic triage: flat items with kind/path/excerpt. Use depth=all + includeBody for full material review.",
     z.object({
       folderPath: workspaceFolderPath,
       depth: z
@@ -516,14 +516,14 @@ function createServer() {
 
   reg(
     "read_workspace_page",
-    "Read markdown page from adopt folder (.md with frontmatter + body).",
+    "Read markdown page from free memory folder (.md with frontmatter + body).",
     z.object({ file: workspaceFilePath }),
     ({ file }) => client.get("/api/workspace/folder/page", { file })
   );
 
   reg(
     "read_workspace_text_file",
-    "Read text file from adopt folder (.md, .txt, .csv, .json, .yaml, .pine, …).",
+    "Read text file from free memory folder (.md, .txt, .csv, .json, .yaml, .pine, …).",
     z.object({
       file: workspaceFilePath,
       maxBytes: z.number().int().min(1024).max(120000).optional()
