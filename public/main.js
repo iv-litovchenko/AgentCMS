@@ -1769,7 +1769,7 @@ function isSystemFileMd(name = activeSystemFile) {
   return /\.md$/i.test(String(name || ""));
 }
 
-function systemFileRequiresSourceEditor(name = activeSystemFile) {
+function systemFileHasEditableFrontmatter(name = activeSystemFile) {
   return normalizeSystemFileName(name) === "SKILL.md";
 }
 
@@ -1788,7 +1788,6 @@ function systemFileToChpuPath(name) {
 function resolveSystemFileEditorViewMode(name, { edit = false } = {}) {
   if (!edit) return "preview";
   if (!isSystemFileMd(name)) return "source";
-  if (systemFileRequiresSourceEditor(name)) return "source";
   const saved = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
   if (saved === "wysiwyg" && isWysiwygEditorEnabled()) return "wysiwyg";
   return "source";
@@ -3566,7 +3565,7 @@ function getSystemFileHintSpec(name) {
       title: "Cursor Skill — инструкция для агента",
       text:
         "Служебный <code>SKILL.md</code> workspace: краткий скилл для Cursor/агента — как работать с этим Agent CMS через MCP. " +
-        "Frontmatter <code>name</code> и <code>description</code> помогают агенту подхватить скилл автоматически.",
+        "Frontmatter <code>name</code> и <code>description</code> — только в режиме «Исходник»; в визуальном редакторе меняется только основной текст.",
       example: RECOMMENDED_SKILL_MD_TEMPLATE
     };
   }
@@ -10169,6 +10168,7 @@ const OVERVIEW_META_PROP_KEYS = [
 
 let activeSystemFile = null;
 let systemFileEditActive = false;
+let systemFileFrontmatterCache = "";
 let activePath = null;
 let activeLabel = null;
 let activeFolderBrowsePath = null;
@@ -10180,6 +10180,7 @@ let folderBrowseSelectionAnchor = null;
 
 function clearActiveSystemFile() {
   activeSystemFile = null;
+  systemFileFrontmatterCache = "";
   systemFileEditActive = false;
 }
 
@@ -39176,6 +39177,26 @@ function joinFrontmatter(frontmatter, body) {
   return `---\n${fm}\n---\n\n${mdBody}`;
 }
 
+function refreshSystemFileFrontmatterCacheFromSource() {
+  if (!activeSystemFile || !systemFileHasEditableFrontmatter(activeSystemFile)) {
+    systemFileFrontmatterCache = "";
+    return;
+  }
+  systemFileFrontmatterCache = splitFrontmatter(fileContentInputNode?.value || "").frontmatter;
+}
+
+function getSystemFileWysiwygBodyMarkdown() {
+  refreshSystemFileFrontmatterCacheFromSource();
+  return splitFrontmatter(fileContentInputNode?.value || "").body;
+}
+
+function joinSystemFileWysiwygBodyWithFrontmatter(bodyMarkdown) {
+  if (!activeSystemFile || !systemFileHasEditableFrontmatter(activeSystemFile)) {
+    return String(bodyMarkdown ?? "");
+  }
+  return joinFrontmatter(systemFileFrontmatterCache, bodyMarkdown);
+}
+
 function stripDefaultManifestHeading(body, titleHint = "") {
   let text = String(body ?? "");
   if (!text.trim()) return text;
@@ -40152,7 +40173,7 @@ function applySystemFileUi() {
   const isMd = isSystemFileMd();
   if (!editing) {
     editorViewMode = "preview";
-  } else if (!isMd || systemFileRequiresSourceEditor(activeSystemFile)) {
+  } else if (!isMd) {
     editorViewMode = "source";
   }
 
@@ -40180,10 +40201,10 @@ function applySystemFileUi() {
   syncEditorViewButtonsAvailability(false, false);
   editorLineNumbersBtn?.classList.toggle("hidden", !isMd || editorViewMode !== "source");
   if (editorViewWysiwygBtn) {
-    const sourceOnly = systemFileRequiresSourceEditor(activeSystemFile);
-    editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled() || sourceOnly;
-    editorViewWysiwygBtn.title = sourceOnly
-      ? "SKILL.md с YAML frontmatter — только режим «Исходник»"
+    const frontmatterLocked = systemFileHasEditableFrontmatter(activeSystemFile);
+    editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled();
+    editorViewWysiwygBtn.title = frontmatterLocked
+      ? "Редактируется только основной текст; YAML-свойства — в режиме «Исходник»"
       : "";
   }
   applyEditorViewMode();
@@ -40207,6 +40228,7 @@ function clearSystemFileViewUi() {
   saveSystemFileBtn?.classList.add("hidden");
   saveContentBtn?.classList.remove("hidden");
   systemFileHintNode?.classList.add("hidden");
+  systemFileFrontmatterReadonlyNode?.classList.add("hidden");
 }
 
 function syncGitRepoLooseMdPathHeaderUi() {
@@ -55307,7 +55329,7 @@ function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   };
 
   try {
-    const bodyHtml = md.render(body, renderEnv);
+    const bodyHtml = md.render(String(body || "").trim(), renderEnv);
     const frontmatterHtml = renderFrontmatterTableHtml(frontmatter);
     return frontmatterHtml ? `${frontmatterHtml}${bodyHtml}` : bodyHtml;
   } catch (error) {
@@ -56556,7 +56578,8 @@ function normalizeWysiwygImportedMarkdown(markdown) {
 
 function syncSourceFromWysiwygEditor() {
   if (!wysiwygEditorInstance) return;
-  fileContentInputNode.value = normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
+  const body = normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
+  fileContentInputNode.value = joinSystemFileWysiwygBodyWithFrontmatter(body);
   syncEditorLineNumbers();
 }
 
@@ -56588,7 +56611,11 @@ function initWysiwygEditor() {
         ["code", "codeblock"],
         [buildWysiwygHighlightToolbarItem()]
       ],
-      initialValue: normalizeWysiwygImportedMarkdown(fileContentInputNode.value || "")
+      initialValue: normalizeWysiwygImportedMarkdown(
+        activeSystemFile && systemFileHasEditableFrontmatter(activeSystemFile)
+          ? getSystemFileWysiwygBodyMarkdown()
+          : fileContentInputNode.value || ""
+      )
     });
   } catch (error) {
     destroyWysiwygEditor();
@@ -56667,7 +56694,8 @@ function initWysiwygEditor() {
 
 function getEditorContentValue() {
   if (editorViewMode === "wysiwyg" && wysiwygEditorInstance) {
-    return normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
+    const body = normalizeWysiwygExportedMarkdown(wysiwygEditorInstance.getMarkdown());
+    return joinSystemFileWysiwygBodyWithFrontmatter(body);
   }
   return normalizeMarkdownInlineAssetRefs(fileContentInputNode.value);
 }
@@ -56726,6 +56754,7 @@ function applyEditorViewMode() {
   editorCodeWrapNode?.classList.toggle("hidden", !isSource);
   editorWysiwygWrapNode?.classList.toggle("hidden", !isWysiwyg);
   fileContentPreviewNode.classList.toggle("hidden", !isPreview);
+  systemFileFrontmatterReadonlyNode?.classList.toggle("hidden", !isWysiwyg || !systemFileHasEditableFrontmatter(activeSystemFile));
   updateEditorViewButtonsState();
   applyEditorAutoHeightUi();
 
@@ -56734,6 +56763,7 @@ function applyEditorViewMode() {
       syncSourceFromWysiwygEditor();
       destroyWysiwygEditor();
     }
+    syncSystemFileFrontmatterReadonlyUi();
     renderPreviewFromEditor();
     applyPropsFormViewMode();
     syncDocAsideTabAvailability();
@@ -56746,9 +56776,11 @@ function applyEditorViewMode() {
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
     initWysiwygEditor();
+    syncSystemFileFrontmatterReadonlyUi();
     return;
   }
 
+  syncSystemFileFrontmatterReadonlyUi();
   if (isSource) {
     destroyWysiwygEditor();
     syncEditorLineNumbers();
@@ -56759,9 +56791,6 @@ function applyEditorViewMode() {
 function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
-  if (activeSystemFile && systemFileRequiresSourceEditor(activeSystemFile) && mode === "wysiwyg") {
-    mode = "source";
-  }
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
     syncSourceFromWysiwygEditor();
     destroyWysiwygEditor();
@@ -62614,6 +62643,9 @@ function patchTreePaths(oldPath, newPath) {
 }
 
 function buildSaveContentPayload() {
+  if (activeSystemFile) {
+    return normalizeMarkdownInlineAssetRefs(fileContentInputNode.value || "");
+  }
   const rawContent = isExternalFileEditing()
     ? buildExternalFileContent()
     : isMediaMarkdownEditing()
@@ -62643,7 +62675,7 @@ async function saveContent() {
       const response = await fetch(buildApiUrl("/api/system-file"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: activeSystemFile, content })
+        body: JSON.stringify({ name: activeSystemFile, content: fileContentInputNode.value })
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
