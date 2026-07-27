@@ -625,7 +625,15 @@ const workspaceNotificationsPopoverNode = document.getElementById("workspace-not
 const workspaceNotificationsListNode = document.getElementById("workspace-notifications-list");
 const workspaceNotificationsCloseBtn = document.getElementById("workspace-notifications-close-btn");
 const workspaceNotificationsHintNode = document.getElementById("workspace-notifications-hint");
+const workspaceNotificationsFiltersNode = document.getElementById("workspace-notifications-filters");
+const workspaceNotificationsLoadMoreBtn = document.getElementById("workspace-notifications-load-more-btn");
+const workspaceNotificationsClearBtn = document.getElementById("workspace-notifications-clear-btn");
 const WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX = "yamlcms.workspaceNotificationsSeenId";
+const WORKSPACE_NOTIFICATIONS_FILTER_COOKIE = "yamlcms.notificationsFilter";
+const WORKSPACE_NOTIFICATIONS_FETCH_LIMIT = 100;
+const WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE = 25;
+const WORKSPACE_NOTIFICATIONS_LOAD_STEP = 25;
+const WORKSPACE_NOTIFICATIONS_FILTER_VALUES = new Set(["all", "mcp", "ui", "notify"]);
 let workspaceNotificationsEvents = [];
 let workspaceNotificationsLatestId = 0;
 let workspaceNotificationsSeenId = 0;
@@ -635,6 +643,8 @@ let workspaceNotificationsTruncated = false;
 let workspaceNotificationsFileLines = 0;
 let workspaceNotificationsAudioCtx = null;
 let workspaceNotificationsInitialLoadDone = false;
+let workspaceNotificationsFilter = "all";
+let workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
 const componentsIdeasModalNode = document.getElementById("components-ideas-modal");
 const componentsIdeasCloseBtn = document.getElementById("components-ideas-close-btn");
 const componentsIdeasSubtitleNode = document.getElementById("components-ideas-subtitle");
@@ -1755,6 +1765,10 @@ function isSystemFileMd(name = activeSystemFile) {
   return /\.md$/i.test(String(name || ""));
 }
 
+function systemFileRequiresSourceEditor(name = activeSystemFile) {
+  return normalizeSystemFileName(name) === "SKILL.md";
+}
+
 function isSystemFileEditing() {
   return Boolean(activeSystemFile && systemFileEditActive);
 }
@@ -1770,6 +1784,7 @@ function systemFileToChpuPath(name) {
 function resolveSystemFileEditorViewMode(name, { edit = false } = {}) {
   if (!edit) return "preview";
   if (!isSystemFileMd(name)) return "source";
+  if (systemFileRequiresSourceEditor(name)) return "source";
   const saved = readStorageItem(EDITOR_VIEW_MODE_STORAGE_KEY);
   if (saved === "wysiwyg" && isWysiwygEditorEnabled()) return "wysiwyg";
   return "source";
@@ -8542,6 +8557,7 @@ async function switchActiveAgent(nextAgentId) {
     workspaceNotificationsTruncated = false;
     workspaceNotificationsFileLines = 0;
     workspaceNotificationsInitialLoadDone = false;
+    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
     loadWorkspaceNotificationsSeenId(nextAgentId);
     void refreshWorkspaceNotifications(false);
     resetLiveSyncSession(nextAgentId);
@@ -16719,41 +16735,6 @@ function createMenuRuntimeBadges(source, agentId = activeAgentId) {
   return wrap;
 }
 
-function createSkillMarkerSvg() {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("class", "menu-marker-svg");
-  svg.setAttribute("aria-hidden", "true");
-
-  const doc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  doc.setAttribute(
-    "d",
-    "M8 3h7l4 4v14H8V3z"
-  );
-  doc.setAttribute("fill", "none");
-  doc.setAttribute("stroke", "currentColor");
-  doc.setAttribute("stroke-width", "2");
-  doc.setAttribute("stroke-linejoin", "round");
-
-  const fold = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  fold.setAttribute("d", "M15 3v4h4");
-  fold.setAttribute("fill", "none");
-  fold.setAttribute("stroke", "currentColor");
-  fold.setAttribute("stroke-width", "2");
-  fold.setAttribute("stroke-linejoin", "round");
-
-  const spark = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  spark.setAttribute(
-    "d",
-    "M11.5 12.5 13 9l1.5 3.5L18 14l-3.5 1.5L13 19l-1.5-3.5L8 14z"
-  );
-  spark.setAttribute("fill", "currentColor");
-  spark.setAttribute("opacity", "0.92");
-
-  svg.append(doc, fold, spark);
-  return svg;
-}
-
 function createAgentMarkerIcon() {
   const icon = document.createElement("span");
   icon.className = "menu-marker-emoji menu-marker-emoji-agent";
@@ -16766,8 +16747,7 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   const hasGit = Boolean(source?.hasGitSelf ?? source?.hasGit);
   const hasObsidian = Boolean(source?.hasObsidianSelf ?? source?.hasObsidian);
   const hasAgent = !skipAgent && Boolean(source?.hasAgentSelf ?? source?.hasAgent);
-  const hasSkill = Boolean(source?.hasSkillSelf ?? source?.hasSkill);
-  if (!hasAgent && !hasGit && !hasObsidian && !hasSkill) return null;
+  if (!hasAgent && !hasGit && !hasObsidian) return null;
 
   const wrap = document.createElement("span");
   wrap.className = "menu-folder-markers";
@@ -16795,14 +16775,6 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
     obs.setAttribute("aria-label", "Obsidian");
     obs.appendChild(createObsidianMarkerSvg());
     wrap.appendChild(obs);
-  }
-  if (hasSkill) {
-    const skill = document.createElement("span");
-    skill.className = "menu-marker menu-marker-skill";
-    skill.title = "Cursor Skill (SKILL.md в этой папке)";
-    skill.setAttribute("aria-label", "Skill");
-    skill.appendChild(createSkillMarkerSvg());
-    wrap.appendChild(skill);
   }
 
   return wrap;
@@ -17870,11 +17842,9 @@ function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId
       hasGitSelf: Boolean(menu.hasGitSelf),
       hasObsidianSelf: Boolean(menu.hasObsidianSelf),
       hasAgentSelf: Boolean(menu.hasAgentSelf),
-      hasSkillSelf: Boolean(menu.hasSkillSelf),
       hasGit: Boolean(menu.hasGitSelf),
       hasObsidian: Boolean(menu.hasObsidianSelf),
-      hasAgent: Boolean(menu.hasAgentSelf),
-      hasSkill: Boolean(menu.hasSkillSelf)
+      hasAgent: Boolean(menu.hasAgentSelf)
     };
   }
 
@@ -40156,7 +40126,7 @@ function applySystemFileUi() {
   const isMd = isSystemFileMd();
   if (!editing) {
     editorViewMode = "preview";
-  } else if (!isMd) {
+  } else if (!isMd || systemFileRequiresSourceEditor(activeSystemFile)) {
     editorViewMode = "source";
   }
 
@@ -40184,7 +40154,11 @@ function applySystemFileUi() {
   syncEditorViewButtonsAvailability(false, false);
   editorLineNumbersBtn?.classList.toggle("hidden", !isMd || editorViewMode !== "source");
   if (editorViewWysiwygBtn) {
-    editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled();
+    const sourceOnly = systemFileRequiresSourceEditor(activeSystemFile);
+    editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled() || sourceOnly;
+    editorViewWysiwygBtn.title = sourceOnly
+      ? "SKILL.md с YAML frontmatter — только режим «Исходник»"
+      : "";
   }
   applyEditorViewMode();
   syncSaveButtonLamp();
@@ -42721,15 +42695,12 @@ function extractWorkspaceMarkersFromMenuSource(source) {
     source.hasObsidianSelf != null ||
     source.hasObsidian != null ||
     source.hasAgentSelf != null ||
-    source.hasAgent != null ||
-    source.hasSkillSelf != null ||
-    source.hasSkill != null;
+    source.hasAgent != null;
   if (!hasAnyMarkerField) return null;
   return {
     hasGit: Boolean(source.hasGitSelf ?? source.hasGit),
     hasObsidian: Boolean(source.hasObsidianSelf ?? source.hasObsidian),
-    hasAgent: Boolean(source.hasAgentSelf ?? source.hasAgent),
-    hasSkill: Boolean(source.hasSkillSelf ?? source.hasSkill)
+    hasAgent: Boolean(source.hasAgentSelf ?? source.hasAgent)
   };
 }
 
@@ -42761,7 +42732,7 @@ function findMenuItemEntryInAgentMenu(menuRoot, targetPath) {
 
 function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false, hasSkill: false };
+  if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false };
 
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   const folderRel = normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
@@ -42781,8 +42752,7 @@ function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
     extractWorkspaceMarkersFromMenuSource(source) || {
       hasGit: false,
       hasObsidian: false,
-      hasAgent: false,
-      hasSkill: false
+      hasAgent: false
     }
   );
 }
@@ -50305,13 +50275,94 @@ function saveWorkspaceNotificationsSeenId(agentId = activeAgentId) {
   }
 }
 
+function readWorkspaceNotificationsCookie(name) {
+  const prefix = `${encodeURIComponent(name)}=`;
+  for (const part of document.cookie.split("; ")) {
+    if (part.startsWith(prefix)) {
+      return decodeURIComponent(part.slice(prefix.length));
+    }
+  }
+  return "";
+}
+
+function writeWorkspaceNotificationsCookie(name, value, maxAgeDays = 365) {
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeDays * 86400}; SameSite=Lax`;
+}
+
+function loadWorkspaceNotificationsFilter() {
+  const saved = String(readWorkspaceNotificationsCookie(WORKSPACE_NOTIFICATIONS_FILTER_COOKIE) || "").toLowerCase();
+  workspaceNotificationsFilter = WORKSPACE_NOTIFICATIONS_FILTER_VALUES.has(saved) ? saved : "all";
+}
+
+function saveWorkspaceNotificationsFilter() {
+  writeWorkspaceNotificationsCookie(WORKSPACE_NOTIFICATIONS_FILTER_COOKIE, workspaceNotificationsFilter);
+}
+
+function matchesWorkspaceNotificationFilter(event, filter = workspaceNotificationsFilter) {
+  if (!filter || filter === "all") return true;
+  if (filter === "notify") return String(event.action || "").toLowerCase() === "notify";
+  return String(event.source || "").toLowerCase() === filter;
+}
+
+function getFilteredWorkspaceNotificationEvents() {
+  return workspaceNotificationsEvents.filter((event) => matchesWorkspaceNotificationFilter(event));
+}
+
+function syncWorkspaceNotificationsFilterUi() {
+  if (!workspaceNotificationsFiltersNode) return;
+  for (const button of workspaceNotificationsFiltersNode.querySelectorAll("[data-filter]")) {
+    button.classList.toggle(
+      "is-active",
+      String(button.getAttribute("data-filter") || "") === workspaceNotificationsFilter
+    );
+  }
+}
+
+function syncWorkspaceNotificationsLoadMore() {
+  const filtered = getFilteredWorkspaceNotificationEvents();
+  if (workspaceNotificationsVisibleCount > filtered.length) {
+    workspaceNotificationsVisibleCount = Math.max(
+      WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE,
+      filtered.length
+    );
+  }
+  const hiddenCount = Math.max(0, filtered.length - workspaceNotificationsVisibleCount);
+  const showLoadMore = hiddenCount > 0;
+  workspaceNotificationsLoadMoreBtn?.classList.toggle("hidden", !showLoadMore);
+  if (workspaceNotificationsLoadMoreBtn) {
+    const step = Math.min(WORKSPACE_NOTIFICATIONS_LOAD_STEP, hiddenCount);
+    workspaceNotificationsLoadMoreBtn.textContent = `Показать ещё ${step}${hiddenCount > step ? ` (+${hiddenCount - step})` : ""}`;
+  }
+  if (workspaceNotificationsClearBtn) {
+    workspaceNotificationsClearBtn.disabled = !workspaceNotificationsEvents.length;
+  }
+}
+
 function syncWorkspaceNotificationsHint() {
   if (!workspaceNotificationsHintNode) return;
+  const filterLabel =
+    workspaceNotificationsFilter === "mcp"
+      ? "только MCP"
+      : workspaceNotificationsFilter === "ui"
+        ? "только UI"
+        : workspaceNotificationsFilter === "notify"
+          ? "только уведомления"
+          : "MCP, UI и notify_user";
+  const filteredCount = getFilteredWorkspaceNotificationEvents().length;
+  const base = `Последние ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT} · ${filterLabel} · .agent-cms/activity.jsonl`;
   if (workspaceNotificationsTruncated) {
-    workspaceNotificationsHintNode.textContent = `Показаны последние ${workspaceNotificationsEvents.length} из ${workspaceNotificationsFileLines || "многих"} · старые в .agent-cms/activity-archive.jsonl`;
+    workspaceNotificationsHintNode.textContent = `${base} · в файле ${workspaceNotificationsFileLines || "много"} строк, старые в архиве`;
     return;
   }
-  workspaceNotificationsHintNode.textContent = "MCP, UI и notify_user · .agent-cms/activity.jsonl";
+  if (workspaceNotificationsFilter !== "all" && filteredCount !== workspaceNotificationsEvents.length) {
+    workspaceNotificationsHintNode.textContent = `${base} · ${Math.min(workspaceNotificationsVisibleCount, filteredCount)} из ${filteredCount}`;
+    return;
+  }
+  if (filteredCount > workspaceNotificationsVisibleCount) {
+    workspaceNotificationsHintNode.textContent = `${base} · ${workspaceNotificationsVisibleCount} из ${filteredCount}`;
+    return;
+  }
+  workspaceNotificationsHintNode.textContent = base;
 }
 
 function getWorkspaceNotificationUnreadCount() {
@@ -50325,6 +50376,53 @@ function formatWorkspaceNotificationAction(action) {
 function formatWorkspaceNotificationSource(source) {
   const normalized = String(source || "system").toLowerCase();
   return WORKSPACE_NOTIFICATION_SOURCE_LABELS[normalized] || normalized.toUpperCase();
+}
+
+function getWorkspaceNotificationDayStart(iso) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  const d = new Date(t);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function formatWorkspaceNotificationDayLabel(iso) {
+  if (!iso) return "—";
+  try {
+    const dayStart = getWorkspaceNotificationDayStart(iso);
+    if (dayStart == null) return "—";
+    const todayStart = getWorkspaceNotificationDayStart(new Date().toISOString());
+    const diffDays = Math.floor((todayStart - dayStart) / 86400000);
+    if (diffDays === 0) return "Сегодня";
+    if (diffDays === 1) return "Вчера";
+    return new Date(dayStart).toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function formatWorkspaceNotificationClock(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const dayStart = getWorkspaceNotificationDayStart(iso);
+    const todayStart = getWorkspaceNotificationDayStart(new Date().toISOString());
+    const diffDays = dayStart == null || todayStart == null ? null : Math.floor((todayStart - dayStart) / 86400000);
+    const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    if (diffDays === 0) return time;
+    if (diffDays === 1) return `Вчера, ${time}`;
+    if (diffDays != null && diffDays < 7) {
+      const day = d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+      return `${day}, ${time}`;
+    }
+    return formatNodeMetaDateTime(iso);
+  } catch {
+    return "—";
+  }
 }
 
 function resolveWorkspaceNotificationManifestPath(event) {
@@ -50430,96 +50528,183 @@ function positionWorkspaceNotificationsPopover() {
   const anchor = workspaceNotificationsBtn;
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
   const rect = anchor.getBoundingClientRect();
-  const width = Math.min(360, window.innerWidth - 24);
+  const width = 392;
   const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
   const top = rect.bottom + 8;
-  const maxHeight = Math.max(180, window.innerHeight - top - 16);
+  const maxHeight = Math.max(280, window.innerHeight - top - 16);
   popover.style.top = `${top}px`;
   popover.style.left = `${left}px`;
-  popover.style.width = `${width}px`;
   popover.style.maxHeight = `${maxHeight}px`;
+}
+
+function createWorkspaceNotificationRow(event) {
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "workspace-notification-row";
+  const isUnread = event.id > workspaceNotificationsSeenId;
+  if (isUnread) row.classList.add("is-unread");
+  row.setAttribute("role", "listitem");
+  row.dataset.notificationId = String(event.id);
+
+  const icon = document.createElement("span");
+  const actionKey = String(event.action || "update").toLowerCase();
+  icon.className = `workspace-notification-icon is-${actionKey}`;
+  icon.textContent = WORKSPACE_NOTIFICATION_ACTION_ICONS[actionKey] || "•";
+  icon.setAttribute("aria-hidden", "true");
+  row.appendChild(icon);
+
+  const body = document.createElement("span");
+  body.className = "workspace-notification-body";
+
+  const top = document.createElement("span");
+  top.className = "workspace-notification-top";
+
+  const badges = document.createElement("span");
+  badges.className = "workspace-notification-badges";
+
+  const action = document.createElement("span");
+  action.className = "workspace-notification-action";
+  action.textContent = formatWorkspaceNotificationAction(event.action);
+  badges.appendChild(action);
+
+  const source = document.createElement("span");
+  source.className = `workspace-notification-source is-${String(event.source || "system").toLowerCase()}`;
+  source.textContent = formatWorkspaceNotificationSource(event.source);
+  badges.appendChild(source);
+  top.appendChild(badges);
+  body.appendChild(top);
+
+  const label = document.createElement("span");
+  label.className = "workspace-notification-label";
+  label.textContent = getWorkspaceNotificationTitle(event);
+  body.appendChild(label);
+
+  const topicHint = getWorkspaceNotificationTopicHint(event);
+  if (topicHint) {
+    const topicNode = document.createElement("span");
+    topicNode.className = "workspace-notification-topic";
+    topicNode.textContent = topicHint;
+    body.appendChild(topicNode);
+  }
+
+  if (event.message && event.message !== getWorkspaceNotificationTitle(event)) {
+    const messageNode = document.createElement("span");
+    messageNode.className = "workspace-notification-message";
+    messageNode.textContent = event.message;
+    body.appendChild(messageNode);
+  }
+
+  const pathText = event.path || "";
+  const visiblePath =
+    pathText.startsWith(".agent-cms/") && event.action === "notify" ? "" : pathText;
+  if (visiblePath) {
+    const pathNode = document.createElement("span");
+    pathNode.className = "workspace-notification-path";
+    pathNode.textContent = visiblePath;
+    body.appendChild(pathNode);
+  }
+
+  row.appendChild(body);
+
+  const meta = document.createElement("span");
+  meta.className = "workspace-notification-meta";
+
+  const num = document.createElement("span");
+  num.className = "workspace-notification-num";
+  num.textContent = `#${event.id}`;
+  meta.appendChild(num);
+
+  const time = document.createElement("time");
+  time.className = "workspace-notification-time";
+  time.dateTime = event.at || "";
+  time.textContent = formatWorkspaceNotificationClock(event.at);
+  time.title = formatNodeMetaDateTime(event.at);
+  meta.appendChild(time);
+
+  if (isUnread) {
+    const unreadDot = document.createElement("span");
+    unreadDot.className = "workspace-notification-unread-dot";
+    unreadDot.setAttribute("aria-hidden", "true");
+    meta.appendChild(unreadDot);
+  }
+
+  row.appendChild(meta);
+  row.addEventListener("click", (clickEvent) => {
+    clickEvent.stopPropagation();
+    void openWorkspaceNotification(event);
+  });
+  return row;
 }
 
 function renderWorkspaceNotificationsList() {
   if (!workspaceNotificationsListNode) return;
   workspaceNotificationsListNode.replaceChildren();
-  if (!workspaceNotificationsEvents.length) {
+  syncWorkspaceNotificationsFilterUi();
+  syncWorkspaceNotificationsLoadMore();
+  syncWorkspaceNotificationsHint();
+
+  const filtered = getFilteredWorkspaceNotificationEvents();
+  if (!filtered.length) {
     const empty = document.createElement("p");
     empty.className = "workspace-notifications-empty";
-    empty.textContent = "Пока нет изменений. Действия агента через MCP появятся здесь.";
+    empty.textContent = workspaceNotificationsEvents.length
+      ? "Нет уведомлений для выбранного фильтра."
+      : "Пока нет изменений. Действия агента через MCP появятся здесь.";
     workspaceNotificationsListNode.appendChild(empty);
     return;
   }
 
-  for (const event of workspaceNotificationsEvents) {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "workspace-notification-row";
-    if (event.id > workspaceNotificationsSeenId) row.classList.add("is-unread");
-    row.setAttribute("role", "listitem");
-    row.dataset.notificationId = String(event.id);
+  const visibleEvents = filtered.slice(0, workspaceNotificationsVisibleCount);
 
-    const icon = document.createElement("span");
-    const actionKey = String(event.action || "update").toLowerCase();
-    icon.className = `workspace-notification-icon is-${actionKey}`;
-    icon.textContent = WORKSPACE_NOTIFICATION_ACTION_ICONS[actionKey] || "•";
-    row.appendChild(icon);
-
-    const body = document.createElement("span");
-    body.className = "workspace-notification-body";
-
-    const top = document.createElement("span");
-    top.className = "workspace-notification-top";
-
-    const action = document.createElement("span");
-    action.className = "workspace-notification-action";
-    action.textContent = formatWorkspaceNotificationAction(event.action);
-    top.appendChild(action);
-
-    const source = document.createElement("span");
-    source.className = `workspace-notification-source is-${String(event.source || "system").toLowerCase()}`;
-    source.textContent = formatWorkspaceNotificationSource(event.source);
-    top.appendChild(source);
-    body.appendChild(top);
-
-    const label = document.createElement("span");
-    label.className = "workspace-notification-label";
-    label.textContent = getWorkspaceNotificationTitle(event);
-    body.appendChild(label);
-
-    const topicHint = getWorkspaceNotificationTopicHint(event);
-    if (topicHint) {
-      const topicNode = document.createElement("span");
-      topicNode.className = "workspace-notification-topic";
-      topicNode.textContent = topicHint;
-      body.appendChild(topicNode);
+  let lastDayKey = "";
+  for (const event of visibleEvents) {
+    const dayKey = formatWorkspaceNotificationDayLabel(event.at);
+    if (dayKey !== lastDayKey) {
+      lastDayKey = dayKey;
+      const dayHead = document.createElement("h3");
+      dayHead.className = "workspace-notifications-day";
+      dayHead.textContent = dayKey;
+      workspaceNotificationsListNode.appendChild(dayHead);
     }
+    workspaceNotificationsListNode.appendChild(createWorkspaceNotificationRow(event));
+  }
+}
 
-    if (event.message && event.message !== getWorkspaceNotificationTitle(event)) {
-      const messageNode = document.createElement("span");
-      messageNode.className = "workspace-notification-message";
-      messageNode.textContent = event.message;
-      body.appendChild(messageNode);
-    }
+function loadMoreWorkspaceNotifications() {
+  const filtered = getFilteredWorkspaceNotificationEvents();
+  if (workspaceNotificationsVisibleCount >= filtered.length) return;
+  workspaceNotificationsVisibleCount = Math.min(
+    workspaceNotificationsVisibleCount + WORKSPACE_NOTIFICATIONS_LOAD_STEP,
+    filtered.length
+  );
+  renderWorkspaceNotificationsList();
+  positionWorkspaceNotificationsPopover();
+}
 
-    const pathNode = document.createElement("span");
-    pathNode.className = "workspace-notification-path";
-    const pathText = event.path || "";
-    pathNode.textContent =
-      pathText.startsWith(".agent-cms/") && event.action === "notify" ? "" : pathText;
-    if (pathNode.textContent) body.appendChild(pathNode);
-
-    const time = document.createElement("span");
-    time.className = "workspace-notification-time";
-    time.textContent = formatNodeMetaDateTime(event.at);
-    body.appendChild(time);
-
-    row.appendChild(body);
-    row.addEventListener("click", (clickEvent) => {
-      clickEvent.stopPropagation();
-      void openWorkspaceNotification(event);
-    });
-    workspaceNotificationsListNode.appendChild(row);
+async function clearWorkspaceNotifications() {
+  if (!activeAgentId) return;
+  if (
+    workspaceNotificationsEvents.length &&
+    !window.confirm("Очистить журнал уведомлений? Записи будут перенесены в архив.")
+  ) {
+    return;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/activity/clear"), { method: "POST" });
+    if (!response.ok) throw new Error(`activity-clear:${response.status}`);
+    workspaceNotificationsEvents = [];
+    workspaceNotificationsLatestId = 0;
+    workspaceNotificationsTruncated = false;
+    workspaceNotificationsFileLines = 0;
+    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
+    workspaceNotificationsSeenId = 0;
+    saveWorkspaceNotificationsSeenId();
+    syncWorkspaceNotificationsBadge();
+    syncWorkspaceNotificationsHint();
+    renderWorkspaceNotificationsList();
+    showToast("Журнал уведомлений очищен", "info");
+  } catch (error) {
+    showToast(`Не удалось очистить: ${error.message}`, "error");
   }
 }
 
@@ -50694,7 +50879,7 @@ function playWorkspaceNotificationSound() {
   }
 }
 
-async function fetchWorkspaceActivityEvents({ since = 0, limit = 50 } = {}) {
+async function fetchWorkspaceActivityEvents({ since = 0, limit = WORKSPACE_NOTIFICATIONS_FETCH_LIMIT } = {}) {
   const response = await fetch(
     buildApiUrl("/api/agent/activity", {
       since: since > 0 ? since : undefined,
@@ -50710,7 +50895,7 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
   try {
     const payload = await fetchWorkspaceActivityEvents({
       since: mergeOnly && workspaceNotificationsLatestId > 0 ? workspaceNotificationsLatestId : 0,
-      limit: mergeOnly ? 100 : 50
+      limit: WORKSPACE_NOTIFICATIONS_FETCH_LIMIT
     });
     const incoming = Array.isArray(payload?.events) ? payload.events : [];
     workspaceNotificationsLatestId = Number(payload?.latestId) || workspaceNotificationsLatestId;
@@ -50727,9 +50912,12 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
         }
       }
       workspaceNotificationsEvents.sort((a, b) => b.id - a.id);
-      workspaceNotificationsEvents = workspaceNotificationsEvents.slice(0, 100);
+      workspaceNotificationsEvents = workspaceNotificationsEvents.slice(0, WORKSPACE_NOTIFICATIONS_FETCH_LIMIT);
     } else if (!mergeOnly) {
-      workspaceNotificationsEvents = incoming.slice().sort((a, b) => b.id - a.id);
+      workspaceNotificationsEvents = incoming
+        .slice()
+        .sort((a, b) => b.id - a.id)
+        .slice(0, WORKSPACE_NOTIFICATIONS_FETCH_LIMIT);
     }
 
     syncWorkspaceNotificationsBadge();
@@ -50763,6 +50951,8 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
 
 function initWorkspaceNotifications() {
   loadWorkspaceNotificationsSeenId();
+  loadWorkspaceNotificationsFilter();
+  syncWorkspaceNotificationsFilterUi();
   void refreshWorkspaceNotifications(false);
   workspaceNotificationsPollTimer = window.setInterval(() => {
     if (document.hidden || !activeAgentId) return;
@@ -50776,6 +50966,25 @@ function initWorkspaceNotifications() {
     toggleWorkspaceNotificationsPopover();
   });
   workspaceNotificationsCloseBtn?.addEventListener("click", closeWorkspaceNotificationsPopover);
+  workspaceNotificationsClearBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void clearWorkspaceNotifications();
+  });
+  workspaceNotificationsLoadMoreBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    loadMoreWorkspaceNotifications();
+  });
+  workspaceNotificationsFiltersNode?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-filter]");
+    if (!(button instanceof HTMLButtonElement)) return;
+    event.stopPropagation();
+    const nextFilter = String(button.getAttribute("data-filter") || "all").toLowerCase();
+    if (!WORKSPACE_NOTIFICATIONS_FILTER_VALUES.has(nextFilter)) return;
+    workspaceNotificationsFilter = nextFilter;
+    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
+    saveWorkspaceNotificationsFilter();
+    renderWorkspaceNotificationsList();
+  });
   window.addEventListener("resize", positionWorkspaceNotificationsPopover);
   document.addEventListener("click", (event) => {
     if (!workspaceNotificationsOpen) return;
@@ -56515,6 +56724,9 @@ function applyEditorViewMode() {
 function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
+  if (activeSystemFile && systemFileRequiresSourceEditor(activeSystemFile) && mode === "wysiwyg") {
+    mode = "source";
+  }
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
     syncSourceFromWysiwygEditor();
     destroyWysiwygEditor();
@@ -57711,11 +57923,9 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
         hasGit: Boolean(node.hasGitSelf ?? node.hasGit),
         hasObsidian: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
         hasAgent: Boolean(node.hasAgentSelf ?? node.hasAgent),
-        hasSkill: Boolean(node.hasSkillSelf ?? node.hasSkill),
         hasGitSelf: Boolean(node.hasGitSelf ?? node.hasGit),
         hasObsidianSelf: Boolean(node.hasObsidianSelf ?? node.hasObsidian),
-        hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent),
-        hasSkillSelf: Boolean(node.hasSkillSelf ?? node.hasSkill)
+        hasAgentSelf: Boolean(node.hasAgentSelf ?? node.hasAgent)
       });
     }
   }

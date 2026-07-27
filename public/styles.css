@@ -10939,12 +10939,16 @@ body.app-locked {
 .workspace-notifications-popover {
   position: fixed;
   z-index: 1100;
-  width: min(360px, calc(100vw - 24px));
-  padding: 10px;
+  width: 392px;
+  max-width: calc(100vw - 24px);
+  max-height: min(680px, calc(100vh - 24px));
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--panel);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
 }
 
 .workspace-notifications-popover.hidden {
@@ -10955,23 +10959,25 @@ body.app-locked {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .workspace-notifications-title {
   margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0f172a;
 }
 
 .workspace-notifications-hint {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.4;
   color: #94a3b8;
 }
 
@@ -10979,11 +10985,11 @@ body.app-locked {
   border: none;
   background: transparent;
   color: #64748b;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 8px;
 }
 
 .workspace-notifications-close:hover {
@@ -10991,54 +10997,176 @@ body.app-locked {
   color: var(--text);
 }
 
+.workspace-notifications-toolbar {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.workspace-notifications-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-notifications-filter {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.workspace-notifications-filter:hover {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.workspace-notifications-filter.is-active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
 .workspace-notifications-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: min(420px, calc(100vh - 120px));
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workspace-notifications-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.workspace-notifications-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.workspace-notifications-load-more-btn {
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.workspace-notifications-load-more-btn:hover {
+  border-color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.14);
+}
+
+.workspace-notifications-load-more-btn.hidden {
+  display: none;
+}
+
+.workspace-notifications-clear-btn {
+  margin-left: auto;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.workspace-notifications-clear-btn:hover:not(:disabled) {
+  border-color: #fda4af;
+  background: #ffe4e6;
+}
+
+.workspace-notifications-clear-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .workspace-notifications-empty {
   margin: 0;
-  padding: 16px 8px;
+  padding: 20px 10px;
   text-align: center;
   font-size: 12px;
+  line-height: 1.5;
   color: #94a3b8;
 }
 
+.workspace-notifications-day {
+  margin: 4px 0 2px;
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #475569;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.workspace-notifications-day:first-child {
+  margin-top: 0;
+}
+
 .workspace-notification-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: start;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 11px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 11px;
   background: #f8fafc;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .workspace-notification-row:hover {
   border-color: #cbd5e1;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .workspace-notification-row.is-unread {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: #fcd34d;
+  background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+  box-shadow: inset 3px 0 0 #f59e0b;
 }
 
 .workspace-notification-icon {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   display: grid;
   place-items: center;
-  font-size: 14px;
+  font-size: 15px;
   background: #e2e8f0;
 }
 
@@ -11064,7 +11192,7 @@ body.app-locked {
 
 .workspace-notification-message {
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.4;
   color: #64748b;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -11074,41 +11202,63 @@ body.app-locked {
 
 .workspace-notification-body {
   min-width: 0;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .workspace-notification-top {
   display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.workspace-notification-badges {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .workspace-notification-action {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #0f172a;
 }
 
 .workspace-notification-source {
   flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
   color: #64748b;
 }
 
 .workspace-notification-source.is-mcp {
-  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.14);
+  color: #6d28d9;
+}
+
+.workspace-notification-source.is-ui {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+.workspace-notification-source.is-api {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
 }
 
 .workspace-notification-label {
-  font-size: 12px;
-  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -11123,16 +11273,55 @@ body.app-locked {
 }
 
 .workspace-notification-path {
-  font-size: 11px;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #94a3b8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.workspace-notification-time {
+.workspace-notification-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.workspace-notification-num {
   font-size: 10px;
-  color: #cbd5e1;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.workspace-notification-row.is-unread .workspace-notification-num {
+  color: #b45309;
+}
+
+.workspace-notification-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6366f1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.workspace-notification-row.is-unread .workspace-notification-time {
+  color: #d97706;
+}
+
+.workspace-notification-unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
 }
 
 .header-tool-btn--logout {

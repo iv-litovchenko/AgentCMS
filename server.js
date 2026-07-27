@@ -729,7 +729,7 @@ const WORKSPACE_ACTIVITY_ARCHIVE_FILE = "activity-archive.jsonl";
 const WORKSPACE_ACTIVITY_MEMORY_LIMIT = 250;
 const WORKSPACE_ACTIVITY_FILE_LINE_LIMIT = 5000;
 const WORKSPACE_ACTIVITY_FILE_TRIM_TO = 3000;
-const WORKSPACE_ACTIVITY_LOAD_LIMIT = 500;
+const WORKSPACE_ACTIVITY_LOAD_LIMIT = 100;
 const WORKSPACE_ACTIVITY_FILE_MAX_BYTES = 4 * 1024 * 1024;
 const workspaceActivityStorage = new AsyncLocalStorage();
 const workspaceActivityByAgentRoot = new Map();
@@ -1111,7 +1111,7 @@ async function listWorkspaceActivityEvents({ since = 0, limit = 50 } = {}) {
   await ensureWorkspaceActivityLoaded(agentRoot);
   const store = getWorkspaceActivityStore(agentRoot);
   const sinceId = Number(since) || 0;
-  const cappedLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const cappedLimit = Math.max(1, Math.min(100, Number(limit) || 50));
   const eventsSource = store?.events || [];
   const events =
     sinceId > 0
@@ -1128,9 +1128,42 @@ async function listWorkspaceActivityEvents({ since = 0, limit = 50 } = {}) {
       file: WORKSPACE_ACTIVITY_FILE_LINE_LIMIT,
       fileMaxBytes: WORKSPACE_ACTIVITY_FILE_MAX_BYTES,
       archiveFile: `${WORKSPACE_ACTIVITY_DIR}/${WORKSPACE_ACTIVITY_ARCHIVE_FILE}`,
-      api: 200
+      api: 100
     }
   };
+}
+
+async function clearWorkspaceActivity(agentRoot = getAgentRoot()) {
+  await ensureWorkspaceActivityLoaded(agentRoot);
+  const store = getWorkspaceActivityStore(agentRoot);
+  const fileAbsolute = getWorkspaceActivityFileAbsolute(agentRoot);
+  if (!store || !fileAbsolute) return { cleared: 0, latestId: 0 };
+
+  let lines = [];
+  try {
+    const raw = await fs.readFile(fileAbsolute, "utf-8");
+    lines = raw.split("\n").filter(Boolean);
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      store.events = [];
+      store.seq = 0;
+      store.fileLines = 0;
+      store.fileTruncated = false;
+      return { cleared: 0, latestId: 0 };
+    }
+    throw error;
+  }
+
+  if (lines.length) {
+    await archiveWorkspaceActivityLines(agentRoot, lines);
+    await fs.writeFile(fileAbsolute, "", "utf-8");
+  }
+
+  store.events = [];
+  store.seq = 0;
+  store.fileLines = 0;
+  store.fileTruncated = false;
+  return { cleared: lines.length, latestId: 0 };
 }
 
 function recordWorkspaceNodeCreateFromResponse(createdPath) {
@@ -4018,8 +4051,7 @@ function collectAdoptFoldersFromMenuNode(node, results = [], parentPath = null) 
         childFolders: Array.isArray(section.sections) ? section.sections.length : 0,
         hasGitSelf: Boolean(section.hasGitSelf),
         hasObsidianSelf: Boolean(section.hasObsidianSelf),
-        hasAgentSelf: Boolean(section.hasAgentSelf),
-        hasSkillSelf: Boolean(section.hasSkillSelf)
+        hasAgentSelf: Boolean(section.hasAgentSelf)
       });
     }
     if (folderPath) {
@@ -10261,23 +10293,13 @@ async function folderHasAgentManifest(dirAbsolute) {
   return isWorkspaceReginfoAtPath(dirAbsolute);
 }
 
-async function folderHasSkillManifest(dirAbsolute) {
-  try {
-    const stat = await fs.stat(path.join(dirAbsolute, "SKILL.md"));
-    return stat.isFile();
-  } catch {
-    return false;
-  }
-}
-
 async function readFolderWorkspaceMarkers(dirAbsolute) {
-  const [hasGitSelf, hasObsidianSelf, hasAgentSelf, hasSkillSelf] = await Promise.all([
+  const [hasGitSelf, hasObsidianSelf, hasAgentSelf] = await Promise.all([
     folderHasGitRepo(dirAbsolute),
     folderHasObsidianVault(dirAbsolute),
-    folderHasAgentManifest(dirAbsolute),
-    folderHasSkillManifest(dirAbsolute)
+    folderHasAgentManifest(dirAbsolute)
   ]);
-  return { hasGitSelf, hasObsidianSelf, hasAgentSelf, hasSkillSelf };
+  return { hasGitSelf, hasObsidianSelf, hasAgentSelf };
 }
 
 function withMenuFolderWorkspaceMarkers(markers) {
@@ -10285,8 +10307,7 @@ function withMenuFolderWorkspaceMarkers(markers) {
     ...markers,
     hasGit: Boolean(markers?.hasGitSelf),
     hasObsidian: Boolean(markers?.hasObsidianSelf),
-    hasAgent: Boolean(markers?.hasAgentSelf),
-    hasSkill: Boolean(markers?.hasSkillSelf)
+    hasAgent: Boolean(markers?.hasAgentSelf)
   };
 }
 
@@ -10486,11 +10507,9 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     hasGit: markers.hasGitSelf,
     hasObsidian: markers.hasObsidianSelf,
     hasAgent: markers.hasAgentSelf,
-    hasSkill: markers.hasSkillSelf,
     hasGitSelf: markers.hasGitSelf,
     hasObsidianSelf: markers.hasObsidianSelf,
-    hasAgentSelf: markers.hasAgentSelf,
-    hasSkillSelf: markers.hasSkillSelf
+    hasAgentSelf: markers.hasAgentSelf
   };
 
   if (indexPath) {
@@ -10638,11 +10657,9 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
         hasGit: markers.hasGitSelf,
         hasObsidian: markers.hasObsidianSelf,
         hasAgent: markers.hasAgentSelf,
-        hasSkill: markers.hasSkillSelf,
         hasGitSelf: markers.hasGitSelf,
         hasObsidianSelf: markers.hasObsidianSelf,
         hasAgentSelf: markers.hasAgentSelf,
-        hasSkillSelf: markers.hasSkillSelf,
         sections: [],
         items: [],
         indexPath: null,
@@ -12866,6 +12883,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace activity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/activity/clear") {
+    try {
+      const payload = await clearWorkspaceActivity();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear workspace activity",
         details: String(error.message || error)
       });
     }
