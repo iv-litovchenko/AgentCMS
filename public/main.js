@@ -10133,6 +10133,10 @@ let createModalAdoptFolder = false;
 let currentMenuData = null;
 let menuSearchQuery = "";
 let menuViewMode = "tree";
+
+function isMenuTreeLayoutMode() {
+  return menuViewMode === "tree" || menuViewMode === "flat";
+}
 let menuRefreshInFlight = false;
 let agentWorkspaceView = loadAgentWorkspaceView();
 let agentVaultSearchQuery = "";
@@ -16805,7 +16809,7 @@ function createMenuTreePreviewNode(source) {
     wrap,
     source,
     { imageUrl: source.previewUrl },
-    { className: "menu-tree-preview-img" }
+    { className: "menu-tree-preview-img", cacheBust: false, loading: "eager" }
   );
   return appended ? wrap : null;
 }
@@ -19137,7 +19141,9 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
 function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   const patched = menu
-    ? withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId))
+    ? withPreservedMenuTreePreviews(agentId, () =>
+        withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId))
+      )
     : false;
   if (!patched && menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
@@ -19315,8 +19321,9 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
     }
     getAgentCollapsedFolders(agentId).delete(normalized);
     const patched = withPreservedMenuScroll(() => {
-      if (patchMenuTreeAtFolder(normalized, agentId)) return true;
-      return patchFolderCollapsedState(normalized, agentId);
+      // After lazy load, rebuild children once with fresh branch data.
+      if (patchFolderCollapsedState(normalized, agentId, { forceRebuild: true })) return true;
+      return patchMenuTreeAtFolder(normalized, agentId);
     });
     if (!patched) {
       withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
@@ -19355,8 +19362,14 @@ function getMenuTreeFolderPaths(agentId = activeAgentId) {
 function isMenuTreeFullyCollapsed(agentId = activeAgentId) {
   const paths = getMenuTreeFolderPaths(agentId);
   const collapsedFolders = getAgentCollapsedFolders(agentId);
-  const nestedCollapsed = paths.length === 0 || paths.every((path) => collapsedFolders.has(path));
-  return nestedCollapsed && isServiceTreeCollapsed();
+  if (paths.length === 0) {
+    return isServiceTreeCollapsed() && isSharedTreeCollapsed();
+  }
+  return (
+    paths.every((path) => collapsedFolders.has(path)) &&
+    isServiceTreeCollapsed() &&
+    isSharedTreeCollapsed()
+  );
 }
 
 function syncMenuCollapseAllButton() {
@@ -19364,31 +19377,58 @@ function syncMenuCollapseAllButton() {
   const enabled =
     menuViewMode === "tree" && !menuSearchQuery.trim().length && Boolean(currentMenuData);
   menuCollapseAllBtn.disabled = !enabled;
-  if (!enabled) return;
-  const expanded = isMenuTreeFullyCollapsed();
-  menuCollapseAllBtn.title = expanded ? "Развернуть все ветки" : "Свернуть все ветки";
-  menuCollapseAllBtn.setAttribute("aria-label", expanded ? "Развернуть все ветки" : "Свернуть все ветки");
-  const icon = menuCollapseAllBtn.querySelector(".menu-collapse-all-icon");
-  if (icon) icon.textContent = expanded ? "⊞" : "⊟";
+  if (!enabled) {
+    menuCollapseAllBtn.classList.remove("is-expand-all");
+    return;
+  }
+  const fullyCollapsed = isMenuTreeFullyCollapsed();
+  menuCollapseAllBtn.classList.toggle("is-expand-all", fullyCollapsed);
+  menuCollapseAllBtn.title = fullyCollapsed ? "Развернуть все ветки" : "Свернуть все ветки";
+  menuCollapseAllBtn.setAttribute(
+    "aria-label",
+    fullyCollapsed ? "Развернуть все ветки" : "Свернуть все ветки"
+  );
 }
 
 function expandAllMenuTreeBranches(agentId = activeAgentId) {
-  if (!currentMenuData || menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   getAgentCollapsedFolders(agentId).clear();
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", "0");
+  localStorage.setItem("agentcms.sharedTree.collapsed.v1", "0");
   localStorage.setItem("agentcms.containerTree.collapsed.v1", "0");
   saveCollapsedFoldersByAgent();
-  const patched = withPreservedMenuScroll(() => refreshAllFolderCollapsedPatches(agentId));
-  if (!patched) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
+
+  const host = getMenuTreeHost(agentId);
+  if (host && canIncrementalMenuPatch()) {
+    withPreservedMenuTreePreviews(agentId, () => {
+      withPreservedMenuScroll(() => {
+        host.querySelectorAll(".menu-section[data-menu-folder]").forEach((sectionEl) => {
+          const folderPath = sectionEl.dataset.menuFolder || ".";
+          if (folderPath === ".") return;
+          const childrenNode = sectionEl.querySelector(":scope > .tree-children");
+          syncFolderToggleUi(sectionEl, false, true);
+          if (childrenNode) {
+            childrenNode.hidden = false;
+            return;
+          }
+          patchFolderCollapsedState(folderPath, agentId);
+        });
+        syncReservedMenuSectionsCollapsedUi(agentId, currentMenuData);
+      });
+    });
+    updateActiveButton();
+    syncMenuCollapseAllButton();
+    return;
   }
+
+  withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
   updateActiveButton();
   syncMenuCollapseAllButton();
 }
 
 function collapseAllMenuTreeBranches(agentId = activeAgentId) {
-  if (!currentMenuData || menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   const folderPaths = getMenuTreeFolderPaths(agentId);
   const collapsedFolders = getAgentCollapsedFolders(agentId);
@@ -19396,12 +19436,30 @@ function collapseAllMenuTreeBranches(agentId = activeAgentId) {
     collapsedFolders.add(folderPath);
   }
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", "1");
+  localStorage.setItem("agentcms.sharedTree.collapsed.v1", "1");
   localStorage.setItem("agentcms.containerTree.collapsed.v1", "1");
   saveCollapsedFoldersByAgent();
-  const patched = withPreservedMenuScroll(() => refreshAllFolderCollapsedPatches(agentId));
-  if (!patched) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
+
+  const host = getMenuTreeHost(agentId);
+  if (host && canIncrementalMenuPatch()) {
+    withPreservedMenuTreePreviews(agentId, () => {
+      withPreservedMenuScroll(() => {
+        host.querySelectorAll(".menu-section[data-menu-folder]").forEach((sectionEl) => {
+          const folderPath = sectionEl.dataset.menuFolder || ".";
+          if (folderPath === ".") return;
+          const childrenNode = sectionEl.querySelector(":scope > .tree-children");
+          syncFolderToggleUi(sectionEl, true, Boolean(childrenNode) || true);
+          if (childrenNode) childrenNode.hidden = true;
+        });
+        syncReservedMenuSectionsCollapsedUi(agentId, currentMenuData);
+      });
+    });
+    updateActiveButton();
+    syncMenuCollapseAllButton();
+    return;
   }
+
+  withPreservedMenuScroll(() => renderMenu(currentMenuData, agentId, { menuOnly: true }));
   updateActiveButton();
   syncMenuCollapseAllButton();
 }
@@ -43605,21 +43663,27 @@ function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) 
   return leadingWrap.childElementCount ? leadingWrap : null;
 }
 
-function appendNavigationItemPreviewThumb(parent, item, preview, { className = "" } = {}) {
+function appendNavigationItemPreviewThumb(
+  parent,
+  item,
+  preview,
+  { className = "", cacheBust = true, loading = "lazy" } = {}
+) {
   if (!preview || preview.broken) return false;
 
   const rawUrl = String(preview.imageUrl || "").trim();
   if (!rawUrl) return false;
 
-  const imageUrl =
+  let imageUrl =
     /^https?:\/\//i.test(rawUrl) || rawUrl.startsWith("/api/")
-      ? appendCacheBuster(appendAgentToApiUrl(rawUrl))
-      : appendCacheBuster(rawUrl);
+      ? appendAgentToApiUrl(rawUrl)
+      : rawUrl;
+  if (cacheBust) imageUrl = appendCacheBuster(imageUrl);
 
   const img = document.createElement("img");
   img.className = className;
   img.alt = "";
-  img.loading = "lazy";
+  img.loading = loading;
   img.decoding = "async";
   img.src = imageUrl;
   img.addEventListener("error", () => applyBrokenImagePlaceholder(img, "Превью не найдено"), {
@@ -43627,6 +43691,47 @@ function appendNavigationItemPreviewThumb(parent, item, preview, { className = "
   });
   parent.appendChild(img);
   return true;
+}
+
+const menuTreePreviewImageCache = new Map();
+
+function collectMenuTreePreviewImages(root) {
+  const byPath = new Map();
+  if (!root) return byPath;
+  root.querySelectorAll(".menu-item[data-path], .menu-folder[data-path]").forEach((btn) => {
+    const path = normalizeMenuNodePath(btn.dataset.path || "");
+    if (!path) return;
+    const img = btn.querySelector(".menu-tree-preview-img");
+    if (!img || img.classList.contains("broken-image-placeholder")) return;
+    const src = String(img.currentSrc || img.src || "").trim();
+    if (!src) return;
+    byPath.set(path, img);
+    menuTreePreviewImageCache.set(path, img);
+  });
+  return byPath;
+}
+
+function reuseMenuTreePreviewImages(root, previousByPath) {
+  if (!root) return;
+  root.querySelectorAll(".menu-item[data-path], .menu-folder[data-path]").forEach((btn) => {
+    const path = normalizeMenuNodePath(btn.dataset.path || "");
+    if (!path) return;
+    const previousImg =
+      previousByPath?.get?.(path) || menuTreePreviewImageCache.get(path) || null;
+    if (!previousImg || previousImg.classList.contains("broken-image-placeholder")) return;
+    const nextImg = btn.querySelector(".menu-tree-preview-img");
+    if (!nextImg || previousImg === nextImg) return;
+    nextImg.replaceWith(previousImg);
+    menuTreePreviewImageCache.set(path, previousImg);
+  });
+}
+
+function withPreservedMenuTreePreviews(agentId, work) {
+  const host = getMenuTreeHost(agentId);
+  const previousPreviews = collectMenuTreePreviewImages(host);
+  const result = work();
+  if (host) reuseMenuTreePreviewImages(host, previousPreviews);
+  return result;
 }
 
 const NAV_PREVIEW_HOVER_SELECTOR =
@@ -48645,7 +48750,7 @@ function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
 }
 
 function refreshMenuTreeRuntimeBadges(agentId = activeAgentId) {
-  if (menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuRuntimeBadges(agentId);
 }
 
@@ -48778,7 +48883,7 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
 }
 
 function refreshMenuTreeIntakeBadges(agentId = activeAgentId) {
-  if (menuViewMode !== "tree" || menuSearchQuery.trim()) return;
+  if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuIntakeBadges(agentId);
 }
 
@@ -57767,6 +57872,15 @@ function isServiceTreeCollapsed() {
 
 function toggleServiceTreeCollapsed() {
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", isServiceTreeCollapsed() ? "0" : "1");
+  if (currentMenuData && canIncrementalMenuPatch()) {
+    withPreservedMenuTreePreviews(activeAgentId, () => {
+      withPreservedMenuScroll(() => {
+        syncServiceSectionCollapsedUi(activeAgentId, currentMenuData);
+      });
+    });
+    syncMenuCollapseAllButton();
+    return;
+  }
   if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
 }
 
@@ -57854,6 +57968,15 @@ function isSharedTreeCollapsed() {
 
 function toggleSharedTreeCollapsed() {
   localStorage.setItem("agentcms.sharedTree.collapsed.v1", isSharedTreeCollapsed() ? "0" : "1");
+  if (currentMenuData && canIncrementalMenuPatch()) {
+    withPreservedMenuTreePreviews(activeAgentId, () => {
+      withPreservedMenuScroll(() => {
+        syncSharedSectionCollapsedUi(activeAgentId, currentMenuData);
+      });
+    });
+    syncMenuCollapseAllButton();
+    return;
+  }
   if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
 }
 
@@ -58722,13 +58845,12 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
 
   section.appendChild(headRow);
 
-  if (!collapsed) {
-    const body = document.createElement("div");
-    body.className = "tree-children menu-service-body";
-    body.dataset.sortFolder = serviceFolder;
-    renderServiceTreeBody(treeToRender, body, agentId, serviceFolder);
-    section.appendChild(body);
-  }
+  const body = document.createElement("div");
+  body.className = "tree-children menu-service-body";
+  body.dataset.sortFolder = serviceFolder;
+  renderServiceTreeBody(treeToRender, body, agentId, serviceFolder);
+  if (collapsed) body.hidden = true;
+  section.appendChild(body);
 
   parentEl.insertBefore(section, parentEl.firstChild);
   normalizeMenuReservedSectionsOrder(parentEl);
@@ -58828,13 +58950,12 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
 
   section.appendChild(headRow);
 
-  if (!collapsed) {
-    const body = document.createElement("div");
-    body.className = "tree-children menu-shared-body";
-    body.dataset.sortFolder = sharedFolder;
-    renderSharedTreeBody(treeToRender, body, agentId, sharedFolder);
-    section.appendChild(body);
-  }
+  const body = document.createElement("div");
+  body.className = "tree-children menu-shared-body";
+  body.dataset.sortFolder = sharedFolder;
+  renderSharedTreeBody(treeToRender, body, agentId, sharedFolder);
+  if (collapsed) body.hidden = true;
+  section.appendChild(body);
 
   insertMenuReservedNode(parentEl, section, "shared");
   normalizeMenuReservedSectionsOrder(parentEl);
@@ -59460,14 +59581,43 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
 
 function setMenuViewMode(mode) {
   if (mode !== "tree" && mode !== "flat" && mode !== "bookmarks") return;
+  const previousMode = menuViewMode;
   menuViewMode = mode;
   menuViewTreeBtn.classList.toggle("active", mode === "tree");
   menuViewFlatBtn.classList.toggle("active", mode === "flat");
   menuViewBookmarksBtn.classList.toggle("active", mode === "bookmarks");
+
+  const wasTreeLayout = previousMode === "tree" || previousMode === "flat";
+  const isTreeLayout = mode === "tree" || mode === "flat";
+
   if (currentMenuData) {
+    // Tree ↔ flat: keep the same DOM, only change visual layout.
+    if (wasTreeLayout && isTreeLayout) {
+      syncMenuViewLayoutClass(activeAgentId);
+      if (mode === "flat" && previousMode !== "flat" && !menuSearchQuery.trim()) {
+        expandAllMenuTreeBranches(activeAgentId);
+      } else {
+        syncMenuCollapseAllButton();
+      }
+      updateActiveButton();
+      return;
+    }
     renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    if (mode === "flat" && !menuSearchQuery.trim()) {
+      expandAllMenuTreeBranches(activeAgentId);
+    }
     updateActiveButton();
+  } else {
+    syncMenuViewLayoutClass(activeAgentId);
   }
+}
+
+function syncMenuViewLayoutClass(agentId = activeAgentId) {
+  const isFlat = menuViewMode === "flat";
+  const pane = menuAgentPanes.get(agentId);
+  pane?.classList.toggle("is-menu-view-flat", isFlat);
+  getMenuQueryRoot()?.classList.toggle("is-menu-view-flat", isFlat);
+  menuNode?.classList.toggle("is-menu-view-flat", isFlat);
 }
 
 function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
@@ -60418,14 +60568,12 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     applyMenuCardsFilterUi();
   }
 
-  if (menuViewMode === "tree" && !menuSearchQuery.trim() && getPinnedMenuFolder(agentId)) {
+  if (isMenuTreeLayoutMode() && !menuSearchQuery.trim() && getPinnedMenuFolder(agentId)) {
     applyPinnedBranchCollapse(agentId);
   }
 
   target.innerHTML = "";
-  if (menuViewMode === "flat") {
-    renderFlatMenu(menu, target, agentId);
-  } else if (menuViewMode === "bookmarks") {
+  if (menuViewMode === "bookmarks") {
     renderBookmarksMenu(menu, target, agentId);
   } else if (menuViewMode === "cards") {
     renderCardsMenu(menu, target, agentId);
@@ -60447,6 +60595,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     if (!menuOnly) {
       syncAgentPreview();
     }
+    syncMenuViewLayoutClass(agentId);
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(agentId);
   }
@@ -60557,7 +60706,7 @@ function getWorkspacesTreeChildren(agentId = activeAgentId) {
   if (!rootSection) return null;
 
   const containerClass =
-    menuViewMode === "flat" || menuViewMode === "bookmarks"
+    menuViewMode === "bookmarks"
       ? "menu-flat-list"
       : menuViewMode === "cards"
         ? "menu-cards-grid"
@@ -67422,7 +67571,7 @@ function findFirstNode(menu) {
 }
 
 function canIncrementalMenuPatch() {
-  return menuViewMode === "tree" && !menuSearchQuery.trim();
+  return isMenuTreeLayoutMode() && !menuSearchQuery.trim();
 }
 
 function getMenuTreeHost(agentId = activeAgentId) {
@@ -67578,6 +67727,7 @@ function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
 
 function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
   const isRootFolder = sectionEl?.dataset?.menuFolder === ".";
+  sectionEl?.classList.toggle("is-collapsed", Boolean(isCollapsed) && !isRootFolder);
   const toggleBtn = sectionEl.querySelector(
     ":scope > .menu-folder-row .folder-toggle-btn, :scope > .menu-section-row .folder-toggle-btn"
   );
@@ -67600,6 +67750,90 @@ function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
   }
 }
 
+function updateReservedSectionToggleUi(sectionEl, collapsed, hasContent) {
+  const toggleBtn = sectionEl?.querySelector(":scope > .menu-folder-row .folder-toggle-btn");
+  if (toggleBtn && !toggleBtn.classList.contains("folder-toggle-btn--lock-open")) {
+    toggleBtn.textContent = hasContent ? (collapsed ? "▸" : "▾") : "▸";
+    toggleBtn.disabled = !hasContent;
+    toggleBtn.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+  }
+  const titleNode = sectionEl?.querySelector(
+    ":scope > .menu-folder-row .menu-service-title, :scope > .menu-folder-row .menu-shared-title"
+  );
+  if (titleNode && hasContent) {
+    titleNode.title = collapsed ? "Раскрыть" : "Скрыть";
+  }
+}
+
+function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+  const parentEl = getWorkspacesTreeChildren(agentId);
+  if (!parentEl || !menu?.serviceTree || !shouldShowServiceSectionInMenu(agentId)) return;
+
+  const sectionEl = parentEl.querySelector(":scope > .menu-service-section");
+  if (!sectionEl) return;
+
+  const collapsed = menuSearchQuery.trim() ? false : isServiceTreeCollapsed();
+  const serviceFolder = getActiveAgentKitFolder(agentId);
+  let body = sectionEl.querySelector(":scope > .tree-children.menu-service-body");
+
+  if (!body && !collapsed) {
+    const queryLower = menuSearchQuery.trim().toLowerCase();
+    let treeToRender = pruneMenuTreeForDisplay({ title: SERVICE_SECTION_TITLE, ...menu.serviceTree }, agentId);
+    if (queryLower) {
+      treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+    }
+    if (treeToRender) {
+      body = document.createElement("div");
+      body.className = "tree-children menu-service-body";
+      body.dataset.sortFolder = serviceFolder;
+      renderServiceTreeBody(treeToRender, body, agentId, serviceFolder);
+      sectionEl.appendChild(body);
+      refreshMenuSortDecorations(agentId);
+    }
+  }
+
+  if (body) body.hidden = collapsed;
+  const hasContent = Boolean(body) || sectionEl.querySelector(":scope > .menu-folder-row .folder-toggle-btn:not(:disabled)");
+  updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
+}
+
+function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+  const parentEl = getWorkspacesTreeChildren(agentId);
+  if (!parentEl || !menu?.sharedTree || !shouldShowSharedSectionInMenu(agentId)) return;
+
+  const sectionEl = parentEl.querySelector(":scope > .menu-shared-section");
+  if (!sectionEl) return;
+
+  const collapsed = menuSearchQuery.trim() ? false : isSharedTreeCollapsed();
+  const sharedFolder = getActiveAgentSharedFolder(agentId);
+  let body = sectionEl.querySelector(":scope > .tree-children.menu-shared-body");
+
+  if (!body && !collapsed) {
+    const queryLower = menuSearchQuery.trim().toLowerCase();
+    let treeToRender = pruneMenuTreeForDisplay({ title: SHARED_SECTION_LABEL, ...menu.sharedTree }, agentId);
+    if (queryLower) {
+      treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+    }
+    if (treeToRender) {
+      body = document.createElement("div");
+      body.className = "tree-children menu-shared-body";
+      body.dataset.sortFolder = sharedFolder;
+      renderSharedTreeBody(treeToRender, body, agentId, sharedFolder);
+      sectionEl.appendChild(body);
+      refreshMenuSortDecorations(agentId);
+    }
+  }
+
+  if (body) body.hidden = collapsed;
+  const hasContent = Boolean(body) || sectionEl.querySelector(":scope > .menu-folder-row .folder-toggle-btn:not(:disabled)");
+  updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
+}
+
+function syncReservedMenuSectionsCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+  syncServiceSectionCollapsedUi(agentId, menu);
+  syncSharedSectionCollapsedUi(agentId, menu);
+}
+
 function refreshRootMenuTreeExtras(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
   const childrenContainer = getWorkspacesTreeChildren(agentId);
   if (!childrenContainer) return;
@@ -67607,10 +67841,11 @@ function refreshRootMenuTreeExtras(agentId = activeAgentId, menu = menuCacheByAg
   renderSystemFiles(systemFilesCache);
 }
 
-function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
+function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options = {}) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
+  const forceRebuild = Boolean(options.forceRebuild);
 
   try {
     const branch = getMenuBranchForFolder(menu, folderPath, agentId);
@@ -67632,22 +67867,33 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
       branch.depth,
       sectionFolderPath
     );
-    const visibleChildren = expandMeta.visibleChildren;
-    const repoServiceItems = expandMeta.repoServiceItems;
-    const isGitRepoMenuNode = expandMeta.isGitRepoMenuNode;
-    const nestedContainerTree = expandMeta.nestedContainerTree;
-    const nestedContainerPrefix = expandMeta.nestedContainerPrefix;
-    const nestedContainerChildren = expandMeta.nestedContainerChildren;
     const hasContent = expandMeta.hasContent;
-    const canExpandChildren = expandMeta.canExpandChildren;
-    const hasNestedContainer = expandMeta.hasNestedContainer;
-    const hasNonContainer = expandMeta.hasNonContainer;
-    const hasRepoService = expandMeta.hasRepoService;
+    const isGitRepoMenuNode = expandMeta.isGitRepoMenuNode;
 
     syncFolderToggleUi(sectionEl, isCollapsed, hasContent);
-    sectionEl.querySelector(":scope > .tree-children")?.remove();
 
-    if (!isCollapsed && hasContent) {
+    let childrenNode = sectionEl.querySelector(":scope > .tree-children");
+
+    // Collapse: keep existing DOM (and previews), only hide it.
+    if (isCollapsed) {
+      if (childrenNode) childrenNode.hidden = true;
+      refreshMenuSortDecorations(agentId);
+      refreshMenuTreeIntakeBadges(agentId);
+      return true;
+    }
+
+    // Expand: reuse already rendered children to avoid preview flicker.
+    if (childrenNode && !forceRebuild) {
+      childrenNode.hidden = false;
+      refreshMenuSortDecorations(agentId);
+      refreshMenuTreeIntakeBadges(agentId);
+      return true;
+    }
+
+    const previousPreviews = collectMenuTreePreviewImages(childrenNode);
+    childrenNode?.remove();
+
+    if (hasContent) {
       const parentMenuNode =
         normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
       if (isGitRepoMenuNode) {
@@ -67659,11 +67905,18 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId) {
           parentMenuNode,
           agentId
         );
+        const renderedChildren = sectionEl.querySelector(":scope > .tree-children");
+        if (renderedChildren) {
+          reuseMenuTreePreviewImages(renderedChildren, previousPreviews);
+          renderedChildren.hidden = false;
+        }
       } else {
         const wrapper = document.createElement("div");
         renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
         const newChildren = wrapper.firstElementChild?.querySelector(":scope > .tree-children");
         if (newChildren) {
+          reuseMenuTreePreviewImages(newChildren, previousPreviews);
+          newChildren.hidden = false;
           sectionEl.appendChild(newChildren);
         }
       }
@@ -67952,9 +68205,11 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     if (normalized === ".") {
       const oldSection = host.querySelector(":scope > .menu-section");
       if (!oldSection) return false;
+      const previousPreviews = collectMenuTreePreviewImages(oldSection);
       renderTree(branch.node, wrapper, 0, ".", null, agentId);
       const newSection = wrapper.firstElementChild;
       if (!newSection) return false;
+      reuseMenuTreePreviewImages(newSection, previousPreviews);
       oldSection.replaceWith(newSection);
       refreshRootMenuTreeExtras(agentId, menu);
       refreshMenuSortDecorations(agentId);
@@ -67965,12 +68220,14 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     const oldSection = findMenuSectionByFolderPath(normalized, agentId);
     if (!oldSection || !oldSection.parentElement) return false;
 
+    const previousPreviews = collectMenuTreePreviewImages(oldSection);
     renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
     if (oldSection.parentElement?.classList.contains("tree-children")) {
       prepareMenuSectionForSortContainer(newSection, branch.node);
     }
+    reuseMenuTreePreviewImages(newSection, previousPreviews);
     oldSection.replaceWith(newSection);
     refreshMenuSortDecorations(agentId);
     refreshMenuTreeIntakeBadges(agentId);
@@ -70446,7 +70703,7 @@ menuTreePadSortIndexesNode?.addEventListener("change", () => {
   saveMenuTreeSettings(activeAgentId, {
     padSortIndexes: Boolean(menuTreePadSortIndexesNode.checked)
   });
-  if (currentMenuData && menuViewMode === "tree") {
+  if (currentMenuData && isMenuTreeLayoutMode()) {
     renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
   }

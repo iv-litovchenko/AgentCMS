@@ -441,7 +441,13 @@
                 <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
               </button>
               <button id="menu-view-flat-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="flat" data-tooltip="Плоская" aria-label="Плоская">
-                <span class="menu-view-btn-icon" aria-hidden="true">📋</span>
+                <span class="menu-view-btn-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                    <path d="M3 4.5h10" />
+                    <path d="M3 8h10" />
+                    <path d="M3 11.5h10" />
+                  </svg>
+                </span>
               </button>
               <button id="menu-view-bookmarks-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
                 <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
@@ -463,7 +469,18 @@
               aria-label="Свернуть все ветки"
               title="Свернуть все ветки"
             >
-              <span class="menu-collapse-all-icon" aria-hidden="true">⊟</span>
+              <span class="menu-collapse-all-icon" aria-hidden="true">
+                <svg class="menu-collapse-all-icon--collapse" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 4h10" />
+                  <path d="M5 7.25h6" />
+                  <path d="M10.25 11.5 8 9.25 5.75 11.5" />
+                </svg>
+                <svg class="menu-collapse-all-icon--expand" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 4h10" />
+                  <path d="M5 7.25h6" />
+                  <path d="M5.75 9.5 8 11.75 10.25 9.5" />
+                </svg>
+              </span>
             </button>
             <button
               id="menu-pin-branch-btn"
@@ -485,7 +502,12 @@
                 aria-controls="menu-settings-popover"
                 title="Настройки дерева"
               >
-                ⚙
+                <svg class="menu-settings-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M6.6 1.6h2.8l.25 1.55a4.7 4.7 0 0 1 1.2.7l1.5-.55 1.4 2.4-1.25 1a4.8 4.8 0 0 1 0 1.4l1.25 1-1.4 2.4-1.5-.55a4.7 4.7 0 0 1-1.2.7L9.4 14.4H6.6l-.25-1.55a4.7 4.7 0 0 1-1.2-.7l-1.5.55-1.4-2.4 1.25-1a4.8 4.8 0 0 1 0-1.4l-1.25-1 1.4-2.4 1.5.55a4.7 4.7 0 0 1 1.2-.7L6.6 1.6zm1.4 4.15A2.25 2.25 0 1 0 8 10.25 2.25 2.25 0 0 0 8 5.75z"
+                  />
+                </svg>
               </button>
               <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
                 <p class="menu-settings-popover-title">Настройки дерева</p>
@@ -1484,6 +1506,28 @@
                   </div>
                 </nav>
                 <div class="workspace-path-crumbs-actions">
+                  <span
+                    class="workspace-gdrive-sync-wrap"
+                    title="Пока disabled"
+                  >
+                    <button
+                      id="workspace-gdrive-sync-btn"
+                      class="workspace-gdrive-sync-btn"
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      aria-label="Google Диск — пока disabled"
+                      title="Пока disabled"
+                    >
+                      <span class="workspace-gdrive-sync-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M7.71 3.5 2.5 12.5h4.79L12.5 3.5H7.71z" fill="#0066DA"/>
+                          <path d="M16.29 3.5H12.5l4.79 9H21.5l-5.21-9z" fill="#00AC47"/>
+                          <path d="M2.5 12.5 7.71 21.5h9.58L21.5 12.5H2.5z" fill="#FFBA00"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </span>
                   <div id="workspace-links-menu-wrap" class="workspace-links-menu-wrap">
                     <button
                       id="workspace-links-menu-btn"

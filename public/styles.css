@@ -14640,10 +14640,30 @@ body.app-locked {
 }
 
 .menu-collapse-all-icon {
-  display: inline-block;
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  line-height: 0;
+}
+
+.menu-collapse-all-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.menu-collapse-all-icon--expand {
+  display: none;
+}
+
+.menu-collapse-all-btn.is-expand-all .menu-collapse-all-icon--collapse {
+  display: none;
+}
+
+.menu-collapse-all-btn.is-expand-all .menu-collapse-all-icon--expand {
+  display: block;
 }
 
 .menu-collapse-all-btn:hover:not(:disabled) {
@@ -14842,6 +14862,12 @@ body.app-locked {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.menu-settings-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 .menu-settings-btn:hover:not(:disabled),
@@ -16884,6 +16910,62 @@ body.app-locked {
   margin-top: 2px;
 }
 
+.menu-section.is-collapsed > .tree-children,
+.menu-section > .tree-children[hidden],
+.menu-service-section > .tree-children[hidden],
+.menu-shared-section > .tree-children[hidden] {
+  display: none !important;
+}
+
+/* Flat view: same tree DOM, visually flat (no nesting chrome) */
+.menu-agent-pane.is-menu-view-flat .tree-children {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+  margin-top: 0;
+}
+
+.menu-agent-pane.is-menu-view-flat .menu-workspace-section,
+.menu-agent-pane.is-menu-view-flat .menu-shared-section,
+.menu-agent-pane.is-menu-view-flat .menu-service-section,
+.menu-agent-pane.is-menu-view-flat .menu-container-section,
+.menu-agent-pane.is-menu-view-flat .menu-nested-container-section {
+  margin: 0 0 4px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.menu-agent-pane.is-menu-view-flat .folder-toggle-btn,
+.menu-agent-pane.is-menu-view-flat .menu-sort-handle,
+.menu-agent-pane.is-menu-view-flat .menu-folder-row .menu-pin-branch-btn,
+.menu-agent-pane.is-menu-view-flat .menu-folder-row .add-node-btn,
+.menu-agent-pane.is-menu-view-flat .menu-tree-divider {
+  display: none !important;
+}
+
+.menu-agent-pane.is-menu-view-flat .menu-folder-row,
+.menu-agent-pane.is-menu-view-flat .menu-section-row,
+.menu-agent-pane.is-menu-view-flat .menu-item-row,
+.menu-agent-pane.is-menu-view-flat .system-file-row {
+  margin-left: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.menu-agent-pane.is-menu-view-flat .menu-folder-row .menu-folder,
+.menu-agent-pane.is-menu-view-flat .menu-item-row .menu-item {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.menu-agent-pane.is-menu-view-flat .system-file-group-label {
+  margin-top: 10px;
+  margin-bottom: 2px;
+}
+
 .tree-children.menu-container-body,
 .tree-children.menu-nested-container-body,
 .menu-git-workspace-body {
@@ -18647,6 +18729,10 @@ body.app-locked {
   margin-left: auto;
 }
 
+.workspace-path-crumbs-actions .workspace-gdrive-sync-wrap {
+  order: 5;
+}
+
 .workspace-path-crumbs-actions #workspace-links-menu-wrap {
   order: 10;
 }
@@ -18685,8 +18771,58 @@ body.app-locked {
 .workspace-path-crumbs-actions .folder-browse-delete-selected-btn,
 .workspace-path-crumbs-actions .folder-browse-file-rename-btn,
 .workspace-path-crumbs-actions .workspace-links-menu-btn,
-.workspace-path-crumbs-actions .workspace-print-btn {
+.workspace-path-crumbs-actions .workspace-print-btn,
+.workspace-path-crumbs-actions .workspace-gdrive-sync-btn {
   height: 28px;
+}
+
+.workspace-gdrive-sync-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.workspace-gdrive-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(66, 133, 244, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(52, 168, 83, 0.06) 45%, rgba(251, 188, 5, 0.07) 100%),
+    #fff;
+  color: #1e3a5f;
+  cursor: not-allowed;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  opacity: 0.72;
+}
+
+.workspace-gdrive-sync-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.workspace-gdrive-sync-btn-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.workspace-gdrive-sync-btn:disabled {
+  opacity: 0.72;
+  /* Keep hover so the wrap/title tooltip can appear */
+  pointer-events: none;
+}
+
+.workspace-gdrive-sync-btn.hidden {
+  display: none;
 }
 
 .workspace-share-link-btn,
@@ -25336,7 +25472,9 @@ button.node-navigation-memory-title:focus-visible {
   max-width: 100%;
 }
 
-.doc-slab-path.is-service-file .workspace-links-menu-wrap {
+.doc-slab-path.is-service-file .workspace-links-menu-wrap,
+.doc-slab-path.is-service-file .workspace-gdrive-sync-wrap,
+.doc-slab-path.is-service-file .workspace-gdrive-sync-btn {
   display: none;
 }
 
