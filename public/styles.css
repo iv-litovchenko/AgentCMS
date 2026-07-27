@@ -22969,7 +22969,7 @@ body.app-locked {
 
 .node-navigation-hero-meta-chip {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
   white-space: nowrap;
 }
@@ -22977,6 +22977,39 @@ body.app-locked {
 .node-navigation-hero-meta-chip + .node-navigation-hero-meta-chip {
   padding-left: 16px;
   border-left: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.node-navigation-hero-meta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
+  line-height: 0;
+  cursor: default;
+}
+
+.node-navigation-hero-meta-icon--created {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.node-navigation-hero-meta-icon--modified {
+  color: #c2410c;
+  background: rgba(194, 65, 12, 0.1);
+}
+
+.node-navigation-hero-meta-icon--viewed {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.node-navigation-hero-meta-icon-svg {
+  width: 13px;
+  height: 13px;
 }
 
 .node-navigation-hero-meta-label {
@@ -23043,6 +23076,7 @@ body.app-locked {
   cursor: default;
   gap: 4px;
   padding: 2px 6px;
+  position: relative;
 }
 
 .node-navigation-runtime-slot.node-slot-chip:hover {
@@ -23179,6 +23213,97 @@ body.app-locked {
 .node-navigation-marker-slot-icon .menu-marker-svg {
   width: 12px;
   height: 12px;
+}
+
+.ui-tooltip-host {
+  position: relative;
+}
+
+.ui-tooltip-host[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  z-index: 40;
+  transform: translateX(-50%) translateY(2px);
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+}
+
+.ui-tooltip-host[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  z-index: 40;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.ui-tooltip-host[data-tooltip]:not([data-tooltip-pos])::after,
+.ui-tooltip-host[data-tooltip-pos="bottom"]::after {
+  top: calc(100% + 8px);
+}
+
+.ui-tooltip-host[data-tooltip]:not([data-tooltip-pos])::before,
+.ui-tooltip-host[data-tooltip-pos="bottom"]::before {
+  top: calc(100% + 2px);
+  border-bottom-color: #1e293b;
+}
+
+.ui-tooltip-host[data-tooltip-pos="top"]::after {
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.ui-tooltip-host[data-tooltip-pos="top"]::before {
+  bottom: calc(100% + 2px);
+  border-top-color: #1e293b;
+}
+
+.ui-tooltip-host[data-tooltip]:hover::after,
+.ui-tooltip-host[data-tooltip]:focus-visible::after,
+.ui-tooltip-host[data-tooltip]:hover::before,
+.ui-tooltip-host[data-tooltip]:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ui-tooltip-host[data-tooltip]:not([data-tooltip-pos]):hover::after,
+.ui-tooltip-host[data-tooltip-pos="bottom"]:hover::after,
+.ui-tooltip-host[data-tooltip]:not([data-tooltip-pos]):focus-visible::after,
+.ui-tooltip-host[data-tooltip-pos="bottom"]:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+.ui-tooltip-host[data-tooltip-pos="top"]:hover::after,
+.ui-tooltip-host[data-tooltip-pos="top"]:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+.node-navigation-hero-meta-icon.ui-tooltip-host[data-tooltip]::after,
+.node-navigation-hero-meta-icon.ui-tooltip-host[data-tooltip]::before {
+  z-index: 50;
+}
+
+.node-navigation-marker-slot.ui-tooltip-host[data-tooltip]::after,
+.node-navigation-runtime-slot.ui-tooltip-host[data-tooltip]::after {
+  max-width: 280px;
+  white-space: normal;
+  text-align: center;
 }
 
 .node-navigation-hero-title-row {

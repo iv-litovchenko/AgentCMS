@@ -41052,12 +41052,118 @@ function createRuntimeActiveCheckSvg() {
   return svg;
 }
 
+function applyUiTooltip(element, text, { position = "top" } = {}) {
+  if (!element) return;
+  const tooltip = String(text || "").trim();
+  if (!tooltip) return;
+  element.classList.add("ui-tooltip-host");
+  element.setAttribute("data-tooltip", tooltip);
+  if (position && position !== "bottom") {
+    element.setAttribute("data-tooltip-pos", position);
+  } else {
+    element.removeAttribute("data-tooltip-pos");
+  }
+}
+
+function createNavigationHeroDateIconSvg(kind) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", "node-navigation-hero-meta-icon-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  if (kind === "created") {
+    const frame = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    frame.setAttribute("x", "2");
+    frame.setAttribute("y", "3");
+    frame.setAttribute("width", "12");
+    frame.setAttribute("height", "11");
+    frame.setAttribute("rx", "1.5");
+    frame.setAttribute("fill", "none");
+    frame.setAttribute("stroke", "currentColor");
+    frame.setAttribute("stroke-width", "1.2");
+    svg.appendChild(frame);
+
+    for (const x of [5, 11]) {
+      const pin = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pin.setAttribute("d", `M${x} 1.5v3`);
+      pin.setAttribute("fill", "none");
+      pin.setAttribute("stroke", "currentColor");
+      pin.setAttribute("stroke-width", "1.2");
+      pin.setAttribute("stroke-linecap", "round");
+      svg.appendChild(pin);
+    }
+
+    const divider = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    divider.setAttribute("d", "M2 6.5h12");
+    divider.setAttribute("fill", "none");
+    divider.setAttribute("stroke", "currentColor");
+    divider.setAttribute("stroke-width", "1.2");
+    divider.setAttribute("stroke-linecap", "round");
+    svg.appendChild(divider);
+    return svg;
+  }
+
+  if (kind === "modified") {
+    const pencil = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    pencil.setAttribute("d", "M11.2 2.8l2 2-6.8 6.8H4.4v-2l6.8-6.8z");
+    pencil.setAttribute("fill", "none");
+    pencil.setAttribute("stroke", "currentColor");
+    pencil.setAttribute("stroke-width", "1.2");
+    pencil.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(pencil);
+    return svg;
+  }
+
+  const eye = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  eye.setAttribute(
+    "d",
+    "M1.5 8s2.6-4 6.5-4 6.5 4 6.5 4-2.6 4-6.5 4-6.5-4-6.5-4z"
+  );
+  eye.setAttribute("fill", "none");
+  eye.setAttribute("stroke", "currentColor");
+  eye.setAttribute("stroke-width", "1.2");
+  eye.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(eye);
+
+  const pupil = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  pupil.setAttribute("cx", "8");
+  pupil.setAttribute("cy", "8");
+  pupil.setAttribute("r", "1.75");
+  pupil.setAttribute("fill", "none");
+  pupil.setAttribute("stroke", "currentColor");
+  pupil.setAttribute("stroke-width", "1.2");
+  svg.appendChild(pupil);
+  return svg;
+}
+
+function buildNavigationHeroRuntimeTooltip({ id, active, caption, cronSchedule = "" }) {
+  const state = active ? "включено" : "выключено";
+  if (id === "cron" && active && cronSchedule) {
+    return `${caption}: ${state} · ${cronSchedule}`;
+  }
+  return `${caption}: ${state}`;
+}
+
+function buildNavigationHeroMarkerTooltip({ id, active, caption, titleActive, titleInactive }) {
+  if (id === "agent") {
+    return active
+      ? "Agent workspace: manifest.md (awn.page.ws) в этой папке"
+      : "Agent workspace: manifest.md (awn.page.ws) нет в этой папке";
+  }
+  if (id === "git") {
+    return active ? "Git: репозиторий (.git) в этой папке" : "Git: репозитория нет в этой папке";
+  }
+  return active
+    ? titleActive || `${caption}: есть в этой папке`
+    : titleInactive || `${caption}: нет в этой папке`;
+}
+
 function createNavigationHeroRuntimeSlot({ id, active = false, caption = "", title = "" }) {
   const slot = document.createElement("span");
   slot.className = `node-slot-chip node-navigation-runtime-slot node-navigation-runtime-slot--${id} ${
     active ? "is-active" : "is-inactive"
   }`;
-  if (title) slot.title = title;
+  applyUiTooltip(slot, title || `${caption}: ${active ? "включено" : "выключено"}`);
   slot.setAttribute("role", "img");
   slot.setAttribute("aria-label", `${caption}: ${active ? "включено" : "выключено"}`);
 
@@ -41090,25 +41196,42 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
       id: "load",
       active: runtime.runtimeLoadAlways,
       caption: "Всегда в контексте",
-      title: "awn-runtime-load-always"
+      title: buildNavigationHeroRuntimeTooltip({
+        id: "load",
+        active: runtime.runtimeLoadAlways,
+        caption: "Всегда в контексте"
+      })
     }),
     createNavigationHeroRuntimeSlot({
       id: "cron",
       active: runtime.runtimeCron,
       caption: "Выполнение по расписанию",
-      title: cronSchedule ? `awn-runtime-cron · ${cronSchedule}` : "awn-runtime-cron"
+      title: buildNavigationHeroRuntimeTooltip({
+        id: "cron",
+        active: runtime.runtimeCron,
+        caption: "Выполнение по расписанию",
+        cronSchedule
+      })
     }),
     createNavigationHeroRuntimeSlot({
       id: "heartbeat",
       active: runtime.runtimeHeartbeat,
       caption: "Сердцебиение",
-      title: "awn-runtime-heartbeat"
+      title: buildNavigationHeroRuntimeTooltip({
+        id: "heartbeat",
+        active: runtime.runtimeHeartbeat,
+        caption: "Сердцебиение"
+      })
     }),
     createNavigationHeroRuntimeSlot({
       id: "commands",
       active: runtime.runtimeCommands,
       caption: "Выполнение команд",
-      title: "awn-runtime-commands"
+      title: buildNavigationHeroRuntimeTooltip({
+        id: "commands",
+        active: runtime.runtimeCommands,
+        caption: "Выполнение команд"
+      })
     })
   );
 }
@@ -42721,20 +42844,22 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
   return wrap;
 }
 
-function appendNavigationHeroMetaRow(panel, label, value) {
+function appendNavigationHeroMetaRow(panel, { kind, label, value }) {
   const chip = document.createElement("div");
   chip.className = "node-navigation-hero-meta-chip";
 
-  const labelNode = document.createElement("span");
-  labelNode.className = "node-navigation-hero-meta-label";
-  labelNode.textContent = label;
+  const iconNode = document.createElement("span");
+  iconNode.className = `node-navigation-hero-meta-icon node-navigation-hero-meta-icon--${kind} ui-tooltip-host`;
+  iconNode.setAttribute("data-tooltip", label);
+  iconNode.setAttribute("aria-label", label);
+  iconNode.appendChild(createNavigationHeroDateIconSvg(kind));
 
   const valueNode = document.createElement("span");
   valueNode.className = "node-navigation-hero-meta-value";
   const text = String(value ?? "").trim();
   valueNode.textContent = text || "—";
 
-  chip.append(labelNode, valueNode);
+  chip.append(iconNode, valueNode);
   panel.appendChild(chip);
 }
 
@@ -42813,9 +42938,14 @@ function createNavigationHeroMarkerSlot({ id, caption, active, createSvg, titleA
   slot.className = `node-slot-chip node-navigation-marker-slot node-navigation-marker-slot--${id}${
     active ? " is-active" : " is-inactive"
   }`;
-  slot.title = active
-    ? titleActive || `${caption}: есть в этой папке`
-    : titleInactive || `${caption}: нет в этой папке`;
+  const tooltip = buildNavigationHeroMarkerTooltip({
+    id,
+    active,
+    caption,
+    titleActive,
+    titleInactive
+  });
+  applyUiTooltip(slot, tooltip);
   slot.setAttribute("role", "img");
   slot.setAttribute("aria-label", `${caption}: ${active ? "есть" : "нет"}`);
 
@@ -42887,17 +43017,21 @@ function buildNavigationHeroDatesPanel(meta, nodePath = activePath) {
   const lastViewedIso = getNodeLastViewedIso(nodePath);
 
   const rows = [
-    ["Создан", createdIso ? formatNodeMetaDateTime(createdIso) : null],
-    ["Изменён", modifiedIso ? formatNodeMetaDateTime(modifiedIso) : null],
-    ["Последний просмотр", lastViewedIso ? formatNodeMetaDateTime(lastViewedIso) : null]
+    { kind: "created", label: "Создан", value: createdIso ? formatNodeMetaDateTime(createdIso) : null },
+    { kind: "modified", label: "Изменён", value: modifiedIso ? formatNodeMetaDateTime(modifiedIso) : null },
+    {
+      kind: "viewed",
+      label: "Последний просмотр",
+      value: lastViewedIso ? formatNodeMetaDateTime(lastViewedIso) : null
+    }
   ];
 
   const panel = document.createElement("div");
   panel.className = "node-navigation-hero-meta node-navigation-hero-dates";
   panel.setAttribute("role", "group");
   panel.setAttribute("aria-label", "Даты записи");
-  for (const [label, value] of rows) {
-    appendNavigationHeroMetaRow(panel, label, value);
+  for (const row of rows) {
+    appendNavigationHeroMetaRow(panel, row);
   }
   return panel;
 }
