@@ -16664,6 +16664,12 @@ body.app-locked {
 .menu-item .menu-folder-label,
 .menu-flat-item .menu-folder-label {
   width: 100%;
+  align-items: center;
+}
+
+.menu-folder .menu-folder-label:has(.menu-label-text-stack),
+.menu-item .menu-folder-label:has(.menu-label-text-stack),
+.menu-flat-item .menu-folder-label:has(.menu-label-text-stack) {
   align-items: flex-start;
 }
 
@@ -24714,6 +24720,17 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-preview-hover-popover-arrow[data-anchor-side="left"] {
   left: -9px;
+}
+
+.nav-preview-hover-popover-arrow[data-anchor-side="bottom"] {
+  top: auto;
+  bottom: -9px;
+  left: var(--arrow-offset, 84px);
+  transform: translateX(-50%);
+}
+
+.nav-preview-hover-popover.is-anchor-bottom .nav-preview-hover-popover-arrow {
+  transform: translateX(-50%);
 }
 
 .nav-preview-hover-popover.is-large {

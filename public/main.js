@@ -43657,6 +43657,7 @@ function positionNavPreviewHoverPopover(anchorNode) {
 
   const rect = anchorNode.getBoundingClientRect();
   const isHeroThumb = anchorNode.classList.contains("node-overview-thumb-wrap");
+  const isMenuTreePreview = anchorNode.classList.contains("menu-tree-preview");
   const isTocPreview =
     anchorNode.classList.contains("nav-book-toc-link") ||
     anchorNode.classList.contains("nav-book-toc-link-preview");
@@ -43669,7 +43670,12 @@ function positionNavPreviewHoverPopover(anchorNode) {
   let top = rect.top + rect.height / 2 - popSize / 2;
   let anchorSide = "right";
 
-  if (isTocPreview) {
+  if (isMenuTreePreview) {
+    const anchorCenterX = rect.left + rect.width / 2;
+    left = anchorCenterX - popSize / 2;
+    top = rect.top - popSize - 10;
+    anchorSide = "bottom";
+  } else if (isTocPreview) {
     left = rect.left - popSize - 10;
     if (left < 12) {
       left = rect.right + 10;
@@ -43691,13 +43697,21 @@ function positionNavPreviewHoverPopover(anchorNode) {
     top = window.innerHeight - popSize - 12;
   }
 
-  const anchorCenterY = rect.top + rect.height / 2;
-  const arrowOffset = Math.max(16, Math.min(popSize - 16, anchorCenterY - top));
+  let arrowOffset;
+  if (anchorSide === "bottom") {
+    const anchorCenterX = rect.left + rect.width / 2;
+    arrowOffset = Math.max(16, Math.min(popSize - 16, anchorCenterX - left));
+  } else {
+    const anchorCenterY = rect.top + rect.height / 2;
+    arrowOffset = Math.max(16, Math.min(popSize - 16, anchorCenterY - top));
+  }
   navPreviewHoverPopoverNode.dataset.anchorSide = anchorSide;
+  navPreviewHoverPopoverNode.classList.toggle("is-anchor-bottom", anchorSide === "bottom");
   navPreviewHoverPopoverNode.style.setProperty("--arrow-offset", `${Math.round(arrowOffset)}px`);
   if (navPreviewHoverPopoverArrowNode) {
     navPreviewHoverPopoverArrowNode.dataset.anchorSide = anchorSide;
-    navPreviewHoverPopoverArrowNode.textContent = anchorSide === "right" ? "▸" : "◂";
+    navPreviewHoverPopoverArrowNode.textContent =
+      anchorSide === "bottom" ? "▼" : anchorSide === "right" ? "▸" : "◂";
   }
 
   navPreviewHoverPopoverNode.style.left = `${Math.round(left)}px`;
