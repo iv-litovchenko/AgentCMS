@@ -179,7 +179,7 @@ const agentTodoPreviewToggleBtn = document.getElementById("agent-todo-preview-to
 const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
-const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 100;
+const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 75;
 const SIDEBAR_FOCUS_EXPANDED_KEY = "agentcms.sidebarFocusExpanded.v1";
 const SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY = "agentcms.sidebarNotePreviewExpanded.v1";
 const agentTablePaneNode = document.getElementById("agent-table-pane");
@@ -14004,7 +14004,8 @@ function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
     btn,
     formatMenuTreeItemLabel(item, parentNode, agentId),
     item,
-    "menu-item-name"
+    "menu-item-name",
+    { showPreview: true, agentId }
   );
 }
 
@@ -16796,6 +16797,19 @@ function createMenuTreeTypeIcon(host) {
   return null;
 }
 
+function createMenuTreePreviewNode(source) {
+  if (!source?.hasPreview || !source?.previewUrl) return null;
+  const wrap = document.createElement("span");
+  wrap.className = "menu-tree-preview";
+  const appended = appendNavigationItemPreviewThumb(
+    wrap,
+    source,
+    { imageUrl: source.previewUrl },
+    { className: "menu-tree-preview-img" }
+  );
+  return appended ? wrap : null;
+}
+
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
   host.replaceChildren();
   host.classList.remove("has-menu-tree-status", "has-menu-runtime-badges");
@@ -16803,6 +16817,7 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
 
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
+  const previewNode = options.showPreview ? createMenuTreePreviewNode(source) : null;
   const nameNode = document.createElement("span");
   nameNode.className = nameClass;
   const statusBadge = createMenuTreeStatusBadge(source?.status);
@@ -16820,6 +16835,7 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   titleText.className = "menu-tree-title-text";
   titleText.textContent = labelText;
 
+  if (previewNode) labelWrap.appendChild(previewNode);
   if (markers) labelWrap.appendChild(markers);
   nameNode.appendChild(titleText);
   const subtitleText = String(options.subtitle || "").trim();
@@ -43614,7 +43630,7 @@ function appendNavigationItemPreviewThumb(parent, item, preview, { className = "
 }
 
 const NAV_PREVIEW_HOVER_SELECTOR =
-  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
+  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-tree-preview:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
 
 let navPreviewHoverPopoverNode = null;
 let navPreviewHoverPopoverImgNode = null;
@@ -43629,6 +43645,9 @@ function resolveNavPreviewHoverSourceImg(anchorNode) {
   }
   if (anchorNode.classList.contains("nav-book-toc-link-preview")) {
     return anchorNode.querySelector(".nav-book-toc-link-preview-img");
+  }
+  if (anchorNode.classList.contains("menu-tree-preview")) {
+    return anchorNode.querySelector(".menu-tree-preview-img");
   }
   return anchorNode.querySelector(".node-overview-thumb");
 }
@@ -59414,12 +59433,11 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
 }
 
 function setMenuViewMode(mode) {
-  if (mode !== "tree" && mode !== "flat" && mode !== "bookmarks" && mode !== "cards") return;
+  if (mode !== "tree" && mode !== "flat" && mode !== "bookmarks") return;
   menuViewMode = mode;
   menuViewTreeBtn.classList.toggle("active", mode === "tree");
   menuViewFlatBtn.classList.toggle("active", mode === "flat");
   menuViewBookmarksBtn.classList.toggle("active", mode === "bookmarks");
-  menuViewCardsBtn?.classList.toggle("active", mode === "cards");
   if (currentMenuData) {
     renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
     updateActiveButton();
@@ -59679,7 +59697,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
         formatMenuTreeSortLabel(folderSortKey, parentMenuNode, folderDisplayLabel),
         node,
         "menu-folder-name",
-        { skipAgentMarker: isAgentRootTreeNode(depth, sectionFolderPath) }
+        {
+          skipAgentMarker: isAgentRootTreeNode(depth, sectionFolderPath),
+          showPreview: true,
+          agentId
+        }
       );
       folderButton.addEventListener("click", (event) => {
         const pathFromNode = event.currentTarget?.dataset?.path || "";

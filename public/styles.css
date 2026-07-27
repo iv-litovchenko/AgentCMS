@@ -2075,6 +2075,10 @@ body.app-locked {
   gap: 4px;
 }
 
+.sidebar-focus-list-shell .agent-focus-chip-row:first-child {
+  margin-top: 4px;
+}
+
 .agent-focus-chip-row .agent-focus-chip {
   flex: 1;
   min-width: 0;
@@ -13615,7 +13619,7 @@ body.app-locked {
 .agent-todo-preview-body.file-content-preview {
   width: auto;
   min-height: 0 !important;
-  max-height: 100px;
+  max-height: 75px;
   margin: 0;
   padding: 0 !important;
   border: 0 !important;
@@ -16496,6 +16500,26 @@ body.app-locked {
   gap: 5px;
   min-width: 0;
   max-width: 100%;
+}
+
+.menu-tree-preview {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.menu-tree-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .menu-folder-name,
@@ -24642,6 +24666,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img):hover,
+.menu-tree-preview:has(.menu-tree-preview-img):hover,
 .node-overview-thumb-wrap[data-has-preview="1"]:has(.node-overview-thumb:not(.broken-image-placeholder)):hover {
   border-color: #93c5fd;
   box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.28);
