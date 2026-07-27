@@ -24672,7 +24672,8 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img):hover,
-.menu-tree-preview:has(.menu-tree-preview-img):hover,
+.menu-item:has(.menu-tree-preview-img):hover .menu-tree-preview,
+.menu-folder:has(.menu-tree-preview-img):hover .menu-tree-preview,
 .node-overview-thumb-wrap[data-has-preview="1"]:has(.node-overview-thumb:not(.broken-image-placeholder)):hover {
   border-color: #93c5fd;
   box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.28);

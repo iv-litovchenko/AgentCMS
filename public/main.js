@@ -43630,7 +43630,7 @@ function appendNavigationItemPreviewThumb(parent, item, preview, { className = "
 }
 
 const NAV_PREVIEW_HOVER_SELECTOR =
-  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-tree-preview:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
+  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-item:has(.menu-tree-preview-img), .menu-folder:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
 
 let navPreviewHoverPopoverNode = null;
 let navPreviewHoverPopoverImgNode = null;
@@ -43646,7 +43646,11 @@ function resolveNavPreviewHoverSourceImg(anchorNode) {
   if (anchorNode.classList.contains("nav-book-toc-link-preview")) {
     return anchorNode.querySelector(".nav-book-toc-link-preview-img");
   }
-  if (anchorNode.classList.contains("menu-tree-preview")) {
+  if (
+    anchorNode.classList.contains("menu-item") ||
+    anchorNode.classList.contains("menu-folder") ||
+    anchorNode.classList.contains("menu-tree-preview")
+  ) {
     return anchorNode.querySelector(".menu-tree-preview-img");
   }
   return anchorNode.querySelector(".node-overview-thumb");
@@ -43655,9 +43659,11 @@ function resolveNavPreviewHoverSourceImg(anchorNode) {
 function positionNavPreviewHoverPopover(anchorNode) {
   if (!navPreviewHoverPopoverNode || !anchorNode) return;
 
-  const rect = anchorNode.getBoundingClientRect();
   const isHeroThumb = anchorNode.classList.contains("node-overview-thumb-wrap");
-  const isMenuTreePreview = anchorNode.classList.contains("menu-tree-preview");
+  const isMenuTreePreview =
+    anchorNode.classList.contains("menu-item") ||
+    anchorNode.classList.contains("menu-folder") ||
+    anchorNode.classList.contains("menu-tree-preview");
   const isTocPreview =
     anchorNode.classList.contains("nav-book-toc-link") ||
     anchorNode.classList.contains("nav-book-toc-link-preview");
@@ -43665,6 +43671,11 @@ function positionNavPreviewHoverPopover(anchorNode) {
   navPreviewHoverPopoverNode.classList.toggle("is-large", isHeroThumb);
   navPreviewHoverPopoverNode.style.width = `${popSize}px`;
   navPreviewHoverPopoverNode.style.height = `${popSize}px`;
+
+  // For menu items, pin the popover to the mini preview image, not the whole row.
+  const previewImg = isMenuTreePreview ? resolveNavPreviewHoverSourceImg(anchorNode) : null;
+  const previewWrap = previewImg?.closest?.(".menu-tree-preview");
+  const rect = (previewWrap || previewImg || anchorNode).getBoundingClientRect();
 
   let left;
   let top = rect.top + rect.height / 2 - popSize / 2;
