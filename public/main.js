@@ -2820,6 +2820,15 @@ const MENU_LINK_DRAG_MIME = "application/x-awn-menu-link";
 const MENU_LINK_DRAG_SELECTOR =
   ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path], .system-file-item[data-system-file]";
 const MENU_LINK_DRAG_SOURCE_SELECTOR = ".menu-item[data-path], .menu-folder[data-path]";
+const MENU_ADOPT_FOLDER_DRAG_SELECTOR = ".menu-folder.menu-folder--adopt[data-folder-path]";
+const MENU_SYSTEM_FILE_DRAG_SELECTOR = ".system-file-item[data-system-file]";
+
+function buildSystemFileMarkdownLink(systemFile, displayLabel) {
+  const name = normalizeSystemFileName(systemFile);
+  if (!name) return "";
+  const kind = resolveFolderBrowseDragKind(name);
+  return buildFolderBrowseEditorMarkdown(name, kind, displayLabel || name);
+}
 
 function getWikilinkTargetFromNodePath(nodePath) {
   const normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/"));
@@ -2934,6 +2943,64 @@ function buildMarkdownLinkFromWorkspaceRel(workspaceRelPath, displayLabel, optio
     displayLabel || targetRel.split("/").pop()?.replace(/\.md$/i, "") || targetRel
   );
   return `[${label}](${encodedHref})`;
+}
+
+function buildAdoptFolderMarkdownLink(folderPath, displayLabel) {
+  const targetRel = normalizeCreateParentPath(folderPath);
+  if (!targetRel || targetRel === ".") return "";
+  const label =
+    displayLabel ||
+    targetRel.split("/").filter(Boolean).pop() ||
+    targetRel;
+  // Folder browse URL uses ~folder view; keep the href as the folder path so
+  // relative links stay stable, and open via CHPU adoptFolder resolution.
+  return buildMarkdownLinkFromWorkspaceRel(targetRel, label);
+}
+
+async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
+  const normalized = normalizeLinkFilePath(targetRel);
+  if (!normalized || normalized === ".") return false;
+  try {
+    const resolved = await fetchChpuResolve(workspaceRelToChpuPath(normalized));
+    if (resolved?.kind === "adoptFolder") {
+      const folderPath = String(resolved.folderPath || resolved.workspacePath || normalized).replace(
+        /\\/g,
+        "/"
+      );
+      const label =
+        resolved.title ||
+        folderPath.split("/").filter(Boolean).pop() ||
+        folderPath;
+      await openFolderBrowseFromMenu(label, folderPath, {
+        skipRouteSync: Boolean(options.skipRouteSync)
+      });
+      if (!options.skipRouteSync) {
+        syncAppRouteToUrl({ push: true });
+      }
+      return true;
+    }
+    if (resolved?.kind === "adoptFile") {
+      const filePath = String(resolved.filePath || resolved.workspacePath || normalized).replace(
+        /\\/g,
+        "/"
+      );
+      const folderPath = String(
+        resolved.folderPath || getFolderBrowseParentPath(filePath)
+      ).replace(/\\/g, "/");
+      const label = resolved.title || filePath.split("/").pop() || filePath;
+      await openFolderBrowseFile(label, filePath, {
+        folderPath,
+        skipRouteSync: Boolean(options.skipRouteSync)
+      });
+      if (!options.skipRouteSync) {
+        syncAppRouteToUrl({ push: true });
+      }
+      return true;
+    }
+  } catch {
+    // not an adopt path
+  }
+  return false;
 }
 
 function buildObsidianWikilink(nodePath, displayLabel) {
@@ -3235,6 +3302,10 @@ async function openMarkdownLinkTarget(href, sourcePath = getCurrentEditorLinkBas
     return;
   }
 
+  if (await tryOpenAdoptWorkspaceRel(targetRel, options)) {
+    return;
+  }
+
   showToast(`Ссылка не найдена: ${value}`, "error");
 }
 
@@ -3467,7 +3538,12 @@ function insertSystemFileHintTemplate(template) {
 function syncSystemFileHintUi() {
   if (!systemFileHintNode) return;
   const spec = activeSystemFile ? getSystemFileHintSpec(activeSystemFile) : null;
-  const visible = Boolean(spec && activeSystemFile && isSystemFileEditing());
+  const meta = activeSystemFile ? getSystemFileCacheEntry(activeSystemFile) : null;
+  const contentEmpty = !String(fileContentInputNode?.value || "").trim();
+  const emptyOrMissing = Boolean(meta && (!meta.exists || meta.empty)) || contentEmpty;
+  const visible = Boolean(
+    spec && activeSystemFile && (isSystemFileEditing() || emptyOrMissing)
+  );
 
   systemFileHintNode.classList.toggle("hidden", !visible);
   nodeDescriptionHintNode?.classList.toggle("hidden", true);
@@ -23248,7 +23324,7 @@ function insertMarkdownAtWysiwygCursor(snippet) {
 function insertMarkdownAtEditorCursor(text) {
   const snippet = String(text || "");
   if (!snippet) return false;
-  if (!canInsertDocContentBlocks()) {
+  if (!(canInsertDocContentBlocks() || canPasteMarkdownAttachment())) {
     showToast("Вставка доступна только в режиме редактирования", "error");
     return false;
   }
@@ -39914,10 +39990,44 @@ function commitEditorSaveBaseline() {
 }
 
 function applySystemFileUi() {
+  // Leaving free-memory / folder-browse must drop that mode, otherwise crumbs
+  // actions (Загрузить) and path-header classes keep the toolbar in a broken state.
+  if (
+    activeContentMode === FOLDER_BROWSE_MODE ||
+    activeContentMode === FOLDER_BROWSE_FILE_MODE
+  ) {
+    activeContentMode = "description";
+  }
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  clearFolderBrowseSelection();
+  setFolderBrowseUploadPanelOpen(false);
+
   appRootNode.classList.add("system-file-view");
   workspacePathHeaderNode?.classList.add("is-service-file");
+  workspacePathHeaderNode?.classList.remove(
+    "is-folder-browse",
+    "is-node-navigation",
+    "is-node-memory",
+    "is-node-media",
+    "is-node-settings",
+    "is-node-scripts",
+    "is-node-todo",
+    "is-node-references",
+    "is-node-artefacts",
+    "is-node-assets",
+    "is-node-repository",
+    "is-node-thread",
+    "is-node-data",
+    "is-node-overview"
+  );
   nodeOverviewBlockNode?.classList.add("hidden");
-  nodeOverviewBlockNode?.classList.remove("is-node-navigation", "is-container-node");
+  nodeOverviewBlockNode?.classList.remove(
+    "is-node-navigation",
+    "is-container-node",
+    "is-folder-browse"
+  );
   titleEditorBlockNode.classList.add("hidden");
   setTitleLockedDisplay(getServiceStyleContentLabel());
   editorViewClusterNode?.classList.remove("hidden");
@@ -39961,6 +40071,12 @@ function applySystemFileUi() {
   applyEditorViewMode();
   syncSaveButtonLamp();
   syncSystemFileHintUi();
+  syncFolderBrowseUploadButton();
+  syncFolderBrowseFileActionButtons();
+  syncFolderBrowseDeleteSelectedButton();
+  syncWorkspaceRefreshButton();
+  syncWorkspaceRevealFolderButton();
+  syncWorkspaceCrumbsActionsOrder();
 }
 
 function clearSystemFileViewUi() {
@@ -52294,6 +52410,92 @@ function isFolderBrowseSelectionActionTarget(target) {
   );
 }
 
+function buildFolderBrowseEditorMarkdown(filePath, kind = "other", label = "") {
+  const targetRel = normalizeLinkFilePath(filePath);
+  if (!targetRel) return "";
+  const fromRel = getCurrentEditorLinkBasePath();
+  const hrefRaw = fromRel ? relativizeWorkspacePath(fromRel, targetRel) : targetRel;
+  const href = String(hrefRaw || targetRel)
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  const baseName = label || targetRel.split("/").pop() || targetRel;
+  if (kind === "image") {
+    const alt = String(baseName).replace(/[[\]]/g, "").replace(/\.[^.]+$/i, "") || "image";
+    return `![${alt}](${href})`;
+  }
+  const linkLabel = escapeMarkdownLinkLabel(String(baseName).replace(/\.md$/i, ""));
+  return `[${linkLabel}](${href})`;
+}
+
+function resolveFolderBrowseDragKind(filePath, preferredKind = "other") {
+  const name = String(filePath || "").split("/").pop() || "";
+  const detected = getFolderBrowseFileKindFromName(name);
+  if (detected === "image") return "image";
+  if (detected === "page" || /\.md$/i.test(name)) return "page";
+  if (preferredKind === "image" || preferredKind === "page") return preferredKind;
+  return preferredKind || "other";
+}
+
+function collectFolderBrowseDragMarkdown(primaryPath, preferredKind = "other") {
+  const normalizedPrimary = normalizeFolderBrowseItemPath(primaryPath);
+  const paths =
+    folderBrowseSelectedPaths.size > 1 && folderBrowseSelectedPaths.has(normalizedPrimary)
+      ? [...folderBrowseSelectedPaths]
+      : [normalizedPrimary];
+  return paths
+    .map((filePath) => {
+      const name = String(filePath || "").split("/").pop() || filePath;
+      const kind = resolveFolderBrowseDragKind(filePath, preferredKind);
+      return buildFolderBrowseEditorMarkdown(filePath, kind, name);
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function enableFolderBrowseFileDragToEditor(card, { path, kind = "other", label = "" } = {}) {
+  if (!card || card.dataset.folderBrowseDragBound === "1") return;
+  card.dataset.folderBrowseDragBound = "1";
+  card.draggable = true;
+  card.classList.add("folder-browse-item-card--draggable");
+  const tip = "перетащите в редактор";
+  if (card.title && !card.title.includes(tip)) {
+    card.title = `${card.title} · ${tip}`;
+  } else if (!card.title) {
+    card.title = tip;
+  }
+
+  card.addEventListener("dragstart", (event) => {
+    if (isFolderBrowseSelectionActionTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+    const markdown = collectFolderBrowseDragMarkdown(path, kind);
+    if (!markdown) {
+      event.preventDefault();
+      return;
+    }
+    const displayLabel = label || String(path || "").split("/").pop() || path;
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData(
+      MENU_LINK_DRAG_MIME,
+      JSON.stringify({
+        path,
+        label: displayLabel,
+        wikilink: markdown,
+        markdownLink: markdown,
+        source: "folder-browse"
+      })
+    );
+    event.dataTransfer.setData("text/plain", markdown);
+    card.classList.add("is-dragging-folder-browse-file");
+  });
+
+  card.addEventListener("dragend", () => {
+    card.classList.remove("is-dragging-folder-browse-file");
+  });
+}
+
 let folderBrowseModifierKeys = { meta: false, ctrl: false, shift: false };
 let folderBrowseModifierTrackingBound = false;
 
@@ -52352,7 +52554,7 @@ function appendFolderBrowseSelectToggle(card, normalized, scopeCard) {
   card.insertBefore(btn, card.firstChild);
 }
 
-function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onActivate }) {
+function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onActivate, dragKind = null }) {
   const normalized = normalizeFolderBrowseItemPath(path);
   card.dataset.folderBrowsePath = normalized;
   card.dataset.isDirectory = isDirectory ? "1" : "0";
@@ -52373,14 +52575,25 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
         shift: modifiers.shift,
         scopeCard: card
       });
-      event.preventDefault();
+      // preventDefault blocks HTML5 drag — only use it for non-draggable cards.
+      if (isDirectory || !dragKind) {
+        event.preventDefault();
+      }
     },
     true
   );
 
-  card.addEventListener("dragstart", (event) => {
-    if (event.target instanceof HTMLImageElement) event.preventDefault();
-  });
+  if (!isDirectory && dragKind) {
+    enableFolderBrowseFileDragToEditor(card, {
+      path: normalized,
+      kind: dragKind,
+      label: String(normalized).split("/").pop() || normalized
+    });
+  } else {
+    card.addEventListener("dragstart", (event) => {
+      if (event.target instanceof HTMLImageElement) event.preventDefault();
+    });
+  }
 
   card.addEventListener("dblclick", (event) => {
     if (isFolderBrowseSelectionActionTarget(event.target)) return;
@@ -52774,6 +52987,7 @@ function renderFolderBrowseImagesSection(section, items, folderPath) {
 
     bindFolderBrowseSelectableCard(card, {
       path: item.path,
+      dragKind: "image",
       onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
     });
 
@@ -52890,6 +53104,7 @@ function renderFolderBrowsePagesSection(section, items, folderPath) {
 
     bindFolderBrowseSelectableCard(card, {
       path: page.path,
+      dragKind: "page",
       onActivate: () => {
         if (page.manifestPath) {
           void openNodeFromMenu(page.title || page.name, page.manifestPath);
@@ -52934,6 +53149,7 @@ function renderFolderBrowseMediaListSection(section, items, { kind = "video", fo
 
     bindFolderBrowseSelectableCard(row, {
       path: item.path,
+      dragKind: kind === "video" || kind === "audio" ? kind : "other",
       onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
     });
 
@@ -52970,6 +53186,7 @@ function renderFolderBrowseOtherFilesSection(section, items, folderPath) {
 
     bindFolderBrowseSelectableCard(row, {
       path: item.path,
+      dragKind: "other",
       onActivate: () => openFolderBrowseFile(item.name, item.path, { folderPath })
     });
 
@@ -54419,7 +54636,13 @@ function getMarkdownIt() {
         token.attrSet("data-md-href", href);
         return defaultLinkOpen(tokens, idx, options, env, self);
       }
-      if (/\.md(?:$|[#?])/i.test(href) && !/^https?:\/\//i.test(href)) {
+      if (
+        !/^https?:\/\//i.test(href) &&
+        !/^data:/i.test(href) &&
+        !href.startsWith("/api/") &&
+        !href.startsWith("#") &&
+        (/\.md(?:$|[#?])/i.test(href) || resolveMarkdownHrefToWorkspaceRel(href, sourcePath))
+      ) {
         token.attrs[hrefIdx][1] = "#";
         token.attrJoin("class", "md-file-link");
         token.attrSet("data-md-href", href);
@@ -59707,14 +59930,17 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach((btn) => {
+  const hint = "Перетащите в редактор для ссылки";
+  const markDraggable = (btn) => {
     btn.draggable = true;
     if (!btn.dataset.linkDragHint) {
       btn.dataset.linkDragHint = "1";
-      const hint = "Перетащите в редактор для ссылки";
       btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
     }
-  });
+  };
+  root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach(markDraggable);
+  root.querySelectorAll(MENU_ADOPT_FOLDER_DRAG_SELECTOR).forEach(markDraggable);
+  root.querySelectorAll(MENU_SYSTEM_FILE_DRAG_SELECTOR).forEach(markDraggable);
 }
 
 const MENU_SORT_FOLDER_SELECTOR =
@@ -59873,6 +60099,60 @@ function setupMenuLinkDragToEditor() {
 
   menuNode.addEventListener("dragstart", (event) => {
     if (event.target.closest(".menu-sort-handle")) return;
+
+    const adoptBtn = event.target.closest(MENU_ADOPT_FOLDER_DRAG_SELECTOR);
+    if (adoptBtn) {
+      const folderPath = normalizeCreateParentPath(adoptBtn.dataset.folderPath || "");
+      if (!folderPath || folderPath === ".") return;
+      const label =
+        adoptBtn.querySelector(".menu-folder-name")?.textContent?.trim() ||
+        folderPath.split("/").filter(Boolean).pop() ||
+        folderPath;
+      const markdownLink = buildAdoptFolderMarkdownLink(folderPath, label);
+      if (!markdownLink) return;
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData(
+        MENU_LINK_DRAG_MIME,
+        JSON.stringify({
+          path: folderPath,
+          folderPath,
+          label,
+          wikilink: markdownLink,
+          markdownLink,
+          source: "adopt-folder"
+        })
+      );
+      event.dataTransfer.setData("text/plain", markdownLink);
+      menuLinkDragBtn = adoptBtn;
+      adoptBtn.classList.add("is-dragging-menu-link");
+      return;
+    }
+
+    const systemFileBtn = event.target.closest(MENU_SYSTEM_FILE_DRAG_SELECTOR);
+    if (systemFileBtn) {
+      const systemFile = normalizeSystemFileName(systemFileBtn.dataset.systemFile || "");
+      if (!systemFile) return;
+      const label = systemFileBtn.textContent?.trim() || systemFile;
+      const markdownLink = buildSystemFileMarkdownLink(systemFile, label);
+      if (!markdownLink) return;
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData(
+        MENU_LINK_DRAG_MIME,
+        JSON.stringify({
+          path: systemFile,
+          systemFile,
+          label,
+          wikilink: markdownLink,
+          markdownLink,
+          source: "system-file"
+        })
+      );
+      event.dataTransfer.setData("text/plain", markdownLink);
+      menuLinkDragBtn = systemFileBtn;
+      systemFileBtn.classList.add("is-dragging-menu-link");
+      return;
+    }
+
     const linkBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
     if (!linkBtn) return;
 
@@ -60029,7 +60309,7 @@ function setupEditorMenuLinkDrop() {
   for (const target of targets) {
     target.addEventListener("dragover", (event) => {
       if (!dataTransferHasMenuLink(event.dataTransfer)) return;
-      if (!canInsertDocContentBlocks()) return;
+      if (!canPasteMarkdownAttachment()) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       setDropTarget(true);
@@ -60044,6 +60324,7 @@ function setupEditorMenuLinkDrop() {
     target.addEventListener("drop", (event) => {
       setDropTarget(false);
       if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+      if (!canPasteMarkdownAttachment()) return;
       const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
       const linkText = payload?.markdownLink || payload?.wikilink;
       if (!linkText) return;
@@ -60271,7 +60552,11 @@ async function openRootSystemMenuFile(file) {
     await openFolderBrowseFile(file.label || systemFile, systemFile, { folderPath: "." });
     return;
   }
-  await selectSystemFile(systemFile);
+  const empty = Boolean(file?.empty ?? !exists);
+  // Menu always opens in preview (no ~edit). Only empty hint scaffolds
+  // (.env / .gitignore) start in edit so the yellow template strip works.
+  const startInEdit = (!exists || empty) && Boolean(getSystemFileHintSpec(systemFile));
+  await selectSystemFile(systemFile, { edit: startInEdit });
 }
 
 function renderSystemFiles(files) {
@@ -60417,6 +60702,12 @@ async function selectSystemFile(name, options = {}) {
   activeFolderBrowsePath = null;
   activeFolderBrowseFilePath = null;
   folderBrowseExpandedPagePath = null;
+  if (
+    activeContentMode === FOLDER_BROWSE_MODE ||
+    activeContentMode === FOLDER_BROWSE_FILE_MODE
+  ) {
+    activeContentMode = "description";
+  }
   activeExternalFilePath = null;
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
@@ -60428,6 +60719,17 @@ async function selectSystemFile(name, options = {}) {
     const response = await fetch(buildApiUrl("/api/system-file", { name: normalizedName }));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
+    const contentEmpty = data.exists === false || !(data.content || "").trim();
+    // Auto-edit only when the caller did not choose a mode (e.g. deep link) and
+    // the file is an empty hint-scaffold. Menu clicks pass edit explicitly.
+    if (
+      options.edit === undefined &&
+      contentEmpty &&
+      Boolean(getSystemFileHintSpec(normalizedName))
+    ) {
+      systemFileEditActive = true;
+      editorViewMode = resolveSystemFileEditorViewMode(normalizedName, { edit: true });
+    }
     fileContentInputNode.value = data.content || "";
     setPropsYamlContent("");
     applyModeUi();

@@ -15281,7 +15281,12 @@ body.app-locked {
   padding: 6px 9px;
   padding-left: 26px;
   font-size: 13px;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.menu-item.system-file-item:active,
+.menu-item.system-file-item.is-dragging-menu-link {
+  cursor: grabbing;
 }
 
 .menu-item.system-file-item::before {
@@ -15350,12 +15355,16 @@ body.app-locked {
 }
 
 .menu-item.system-file-item--adopt.exists {
-  color: #334155;
+  color: #64748b;
 }
 
 .menu-item.system-file-item--adopt.exists::before {
-  background: #38bdf8;
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
+  background: #94a3b8;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
+}
+
+.menu-item.system-file-item--adopt.exists:hover {
+  color: #475569;
 }
 
 .folder-browse-file-text {
@@ -15367,8 +15376,8 @@ body.app-locked {
   font-size: 13px;
   line-height: 1.5;
   color: #0f172a;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 10px;
 }
 
@@ -16740,7 +16749,7 @@ body.app-locked {
 }
 
 .menu-folder.menu-folder--adopt {
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   color: #94a3b8;
   border: 1px solid transparent;
@@ -16856,6 +16865,15 @@ body.app-locked {
 
 .menu-sort-handle:not(:disabled) {
   cursor: grab;
+}
+
+.menu-folder.menu-folder--adopt {
+  cursor: grab;
+}
+
+.menu-folder.menu-folder--adopt:active,
+.menu-folder.menu-folder--adopt.is-dragging-menu-link {
+  cursor: grabbing;
 }
 
 .menu-item.is-dragging-menu-link,
@@ -20112,22 +20130,72 @@ body.app-locked {
 
 .node-overview.is-folder-browse {
   overflow-x: clip;
+  --folder-browse-bg: #ffffff;
+  --folder-browse-bg-soft: #ffffff;
+  --folder-browse-panel: #ffffff;
+  --folder-browse-panel-border: rgba(148, 163, 184, 0.28);
+  --folder-browse-ink: #334155;
+  --folder-browse-muted: #64748b;
+  background: var(--folder-browse-bg);
+}
+
+.node-overview.is-folder-browse .node-overview-content {
+  background: #ffffff;
+  border-radius: 0;
+  min-height: 100%;
 }
 
 .node-overview.is-folder-browse .node-navigation-hub,
 .node-overview.is-folder-browse .folder-browse-hub {
   padding-top: 0;
+  color: var(--folder-browse-ink);
+}
+
+.node-overview.is-folder-browse .folder-browse-hero-title {
+  color: #1e293b;
+}
+
+.node-overview.is-folder-browse .folder-browse-hero-badge {
+  color: var(--folder-browse-muted);
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.node-overview.is-folder-browse .folder-browse-section {
+  background: var(--folder-browse-panel);
+  border-color: var(--folder-browse-panel-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.node-overview.is-folder-browse .folder-browse-section-head {
+  background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+}
+
+.node-overview.is-folder-browse .folder-browse-section-head::before {
+  background: linear-gradient(90deg, #94a3b8 0%, #64748b 52%, #94a3b8 100%);
+  opacity: 0.45;
+}
+
+.node-overview.is-folder-browse .folder-browse-images-cols-toggle {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.node-overview.is-folder-browse .folder-browse-images-cols-btn.is-active {
+  background: rgba(100, 116, 139, 0.12);
+  color: #334155;
 }
 
 .doc-slab-path.is-folder-browse {
-  background: transparent;
+  background: #ffffff;
 }
 
 .doc-slab-path.is-folder-browse .workspace-path-crumbs-block {
-  border-bottom-color: rgba(148, 163, 184, 0.14);
+  border-bottom-color: rgba(148, 163, 184, 0.18);
 }
 
-.doc-slab-path.is-folder-browse .workspace-path-toolbar-block {
+.doc-slab-path.is-folder-browse:not(.is-service-file) .workspace-path-toolbar-block {
   display: none;
 }
 
@@ -20155,6 +20223,16 @@ body.app-locked {
 .doc-slab-content:has(> .doc-slab-main > .node-overview.is-folder-browse:not(.hidden)),
 .doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)) {
   padding: 8px var(--doc-content-gutter, 16px);
+  background: #ffffff;
+}
+
+.doc-slab-main:has(> .node-overview.is-folder-browse:not(.hidden)),
+.doc-slab-main:has(> .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)) {
+  background: #ffffff;
+}
+
+.workspace-scroll-host:has(> .node-overview.is-folder-browse:not(.hidden)) {
+  background: #ffffff;
 }
 
 .folder-browse-toolbar {
@@ -20213,6 +20291,21 @@ body.app-locked {
   position: relative;
   cursor: pointer;
   user-select: none;
+}
+
+.folder-browse-item-card--draggable {
+  cursor: grab;
+}
+
+.folder-browse-item-card--draggable:active,
+.folder-browse-item-card.is-dragging-folder-browse-file {
+  cursor: grabbing;
+}
+
+.folder-browse-item-card.is-dragging-folder-browse-file {
+  opacity: 0.72;
+  outline: 2px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
 }
 
 .folder-browse-select-toggle {
@@ -20427,6 +20520,7 @@ body.app-locked {
 
 .node-overview.is-folder-browse .node-overview-content:has(.folder-browse-file-hub) {
   padding: 12px 22px;
+  background: #ffffff;
 }
 
 .folder-browse-file-hub .folder-browse-file-body {
