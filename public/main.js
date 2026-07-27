@@ -628,7 +628,12 @@ const workspaceNotificationsBadgeNode = document.getElementById("workspace-notif
 const workspaceNotificationsPopoverNode = document.getElementById("workspace-notifications-popover");
 const workspaceNotificationsListNode = document.getElementById("workspace-notifications-list");
 const workspaceNotificationsCloseBtn = document.getElementById("workspace-notifications-close-btn");
-const workspaceNotificationsHintNode = document.getElementById("workspace-notifications-hint");
+const workspaceNotificationsCountBadgeNode = document.getElementById("workspace-notifications-count-badge");
+const workspaceNotificationsMetaFilterNode = document.getElementById("workspace-notifications-meta-filter");
+const workspaceNotificationsMetaCountNode = document.getElementById("workspace-notifications-meta-count");
+const workspaceNotificationsMetaLimitNode = document.getElementById("workspace-notifications-meta-limit");
+const workspaceNotificationsJournalNode = document.getElementById("workspace-notifications-journal");
+const workspaceNotificationsNoteNode = document.getElementById("workspace-notifications-note");
 const workspaceNotificationsFiltersNode = document.getElementById("workspace-notifications-filters");
 const workspaceNotificationsLoadMoreBtn = document.getElementById("workspace-notifications-load-more-btn");
 const workspaceNotificationsClearBtn = document.getElementById("workspace-notifications-clear-btn");
@@ -50385,31 +50390,59 @@ function syncWorkspaceNotificationsLoadMore() {
   }
 }
 
+function getWorkspaceNotificationFilterLabel(filter = workspaceNotificationsFilter) {
+  if (filter === "mcp") return "MCP";
+  if (filter === "ui") return "UI";
+  if (filter === "notify") return "💬 Уведомления";
+  return "Все источники";
+}
+
 function syncWorkspaceNotificationsHint() {
-  if (!workspaceNotificationsHintNode) return;
-  const filterLabel =
-    workspaceNotificationsFilter === "mcp"
-      ? "только MCP"
-      : workspaceNotificationsFilter === "ui"
-        ? "только UI"
-        : workspaceNotificationsFilter === "notify"
-          ? "только уведомления"
-          : "MCP, UI и notify_user";
-  const filteredCount = getFilteredWorkspaceNotificationEvents().length;
-  const base = `Последние ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT} · ${filterLabel} · .agent-cms/activity.jsonl`;
-  if (workspaceNotificationsTruncated) {
-    workspaceNotificationsHintNode.textContent = `${base} · в файле ${workspaceNotificationsFileLines || "много"} строк, старые в архиве`;
-    return;
+  const filtered = getFilteredWorkspaceNotificationEvents();
+  const filteredCount = filtered.length;
+  const totalCount = workspaceNotificationsEvents.length;
+  const visibleCount = Math.min(workspaceNotificationsVisibleCount, filteredCount);
+  const filterLabel = getWorkspaceNotificationFilterLabel();
+
+  if (workspaceNotificationsCountBadgeNode) {
+    workspaceNotificationsCountBadgeNode.textContent = String(filteredCount);
+    workspaceNotificationsCountBadgeNode.classList.toggle("hidden", filteredCount <= 0);
   }
-  if (workspaceNotificationsFilter !== "all" && filteredCount !== workspaceNotificationsEvents.length) {
-    workspaceNotificationsHintNode.textContent = `${base} · ${Math.min(workspaceNotificationsVisibleCount, filteredCount)} из ${filteredCount}`;
-    return;
+
+  if (workspaceNotificationsMetaFilterNode) {
+    workspaceNotificationsMetaFilterNode.textContent = filterLabel;
+    workspaceNotificationsMetaFilterNode.dataset.filter = workspaceNotificationsFilter;
   }
-  if (filteredCount > workspaceNotificationsVisibleCount) {
-    workspaceNotificationsHintNode.textContent = `${base} · ${workspaceNotificationsVisibleCount} из ${filteredCount}`;
-    return;
+
+  if (workspaceNotificationsMetaCountNode) {
+    if (!filteredCount) {
+      workspaceNotificationsMetaCountNode.textContent = "Пусто";
+    } else if (visibleCount < filteredCount) {
+      workspaceNotificationsMetaCountNode.textContent = `Показано ${visibleCount} из ${filteredCount}`;
+    } else if (workspaceNotificationsFilter !== "all" && filteredCount !== totalCount) {
+      workspaceNotificationsMetaCountNode.textContent = `${filteredCount} из ${totalCount}`;
+    } else {
+      workspaceNotificationsMetaCountNode.textContent =
+        filteredCount === 1 ? "1 запись" : `${filteredCount} записей`;
+    }
   }
-  workspaceNotificationsHintNode.textContent = base;
+
+  if (workspaceNotificationsMetaLimitNode) {
+    workspaceNotificationsMetaLimitNode.textContent = `Последние ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT}`;
+  }
+
+  if (workspaceNotificationsJournalNode) {
+    workspaceNotificationsJournalNode.textContent = ".agent-cms/activity.jsonl";
+  }
+
+  if (workspaceNotificationsNoteNode) {
+    let note = "";
+    if (workspaceNotificationsTruncated) {
+      note = `В журнале ${workspaceNotificationsFileLines || "много"} строк — старые события в activity-archive.jsonl`;
+    }
+    workspaceNotificationsNoteNode.textContent = note;
+    workspaceNotificationsNoteNode.classList.toggle("hidden", !note);
+  }
 }
 
 function getWorkspaceNotificationUnreadCount() {
@@ -50944,10 +50977,8 @@ function playWorkspaceNotificationSound(event) {
     }
 
     if (kind === "mcp") {
-      // MCP: быстрый восходящий «цифровой» арpeggio
-      playTone(587.33, 0, 0.07, { volume: 0.08, type: "triangle" });
-      playTone(739.99, 0.06, 0.07, { volume: 0.08, type: "triangle" });
-      playTone(880, 0.12, 0.09, { volume: 0.07, type: "triangle" });
+      playTone(880, 0, 0.12, { volume: 0.09 });
+      playTone(1174.66, 0.1, 0.16, { volume: 0.07 });
       return;
     }
 

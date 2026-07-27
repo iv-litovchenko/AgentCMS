@@ -10957,43 +10957,162 @@ body.app-locked {
 
 .workspace-notifications-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  margin: -12px -14px 10px;
+  padding: 12px 14px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.92) 0%, rgba(248, 250, 252, 0.55) 100%);
+}
+
+.workspace-notifications-head-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workspace-notifications-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-notifications-brand-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  background: #fef3c7;
+  border: 1px solid rgba(245, 158, 11, 0.22);
 }
 
 .workspace-notifications-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   color: #0f172a;
 }
 
-.workspace-notifications-hint {
-  margin: 3px 0 0;
+.workspace-notifications-count-badge {
+  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
   font-size: 11px;
-  line-height: 1.4;
+  font-weight: 800;
+  line-height: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-notifications-count-badge.hidden {
+  display: none;
+}
+
+.workspace-notifications-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-notifications-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.workspace-notifications-meta-chip.is-filter {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.18);
+  color: #4338ca;
+}
+
+.workspace-notifications-meta-chip.is-filter[data-filter="mcp"] {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.18);
+  color: #6d28d9;
+}
+
+.workspace-notifications-meta-chip.is-filter[data-filter="ui"] {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.18);
+  color: #0369a1;
+}
+
+.workspace-notifications-meta-chip.is-filter[data-filter="notify"] {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(236, 72, 153, 0.18);
+  color: #be185d;
+}
+
+.workspace-notifications-meta-chip.is-count {
+  background: #fff;
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #475569;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+
+.workspace-notifications-meta-chip.is-muted {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(148, 163, 184, 0.16);
   color: #94a3b8;
+}
+
+.workspace-notifications-journal {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.workspace-notifications-note {
+  margin: -2px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #b45309;
+}
+
+.workspace-notifications-note.hidden {
+  display: none;
 }
 
 .workspace-notifications-close {
   border: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.72);
   color: #64748b;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .workspace-notifications-close:hover {
-  background: #f1f5f9;
+  background: #fff;
   color: var(--text);
 }
 

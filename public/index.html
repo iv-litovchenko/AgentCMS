@@ -220,18 +220,28 @@
                 aria-label="Уведомления workspace"
               >
                 <div class="workspace-notifications-head">
-                  <div>
-                    <p class="workspace-notifications-title">Уведомления</p>
-                    <p class="workspace-notifications-hint" id="workspace-notifications-hint">Изменения через MCP и интерфейс</p>
+                  <div class="workspace-notifications-head-main">
+                    <div class="workspace-notifications-brand">
+                      <span class="workspace-notifications-brand-icon" aria-hidden="true">🔔</span>
+                      <p class="workspace-notifications-title">Уведомления</p>
+                      <span id="workspace-notifications-count-badge" class="workspace-notifications-count-badge hidden">0</span>
+                    </div>
+                    <button
+                      id="workspace-notifications-close-btn"
+                      class="workspace-notifications-close"
+                      type="button"
+                      aria-label="Закрыть"
+                    >
+                      ×
+                    </button>
                   </div>
-                  <button
-                    id="workspace-notifications-close-btn"
-                    class="workspace-notifications-close"
-                    type="button"
-                    aria-label="Закрыть"
-                  >
-                    ×
-                  </button>
+                  <div id="workspace-notifications-meta" class="workspace-notifications-meta">
+                    <span id="workspace-notifications-meta-filter" class="workspace-notifications-meta-chip is-filter">Все</span>
+                    <span id="workspace-notifications-meta-count" class="workspace-notifications-meta-chip is-count">0</span>
+                    <span id="workspace-notifications-meta-limit" class="workspace-notifications-meta-chip is-muted">до 100</span>
+                  </div>
+                  <p id="workspace-notifications-journal" class="workspace-notifications-journal">.agent-cms/activity.jsonl</p>
+                  <p id="workspace-notifications-note" class="workspace-notifications-note hidden"></p>
                 </div>
                 <div class="workspace-notifications-toolbar">
                   <div
