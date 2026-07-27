@@ -10056,6 +10056,8 @@ const NODE_THREAD_MODE = "thread";
 let activeEntryOverviewContext = null;
 let entryOverviewSearchQuery = "";
 let entryOverviewSearchState = null;
+/** @type {{ context: object, navigationIndex: object, title: string } | null} */
+let entryOverviewBreadcrumbState = null;
 let entryOverviewLoadedBody = "";
 let entryOverviewLoadedBodyPath = "";
 const NAVIGATION_SECTION_SEARCH_MIN_ITEMS = 4;
@@ -45528,6 +45530,7 @@ function appendEntryOverviewTrailSeparator(trail) {
 function resetEntryOverviewSearch() {
   entryOverviewSearchQuery = "";
   entryOverviewSearchState = null;
+  entryOverviewBreadcrumbState = null;
 }
 
 function getEntryOverviewSearchPlaceholder(context) {
@@ -47535,20 +47538,41 @@ async function renderEntryOverview() {
   syncEntryOverviewMediaAssetKindClass(mediaAssetKind);
 
   if (isMemoryTocRoot) {
-    const hub = document.createElement("div");
-    hub.className = "node-navigation-hub";
+    const isArea = isAreaNodePath(topicPath);
+    const useSplitLayout = !isArea;
 
-    const topicTitle = getEntryOverviewTopicTitle();
-    const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, "Оглавление", topicTitle);
-    if (memoryTrail) hub.appendChild(memoryTrail);
+    const hub = document.createElement("div");
+    hub.className = useSplitLayout
+      ? "node-navigation-hub node-navigation-hub--split"
+      : "node-navigation-hub";
+
+    const hubMain = document.createElement("div");
+    hubMain.className = "node-navigation-hub-main";
 
     if (isStale()) return;
-    appendEntryOverviewSlotPanel(hub, context, topicPath);
+    appendEntryOverviewSlotPanel(hubMain, context, topicPath);
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
-    appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: true });
+    entryOverviewBreadcrumbState = { context, navigationIndex, title: "Оглавление" };
+    appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, { isMemoryTocRoot: true });
 
+    if (!isArea) {
+      const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
+      if (isStale()) return;
+      hub.appendChild(hubMain);
+      if (useSplitLayout) {
+        await appendNodeNavigationSplitRail(hub, topicPath, memoryBundle, { isStale });
+      } else {
+        syncNodeOverviewNavigationSplitClass(false);
+      }
+    } else {
+      hub.appendChild(hubMain);
+      syncNodeOverviewNavigationSplitClass(false);
+    }
+
+    if (isStale()) return;
     nodeOverviewContentNode.replaceChildren(hub);
+    updateBreadcrumbsForActiveMode();
     scheduleWorkspaceScrollChromeSync();
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
     return;
@@ -47565,15 +47589,19 @@ async function renderEntryOverview() {
   }
   if (isStale()) return;
 
-  const hub = document.createElement("div");
-  hub.className = "node-navigation-hub";
+  const isArea = isAreaNodePath(topicPath);
+  const useSplitLayout = !isArea;
 
-  const topicTitle = getEntryOverviewTopicTitle();
-  const memoryTrail = renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTitle);
-  if (memoryTrail) hub.appendChild(memoryTrail);
+  const hub = document.createElement("div");
+  hub.className = useSplitLayout
+    ? "node-navigation-hub node-navigation-hub--split"
+    : "node-navigation-hub";
+
+  const hubMain = document.createElement("div");
+  hubMain.className = "node-navigation-hub-main";
 
   if (isStale()) return;
-  appendEntryOverviewSlotPanel(hub, context, topicPath);
+  appendEntryOverviewSlotPanel(hubMain, context, topicPath);
 
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
 
@@ -47593,7 +47621,7 @@ async function renderEntryOverview() {
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav
         });
-  hub.appendChild(hero);
+  hubMain.appendChild(hero);
   if (context.entryKind !== "awn.media.asset") {
     appendEntryOverviewCodePreviewAfterHeroMain(hero, context, navigationIndex);
   }
@@ -47602,15 +47630,15 @@ async function renderEntryOverview() {
     if (isStale()) return;
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
-  appendEntryOverviewSectionReadmeOffer(hub, context);
+  appendEntryOverviewSectionReadmeOffer(hubMain, context);
 
-  await appendNodeOverviewTypeRegistryFold(hub, context.relPath);
+  await appendNodeOverviewTypeRegistryFold(hubMain, context.relPath);
   if (isStale()) return;
 
   const sectionListAnchor = document.createElement("div");
   sectionListAnchor.className = "node-entry-overview-section-list-anchor hidden";
   sectionListAnchor.setAttribute("aria-hidden", "true");
-  hub.appendChild(sectionListAnchor);
+  hubMain.appendChild(sectionListAnchor);
 
   const isCodePreviewFile =
     isEntryOverviewTextCodeAsset(context.relativePath) &&
@@ -47622,15 +47650,37 @@ async function renderEntryOverview() {
   } else if (!isCodePreviewFile) {
     contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   }
-  if (contentPanel) hub.appendChild(contentPanel);
+  if (contentPanel) hubMain.appendChild(contentPanel);
 
-  appendEntryOverviewBrowsePanel(hub, context, navigationIndex, { isMemoryTocRoot: false });
+  appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, { isMemoryTocRoot: false });
+
+  entryOverviewBreadcrumbState = { context, navigationIndex, title };
+
+  const documentMarkdown =
+    !isCodePreviewFile && !isTabularPreview && context.entryKind !== "awn.media.asset" ? rawBody : null;
+
+  if (!isArea) {
+    const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
+    if (isStale()) return;
+    hub.appendChild(hubMain);
+    if (useSplitLayout) {
+      await appendNodeNavigationSplitRail(hub, topicPath, memoryBundle, { isStale, documentMarkdown });
+    } else {
+      syncNodeOverviewNavigationSplitClass(false);
+    }
+  } else {
+    hub.appendChild(hubMain);
+    syncNodeOverviewNavigationSplitClass(false);
+  }
+
+  if (isStale()) return;
 
   const topicManifestPath = getActiveNodeApiPath();
   nodeOverviewContentNode.replaceChildren(hub);
+  updateBreadcrumbsForActiveMode();
 
   if (topicManifestPath) {
-    void appendNodeCommentsBlockToContainer(hub, {
+    void appendNodeCommentsBlockToContainer(hubMain, {
       manifestPath: topicManifestPath,
       nodeTitle: title,
       mode: context.memoryKind === "media" ? "media" : "external",
@@ -47659,8 +47709,48 @@ function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
 }
 
 const NAV_TOC_COLLAPSED_KEY = "agentcms.navTocCollapsed.v1";
+const NAV_HUB_RAIL_SLOT_OPEN_KEY = "agentcms.navHubRailSlotOpen.v1";
+const NAV_HUB_RAIL_DOCUMENT_SLOT_ID = "__document__";
 
 let navTocCollapsedOverridesCache = null;
+let navHubRailSlotOpenOverridesCache = null;
+
+function getNavHubRailSlotOpenOverrides() {
+  if (navHubRailSlotOpenOverridesCache) return navHubRailSlotOpenOverridesCache;
+  try {
+    const raw = localStorage.getItem(NAV_HUB_RAIL_SLOT_OPEN_KEY);
+    navHubRailSlotOpenOverridesCache =
+      raw && typeof JSON.parse(raw) === "object" && !Array.isArray(JSON.parse(raw))
+        ? JSON.parse(raw)
+        : {};
+  } catch {
+    navHubRailSlotOpenOverridesCache = {};
+  }
+  return navHubRailSlotOpenOverridesCache;
+}
+
+function getNavHubRailSlotOpenStorageKey(nodePath, slotId) {
+  const base = normalizeMenuNodePath(nodePath || activePath || "");
+  const slot = String(slotId || "").trim();
+  return slot ? `${base}::${slot}` : base;
+}
+
+function isNavHubRailSlotOpen(nodePath, slotId, defaultOpen = false) {
+  const overrides = getNavHubRailSlotOpenOverrides();
+  const key = getNavHubRailSlotOpenStorageKey(nodePath, slotId);
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) return Boolean(overrides[key]);
+  return defaultOpen;
+}
+
+function setNavHubRailSlotOpen(nodePath, slotId, open) {
+  const overrides = getNavHubRailSlotOpenOverrides();
+  overrides[getNavHubRailSlotOpenStorageKey(nodePath, slotId)] = Boolean(open);
+  try {
+    localStorage.setItem(NAV_HUB_RAIL_SLOT_OPEN_KEY, JSON.stringify(overrides));
+  } catch {
+    // ignore quota errors
+  }
+}
 
 function getNavTocCollapsedOverrides() {
   if (navTocCollapsedOverridesCache) return navTocCollapsedOverridesCache;
@@ -54203,6 +54293,425 @@ async function renderFolderBrowseView() {
   }
 }
 
+function syncNodeOverviewNavigationSplitClass(active = false) {
+  nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
+}
+
+function renderNavigationHubRailSubsections(childEntries) {
+  if (!childEntries.length) return null;
+
+  const block = document.createElement("section");
+  block.className = "node-navigation-hub-rail-block node-navigation-hub-rail-block--subsections";
+
+  const head = document.createElement("h3");
+  head.className = "node-navigation-hub-rail-block-title";
+  head.textContent = "Подразделы";
+  block.appendChild(head);
+
+  const list = document.createElement("ul");
+  list.className = "node-navigation-rail-link-list";
+
+  for (const entry of childEntries) {
+    const item = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-rail-link";
+    btn.dataset.navigationSearch = `${entry.label || ""} ${entry.path || ""}`.trim();
+
+    const icon = document.createElement("span");
+    icon.className = "node-navigation-rail-link-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = entry.isFolder ? "📁" : "📄";
+
+    const label = document.createElement("span");
+    label.className = "node-navigation-rail-link-label";
+    label.textContent = entry.label || getLabelFromPath(entry.path);
+
+    btn.append(icon, label);
+    btn.addEventListener("click", () => openNodeFromMenu(getLabelFromPath(entry.path), entry.path));
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  block.appendChild(list);
+  return block;
+}
+
+function prepareNavigationHubRailSlotIndex(slotKey, nodePath, prefetched = {}) {
+  const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  if (!memoryKind) return { kind: "empty", memoryKind: null, spec };
+  if (isBundleEntryOverviewMemoryKind(memoryKind)) {
+    return { kind: "bundle", memoryKind, spec };
+  }
+
+  let navigationIndex = null;
+  if (memoryKind === "external") {
+    navigationIndex = prepareNavigationExternalItems(
+      prefetched.externalData?.files || [],
+      prefetched.externalData?.folders || []
+    );
+  } else if (memoryKind === "media") {
+    navigationIndex = prepareNavigationMediaItems(
+      prefetched.mediaData?.groups || {},
+      prefetched.mediaData?.sectionManifests || []
+    );
+  } else if (memoryKind === "assets") {
+    navigationIndex = prepareNavigationMediaItems(
+      prefetched.assetsData?.groups || {},
+      prefetched.assetsData?.sectionManifests || []
+    );
+  } else if (isFlatEntryOverviewMemoryKind(memoryKind) && modeContentCache[memoryKind]) {
+    navigationIndex = prepareNavigationFlatStorageItems(memoryKind);
+  }
+
+  return { kind: "tree", memoryKind, navigationIndex, spec };
+}
+
+function appendNavigationHubRailBookToc(parent, navigationIndex, memoryKind) {
+  if (!navigationIndex || !parent) return false;
+
+  const folderLabels = navigationIndex.folderLabels || new Map();
+  const folderDescriptions = navigationIndex.folderDescriptions || new Map();
+  const folderStatuses = navigationIndex.folderStatuses || new Map();
+  const sectionManifestByFolder = navigationIndex.sectionManifestByFolder || new Map();
+  const folderPaths = navigationIndex.folderPaths || new Set();
+  const mdItems = [...(navigationIndex.contentFiles || [])].sort((a, b) =>
+    compareNavigationPathsNatural(a.path, b.path)
+  );
+
+  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return false;
+
+  const handlers = getEntryOverviewNavigationHandlers(memoryKind);
+  const nav = document.createElement("nav");
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide nav-book-toc-tree--rail";
+  nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
+
+  const list = document.createElement("ul");
+  list.className = "nav-book-toc-list nav-book-toc-list--root";
+  const tree = buildNavigationPathTree(mdItems, folderLabels);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
+
+  const tocHandlers = {
+    folderLabels,
+    folderDescriptions,
+    folderStatuses,
+    sectionManifestByFolder,
+    treeStyle: "guide",
+    ...handlers
+  };
+
+  if (memoryKind === "media" || memoryKind === "assets") {
+    appendEntryOverviewMediaBookTocList(list, tree, 0, tocHandlers);
+  } else {
+    appendNavigationBookTocList(list, tree, 0, {
+      ...tocHandlers,
+      showFileTypeLeading: false,
+      showBranchLeading: false
+    });
+  }
+
+  nav.appendChild(list);
+  parent.appendChild(nav);
+  return true;
+}
+
+function appendNavigationHubRailBundleHint(body, memoryKind, prefetched = {}) {
+  if (memoryKind === "internal") {
+    const content = String(prefetched.internalData?.content || "").trim();
+    if (!content) return false;
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-hub-rail-bundle-hint";
+    hint.textContent = `${content.length.toLocaleString("ru-RU")} символов`;
+    body.appendChild(hint);
+    return true;
+  }
+
+  if (memoryKind === "tabular") {
+    const rowCount = Number(prefetched.tabularData?.rowCount) || 0;
+    const columnCount = (prefetched.tabularData?.columns || []).length;
+    if (!rowCount && !columnCount) return false;
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-hub-rail-bundle-hint";
+    hint.textContent = `${rowCount}×${columnCount}`;
+    body.appendChild(hint);
+    return true;
+  }
+
+  if (memoryKind === "todo") {
+    const lines = String(prefetched.todoData?.content || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (!lines.length) return false;
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-hub-rail-bundle-hint";
+    hint.textContent = `${lines.length} пункт(ов)`;
+    body.appendChild(hint);
+    return true;
+  }
+
+  return false;
+}
+
+function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
+  const { body } = splitFrontmatter(String(markdown || ""));
+  const content = stripAwnDescCallouts(body).trim();
+  const headings = parseMarkdownHeadings(content);
+  if (!headings.length) return null;
+
+  const details = document.createElement("details");
+  details.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--document";
+  details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, true);
+  details.addEventListener("toggle", () => {
+    setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
+  });
+
+  const summary = document.createElement("summary");
+  summary.className = "node-navigation-hub-rail-slot-summary";
+
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-hub-rail-slot-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "📄";
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-hub-rail-slot-label";
+  label.textContent = "Навигация";
+
+  const count = document.createElement("span");
+  count.className = "node-navigation-hub-rail-slot-count";
+  count.textContent = String(headings.length);
+
+  summary.append(icon, label, count);
+  details.appendChild(summary);
+
+  const bodyNode = document.createElement("div");
+  bodyNode.className = "node-navigation-hub-rail-slot-body";
+
+  const nav = document.createElement("nav");
+  nav.className = "node-navigation-hub-rail-document-outline";
+  nav.setAttribute("aria-label", "Навигация по документу");
+
+  const list = document.createElement("ul");
+  list.className = "node-navigation-rail-doc-outline-list";
+
+  for (const heading of headings) {
+    const item = document.createElement("li");
+    item.className = `node-navigation-rail-doc-outline-item node-navigation-rail-doc-outline-h${heading.level}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-rail-link node-navigation-rail-doc-outline-link";
+    btn.textContent = heading.text;
+    btn.title = heading.text;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      scrollToEntryOverviewDocumentHeading(heading);
+    });
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+
+  nav.appendChild(list);
+  bodyNode.appendChild(nav);
+  details.appendChild(bodyNode);
+  return details;
+}
+
+function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath) {
+  const details = document.createElement("details");
+  details.className = "node-navigation-hub-rail-slot";
+  details.open = isNavHubRailSlotOpen(nodePath, slot.id, false);
+  details.addEventListener("toggle", () => {
+    setNavHubRailSlotOpen(nodePath, slot.id, details.open);
+  });
+  details.classList.toggle("is-empty", !slot.filled && !slot.available);
+  if (slot.tone) details.classList.add(`is-${slot.tone}`);
+
+  const summary = document.createElement("summary");
+  summary.className = "node-navigation-hub-rail-slot-summary";
+
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-hub-rail-slot-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = slot.spec?.icon || "📁";
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-hub-rail-slot-label";
+  label.textContent = slot.label;
+
+  const count = document.createElement("span");
+  count.className = "node-navigation-hub-rail-slot-count";
+  count.textContent =
+    slot.display === "flag" ? (slot.filled ? "●" : "—") : String(slot.count ?? 0);
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "node-navigation-hub-rail-slot-open";
+  openBtn.textContent = "→";
+  openBtn.title = `Открыть: ${slot.label}`;
+  openBtn.setAttribute("aria-label", `Открыть слот: ${slot.label}`);
+  openBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openNodeNavigationCounterSlot({
+      ...slot,
+      modeId: slot.spec?.defaultMode || slot.id
+    });
+  });
+
+  summary.append(icon, label, count, openBtn);
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-hub-rail-slot-body";
+
+  let hasContent = false;
+  if (slotIndex.kind === "bundle") {
+    hasContent = appendNavigationHubRailBundleHint(body, slotIndex.memoryKind, prefetched);
+  } else if (slotIndex.kind === "tree") {
+    hasContent = appendNavigationHubRailBookToc(body, slotIndex.navigationIndex, slotIndex.memoryKind);
+  }
+
+  if (!hasContent) {
+    const empty = document.createElement("p");
+    empty.className = "node-navigation-hub-rail-empty";
+    empty.textContent = "Пусто";
+    body.appendChild(empty);
+  }
+
+  details.appendChild(body);
+  return details;
+}
+
+function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, prefetched = {}, options = {}) {
+  const rail = document.createElement("aside");
+  rail.className = "node-navigation-hub-rail";
+  rail.setAttribute("aria-label", "Слоты и подразделы");
+
+  const subsections = renderNavigationHubRailSubsections(childEntries);
+  if (subsections) rail.appendChild(subsections);
+
+  if (options.documentMarkdown) {
+    const documentOutline = renderNavigationHubRailDocumentOutline(options.documentMarkdown, nodePath);
+    if (documentOutline) rail.appendChild(documentOutline);
+  }
+
+  if (topicSlotCounters.length) {
+    const slotsWrap = document.createElement("div");
+    slotsWrap.className = "node-navigation-hub-rail-slots";
+
+    for (const slot of topicSlotCounters) {
+      const slotIndex = prepareNavigationHubRailSlotIndex(slot.id, nodePath, prefetched);
+      slotsWrap.appendChild(renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath));
+    }
+
+    rail.appendChild(slotsWrap);
+  }
+
+  return rail.childElementCount ? rail : null;
+}
+
+function buildNodeNavigationMemoryPanelsWrap({
+  isArea,
+  nodePath,
+  externalData,
+  internalData,
+  tabularData,
+  mediaData,
+  todoData
+}) {
+  const panelsWrap = document.createElement("div");
+  panelsWrap.className = "node-navigation-panels";
+
+  if (!isArea) {
+    const panels = [
+      renderNavigationExternalPart(externalData),
+      renderNavigationInternalPart(internalData, { nodePath }),
+      renderNavigationTabularPart(tabularData),
+      renderNavigationMediaPart(mediaData)
+    ].filter(Boolean);
+    for (const panel of panels) {
+      panelsWrap.appendChild(panel);
+    }
+  }
+
+  const todoPanel = renderNavigationTodoPart(todoData);
+  if (todoPanel) panelsWrap.appendChild(todoPanel);
+
+  return panelsWrap.childElementCount ? panelsWrap : null;
+}
+
+async function fetchNodeNavigationMemoryBundle(nodePath) {
+  const isArea = isAreaNodePath(nodePath);
+  const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+  const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
+
+  const [internalData, externalData, tabularData, todoData] = await Promise.all(
+    isArea
+      ? [
+          fetchInternalMemoryForNavigation(nodePath),
+          Promise.resolve(emptyExternal),
+          Promise.resolve(emptyTabular),
+          fetchTodoForOverview(nodePath)
+        ]
+      : [
+          fetchInternalMemoryForNavigation(nodePath),
+          fetchExternalFilesForNavigation(nodePath),
+          fetchTabularMemoryForNavigation(nodePath),
+          fetchTodoForOverview(nodePath)
+        ]
+  );
+  const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
+  return { isArea, internalData, externalData, tabularData, mediaData, todoData };
+}
+
+async function appendNodeNavigationSplitRail(
+  hub,
+  nodePath,
+  prefetched,
+  { isStale = () => false, documentMarkdown = null } = {}
+) {
+  if (isAreaNodePath(nodePath)) return false;
+
+  const childEntries = getNavigationSubsectionEntries();
+  const topicSlotCounters = await buildEntryOverviewDataSlotCounters(nodePath);
+  if (isStale()) return false;
+
+  try {
+    let assetsData = prefetched?.assetsData ?? null;
+    const needsAssets = topicSlotCounters.some((slot) => slot.id === "assets");
+    if (needsAssets && prefetched?.assetsData === undefined) {
+      assetsData = await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null);
+    }
+    if (isStale()) return false;
+
+    const rail = renderNavigationHubRail(
+      topicSlotCounters.map((slot) => ({
+        ...slot,
+        modeId: slot.spec?.defaultMode || slot.id
+      })),
+      childEntries,
+      nodePath,
+      { ...prefetched, assetsData },
+      { documentMarkdown }
+    );
+    if (isStale()) return false;
+    if (rail) {
+      hub.appendChild(rail);
+      syncNodeOverviewNavigationSplitClass(true);
+      return true;
+    }
+  } catch (railError) {
+    console.warn("appendNodeNavigationSplitRail failed", railError);
+  }
+
+  hub.classList.remove("node-navigation-hub--split");
+  syncNodeOverviewNavigationSplitClass(false);
+  return false;
+}
+
 async function renderNodeNavigation() {
   if (!nodeOverviewContentNode || !activePath) return;
 
@@ -54269,11 +54778,17 @@ async function renderNodeNavigation() {
   });
 
   const hub = document.createElement("div");
-  hub.className = "node-navigation-hub";
+  const useSplitLayout = !isArea;
+  hub.className = useSplitLayout
+    ? "node-navigation-hub node-navigation-hub--split"
+    : "node-navigation-hub";
+
+  const hubMain = document.createElement("div");
+  hubMain.className = "node-navigation-hub-main";
 
   const topicSiblingNav = buildTopicSiblingNavOptions(nodePath);
 
-  hub.appendChild(
+  hubMain.appendChild(
     createNavigationHero(preview, heroTitle, nodePath, {
       meta: nodeMeta,
       propEntries: entries,
@@ -54284,7 +54799,7 @@ async function renderNodeNavigation() {
     })
   );
 
-  await appendNodeOverviewTypeRegistryFold(hub, nodePath);
+  await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
   const topicSlotCounters = isArea ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
@@ -54292,49 +54807,73 @@ async function renderNodeNavigation() {
 
   if (isArea) {
     const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
-    if (areaInternalPanel) hub.appendChild(areaInternalPanel);
-  } else {
+    if (areaInternalPanel) hubMain.appendChild(areaInternalPanel);
+  } else if (!useSplitLayout) {
     const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
       topicSlotCounters.map((slot) => ({
         ...slot,
         modeId: slot.spec?.defaultMode || slot.id
       }))
     );
-    if (navigationCounterStrip) hub.appendChild(navigationCounterStrip);
+    if (navigationCounterStrip) hubMain.appendChild(navigationCounterStrip);
   }
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "", heroTitle);
-  hub.appendChild(manifestPanel);
+  hubMain.appendChild(manifestPanel);
 
-  const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
-  if (subsectionsBlock) hub.appendChild(subsectionsBlock);
+  if (!useSplitLayout) {
+    const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+    if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
+  }
 
-  const panelsWrap = document.createElement("div");
-  panelsWrap.className = "node-navigation-panels";
+  const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
+    isArea,
+    nodePath,
+    externalData,
+    internalData,
+    tabularData,
+    mediaData,
+    todoData
+  });
 
-  if (!isArea) {
-    const panels = [
-      renderNavigationExternalPart(externalData),
-      renderNavigationInternalPart(internalData, { nodePath }),
-      renderNavigationTabularPart(tabularData),
-      renderNavigationMediaPart(mediaData)
-    ].filter(Boolean);
-    for (const panel of panels) {
-      panelsWrap.appendChild(panel);
+  if (panelsWrap) {
+    hubMain.appendChild(panelsWrap);
+  }
+
+  appendTopicSiblingNavBottom(hubMain, topicSiblingNav);
+  hub.appendChild(hubMain);
+
+  if (useSplitLayout) {
+    const railMounted = await appendNodeNavigationSplitRail(
+      hub,
+      nodePath,
+      { internalData, externalData, tabularData, mediaData, assetsData: undefined, todoData },
+      { isStale }
+    );
+    if (isStale()) return;
+    if (!railMounted) {
+      hub.className = "node-navigation-hub";
+      const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
+        topicSlotCounters.map((slot) => ({
+          ...slot,
+          modeId: slot.spec?.defaultMode || slot.id
+        }))
+      );
+      if (navigationCounterStrip) {
+        const manifestNode = hubMain.querySelector(".node-navigation-manifest");
+        if (manifestNode) hubMain.insertBefore(navigationCounterStrip, manifestNode);
+        else hubMain.appendChild(navigationCounterStrip);
+      }
+      const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+      if (subsectionsBlock && panelsWrap) hubMain.insertBefore(subsectionsBlock, panelsWrap);
+      else if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
     }
+  } else {
+    syncNodeOverviewNavigationSplitClass(false);
   }
-
-  const todoPanel = renderNavigationTodoPart(todoData);
-  if (todoPanel) panelsWrap.appendChild(todoPanel);
-
-  if (panelsWrap.children.length) {
-    hub.appendChild(panelsWrap);
-  }
-
-  appendTopicSiblingNavBottom(hub, topicSiblingNav);
 
   if (getActiveNodeApiPath()) {
-    await appendNodeCommentsBlockToContainer(hub, {
+    await appendNodeCommentsBlockToContainer(hubMain, {
       manifestPath: getActiveNodeApiPath(),
       nodeTitle: heroTitle,
       mode: "description"
@@ -54990,6 +55529,9 @@ function applyModeUi() {
   if (!entryOverviewMode) {
     syncEntryOverviewKindClass(null);
     syncEntryOverviewMediaAssetKindClass(null);
+  }
+  if (!navigationMode && activeContentMode !== NODE_ENTRY_OVERVIEW_MODE) {
+    syncNodeOverviewNavigationSplitClass(false);
   }
   nodeThreadBlockNode?.classList.toggle("hidden", !threadMode);
   const containerOverview =
@@ -57727,7 +58269,79 @@ function renderFolderBrowseBreadcrumbs(filePath) {
   updateWorkspaceShareLinkButton();
 }
 
+function scrollToEntryOverviewDocumentHeading(heading) {
+  if (!heading) return;
+  const preview = nodeOverviewContentNode?.querySelector(
+    ".node-entry-overview-manifest .file-content-preview"
+  );
+  if (!preview) return;
+  const target =
+    preview.querySelector(`#${CSS.escape(heading.slug)}`) ||
+    preview.querySelectorAll("h1,h2,h3,h4,h5,h6")?.[heading.index];
+  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderEntryOverviewPathBreadcrumbs(context, state = entryOverviewBreadcrumbState) {
+  if (!context || !filePathNode) return;
+
+  clearFilePathNode();
+  placeTitleFixedInTitleRow();
+  titleFixedValueNode?.classList.add("hidden");
+  filePathNode.classList.toggle("is-empty", false);
+
+  const topicTitle = getEntryOverviewTopicTitle();
+  const navigationIndex = state?.navigationIndex;
+  const title = String(state?.title || context.title || "").trim();
+  const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
+  const tocTitle = getEntryOverviewTocTitle(context.memoryKind);
+  const handlers = getEntryOverviewNavigationHandlers(context.memoryKind);
+
+  appendBreadcrumbCrumb(topicTitle, {
+    className: "is-topic",
+    onClick: () => setContentMode(NODE_NAVIGATION_MODE),
+    title: "Тема"
+  });
+  appendBreadcrumbSeparator();
+
+  if (isMemoryTocRoot) {
+    appendBreadcrumbCrumb("Оглавление", { isCurrent: true, title: tocTitle });
+    updateWorkspaceShareLinkButton();
+    return;
+  }
+
+  appendBreadcrumbCrumb("Оглавление", {
+    onClick: () => openEntryOverviewMemoryTocFromNavigation(context.memoryKind),
+    title: tocTitle
+  });
+
+  const segments = buildEntryOverviewTrailSegments(context, navigationIndex?.folderLabels, title);
+  for (const segment of segments) {
+    appendBreadcrumbSeparator();
+    if (segment.isCurrent) {
+      appendBreadcrumbCrumb(segment.label, { isCurrent: true, title: segment.path });
+      continue;
+    }
+    appendBreadcrumbCrumb(segment.label, {
+      onClick: () => {
+        if (segment.kind === "folder") {
+          handlers.onFolderClick(segment.path);
+          return;
+        }
+        handlers.onFileClick({ path: segment.path, title: segment.label });
+      },
+      title: segment.path
+    });
+  }
+
+  updateWorkspaceShareLinkButton();
+}
+
 function renderBreadcrumbs(filePath) {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    renderEntryOverviewPathBreadcrumbs(activeEntryOverviewContext);
+    return;
+  }
+
   if (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) {
     renderFolderBrowseBreadcrumbs(filePath);
     return;
