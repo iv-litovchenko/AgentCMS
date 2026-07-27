@@ -525,8 +525,36 @@ body.app-locked {
   display: flex;
 }
 
-.app.not-found-view .agent-canvas-pane:not(.hidden) {
+/* Full-screen 404: only the not-found pane, no chrome */
+.app.not-found-view {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+.app.not-found-view .app-header,
+.app.not-found-view .app-footer,
+.app.not-found-view #app-footer,
+.app.not-found-view .content-search-wrap,
+.app.not-found-view .sidebar-shell,
+.app.not-found-view .sidebar,
+.app.not-found-view .sidebar-resize-bar,
+.app.not-found-view .workspace-pane {
+  display: none !important;
+}
+
+.app.not-found-view .agent-canvas-pane:not(#not-found-pane) {
+  display: none !important;
+}
+
+.app.not-found-view #not-found-pane.agent-canvas-pane:not(.hidden) {
   display: flex;
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+  min-height: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
 }
 
 .home-pane {
@@ -11870,6 +11898,15 @@ body.app-locked {
 .agent-preview-slider-info-btn {
   top: 6px;
   right: 6px;
+  font-size: 11px;
+  letter-spacing: -0.06em;
+  font-weight: 800;
+}
+
+.agent-preview-slider-info-icon {
+  display: block;
+  line-height: 1;
+  transform: translateY(-0.5px);
 }
 
 .agent-preview-slider-btn:hover,
@@ -38411,8 +38448,8 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .not-found-pane {
   align-items: center;
-  justify-content: flex-start;
-  padding: 28px 24px 40px;
+  justify-content: center;
+  padding: 0;
 }
 
 .not-found-bg {
