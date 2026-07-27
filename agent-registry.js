@@ -696,7 +696,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     manifest:
       "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `awn-storage/statuses/main.csv`.\n",
     content:
-      "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\n"
+      "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\nnone,⚪ Без статуса\n"
   },
   {
     preset: "users",

@@ -43,6 +43,8 @@ fields:
         name: 🟡 Черновик
       - key: closed
         name: 🔴 Закрыта
+      - key: none
+        name: ⚪ Без статуса
     default: draft
   awn-description:
     type: awn.field.text

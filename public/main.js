@@ -13992,6 +13992,7 @@ function getAwnStatusTone(status) {
   if (raw === "closed" || raw.includes("🔴") || raw.includes("закрыт")) return "closed";
   if (raw === "draft" || raw.includes("🟡") || raw.includes("черновик")) return "draft";
   if (raw === "open" || raw.includes("🟢") || raw.includes("открыт")) return "open";
+  if (raw === "none" || raw.includes("⚪") || raw.includes("без статуса")) return "none";
   return "default";
 }
 
@@ -14021,7 +14022,7 @@ function resolveAwnStatusPresentation(rawStatus) {
   if (!emoji) emoji = extractAwnStatusEmoji(raw);
   const tone = getAwnStatusTone(label || raw);
   if (!emoji) {
-    const fallbackEmoji = { open: "🟢", draft: "🟡", closed: "🔴" };
+    const fallbackEmoji = { open: "🟢", draft: "🟡", closed: "🔴", none: "⚪" };
     emoji = fallbackEmoji[tone] || "";
   }
   if (!emoji) return null;
@@ -14106,7 +14107,8 @@ const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["edit", "rename", "move", "de
 const MENU_AWN_STATUS_OPTIONS = [
   { key: "open", name: "🟢 Открыта" },
   { key: "draft", name: "🟡 Черновик" },
-  { key: "closed", name: "🔴 Закрыта" }
+  { key: "closed", name: "🔴 Закрыта" },
+  { key: "none", name: "⚪ Без статуса" }
 ];
 
 function getMenuAwnStatusOptions() {
@@ -29923,7 +29925,7 @@ const PROPS_FIELD_META = {
   },
   "awn-status": {
     label: "Статус",
-    hint: "Открыта или Закрыта"
+    hint: "Открыта, черновик, закрыта или без статуса"
   },
   "awn-category": {
     label: "Категория",

@@ -2,6 +2,7 @@ const STATUS_CANONICAL = [
   { id: "open", label: "🟢 Открыта", aliases: ["open", "🟢 открыта", "открыта"] },
   { id: "draft", label: "🟡 Черновик", aliases: ["draft", "🟡 черновик", "черновик"] },
   { id: "closed", label: "🔴 Закрыта", aliases: ["closed", "🔴 закрыта", "закрыта"] },
+  { id: "none", label: "⚪ Без статуса", aliases: ["none", "⚪ без статуса", "без статуса"] },
   { id: "archived", label: "⚫ Архив", aliases: ["archived", "archive", "⚫ архив", "архив"] }
 ];
 

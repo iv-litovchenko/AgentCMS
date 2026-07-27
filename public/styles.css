@@ -16860,6 +16860,11 @@ body.app-locked {
   white-space: nowrap;
 }
 
+.menu-tree-status--none {
+  opacity: 0.62;
+  filter: grayscale(0.15);
+}
+
 .menu-tree-status {
   flex: 0 0 auto;
   font-size: 12px;
@@ -22580,6 +22585,11 @@ body.app-locked {
 }
 
 .node-overview-types-fold .is-status-disabled {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.node-overview-types-fold .is-status-none {
   color: #94a3b8;
   font-weight: 600;
 }
@@ -34367,6 +34377,14 @@ button.node-navigation-memory-title:focus-visible {
 
 .external-card-status--closed {
   background: rgba(185, 28, 28, 0.88);
+}
+
+.external-card-status--none {
+  background: rgba(100, 116, 139, 0.88);
+}
+
+.external-card-status--default {
+  background: rgba(100, 116, 139, 0.78);
 }
 
 .external-card-cover-img {
