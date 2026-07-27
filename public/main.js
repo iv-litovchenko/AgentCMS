@@ -43671,8 +43671,8 @@ function positionNavPreviewHoverPopover(anchorNode) {
   let anchorSide = "right";
 
   if (isMenuTreePreview) {
-    const anchorCenterX = rect.left + rect.width / 2;
-    left = anchorCenterX - popSize / 2;
+    // Keep popover on the same vertical line as the mini preview, then nudge left.
+    left = rect.left - 30;
     top = rect.top - popSize - 10;
     anchorSide = "bottom";
   } else if (isTocPreview) {
@@ -43691,7 +43691,8 @@ function positionNavPreviewHoverPopover(anchorNode) {
     }
   }
 
-  if (left < 12) left = 12;
+  if (!isMenuTreePreview && left < 12) left = 12;
+  if (isMenuTreePreview && left < 4) left = 4;
   if (top < 12) top = 12;
   if (top + popSize > window.innerHeight - 12) {
     top = window.innerHeight - popSize - 12;
