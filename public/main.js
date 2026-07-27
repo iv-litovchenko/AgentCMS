@@ -50904,20 +50904,28 @@ function primeWorkspaceNotificationSound() {
   }
 }
 
-function playWorkspaceNotificationSound() {
+function resolveWorkspaceNotificationSoundKind(event) {
+  if (String(event?.action || "").toLowerCase() === "notify") return "notify";
+  const source = String(event?.source || "system").toLowerCase();
+  if (source === "mcp" || source === "api") return "mcp";
+  return "ui";
+}
+
+function playWorkspaceNotificationSound(event) {
   if (document.hidden) return;
   try {
     primeWorkspaceNotificationSound();
     const ctx = workspaceNotificationsAudioCtx;
     if (!ctx) return;
+    const kind = resolveWorkspaceNotificationSoundKind(event);
     const now = ctx.currentTime;
 
-    const playTone = (frequency, startOffset, duration, volume = 0.1) => {
+    const playTone = (frequency, startOffset, duration, { volume = 0.1, type = "sine" } = {}) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const start = now + startOffset;
       const end = start + duration;
-      osc.type = "sine";
+      osc.type = type;
       osc.frequency.setValueAtTime(frequency, start);
       gain.gain.setValueAtTime(0.0001, start);
       gain.gain.exponentialRampToValueAtTime(volume, start + 0.015);
@@ -50928,8 +50936,23 @@ function playWorkspaceNotificationSound() {
       osc.stop(end + 0.02);
     };
 
-    playTone(880, 0, 0.12, 0.09);
-    playTone(1174.66, 0.1, 0.16, 0.07);
+    if (kind === "notify") {
+      // Сообщение: мягкий двойной «колокольчик»
+      playTone(880, 0, 0.14, { volume: 0.1 });
+      playTone(1318.51, 0.11, 0.18, { volume: 0.075 });
+      return;
+    }
+
+    if (kind === "mcp") {
+      // MCP: быстрый восходящий «цифровой» арpeggio
+      playTone(587.33, 0, 0.07, { volume: 0.08, type: "triangle" });
+      playTone(739.99, 0.06, 0.07, { volume: 0.08, type: "triangle" });
+      playTone(880, 0.12, 0.09, { volume: 0.07, type: "triangle" });
+      return;
+    }
+
+    // UI: короткий низкий «тап»
+    playTone(349.23, 0, 0.07, { volume: 0.07 });
   } catch {
     // ignore audio errors
   }
@@ -50989,7 +51012,7 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
       !workspaceNotificationsOpen;
     if (shouldAnnounce) {
       const latest = incoming[0];
-      playWorkspaceNotificationSound();
+      playWorkspaceNotificationSound(latest);
       const latestTitle = getWorkspaceNotificationTitle(latest);
       const toastText =
         latest.action === "notify" && latest.message
