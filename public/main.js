@@ -568,7 +568,11 @@ const nodeMemoryEntryViewSelectNode = document.getElementById("node-memory-entry
 const nodeMediaPathControlsNode = document.getElementById("node-media-path-controls");
 const nodeMediaEntryViewSelectNode = document.getElementById("node-media-entry-view-select");
 const confirmModalNode = document.getElementById("confirm-modal");
+const confirmModalCardNode = confirmModalNode?.querySelector(".confirm-modal-card");
+const confirmIconNode = document.getElementById("confirm-icon");
+const confirmTitleNode = document.getElementById("confirm-title");
 const confirmMessageNode = document.getElementById("confirm-message");
+const confirmHintNode = document.getElementById("confirm-hint");
 const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const agentSelectNode = document.getElementById("agent-select");
@@ -17729,9 +17733,20 @@ function showToast(message, type = "") {
   }, 1600);
 }
 
-function askConfirm(message, { okLabel = "Удалить" } = {}) {
-  confirmMessageNode.textContent = message;
+function askConfirm(message, { okLabel = "Удалить", cancelLabel = "Отмена", title = "", hint = "", icon = "⚠️", variant = "danger" } = {}) {
+  if (confirmTitleNode) confirmTitleNode.textContent = title || "Подтверждение";
+  if (confirmMessageNode) confirmMessageNode.textContent = message;
+  if (confirmHintNode) {
+    confirmHintNode.textContent = hint;
+    confirmHintNode.classList.toggle("hidden", !hint);
+  }
+  if (confirmIconNode) confirmIconNode.textContent = icon;
   confirmOkBtn.textContent = okLabel;
+  confirmCancelBtn.textContent = cancelLabel;
+  if (confirmModalCardNode) {
+    confirmModalCardNode.classList.remove("is-danger", "is-warning", "is-info");
+    confirmModalCardNode.classList.add(`is-${variant}`);
+  }
   confirmModalNode.classList.remove("hidden");
   return new Promise((resolve) => {
     pendingConfirmResolve = resolve;
@@ -17741,6 +17756,17 @@ function askConfirm(message, { okLabel = "Удалить" } = {}) {
 function closeConfirm(result) {
   confirmModalNode.classList.add("hidden");
   confirmOkBtn.textContent = "Удалить";
+  confirmCancelBtn.textContent = "Отмена";
+  if (confirmTitleNode) confirmTitleNode.textContent = "Подтверждение";
+  if (confirmHintNode) {
+    confirmHintNode.textContent = "";
+    confirmHintNode.classList.add("hidden");
+  }
+  if (confirmIconNode) confirmIconNode.textContent = "⚠️";
+  if (confirmModalCardNode) {
+    confirmModalCardNode.classList.remove("is-warning", "is-info");
+    confirmModalCardNode.classList.add("is-danger");
+  }
   if (pendingConfirmResolve) {
     pendingConfirmResolve(result);
     pendingConfirmResolve = null;
@@ -50683,11 +50709,20 @@ function loadMoreWorkspaceNotifications() {
 
 async function clearWorkspaceNotifications() {
   if (!activeAgentId) return;
-  if (
-    workspaceNotificationsEvents.length &&
-    !window.confirm("Очистить журнал уведомлений? Записи будут перенесены в архив.")
-  ) {
-    return;
+  if (workspaceNotificationsEvents.length) {
+    const confirmed = await askConfirm(
+      "Список в колокольчике станет пустым — все текущие записи исчезнут из активного журнала.",
+      {
+        title: "Очистить уведомления?",
+        hint:
+          "Записи не удаляются навсегда. Они дописываются в архивный файл .agent-cms/activity-archive.jsonl в папке агента — туда же попадают старые события при автоматической ротации журнала. Из колокольчика они просто пропадут.",
+        okLabel: "Очистить",
+        cancelLabel: "Отмена",
+        icon: "🔔",
+        variant: "warning"
+      }
+    );
+    if (!confirmed) return;
   }
   try {
     const response = await fetch(buildApiUrl("/api/agent/activity/clear"), { method: "POST" });

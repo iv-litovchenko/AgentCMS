@@ -3076,10 +3076,13 @@
       </div>
     </div>
 
-    <div id="confirm-modal" class="modal-overlay hidden">
-      <div class="modal-card">
-        <div id="confirm-message" class="modal-message">Вы уверены?</div>
-        <div class="modal-actions">
+    <div id="confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="modal-card confirm-modal-card is-danger">
+        <div id="confirm-icon" class="confirm-modal-icon" aria-hidden="true">⚠️</div>
+        <h3 id="confirm-title" class="confirm-modal-title">Подтверждение</h3>
+        <div id="confirm-message" class="confirm-modal-message">Вы уверены?</div>
+        <p id="confirm-hint" class="confirm-modal-hint hidden"></p>
+        <div class="modal-actions confirm-modal-actions">
           <button id="confirm-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="confirm-ok-btn" class="danger-btn" type="button">Удалить</button>
         </div>
