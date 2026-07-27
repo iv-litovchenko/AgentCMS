@@ -40228,7 +40228,6 @@ function clearSystemFileViewUi() {
   saveSystemFileBtn?.classList.add("hidden");
   saveContentBtn?.classList.remove("hidden");
   systemFileHintNode?.classList.add("hidden");
-  systemFileFrontmatterReadonlyNode?.classList.add("hidden");
 }
 
 function syncGitRepoLooseMdPathHeaderUi() {
@@ -56754,7 +56753,6 @@ function applyEditorViewMode() {
   editorCodeWrapNode?.classList.toggle("hidden", !isSource);
   editorWysiwygWrapNode?.classList.toggle("hidden", !isWysiwyg);
   fileContentPreviewNode.classList.toggle("hidden", !isPreview);
-  systemFileFrontmatterReadonlyNode?.classList.toggle("hidden", !isWysiwyg || !systemFileHasEditableFrontmatter(activeSystemFile));
   updateEditorViewButtonsState();
   applyEditorAutoHeightUi();
 
@@ -56763,7 +56761,6 @@ function applyEditorViewMode() {
       syncSourceFromWysiwygEditor();
       destroyWysiwygEditor();
     }
-    syncSystemFileFrontmatterReadonlyUi();
     renderPreviewFromEditor();
     applyPropsFormViewMode();
     syncDocAsideTabAvailability();
@@ -56776,11 +56773,9 @@ function applyEditorViewMode() {
   if (isWysiwyg) {
     syncEditorFillMinHeightCssVar();
     initWysiwygEditor();
-    syncSystemFileFrontmatterReadonlyUi();
     return;
   }
 
-  syncSystemFileFrontmatterReadonlyUi();
   if (isSource) {
     destroyWysiwygEditor();
     syncEditorLineNumbers();
