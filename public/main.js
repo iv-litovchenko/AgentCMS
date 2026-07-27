@@ -47499,7 +47499,10 @@ async function renderEntryOverview() {
       manifestPath: topicManifestPath,
       nodeTitle: title,
       mode: context.memoryKind === "media" ? "media" : "external",
-      file: context.relativePath
+      file:
+        context.memoryKind === "media"
+          ? context.relativePath
+          : normalizeExternalMemoryMdRelPath(context.relativePath)
     }).then(() => {
       scheduleWorkspaceScrollChromeSync();
       syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);

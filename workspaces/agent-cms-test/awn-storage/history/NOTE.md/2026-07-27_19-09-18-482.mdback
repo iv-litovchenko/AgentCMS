@@ -2,10 +2,6 @@
 2. Слот шаред для гугл диска
 3. Проверить всю цепочку свойство (• 1. [3/6 чат] Схемы что бы я мог настроить оконца настроить финансы + НАСТРОЙКИ)
 4. Настройки (базовые)
-5. **Таксономии** оч важно для связей (например задачи - и привычки)
-6. RAG - можно ли внедрить прям в эту систему Agent CMS - что бы искать по смыслу
-7. **Время (учет времени - пока идея только одна) - awn-timer-tracker (спросить у нейронки как лучше сделать)**
-8. Вместо SQL-идеи делать слот вернуться к БД спецификации MD
 
 Folder + sidecar для Фолдер??? -  имя - подхватить 
 .git - репозитория
@@ -72,14 +68,13 @@ ipconfig getifaddr end
 http://192.168.0.102:3000/shell/mobile/index.html
 ```
 
-## Оптимизация API/MCP
 
 Да — оптимизировать есть что. Ниже по приоритету: что реально даст эффект для QwenPaw и MCP, а что вторично.
 
 ## Что замерено у вас сейчас (`agent-cms-test`)
 
 | Endpoint | Время | Размер |
-| -------- | ----- | ------ |
+|----------|-------|--------|
 | `get_session_context` | **~1.0–1.4 s** | ~37 KB |
 | `get_menu` | ~130–270 ms | **~70 KB** |
 | `get_site_map` | ~225 ms | ~4 KB |
@@ -87,16 +82,16 @@ http://192.168.0.102:3000/shell/mobile/index.html
 
 HTTP-запрос один — быстрый. Основные потери: **повторное сканирование диска**, **жирные JSON** и **лишние tool calls у модели**.
 
-***
+---
 
 ## 1. Главное узкое место — `buildAgentMenu()` без кэша между запросами
 
 Много эндпоинтов независимо строят одно и то же дерево:
 
-* `/api/menu`
-* `/api/agent/site-map`
-* `/api/agent/runtime-registry`
-* `session-context` (даже только для `menuSummary.topicCount`)
+- `/api/menu`
+- `/api/agent/site-map`
+- `/api/agent/runtime-registry`
+- `session-context` (даже только для `menuSummary.topicCount`)
 
 `buildAgentMenu` вызывается **12 раз** в `server.js`. Кэш `menuMetaCache` живёт только **внутри одного** построения меню, не между запросами.
 
@@ -104,7 +99,7 @@ HTTP-запрос один — быстрый. Основные потери: **
 
 **Эффект:** `session-context` может упасть с ~1.2 s до ~200–400 ms; повторные `get_menu` — почти мгновенно.
 
-***
+---
 
 ## 2. `get_session_context` тяжёлый — можно облегчить
 
@@ -125,13 +120,13 @@ async function buildAgentSessionContext() {
 **Идеи:**
 
 | Что | Зачем |
-| --- | ----- |
+|-----|-------|
 | Убрать `buildAgentMenu()` из session-context | Считать `topicCount` из registry/site-map |
 | Параметр `?lite=1` | Без тел manifest, только пути и мета |
 | Параметр `?include=menu,topics,system` | Модель запрашивает только нужное |
 | Кэш session-context на 30–60 сек | Повторные вызовы QwenPaw в одном чате |
 
-***
+---
 
 ## 3. MCP `get_menu` — нет параметров, которые уже есть в HTTP
 
@@ -146,20 +141,20 @@ MCP `get_menu` всегда тянет **полное дерево depth=7, ~70 
 
 **Оптимизация в MCP:**
 
-* `get_menu({ maxDepth?: number })`
-* новый tool `get_menu_branch({ folderPath, branchDepth })` — lazy load для больших workspace
-* `get_menu({ fields?: "minimal" })` — только path, title, status (без preview/tags rollup)
+- `get_menu({ maxDepth?: number })`
+- новый tool `get_menu_branch({ folderPath, branchDepth })` — lazy load для больших workspace
+- `get_menu({ fields?: "minimal" })` — только path, title, status (без preview/tags rollup)
 
 **Эффект:** меньше токенов и быстрее ответ модели.
 
-***
+---
 
 ## 4. Дублирующие tools — модель путается и делает лишнее
 
 Похожие по смыслу:
 
 | Tool | Когда нужен |
-| ---- | ----------- |
+|------|-------------|
 | `get_workspace_table` | Обзор «что есть» — **1.3 KB** |
 | `get_site_map` | Карта тем + `awn-type` — **4 KB** |
 | `get_menu` | Полное UI-дерево — **70 KB** |
@@ -167,12 +162,12 @@ MCP `get_menu` всегда тянет **полное дерево depth=7, ~70 
 
 **Оптимизация:**
 
-* В описаниях явно: *«для обзора используй `get_site_map`, не `get_menu`»*
-* Или объединить в `get_workspace_overview({ detail: "flat"|"tree"|"runtime" })`
+- В описаниях явно: *«для обзора используй `get_site_map`, не `get_menu`»*
+- Или объединить в `get_workspace_overview({ detail: "flat"|"tree"|"runtime" })`
 
 Это снижает лишние вызовы — как у QwenPaw с 5–6 curl.
 
-***
+---
 
 ## 5. MCP-слой: токены и сериализация
 
@@ -190,54 +185,54 @@ Pretty-print с отступами раздувает ответ на **20–40%
 
 **Идеи:**
 
-* tool groups / profiles: `AGENT_CMS_MCP_PROFILE=content|admin|minimal`
-* «meta tools»: `discover_tools({ group: "memory" })`
+- tool groups / profiles: `AGENT_CMS_MCP_PROFILE=content|admin|minimal`
+- «meta tools»: `discover_tools({ group: "memory" })`
 
-***
+---
 
 ## 6. Batch-эндпоинты — уже есть, но не везде
 
 Уже хорошо:
 
-* `get_intake_batch` — несколько тем одним вызовом
-* `get_session_context` — bootstrap одним вызовом
+- `get_intake_batch` — несколько тем одним вызовом
+- `get_session_context` — bootstrap одним вызовом
 
 **Не хватает:**
 
-* `get_topics_snapshot({ paths[] })` — meta + memory summary + inbox count пачкой
-* `read_nodes_batch({ paths[], fields[] })` — properties без N отдельных запросов
+- `get_topics_snapshot({ paths[] })` — meta + memory summary + inbox count пачкой
+- `read_nodes_batch({ paths[], fields[] })` — properties без N отдельных запросов
 
-***
+---
 
 ## 7. HTTP endpoints без MCP (пробелы)
 
 В HTTP есть, в MCP нет:
 
-* `/api/menu/branch` — lazy menu
-* `/api/agent/workspace-stats`
-* `/api/agent/topic-sizes`
-* `/api/agent/timeline`
+- `/api/menu/branch` — lazy menu
+- `/api/agent/workspace-stats`
+- `/api/agent/topic-sizes`
+- `/api/agent/timeline`
 
 Для «что интересного в базе» полезны `workspace-stats` / `topic-sizes` — один лёгкий запрос вместо обхода дерева.
 
-***
+---
 
 ## 8. Наблюдаемость
 
 MCP уже шлёт `X-Activity-Source: mcp` — можно логировать:
 
-* какие tools чаще всего
-* p50/p95 latency per endpoint
-* размер ответа
+- какие tools чаще всего
+- p50/p95 latency per endpoint
+- размер ответа
 
 Тогда оптимизация по данным, а не наугад.
 
-***
+---
 
 ## Приоритеты (если делать по шагам)
 
 | Приоритет | Что | Эффект |
-| --------- | --- | ------ |
+|-----------|-----|--------|
 | **P0** | Кэш `buildAgentMenu` между запросами | −50–80% времени на navigation tools |
 | **P0** | Убрать full menu из `session-context` | −200–800 ms на старт |
 | **P1** | `maxDepth` / `get_menu_branch` в MCP | Меньше KB и токенов |
@@ -246,16 +241,16 @@ MCP уже шлёт `X-Activity-Source: mcp` — можно логировать
 | **P2** | MCP profiles (меньше tools) | Быстрее QwenPaw при старте |
 | **P2** | Batch read для meta/memory | Меньше round-trips |
 
-***
+---
 
 ## Что уже хорошо
 
-* MCP как тонкая обёртка над HTTP — правильная архитектура
-* `get_session_context` — правильная идея «один bootstrap»
-* `get_intake_batch` — batch там, где нужно
-* `menuMetaCache` внутри одного build — partial optimization
+- MCP как тонкая обёртка над HTTP — правильная архитектура
+- `get_session_context` — правильная идея «один bootstrap»
+- `get_intake_batch` — batch там, где нужно
+- `menuMetaCache` внутри одного build — partial optimization
 
-***
+---
 
 ## Практический совет для QwenPaw уже сейчас (без кода)
 
@@ -270,7 +265,7 @@ MCP уже шлёт `X-Activity-Source: mcp` — можно логировать
 
 Это уже сократит и время, и токены, даже до правок в коде.
 
-***
+---
 
 **Итог:** MCP API **функционально** в порядке; узкое место — **сервер пересобирает меню на каждый запрос** и **отдаёт слишком жирные ответы без параметров сжатия**. Самые дешёвые wins: кэш меню, облегчить `session-context`, параметры `maxDepth`/branch и compact JSON в MCP.
 

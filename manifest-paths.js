@@ -858,6 +858,18 @@ function normalizeExternalMemoryFileRel(relFile, options = {}) {
   return normalized.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
+function ensureExternalMemoryMdRelPath(relPath) {
+  const normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!normalized) return "";
+  if (/\.md$/i.test(normalized)) return normalized;
+  const baseName = normalized.split("/").pop() || "";
+  if (/\.[a-z0-9]+$/i.test(baseName)) return normalized;
+  return `${normalized}.md`;
+}
+
 function resolveOwningManifestRelFromNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
@@ -1396,6 +1408,7 @@ module.exports = {
   normalizeStorageSlotParentRel,
   parseExternalSectionManifestRel,
   normalizeExternalMemoryFileRel,
+  ensureExternalMemoryMdRelPath,
   stripEmbeddedStorageLayerSegments,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,

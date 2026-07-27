@@ -119,6 +119,7 @@ const {
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
+  ensureExternalMemoryMdRelPath,
   getThreadDirRel,
   buildHistoryVersionFileName,
   buildCommentFileName,
@@ -1577,7 +1578,10 @@ async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, system
   if (mode === "configs") return normalizeHistoryTargetRelPath(toNodeConfigFilePath(resolvedManifest));
   if (mode === "env") return normalizeHistoryTargetRelPath(toEnvFilePath(resolvedManifest));
   if (mode === "external" && file) {
-    return normalizeHistoryTargetRelPath(await resolveExternalFileWorkspaceRel(resolvedManifest, file));
+    const normalizedFile = ensureExternalMemoryMdRelPath(file);
+    return normalizeHistoryTargetRelPath(
+      await resolveExternalFileWorkspaceRel(resolvedManifest, normalizedFile)
+    );
   }
   if (mode === "media" && file) {
     return normalizeHistoryTargetRelPath(await resolveMediaSidecarWorkspaceRel(resolvedManifest, file));
@@ -1635,6 +1639,39 @@ function listHistoryVersionDirCandidates(manifestRelPath, targetRelPath) {
     getLegacyHistoryVersionDirRel(manifestRelPath, targetRelPath),
     slotDir && targetBaseName ? `${slotDir}/${STORAGE_SUBFOLDER_HISTORY}/${targetBaseName}` : ""
   ].filter(Boolean))];
+}
+
+function getLegacyCommentsDirRel(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  if (!slotDir || !target) return "";
+  return `${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${target}`;
+}
+
+function listCommentsDirCandidates(manifestRelPath, targetRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
+  const target = normalizeHistoryTargetRelPath(targetRelPath);
+  const targetBaseName = target ? path.posix.basename(target) : "";
+  const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
+  const candidates = new Set([
+    getCommentsDirRel(manifestRelPath, targetRelPath),
+    getLegacyCommentsDirRel(manifestRelPath, targetRelPath),
+    slotDir && targetBaseName ? `${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${targetBaseName}` : ""
+  ].filter(Boolean));
+
+  if (slotDir && relativeTarget) {
+    candidates.add(`${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${relativeTarget}`);
+    if (!/\.md$/i.test(relativeTarget)) {
+      candidates.add(`${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${ensureExternalMemoryMdRelPath(relativeTarget)}`);
+    } else {
+      const withoutMd = relativeTarget.replace(/\.md$/i, "");
+      if (withoutMd !== relativeTarget) {
+        candidates.add(`${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${withoutMd}`);
+      }
+    }
+  }
+
+  return [...candidates];
 }
 
 async function readHistoryVersionFile({ manifestRelPath, targetRelPath, version }) {
@@ -1777,8 +1814,17 @@ async function listFileComments({ manifestRelPath, mode, file, systemName }) {
     return { manifestPath: commentsManifestRel, target: relativeTarget, comments: [] };
   }
 
-  const commentsDirRel = getCommentsDirRel(commentsManifestRel, targetRelPath);
-  const comments = await readCommentsFromDir(commentsDirRel);
+  const comments = [];
+  const seenIds = new Set();
+  for (const commentsDirRel of listCommentsDirCandidates(commentsManifestRel, targetRelPath)) {
+    const dirComments = await readCommentsFromDir(commentsDirRel);
+    for (const comment of dirComments) {
+      if (seenIds.has(comment.id)) continue;
+      seenIds.add(comment.id);
+      comments.push(comment);
+    }
+  }
+  comments.sort((left, right) => right.id.localeCompare(left.id));
 
   return { manifestPath: commentsManifestRel, target: relativeTarget, comments };
 }
@@ -1802,12 +1848,21 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
   const parentId = String(replyTo || "").trim();
   if (parentId) {
     if (!isCommentFileName(parentId)) throw new Error("Invalid reply target");
-    const parentAbsolute = path.join(commentsDirAbsolute, parentId);
-    try {
-      await fs.access(parentAbsolute);
-    } catch {
-      throw new Error("Reply target comment not found");
+    let parentFound = false;
+    for (const candidateDirRel of listCommentsDirCandidates(commentsManifestRel, targetRelPath)) {
+      const candidateDirAbsolute = normalizeWorkspacePath(candidateDirRel);
+      if (!candidateDirAbsolute) continue;
+      const parentAbsolute = path.join(candidateDirAbsolute, parentId);
+      if (!parentAbsolute.startsWith(candidateDirAbsolute)) continue;
+      try {
+        await fs.access(parentAbsolute);
+        parentFound = true;
+        break;
+      } catch {
+        // try next candidate dir
+      }
     }
+    if (!parentFound) throw new Error("Reply target comment not found");
   }
 
   const mentions = extractCommentMentions(text);
@@ -1849,20 +1904,22 @@ async function resolveCommentFileAbsolute({ manifestRelPath, mode, file, systemN
   const safeId = String(commentId || "").trim();
   if (!isCommentFileName(safeId)) throw new Error("Invalid comment id");
 
-  const commentsDirRel = getCommentsDirRel(commentsManifestRel, targetRelPath);
-  const commentsDirAbsolute = normalizeWorkspacePath(commentsDirRel);
-  if (!commentsDirAbsolute) throw new Error("Invalid comments directory");
+  for (const commentsDirRel of listCommentsDirCandidates(commentsManifestRel, targetRelPath)) {
+    const commentsDirAbsolute = normalizeWorkspacePath(commentsDirRel);
+    if (!commentsDirAbsolute) continue;
 
-  const fileAbsolute = path.join(commentsDirAbsolute, safeId);
-  if (!fileAbsolute.startsWith(commentsDirAbsolute)) throw new Error("Invalid comment path");
+    const fileAbsolute = path.join(commentsDirAbsolute, safeId);
+    if (!fileAbsolute.startsWith(commentsDirAbsolute)) continue;
 
-  try {
-    await fs.access(fileAbsolute);
-  } catch {
-    throw new Error("Comment not found");
+    try {
+      await fs.access(fileAbsolute);
+      return { commentsDirAbsolute, fileAbsolute, relPath: safeId, commentsDirRel };
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
   }
 
-  return { commentsDirAbsolute, fileAbsolute, relPath: safeId, commentsDirRel };
+  throw new Error("Comment not found");
 }
 
 async function toggleCommentReaction({ manifestRelPath, mode, file, systemName, commentId, reaction, author }) {
