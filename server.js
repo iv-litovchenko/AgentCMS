@@ -345,6 +345,7 @@ const SYSTEM_FILE_NAMES = [
   ".env",
   ".gitignore",
   "AGENTS.md",
+  "SKILL.md",
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
@@ -354,6 +355,7 @@ const SYSTEM_FILE_NAMES = [
 
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
+  "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ".env",

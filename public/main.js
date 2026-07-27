@@ -310,6 +310,34 @@ const RECOMMENDED_AGENT_ENV_TEMPLATE = `# KEY=value — без кавычек, �
 API_TOKEN=
 INBOX_WEBHOOK_SECRET=
 `;
+
+const RECOMMENDED_SKILL_MD_TEMPLATE = `---
+name: agent-cms
+description: Работа с Agent CMS через MCP. Используй при задачах в workspace агента.
+---
+
+# Agent CMS
+
+## Старт
+1. MCP \`get_session_context\`
+2. MCP \`get_mcp_docs\` — справка по инструментам
+3. \`get_menu\` — навигация по контенту
+
+## Зоны workspace
+- \`awn-system/\` — модель CMS
+- \`awn-container/\` — контент
+- \`awn-agent-kit/\` — runtime агента
+
+## MCP (часто)
+| Задача | Tool |
+| ------ | ---- |
+| Меню | \`get_menu\` |
+| Узел | \`read_node_properties\` / \`write_node_properties\` |
+| Память/контент | \`read_external_memory\` / \`write_external_memory\` |
+| Уведомление | \`notify_user\` |
+
+Подробнее — \`AGENTS.md\`.
+`;
 const titleRowNode = titleEditorBlockNode?.querySelector(".title-row");
 const editorViewClusterNode = document.querySelector(".editor-view-cluster");
 const editorViewToggleNode = document.getElementById("editor-view-toggle");
@@ -473,7 +501,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
   { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги" },
-  { id: "awn.system", label: "Системные", hint: "AGENTS.md, NOTE.md, TODO.md" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
 ];
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
@@ -767,12 +795,14 @@ const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "AGENTS.md",
+  "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
   "README.md"
 ]);
 const SYSTEM_FILE_TO_CHPU_PATH = {
   "AGENTS.md": "AGENTS",
+  "SKILL.md": "SKILL",
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
   "README.md": "README",
@@ -781,6 +811,7 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
 };
 const CORE_SYSTEM_FILES = new Set([
   "AGENTS.md",
+  "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ".env",
@@ -790,6 +821,7 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: ".env", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: ".gitignore", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "AGENTS.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
@@ -3508,6 +3540,15 @@ function getSystemFileHintSpec(name) {
         "Секреты, токены и ключи API — только здесь или в <code>.env</code> слота темы. " +
         "Не храните пароли в markdown, frontmatter и памяти агента.",
       example: RECOMMENDED_AGENT_ENV_TEMPLATE
+    };
+  }
+  if (normalized === "SKILL.md") {
+    return {
+      title: "Cursor Skill — инструкция для агента",
+      text:
+        "Служебный <code>SKILL.md</code> workspace: краткий скилл для Cursor/агента — как работать с этим Agent CMS через MCP. " +
+        "Frontmatter <code>name</code> и <code>description</code> помогают агенту подхватить скилл автоматически.",
+      example: RECOMMENDED_SKILL_MD_TEMPLATE
     };
   }
   return null;
@@ -18141,6 +18182,9 @@ function getDefaultSystemFileScaffoldContent(name) {
   const normalized = normalizeSystemFileName(name);
   if (normalized === "AGENTS.md") {
     return "# Agent\n\n> Инструкции для LLM-агента.\n";
+  }
+  if (normalized === "SKILL.md") {
+    return RECOMMENDED_SKILL_MD_TEMPLATE;
   }
   if (normalized === ROOT_SYSTEM_NOTE_FILE) {
     return "# NOTE\n\n> Быстрая заметка workspace.\n\n";
@@ -54974,6 +55018,26 @@ function getMarkdownIt() {
   return markdownItInstance;
 }
 
+function renderFrontmatterTableHtml(frontmatter) {
+  const fm = String(frontmatter || "").trim();
+  if (!fm) return "";
+
+  const entries = parsePropsYaml(fm);
+  if (!entries.length) {
+    return `<pre class="md-frontmatter-raw"><code>${escapeHtml(fm)}</code></pre>`;
+  }
+
+  const rows = entries
+    .map((entry) => {
+      const key = escapeHtml(entry.key);
+      const value = escapeHtml(getPropsEntryDisplayValue(entry));
+      return `<tr><th scope="row">${key}</th><td>${value}</td></tr>`;
+    })
+    .join("");
+
+  return `<div class="md-frontmatter-table"><table><tbody>${rows}</tbody></table></div>`;
+}
+
 function renderMarkdownToHtml(markdown, { nodePath } = {}) {
   const sourcePath =
     nodePath || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
@@ -54990,13 +55054,18 @@ function renderMarkdownToHtml(markdown, { nodePath } = {}) {
     return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
   }
 
+  const { frontmatter, body } = splitFrontmatter(source);
+  const renderEnv = {
+    nodePath: sourcePath,
+    headingSlugCounts: new Map(),
+    useImageThumbs: true,
+    thumbMax: MEDIA_THUMB_MAX_GRID
+  };
+
   try {
-    return md.render(source, {
-      nodePath: sourcePath,
-      headingSlugCounts: new Map(),
-      useImageThumbs: true,
-      thumbMax: MEDIA_THUMB_MAX_GRID
-    });
+    const bodyHtml = md.render(body, renderEnv);
+    const frontmatterHtml = renderFrontmatterTableHtml(frontmatter);
+    return frontmatterHtml ? `${frontmatterHtml}${bodyHtml}` : bodyHtml;
   } catch (error) {
     return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
   }
@@ -57737,6 +57806,7 @@ function normalizeSystemFileName(name) {
     return ROOT_SYSTEM_NOTE_FILE;
   }
   if (lower === "agents.md" || lower === "agents") return "AGENTS.md";
+  if (lower === "skill.md" || lower === "skill") return "SKILL.md";
   if (lower === "readme.md" || lower === "readme") return "README.md";
   if (lower === ".env" || lower === "env") return ".env";
   if (lower === ".gitignore" || lower === "gitignore") return ".gitignore";

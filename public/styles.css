@@ -25705,6 +25705,9 @@ button.node-navigation-memory-title:focus-visible {
   border-bottom: 1px solid #fde68a;
   background: #fffbeb;
   box-sizing: border-box;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .doc-slab-hint-title {
@@ -29343,6 +29346,59 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 0.94em;
   line-height: 1.45;
   table-layout: auto;
+}
+
+.file-content-preview .md-frontmatter-table {
+  margin: 0 0 16px;
+}
+
+.file-content-preview .md-frontmatter-table table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.file-content-preview .md-frontmatter-table th[scope="row"] {
+  width: 28%;
+  min-width: 120px;
+  max-width: 220px;
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+  background: #f6f8fa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #24292f;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.file-content-preview .md-frontmatter-table td {
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #24292f;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.file-content-preview .md-frontmatter-table tbody tr:first-child th[scope="row"],
+.file-content-preview .md-frontmatter-table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.file-content-preview .md-frontmatter-raw {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-x: auto;
 }
 
 .file-content-preview thead {
