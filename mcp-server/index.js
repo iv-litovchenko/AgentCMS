@@ -229,13 +229,13 @@ function createServer() {
     (payload) => client.post("/api/agent/catalogs/items", payload)
   );
 
-  reg("read_node_description", "Read manifest.md body (topic or area).", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_node_description", "Read manifest.md (full file: frontmatter + body).", z.object({ path: nodePath }), ({ path }) =>
     client.get("/api/file", { path })
   );
 
   reg(
     "write_node_description",
-    "Save manifest.md body.",
+    "Save manifest.md body. Frontmatter on disk is preserved automatically — send body only, or full markdown; omitted frontmatter keys are kept from disk.",
     z.object({ path: nodePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })
   );

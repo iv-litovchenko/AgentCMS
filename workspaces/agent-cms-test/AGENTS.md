@@ -83,4 +83,4 @@
 
 * `awn-container/php/` — большая тема с main/, media/, scripts/
 * `awn-container/polnyy-test/` — полный тест областей
-* `awn-container/test-shemy-i-konfiguratsii/` — эксперименты со schema
+* `awn-container/test-shemy-i-konfiguratsii/` — эксперименты со schemawatch test 1785182088

@@ -210,7 +210,7 @@
                 aria-expanded="false"
                 aria-controls="workspace-notifications-popover"
               >
-                🔔
+                <span id="workspace-notifications-btn-icon" class="header-notifications-icon" aria-hidden="true">🔔</span>
                 <span id="workspace-notifications-badge" class="header-notifications-badge hidden" aria-hidden="true">0</span>
               </button>
               <div
@@ -235,12 +235,7 @@
                       ×
                     </button>
                   </div>
-                  <div id="workspace-notifications-meta" class="workspace-notifications-meta">
-                    <span id="workspace-notifications-meta-filter" class="workspace-notifications-meta-chip is-filter">Все</span>
-                    <span id="workspace-notifications-meta-count" class="workspace-notifications-meta-chip is-count">0</span>
-                    <span id="workspace-notifications-meta-limit" class="workspace-notifications-meta-chip is-muted">до 100</span>
-                  </div>
-                  <p id="workspace-notifications-journal" class="workspace-notifications-journal">.agent-cms/activity.jsonl</p>
+                  <p id="workspace-notifications-meta" class="workspace-notifications-meta">Все · 0 · до 100</p>
                   <p id="workspace-notifications-note" class="workspace-notifications-note hidden"></p>
                 </div>
                 <div class="workspace-notifications-toolbar">
@@ -259,11 +254,12 @@
                 <div id="workspace-notifications-list" class="workspace-notifications-list" role="list"></div>
                 <div class="workspace-notifications-footer">
                   <button
-                    id="workspace-notifications-load-more-btn"
-                    class="workspace-notifications-load-more-btn hidden"
+                    id="workspace-notifications-mute-btn"
+                    class="workspace-notifications-mute-btn"
                     type="button"
+                    aria-pressed="false"
                   >
-                    Показать ещё
+                    🔕 Отключить
                   </button>
                   <button
                     id="workspace-notifications-clear-btn"

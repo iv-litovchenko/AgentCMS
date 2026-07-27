@@ -735,6 +735,110 @@ const WORKSPACE_ACTIVITY_FILE_MAX_BYTES = 4 * 1024 * 1024;
 const workspaceActivityStorage = new AsyncLocalStorage();
 const workspaceActivityByAgentRoot = new Map();
 const workspaceActivityLoadPromises = new Map();
+const WORKSPACE_ACTIVITY_API_WRITE_GUARD_MS = 2500;
+const workspaceActivityApiWriteGuards = new Map();
+const workspaceExternalWatchers = new Map();
+const workspaceExternalWatchTimers = new Map();
+const workspaceRevisionMtimeCache = new Map();
+
+function normalizeWorkspaceActivityRelPath(relPath) {
+  return String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+}
+
+function markWorkspaceActivityApiWrite(agentRoot, relPath) {
+  const normalized = normalizeWorkspaceActivityRelPath(relPath);
+  if (!agentRoot || !normalized) return;
+  workspaceActivityApiWriteGuards.set(`${agentRoot}\0${normalized}`, Date.now() + WORKSPACE_ACTIVITY_API_WRITE_GUARD_MS);
+}
+
+function wasRecentWorkspaceActivityApiWrite(agentRoot, relPath) {
+  const normalized = normalizeWorkspaceActivityRelPath(relPath);
+  if (!agentRoot || !normalized) return false;
+  const key = `${agentRoot}\0${normalized}`;
+  const expiresAt = workspaceActivityApiWriteGuards.get(key);
+  if (!expiresAt) return false;
+  if (Date.now() > expiresAt) {
+    workspaceActivityApiWriteGuards.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function shouldSkipWorkspaceExternalActivityPath(relPath) {
+  const normalized = normalizeWorkspaceActivityRelPath(relPath).toLowerCase();
+  if (!normalized) return true;
+  if (normalized.startsWith(".agent-cms/")) return true;
+  if (normalized.includes("/.git/") || normalized.startsWith(".git/")) return true;
+  if (normalized.includes("/node_modules/")) return true;
+  if (normalized.endsWith(".mdback")) return true;
+  return false;
+}
+
+function scheduleWorkspaceExternalActivity(agentRoot, relPath) {
+  const normalized = normalizeWorkspaceActivityRelPath(relPath);
+  if (!agentRoot || !normalized || shouldSkipWorkspaceExternalActivityPath(normalized)) return;
+  const timerKey = `${agentRoot}\0${normalized}`;
+  const prev = workspaceExternalWatchTimers.get(timerKey);
+  if (prev) clearTimeout(prev);
+  workspaceExternalWatchTimers.set(
+    timerKey,
+    setTimeout(() => {
+      workspaceExternalWatchTimers.delete(timerKey);
+      if (wasRecentWorkspaceActivityApiWrite(agentRoot, normalized)) return;
+      void recordWorkspaceActivityAsync({
+        action: "update",
+        path: normalized,
+        manifestPath: resolveOwningManifestRelFromNodePath(normalized),
+        label: path.posix.basename(normalized) || normalized,
+        fileKind: inferWorkspaceActivityFileKind(normalized),
+        source: "mcp"
+      });
+    }, 500)
+  );
+}
+
+function noteWorkspaceRevisionMtimes(agentRoot, revisions = {}) {
+  if (!agentRoot || !revisions || typeof revisions !== "object") return;
+  for (const [pathValue, revision] of Object.entries(revisions)) {
+    const normalized = normalizeWorkspaceActivityRelPath(pathValue);
+    if (!normalized || !revision?.exists || !revision?.mtime) continue;
+    const key = `${agentRoot}\0${normalized}`;
+    const prev = workspaceRevisionMtimeCache.get(key);
+    const next = String(revision.mtime);
+    workspaceRevisionMtimeCache.set(key, next);
+    if (!prev || prev === next) continue;
+    if (wasRecentWorkspaceActivityApiWrite(agentRoot, normalized)) continue;
+    void recordWorkspaceActivityAsync({
+      action: "update",
+      path: normalized,
+      manifestPath: resolveOwningManifestRelFromNodePath(normalized),
+      label: path.posix.basename(normalized) || normalized,
+      fileKind: inferWorkspaceActivityFileKind(normalized),
+      source: "mcp"
+    });
+  }
+}
+
+function ensureAgentWorkspaceExternalWatcher(agentRoot) {
+  if (!agentRoot || workspaceExternalWatchers.has(agentRoot)) return;
+  try {
+    const watcher = fs.watch(agentRoot, { recursive: true }, (_eventType, filename) => {
+      if (!filename) return;
+      scheduleWorkspaceExternalActivity(agentRoot, String(filename).replace(/\\/g, "/"));
+    });
+    watcher.on("error", () => {
+      try {
+        watcher.close();
+      } catch {
+        // ignore close errors
+      }
+      workspaceExternalWatchers.delete(agentRoot);
+    });
+    workspaceExternalWatchers.set(agentRoot, watcher);
+  } catch {
+    // recursive watch may be unavailable
+  }
+}
 
 function getWorkspaceActivityArchiveFileAbsolute(agentRoot = getAgentRoot()) {
   if (!agentRoot) return null;
@@ -764,6 +868,7 @@ function getWorkspaceActivityStore(agentRoot = getAgentRoot()) {
       writeQueue: Promise.resolve()
     };
     workspaceActivityByAgentRoot.set(agentRoot, store);
+    ensureAgentWorkspaceExternalWatcher(agentRoot);
   }
   return store;
 }
@@ -1014,40 +1119,46 @@ async function recordWorkspaceActivityAsync({
   const store = getWorkspaceActivityStore(agentRoot);
   if (!store) return null;
 
-  store.recordQueue = store.recordQueue.then(async () => {
-    await ensureWorkspaceActivityLoaded(agentRoot);
-    const ctx = getWorkspaceActivityContext();
-    const pathValue = normalizedPath || `${WORKSPACE_ACTIVITY_DIR}/notification`;
-    const labelValue =
-      label ||
-      (isNotify ? "Уведомление" : path.posix.basename(pathValue) || pathValue);
-    const names = await resolveWorkspaceActivityDisplayNames({
-      pathValue,
-      manifestPath,
-      label: labelValue
+  store.recordQueue = store.recordQueue
+    .then(async () => {
+      await ensureWorkspaceActivityLoaded(agentRoot);
+      const ctx = getWorkspaceActivityContext();
+      const pathValue = normalizedPath || `${WORKSPACE_ACTIVITY_DIR}/notification`;
+      const labelValue =
+        label ||
+        (isNotify ? "Уведомление" : path.posix.basename(pathValue) || pathValue);
+      const names = await resolveWorkspaceActivityDisplayNames({
+        pathValue,
+        manifestPath,
+        label: labelValue
+      });
+      store.seq += 1;
+      const event = {
+        id: store.seq,
+        action: actionName,
+        path: pathValue,
+        manifestPath: manifestPath ? String(manifestPath).replace(/\\/g, "/") : null,
+        label: names.displayName || labelValue,
+        topicName: names.topicName,
+        recordName: names.recordName,
+        message: message ? String(message) : null,
+        fileKind: fileKind || (isNotify ? "notification" : inferWorkspaceActivityFileKind(pathValue)),
+        source: source || ctx?.source || "system",
+        route: route || ctx?.route || null,
+        at: new Date().toISOString()
+      };
+      store.events.unshift(event);
+      if (store.events.length > WORKSPACE_ACTIVITY_MEMORY_LIMIT) {
+        store.events.length = WORKSPACE_ACTIVITY_MEMORY_LIMIT;
+      }
+      queueWorkspaceActivityFileAppend(agentRoot, event);
+      markWorkspaceActivityApiWrite(agentRoot, pathValue);
+      return event;
+    })
+    .catch((error) => {
+      console.error("[workspace-activity] failed to record event:", error);
+      return null;
     });
-    store.seq += 1;
-    const event = {
-      id: store.seq,
-      action: actionName,
-      path: pathValue,
-      manifestPath: manifestPath ? String(manifestPath).replace(/\\/g, "/") : null,
-      label: names.displayName || labelValue,
-      topicName: names.topicName,
-      recordName: names.recordName,
-      message: message ? String(message) : null,
-      fileKind: fileKind || (isNotify ? "notification" : inferWorkspaceActivityFileKind(pathValue)),
-      source: source || ctx?.source || "system",
-      route: route || ctx?.route || null,
-      at: new Date().toISOString()
-    };
-    store.events.unshift(event);
-    if (store.events.length > WORKSPACE_ACTIVITY_MEMORY_LIMIT) {
-      store.events.length = WORKSPACE_ACTIVITY_MEMORY_LIMIT;
-    }
-    queueWorkspaceActivityFileAppend(agentRoot, event);
-    return event;
-  });
 
   return store.recordQueue;
 }
@@ -1095,6 +1206,27 @@ function inferWorkspaceActivityFileKind(relPath) {
   if (normalized.includes("/assets/")) return "assets";
   if (normalized.endsWith(".md")) return "content";
   return "other";
+}
+
+async function recordStorageLayerFileActivity({
+  manifestRelPath,
+  storageFolder,
+  relFile,
+  existed = false,
+  action = null
+} = {}) {
+  const manifestPath = String(manifestRelPath || "").replace(/\\/g, "/").trim();
+  const folder = String(storageFolder || "").replace(/\\/g, "/").trim();
+  const fileRel = String(relFile || "").replace(/\\/g, "/").trim();
+  if (!manifestPath || !folder || !fileRel) return null;
+  const pathValue = buildStorageLayerRef(manifestPath, folder, fileRel) || fileRel;
+  return recordWorkspaceActivityAsync({
+    action: action || (existed ? "update" : "create"),
+    path: pathValue,
+    manifestPath,
+    label: path.posix.basename(fileRel) || fileRel,
+    fileKind: inferWorkspaceActivityFileKind(pathValue)
+  });
 }
 
 function recordWorkspaceActivity(params = {}) {
@@ -1487,7 +1619,7 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
   });
   await fs.mkdir(path.dirname(targetAbsolute), { recursive: true });
   await fs.writeFile(targetAbsolute, content, "utf-8");
-  recordWorkspaceActivity({
+  await recordWorkspaceActivityAsync({
     action: existed ? "update" : "create",
     path: normalizedTarget,
     manifestPath: manifestRelPath,
@@ -1881,6 +2013,13 @@ async function createFileComment({ manifestRelPath, mode, file, systemName, body
 
   await fs.mkdir(commentsDirAbsolute, { recursive: true });
   await fs.writeFile(commentAbsolute, content, "utf-8");
+  await recordWorkspaceActivityAsync({
+    action: "create",
+    path: commentRelPath,
+    manifestPath: commentsManifestRel,
+    label: path.posix.basename(commentRelPath) || commentRelPath,
+    fileKind: "content"
+  });
 
   return {
     id: fileName,
@@ -2359,6 +2498,13 @@ async function appendTopicThreadMessage({
 
   await fs.mkdir(threadDirAbsolute, { recursive: true });
   await fs.writeFile(messageAbsolute, content, "utf-8");
+  await recordWorkspaceActivityAsync({
+    action: "create",
+    path: messageRelPath,
+    manifestPath: resolved.manifestPath || manifestRelPath,
+    label: path.posix.basename(messageRelPath) || messageRelPath,
+    fileKind: "content"
+  });
 
   return {
     id: fileName,
@@ -5166,30 +5312,38 @@ async function enrichTypedSlotMarkdownContent(
   const { CONTENT_KIND_TYPE_NAMES, normalizeAwnContentTypeName } = require("./public/topic-schema-slot-specs.js");
   const expectedType = CONTENT_KIND_TYPE_NAMES[contentKind] || "awn.content.record";
   const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
+  const diskFrontmatter = String(options.diskFrontmatter || "").trim();
 
+  // Agent payload wins on keys it sends; disk fills gaps (awn-name, custom fields, …).
   if (!options.force && !shouldEnrichTypedSlotMarkdown(userFrontmatter, contentKind)) {
-    const stamped = applyAwnTimestampsToFrontmatter(userFrontmatter, {
-      diskFrontmatter: options.diskFrontmatter || userFrontmatter
-    });
+    const merged = mergeFrontmatterBlocks(diskFrontmatter, userFrontmatter);
+    const stamped = applyAwnTimestampsToFrontmatter(merged, { diskFrontmatter });
     return joinNodeFrontmatter(stamped, userBody);
   }
 
-  const title = options.title || inferTitleFromMarkdownContent(content, options.fileName);
+  const diskName = getYamlScalar(diskFrontmatter, "awn-name");
+  const userName = getYamlScalar(userFrontmatter, "awn-name");
+  const title =
+    options.title ||
+    (String(userName || "").trim() ? userName : null) ||
+    (String(diskName || "").trim() ? diskName : null) ||
+    inferTitleFromMarkdownContent(content, options.fileName);
   const template = await buildSlotContentFileContentForManifest(manifestRel, title, slotKey, contentKind, {
     body: userBody || undefined,
     frontmatterOverrides: options.frontmatterOverrides || null
   });
   const { frontmatter: templateFrontmatter, body: templateBody } = splitNodeFrontmatter(template);
-  let merged = mergeFrontmatterBlocks(templateFrontmatter, userFrontmatter);
+  let merged = mergeFrontmatterBlocks(
+    mergeFrontmatterBlocks(templateFrontmatter, diskFrontmatter),
+    userFrontmatter
+  );
   const userType = String(getYamlScalar(userFrontmatter, "awn-type") || "").trim();
   merged = upsertYamlScalarLine(
     merged,
     "awn-type",
     normalizeAwnContentTypeName(userType || expectedType)
   );
-  merged = applyAwnTimestampsToFrontmatter(merged, {
-    diskFrontmatter: options.diskFrontmatter || userFrontmatter
-  });
+  merged = applyAwnTimestampsToFrontmatter(merged, { diskFrontmatter });
   return joinNodeFrontmatter(merged, userBody || templateBody);
 }
 
@@ -5306,6 +5460,12 @@ async function createStorageRecordFile({
   await fs.writeFile(fileAbsolute, content, "utf-8");
 
   const relFile = path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/");
+  await recordStorageLayerFileActivity({
+    manifestRelPath: schemaManifestRel,
+    storageFolder: canonicalFolder,
+    relFile,
+    action: "create"
+  });
   return {
     folder: canonicalFolder,
     file: relFile,
@@ -13372,7 +13532,19 @@ async function handleApiForAgent(req, res, url) {
 
       const raw = (await readNodeManifestRaw(absolute)) ?? "";
       const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
+      const incoming = String(content);
+      const hasFrontmatter = /^---\r?\n/.test(incoming);
+      let stampedContent;
+      if (!hasFrontmatter) {
+        // Body-only payload (typical MCP write_node_description): keep disk frontmatter.
+        const stampedFrontmatter = applyAwnTimestampsToFrontmatter(diskFrontmatter, { diskFrontmatter });
+        stampedContent = joinNodeFrontmatter(stampedFrontmatter, incoming);
+      } else {
+        const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(incoming);
+        const mergedFrontmatter = mergeFrontmatterBlocks(diskFrontmatter, userFrontmatter);
+        const stampedFrontmatter = applyAwnTimestampsToFrontmatter(mergedFrontmatter, { diskFrontmatter });
+        stampedContent = joinNodeFrontmatter(stampedFrontmatter, userBody);
+      }
       await writeWorkspaceTextFileWithHistory(canonicalRelPath, canonicalRelPath, stampedContent);
       if (canonicalRelPath !== String(relPath).replace(/\\/g, "/")) {
         const legacyAbsolute = normalizeWorkspacePath(relPath);
@@ -13508,6 +13680,7 @@ async function handleApiForAgent(req, res, url) {
       const payload = await readJsonBody(req);
       const paths = Array.isArray(payload.paths) ? payload.paths : [];
       const revisions = await readWorkspaceFileRevisions(paths);
+      noteWorkspaceRevisionMtimes(getAgentRoot(), revisions);
       return sendJson(res, 200, { revisions });
     } catch (error) {
       return sendJson(res, 500, {
@@ -14174,6 +14347,13 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const saved = await writeAgentSystemFile(agentRoot, relPath, content);
+      const normalizedRel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      await recordWorkspaceActivityAsync({
+        action: "update",
+        path: normalizedRel,
+        label: path.posix.basename(normalizedRel) || normalizedRel,
+        fileKind: inferWorkspaceActivityFileKind(normalizedRel)
+      });
       return sendJson(res, 200, saved);
     } catch (error) {
       return sendJson(res, 500, {
@@ -14307,6 +14487,15 @@ async function handleApiForAgent(req, res, url) {
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
       const normalizedRelPath = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      await recordWorkspaceActivityAsync({
+        action: "update",
+        path: normalizedRelPath,
+        manifestPath: /manifest\.md$|_registration\.md$/i.test(normalizedRelPath)
+          ? normalizedRelPath
+          : resolveOwningManifestRelFromNodePath(normalizedRelPath),
+        label: path.posix.basename(normalizedRelPath) || normalizedRelPath,
+        fileKind: inferWorkspaceActivityFileKind(normalizedRelPath)
+      });
       if (normalizedRelPath === AREA_MANIFEST_FILE || normalizedRelPath === "_reg-info.md") {
         refreshAgentsFromDisk();
       }
@@ -15471,7 +15660,14 @@ async function handleApiForAgent(req, res, url) {
       if (!fileAbsolute.startsWith(folderAbsolute)) return sendJson(res, 400, { error: "Invalid file path" });
 
       await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
+      const existed = await fs.stat(fileAbsolute).catch(() => null);
       await fs.writeFile(fileAbsolute, content, "utf-8");
+      await recordStorageLayerFileActivity({
+        manifestRelPath: relPath,
+        storageFolder,
+        relFile: normalizedRelFile,
+        existed: Boolean(existed)
+      });
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save markdown", details: String(error.message || error) });
@@ -15529,6 +15725,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(path.dirname(resolved.fileAbsolute), { recursive: true });
+      const existed = await fs.stat(resolved.fileAbsolute).catch(() => null);
       let finalContent = content;
       const relFileLower = resolved.normalizedRelFile.toLowerCase();
       if (relFileLower.endsWith(".md")) {
@@ -15545,6 +15742,12 @@ async function handleApiForAgent(req, res, url) {
         }
       }
       await fs.writeFile(resolved.fileAbsolute, finalContent, "utf-8");
+      await recordStorageLayerFileActivity({
+        manifestRelPath: relPath,
+        storageFolder: resolved.folder,
+        relFile: resolved.normalizedRelFile,
+        existed: Boolean(existed)
+      });
       return sendJson(res, 200, {
         folder: resolved.folder,
         file: resolved.normalizedRelFile.replace(/\\/g, "/"),
@@ -16036,6 +16239,14 @@ async function handleApiForAgent(req, res, url) {
       if (!configAbsolute) return sendJson(res, 400, { error: "Invalid configuration path" });
 
       await fs.writeFile(configAbsolute, content, "utf-8");
+      const configRel = String(configRelPath || "").replace(/\\/g, "/");
+      await recordWorkspaceActivityAsync({
+        action: "update",
+        path: configRel,
+        manifestPath: String(relPath || "").replace(/\\/g, "/"),
+        label: path.posix.basename(configRel) || configRel,
+        fileKind: "config"
+      });
       return sendJson(res, 200, { path: configRelPath, content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save configuration", details: String(error.message || error) });

@@ -624,24 +624,21 @@ const mdShowcaseContentNode = document.getElementById("md-showcase-content");
 let mdShowcaseCache = null;
 const componentsIdeasBtn = document.getElementById("components-ideas-btn");
 const workspaceNotificationsBtn = document.getElementById("workspace-notifications-btn");
+const workspaceNotificationsBtnIconNode = document.getElementById("workspace-notifications-btn-icon");
 const workspaceNotificationsBadgeNode = document.getElementById("workspace-notifications-badge");
 const workspaceNotificationsPopoverNode = document.getElementById("workspace-notifications-popover");
 const workspaceNotificationsListNode = document.getElementById("workspace-notifications-list");
 const workspaceNotificationsCloseBtn = document.getElementById("workspace-notifications-close-btn");
 const workspaceNotificationsCountBadgeNode = document.getElementById("workspace-notifications-count-badge");
-const workspaceNotificationsMetaFilterNode = document.getElementById("workspace-notifications-meta-filter");
-const workspaceNotificationsMetaCountNode = document.getElementById("workspace-notifications-meta-count");
-const workspaceNotificationsMetaLimitNode = document.getElementById("workspace-notifications-meta-limit");
-const workspaceNotificationsJournalNode = document.getElementById("workspace-notifications-journal");
+const workspaceNotificationsMetaNode = document.getElementById("workspace-notifications-meta");
 const workspaceNotificationsNoteNode = document.getElementById("workspace-notifications-note");
 const workspaceNotificationsFiltersNode = document.getElementById("workspace-notifications-filters");
-const workspaceNotificationsLoadMoreBtn = document.getElementById("workspace-notifications-load-more-btn");
+const workspaceNotificationsMuteBtn = document.getElementById("workspace-notifications-mute-btn");
 const workspaceNotificationsClearBtn = document.getElementById("workspace-notifications-clear-btn");
 const WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX = "yamlcms.workspaceNotificationsSeenId";
 const WORKSPACE_NOTIFICATIONS_FILTER_COOKIE = "yamlcms.notificationsFilter";
+const WORKSPACE_NOTIFICATIONS_MUTED_COOKIE = "yamlcms.notificationsMuted";
 const WORKSPACE_NOTIFICATIONS_FETCH_LIMIT = 100;
-const WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE = 25;
-const WORKSPACE_NOTIFICATIONS_LOAD_STEP = 25;
 const WORKSPACE_NOTIFICATIONS_FILTER_VALUES = new Set(["all", "mcp", "ui", "notify"]);
 let workspaceNotificationsEvents = [];
 let workspaceNotificationsLatestId = 0;
@@ -652,8 +649,9 @@ let workspaceNotificationsTruncated = false;
 let workspaceNotificationsFileLines = 0;
 let workspaceNotificationsAudioCtx = null;
 let workspaceNotificationsInitialLoadDone = false;
+let workspaceNotificationsAnnouncedUpToId = 0;
 let workspaceNotificationsFilter = "all";
-let workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
+let workspaceNotificationsMuted = false;
 const componentsIdeasModalNode = document.getElementById("components-ideas-modal");
 const componentsIdeasCloseBtn = document.getElementById("components-ideas-close-btn");
 const componentsIdeasSubtitleNode = document.getElementById("components-ideas-subtitle");
@@ -8565,13 +8563,14 @@ async function switchActiveAgent(nextAgentId) {
     workspaceNotificationsTruncated = false;
     workspaceNotificationsFileLines = 0;
     workspaceNotificationsInitialLoadDone = false;
-    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
+    workspaceNotificationsAnnouncedUpToId = 0;
     loadWorkspaceNotificationsSeenId(nextAgentId);
     void refreshWorkspaceNotifications(false);
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
     hideAppLandingView();
+    syncWorkspaceNotificationsAvailability();
     hideMenuNoAgentPlaceholder();
     syncAppRouteToUrl({ replace: true });
     activateMenuAgentPane(activeAgentId);
@@ -50353,6 +50352,72 @@ function saveWorkspaceNotificationsFilter() {
   writeWorkspaceNotificationsCookie(WORKSPACE_NOTIFICATIONS_FILTER_COOKIE, workspaceNotificationsFilter);
 }
 
+function loadWorkspaceNotificationsMuted() {
+  workspaceNotificationsMuted = readWorkspaceNotificationsCookie(WORKSPACE_NOTIFICATIONS_MUTED_COOKIE) === "1";
+}
+
+function saveWorkspaceNotificationsMuted() {
+  writeWorkspaceNotificationsCookie(
+    WORKSPACE_NOTIFICATIONS_MUTED_COOKIE,
+    workspaceNotificationsMuted ? "1" : "0"
+  );
+}
+
+function isWorkspaceNotificationsContextActive() {
+  return Boolean(activeAgentId) && !appRootNode?.classList.contains("app-landing-view");
+}
+
+function syncWorkspaceNotificationsAvailability() {
+  const wrap = workspaceNotificationsBtn?.closest(".header-notifications-wrap");
+  const active = isWorkspaceNotificationsContextActive();
+  const wasActive = Boolean(wrap && !wrap.classList.contains("hidden"));
+  wrap?.classList.toggle("hidden", !active);
+  if (!active) {
+    closeWorkspaceNotificationsPopover();
+    return;
+  }
+  if (!wasActive) {
+    workspaceNotificationsInitialLoadDone = false;
+    workspaceNotificationsAnnouncedUpToId = 0;
+    void refreshWorkspaceNotifications(false);
+  }
+}
+
+function syncWorkspaceNotificationsMuteUi() {
+  if (workspaceNotificationsMuteBtn) {
+    workspaceNotificationsMuteBtn.textContent = workspaceNotificationsMuted ? "🔔 Включить" : "🔕 Отключить";
+    workspaceNotificationsMuteBtn.classList.toggle("is-muted", workspaceNotificationsMuted);
+    workspaceNotificationsMuteBtn.setAttribute("aria-pressed", workspaceNotificationsMuted ? "true" : "false");
+    workspaceNotificationsMuteBtn.title = workspaceNotificationsMuted
+      ? "Снова показывать badge, звук и toast"
+      : "Отключить badge, звук и toast — журнал останется";
+  }
+  workspaceNotificationsBtn?.classList.toggle("is-muted", workspaceNotificationsMuted);
+  if (workspaceNotificationsBtnIconNode) {
+    workspaceNotificationsBtnIconNode.textContent = workspaceNotificationsMuted ? "🔕" : "🔔";
+  }
+  if (workspaceNotificationsBtn) {
+    workspaceNotificationsBtn.title = workspaceNotificationsMuted
+      ? "Уведомления отключены — журнал доступен"
+      : "Уведомления об изменениях workspace";
+    workspaceNotificationsBtn.setAttribute(
+      "aria-label",
+      workspaceNotificationsMuted ? "Уведомления отключены" : "Уведомления"
+    );
+  }
+}
+
+function toggleWorkspaceNotificationsMuted() {
+  workspaceNotificationsMuted = !workspaceNotificationsMuted;
+  saveWorkspaceNotificationsMuted();
+  if (workspaceNotificationsMuted) {
+    markWorkspaceNotificationsRead();
+  }
+  syncWorkspaceNotificationsMuteUi();
+  syncWorkspaceNotificationsBadge();
+  syncWorkspaceNotificationsHint();
+}
+
 function matchesWorkspaceNotificationFilter(event, filter = workspaceNotificationsFilter) {
   if (!filter || filter === "all") return true;
   if (filter === "notify") return String(event.action || "").toLowerCase() === "notify";
@@ -50373,21 +50438,15 @@ function syncWorkspaceNotificationsFilterUi() {
   }
 }
 
-function syncWorkspaceNotificationsLoadMore() {
-  const filtered = getFilteredWorkspaceNotificationEvents();
-  if (workspaceNotificationsVisibleCount > filtered.length) {
-    workspaceNotificationsVisibleCount = Math.max(
-      WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE,
-      filtered.length
-    );
+function reconcileWorkspaceNotificationsSeenId() {
+  if (workspaceNotificationsLatestId <= 0) return;
+  if (workspaceNotificationsSeenId > workspaceNotificationsLatestId) {
+    workspaceNotificationsSeenId = 0;
+    saveWorkspaceNotificationsSeenId();
   }
-  const hiddenCount = Math.max(0, filtered.length - workspaceNotificationsVisibleCount);
-  const showLoadMore = hiddenCount > 0;
-  workspaceNotificationsLoadMoreBtn?.classList.toggle("hidden", !showLoadMore);
-  if (workspaceNotificationsLoadMoreBtn) {
-    const step = Math.min(WORKSPACE_NOTIFICATIONS_LOAD_STEP, hiddenCount);
-    workspaceNotificationsLoadMoreBtn.textContent = `Показать ещё ${step}${hiddenCount > step ? ` (+${hiddenCount - step})` : ""}`;
-  }
+}
+
+function syncWorkspaceNotificationsFooter() {
   if (workspaceNotificationsClearBtn) {
     workspaceNotificationsClearBtn.disabled = !workspaceNotificationsEvents.length;
   }
@@ -50396,52 +50455,39 @@ function syncWorkspaceNotificationsLoadMore() {
 function getWorkspaceNotificationFilterLabel(filter = workspaceNotificationsFilter) {
   if (filter === "mcp") return "MCP";
   if (filter === "ui") return "UI";
-  if (filter === "notify") return "💬 Уведомления";
-  return "Все источники";
+  if (filter === "notify") return "💬";
+  return "Все";
 }
 
 function syncWorkspaceNotificationsHint() {
   const filtered = getFilteredWorkspaceNotificationEvents();
   const filteredCount = filtered.length;
-  const totalCount = workspaceNotificationsEvents.length;
-  const visibleCount = Math.min(workspaceNotificationsVisibleCount, filteredCount);
+  const unread = getWorkspaceNotificationUnreadCount();
   const filterLabel = getWorkspaceNotificationFilterLabel();
 
   if (workspaceNotificationsCountBadgeNode) {
-    workspaceNotificationsCountBadgeNode.textContent = String(filteredCount);
-    workspaceNotificationsCountBadgeNode.classList.toggle("hidden", filteredCount <= 0);
+    const displayUnread = workspaceNotificationsMuted ? 0 : unread;
+    workspaceNotificationsCountBadgeNode.textContent = String(displayUnread > 0 ? displayUnread : filteredCount);
+    workspaceNotificationsCountBadgeNode.classList.toggle("hidden", filteredCount <= 0 && displayUnread <= 0);
+    workspaceNotificationsCountBadgeNode.classList.toggle("is-unread", displayUnread > 0);
   }
 
-  if (workspaceNotificationsMetaFilterNode) {
-    workspaceNotificationsMetaFilterNode.textContent = filterLabel;
-    workspaceNotificationsMetaFilterNode.dataset.filter = workspaceNotificationsFilter;
-  }
-
-  if (workspaceNotificationsMetaCountNode) {
-    if (!filteredCount) {
-      workspaceNotificationsMetaCountNode.textContent = "Пусто";
-    } else if (visibleCount < filteredCount) {
-      workspaceNotificationsMetaCountNode.textContent = `Показано ${visibleCount} из ${filteredCount}`;
-    } else if (workspaceNotificationsFilter !== "all" && filteredCount !== totalCount) {
-      workspaceNotificationsMetaCountNode.textContent = `${filteredCount} из ${totalCount}`;
-    } else {
-      workspaceNotificationsMetaCountNode.textContent =
-        filteredCount === 1 ? "1 запись" : `${filteredCount} записей`;
-    }
-  }
-
-  if (workspaceNotificationsMetaLimitNode) {
-    workspaceNotificationsMetaLimitNode.textContent = `Последние ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT}`;
-  }
-
-  if (workspaceNotificationsJournalNode) {
-    workspaceNotificationsJournalNode.textContent = ".agent-cms/activity.jsonl";
+  if (workspaceNotificationsMetaNode) {
+    const countLabel =
+      filteredCount === 0
+        ? "пусто"
+        : workspaceNotificationsFilter !== "all" && filteredCount !== workspaceNotificationsEvents.length
+          ? `${filteredCount}/${workspaceNotificationsEvents.length}`
+          : String(filteredCount);
+    const mutedSuffix = workspaceNotificationsMuted ? " · выкл" : "";
+    workspaceNotificationsMetaNode.textContent = `${filterLabel} · ${countLabel} · до ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT}${mutedSuffix}`;
+    workspaceNotificationsMetaNode.dataset.filter = workspaceNotificationsFilter;
   }
 
   if (workspaceNotificationsNoteNode) {
     let note = "";
     if (workspaceNotificationsTruncated) {
-      note = `В журнале ${workspaceNotificationsFileLines || "много"} строк — старые события в activity-archive.jsonl`;
+      note = `В файле ${workspaceNotificationsFileLines || "много"} строк — архив activity-archive.jsonl`;
     }
     workspaceNotificationsNoteNode.textContent = note;
     workspaceNotificationsNoteNode.classList.toggle("hidden", !note);
@@ -50600,7 +50646,7 @@ function getWorkspaceNotificationTopicHint(event) {
 
 function syncWorkspaceNotificationsBadge() {
   if (!workspaceNotificationsBtn || !workspaceNotificationsBadgeNode) return;
-  const unread = getWorkspaceNotificationUnreadCount();
+  const unread = workspaceNotificationsMuted ? 0 : getWorkspaceNotificationUnreadCount();
   workspaceNotificationsBtn.classList.toggle("has-unread", unread > 0);
   workspaceNotificationsBadgeNode.classList.toggle("hidden", unread <= 0);
   workspaceNotificationsBadgeNode.textContent = unread > 99 ? "99+" : String(unread);
@@ -50723,7 +50769,7 @@ function renderWorkspaceNotificationsList() {
   if (!workspaceNotificationsListNode) return;
   workspaceNotificationsListNode.replaceChildren();
   syncWorkspaceNotificationsFilterUi();
-  syncWorkspaceNotificationsLoadMore();
+  syncWorkspaceNotificationsFooter();
   syncWorkspaceNotificationsHint();
 
   const filtered = getFilteredWorkspaceNotificationEvents();
@@ -50737,10 +50783,8 @@ function renderWorkspaceNotificationsList() {
     return;
   }
 
-  const visibleEvents = filtered.slice(0, workspaceNotificationsVisibleCount);
-
   let lastDayKey = "";
-  for (const event of visibleEvents) {
+  for (const event of filtered) {
     const dayKey = formatWorkspaceNotificationDayLabel(event.at);
     if (dayKey !== lastDayKey) {
       lastDayKey = dayKey;
@@ -50751,17 +50795,6 @@ function renderWorkspaceNotificationsList() {
     }
     workspaceNotificationsListNode.appendChild(createWorkspaceNotificationRow(event));
   }
-}
-
-function loadMoreWorkspaceNotifications() {
-  const filtered = getFilteredWorkspaceNotificationEvents();
-  if (workspaceNotificationsVisibleCount >= filtered.length) return;
-  workspaceNotificationsVisibleCount = Math.min(
-    workspaceNotificationsVisibleCount + WORKSPACE_NOTIFICATIONS_LOAD_STEP,
-    filtered.length
-  );
-  renderWorkspaceNotificationsList();
-  positionWorkspaceNotificationsPopover();
 }
 
 async function clearWorkspaceNotifications() {
@@ -50788,8 +50821,8 @@ async function clearWorkspaceNotifications() {
     workspaceNotificationsLatestId = 0;
     workspaceNotificationsTruncated = false;
     workspaceNotificationsFileLines = 0;
-    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
     workspaceNotificationsSeenId = 0;
+    workspaceNotificationsAnnouncedUpToId = 0;
     saveWorkspaceNotificationsSeenId();
     syncWorkspaceNotificationsBadge();
     syncWorkspaceNotificationsHint();
@@ -50973,9 +51006,9 @@ function playWorkspaceNotificationSound(event) {
     };
 
     if (kind === "notify") {
-      // Сообщение: мягкий двойной «колокольчик»
-      playTone(880, 0, 0.14, { volume: 0.1 });
-      playTone(1318.51, 0.11, 0.18, { volume: 0.075 });
+      playTone(659.25, 0, 0.11, { volume: 0.08, type: "triangle" });
+      playTone(830.61, 0.09, 0.13, { volume: 0.075, type: "triangle" });
+      playTone(987.77, 0.18, 0.16, { volume: 0.07, type: "triangle" });
       return;
     }
 
@@ -50985,8 +51018,8 @@ function playWorkspaceNotificationSound(event) {
       return;
     }
 
-    // UI: короткий низкий «тап»
-    playTone(349.23, 0, 0.07, { volume: 0.07 });
+    playTone(523.25, 0, 0.1, { volume: 0.065 });
+    playTone(659.25, 0.08, 0.12, { volume: 0.055 });
   } catch {
     // ignore audio errors
   }
@@ -51003,25 +51036,73 @@ async function fetchWorkspaceActivityEvents({ since = 0, limit = WORKSPACE_NOTIF
   return response.json();
 }
 
+function maybeAnnounceWorkspaceNotifications() {
+  if (!isWorkspaceNotificationsContextActive()) return;
+  if (workspaceNotificationsMuted || workspaceNotificationsOpen || !workspaceNotificationsInitialLoadDone) {
+    return;
+  }
+
+  const freshEvents = workspaceNotificationsEvents.filter(
+    (event) => event.id > workspaceNotificationsAnnouncedUpToId
+  );
+  if (!freshEvents.length) return;
+
+  const newest = [...freshEvents].sort((a, b) => b.id - a.id)[0];
+  workspaceNotificationsAnnouncedUpToId = Math.max(
+    workspaceNotificationsAnnouncedUpToId,
+    newest.id
+  );
+
+  playWorkspaceNotificationSound(newest);
+  const latestTitle = getWorkspaceNotificationTitle(newest);
+  const toastText =
+    newest.action === "notify" && newest.message
+      ? latestTitle && latestTitle !== "—" && !newest.message.startsWith(latestTitle)
+        ? `${latestTitle}: ${newest.message}`
+        : newest.message
+      : `${formatWorkspaceNotificationAction(newest.action)} (${formatWorkspaceNotificationSource(newest.source)}): ${latestTitle}`;
+  showToast(toastText, "info");
+}
+
 async function refreshWorkspaceNotifications(mergeOnly = false) {
-  if (!activeAgentId) return;
+  if (!isWorkspaceNotificationsContextActive()) {
+    syncWorkspaceNotificationsAvailability();
+    return;
+  }
+  const previousLatestId = workspaceNotificationsLatestId;
+  const wasInitialLoadDone = workspaceNotificationsInitialLoadDone;
   try {
-    const payload = await fetchWorkspaceActivityEvents({
-      since: mergeOnly && workspaceNotificationsLatestId > 0 ? workspaceNotificationsLatestId : 0,
+    let payload = await fetchWorkspaceActivityEvents({
+      since: mergeOnly && previousLatestId > 0 ? previousLatestId : 0,
       limit: WORKSPACE_NOTIFICATIONS_FETCH_LIMIT
     });
-    const incoming = Array.isArray(payload?.events) ? payload.events : [];
-    workspaceNotificationsLatestId = Number(payload?.latestId) || workspaceNotificationsLatestId;
+    let incoming = Array.isArray(payload?.events) ? payload.events : [];
+    let serverLatestId = Number(payload?.latestId) || 0;
+    let journalReset = false;
+
+    if (mergeOnly && serverLatestId < previousLatestId) {
+      journalReset = true;
+      mergeOnly = false;
+      payload = await fetchWorkspaceActivityEvents({
+        since: 0,
+        limit: WORKSPACE_NOTIFICATIONS_FETCH_LIMIT
+      });
+      incoming = Array.isArray(payload?.events) ? payload.events : [];
+      serverLatestId = Number(payload?.latestId) || 0;
+      workspaceNotificationsSeenId = 0;
+      workspaceNotificationsAnnouncedUpToId = 0;
+      saveWorkspaceNotificationsSeenId();
+    }
+
+    workspaceNotificationsLatestId = serverLatestId || workspaceNotificationsLatestId;
     workspaceNotificationsTruncated = Boolean(payload?.truncated);
     workspaceNotificationsFileLines = Number(payload?.fileLines) || incoming.length;
 
-    let addedNewCount = 0;
     if (mergeOnly && incoming.length) {
       const known = new Set(workspaceNotificationsEvents.map((event) => event.id));
       for (const event of incoming) {
         if (!known.has(event.id)) {
           workspaceNotificationsEvents.unshift(event);
-          addedNewCount += 1;
         }
       }
       workspaceNotificationsEvents.sort((a, b) => b.id - a.id);
@@ -51033,45 +51114,38 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
         .slice(0, WORKSPACE_NOTIFICATIONS_FETCH_LIMIT);
     }
 
+    reconcileWorkspaceNotificationsSeenId();
     syncWorkspaceNotificationsBadge();
     syncWorkspaceNotificationsHint();
+    syncWorkspaceNotificationsMuteUi();
     if (workspaceNotificationsOpen) renderWorkspaceNotificationsList();
 
-    const unread = getWorkspaceNotificationUnreadCount();
-    const shouldAnnounce =
-      workspaceNotificationsInitialLoadDone &&
-      mergeOnly &&
-      addedNewCount > 0 &&
-      unread > 0 &&
-      !workspaceNotificationsOpen;
-    if (shouldAnnounce) {
-      const latest = incoming[0];
-      playWorkspaceNotificationSound(latest);
-      const latestTitle = getWorkspaceNotificationTitle(latest);
-      const toastText =
-        latest.action === "notify" && latest.message
-          ? latestTitle && latestTitle !== "—" && !latest.message.startsWith(latestTitle)
-            ? `${latestTitle}: ${latest.message}`
-            : latest.message
-          : `${formatWorkspaceNotificationAction(latest.action)} (${formatWorkspaceNotificationSource(latest.source)}): ${latestTitle}`;
-      showToast(toastText, "info");
+    if (!wasInitialLoadDone) {
+      workspaceNotificationsAnnouncedUpToId = workspaceNotificationsLatestId;
+    } else {
+      maybeAnnounceWorkspaceNotifications();
     }
-    workspaceNotificationsInitialLoadDone = true;
   } catch {
     // ignore transient activity fetch errors
+  } finally {
+    workspaceNotificationsInitialLoadDone = true;
   }
 }
 
 function initWorkspaceNotifications() {
   loadWorkspaceNotificationsSeenId();
   loadWorkspaceNotificationsFilter();
+  loadWorkspaceNotificationsMuted();
   syncWorkspaceNotificationsFilterUi();
+  syncWorkspaceNotificationsMuteUi();
+  syncWorkspaceNotificationsAvailability();
+  syncChannelLiveUpdates();
   void refreshWorkspaceNotifications(false);
   workspaceNotificationsPollTimer = window.setInterval(() => {
-    if (document.hidden || !activeAgentId) return;
+    if (document.hidden || !isWorkspaceNotificationsContextActive()) return;
     void refreshWorkspaceNotifications(true);
     void syncLiveFileUpdates();
-  }, 15000);
+  }, 3000);
 
   workspaceNotificationsBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -51079,13 +51153,13 @@ function initWorkspaceNotifications() {
     toggleWorkspaceNotificationsPopover();
   });
   workspaceNotificationsCloseBtn?.addEventListener("click", closeWorkspaceNotificationsPopover);
+  workspaceNotificationsMuteBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleWorkspaceNotificationsMuted();
+  });
   workspaceNotificationsClearBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     void clearWorkspaceNotifications();
-  });
-  workspaceNotificationsLoadMoreBtn?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    loadMoreWorkspaceNotifications();
   });
   workspaceNotificationsFiltersNode?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-filter]");
@@ -51094,7 +51168,6 @@ function initWorkspaceNotifications() {
     const nextFilter = String(button.getAttribute("data-filter") || "all").toLowerCase();
     if (!WORKSPACE_NOTIFICATIONS_FILTER_VALUES.has(nextFilter)) return;
     workspaceNotificationsFilter = nextFilter;
-    workspaceNotificationsVisibleCount = WORKSPACE_NOTIFICATIONS_INITIAL_VISIBLE;
     saveWorkspaceNotificationsFilter();
     renderWorkspaceNotificationsList();
   });
@@ -67737,6 +67810,7 @@ function hideAppLandingView() {
   appRootNode?.classList.remove("app-landing-view");
   appLandingPaneNode?.classList.add("hidden");
   setAppLandingHint("");
+  syncWorkspaceNotificationsAvailability();
 }
 
 function showAppLandingView(hint = "") {
@@ -67781,6 +67855,7 @@ function showAppLandingView(hint = "") {
   renderAgentFocusPanels();
   void loadGlobalFocusItems();
   syncAppRouteToUrl({ replace: true });
+  syncWorkspaceNotificationsAvailability();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
@@ -67819,6 +67894,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   applyAgentWorkspaceCanvasUi();
   void loadAgentFocusItems();
   syncAppRouteToUrl({ replace: true });
+  syncWorkspaceNotificationsAvailability();
 }
 
 function formatNotFoundRequestPath(requestedPath = "") {
@@ -71485,6 +71561,7 @@ if (!window.__agentCmsThreadFocusBound) {
   document.addEventListener("visibilitychange", () => {
     syncChannelLiveUpdates();
     if (document.hidden) return;
+    void refreshWorkspaceNotifications(true);
     if (activeContentMode === NODE_THREAD_MODE && activePath) {
       nodeThreadRefreshOnFocus?.();
     } else if (activeContentMode === "inbox" && activePath) {
