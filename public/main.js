@@ -70156,7 +70156,13 @@ function getWorkspaceScrollContext() {
   const overview = workspacePaneNode.querySelector(
     ".doc-slab-main > #node-overview-block.node-overview:not(.hidden), .doc-slab-main > .workspace-scroll-host > #node-overview-block.node-overview:not(.hidden)"
   );
-  if (overview) return { scrollElement: overview, hostTarget: overview };
+  if (overview) {
+    const splitMain = overview.querySelector(".node-navigation-hub--split > .node-navigation-hub-main");
+    if (splitMain) {
+      return { scrollElement: splitMain, hostTarget: overview };
+    }
+    return { scrollElement: overview, hostTarget: overview };
+  }
 
   if (fileContentPreviewNode && !fileContentPreviewNode.classList.contains("hidden")) {
     return { scrollElement: fileContentPreviewNode, hostTarget: fileContentPreviewNode };
