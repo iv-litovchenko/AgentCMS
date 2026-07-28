@@ -48782,35 +48782,32 @@ function getNavigationHubDocumentScrollElement() {
 function clearNavigationHubRailPanelHeight(rail) {
   const hub = rail?.closest(".node-navigation-hub--split");
   const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
+  rail?.style.removeProperty("--nav-rail-sticky-height");
   rail?.style.removeProperty("--nav-rail-panel-height");
+  resizeBar?.style.removeProperty("--nav-rail-sticky-height");
   resizeBar?.style.removeProperty("--nav-rail-panel-height");
-}
-
-function isNavigationHubSplitScrollLayout(rail) {
-  return Boolean(rail?.closest("#node-overview-block.is-navigation-split"));
 }
 
 function updateNavigationHubRailPanelHeight(rail) {
   const hub = rail?.closest(".node-navigation-hub--split");
+  const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
   if (!hub || !rail) {
     clearNavigationHubRailPanelHeight(rail);
     return;
   }
 
-  if (isNavigationHubSplitScrollLayout(rail)) {
-    clearNavigationHubRailPanelHeight(rail);
-    return;
+  const overview = rail.closest("#node-overview-block");
+  const insetTop = 0;
+  const insetBottom = 12;
+  let height = Math.max(240, window.innerHeight - insetTop - insetBottom);
+  if (overview) {
+    const top = Math.max(overview.getBoundingClientRect().top, insetTop);
+    height = Math.max(240, Math.floor(window.innerHeight - top - insetBottom));
   }
 
-  const resizeBar = hub.querySelector(".node-navigation-hub-rail-resize-bar");
-  const styles = getComputedStyle(rail);
-  const insetTop = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-top")) || 12;
-  const insetBottom = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-bottom")) || 12;
-  const measureEl = rail.closest("#node-overview-block") || getWorkspaceScrollElement();
-  const viewportHeight = measureEl?.clientHeight || window.innerHeight;
-  const height = Math.max(240, Math.floor(viewportHeight - insetTop - insetBottom));
-  rail.style.setProperty("--nav-rail-panel-height", `${height}px`);
-  resizeBar?.style.setProperty("--nav-rail-panel-height", `${height}px`);
+  const heightValue = `${height}px`;
+  rail.style.setProperty("--nav-rail-sticky-height", heightValue);
+  resizeBar?.style.setProperty("--nav-rail-sticky-height", heightValue);
 }
 
 function bindNavigationHubRailAsideLayout(rail) {
@@ -55938,6 +55935,7 @@ function mountNavigationHubRailToggle(hub) {
 
   bar.replaceChildren();
   bar.style.removeProperty("--nav-rail-panel-height");
+  bar.style.removeProperty("--nav-rail-sticky-height");
 
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
@@ -55951,8 +55949,8 @@ function mountNavigationHubRailToggle(hub) {
   });
   bar.appendChild(toggleBtn);
 
-  clearNavigationHubRailPanelHeight(rail);
-  syncNavigationHubRailCollapsedUi();
+  updateNavigationHubRailPanelHeight(rail);
+  syncNavigationHubRailCollapsedUi(hub);
 }
 
 function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
