@@ -37,7 +37,7 @@
 list_page_slots(path)
 create_content(path, slot: "main", awnType: "awn.content.record", …)
 upload_content(path, slot: "media", fileName: "photo.jpg", data: base64…)
-read_content_description(path, slot: "main-single")   // без ref
+read_content_body(path, slot: "main-single")   // без ref
 ```
 
 ## Типы

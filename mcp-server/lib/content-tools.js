@@ -87,11 +87,33 @@ export function registerContentTools({ reg, client, pagePath }) {
     z.object({ path: pagePath, slot: contentSlot }),
     async ({ path, slot }) => {
       if (isInternalSlot(slot)) {
-        throw new Error(`Slot "${slot}" is single-file (internal). Use read_content_description instead of list_content.`);
+        throw new Error(`Slot "${slot}" is single-file (internal). Use read_content_body instead of list_content.`);
       }
       if (slot === "main") return client.get("/api/external/files", { path });
       if (isMediaSlot(slot)) return client.get("/api/media", { path, folder: slotToFolder(slot) });
       return client.get("/api/folder/view", { path, folder: slotToFolder(slot) });
+    }
+  );
+
+  reg(
+    "get_content_meta",
+    "Content item metadata: path, slot, ref, driver, file.",
+    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
+    async ({ path, slot, ref }) => {
+      if (isInternalSlot(slot)) {
+        const payload = await readInternalContent(client, path, slot);
+        return { path, slot, driver: "internal", ref: null, file: null, payload };
+      }
+      if (!ref) throw new Error("ref is required for external slots");
+      const payload = await readMarkdownFull(client, path, slot, ref).catch(() => null);
+      return {
+        path,
+        slot,
+        driver: "external",
+        ref,
+        file: payload?.file || ref,
+        exists: Boolean(payload?.content != null)
+      };
     }
   );
 
@@ -103,8 +125,8 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
-    "read_content_description",
-    "Read content body. For .md: body without frontmatter. For internal slots: full file content.",
+    "read_content_body",
+    "Read content body. For .md: markdown below frontmatter. For internal slots: full file content.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
     async ({ path, slot, ref }) => {
       if (isInternalSlot(slot)) {
@@ -120,7 +142,7 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
-    "write_content_description",
+    "write_content_body",
     "Save content body. Frontmatter on disk is preserved for .md files.",
     z.object({
       path: pagePath,
@@ -207,7 +229,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     }),
     async ({ path, slot, awnType, title, displayName, slug, parent, body, fileMask, fields, source, author, status }) => {
       if (isInternalSlot(slot)) {
-        throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content_description.`);
+        throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content_body.`);
       }
       const folder = slotToFolder(slot);
       const isCategory = awnType === "awn.content.record.category";
@@ -253,7 +275,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     }),
     async ({ path, slot, fileName, data, mimeType, parent, createSubdir }) => {
       if (isInternalSlot(slot)) {
-        throw new Error(`Cannot upload_content to internal slot "${slot}". Use write_content_description.`);
+        throw new Error(`Cannot upload_content to internal slot "${slot}". Use write_content_body.`);
       }
       return client.post("/api/media/file", {
         path,
@@ -274,7 +296,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
     async ({ path, slot, ref }) => {
       if (isInternalSlot(slot)) {
-        throw new Error("read_content_file is for external slot files. Use read_content_description for internal slots.");
+        throw new Error("read_content_file is for external slot files. Use read_content_body for internal slots.");
       }
       const folder = slotToFolder(slot);
       if (isMediaSlot(slot)) {

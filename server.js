@@ -8178,7 +8178,7 @@ const SESSION_PATH_HINTS = {
   topicManifest:
     "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
   externalSlot: "External-слот: list_content + create_content / upload_content { slot: main|inbox|media|… }",
-  internalSlot: "Internal-слот: read_content_description без ref (main-single, todo-single, main-single-csv)",
+  internalSlot: "Internal-слот: read_content_body без ref (main-single, todo-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
@@ -13643,7 +13643,7 @@ async function handleApiForAgent(req, res, url) {
       const hasFrontmatter = /^---\r?\n/.test(incoming);
       let stampedContent;
       if (!hasFrontmatter) {
-        // Body-only payload (typical MCP write_page_description): keep disk frontmatter.
+        // Body-only payload (typical MCP write_page_body): keep disk frontmatter.
         const stampedFrontmatter = applyAwnTimestampsToFrontmatter(diskFrontmatter, { diskFrontmatter });
         stampedContent = joinNodeFrontmatter(stampedFrontmatter, incoming);
       } else {

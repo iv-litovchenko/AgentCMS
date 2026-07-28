@@ -16,14 +16,14 @@ export function registerPageTools({ reg, client, pagePath }) {
   );
 
   reg(
-    "read_page_description",
-    "Read manifest.md body (page description).",
+    "read_page_body",
+    "Read manifest.md body (markdown below frontmatter).",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file", { path })
   );
 
   reg(
-    "write_page_description",
+    "write_page_body",
     "Save manifest.md body. Frontmatter on disk is preserved.",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/content", { path, content })

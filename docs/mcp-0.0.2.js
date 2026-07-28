@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "84 tools — полный список ниже.",
+    "85 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -198,14 +198,14 @@ module.exports = {
           http: "GET /api/page/exists"
         },
         {
-          name: "read_page_description",
-          description: "Тело manifest.md.",
+          name: "read_page_body",
+          description: "Тело manifest.md (markdown под frontmatter).",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
-          name: "write_page_description",
-          description: "Сохранить тело manifest.md.",
+          name: "write_page_body",
+          description: "Сохранить тело manifest.md (frontmatter не трогается).",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
@@ -300,9 +300,10 @@ module.exports = {
       title: "Контент (единая ветка)",
       tools: [
         { name: "list_content", description: "Список в external-слоте.", parameters: "path, slot", http: "—" },
+        { name: "get_content_meta", description: "Метаданные объекта: path, slot, driver, ref, file.", parameters: "path, slot, ref?", http: "—" },
         { name: "content_exists", description: "Проверка существования объекта (без чтения тела).", parameters: "path, slot, ref?", http: "GET /api/content/exists" },
-        { name: "read_content_description", description: "Тело .md или single-file.", parameters: "path, slot, ref?", http: "—" },
-        { name: "write_content_description", description: "Сохранить тело.", parameters: "path, slot, ref?, content", http: "—" },
+        { name: "read_content_body", description: "Тело .md (markdown под frontmatter) или single-file.", parameters: "path, slot, ref?", http: "—" },
+        { name: "write_content_body", description: "Сохранить тело (frontmatter не трогается).", parameters: "path, slot, ref?, content", http: "—" },
         { name: "read_content_properties", description: "Frontmatter .md.", parameters: "path, slot, ref?", http: "—" },
         { name: "write_content_properties", description: "Сохранить frontmatter.", parameters: "path, slot, ref?, content", http: "—" },
         { name: "create_content", description: "Typed record или category.", parameters: "path, slot, awnType?, …", http: "POST /api/storage/file/create" },
