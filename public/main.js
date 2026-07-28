@@ -43785,11 +43785,7 @@ function createNavBookTocLinkFileTypeLeading(item) {
   return wrap;
 }
 
-function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath) {
-  const leadingWrap = document.createElement("span");
-  leadingWrap.className = "nav-book-toc-link-leading";
-  leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
-
+function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { showBranch = true } = {}) {
   const previewWrap = document.createElement("span");
   previewWrap.className = "nav-book-toc-link-preview";
 
@@ -43801,16 +43797,14 @@ function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath) {
         className: "nav-book-toc-link-preview-img"
       })
     ) {
-      leadingWrap.appendChild(previewWrap);
-      return leadingWrap;
+      return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
     }
     const fallback = document.createElement("span");
     fallback.className = "nav-book-toc-link-filetype-emoji";
     fallback.textContent = "🖼";
     fallback.setAttribute("aria-hidden", "true");
     previewWrap.appendChild(fallback);
-    leadingWrap.appendChild(previewWrap);
-    return leadingWrap;
+    return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
   }
 
   const ext = getNavigationItemFileExtension(item);
@@ -43833,6 +43827,13 @@ function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath) {
     previewWrap.appendChild(label);
   }
 
+  return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
+}
+
+function wrapNavBookTocMediaLeading(previewWrap) {
+  const leadingWrap = document.createElement("span");
+  leadingWrap.className = "nav-book-toc-link-leading";
+  leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
   leadingWrap.appendChild(previewWrap);
   return leadingWrap;
 }
@@ -44471,7 +44472,7 @@ function prepareNavigationFlatStorageItems(mode) {
 }
 
 function getEntryOverviewNavigationHandlers(memoryKind) {
-  if (memoryKind === "media") {
+  if (memoryKind === "media" || memoryKind === "assets") {
     return {
       onFolderClick: openMediaCategoryOverviewFromNavigation,
       onFileClick: openMediaEntryOverviewFromNavigation
@@ -47335,6 +47336,11 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       folderDescriptions,
       sectionManifestByFolder
     });
+    const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
+      handlers,
+      folderNode.folderPath
+    );
+    if (folderIsCurrent) folderLabel.classList.add("is-current");
     folderLabel.addEventListener("click", (event) => {
       event.stopPropagation();
       onFolderClick(folderNode.folderPath);
@@ -47353,7 +47359,9 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
     const childCount = countNavigationFolderItems(folderNode);
     const collapsible = handlers.collapsible !== false && childCount > 0;
     const collapsed =
-      collapsible && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+      collapsible &&
+      !forceExpand &&
+      isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
 
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
@@ -47550,7 +47558,6 @@ async function renderEntryOverview() {
     hubMain.className = "node-navigation-hub-main";
 
     if (isStale()) return;
-    appendEntryOverviewSlotPanel(hubMain, context, topicPath);
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
     entryOverviewBreadcrumbState = { context, navigationIndex, title: "Оглавление" };
@@ -47601,7 +47608,6 @@ async function renderEntryOverview() {
   hubMain.className = "node-navigation-hub-main";
 
   if (isStale()) return;
-  appendEntryOverviewSlotPanel(hubMain, context, topicPath);
 
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
 
@@ -47711,6 +47717,9 @@ function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
 const NAV_TOC_COLLAPSED_KEY = "agentcms.navTocCollapsed.v1";
 const NAV_HUB_RAIL_SLOT_OPEN_KEY = "agentcms.navHubRailSlotOpen.v1";
 const NAV_HUB_RAIL_DOCUMENT_SLOT_ID = "__document__";
+const NAVIGATION_HUB_RAIL_SEARCH_MIN_ITEMS = 4;
+
+const navigationHubRailSlotSearchByKey = new Map();
 
 let navTocCollapsedOverridesCache = null;
 let navHubRailSlotOpenOverridesCache = null;
@@ -47855,6 +47864,11 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderDescriptions,
       sectionManifestByFolder
     });
+    const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
+      handlers,
+      folderNode.folderPath
+    );
+    if (folderIsCurrent) folderLabel.classList.add("is-current");
     folderLabel.addEventListener("click", (event) => {
       event.stopPropagation();
       onFolderClick(folderNode.folderPath);
@@ -47873,7 +47887,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const childCount = countNavigationFolderItems(folderNode);
     const collapsible = handlers.collapsible !== false && childCount > 0;
     const collapsed =
-      collapsible && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+      collapsible &&
+      !forceExpand &&
+      isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
 
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
@@ -47947,7 +47963,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const leading =
       handlers.linkLeadingMode === "media"
-        ? createNavigationMediaBookTocLinkLeading(item, nodePath)
+        ? createNavigationMediaBookTocLinkLeading(item, nodePath, {
+            showBranch: handlers.showBranchLeading !== false
+          })
         : createNavBookTocLinkLeading(item, nodePath, {
             showFileTypeLeading: handlers.showFileTypeLeading,
             showBranchLeading: handlers.showBranchLeading
@@ -47955,6 +47973,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     if (leading) link.appendChild(leading);
     link.append(text, leaders);
+    const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
+    if (fileIsCurrent) link.classList.add("is-current");
     link.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -54297,7 +54317,80 @@ function syncNodeOverviewNavigationSplitClass(active = false) {
   nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
 }
 
-function renderNavigationHubRailSubsections(childEntries) {
+function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
+  return `${getNavHubRailSlotOpenStorageKey(nodePath, slotId)}::search`;
+}
+
+function getNavigationHubRailSlotSearchQuery(nodePath, slotId) {
+  return navigationHubRailSlotSearchByKey.get(getNavigationHubRailSlotSearchKey(nodePath, slotId)) || "";
+}
+
+function setNavigationHubRailSlotSearchQuery(nodePath, slotId, query) {
+  const key = getNavigationHubRailSlotSearchKey(nodePath, slotId);
+  const value = String(query || "");
+  if (value.trim()) navigationHubRailSlotSearchByKey.set(key, value);
+  else navigationHubRailSlotSearchByKey.delete(key);
+}
+
+function buildNavigationHubRailActiveContext() {
+  const context = {
+    memoryKind: null,
+    relativePath: "",
+    sectionFolder: "",
+    folderPaths: new Set(),
+    slotKey: null
+  };
+
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) {
+    return context;
+  }
+
+  const entry = activeEntryOverviewContext;
+  context.memoryKind = entry.memoryKind || null;
+  context.relativePath = String(entry.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  context.sectionFolder =
+    getEntryOverviewSectionFolderPath(entry) || getEntryOverviewParentFolderPath(entry) || "";
+  context.slotKey = getDataStorageSlotKeyForEntryView();
+
+  const anchorPath = context.relativePath || context.sectionFolder;
+  if (anchorPath) {
+    for (const folderPath of collectNavigationFolderAncestors(anchorPath)) {
+      context.folderPaths.add(folderPath);
+    }
+  }
+  if (context.sectionFolder) context.folderPaths.add(context.sectionFolder);
+
+  return context;
+}
+
+function getNavigationHubRailTocActiveState(handlers, folderPath = "", itemPath = null) {
+  const activeCtx = handlers.activeContext;
+  const normalizedActiveRel = activeCtx?.relativePath
+    ? String(activeCtx.relativePath).replace(/\\/g, "/").replace(/^\/+/, "")
+    : "";
+  const normalizedFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const normalizedItem = itemPath
+    ? String(itemPath).replace(/\\/g, "/").replace(/^\/+/, "")
+    : "";
+  const activeFolderPaths = activeCtx?.folderPaths || new Set();
+  const forceExpand =
+    Boolean(normalizedActiveRel && normalizedFolder && normalizedActiveRel.startsWith(`${normalizedFolder}/`)) ||
+    activeFolderPaths.has(normalizedFolder) ||
+    (activeCtx?.sectionFolder && normalizedFolder === activeCtx.sectionFolder);
+  const folderIsCurrent = Boolean(activeCtx?.sectionFolder && normalizedFolder === activeCtx.sectionFolder);
+  const fileIsCurrent = Boolean(normalizedActiveRel && normalizedItem && normalizedItem === normalizedActiveRel);
+  return { forceExpand, folderIsCurrent, fileIsCurrent };
+}
+
+function shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx) {
+  if (!activeCtx?.slotKey) return false;
+  if (activeCtx.slotKey !== slot.id) return false;
+  if (slotIndex.kind === "tree" && activeCtx.relativePath) return true;
+  if (slotIndex.kind === "bundle" && activeCtx.memoryKind === slotIndex.memoryKind) return true;
+  return activeCtx.slotKey === slot.id;
+}
+
+function renderNavigationHubRailSubsections(childEntries, activeCtx = null) {
   if (!childEntries.length) return null;
 
   const block = document.createElement("section");
@@ -54311,11 +54404,16 @@ function renderNavigationHubRailSubsections(childEntries) {
   const list = document.createElement("ul");
   list.className = "node-navigation-rail-link-list";
 
+  const resolvedActive = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+
   for (const entry of childEntries) {
     const item = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "node-navigation-rail-link";
+    if (normalizeMenuNodePath(entry.path || "") === resolvedActive) {
+      btn.classList.add("is-current");
+    }
     btn.dataset.navigationSearch = `${entry.label || ""} ${entry.path || ""}`.trim();
 
     const icon = document.createElement("span");
@@ -54368,19 +54466,24 @@ function prepareNavigationHubRailSlotIndex(slotKey, nodePath, prefetched = {}) {
   return { kind: "tree", memoryKind, navigationIndex, spec };
 }
 
-function appendNavigationHubRailBookToc(parent, navigationIndex, memoryKind) {
-  if (!navigationIndex || !parent) return false;
+function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath, slotId, activeCtx = null) {
+  if (!navigationIndex) return null;
 
-  const folderLabels = navigationIndex.folderLabels || new Map();
-  const folderDescriptions = navigationIndex.folderDescriptions || new Map();
-  const folderStatuses = navigationIndex.folderStatuses || new Map();
-  const sectionManifestByFolder = navigationIndex.sectionManifestByFolder || new Map();
-  const folderPaths = navigationIndex.folderPaths || new Set();
-  const mdItems = [...(navigationIndex.contentFiles || [])].sort((a, b) =>
+  const filteredIndex = filterEntryOverviewNavigationIndex(
+    navigationIndex,
+    getNavigationHubRailSlotSearchQuery(nodePath, slotId).trim().toLowerCase()
+  );
+
+  const folderLabels = filteredIndex.folderLabels || new Map();
+  const folderDescriptions = filteredIndex.folderDescriptions || new Map();
+  const folderStatuses = filteredIndex.folderStatuses || new Map();
+  const sectionManifestByFolder = filteredIndex.sectionManifestByFolder || new Map();
+  const folderPaths = filteredIndex.folderPaths || new Set();
+  const mdItems = [...(filteredIndex.contentFiles || [])].sort((a, b) =>
     compareNavigationPathsNatural(a.path, b.path)
   );
 
-  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return false;
+  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
 
   const handlers = getEntryOverviewNavigationHandlers(memoryKind);
   const nav = document.createElement("nav");
@@ -54397,12 +54500,20 @@ function appendNavigationHubRailBookToc(parent, navigationIndex, memoryKind) {
     folderDescriptions,
     folderStatuses,
     sectionManifestByFolder,
+    nodePath,
     treeStyle: "guide",
+    activeContext: activeCtx,
     ...handlers
   };
 
   if (memoryKind === "media" || memoryKind === "assets") {
-    appendEntryOverviewMediaBookTocList(list, tree, 0, tocHandlers);
+    appendNavigationBookTocList(list, tree, 0, {
+      ...tocHandlers,
+      linkLeadingMode: "media",
+      showFileTypeLeading: false,
+      showBranchLeading: false,
+      treeStyle: "guide"
+    });
   } else {
     appendNavigationBookTocList(list, tree, 0, {
       ...tocHandlers,
@@ -54412,8 +54523,73 @@ function appendNavigationHubRailBookToc(parent, navigationIndex, memoryKind) {
   }
 
   nav.appendChild(list);
-  parent.appendChild(nav);
-  return true;
+  return nav;
+}
+
+function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched) {
+  const treeHost = body.querySelector(".node-navigation-hub-rail-slot-tree");
+  if (!treeHost) return;
+  treeHost.replaceChildren();
+
+  if (slotIndex.kind === "tree") {
+    const nav = createNavigationHubRailBookTocNav(
+      slotIndex.navigationIndex,
+      slotIndex.memoryKind,
+      nodePath,
+      slot.id,
+      activeCtx
+    );
+    if (nav) treeHost.appendChild(nav);
+    return;
+  }
+
+  if (slotIndex.kind === "bundle") {
+    const hintWrap = document.createElement("div");
+    if (appendNavigationHubRailBundleHint(hintWrap, slotIndex.memoryKind, prefetched)) {
+      treeHost.appendChild(hintWrap);
+    }
+  }
+}
+
+function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched) {
+  body.replaceChildren();
+
+  if (slotIndex.kind === "tree") {
+    const navIndex = slotIndex.navigationIndex;
+    const itemCount =
+      (navIndex?.contentFiles?.length || 0) +
+      (navIndex?.folderPaths instanceof Set
+        ? navIndex.folderPaths.size
+        : Array.isArray(navIndex?.folderPaths)
+          ? navIndex.folderPaths.length
+          : 0);
+
+    if (itemCount >= NAVIGATION_HUB_RAIL_SEARCH_MIN_ITEMS) {
+      body.appendChild(
+        createNavigationSectionSearchInput({
+          value: getNavigationHubRailSlotSearchQuery(nodePath, slot.id),
+          placeholder: "Поиск...",
+          ariaLabel: `Поиск: ${slot.label}`,
+          onInput: (value) => {
+            setNavigationHubRailSlotSearchQuery(nodePath, slot.id, value);
+            refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
+          }
+        })
+      );
+    }
+
+    const treeHost = document.createElement("div");
+    treeHost.className = "node-navigation-hub-rail-slot-tree";
+    body.appendChild(treeHost);
+    refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
+    return Boolean(treeHost.childElementCount);
+  }
+
+  if (slotIndex.kind === "bundle") {
+    return appendNavigationHubRailBundleHint(body, slotIndex.memoryKind, prefetched);
+  }
+
+  return false;
 }
 
 function appendNavigationHubRailBundleHint(body, memoryKind, prefetched = {}) {
@@ -54461,8 +54637,9 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   if (!headings.length) return null;
 
   const details = document.createElement("details");
-  details.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--document";
-  details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, true);
+  details.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--document is-filled";
+  const defaultDocumentOpen = activeContentMode === NODE_ENTRY_OVERVIEW_MODE;
+  details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, defaultDocumentOpen);
   details.addEventListener("toggle", () => {
     setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
   });
@@ -54480,7 +54657,7 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   label.textContent = "Навигация";
 
   const count = document.createElement("span");
-  count.className = "node-navigation-hub-rail-slot-count";
+  count.className = "node-navigation-hub-rail-slot-count is-filled";
   count.textContent = String(headings.length);
 
   summary.append(icon, label, count);
@@ -54519,14 +54696,17 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   return details;
 }
 
-function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath) {
+function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx = null) {
+  const defaultOpen = shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx);
   const details = document.createElement("details");
   details.className = "node-navigation-hub-rail-slot";
-  details.open = isNavHubRailSlotOpen(nodePath, slot.id, false);
+  if (defaultOpen) details.classList.add("is-active-slot");
+  details.open = isNavHubRailSlotOpen(nodePath, slot.id, defaultOpen);
   details.addEventListener("toggle", () => {
     setNavHubRailSlotOpen(nodePath, slot.id, details.open);
   });
   details.classList.toggle("is-empty", !slot.filled && !slot.available);
+  details.classList.toggle("is-filled", Boolean(slot.filled));
   if (slot.tone) details.classList.add(`is-${slot.tone}`);
 
   const summary = document.createElement("summary");
@@ -54543,6 +54723,7 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
 
   const count = document.createElement("span");
   count.className = "node-navigation-hub-rail-slot-count";
+  if (slot.filled) count.classList.add("is-filled");
   count.textContent =
     slot.display === "flag" ? (slot.filled ? "●" : "—") : String(slot.count ?? 0);
 
@@ -54567,12 +54748,14 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   const body = document.createElement("div");
   body.className = "node-navigation-hub-rail-slot-body";
 
-  let hasContent = false;
-  if (slotIndex.kind === "bundle") {
-    hasContent = appendNavigationHubRailBundleHint(body, slotIndex.memoryKind, prefetched);
-  } else if (slotIndex.kind === "tree") {
-    hasContent = appendNavigationHubRailBookToc(body, slotIndex.navigationIndex, slotIndex.memoryKind);
-  }
+  const hasContent = mountNavigationHubRailSlotTreeBody(
+    body,
+    slot,
+    slotIndex,
+    nodePath,
+    activeCtx,
+    prefetched
+  );
 
   if (!hasContent) {
     const empty = document.createElement("p");
@@ -54590,7 +54773,9 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
   rail.className = "node-navigation-hub-rail";
   rail.setAttribute("aria-label", "Слоты и подразделы");
 
-  const subsections = renderNavigationHubRailSubsections(childEntries);
+  const activeCtx = buildNavigationHubRailActiveContext();
+
+  const subsections = renderNavigationHubRailSubsections(childEntries, activeCtx);
   if (subsections) rail.appendChild(subsections);
 
   if (options.documentMarkdown) {
@@ -54604,7 +54789,9 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 
     for (const slot of topicSlotCounters) {
       const slotIndex = prepareNavigationHubRailSlotIndex(slot.id, nodePath, prefetched);
-      slotsWrap.appendChild(renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath));
+      slotsWrap.appendChild(
+        renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx)
+      );
     }
 
     rail.appendChild(slotsWrap);
@@ -54648,23 +54835,26 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
-  const [internalData, externalData, tabularData, todoData] = await Promise.all(
+  const [internalData, externalData, tabularData, todoData, mediaData, assetsData] = await Promise.all(
     isArea
       ? [
           fetchInternalMemoryForNavigation(nodePath),
           Promise.resolve(emptyExternal),
           Promise.resolve(emptyTabular),
-          fetchTodoForOverview(nodePath)
+          fetchTodoForOverview(nodePath),
+          Promise.resolve(null),
+          Promise.resolve(null)
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
           fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
-          fetchTodoForOverview(nodePath)
+          fetchTodoForOverview(nodePath),
+          fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
-  return { isArea, internalData, externalData, tabularData, mediaData, todoData };
+  return { isArea, internalData, externalData, tabularData, mediaData, assetsData, todoData };
 }
 
 async function appendNodeNavigationSplitRail(
@@ -54680,11 +54870,9 @@ async function appendNodeNavigationSplitRail(
   if (isStale()) return false;
 
   try {
-    let assetsData = prefetched?.assetsData ?? null;
-    const needsAssets = topicSlotCounters.some((slot) => slot.id === "assets");
-    if (needsAssets && prefetched?.assetsData === undefined) {
-      assetsData = await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null);
-    }
+    const assetsData =
+      prefetched?.assetsData ??
+      (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null));
     if (isStale()) return false;
 
     const rail = renderNavigationHubRail(
@@ -54808,7 +54996,7 @@ async function renderNodeNavigation() {
   if (isArea) {
     const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
     if (areaInternalPanel) hubMain.appendChild(areaInternalPanel);
-  } else if (!useSplitLayout) {
+  } else {
     const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
       topicSlotCounters.map((slot) => ({
         ...slot,

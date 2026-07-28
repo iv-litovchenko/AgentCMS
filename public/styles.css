@@ -19744,7 +19744,7 @@ body.app-locked {
   position: sticky;
   top: 0;
   align-self: start;
-  max-height: min(72vh, 720px);
+  max-height: calc(100dvh - 132px);
   overflow: auto;
   padding: 2px 0 8px 16px;
   min-width: 0;
@@ -19795,6 +19795,12 @@ body.app-locked {
   color: #0f172a;
 }
 
+.node-navigation-rail-link.is-current {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
 .node-navigation-rail-link-icon {
   flex: 0 0 auto;
   font-size: 13px;
@@ -19817,11 +19823,25 @@ body.app-locked {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.node-navigation-hub-rail-slot.is-active-slot {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.35);
 }
 
 .node-navigation-hub-rail-slot.is-empty {
   opacity: 0.72;
+}
+
+.node-navigation-hub-rail-slot.is-filled {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+}
+
+.node-navigation-hub-rail-slot.is-filled > .node-navigation-hub-rail-slot-summary {
+  color: #1e293b;
 }
 
 .node-navigation-hub-rail-slot.is-pending {
@@ -19862,6 +19882,23 @@ body.app-locked {
   font-weight: 700;
   color: #64748b;
   font-variant-numeric: tabular-nums;
+  min-width: 1.4em;
+  text-align: center;
+}
+
+.node-navigation-hub-rail-slot-count.is-filled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .node-navigation-hub-rail-slot-open {
@@ -19886,6 +19923,21 @@ body.app-locked {
 .node-navigation-hub-rail-slot-body {
   padding: 0 8px 8px;
   border-top: 1px solid #f1f5f9;
+  min-width: 0;
+  overflow: visible;
+}
+
+.node-navigation-hub-rail-slot-body .node-navigation-section-search {
+  margin: 8px 0 6px;
+}
+
+.node-navigation-hub-rail-slot-body .node-navigation-section-search-bar {
+  min-height: 30px;
+}
+
+.node-navigation-hub-rail-slot-tree {
+  min-width: 0;
+  overflow: visible;
 }
 
 .node-navigation-hub-rail-empty,
@@ -19938,24 +19990,84 @@ body.app-locked {
   background: #f8fbff;
 }
 
+.node-navigation-hub-rail-slot--document[open] .node-navigation-hub-rail-slot-body {
+  max-height: none;
+}
+
+.nav-book-toc-tree--rail {
+  --nav-toc-line: #dbe3ee;
+  --nav-toc-spine: 8px;
+  --nav-toc-branch-pad: 8px;
+  min-width: 0;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-list--root {
+  margin-left: 0;
+  padding: 0 0 4px 0;
+  border-left: 0;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-list--root > .nav-book-toc-folder--root {
+  margin-left: 0;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-folder > .nav-book-toc-list {
+  margin-left: 6px;
+  padding-left: 8px;
+}
+
 .nav-book-toc-tree--rail .nav-book-toc-folder-head {
   min-height: 32px;
   padding-top: 2px;
   padding-bottom: 2px;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
 }
 
-.nav-book-toc-tree--rail .nav-book-toc-folder-label,
+.nav-book-toc-tree--rail .nav-book-toc-folder--root > .nav-book-toc-folder-head {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 .nav-book-toc-tree--rail .nav-book-toc-link {
   font-size: 11px;
   line-height: 1.35;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-link-preview {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-entry--media .nav-book-toc-link,
+.nav-book-toc-tree--rail .nav-book-toc-entry .nav-book-toc-link {
+  min-height: 30px;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-folder-label.is-current,
+.nav-book-toc-tree--rail .nav-book-toc-link.is-current {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  border-radius: 5px;
 }
 
 .nav-book-toc-tree--rail .nav-book-toc-folder-count {
   font-size: 10px;
 }
 
+.nav-book-toc-tree--rail .nav-book-toc-folder > .nav-book-toc-list .nav-book-toc-link::before,
+.nav-book-toc-tree--rail .nav-book-toc-folder--nested > .nav-book-toc-folder-head::before,
+.nav-book-toc-tree--rail .nav-book-toc-list--root > .nav-book-toc-entry--root-level .nav-book-toc-link::before {
+  display: none;
+}
+
 .nav-book-toc-tree--rail .nav-book-toc-list--root > .nav-book-toc-folder--root > .nav-book-toc-list {
-  padding-left: 8px;
+  padding-left: 6px;
 }
 
 .node-overview.is-navigation-split .node-navigation-hub > .node-comments,
