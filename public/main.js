@@ -4876,6 +4876,11 @@ function getPlatformAgentForLanding() {
 
 let globalFocusItemsCache = [];
 let agentFocusItemsCache = [];
+let globalLandingHubTopicItemsCache = [];
+let landingHubTopicItemsLoadSeq = 0;
+
+const LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH = 2;
+const LANDING_HUB_ORBIT_MENU_MAX_DEPTH = LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH + 1;
 
 const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
 const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
@@ -5792,12 +5797,13 @@ function renderLandingFocusGrid(items) {
 function renderGlobalFocusPanel() {
   syncLandingFocusToolbarUi();
   const processed = getProcessedLandingFocusItems();
+  const hubOrbitTopics = getLandingHubOrbitTopicItems();
   if (getLandingAgentsView() === "hub") {
-    renderAppLandingHub(processed);
+    renderAppLandingHub(hubOrbitTopics);
     return;
   }
   if (getLandingAgentsView() === "orbit") {
-    setLandingOrbitFocusCache(processed);
+    setLandingOrbitFocusCache(hubOrbitTopics);
     return;
   }
   if (getLandingAgentsView() === "grid") {
@@ -7658,10 +7664,12 @@ function syncLandingAgentsViewUi() {
     void renderAppLandingGroups();
   }
   if (isHub) {
-    renderAppLandingHub(getProcessedLandingFocusItems());
+    renderAppLandingHub(getLandingHubOrbitTopicItems());
+    void loadGlobalLandingHubTopicItems();
   }
   if (isOrbit) {
     renderAppLandingOrbit();
+    void loadGlobalLandingHubTopicItems();
   }
   if (isGrid) {
     renderAppLandingList(getProcessedLandingFocusItems());
@@ -7679,6 +7687,149 @@ function syncLandingAgentsViewUi() {
 }
 
 const HUB_FOCUS_TWIG_LIMIT = 8;
+
+function mapMenuEntryToLandingTopicItem(agent, entry, nodePath) {
+  const path = normalizeMenuNodePath(nodePath || entry?.path || entry?.indexPath || "");
+  if (!path || path === "_registration.md") return null;
+  const name =
+    String(entry?.label || entry?.title || getLabelFromPath(path) || "").trim() || getLabelFromPath(path);
+  const tags = Array.isArray(entry?.tags) ? entry.tags : [];
+  const status = String(entry?.status || "").trim();
+  const category = String(entry?.category || "").trim();
+  return {
+    agentId: agent.id,
+    agentName: agent.name || agent.id,
+    agentPath: agent.path,
+    agentActive: agent.active !== false,
+    nodePath: path,
+    name,
+    awnType: String(entry?.awnType || "").trim(),
+    awnProps: {
+      "awn-status": status,
+      "awn-category": category,
+      "awn-tags": tags.join(", ")
+    },
+    catalogDisplay: {
+      "awn-status": status,
+      "awn-category": category,
+      "awn-tags": tags.join(", ")
+    },
+    nodePreviewUrl: entry?.previewUrl || null,
+    agentPreviewUrl: getRegistryAgentPreviewUrl(agent)
+  };
+}
+
+function collectLandingHubOrbitTopicsFromMenuNode(
+  node,
+  agent,
+  depth,
+  maxDepth,
+  parentSectionPath,
+  acc,
+  seen
+) {
+  if (!node || depth > maxDepth) return;
+
+  if (depth > 0 && node.indexPath) {
+    const topic = mapMenuEntryToLandingTopicItem(agent, node, node.indexPath);
+    if (topic && !seen.has(topic.nodePath)) {
+      seen.add(topic.nodePath);
+      acc.push(topic);
+    }
+  }
+
+  for (const item of node.items || []) {
+    if (!item?.path) continue;
+    const topic = mapMenuEntryToLandingTopicItem(agent, item, item.path);
+    if (topic && !seen.has(topic.nodePath)) {
+      seen.add(topic.nodePath);
+      acc.push(topic);
+    }
+  }
+
+  if (depth >= maxDepth) return;
+
+  for (const section of node.sections || []) {
+    if (!section || !shouldShowMenuTreeFolder(section, agent.id)) continue;
+    const folderPath = resolveSectionFolderPath(section, parentSectionPath, depth + 1);
+    collectLandingHubOrbitTopicsFromMenuNode(
+      section,
+      agent,
+      depth + 1,
+      maxDepth,
+      folderPath,
+      acc,
+      seen
+    );
+  }
+}
+
+function collectLandingHubOrbitTopicsFromMenu(menu, agent) {
+  const acc = [];
+  const seen = new Set();
+  if (!menu || menu.workspaceMissing) return acc;
+
+  const walkTree = (node) => {
+    if (!node) return;
+    collectLandingHubOrbitTopicsFromMenuNode(
+      node,
+      agent,
+      0,
+      LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH,
+      ".",
+      acc,
+      seen
+    );
+  };
+
+  walkTree(getWorkspaceRootMenuTreeNode(menu, agent.id));
+
+  if (menu.containerTree && shouldShowContainerSectionInMenu(agent.id)) {
+    walkTree({ title: menu.containerTree.title || "", ...menu.containerTree });
+  }
+
+  if (menu.sharedTree && shouldShowSharedSectionInMenu(agent.id)) {
+    walkTree({ title: menu.sharedTree.title || "", ...menu.sharedTree });
+  }
+
+  return acc;
+}
+
+function getLandingHubOrbitTopicItems() {
+  return [...globalLandingHubTopicItemsCache].sort((a, b) => {
+    const agentCmp = String(a.agentName || a.agentId).localeCompare(String(b.agentName || b.agentId), "ru");
+    if (agentCmp !== 0) return agentCmp;
+    return String(a.name || a.nodePath).localeCompare(String(b.name || b.nodePath), "ru");
+  });
+}
+
+async function loadGlobalLandingHubTopicItems() {
+  const loadSeq = ++landingHubTopicItemsLoadSeq;
+  const agents = getAgentsForLandingGrid().filter((agent) => agent.folderExists !== false);
+  const results = await Promise.all(
+    agents.map(async (agent) => {
+      try {
+        const response = await fetch(
+          buildApiUrl("/api/menu", { maxDepth: String(LANDING_HUB_ORBIT_MENU_MAX_DEPTH) }, agent.id)
+        );
+        if (!response.ok) return [];
+        const menu = await response.json();
+        if (loadSeq !== landingHubTopicItemsLoadSeq) return [];
+        menuCacheByAgent.set(agent.id, menu);
+        return collectLandingHubOrbitTopicsFromMenu(menu, agent);
+      } catch {
+        return [];
+      }
+    })
+  );
+  if (loadSeq !== landingHubTopicItemsLoadSeq) return;
+  globalLandingHubTopicItemsCache = results.flat();
+  if (getLandingAgentsView() === "hub") {
+    renderAppLandingHub(getLandingHubOrbitTopicItems());
+  } else if (getLandingAgentsView() === "orbit") {
+    setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
+  }
+}
 
 function groupFocusItemsByAgent(items = []) {
   const byAgent = new Map();
@@ -7793,7 +7944,7 @@ function createAppLandingHubRow(agent, focusItems = [], options = {}) {
     const twigs = document.createElement("div");
     twigs.className = `app-landing-hub-twigs${isList ? " app-landing-hub-twigs--list" : ""}`;
     twigs.setAttribute("role", "list");
-    twigs.setAttribute("aria-label", `Темы фокуса — ${label}`);
+    twigs.setAttribute("aria-label", `Темы — ${label}`);
 
     const limit = isList ? 16 : HUB_FOCUS_TWIG_LIMIT;
     const shown = focusItems.slice(0, limit);
@@ -7821,7 +7972,7 @@ function createAppLandingHubRow(agent, focusItems = [], options = {}) {
   } else {
     const empty = document.createElement("span");
     empty.className = "app-landing-hub-empty";
-    empty.textContent = "Нет тем фокуса";
+    empty.textContent = "Нет тем";
     branches.appendChild(empty);
   }
 
@@ -7835,7 +7986,7 @@ function appendAppLandingHubAgents(container, agents, focusByAgent, options = {}
   }
 }
 
-function renderAppLandingHub(focusItems = getProcessedLandingFocusItems()) {
+function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
   if (!appLandingHubNode) return;
   if (getLandingAgentsView() !== "hub") return;
 
@@ -8208,7 +8359,7 @@ function renderAppLandingOrbit() {
 
   renderAppLandingOrbitLinks(agents);
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
-  setLandingOrbitFocusCache(getProcessedLandingFocusItems());
+  setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
 }
 
 const ORBIT_FOCUS_TWIG_LIMIT = 8;
@@ -8218,15 +8369,7 @@ let landingOrbitFocusHideTimer = null;
 
 function setLandingOrbitFocusCache(items = []) {
   landingOrbitFocusByAgent = groupFocusItemsByAgent(items);
-  if (landingOrbitFocusHoverAgentId) {
-    const agents = getAgentsForLandingGrid();
-    const agentIndex = agents.findIndex((agent) => agent.id === landingOrbitFocusHoverAgentId);
-    if (agentIndex >= 0) {
-      paintOrbitAgentFocusGraph(landingOrbitFocusHoverAgentId, agentIndex);
-      return;
-    }
-  }
-  clearOrbitAgentFocusDisplay();
+  renderOrbitAllAgentFocusGraphs();
 }
 
 function clearOrbitAgentFocusDisplay() {
@@ -8247,8 +8390,25 @@ function cancelOrbitAgentFocusHide() {
 function scheduleOrbitAgentFocusHide() {
   cancelOrbitAgentFocusHide();
   landingOrbitFocusHideTimer = window.setTimeout(() => {
-    clearOrbitAgentFocusDisplay();
+    syncOrbitFocusHighlight(null);
   }, 160);
+}
+
+function syncOrbitFocusHighlight(agentId = null) {
+  const resolvedAgentId = String(agentId || "").trim() || null;
+  landingOrbitFocusHoverAgentId = resolvedAgentId;
+
+  for (const el of appLandingOrbitTwigsNode?.querySelectorAll("[data-orbit-agent-id]") || []) {
+    const match = resolvedAgentId && el.dataset.orbitAgentId === resolvedAgentId;
+    el.classList.toggle("is-highlighted", Boolean(match));
+    el.classList.toggle("is-dimmed", !match);
+  }
+
+  for (const el of appLandingOrbitFocusLinksNode?.querySelectorAll("[data-orbit-agent-id]") || []) {
+    const match = resolvedAgentId && el.dataset.orbitAgentId === resolvedAgentId;
+    el.classList.toggle("is-highlighted", Boolean(match));
+    el.classList.toggle("is-dimmed", !match);
+  }
 }
 
 function getOrbitGraphTwigLayout(focusIndex, focusTotal, agentLayout, focusItem) {
@@ -8265,62 +8425,67 @@ function getOrbitGraphTwigLayout(focusIndex, focusTotal, agentLayout, focusItem)
   };
 }
 
-function paintOrbitAgentFocusGraph(agentId, agentIndex) {
+function renderOrbitAllAgentFocusGraphs() {
   if (!appLandingOrbitTwigsNode || !appLandingOrbitFocusLinksNode) return;
   if (getLandingAgentsView() !== "orbit") return;
 
-  const agentFocusItems = landingOrbitFocusByAgent.get(agentId) || [];
-  landingOrbitFocusHoverAgentId = agentId;
   appLandingOrbitTwigsNode.replaceChildren();
   appLandingOrbitFocusLinksNode.replaceChildren();
 
-  if (!agentFocusItems.length) {
-    appLandingOrbitTwigsNode.classList.remove("is-visible");
-    appLandingOrbitFocusLinksNode.classList.remove("is-visible");
-    return;
-  }
-
   const agents = getAgentsForLandingGrid();
-  const agent = agents.find((entry) => entry.id === agentId);
-  const agentLayout = getOrbitBubbleLayout(agentIndex, agents.length, agentId);
-  const shown = agentFocusItems.slice(0, ORBIT_FOCUS_TWIG_LIMIT);
+  let hasAny = false;
   const svgNs = "http://www.w3.org/2000/svg";
 
-  shown.forEach((focusItem, focusIndex) => {
-    const twigLayout = getOrbitGraphTwigLayout(focusIndex, shown.length, agentLayout, focusItem);
-    const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
-    const nodePath = String(focusItem.nodePath || "").trim();
+  agents.forEach((agent, agentIndex) => {
+    const agentFocusItems = landingOrbitFocusByAgent.get(agent.id) || [];
+    if (!agentFocusItems.length) return;
 
-    const line = document.createElementNS(svgNs, "line");
-    line.setAttribute("x1", String(agentLayout.x));
-    line.setAttribute("y1", String(agentLayout.y));
-    line.setAttribute("x2", String(twigLayout.x));
-    line.setAttribute("y2", String(twigLayout.y));
-    line.classList.add("app-landing-orbit-focus-link");
-    if (nodePath) line.dataset.focusPath = nodePath;
-    appLandingOrbitFocusLinksNode.appendChild(line);
+    hasAny = true;
+    const agentLayout = getOrbitBubbleLayout(agentIndex, agents.length, agent.id);
+    const shown = agentFocusItems.slice(0, ORBIT_FOCUS_TWIG_LIMIT);
 
-    const twig = document.createElement("button");
-    twig.type = "button";
-    twig.className = "app-landing-orbit-twig";
-    twig.setAttribute("role", "listitem");
-    twig.style.setProperty("--twig-x", `${twigLayout.x}%`);
-    twig.style.setProperty("--twig-y", `${twigLayout.y}%`);
-    if (nodePath) twig.dataset.focusPath = nodePath;
-    if (isFocusItemActive(focusItem)) twig.classList.add("is-active");
-    twig.textContent = label;
-    twig.title = nodePath || label;
-    twig.addEventListener("click", (event) => {
-      event.stopPropagation();
-      void openFocusItem(focusItem);
+    shown.forEach((focusItem, focusIndex) => {
+      const twigLayout = getOrbitGraphTwigLayout(focusIndex, shown.length, agentLayout, focusItem);
+      const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
+      const nodePath = String(focusItem.nodePath || "").trim();
+
+      const line = document.createElementNS(svgNs, "line");
+      line.setAttribute("x1", String(agentLayout.x));
+      line.setAttribute("y1", String(agentLayout.y));
+      line.setAttribute("x2", String(twigLayout.x));
+      line.setAttribute("y2", String(twigLayout.y));
+      line.classList.add("app-landing-orbit-focus-link", "is-dimmed");
+      line.dataset.orbitAgentId = agent.id;
+      if (nodePath) line.dataset.focusPath = nodePath;
+      appLandingOrbitFocusLinksNode.appendChild(line);
+
+      const twig = document.createElement("button");
+      twig.type = "button";
+      twig.className = "app-landing-orbit-twig is-dimmed";
+      twig.dataset.orbitAgentId = agent.id;
+      twig.setAttribute("role", "listitem");
+      twig.style.setProperty("--twig-x", `${twigLayout.x}%`);
+      twig.style.setProperty("--twig-y", `${twigLayout.y}%`);
+      if (nodePath) twig.dataset.focusPath = nodePath;
+      if (isFocusItemActive(focusItem)) twig.classList.add("is-active");
+      twig.textContent = label;
+      twig.title = nodePath || label;
+      twig.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void openFocusItem(focusItem);
+      });
+      twig.addEventListener("mouseenter", () => {
+        cancelOrbitAgentFocusHide();
+        syncOrbitFocusHighlight(agent.id);
+      });
+      twig.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
+      appLandingOrbitTwigsNode.appendChild(twig);
     });
-    twig.addEventListener("mouseenter", cancelOrbitAgentFocusHide);
-    twig.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
-    appLandingOrbitTwigsNode.appendChild(twig);
   });
 
-  appLandingOrbitTwigsNode.classList.add("is-visible");
-  appLandingOrbitFocusLinksNode.classList.add("is-visible");
+  appLandingOrbitTwigsNode.classList.toggle("is-visible", hasAny);
+  appLandingOrbitFocusLinksNode.classList.toggle("is-visible", hasAny);
+  syncOrbitFocusHighlight(landingOrbitFocusHoverAgentId);
   syncFocusPanelActiveState();
 }
 
@@ -8328,12 +8493,12 @@ function bindOrbitItemFocusHover(item, agent, agentIndex) {
   if (!item || !agent?.id) return;
   item.addEventListener("mouseenter", () => {
     cancelOrbitAgentFocusHide();
-    paintOrbitAgentFocusGraph(agent.id, agentIndex);
+    syncOrbitFocusHighlight(agent.id);
   });
   item.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
   item.addEventListener("focusin", () => {
     cancelOrbitAgentFocusHide();
-    paintOrbitAgentFocusGraph(agent.id, agentIndex);
+    syncOrbitFocusHighlight(agent.id);
   });
   item.addEventListener("focusout", (event) => {
     if (!item.contains(event.relatedTarget)) scheduleOrbitAgentFocusHide();
@@ -8544,8 +8709,9 @@ async function renderAppLandingAgents() {
   }
 
   renderAppLandingOrbit();
-  renderAppLandingHub(getProcessedLandingFocusItems());
+  renderAppLandingHub(getLandingHubOrbitTopicItems());
   void loadGlobalFocusItems();
+  void loadGlobalLandingHubTopicItems();
   syncLandingAgentsViewUi();
   renderAgentSelect();
 }
@@ -10067,6 +10233,7 @@ const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const FREE_MEMORY_LABEL = "Свободная память";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
+const NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY = "yamlcms.navigationHubRailCollapsed";
 const NODE_ENTRY_OVERVIEW_MODE = "entry-overview";
 const NODE_MINDMAP_MODE = "mindmap";
 const NODE_THREAD_MODE = "thread";
@@ -23776,7 +23943,9 @@ async function uploadMediaAttachment(
     subdir = null,
     inlinePaste = false,
     pastedNaming = false,
-    fileName: preferredFileName = null
+    fileName: preferredFileName = null,
+    libraryFolder = null,
+    mediaMode = null
   } = {}
 ) {
   if (!file) return null;
@@ -23785,10 +23954,11 @@ async function uploadMediaAttachment(
     throw new Error(activeSystemFile ? "Не удалось определить workspace для служебного файла" : "Сначала откройте тему");
   }
   const usePastedNaming = inlinePaste || pastedNaming;
+  const resolvedMediaMode = mediaMode || activeContentMode;
   const effectiveSubdir = inlinePaste
     ? PASTED_ASSETS_SUBDIR
     : subdir ??
-      (isMediaLibraryContentMode()
+      (isMediaLibraryContentMode(resolvedMediaMode) || isNavigationHubRailSlotCreateActive()
         ? activeMediaSectionFolder || getActiveMediaSectionParentForCreate()
         : null);
   const normalizedFile = await normalizeImageAttachmentFile(file, { pasted: usePastedNaming });
@@ -23811,7 +23981,9 @@ async function uploadMediaAttachment(
       mimeType: normalizedFile.type,
       subdir: effectiveSubdir || undefined,
       createSubdir: Boolean(effectiveSubdir),
-      libraryFolder: isMediaLibraryContentMode() ? getMediaLibraryStorageSubfolder() : undefined
+      libraryFolder:
+        libraryFolder ||
+        (isMediaLibraryContentMode(resolvedMediaMode) ? getMediaLibraryStorageSubfolder(resolvedMediaMode) : undefined)
     })
   });
   if (!response.ok) {
@@ -26542,6 +26714,12 @@ function getExternalChildSections(sectionFolder) {
 
 let entryOverviewExternalCreateActive = false;
 let entryOverviewExternalCreateParentOverride = null;
+/** @type {{ targetMode: string, parentFolder: string|null, slotKey?: string, entryOverviewContext?: object|null } | null} */
+let navigationHubRailSlotCreateState = null;
+let navigationHubRailCollapsed = readStorageItem(NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY) === "1";
+let entryOverviewBrowseUploadPanelOpen = false;
+/** @type {{ memoryKind: string } | null} */
+let entryOverviewBrowseUploadContext = null;
 
 function isEntryOverviewExternalMemory(context = activeEntryOverviewContext) {
   return (
@@ -26570,11 +26748,287 @@ function endEntryOverviewExternalCreate() {
   entryOverviewExternalCreateParentOverride = null;
 }
 
+function isNavigationHubRailSlotCreateActive(targetMode = null) {
+  if (!navigationHubRailSlotCreateState) return false;
+  if (targetMode && navigationHubRailSlotCreateState.targetMode !== targetMode) return false;
+  return true;
+}
+
+function beginNavigationHubRailSlotCreate(context) {
+  if (!context?.targetMode) return;
+  navigationHubRailSlotCreateState = {
+    targetMode: context.targetMode,
+    parentFolder: context.parentFolder ?? null,
+    slotKey: context.slotKey || null,
+    entryOverviewContext: context.entryOverviewContext || null
+  };
+  if (context.targetMode === "external" && context.entryOverviewContext) {
+    beginEntryOverviewExternalCreate(context.entryOverviewContext);
+  }
+}
+
+function endNavigationHubRailSlotCreate() {
+  navigationHubRailSlotCreateState = null;
+  endEntryOverviewExternalCreate();
+}
+
+function resolveNavigationHubRailCreateParent(activeCtx) {
+  const sectionFolder = String(activeCtx?.sectionFolder || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "")
+    .trim();
+  return sectionFolder || null;
+}
+
+function supportsNavigationHubRailSectionCreate(targetMode) {
+  return (
+    targetMode === "external" ||
+    isMediaLibraryContentMode(targetMode) ||
+    FLAT_STORAGE_SECTION_MODES.has(targetMode)
+  );
+}
+
+function supportsNavigationHubRailRecordCreate(targetMode) {
+  return targetMode === "external" || FLAT_STORAGE_SECTION_MODES.has(targetMode);
+}
+
+function appendNavigationHubRailBrowseActionButton(parent, { className, label, title, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = className;
+  btn.textContent = label;
+  btn.title = title;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClick();
+  });
+  parent.appendChild(btn);
+}
+
+function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
+  const targetMode = slotIndex.memoryKind || slot.spec?.defaultMode || slot.id;
+  if (!targetMode || slotIndex.kind === "bundle") return null;
+
+  const parentFolder = resolveNavigationHubRailCreateParent(activeCtx);
+  const actions = document.createElement("div");
+  actions.className =
+    "node-navigation-hub-rail-slot-actions node-entry-overview-browse-actions";
+
+  const beginRailCreate = () => {
+    beginNavigationHubRailSlotCreate({
+      targetMode,
+      parentFolder,
+      slotKey: slot.id
+    });
+  };
+
+  if (supportsNavigationHubRailSectionCreate(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "external-create-section-btn",
+      label: "+ Раздел",
+      title: "Создать раздел",
+      onClick: () => {
+        beginRailCreate();
+        openCreateSectionModal(targetMode);
+      }
+    });
+  }
+
+  if (supportsNavigationHubRailRecordCreate(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "save-btn external-create-btn",
+      label: "+ Запись",
+      title: "Создать запись",
+      onClick: () => {
+        beginRailCreate();
+        void openCreateMemoryModal();
+      }
+    });
+  }
+
+  if (isMediaLibraryContentMode(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "save-btn node-navigation-hub-rail-upload-btn",
+      label: "+ Загрузить",
+      title: `Загрузить файлы в ${slot.label}`,
+      onClick: () => {
+        const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: targetMode };
+        toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
+      }
+    });
+  }
+
+  return actions.childElementCount ? actions : null;
+}
+
+function getEntryOverviewBrowseUploadTargetMode(context) {
+  return context?.memoryKind === "external" ? "external" : context?.memoryKind;
+}
+
+function getEntryOverviewBrowseUploadParentFolder(context) {
+  const targetMode = getEntryOverviewBrowseUploadTargetMode(context);
+  if (targetMode === "external") return resolveEntryOverviewExternalCreateParent(context);
+  return (
+    getEntryOverviewSectionFolderPath(context) ||
+    getEntryOverviewParentFolderPath(context) ||
+    null
+  );
+}
+
+function syncEntryOverviewBrowseUploadPanelUi() {
+  const panel = nodeOverviewContentNode?.querySelector(".node-entry-overview-browse-panel");
+  const host = panel?.querySelector(".entry-overview-browse-upload-host");
+  if (host) host.classList.toggle("is-open", entryOverviewBrowseUploadPanelOpen);
+  for (const btn of panel?.querySelectorAll(".node-navigation-hub-rail-upload-btn") || []) {
+    btn.classList.toggle("is-active", entryOverviewBrowseUploadPanelOpen);
+    btn.setAttribute("aria-expanded", entryOverviewBrowseUploadPanelOpen ? "true" : "false");
+  }
+}
+
+function setEntryOverviewBrowseUploadPanelOpen(open, context = entryOverviewBrowseUploadContext) {
+  entryOverviewBrowseUploadPanelOpen = Boolean(open);
+  if (context) entryOverviewBrowseUploadContext = context;
+  syncEntryOverviewBrowseUploadPanelUi();
+}
+
+function ensureEntryOverviewBrowseUploadHost(panel, context) {
+  const targetMode = getEntryOverviewBrowseUploadTargetMode(context);
+  if (!isMediaLibraryContentMode(targetMode)) return null;
+
+  let host = panel.querySelector(".entry-overview-browse-upload-host");
+  if (!host) {
+    host = document.createElement("div");
+    host.className = "media-bulk-upload-host entry-overview-browse-upload-host";
+    const toolbar = panel.querySelector(".node-entry-overview-browse-toolbar");
+    if (toolbar) toolbar.insertAdjacentElement("afterend", host);
+    else panel.prepend(host);
+  }
+
+  const mountKey = `${targetMode}:${getEntryOverviewBrowseUploadParentFolder(context) || "."}`;
+  if (host.dataset.mountKey !== mountKey) {
+    mountMediaBulkUploadZone(host, {
+      modeLabel: getMediaLibraryModeLabel(targetMode),
+      onClose: () => {
+        setEntryOverviewBrowseUploadPanelOpen(false);
+        endNavigationHubRailSlotCreate();
+      },
+      uploadFiles: (files) => uploadNavigationHubRailMediaFiles(files, targetMode)
+    });
+    host.dataset.mountKey = mountKey;
+  }
+
+  entryOverviewBrowseUploadContext = context;
+  syncEntryOverviewBrowseUploadPanelUi();
+  return host;
+}
+
+function toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder) {
+  if (!activePath || !isMediaLibraryContentMode(targetMode)) return;
+
+  const panel = nodeOverviewContentNode?.querySelector(".node-entry-overview-browse-panel");
+  if (!panel) {
+    void openNavigationHubRailMediaUpload(targetMode, parentFolder);
+    return;
+  }
+
+  ensureEntryOverviewBrowseUploadHost(panel, context);
+
+  if (!entryOverviewBrowseUploadPanelOpen) {
+    beginNavigationHubRailSlotCreate({
+      targetMode,
+      parentFolder: parentFolder ?? null,
+      slotKey: getDataStorageSlotForMode(targetMode)?.key || targetMode,
+      entryOverviewContext: context
+    });
+    setEntryOverviewBrowseUploadPanelOpen(true, context);
+    panel.querySelector(".entry-overview-browse-upload-host")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    });
+    return;
+  }
+
+  if (!mediaBulkUploadState.active) {
+    setEntryOverviewBrowseUploadPanelOpen(false);
+    endNavigationHubRailSlotCreate();
+  }
+}
+
+async function openNavigationHubRailMediaUpload(targetMode, parentFolder) {
+  if (!activePath || !isMediaLibraryContentMode(targetMode)) return;
+  beginNavigationHubRailSlotCreate({
+    targetMode,
+    parentFolder: parentFolder ?? null,
+    slotKey: targetMode
+  });
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.style.display = "none";
+  document.body.appendChild(input);
+  input.addEventListener(
+    "change",
+    () => {
+      const files = input.files ? [...input.files] : [];
+      input.remove();
+      if (!files.length) {
+        endNavigationHubRailSlotCreate();
+        return;
+      }
+      void uploadNavigationHubRailMediaFiles(files, targetMode);
+    },
+    { once: true }
+  );
+  input.click();
+}
+
+async function uploadNavigationHubRailMediaFiles(files, targetMode) {
+  try {
+    const subdir = getActiveMediaSectionParentForCreate();
+    const libraryFolder = getMediaLibraryStorageSubfolder(targetMode);
+    for (const file of files) {
+      await uploadMediaAttachment(file, {
+        subdir,
+        libraryFolder,
+        mediaMode: targetMode
+      });
+    }
+    await refreshNavigationHubAfterSlotMutation();
+    showToast(
+      files.length === 1 ? "Файл загружен" : `Загружено файлов: ${files.length}`,
+      "success"
+    );
+  } catch (error) {
+    showToast(`Ошибка загрузки: ${error.message}`, "error");
+  } finally {
+    endNavigationHubRailSlotCreate();
+  }
+}
+
+async function refreshNavigationHubAfterSlotMutation() {
+  endNavigationHubRailSlotCreate();
+  if (activeContentMode === NODE_NAVIGATION_MODE) {
+    await renderNodeNavigation();
+    return;
+  }
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    await renderEntryOverview();
+    return;
+  }
+  await loadContentByMode();
+}
+
 function canCreateExternalMemoryNow() {
   return canCreateSlotRecordNow();
 }
 
 function getActiveSlotRecordCreateFolder() {
+  if (navigationHubRailSlotCreateState?.targetMode === "external") return "main";
+  if (navigationHubRailSlotCreateState?.targetMode && FLAT_STORAGE_SECTION_MODES.has(navigationHubRailSlotCreateState.targetMode)) {
+    return getFlatStorageSectionFolderName(navigationHubRailSlotCreateState.targetMode);
+  }
   if (activeContentMode === "external") return "main";
   if (isFlatStorageSectionMode() && isFlatStorageListMode()) {
     return getFlatStorageSectionFolderName(activeContentMode);
@@ -26584,6 +27038,7 @@ function getActiveSlotRecordCreateFolder() {
 
 function canCreateSlotRecordNow() {
   if (!activePath) return false;
+  if (isNavigationHubRailSlotCreateActive()) return true;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
   if (isFlatStorageSectionMode() && isFlatStorageListMode()) return true;
   return isEntryOverviewExternalMemory();
@@ -26591,19 +27046,25 @@ function canCreateSlotRecordNow() {
 
 function canCreateExternalSectionNow() {
   if (!activePath) return false;
+  if (isNavigationHubRailSlotCreateActive("external")) return true;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
   return isEntryOverviewExternalMemory();
 }
 
 async function refreshAfterExternalWorkspaceCreate({ openForEdit = false } = {}) {
+  const railCreateMode = navigationHubRailSlotCreateState?.targetMode || null;
   const fromEntryOverview = isEntryOverviewExternalMemory();
-  endEntryOverviewExternalCreate();
+  endNavigationHubRailSlotCreate();
   try {
     if (activeContentMode === "external") {
       await refreshExternalMemoryCaches();
     }
   } catch {
     // ignore cache refresh errors in overview create flow
+  }
+  if (activeContentMode === NODE_NAVIGATION_MODE || railCreateMode) {
+    await renderNodeNavigation();
+    return;
   }
   if (fromEntryOverview) {
     if (!openForEdit) {
@@ -26633,6 +27094,9 @@ async function openCreatedExternalMemoryForEdit(filePath) {
 }
 
 function getActiveExternalSectionParentForCreate() {
+  if (isNavigationHubRailSlotCreateActive("external")) {
+    return navigationHubRailSlotCreateState.parentFolder ?? null;
+  }
   if (entryOverviewExternalCreateActive) {
     return entryOverviewExternalCreateParentOverride;
   }
@@ -27260,6 +27724,9 @@ function pruneActiveFlatStorageSectionFolder(mode = activeContentMode) {
 }
 
 function getActiveFlatStorageSectionParentForCreate(mode = activeContentMode) {
+  if (navigationHubRailSlotCreateState?.targetMode === mode) {
+    return navigationHubRailSlotCreateState.parentFolder ?? null;
+  }
   if (!isFlatStorageSectionMode(mode) || !isStorageSectionsPanelVisible()) return null;
   if (activeFlatStorageSectionFolder[mode]) return activeFlatStorageSectionFolder[mode];
   const route = parseAppRoute(location.pathname);
@@ -27535,8 +28002,9 @@ function renderFlatStorageListViewBody(container, mode) {
 }
 
 function updateMediaBulkUploadProgressUI() {
-  const zone = listViewContentNode.querySelector(".media-bulk-upload-zone");
-  if (zone) syncMediaBulkUploadZoneUi(zone);
+  for (const zone of document.querySelectorAll(".media-bulk-upload-zone")) {
+    syncMediaBulkUploadZoneUi(zone);
+  }
 }
 
 function syncMediaBulkUploadZoneUi(zone) {
@@ -27561,7 +28029,15 @@ function syncMediaBulkUploadZoneUi(zone) {
   }
 }
 
-function mountMediaBulkUploadZone(host) {
+function mountMediaBulkUploadZone(host, options = {}) {
+  const uploadFiles = options.uploadFiles || ((files) => uploadMediaFilesBulk(files));
+  const onClose =
+    options.onClose ||
+    (() => {
+      setMediaBulkUploadPanelOpen(false);
+    });
+  const modeLabel = options.modeLabel || getMediaLibraryModeLabel();
+
   host.innerHTML = "";
 
   const panel = document.createElement("div");
@@ -27575,14 +28051,14 @@ function mountMediaBulkUploadZone(host) {
   closeBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     if (mediaBulkUploadState.active) return;
-    setMediaBulkUploadPanelOpen(false);
+    onClose();
   });
 
   const zone = document.createElement("div");
   zone.className = "media-bulk-upload-zone";
   zone.tabIndex = 0;
   zone.setAttribute("role", "button");
-  zone.setAttribute("aria-label", `Массовая загрузка файлов в ${getMediaLibraryModeLabel()}`);
+  zone.setAttribute("aria-label", `Массовая загрузка файлов в ${modeLabel}`);
 
   const idle = document.createElement("div");
   idle.className = "media-bulk-upload-idle";
@@ -27625,11 +28101,11 @@ function mountMediaBulkUploadZone(host) {
   panel.append(closeBtn, zone);
   host.append(panel, input);
 
-  wireMediaBulkUploadZone(zone, input);
+  wireMediaBulkUploadZone(zone, input, uploadFiles);
   syncMediaBulkUploadZoneUi(zone);
 }
 
-function wireMediaBulkUploadZone(zone, input) {
+function wireMediaBulkUploadZone(zone, input, uploadFiles = uploadMediaFilesBulk) {
   const pickFiles = () => {
     if (mediaBulkUploadState.active) return;
     input.click();
@@ -27651,7 +28127,7 @@ function wireMediaBulkUploadZone(zone, input) {
   input.addEventListener("change", () => {
     const files = input.files ? [...input.files] : [];
     input.value = "";
-    if (files.length) void uploadMediaFilesBulk(files);
+    if (files.length) void uploadFiles(files);
   });
 
   zone.addEventListener("dragover", (event) => {
@@ -27669,7 +28145,7 @@ function wireMediaBulkUploadZone(zone, input) {
     event.preventDefault();
     zone.classList.remove("is-dragover");
     const files = event.dataTransfer?.files ? [...event.dataTransfer.files] : [];
-    if (files.length) void uploadMediaFilesBulk(files);
+    if (files.length) void uploadFiles(files);
   });
 }
 
@@ -39864,6 +40340,8 @@ async function openCreateMemoryModal(entryOverviewContext = null) {
   if (fromEntryOverview) {
     if (!activePath) return;
     beginEntryOverviewExternalCreate(fromEntryOverview);
+  } else if (isNavigationHubRailSlotCreateActive()) {
+    if (!activePath) return;
   } else if (!canCreateExternalMemoryNow()) {
     return;
   }
@@ -39884,7 +40362,7 @@ function closeCreateMemoryModal() {
   syncCreateMemoryModalMaskUi("");
   setCreateMemoryModalBusy(false);
   createMemoryOkBtn.textContent = "Создать";
-  endEntryOverviewExternalCreate();
+  endNavigationHubRailSlotCreate();
 }
 
 async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOverride = null) {
@@ -39893,7 +40371,9 @@ async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOv
   const parentFolder =
     folder === "main"
       ? getActiveExternalSectionParentForCreate()
-      : getActiveFlatStorageSectionParentForCreate(activeContentMode);
+      : getActiveFlatStorageSectionParentForCreate(
+          navigationHubRailSlotCreateState?.targetMode || activeContentMode
+        );
   const requestBody = {
     path: getActiveNodeApiPath(),
     folder,
@@ -40040,6 +40520,9 @@ let createSectionTargetMode = "external";
 let createSectionParentFolder = null;
 
 function getActiveMediaSectionParentForCreate() {
+  if (navigationHubRailSlotCreateState && isMediaLibraryContentMode(navigationHubRailSlotCreateState.targetMode)) {
+    return navigationHubRailSlotCreateState.parentFolder ?? null;
+  }
   if (!isStorageSectionsPanelVisible()) return null;
   if (activeMediaSectionFolder) return activeMediaSectionFolder;
   const route = parseAppRoute(location.pathname);
@@ -40069,9 +40552,16 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
       return;
     }
   } else if (isMediaLibraryContentMode(targetMode)) {
-    if (activeContentMode !== targetMode || isMediaAssetEditing()) return;
+    if (
+      !isNavigationHubRailSlotCreateActive(targetMode) &&
+      (activeContentMode !== targetMode || isMediaAssetEditing())
+    ) {
+      return;
+    }
   } else if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
-    if (activeContentMode !== targetMode) return;
+    if (!isNavigationHubRailSlotCreateActive(targetMode) && activeContentMode !== targetMode) {
+      return;
+    }
   } else {
     return;
   }
@@ -40110,7 +40600,7 @@ function closeCreateSectionModal() {
   renameExternalFileState = null;
   resetCreateSectionModalLabels();
   createSectionOkBtn.textContent = "Создать";
-  endEntryOverviewExternalCreate();
+  endNavigationHubRailSlotCreate();
 }
 
 async function createWorkspaceSection() {
@@ -40118,9 +40608,19 @@ async function createWorkspaceSection() {
   if (createSectionTargetMode === "external") {
     if (!canCreateExternalSectionNow()) return;
   } else if (isMediaLibraryContentMode(createSectionTargetMode)) {
-    if (activeContentMode !== createSectionTargetMode || isMediaAssetEditing()) return;
+    if (
+      !isNavigationHubRailSlotCreateActive(createSectionTargetMode) &&
+      (activeContentMode !== createSectionTargetMode || isMediaAssetEditing())
+    ) {
+      return;
+    }
   } else if (FLAT_STORAGE_SECTION_MODES.has(createSectionTargetMode)) {
-    if (activeContentMode !== createSectionTargetMode) return;
+    if (
+      !isNavigationHubRailSlotCreateActive(createSectionTargetMode) &&
+      activeContentMode !== createSectionTargetMode
+    ) {
+      return;
+    }
   } else {
     return;
   }
@@ -40190,6 +40690,7 @@ async function createWorkspaceSection() {
     }
 
     closeCreateSectionModal();
+    const railCreateActive = isNavigationHubRailSlotCreateActive();
     const createdMediaSectionPath = isMediaLibraryTarget
       ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
       : "";
@@ -40201,6 +40702,11 @@ async function createWorkspaceSection() {
       ? buildCreatedMediaSectionPath(flatStorageParentFolder, data.section, data.sectionPath)
       : "";
     const fromEntryOverview = isEntryOverviewExternalMemory();
+    if (railCreateActive) {
+      await refreshNavigationHubAfterSlotMutation();
+      showToast("Раздел создан", "success");
+      return;
+    }
     if (createSectionTargetMode === "external" && fromEntryOverview) {
       await refreshAfterExternalWorkspaceCreate();
     } else {
@@ -43469,6 +43975,10 @@ function createNavigationSectionHead(title, options = {}) {
     head.appendChild(badge);
   }
 
+  if (options.imageColumnsToggle) {
+    head.appendChild(createFolderBrowseImagesColumnsToggle());
+  }
+
   if (viewModeId) {
     const viewBtn = document.createElement("button");
     viewBtn.type = "button";
@@ -43537,7 +44047,8 @@ function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = 
     createNavigationSectionHead(title, {
       viewModeId: modeId,
       badgeText,
-      badgeModeId: modeId
+      badgeModeId: modeId,
+      imageColumnsToggle: modeId === "media"
     }),
     body
   );
@@ -45904,44 +46415,86 @@ function createEntryOverviewSearchBar(context) {
   return wrap;
 }
 
-function createEntryOverviewExternalBrowseActions(context) {
-  if (context?.memoryKind !== "external" || !activePath) return null;
+function createEntryOverviewBrowseActions(context) {
+  if (!context?.memoryKind || !activePath) return null;
+
+  const targetMode = context.memoryKind === "external" ? "external" : context.memoryKind;
+  if (targetMode === "internal" || targetMode === "tabular" || targetMode === "todo") return null;
+
+  const parentFolder =
+    targetMode === "external"
+      ? resolveEntryOverviewExternalCreateParent(context)
+      : getEntryOverviewSectionFolderPath(context) || getEntryOverviewParentFolderPath(context) || null;
 
   const actions = document.createElement("div");
   actions.className = "node-entry-overview-browse-actions";
 
-  const sectionBtn = document.createElement("button");
-  sectionBtn.type = "button";
-  sectionBtn.className = "external-create-section-btn";
-  sectionBtn.textContent = "+ Раздел";
-  sectionBtn.title = "Создать раздел";
-  sectionBtn.addEventListener("click", () => {
-    openCreateSectionModal("external", { entryOverviewContext: context });
-  });
+  const beginCreate = () => {
+    if (targetMode === "external") {
+      beginEntryOverviewExternalCreate(context);
+      return;
+    }
+    beginNavigationHubRailSlotCreate({
+      targetMode,
+      parentFolder,
+      slotKey: getDataStorageSlotForMode(targetMode)?.key || targetMode
+    });
+  };
 
-  const recordBtn = document.createElement("button");
-  recordBtn.type = "button";
-  recordBtn.className = "save-btn external-create-btn";
-  recordBtn.textContent = "+ Запись";
-  recordBtn.title = "Создать запись";
-  recordBtn.addEventListener("click", () => {
-    void openCreateMemoryModal(context);
-  });
+  if (supportsNavigationHubRailSectionCreate(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "external-create-section-btn",
+      label: "+ Раздел",
+      title: "Создать раздел",
+      onClick: () => {
+        beginCreate();
+        openCreateSectionModal(targetMode, { entryOverviewContext: context });
+      }
+    });
+  }
 
-  actions.append(sectionBtn, recordBtn);
-  return actions;
+  if (supportsNavigationHubRailRecordCreate(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "save-btn external-create-btn",
+      label: "+ Запись",
+      title: "Создать запись",
+      onClick: () => {
+        beginCreate();
+        void openCreateMemoryModal(targetMode === "external" ? context : null);
+      }
+    });
+  }
+
+  if (isMediaLibraryContentMode(targetMode)) {
+    appendNavigationHubRailBrowseActionButton(actions, {
+      className: "save-btn node-navigation-hub-rail-upload-btn",
+      label: "+ Загрузить",
+      title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
+      onClick: () => {
+        toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
+      }
+    });
+  }
+
+  return actions.childElementCount ? actions : null;
+}
+
+function createEntryOverviewExternalBrowseActions(context) {
+  return createEntryOverviewBrowseActions(context);
 }
 
 function createEntryOverviewBrowseToolbar(context) {
   const searchBar = createEntryOverviewSearchBar(context);
-  if (!searchBar) return null;
-
-  const actions = createEntryOverviewExternalBrowseActions(context);
-  if (!actions) return searchBar;
+  const actions = createEntryOverviewBrowseActions(context);
+  const mediaCols = context?.memoryKind === "media" ? createFolderBrowseImagesColumnsToggle() : null;
+  if (!searchBar && !actions && !mediaCols) return null;
+  if (!actions && !mediaCols) return searchBar;
 
   const toolbar = document.createElement("div");
   toolbar.className = "node-entry-overview-browse-toolbar";
-  toolbar.append(searchBar, actions);
+  if (searchBar) toolbar.appendChild(searchBar);
+  if (mediaCols) toolbar.appendChild(mediaCols);
+  if (actions) toolbar.appendChild(actions);
   return toolbar;
 }
 
@@ -46060,16 +46613,25 @@ function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemory
 
 function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false } = {}) {
   const showSearch = isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context);
+  const showActions = Boolean(createEntryOverviewBrowseActions(context));
   const listBlock = renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
-  if (!showSearch && !listBlock) return null;
+  if (!showSearch && !showActions && !listBlock) return null;
 
   const panel = document.createElement("div");
   panel.className = "node-entry-overview-browse-panel";
 
-  if (showSearch) {
+  if (showSearch || showActions) {
     const toolbar = createEntryOverviewBrowseToolbar(context);
     if (toolbar) panel.appendChild(toolbar);
   }
+
+  if (showActions && isMediaLibraryContentMode(getEntryOverviewBrowseUploadTargetMode(context))) {
+    ensureEntryOverviewBrowseUploadHost(panel, context);
+    if (entryOverviewBrowseUploadPanelOpen) {
+      syncEntryOverviewBrowseUploadPanelUi();
+    }
+  }
+
   if (listBlock) panel.appendChild(listBlock);
 
   return panel.childElementCount ? panel : null;
@@ -47609,8 +48171,8 @@ function createEntryOverviewMediaGridCard(item, nodePath, onFileClick) {
 }
 
 function fillEntryOverviewMediaImageGrid(grid, items, nodePath, onFileClick) {
-  for (const item of items) {
-    grid.appendChild(createEntryOverviewMediaGridCard(item, nodePath, onFileClick));
+  for (const item of items.filter(isEntryOverviewMediaImageItem)) {
+    grid.appendChild(createNavigationMediaGridCard(item, nodePath, onFileClick));
   }
 }
 
@@ -47621,7 +48183,7 @@ function appendEntryOverviewMediaImageGrid(parent, items, nodePath, onFileClick)
   const wrap = document.createElement("li");
   wrap.className = "node-entry-overview-media-grid-wrap";
   const grid = document.createElement("div");
-  grid.className = "node-entry-overview-media-grid";
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${folderBrowseImagesColumns}`;
   grid.setAttribute("role", "list");
   grid.setAttribute("aria-label", "Изображения");
   fillEntryOverviewMediaImageGrid(grid, images, nodePath, onFileClick);
@@ -47713,10 +48275,12 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       });
       head.appendChild(toggleBtn);
 
-      countNode = document.createElement("span");
-      countNode.className = "nav-book-toc-folder-count";
-      countNode.textContent = String(branchCount);
-      countNode.title = `${branchCount} записей`;
+      if (branchCount > 0) {
+        countNode = document.createElement("span");
+        countNode.className = "nav-book-toc-folder-count";
+        countNode.textContent = String(branchCount);
+        countNode.title = `${branchCount} записей`;
+      }
     } else {
       const spacer = document.createElement("span");
       spacer.className = "nav-book-toc-folder-toggle-spacer";
@@ -48276,10 +48840,8 @@ function countNavigationFolderItems(folderNode) {
   return count;
 }
 
-function hasNavigationFolderBranchChildren(folderNode) {
-  if (!folderNode) return false;
-  if (Array.isArray(folderNode.files) && folderNode.files.length > 0) return true;
-  return folderNode.folders instanceof Map && folderNode.folders.size > 0;
+function hasNavigationFolderBranchChildren(_folderNode) {
+  return true;
 }
 
 function resolveNavigationFolderBranchCount(folderNode) {
@@ -48410,10 +48972,12 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       });
       head.appendChild(toggleBtn);
 
-      countNode = document.createElement("span");
-      countNode.className = "nav-book-toc-folder-count";
-      countNode.textContent = String(branchCount);
-      countNode.title = `${branchCount} записей`;
+      if (branchCount > 0) {
+        countNode = document.createElement("span");
+        countNode.className = "nav-book-toc-folder-count";
+        countNode.textContent = String(branchCount);
+        countNode.title = `${branchCount} записей`;
+      }
     } else {
       const spacer = document.createElement("span");
       spacer.className = "nav-book-toc-folder-toggle-spacer";
@@ -48654,6 +49218,93 @@ const NAVIGATION_MEDIA_GROUP_ICONS = {
 
 const NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT = 12;
 
+function resolveNavigationMediaGridImageUrl(
+  filePath,
+  nodePath = getResolvedNodePath(activePath),
+  columns = folderBrowseImagesColumns
+) {
+  const path = String(filePath || "").trim();
+  if (!path) return "";
+  if (columns === 1) {
+    return appendCacheBuster(buildMediaAssetUrl(path, nodePath));
+  }
+  return appendCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_GRID));
+}
+
+function isNavigationMediaImageItem(item) {
+  if (!item || item.isFolder) return false;
+  return isEntryOverviewMediaImageItem(item);
+}
+
+function createNavigationMediaGridCard(item, nodePath, onActivate) {
+  const card = document.createElement("article");
+  card.className = "folder-browse-image-card navigation-media-image-card";
+  card.dataset.mediaGridPath = item.path || "";
+  card.dataset.mediaGridNodePath = nodePath || "";
+  card.title = item.displayName || item.name || item.path || "";
+
+  const open = document.createElement("div");
+  open.className = "folder-browse-image-open";
+
+  const imgWrap = document.createElement("div");
+  imgWrap.className = "folder-browse-image-thumb";
+  if (folderBrowseImagesColumns === 1) {
+    imgWrap.classList.add("folder-browse-image-thumb--original");
+  }
+
+  const img = document.createElement("img");
+  img.alt = item.displayName || item.title || item.name || "";
+  img.loading = "lazy";
+  img.draggable = false;
+  img.src = resolveNavigationMediaGridImageUrl(item.path, nodePath);
+  attachFolderBrowseImageFallback(img);
+  imgWrap.appendChild(img);
+  open.appendChild(imgWrap);
+
+  const footerItem = {
+    name: String(item.displayName || item.title || item.name || "").trim(),
+    size: item.size
+  };
+  appendFolderBrowseImageFooter(open, footerItem);
+
+  card.appendChild(open);
+  card.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onActivate(item);
+  });
+  return card;
+}
+
+function renderNavigationMediaImagesGrid(items, nodePath, onActivate) {
+  const images = items.filter(isNavigationMediaImageItem);
+  if (!images.length) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "navigation-media-images-grid-wrap";
+  const grid = document.createElement("div");
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${folderBrowseImagesColumns}`;
+  grid.setAttribute("role", "list");
+  grid.setAttribute("aria-label", "Изображения");
+  for (const item of images) {
+    grid.appendChild(createNavigationMediaGridCard(item, nodePath, onActivate));
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function collectNavigationMediaImageItems(groups, contentFiles = []) {
+  const fromGroups = Array.isArray(groups?.Images) ? groups.Images : [];
+  const merged = [...fromGroups, ...(contentFiles || [])].filter(isNavigationMediaImageItem);
+  const seen = new Set();
+  return merged.filter((item) => {
+    const path = String(item.path || "").trim();
+    if (!path || seen.has(path)) return false;
+    seen.add(path);
+    return true;
+  });
+}
+
 function createNavigationMediaImageThumb(item, nodePath) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -48727,9 +49378,10 @@ function renderNavigationMediaPart(mediaData) {
   body.className = "node-navigation-media";
   const nodePath = getResolvedNodePath(activePath);
 
-  const imageItems = Array.isArray(groups.Images) ? groups.Images : [];
+  const imageItems = collectNavigationMediaImageItems(groups, contentFiles);
   if (imageItems.length) {
-    appendNavigationMediaImageStrip(body, imageItems, nodePath);
+    const gridWrap = renderNavigationMediaImagesGrid(imageItems, nodePath, openMediaEntryOverviewFromNavigation);
+    if (gridWrap) body.appendChild(gridWrap);
   }
 
   const nav = document.createElement("nav");
@@ -53169,25 +53821,30 @@ function resolveFolderBrowseGridImageUrl(fileRel, columns = folderBrowseImagesCo
 }
 
 function syncFolderBrowseImagesColumnUi() {
-  const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
-  if (!hub) return;
-  const grid = hub.querySelector(".folder-browse-images-grid");
-  if (grid) {
+  const root = nodeOverviewContentNode;
+  if (!root) return;
+
+  for (const grid of root.querySelectorAll(".folder-browse-images-grid")) {
     for (const cols of FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS) {
       grid.classList.toggle(`folder-browse-images-grid--cols-${cols}`, folderBrowseImagesColumns === cols);
     }
   }
-  for (const btn of hub.querySelectorAll(".folder-browse-images-cols-btn")) {
+
+  for (const btn of root.querySelectorAll(".folder-browse-images-cols-btn")) {
     const cols = Number(btn.dataset.cols);
     const active = cols === folderBrowseImagesColumns;
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   }
-  for (const card of hub.querySelectorAll(".folder-browse-image-card")) {
-    const path = card.dataset.folderBrowsePath;
+
+  for (const card of root.querySelectorAll(".folder-browse-image-card")) {
+    const path = card.dataset.folderBrowsePath || card.dataset.mediaGridPath;
     const img = card.querySelector(".folder-browse-image-thumb img");
     if (!path || !img) continue;
-    const nextSrc = resolveFolderBrowseGridImageUrl(path);
+    const nodePath = card.dataset.mediaGridNodePath || getResolvedNodePath(activePath);
+    const nextSrc = card.dataset.mediaGridPath
+      ? resolveNavigationMediaGridImageUrl(path, nodePath)
+      : resolveFolderBrowseGridImageUrl(path);
     if (img.getAttribute("src") !== nextSrc) {
       img.src = nextSrc;
     }
@@ -53897,6 +54554,7 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
     (event) => {
       if (event.button !== 0) return;
       if (isFolderBrowseSelectionActionTarget(event.target)) return;
+      if (isDirectory) return;
 
       const modifiers = readFolderBrowsePointerModifiers(event);
       applyFolderBrowseItemSelection(normalized, {
@@ -53905,7 +54563,7 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
         scopeCard: card
       });
       // preventDefault blocks HTML5 drag — only use it for non-draggable cards.
-      if (isDirectory || !dragKind) {
+      if (!dragKind) {
         event.preventDefault();
       }
     },
@@ -53924,7 +54582,29 @@ function bindFolderBrowseSelectableCard(card, { path, isDirectory = false, onAct
     });
   }
 
+  card.addEventListener("click", (event) => {
+    if (isFolderBrowseSelectionActionTarget(event.target)) return;
+    if (isDirectory) {
+      const modifiers = readFolderBrowsePointerModifiers(event);
+      if (modifiers.multi || modifiers.shift) {
+        event.preventDefault();
+        event.stopPropagation();
+        applyFolderBrowseItemSelection(normalized, {
+          multi: modifiers.multi,
+          shift: modifiers.shift,
+          scopeCard: card
+        });
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof onActivate === "function") void onActivate();
+      return;
+    }
+  }, true);
+
   card.addEventListener("dblclick", (event) => {
+    if (isDirectory) return;
     if (isFolderBrowseSelectionActionTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -54337,7 +55017,7 @@ function renderFolderBrowseFoldersSection(section, items) {
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "folder-browse-folder-card folder-browse-item-card";
-    card.title = `${item.name} — клик: выделить, «Открыть»: перейти в папку`;
+    card.title = `${item.name} — клик: открыть папку`;
 
     const body = document.createElement("div");
     body.className = "folder-browse-folder-open";
@@ -54352,13 +55032,11 @@ function renderFolderBrowseFoldersSection(section, items) {
     const trailing = document.createElement("div");
     trailing.className = "folder-browse-folder-trailing";
     const metaNode = document.createElement("span");
-    metaNode.className = "folder-browse-folder-meta";
-    metaNode.textContent = `${item.itemCount || 0} эл.`;
+    metaNode.className = "folder-browse-folder-count";
+    metaNode.textContent = String(item.itemCount || 0);
+    metaNode.title = `${item.itemCount || 0} элементов`;
+    metaNode.setAttribute("aria-label", `${item.itemCount || 0} элементов`);
     trailing.appendChild(metaNode);
-    appendFolderBrowseViewButton(trailing, {
-      label: "Открыть",
-      onActivate: () => openFolderBrowseFromMenu(item.name, item.folderPath)
-    });
     bodyInner.appendChild(nameNode);
     bodyInner.appendChild(trailing);
     body.appendChild(icon);
@@ -54741,6 +55419,12 @@ async function renderFolderBrowseView() {
 
     renderFolderBrowseHeader(hub, data);
 
+    if (data.folders?.length) {
+      const foldersSection = createFolderBrowseSection("Папки", "Нет вложенных папок", data.folders.length);
+      renderFolderBrowseFoldersSection(foldersSection, data.folders);
+      hub.appendChild(foldersSection);
+    }
+
     if (data.images?.length) {
       const imagesSection = createFolderBrowseSection("Изображения", "Нет изображений", data.images.length, {
         imageColumnsToggle: true
@@ -54771,12 +55455,6 @@ async function renderFolderBrowseView() {
         folderPath: data.folderPath
       });
       hub.appendChild(audioSection);
-    }
-
-    if (data.folders?.length) {
-      const foldersSection = createFolderBrowseSection("Папки", "Нет вложенных папок", data.folders.length);
-      renderFolderBrowseFoldersSection(foldersSection, data.folders);
-      hub.appendChild(foldersSection);
     }
 
     if (data.other?.length) {
@@ -54813,6 +55491,43 @@ function syncNodeOverviewNavigationSplitClass(active = false) {
     teardownNavigationHubRailAsideLayout();
   }
   nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
+}
+
+function syncNavigationHubRailCollapsedUi() {
+  const hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split");
+  if (!hub) return;
+  hub.classList.toggle("node-navigation-hub--rail-collapsed", navigationHubRailCollapsed);
+  const btn = hub.querySelector(".node-navigation-hub-rail-toggle");
+  if (!btn) return;
+  const label = navigationHubRailCollapsed ? "Показать боковую панель" : "Скрыть боковую панель";
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("aria-expanded", navigationHubRailCollapsed ? "false" : "true");
+  btn.textContent = navigationHubRailCollapsed ? "⟨" : "⟩";
+}
+
+function setNavigationHubRailCollapsed(collapsed) {
+  navigationHubRailCollapsed = Boolean(collapsed);
+  writeStorageItem(NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY, navigationHubRailCollapsed ? "1" : "0");
+  syncNavigationHubRailCollapsedUi();
+  scheduleWorkspaceScrollChromeSync();
+}
+
+function mountNavigationHubRailToggle(hub) {
+  if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  let btn = hub.querySelector(".node-navigation-hub-rail-toggle");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-hub-rail-toggle";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setNavigationHubRailCollapsed(!navigationHubRailCollapsed);
+    });
+    hub.appendChild(btn);
+  }
+  syncNavigationHubRailCollapsedUi();
 }
 
 function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
@@ -55257,6 +55972,9 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   const body = document.createElement("div");
   body.className = "node-navigation-hub-rail-slot-body";
 
+  const slotActions = createNavigationHubRailSlotActions(slot, slotIndex, activeCtx);
+  if (slotActions) body.appendChild(slotActions);
+
   const hasContent = mountNavigationHubRailSlotTreeBody(
     body,
     slot,
@@ -55266,7 +55984,7 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
     prefetched
   );
 
-  if (!hasContent) {
+  if (!hasContent && !slotActions) {
     const empty = document.createElement("p");
     empty.className = "node-navigation-hub-rail-empty";
     empty.textContent = "Пусто";
@@ -55405,6 +56123,7 @@ async function appendNodeNavigationSplitRail(
     if (isStale()) return false;
     if (rail) {
       hub.appendChild(rail);
+      mountNavigationHubRailToggle(hub);
       syncNodeOverviewNavigationSplitClass(true);
       return true;
     }
@@ -69335,6 +70054,7 @@ function showAppLandingView(hint = "") {
   agentFocusItemsCache = [];
   renderAgentFocusPanels();
   void loadGlobalFocusItems();
+  void loadGlobalLandingHubTopicItems();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
 }
@@ -70557,7 +71277,9 @@ function syncWorkspaceScrollChrome() {
 function scheduleWorkspaceScrollChromeSync() {
   requestAnimationFrame(() => {
     syncWorkspaceScrollChrome();
-    requestAnimationFrame(() => syncWorkspaceScrollChrome());
+    requestAnimationFrame(() => {
+      syncWorkspaceScrollChrome();
+    });
   });
 }
 
@@ -73058,4 +73780,3 @@ bindLandingFocusToolbar();
 initWorkspaceNotifications();
 initLiveFileSync();
 initNavPreviewHoverZoom();
-
