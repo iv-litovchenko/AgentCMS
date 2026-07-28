@@ -105,6 +105,13 @@ function createServer() {
   );
 
   reg(
+    "get_active_page",
+    "Current open UI view synced from browser: page path, contentMode, slot, ref, contextPath. Call before path-sensitive tools when user did not specify path.",
+    z.object({}),
+    () => client.get("/api/agent/active-page")
+  );
+
+  reg(
     "search_workspace",
     "Search workspace (UI header search). scope=all by default. match=relaxed|strict.",
     z.object({

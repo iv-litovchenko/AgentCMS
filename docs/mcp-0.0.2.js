@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "85 tools — полный список ниже.",
+    "86 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -81,6 +81,12 @@ module.exports = {
           description: "Дерево workspace (manifest.md).",
           parameters: "—",
           http: "GET /api/menu"
+        },
+        {
+          name: "get_active_page",
+          description: "Текущее открытое окно UI (синхронизируется браузером): path, slot, ref, contextPath.",
+          parameters: "—",
+          http: "GET /api/agent/active-page"
         },
         {
           name: "search_workspace",

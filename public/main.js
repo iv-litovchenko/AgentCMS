@@ -1953,7 +1953,10 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
 
   const next = `${url.pathname}${url.search}${url.hash}`;
   const current = `${location.pathname}${location.search}${location.hash}`;
-  if (next === current) return;
+  if (next === current) {
+    scheduleActivePageContextSync();
+    return;
+  }
 
   const state = { appRoute: true };
   if (push) {
@@ -1964,6 +1967,134 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
     history.pushState(state, "", next);
   }
   updateWorkspaceShareLinkButton();
+  scheduleActivePageContextSync();
+}
+
+let activePageContextSyncTimer = null;
+
+function resolveActivePageSlotFromState() {
+  if (!activePath) return null;
+  if (activeContentMode === "external") return "main";
+  if (activeContentMode === "internal") return "main-single";
+  if (activeContentMode === "tabular") return "main-single-csv";
+  if (activeContentMode === "todo") return "todo-single";
+  const dataSlot = getDataStorageSlotForMode(activeContentMode);
+  if (dataSlot) return dataSlot;
+  if (isMediaLibraryContentMode()) {
+    return typeof getMediaLibraryStorageSubfolder === "function"
+      ? getMediaLibraryStorageSubfolder()
+      : "media";
+  }
+  return null;
+}
+
+function resolveActivePageRefFromState() {
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    return String(activeExternalFilePath).replace(/\\/g, "/");
+  }
+  if (isMediaLibraryContentMode()) {
+    return activeMediaSidecarSourcePath || activeMediaMarkdownPath || null;
+  }
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    return activeEntryOverviewContext.relPath;
+  }
+  if (activeFlatStorageFilePath) {
+    return String(activeFlatStorageFilePath).replace(/\\/g, "/");
+  }
+  return null;
+}
+
+function buildActivePageContextPayload() {
+  const route = getChpuWorkspacePathFromState() || `${location.pathname}${location.search}${location.hash}`;
+  const inWorkspace =
+    Boolean(activeAgentId) &&
+    !appRootNode?.classList.contains("home-view") &&
+    Boolean(activePath || activeSystemFile || activeFolderBrowsePath);
+
+  if (!inWorkspace) {
+    return {
+      agentId: activeAgentId || null,
+      kind: appRootNode?.classList.contains("home-view") ? "home" : "none",
+      path: null,
+      label: null,
+      contentMode: null,
+      slot: null,
+      ref: null,
+      contextPath: null,
+      route,
+      systemFile: activeSystemFile || null,
+      folderBrowsePath: activeFolderBrowsePath || null,
+      editing: false
+    };
+  }
+
+  if (activeSystemFile) {
+    const systemFile = normalizeSystemFileName(activeSystemFile);
+    return {
+      agentId: activeAgentId || null,
+      kind: "system-file",
+      path: getAgentWorkspaceRootManifestPath(),
+      label: systemFile,
+      contentMode: "system-file",
+      slot: null,
+      ref: systemFile,
+      contextPath: systemFile,
+      route,
+      systemFile,
+      folderBrowsePath: null,
+      editing: isSystemFileEditing()
+    };
+  }
+
+  if (activeFolderBrowsePath && activeContentMode === FOLDER_BROWSE_MODE) {
+    return {
+      agentId: activeAgentId || null,
+      kind: "folder-browse",
+      path: null,
+      label: activeLabel || activeFolderBrowsePath,
+      contentMode: FOLDER_BROWSE_MODE,
+      slot: null,
+      ref: activeFolderBrowseFilePath || null,
+      contextPath: activeFolderBrowseFilePath || activeFolderBrowsePath,
+      route,
+      systemFile: null,
+      folderBrowsePath: activeFolderBrowsePath,
+      editing: false
+    };
+  }
+
+  const pagePath = getActiveNodeApiPath() || getResolvedNodePath(activePath);
+  return {
+    agentId: activeAgentId || null,
+    kind: "page",
+    path: pagePath || null,
+    label: activeLabel || null,
+    contentMode: activeContentMode || null,
+    slot: resolveActivePageSlotFromState(),
+    ref: resolveActivePageRefFromState(),
+    contextPath: getPropsContextPath() || pagePath || null,
+    route,
+    systemFile: null,
+    folderBrowsePath: null,
+    editing: isWorkspaceEditorLinkInsertionContext()
+  };
+}
+
+function scheduleActivePageContextSync() {
+  if (activePageContextSyncTimer) clearTimeout(activePageContextSyncTimer);
+  activePageContextSyncTimer = setTimeout(async () => {
+    activePageContextSyncTimer = null;
+    if (!activeAgentId) return;
+    try {
+      await fetch(buildApiUrl("/api/agent/active-page"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildActivePageContextPayload())
+      });
+    } catch {
+      // ignore sync errors
+    }
+  }, 250);
 }
 
 const WORKSPACE_SHARE_ACTIONS_ENABLED = true;
@@ -10233,6 +10364,7 @@ const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const FREE_MEMORY_LABEL = "Свободная память";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
+const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImagesLayout";
 const NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY = "yamlcms.navigationHubRailCollapsed";
 const NODE_ENTRY_OVERVIEW_MODE = "entry-overview";
 const NODE_MINDMAP_MODE = "mindmap";
@@ -10367,6 +10499,7 @@ let activeFolderBrowsePath = null;
 let activeFolderBrowseFilePath = null;
 let folderBrowseExpandedPagePath = null;
 let folderBrowseImagesColumns = loadFolderBrowseImagesColumns();
+let navigationMediaImagesLayout = loadNavigationMediaImagesLayout();
 let folderBrowseSelectedPaths = new Set();
 let folderBrowseSelectionAnchor = null;
 
@@ -26792,18 +26925,29 @@ function supportsNavigationHubRailRecordCreate(targetMode) {
   return targetMode === "external" || FLAT_STORAGE_SECTION_MODES.has(targetMode);
 }
 
-function appendNavigationHubRailBrowseActionButton(parent, { className, label, title, onClick }) {
+function appendNavigationHubRailBrowseActionButton(
+  parent,
+  { className, label, title, onClick, ariaExpanded = null }
+) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = className;
   btn.textContent = label;
   btn.title = title;
+  if (ariaExpanded != null) {
+    btn.setAttribute("aria-expanded", ariaExpanded ? "true" : "false");
+  }
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     onClick();
   });
   parent.appendChild(btn);
+  return btn;
+}
+
+function getNavigationHubMediaUploadButtonLabel(open = entryOverviewBrowseUploadPanelOpen) {
+  return open ? "− Скрыть" : "+ Загрузить";
 }
 
 function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
@@ -26849,9 +26993,10 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
 
   if (isMediaLibraryContentMode(targetMode)) {
     appendNavigationHubRailBrowseActionButton(actions, {
-      className: "save-btn node-navigation-hub-rail-upload-btn",
-      label: "+ Загрузить",
+      className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+      label: getNavigationHubMediaUploadButtonLabel(false),
       title: `Загрузить файлы в ${slot.label}`,
+      ariaExpanded: false,
       onClick: () => {
         const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: targetMode };
         toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
@@ -26883,6 +27028,7 @@ function syncEntryOverviewBrowseUploadPanelUi() {
   for (const btn of panel?.querySelectorAll(".node-navigation-hub-rail-upload-btn") || []) {
     btn.classList.toggle("is-active", entryOverviewBrowseUploadPanelOpen);
     btn.setAttribute("aria-expanded", entryOverviewBrowseUploadPanelOpen ? "true" : "false");
+    btn.textContent = getNavigationHubMediaUploadButtonLabel(entryOverviewBrowseUploadPanelOpen);
   }
 }
 
@@ -43976,7 +44122,7 @@ function createNavigationSectionHead(title, options = {}) {
   }
 
   if (options.imageColumnsToggle) {
-    head.appendChild(createFolderBrowseImagesColumnsToggle());
+    head.appendChild(createNavigationMediaImagesLayoutToggle());
   }
 
   if (viewModeId) {
@@ -46467,9 +46613,10 @@ function createEntryOverviewBrowseActions(context) {
 
   if (isMediaLibraryContentMode(targetMode)) {
     appendNavigationHubRailBrowseActionButton(actions, {
-      className: "save-btn node-navigation-hub-rail-upload-btn",
-      label: "+ Загрузить",
+      className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+      label: getNavigationHubMediaUploadButtonLabel(false),
       title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
+      ariaExpanded: false,
       onClick: () => {
         toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
       }
@@ -46486,7 +46633,7 @@ function createEntryOverviewExternalBrowseActions(context) {
 function createEntryOverviewBrowseToolbar(context) {
   const searchBar = createEntryOverviewSearchBar(context);
   const actions = createEntryOverviewBrowseActions(context);
-  const mediaCols = context?.memoryKind === "media" ? createFolderBrowseImagesColumnsToggle() : null;
+  const mediaCols = context?.memoryKind === "media" ? createNavigationMediaImagesLayoutToggle() : null;
   if (!searchBar && !actions && !mediaCols) return null;
   if (!actions && !mediaCols) return searchBar;
 
@@ -46627,9 +46774,7 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
 
   if (showActions && isMediaLibraryContentMode(getEntryOverviewBrowseUploadTargetMode(context))) {
     ensureEntryOverviewBrowseUploadHost(panel, context);
-    if (entryOverviewBrowseUploadPanelOpen) {
-      syncEntryOverviewBrowseUploadPanelUi();
-    }
+    syncEntryOverviewBrowseUploadPanelUi();
   }
 
   if (listBlock) panel.appendChild(listBlock);
@@ -48182,8 +48327,15 @@ function appendEntryOverviewMediaImageGrid(parent, items, nodePath, onFileClick)
 
   const wrap = document.createElement("li");
   wrap.className = "node-entry-overview-media-grid-wrap";
+  if (navigationMediaImagesLayout === "strip") {
+    wrap.classList.add("node-entry-overview-media-strip-wrap");
+    appendNavigationMediaImageStrip(wrap, images, nodePath);
+    parent.appendChild(wrap);
+    return;
+  }
+
   const grid = document.createElement("div");
-  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${folderBrowseImagesColumns}`;
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${navigationMediaImagesLayout}`;
   grid.setAttribute("role", "list");
   grid.setAttribute("aria-label", "Изображения");
   fillEntryOverviewMediaImageGrid(grid, images, nodePath, onFileClick);
@@ -48243,58 +48395,22 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       sectionManifestByFolder
     });
 
-    const branchCount = resolveNavigationFolderBranchCount(folderNode);
-    const collapsible = handlers.collapsible !== false && hasNavigationFolderBranchChildren(folderNode);
-    const collapsed =
-      collapsible &&
-      !forceExpand &&
-      isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
-
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
+    const { toggleBtn, countNode } = mountNavBookTocFolderToggle({
+      folderItem,
+      folderNode,
+      subList,
+      nodePath,
+      depth,
+      handlers,
+      forceExpand
+    });
 
-    let toggleBtn = null;
-    let countNode = null;
-
-    if (collapsible) {
-      toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "nav-book-toc-folder-toggle";
-      toggleBtn.setAttribute("aria-expanded", "true");
-      toggleBtn.title = "Свернуть ветку";
-      const chevron = document.createElement("span");
-      chevron.className = "nav-book-toc-folder-chevron";
-      chevron.setAttribute("aria-hidden", "true");
-      toggleBtn.appendChild(chevron);
-      toggleBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nextCollapsed = !folderItem.classList.contains("is-collapsed");
-        setNavTocFolderCollapsed(nodePath, folderNode.folderPath, nextCollapsed);
-        applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, nextCollapsed);
-      });
-      head.appendChild(toggleBtn);
-
-      if (branchCount > 0) {
-        countNode = document.createElement("span");
-        countNode.className = "nav-book-toc-folder-count";
-        countNode.textContent = String(branchCount);
-        countNode.title = `${branchCount} записей`;
-      }
-    } else {
-      const spacer = document.createElement("span");
-      spacer.className = "nav-book-toc-folder-toggle-spacer";
-      spacer.setAttribute("aria-hidden", "true");
-      head.appendChild(spacer);
-    }
-
+    head.appendChild(toggleBtn);
     head.append(folderLabel);
     if (countNode) head.appendChild(countNode);
     folderItem.append(head, subList);
-
-    if (collapsible) {
-      applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
-    }
 
     parentList.appendChild(folderItem);
   }
@@ -48333,6 +48449,7 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
     folderStatuses,
     sectionManifestByFolder,
     nodePath,
+    treeStyle: "guide",
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   };
@@ -48662,33 +48779,38 @@ function getNavigationHubDocumentScrollElement() {
   return getWorkspaceScrollElement();
 }
 
-function teardownNavigationHubRailAsideLayout() {
-  if (!navigationHubRailAsideLayout) return;
-  window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
-  navigationHubRailAsideLayout.scrollElement?.removeEventListener(
-    "scroll",
-    navigationHubRailAsideLayout.onScroll
-  );
-  if (navigationHubRailAsideLayout.raf) {
-    cancelAnimationFrame(navigationHubRailAsideLayout.raf);
-  }
-  navigationHubRailAsideLayout.rail?.style.removeProperty("--nav-rail-panel-height");
-  navigationHubRailAsideLayout = null;
+function clearNavigationHubRailPanelHeight(rail) {
+  const hub = rail?.closest(".node-navigation-hub--split");
+  const resizeBar = hub?.querySelector(".node-navigation-hub-rail-resize-bar");
+  rail?.style.removeProperty("--nav-rail-panel-height");
+  resizeBar?.style.removeProperty("--nav-rail-panel-height");
+}
+
+function isNavigationHubSplitScrollLayout(rail) {
+  return Boolean(rail?.closest("#node-overview-block.is-navigation-split"));
 }
 
 function updateNavigationHubRailPanelHeight(rail) {
-  if (!rail?.closest(".node-navigation-hub--split")) {
-    rail?.style.removeProperty("--nav-rail-panel-height");
+  const hub = rail?.closest(".node-navigation-hub--split");
+  if (!hub || !rail) {
+    clearNavigationHubRailPanelHeight(rail);
     return;
   }
 
+  if (isNavigationHubSplitScrollLayout(rail)) {
+    clearNavigationHubRailPanelHeight(rail);
+    return;
+  }
+
+  const resizeBar = hub.querySelector(".node-navigation-hub-rail-resize-bar");
   const styles = getComputedStyle(rail);
   const insetTop = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-top")) || 12;
   const insetBottom = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-bottom")) || 12;
-  const railTop = rail.getBoundingClientRect().top;
-  const effectiveTop = Math.max(railTop, insetTop);
-  const height = Math.max(240, Math.floor(window.innerHeight - effectiveTop - insetBottom));
+  const measureEl = rail.closest("#node-overview-block") || getWorkspaceScrollElement();
+  const viewportHeight = measureEl?.clientHeight || window.innerHeight;
+  const height = Math.max(240, Math.floor(viewportHeight - insetTop - insetBottom));
   rail.style.setProperty("--nav-rail-panel-height", `${height}px`);
+  resizeBar?.style.setProperty("--nav-rail-panel-height", `${height}px`);
 }
 
 function bindNavigationHubRailAsideLayout(rail) {
@@ -48697,18 +48819,44 @@ function bindNavigationHubRailAsideLayout(rail) {
 
   updateNavigationHubRailPanelHeight(rail);
 
-  const onResize = () => {
+  const scheduleLayoutSync = () => {
     if (!navigationHubRailAsideLayout) return;
-    updateNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
-    if (navigationHubRailDocumentScrollSpy) {
-      syncNavigationHubRailDocumentOutlineActive(navigationHubRailAsideLayout.rail);
-    }
-    scheduleWorkspaceScrollChromeSync();
+    if (navigationHubRailAsideLayout.raf) return;
+    navigationHubRailAsideLayout.raf = requestAnimationFrame(() => {
+      if (!navigationHubRailAsideLayout) return;
+      navigationHubRailAsideLayout.raf = 0;
+      updateNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
+      if (navigationHubRailDocumentScrollSpy) {
+        syncNavigationHubRailDocumentOutlineActive(navigationHubRailAsideLayout.rail);
+      }
+      scheduleWorkspaceScrollChromeSync();
+    });
   };
 
+  const onResize = () => scheduleLayoutSync();
+
   window.addEventListener("resize", onResize, { passive: true });
-  navigationHubRailAsideLayout = { rail, onResize };
+
+  let resizeObserver = null;
+  const layoutRoot = rail.closest("#node-overview-block");
+  if (layoutRoot && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(layoutRoot);
+  }
+
+  navigationHubRailAsideLayout = { rail, onResize, resizeObserver, raf: 0 };
   scheduleWorkspaceScrollChromeSync();
+}
+
+function teardownNavigationHubRailAsideLayout() {
+  if (!navigationHubRailAsideLayout) return;
+  window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
+  navigationHubRailAsideLayout.resizeObserver?.disconnect();
+  if (navigationHubRailAsideLayout.raf) {
+    cancelAnimationFrame(navigationHubRailAsideLayout.raf);
+  }
+  clearNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
+  navigationHubRailAsideLayout = null;
 }
 
 function teardownNavigationHubRailDocumentScrollSpy() {
@@ -48725,13 +48873,7 @@ function teardownNavigationHubRailDocumentScrollSpy() {
 
 function scrollNavigationHubRailItemIntoView(container, item) {
   if (!container || !item) return;
-  const containerRect = container.getBoundingClientRect();
-  const itemRect = item.getBoundingClientRect();
-  if (itemRect.top < containerRect.top + 4) {
-    container.scrollTop -= containerRect.top - itemRect.top + 4;
-  } else if (itemRect.bottom > containerRect.bottom - 4) {
-    container.scrollTop += itemRect.bottom - containerRect.bottom + 4;
-  }
+  item.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function syncNavigationHubRailDocumentOutlineActive(rail) {
@@ -48840,8 +48982,83 @@ function countNavigationFolderItems(folderNode) {
   return count;
 }
 
-function hasNavigationFolderBranchChildren(_folderNode) {
-  return true;
+function folderNodeHasRenderableBranchContent(folderNode) {
+  const files = Array.isArray(folderNode?.files) ? folderNode.files : [];
+  if (files.length > 0) return true;
+  if (!(folderNode?.folders instanceof Map) || folderNode.folders.size === 0) return false;
+  for (const [, child] of folderNode.folders) {
+    if (folderNodeHasRenderableBranchContent(child)) return true;
+  }
+  return false;
+}
+
+function hasNavigationFolderBranchChildren(folderNode) {
+  return folderNodeHasRenderableBranchContent(folderNode);
+}
+
+function mountNavBookTocFolderToggle({
+  folderItem,
+  folderNode,
+  subList,
+  nodePath,
+  depth,
+  handlers,
+  forceExpand
+}) {
+  const branchCount = resolveNavigationFolderBranchCount(folderNode);
+  const hasBranchContent = folderNodeHasRenderableBranchContent(folderNode);
+  const useGuideToggle = handlers.treeStyle === "guide";
+  const showToggle = useGuideToggle || hasBranchContent;
+
+  let toggleBtn = null;
+  let countNode = null;
+
+  if (!showToggle) {
+    const spacer = document.createElement("span");
+    spacer.className = "nav-book-toc-folder-toggle-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    return { toggleBtn: spacer, countNode, hasBranchContent, branchCount, collapsible: false };
+  }
+
+  toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "nav-book-toc-folder-toggle";
+  const chevron = document.createElement("span");
+  chevron.className = "nav-book-toc-folder-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  toggleBtn.appendChild(chevron);
+
+  if (!hasBranchContent) {
+    toggleBtn.disabled = true;
+    toggleBtn.title = "Нет вложенных элементов";
+    toggleBtn.setAttribute("aria-label", "Нет вложенных элементов");
+    toggleBtn.setAttribute("aria-expanded", "false");
+    folderItem.classList.add("is-collapsed", "nav-book-toc-folder--empty-branch");
+    subList.hidden = true;
+    return { toggleBtn, countNode, hasBranchContent, branchCount, collapsible: true };
+  }
+
+  toggleBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (toggleBtn.disabled) return;
+    const nextCollapsed = !folderItem.classList.contains("is-collapsed");
+    setNavTocFolderCollapsed(nodePath, folderNode.folderPath, nextCollapsed);
+    applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, nextCollapsed);
+  });
+
+  if (branchCount > 0) {
+    countNode = document.createElement("span");
+    countNode.className = "nav-book-toc-folder-count";
+    countNode.textContent = String(branchCount);
+    countNode.title = `${branchCount} записей`;
+  }
+
+  const collapsed =
+    !forceExpand && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+  applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
+
+  return { toggleBtn, countNode, hasBranchContent, branchCount, collapsible: true };
 }
 
 function resolveNavigationFolderBranchCount(folderNode) {
@@ -48874,7 +49091,7 @@ function setNavTocFolderCollapsed(nodePath, folderPath, collapsed) {
 function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed) {
   folderItem.classList.toggle("is-collapsed", collapsed);
   if (subList) subList.hidden = collapsed;
-  if (toggleBtn) {
+  if (toggleBtn && !toggleBtn.disabled) {
     toggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
     toggleBtn.setAttribute("aria-label", collapsed ? "Развернуть ветку" : "Свернуть ветку");
     toggleBtn.title = collapsed ? "Развернуть ветку" : "Свернуть ветку";
@@ -48883,6 +49100,80 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
     countNode.hidden = false;
     countNode.classList.toggle("is-expanded-visible", !collapsed);
   }
+}
+
+function isNavigationHubRailSlotExpandable(slot, slotIndex) {
+  if (slotIndex.kind === "bundle") return false;
+  if (slotIndex.kind !== "tree") return false;
+  const count = Number(slot.count ?? 0);
+  return Boolean(slot.filled || count > 0);
+}
+
+function openNavigationHubRailSlotTarget(slot) {
+  openNodeNavigationCounterSlot({
+    ...slot,
+    modeId: slot.spec?.defaultMode || slot.id
+  });
+}
+
+function appendNavigationHubRailSlotSummaryParts(summary, slot, { includeOpenBtn = true } = {}) {
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-hub-rail-slot-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = slot.spec?.icon || "📁";
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-hub-rail-slot-label";
+  label.textContent = slot.label;
+
+  const count = document.createElement("span");
+  count.className = "node-navigation-hub-rail-slot-count";
+  if (slot.filled || Number(slot.count ?? 0) > 0) count.classList.add("is-filled");
+  count.textContent =
+    slot.display === "flag" ? (slot.filled ? "●" : "—") : String(slot.count ?? 0);
+
+  summary.append(icon, label, count);
+
+  if (includeOpenBtn) {
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "node-navigation-hub-rail-slot-open";
+    openBtn.textContent = "→";
+    openBtn.title = `Открыть: ${slot.label}`;
+    openBtn.setAttribute("aria-label", `Открыть слот: ${slot.label}`);
+    openBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openNavigationHubRailSlotTarget(slot);
+    });
+    summary.appendChild(openBtn);
+  }
+
+  return summary;
+}
+
+function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
+  const row = document.createElement("div");
+  row.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--flat";
+  if (slotIndex.kind === "bundle") row.classList.add("node-navigation-hub-rail-slot--bundle");
+  if (shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx)) {
+    row.classList.add("is-active-slot");
+  }
+  row.classList.toggle("is-empty", !slot.filled && !slot.available);
+  row.classList.toggle("is-filled", Boolean(slot.filled));
+  if (slot.tone) row.classList.add(`is-${slot.tone}`);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-navigation-hub-rail-slot-summary";
+  appendNavigationHubRailSlotSummaryParts(btn, slot, { includeOpenBtn: true });
+  btn.addEventListener("click", (event) => {
+    if (event.target.closest(".node-navigation-hub-rail-slot-open")) return;
+    openNavigationHubRailSlotTarget(slot);
+  });
+
+  row.appendChild(btn);
+  return row;
 }
 
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
@@ -48940,58 +49231,22 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       sectionManifestByFolder
     });
 
-    const branchCount = resolveNavigationFolderBranchCount(folderNode);
-    const collapsible = handlers.collapsible !== false && hasNavigationFolderBranchChildren(folderNode);
-    const collapsed =
-      collapsible &&
-      !forceExpand &&
-      isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
-
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
+    const { toggleBtn, countNode } = mountNavBookTocFolderToggle({
+      folderItem,
+      folderNode,
+      subList,
+      nodePath,
+      depth,
+      handlers,
+      forceExpand
+    });
 
-    let toggleBtn = null;
-    let countNode = null;
-
-    if (collapsible) {
-      toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "nav-book-toc-folder-toggle";
-      toggleBtn.setAttribute("aria-expanded", "true");
-      toggleBtn.title = "Свернуть ветку";
-      const chevron = document.createElement("span");
-      chevron.className = "nav-book-toc-folder-chevron";
-      chevron.setAttribute("aria-hidden", "true");
-      toggleBtn.appendChild(chevron);
-      toggleBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nextCollapsed = !folderItem.classList.contains("is-collapsed");
-        setNavTocFolderCollapsed(nodePath, folderNode.folderPath, nextCollapsed);
-        applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, nextCollapsed);
-      });
-      head.appendChild(toggleBtn);
-
-      if (branchCount > 0) {
-        countNode = document.createElement("span");
-        countNode.className = "nav-book-toc-folder-count";
-        countNode.textContent = String(branchCount);
-        countNode.title = `${branchCount} записей`;
-      }
-    } else {
-      const spacer = document.createElement("span");
-      spacer.className = "nav-book-toc-folder-toggle-spacer";
-      spacer.setAttribute("aria-hidden", "true");
-      head.appendChild(spacer);
-    }
-
+    head.appendChild(toggleBtn);
     head.append(folderLabel);
     if (countNode) head.appendChild(countNode);
     folderItem.append(head, subList);
-
-    if (collapsible) {
-      applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
-    }
 
     parentList.appendChild(folderItem);
   }
@@ -49221,7 +49476,7 @@ const NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT = 12;
 function resolveNavigationMediaGridImageUrl(
   filePath,
   nodePath = getResolvedNodePath(activePath),
-  columns = folderBrowseImagesColumns
+  columns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout
 ) {
   const path = String(filePath || "").trim();
   if (!path) return "";
@@ -49248,7 +49503,8 @@ function createNavigationMediaGridCard(item, nodePath, onActivate) {
 
   const imgWrap = document.createElement("div");
   imgWrap.className = "folder-browse-image-thumb";
-  if (folderBrowseImagesColumns === 1) {
+  const gridColumns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout;
+  if (gridColumns === 1) {
     imgWrap.classList.add("folder-browse-image-thumb--original");
   }
 
@@ -49280,10 +49536,11 @@ function renderNavigationMediaImagesGrid(items, nodePath, onActivate) {
   const images = items.filter(isNavigationMediaImageItem);
   if (!images.length) return null;
 
+  const columns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout;
   const wrap = document.createElement("div");
   wrap.className = "navigation-media-images-grid-wrap";
   const grid = document.createElement("div");
-  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${folderBrowseImagesColumns}`;
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${columns}`;
   grid.setAttribute("role", "list");
   grid.setAttribute("aria-label", "Изображения");
   for (const item of images) {
@@ -49380,12 +49637,23 @@ function renderNavigationMediaPart(mediaData) {
 
   const imageItems = collectNavigationMediaImageItems(groups, contentFiles);
   if (imageItems.length) {
-    const gridWrap = renderNavigationMediaImagesGrid(imageItems, nodePath, openMediaEntryOverviewFromNavigation);
-    if (gridWrap) body.appendChild(gridWrap);
+    const preview = document.createElement("div");
+    preview.className = "navigation-media-images-preview";
+    if (navigationMediaImagesLayout === "strip") {
+      appendNavigationMediaImageStrip(preview, imageItems, nodePath);
+    } else {
+      const gridWrap = renderNavigationMediaImagesGrid(
+        imageItems,
+        nodePath,
+        openMediaEntryOverviewFromNavigation
+      );
+      if (gridWrap) preview.appendChild(gridWrap);
+    }
+    if (preview.childElementCount) body.appendChild(preview);
   }
 
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
   nav.setAttribute("aria-label", "Оглавление медиа");
 
   const list = document.createElement("ul");
@@ -49398,6 +49666,7 @@ function renderNavigationMediaPart(mediaData) {
     sectionManifestByFolder,
     nodePath,
     linkLeadingMode: "media",
+    treeStyle: "guide",
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   });
@@ -53800,6 +54069,107 @@ function loadFolderBrowseImagesColumns() {
   return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(stored) ? stored : 3;
 }
 
+function loadNavigationMediaImagesLayout() {
+  const stored = readStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY);
+  if (stored === "strip") return "strip";
+  const columns = Number(stored);
+  return FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(columns) ? columns : 3;
+}
+
+function saveNavigationMediaImagesLayout(layout) {
+  writeStorageItem(NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY, String(layout));
+}
+
+function setNavigationMediaImagesLayout(layout) {
+  if (layout !== "strip" && !FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS.includes(layout)) return;
+  navigationMediaImagesLayout = layout;
+  saveNavigationMediaImagesLayout(layout);
+  syncNavigationMediaImagesLayoutUi();
+  void refreshNavigationMediaImagesView();
+}
+
+async function refreshNavigationMediaImagesView() {
+  if (activeContentMode === NODE_NAVIGATION_MODE) {
+    await renderNodeNavigation();
+    return;
+  }
+  if (
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
+    activeEntryOverviewContext?.memoryKind === "media"
+  ) {
+    await renderEntryOverview();
+  }
+}
+
+function createNavigationMediaImagesLayoutStripIcon() {
+  const icon = document.createElement("span");
+  icon.className = "navigation-media-layout-strip-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML =
+    '<svg viewBox="0 0 16 10" width="14" height="9" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="0.75" y="0.75" width="3.5" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="5.75" y="0.75" width="3.5" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="10.75" y="0.75" width="3.5" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>';
+  return icon;
+}
+
+function createNavigationMediaImagesLayoutToggle() {
+  const control = document.createElement("div");
+  control.className = "folder-browse-images-cols-control navigation-media-images-layout-control";
+  const label = document.createElement("span");
+  label.className = "folder-browse-images-cols-label";
+  label.textContent = "Колонок:";
+  const toggle = document.createElement("div");
+  toggle.className = "folder-browse-images-cols-toggle";
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "Вид изображений");
+
+  const stripBtn = document.createElement("button");
+  stripBtn.type = "button";
+  stripBtn.className = "folder-browse-images-cols-btn navigation-media-images-layout-btn";
+  stripBtn.dataset.layout = "strip";
+  stripBtn.title = "Лента превью";
+  stripBtn.setAttribute("aria-label", "Лента превью");
+  stripBtn.appendChild(createNavigationMediaImagesLayoutStripIcon());
+  stripBtn.addEventListener("click", () => {
+    setNavigationMediaImagesLayout("strip");
+  });
+  toggle.appendChild(stripBtn);
+
+  for (const cols of FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "folder-browse-images-cols-btn navigation-media-images-layout-btn";
+    btn.dataset.layout = String(cols);
+    btn.textContent = String(cols);
+    btn.title = cols === 1 ? "1 колонка" : `${cols} колонки`;
+    btn.addEventListener("click", () => {
+      setNavigationMediaImagesLayout(cols);
+    });
+    toggle.appendChild(btn);
+  }
+
+  control.append(label, toggle);
+  syncNavigationMediaImagesLayoutToggle(control);
+  return control;
+}
+
+function syncNavigationMediaImagesLayoutToggle(scope = nodeOverviewContentNode) {
+  const root = scope?.querySelector ? scope : nodeOverviewContentNode;
+  if (!root) return;
+
+  for (const btn of root.querySelectorAll(".navigation-media-images-layout-btn")) {
+    const layout = btn.dataset.layout;
+    const active =
+      layout === "strip"
+        ? navigationMediaImagesLayout === "strip"
+        : Number(layout) === navigationMediaImagesLayout;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function syncNavigationMediaImagesLayoutUi() {
+  syncNavigationMediaImagesLayoutToggle();
+}
+
 function saveFolderBrowseImagesColumns(columns) {
   writeStorageItem(FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY, String(columns));
 }
@@ -53825,12 +54195,24 @@ function syncFolderBrowseImagesColumnUi() {
   if (!root) return;
 
   for (const grid of root.querySelectorAll(".folder-browse-images-grid")) {
+    const isMediaGrid = Boolean(
+      grid.closest(
+        ".navigation-media-images-grid-wrap, .node-entry-overview-media-grid-wrap, .node-navigation-media"
+      )
+    );
+    const activeCols = isMediaGrid
+      ? navigationMediaImagesLayout === "strip"
+        ? 3
+        : navigationMediaImagesLayout
+      : folderBrowseImagesColumns;
     for (const cols of FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS) {
-      grid.classList.toggle(`folder-browse-images-grid--cols-${cols}`, folderBrowseImagesColumns === cols);
+      grid.classList.toggle(`folder-browse-images-grid--cols-${cols}`, activeCols === cols);
     }
   }
 
-  for (const btn of root.querySelectorAll(".folder-browse-images-cols-btn")) {
+  for (const btn of root.querySelectorAll(
+    ".folder-browse-images-cols-btn:not(.navigation-media-images-layout-btn)"
+  )) {
     const cols = Number(btn.dataset.cols);
     const active = cols === folderBrowseImagesColumns;
     btn.classList.toggle("is-active", active);
@@ -53842,15 +54224,20 @@ function syncFolderBrowseImagesColumnUi() {
     const img = card.querySelector(".folder-browse-image-thumb img");
     if (!path || !img) continue;
     const nodePath = card.dataset.mediaGridNodePath || getResolvedNodePath(activePath);
+    const activeCols = card.dataset.mediaGridPath
+      ? navigationMediaImagesLayout === "strip"
+        ? 3
+        : navigationMediaImagesLayout
+      : folderBrowseImagesColumns;
     const nextSrc = card.dataset.mediaGridPath
-      ? resolveNavigationMediaGridImageUrl(path, nodePath)
-      : resolveFolderBrowseGridImageUrl(path);
+      ? resolveNavigationMediaGridImageUrl(path, nodePath, activeCols)
+      : resolveFolderBrowseGridImageUrl(path, activeCols);
     if (img.getAttribute("src") !== nextSrc) {
       img.src = nextSrc;
     }
     card.querySelector(".folder-browse-image-thumb")?.classList.toggle(
       "folder-browse-image-thumb--original",
-      folderBrowseImagesColumns === 1
+      activeCols === 1
     );
   }
 }
@@ -55489,21 +55876,38 @@ function syncNodeOverviewNavigationSplitClass(active = false) {
   if (!active) {
     teardownNavigationHubRailDocumentScrollSpy();
     teardownNavigationHubRailAsideLayout();
+    teardownNavigationHubRailToggle();
   }
   nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
 }
 
-function syncNavigationHubRailCollapsedUi() {
-  const hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split");
+function getDocSlabContentNode() {
+  return document.querySelector(".doc-body-main .doc-slab-content");
+}
+
+function teardownNavigationHubRailToggle() {
+  nodeOverviewContentNode?.querySelector(".node-navigation-hub-rail-resize-bar")?.remove();
+  nodeOverviewContentNode?.querySelector(".node-navigation-hub-rail-handle")?.remove();
+  nodeOverviewContentNode?.querySelector(".node-navigation-hub-rail-toggle")?.remove();
+  getDocSlabContentNode()?.classList.remove("is-navigation-rail-split");
+  getDocSlabContentNode()?.querySelector(":scope > .node-navigation-hub-rail-toggle")?.remove();
+}
+
+function syncNavigationHubRailCollapsedUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
   if (!hub) return;
+
   hub.classList.toggle("node-navigation-hub--rail-collapsed", navigationHubRailCollapsed);
-  const btn = hub.querySelector(".node-navigation-hub-rail-toggle");
-  if (!btn) return;
-  const label = navigationHubRailCollapsed ? "Показать боковую панель" : "Скрыть боковую панель";
-  btn.title = label;
-  btn.setAttribute("aria-label", label);
-  btn.setAttribute("aria-expanded", navigationHubRailCollapsed ? "false" : "true");
-  btn.textContent = navigationHubRailCollapsed ? "⟨" : "⟩";
+
+  const toggleBtn = hub.querySelector(".node-navigation-hub-rail-toggle");
+  if (toggleBtn) {
+    toggleBtn.textContent = navigationHubRailCollapsed ? "⟨" : "⟩";
+    const label = navigationHubRailCollapsed
+      ? "Показать боковую панель"
+      : "Скрыть боковую панель";
+    toggleBtn.title = label;
+    toggleBtn.setAttribute("aria-label", label);
+    toggleBtn.setAttribute("aria-expanded", navigationHubRailCollapsed ? "false" : "true");
+  }
 }
 
 function setNavigationHubRailCollapsed(collapsed) {
@@ -55515,18 +55919,39 @@ function setNavigationHubRailCollapsed(collapsed) {
 
 function mountNavigationHubRailToggle(hub) {
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
-  let btn = hub.querySelector(".node-navigation-hub-rail-toggle");
-  if (!btn) {
-    btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "node-navigation-hub-rail-toggle";
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setNavigationHubRailCollapsed(!navigationHubRailCollapsed);
-    });
-    hub.appendChild(btn);
+
+  const rail = hub.querySelector(".node-navigation-hub-rail");
+  if (!rail) return;
+
+  getDocSlabContentNode()?.querySelector(":scope > .node-navigation-hub-rail-toggle")?.remove();
+  getDocSlabContentNode()?.classList.remove("is-navigation-rail-split");
+  hub.querySelector(".node-navigation-hub-rail-handle")?.remove();
+  hub.querySelector(".node-navigation-hub-rail-toggle")?.remove();
+
+  let bar = hub.querySelector(".node-navigation-hub-rail-resize-bar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "node-navigation-hub-rail-resize-bar";
+    bar.setAttribute("aria-label", "Боковая панель");
+    hub.insertBefore(bar, rail);
   }
+
+  bar.replaceChildren();
+  bar.style.removeProperty("--nav-rail-panel-height");
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "node-navigation-hub-rail-toggle";
+  toggleBtn.textContent = navigationHubRailCollapsed ? "⟨" : "⟩";
+  toggleBtn.setAttribute("aria-expanded", navigationHubRailCollapsed ? "false" : "true");
+  toggleBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setNavigationHubRailCollapsed(!navigationHubRailCollapsed);
+  });
+  bar.appendChild(toggleBtn);
+
+  clearNavigationHubRailPanelHeight(rail);
   syncNavigationHubRailCollapsedUi();
 }
 
@@ -55921,12 +56346,20 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
 }
 
 function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx = null) {
+  if (!isNavigationHubRailSlotExpandable(slot, slotIndex)) {
+    return renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx);
+  }
+
   const defaultOpen = shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx);
   const details = document.createElement("details");
   details.className = "node-navigation-hub-rail-slot";
   if (defaultOpen) details.classList.add("is-active-slot");
   details.open = isNavHubRailSlotOpen(nodePath, slot.id, defaultOpen);
   details.addEventListener("toggle", () => {
+    if (!isNavigationHubRailSlotExpandable(slot, slotIndex) && details.open) {
+      details.open = false;
+      return;
+    }
     setNavHubRailSlotOpen(nodePath, slot.id, details.open);
   });
   details.classList.toggle("is-empty", !slot.filled && !slot.available);
@@ -55935,38 +56368,7 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
 
   const summary = document.createElement("summary");
   summary.className = "node-navigation-hub-rail-slot-summary";
-
-  const icon = document.createElement("span");
-  icon.className = "node-navigation-hub-rail-slot-icon";
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = slot.spec?.icon || "📁";
-
-  const label = document.createElement("span");
-  label.className = "node-navigation-hub-rail-slot-label";
-  label.textContent = slot.label;
-
-  const count = document.createElement("span");
-  count.className = "node-navigation-hub-rail-slot-count";
-  if (slot.filled) count.classList.add("is-filled");
-  count.textContent =
-    slot.display === "flag" ? (slot.filled ? "●" : "—") : String(slot.count ?? 0);
-
-  const openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.className = "node-navigation-hub-rail-slot-open";
-  openBtn.textContent = "→";
-  openBtn.title = `Открыть: ${slot.label}`;
-  openBtn.setAttribute("aria-label", `Открыть слот: ${slot.label}`);
-  openBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openNodeNavigationCounterSlot({
-      ...slot,
-      modeId: slot.spec?.defaultMode || slot.id
-    });
-  });
-
-  summary.append(icon, label, count, openBtn);
+  appendNavigationHubRailSlotSummaryParts(summary, slot, { includeOpenBtn: true });
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -64309,6 +64711,8 @@ async function selectAgentSystemFile(label, filePath, options = {}) {
     hideContentLoading({ force: true });
     if (!options.skipRouteSync) {
       syncAppRouteToUrl({ replace: true });
+    } else {
+      scheduleActivePageContextSync();
     }
   }
 }
@@ -64411,6 +64815,7 @@ async function selectFile(label, filePath) {
     if (showFileLoadingOverlay) {
       hideContentLoading();
     }
+    scheduleActivePageContextSync();
   }
 }
 

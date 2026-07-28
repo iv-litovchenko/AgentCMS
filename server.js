@@ -183,6 +183,7 @@ const {
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
 const { createExistsApi } = require("./exists-api");
+const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -8145,6 +8146,7 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
+  activePage: "GET /api/agent/active-page — текущее открытое окно UI (синхронизируется браузером)",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
   runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
@@ -13175,6 +13177,41 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build session context",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/active-page") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readAgentUiContext(agentRoot);
+      return sendJson(res, 200, {
+        ...payload,
+        maxAgeMs: UI_CONTEXT_MAX_AGE_MS,
+        hint: payload.context
+          ? "path — manifest.md страницы; contextPath — запись/файл в слоте; stale=true если UI давно не обновлялся"
+          : "UI context not synced yet — open Agent CMS in browser or pass path explicitly"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read active page context",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/active-page") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const context = await writeAgentUiContext(agentRoot, payload);
+      return sendJson(res, 200, { context });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save active page context",
         details: String(error.message || error)
       });
     }
