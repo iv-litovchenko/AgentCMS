@@ -41516,7 +41516,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   main.append(thumbWrap, body);
-  const heroNav = createEntryOverviewSiblingNav({ ...(options.entryOverviewNav || {}), variant: "hero" });
+  const heroNav = options.entryOverviewNav
+    ? createEntryOverviewSiblingNav({ ...options.entryOverviewNav, variant: "hero" })
+    : null;
   if (heroNav) hero.appendChild(heroNav);
   hero.appendChild(main);
 
@@ -45412,8 +45414,6 @@ function buildTopicSiblingNavOptions(nodePath = activePath) {
   const next = index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null;
   const up = resolveTopicUpNavigation(parentContext, nodePath);
 
-  if (!prev && !next && !up) return null;
-
   const openTopic = (entry) => {
     if (!entry?.path) return;
     void openNodeNavigation(
@@ -45463,8 +45463,6 @@ function createEntryOverviewSiblingNav({
   variant = "manifest",
   ariaLabel = "Навигация по записям раздела"
 } = {}) {
-  if (!prevItem && !nextItem && !onUpClick) return null;
-
   const nav = document.createElement("div");
   nav.className =
     variant === "hero"
@@ -45475,55 +45473,54 @@ function createEntryOverviewSiblingNav({
   nav.setAttribute("role", "navigation");
   nav.setAttribute("aria-label", ariaLabel);
 
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
+  prevBtn.textContent = "← Предыдущая";
   if (prevItem) {
-    const prevBtn = document.createElement("button");
-    prevBtn.type = "button";
-    prevBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
-    prevBtn.textContent = "← Предыдущая";
     prevBtn.title = getEntryOverviewManifestItemLabel(prevItem);
     prevBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       onFileClick?.(prevItem);
     });
-    nav.appendChild(prevBtn);
   } else {
-    const spacer = document.createElement("span");
-    spacer.className = "node-navigation-manifest-nav-spacer";
-    spacer.setAttribute("aria-hidden", "true");
-    nav.appendChild(spacer);
+    prevBtn.disabled = true;
+    prevBtn.title = "Нет предыдущей записи";
   }
+  nav.appendChild(prevBtn);
 
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className =
+    "node-navigation-manifest-nav-btn node-navigation-manifest-nav-btn--up node-overview-action-btn";
+  upBtn.textContent = variant === "stacked" ? "↑ Наверх" : "На уровень выше";
   if (onUpClick) {
-    const upBtn = document.createElement("button");
-    upBtn.type = "button";
-    upBtn.className =
-      "node-navigation-manifest-nav-btn node-navigation-manifest-nav-btn--up node-overview-action-btn";
-    upBtn.textContent = variant === "stacked" ? "↑ Наверх" : "На уровень выше";
     upBtn.title = upTitle || "Оглавление";
     upBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       onUpClick();
     });
-    nav.appendChild(upBtn);
+  } else {
+    upBtn.disabled = true;
+    upBtn.title = upTitle || "На уровень выше";
   }
+  nav.appendChild(upBtn);
 
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
+  nextBtn.textContent = "Следующая →";
   if (nextItem) {
-    const nextBtn = document.createElement("button");
-    nextBtn.type = "button";
-    nextBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
-    nextBtn.textContent = "Следующая →";
     nextBtn.title = getEntryOverviewManifestItemLabel(nextItem);
     nextBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       onFileClick?.(nextItem);
     });
-    nav.appendChild(nextBtn);
   } else {
-    const spacer = document.createElement("span");
-    spacer.className = "node-navigation-manifest-nav-spacer";
-    spacer.setAttribute("aria-hidden", "true");
-    nav.appendChild(spacer);
+    nextBtn.disabled = true;
+    nextBtn.title = "Нет следующей записи";
   }
+  nav.appendChild(nextBtn);
 
   return nav;
 }
@@ -46645,8 +46642,6 @@ function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
   const upNavigation = resolveEntryOverviewUpNavigation(context);
   const { onFileClick, onFolderClick } = getEntryOverviewNavigationHandlers(context.memoryKind);
 
-  if (!prev && !next && !upNavigation) return null;
-
   return {
     prevItem: prev,
     nextItem: next,
@@ -47332,7 +47327,9 @@ function createEntryOverviewMediaAssetPanel(
   const panel = document.createElement("section");
   panel.className = `node-entry-overview-media-asset node-entry-overview-media-asset--${assetKind} node-navigation-hero`;
 
-  const heroNav = createEntryOverviewSiblingNav({ ...(entryOverviewNav || {}), variant: "hero" });
+  const heroNav = entryOverviewNav
+    ? createEntryOverviewSiblingNav({ ...entryOverviewNav, variant: "hero" })
+    : null;
   if (heroNav) panel.appendChild(heroNav);
 
   if (assetKind !== "code") {

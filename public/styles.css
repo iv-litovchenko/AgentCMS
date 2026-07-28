@@ -25114,6 +25114,17 @@ button.node-navigation-memory-title:focus-visible {
   white-space: nowrap;
 }
 
+.node-navigation-manifest-nav-btn:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.node-navigation-manifest-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .node-navigation-manifest-actions {
   display: flex;
   align-items: center;
