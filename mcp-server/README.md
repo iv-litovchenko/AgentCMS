@@ -78,6 +78,14 @@ CMS должен быть запущен (`npm start` в YamlCMS).
 get_session_context
 ```
 
+### Канон v1 (страницы и слоты)
+
+- **Страница** (`awn.page.*`) — manifest.md в меню; MCP: `get_page_meta`, `read_page_*`, `write_page_*`, `create_page`
+- **External-слот** — папка (`main/`, `inbox/`, `references/`, …): `list_slot_records`, `create_slot_record`
+- **Internal-слот** — файл (`main.md`, `main.csv`, `todo.md`): `read_internal_slot`, `write_internal_slot`
+
+HTTP aliases: `/api/page/*` → `/api/node/*`, `/api/file/page-config` → `/api/file/node-config`, `/api/file/page-schema` → `/api/file/topic-schema`
+
 Ответ включает:
 
 - `awn-agent-kit/agent/manifest.md`, `user/manifest.md`, `agent.voice.tts/manifest.md`, `agent.voice.stt/manifest.md`
@@ -116,4 +124,4 @@ node mcp-server/index.js   # stdio — для отладки
 | `_registration.md`, `_Content` | `manifest.md`, `awn-storage/main/` |
 | Разведка через shell | `get_session_context` — один запрос |
 | Нет runtime registry | `get_runtime_registry`, `get_runtime_map`, `get_storage_layout` |
-| — | inbox/thread, comments, topic-schema, tabular memory |
+| — | inbox/thread, comments, page-schema, tabular memory |

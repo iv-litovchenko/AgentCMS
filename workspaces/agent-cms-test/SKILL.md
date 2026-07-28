@@ -22,7 +22,7 @@ description: Работа с Agent CMS через MCP. Используй при
 | Задача | Tool |
 | ------ | ---- |
 | Меню | `get_menu` |
-| Узел | `read_node_properties` / `write_node_properties` |
+| Страница | `read_page_properties` / `write_page_properties` |
 | Память/контент | `read_external_memory` / `write_external_memory` |
 | Уведомление | `notify_user` |
 

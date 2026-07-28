@@ -8153,7 +8153,11 @@ const SESSION_CONTEXT_API_MAP = {
   platformCatalogs: "GET /api/platform/catalogs — глобальные справочники",
   agentCatalogs: "GET /api/agent/catalogs — справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
-  mainNote: "GET /api/external/file?path=<manifest.md>&file=<name.md> — awn-storage/main/",
+  pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы (alias /api/node/meta)",
+  pageCreate: "POST /api/page/create — создать страницу area/topic (alias /api/node/create)",
+  slotRecordCreate:
+    "POST /api/storage/file/create — запись в external-слот (folder=main|inbox|references|notes|…)",
+  mainNote: "GET /api/external/file?path=<manifest.md>&file=<name.md> — legacy alias main/; prefer slot tools",
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
@@ -8171,9 +8175,11 @@ const SESSION_CONTEXT_API_MAP = {
 
 const SESSION_PATH_HINTS = {
   topicManifest:
-    "Путь к manifest.md темы, напр. awn-container/finansydohody/manifest.md (legacy: _registration.md)",
-  areaManifest: "manifest.md области внутри awn-container/<slug>/",
-  mainNote: "Параметр file в memory tools — .md внутри awn-storage/main/ темы",
+    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
+  externalSlot:
+    "External-слот: main/, inbox/, references/, notes/, … — create_slot_record { folder } или POST /api/storage/file/create",
+  internalSlot: "Internal-слот: main.md, main.csv, todo.md — read_internal_slot / write_internal_slot",
+  mainNote: "Legacy: file в main/ — prefer create_slot_record folder=main",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
@@ -12863,7 +12869,26 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
   };
 }
 
+function normalizeApiPathname(pathname) {
+  const path = String(pathname || "");
+  if (path === "/api/file/page-config") return "/api/file/node-config";
+  if (path === "/api/file/page-schema") return "/api/file/topic-schema";
+  if (path.startsWith("/api/page/")) {
+    return `/api/node/${path.slice("/api/page/".length)}`;
+  }
+  return path;
+}
+
+function applyApiPathAliases(url) {
+  const normalized = normalizeApiPathname(url.pathname);
+  if (normalized !== url.pathname) {
+    url.pathname = normalized;
+  }
+}
+
 async function handleApiForAgent(req, res, url) {
+  applyApiPathAliases(url);
+
   if (await shellHandlers.tryHandleShellApi(req, res, url, {
     agentId: getActiveAgentId(),
     agentRoot: getAgentRoot(),
@@ -13536,7 +13561,7 @@ async function handleApiForAgent(req, res, url) {
       const hasFrontmatter = /^---\r?\n/.test(incoming);
       let stampedContent;
       if (!hasFrontmatter) {
-        // Body-only payload (typical MCP write_node_description): keep disk frontmatter.
+        // Body-only payload (typical MCP write_page_description): keep disk frontmatter.
         const stampedFrontmatter = applyAwnTimestampsToFrontmatter(diskFrontmatter, { diskFrontmatter });
         stampedContent = joinNodeFrontmatter(stampedFrontmatter, incoming);
       } else {

@@ -529,7 +529,7 @@ awn_settings:
 ```
 
 4. **Потребитель объявляет связь:** Topic manifest или `awn.page.topic` → `settings-types: [awn.settings.general, awn.settings.voice]`.
-5. **MCP** `write_node_config` пишет только values, schema читает из `awn-system/types/settings/`.
+5. **MCP** `write_page_config` пишет только values, schema читает из `awn-system/types/settings/`.
 6. `awn_ui` остаётся отдельной секцией (default_landing_mode) — это UI runtime, не settings domain.
 
 | Было | Стало |

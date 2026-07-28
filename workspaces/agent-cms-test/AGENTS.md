@@ -19,36 +19,40 @@
 ## Быстрые правила
 
 * **Меню слева** = `awn.page.ws` → `awn.page.area` → `awn.page.topic`
-* **Запись** = `awn.content.record` в `…/awn-storage/main/*.md`
-* **Диалог** = `awn.content.dialog` в `…/thread/` или `awn-agent-kit/agent/…/thread/`
-* **Sidecar** = `{file}.sidecar.md` рядом с медиа, тип `awn.content.sidecar`
-* **Слот vs content**: папка `main/` — слот; файл внутри — content-type
+* **Страница** (не «нода») = manifest.md с `awn-type: awn.page.*`
+* **External-слот** = папка (`main/`, `inbox/`, `references/`, …)
+* **Internal-слот** = один файл (`main.md`, `main.csv`, `todo.md`)
+* **Запись** = `awn.content.record` в слоте
+* **Диалог** = `awn.content.dialog` в `thread/`
+* **Sidecar** = `{file}.sidecar.md` рядом с медиа
 
 ## Создание топика — правильный порядок
 
 > Нарушение порядка = потеря схемы или неверный тип!
 
-1. `create_node` — создать папку (type: "folder")
-2. `write_node_properties` — записать frontmatter:
+1. `create_page` — создать папку (type: "folder")
+2. `write_page_properties` — frontmatter:
 
     ```yaml
     awn-type: awn.page.topic
     awn-name: <название>
     ```
-3. **Если нужна кастомная схема полей** — `write_topic_schema` (content: YAML с `awn_schema:`)
-    * **НЕ** используй `write_node_config` для записи схемы — это затёрет `awn_ui`
-    * `write_node_config` только для `awn_ui` и `awn_settings`
+3. **Если нужна кастомная схема полей** — `write_page_schema` (content: YAML с `awn_schema:`)
+    * **НЕ** используй `write_page_config` для записи схемы — это затрёт `awn_ui`
+    * `write_page_config` только для `awn_ui` и `awn_settings`
 4. Для слотов агент создаёт стандартные папки автоматически (не трогай вручную)
 
 ## Остальные операции
 
 | Задача | MCP / API |
 | ------ | --------- |
-| Область | `create_node` → `write_node_properties` (awn-type: awn.page.area) |
-| Запись в main | `create_external_memory` |
+| Область | `create_page` → `write_page_properties` (awn-type: awn.page.area) |
+| Запись в main | `create_slot_record` { folder: "main" } |
+| Запись во входящие/источники | `create_slot_record` { folder: "inbox" \| "references" } |
+| Однофайловая память | `read_internal_slot` / `write_internal_slot` |
 | Sidecar | `read_media_sidecar` / `write_media_sidecar` |
-| Свойства узла | `read_node_properties` / `write_node_properties` |
-| Схема полей топика | `read_topic_schema` / `write_topic_schema` (YAML content) |
+| Свойства страницы | `read_page_properties` / `write_page_properties` |
+| Схема полей страницы | `read_page_schema` / `write_page_schema` (YAML content) |
 | **Уведомление пользователю (🔔 CMS)** | **`notify_user`** — title, message?, path? (manifest) |
 | Сообщение в Agent Shell (голос/UI) | **`shell_post_message`** — body (thread/inbox, **не** колокольчик) |
 

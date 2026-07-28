@@ -86,20 +86,20 @@ comments/  → awn.content.comment
 
 1. **`get_session_context`** — старт сессии (manifest, AGENTS.md, API map)
 2. **`get_menu`** / **`list_agents`** — дерево контента
-3. **`read_node_properties`** — frontmatter узла
-4. **`create_external_memory`** — запись в `main/`
+3. **`read_page_properties`** — frontmatter страницы
+4. **`create_slot_record`** { folder: "main" } — запись в `main/`
 5. **`read_media_sidecar`** / **`write_media_sidecar`**
 6. **`GET /api/awn-types`** — эффективные типы **этого** агента
 
 ### Создание топика — правильный порядок
 
 ```
-1. create_node (type: folder, name: "slug-topika")
-2. write_node_properties → content: "awn-type: awn.page.topic\nawn-name: Название"
-3. (опционально) write_topic_schema → content YAML с awn_schema блоком
+1. create_page (type: folder, name: "slug-topika")
+2. write_page_properties → content: "awn-type: awn.page.topic\nawn-name: Название"
+3. (опционально) write_page_schema → content YAML с awn_schema блоком
 ```
 
-### Ключи awn_schema (для write_topic_schema)
+### Ключи awn_schema (для write_page_schema)
 
 | Ключ | Для чего |
 |------|----------|
@@ -117,7 +117,7 @@ comments/  → awn.content.comment
 | `sidecar` | поля sidecar-файлов |
 | `settings` | настройки |
 
-Пример `write_topic_schema` content:
+Пример `write_page_schema` content:
 ```yaml
 awn_schema:
   slot_memory:
@@ -134,9 +134,9 @@ awn_schema:
 | Действие | Инструмент |
 |----------|------------|
 | Менять **схему CMS** (типы) | YAML в `awn-system/types/` (редко, осознанно) |
-| Создать **тему/запись** | `create_node` / `create_external_memory` |
-| Задать **поля одной темы** | `write_topic_schema` (content = YAML с awn_schema:) |
-| UI настройки темы | `write_node_config` (content = YAML с awn_ui:) |
+| Создать **тему/запись** | `create_page` / `create_slot_record` |
+| Задать **поля одной страницы** | `write_page_schema` (content = YAML с awn_schema:) |
+| UI настройки страницы | `write_page_config` (content = YAML с awn_ui:) |
 
 ---
 

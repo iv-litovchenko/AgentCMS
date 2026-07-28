@@ -332,8 +332,8 @@ description: Работа с Agent CMS через MCP. Используй при
 | Задача | Tool |
 | ------ | ---- |
 | Меню | \`get_menu\` |
-| Узел | \`read_node_properties\` / \`write_node_properties\` |
-| Память/контент | \`read_external_memory\` / \`write_external_memory\` |
+| Страница | \`read_page_properties\` / \`write_page_properties\` |
+| Память/контент | \`create_slot_record\` / \`read_slot_record\` |
 | Уведомление | \`notify_user\` |
 
 Подробнее — \`AGENTS.md\`.
@@ -26502,8 +26502,21 @@ function endEntryOverviewExternalCreate() {
 }
 
 function canCreateExternalMemoryNow() {
+  return canCreateSlotRecordNow();
+}
+
+function getActiveSlotRecordCreateFolder() {
+  if (activeContentMode === "external") return "main";
+  if (isFlatStorageSectionMode() && isFlatStorageListMode()) {
+    return getFlatStorageSectionFolderName(activeContentMode);
+  }
+  return null;
+}
+
+function canCreateSlotRecordNow() {
   if (!activePath) return false;
   if (activeContentMode === "external" && !activeExternalFilePath) return true;
+  if (isFlatStorageSectionMode() && isFlatStorageListMode()) return true;
   return isEntryOverviewExternalMemory();
 }
 
@@ -26517,7 +26530,9 @@ async function refreshAfterExternalWorkspaceCreate({ openForEdit = false } = {})
   const fromEntryOverview = isEntryOverviewExternalMemory();
   endEntryOverviewExternalCreate();
   try {
-    await refreshExternalMemoryCaches();
+    if (activeContentMode === "external") {
+      await refreshExternalMemoryCaches();
+    }
   } catch {
     // ignore cache refresh errors in overview create flow
   }
@@ -26527,12 +26542,20 @@ async function refreshAfterExternalWorkspaceCreate({ openForEdit = false } = {})
     }
     return;
   }
+  if (isFlatStorageSectionMode() && isFlatStorageListMode()) {
+    await loadFlatStorageSectionContent(activeContentMode);
+    return;
+  }
   await loadContentByMode();
 }
 
 async function openCreatedExternalMemoryForEdit(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").trim();
   if (!normalized) return;
+  if (isFlatStorageSectionMode()) {
+    openFlatStorageRecordOverviewFromNavigation({ path: normalized }, activeContentMode);
+    return;
+  }
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
     await openMemoryModeFromOverview("external", normalized);
     return;
@@ -39711,10 +39734,16 @@ function closeCreateMemoryModal() {
   endEntryOverviewExternalCreate();
 }
 
-async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
-  const parentFolder = getActiveExternalSectionParentForCreate();
+async function createSlotRecordFileWithMask(fileMask, displayName = "", folderOverride = null) {
+  const folder = folderOverride || getActiveSlotRecordCreateFolder();
+  if (!folder) throw new Error("No active storage slot");
+  const parentFolder =
+    folder === "main"
+      ? getActiveExternalSectionParentForCreate()
+      : getActiveFlatStorageSectionParentForCreate(activeContentMode);
   const requestBody = {
     path: getActiveNodeApiPath(),
+    folder,
     fileMask
   };
   const title = String(displayName || "").trim();
@@ -39723,7 +39752,7 @@ async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
     requestBody.displayName = title;
   }
   if (parentFolder) requestBody.parent = parentFolder;
-  const response = await fetch(buildApiUrl("/api/external/file/create"), {
+  const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody)
@@ -39737,16 +39766,22 @@ async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
   return response.json();
 }
 
-async function createExternalMemoryFile(displayName, slug) {
-  const parentFolder = getActiveExternalSectionParentForCreate();
+async function createSlotRecordFile(displayName, slug, folderOverride = null) {
+  const folder = folderOverride || getActiveSlotRecordCreateFolder();
+  if (!folder) throw new Error("No active storage slot");
+  const parentFolder =
+    folder === "main"
+      ? getActiveExternalSectionParentForCreate()
+      : getActiveFlatStorageSectionParentForCreate(activeContentMode);
   const requestBody = {
     path: getActiveNodeApiPath(),
+    folder,
     title: displayName,
     displayName,
     slug
   };
   if (parentFolder) requestBody.parent = parentFolder;
-  const response = await fetch(buildApiUrl("/api/external/file/create"), {
+  const response = await fetch(buildApiUrl("/api/storage/file/create"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody)
@@ -39760,14 +39795,24 @@ async function createExternalMemoryFile(displayName, slug) {
   return response.json();
 }
 
+/** @deprecated use createSlotRecordFile */
+async function createExternalMemoryFileWithMask(fileMask, displayName = "") {
+  return createSlotRecordFileWithMask(fileMask, displayName, "main");
+}
+
+/** @deprecated use createSlotRecordFile */
+async function createExternalMemoryFile(displayName, slug) {
+  return createSlotRecordFile(displayName, slug, "main");
+}
+
 async function createExternalMemory() {
-  if (!canCreateExternalMemoryNow()) return;
+  if (!canCreateSlotRecordNow()) return;
 
   if (activeCreateMemoryMask) {
     setCreateMemoryModalBusy(true);
     createMemoryOkBtn.textContent = "Создаю...";
     try {
-      const data = await createExternalMemoryFileWithMask(
+      const data = await createSlotRecordFileWithMask(
         activeCreateMemoryMask,
         getCreateMemoryMaskName()
       );
@@ -39804,7 +39849,7 @@ async function createExternalMemory() {
       createMemoryOkBtn.textContent =
         items.length === 1 ? "Создаю..." : `Создаю ${index + 1} из ${items.length}...`;
       try {
-        const data = await createExternalMemoryFile(displayName, slug);
+        const data = await createSlotRecordFile(displayName, slug);
         created += 1;
         lastFile = data.file;
       } catch {
@@ -55604,6 +55649,8 @@ function applyModeUi() {
   const showExternalControls = activeContentMode === "external" && !externalEditing;
   const showMediaControls = isMediaLibraryContentMode() && !mediaSidecarEditing;
   const showFlatStorageSectionControls = isFlatStorageSectionMode() && isFlatStorageListMode();
+  const showSlotRecordCreateControls =
+    showExternalControls || (showFlatStorageSectionControls && canCreateSlotRecordNow());
   const showDataHubBundleEdit = isDataHubBundlePreviewActive();
   const bundleSlotShellMode = isDataHubBundleSlotShellMode();
   const showTabularControls =
@@ -55774,7 +55821,7 @@ function applyModeUi() {
   mediaViewSelectNode?.classList.toggle("hidden", !showMediaControls);
   mediaUploadBtnNode?.classList.toggle("hidden", !showMediaControls || mediaSidecarEditing);
   createMediaSectionBtn?.classList.toggle("hidden", !showMediaControls || mediaSidecarEditing);
-  createExternalMemoryBtn.classList.toggle("hidden", !showExternalControls);
+  createExternalMemoryBtn.classList.toggle("hidden", !showSlotRecordCreateControls);
   createExternalSectionBtn.classList.toggle(
     "hidden",
     !(showExternalControls || showFlatStorageSectionControls)

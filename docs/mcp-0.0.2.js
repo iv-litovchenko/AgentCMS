@@ -12,8 +12,8 @@ module.exports = {
     "path → manifest.md темы/области (напр. awn-container/finansydohody/manifest.md; legacy _registration.md).",
     "file → имя .md в awn-storage/main/ или media/ относительно темы.",
     "Старт сессии: один вызов get_session_context — не делайте grep/curl/ls по репозиторию.",
-    "87 tools — полный список ниже.",
-    "awn-mask-file (маска имён в main/) — read_node_config → awnMaskFile; create_external_memory подхватывает маску автоматически.",
+    "76 tools — полный список ниже.",
+    "awn-mask-file (маска имён в main/) — read_page_config → awnMaskFile; create_slot_record folder=main подхватывает маску автоматически.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
   cursorConfig: {
@@ -128,12 +128,6 @@ module.exports = {
           http: "GET /api/agent/site-map"
         },
         {
-          name: "get_node_meta",
-          description: "Метаданные ноды: слои storage, preview, manifest.",
-          parameters: "path",
-          http: "GET /api/node/meta"
-        },
-        {
           name: "list_awn_types",
           description: "Каталог awn-type для workspace агента.",
           parameters: "—",
@@ -184,80 +178,134 @@ module.exports = {
       ]
     },
     {
-      id: "node",
-      title: "Manifest / нода",
+      id: "page",
+      title: "Страница (manifest.md)",
       tools: [
         {
-          name: "read_node_description",
+          name: "get_page_meta",
+          description: "Метаданные страницы: слои storage, preview, manifest.",
+          parameters: "path",
+          http: "GET /api/page/meta"
+        },
+        {
+          name: "read_page_description",
           description: "Тело manifest.md.",
           parameters: "path",
           http: "GET /api/file?path="
         },
         {
-          name: "write_node_description",
+          name: "write_page_description",
           description: "Сохранить тело manifest.md.",
           parameters: "path, content",
           http: "POST /api/file/content"
         },
         {
-          name: "read_node_properties",
+          name: "read_page_properties",
           description: "YAML frontmatter manifest.md.",
           parameters: "path",
           http: "GET /api/file/properties"
         },
         {
-          name: "write_node_properties",
+          name: "write_page_properties",
           description: "Сохранить frontmatter.",
           parameters: "path, content",
           http: "POST /api/file/properties"
         },
         {
-          name: "read_topic_schema",
-          description: "Схема полей темы (schema.yml).",
+          name: "read_page_schema",
+          description: "Схема полей страницы (schema.yml, awn_schema) — привязана к типу страницы и слотам.",
           parameters: "path",
-          http: "GET /api/file/topic-schema"
+          http: "GET /api/file/page-schema"
         },
         {
-          name: "write_topic_schema",
-          description: "Сохранить схему полей.",
+          name: "write_page_schema",
+          description: "Сохранить схему полей (content = YAML с awn_schema:).",
           parameters: "path, content",
-          http: "POST /api/file/topic-schema"
+          http: "POST /api/file/page-schema"
         },
         {
-          name: "read_node_config",
-          description: "configuration.yml ноды: awn_settings (awn-mask-file), awn_ui, awn_schema.",
+          name: "read_page_config",
+          description: "configuration.yml страницы: awn_settings (awn-mask-file), awn_ui.",
           parameters: "path",
-          http: "GET /api/file/node-config"
+          http: "GET /api/file/page-config"
         },
         {
-          name: "write_node_config",
-          description: "Сохранить configuration.yml ноды.",
+          name: "write_page_config",
+          description: "Сохранить configuration.yml (awn_ui, awn_settings).",
           parameters: "path, content",
-          http: "POST /api/file/node-config"
+          http: "POST /api/file/page-config"
         },
         {
-          name: "create_node",
+          name: "create_page",
           description: "Создать область (folder) или тему (file). displayName/title → awn-name; slug/name → папка на диске.",
           parameters: "parentPath?, type: folder|file, displayName?, title?, name?, slug?, awnType?",
-          http: "POST /api/node/create"
+          http: "POST /api/page/create"
         },
         {
-          name: "delete_node",
+          name: "delete_page",
           description: "Удалить область, топик или part.",
           parameters: "path",
           http: "DELETE /api/file?path="
         },
         {
-          name: "rename_node",
-          description: "Переименовать область/топик. displayName → awn-name; slug → папка на диске.",
+          name: "rename_page",
+          description: "Переименовать страницу. displayName → awn-name; slug → папка на диске.",
           parameters: "path, displayName?, title?, slug?",
           http: "POST /api/file/title"
         },
         {
-          name: "move_node",
-          description: "Переместить область/топик в другую родительскую папку.",
+          name: "move_page",
+          description: "Переместить страницу в другую родительскую папку.",
           parameters: "path, parentPath",
-          http: "POST /api/node/move"
+          http: "POST /api/page/move"
+        }
+      ]
+    },
+    {
+      id: "slots",
+      title: "Слоты storage (external / internal)",
+      tools: [
+        {
+          name: "list_slot_records",
+          description: "Список typed-записей во external-слоте (main, inbox, references, notes, …).",
+          parameters: "path, folder",
+          http: "GET /api/external/files (main) · GET /api/folder/view"
+        },
+        {
+          name: "read_slot_record",
+          description: "Прочитать .md запись из external-слота.",
+          parameters: "path, folder, file",
+          http: "GET /api/external/file · GET /api/storage/markdown"
+        },
+        {
+          name: "write_slot_record",
+          description: "Сохранить .md запись в external-слот.",
+          parameters: "path, folder, file, content",
+          http: "POST /api/external/file · POST /api/storage/markdown"
+        },
+        {
+          name: "create_slot_record",
+          description: "Создать typed awn.content.record в external-слоте.",
+          parameters: "path, folder, title?, displayName?, slug?, parent?, body?, fileMask?, fields?, source?, author?, status?",
+          http: "POST /api/storage/file/create"
+        },
+        {
+          name: "create_slot_section",
+          description: "Typed раздел (awn.content.record.category) в external-слоте.",
+          parameters: "path, folder, title, displayName?, slug?, parent?",
+          http: "POST /api/storage/section/create"
+        },
+        {
+          name: "read_internal_slot",
+          description: "Internal-слот: main.md, main.csv или todo.md.",
+          parameters: "path, slot: main-single|main-single-csv|todo-single",
+          http: "GET /api/memory/internal · GET /api/memory/tabular · GET /api/todo"
+        },
+        {
+          name: "write_internal_slot",
+          description: "Записать internal-слот.",
+          parameters: "path, slot, content, file?",
+          http: "POST /api/memory/internal · POST /api/memory/tabular · POST /api/todo"
         }
       ]
     },

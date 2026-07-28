@@ -3,13 +3,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
+import { registerPageAndSlotTools } from "./lib/page-slot-tools.js";
 
-const nodePath = z
+const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to manifest.md of topic/area, e.g. awn-container/finansydohody/manifest.md (legacy _registration.md accepted)"
+    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md (legacy _registration.md accepted)"
   );
+
 const extFile = z.string().min(1).describe("File name under awn-storage/main/ or media/, e.g. notes.md");
 const storageSlotFolder = z
   .string()
@@ -136,13 +138,6 @@ function createServer() {
     () => client.get("/api/agent/site-map")
   );
 
-  reg(
-    "get_node_meta",
-    "Node metadata: paths, storage layers, preview, manifest info.",
-    z.object({ path: nodePath }),
-    ({ path }) => client.get("/api/node/meta", { path })
-  );
-
   reg("list_awn_types", "awn-type catalog for current agent workspace.", z.object({}), () =>
     client.get("/api/awn-types")
   );
@@ -229,55 +224,11 @@ function createServer() {
     (payload) => client.post("/api/agent/catalogs/items", payload)
   );
 
-  reg("read_node_description", "Read manifest.md (full file: frontmatter + body).", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file", { path })
-  );
-
-  reg(
-    "write_node_description",
-    "Save manifest.md body. Frontmatter on disk is preserved automatically — send body only, or full markdown; omitted frontmatter keys are kept from disk.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/content", { path, content })
-  );
-
-  reg("read_node_properties", "Read YAML frontmatter from manifest.md.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file/properties", { path })
-  );
-
-  reg(
-    "write_node_properties",
-    "Save YAML frontmatter to manifest.md.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/properties", { path, content })
-  );
-
-  reg("read_topic_schema", "Read topic field schema (schema.yml layer).", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file/topic-schema", { path })
-  );
-
-  reg(
-    "write_topic_schema",
-    "Save topic field schema. Pass content as YAML string containing an awn_schema: block with slot targets (slot_memory, slot_inbox, sidecar, etc.). Example: 'awn_schema:\\n  slot_memory:\\n    fields:\\n      title:\\n        type: string'. Only awn_schema is written; awn_ui and awn_settings are untouched.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/topic-schema", { path, content })
-  );
-
-  reg("read_node_config", "Read node configuration.yml (awn_ui, awn_settings). Does NOT include awn_schema — use read_topic_schema for that.", z.object({ path: nodePath }), ({ path }) =>
-    client.get("/api/file/node-config", { path })
-  );
-
-  reg(
-    "write_node_config",
-    "Save node configuration.yml settings (awn_ui, awn_settings only). Existing awn_schema is preserved automatically — do NOT include awn_schema in content here, use write_topic_schema instead.",
-    z.object({ path: nodePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/node-config", { path, content })
-  );
-
   reg(
     "create_external_memory",
-    "Create note in awn-storage/main/. path = topic manifest.md (e.g. awn-container/finansy/manifest.md). parent = section inside main/ (e.g. raskhody or raskhody/2026/07/26). Do NOT include awn-storage/main/ in parent or file paths.",
+    "[Legacy → create_slot_record folder=main] Create note in awn-storage/main/. path = topic manifest.md. parent = section inside main/. Prefer create_slot_record for any external slot.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       title: z.string().optional(),
       displayName: z.string().optional(),
       fileMask: z.string().optional(),
@@ -298,133 +249,69 @@ function createServer() {
   );
 
   reg(
-    "create_node",
-    "Create area (type folder) or topic (type file). displayName/title → awn-name in manifest; slug or name → folder on disk (transliterated when Cyrillic).",
-    z
-      .object({
-        parentPath: z.string().optional(),
-        type: z.enum(["folder", "file"]),
-        name: z.string().min(1).optional(),
-        displayName: z.string().min(1).optional(),
-        title: z.string().optional(),
-        slug: z.string().optional(),
-        awnType: z.string().optional()
-      })
-      .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
-        message: "Provide displayName, title, name, or slug"
-      }),
-    ({ parentPath, type, name, displayName, title, slug, awnType }) =>
-      client.post("/api/node/create", {
-        parentPath: parentPath || ".",
-        type,
-        name,
-        displayName,
-        title,
-        slug,
-        awnType
-      })
-  );
-
-  reg("delete_node", "Delete area, topic, or part folder.", z.object({ path: nodePath }), ({ path }) =>
-    client.delete("/api/file", { path })
-  );
-
-  reg(
-    "rename_node",
-    "Rename area/topic. displayName → awn-name; slug → folder/filename on disk (transliterated from displayName when omitted). Do not pass Cyrillic as slug.",
-    z
-      .object({
-        path: nodePath,
-        displayName: z.string().min(1).optional(),
-        slug: z.string().optional(),
-        title: z.string().min(1).optional()
-      })
-      .refine((value) => Boolean(value.displayName || value.title), {
-        message: "displayName or title is required"
-      }),
-    ({ path, displayName, slug, title }) =>
-      client.post("/api/file/title", {
-        path,
-        displayName: displayName || undefined,
-        slug: slug || undefined,
-        title: title || displayName
-      })
-  );
-
-  reg(
-    "move_node",
-    "Move area/topic folder or topic .md to another parent folder.",
-    z.object({
-      path: nodePath,
-      parentPath: z.string().describe("Target parent folder path, e.g. awn-container/kollektsii or .")
-    }),
-    ({ path, parentPath }) => client.post("/api/node/move", { path, parentPath })
-  );
-
-  reg(
     "read_memory_summary",
     "Memory layer summary for topic (main/memory/tabular counts).",
-    z.object({ path: nodePath }),
+    z.object({ path: pagePath }),
     ({ path }) => client.get("/api/memory/summary", { path })
   );
 
   reg(
     "read_tabular_memory",
     "Read tabular memory CSV (awn-storage/memory/main.csv or topic tabular layer).",
-    z.object({ path: nodePath, file: z.string().optional() }),
+    z.object({ path: pagePath, file: z.string().optional() }),
     ({ path, file }) => client.get("/api/memory/tabular", { path, file })
   );
 
   reg(
     "write_tabular_memory",
     "Save tabular memory CSV.",
-    z.object({ path: nodePath, content: z.string(), file: z.string().optional() }),
+    z.object({ path: pagePath, content: z.string(), file: z.string().optional() }),
     ({ path, content, file }) => client.post("/api/memory/tabular", { path, content, file })
   );
 
   reg(
     "read_internal_memory",
     "Read single-file internal memory bundle (legacy memory.md / main.md layer).",
-    z.object({ path: nodePath }),
+    z.object({ path: pagePath }),
     ({ path }) => client.get("/api/memory/internal", { path })
   );
 
   reg(
     "write_internal_memory",
     "Save single-file memory.",
-    z.object({ path: nodePath, content: z.string() }),
+    z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/memory/internal", { path, content })
   );
 
-  reg("list_external_memory", "List .md notes in awn-storage/main/.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_external_memory", "[Legacy → list_slot_records folder=main] List .md notes in awn-storage/main/.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/external/files", { path })
   );
 
   reg(
     "read_external_memory",
     "Read one note from awn-storage/main/.",
-    z.object({ path: nodePath, file: extFile }),
+    z.object({ path: pagePath, file: extFile }),
     ({ path, file }) => client.get("/api/external/file", { path, file })
   );
 
   reg(
     "write_external_memory",
     "Save note to awn-storage/main/. path = topic manifest.md OR section manifest.md inside main/. file = relative path only (e.g. 2026/07/26/note.md or raskhody/note.md) — never awn-storage/main/... inside file.",
-    z.object({ path: nodePath, file: extFile, content: z.string() }),
+    z.object({ path: pagePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
   );
 
   reg(
     "rename_external_memory",
     "Rename .md record in awn-storage/main/.",
-    z.object({ path: nodePath, file: extFile, title: z.string().min(1) }),
+    z.object({ path: pagePath, file: extFile, title: z.string().min(1) }),
     ({ path, file, title }) => client.post("/api/external/file/rename", { path, file, title })
   );
 
   reg(
     "delete_external_memory",
     "Delete .md record from awn-storage/main/.",
-    z.object({ path: nodePath, file: extFile }),
+    z.object({ path: pagePath, file: extFile }),
     ({ path, file }) => client.delete("/api/external/file", { path, file })
   );
 
@@ -432,50 +319,50 @@ function createServer() {
     "move_external_memory",
     "Move .md record within or across topics (awn-storage/main/).",
     z.object({
-      path: nodePath,
+      path: pagePath,
       file: extFile,
-      targetPath: nodePath.optional().describe("Destination topic manifest; defaults to source topic"),
+      targetPath: pagePath.optional().describe("Destination topic manifest; defaults to source topic"),
       targetFile: z.string().optional().describe("Destination relative path in main/, e.g. 2026/06/note.md")
     }),
     ({ path, file, targetPath, targetFile }) =>
       client.post("/api/external/file/move", { path, file, targetPath, targetFile })
   );
 
-  reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/todo", { path })
   );
 
   reg(
     "write_todo",
     "Save node todo (`*.node.todo.md`).",
-    z.object({ path: nodePath, content: z.string() }),
+    z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/todo", { path, content })
   );
 
-  reg("read_configuration", "Read configuration.yml.", z.object({ path: nodePath }), ({ path }) =>
+  reg("read_configuration", "Read configuration.yml.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/configuration", { path })
   );
 
   reg(
     "write_configuration",
     "Save configuration.yml.",
-    z.object({ path: nodePath, content: z.string() }),
+    z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/configuration", { path, content })
   );
 
-  reg("read_env", "Read .env.", z.object({ path: nodePath }), ({ path }) => client.get("/api/env", { path }));
+  reg("read_env", "Read .env.", z.object({ path: pagePath }), ({ path }) => client.get("/api/env", { path }));
 
   reg(
     "write_env",
     "Save .env.",
-    z.object({ path: nodePath, content: z.string() }),
+    z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/env", { path, content })
   );
 
   reg(
     "list_folder",
     "List inbox/, scripts/, etc.",
-    z.object({ path: nodePath, folder: z.string().min(1) }),
+    z.object({ path: pagePath, folder: z.string().min(1) }),
     ({ path, folder }) => client.get("/api/folder/view", { path, folder })
   );
 
@@ -538,14 +425,14 @@ function createServer() {
   reg(
     "read_storage_file",
     "Read text file from storage slot (scripts/, artefacts/, repository/, …).",
-    z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile }),
+    z.object({ path: pagePath, folder: storageSlotFolder, file: storageSlotFile }),
     ({ path, folder, file }) => client.get("/api/storage/file", { path, folder, file })
   );
 
   reg(
     "write_storage_file",
     "Write text to storage slot. .md files auto-enriched with typed frontmatter; for new records prefer create_storage_record.",
-    z.object({ path: nodePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
+    z.object({ path: pagePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
     ({ path, folder, file, content }) => client.post("/api/storage/file", { path, folder, file, content })
   );
 
@@ -553,7 +440,7 @@ function createServer() {
     "create_storage_record",
     "Create typed .md record in storage slot (main/, inbox/, notes/, …). For main/: reads awn-mask-file from config when fileMask omitted ({YYYY}/{MM}/{DD}/{id}). Pass fields for custom schema keys (summa, kategoriya-rashoda, …).",
     z.object({
-      path: nodePath,
+      path: pagePath,
       folder: storageSlotFolder,
       title: z.string().optional(),
       displayName: z.string().optional(),
@@ -588,7 +475,7 @@ function createServer() {
     "create_storage_section",
     "Create typed section folder (manifest.md with awn.content.record.category) in inbox/, notes/, references/, artefacts/, scripts/.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       folder: storageSlotFolder,
       title: z.string().min(1),
       displayName: z.string().optional(),
@@ -606,14 +493,14 @@ function createServer() {
       })
   );
 
-  reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/inbox", { path })
   );
 
   reg(
     "read_inbox_item",
     "Read a single inbox item with full body and metadata.",
-    z.object({ path: nodePath, file: z.string().min(1) }),
+    z.object({ path: pagePath, file: z.string().min(1) }),
     ({ path, file }) => client.get("/api/inbox/item", { path, file })
   );
 
@@ -621,7 +508,7 @@ function createServer() {
     "triage_inbox_item",
     "Triage inbox item: to-thread, to-content, mark-done, set-status.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       file: z.string().min(1),
       action: z.enum(["to-thread", "to-content", "mark-done", "set-status"]),
       status: z.enum(["new", "in-progress", "done"]).optional()
@@ -630,7 +517,7 @@ function createServer() {
   );
 
   reg("read_thread", "Read topic dialogue thread messages.", z.object({
-    path: nodePath,
+    path: pagePath,
     mode: z.string().optional(),
     file: z.string().optional(),
     name: z.string().optional()
@@ -642,7 +529,7 @@ function createServer() {
     "append_thread",
     "Append message to topic dialogue thread.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       body: z.string().min(1),
       role: z.enum(["user", "agent"]).optional(),
       author: z.string().optional(),
@@ -655,14 +542,14 @@ function createServer() {
       client.post("/api/thread", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
-  reg("get_topic_intake", "Inbox pending + thread summary for a topic.", z.object({ path: nodePath }), ({ path }) =>
+  reg("get_topic_intake", "Inbox pending + thread summary for a topic.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/topic/intake", { path })
   );
 
   reg(
     "get_intake_batch",
     "Batch inbox/thread summary for multiple topics.",
-    z.object({ paths: z.array(nodePath).min(1).max(120) }),
+    z.object({ paths: z.array(pagePath).min(1).max(120) }),
     ({ paths }) => client.post("/api/intake/batch", { paths })
   );
 
@@ -670,7 +557,7 @@ function createServer() {
     "create_inbox_item",
     "Create inbox intake note for a topic.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       title: z.string().optional(),
       body: z.string().optional(),
       source: z.string().optional(),
@@ -684,7 +571,7 @@ function createServer() {
     "list_comments",
     "List human discussion comments on a node or file (Overview/Navigation scope).",
     z.object({
-      path: nodePath,
+      path: pagePath,
       mode: z.string().optional(),
       file: z.string().optional(),
       name: z.string().optional()
@@ -696,7 +583,7 @@ function createServer() {
     "append_comment",
     "Append a comment to node/file discussion thread.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       body: z.string().min(1),
       author: z.string().optional(),
       replyTo: z.string().optional(),
@@ -712,7 +599,7 @@ function createServer() {
     "toggle_comment_reaction",
     "Toggle 👍 reaction on a comment.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       commentId: z.string().min(1),
       author: z.string().optional(),
       reaction: z.enum(["up"]).optional(),
@@ -732,21 +619,21 @@ function createServer() {
       })
   );
 
-  reg("list_media", "List media/.", z.object({ path: nodePath }), ({ path }) =>
+  reg("list_media", "List media/.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/media", { path })
   );
 
   reg(
     "read_media_sidecar",
     "Read media sidecar.",
-    z.object({ path: nodePath, file: extFile }),
+    z.object({ path: pagePath, file: extFile }),
     ({ path, file }) => client.get("/api/media/sidecar", { path, file })
   );
 
   reg(
     "write_media_sidecar",
     "Save media sidecar.",
-    z.object({ path: nodePath, file: extFile, content: z.string() }),
+    z.object({ path: pagePath, file: extFile, content: z.string() }),
     ({ path, file, content }) => client.post("/api/media/sidecar", { path, file, content })
   );
 
@@ -754,7 +641,7 @@ function createServer() {
     "rename_media_file",
     "Rename media file and its sidecar.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       file: extFile,
       title: z.string().min(1).optional(),
       name: z.string().min(1).optional()
@@ -765,7 +652,7 @@ function createServer() {
   reg(
     "delete_media_file",
     "Delete media file and its sidecar.",
-    z.object({ path: nodePath, file: extFile }),
+    z.object({ path: pagePath, file: extFile }),
     ({ path, file }) => client.delete("/api/media/file", { path, file })
   );
 
@@ -773,9 +660,9 @@ function createServer() {
     "move_media_file",
     "Move media file within or across topics.",
     z.object({
-      path: nodePath,
+      path: pagePath,
       file: extFile,
-      targetPath: nodePath.optional().describe("Destination topic manifest; defaults to source topic"),
+      targetPath: pagePath.optional().describe("Destination topic manifest; defaults to source topic"),
       targetFile: z.string().optional().describe("Destination relative path in media/")
     }),
     ({ path, file, targetPath, targetFile }) =>
@@ -901,7 +788,7 @@ function createServer() {
     z.object({
       title: z.string().min(1).describe("Short title in the notification list"),
       message: z.string().optional().describe("Optional longer body text"),
-      path: nodePath.optional().describe("Optional manifest.md — opens the topic when the user clicks the notification")
+      path: pagePath.optional().describe("Optional manifest.md — opens the topic when the user clicks the notification")
     }),
     ({ title, message, path }) =>
       client.post("/api/agent/activity/notify", {
@@ -915,6 +802,15 @@ function createServer() {
   reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
     client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );
+
+  registerPageAndSlotTools({
+    reg,
+    client,
+    pagePath,
+    extFile,
+    storageSlotFolder,
+    storageSlotFile
+  });
 
   return server;
 }
