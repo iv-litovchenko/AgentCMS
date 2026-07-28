@@ -33177,7 +33177,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .node-entry-overview-slot-counters {
-  margin-bottom: 0;
+  margin: 0 0 12px;
   min-height: 0;
 }
 

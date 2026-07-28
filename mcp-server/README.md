@@ -78,13 +78,14 @@ CMS должен быть запущен (`npm start` в YamlCMS).
 get_session_context
 ```
 
-### Канон v1 (страницы и слоты)
+### Канон v0.3 (PAGE · SLOT · CONTENT)
 
-- **Страница** (`awn.page.*`) — manifest.md в меню; MCP: `get_page_meta`, `read_page_*`, `write_page_*`, `create_page`
-- **External-слот** — папка (`main/`, `inbox/`, `references/`, …): `list_slot_records`, `create_slot_record`
-- **Internal-слот** — файл (`main.md`, `main.csv`, `todo.md`): `read_internal_slot`, `write_internal_slot`
+- **PAGE** — manifest.md; `get_page_meta`, `read/write_page_*`, `create_page`
+- **SLOT** — `list_page_slots` (driver, allowedContent)
+- **CONTENT** — единая ветка: `list_content`, `read/write_content_*`, `create_content`, `upload_content`
+- **Типы** — `list_page_types`, `list_content_types`
 
-HTTP aliases: `/api/page/*` → `/api/node/*`, `/api/file/page-config` → `/api/file/node-config`, `/api/file/page-schema` → `/api/file/topic-schema`
+HTTP: `/api/page/slots`, `/api/page/*`, content tools → существующие storage/media API
 
 Ответ включает:
 

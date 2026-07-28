@@ -3,24 +3,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
-import { registerPageAndSlotTools } from "./lib/page-slot-tools.js";
+import { registerPageTools } from "./lib/page-tools.js";
+import { registerSlotTools } from "./lib/slot-tools.js";
+import { registerContentTools } from "./lib/content-tools.js";
+import { registerTypeListTools } from "./lib/type-list-tools.js";
 
 const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md (legacy _registration.md accepted)"
+    "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
   );
 
-const extFile = z.string().min(1).describe("File name under awn-storage/main/ or media/, e.g. notes.md");
-const storageSlotFolder = z
-  .string()
-  .min(1)
-  .describe("Storage slot folder: scripts, artefacts, repository, references, notes, assets, temp, main, configuration");
-const storageSlotFile = z
-  .string()
-  .min(1)
-  .describe("Relative file path inside the slot folder, e.g. fetch.py or exports/report.json");
 const workspaceFolderPath = z
   .string()
   .min(1)
@@ -77,11 +71,13 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.2.0" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.0" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
   };
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
 
   reg("list_agents", "List agents from awn-agents.json registry.", z.object({}), () =>
     client.get("/api/agents", {}, { agentScope: false })
@@ -89,7 +85,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: one-shot session bootstrap — agent/user manifests, session-start topics, runtimeSyncTopics (cron/heartbeat), AGENTS.md, API map, path hints.",
+    "START HERE: session bootstrap — manifests, session-start topics, AGENTS.md, API map, path hints.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
@@ -98,66 +94,22 @@ function createServer() {
     client.get("/api/mcp-docs", { version: "0.0.2" }, { agentScope: false })
   );
 
+  reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
+    client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
+  );
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+
   reg("get_menu", "Workspace tree: areas and topics (manifest.md paths).", z.object({}), () =>
     client.get("/api/menu")
   );
 
   reg(
-    "get_runtime_registry",
-    "Topic runtime registry (awn-runtime-load-always, cron, heartbeat). Optional filter: sync, cron, heartbeat, mode.",
-    runtimeFilterSchema,
-    (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
-  );
-
-  reg(
-    "get_runtime_map",
-    "Runtime sync map — topics with cron and/or heartbeat (like site map for agent automation sync).",
-    runtimeFilterSchema,
-    (args) => client.get("/api/agent/runtime-map", runtimeFilterQuery(args))
-  );
-
-  reg("get_storage_layout", "awn-storage slot layout (named-slots-v2) for all containers.", z.object({}), () =>
-    client.get("/api/agent/storage-layout")
-  );
-
-  reg("get_workspace_table", "Flat workspace table for agent dashboard.", z.object({}), () =>
-    client.get("/api/agent/workspace-table")
-  );
-
-  reg(
-    "get_canonical_model",
-    "Canonical CMS model v1: page types (ws/area/topic), slot content types (record/record.category/sidecar), slot bindings.",
-    z.object({}),
-    () => client.get("/api/agent/canonical-model")
-  );
-
-  reg(
-    "get_site_map",
-    "Site map — all areas and topics with manifest paths and awn-type.",
-    z.object({}),
-    () => client.get("/api/agent/site-map")
-  );
-
-  reg("list_awn_types", "awn-type catalog for current agent workspace.", z.object({}), () =>
-    client.get("/api/awn-types")
-  );
-
-  reg(
-    "get_type_health",
-    "Validate agent type model: broken extends, views without contentMode, blocks without template, slots without path. Use before/after editing awn-system/types/.",
-    z.object({}),
-    () => client.get("/api/agent/type-health")
-  );
-
-  reg(
     "search_workspace",
-    "Search workspace (same as UI header search). Default scope=all: filenames, topic meta (name/slug/tags), and file content. match=relaxed (soft, multi-word, ignores spaces/hyphens) or strict. Wildcards * and ? in query.",
+    "Search workspace (UI header search). scope=all by default. match=relaxed|strict.",
     z.object({
       query: z.string().min(1),
-      scope: z
-        .enum(["all", "content", "filename", "description", "tags"])
-        .optional()
-        .describe("Search scope; default all (UI «Везде»)."),
+      scope: z.enum(["all", "content", "filename", "description", "tags"]).optional(),
       fileType: z
         .enum([
           "all",
@@ -173,12 +125,8 @@ function createServer() {
           "config",
           "other"
         ])
-        .optional()
-        .describe("Filter by file format; default all."),
-      match: z
-        .enum(["relaxed", "strict"])
-        .optional()
-        .describe("Match mode: relaxed (default, LIKE %%, multi-word) or strict substring."),
+        .optional(),
+      match: z.enum(["relaxed", "strict"]).optional(),
       limit: z.number().int().min(1).max(100).optional()
     }),
     ({ query, scope, fileType, match, limit }) =>
@@ -191,23 +139,66 @@ function createServer() {
       })
   );
 
-  reg("list_type_catalog", "Platform type catalog (pages, fields, md-blocks, content slots).", z.object({}), () =>
+  reg(
+    "get_runtime_registry",
+    "Topic runtime registry. Filter: sync, cron, heartbeat, mode.",
+    runtimeFilterSchema,
+    (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
+  );
+
+  reg(
+    "get_runtime_map",
+    "Runtime sync map — topics with cron and/or heartbeat.",
+    runtimeFilterSchema,
+    (args) => client.get("/api/agent/runtime-map", runtimeFilterQuery(args))
+  );
+
+  reg("get_storage_layout", "awn-storage slot layout for all containers.", z.object({}), () =>
+    client.get("/api/agent/storage-layout")
+  );
+
+  reg("get_workspace_table", "Flat workspace table.", z.object({}), () =>
+    client.get("/api/agent/workspace-table")
+  );
+
+  reg(
+    "get_canonical_model",
+    "Canonical CMS model v1: page types, slot content types, bindings.",
+    z.object({}),
+    () => client.get("/api/agent/canonical-model")
+  );
+
+  reg("get_site_map", "Site map — areas and topics with manifest paths.", z.object({}), () =>
+    client.get("/api/agent/site-map")
+  );
+
+  reg("list_awn_types", "Full effective awn-type catalog for agent workspace.", z.object({}), () =>
+    client.get("/api/awn-types")
+  );
+
+  reg("get_type_health", "Validate agent type model in awn-system/types/.", z.object({}), () =>
+    client.get("/api/agent/type-health")
+  );
+
+  // ── Platform catalogs ──────────────────────────────────────────────────────
+
+  reg("list_type_catalog", "Platform type catalog.", z.object({}), () =>
     client.get("/api/type-catalog", {}, { agentScope: false })
   );
 
-  reg("list_components", "Platform component registry (fields, blocks, frames, …).", z.object({}), () =>
+  reg("list_components", "Platform component registry.", z.object({}), () =>
     client.get("/api/components", {}, { agentScope: false })
   );
 
-  reg("list_platform_catalogs", "Global platform catalogs (tags, categories, statuses, …).", z.object({}), () =>
+  reg("list_platform_catalogs", "Global platform catalogs.", z.object({}), () =>
     client.get("/api/platform/catalogs", {}, { agentScope: false })
   );
 
-  reg("list_agent_catalogs", "Merged global + local catalogs for current agent.", z.object({}), () =>
+  reg("list_agent_catalogs", "Merged global + local catalogs.", z.object({}), () =>
     client.get("/api/agent/catalogs")
   );
 
-  reg("get_platform_index", "Platform navigation index from data/index.json.", z.object({}), () =>
+  reg("get_platform_index", "Platform navigation index.", z.object({}), () =>
     client.get("/api/platform/index", {}, { agentScope: false })
   );
 
@@ -224,274 +215,14 @@ function createServer() {
     (payload) => client.post("/api/agent/catalogs/items", payload)
   );
 
-  reg(
-    "create_external_memory",
-    "[Legacy → create_slot_record folder=main] Create note in awn-storage/main/. path = topic manifest.md. parent = section inside main/. Prefer create_slot_record for any external slot.",
-    z.object({
-      path: pagePath,
-      title: z.string().optional(),
-      displayName: z.string().optional(),
-      fileMask: z.string().optional(),
-      parent: z
-        .string()
-        .optional()
-        .describe("Section folder inside main/, e.g. raskhody or raskhody/2026/07/26 — never awn-storage/main/...")
-    }),
-    ({ path, title, displayName, fileMask, parent }) =>
-      client.post("/api/external/file/create", {
-        path,
-        title,
-        displayName: displayName || title,
-        fileMask,
-        mask: fileMask,
-        parent
-      })
-  );
+  // ── Page / Slot / Content (canonical v2) ───────────────────────────────────
 
-  reg(
-    "read_memory_summary",
-    "Memory layer summary for topic (main/memory/tabular counts).",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/memory/summary", { path })
-  );
+  registerPageTools({ reg, client, pagePath });
+  registerSlotTools({ reg, client, pagePath });
+  registerContentTools({ reg, client, pagePath });
+  registerTypeListTools({ reg, client });
 
-  reg(
-    "read_tabular_memory",
-    "Read tabular memory CSV (awn-storage/memory/main.csv or topic tabular layer).",
-    z.object({ path: pagePath, file: z.string().optional() }),
-    ({ path, file }) => client.get("/api/memory/tabular", { path, file })
-  );
-
-  reg(
-    "write_tabular_memory",
-    "Save tabular memory CSV.",
-    z.object({ path: pagePath, content: z.string(), file: z.string().optional() }),
-    ({ path, content, file }) => client.post("/api/memory/tabular", { path, content, file })
-  );
-
-  reg(
-    "read_internal_memory",
-    "Read single-file internal memory bundle (legacy memory.md / main.md layer).",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/memory/internal", { path })
-  );
-
-  reg(
-    "write_internal_memory",
-    "Save single-file memory.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/memory/internal", { path, content })
-  );
-
-  reg("list_external_memory", "[Legacy → list_slot_records folder=main] List .md notes in awn-storage/main/.", z.object({ path: pagePath }), ({ path }) =>
-    client.get("/api/external/files", { path })
-  );
-
-  reg(
-    "read_external_memory",
-    "Read one note from awn-storage/main/.",
-    z.object({ path: pagePath, file: extFile }),
-    ({ path, file }) => client.get("/api/external/file", { path, file })
-  );
-
-  reg(
-    "write_external_memory",
-    "Save note to awn-storage/main/. path = topic manifest.md OR section manifest.md inside main/. file = relative path only (e.g. 2026/07/26/note.md or raskhody/note.md) — never awn-storage/main/... inside file.",
-    z.object({ path: pagePath, file: extFile, content: z.string() }),
-    ({ path, file, content }) => client.post("/api/external/file", { path, file, content })
-  );
-
-  reg(
-    "rename_external_memory",
-    "Rename .md record in awn-storage/main/.",
-    z.object({ path: pagePath, file: extFile, title: z.string().min(1) }),
-    ({ path, file, title }) => client.post("/api/external/file/rename", { path, file, title })
-  );
-
-  reg(
-    "delete_external_memory",
-    "Delete .md record from awn-storage/main/.",
-    z.object({ path: pagePath, file: extFile }),
-    ({ path, file }) => client.delete("/api/external/file", { path, file })
-  );
-
-  reg(
-    "move_external_memory",
-    "Move .md record within or across topics (awn-storage/main/).",
-    z.object({
-      path: pagePath,
-      file: extFile,
-      targetPath: pagePath.optional().describe("Destination topic manifest; defaults to source topic"),
-      targetFile: z.string().optional().describe("Destination relative path in main/, e.g. 2026/06/note.md")
-    }),
-    ({ path, file, targetPath, targetFile }) =>
-      client.post("/api/external/file/move", { path, file, targetPath, targetFile })
-  );
-
-  reg("read_todo", "Read node todo (`*.node.todo.md`).", z.object({ path: pagePath }), ({ path }) =>
-    client.get("/api/todo", { path })
-  );
-
-  reg(
-    "write_todo",
-    "Save node todo (`*.node.todo.md`).",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/todo", { path, content })
-  );
-
-  reg("read_configuration", "Read configuration.yml.", z.object({ path: pagePath }), ({ path }) =>
-    client.get("/api/configuration", { path })
-  );
-
-  reg(
-    "write_configuration",
-    "Save configuration.yml.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/configuration", { path, content })
-  );
-
-  reg("read_env", "Read .env.", z.object({ path: pagePath }), ({ path }) => client.get("/api/env", { path }));
-
-  reg(
-    "write_env",
-    "Save .env.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/env", { path, content })
-  );
-
-  reg(
-    "list_folder",
-    "List inbox/, scripts/, etc.",
-    z.object({ path: pagePath, folder: z.string().min(1) }),
-    ({ path, folder }) => client.get("/api/folder/view", { path, folder })
-  );
-
-  reg(
-    "list_adopt_folders",
-    "List free memory folders (Свободная память): disk folders without manifest.md — visible in menu but not yet CMS areas.",
-    z.object({}),
-    () => client.get("/api/workspace/folder/adopt")
-  );
-
-  reg(
-    "browse_workspace_folder",
-    "Browse one level of free memory (Свободная память): images, markdown pages, videos, nested folders.",
-    z.object({ folderPath: workspaceFolderPath }),
-    ({ folderPath }) => client.get("/api/workspace/folder/browse", { folderPath })
-  );
-
-  reg(
-    "scan_workspace_folder",
-    "Recursive inventory of free memory folder for topic triage: flat items with kind/path/excerpt. Use depth=all + includeBody for full material review.",
-    z.object({
-      folderPath: workspaceFolderPath,
-      depth: z
-        .union([z.string(), z.number()])
-        .optional()
-        .describe("1 = immediate only, 2+ = nested levels, all/0 = full tree (max 500 items)."),
-      includeBody: z.boolean().optional().describe("Include truncated markdown/text body for pages and text files."),
-      maxBodyChars: z.number().int().min(200).max(20000).optional()
-    }),
-    ({ folderPath, depth, includeBody, maxBodyChars }) =>
-      client.get("/api/workspace/folder/scan", {
-        folderPath,
-        ...(depth != null ? { depth: String(depth) } : {}),
-        ...(includeBody ? { includeBody: "true" } : {}),
-        ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
-      })
-  );
-
-  reg(
-    "read_workspace_page",
-    "Read markdown page from free memory folder (.md with frontmatter + body).",
-    z.object({ file: workspaceFilePath }),
-    ({ file }) => client.get("/api/workspace/folder/page", { file })
-  );
-
-  reg(
-    "read_workspace_text_file",
-    "Read text file from free memory folder (.md, .txt, .csv, .json, .yaml, .pine, …).",
-    z.object({
-      file: workspaceFilePath,
-      maxBytes: z.number().int().min(1024).max(120000).optional()
-    }),
-    ({ file, maxBytes }) =>
-      client.get("/api/workspace/folder/text", {
-        file,
-        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {})
-      })
-  );
-
-  reg(
-    "read_storage_file",
-    "Read text file from storage slot (scripts/, artefacts/, repository/, …).",
-    z.object({ path: pagePath, folder: storageSlotFolder, file: storageSlotFile }),
-    ({ path, folder, file }) => client.get("/api/storage/file", { path, folder, file })
-  );
-
-  reg(
-    "write_storage_file",
-    "Write text to storage slot. .md files auto-enriched with typed frontmatter; for new records prefer create_storage_record.",
-    z.object({ path: pagePath, folder: storageSlotFolder, file: storageSlotFile, content: z.string() }),
-    ({ path, folder, file, content }) => client.post("/api/storage/file", { path, folder, file, content })
-  );
-
-  reg(
-    "create_storage_record",
-    "Create typed .md record in storage slot (main/, inbox/, notes/, …). For main/: reads awn-mask-file from config when fileMask omitted ({YYYY}/{MM}/{DD}/{id}). Pass fields for custom schema keys (summa, kategoriya-rashoda, …).",
-    z.object({
-      path: pagePath,
-      folder: storageSlotFolder,
-      title: z.string().optional(),
-      displayName: z.string().optional(),
-      slug: z.string().optional(),
-      parent: z.string().optional(),
-      body: z.string().optional(),
-      fileMask: z.string().optional(),
-      fields: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-      source: z.string().optional(),
-      author: z.string().optional(),
-      status: z.string().optional()
-    }),
-    ({ path, folder, title, displayName, slug, parent, body, fileMask, fields, source, author, status }) =>
-      client.post("/api/storage/file/create", {
-        path,
-        folder,
-        title: title || displayName,
-        displayName: displayName || title,
-        slug,
-        parent,
-        body,
-        fileMask,
-        mask: fileMask,
-        fields,
-        source,
-        author,
-        status
-      })
-  );
-
-  reg(
-    "create_storage_section",
-    "Create typed section folder (manifest.md with awn.content.record.category) in inbox/, notes/, references/, artefacts/, scripts/.",
-    z.object({
-      path: pagePath,
-      folder: storageSlotFolder,
-      title: z.string().min(1),
-      displayName: z.string().optional(),
-      slug: z.string().optional(),
-      parent: z.string().optional()
-    }),
-    ({ path, folder, title, displayName, slug, parent }) =>
-      client.post("/api/storage/section/create", {
-        path,
-        folder,
-        title,
-        displayName: displayName || title,
-        slug,
-        parent
-      })
-  );
+  // ── Workflow ───────────────────────────────────────────────────────────────
 
   reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/inbox", { path })
@@ -499,14 +230,14 @@ function createServer() {
 
   reg(
     "read_inbox_item",
-    "Read a single inbox item with full body and metadata.",
+    "Read one inbox item with full body.",
     z.object({ path: pagePath, file: z.string().min(1) }),
     ({ path, file }) => client.get("/api/inbox/item", { path, file })
   );
 
   reg(
     "triage_inbox_item",
-    "Triage inbox item: to-thread, to-content, mark-done, set-status.",
+    "Triage inbox: to-thread, to-content, mark-done, set-status.",
     z.object({
       path: pagePath,
       file: z.string().min(1),
@@ -516,18 +247,35 @@ function createServer() {
     ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
   );
 
-  reg("read_thread", "Read topic dialogue thread messages.", z.object({
-    path: pagePath,
-    mode: z.string().optional(),
-    file: z.string().optional(),
-    name: z.string().optional()
-  }), ({ path, mode, file, name }) =>
-    client.get("/api/thread", { path, mode, file, name })
+  reg(
+    "create_inbox_item",
+    "Create inbox intake note.",
+    z.object({
+      path: pagePath,
+      title: z.string().optional(),
+      body: z.string().optional(),
+      source: z.string().optional(),
+      author: z.string().optional()
+    }),
+    ({ path, title, body, source, author }) =>
+      client.post("/api/inbox/create", { path, title, body, source, author })
+  );
+
+  reg(
+    "read_thread",
+    "Read topic dialogue thread.",
+    z.object({
+      path: pagePath,
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/thread", { path, mode, file, name })
   );
 
   reg(
     "append_thread",
-    "Append message to topic dialogue thread.",
+    "Append message to topic thread.",
     z.object({
       path: pagePath,
       body: z.string().min(1),
@@ -542,7 +290,7 @@ function createServer() {
       client.post("/api/thread", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
-  reg("get_topic_intake", "Inbox pending + thread summary for a topic.", z.object({ path: pagePath }), ({ path }) =>
+  reg("get_topic_intake", "Inbox + thread summary for a topic.", z.object({ path: pagePath }), ({ path }) =>
     client.get("/api/topic/intake", { path })
   );
 
@@ -554,22 +302,8 @@ function createServer() {
   );
 
   reg(
-    "create_inbox_item",
-    "Create inbox intake note for a topic.",
-    z.object({
-      path: pagePath,
-      title: z.string().optional(),
-      body: z.string().optional(),
-      source: z.string().optional(),
-      author: z.string().optional()
-    }),
-    ({ path, title, body, source, author }) =>
-      client.post("/api/inbox/create", { path, title, body, source, author })
-  );
-
-  reg(
     "list_comments",
-    "List human discussion comments on a node or file (Overview/Navigation scope).",
+    "List discussion comments on a page or file.",
     z.object({
       path: pagePath,
       mode: z.string().optional(),
@@ -581,7 +315,7 @@ function createServer() {
 
   reg(
     "append_comment",
-    "Append a comment to node/file discussion thread.",
+    "Append a comment.",
     z.object({
       path: pagePath,
       body: z.string().min(1),
@@ -597,7 +331,7 @@ function createServer() {
 
   reg(
     "toggle_comment_reaction",
-    "Toggle 👍 reaction on a comment.",
+    "Toggle 👍 on a comment.",
     z.object({
       path: pagePath,
       commentId: z.string().min(1),
@@ -619,61 +353,169 @@ function createServer() {
       })
   );
 
-  reg("list_media", "List media/.", z.object({ path: pagePath }), ({ path }) =>
-    client.get("/api/media", { path })
+  // ── Workspace (free memory) ────────────────────────────────────────────────
+
+  reg("list_adopt_folders", "List adoptable folders (no manifest.md).", z.object({}), () =>
+    client.get("/api/workspace/folder/adopt")
   );
 
   reg(
-    "read_media_sidecar",
-    "Read media sidecar.",
-    z.object({ path: pagePath, file: extFile }),
-    ({ path, file }) => client.get("/api/media/sidecar", { path, file })
+    "browse_workspace_folder",
+    "Browse one level of free memory folder.",
+    z.object({ folderPath: workspaceFolderPath }),
+    ({ folderPath }) => client.get("/api/workspace/folder/browse", { folderPath })
   );
 
   reg(
-    "write_media_sidecar",
-    "Save media sidecar.",
-    z.object({ path: pagePath, file: extFile, content: z.string() }),
-    ({ path, file, content }) => client.post("/api/media/sidecar", { path, file, content })
-  );
-
-  reg(
-    "rename_media_file",
-    "Rename media file and its sidecar.",
+    "scan_workspace_folder",
+    "Recursive inventory of free memory folder.",
     z.object({
-      path: pagePath,
-      file: extFile,
-      title: z.string().min(1).optional(),
-      name: z.string().min(1).optional()
+      folderPath: workspaceFolderPath,
+      depth: z.union([z.string(), z.number()]).optional(),
+      includeBody: z.boolean().optional(),
+      maxBodyChars: z.number().int().min(200).max(20000).optional()
     }),
-    ({ path, file, title, name }) => client.post("/api/media/file/rename", { path, file, title, name })
+    ({ folderPath, depth, includeBody, maxBodyChars }) =>
+      client.get("/api/workspace/folder/scan", {
+        folderPath,
+        ...(depth != null ? { depth: String(depth) } : {}),
+        ...(includeBody ? { includeBody: "true" } : {}),
+        ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
+      })
   );
 
   reg(
-    "delete_media_file",
-    "Delete media file and its sidecar.",
-    z.object({ path: pagePath, file: extFile }),
-    ({ path, file }) => client.delete("/api/media/file", { path, file })
+    "read_workspace_page",
+    "Read markdown page from free memory.",
+    z.object({ file: workspaceFilePath }),
+    ({ file }) => client.get("/api/workspace/folder/page", { file })
   );
 
   reg(
-    "move_media_file",
-    "Move media file within or across topics.",
+    "read_workspace_text_file",
+    "Read text file from free memory.",
     z.object({
-      path: pagePath,
-      file: extFile,
-      targetPath: pagePath.optional().describe("Destination topic manifest; defaults to source topic"),
-      targetFile: z.string().optional().describe("Destination relative path in media/")
+      file: workspaceFilePath,
+      maxBytes: z.number().int().min(1024).max(120000).optional()
     }),
-    ({ path, file, targetPath, targetFile }) =>
-      client.post("/api/media/file/move", { path, file, targetPath, targetFile })
+    ({ file, maxBytes }) =>
+      client.get("/api/workspace/folder/text", {
+        file,
+        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {})
+      })
+  );
+
+  reg(
+    "upload_workspace_file",
+    "Upload file to free memory folder (not a topic slot). data = base64.",
+    z.object({
+      folderPath: workspaceFolderPath,
+      fileName: z.string().min(1),
+      data: z.string().min(1),
+      mimeType: z.string().optional()
+    }),
+    ({ folderPath, fileName, data, mimeType }) =>
+      client.post("/api/workspace/folder/upload", { folderPath, fileName, data, mimeType })
+  );
+
+  // ── awn-system ─────────────────────────────────────────────────────────────
+
+  reg("get_agent_system_status", "Agent awn-system status.", z.object({}), () =>
+    client.get("/api/agent-system/status", {})
+  );
+
+  reg("list_view_types", "Available awn.view.* types.", z.object({}), () =>
+    client.get("/api/agent-system/views", {})
+  );
+
+  reg(
+    "get_agent_system_type",
+    "Type details by id or catalog path.",
+    z.object({
+      id: z.string().optional(),
+      path: z.string().optional()
+    }),
+    ({ id, path }) => client.get("/api/agent-system/type", { id, path })
+  );
+
+  reg(
+    "read_agent_system_file",
+    "Read awn-system file (types/*.yml, MAP.md, …).",
+    z.object({ path: z.string().min(1) }),
+    ({ path }) => client.get("/api/agent-system/file", { path })
+  );
+
+  reg(
+    "write_agent_system_file",
+    "Write awn-system file.",
+    z.object({ path: z.string().min(1), content: z.string() }),
+    ({ path, content }) => client.post("/api/agent-system/file", { path, content })
+  );
+
+  // ── Shell & notifications ──────────────────────────────────────────────────
+
+  reg("shell_get_status", "Agent Shell status.", z.object({}), () => client.get("/api/shell/status"));
+
+  reg(
+    "shell_post_message",
+    "Send message to Agent Shell thread.",
+    z.object({ body: z.string().min(1), author: z.string().optional() }),
+    ({ body, author }) => client.post("/api/shell/message", { body, author: author || "agent-mcp" })
+  );
+
+  reg("shell_stop_tts", "Stop Shell TTS.", z.object({}), () => client.post("/api/shell/stop-tts", {}));
+
+  reg(
+    "shell_camera_snapshot",
+    "Capture Shell camera frame.",
+    z.object({
+      waitMs: z.number().int().min(1000).max(60000).optional(),
+      reason: z.string().optional(),
+      kind: z.enum(["live", "speech", "manual"]).optional()
+    }),
+    async ({ waitMs, reason, kind }) => {
+      const mode = kind || "live";
+      if (mode === "speech" || mode === "manual") {
+        return client.get("/api/shell/camera/latest", { kind: mode });
+      }
+      return client.post("/api/shell/camera/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
+    }
+  );
+
+  reg(
+    "shell_screenshot",
+    "Capture Shell screen frame.",
+    z.object({
+      waitMs: z.number().int().min(1000).max(60000).optional(),
+      reason: z.string().optional(),
+      kind: z.enum(["live", "speech", "manual"]).optional()
+    }),
+    async ({ waitMs, reason, kind }) => {
+      const mode = kind || "live";
+      if (mode === "speech" || mode === "manual") {
+        return client.get("/api/shell/screen/latest", { kind: mode });
+      }
+      return client.post("/api/shell/screen/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
+    }
+  );
+
+  reg(
+    "notify_user",
+    "Push notification to CMS bell.",
+    z.object({
+      title: z.string().min(1),
+      message: z.string().optional(),
+      path: pagePath.optional()
+    }),
+    ({ title, message, path }) =>
+      client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
   );
 
   reg("list_system_files", "List agent system files.", z.object({}), () => client.get("/api/system-files"));
 
   reg(
     "read_system_file",
-    "Read system file.",
+    "Read system file (AGENTS.md, …).",
     z.object({ name: z.string().min(1) }),
     ({ name }) => client.get("/api/system-file", { name })
   );
@@ -684,133 +526,6 @@ function createServer() {
     z.object({ name: z.string().min(1), content: z.string() }),
     ({ name, content }) => client.post("/api/system-file", { name, content })
   );
-
-  // ── awn-system (CMS model: types, views, fields) ─────────────────────────────
-
-  reg(
-    "get_agent_system_status",
-    "Get agent awn-system status: whether it exists, type count, active domains.",
-    z.object({}),
-    () => client.get("/api/agent-system/status", {})
-  );
-
-  reg(
-    "list_view_types",
-    "List available view types (awn.view.*) with their contentMode mapping. Use to know which views can be set as default_landing_mode for a topic.",
-    z.object({}),
-    () => client.get("/api/agent-system/views", {})
-  );
-
-  reg(
-    "get_agent_system_type",
-    "Get resolved type details: inheritance chain, merged fields, storage slots. Use 'id' (e.g. 'awn.page.topic') or 'path' (e.g. 'awn-system/types/pages/topic.yml').",
-    z.object({
-      id: z.string().optional().describe("Type id, e.g. awn.page.topic"),
-      path: z.string().optional().describe("Catalog-relative path, e.g. awn-system/types/pages/topic.yml")
-    }),
-    ({ id, path }) => client.get("/api/agent-system/type", { id, path })
-  );
-
-  reg(
-    "read_agent_system_file",
-    "Read a file from agent awn-system (types/*.yml, MAP.md, slots-bindings.yml, registry.yml). Path is relative to agent root, e.g. 'awn-system/types/content/record.yml'.",
-    z.object({ path: z.string().min(1).describe("Path relative to agent root, starting with awn-system/") }),
-    ({ path }) => client.get("/api/agent-system/file", { path })
-  );
-
-  reg(
-    "write_agent_system_file",
-    "Create or update a file in agent awn-system. Allowed: awn-system/types/**/*.yml, awn-system/MAP.md, awn-system/slots-bindings.yml. To CREATE a new type: path = 'awn-system/types/{domain}/{slug}.yml', content = valid YAML with id, name, kind, domain, status fields. Domains: base, pages, content, slots, fields, md-blocks, taxonomies, views, mixins.",
-    z.object({
-      path: z.string().min(1).describe("Path relative to agent root, starting with awn-system/"),
-      content: z.string().describe("File content (YAML for types, Markdown for .md)")
-    }),
-    ({ path, content }) => client.post("/api/agent-system/file", { path, content })
-  );
-
-  reg("shell_get_status", "Agent Shell status, settings and latest agent reply.", z.object({}), () =>
-    client.get("/api/shell/status")
-  );
-
-  reg(
-    "shell_post_message",
-    "Send a user message through Agent Shell into the active topic thread/inbox.",
-    z.object({
-      body: z.string().min(1).describe("Message text for the connected agent"),
-      author: z.string().optional().describe("Optional author label, default shell")
-    }),
-    ({ body, author }) => client.post("/api/shell/message", { body, author: author || "agent-mcp" })
-  );
-
-  reg("shell_stop_tts", "Stop active Agent Shell text-to-speech playback.", z.object({}), () =>
-    client.post("/api/shell/stop-tts", {})
-  );
-
-  reg(
-    "shell_camera_snapshot",
-    "Capture a JPEG frame from Agent Shell camera. Requires Shell UI open with camera enabled.",
-    z.object({
-      waitMs: z.number().int().min(1000).max(60000).optional().describe("Wait for Shell UI, default 15000"),
-      reason: z.string().optional().describe("Why the agent needs the frame"),
-      kind: z.enum(["live", "speech", "manual"]).optional().describe("live=ask Shell now; speech/manual=last saved frame")
-    }),
-    async ({ waitMs, reason, kind }) => {
-      const mode = kind || "live";
-      if (mode === "speech" || mode === "manual") {
-        const latest = await client.get("/api/shell/camera/latest", { kind: mode });
-        return latest;
-      }
-      return client.post("/api/shell/camera/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
-    }
-  );
-
-  reg(
-    "shell_screenshot",
-    "Capture a PNG frame from Agent Shell screen share. Requires Shell UI open with screen share enabled.",
-    z.object({
-      waitMs: z.number().int().min(1000).max(60000).optional().describe("Wait for Shell UI, default 15000"),
-      reason: z.string().optional().describe("Why the agent needs the screenshot"),
-      kind: z.enum(["live", "speech", "manual"]).optional().describe("live=ask Shell now; speech/manual=last saved frame")
-    }),
-    async ({ waitMs, reason, kind }) => {
-      const mode = kind || "live";
-      if (mode === "speech" || mode === "manual") {
-        const latest = await client.get("/api/shell/screen/latest", { kind: mode });
-        return latest;
-      }
-      return client.post("/api/shell/screen/snapshot", { waitMs: waitMs || 15000, reason: reason || "" });
-    }
-  );
-
-  reg(
-    "notify_user",
-    "Push an arbitrary notification to the Agent CMS bell in the header. Use when you want to inform the user without creating or editing a file.",
-    z.object({
-      title: z.string().min(1).describe("Short title in the notification list"),
-      message: z.string().optional().describe("Optional longer body text"),
-      path: pagePath.optional().describe("Optional manifest.md — opens the topic when the user clicks the notification")
-    }),
-    ({ title, message, path }) =>
-      client.post("/api/agent/activity/notify", {
-        title,
-        message,
-        manifestPath: path,
-        path
-      })
-  );
-
-  reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
-    client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
-  );
-
-  registerPageAndSlotTools({
-    reg,
-    client,
-    pagePath,
-    extFile,
-    storageSlotFolder,
-    storageSlotFile
-  });
 
   return server;
 }

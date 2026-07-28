@@ -87,7 +87,7 @@ comments/  → awn.content.comment
 1. **`get_session_context`** — старт сессии (manifest, AGENTS.md, API map)
 2. **`get_menu`** / **`list_agents`** — дерево контента
 3. **`read_page_properties`** — frontmatter страницы
-4. **`create_slot_record`** { folder: "main" } — запись в `main/`
+4. **`list_page_slots`** → **`create_content`** / **`upload_content`**
 5. **`read_media_sidecar`** / **`write_media_sidecar`**
 6. **`GET /api/awn-types`** — эффективные типы **этого** агента
 
@@ -134,7 +134,8 @@ awn_schema:
 | Действие | Инструмент |
 |----------|------------|
 | Менять **схему CMS** (типы) | YAML в `awn-system/types/` (редко, осознанно) |
-| Создать **тему/запись** | `create_page` / `create_slot_record` |
+| Создать **тему/запись** | `create_page` / `create_content` |
+| Загрузить **файл** | `upload_content` slot=media |
 | Задать **поля одной страницы** | `write_page_schema` (content = YAML с awn_schema:) |
 | UI настройки страницы | `write_page_config` (content = YAML с awn_ui:) |
 

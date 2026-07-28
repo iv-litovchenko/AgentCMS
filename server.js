@@ -181,6 +181,8 @@ const {
   getAgentSystemStatus
 } = require("./agent-system");
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
+const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
+const { createExistsApi } = require("./exists-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -8153,11 +8155,10 @@ const SESSION_CONTEXT_API_MAP = {
   platformCatalogs: "GET /api/platform/catalogs — глобальные справочники",
   agentCatalogs: "GET /api/agent/catalogs — справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
-  pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы (alias /api/node/meta)",
-  pageCreate: "POST /api/page/create — создать страницу area/topic (alias /api/node/create)",
-  slotRecordCreate:
-    "POST /api/storage/file/create — запись в external-слот (folder=main|inbox|references|notes|…)",
-  mainNote: "GET /api/external/file?path=<manifest.md>&file=<name.md> — legacy alias main/; prefer slot tools",
+  pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
+  pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
+  pageCreate: "POST /api/page/create — создать страницу area/topic",
+  contentCreate: "create_content MCP — typed .md; upload_content — файлы в slot media/repository/…",
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
@@ -8176,10 +8177,8 @@ const SESSION_CONTEXT_API_MAP = {
 const SESSION_PATH_HINTS = {
   topicManifest:
     "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
-  externalSlot:
-    "External-слот: main/, inbox/, references/, notes/, … — create_slot_record { folder } или POST /api/storage/file/create",
-  internalSlot: "Internal-слот: main.md, main.csv, todo.md — read_internal_slot / write_internal_slot",
-  mainNote: "Legacy: file в main/ — prefer create_slot_record folder=main",
+  externalSlot: "External-слот: list_content + create_content / upload_content { slot: main|inbox|media|… }",
+  internalSlot: "Internal-слот: read_content_description без ref (main-single, todo-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
@@ -12873,6 +12872,8 @@ function normalizeApiPathname(pathname) {
   const path = String(pathname || "");
   if (path === "/api/file/page-config") return "/api/file/node-config";
   if (path === "/api/file/page-schema") return "/api/file/topic-schema";
+  if (path === "/api/page/slots" || path === "/api/page/exists") return path;
+  if (path.startsWith("/api/content/")) return path;
   if (path.startsWith("/api/page/")) {
     return `/api/node/${path.slice("/api/page/".length)}`;
   }
@@ -12884,6 +12885,26 @@ function applyApiPathAliases(url) {
   if (normalized !== url.pathname) {
     url.pathname = normalized;
   }
+}
+
+let existsApi = null;
+
+function getExistsApi() {
+  if (!existsApi) {
+    existsApi = createExistsApi({
+      normalizeWorkspacePath,
+      isManifestMdAbsolute,
+      fileExists,
+      resolveApiManifestAbsolute,
+      readInternalMemoryContent,
+      readTodoContent,
+      readTabularMemoryContent,
+      resolveExternalFileOpContext,
+      resolveStorageFileAbsolute,
+      resolveUploadedMediaFileAbsolute
+    });
+  }
+  return existsApi;
 }
 
 async function handleApiForAgent(req, res, url) {
@@ -13043,6 +13064,67 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read canonical model",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/page/slots") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+
+      const canonicalRelPath = await resolveCanonicalManifestRelPath(relPath);
+      const { frontmatter } = await readNodeFrontmatterContent(canonicalRelPath);
+      const props = parseFrontmatterProps(frontmatter);
+      const awnType = String(props["awn-type"] || props.awnType || "awn.page.topic").trim();
+      const slotKeys = resolveStorageSlotsForManifest(getProjectRoot(), agentRoot, awnType);
+      const payload = getPageSlotsPayload(getProjectRoot(), agentRoot, slotKeys);
+
+      return sendJson(res, 200, {
+        path: canonicalRelPath.replace(/\\/g, "/"),
+        awnType,
+        ...payload
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read page slots",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/page/exists") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    try {
+      const payload = await getExistsApi().checkPageExists(relPath);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to check page existence",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/content/exists") {
+    const relPath = url.searchParams.get("path");
+    const slot = url.searchParams.get("slot");
+    const ref = url.searchParams.get("ref") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!slot) return sendJson(res, 400, { error: "Missing slot query parameter" });
+
+    try {
+      const payload = await getExistsApi().checkContentExists(relPath, slot, ref || undefined);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to check content existence",
         details: String(error.message || error)
       });
     }

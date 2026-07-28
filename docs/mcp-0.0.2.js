@@ -2,18 +2,16 @@ module.exports = {
   version: "0.0.2",
   versionLabel: "Актуальная",
   title: "Agent CMS MCP Server",
-  subtitle: "Model Context Protocol · stdio · mcp-server/ v0.2.0",
+  subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
   packagePath: "mcp-server/",
   generatedAt: "2026-06-30",
   notes: [
-    "MCP v0.2.0 — обёртка над HTTP API Agent CMS. Перед запуском: npm start → http://localhost:3000.",
+    "MCP v0.3.0 — PAGE · SLOT · CONTENT. Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
-    "path → manifest.md темы/области (напр. awn-container/finansydohody/manifest.md; legacy _registration.md).",
-    "file → имя .md в awn-storage/main/ или media/ относительно темы.",
-    "Старт сессии: один вызов get_session_context — не делайте grep/curl/ls по репозиторию.",
-    "76 tools — полный список ниже.",
-    "awn-mask-file (маска имён в main/) — read_page_config → awnMaskFile; create_slot_record folder=main подхватывает маску автоматически.",
+    "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
+    "84 tools — полный список ниже.",
+    "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
   cursorConfig: {
@@ -129,9 +127,15 @@ module.exports = {
         },
         {
           name: "list_awn_types",
-          description: "Каталог awn-type для workspace агента.",
+          description: "Полный каталог awn-type для workspace агента.",
           parameters: "—",
           http: "GET /api/awn-types"
+        },
+        {
+          name: "get_type_health",
+          description: "Проверка целостности типов awn-system.",
+          parameters: "—",
+          http: "GET /api/agent/type-health"
         }
       ]
     },
@@ -188,6 +192,12 @@ module.exports = {
           http: "GET /api/page/meta"
         },
         {
+          name: "page_exists",
+          description: "Проверка существования manifest.md (без чтения тела).",
+          parameters: "path",
+          http: "GET /api/page/exists"
+        },
+        {
           name: "read_page_description",
           description: "Тело manifest.md.",
           parameters: "path",
@@ -236,6 +246,18 @@ module.exports = {
           http: "POST /api/file/page-config"
         },
         {
+          name: "read_page_env",
+          description: ".env страницы (корень контейнера темы).",
+          parameters: "path",
+          http: "GET /api/env"
+        },
+        {
+          name: "write_page_env",
+          description: "Сохранить .env страницы.",
+          parameters: "path, content",
+          http: "POST /api/env"
+        },
+        {
           name: "create_page",
           description: "Создать область (folder) или тему (file). displayName/title → awn-name; slug/name → папка на диске.",
           parameters: "parentPath?, type: folder|file, displayName?, title?, name?, slug?, awnType?",
@@ -262,129 +284,43 @@ module.exports = {
       ]
     },
     {
-      id: "slots",
-      title: "Слоты storage (external / internal)",
+      id: "slot",
+      title: "Слот (место для контента)",
       tools: [
         {
-          name: "list_slot_records",
-          description: "Список typed-записей во external-слоте (main, inbox, references, notes, …).",
-          parameters: "path, folder",
-          http: "GET /api/external/files (main) · GET /api/folder/view"
-        },
-        {
-          name: "read_slot_record",
-          description: "Прочитать .md запись из external-слота.",
-          parameters: "path, folder, file",
-          http: "GET /api/external/file · GET /api/storage/markdown"
-        },
-        {
-          name: "write_slot_record",
-          description: "Сохранить .md запись в external-слот.",
-          parameters: "path, folder, file, content",
-          http: "POST /api/external/file · POST /api/storage/markdown"
-        },
-        {
-          name: "create_slot_record",
-          description: "Создать typed awn.content.record в external-слоте.",
-          parameters: "path, folder, title?, displayName?, slug?, parent?, body?, fileMask?, fields?, source?, author?, status?",
-          http: "POST /api/storage/file/create"
-        },
-        {
-          name: "create_slot_section",
-          description: "Typed раздел (awn.content.record.category) в external-слоте.",
-          parameters: "path, folder, title, displayName?, slug?, parent?",
-          http: "POST /api/storage/section/create"
-        },
-        {
-          name: "read_internal_slot",
-          description: "Internal-слот: main.md, main.csv или todo.md.",
-          parameters: "path, slot: main-single|main-single-csv|todo-single",
-          http: "GET /api/memory/internal · GET /api/memory/tabular · GET /api/todo"
-        },
-        {
-          name: "write_internal_slot",
-          description: "Записать internal-слот.",
-          parameters: "path, slot, content, file?",
-          http: "POST /api/memory/internal · POST /api/memory/tabular · POST /api/todo"
+          name: "list_page_slots",
+          description: "Слоты страницы: driver, path, allowedContent, acceptFiles.",
+          parameters: "path",
+          http: "GET /api/page/slots?path="
         }
       ]
     },
     {
-      id: "memory",
-      title: "Память (awn-storage)",
+      id: "content",
+      title: "Контент (единая ветка)",
       tools: [
-        {
-          name: "read_memory_summary",
-          description: "Сводка слоёв памяти темы.",
-          parameters: "path",
-          http: "GET /api/memory/summary"
-        },
-        {
-          name: "read_internal_memory",
-          description: "Однофайловая internal-память (legacy memory.md).",
-          parameters: "path",
-          http: "GET /api/memory/internal"
-        },
-        {
-          name: "write_internal_memory",
-          description: "Сохранить internal-память.",
-          parameters: "path, content",
-          http: "POST /api/memory/internal"
-        },
-        {
-          name: "read_tabular_memory",
-          description: "Табличная память CSV.",
-          parameters: "path, file?",
-          http: "GET /api/memory/tabular"
-        },
-        {
-          name: "write_tabular_memory",
-          description: "Сохранить табличную память.",
-          parameters: "path, content, file?",
-          http: "POST /api/memory/tabular"
-        },
-        {
-          name: "list_external_memory",
-          description: "Список .md в awn-storage/main/.",
-          parameters: "path",
-          http: "GET /api/external/files"
-        },
-        {
-          name: "read_external_memory",
-          description: "Прочитать заметку из main/.",
-          parameters: "path, file",
-          http: "GET /api/external/file"
-        },
-        {
-          name: "write_external_memory",
-          description: "Сохранить заметку в main/.",
-          parameters: "path, file, content",
-          http: "POST /api/external/file"
-        },
-        {
-          name: "create_external_memory",
-          description: "Создать заметку в main/. Без fileMask — берёт awn-mask-file из node config. Маска: {YYYY},{YY},{MM},{DD},{WW},{id}.",
-          parameters: "path, title?, displayName?, fileMask?, parent?",
-          http: "POST /api/external/file/create"
-        },
-        {
-          name: "rename_external_memory",
-          description: "Переименовать запись в main/.",
-          parameters: "path, file, title",
-          http: "POST /api/external/file/rename"
-        },
-        {
-          name: "delete_external_memory",
-          description: "Удалить запись из main/.",
-          parameters: "path, file",
-          http: "DELETE /api/external/file"
-        },
-        {
-          name: "move_external_memory",
-          description: "Переместить запись в main/ (внутри темы или между темами).",
-          parameters: "path, file, targetPath?, targetFile?",
-          http: "POST /api/external/file/move"
-        }
+        { name: "list_content", description: "Список в external-слоте.", parameters: "path, slot", http: "—" },
+        { name: "content_exists", description: "Проверка существования объекта (без чтения тела).", parameters: "path, slot, ref?", http: "GET /api/content/exists" },
+        { name: "read_content_description", description: "Тело .md или single-file.", parameters: "path, slot, ref?", http: "—" },
+        { name: "write_content_description", description: "Сохранить тело.", parameters: "path, slot, ref?, content", http: "—" },
+        { name: "read_content_properties", description: "Frontmatter .md.", parameters: "path, slot, ref?", http: "—" },
+        { name: "write_content_properties", description: "Сохранить frontmatter.", parameters: "path, slot, ref?, content", http: "—" },
+        { name: "create_content", description: "Typed record или category.", parameters: "path, slot, awnType?, …", http: "POST /api/storage/file/create" },
+        { name: "upload_content", description: "Файл base64 → media/, repository/, …", parameters: "path, slot, fileName, data", http: "POST /api/media/file" },
+        { name: "read_content_file", description: "Текст или previewUrl media.", parameters: "path, slot, ref", http: "GET /api/storage/file" },
+        { name: "rename_content", description: "Переименовать.", parameters: "path, slot, ref, displayName?", http: "—" },
+        { name: "move_content", description: "Переместить (main, media).", parameters: "path, slot, ref, …", http: "—" },
+        { name: "delete_content", description: "Удалить (main, media).", parameters: "path, slot, ref", http: "—" }
+      ]
+    },
+    {
+      id: "types",
+      title: "Типы (справочники)",
+      tools: [
+        { name: "list_page_types", description: "Типы для create_page.", parameters: "—", http: "GET /api/agent-system/create-node-types" },
+        { name: "get_page_type", description: "Детали page-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
+        { name: "list_content_types", description: "Content-типы слотов.", parameters: "—", http: "GET /api/agent/canonical-model" },
+        { name: "get_content_type", description: "Детали content-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" }
       ]
     },
     {
@@ -466,146 +402,44 @@ module.exports = {
       ]
     },
     {
-      id: "storage",
-      title: "Настройки awn-storage",
+      id: "workspace",
+      title: "Свободная память",
       tools: [
         {
-          name: "read_todo",
-          description: "TODO темы.",
-          parameters: "path",
-          http: "GET /api/todo"
-        },
-        {
-          name: "write_todo",
-          description: "Сохранить TODO.",
-          parameters: "path, content",
-          http: "POST /api/todo"
-        },
-        {
-          name: "read_configuration",
-          description: "configuration.yml.",
-          parameters: "path",
-          http: "GET /api/configuration"
-        },
-        {
-          name: "write_configuration",
-          description: "Сохранить configuration.yml.",
-          parameters: "path, content",
-          http: "POST /api/configuration"
-        },
-        {
-          name: "read_env",
-          description: ".env ноды.",
-          parameters: "path",
-          http: "GET /api/env"
-        },
-        {
-          name: "write_env",
-          description: "Сохранить .env.",
-          parameters: "path, content",
-          http: "POST /api/env"
-        },
-        {
-          name: "list_folder",
-          description: "Просмотр слоя: inbox, scripts, artefacts, …",
-          parameters: "path, folder",
-          http: "GET /api/folder/view"
-        },
-        {
           name: "list_adopt_folders",
-          description: "Список папок свободной памяти (без manifest.md).",
+          description: "Папки без manifest.md.",
           parameters: "—",
           http: "GET /api/workspace/folder/adopt"
         },
         {
           name: "browse_workspace_folder",
-          description: "Содержимое свободной памяти на одном уровне.",
+          description: "Содержимое на одном уровне.",
           parameters: "folderPath",
           http: "GET /api/workspace/folder/browse"
         },
         {
           name: "scan_workspace_folder",
-          description: "Рекурсивный инвентарь свободной памяти для разбора по темам.",
-          parameters: "folderPath, depth?, includeBody?, maxBodyChars?",
+          description: "Рекурсивный инвентарь.",
+          parameters: "folderPath, depth?, includeBody?",
           http: "GET /api/workspace/folder/scan"
         },
         {
           name: "read_workspace_page",
-          description: "Markdown-страница из свободной памяти.",
+          description: "Markdown из свободной памяти.",
           parameters: "file",
           http: "GET /api/workspace/folder/page"
         },
         {
           name: "read_workspace_text_file",
-          description: "Текстовый файл из свободной памяти.",
+          description: "Текстовый файл.",
           parameters: "file, maxBytes?",
           http: "GET /api/workspace/folder/text"
         },
         {
-          name: "read_storage_file",
-          description: "Прочитать текстовый файл из слота (scripts, artefacts, repository, …).",
-          parameters: "path, folder, file",
-          http: "GET /api/storage/file"
-        },
-        {
-          name: "write_storage_file",
-          description: "Сырой текст в слот (scripts, repository, …). Для typed .md — create_storage_record.",
-          parameters: "path, folder, file, content",
-          http: "POST /api/storage/file"
-        },
-        {
-          name: "create_storage_record",
-          description: "Typed .md запись (awn.content.record + схема слота): inbox/, notes/, references/, artefacts/, scripts/.",
-          parameters: "path, folder, displayName?, title?, slug?, body?, parent?, fileMask?, source?, author?, status?",
-          http: "POST /api/storage/file/create"
-        },
-        {
-          name: "create_storage_section",
-          description: "Typed раздел (awn.content.record.category): manifest.md в подпапке слота.",
-          parameters: "path, folder, title, displayName?, slug?, parent?",
-          http: "POST /api/storage/section/create"
-        }
-      ]
-    },
-    {
-      id: "media",
-      title: "Медиа",
-      tools: [
-        {
-          name: "list_media",
-          description: "Файлы media/.",
-          parameters: "path",
-          http: "GET /api/media"
-        },
-        {
-          name: "read_media_sidecar",
-          description: "Sidecar .md медиафайла.",
-          parameters: "path, file",
-          http: "GET /api/media/sidecar"
-        },
-        {
-          name: "write_media_sidecar",
-          description: "Сохранить sidecar.",
-          parameters: "path, file, content",
-          http: "POST /api/media/sidecar"
-        },
-        {
-          name: "rename_media_file",
-          description: "Переименовать медиафайл и sidecar.",
-          parameters: "path, file, title?",
-          http: "POST /api/media/file/rename"
-        },
-        {
-          name: "delete_media_file",
-          description: "Удалить медиафайл и sidecar.",
-          parameters: "path, file",
-          http: "DELETE /api/media/file"
-        },
-        {
-          name: "move_media_file",
-          description: "Переместить медиафайл (внутри темы или между темами).",
-          parameters: "path, file, targetPath?, targetFile?",
-          http: "POST /api/media/file/move"
+          name: "upload_workspace_file",
+          description: "Загрузить файл в свободную память (base64).",
+          parameters: "folderPath, fileName, data",
+          http: "POST /api/workspace/folder/upload"
         }
       ]
     },
@@ -631,6 +465,17 @@ module.exports = {
           parameters: "name, content",
           http: "POST /api/system-file"
         }
+      ]
+    },
+    {
+      id: "awn-system",
+      title: "awn-system (модель CMS)",
+      tools: [
+        { name: "get_agent_system_status", description: "Статус awn-system.", parameters: "—", http: "GET /api/agent-system/status" },
+        { name: "list_view_types", description: "awn.view.* типы.", parameters: "—", http: "GET /api/agent-system/views" },
+        { name: "get_agent_system_type", description: "Детали типа по id/path.", parameters: "id?, path?", http: "GET /api/agent-system/type" },
+        { name: "read_agent_system_file", description: "Файл awn-system.", parameters: "path", http: "GET /api/agent-system/file" },
+        { name: "write_agent_system_file", description: "Записать awn-system.", parameters: "path, content", http: "POST /api/agent-system/file" }
       ]
     },
     {

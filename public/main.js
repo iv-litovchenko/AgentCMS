@@ -1238,6 +1238,9 @@ function isChpuDataListShellMode(mode = activeContentMode) {
   if (isMediaLibraryContentMode(mode)) {
     return !(activeMediaSidecarSourcePath || activeMediaMarkdownPath);
   }
+  if (isFlatStorageSectionMode(mode)) {
+    return !activeFlatStorageFilePath;
+  }
   return Boolean(getChpuSlotFolderForContentMode(mode) && getDataStorageSlotForMode(mode));
 }
 
@@ -1673,12 +1676,16 @@ async function applyChpuResolvedRoute(resolved) {
           await openExternalFile(relInSlot, { skipRouteSync: true });
           return;
         }
-        if (contentMode === "media") {
+        if (contentMode === "media" || contentMode === "assets") {
           if (/\.md$/i.test(relInSlot)) {
             await openMediaMarkdownFile(relInSlot, { skipRouteSync: true });
           } else {
             await openMediaSidecar(relInSlot, { skipRouteSync: true });
           }
+          return;
+        }
+        if (FLAT_STORAGE_SECTION_MODES.has(contentMode) && /\.md$/i.test(relInSlot)) {
+          await openFlatStorageFile(relInSlot, contentMode, { skipRouteSync: true });
           return;
         }
       }
@@ -1814,6 +1821,14 @@ function getChpuWorkspacePathFromState() {
   if (!activePath) return "";
 
   const topicRoute = getNodeRoutePath(getResolvedNodePath(activePath));
+
+  if (isFlatStorageFileEditing()) {
+    const slotFolder = getChpuSlotFolderForContentMode(activeContentMode);
+    const filePath = String(activeFlatStorageFilePath || "").replace(/\\/g, "/").replace(/\.md$/i, "");
+    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/${slotFolder}/${filePath}`, "edit", {
+      force: true
+    });
+  }
 
   if (activeContentMode === "external" && activeExternalFilePath) {
     const filePath = String(activeExternalFilePath).replace(/\\/g, "/").replace(/\.md$/i, "");
@@ -2372,6 +2387,10 @@ async function applyFlatStorageRouteStateFromUrl(route) {
   pruneActiveFlatStorageSectionFolder(route.view);
   applyModeUi();
   renderListViewContent();
+  const relativePath = String(route.resourcePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (route.subView === "edit" && relativePath && /\.md$/i.test(relativePath)) {
+    await openFlatStorageFile(relativePath, route.view, { skipRouteSync: true });
+  }
 }
 
 async function applyEntryOverviewRouteStateFromUrl(route) {
@@ -12129,6 +12148,8 @@ function shouldUseDataHubListShell(mode = activeContentMode) {
   if (mode === "internal" || mode === "todo") return true;
   if (mode === "external" && isExternalFileEditing()) return false;
   if (mode === "media" && isMediaAssetEditing()) return false;
+  if (mode === "assets" && isMediaAssetEditing()) return false;
+  if (isFlatStorageSectionMode(mode) && isFlatStorageFileEditing()) return false;
   if (mode === "tabular" && isTabularSourceEditing()) return false;
   return true;
 }
@@ -13068,6 +13089,7 @@ const CHANNEL_AUTO_POLL_INTERVAL_MS = 20000;
 let channelAutoPollTimer = null;
 let menuIntakeFetchSeq = 0;
 let activeExternalFilePath = null;
+let activeFlatStorageFilePath = null;
 let pendingDirectExternalFile = null;
 let activeMediaSidecarSourcePath = null;
 let activeMediaSidecarPath = null;
@@ -15123,10 +15145,8 @@ function editFlatStorageFileFromResourceMenu(state) {
   const mode = state?.mode;
   const rel = String(state?.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!mode || !rel) return;
-  openFlatStorageRecordOverviewFromNavigation(
-    { path: rel, title: state.label || rel.split("/").pop() || rel },
-    mode
-  );
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_LIST);
+  void openFlatStorageFile(rel, mode);
 }
 
 function handleResourceContextMenuAction(actionId) {
@@ -16154,6 +16174,19 @@ function buildEntryOverviewContextFromMediaPath(filePath) {
   };
 }
 
+function buildEntryOverviewContextFromFlatPath(filePath, memoryKind) {
+  const rel = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const relPath = getFlatStorageItemContextPath(rel, memoryKind);
+  return {
+    relPath,
+    memoryKind,
+    relativePath: rel,
+    title: rel.split("/").pop() || rel,
+    entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind }),
+    status: ""
+  };
+}
+
 async function closeExternalFileEditorToTargetView() {
   const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
   const closingFile = activeExternalFilePath;
@@ -16177,6 +16210,38 @@ async function closeExternalFileEditorToTargetView() {
   await refreshExternalFileListView();
 }
 
+async function closeFlatStorageFileEditorToTargetView() {
+  const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
+  const closingFile = activeFlatStorageFilePath;
+  const mode = activeContentMode;
+  memoryEntryCloseTargetView = null;
+  activeFlatStorageFilePath = null;
+  setPropsYamlContent("");
+  titleInputNode.value = "";
+  syncPropsInputPlaceholder();
+  editorViewMode = "preview";
+
+  if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && closingFile) {
+    syncAppRouteToUrl({ replace: true });
+    const context =
+      lastNonTocEntryOverviewContext?.memoryKind === mode
+        ? lastNonTocEntryOverviewContext
+        : buildEntryOverviewContextFromFlatPath(closingFile, mode);
+    await openEntryOverviewFromNavigation(context);
+    return;
+  }
+
+  try {
+    await reloadFlatStorageFolderMode(mode);
+  } catch {
+    // ignore refresh errors after closing editor
+  }
+  applyModeUi();
+  renderListViewContent();
+  updateBreadcrumbsForActiveMode();
+  syncAppRouteToUrl({ replace: true });
+}
+
 async function closeMediaSidecarEditorToTargetView() {
   const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
   const sourceFile = activeMediaSidecarSourcePath || activeMediaMarkdownPath;
@@ -16187,7 +16252,8 @@ async function closeMediaSidecarEditorToTargetView() {
   if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && sourceFile) {
     syncAppRouteToUrl({ replace: true });
     const context =
-      lastNonTocEntryOverviewContext?.memoryKind === "media"
+      lastNonTocEntryOverviewContext?.memoryKind === "media" ||
+      lastNonTocEntryOverviewContext?.memoryKind === "assets"
         ? lastNonTocEntryOverviewContext
         : buildEntryOverviewContextFromMediaPath(sourceFile);
     await openEntryOverviewFromNavigation(context);
@@ -16211,6 +16277,10 @@ function handleWorkspaceCloseClick() {
     void closeExternalFileEditorToTargetView();
     return;
   }
+  if (isFlatStorageFileEditing()) {
+    void closeFlatStorageFileEditorToTargetView();
+    return;
+  }
   if (isDataHubBundleSlotShellMode()) {
     closeDataHubBundleEditor();
     return;
@@ -16226,10 +16296,12 @@ function syncWorkspaceCloseButtonsVisibility() {
   const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
   const mediaSidecarEditing = isMediaAssetEditing();
   const externalEditing = isExternalFileEditing();
+  const flatStorageEditing = isFlatStorageFileEditing();
   const bundleSlotShellMode = isDataHubBundleSlotShellMode();
   const showClose =
     mediaSidecarEditing ||
     externalEditing ||
+    flatStorageEditing ||
     (settingsDomain && NODE_SETTINGS_CLOSE_MODES.has(activeContentMode)) ||
     (memorySlotActive && NODE_MEMORY_CLOSE_MODES.has(activeContentMode)) ||
     (mediaSlotActive && isMediaLibraryContentMode()) ||
@@ -19570,6 +19642,9 @@ function applyContentModeState(mode) {
     activeExternalFilePath = null;
     activeExternalSectionFolder = null;
   }
+  if (!isFlatStorageSectionMode(mode)) {
+    activeFlatStorageFilePath = null;
+  }
   for (const flatMode of FLAT_STORAGE_SECTION_MODES) {
     if (mode !== flatMode) activeFlatStorageSectionFolder[flatMode] = null;
   }
@@ -19666,14 +19741,8 @@ function isCurrentModeReadOnly() {
   return (
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
-    activeContentMode === "inbox" ||
-    activeContentMode === "note" ||
+    (isFlatStorageListMode() && !isFlatStorageFileEditing()) ||
     activeContentMode === NODE_THREAD_MODE ||
-    activeContentMode === "quick-notes" ||
-    activeContentMode === "references" ||
-    activeContentMode === "artefacts" ||
-    activeContentMode === "repository" ||
-    activeContentMode === "temp" ||
     (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
     activeContentMode === "scripts" ||
     activeContentMode === NODE_OVERVIEW_MODE ||
@@ -19688,7 +19757,12 @@ function isCurrentModeReadOnly() {
 function isCurrentModeTitleEditable() {
   const externalEditing = activeContentMode === "external" && Boolean(activeExternalFilePath);
   const mediaSidecarEditing = isMediaAssetEditing();
-  return activeContentMode === "description" || externalEditing || mediaSidecarEditing;
+  return (
+    activeContentMode === "description" ||
+    externalEditing ||
+    mediaSidecarEditing ||
+    isFlatStorageFileEditing()
+  );
 }
 
 function isNodeDeleteAvailable() {
@@ -19715,12 +19789,7 @@ function isCurrentModeListTemplate() {
     activeContentMode === "todo" ||
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
-    activeContentMode === "inbox" ||
-    activeContentMode === "note" ||
-    activeContentMode === "quick-notes" ||
-    activeContentMode === "references" ||
-    activeContentMode === "artefacts" ||
-    activeContentMode === "repository" ||
+    (isFlatStorageListMode() && !isFlatStorageFileEditing()) ||
     (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
     activeContentMode === "temp" ||
     activeContentMode === "scripts"
@@ -26553,7 +26622,7 @@ async function openCreatedExternalMemoryForEdit(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").trim();
   if (!normalized) return;
   if (isFlatStorageSectionMode()) {
-    openFlatStorageRecordOverviewFromNavigation({ path: normalized }, activeContentMode);
+    await openFlatStorageFile(normalized, activeContentMode);
     return;
   }
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
@@ -29815,7 +29884,7 @@ function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options 
 }
 
 async function openMediaSidecar(mediaFilePath, options = {}) {
-  if (!activePath || activeContentMode !== "media" || !mediaFilePath) return;
+  if (!activePath || !isMediaLibraryContentMode() || !mediaFilePath) return;
   const normalizedPath = String(mediaFilePath || "").replace(/\\/g, "/");
   if (mediaSidecarOpenInFlight === normalizedPath) return;
   mediaSidecarOpenInFlight = normalizedPath;
@@ -29845,6 +29914,18 @@ async function openMediaSidecar(mediaFilePath, options = {}) {
 
 function isExternalFileEditing() {
   return activeContentMode === "external" && Boolean(activeExternalFilePath);
+}
+
+function isFlatStorageFileEditing() {
+  return isFlatStorageSectionMode() && Boolean(activeFlatStorageFilePath);
+}
+
+function buildFlatStorageFileContent() {
+  if (activeFlatStorageFilePath) {
+    syncDisplayNameIntoAwnNameProp(activeFlatStorageFilePath);
+  }
+  flushPropsYamlFromFormBeforeSave();
+  return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
 }
 
 let propsFormEntries = [];
@@ -39414,10 +39495,10 @@ async function enableMediaMarkdownEditor(filePath, content, options = {}) {
 }
 
 async function openMediaMarkdownFile(filePath, options = {}) {
-  if (!activePath || activeContentMode !== "media" || !filePath) return;
+  if (!activePath || !isMediaLibraryContentMode() || !filePath) return;
   try {
     const response = await fetch(
-      buildApiUrl("/api/media/markdown", { path: getActiveNodeApiPath(), file: filePath })
+      buildApiUrl("/api/media/markdown", buildMediaLibraryApiParams({ file: filePath }))
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
@@ -39593,6 +39674,78 @@ async function openExternalFile(filePath, options = {}) {
   } catch (error) {
     showToast(`Ошибка открытия файла ${STORAGE_SUBFOLDER_CONTENT}`, "error");
   }
+}
+
+async function enableFlatStorageFileEditor(filePath, content, options = {}) {
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
+  activeFlatStorageFilePath = filePath;
+  updateBreadcrumbsForActiveMode();
+  titleEditorBlockNode.classList.remove("hidden");
+  showTitleEditableInput();
+  await applyStorageFileContentUi(content || "", { mode: "external" });
+  syncTitleFieldsFromNode(filePath);
+  syncPropsInputPlaceholder();
+  editorViewMode = "preview";
+  applyModeUi();
+  setEditorViewMode("preview", { skipRouteSync: true });
+  syncNodeMemoryEntryViewControls();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
+}
+
+async function openFlatStorageFile(filePath, mode = activeContentMode, options = {}) {
+  if (!activePath) return;
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || !isFlatStorageSectionMode(mode)) return;
+  if (!/\.md$/i.test(normalized)) {
+    showToast("Редактирование доступно только для Markdown-файлов.", "info");
+    return;
+  }
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/storage/markdown", {
+        path: getActiveNodeApiPath(),
+        folder: getFlatStorageSectionFolderName(mode),
+        file: normalized
+      })
+    );
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    const resolvedFile = String(data.file || normalized).replace(/\\/g, "/");
+    const parentFolder = resolvedFile.includes("/")
+      ? resolvedFile.split("/").filter(Boolean).slice(0, -1).join("/")
+      : null;
+    if (activeContentMode !== mode) {
+      if (!applyContentModeState(mode)) return;
+    }
+    if (parentFolder) {
+      activeFlatStorageSectionFolder[mode] = parentFolder;
+      pruneActiveFlatStorageSectionFolder(mode);
+    }
+    applyModeUi();
+    renderListViewContent();
+    await enableFlatStorageFileEditor(resolvedFile, data.content || "", options);
+  } catch (error) {
+    showToast(`Ошибка открытия файла: ${error.message}`, "error");
+  }
+}
+
+async function openFlatStorageFileFromOverview(memoryKind, relativePath) {
+  const mode = memoryKind === "quick-notes" ? "note" : memoryKind;
+  if (!FLAT_STORAGE_SECTION_MODES.has(mode)) return;
+  if (isAreaContentModeBlocked(mode)) return;
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
+  await openFlatStorageFile(relativePath, mode, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
 }
 
 function resetCreateMemoryNameInputs() {
@@ -40107,6 +40260,7 @@ let savedEditorSnapshot = null;
 function isEditorSaveTrackingActive() {
   if (activeSystemFile) return isSystemFileEditing();
   if (isGitRepoLooseFilePath(activePath)) return true;
+  if (isFlatStorageFileEditing()) return true;
   if (!activePath) return false;
   if (
     isNodeCanvasViewMode() ||
@@ -40727,6 +40881,8 @@ async function openEntryOverviewEdit(context) {
   const entryKind = String(context.entryKind || "").trim();
   if (!relativePath || isEntryOverviewMemoryTocRoot(context)) return;
 
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
+
   if (memoryKind === "external") {
     await openMemoryModeFromOverview("external", relativePath);
     return;
@@ -40734,22 +40890,18 @@ async function openEntryOverviewEdit(context) {
 
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
     if (isAreaContentModeBlocked(memoryKind)) return;
-    setContentMode(memoryKind);
-    return;
-  }
-
-  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
-    if (isAreaContentModeBlocked(memoryKind)) return;
     if (!applyContentModeState(memoryKind)) return;
     syncAppRouteToUrl({ replace: true });
     applyModeUi();
-    showToast("Редактирование файлов этого слота пока доступно только в режиме «Список».", "info");
+    await loadContentByMode();
+    openDataHubBundleSlotEditor(memoryKind);
     return;
   }
 
-  if (memoryKind === "media") {
-    if (isAreaContentModeBlocked("media")) return;
-    if (!applyContentModeState("media")) return;
+  if (memoryKind === "media" || memoryKind === "assets") {
+    const mode = memoryKind === "assets" ? "assets" : "media";
+    if (isAreaContentModeBlocked(mode)) return;
+    if (!applyContentModeState(mode)) return;
     syncAppRouteToUrl({ replace: true });
     applyModeUi();
     try {
@@ -40773,6 +40925,11 @@ async function openEntryOverviewEdit(context) {
     } catch (error) {
       showToast(`Не удалось открыть редактирование: ${error.message}`, "error");
     }
+    return;
+  }
+
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    await openFlatStorageFileFromOverview(memoryKind, relativePath);
   }
 }
 
@@ -42863,11 +43020,13 @@ function openNodeNavigationCounterSlot(slot) {
   openWorkspaceModeFromNavigation(slot.modeId);
 }
 
-function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid" } = {}) {
+function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid", entryOverview = false, activeSlotKey = null } = {}) {
   if (!slots.length) return null;
 
   const wrap = document.createElement("div");
-  wrap.className = "node-navigation-workspace-counters";
+  wrap.className = entryOverview
+    ? "node-navigation-workspace-counters node-entry-overview-slot-counters"
+    : "node-navigation-workspace-counters";
   if (layout === "area-single") {
     wrap.classList.add("node-navigation-workspace-counters--area-single");
   }
@@ -42883,6 +43042,7 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
     const item = document.createElement("li");
     item.appendChild(
       renderEntryOverviewWorkspaceCounterButton(slot, {
+        isActive: entryOverview && activeSlotKey === slot.id,
         onClick: () => openNodeNavigationCounterSlot(slot)
       })
     );
@@ -42891,6 +43051,31 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
 
   wrap.appendChild(list);
   return wrap;
+}
+
+async function appendTopicSlotCounterStrip(
+  container,
+  topicPath,
+  { isStale = () => false, entryOverview = false, slots = null, prepend = false } = {}
+) {
+  if (!container || isAreaNodePath(topicPath)) return null;
+  const topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath));
+  if (isStale()) return null;
+  const strip = renderNodeNavigationWorkspaceCounterStrip(
+    topicSlotCounters.map((slot) => ({
+      ...slot,
+      modeId: slot.spec?.defaultMode || slot.id
+    })),
+    {
+      entryOverview,
+      activeSlotKey: entryOverview ? getDataStorageSlotKeyForEntryView() : null
+    }
+  );
+  if (strip) {
+    if (prepend) container.prepend(strip);
+    else container.appendChild(strip);
+  }
+  return strip;
 }
 
 function appendNavigationHeroMetaRow(panel, { kind, label, value }) {
@@ -47606,6 +47791,8 @@ async function renderEntryOverview() {
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
     entryOverviewBreadcrumbState = { context, navigationIndex, title: "Оглавление" };
+    await appendTopicSlotCounterStrip(hubMain, topicPath, { isStale, entryOverview: true });
+    if (isStale()) return;
     appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, { isMemoryTocRoot: true });
 
     if (!isArea) {
@@ -47657,6 +47844,9 @@ async function renderEntryOverview() {
   entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: false };
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
+
+  await appendTopicSlotCounterStrip(hubMain, topicPath, { isStale, entryOverview: true, prepend: true });
+  if (isStale()) return;
 
   const hero =
     context.entryKind === "awn.media.asset"
@@ -55042,13 +55232,8 @@ async function renderNodeNavigation() {
     const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
     if (areaInternalPanel) hubMain.appendChild(areaInternalPanel);
   } else {
-    const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
-      topicSlotCounters.map((slot) => ({
-        ...slot,
-        modeId: slot.spec?.defaultMode || slot.id
-      }))
-    );
-    if (navigationCounterStrip) hubMain.appendChild(navigationCounterStrip);
+    await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
+    if (isStale()) return;
   }
 
   const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "", heroTitle);
@@ -55086,17 +55271,6 @@ async function renderNodeNavigation() {
     if (isStale()) return;
     if (!railMounted) {
       hub.className = "node-navigation-hub";
-      const navigationCounterStrip = renderNodeNavigationWorkspaceCounterStrip(
-        topicSlotCounters.map((slot) => ({
-          ...slot,
-          modeId: slot.spec?.defaultMode || slot.id
-        }))
-      );
-      if (navigationCounterStrip) {
-        const manifestNode = hubMain.querySelector(".node-navigation-manifest");
-        if (manifestNode) hubMain.insertBefore(navigationCounterStrip, manifestNode);
-        else hubMain.appendChild(navigationCounterStrip);
-      }
       const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
       if (subsectionsBlock && panelsWrap) hubMain.insertBefore(subsectionsBlock, panelsWrap);
       else if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
@@ -55648,7 +55822,8 @@ function applyModeUi() {
   const hideContentEditor = isCurrentModeWithoutContentEditor();
   const showExternalControls = activeContentMode === "external" && !externalEditing;
   const showMediaControls = isMediaLibraryContentMode() && !mediaSidecarEditing;
-  const showFlatStorageSectionControls = isFlatStorageSectionMode() && isFlatStorageListMode();
+  const showFlatStorageSectionControls =
+    isFlatStorageSectionMode() && isFlatStorageListMode() && !isFlatStorageFileEditing();
   const showSlotRecordCreateControls =
     showExternalControls || (showFlatStorageSectionControls && canCreateSlotRecordNow());
   const showDataHubBundleEdit = isDataHubBundlePreviewActive();
@@ -63758,7 +63933,9 @@ function buildSaveContentPayload() {
   }
   const rawContent = isExternalFileEditing()
     ? buildExternalFileContent()
-    : isMediaMarkdownEditing()
+    : isFlatStorageFileEditing()
+      ? buildFlatStorageFileContent()
+      : isMediaMarkdownEditing()
       ? buildMediaMarkdownContent()
       : isMediaSidecarEditing()
         ? buildMediaSidecarContent()
@@ -64109,7 +64286,7 @@ async function saveContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: getActiveNodeApiPath(),
+          ...buildMediaLibraryApiParams(),
           file: activeMediaMarkdownPath,
           content
         })
@@ -64151,6 +64328,32 @@ async function saveContent() {
       void refreshAllFocusPanels();
       saveSucceeded = true;
       showToast("Sidecar сохранён", "success");
+      return;
+    }
+
+    if (isFlatStorageFileEditing()) {
+      const response = await fetch(buildApiUrl("/api/storage/markdown"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: getActiveNodeApiPath(),
+          folder: getFlatStorageSectionFolderName(activeContentMode),
+          file: activeFlatStorageFilePath,
+          content
+        })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const data = await response.json();
+      await applyStorageFileContentUi(data.content || content, { mode: "external" });
+      await reloadFlatStorageFolderMode(activeContentMode);
+      refreshEditorViewContent();
+      saveSucceeded = true;
+      showToast("Сохранено", "success");
       return;
     }
 
