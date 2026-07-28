@@ -15980,6 +15980,18 @@ function isAreaNodePath(nodePath = getResolvedNodePath(activePath)) {
   return getManifestTreeFolderDepth(normalized) < 2;
 }
 
+function isWorkspaceRootNodePath(nodePath = getResolvedNodePath(activePath)) {
+  return isAgentRootIndexPath(nodePath);
+}
+
+function usesNavigationHubInlineSubsections(nodePath = getResolvedNodePath(activePath)) {
+  return isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath);
+}
+
+function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
+  return !usesNavigationHubInlineSubsections(nodePath);
+}
+
 function isAreaWorkspaceDomainBlocked(domain, mode = activeContentMode) {
   if (!isAreaNodePath()) return false;
   if (domain !== NODE_WORKSPACE_DOMAIN_DATA) return false;
@@ -43712,7 +43724,7 @@ async function appendTopicSlotCounterStrip(
   topicPath,
   { isStale = () => false, entryOverview = false, slots = null, prepend = false } = {}
 ) {
-  if (!container || isAreaNodePath(topicPath)) return null;
+  if (!container || usesNavigationHubInlineSubsections(topicPath)) return null;
   const topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath));
   if (isStale()) return null;
   const strip = renderNodeNavigationWorkspaceCounterStrip(
@@ -46867,6 +46879,16 @@ function getEntryOverviewTopicTitle() {
   );
 }
 
+async function resolveNavigationAssetsPreviewFilled(topicPath) {
+  if (!topicPath) return false;
+  try {
+    const preview = await fetchNodeOverviewPreview(topicPath);
+    return Boolean(preview?.imageUrl && !preview?.broken);
+  } catch {
+    return false;
+  }
+}
+
 async function buildEntryOverviewDataSlotCounters(topicPath) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
@@ -46890,14 +46912,23 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     )
     .map((spec) => spec.key);
 
-  const [externalData, mediaData, assetsData, todoData, internalData, tabularData, ...folderResults] =
-    await Promise.all([
+  const [
+    externalData,
+    mediaData,
+    assetsData,
+    todoData,
+    internalData,
+    tabularData,
+    assetsPreviewFilled,
+    ...folderResults
+  ] = await Promise.all([
     fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
     fetchMediaLibraryOverview(topicPath, "media").catch(() => ({ groups: {}, sectionManifests: [] })),
     fetchMediaLibraryOverview(topicPath, "assets").catch(() => ({ groups: {}, sectionManifests: [] })),
     fetchTodoForOverview(topicPath).catch(() => null),
     fetchInternalMemoryForNavigation(topicPath).catch(() => null),
     fetchTabularMemoryForNavigation(topicPath).catch(() => null),
+    resolveNavigationAssetsPreviewFilled(topicPath).catch(() => false),
     ...flatModes.map(async (mode) => [
       mode,
       await fetchFlatStorageSectionSummary(manifestPath, mode)
@@ -46945,8 +46976,13 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "assets") {
       count = resolveNavigationPreparedItemCount(assetsPrepared);
-      filled = hasNavigationExternalPreparedContent(assetsPrepared);
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      filled = hasNavigationExternalPreparedContent(assetsPrepared) || assetsPreviewFilled;
+      if (assetsPreviewFilled && count === 0) {
+        count = 1;
+        title = `${spec.label}: превью`;
+      } else {
+        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      }
     } else if (spec.key === "inbox") {
       const pending = Number(intake?.inbox?.pending) || 0;
       const total = Number(intake?.inbox?.total) || 0;
@@ -56433,7 +56469,7 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 }
 
 function buildNodeNavigationMemoryPanelsWrap({
-  isArea,
+  isInlineNavHub = false,
   nodePath,
   externalData,
   internalData,
@@ -56444,7 +56480,7 @@ function buildNodeNavigationMemoryPanelsWrap({
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
 
-  if (!isArea) {
+  if (!isInlineNavHub) {
     const panels = [
       renderNavigationExternalPart(externalData),
       renderNavigationInternalPart(internalData, { nodePath }),
@@ -56463,12 +56499,12 @@ function buildNodeNavigationMemoryPanelsWrap({
 }
 
 async function fetchNodeNavigationMemoryBundle(nodePath) {
-  const isArea = isAreaNodePath(nodePath);
+  const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
   const [internalData, externalData, tabularData, todoData, mediaData, assetsData] = await Promise.all(
-    isArea
+    isInlineNavHub
       ? [
           fetchInternalMemoryForNavigation(nodePath),
           Promise.resolve(emptyExternal),
@@ -56486,7 +56522,7 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  return { isArea, internalData, externalData, tabularData, mediaData, assetsData, todoData };
+  return { isArea: isInlineNavHub, internalData, externalData, tabularData, mediaData, assetsData, todoData };
 }
 
 async function appendNodeNavigationSplitRail(
@@ -56495,7 +56531,7 @@ async function appendNodeNavigationSplitRail(
   prefetched,
   { isStale = () => false, documentMarkdown = null } = {}
 ) {
-  if (isAreaNodePath(nodePath)) return false;
+  if (usesNavigationHubInlineSubsections(nodePath)) return false;
 
   const childEntries = getNavigationSubsectionEntries();
   const topicSlotCounters = await buildEntryOverviewDataSlotCounters(nodePath);
@@ -56561,7 +56597,7 @@ async function renderNodeNavigation() {
 
   const nodePath = getResolvedNodePath(activePath);
   const childEntries = getNavigationSubsectionEntries();
-  const isArea = isAreaNodePath(nodePath);
+  const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
   const heroTitle = getOverviewTitleFromProps(entries);
 
@@ -56569,7 +56605,7 @@ async function renderNodeNavigation() {
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
   const [internalData, externalData, tabularData, todoData, preview, nodeMeta] = await Promise.all(
-    isArea
+    isInlineNavHub
       ? [
           fetchInternalMemoryForNavigation(nodePath),
           Promise.resolve(emptyExternal),
@@ -56587,12 +56623,12 @@ async function renderNodeNavigation() {
           fetchNodeNavigationMeta(nodePath)
         ]
   );
-  const mediaData = isArea ? null : await fetchMediaOverview(nodePath);
+  const mediaData = isInlineNavHub ? null : await fetchMediaOverview(nodePath);
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
     nodePath,
-    isArea,
+    isArea: isInlineNavHub,
     descriptionRaw: modeContentCache.description || "",
     internalData,
     externalData,
@@ -56602,7 +56638,7 @@ async function renderNodeNavigation() {
   });
 
   const hub = document.createElement("div");
-  const useSplitLayout = !isArea;
+  const useSplitLayout = shouldUseNavigationSplitRailLayout(nodePath);
   hub.className = useSplitLayout
     ? "node-navigation-hub node-navigation-hub--split"
     : "node-navigation-hub";
@@ -56626,13 +56662,10 @@ async function renderNodeNavigation() {
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
-  const topicSlotCounters = isArea ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
+  const topicSlotCounters = isInlineNavHub ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
   if (isStale()) return;
 
-  if (isArea) {
-    const areaInternalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
-    if (areaInternalPanel) hubMain.appendChild(areaInternalPanel);
-  } else {
+  if (!isInlineNavHub) {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
     if (isStale()) return;
   }
@@ -56645,8 +56678,13 @@ async function renderNodeNavigation() {
     if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
   }
 
+  if (isInlineNavHub) {
+    const internalPanel = renderNavigationInternalPart(internalData, { areaMode: true, nodePath });
+    if (internalPanel) hubMain.appendChild(internalPanel);
+  }
+
   const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
-    isArea,
+    isInlineNavHub,
     nodePath,
     externalData,
     internalData,
