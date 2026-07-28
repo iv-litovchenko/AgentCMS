@@ -44679,8 +44679,10 @@ function getEntryOverviewItemContextPath(relativePath, memoryKind, nodePath = ac
   return getExternalItemContextPath({ path: relativePath }, nodePath);
 }
 
-function prepareNavigationFlatStorageItems(mode) {
-  const items = getFlatStorageNormalizedItems(mode);
+function prepareNavigationFlatStorageItemsFromText(contentText) {
+  const items = parseFlatListItems(contentText)
+    .map((raw) => normalizeListItem(raw))
+    .filter((item) => item.path);
   const files = [];
   const folders = [];
   for (const item of items) {
@@ -44701,6 +44703,99 @@ function prepareNavigationFlatStorageItems(mode) {
     });
   }
   return prepareNavigationExternalItems(files, folders);
+}
+
+function prepareNavigationFlatStorageItems(mode) {
+  return prepareNavigationFlatStorageItemsFromText(modeContentCache[mode] || "");
+}
+
+function hasNavigationExternalPreparedContent(prepared) {
+  if (!prepared) return false;
+  return (
+    (prepared.contentFiles?.length || 0) > 0 ||
+    (prepared.folderPaths instanceof Set ? prepared.folderPaths.size : 0) > 0
+  );
+}
+
+function resolveNavigationPreparedItemCount(prepared) {
+  if (!prepared) return 0;
+  const fileCount = prepared.contentFiles?.length || 0;
+  if (fileCount > 0) return fileCount;
+  return prepared.folderPaths instanceof Set ? prepared.folderPaths.size : 0;
+}
+
+async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeAgentId) {
+  if (!manifestPath || !folder) return { exists: false, content: "" };
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/folder/view", { path: manifestPath, folder }, agentId)
+    );
+    if (!response.ok) return { exists: false, content: "" };
+    const data = await response.json();
+    return {
+      exists: Boolean(data.exists),
+      content: String(data.content || "")
+    };
+  } catch {
+    return { exists: false, content: "" };
+  }
+}
+
+async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = activeAgentId) {
+  const folders = getStorageFolderNamesForSlotKey(slotKey);
+  if (!folders.length) return null;
+
+  const parts = await Promise.all(
+    folders.map((folder) => fetchFlatStorageFolderContent(manifestPath, folder, agentId))
+  );
+  const content = parts
+    .filter((part) => part.content.trim())
+    .map((part) => part.content.trim())
+    .join("\n");
+  if (!content.trim()) {
+    return null;
+  }
+
+  const index = prepareNavigationFlatStorageItemsFromText(content);
+  return hasNavigationExternalPreparedContent(index) ? index : null;
+}
+
+async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) {
+  try {
+    const data = await fetchInboxItems(manifestPath, agentId);
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) return null;
+    const content = items.map((item) => String(item.path || "").trim()).filter(Boolean).join("\n");
+    const index = prepareNavigationFlatStorageItemsFromText(content);
+    return hasNavigationExternalPreparedContent(index) ? index : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeAgentId) {
+  const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
+  if (!manifestPath) return {};
+
+  const slotKeys = DATA_STORAGE_SLOT_SPECS.filter(
+    (spec) => !spec.disabled && spec.sectionKind === "flat" && spec.key !== "todo-single"
+  ).map((spec) => spec.key);
+
+  const entries = await Promise.all(
+    slotKeys.map(async (slotKey) => {
+      const memoryKind = getEntryOverviewMemoryKindForSlot(
+        DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === slotKey)
+      );
+      if (!memoryKind) return [slotKey, null];
+      const index =
+        slotKey === "inbox"
+          ? await fetchInboxNavigationIndex(manifestPath, agentId)
+          : await fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId);
+      return [memoryKind, index];
+    })
+  );
+
+  return Object.fromEntries(entries.filter(([, index]) => index));
 }
 
 function getEntryOverviewNavigationHandlers(memoryKind) {
@@ -46131,16 +46226,19 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
         title = bundleMetrics.title;
       }
     } else if (spec.key === "memory") {
-      count = (externalPrepared.contentFiles || []).length;
-      filled = count > 0 || Boolean(externalPrepared.folderPaths?.size);
-      title = count > 0 ? `${spec.label}: ${count} записей` : `${spec.label}: пусто`;
+      count = resolveNavigationPreparedItemCount(externalPrepared);
+      filled = hasNavigationExternalPreparedContent(externalPrepared);
+      title =
+        count > 0
+          ? `${spec.label}: ${count} ${externalPrepared.contentFiles?.length ? "записей" : "разделов"}`
+          : `${spec.label}: пусто`;
     } else if (spec.key === "media") {
-      count = (mediaPrepared.contentFiles || []).length;
-      filled = count > 0 || Boolean(mediaPrepared.folderPaths?.size);
+      count = resolveNavigationPreparedItemCount(mediaPrepared);
+      filled = hasNavigationExternalPreparedContent(mediaPrepared);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "assets") {
-      count = (assetsPrepared.contentFiles || []).length;
-      filled = count > 0 || Boolean(assetsPrepared.folderPaths?.size);
+      count = resolveNavigationPreparedItemCount(assetsPrepared);
+      filled = hasNavigationExternalPreparedContent(assetsPrepared);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "inbox") {
       const pending = Number(intake?.inbox?.pending) || 0;
@@ -47583,8 +47681,8 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       sectionManifestByFolder
     });
 
-    const childCount = countNavigationFolderItems(folderNode);
-    const collapsible = handlers.collapsible !== false && childCount > 0;
+    const branchCount = resolveNavigationFolderBranchCount(folderNode);
+    const collapsible = handlers.collapsible !== false && hasNavigationFolderBranchChildren(folderNode);
     const collapsed =
       collapsible &&
       !forceExpand &&
@@ -47617,8 +47715,8 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
 
       countNode = document.createElement("span");
       countNode.className = "nav-book-toc-folder-count";
-      countNode.textContent = String(childCount);
-      countNode.title = `${childCount} записей`;
+      countNode.textContent = String(branchCount);
+      countNode.title = `${branchCount} записей`;
     } else {
       const spacer = document.createElement("span");
       spacer.className = "nav-book-toc-folder-toggle-spacer";
@@ -47993,6 +48091,158 @@ function setNavHubRailSlotOpen(nodePath, slotId, open) {
   }
 }
 
+let navigationHubRailDocumentScrollSpy = null;
+let navigationHubRailAsideLayout = null;
+
+function getNavigationHubDocumentScrollElement() {
+  return getWorkspaceScrollElement();
+}
+
+function teardownNavigationHubRailAsideLayout() {
+  if (!navigationHubRailAsideLayout) return;
+  window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
+  navigationHubRailAsideLayout.scrollElement?.removeEventListener(
+    "scroll",
+    navigationHubRailAsideLayout.onScroll
+  );
+  if (navigationHubRailAsideLayout.raf) {
+    cancelAnimationFrame(navigationHubRailAsideLayout.raf);
+  }
+  navigationHubRailAsideLayout.rail?.style.removeProperty("--nav-rail-panel-height");
+  navigationHubRailAsideLayout = null;
+}
+
+function updateNavigationHubRailPanelHeight(rail) {
+  if (!rail?.closest(".node-navigation-hub--split")) {
+    rail?.style.removeProperty("--nav-rail-panel-height");
+    return;
+  }
+
+  const styles = getComputedStyle(rail);
+  const insetTop = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-top")) || 12;
+  const insetBottom = Number.parseFloat(styles.getPropertyValue("--nav-rail-sticky-inset-bottom")) || 12;
+  const railTop = rail.getBoundingClientRect().top;
+  const effectiveTop = Math.max(railTop, insetTop);
+  const height = Math.max(240, Math.floor(window.innerHeight - effectiveTop - insetBottom));
+  rail.style.setProperty("--nav-rail-panel-height", `${height}px`);
+}
+
+function bindNavigationHubRailAsideLayout(rail) {
+  teardownNavigationHubRailAsideLayout();
+  if (!rail?.closest(".node-navigation-hub--split")) return;
+
+  updateNavigationHubRailPanelHeight(rail);
+
+  const onResize = () => {
+    if (!navigationHubRailAsideLayout) return;
+    updateNavigationHubRailPanelHeight(navigationHubRailAsideLayout.rail);
+    if (navigationHubRailDocumentScrollSpy) {
+      syncNavigationHubRailDocumentOutlineActive(navigationHubRailAsideLayout.rail);
+    }
+    scheduleWorkspaceScrollChromeSync();
+  };
+
+  window.addEventListener("resize", onResize, { passive: true });
+  navigationHubRailAsideLayout = { rail, onResize };
+  scheduleWorkspaceScrollChromeSync();
+}
+
+function teardownNavigationHubRailDocumentScrollSpy() {
+  if (!navigationHubRailDocumentScrollSpy) return;
+  navigationHubRailDocumentScrollSpy.scrollElement?.removeEventListener(
+    "scroll",
+    navigationHubRailDocumentScrollSpy.onScroll
+  );
+  if (navigationHubRailDocumentScrollSpy.raf) {
+    cancelAnimationFrame(navigationHubRailDocumentScrollSpy.raf);
+  }
+  navigationHubRailDocumentScrollSpy = null;
+}
+
+function scrollNavigationHubRailItemIntoView(container, item) {
+  if (!container || !item) return;
+  const containerRect = container.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  if (itemRect.top < containerRect.top + 4) {
+    container.scrollTop -= containerRect.top - itemRect.top + 4;
+  } else if (itemRect.bottom > containerRect.bottom - 4) {
+    container.scrollTop += itemRect.bottom - containerRect.bottom + 4;
+  }
+}
+
+function syncNavigationHubRailDocumentOutlineActive(rail) {
+  const documentSlot = rail?.querySelector(".node-navigation-hub-rail-slot--document");
+  if (!documentSlot?.open) return;
+
+  const scrollElement =
+    navigationHubRailDocumentScrollSpy?.scrollElement || getNavigationHubDocumentScrollElement();
+  if (!scrollElement) return;
+
+  const preview = nodeOverviewContentNode?.querySelector(
+    ".node-entry-overview-manifest .file-content-preview, .node-navigation-manifest .file-content-preview"
+  );
+  if (!preview) return;
+
+  const headings = [...preview.querySelectorAll("h1,h2,h3,h4,h5,h6")];
+  if (!headings.length) return;
+
+  const marker = scrollElement.getBoundingClientRect().top + 24;
+  let activeHeading = headings[0];
+  for (const heading of headings) {
+    if (heading.getBoundingClientRect().top <= marker) activeHeading = heading;
+    else break;
+  }
+
+  const activeSlug = activeHeading.id || "";
+  const activeIndex = headings.indexOf(activeHeading);
+  const links = [...documentSlot.querySelectorAll(".node-navigation-rail-doc-outline-link")];
+  let activeLink = null;
+
+  links.forEach((link) => {
+    const matches = activeSlug
+      ? link.dataset.slug === activeSlug
+      : Number(link.dataset.headingIndex) === activeIndex;
+    link.classList.toggle("is-current", matches);
+    if (matches) activeLink = link;
+  });
+
+  if (activeLink && !navigationHubRailDocumentScrollSpy?.suppressOutlineSync) {
+    const body = documentSlot.querySelector(".node-navigation-hub-rail-slot-body");
+    scrollNavigationHubRailItemIntoView(body, activeLink);
+  }
+}
+
+function bindNavigationHubRailDocumentScrollSpy(rail) {
+  teardownNavigationHubRailDocumentScrollSpy();
+
+  const documentSlot = rail?.querySelector(".node-navigation-hub-rail-slot--document");
+  if (!documentSlot?.open) return;
+
+  const scrollElement = getNavigationHubDocumentScrollElement();
+  if (!scrollElement) return;
+
+  const onScroll = () => {
+    if (!navigationHubRailDocumentScrollSpy) return;
+    if (navigationHubRailDocumentScrollSpy.suppressOutlineSync) return;
+    if (navigationHubRailDocumentScrollSpy.raf) return;
+    navigationHubRailDocumentScrollSpy.raf = requestAnimationFrame(() => {
+      if (!navigationHubRailDocumentScrollSpy) return;
+      navigationHubRailDocumentScrollSpy.raf = 0;
+      syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
+    });
+  };
+
+  scrollElement.addEventListener("scroll", onScroll, { passive: true });
+  navigationHubRailDocumentScrollSpy = {
+    scrollElement,
+    onScroll,
+    raf: 0,
+    rail,
+    suppressOutlineSync: false
+  };
+  syncNavigationHubRailDocumentOutlineActive(rail);
+}
+
 function getNavTocCollapsedOverrides() {
   if (navTocCollapsedOverridesCache) return navTocCollapsedOverridesCache;
   try {
@@ -48024,6 +48274,18 @@ function countNavigationFolderItems(folderNode) {
     }
   }
   return count;
+}
+
+function hasNavigationFolderBranchChildren(folderNode) {
+  if (!folderNode) return false;
+  if (Array.isArray(folderNode.files) && folderNode.files.length > 0) return true;
+  return folderNode.folders instanceof Map && folderNode.folders.size > 0;
+}
+
+function resolveNavigationFolderBranchCount(folderNode) {
+  const itemCount = countNavigationFolderItems(folderNode);
+  if (itemCount > 0) return itemCount;
+  return folderNode.folders instanceof Map ? folderNode.folders.size : 0;
 }
 
 function isNavTocFolderCollapsed(nodePath, folderPath, depth = 0) {
@@ -48116,8 +48378,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       sectionManifestByFolder
     });
 
-    const childCount = countNavigationFolderItems(folderNode);
-    const collapsible = handlers.collapsible !== false && childCount > 0;
+    const branchCount = resolveNavigationFolderBranchCount(folderNode);
+    const collapsible = handlers.collapsible !== false && hasNavigationFolderBranchChildren(folderNode);
     const collapsed =
       collapsible &&
       !forceExpand &&
@@ -48150,8 +48412,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
       countNode = document.createElement("span");
       countNode.className = "nav-book-toc-folder-count";
-      countNode.textContent = String(childCount);
-      countNode.title = `${childCount} записей`;
+      countNode.textContent = String(branchCount);
+      countNode.title = `${branchCount} записей`;
     } else {
       const spacer = document.createElement("span");
       spacer.className = "nav-book-toc-folder-toggle-spacer";
@@ -54546,6 +54808,10 @@ async function renderFolderBrowseView() {
 }
 
 function syncNodeOverviewNavigationSplitClass(active = false) {
+  if (!active) {
+    teardownNavigationHubRailDocumentScrollSpy();
+    teardownNavigationHubRailAsideLayout();
+  }
   nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
 }
 
@@ -54691,8 +54957,10 @@ function prepareNavigationHubRailSlotIndex(slotKey, nodePath, prefetched = {}) {
       prefetched.assetsData?.groups || {},
       prefetched.assetsData?.sectionManifests || []
     );
-  } else if (isFlatEntryOverviewMemoryKind(memoryKind) && modeContentCache[memoryKind]) {
-    navigationIndex = prepareNavigationFlatStorageItems(memoryKind);
+  } else if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    navigationIndex =
+      prefetched.flatNavigationIndexes?.[memoryKind] ||
+      (modeContentCache[memoryKind] ? prepareNavigationFlatStorageItems(memoryKind) : null);
   }
 
   return { kind: "tree", memoryKind, navigationIndex, spec };
@@ -54788,13 +55056,7 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
 
   if (slotIndex.kind === "tree") {
     const navIndex = slotIndex.navigationIndex;
-    const itemCount =
-      (navIndex?.contentFiles?.length || 0) +
-      (navIndex?.folderPaths instanceof Set
-        ? navIndex.folderPaths.size
-        : Array.isArray(navIndex?.folderPaths)
-          ? navIndex.folderPaths.length
-          : 0);
+    const itemCount = resolveNavigationPreparedItemCount(navIndex);
 
     if (itemCount >= NAVIGATION_HUB_RAIL_SEARCH_MIN_ITEMS) {
       body.appendChild(
@@ -54874,6 +55136,10 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, defaultDocumentOpen);
   details.addEventListener("toggle", () => {
     setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
+    const rail = details.closest(".node-navigation-hub-rail");
+    updateNavigationHubRailPanelHeight(rail);
+    bindNavigationHubRailDocumentScrollSpy(rail);
+    scheduleWorkspaceScrollChromeSync();
   });
 
   const summary = document.createElement("summary");
@@ -54911,11 +55177,22 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "node-navigation-rail-link node-navigation-rail-doc-outline-link";
+    btn.dataset.slug = heading.slug || "";
+    btn.dataset.headingIndex = String(heading.index);
     btn.textContent = heading.text;
     btn.title = heading.text;
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (navigationHubRailDocumentScrollSpy) {
+        navigationHubRailDocumentScrollSpy.suppressOutlineSync = true;
+        window.setTimeout(() => {
+          if (navigationHubRailDocumentScrollSpy) {
+            navigationHubRailDocumentScrollSpy.suppressOutlineSync = false;
+            syncNavigationHubRailDocumentOutlineActive(navigationHubRailDocumentScrollSpy.rail);
+          }
+        }, 700);
+      }
       scrollToEntryOverviewDocumentHeading(heading);
     });
     item.appendChild(btn);
@@ -55029,6 +55306,11 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
     rail.appendChild(slotsWrap);
   }
 
+  if (rail.childElementCount) {
+    bindNavigationHubRailAsideLayout(rail);
+    bindNavigationHubRailDocumentScrollSpy(rail);
+  }
+
   return rail.childElementCount ? rail : null;
 }
 
@@ -55107,6 +55389,9 @@ async function appendNodeNavigationSplitRail(
       (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null));
     if (isStale()) return false;
 
+    const flatNavigationIndexes = await fetchNavigationHubRailFlatIndexes(nodePath);
+    if (isStale()) return false;
+
     const rail = renderNavigationHubRail(
       topicSlotCounters.map((slot) => ({
         ...slot,
@@ -55114,7 +55399,7 @@ async function appendNodeNavigationSplitRail(
       })),
       childEntries,
       nodePath,
-      { ...prefetched, assetsData },
+      { ...prefetched, assetsData, flatNavigationIndexes },
       { documentMarkdown }
     );
     if (isStale()) return false;
@@ -58679,13 +58964,24 @@ function renderFolderBrowseBreadcrumbs(filePath) {
 function scrollToEntryOverviewDocumentHeading(heading) {
   if (!heading) return;
   const preview = nodeOverviewContentNode?.querySelector(
-    ".node-entry-overview-manifest .file-content-preview"
+    ".node-entry-overview-manifest .file-content-preview, .node-navigation-manifest .file-content-preview"
   );
   if (!preview) return;
   const target =
     preview.querySelector(`#${CSS.escape(heading.slug)}`) ||
     preview.querySelectorAll("h1,h2,h3,h4,h5,h6")?.[heading.index];
-  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!target) return;
+
+  const scrollElement = getNavigationHubDocumentScrollElement();
+  if (scrollElement) {
+    const scrollRect = scrollElement.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const nextTop = scrollElement.scrollTop + (targetRect.top - scrollRect.top) - 16;
+    scrollElement.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+    return;
+  }
+
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderEntryOverviewPathBreadcrumbs(context, state = entryOverviewBreadcrumbState) {
