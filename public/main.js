@@ -17485,6 +17485,7 @@ function isMenuTreeBranchRowElement(el) {
   if (!el?.classList) return false;
   if (el.classList.contains("menu-tree-divider")) return false;
   if (el.classList.contains("menu-container-section")) return false;
+  if (el.classList.contains("menu-system-files-section")) return false;
   if (el.classList.contains("menu-section")) return true;
   if (el.classList.contains("menu-item-row")) return true;
   if (el.classList.contains("system-file-row")) return true;
@@ -62796,6 +62797,7 @@ function syncMenuSystemFilesDivider(parentEl, hasSystemFiles) {
   clearMenuSystemFilesDivider(parentEl);
   if (!parentEl || !hasSystemFiles) return;
   const anchor =
+    parentEl.querySelector(":scope > .menu-system-files-section") ||
     parentEl.querySelector(":scope > .system-file-group-label") ||
     parentEl.querySelector(":scope > .menu-item-row.system-file-row") ||
     parentEl.querySelector(":scope > .menu-tree-divider--system-files");
@@ -64263,7 +64265,7 @@ function sortSystemFilesByName(files) {
 
 function clearSystemFileMenuNodes(container) {
   if (!container) return;
-  container.querySelectorAll(".system-file-row, .system-file-group-label").forEach((node) => node.remove());
+  container.querySelectorAll(".menu-system-files-section").forEach((node) => node.remove());
   clearMenuSystemFilesDivider(container);
 }
 
@@ -64315,9 +64317,17 @@ function renderSystemFiles(files) {
   const groups = groupSystemFileMenuEntries(visibleFiles);
 
   syncMenuSystemFilesDivider(container, groups.length > 0);
+  if (groups.length === 0) {
+    enableMenuLinkDragSources(getMenuQueryRoot());
+    refreshClassicMenuTreeLines();
+    return;
+  }
+
+  const section = document.createElement("div");
+  section.className = "menu-system-files-section";
 
   for (const group of groups) {
-    container.appendChild(createSystemFileGroupLabel(group.label, group.id));
+    section.appendChild(createSystemFileGroupLabel(group.label, group.id));
     for (const file of group.entries) {
       const row = document.createElement("div");
       row.className = "menu-item-row system-file-row";
@@ -64344,9 +64354,11 @@ function renderSystemFiles(files) {
       });
 
       row.appendChild(btn);
-      container.appendChild(row);
+      section.appendChild(row);
     }
   }
+
+  container.appendChild(section);
 
   enableMenuLinkDragSources(getMenuQueryRoot());
   refreshClassicMenuTreeLines();
@@ -71612,6 +71624,7 @@ function getMenuTreeSortableChildren(container) {
     if (el.classList.contains("menu-service-section")) return false;
     if (el.classList.contains("menu-shared-section")) return false;
     if (el.classList.contains("menu-container-section")) return false;
+    if (el.classList.contains("menu-system-files-section")) return false;
     if (el.classList.contains("menu-tree-divider")) return false;
     if (el.classList.contains("system-file-row")) return false;
     if (el.classList.contains("system-file-group-label")) return false;
@@ -71621,6 +71634,7 @@ function getMenuTreeSortableChildren(container) {
 
 function getMenuTreeInsertAnchor(container) {
   return (
+    container?.querySelector(":scope > .menu-system-files-section") ||
     container?.querySelector(":scope > .system-file-group-label") ||
     container?.querySelector(":scope > .menu-item-row.system-file-row") ||
     container?.querySelector(":scope > .menu-tree-divider--system-files") ||

@@ -40423,6 +40423,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
   min-height: var(--menu-win-row-h);
   background: transparent;
   padding: 1px 4px 1px var(--menu-win-label-pad-left);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-folder::before,
@@ -40496,7 +40499,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children.menu-agent-system-body,
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children.menu-agent-system-domain-body {
   margin-left: 0;
-  padding-left: var(--menu-win-indent);
+  padding-left: 0;
   border-left: none;
 }
 
@@ -40763,8 +40766,8 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .sidebar-slab-menu .menu-service-body {
   margin-left: 0;
-  padding-left: var(--menu-win-indent);
-  border-left: 2px solid #fcd34d;
+  padding-left: 0;
+  border-left: none;
 }
 
 .sidebar-slab-menu .menu-shared-section {
@@ -40806,6 +40809,25 @@ body.is-discuss-resizing .discuss-aside-resizer {
   box-sizing: border-box;
 }
 
+.sidebar-slab-menu .menu-system-files-section {
+  margin: 0 0 4px;
+  padding: 0;
+  border-left: 2px solid #c0c0c0;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-container-section,
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-system-files-section,
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-service-section,
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-shared-section,
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-agent-system-section {
+  margin-left: calc(-1 * var(--menu-win-indent));
+  width: calc(100% + var(--menu-win-indent));
+  max-width: calc(100% + var(--menu-win-indent));
+}
+
 /* Tree lines must not clip inside colored boxes */
 .sidebar-slab-menu .menu-section,
 .sidebar-slab-menu .tree-children,
@@ -40813,19 +40835,53 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .sidebar-slab-menu .menu-service-section,
 .sidebar-slab-menu .menu-shared-section,
 .sidebar-slab-menu .menu-agent-system-section,
-.sidebar-slab-menu .menu-container-section {
+.sidebar-slab-menu .menu-container-section,
+.sidebar-slab-menu .menu-system-files-section {
   overflow: visible;
 }
 
 .sidebar-slab-menu .menu-tree-divider {
   height: 1px;
-  margin: 6px 4px;
+  margin: 6px 0;
   background: #c0c0c0;
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .tree-children > .menu-tree-divider {
+  margin-left: calc(-1 * var(--menu-win-indent));
+  width: calc(100% + var(--menu-win-indent));
+  max-width: calc(100% + var(--menu-win-indent));
 }
 
 .sidebar-slab-menu .menu-tree-divider--workspace {
   margin-top: 4px;
   margin-bottom: 6px;
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-folder-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: calc(var(--menu-win-row-h) - 2px);
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-preview {
+  width: calc(var(--menu-win-row-h) - 4px);
+  height: calc(var(--menu-win-row-h) - 4px);
+  border-radius: 2px;
+  border-color: #c0c0c0;
+  background: #ffffff;
+  flex: 0 0 auto;
+  align-self: center;
+  overflow: hidden;
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* Action buttons — show on row hover only */
@@ -40865,7 +40921,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .system-file-group-label {
   display: block;
-  margin: 6px 0 2px;
+  margin: 4px 0 1px;
   padding: 0;
   min-height: 0;
   box-sizing: border-box;
@@ -40875,16 +40931,25 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: inherit;
 }
 
+.sidebar-slab-menu .menu-system-files-section > .system-file-group-label:first-child {
+  margin-top: 2px;
+}
+
 .sidebar-slab-menu
   .menu-agent-pane:not(.is-menu-view-flat)
   .menu-tree-divider--system-files
-  + .system-file-group-label {
-  margin-top: 4px;
+  + .system-file-group-label,
+.sidebar-slab-menu
+  .menu-agent-pane:not(.is-menu-view-flat)
+  .menu-tree-divider--system-files
+  + .menu-system-files-section
+  > .system-file-group-label:first-child {
+  margin-top: 2px;
 }
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .system-file-row + .system-file-group-label {
-  margin-top: 8px;
-  padding-top: 6px;
+  margin-top: 6px;
+  padding-top: 5px;
   border-top: 1px solid #d4d4d4;
 }
 
