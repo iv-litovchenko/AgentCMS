@@ -759,18 +759,25 @@ let markdownLinkIndexCache = {
 };
 let renderDocLinksLibraryRequestId = 0;
 const AWN_LINK_TYPE_GROUP_ORDER = [
-  { id: "awn.topic", label: "Темы", hint: "awn.topic — темы из меню" },
-  { id: "awn.area", label: "Области", hint: "awn.area — папки с manifest.md" },
-  { id: "awn.workspace", label: "Workspace", hint: "awn.page.ws — корень агента" },
-  { id: "awn.record", label: "Записи", hint: "awn.record — markdown в Content" },
-  { id: "awn.record.category", label: "Разделы Content", hint: "awn.record.category" },
-  { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category" },
-  { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам" },
-  { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме" },
-  { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги" },
-  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md" },
-  { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO" }
+  { id: "awn.topic", label: "Темы", hint: "awn.topic — темы из меню", icon: "📄" },
+  { id: "awn.area", label: "Области", hint: "awn.area — папки с manifest.md", icon: "🗂" },
+  { id: "awn.workspace", label: "Workspace", hint: "awn.page.ws — корень агента", icon: "🏠" },
+  { id: "awn.record", label: "Записи", hint: "awn.record — markdown в Content", icon: "📝" },
+  { id: "awn.record.category", label: "Разделы Content", hint: "awn.record.category", icon: "📁" },
+  { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category", icon: "🖼" },
+  { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам", icon: "📎" },
+  { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме", icon: "📃" },
+  { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги", icon: "🧠" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md", icon: "⚙" },
+  { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO", icon: "🔧" }
 ];
+const DOC_LINKS_ACCORDION_STORAGE_KEY = "agent-cms:doc-links-accordion.v1";
+const DOC_LINKS_ACCORDION_DEFAULT_OPEN = new Set([
+  "nearby-folder",
+  "nearby-topic",
+  "menu-current-topic",
+  "awn.topic"
+]);
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
@@ -27834,6 +27841,9 @@ let entryOverviewExternalCreateActive = false;
 let entryOverviewExternalCreateParentOverride = null;
 /** @type {{ targetMode: string, parentFolder: string|null, slotKey?: string, entryOverviewContext?: object|null } | null} */
 let navigationHubRailSlotCreateState = null;
+let navigationHubRailFolderCreatePopoverNode = null;
+let navigationHubRailFolderCreatePopoverListNode = null;
+let navigationHubRailFolderCreatePopoverAnchor = null;
 let navigationHubRailCollapsed = readStorageItem(NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY) === "1";
 let entryOverviewBrowseUploadPanelOpen = false;
 /** @type {{ memoryKind: string } | null} */
@@ -28017,6 +28027,184 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
   }
 
   return actions.childElementCount ? actions : null;
+}
+
+function ensureNavigationHubRailFolderCreatePopover() {
+  if (navigationHubRailFolderCreatePopoverNode) return;
+  const popover = document.createElement("div");
+  popover.id = "navigation-hub-rail-folder-create-popover";
+  popover.className = "navigation-hub-rail-folder-create-popover menu-context-menu hidden";
+  popover.setAttribute("role", "menu");
+  const list = document.createElement("ul");
+  list.className = "menu-context-menu-list";
+  list.id = "navigation-hub-rail-folder-create-popover-list";
+  list.setAttribute("role", "none");
+  popover.appendChild(list);
+  document.body.appendChild(popover);
+  navigationHubRailFolderCreatePopoverNode = popover;
+  navigationHubRailFolderCreatePopoverListNode = list;
+
+  list.addEventListener("click", (event) => {
+    const btn = event.target.closest(".menu-context-menu-btn");
+    if (!btn || btn.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const action = btn.dataset.action;
+    const config = navigationHubRailFolderCreatePopoverNode?.dataset.createConfig
+      ? JSON.parse(navigationHubRailFolderCreatePopoverNode.dataset.createConfig)
+      : null;
+    closeNavigationHubRailFolderCreatePopover();
+    if (!config) return;
+    handleNavigationHubRailFolderCreateAction(action, config);
+  });
+}
+
+function closeNavigationHubRailFolderCreatePopover() {
+  navigationHubRailFolderCreatePopoverNode?.classList.add("hidden");
+  navigationHubRailFolderCreatePopoverNode?.removeAttribute("data-create-config");
+  if (navigationHubRailFolderCreatePopoverAnchor) {
+    navigationHubRailFolderCreatePopoverAnchor.setAttribute("aria-expanded", "false");
+    navigationHubRailFolderCreatePopoverAnchor = null;
+  }
+}
+
+function positionNavigationHubRailFolderCreatePopover(anchor) {
+  if (!navigationHubRailFolderCreatePopoverNode || !anchor) return;
+  navigationHubRailFolderCreatePopoverNode.classList.remove("hidden");
+  const anchorRect = anchor.getBoundingClientRect();
+  const popoverRect = navigationHubRailFolderCreatePopoverNode.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(8, anchorRect.right - popoverRect.width),
+    Math.max(8, window.innerWidth - popoverRect.width - 8)
+  );
+  const top = Math.min(
+    anchorRect.bottom + 4,
+    Math.max(8, window.innerHeight - popoverRect.height - 8)
+  );
+  navigationHubRailFolderCreatePopoverNode.style.left = `${left}px`;
+  navigationHubRailFolderCreatePopoverNode.style.top = `${top}px`;
+}
+
+function appendNavigationHubRailFolderCreatePopoverItem(list, actionId, label) {
+  const item = document.createElement("li");
+  item.className = "menu-context-menu-item";
+  item.setAttribute("role", "none");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-context-menu-btn";
+  btn.dataset.action = actionId;
+  btn.textContent = label;
+  btn.setAttribute("role", "menuitem");
+  item.appendChild(btn);
+  list.appendChild(item);
+}
+
+function handleNavigationHubRailFolderCreateAction(action, config) {
+  const { targetMode, folderPath, slotKey, activeCtx } = config;
+  const parentFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim() || null;
+  const entryOverviewContext = targetMode === "external" ? activeCtx || activeEntryOverviewContext : null;
+
+  beginNavigationHubRailSlotCreate({
+    targetMode,
+    parentFolder,
+    slotKey: slotKey || null,
+    entryOverviewContext
+  });
+
+  if (action === "section") {
+    openCreateSectionModal(targetMode, { entryOverviewContext });
+    return;
+  }
+  if (action === "record") {
+    void openCreateMemoryModal(entryOverviewContext);
+    return;
+  }
+  if (action === "upload") {
+    const uploadContext = activeCtx || activeEntryOverviewContext || { memoryKind: targetMode };
+    toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
+  }
+}
+
+function populateNavigationHubRailFolderCreatePopover(config) {
+  ensureNavigationHubRailFolderCreatePopover();
+  const list = navigationHubRailFolderCreatePopoverListNode;
+  if (!list) return false;
+
+  const { targetMode } = config;
+  list.replaceChildren();
+
+  if (supportsNavigationHubRailSectionCreate(targetMode)) {
+    appendNavigationHubRailFolderCreatePopoverItem(list, "section", "+ Раздел");
+  }
+  if (supportsNavigationHubRailRecordCreate(targetMode)) {
+    appendNavigationHubRailFolderCreatePopoverItem(list, "record", "+ Запись");
+  }
+  if (isMediaLibraryContentMode(targetMode)) {
+    appendNavigationHubRailFolderCreatePopoverItem(list, "upload", "+ Загрузить");
+  }
+
+  if (!list.childElementCount) return false;
+  navigationHubRailFolderCreatePopoverNode.dataset.createConfig = JSON.stringify(config);
+  return true;
+}
+
+function openNavigationHubRailFolderCreatePopover(event, config) {
+  if (!activePath || !config?.targetMode) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenuContextMenu();
+  closeResourceContextMenu();
+
+  const anchor = event.currentTarget;
+  const isSameAnchor =
+    navigationHubRailFolderCreatePopoverAnchor === anchor &&
+    navigationHubRailFolderCreatePopoverNode &&
+    !navigationHubRailFolderCreatePopoverNode.classList.contains("hidden");
+  if (isSameAnchor) {
+    closeNavigationHubRailFolderCreatePopover();
+    return;
+  }
+
+  closeNavigationHubRailFolderCreatePopover();
+  if (!populateNavigationHubRailFolderCreatePopover(config)) return;
+
+  navigationHubRailFolderCreatePopoverAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  positionNavigationHubRailFolderCreatePopover(anchor);
+}
+
+function supportsNavigationHubRailFolderCreateActions(handlers) {
+  if (!handlers?.enableFolderCreateActions || !handlers.railCreateTargetMode) return false;
+  const targetMode = handlers.railCreateTargetMode;
+  return (
+    supportsNavigationHubRailSectionCreate(targetMode) ||
+    supportsNavigationHubRailRecordCreate(targetMode) ||
+    isMediaLibraryContentMode(targetMode)
+  );
+}
+
+function appendNavBookTocFolderRailCreateButton(leaders, folderPath, handlers) {
+  if (!leaders || !supportsNavigationHubRailFolderCreateActions(handlers)) return;
+
+  const sectionFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "nav-book-toc-folder-create-btn";
+  btn.textContent = "+";
+  btn.title = sectionFolder ? `Создать в «${sectionFolder}»` : "Создать в этом разделе";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-haspopup", "menu");
+  btn.setAttribute("aria-expanded", "false");
+  btn.addEventListener("click", (event) => {
+    openNavigationHubRailFolderCreatePopover(event, {
+      targetMode: handlers.railCreateTargetMode,
+      folderPath: sectionFolder,
+      slotKey: handlers.railSlotKey || null,
+      activeCtx: handlers.activeContext || null
+    });
+  });
+  leaders.classList.add("has-nav-book-toc-folder-create-btn");
+  leaders.appendChild(btn);
 }
 
 function getEntryOverviewBrowseUploadTargetMode(context) {
@@ -36352,7 +36540,8 @@ function collectMarkdownLinkLibraryGroups() {
     )
     .map(mapIndexItemToLibraryItem);
 
-  const nearby = [];
+  const sameFolder = [];
+  const sameTopic = [];
   const grouped = Object.fromEntries(AWN_LINK_TYPE_GROUP_ORDER.map(({ id }) => [id, []]));
   const used = new Set();
 
@@ -36361,8 +36550,11 @@ function collectMarkdownLinkLibraryGroups() {
     const inSameFolder = Boolean(currentDir && parentDir === currentDir);
     const inSameScope =
       Boolean(item.nodePath && activeScope && getLinkLibraryScopeFolder(item.nodePath) === activeScope);
-    if (inSameFolder || inSameScope) {
-      nearby.push(item);
+    if (inSameFolder) {
+      sameFolder.push(item);
+      used.add(item.relPath);
+    } else if (inSameScope) {
+      sameTopic.push(item);
       used.add(item.relPath);
     }
   }
@@ -36376,7 +36568,8 @@ function collectMarkdownLinkLibraryGroups() {
   }
 
   const sorter = (a, b) => String(a.label || "").localeCompare(String(b.label || ""), "ru");
-  nearby.sort(sorter);
+  sameFolder.sort(sorter);
+  sameTopic.sort(sorter);
   grouped["awn.topic"] = sortDocLinkItemsByMenuOrder(grouped["awn.topic"] || []);
   for (const { id } of AWN_LINK_TYPE_GROUP_ORDER) {
     if (id === "awn.topic") continue;
@@ -36384,7 +36577,8 @@ function collectMarkdownLinkLibraryGroups() {
   }
 
   return {
-    nearby,
+    sameFolder,
+    sameTopic,
     grouped,
     scopeLabel: getLinkLibraryScopeLabel(activePath),
     currentDir
@@ -36400,9 +36594,10 @@ function getFlatMarkdownLinkLibraryItems(options = {}) {
 
   let items;
   if ((markdownLinkIndexCache.items || []).length) {
-    const { nearby, grouped } = collectMarkdownLinkLibraryGroups();
+    const { sameFolder, sameTopic, grouped } = collectMarkdownLinkLibraryGroups();
     items = [
-      ...nearby,
+      ...sameFolder,
+      ...sameTopic,
       ...AWN_LINK_TYPE_GROUP_ORDER.flatMap(({ id }) => grouped[id] || [])
     ];
   } else {
@@ -36531,7 +36726,7 @@ function ensureDocLinksSearchUi() {
     input.type = "search";
     input.id = "doc-links-search";
     input.className = "doc-links-search";
-    input.placeholder = "Тема, awn-тип или файл…";
+    input.placeholder = "Название, путь, awn-тип…";
     input.autocomplete = "off";
     input.spellcheck = false;
     input.value = docLinksSearchQuery;
@@ -36545,7 +36740,7 @@ function ensureDocLinksSearchUi() {
 
     const hint = document.createElement("p");
     hint.className = "doc-links-search-hint";
-    hint.textContent = "Перетащите в редактор для ссылки. Поиск находит и служебные файлы.";
+    hint.textContent = "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
 
     wrap.appendChild(input);
     wrap.appendChild(hint);
@@ -36555,7 +36750,7 @@ function ensureDocLinksSearchUi() {
   docLinksSearchInputNode = wrap.querySelector("#doc-links-search") || docLinksSearchInputNode;
   const hintNode = wrap.querySelector(".doc-links-search-hint");
   if (hintNode) {
-    hintNode.textContent = "Перетащите в редактор для ссылки. Поиск находит и служебные файлы.";
+    hintNode.textContent = "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
   }
 }
 
@@ -36566,34 +36761,60 @@ function syncDocLinksSearchUi({ disabled = false } = {}) {
   if (docLinksSearchInputNode.value !== docLinksSearchQuery) {
     docLinksSearchInputNode.value = docLinksSearchQuery;
   }
+  syncDocLinksSearchResultsHint();
 }
 
-function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
-  const section = document.createElement("section");
-  section.className = "doc-links-group";
-  section.setAttribute("aria-label", title);
-
-  const heading = document.createElement("h3");
-  heading.className = "doc-links-group-title";
-  heading.textContent = title;
-  section.appendChild(heading);
-
-  if (hint) {
-    const hintNode = document.createElement("p");
-    hintNode.className = "doc-links-group-hint";
-    hintNode.textContent = hint;
-    section.appendChild(hintNode);
-  }
-
-  if (!items.length) {
-    const empty = document.createElement("p");
-    empty.className = "doc-links-empty";
-    empty.textContent = emptyText;
-    section.appendChild(empty);
-    parent.appendChild(section);
+function syncDocLinksSearchResultsHint() {
+  const wrap = docLinksContentNode?.parentElement?.querySelector(".doc-links-search-wrap");
+  const hintNode = wrap?.querySelector(".doc-links-search-hint");
+  if (!hintNode) return;
+  const query = String(docLinksSearchQuery || "").trim();
+  if (!query) {
+    hintNode.textContent =
+      "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
     return;
   }
+  const matchCount = docLinksContentNode?.querySelectorAll(".doc-link-btn").length || 0;
+  const groupCount = docLinksContentNode?.querySelectorAll(".doc-links-accordion").length || 0;
+  if (!matchCount) {
+    hintNode.textContent = `Поиск «${query}» — совпадений нет. Служебные файлы тоже ищутся.`;
+    return;
+  }
+  hintNode.textContent = `Поиск «${query}» — ${matchCount} в ${groupCount} группах. Перетащите в редактор.`;
+}
 
+function loadDocLinksAccordionState() {
+  try {
+    const raw = readStorageItem(DOC_LINKS_ACCORDION_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDocLinksAccordionState(groupId, isOpen) {
+  if (!groupId) return;
+  const state = loadDocLinksAccordionState();
+  state[groupId] = Boolean(isOpen);
+  try {
+    localStorage.setItem(DOC_LINKS_ACCORDION_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function resolveDocLinksAccordionOpen(groupId, { forceOpen = false } = {}) {
+  if (forceOpen) return true;
+  const state = loadDocLinksAccordionState();
+  if (Object.prototype.hasOwnProperty.call(state, groupId)) {
+    return Boolean(state[groupId]);
+  }
+  return DOC_LINKS_ACCORDION_DEFAULT_OPEN.has(groupId);
+}
+
+function appendDocLinkLibraryList(parent, items) {
   const list = document.createElement("ul");
   list.className = "doc-links-list";
 
@@ -36627,8 +36848,76 @@ function appendDocLinkLibraryGroup(parent, { title, hint, items, emptyText }) {
     list.appendChild(li);
   }
 
-  section.appendChild(list);
+  parent.appendChild(list);
+  return list;
+}
+
+function appendDocLinkLibraryAccordionGroup(
+  parent,
+  { id, title, hint, icon, items, emptyText, forceOpen = false }
+) {
+  const section = document.createElement("details");
+  section.className = "doc-links-accordion";
+  section.dataset.groupId = id;
+  section.open = resolveDocLinksAccordionOpen(id, { forceOpen });
+
+  section.addEventListener("toggle", () => {
+    saveDocLinksAccordionState(id, section.open);
+  });
+
+  const summary = document.createElement("summary");
+  summary.className = "doc-links-accordion-summary";
+
+  if (icon) {
+    const iconNode = document.createElement("span");
+    iconNode.className = "doc-links-accordion-icon";
+    iconNode.textContent = icon;
+    iconNode.setAttribute("aria-hidden", "true");
+    summary.appendChild(iconNode);
+  }
+
+  const summaryMain = document.createElement("span");
+  summaryMain.className = "doc-links-accordion-summary-main";
+
+  const titleRow = document.createElement("span");
+  titleRow.className = "doc-links-accordion-title";
+  titleRow.textContent = title;
+  summaryMain.appendChild(titleRow);
+
+  if (hint) {
+    const hintNode = document.createElement("span");
+    hintNode.className = "doc-links-accordion-hint";
+    hintNode.textContent = hint;
+    summaryMain.appendChild(hintNode);
+  }
+
+  summary.appendChild(summaryMain);
+
+  const count = document.createElement("span");
+  count.className = "doc-links-accordion-count";
+  count.textContent = String(items.length);
+  summary.appendChild(count);
+
+  section.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "doc-links-accordion-body";
+
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "doc-links-empty";
+    empty.textContent = emptyText;
+    body.appendChild(empty);
+  } else {
+    appendDocLinkLibraryList(body, items);
+  }
+
+  section.appendChild(body);
   parent.appendChild(section);
+}
+
+function appendDocLinkLibraryGroup(parent, sectionSpec) {
+  appendDocLinkLibraryAccordionGroup(parent, sectionSpec);
 }
 
 function renderDocLinksLibrary(options = {}) {
@@ -36665,27 +36954,40 @@ function renderDocLinksLibraryContent(options = {}) {
 
   docLinksContentNode.replaceChildren();
   const hasQuery = Boolean(String(docLinksSearchQuery || "").trim());
+  const forceOpen = hasQuery;
   const useIndex = (markdownLinkIndexCache.items || []).length > 0;
 
   if (useIndex) {
-    const { nearby, grouped, scopeLabel, currentDir } = collectMarkdownLinkLibraryGroups();
+    const { sameFolder, sameTopic, grouped, scopeLabel, currentDir } = collectMarkdownLinkLibraryGroups();
     const sections = [];
-    const filteredNearby = filterDocLinkLibraryItems(filterVisibleDocLinkItems(nearby));
+    const filteredSameFolder = filterDocLinkLibraryItems(filterVisibleDocLinkItems(sameFolder));
+    const filteredSameTopic = filterDocLinkLibraryItems(filterVisibleDocLinkItems(sameTopic));
 
-    if (!hasQuery || filteredNearby.length) {
+    if (!hasQuery || filteredSameFolder.length) {
       sections.push({
-        title: "Рядом",
+        id: "nearby-folder",
+        icon: "📂",
+        title: "Эта папка",
         hint: currentDir
-          ? `Та же папка: ${stripAgentContentPrefixFromRelPath(currentDir)}`
-          : scopeLabel
-            ? `Та же область: ${scopeLabel}`
-            : "Файлы рядом с текущим",
-        items: filteredNearby,
-        emptyText: hasQuery ? "Рядом нет совпадений." : "Рядом нет других .md для ссылки."
+          ? stripAgentContentPrefixFromRelPath(currentDir)
+          : "Файлы в той же директории",
+        items: filteredSameFolder,
+        emptyText: hasQuery ? "В этой папке нет совпадений." : "В этой папке нет других .md для ссылки."
       });
     }
 
-    for (const { id, label, hint } of AWN_LINK_TYPE_GROUP_ORDER) {
+    if (!hasQuery || filteredSameTopic.length) {
+      sections.push({
+        id: "nearby-topic",
+        icon: "🧭",
+        title: "Эта тема",
+        hint: scopeLabel ? `Область: ${scopeLabel}` : "Другие файлы той же темы",
+        items: filteredSameTopic,
+        emptyText: hasQuery ? "В этой теме нет совпадений." : "В теме нет других .md в соседних папках."
+      });
+    }
+
+    for (const { id, label, hint, icon } of AWN_LINK_TYPE_GROUP_ORDER) {
       const filtered = filterDocLinkLibraryItems(filterVisibleDocLinkItems(grouped[id] || []));
       if (hasQuery && !filtered.length) continue;
       const sectionTitle =
@@ -36693,8 +36995,10 @@ function renderDocLinksLibraryContent(options = {}) {
           ? `Темы · ${getActiveAgentLabel() || activeAgentId || "агент"}`
           : label;
       const sectionHint =
-        id === "awn.topic" ? "Только темы текущего агента, как в меню слева" : hint || "";
+        id === "awn.topic" ? "Как в меню слева — только темы агента" : hint || "";
       sections.push({
+        id,
+        icon: icon || "📄",
         title: sectionTitle,
         hint: sectionHint,
         items: filtered,
@@ -36702,17 +37006,32 @@ function renderDocLinksLibraryContent(options = {}) {
       });
     }
 
-    const totalMatches = sections.reduce((sum, section) => sum + section.items.length, 0);
+    const visibleSections = sections.filter((section) => section.items.length > 0);
+    const totalMatches = visibleSections.reduce((sum, section) => sum + section.items.length, 0);
+
     if (hasQuery && !totalMatches) {
       const empty = document.createElement("p");
       empty.className = "doc-links-empty";
       empty.textContent = "Ничего не найдено.";
       docLinksContentNode.appendChild(empty);
     } else {
-      for (const section of sections) {
-        if (!section.items.length) continue;
-        appendDocLinkLibraryGroup(docLinksContentNode, section);
+      if (hasQuery && totalMatches) {
+        const summary = document.createElement("p");
+        summary.className = "doc-links-results-summary";
+        const groupWord =
+          visibleSections.length === 1
+            ? "1 группе"
+            : visibleSections.length >= 2 && visibleSections.length <= 4
+              ? `${visibleSections.length} группах`
+              : `${visibleSections.length} группах`;
+        summary.textContent = `Найдено ${totalMatches} в ${groupWord}`;
+        docLinksContentNode.appendChild(summary);
       }
+
+      for (const section of visibleSections) {
+        appendDocLinkLibraryAccordionGroup(docLinksContentNode, { ...section, forceOpen });
+      }
+
       if (!docLinksContentNode.childElementCount) {
         const empty = document.createElement("p");
         empty.className = "doc-links-empty";
@@ -36731,27 +37050,42 @@ function renderDocLinksLibraryContent(options = {}) {
       empty.textContent = "Ничего не найдено.";
       docLinksContentNode.appendChild(empty);
     } else {
-      if (!hasQuery || filteredCurrent.length) {
-        appendDocLinkLibraryGroup(docLinksContentNode, {
+      const visibleCount = (filteredCurrent.length ? 1 : 0) + (filteredOther.length ? 1 : 0);
+      const totalMatches = filteredCurrent.length + filteredOther.length;
+      if (hasQuery && totalMatches) {
+        const summary = document.createElement("p");
+        summary.className = "doc-links-results-summary";
+        summary.textContent = `Найдено ${totalMatches} в ${visibleCount} группах`;
+        docLinksContentNode.appendChild(summary);
+      }
+
+      if (filteredCurrent.length) {
+        appendDocLinkLibraryAccordionGroup(docLinksContentNode, {
+          id: "menu-current-topic",
+          icon: "📂",
           title: "Текущая тема",
           hint: scopeLabel ? `Область: ${scopeLabel}` : "",
           items: filteredCurrent,
-          emptyText: hasQuery
-            ? "В текущей теме нет совпадений."
-            : "В текущей теме нет других записей для ссылки."
+          emptyText: "В текущей теме нет других записей для ссылки.",
+          forceOpen
         });
       }
 
-      if (!hasQuery || filteredOther.length) {
-        appendDocLinkLibraryGroup(docLinksContentNode, {
-          title: "Все другие темы",
+      if (filteredOther.length) {
+        appendDocLinkLibraryAccordionGroup(docLinksContentNode, {
+          id: "menu-other-topics",
+          icon: "🗺",
+          title: "Другие темы",
           hint: "Темы из остальных разделов агента",
           items: filteredOther,
-          emptyText: hasQuery ? "В других темах нет совпадений." : "Других тем для ссылки пока нет."
+          emptyText: "Других тем для ссылки пока нет.",
+          forceOpen
         });
       }
     }
   }
+
+  syncDocLinksSearchResultsHint();
 
   if (options.preserveSearchFocus && docLinksSearchInputNode) {
     docLinksSearchInputNode.focus();
@@ -51401,6 +51735,11 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     head.appendChild(toggleBtn);
     head.append(folderLabel);
     appendNavBookTocFolderHeadCount(head, countNode);
+    appendNavBookTocFolderRailCreateButton(
+      head.querySelector(".nav-book-toc-folder-leaders"),
+      folderNode.folderPath,
+      handlers
+    );
     if (handlers.resourceContextMenuMemoryKind) {
       bindNavigationHubRailResourceContextMenu(
         head,
@@ -58409,6 +58748,9 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     resourceContextMenuMemoryKind: memoryKind,
     readManifestPath: resolveManifestPathForNodeApi(nodePath),
     readMemoryKind: memoryKind,
+    enableFolderCreateActions: true,
+    railCreateTargetMode: memoryKind,
+    railSlotKey: slotId,
     ...handlers
   };
 
@@ -76442,6 +76784,14 @@ document.addEventListener("click", (event) => {
   }
   if (resourceContextMenuNode?.classList.contains("hidden") === false) {
     if (!event.target.closest("#resource-context-menu")) closeResourceContextMenu();
+  }
+  if (navigationHubRailFolderCreatePopoverNode?.classList.contains("hidden") === false) {
+    if (
+      !event.target.closest("#navigation-hub-rail-folder-create-popover") &&
+      !event.target.closest(".nav-book-toc-folder-create-btn")
+    ) {
+      closeNavigationHubRailFolderCreatePopover();
+    }
   }
 });
 

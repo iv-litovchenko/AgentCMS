@@ -1,13 +1,14 @@
 ---
-awn-name: Online редактирование
+title: Test MCP notify fix
+awn-name: Agent Test
 awn-emoji: ""
-awn-status: draft
+awn-status: open
 awn-description: ""
 awn-tags: []
-awn-type: awn.page.topic
-awn-create: "2026-07-26T18:45"
-awn-update: 2026-07-26T21:49:01.201Z
-awn-version: 2
+awn-type: awn.page.ws
+awn-create: "2026-06-11T00:27"
+awn-update: 2026-07-27T21:01:24.009Z
+awn-version: 24
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
@@ -23,29 +24,3 @@ awn-runtime-heartbeat: false
 awn-runtime-commands: false
 awn-attachments: []
 ---
-
-Это тестовое сообщение
-
-
-
-ауцауц
-
-ауцаууц
-
-333
-
-пкупкуы
-
-
-222
-
-
-ауцауцц
-
-333
-
-
-пкупку
-
-
-пкупку

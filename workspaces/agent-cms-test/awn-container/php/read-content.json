@@ -3,7 +3,8 @@
     "main/Безопасность/CSRF.md",
     "main/Безопасность/manifest.md",
     "main/Безопасность/SQL Injection.md",
-    "main/Безопасность/XSS.md"
+    "main/Безопасность/XSS.md",
+    "main/README.md"
   ],
-  "updatedAt": "2026-07-29T20:44:04.556Z"
+  "updatedAt": "2026-07-29T21:53:32.373Z"
 }

@@ -1,14 +1,14 @@
 ---
 title: Test MCP notify fix
-awn-name: Agent Test
+awn-name: "[Agent CMS] Agent Test (песочница)"
 awn-emoji: ""
-awn-status: open
+awn-status: 🟢 Открыта
 awn-description: ""
 awn-tags: []
 awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
-awn-update: 2026-07-27T21:01:24.009Z
-awn-version: 24
+awn-update: 2026-07-29T21:52:34.100Z
+awn-version: 25
 awn-preview: ""
 awn-web-url: ""
 awn-main: false
