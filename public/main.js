@@ -1082,6 +1082,7 @@ const BUNDLE_TABULAR_FILE = "main.csv";
 const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
@@ -11525,6 +11526,18 @@ const DATA_STORAGE_SLOT_SPECS = [
     bundleFile: BUNDLE_TODO_FILE
   },
   {
+    key: "log-single",
+    label: "Лог",
+    icon: "📜",
+    modes: new Set([]),
+    defaultMode: null,
+    sectionKind: "bundle",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
+    bundleFile: BUNDLE_LOG_FILE,
+    disabled: true,
+    treeInline: true
+  },
+  {
     key: "quick-notes",
     label: "Quick notes",
     icon: "📝",
@@ -11606,6 +11619,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   "main-single": "Markdown (.md) — main.md",
   "main-single-csv": "CSV (.csv) — main.csv",
   "todo-single": "Markdown (.md) — todo.md",
+  "log-single": "Markdown (.md) — log.md",
   thread: "Markdown (.md)"
 };
 
@@ -13015,8 +13029,10 @@ function buildStorageSlotTreeModel(scan = {}) {
   const filesSpecs = enabledSpecs.filter(
     (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_FILES
   );
-  const singleFileSpecs = enabledSpecs.filter(
-    (spec) => getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_SINGLE_FILE
+  const singleFileSpecs = DATA_STORAGE_SLOT_SPECS.filter(
+    (spec) =>
+      getStorageSlotTreeGroup(spec) === STORAGE_SLOT_TREE_GROUP_SINGLE_FILE &&
+      (!spec.disabled || spec.treeInline)
   );
 
   for (const spec of folderSpecs) {
@@ -13104,6 +13120,7 @@ function buildStorageSlotTreeModel(scan = {}) {
   const disabledSpecs = DATA_STORAGE_SLOT_SPECS.filter(
     (spec) =>
       spec.disabled &&
+      !spec.treeInline &&
       !HIDDEN_STORAGE_SLOT_TREE_KEYS.has(spec.key) &&
       !STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS.has(spec.key)
   );
