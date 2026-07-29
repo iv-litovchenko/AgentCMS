@@ -2922,6 +2922,7 @@
               type="radio"
               name="create-section-after"
               value="list"
+              checked
             />
             <span>Остаться в списке</span>
           </label>
@@ -2932,7 +2933,6 @@
               type="radio"
               name="create-section-after"
               value="edit"
-              checked
             />
             <span>Перейти к редактированию</span>
           </label>
@@ -2990,6 +2990,25 @@
             </div>
           </label>
         </div>
+        <fieldset id="create-memory-format-fieldset" class="create-memory-format-fieldset hidden">
+          <legend class="popover-label">Формат файла</legend>
+          <label class="create-memory-format-row" for="create-memory-format-select">
+            <span class="create-memory-format-label">Тип</span>
+            <select id="create-memory-format-select" class="popover-input create-memory-format-select">
+              <option value=".md" selected>Markdown (.md) — запись</option>
+              <option value=".txt">Текст (.txt)</option>
+              <option value=".json">JSON (.json)</option>
+              <option value=".yaml">YAML (.yaml)</option>
+              <option value=".yml">YML (.yml)</option>
+              <option value=".csv">CSV (.csv)</option>
+              <option value=".xml">XML (.xml)</option>
+              <option value=".html">HTML (.html)</option>
+              <option value=".css">CSS (.css)</option>
+              <option value=".js">JavaScript (.js)</option>
+              <option value=".sh">Shell (.sh)</option>
+            </select>
+          </label>
+        </fieldset>
         <fieldset id="create-memory-after-fieldset" class="create-memory-after-fieldset">
           <legend class="popover-label">После создания</legend>
           <label class="create-memory-after-option">

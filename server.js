@@ -3587,6 +3587,120 @@ function toExternalMarkdownFileName(rawName) {
   return `${slug}.md`;
 }
 
+const CREATE_RECORD_IMAGE_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".svg",
+  ".avif",
+  ".bmp",
+  ".ico",
+  ".heic"
+]);
+
+const CREATE_RECORD_PLAIN_TEXT_EXTENSIONS = new Set([
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".csv",
+  ".xml",
+  ".html",
+  ".htm",
+  ".css",
+  ".js",
+  ".ts",
+  ".sh",
+  ".env",
+  ".log"
+]);
+
+function normalizeStorageRecordExtension(ext) {
+  const raw = String(ext || "").trim().toLowerCase();
+  if (!raw) return "";
+  return raw.startsWith(".") ? raw : `.${raw}`;
+}
+
+function stripStorageRecordExtension(rawName, extension = "") {
+  const base = String(rawName || "");
+  const ext = normalizeStorageRecordExtension(extension);
+  if (!ext) return base.replace(/\.md$/i, "");
+  const pattern = new RegExp(`${ext.replace(".", "\\.")}$`, "i");
+  return base.replace(pattern, "").replace(/\.md$/i, "");
+}
+
+function toStorageRecordFileName(rawName, extension = ".md") {
+  const ext = normalizeStorageRecordExtension(extension) || ".md";
+  const slug =
+    sanitizeSlugInput(stripStorageRecordExtension(rawName, ext)) ||
+    transliterateToSlug(stripStorageRecordExtension(rawName, ext));
+  if (!slug) return null;
+  return `${slug}${ext}`;
+}
+
+async function resolveUniqueStorageRecordFileName(folderAbsolute, baseName, extension = ".md") {
+  const ext = normalizeStorageRecordExtension(extension) || ".md";
+  const firstName = toStorageRecordFileName(baseName, ext);
+  if (!firstName) return null;
+
+  let candidate = firstName;
+  let counter = 2;
+  const stem = firstName.slice(0, -ext.length);
+  while (true) {
+    try {
+      await fs.access(joinFolderRelativePath(folderAbsolute, candidate));
+      candidate = `${stem}-${counter}${ext}`;
+      counter += 1;
+    } catch {
+      return candidate.replace(/\\/g, "/");
+    }
+  }
+}
+
+function buildPlaceholderFileContent(extension) {
+  const ext = normalizeStorageRecordExtension(extension);
+  if (ext === ".svg") {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+  }
+  const placeholders = {
+    ".png": Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64"
+    ),
+    ".gif": Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"),
+    ".jpg": Buffer.from(
+      "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=",
+      "base64"
+    )
+  };
+  if (ext === ".jpeg") return placeholders[".jpg"];
+  return placeholders[ext] || Buffer.alloc(0);
+}
+
+function isBinaryStorageRecordExtension(extension) {
+  const ext = normalizeStorageRecordExtension(extension);
+  return CREATE_RECORD_IMAGE_EXTENSIONS.has(ext);
+}
+
+function isPlainTextStorageRecordExtension(extension) {
+  const ext = normalizeStorageRecordExtension(extension);
+  return CREATE_RECORD_PLAIN_TEXT_EXTENSIONS.has(ext);
+}
+
+function buildPlainTextPlaceholderContent(extension) {
+  const ext = normalizeStorageRecordExtension(extension);
+  const starters = {
+    ".json": "{}\n",
+    ".xml": '<?xml version="1.0" encoding="UTF-8"?>\n',
+    ".html": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title></title>\n</head>\n<body>\n\n</body>\n</html>\n",
+    ".htm": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title></title>\n</head>\n<body>\n\n</body>\n</html>\n",
+    ".sh": "#!/usr/bin/env bash\n\n"
+  };
+  return starters[ext] ?? "";
+}
+
 function resolveObsidianSidecarAbsolute(nodeAbsolute, sidecarRelFn) {
   const rel = path.relative(getAgentRoot(), nodeAbsolute).replace(/\\/g, "/");
   return normalizeWorkspacePath(sidecarRelFn(rel));
@@ -5402,6 +5516,7 @@ async function createStorageRecordFile({
   parent = "",
   body = "",
   fileMask = "",
+  fileExtension = "",
   source = "",
   author = "",
   status = "",
@@ -5446,6 +5561,24 @@ async function createStorageRecordFile({
   let fileName = null;
   let fileTitle = String(title || "").trim() || "Запись";
   let mask = String(fileMask || "").trim();
+  const normalizedExtension = normalizeStorageRecordExtension(fileExtension);
+  const useBinaryRecord =
+    !mask && isBinaryStorageRecordExtension(normalizedExtension) && !isMainSlot;
+  const usePlainTextRecord =
+    !mask && isPlainTextStorageRecordExtension(normalizedExtension) && !isMainSlot;
+  if (!mask && isMainSlot && normalizedExtension && normalizedExtension !== ".md") {
+    throw new Error("Only markdown records are allowed in this storage slot");
+  }
+  if (
+    !mask &&
+    !isMainSlot &&
+    normalizedExtension &&
+    normalizedExtension !== ".md" &&
+    !useBinaryRecord &&
+    !usePlainTextRecord
+  ) {
+    throw new Error("Unsupported file extension");
+  }
   if (!mask && isMainSlot) {
     mask = await resolveExternalFileMaskForManifest(schemaManifestRel);
   }
@@ -5463,7 +5596,10 @@ async function createStorageRecordFile({
     const resolvedSlug = diskSlug || slug;
     if (!fileTitle) throw new Error("Title cannot be empty");
     if (!resolvedSlug) throw new Error("Invalid slug");
-    fileName = await resolveUniqueExternalFileName(targetFolder, resolvedSlug);
+    fileName =
+      useBinaryRecord || usePlainTextRecord
+        ? await resolveUniqueStorageRecordFileName(targetFolder, resolvedSlug, normalizedExtension)
+        : await resolveUniqueExternalFileName(targetFolder, resolvedSlug);
     if (!fileName) throw new Error("Invalid file name");
   }
 
@@ -5483,22 +5619,57 @@ async function createStorageRecordFile({
   const relInSlotPreview = parentRel ? `${parentRel}/${fileName}` : fileName;
   const contentWorkspaceRel = buildStorageLayerRef(schemaManifestRel, canonicalFolder, relInSlotPreview);
 
-  const content = await buildSlotContentFileContentForManifest(
-    schemaManifestRel,
-    fileTitle,
-    slotKey,
-    "record",
-    {
-      body: textBody || undefined,
-      frontmatterOverrides,
-      contentWorkspaceRel
-    }
-  );
-
   const fileAbsolute = joinFolderRelativePath(targetFolder, fileName);
   if (!fileAbsolute) throw new Error("Invalid file path");
   await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
-  await fs.writeFile(fileAbsolute, content, "utf-8");
+
+  let content;
+  let sidecarRel = null;
+  if (useBinaryRecord) {
+    content = buildPlaceholderFileContent(normalizedExtension);
+    await fs.writeFile(fileAbsolute, content);
+    if (slotKey === "media" || slotKey === "assets") {
+      const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(fileAbsolute);
+      if (sidecarAbsolute) {
+        const sidecarContent = await buildSlotContentFileContentForManifest(
+          schemaManifestRel,
+          fileTitle,
+          slotKey,
+          "sidecar",
+          {
+            body: "",
+            frontmatterOverrides,
+            contentWorkspaceRel: buildStorageLayerRef(
+              schemaManifestRel,
+              canonicalFolder,
+              path
+                .relative(folderAbsolute, sidecarAbsolute)
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "")
+            )
+          }
+        );
+        await fs.writeFile(sidecarAbsolute, sidecarContent, "utf-8");
+        sidecarRel = path.relative(folderAbsolute, sidecarAbsolute).replace(/\\/g, "/");
+      }
+    }
+  } else if (usePlainTextRecord) {
+    content = textBody || buildPlainTextPlaceholderContent(normalizedExtension);
+    await fs.writeFile(fileAbsolute, content, "utf-8");
+  } else {
+    content = await buildSlotContentFileContentForManifest(
+      schemaManifestRel,
+      fileTitle,
+      slotKey,
+      "record",
+      {
+        body: textBody || undefined,
+        frontmatterOverrides,
+        contentWorkspaceRel
+      }
+    );
+    await fs.writeFile(fileAbsolute, content, "utf-8");
+  }
 
   const relFile = path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/");
   await recordStorageLayerFileActivity({
@@ -5510,6 +5681,7 @@ async function createStorageRecordFile({
   return {
     folder: canonicalFolder,
     file: relFile,
+    sidecar: sidecarRel,
     content,
     exists: true,
     slotKey
@@ -16358,6 +16530,7 @@ async function handleApiForAgent(req, res, url) {
         parent: payload.parent,
         body: payload.body,
         fileMask: payload.fileMask || payload.mask,
+        fileExtension: payload.fileExtension || payload.extension,
         source: payload.source,
         author: payload.author,
         status: payload.status,

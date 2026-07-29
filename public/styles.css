@@ -36886,6 +36886,35 @@ button.node-navigation-memory-title:focus-visible {
   color: var(--text-muted, #64748b);
 }
 
+.create-memory-format-fieldset {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.create-memory-format-fieldset .popover-label {
+  margin-bottom: 8px;
+}
+
+.create-memory-format-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.create-memory-format-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--text-muted, #475569);
+}
+
+.create-memory-format-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .create-memory-card.is-mask-mode .create-memory-name-row:not(:first-child) {
   display: none;
 }
