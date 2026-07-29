@@ -45320,6 +45320,16 @@ function getNavigationTocFileIcon(item) {
   return "📎";
 }
 
+function resolveNavigationTocLinkIcon(item, { branch = false } = {}) {
+  if (branch) return { branch: true };
+  const ext = getNavigationItemFileExtension(item);
+  if ([".md", ".txt", ".markdown"].includes(ext)) {
+    return { kind: "record" };
+  }
+  const symbol = getNavigationTocFileIcon(item);
+  return symbol ? { symbol } : {};
+}
+
 function getNavigationFileTypeTone(ext) {
   const normalized = String(ext || "").toLowerCase();
   if (normalized === ".pdf") return "pdf";
@@ -45486,7 +45496,7 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
     }
 
     if (!icon) {
-      icon = createNavBookTocLinkIcon({ branch: false, symbol: getMediaIconForItem(item) });
+      icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
     }
 
     return { icon, status, preview };
@@ -45511,10 +45521,7 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
   }
 
   if (!icon) {
-    const symbol = getNavigationTocFileIcon(item);
-    if (symbol) {
-      icon = createNavBookTocLinkIcon({ branch: false, symbol });
-    }
+    icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
   }
 
   return { icon, status, preview };
@@ -47189,6 +47196,11 @@ function createEntryOverviewSiblingNav({
   nav.setAttribute("role", "navigation");
   nav.setAttribute("aria-label", ariaLabel);
 
+  const runNavAction = (action) => {
+    requestWorkspaceScrollToTop();
+    action?.();
+  };
+
   const prevBtn = document.createElement("button");
   prevBtn.type = "button";
   prevBtn.className = "node-navigation-manifest-nav-btn node-overview-action-btn";
@@ -47197,7 +47209,7 @@ function createEntryOverviewSiblingNav({
     prevBtn.title = getEntryOverviewManifestItemLabel(prevItem);
     prevBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      onFileClick?.(prevItem);
+      runNavAction(() => onFileClick?.(prevItem));
     });
   } else {
     prevBtn.disabled = true;
@@ -47214,7 +47226,7 @@ function createEntryOverviewSiblingNav({
     upBtn.title = upTitle || "Оглавление";
     upBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      onUpClick();
+      runNavAction(() => onUpClick());
     });
   } else {
     upBtn.disabled = true;
@@ -47230,7 +47242,7 @@ function createEntryOverviewSiblingNav({
     nextBtn.title = getEntryOverviewManifestItemLabel(nextItem);
     nextBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      onFileClick?.(nextItem);
+      runNavAction(() => onFileClick?.(nextItem));
     });
   } else {
     nextBtn.disabled = true;
@@ -49737,13 +49749,14 @@ async function renderEntryOverview() {
   syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
 }
 
-function createNavBookTocLinkIcon({ branch = false, symbol = "" } = {}) {
+function createNavBookTocLinkIcon({ branch = false, symbol = "", kind = "" } = {}) {
   const icon = document.createElement("span");
   icon.className = branch
     ? "nav-book-toc-link-icon nav-book-toc-link-icon--branch"
     : "nav-book-toc-link-icon";
+  if (kind) icon.classList.add(`nav-book-toc-link-icon--${kind}`);
   icon.setAttribute("aria-hidden", "true");
-  if (!branch) icon.textContent = symbol;
+  if (!branch && !kind && symbol) icon.textContent = symbol;
   return icon;
 }
 
@@ -62201,22 +62214,33 @@ function buildSystemFileItemClassName(file) {
     .join(" ");
 }
 
+function getMenuEntrySearchSlug(entry) {
+  if (entry?.isSystemFile) return normalizeSystemFileName(entry.systemFile);
+  if (entry?.path) return getMenuSortSlugFromItemEntry(entry) || getNodeSlugFromPath(entry.path);
+  return "";
+}
+
 function entryMatchesMenuQuery(entry, queryLower) {
   if (!queryLower) return true;
   if (nodeMatchesQuery(entry.label, queryLower)) return true;
-  if (nodeMatchesQuery(entry.displayPath, queryLower)) return true;
-  if (nodeMatchesQuery(entry.path, queryLower)) return true;
+
+  const slug = getMenuEntrySearchSlug(entry);
+  if (slug && nodeMatchesQuery(slug, queryLower)) return true;
+
   if (nodeMatchesQuery(entry.systemFile, queryLower)) return true;
   if (nodeMatchesQuery(entry.category, queryLower)) return true;
   if (Array.isArray(entry.tags) && entry.tags.some((tag) => nodeMatchesQuery(tag, queryLower))) {
     return true;
   }
+
   const path = String(entry.path || "").replace(/\\/g, "/");
   if (path) {
-    const base = path.split("/").pop() || "";
-    if (nodeMatchesQuery(base, queryLower)) return true;
-    if (nodeMatchesQuery(base.replace(/\.md$/i, ""), queryLower)) return true;
+    for (const segment of path.split("/").filter(Boolean)) {
+      const stem = segment.replace(/\.md$/i, "");
+      if (nodeMatchesQuery(stem, queryLower)) return true;
+    }
   }
+
   return false;
 }
 
@@ -62235,7 +62259,15 @@ function collectMenuSearchEntries(menu, agentId = activeAgentId) {
       )
     );
   }
-  return entries;
+  const seen = new Set();
+  return entries.filter((entry) => {
+    const key = entry.isSystemFile
+      ? `system:${entry.systemFile}`
+      : `path:${normalizeMenuNodePath(entry.path || "")}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return Boolean(entry.isSystemFile || entry.path);
+  });
 }
 
 function getMenuSearchResultEntries(menu, agentId = activeAgentId) {
@@ -64049,11 +64081,7 @@ function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
       entry.color,
       { isFolder: isNodeManifestPath(entry.path) && !isPartNodePath(entry.path) }
     );
-    const pathHint =
-      entry.displayPath && entry.displayPath !== entry.label ? entry.displayPath : "";
     setMenuLabelWithMarkers(btn, entry.label || entry.displayPath, entry, "menu-item-name", {
-      subtitle: pathHint,
-      showPreview: true,
       agentId
     });
     btn.addEventListener("click", (event) => {
@@ -64065,9 +64093,6 @@ function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
   itemRow.appendChild(btn);
   if (!entry.isSystemFile && isNodeSettingsTargetPath(entry.path)) {
     itemRow.appendChild(createNodeSettingsButton(entry.path));
-  }
-  if (!entry.isSystemFile && entry.path) {
-    itemRow.appendChild(createBookmarkButton(entry.path));
   }
   listNode.appendChild(itemRow);
 }
@@ -64218,11 +64243,12 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
 
 function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
-  let entries = [
-    ...collectAgentMenuFlatEntries(menu, agentId),
-    ...collectSystemFileMenuEntries(systemFilesCache)
-  ];
-  entries = filterMenuEntriesByQuery(entries, queryLower);
+  let entries = queryLower
+    ? getMenuSearchResultEntries(menu, agentId)
+    : [
+        ...collectAgentMenuFlatEntries(menu, agentId),
+        ...collectSystemFileMenuEntries(systemFilesCache)
+      ];
 
   if (menuCardsPreviewOnly) {
     entries = entries.filter((entry) => !entry.isSystemFile && entry.hasPreview);
@@ -65054,8 +65080,12 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     renderBookmarksMenu(menu, target, agentId);
   } else if (menuViewMode === "cards") {
     renderCardsMenu(menu, target, agentId);
-  } else if (menuSearchQuery.trim() && !menuSearchHasResults(menu)) {
-    appendMenuSearchEmptyState(target);
+  } else if (menuSearchQuery.trim()) {
+    if (!menuSearchHasResults(menu, agentId)) {
+      appendMenuSearchEmptyState(target);
+    } else {
+      renderMenuSearchResults(menu, target, agentId);
+    }
   } else {
     renderTree(treeToRender, target, 0, ".", null, agentId);
     const childrenContainer = getWorkspacesTreeChildren(agentId);
@@ -65074,6 +65104,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
       syncAgentPreview();
     }
     syncMenuViewLayoutClass(agentId);
+    syncMenuSearchLayoutClass(agentId);
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(agentId);
   }
@@ -73131,6 +73162,18 @@ function getWorkspaceScrollElement() {
   return getWorkspaceScrollContext().scrollElement;
 }
 
+let workspaceScrollToTopPending = false;
+
+function requestWorkspaceScrollToTop() {
+  workspaceScrollToTopPending = true;
+}
+
+function flushPendingWorkspaceScrollToTop() {
+  if (!workspaceScrollToTopPending) return;
+  workspaceScrollToTopPending = false;
+  getWorkspaceScrollElement()?.scrollTo({ top: 0, behavior: "auto" });
+}
+
 function mountWorkspaceScrollChrome(hostNode) {
   if (!hostNode) return;
   if (workspaceScrollChromeNode && workspaceScrollChromeNode.parentElement !== hostNode) {
@@ -73213,6 +73256,7 @@ function scheduleWorkspaceScrollChromeSync() {
     syncWorkspaceScrollChrome();
     requestAnimationFrame(() => {
       syncWorkspaceScrollChrome();
+      flushPendingWorkspaceScrollToTop();
     });
   });
 }
