@@ -64332,7 +64332,6 @@ function renderSystemFiles(files) {
       const row = document.createElement("div");
       row.className = "menu-item-row system-file-row";
       row.dataset.systemFileGroup = group.id;
-      appendMenuTreeItemRowLeadingSpacer(row);
 
       const btn = document.createElement("button");
       btn.type = "button";

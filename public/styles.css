@@ -40697,11 +40697,31 @@ body.is-discuss-resizing .discuss-aside-resizer {
   font-weight: 400;
 }
 
+.sidebar-slab-menu .menu-system-files-section .system-file-row.menu-tree-branch::before,
+.sidebar-slab-menu .menu-system-files-section .system-file-row.menu-tree-branch::after {
+  content: none;
+  display: none;
+}
+
+.sidebar-slab-menu
+  .menu-agent-pane:not(.is-menu-view-flat)
+  .menu-system-files-section
+  .menu-item.system-file-item {
+  padding: 1px 4px 1px calc(10px + var(--menu-win-label-pad-left));
+}
+
+.sidebar-slab-menu
+  .menu-agent-pane:not(.is-menu-view-flat)
+  .menu-system-files-section
+  .menu-item.system-file-item::before {
+  left: 0;
+}
+
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-item.system-file-item {
   flex: 1;
   min-width: 0;
   min-height: var(--menu-win-row-h);
-  padding: 1px 4px 1px calc(var(--menu-win-label-pad-left) + 12px);
+  padding: 1px 4px 1px calc(var(--menu-win-label-pad-left) + 10px);
   font-size: var(--menu-win-font);
   cursor: grab;
 }
@@ -40810,8 +40830,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .sidebar-slab-menu .menu-system-files-section {
+  --menu-system-files-pad-left: 10px;
   margin: 0 0 4px;
-  padding: 0;
+  padding: 0 0 0 var(--menu-system-files-pad-left);
   border-left: 2px solid #c0c0c0;
   border-radius: 0;
   background: transparent;
@@ -40964,6 +40985,18 @@ body.is-discuss-resizing .discuss-aside-resizer {
   text-transform: none;
   color: var(--menu-win-text);
   user-select: none;
+}
+
+.sidebar-slab-menu
+  .menu-agent-pane:not(.is-menu-view-flat)
+  .menu-system-files-section
+  .system-file-group-label-text {
+  padding: 0 4px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--menu-win-muted);
 }
 
 /* Sidebar search — оригинальный вид, не classic tree */
