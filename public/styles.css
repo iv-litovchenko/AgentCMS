@@ -20169,6 +20169,33 @@ button.node-navigation-hub-rail-slot-summary {
   color: #94a3b8;
 }
 
+.node-navigation-hub-rail-bundle-preview {
+  min-width: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.node-navigation-hub-rail-bundle-preview-body {
+  max-height: 280px;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 2px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.node-navigation-hub-rail-bundle-preview--tabular .node-navigation-tabular {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 11px;
+}
+
+.node-navigation-hub-rail-slot--bundle .node-navigation-hub-rail-slot-body {
+  padding: 0 6px 6px;
+  background: #ffffff;
+}
+
 .node-navigation-rail-doc-outline-list {
   list-style: none;
   margin: 0;
@@ -41264,6 +41291,13 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: var(--nav-toc-win-text);
   box-sizing: border-box;
   overflow: visible;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label {
+  pointer-events: auto;
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text {

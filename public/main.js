@@ -45806,6 +45806,10 @@ function openFlatStorageSectionFromNavigationForEdit(folderPath, memoryKind) {
   openFlatStorageCategoryOverviewFromNavigation(folder, memoryKind);
 }
 
+function getNavigationHubRailTocHandlers(memoryKind) {
+  return getEntryOverviewNavigationHandlers(memoryKind);
+}
+
 function getEntryOverviewNavigationHandlers(memoryKind) {
   if (memoryKind === "media" || memoryKind === "assets") {
     return {
@@ -45815,19 +45819,19 @@ function getEntryOverviewNavigationHandlers(memoryKind) {
   }
   if (memoryKind === "external") {
     return {
-      onFolderClick: openExternalSectionFromNavigationForEdit,
-      onFileClick: openExternalRecordFromNavigationForEdit
+      onFolderClick: openExternalCategoryOverviewFromNavigation,
+      onFileClick: openExternalRecordOverviewFromNavigation
     };
   }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     return {
-      onFolderClick: (folderPath) => openFlatStorageSectionFromNavigationForEdit(folderPath, memoryKind),
-      onFileClick: (item) => openFlatStorageRecordFromNavigationForEdit(item, memoryKind)
+      onFolderClick: (folderPath) => openFlatStorageCategoryOverviewFromNavigation(folderPath, memoryKind),
+      onFileClick: (item) => openFlatStorageRecordOverviewFromNavigation(item, memoryKind)
     };
   }
   return {
-    onFolderClick: openExternalSectionFromNavigationForEdit,
-    onFileClick: openExternalRecordFromNavigationForEdit
+    onFolderClick: openExternalCategoryOverviewFromNavigation,
+    onFileClick: openExternalRecordOverviewFromNavigation
   };
 }
 
@@ -46148,6 +46152,9 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
   if (!activePath) return;
   hideHomeView();
   assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
+  activeExternalFilePath = null;
+  pendingDirectExternalFile = null;
+  activeFlatStorageFilePath = null;
   const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
   if (!isMemoryTocRoot && !context?.relPath) return;
   if (!isMemoryTocRoot) snapshotNonTocEntryOverviewContext(context);
@@ -49618,10 +49625,7 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
 }
 
 function isNavigationHubRailSlotExpandable(slot, slotIndex) {
-  if (slotIndex.kind === "bundle") return false;
-  if (slotIndex.kind !== "tree") return false;
-  const count = Number(slot.count ?? 0);
-  return Boolean(slot.filled || count > 0);
+  return slotIndex.kind === "tree" || slotIndex.kind === "bundle";
 }
 
 function openNavigationHubRailSlotTarget(slot) {
@@ -49838,7 +49842,8 @@ function renderNavigationExternalBookToc(
     sectionManifestByFolder,
     showFileTypeLeading: false,
     showBranchLeading: false,
-    treeStyle: "guide"
+    treeStyle: "guide",
+    ...getEntryOverviewNavigationHandlers("external")
   });
   nav.appendChild(list);
   return nav;
@@ -56651,7 +56656,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 
   if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
 
-  const handlers = getEntryOverviewNavigationHandlers(memoryKind);
+  const handlers = getNavigationHubRailTocHandlers(memoryKind);
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc nav-book-toc-tree--classic nav-book-toc-tree--rail";
   nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
@@ -56764,7 +56769,81 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
   }
 
   if (slotIndex.kind === "bundle") {
-    return appendNavigationHubRailBundleHint(body, slotIndex.memoryKind, prefetched);
+    return mountNavigationHubRailBundlePreview(body, slotIndex.memoryKind, prefetched, nodePath);
+  }
+
+  return false;
+}
+
+function mountNavigationHubRailBundlePreview(body, memoryKind, prefetched = {}, nodePath = activePath) {
+  if (memoryKind === "internal") {
+    const content = String(prefetched.internalData?.content || "").trim();
+    const meaningful = getBundleMemoryMeaningfulBody(content);
+    if (!meaningful) return false;
+
+    const wrap = document.createElement("div");
+    wrap.className = "node-navigation-hub-rail-bundle-preview";
+
+    const preview = document.createElement("div");
+    preview.className =
+      "node-navigation-preview file-content-preview node-navigation-hub-rail-bundle-preview-body";
+    const manifestPath = nodePath || getResolvedNodePath(activePath);
+    const linkBasePath = manifestPath ? resolveNodeSidecarRelPath(manifestPath, "content") : "";
+    const workspacePath = prefetched.internalData?.path || linkBasePath || manifestPath;
+    setMarkdownPreviewHtml(preview, meaningful, {
+      linkBasePath: linkBasePath || manifestPath,
+      workspacePath
+    });
+    enhanceMarkdownPreviewImages(preview);
+    wrap.appendChild(preview);
+    body.appendChild(wrap);
+    return true;
+  }
+
+  if (memoryKind === "tabular") {
+    const tabularData = prefetched.tabularData || {};
+    const columns = tabularData.columns || [];
+    const rows = tabularData.rows || [];
+    if (!columns.length && !rows.length) return false;
+
+    const wrap = document.createElement("div");
+    wrap.className = "node-navigation-hub-rail-bundle-preview node-navigation-hub-rail-bundle-preview--tabular";
+    const tableHost = document.createElement("div");
+    tableHost.className = "node-navigation-tabular";
+    appendTabularPreviewTable(tableHost, tabularData, { maxRows: 12, showMeta: false });
+    wrap.appendChild(tableHost);
+    body.appendChild(wrap);
+    return true;
+  }
+
+  if (memoryKind === "todo") {
+    const content = String(prefetched.todoData?.content || "").trim();
+    if (!content) return false;
+
+    const previewLimit = 1600;
+    const previewSource =
+      content.length > previewLimit ? `${content.slice(0, previewLimit).trim()}…` : content;
+
+    const wrap = document.createElement("div");
+    wrap.className = "node-navigation-hub-rail-bundle-preview";
+
+    const preview = document.createElement("div");
+    preview.className =
+      "node-navigation-preview file-content-preview node-navigation-hub-rail-bundle-preview-body";
+    const manifestPath = nodePath || getResolvedNodePath(activePath);
+    const todoPath = resolveNodeSidecarRelPath(manifestPath, "todo");
+    setMarkdownPreviewHtml(preview, previewSource, { nodePath: manifestPath, workspacePath: todoPath });
+    wrap.appendChild(preview);
+
+    if (content.length > previewLimit) {
+      const note = document.createElement("p");
+      note.className = "node-navigation-hub-rail-bundle-hint";
+      note.textContent = `Показано ${previewLimit.toLocaleString("ru-RU")} из ${content.length.toLocaleString("ru-RU")} символов.`;
+      wrap.appendChild(note);
+    }
+
+    body.appendChild(wrap);
+    return true;
   }
 
   return false;
@@ -56908,11 +56987,17 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   });
   details.classList.toggle("is-empty", !slot.filled && !slot.available);
   details.classList.toggle("is-filled", Boolean(slot.filled));
+  if (slotIndex.kind === "bundle") details.classList.add("node-navigation-hub-rail-slot--bundle");
   if (slot.tone) details.classList.add(`is-${slot.tone}`);
 
   const summary = document.createElement("summary");
   summary.className = "node-navigation-hub-rail-slot-summary";
   appendNavigationHubRailSlotSummaryParts(summary, slot, { includeOpenBtn: true });
+  summary.addEventListener("click", (event) => {
+    if (event.target.closest(".node-navigation-hub-rail-slot-open")) {
+      event.preventDefault();
+    }
+  });
   details.appendChild(summary);
 
   const body = document.createElement("div");
