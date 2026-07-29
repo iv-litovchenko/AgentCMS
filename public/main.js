@@ -17730,6 +17730,10 @@ function appendMenuTreeItemRowLeadingSpacer(itemRow) {
 
 function menuTreeChildrenNodeHasRenderedContent(childrenNode) {
   if (!childrenNode) return false;
+  const workspaceBody = childrenNode.querySelector(
+    ":scope > .menu-workspace-root-section > .tree-children.menu-workspace-body"
+  );
+  if (workspaceBody && menuTreeChildrenNodeHasRenderedContent(workspaceBody)) return true;
   if (getMenuTreeBranchRows(childrenNode).length > 0) return true;
   return Boolean(
     childrenNode.querySelector(
@@ -43800,7 +43804,7 @@ function pickLatestIso(...values) {
 }
 
 const AGENT_INSTRUCTION_CONTEXT_TITLE = "Инструкция и контекст для агента";
-const AGENT_INSTRUCTION_EMPTY_TEXT = "Контекст и инструкция для агента не определены.";
+const AGENT_INSTRUCTION_EMPTY_TEXT = "Инструкция и контекст для агента не определены.";
 
 function extractManifestDisplayBody(raw = "", heroTitle = "") {
   const { body } = splitFrontmatter(raw);
@@ -50643,8 +50647,11 @@ async function ensureNavigationManifestCached(options = {}) {
   }
 }
 
-function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
+function renderNavigationAgentInstructionContent(manifestRaw = "", heroTitle = "") {
   const content = extractManifestDisplayBody(manifestRaw, heroTitle);
+
+  const block = document.createElement("div");
+  block.className = "node-navigation-hero-instruction";
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest";
@@ -50676,7 +50683,8 @@ function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
     wrap.appendChild(empty);
   }
 
-  return createNavigationMemoryPanel("description", AGENT_INSTRUCTION_CONTEXT_TITLE, wrap);
+  block.appendChild(wrap);
+  return block;
 }
 
 function renderNavigationTodoPart(todoData) {
@@ -57736,17 +57744,19 @@ async function renderNodeNavigation() {
 
   const topicSiblingNav = buildTopicSiblingNavOptions(nodePath);
 
-  hubMain.appendChild(
-    createNavigationHero(preview, heroTitle, nodePath, {
-      meta: nodeMeta,
-      propEntries: entries,
-      descriptionRaw: modeContentCache.description || "",
-      settingsSlots: slotStripGroups.settings || [],
-      slugIssue: getNodeManifestSlugIssue(nodePath),
-      onEditClick: openDescriptionFromOverview,
-      entryOverviewNav: topicSiblingNav
-    })
+  const hero = createNavigationHero(preview, heroTitle, nodePath, {
+    meta: nodeMeta,
+    propEntries: entries,
+    descriptionRaw: modeContentCache.description || "",
+    settingsSlots: slotStripGroups.settings || [],
+    slugIssue: getNodeManifestSlugIssue(nodePath),
+    onEditClick: openDescriptionFromOverview,
+    entryOverviewNav: topicSiblingNav
+  });
+  hero.appendChild(
+    renderNavigationAgentInstructionContent(modeContentCache.description || "", heroTitle)
   );
+  hubMain.appendChild(hero);
 
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
@@ -57758,9 +57768,6 @@ async function renderNodeNavigation() {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
     if (isStale()) return;
   }
-
-  const manifestPanel = renderNavigationManifestPart(modeContentCache.description || "", heroTitle);
-  hubMain.appendChild(manifestPanel);
 
   if (!useSplitLayout) {
     const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
@@ -63413,6 +63420,7 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
   const showConfiguration = Boolean(configuration && hasVisibleConfigurationSection(menu));
   const showWorkspace = hasVisibleWorkspaceRootTreeContent(menu, agentId);
 
+  const workspaceRootSection = parentEl.querySelector(":scope > .menu-workspace-root-section");
   const workspaceAnchor = showConfiguration
     ? configuration
     : showContainer
@@ -63424,7 +63432,12 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
           : showSystem
             ? system
             : null;
-  if (workspaceAnchor && showWorkspace) {
+  if (!showWorkspace) return;
+  if (workspaceRootSection) {
+    workspaceRootSection.insertAdjacentElement("beforebegin", createMenuTreeDivider("workspace"));
+    return;
+  }
+  if (workspaceAnchor) {
     workspaceAnchor.insertAdjacentElement("afterend", createMenuTreeDivider("workspace"));
   }
 }
@@ -64206,6 +64219,11 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       }
 
       const visibleSortTarget = (() => {
+        if (isRootFolder) {
+          const { wrap, body } = createWorkspaceRootTreeBodyWrap(sectionFolderPath || ".");
+          childrenNode.appendChild(wrap);
+          return body;
+        }
         if (hasNestedContainer) {
           const nodeEl = document.createElement("div");
           nodeEl.className = "tree-children";
@@ -64891,6 +64909,52 @@ function getWorkspacesTreeChildren(agentId = activeAgentId) {
     rootSection.appendChild(childrenNode);
   }
   return childrenNode;
+}
+
+function createWorkspaceRootTreeBodyWrap(folderPath = ".") {
+  const wrap = document.createElement("div");
+  wrap.className = "menu-workspace-root-section";
+  const body = document.createElement("div");
+  body.className = "tree-children menu-workspace-body";
+  body.dataset.sortFolder = folderPath || ".";
+  wrap.appendChild(body);
+  return { wrap, body };
+}
+
+function findWorkspaceRootTreeBody(parentSection) {
+  return (
+    parentSection?.querySelector(
+      ":scope > .tree-children > .menu-workspace-root-section > .tree-children.menu-workspace-body"
+    ) || null
+  );
+}
+
+function ensureWorkspaceRootTreeBody(parentSection) {
+  const existing = findWorkspaceRootTreeBody(parentSection);
+  if (existing) return existing;
+
+  let outer = parentSection.querySelector(":scope > .tree-children");
+  if (!outer) {
+    outer = document.createElement("div");
+    outer.className = "tree-children";
+    parentSection.appendChild(outer);
+  }
+
+  const { wrap, body } = createWorkspaceRootTreeBodyWrap(".");
+  const insertBefore = getMenuTreeInsertAnchor(outer);
+  if (insertBefore) {
+    outer.insertBefore(wrap, insertBefore);
+  } else {
+    outer.appendChild(wrap);
+  }
+  return body;
+}
+
+function resolveMenuTreeSortContainer(parentSection, folderPath = ".") {
+  if (normalizeFolderPath(folderPath) === ".") {
+    return ensureWorkspaceRootTreeBody(parentSection);
+  }
+  return parentSection?.querySelector(":scope > .tree-children") || null;
 }
 
 function sortSystemFilesByName(files) {
@@ -72409,13 +72473,17 @@ function patchMenuTreeInsertCreatedChild({
       branch.depth
     );
     const isCollapsed = isFolderCollapsed(normalized, agentId);
-    let childrenNode = parentSection.querySelector(":scope > .tree-children");
+    let childrenNode = resolveMenuTreeSortContainer(parentSection, normalized);
     if (!childrenNode) {
       if (isCollapsed || visibleChildren.length === 0) return false;
-      childrenNode = document.createElement("div");
-      childrenNode.className = "tree-children";
-      childrenNode.dataset.sortFolder = normalized || ".";
-      parentSection.appendChild(childrenNode);
+      if (normalized === ".") {
+        childrenNode = ensureWorkspaceRootTreeBody(parentSection);
+      } else {
+        childrenNode = document.createElement("div");
+        childrenNode.className = "tree-children";
+        childrenNode.dataset.sortFolder = normalized || ".";
+        parentSection.appendChild(childrenNode);
+      }
       syncFolderToggleUi(parentSection, isCollapsed, true);
     }
 
