@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs/promises");
+const { enrichUiContext } = require("./ui-context-focus");
 
 const UI_CONTEXT_DIR = ".agent-cms";
 const UI_CONTEXT_FILE = "ui-context.json";
@@ -20,7 +21,12 @@ async function readAgentUiContext(agentRoot) {
     const updatedAt = Date.parse(context?.updatedAt || "");
     const stale =
       !Number.isFinite(updatedAt) || Date.now() - updatedAt > UI_CONTEXT_MAX_AGE_MS;
-    return { exists: true, context, stale, path: absolute.replace(/\\/g, "/") };
+    return {
+      exists: true,
+      context: enrichUiContext(context),
+      stale,
+      path: absolute.replace(/\\/g, "/")
+    };
   } catch (error) {
     if (error && error.code === "ENOENT") {
       return { exists: false, context: null, stale: true };
@@ -33,10 +39,10 @@ async function writeAgentUiContext(agentRoot, payload) {
   if (!agentRoot) throw new Error("Agent root is required");
   const absolute = getUiContextAbsolute(agentRoot);
   await fs.mkdir(path.dirname(absolute), { recursive: true });
-  const context = {
+  const context = enrichUiContext({
     ...payload,
     updatedAt: new Date().toISOString()
-  };
+  });
   await fs.writeFile(absolute, `${JSON.stringify(context, null, 2)}\n`, "utf-8");
   return context;
 }

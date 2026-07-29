@@ -105,10 +105,17 @@ function createServer() {
   );
 
   reg(
-    "get_active_page",
-    "Current open UI view synced from browser: page path, contentMode, slot, ref, contextPath. Call before path-sensitive tools when user did not specify path.",
+    "get_active_context",
+    "Current UI focus (PAGE→SLOT→CONTENT): focus.entity, focus.page/slot/content, mcp hints with ready tool args, aliases.path/slot/ref. Call when user did not specify path.",
     z.object({}),
-    () => client.get("/api/agent/active-page")
+    () => client.get("/api/agent/active-context")
+  );
+
+  reg(
+    "get_active_page",
+    "Deprecated alias of get_active_context.",
+    z.object({}),
+    () => client.get("/api/agent/active-context")
   );
 
   reg(

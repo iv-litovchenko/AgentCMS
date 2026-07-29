@@ -83,10 +83,17 @@ module.exports = {
           http: "GET /api/menu"
         },
         {
-          name: "get_active_page",
-          description: "Текущее открытое окно UI (синхронизируется браузером): path, slot, ref, contextPath.",
+          name: "get_active_context",
+          description:
+            "Универсальный фокус UI: focus.entity (page|slot|content|system|browse|home|none), focus.page/slot/content, mcp — готовые args для read/write_*, aliases.path/slot/ref.",
           parameters: "—",
-          http: "GET /api/agent/active-page"
+          http: "GET /api/agent/active-context"
+        },
+        {
+          name: "get_active_page",
+          description: "Deprecated alias get_active_context.",
+          parameters: "—",
+          http: "GET /api/agent/active-context"
         },
         {
           name: "search_workspace",

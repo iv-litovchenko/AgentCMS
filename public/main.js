@@ -1988,15 +1988,123 @@ function resolveActivePageSlotFromState() {
   return null;
 }
 
+function canonicalContentTypeFromAwnType(awnType) {
+  const normalized = normalizeAwnTypeName(awnType);
+  if (normalized === "awn.content.record") return "record";
+  if (normalized === "awn.content.record.category") return "record.category";
+  if (normalized === "awn.content.sidecar") return "sidecar";
+  if (normalized.startsWith("awn.page.")) return "page";
+  return null;
+}
+
+function resolveSidecarBinaryRef(relativePath) {
+  const rel = String(relativePath || "").replace(/\\/g, "/");
+  if (!rel) return null;
+  if (/\.sidecar\.md$/i.test(rel)) return rel.replace(/\.sidecar\.md$/i, "");
+  return null;
+}
+
+function resolveActiveContentDetailsFromState() {
+  const empty = {
+    contentType: null,
+    awnType: null,
+    relativePath: null,
+    sidecarOf: null,
+    title: null
+  };
+
+  if (activeContentMode === "description") {
+    return {
+      contentType: "page",
+      awnType: normalizeAwnTypeName(resolveAwnTypeForContext(activePath)),
+      relativePath: null,
+      sidecarOf: null,
+      title: activeLabel || null
+    };
+  }
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    const relativePath = String(activeExternalFilePath).replace(/\\/g, "/");
+    const awnType = inferAwnTypeFromRelPath(relativePath, { contentMode: "external" });
+    return {
+      contentType: canonicalContentTypeFromAwnType(awnType),
+      awnType,
+      relativePath,
+      sidecarOf: resolveSidecarBinaryRef(relativePath),
+      title: null
+    };
+  }
+
+  if (isMediaLibraryContentMode()) {
+    if (activeMediaSidecarPath) {
+      const relativePath = String(activeMediaSidecarPath).replace(/\\/g, "/");
+      return {
+        contentType: "sidecar",
+        awnType: "awn.content.sidecar",
+        relativePath,
+        sidecarOf:
+          String(activeMediaSidecarSourcePath || resolveSidecarBinaryRef(relativePath) || "").replace(
+            /\\/g,
+            "/"
+          ) || null,
+        title: null
+      };
+    }
+    if (activeMediaMarkdownPath) {
+      const relativePath = String(activeMediaMarkdownPath).replace(/\\/g, "/");
+      const awnType = inferAwnTypeFromRelPath(relativePath, { contentMode: "media" });
+      return {
+        contentType: canonicalContentTypeFromAwnType(awnType),
+        awnType,
+        relativePath,
+        sidecarOf: resolveSidecarBinaryRef(relativePath),
+        title: null
+      };
+    }
+    return empty;
+  }
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    const ctx = activeEntryOverviewContext;
+    if (isEntryOverviewMemoryTocRoot(ctx)) return empty;
+    const awnType = normalizeAwnTypeName(ctx.entryKind);
+    const relativePath = String(ctx.relativePath || "").replace(/\\/g, "/") || null;
+    return {
+      contentType: canonicalContentTypeFromAwnType(awnType),
+      awnType,
+      relativePath,
+      sidecarOf: resolveSidecarBinaryRef(relativePath),
+      title: String(ctx.title || "").trim() || null
+    };
+  }
+
+  if (activeFlatStorageFilePath) {
+    const relativePath = String(activeFlatStorageFilePath).replace(/\\/g, "/");
+    const awnType = inferAwnTypeFromRelPath(relativePath, { contentMode: activeContentMode });
+    return {
+      contentType: canonicalContentTypeFromAwnType(awnType),
+      awnType,
+      relativePath,
+      sidecarOf: resolveSidecarBinaryRef(relativePath),
+      title: null
+    };
+  }
+
+  return empty;
+}
+
 function resolveActivePageRefFromState() {
+  const content = resolveActiveContentDetailsFromState();
+  if (content.relativePath) return content.relativePath;
+
   if (activeContentMode === "external" && activeExternalFilePath) {
     return String(activeExternalFilePath).replace(/\\/g, "/");
   }
   if (isMediaLibraryContentMode()) {
-    return activeMediaSidecarSourcePath || activeMediaMarkdownPath || null;
+    return activeMediaSidecarPath || activeMediaMarkdownPath || activeMediaSidecarSourcePath || null;
   }
-  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
-    return activeEntryOverviewContext.relPath;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relativePath) {
+    return String(activeEntryOverviewContext.relativePath).replace(/\\/g, "/");
   }
   if (activeFlatStorageFilePath) {
     return String(activeFlatStorageFilePath).replace(/\\/g, "/");
@@ -2004,8 +2112,7 @@ function resolveActivePageRefFromState() {
   return null;
 }
 
-function buildActivePageContextPayload() {
-  const route = getChpuWorkspacePathFromState() || `${location.pathname}${location.search}${location.hash}`;
+function buildActiveFocusFromState() {
   const inWorkspace =
     Boolean(activeAgentId) &&
     !appRootNode?.classList.contains("home-view") &&
@@ -2013,70 +2120,85 @@ function buildActivePageContextPayload() {
 
   if (!inWorkspace) {
     return {
-      agentId: activeAgentId || null,
-      kind: appRootNode?.classList.contains("home-view") ? "home" : "none",
-      path: null,
-      label: null,
-      contentMode: null,
-      slot: null,
-      ref: null,
-      contextPath: null,
-      route,
-      systemFile: activeSystemFile || null,
-      folderBrowsePath: activeFolderBrowsePath || null,
+      entity: appRootNode?.classList.contains("home-view") ? "home" : "none",
       editing: false
     };
   }
 
   if (activeSystemFile) {
-    const systemFile = normalizeSystemFileName(activeSystemFile);
+    const file = normalizeSystemFileName(activeSystemFile);
     return {
-      agentId: activeAgentId || null,
-      kind: "system-file",
-      path: getAgentWorkspaceRootManifestPath(),
-      label: systemFile,
-      contentMode: "system-file",
-      slot: null,
-      ref: systemFile,
-      contextPath: systemFile,
-      route,
-      systemFile,
-      folderBrowsePath: null,
+      entity: "system",
+      page: { path: getAgentWorkspaceRootManifestPath(), label: file },
+      system: { file },
       editing: isSystemFileEditing()
     };
   }
 
   if (activeFolderBrowsePath && activeContentMode === FOLDER_BROWSE_MODE) {
     return {
-      agentId: activeAgentId || null,
-      kind: "folder-browse",
-      path: null,
-      label: activeLabel || activeFolderBrowsePath,
-      contentMode: FOLDER_BROWSE_MODE,
-      slot: null,
-      ref: activeFolderBrowseFilePath || null,
-      contextPath: activeFolderBrowseFilePath || activeFolderBrowsePath,
-      route,
-      systemFile: null,
-      folderBrowsePath: activeFolderBrowsePath,
+      entity: "browse",
+      browse: {
+        folder: activeFolderBrowsePath,
+        file: activeFolderBrowseFilePath || null
+      },
       editing: false
     };
   }
 
   const pagePath = getActiveNodeApiPath() || getResolvedNodePath(activePath);
-  return {
-    agentId: activeAgentId || null,
-    kind: "page",
+  const page = {
     path: pagePath || null,
-    label: activeLabel || null,
-    contentMode: activeContentMode || null,
-    slot: resolveActivePageSlotFromState(),
-    ref: resolveActivePageRefFromState(),
-    contextPath: getPropsContextPath() || pagePath || null,
+    type: normalizeAwnTypeName(resolveAwnTypeForContext(activePath)),
+    label: activeLabel || null
+  };
+  const slotKey = resolveActivePageSlotFromState();
+  const content = resolveActiveContentDetailsFromState();
+  const contextPath = getPropsContextPath() || pagePath || null;
+  const editing = isWorkspaceEditorLinkInsertionContext();
+
+  if (activeContentMode === "description" || content.contentType === "page") {
+    return { entity: "page", page, editing };
+  }
+
+  if (content.contentType && content.relativePath) {
+    return {
+      entity: "content",
+      page,
+      slot: slotKey ? { key: slotKey, view: editing ? "edit" : "overview" } : undefined,
+      content: {
+        type: content.awnType,
+        ref: content.relativePath,
+        contextPath,
+        title: content.title,
+        attach: content.sidecarOf ? { binary: content.sidecarOf } : undefined
+      },
+      editing
+    };
+  }
+
+  if (slotKey) {
+    return {
+      entity: "slot",
+      page,
+      slot: { key: slotKey, view: "list" },
+      editing: false
+    };
+  }
+
+  return { entity: "page", page, editing: false };
+}
+
+function buildActivePageContextPayload() {
+  const route = getChpuWorkspacePathFromState() || `${location.pathname}${location.search}${location.hash}`;
+  const focus = buildActiveFocusFromState();
+  return {
+    version: 1,
+    agentId: activeAgentId || null,
     route,
-    systemFile: null,
-    folderBrowsePath: null,
-    editing: isWorkspaceEditorLinkInsertionContext()
+    contentMode: activeContentMode || null,
+    label: activeLabel || null,
+    focus
   };
 }
 
@@ -8917,12 +9039,15 @@ async function switchActiveAgent(nextAgentId) {
       syncAgentPreview();
     }
 
-    await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId), loadAgentCatalogs(activeAgentId)]);
+    await Promise.all([
+      loadSystemFiles(),
+      loadAwnTypes(activeAgentId),
+      loadAgentCatalogs(activeAgentId),
+      hasCachedView ? Promise.resolve() : refreshMenu({ agentId: activeAgentId })
+    ]);
 
     if (hasCachedView) {
       renderSystemFiles(systemFilesCache);
-    } else {
-      await refreshMenu({ agentId: activeAgentId });
     }
 
     if (isAgentWorkspaceCanvasVisible()) {
@@ -45333,6 +45458,18 @@ function getEntryOverviewTocTitle(memoryKind) {
   return spec ? `Оглавление: ${spec.label}` : "Оглавление";
 }
 
+function resolveDataStorageSlotDisplayLabel(memoryKind) {
+  const kind = String(memoryKind || "").trim();
+  if (!kind) return "Слот";
+  if (kind === "external") {
+    return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === "memory")?.label || "Память (многофайловая)";
+  }
+  const spec =
+    DATA_STORAGE_SLOT_SPECS.find((item) => item.key === kind) ||
+    DATA_STORAGE_SLOT_SPECS.find((item) => getEntryOverviewMemoryKindForSlot(item) === kind);
+  return spec?.label || kind;
+}
+
 function getFlatStorageItemContextPath(relativePath, mode, nodePath = activePath) {
   const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const base = getResolvedNodePath(nodePath);
@@ -45349,18 +45486,21 @@ function getEntryOverviewItemContextPath(relativePath, memoryKind, nodePath = ac
 }
 
 function prepareNavigationFlatStorageItemsFromText(contentText) {
-  const items = parseFlatListItems(contentText)
+  const normalizedItems = parseFlatListItems(contentText)
     .map((raw) => normalizeListItem(raw))
     .filter((item) => item.path);
+  const folderPaths = new Set();
   const files = [];
-  const folders = [];
-  for (const item of items) {
+
+  for (const item of normalizedItems) {
     if (item.isFolder) {
-      folders.push({ path: String(item.path || "").replace(/\/$/, "") });
+      addMemorySectionFolderPath(folderPaths, String(item.path || "").replace(/\/$/, ""));
       continue;
     }
+
     const path = String(item.path || "").replace(/\\/g, "/");
-    if (!path) continue;
+    if (!path || isMemorySectionInfrastructureFilePath(path)) continue;
+
     const name = path.split("/").pop() || path;
     files.push({
       relativePath: path,
@@ -45370,7 +45510,19 @@ function prepareNavigationFlatStorageItemsFromText(contentText) {
       props: [],
       status: ""
     });
+
+    if (isSectionReadmePath(path)) {
+      const folderKey = path.slice(0, -AREA_MANIFEST_FILE.length).replace(/\/$/, "");
+      addMemorySectionFolderPath(folderPaths, folderKey);
+      continue;
+    }
+
+    for (const ancestor of collectNavigationFolderAncestors(path)) {
+      addMemorySectionFolderPath(folderPaths, ancestor);
+    }
   }
+
+  const folders = Array.from(folderPaths).map((folderPath) => ({ path: folderPath }));
   return prepareNavigationExternalItems(files, folders);
 }
 
@@ -45414,6 +45566,9 @@ async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = 
   const folders = getStorageFolderNamesForSlotKey(slotKey);
   if (!folders.length) return null;
 
+  const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
+  const memoryKind = spec ? getEntryOverviewMemoryKindForSlot(spec) : null;
+
   const parts = await Promise.all(
     folders.map((folder) => fetchFlatStorageFolderContent(manifestPath, folder, agentId))
   );
@@ -45423,6 +45578,10 @@ async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = 
     .join("\n");
   if (!content.trim()) {
     return null;
+  }
+
+  if (memoryKind) {
+    modeContentCache[memoryKind] = content;
   }
 
   const index = prepareNavigationFlatStorageItemsFromText(content);
@@ -45467,6 +45626,42 @@ async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeAgent
   return Object.fromEntries(entries.filter(([, index]) => index));
 }
 
+function openExternalRecordFromNavigationForEdit(item) {
+  const rel = String(item?.path || item?.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (!rel) return;
+  void openExternalFile(rel, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
+}
+
+function openExternalSectionFromNavigationForEdit(folderPath) {
+  const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  if (!folder) return;
+  const readmePath = getSectionReadmeRelPath(folder);
+  if (externalSectionReadmeExists(folder)) {
+    void openExternalFile(readmePath, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
+    return;
+  }
+  openExternalCategoryOverviewFromNavigation(folder);
+}
+
+function openFlatStorageRecordFromNavigationForEdit(item, memoryKind) {
+  const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel || !memoryKind) return;
+  void openFlatStorageFile(rel, memoryKind, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
+}
+
+function openFlatStorageSectionFromNavigationForEdit(folderPath, memoryKind) {
+  const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  if (!folder || !memoryKind) return;
+  const readmePath = getSectionReadmeRelPath(folder);
+  if (flatStorageSectionReadmeExists(memoryKind, folder)) {
+    void openFlatStorageFile(readmePath, memoryKind, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
+    return;
+  }
+  openFlatStorageCategoryOverviewFromNavigation(folder, memoryKind);
+}
+
 function getEntryOverviewNavigationHandlers(memoryKind) {
   if (memoryKind === "media" || memoryKind === "assets") {
     return {
@@ -45476,19 +45671,19 @@ function getEntryOverviewNavigationHandlers(memoryKind) {
   }
   if (memoryKind === "external") {
     return {
-      onFolderClick: openExternalCategoryOverviewFromNavigation,
-      onFileClick: openExternalRecordOverviewFromNavigation
+      onFolderClick: openExternalSectionFromNavigationForEdit,
+      onFileClick: openExternalRecordFromNavigationForEdit
     };
   }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     return {
-      onFolderClick: (folderPath) => openFlatStorageCategoryOverviewFromNavigation(folderPath, memoryKind),
-      onFileClick: (item) => openFlatStorageRecordOverviewFromNavigation(item, memoryKind)
+      onFolderClick: (folderPath) => openFlatStorageSectionFromNavigationForEdit(folderPath, memoryKind),
+      onFileClick: (item) => openFlatStorageRecordFromNavigationForEdit(item, memoryKind)
     };
   }
   return {
-    onFolderClick: openExternalCategoryOverviewFromNavigation,
-    onFileClick: openExternalRecordOverviewFromNavigation
+    onFolderClick: openExternalSectionFromNavigationForEdit,
+    onFileClick: openExternalRecordFromNavigationForEdit
   };
 }
 
@@ -47314,7 +47509,10 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
 
   const label = document.createElement("span");
   label.className = "node-navigation-workspace-counter-label";
-  setWorkspaceCounterLabelText(label, slot.label);
+  setWorkspaceCounterLabelText(
+    label,
+    slot.label || resolveDataStorageSlotDisplayLabel(slot.id || slot.spec?.key)
+  );
 
   btn.append(createWorkspaceCounterIndicator(slot), label);
   btn.addEventListener("click", onClick);
@@ -48533,7 +48731,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
   list.className = "nav-book-toc-list nav-book-toc-list--root";
   const tree = buildNavigationPathTree(mdItems, folderLabels);
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
-  appendNavigationBookTocList(list, tree, 0, {
+  const listHandlers = {
     folderLabels,
     folderDescriptions,
     folderStatuses,
@@ -48542,7 +48740,8 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     showBranchLeading: false,
     treeStyle: "guide",
     ...handlers
-  });
+  };
+  appendNavigationBookTocList(list, tree, 0, listHandlers);
   nav.classList.add("nav-book-toc-tree--guide");
   nav.appendChild(list);
   section.appendChild(nav);
@@ -48623,6 +48822,7 @@ async function renderEntryOverview() {
 
     if (isStale()) return;
     nodeOverviewContentNode.replaceChildren(hub);
+    finalizeNavigationHubSplitUi(hub);
     updateBreadcrumbsForActiveMode();
     scheduleWorkspaceScrollChromeSync();
     syncDataHubSlugWarning(NODE_ENTRY_OVERVIEW_MODE);
@@ -48730,6 +48930,7 @@ async function renderEntryOverview() {
 
   const topicManifestPath = getActiveNodeApiPath();
   nodeOverviewContentNode.replaceChildren(hub);
+  finalizeNavigationHubSplitUi(hub);
   updateBreadcrumbsForActiveMode();
 
   if (topicManifestPath) {
@@ -48810,6 +49011,109 @@ function setNavHubRailSlotOpen(nodePath, slotId, open) {
 
 let navigationHubRailDocumentScrollSpy = null;
 let navigationHubRailAsideLayout = null;
+let navigationHubSplitGridLayout = null;
+let navigationHubSplitLockedWidth = null;
+
+const NAV_HUB_SPLIT_BAR_WIDTH = 28;
+const NAV_HUB_SPLIT_RAIL_WIDTH = 300;
+const NAV_HUB_SPLIT_LAYOUT_MIN_MAIN = 160;
+
+function isNavigationHubSplitGridCompact() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 960px)").matches;
+}
+
+function resetNavigationHubSplitLockedWidth() {
+  navigationHubSplitLockedWidth = null;
+}
+
+function resolveNavigationHubSplitHostWidth(hub) {
+  const current = Math.floor(hub?.clientWidth || 0);
+  if (current <= 0) return 0;
+  if (navigationHubSplitLockedWidth == null || current > navigationHubSplitLockedWidth) {
+    navigationHubSplitLockedWidth = current;
+  }
+  return navigationHubSplitLockedWidth;
+}
+
+function clearNavigationHubSplitGridColumns(hub) {
+  hub?.style.removeProperty("grid-template-columns");
+  hub?.style.removeProperty("--nav-hub-main-width");
+  hub?.style.removeProperty("--nav-hub-rail-width");
+}
+
+function applyNavigationHubSplitGridColumns(
+  hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")
+) {
+  if (!hub?.classList.contains("node-navigation-hub--split")) return;
+
+  if (isNavigationHubSplitGridCompact()) {
+    clearNavigationHubSplitGridColumns(hub);
+    return;
+  }
+
+  const width = resolveNavigationHubSplitHostWidth(hub);
+  if (width <= 0) return;
+
+  const collapsed = hub.classList.contains("node-navigation-hub--rail-collapsed");
+  const bar = NAV_HUB_SPLIT_BAR_WIDTH;
+  const rail = NAV_HUB_SPLIT_RAIL_WIDTH;
+
+  if (collapsed) {
+    const main = Math.max(NAV_HUB_SPLIT_LAYOUT_MIN_MAIN, width - bar);
+    hub.style.gridTemplateColumns = `minmax(0, ${main}px) ${bar}px`;
+    hub.style.setProperty("--nav-hub-main-width", `${main}px`);
+    hub.style.removeProperty("--nav-hub-rail-width");
+    return;
+  }
+
+  const main = Math.max(NAV_HUB_SPLIT_LAYOUT_MIN_MAIN, width - bar - rail);
+  hub.style.gridTemplateColumns = `minmax(0, ${main}px) ${bar}px minmax(0, ${rail}px)`;
+  hub.style.setProperty("--nav-hub-main-width", `${main}px`);
+  hub.style.setProperty("--nav-hub-rail-width", `${rail}px`);
+}
+
+function bindNavigationHubSplitGridLayout(hub) {
+  teardownNavigationHubSplitGridLayout();
+  if (!hub?.classList.contains("node-navigation-hub--split")) return;
+
+  const schedule = () => {
+    if (!navigationHubSplitGridLayout) return;
+    if (navigationHubSplitGridLayout.raf) return;
+    navigationHubSplitGridLayout.raf = requestAnimationFrame(() => {
+      if (!navigationHubSplitGridLayout) return;
+      navigationHubSplitGridLayout.raf = 0;
+      applyNavigationHubSplitGridColumns(navigationHubSplitGridLayout.hub);
+    });
+  };
+
+  applyNavigationHubSplitGridColumns(hub);
+
+  const onResize = () => {
+    resetNavigationHubSplitLockedWidth();
+    schedule();
+  };
+  window.addEventListener("resize", onResize, { passive: true });
+
+  let resizeObserver = null;
+  const observeTarget = hub.closest("#node-overview-content") || hub.parentElement;
+  if (observeTarget && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(observeTarget);
+  }
+
+  navigationHubSplitGridLayout = { hub, onResize, resizeObserver, raf: 0 };
+}
+
+function teardownNavigationHubSplitGridLayout() {
+  if (!navigationHubSplitGridLayout) return;
+  window.removeEventListener("resize", navigationHubSplitGridLayout.onResize);
+  navigationHubSplitGridLayout.resizeObserver?.disconnect();
+  if (navigationHubSplitGridLayout.raf) {
+    cancelAnimationFrame(navigationHubSplitGridLayout.raf);
+  }
+  clearNavigationHubSplitGridColumns(navigationHubSplitGridLayout.hub);
+  navigationHubSplitGridLayout = null;
+}
 
 function getNavigationHubDocumentScrollElement() {
   return getWorkspaceScrollElement();
@@ -49157,7 +49461,8 @@ function appendNavigationHubRailSlotSummaryParts(summary, slot, { includeOpenBtn
 
   const label = document.createElement("span");
   label.className = "node-navigation-hub-rail-slot-label";
-  label.textContent = slot.label;
+  label.textContent =
+    slot.label || resolveDataStorageSlotDisplayLabel(slot.spec?.key || slot.id);
 
   const count = document.createElement("span");
   count.className = "node-navigation-hub-rail-slot-count";
@@ -55909,6 +56214,8 @@ function syncNodeOverviewNavigationSplitClass(active = false) {
   if (!active) {
     teardownNavigationHubRailDocumentScrollSpy();
     teardownNavigationHubRailAsideLayout();
+    teardownNavigationHubSplitGridLayout();
+    resetNavigationHubSplitLockedWidth();
     teardownNavigationHubRailToggle();
   }
   nodeOverviewBlockNode?.classList.toggle("is-navigation-split", Boolean(active));
@@ -55941,6 +56248,8 @@ function syncNavigationHubRailCollapsedUi(hub = nodeOverviewContentNode?.querySe
     toggleBtn.setAttribute("aria-label", label);
     toggleBtn.setAttribute("aria-expanded", navigationHubRailCollapsed ? "false" : "true");
   }
+
+  applyNavigationHubSplitGridColumns(hub);
 }
 
 function setNavigationHubRailCollapsed(collapsed) {
@@ -55987,6 +56296,11 @@ function mountNavigationHubRailToggle(hub) {
 
   updateNavigationHubRailPanelHeight(rail);
   syncNavigationHubRailCollapsedUi(hub);
+}
+
+function finalizeNavigationHubSplitUi(hub = nodeOverviewContentNode?.querySelector(".node-navigation-hub--split")) {
+  if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  bindNavigationHubSplitGridLayout(hub);
 }
 
 function getNavigationHubRailSlotSearchKey(nodePath, slotId) {
@@ -56250,7 +56564,24 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
     treeHost.className = "node-navigation-hub-rail-slot-tree";
     body.appendChild(treeHost);
     refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
-    return Boolean(treeHost.childElementCount);
+
+    if (
+      !slotIndex.navigationIndex &&
+      isFlatEntryOverviewMemoryKind(slotIndex.memoryKind) &&
+      slot.filled &&
+      prefetched._flatIndexTopicPath
+    ) {
+      void fetchFlatStorageNavigationIndex(
+        prefetched._flatIndexTopicPath,
+        slotIndex.spec?.key || slot.id
+      ).then((index) => {
+        if (!index || !body.isConnected) return;
+        slotIndex.navigationIndex = index;
+        refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
+      });
+    }
+
+    return Boolean(treeHost.childElementCount) || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind));
   }
 
   if (slotIndex.kind === "bundle") {
@@ -56553,7 +56884,7 @@ async function appendNodeNavigationSplitRail(
       })),
       childEntries,
       nodePath,
-      { ...prefetched, assetsData, flatNavigationIndexes },
+      { ...prefetched, assetsData, flatNavigationIndexes, _flatIndexTopicPath: nodePath },
       { documentMarkdown }
     );
     if (isStale()) return false;
@@ -56735,6 +57066,7 @@ async function renderNodeNavigation() {
     hub.appendChild(empty);
   }
   nodeOverviewContentNode.replaceChildren(hub);
+  finalizeNavigationHubSplitUi(hub);
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
   syncDataHubSlugWarning(NODE_NAVIGATION_MODE);
@@ -57253,6 +57585,7 @@ function applyModeUi() {
   const forceEditOnly = activeContentMode === "env";
   const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
+  const flatStorageEditing = isFlatStorageFileEditing();
   void syncExternalFileCommentsBlock();
   void syncMediaFileCommentsBlock();
   if (titleVisible || mediaSidecarEditing) {
@@ -57281,15 +57614,7 @@ function applyModeUi() {
     showTabularControls ||
     showDataHubBundleEdit ||
     (bundleSlotShellMode && !bundleEditorMode) ||
-    activeContentMode === "inbox" ||
-    activeContentMode === "note" ||
-    activeContentMode === NODE_THREAD_MODE ||
-    activeContentMode === "quick-notes" ||
-    activeContentMode === "references" ||
-    activeContentMode === "artefacts" ||
-    activeContentMode === "repository" ||
-    activeContentMode === "temp" ||
-    activeContentMode === "scripts" ||
+    showFlatStorageSectionControls ||
     previewMode;
   const hideDocActions =
     previewMode ||
@@ -57306,6 +57631,7 @@ function applyModeUi() {
       !bundleSlotShellMode &&
       !mediaSidecarEditing &&
       !externalEditing &&
+      !flatStorageEditing &&
       !showWorkspaceRefresh &&
       !showMindmapLayout);
   const hideToolbar = hideDocActions;
@@ -64775,6 +65101,7 @@ async function selectFile(label, filePath) {
     lastNonTocEntryOverviewContext = null;
     activeDataStorageAllItems = false;
     invalidateStorageRootScanCache();
+    resetNavigationHubSplitLockedWidth();
   }
   activePath = nextPath;
   activeLabel = label;
@@ -71770,14 +72097,18 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
   const maxDepth = options.fullTree
     ? requestedDepth
     : Math.min(requestedDepth, MENU_LAZY_BOOTSTRAP_DEPTH);
-  const response = await fetch(buildApiUrl("/api/menu", { maxDepth: String(maxDepth) }, agentId));
+  const params = { maxDepth: String(maxDepth) };
+  if (options.refresh) params.refresh = "1";
+  const response = await fetch(buildApiUrl("/api/menu", params, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
   const menu = await response.json();
-  await refreshMenuRuntimeFlagsCache(agentId);
-  enrichMenuRuntimeFromCache(menu, agentId);
+  void refreshMenuRuntimeFlagsCache(agentId).then(() => {
+    enrichMenuRuntimeFromCache(menu, agentId);
+    refreshMenuTreeRuntimeBadges(agentId);
+  });
   syncMenuCachesAfterFetch(menu, agentId);
   return menu;
 }
@@ -71870,7 +72201,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
 async function refreshMenu(options = {}) {
   const agentId = options.agentId || activeAgentId;
   if (!agentId) return null;
-  const menu = await fetchMenuData(agentId);
+  const menu = await fetchMenuData(agentId, { refresh: options.refresh });
   withPreservedMenuScroll(() => {
     renderMenu(menu, agentId, options);
   });
@@ -71904,7 +72235,7 @@ async function refreshMenuTree() {
   try {
     invalidateMenuAgentCache(activeAgentId);
     await loadSystemFiles({ skipRender: true });
-    await refreshMenu({ agentId: activeAgentId, menuOnly: true });
+    await refreshMenu({ agentId: activeAgentId, menuOnly: true, refresh: true });
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(activeAgentId);
   } catch (error) {

@@ -743,6 +743,29 @@ const workspaceActivityApiWriteGuards = new Map();
 const workspaceExternalWatchers = new Map();
 const workspaceExternalWatchTimers = new Map();
 const workspaceRevisionMtimeCache = new Map();
+const agentMenuResponseCache = new Map();
+const agentMenuBuildInFlight = new Map();
+const AGENT_MENU_CACHE_TTL_MS = 60_000;
+
+function agentMenuCacheKey(agentRoot, maxDepth) {
+  const depthKey = Number.isFinite(maxDepth) ? String(maxDepth) : "all";
+  return `${agentRoot}\0${depthKey}`;
+}
+
+function invalidateAgentMenuCache(agentRoot) {
+  if (!agentRoot) {
+    agentMenuResponseCache.clear();
+    agentMenuBuildInFlight.clear();
+    return;
+  }
+  const prefix = `${agentRoot}\0`;
+  for (const key of agentMenuResponseCache.keys()) {
+    if (key.startsWith(prefix)) agentMenuResponseCache.delete(key);
+  }
+  for (const key of agentMenuBuildInFlight.keys()) {
+    if (key.startsWith(prefix)) agentMenuBuildInFlight.delete(key);
+  }
+}
 
 function normalizeWorkspaceActivityRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
@@ -751,6 +774,7 @@ function normalizeWorkspaceActivityRelPath(relPath) {
 function markWorkspaceActivityApiWrite(agentRoot, relPath) {
   const normalized = normalizeWorkspaceActivityRelPath(relPath);
   if (!agentRoot || !normalized) return;
+  invalidateAgentMenuCache(agentRoot);
   workspaceActivityApiWriteGuards.set(`${agentRoot}\0${normalized}`, Date.now() + WORKSPACE_ACTIVITY_API_WRITE_GUARD_MS);
 }
 
@@ -6037,86 +6061,161 @@ async function resolveAgentSubfolderAbsolute(agentRootAbsolute, folderName) {
 function withMenuBuildOptions(options = {}) {
   return {
     ...options,
-    menuMetaCache: options.menuMetaCache || new Map()
+    menuMetaCache: options.menuMetaCache || new Map(),
+    frontmatterCache: options.frontmatterCache || new Map(),
+    folderMarkersCache: options.folderMarkersCache || new Map(),
+    manifestTreeCache: options.manifestTreeCache || new Map()
   };
+}
+
+async function readCachedNodeFrontmatter(nodeRelPath, options = {}) {
+  const normalizedPath = String(nodeRelPath || "").replace(/\\/g, "/");
+  const cache = options.frontmatterCache;
+  if (cache?.has(normalizedPath)) return cache.get(normalizedPath);
+  const result = await readNodeFrontmatterContent(normalizedPath);
+  cache?.set(normalizedPath, result);
+  return result;
+}
+
+function extractMenuMetaFromFrontmatter(frontmatter, nodeRelPath) {
+  const awnEmoji = getYamlScalar(frontmatter, "awn-emoji");
+  const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
+  return {
+    color: extractColorFromPropsYaml(frontmatter),
+    tags: extractTagsFromProps(frontmatter),
+    category: extractCategoryFromProps(frontmatter, nodeRelPath),
+    status: extractStatusFromProps(frontmatter),
+    owner: extractOwnerFromProps(frontmatter),
+    priority: extractPriorityFromProps(frontmatter),
+    awnEmoji: awnEmoji || null,
+    runtimeCron: runtime.runtimeCron,
+    runtimeCronSchedule: runtime.runtimeCronSchedule,
+    runtimeHeartbeat: runtime.runtimeHeartbeat,
+    runtimeLoadAlways: runtime.runtimeLoadAlways,
+    runtimeCommands: runtime.runtimeCommands
+  };
+}
+
+function extractManifestMenuMetaFromFrontmatter(frontmatter) {
+  const kind = String(getYamlScalar(frontmatter, "kind") || "").trim();
+  const typeRaw = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+  const treeType = normalizeDeclaredManifestTreeType(typeRaw);
+  const type = treeType || (typeRaw.startsWith("awn.") ? typeRaw.slice(4) : typeRaw);
+  return { kind, type };
+}
+
+async function readManifestMenuMetaCached(manifestRel, options = {}) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/");
+  const cache = options.manifestTreeCache;
+  if (cache?.has(normalized)) return cache.get(normalized);
+  try {
+    const { frontmatter } = await readCachedNodeFrontmatter(normalized, options);
+    const meta = extractManifestMenuMetaFromFrontmatter(frontmatter);
+    cache?.set(normalized, meta);
+    return meta;
+  } catch {
+    const empty = { kind: "", type: "" };
+    cache?.set(normalized, empty);
+    return empty;
+  }
 }
 
 async function buildAgentMenu(agentRootAbsolute, options = {}) {
   const buildOptions = withMenuBuildOptions(options);
-  if (!(await dirExists(agentRootAbsolute))) {
-    return {
-      title: path.basename(agentRootAbsolute),
-      sections: [],
-      items: [],
-      indexPath: null,
-      serviceTree: null,
-      containerTree: null,
-      sharedTree: null,
-      systemTree: null,
-      workspaceMissing: true
-    };
+  const useCache = options.refresh !== true && options.skipResponseCache !== true;
+  const maxDepth = Number.isFinite(buildOptions.maxDepth) ? buildOptions.maxDepth : null;
+
+  if (useCache && agentRootAbsolute) {
+    const cacheKey = agentMenuCacheKey(agentRootAbsolute, maxDepth);
+    const cached = agentMenuResponseCache.get(cacheKey);
+    if (cached && Date.now() - cached.builtAt < AGENT_MENU_CACHE_TTL_MS) {
+      return cached.menu;
+    }
+    const inFlight = agentMenuBuildInFlight.get(cacheKey);
+    if (inFlight) return inFlight;
   }
+  const buildBody = async () => {
+    if (!(await dirExists(agentRootAbsolute))) {
+      return {
+        title: path.basename(agentRootAbsolute),
+        sections: [],
+        items: [],
+        indexPath: null,
+        serviceTree: null,
+        containerTree: null,
+        sharedTree: null,
+        systemTree: null,
+        workspaceMissing: true
+      };
+    }
 
-  await ensureWorkspaceRootIndex(agentRootAbsolute);
-  const menu = dedupeReservedRootMenuSections(
-    await listNodeMdFiles(agentRootAbsolute, "", 0, buildOptions)
-  );
-  const kitFolder = getAgentKitFolder();
-  const containerFolder = getAgentContainerFolder();
-  const sharedFolder = getAgentSharedFolder();
-  let serviceTree = null;
-  let containerTree = null;
-  let sharedTree = null;
-  let systemTree = null;
-
-  const kitAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder);
-  if (kitAbsolute) {
-    serviceTree = await normalizeServiceMenuTree(
-      await listNodeMdFiles(kitAbsolute, kitFolder, 0, buildOptions),
-      kitAbsolute
+    await ensureWorkspaceRootIndex(agentRootAbsolute);
+    const menu = dedupeReservedRootMenuSections(
+      await listNodeMdFiles(agentRootAbsolute, "", 0, buildOptions)
     );
+    const kitFolder = getAgentKitFolder();
+    const containerFolder = getAgentContainerFolder();
+    const sharedFolder = getAgentSharedFolder();
+    let serviceTree = null;
+    let containerTree = null;
+    let sharedTree = null;
+    let systemTree = null;
+
+    const [kitAbsolute, containerAbsolute, sharedAbsolute] = await Promise.all([
+      resolveAgentSubfolderAbsolute(agentRootAbsolute, kitFolder),
+      resolveAgentSubfolderAbsolute(agentRootAbsolute, containerFolder),
+      resolveAgentSubfolderAbsolute(agentRootAbsolute, sharedFolder)
+    ]);
+
+    if (kitAbsolute) {
+      serviceTree = await normalizeServiceMenuTree(
+        await listNodeMdFiles(kitAbsolute, kitFolder, 0, buildOptions),
+        kitAbsolute
+      );
+    }
+
+    if (containerAbsolute) {
+      containerTree = await normalizeContainerMenuTree(
+        await listNodeMdFiles(containerAbsolute, containerFolder, 0, buildOptions),
+        containerAbsolute
+      );
+    }
+
+    if (sharedAbsolute) {
+      sharedTree = await normalizeSharedMenuTree(
+        await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, buildOptions),
+        sharedAbsolute
+      );
+    }
+
+    if (agentSystemExists(agentRootAbsolute)) {
+      systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
+    }
+
+    enrichMenuTreeRuntimeRollup(menu);
+    if (serviceTree) enrichMenuTreeRuntimeRollup(serviceTree);
+    if (containerTree) enrichMenuTreeRuntimeRollup(containerTree);
+    if (sharedTree) enrichMenuTreeRuntimeRollup(sharedTree);
+    if (systemTree) enrichMenuTreeRuntimeRollup(systemTree);
+
+    return { ...menu, serviceTree, sharedTree, containerTree, systemTree };
+  };
+
+  if (useCache && agentRootAbsolute) {
+    const cacheKey = agentMenuCacheKey(agentRootAbsolute, maxDepth);
+    const buildPromise = buildBody()
+      .then((menu) => {
+        agentMenuResponseCache.set(cacheKey, { menu, builtAt: Date.now() });
+        return menu;
+      })
+      .finally(() => {
+        agentMenuBuildInFlight.delete(cacheKey);
+      });
+    agentMenuBuildInFlight.set(cacheKey, buildPromise);
+    return buildPromise;
   }
 
-  const containerAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, containerFolder);
-  if (containerAbsolute) {
-    containerTree = await normalizeContainerMenuTree(
-      await listNodeMdFiles(containerAbsolute, containerFolder, 0, buildOptions),
-      containerAbsolute
-    );
-  }
-
-  const sharedAbsolute = await resolveAgentSubfolderAbsolute(agentRootAbsolute, sharedFolder);
-  if (sharedAbsolute) {
-    sharedTree = await normalizeSharedMenuTree(
-      await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, buildOptions),
-      sharedAbsolute
-    );
-  }
-
-  if (agentSystemExists(agentRootAbsolute)) {
-    systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
-  }
-
-  enrichMenuTreeRuntimeRollup(menu);
-  enrichMenuTreeSchemaRollup(menu);
-  if (serviceTree) {
-    enrichMenuTreeRuntimeRollup(serviceTree);
-    enrichMenuTreeSchemaRollup(serviceTree);
-  }
-  if (containerTree) {
-    enrichMenuTreeRuntimeRollup(containerTree);
-    enrichMenuTreeSchemaRollup(containerTree);
-  }
-  if (sharedTree) {
-    enrichMenuTreeRuntimeRollup(sharedTree);
-    enrichMenuTreeSchemaRollup(sharedTree);
-  }
-  if (systemTree) {
-    enrichMenuTreeRuntimeRollup(systemTree);
-    enrichMenuTreeSchemaRollup(systemTree);
-  }
-
-  return { ...menu, serviceTree, sharedTree, containerTree, systemTree };
+  return buildBody();
 }
 
 async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = {}) {
@@ -6157,7 +6256,6 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     );
     const branch = await normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
     enrichMenuTreeRuntimeRollup(branch);
-    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -6169,7 +6267,6 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeSharedMenuTree(tree, sharedAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
-    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -6181,7 +6278,6 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(kitAbsolute, kitFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeServiceMenuTree(tree, kitAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
-    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -6205,7 +6301,6 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     branch = tree;
   }
   enrichMenuTreeRuntimeRollup(branch);
-  enrichMenuTreeSchemaRollup(branch);
   return branch;
 }
 
@@ -6999,38 +7094,33 @@ const PARTS_FOLDER = "_Parts";
 const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
 const SERVICE_MENU_LEAF_TYPES = new Set(["service-doc", "catalog", "taxonomy"]);
 
-async function readManifestMenuMeta(manifestRel) {
+async function readManifestMenuMeta(manifestRel, options = null) {
+  if (options) return readManifestMenuMetaCached(manifestRel, options);
   try {
     const { frontmatter } = await readNodeFrontmatterContent(manifestRel);
-    const kind = String(getYamlScalar(frontmatter, "kind") || "").trim();
-    const typeRaw = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
-    const treeType = normalizeDeclaredManifestTreeType(typeRaw);
-    const type =
-      treeType ||
-      (typeRaw.startsWith("awn.") ? typeRaw.slice(4) : typeRaw);
-    return { kind, type };
+    return extractManifestMenuMetaFromFrontmatter(frontmatter);
   } catch {
     return { kind: "", type: "" };
   }
 }
 
-async function shouldRenderMenuChildAsTopicItem(child) {
+async function shouldRenderMenuChildAsTopicItem(child, options = {}) {
   const manifestRel = child?.indexPath;
   if (!manifestRel) return false;
   if ((child.sections || []).length > 0) return false;
   if ((child.items || []).length > 0) return false;
   if (child.containerTree) return false;
   if (isSystemReferenceManifestRel(manifestRel)) return true;
-  const { type } = await readManifestMenuMeta(manifestRel);
+  const { type } = await readManifestMenuMetaCached(manifestRel, options);
   if (type === "topic" || SERVICE_MENU_LEAF_TYPES.has(type)) return true;
   return false;
 }
 
-async function isTreeMenuManifestRel(manifestRel) {
+async function isTreeMenuManifestRel(manifestRel, options = {}) {
   const normalized = String(manifestRel || "").replace(/\\/g, "/");
   if (!normalized || !isManifestMdRelPath(normalized)) return false;
   if (isSystemReferenceManifestRel(normalized)) return true;
-  const { kind, type } = await readManifestMenuMeta(normalized);
+  const { kind, type } = await readManifestMenuMetaCached(normalized, options);
   if (kind === "service") return false;
   if (kind === "tree") return true;
   if (TREE_MENU_TYPES.has(type)) return true;
@@ -8146,7 +8236,8 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
-  activePage: "GET /api/agent/active-page — текущее открытое окно UI (синхронизируется браузером)",
+  activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
+  activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
   runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
@@ -9941,12 +10032,13 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
   if (cache?.has(normalizedPath)) {
     return cache.get(normalizedPath);
   }
-  const [meta, previewMeta, menuMeta, hasCustomSchema] = await Promise.all([
-    readNodeMenuMetaForNodeRel(normalizedPath),
-    getNodePreviewMeta(normalizedPath),
-    readManifestMenuMeta(normalizedPath),
-    readNodeHasOwnSchemaLayerForMenu(normalizedPath)
-  ]);
+  const { frontmatter } = await readCachedNodeFrontmatter(normalizedPath, options);
+  const meta = extractMenuMetaFromFrontmatter(frontmatter, normalizedPath);
+  const menuMeta = extractManifestMenuMetaFromFrontmatter(frontmatter);
+  const previewRaw = getYamlScalar(frontmatter, "awn-preview");
+  const previewMeta = previewRaw
+    ? await resolveAwnPreviewFieldMeta(normalizedPath, previewRaw)
+    : { hasPreview: false, previewUrl: null, previewFile: null };
   const result = {
     color: meta.color,
     tags: meta.tags,
@@ -9959,7 +10051,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
     runtimeLoadAlways: Boolean(meta.runtimeLoadAlways),
     runtimeCommands: Boolean(meta.runtimeCommands),
-    hasCustomSchema: Boolean(hasCustomSchema),
+    hasCustomSchema: false,
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -10517,13 +10609,17 @@ async function folderHasAgentManifest(dirAbsolute) {
   return isWorkspaceReginfoAtPath(dirAbsolute);
 }
 
-async function readFolderWorkspaceMarkers(dirAbsolute) {
+async function readFolderWorkspaceMarkers(dirAbsolute, options = {}) {
+  const cache = options.folderMarkersCache;
+  if (cache?.has(dirAbsolute)) return cache.get(dirAbsolute);
   const [hasGitSelf, hasObsidianSelf, hasAgentSelf] = await Promise.all([
     folderHasGitRepo(dirAbsolute),
     folderHasObsidianVault(dirAbsolute),
     folderHasAgentManifest(dirAbsolute)
   ]);
-  return { hasGitSelf, hasObsidianSelf, hasAgentSelf };
+  const markers = { hasGitSelf, hasObsidianSelf, hasAgentSelf };
+  cache?.set(dirAbsolute, markers);
+  return markers;
 }
 
 function withMenuFolderWorkspaceMarkers(markers) {
@@ -10756,6 +10852,146 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
   return shell;
 }
 
+async function processMenuDirectoryEntry({
+  entry,
+  fullPath,
+  relativePath,
+  prefix,
+  depth,
+  maxDepth,
+  options,
+  isGitRepoRoot,
+  isGitRepoRootMenu
+}) {
+  if (shouldSkipMenuDirectory(entry.name)) return null;
+  if (isStorageFolderName(entry.name)) return null;
+  if (isConfigurationFolderName(entry.name)) return null;
+
+  if (isGitRepoRoot && prefix) {
+    if (isPartsFolderName(entry.name)) {
+      const partFiles = [];
+      await collectPartNodeItems(fullPath, prefix, partFiles);
+      return { kind: "partFiles", files: partFiles };
+    }
+    if (isKitFolderName(entry.name)) return null;
+    if (isContainerFolderName(entry.name)) {
+      const childDepth = depth + 1;
+      if (maxDepth !== null && childDepth >= maxDepth) {
+        return {
+          kind: "nestedContainer",
+          tree: {
+            ...(await buildMenuFolderShellAtDepthLimit(
+              fullPath,
+              relativePath,
+              await readFolderWorkspaceMarkers(fullPath, options),
+              options
+            )),
+            containerTree: null
+          }
+        };
+      }
+      return {
+        kind: "nestedContainer",
+        tree: await normalizeNestedContainerMenuTree(
+          await listNodeMdFiles(fullPath, relativePath, childDepth, options),
+          fullPath,
+          relativePath
+        )
+      };
+    }
+  }
+
+  if (!prefix && (isKitFolderName(entry.name) || isSharedFolderName(entry.name) || isContainerFolderName(entry.name))) {
+    return null;
+  }
+  if (isPartsFolderName(entry.name)) {
+    const partFiles = [];
+    await collectPartNodeItems(fullPath, prefix, partFiles);
+    return { kind: "partFiles", files: partFiles };
+  }
+
+  const childDepth = depth + 1;
+  if (maxDepth !== null && childDepth >= maxDepth) {
+    const markers = await readFolderWorkspaceMarkers(fullPath, options);
+    const shell = await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers, options);
+    if (await shouldRenderMenuChildAsTopicItem(shell, options)) {
+      return {
+        kind: "file",
+        file: {
+          label: shell.title,
+          path: shell.indexPath,
+          ...(await enrichMenuNodeItem(shell.indexPath, options)),
+          ...withMenuFolderWorkspaceMarkers(markers)
+        }
+      };
+    }
+    return {
+      kind: "folder",
+      folder: {
+        ...shell,
+        ...withMenuFolderWorkspaceMarkers(markers)
+      }
+    };
+  }
+
+  const child = await listNodeMdFiles(fullPath, relativePath, childDepth, options);
+  if (child.indexPath && !(await isTreeMenuManifestRel(child.indexPath, options))) {
+    child.indexPath = null;
+  }
+  const hasNodes = Boolean(
+    child.indexPath ||
+    child.items.length > 0 ||
+    child.sections.length > 0 ||
+    child.containerTree ||
+    (child.repoServiceItems || child.repoItems || []).length > 0
+  );
+  const markers = await readFolderWorkspaceMarkers(fullPath, options);
+  const folderTitle = await resolveFolderDisplayTitle(fullPath, relativePath, child);
+
+  if (hasNodes) {
+    if (await shouldRenderMenuChildAsTopicItem(child, options)) {
+      return {
+        kind: "file",
+        file: {
+          label: folderTitle,
+          path: child.indexPath,
+          ...(await enrichMenuNodeItem(child.indexPath, options)),
+          ...withMenuFolderWorkspaceMarkers(markers)
+        }
+      };
+    }
+    return {
+      kind: "folder",
+      folder: {
+        title: folderTitle,
+        folderPath: relativePath,
+        ...child,
+        ...withMenuFolderWorkspaceMarkers(markers)
+      }
+    };
+  }
+
+  return {
+    kind: "folder",
+    folder: {
+      title: folderTitle,
+      folderPath: relativePath,
+      empty: true,
+      ...markers,
+      hasGit: markers.hasGitSelf,
+      hasObsidian: markers.hasObsidianSelf,
+      hasAgent: markers.hasAgentSelf,
+      hasGitSelf: markers.hasGitSelf,
+      hasObsidianSelf: markers.hasObsidianSelf,
+      hasAgentSelf: markers.hasAgentSelf,
+      sections: [],
+      items: [],
+      indexPath: null,
+      menuOrder: await readMenuSortOrder(fullPath)
+    }
+  };
+}
+
 async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   const maxDepth = Number.isFinite(options.maxDepth) ? options.maxDepth : null;
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
@@ -10765,132 +11001,20 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let indexPath = null;
   let nestedContainerTree = null;
 
-  const selfMarkers = await readFolderWorkspaceMarkers(dirPath);
+  const selfMarkers = await readFolderWorkspaceMarkers(dirPath, options);
   const isGitRepoRoot = selfMarkers.hasGitSelf;
   const isGitRepoRootMenu = isGitRepoRoot;
 
+  const dirEntries = [];
   for (const entry of entries) {
     if (isHiddenMenuEntry(entry.name)) continue;
-    const fullPath = path.join(dirPath, entry.name);
-    const relativePath = path.join(prefix, entry.name).replace(/\\/g, "/");
-
     if (entry.isDirectory()) {
-      if (shouldSkipMenuDirectory(entry.name)) continue;
-      if (isStorageFolderName(entry.name)) continue;
-      if (isConfigurationFolderName(entry.name)) continue;
-
-      if (isGitRepoRoot && prefix) {
-        if (isPartsFolderName(entry.name)) {
-          await collectPartNodeItems(fullPath, prefix, files);
-          continue;
-        }
-        if (isKitFolderName(entry.name)) {
-          continue;
-        }
-        if (isContainerFolderName(entry.name)) {
-          const childDepth = depth + 1;
-          if (maxDepth !== null && childDepth >= maxDepth) {
-            nestedContainerTree = {
-              ...(await buildMenuFolderShellAtDepthLimit(
-                fullPath,
-                relativePath,
-                await readFolderWorkspaceMarkers(fullPath),
-                options
-              )),
-              containerTree: null
-            };
-          } else {
-            nestedContainerTree = await normalizeNestedContainerMenuTree(
-              await listNodeMdFiles(fullPath, relativePath, childDepth, options),
-              fullPath,
-              relativePath
-            );
-          }
-          continue;
-        }
-      }
-
-      if (!prefix && (isKitFolderName(entry.name) || isSharedFolderName(entry.name) || isContainerFolderName(entry.name))) {
-        continue;
-      }
-      if (isPartsFolderName(entry.name)) {
-        await collectPartNodeItems(fullPath, prefix, files);
-        continue;
-      }
-
-      const childDepth = depth + 1;
-      if (maxDepth !== null && childDepth >= maxDepth) {
-        const markers = await readFolderWorkspaceMarkers(fullPath);
-        const shell = await buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers, options);
-        if (await shouldRenderMenuChildAsTopicItem(shell)) {
-          files.push({
-            label: shell.title,
-            path: shell.indexPath,
-            ...(await enrichMenuNodeItem(shell.indexPath, options)),
-            ...withMenuFolderWorkspaceMarkers(markers)
-          });
-        } else {
-          folders.push({
-            ...shell,
-            ...withMenuFolderWorkspaceMarkers(markers)
-          });
-        }
-        continue;
-      }
-
-      const child = await listNodeMdFiles(fullPath, relativePath, childDepth, options);
-      if (child.indexPath && !(await isTreeMenuManifestRel(child.indexPath))) {
-        child.indexPath = null;
-      }
-      const hasNodes = Boolean(
-        child.indexPath ||
-        child.items.length > 0 ||
-        child.sections.length > 0 ||
-        child.containerTree ||
-        (child.repoServiceItems || child.repoItems || []).length > 0
-      );
-      const markers = await readFolderWorkspaceMarkers(fullPath);
-
-      const folderTitle = await resolveFolderDisplayTitle(fullPath, relativePath, child);
-
-      if (hasNodes) {
-        if (await shouldRenderMenuChildAsTopicItem(child)) {
-          files.push({
-            label: folderTitle,
-            path: child.indexPath,
-            ...(await enrichMenuNodeItem(child.indexPath, options)),
-            ...withMenuFolderWorkspaceMarkers(markers)
-          });
-          continue;
-        }
-
-        folders.push({
-          title: folderTitle,
-          folderPath: relativePath,
-          ...child,
-          ...withMenuFolderWorkspaceMarkers(markers)
-        });
-        continue;
-      }
-
-      folders.push({
-        title: folderTitle,
-        folderPath: relativePath,
-        empty: true,
-        ...markers,
-        hasGit: markers.hasGitSelf,
-        hasObsidian: markers.hasObsidianSelf,
-        hasAgent: markers.hasAgentSelf,
-        hasGitSelf: markers.hasGitSelf,
-        hasObsidianSelf: markers.hasObsidianSelf,
-        hasAgentSelf: markers.hasAgentSelf,
-        sections: [],
-        items: [],
-        indexPath: null,
-        menuOrder: await readMenuSortOrder(fullPath)
-      });
+      dirEntries.push(entry);
       continue;
     }
+
+    const fullPath = path.join(dirPath, entry.name);
+    const relativePath = path.join(prefix, entry.name).replace(/\\/g, "/");
 
     if (entry.isFile() && isAreaManifestFileName(entry.name)) {
       continue;
@@ -10904,7 +11028,43 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
         ...(await enrichMenuNodeItem(nodeRelPath, options))
       };
       repoServiceFiles.push({ ...menuItem, menuScope: "repo-service" });
+    }
+  }
+
+  const dirResults = await Promise.all(
+    dirEntries.map((entry) => {
+      const fullPath = path.join(dirPath, entry.name);
+      const relativePath = path.join(prefix, entry.name).replace(/\\/g, "/");
+      return processMenuDirectoryEntry({
+        entry,
+        fullPath,
+        relativePath,
+        prefix,
+        depth,
+        maxDepth,
+        options,
+        isGitRepoRoot,
+        isGitRepoRootMenu
+      });
+    })
+  );
+
+  for (const result of dirResults) {
+    if (!result) continue;
+    if (result.kind === "nestedContainer") {
+      nestedContainerTree = result.tree;
       continue;
+    }
+    if (result.kind === "partFiles") {
+      files.push(...(result.files || []));
+      continue;
+    }
+    if (result.kind === "file") {
+      files.push(result.file);
+      continue;
+    }
+    if (result.kind === "folder") {
+      folders.push(result.folder);
     }
   }
 
@@ -10917,7 +11077,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     }
   }
 
-  if (indexPath && !(await isTreeMenuManifestRel(indexPath))) {
+  if (indexPath && !(await isTreeMenuManifestRel(indexPath, options))) {
     indexPath = null;
   }
 
@@ -12942,7 +13102,8 @@ async function handleApiForAgent(req, res, url) {
       const maxDepth = Number.isFinite(maxDepthRaw)
         ? Math.min(20, Math.max(1, Math.floor(maxDepthRaw)))
         : 7;
-      const menu = await buildAgentMenu(getAgentRoot(), { maxDepth });
+      const refresh = url.searchParams.get("refresh") === "1";
+      const menu = await buildAgentMenu(getAgentRoot(), { maxDepth, refresh });
       return sendJson(res, 200, menu);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to read Workspaces menu", details: String(error.message || error) });
@@ -13182,36 +13343,50 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/active-page") {
+  const handleActiveContextGet = async (res) => {
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+    const payload = await readAgentUiContext(agentRoot);
+    return sendJson(res, 200, {
+      ...payload,
+      maxAgeMs: UI_CONTEXT_MAX_AGE_MS,
+      hint: payload.context
+        ? "focus.entity: page|slot|content|system|browse|home|none; mcp — готовые args для read/write_*; aliases.path/slot/ref — shortcuts; stale=true если UI давно не обновлялся"
+        : "UI context not synced yet — open Agent CMS in browser or pass path explicitly"
+    });
+  };
+
+  const handleActiveContextPost = async (req, res) => {
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+    const payload = await readJsonBody(req);
+    const context = await writeAgentUiContext(agentRoot, payload);
+    return sendJson(res, 200, { context });
+  };
+
+  if (
+    req.method === "GET" &&
+    (url.pathname === "/api/agent/active-page" || url.pathname === "/api/agent/active-context")
+  ) {
     try {
-      const agentRoot = getAgentRoot();
-      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
-      const payload = await readAgentUiContext(agentRoot);
-      return sendJson(res, 200, {
-        ...payload,
-        maxAgeMs: UI_CONTEXT_MAX_AGE_MS,
-        hint: payload.context
-          ? "path — manifest.md страницы; contextPath — запись/файл в слоте; stale=true если UI давно не обновлялся"
-          : "UI context not synced yet — open Agent CMS in browser or pass path explicitly"
-      });
+      return await handleActiveContextGet(res);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to read active page context",
+        error: "Failed to read active context",
         details: String(error.message || error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/agent/active-page") {
+  if (
+    req.method === "POST" &&
+    (url.pathname === "/api/agent/active-page" || url.pathname === "/api/agent/active-context")
+  ) {
     try {
-      const agentRoot = getAgentRoot();
-      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
-      const payload = await readJsonBody(req);
-      const context = await writeAgentUiContext(agentRoot, payload);
-      return sendJson(res, 200, { context });
+      return await handleActiveContextPost(req, res);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to save active page context",
+        error: "Failed to save active context",
         details: String(error.message || error)
       });
     }
@@ -13316,6 +13491,7 @@ async function handleApiForAgent(req, res, url) {
 
       const sortAbsolute = path.join(folderAbsolute, MENU_SORT_FILE);
       await fs.writeFile(sortAbsolute, `${JSON.stringify({ order }, null, 2)}\n`, "utf-8");
+      invalidateAgentMenuCache(getAgentRoot());
       return sendJson(res, 200, { folderPath: folderPathRaw || ".", order });
     } catch (error) {
       return sendJson(res, 500, {

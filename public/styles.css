@@ -19758,17 +19758,20 @@ body.app-locked {
 
 .node-navigation-hub--split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--sidebar-resize-bar-width, 28px) minmax(240px, 300px);
+  grid-template-columns: minmax(0, 1fr) var(--sidebar-resize-bar-width, 28px) minmax(0, var(--nav-hub-rail-width, 300px));
   gap: 0;
   align-items: start;
   width: 100%;
   min-width: 0;
+  contain: inline-size;
 }
 
 .node-navigation-hub--split > .node-navigation-hub-main {
   grid-column: 1;
   grid-row: 1;
   min-width: 0;
+  width: 100%;
+  justify-self: stretch;
 }
 
 .node-navigation-hub--split > .node-navigation-hub-rail-resize-bar {
@@ -19780,6 +19783,8 @@ body.app-locked {
   grid-column: 3;
   grid-row: 1;
   min-width: 0;
+  width: 100%;
+  max-width: var(--nav-hub-rail-width, 300px);
 }
 
 .node-navigation-hub--split.node-navigation-hub--rail-collapsed {
@@ -20330,13 +20335,55 @@ button.node-navigation-hub-rail-slot-summary {
   margin-top: 4px;
 }
 
-.node-overview.is-navigation-split .node-navigation-hub > .node-comments,
-.node-overview.is-navigation-split .node-navigation-hub-main > .node-comments {
-  grid-column: 1;
+.nav-book-toc-folder--slot-root > .nav-book-toc-folder-head {
+  cursor: default;
+}
+
+.nav-book-toc-folder-label--slot-root {
+  font-weight: 800;
+  color: #1e293b;
+  cursor: default;
+  pointer-events: none;
+}
+
+.nav-book-toc-folder--slot-root > .nav-book-toc-list {
+  margin-top: 2px;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder--slot-root > .nav-book-toc-list {
+  margin-left: 0;
+  padding-left: 12px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.nav-book-toc-tree--rail .nav-book-toc-folder--slot-root > .nav-book-toc-list {
+  padding-left: 10px;
+}
+
+.node-overview.is-navigation-split {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+.node-overview.is-navigation-split::before,
+.node-overview.is-navigation-split::after {
+  display: none;
 }
 
 .node-overview.is-navigation-split .node-overview-content {
   overflow: visible;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 360px);
+  box-sizing: border-box;
+}
+
+.node-overview.is-navigation-split .node-navigation-hub > .node-comments,
+.node-overview.is-navigation-split .node-navigation-hub-main > .node-comments {
+  grid-column: 1;
 }
 
 @media (max-width: 960px) {
@@ -22030,6 +22077,28 @@ button.node-navigation-hub-rail-slot-summary {
 .node-overview.is-entry-overview.is-entry-media-asset--archive .node-overview-content {
   background: linear-gradient(180deg, #fffbeb 0%, #f8fafc 220px, #ffffff 420px);
   border-color: rgba(217, 119, 6, 0.14);
+}
+
+.node-overview.is-entry-overview.is-navigation-split,
+.node-overview.is-navigation-split:not(.is-entry-overview) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.node-overview.is-entry-overview.is-navigation-split::before,
+.node-overview.is-entry-overview.is-navigation-split::after,
+.node-overview.is-navigation-split:not(.is-entry-overview)::before,
+.node-overview.is-navigation-split:not(.is-entry-overview)::after {
+  display: none;
+}
+
+.node-overview.is-entry-overview.is-navigation-split .node-overview-content,
+.node-overview.is-navigation-split:not(.is-entry-overview) .node-overview-content {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 360px);
+  box-sizing: border-box;
 }
 
 .node-entry-overview-media-asset.node-navigation-hero {
@@ -24188,6 +24257,8 @@ button.node-navigation-hub-rail-slot-summary {
   margin: 0;
   padding: 0;
   list-style: none;
+  width: 100%;
+  min-width: 0;
 }
 
 .node-navigation-workspace-counter-list > li {
@@ -27490,6 +27561,7 @@ button.node-navigation-memory-title:focus-visible {
   min-width: 0;
   overflow-x: clip;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .doc-slab-content .doc-slab-main > .workspace-scroll-host {
@@ -33600,6 +33672,9 @@ button.node-navigation-memory-title:focus-visible {
 .node-entry-overview-slot-counters {
   margin: 0 0 12px;
   min-height: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .node-navigation-hub-main > .node-entry-overview-slot-counters {
