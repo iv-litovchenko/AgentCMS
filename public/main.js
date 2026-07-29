@@ -17541,32 +17541,32 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   const labelWrap = document.createElement("span");
   labelWrap.className = "menu-folder-label";
   const previewNode = options.showPreview ? createMenuTreePreviewNode(source) : null;
-  const nameNode = document.createElement("span");
-  nameNode.className = nameClass;
   const statusBadge = createMenuTreeStatusBadge(source?.status);
   const markers = createFolderMarkers(source, { skipAgent: Boolean(options.skipAgentMarker) });
   const runtimeBadges = createMenuRuntimeBadges(source, options.agentId);
-
   const typeIcon = createMenuTreeTypeIcon(host);
+
+  if (statusBadge) {
+    host.classList.add("has-menu-tree-status");
+    labelWrap.appendChild(statusBadge);
+  }
+  if (previewNode) labelWrap.appendChild(previewNode);
   if (typeIcon) {
-    nameNode.appendChild(typeIcon);
+    labelWrap.appendChild(typeIcon);
     if (host.classList.contains("menu-folder") || host.classList.contains("menu-item")) {
       host.classList.add("has-menu-tree-status");
     }
   }
+  if (markers) labelWrap.appendChild(markers);
 
-  if (statusBadge) {
-    host.classList.add("has-menu-tree-status");
-    nameNode.appendChild(statusBadge);
-  }
+  const nameNode = document.createElement("span");
+  nameNode.className = nameClass;
 
   const titleText = document.createElement("span");
   titleText.className = "menu-tree-title-text";
   titleText.textContent = labelText;
   nameNode.appendChild(titleText);
 
-  if (previewNode) labelWrap.appendChild(previewNode);
-  if (markers) labelWrap.appendChild(markers);
   const subtitleText = String(options.subtitle || "").trim();
   if (subtitleText) {
     host.title = `${labelText} · ${subtitleText}`;
