@@ -49477,6 +49477,29 @@ function hasNavigationFolderBranchChildren(folderNode) {
   return folderNodeHasRenderableBranchContent(folderNode);
 }
 
+function refreshClassicNavBookTocTreeLines(nav) {
+  if (!nav?.classList?.contains("nav-book-toc-tree--classic")) return;
+  applyClassicNavBookTocTreeBranchClasses(nav);
+}
+
+function applyClassicNavBookTocTreeBranchClasses(root) {
+  if (!root) return;
+  root.querySelectorAll(".nav-book-toc-tree-branch, .nav-book-toc-tree-branch-last").forEach((el) => {
+    el.classList.remove("nav-book-toc-tree-branch", "nav-book-toc-tree-branch-last");
+  });
+  root.querySelectorAll(".nav-book-toc-list").forEach((list) => {
+    const branches = [...list.children].filter((el) =>
+      el.matches(".nav-book-toc-folder--nested, .nav-book-toc-entry")
+    );
+    branches.forEach((el, index) => {
+      el.classList.add("nav-book-toc-tree-branch");
+      if (index === branches.length - 1) {
+        el.classList.add("nav-book-toc-tree-branch-last");
+      }
+    });
+  });
+}
+
 function mountNavBookTocFolderToggle({
   folderItem,
   folderNode,
@@ -49489,7 +49512,9 @@ function mountNavBookTocFolderToggle({
   const branchCount = resolveNavigationFolderBranchCount(folderNode);
   const hasBranchContent = folderNodeHasRenderableBranchContent(folderNode);
   const useGuideToggle = handlers.treeStyle === "guide";
-  const showToggle = useGuideToggle || hasBranchContent;
+  const useClassicToggle = handlers.treeStyle === "classic";
+  const showToggle = useGuideToggle || useClassicToggle || hasBranchContent;
+  const collapseDepthThreshold = handlers.collapseDepthThreshold ?? 1;
 
   let toggleBtn = null;
   let countNode = null;
@@ -49503,14 +49528,19 @@ function mountNavBookTocFolderToggle({
 
   toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
-  toggleBtn.className = "nav-book-toc-folder-toggle";
-  const chevron = document.createElement("span");
-  chevron.className = "nav-book-toc-folder-chevron";
-  chevron.setAttribute("aria-hidden", "true");
-  toggleBtn.appendChild(chevron);
+  toggleBtn.className = useClassicToggle
+    ? "nav-book-toc-folder-toggle nav-book-toc-folder-toggle--classic"
+    : "nav-book-toc-folder-toggle";
+  if (!useClassicToggle) {
+    const chevron = document.createElement("span");
+    chevron.className = "nav-book-toc-folder-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    toggleBtn.appendChild(chevron);
+  }
 
   if (!hasBranchContent) {
     toggleBtn.disabled = true;
+    if (useClassicToggle) toggleBtn.textContent = "";
     toggleBtn.title = "Нет вложенных элементов";
     toggleBtn.setAttribute("aria-label", "Нет вложенных элементов");
     toggleBtn.setAttribute("aria-expanded", "false");
@@ -49536,7 +49566,8 @@ function mountNavBookTocFolderToggle({
   }
 
   const collapsed =
-    !forceExpand && isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth);
+    !forceExpand &&
+    isNavTocFolderCollapsed(nodePath, folderNode.folderPath, depth, collapseDepthThreshold);
   applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNode, collapsed);
 
   return { toggleBtn, countNode, hasBranchContent, branchCount, collapsible: true };
@@ -49548,13 +49579,13 @@ function resolveNavigationFolderBranchCount(folderNode) {
   return folderNode.folders instanceof Map ? folderNode.folders.size : 0;
 }
 
-function isNavTocFolderCollapsed(nodePath, folderPath, depth = 0) {
+function isNavTocFolderCollapsed(nodePath, folderPath, depth = 0, collapseDepthThreshold = 1) {
   const key = getNavTocCollapseStorageKey(nodePath, folderPath);
   const overrides = getNavTocCollapsedOverrides();
   if (Object.prototype.hasOwnProperty.call(overrides, key)) {
     return Boolean(overrides[key]);
   }
-  return depth >= 1;
+  return depth >= collapseDepthThreshold;
 }
 
 function setNavTocFolderCollapsed(nodePath, folderPath, collapsed) {
@@ -49576,6 +49607,9 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
     toggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
     toggleBtn.setAttribute("aria-label", collapsed ? "Развернуть ветку" : "Свернуть ветку");
     toggleBtn.title = collapsed ? "Развернуть ветку" : "Свернуть ветку";
+    if (toggleBtn.classList.contains("nav-book-toc-folder-toggle--classic")) {
+      toggleBtn.textContent = formatMenuFolderToggleGlyph(collapsed, true);
+    }
   }
   if (countNode) {
     countNode.hidden = false;
@@ -49675,7 +49709,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
   for (const [, folderNode] of folderEntries) {
     const folderItem = document.createElement("li");
     folderItem.className = "nav-book-toc-folder";
-    if (handlers.treeStyle === "guide") {
+    if (handlers.treeStyle === "guide" || handlers.treeStyle === "classic") {
       folderItem.classList.add(depth === 0 ? "nav-book-toc-folder--root" : "nav-book-toc-folder--nested");
     }
     if (folderNode.folderPath && !isNavigationFolderRegistered(folderNode.folderPath, folderLabels)) {
@@ -56619,7 +56653,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 
   const handlers = getEntryOverviewNavigationHandlers(memoryKind);
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide nav-book-toc-tree--rail";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--classic nav-book-toc-tree--rail";
   nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
 
   const list = document.createElement("ul");
@@ -56633,7 +56667,8 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     folderStatuses,
     sectionManifestByFolder,
     nodePath,
-    treeStyle: "guide",
+    treeStyle: "classic",
+    collapseDepthThreshold: 99,
     activeContext: activeCtx,
     ...handlers
   };
@@ -56643,8 +56678,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
       ...tocHandlers,
       linkLeadingMode: "media",
       showFileTypeLeading: false,
-      showBranchLeading: false,
-      treeStyle: "guide"
+      showBranchLeading: false
     });
   } else {
     appendNavigationBookTocList(list, tree, 0, {
@@ -56655,6 +56689,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
   }
 
   nav.appendChild(list);
+  refreshClassicNavBookTocTreeLines(nav);
   return nav;
 }
 

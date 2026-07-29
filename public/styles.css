@@ -19994,7 +19994,7 @@ body.app-locked {
 
 .node-navigation-hub-rail-slot.is-filled {
   border-color: #bfdbfe;
-  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  background: #ffffff;
 }
 
 .node-navigation-hub-rail-slot.is-filled > .node-navigation-hub-rail-slot-summary {
@@ -20114,14 +20114,29 @@ button.node-navigation-hub-rail-slot-summary {
   border-top: 1px solid #f1f5f9;
   min-width: 0;
   overflow: visible;
+  background: #ffffff;
 }
 
 .node-navigation-hub-rail-slot-body .node-navigation-section-search {
-  margin: 8px 0 6px;
+  flex: none;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 6px 0 4px;
+  box-sizing: border-box;
 }
 
-.node-navigation-hub-rail-slot-body .node-navigation-section-search-bar {
-  min-height: 30px;
+.node-navigation-hub-rail-slot-body .node-navigation-section-search .menu-search-bar {
+  width: 100%;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.node-navigation-hub-rail-slot-body .node-navigation-section-search .menu-search-input {
+  font-size: 12px;
+  padding: 4px 0;
 }
 
 .node-navigation-hub-rail-slot-tree {
@@ -41029,4 +41044,311 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .sidebar-slab-menu .menu-agent-pane.is-menu-view-cards .menu-card {
   border-radius: 0;
   border-color: #808080;
+}
+
+/* ── Classic Windows TreeView — navigation hub rail slots ─────────────────── */
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic {
+  --nav-toc-win-text: #000000;
+  --nav-toc-win-muted: #606060;
+  --nav-toc-win-line: #808080;
+  --nav-toc-win-hover: #e5f3ff;
+  --nav-toc-win-active-bg: #316ac5;
+  --nav-toc-win-active-text: #ffffff;
+  --nav-toc-win-row-h: 24px;
+  --nav-toc-win-font: 12px;
+  --nav-toc-win-indent: 16px;
+  --nav-toc-win-toggle-w: 12px;
+  --nav-toc-win-toggle-gap: 4px;
+  --nav-toc-win-toggle-slot: calc(var(--nav-toc-win-toggle-w) + var(--nav-toc-win-toggle-gap));
+  --nav-toc-win-branch-x: calc(var(--nav-toc-win-toggle-w) / 2);
+  --nav-toc-win-branch-w: calc(var(--nav-toc-win-toggle-slot) - var(--nav-toc-win-branch-x));
+  --nav-toc-win-label-pad-left: 4px;
+  font-family: Tahoma, "Segoe UI", "MS Sans Serif", sans-serif;
+  font-size: var(--nav-toc-win-font);
+  color: var(--nav-toc-win-text);
+  background: #ffffff;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-list--root {
+  margin: 0;
+  padding: 2px 0 4px;
+  border-left: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder {
+  margin: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: var(--nav-toc-win-row-h);
+  margin: 0;
+  padding: 1px 4px 1px var(--nav-toc-win-label-pad-left);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+  z-index: 1;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder--root > .nav-book-toc-folder-head {
+  padding-left: var(--nav-toc-win-label-pad-left);
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-toggle-spacer {
+  box-sizing: border-box;
+  width: var(--nav-toc-win-toggle-slot);
+  height: var(--nav-toc-win-toggle-w);
+  flex: 0 0 var(--nav-toc-win-toggle-slot);
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-toggle--classic {
+  box-sizing: border-box;
+  width: var(--nav-toc-win-toggle-w);
+  height: var(--nav-toc-win-toggle-w);
+  min-width: var(--nav-toc-win-toggle-w);
+  flex: 0 0 var(--nav-toc-win-toggle-w);
+  margin: 0 var(--nav-toc-win-toggle-gap) 0 0;
+  padding: 0;
+  border: 1px solid var(--nav-toc-win-line);
+  border-radius: 0;
+  background: #ffffff;
+  color: #000000;
+  font-family: Tahoma, "Segoe UI", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-toggle--classic:hover:not(:disabled),
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-toggle--classic:focus-visible {
+  background: #ffffff;
+  color: #000000;
+  border-color: var(--nav-toc-win-line);
+  outline: none;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-toggle--classic:disabled {
+  opacity: 0.35;
+  border-color: #c0c0c0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--nav-toc-win-font);
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--nav-toc-win-text);
+  text-align: left;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder--root > .nav-book-toc-folder-head .nav-book-toc-folder-label {
+  font-weight: 700;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-count {
+  flex-shrink: 0;
+  min-width: 0;
+  margin: 0 0 0 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--nav-toc-win-muted);
+  font-size: var(--nav-toc-win-font);
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-count.is-expanded-visible {
+  background: transparent;
+  color: var(--nav-toc-win-muted);
+  font-weight: 400;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder > .nav-book-toc-list {
+  margin: 0;
+  padding: 0 0 0 var(--nav-toc-win-indent);
+  border-left: 0;
+  overflow: visible;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-folder > .nav-book-toc-folder-head,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-entry > .nav-book-toc-link {
+  position: relative;
+  z-index: 1;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-folder > .nav-book-toc-folder-head::before,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-entry > .nav-book-toc-link::before {
+  content: "";
+  position: absolute;
+  left: var(--nav-toc-win-branch-x);
+  top: 0;
+  bottom: 0;
+  border-left: 1px dotted var(--nav-toc-win-line);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch-last.nav-book-toc-folder > .nav-book-toc-folder-head::before,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch-last.nav-book-toc-entry > .nav-book-toc-link::before {
+  bottom: 50%;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-folder > .nav-book-toc-folder-head::after,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-entry > .nav-book-toc-link::after {
+  content: "";
+  position: absolute;
+  left: var(--nav-toc-win-branch-x);
+  top: 50%;
+  width: var(--nav-toc-win-branch-w);
+  border-top: 1px dotted var(--nav-toc-win-line);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-entry {
+  margin: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-tree-branch.nav-book-toc-entry > .nav-book-toc-link {
+  padding-left: calc(var(--nav-toc-win-toggle-slot) + var(--nav-toc-win-label-pad-left));
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: var(--nav-toc-win-row-h);
+  margin: 0;
+  padding: 1px 4px 1px var(--nav-toc-win-label-pad-left);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--nav-toc-win-font);
+  line-height: 1.25;
+  color: var(--nav-toc-win-text);
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-leading,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-preview {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 2px;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders {
+  display: none;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:hover,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link:hover,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:focus-within,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link:focus-visible {
+  background: var(--nav-toc-win-hover);
+  color: var(--nav-toc-win-text);
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label.is-current,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link.is-current {
+  background: var(--nav-toc-win-active-bg);
+  color: var(--nav-toc-win-active-text);
+  font-weight: 400;
+  border-radius: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:has(.nav-book-toc-folder-label.is-current) {
+  background: var(--nav-toc-win-active-bg);
+  color: var(--nav-toc-win-active-text);
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:has(.nav-book-toc-folder-label.is-current) .nav-book-toc-folder-label {
+  background: transparent;
+  color: inherit;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:has(.nav-book-toc-folder-label.is-current) .nav-book-toc-folder-count {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label.is-current .nav-book-toc-folder-text,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link.is-current .nav-book-toc-link-text {
+  color: inherit;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder--unregistered .nav-book-toc-folder-label {
+  color: var(--nav-toc-win-muted);
+  font-weight: 400;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder--unregistered > .nav-book-toc-folder-head {
+  border: 0;
+  background: transparent;
+}
+
+.node-navigation-hub-rail-slot-body:has(.nav-book-toc-tree--classic) {
+  padding: 0 6px 6px;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-list,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-entry {
+  overflow: visible;
 }
