@@ -2913,6 +2913,30 @@
           </div>
           <p class="slug-field-hint">Транслит из названия; можно открепить и ввести вручную.</p>
         </div>
+        <fieldset id="create-section-after-fieldset" class="create-memory-after-fieldset">
+          <legend class="popover-label">После создания</legend>
+          <label class="create-memory-after-option">
+            <input
+              id="create-section-after-list"
+              class="create-memory-after-radio"
+              type="radio"
+              name="create-section-after"
+              value="list"
+            />
+            <span>Остаться в списке</span>
+          </label>
+          <label class="create-memory-after-option">
+            <input
+              id="create-section-after-edit"
+              class="create-memory-after-radio"
+              type="radio"
+              name="create-section-after"
+              value="edit"
+              checked
+            />
+            <span>Перейти к редактированию</span>
+          </label>
+        </fieldset>
         <div class="modal-actions">
           <button id="create-section-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="create-section-ok-btn" class="external-create-section-btn" type="button">Создать</button>
