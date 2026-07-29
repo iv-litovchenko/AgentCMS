@@ -8,7 +8,7 @@ awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
 awn-update: 2026-07-29T22:31:17.136Z
 awn-version: 28
-awn-preview: awn-storage/assets/preview/20260729223116.png
+awn-preview: awn-storage/assets/preview/20260729221421.png
 awn-web-url: ""
 awn-main: false
 awn-category: ""

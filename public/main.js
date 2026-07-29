@@ -45492,6 +45492,21 @@ function getStorageSlotIndexRelativePath() {
   return STORAGE_SLOT_INDEX_FILE;
 }
 
+function isStorageSlotIndexRelativePath(relativePath) {
+  return String(relativePath || "").trim().toLowerCase() === STORAGE_SLOT_INDEX_FILE.toLowerCase();
+}
+
+function getStorageSlotIndexBundleRelPath(manifestOrTopicPath) {
+  return getNamedStorageBundleRel(manifestOrTopicPath, STORAGE_SLOT_INDEX_FILE);
+}
+
+function isBundleStorageSlotIndexContext(context) {
+  return (
+    isBundleEntryOverviewMemoryKind(context?.memoryKind) &&
+    isStorageSlotIndexRelativePath(context?.relativePath)
+  );
+}
+
 function getTopicStorageIndexRelPath(topicPath) {
   const storageDir = getNamedStorageSlotDirRel(topicPath);
   return storageDir ? `${storageDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
@@ -45515,11 +45530,8 @@ function resolveStorageSlotIndexApiParams(manifestPath, spec) {
       file
     };
   }
-  if (memoryKind === "internal" || memoryKind === "tabular") {
-    return { kind: "storage", manifestPath, folder: getStorageSubfolderForMode("external"), file };
-  }
-  if (memoryKind === "todo") {
-    return { kind: "storage", manifestPath, folder: getStorageSubfolderForMode("todo"), file };
+  if (isBundleEntryOverviewMemoryKind(memoryKind)) {
+    return { kind: "file", relPath: getStorageSlotIndexBundleRelPath(manifestPath) };
   }
   return null;
 }
@@ -45567,6 +45579,10 @@ async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = nul
       );
       return response.ok;
     }
+    if (params.kind === "file") {
+      const response = await fetch(buildApiUrl("/api/file", { path: params.relPath }));
+      return response.ok;
+    }
   } catch {
     return false;
   }
@@ -45612,7 +45628,8 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
 
   lines.push(
     "> Общее оглавление темы: создайте `awn-storage/README.md`.",
-    "> Индекс слота: `README.md` в корне папки слота (`main/`, `inbox/`, `notes/` …)."
+    "> Индекс слота: `README.md` в корне папки слота (`main/`, `inbox/`, `notes/` …).",
+    "> Однофайловые слоты: `README.md` рядом с `main.md`, `main.csv`, `todo.md`."
   );
   return lines.join("\n");
 }
@@ -45639,7 +45656,7 @@ function openStorageSlotIndexOverview(topicPath, spec) {
     });
     return;
   }
-  if (isFlatEntryOverviewMemoryKind(memoryKind) || isBundleEntryOverviewMemoryKind(memoryKind)) {
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     void openEntryOverviewFromNavigation({
       relPath: getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
       memoryKind,
@@ -45649,6 +45666,17 @@ function openStorageSlotIndexOverview(topicPath, spec) {
         getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
         { contentMode: memoryKind }
       )
+    });
+    return;
+  }
+  if (isBundleEntryOverviewMemoryKind(memoryKind)) {
+    const relPath = getStorageSlotIndexBundleRelPath(topicPath);
+    void openEntryOverviewFromNavigation({
+      relPath,
+      memoryKind,
+      relativePath,
+      title,
+      entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind })
     });
   }
 }
@@ -48638,6 +48666,15 @@ async function fetchEntryOverviewBodyResult(context) {
       const data = await response.json();
       return { content: String(data.content || ""), ok: true };
     }
+    if (isBundleStorageSlotIndexContext(context)) {
+      const filePath =
+        context.relPath ||
+        getStorageSlotIndexBundleRelPath(getResolvedNodePath(activePath) || getActiveNodeApiPath());
+      const response = await fetch(buildApiUrl("/api/file", { path: filePath }));
+      if (!response.ok) return { content: "", ok: false };
+      const data = await response.json();
+      return { content: String(data.content || ""), ok: true };
+    }
     if (isBundleEntryOverviewMemoryKind(context.memoryKind)) {
       const content = await fetchBundleMemoryTextContent(context.memoryKind);
       return { content: String(content || ""), ok: Boolean(String(content || "").trim()) };
@@ -49899,12 +49936,17 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   if (!showIndex) return;
 
   const hasIndex = Boolean(slot.hasIndex);
+  const memoryKind = spec ? getEntryOverviewMemoryKindForSlot(spec) : null;
   indexBtn.disabled = !hasIndex;
   indexBtn.classList.toggle("is-available", hasIndex);
   indexBtn.classList.toggle("is-missing", !hasIndex);
-  indexBtn.title = hasIndex
-    ? `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`
-    : `${STORAGE_SLOT_INDEX_FILE} не найден в корне слота`;
+  if (hasIndex) {
+    indexBtn.title = `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
+  } else if (isBundleEntryOverviewMemoryKind(memoryKind)) {
+    indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден рядом с ${spec?.bundleFile || "файлом слота"}`;
+  } else {
+    indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден в корне слота`;
+  }
 }
 
 function createWorkspaceCounterIndexButton(slot, topicPath) {
@@ -50539,6 +50581,19 @@ async function fetchEntryOverviewTextPreview(context, nodePath = activePath, siz
 
   const memoryKind = String(context?.memoryKind || "");
   const apiPath = getActiveNodeApiPath();
+
+  if (isBundleStorageSlotIndexContext(context)) {
+    const fileRelPath = context.relPath || getStorageSlotIndexBundleRelPath(nodePath);
+    const response = await fetch(buildApiUrl("/api/file", { path: fileRelPath }));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const text = String(data.content ?? "");
+    if (text.length > ENTRY_OVERVIEW_CODE_PREVIEW_MAX_BYTES) {
+      return { tooLarge: true, size: text.length };
+    }
+    if (text.includes("\0")) return { binary: true };
+    return { text };
+  }
 
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
     const text = await fetchBundleMemoryTextContent(memoryKind, nodePath);
