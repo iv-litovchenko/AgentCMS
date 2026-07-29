@@ -49226,6 +49226,9 @@ function applyNavigationHubSplitGridColumns(
 function bindNavigationHubSplitGridLayout(hub) {
   teardownNavigationHubSplitGridLayout();
   if (!hub?.classList.contains("node-navigation-hub--split")) return;
+  // Hub DOM is recreated on each navigation render; stale locked width caused
+  // split columns to overshoot the container after drilling into slots/entries.
+  resetNavigationHubSplitLockedWidth();
 
   const schedule = () => {
     if (!navigationHubSplitGridLayout) return;
@@ -49625,6 +49628,7 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
 }
 
 function isNavigationHubRailSlotExpandable(slot, slotIndex) {
+  if (slotIndex.kind === "bundle" && slotIndex.memoryKind === "internal") return false;
   return slotIndex.kind === "tree" || slotIndex.kind === "bundle";
 }
 
