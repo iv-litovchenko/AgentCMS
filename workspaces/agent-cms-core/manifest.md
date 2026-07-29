@@ -1,18 +1,26 @@
 ---
-awn-preview: awn-storage/assets/preview/4d93b664-29a3-4953-b71f-e3dad2d25368.png
-awn-emoji: ""
 awn-name: "[Agent CMS] Platform core"
-awn-status: 🟢 Открыта
-awn-type: awn.workspace
-awn-create: "2026-06-17T11:52"
-awn-update: 2026-06-21T18:00:00.000Z
+awn-emoji: ""
+awn-status: open
 awn-description: "Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS"
+awn-tags: []
+awn-type: awn.page.ws
+awn-create: "2026-06-17T11:52"
+awn-update: 2026-07-29T22:19:37.122Z
+awn-version: 6
+awn-preview: awn-storage/assets/preview/20260729221936.png
+awn-web-url: ""
 awn-main: false
 awn-category: ""
-awn-tags: []
+awn-owner: ""
+awn-priority: ""
 awn-color: "#000000"
-awn-version: 5
-awn-sort: ""
+awn-sort: 
+awn-runtime-load-always: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-commands: false
 ---
 
 

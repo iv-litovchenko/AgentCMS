@@ -1031,6 +1031,7 @@ const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
+const STORAGE_SLOT_INDEX_FILE = "README.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -11860,6 +11861,14 @@ function isMarkdownStorageFilePath(filePath) {
   return /\.md$/i.test(base);
 }
 
+function isSlugExemptStorageFilePath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+  if (isSectionReadmePath(normalized)) return true;
+  const base = normalized.split("/").pop() || "";
+  return Boolean(SYSTEM_FILE_TO_CHPU_PATH[normalizeSystemFileName(base)]);
+}
+
 function getSlugIssueForSegment(rawName, displayName = "") {
   const current = String(rawName || "").trim();
   if (!current || isCanonicalStorageSlug(current)) return null;
@@ -11912,6 +11921,7 @@ function getEntryOverviewSlugIssue(context) {
 
   if (memoryKind !== "external" && !isFlatEntryOverviewMemoryKind(memoryKind)) return null;
   if (!isMarkdownStorageFilePath(relativePath)) return null;
+  if (isSlugExemptStorageFilePath(relativePath)) return null;
 
   const filePath = normalizeDataHubMarkdownRelPath(relativePath);
   const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
@@ -11934,6 +11944,7 @@ function getDataHubSlugIssue(mode = activeContentMode) {
   if (mode === "external" && activeExternalFilePath) {
     const filePath = String(activeExternalFilePath).replace(/\\/g, "/");
     if (!isMarkdownStorageFilePath(filePath)) return null;
+    if (isSlugExemptStorageFilePath(filePath)) return null;
     const base = (filePath.split("/").pop() || "").replace(/\.md$/i, "");
     const cached = externalFilesCache.find(
       (item) => String(item.relativePath || item.path || "").replace(/\\/g, "/") === filePath
@@ -45451,6 +45462,206 @@ async function fetchFlatStorageSectionSummary(manifestPath, slotKey) {
   };
 }
 
+const topicGeneratedStorageIndexCache = new Map();
+
+function resolveStorageSlotSpecFromCounterSlot(slot) {
+  if (slot?.spec) return slot.spec;
+  const slotKey = String(slot?.id || slot?.modeId || "").trim();
+  if (!slotKey) return null;
+  return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === slotKey) || null;
+}
+
+function getStorageSlotIndexRelativePath() {
+  return STORAGE_SLOT_INDEX_FILE;
+}
+
+function getTopicStorageIndexRelPath(topicPath) {
+  const storageDir = getNamedStorageSlotDirRel(topicPath);
+  return storageDir ? `${storageDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+}
+
+function resolveStorageSlotIndexApiParams(manifestPath, spec) {
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  if (!memoryKind) return null;
+  const file = getStorageSlotIndexRelativePath();
+  if (memoryKind === "external") {
+    return { kind: "external", manifestPath, file };
+  }
+  if (memoryKind === "media" || memoryKind === "assets") {
+    return { kind: "media", manifestPath, file };
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    return {
+      kind: "storage",
+      manifestPath,
+      folder: getFlatStorageSectionFolderName(memoryKind),
+      file
+    };
+  }
+  if (memoryKind === "internal" || memoryKind === "tabular") {
+    return { kind: "storage", manifestPath, folder: getStorageSubfolderForMode("external"), file };
+  }
+  if (memoryKind === "todo") {
+    return { kind: "storage", manifestPath, folder: getStorageSubfolderForMode("todo"), file };
+  }
+  return null;
+}
+
+function storageSlotIndexExistsInNavigationFiles(files, fileName = STORAGE_SLOT_INDEX_FILE) {
+  const target = String(fileName || "").trim().toLowerCase();
+  if (!target) return false;
+  return (files || []).some((item) => {
+    const path = String(item?.relativePath || item?.path || "").replace(/\\/g, "/");
+    return path.split("/").pop()?.toLowerCase() === target;
+  });
+}
+
+async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = null) {
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  if (!memoryKind || !manifestPath) return false;
+
+  if (memoryKind === "external" && prefetched?.externalFiles) {
+    if (storageSlotIndexExistsInNavigationFiles(prefetched.externalFiles)) return true;
+  }
+
+  const params = resolveStorageSlotIndexApiParams(manifestPath, spec);
+  if (!params) return false;
+
+  try {
+    if (params.kind === "external") {
+      const response = await fetch(
+        buildApiUrl("/api/external/file", { path: params.manifestPath, file: params.file })
+      );
+      return response.ok;
+    }
+    if (params.kind === "media") {
+      const response = await fetch(
+        buildApiUrl("/api/media/markdown", { path: params.manifestPath, file: params.file })
+      );
+      return response.ok;
+    }
+    if (params.kind === "storage") {
+      const response = await fetch(
+        buildApiUrl("/api/storage/file", {
+          path: params.manifestPath,
+          folder: params.folder,
+          file: params.file
+        })
+      );
+      return response.ok;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+async function probeTopicStorageReadmeExists(topicPath) {
+  const relPath = getTopicStorageIndexRelPath(topicPath);
+  if (!relPath) return false;
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
+  const lines = ["# Оглавление темы", ""];
+  const dataSlots = slots.filter((slot) => {
+    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+    return spec && supportsDataEntryOverview(spec.key);
+  });
+
+  if (!dataSlots.length) {
+    lines.push("Нет слотов данных для оглавления.");
+    return lines.join("\n");
+  }
+
+  for (const slot of dataSlots) {
+    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+    const label = slot.label || spec?.label || slot.id;
+    const count = Number(slot.count) || 0;
+    lines.push(`## ${label}`);
+    if (slot.hasIndex) {
+      lines.push(`- Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\``);
+    } else {
+      lines.push(`- Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\` (ещё не создан)`);
+    }
+    lines.push(`- Записей: ${count}`);
+    lines.push("");
+  }
+
+  lines.push(
+    "> Общее оглавление темы: создайте `awn-storage/README.md`.",
+    "> Индекс слота: `README.md` в корне папки слота (`main/`, `inbox/`, `notes/` …)."
+  );
+  return lines.join("\n");
+}
+
+function openStorageSlotIndexOverview(topicPath, spec) {
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  if (!memoryKind) return;
+  const relativePath = getStorageSlotIndexRelativePath();
+  const title = `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`;
+
+  if (memoryKind === "external") {
+    openExternalRecordOverviewFromNavigation({ path: relativePath, title });
+    return;
+  }
+  if (memoryKind === "media" || memoryKind === "assets") {
+    void openEntryOverviewFromNavigation({
+      relPath: getMediaItemContextPath(relativePath, topicPath),
+      memoryKind,
+      relativePath,
+      title,
+      entryKind: inferAwnTypeFromRelPath(getMediaItemContextPath(relativePath, topicPath), {
+        contentMode: memoryKind
+      })
+    });
+    return;
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind) || isBundleEntryOverviewMemoryKind(memoryKind)) {
+    void openEntryOverviewFromNavigation({
+      relPath: getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
+      memoryKind,
+      relativePath,
+      title,
+      entryKind: inferAwnTypeFromRelPath(
+        getFlatStorageItemContextPath(relativePath, memoryKind, topicPath),
+        { contentMode: memoryKind }
+      )
+    });
+  }
+}
+
+async function openTopicStorageIndexOverview(topicPath, slots = []) {
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  const hasReadme = await probeTopicStorageReadmeExists(topicPath);
+  if (hasReadme) {
+    const relPath = getTopicStorageIndexRelPath(topicPath);
+    void openEntryOverviewFromNavigation({
+      relPath,
+      memoryKind: "topic-index",
+      relativePath: relPath,
+      title: "Оглавление темы",
+      entryKind: "awn.topic.storage-index"
+    });
+    return;
+  }
+
+  const markdown = buildTopicStorageIndexMarkdown(topicPath, slots);
+  if (manifestPath) topicGeneratedStorageIndexCache.set(manifestPath, markdown);
+  void openEntryOverviewFromNavigation({
+    relPath: getTopicStorageIndexRelPath(topicPath),
+    memoryKind: "topic-index-generated",
+    relativePath: getTopicStorageIndexRelPath(topicPath),
+    title: "Оглавление темы",
+    entryKind: "awn.topic.storage-index.generated"
+  });
+}
+
 async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false } = {}) {
   if (isArea) return [];
 
@@ -45568,8 +45779,13 @@ function openNodeNavigationCounterSlot(slot) {
   openWorkspaceModeFromNavigation(slot.modeId);
 }
 
-function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid", entryOverview = false, activeSlotKey = null } = {}) {
+function renderNodeNavigationWorkspaceCounterStrip(
+  slots = [],
+  { layout = "grid", entryOverview = false, activeSlotKey = null, topicPath = null } = {}
+) {
   if (!slots.length) return null;
+
+  const resolvedTopicPath = topicPath || getResolvedNodePath(activePath);
 
   const wrap = document.createElement("div");
   wrap.className = entryOverview
@@ -45579,6 +45795,10 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
     wrap.classList.add("node-navigation-workspace-counters--area-single");
   }
   wrap.setAttribute("aria-label", "Слоты памяти и разделы workspace");
+  if (resolvedTopicPath) {
+    wrap.dataset.topicPath = getOverviewNodeApiPath(resolvedTopicPath);
+    wrap.dataset.topicNodePath = resolvedTopicPath;
+  }
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
@@ -45588,9 +45808,11 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
 
   for (const slot of slots) {
     const item = document.createElement("li");
+    item.className = "node-navigation-workspace-counter-item";
     item.appendChild(
-      renderEntryOverviewWorkspaceCounterButton(slot, {
+      createWorkspaceCounterCard(slot, {
         isActive: entryOverview && activeSlotKey === slot.id,
+        topicPath: resolvedTopicPath,
         onClick: () => openNodeNavigationCounterSlot(slot)
       })
     );
@@ -45598,6 +45820,7 @@ function renderNodeNavigationWorkspaceCounterStrip(slots = [], { layout = "grid"
   }
 
   wrap.appendChild(list);
+  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
 }
 
@@ -45616,7 +45839,8 @@ async function appendTopicSlotCounterStrip(
     })),
     {
       entryOverview,
-      activeSlotKey: entryOverview ? getDataStorageSlotKeyForEntryView() : null
+      activeSlotKey: entryOverview ? getDataStorageSlotKeyForEntryView() : null,
+      topicPath
     }
   );
   if (strip) {
@@ -48345,8 +48569,24 @@ async function fetchEntryOverviewBody(context) {
 }
 
 async function fetchEntryOverviewBodyResult(context) {
-  if (!context?.relativePath) return { content: "", ok: false };
+  if (!context?.relativePath && context?.memoryKind !== "topic-index-generated") {
+    return { content: "", ok: false };
+  }
   try {
+    if (context.memoryKind === "topic-index") {
+      const response = await fetch(
+        buildApiUrl("/api/file", { path: context.relativePath || context.relPath })
+      );
+      if (!response.ok) return { content: "", ok: false };
+      const data = await response.json();
+      return { content: String(data.content || ""), ok: true };
+    }
+    if (context.memoryKind === "topic-index-generated") {
+      const manifestPath = getActiveNodeApiPath();
+      const cached = topicGeneratedStorageIndexCache.get(manifestPath);
+      if (cached) return { content: cached, ok: true };
+      return { content: buildTopicStorageIndexMarkdown(getResolvedNodePath(activePath), []), ok: true };
+    }
     if (context.memoryKind === "external") {
       const response = await fetch(
         buildApiUrl("/api/external/file", {
@@ -49239,8 +49479,9 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     assetsData?.sectionManifests || []
   );
   const folderByMode = Object.fromEntries(folderResults);
+  const prefetchedIndex = { externalFiles: externalData.files || [] };
 
-  return overviewSpecs.map((spec) => {
+  const slots = overviewSpecs.map((spec) => {
     let count = 0;
     let filled = false;
     let tone = "";
@@ -49307,9 +49548,23 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       available: bundleMetrics?.display === "flag" ? false : Boolean(bundleMetrics?.available),
       display: bundleMetrics?.display || "count",
       tone,
-      title
+      title,
+      hasIndex: false
     };
   });
+
+  const indexStates = await Promise.all(
+    slots.map(async (slot) => [
+      slot.id,
+      await probeStorageSlotReadmeExists(manifestPath, slot.spec, prefetchedIndex)
+    ])
+  );
+  const indexBySlotId = Object.fromEntries(indexStates);
+  for (const slot of slots) {
+    slot.hasIndex = Boolean(indexBySlotId[slot.id]);
+  }
+
+  return slots;
 }
 
 function isBundleMemoryCounterSlot(spec) {
@@ -49470,8 +49725,12 @@ function syncEntryOverviewDataSlotBarActiveState(wrap, context) {
   if (!wrap) return;
   wrap.querySelector(".node-entry-overview-memory-mode-counters")?.remove();
   const activeSlotKey = getDataStorageSlotKeyForEntryView();
-  wrap.querySelectorAll("[data-entry-overview-slot-key]").forEach((btn) => {
-    const isActive = activeSlotKey === btn.dataset.entryOverviewSlotKey;
+  wrap.querySelectorAll("[data-entry-overview-slot-key]").forEach((host) => {
+    const btn = host.classList.contains("node-navigation-workspace-counter")
+      ? host
+      : host.querySelector(".node-navigation-workspace-counter");
+    if (!btn) return;
+    const isActive = activeSlotKey === host.dataset.entryOverviewSlotKey;
     btn.classList.toggle("is-active", isActive);
     btn.setAttribute("aria-selected", isActive ? "true" : "false");
   });
@@ -49480,7 +49739,11 @@ function syncEntryOverviewDataSlotBarActiveState(wrap, context) {
 function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
   if (!wrap) return;
   for (const slot of slots) {
-    const btn = wrap.querySelector(`[data-entry-overview-slot-key="${slot.id}"]`);
+    const card = wrap.querySelector(`[data-entry-overview-slot-key="${slot.id}"]`);
+    if (!card) continue;
+    const btn = card.classList.contains("node-navigation-workspace-counter")
+      ? card
+      : card.querySelector(".node-navigation-workspace-counter");
     if (!btn) continue;
 
     btn.querySelector(".node-navigation-workspace-counter-indicator")?.remove();
@@ -49493,11 +49756,22 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
     btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${btn.classList.contains("is-active") ? " is-active" : ""}`;
     btn.classList.remove("is-pending", "is-unread");
     if (slot.tone) btn.classList.add(`is-${slot.tone}`);
+
+    syncWorkspaceCounterIndexButton(
+      card.querySelector(".node-navigation-workspace-counter-index"),
+      slot
+    );
   }
+  appendWorkspaceCounterTopicIndexFooter(
+    wrap,
+    wrap.dataset.topicNodePath || getResolvedNodePath(activePath),
+    slots
+  );
 }
 
-function renderEntryOverviewDataSlotBarContent(wrap, context, slots = []) {
+function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicPath = null) {
   const activeSlotKey = getDataStorageSlotKeyForEntryView();
+  const resolvedTopicPath = topicPath || wrap?.dataset.topicNodePath || getResolvedNodePath(activePath);
   wrap.replaceChildren();
   delete wrap.dataset.loading;
 
@@ -49509,16 +49783,19 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = []) {
 
   for (const slot of slots) {
     const item = document.createElement("li");
-    const btn = renderEntryOverviewWorkspaceCounterButton(slot, {
+    item.className = "node-navigation-workspace-counter-item";
+    const card = createWorkspaceCounterCard(slot, {
       isActive: activeSlotKey === slot.id,
+      topicPath: resolvedTopicPath,
       onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
     });
-    btn.dataset.entryOverviewSlotKey = slot.id;
-    item.appendChild(btn);
+    card.dataset.entryOverviewSlotKey = slot.id;
+    item.appendChild(card);
     list.appendChild(item);
   }
 
   wrap.appendChild(list);
+  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 }
 
 function acquireEntryOverviewDataSlotBar(context, topicPath) {
@@ -49550,10 +49827,11 @@ function renderEntryOverviewDataSlotBar(context, topicPath) {
   wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
   wrap.setAttribute("aria-label", "Слоты данных");
   wrap.dataset.topicPath = manifestPath;
+  wrap.dataset.topicNodePath = topicPath;
 
   const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath);
   if (cachedSlots?.length) {
-    renderEntryOverviewDataSlotBarContent(wrap, context, cachedSlots);
+    renderEntryOverviewDataSlotBarContent(wrap, context, cachedSlots, topicPath);
     void refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath);
   } else {
     wrap.dataset.loading = "true";
@@ -49580,7 +49858,7 @@ async function populateEntryOverviewDataSlotBar(wrap, context, topicPath, manife
     delete wrap.dataset.loading;
     return;
   }
-  renderEntryOverviewDataSlotBarContent(wrap, context, slots);
+  renderEntryOverviewDataSlotBarContent(wrap, context, slots, topicPath);
 }
 
 async function refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifestPath) {
@@ -49594,6 +49872,91 @@ async function refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifes
   if (renderSeq !== wrap._entryOverviewSlotBarRefreshSeq || !wrap.isConnected) return;
   entryOverviewSlotCountersCache.set(manifestPath, slots);
   updateEntryOverviewDataSlotBarCounts(wrap, slots);
+}
+
+function syncWorkspaceCounterIndexButton(indexBtn, slot) {
+  if (!indexBtn) return;
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const showIndex = Boolean(spec && supportsDataEntryOverview(spec.key));
+  indexBtn.classList.toggle("hidden", !showIndex);
+  if (!showIndex) return;
+
+  const hasIndex = Boolean(slot.hasIndex);
+  indexBtn.disabled = !hasIndex;
+  indexBtn.classList.toggle("is-available", hasIndex);
+  indexBtn.classList.toggle("is-missing", !hasIndex);
+  indexBtn.title = hasIndex
+    ? `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`
+    : `${STORAGE_SLOT_INDEX_FILE} не найден в корне слота`;
+}
+
+function createWorkspaceCounterIndexButton(slot, topicPath) {
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-navigation-workspace-counter-index";
+  btn.textContent = "Индекс";
+  syncWorkspaceCounterIndexButton(btn, slot);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!spec || !slot.hasIndex) {
+      showToast(`${STORAGE_SLOT_INDEX_FILE} не найден в этом слоте`, "info");
+      return;
+    }
+    openStorageSlotIndexOverview(topicPath || getResolvedNodePath(activePath), spec);
+  });
+  return btn;
+}
+
+function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, onClick } = {}) {
+  const card = document.createElement("div");
+  card.className = "node-navigation-workspace-counter-card";
+
+  const mainBtn = renderEntryOverviewWorkspaceCounterButton(slot, { isActive, onClick });
+  card.append(mainBtn, createWorkspaceCounterIndexButton(slot, topicPath));
+  return card;
+}
+
+function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
+  if (!wrap || !topicPath) return;
+  const dataSlots = slots.filter((slot) => {
+    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+    return spec && supportsDataEntryOverview(spec.key);
+  });
+  if (!dataSlots.length) return;
+
+  let footer = wrap.querySelector(".node-navigation-workspace-counter-topic-index");
+  if (!footer) {
+    footer = document.createElement("button");
+    footer.type = "button";
+    footer.className = "node-navigation-workspace-counter-topic-index";
+    wrap.appendChild(footer);
+  }
+
+  const hasTopicReadme = wrap.dataset.topicHasIndex === "1";
+  footer.textContent = "Индекс (оглавление) общий";
+  footer.classList.toggle("is-available", hasTopicReadme);
+  footer.classList.toggle("is-generated", !hasTopicReadme);
+  footer.title = hasTopicReadme
+    ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
+    : "Собрать общее оглавление темы (или создайте awn-storage/README.md)";
+
+  footer.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openTopicStorageIndexOverview(topicPath, slots);
+  };
+
+  void probeTopicStorageReadmeExists(topicPath).then((exists) => {
+    if (!wrap.isConnected) return;
+    wrap.dataset.topicHasIndex = exists ? "1" : "0";
+    footer.classList.toggle("is-available", exists);
+    footer.classList.toggle("is-generated", !exists);
+    footer.title = exists
+      ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
+      : "Собрать общее оглавление темы (или создайте awn-storage/README.md)";
+  });
 }
 
 function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onClick } = {}) {
