@@ -46046,7 +46046,10 @@ function populateNavBookTocFolderLabel(
       ? `${label} (${description})`
       : label;
   folderLabel.classList.toggle("nav-book-toc-folder-label--unregistered", isUnregistered);
-  folderIcon.textContent = "📁";
+  folderIcon.className = isUnregistered
+    ? "nav-book-toc-folder-icon nav-book-toc-folder-icon--adopt"
+    : "nav-book-toc-folder-icon";
+  folderIcon.textContent = "";
   const folderStatus = isUnregistered
     ? ""
     : resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder);
