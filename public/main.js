@@ -42798,6 +42798,10 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     appendNavigationHeroProps(hero, options.propEntries || []);
   }
 
+  if (options.showHeroInstruction) {
+    appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title);
+  }
+
   return hero;
 }
 
@@ -43028,13 +43032,6 @@ function appendNavigationHeroProps(hero, propEntries = []) {
   const { awnItems, customItems } = splitNodeOverviewMetaItems(propEntries);
   let lastNode = null;
 
-  const customSection = renderNodeOverviewCustomPropsSection(customItems);
-  if (customSection) {
-    customSection.classList.add("node-navigation-props");
-    hero.appendChild(customSection);
-    lastNode = customSection;
-  }
-
   const awnFold = renderNodeOverviewAwnPropsFold(awnItems);
   if (awnFold) {
     awnFold.classList.add("node-navigation-props");
@@ -43042,7 +43039,23 @@ function appendNavigationHeroProps(hero, propEntries = []) {
     lastNode = awnFold;
   }
 
+  const customSection = renderNodeOverviewCustomPropsSection(customItems);
+  if (customSection) {
+    customSection.classList.add("node-navigation-props");
+    hero.appendChild(customSection);
+    lastNode = customSection;
+  }
+
   return lastNode;
+}
+
+function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
+  if (!hero) return null;
+  const panel = renderNavigationManifestPart(descriptionRaw, heroTitle);
+  if (!panel) return null;
+  panel.classList.add("node-navigation-hero-instruction-panel");
+  hero.appendChild(panel);
+  return panel;
 }
 
 async function loadTypeCatalog(agentId = activeAgentId) {
@@ -43804,7 +43817,7 @@ function pickLatestIso(...values) {
 }
 
 const AGENT_INSTRUCTION_CONTEXT_TITLE = "Инструкция и контекст для агента";
-const AGENT_INSTRUCTION_EMPTY_TEXT = "Инструкция и контекст для агента не определены.";
+const AGENT_INSTRUCTION_EMPTY_TEXT = "Контекст и инструкция для агента не определены.";
 
 function extractManifestDisplayBody(raw = "", heroTitle = "") {
   const { body } = splitFrontmatter(raw);
@@ -50647,44 +50660,92 @@ async function ensureNavigationManifestCached(options = {}) {
   }
 }
 
-function renderNavigationAgentInstructionContent(manifestRaw = "", heroTitle = "") {
-  const content = extractManifestDisplayBody(manifestRaw, heroTitle);
+function splitNavigationManifestAtHorizontalRule(content) {
+  const text = String(content || "").trim();
+  if (!text) return { previewText: "", fullText: "", isTruncated: false };
 
-  const block = document.createElement("div");
-  block.className = "node-navigation-hero-instruction";
+  const lines = text.split(/\r?\n/);
+  const hrIndex = lines.findIndex((line) => /^\s*---\s*$/.test(line));
+  if (hrIndex === -1) {
+    return { previewText: text, fullText: text, isTruncated: false };
+  }
+
+  const previewText = lines.slice(0, hrIndex).join("\n").trim();
+  const afterText = lines.slice(hrIndex + 1).join("\n").trim();
+  if (!afterText) {
+    return { previewText: text, fullText: text, isTruncated: false };
+  }
+
+  return {
+    previewText,
+    fullText: text,
+    isTruncated: true
+  };
+}
+
+function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
+  const content = extractManifestDisplayBody(manifestRaw, heroTitle);
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest";
 
-  if (content) {
-    const manifestPath = getActiveNodeApiPath();
-    const nodePath = manifestPath || getResolvedNodePath(activePath);
-    const preview = document.createElement("div");
-    preview.className =
-      "node-navigation-preview node-navigation-agent-instruction file-content-preview";
-    preview.dataset.linkBasePath = nodePath;
-    const inlineDiff = filterManifestBodyDiffPayload(
-      getActiveLiveSyncInlineDiffForView(manifestPath)
-    );
-    if (
-      inlineDiff &&
-      renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
-    ) {
-      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
-    } else {
-      preview.innerHTML = renderMarkdownToHtml(content, { nodePath });
-      hydrateMarkdownPreviewElement(preview, nodePath);
-    }
-    wrap.appendChild(preview);
-  } else {
+  if (!content) {
     const empty = document.createElement("p");
     empty.className = "node-navigation-empty-placeholder node-navigation-agent-instruction-empty";
     empty.textContent = AGENT_INSTRUCTION_EMPTY_TEXT;
     wrap.appendChild(empty);
+    return createNavigationMemoryPanel("description", AGENT_INSTRUCTION_CONTEXT_TITLE, wrap);
   }
 
-  block.appendChild(wrap);
-  return block;
+  const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
+  const manifestPath = getActiveNodeApiPath();
+  const nodePath = manifestPath || getResolvedNodePath(activePath);
+
+  const preview = document.createElement("div");
+  preview.className =
+    "node-navigation-preview node-navigation-agent-instruction file-content-preview";
+  preview.dataset.linkBasePath = nodePath;
+  const inlineDiff = filterManifestBodyDiffPayload(
+    getActiveLiveSyncInlineDiffForView(manifestPath)
+  );
+  if (
+    inlineDiff &&
+    renderPreviewWithEmbeddedDiff(preview, previewText, inlineDiff, nodePath)
+  ) {
+    nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+  } else {
+    preview.innerHTML = renderMarkdownToHtml(previewText, { nodePath });
+    hydrateMarkdownPreviewElement(preview, nodePath);
+  }
+  wrap.appendChild(preview);
+
+  if (isTruncated) {
+    const actions = document.createElement("div");
+    actions.className = "node-navigation-manifest-actions";
+
+    const expandBtn = document.createElement("button");
+    expandBtn.type = "button";
+    expandBtn.className = "node-navigation-expand-btn node-overview-action-btn";
+    expandBtn.textContent = "Читать все";
+    expandBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (
+        inlineDiff &&
+        renderPreviewWithEmbeddedDiff(preview, fullText, inlineDiff, nodePath)
+      ) {
+        nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+      } else {
+        preview.innerHTML = renderMarkdownToHtml(fullText, { nodePath });
+        hydrateMarkdownPreviewElement(preview, nodePath);
+      }
+      actions.remove();
+    });
+
+    actions.appendChild(expandBtn);
+    wrap.appendChild(actions);
+  }
+
+  return createNavigationMemoryPanel("description", AGENT_INSTRUCTION_CONTEXT_TITLE, wrap);
 }
 
 function renderNavigationTodoPart(todoData) {
@@ -57748,14 +57809,12 @@ async function renderNodeNavigation() {
     meta: nodeMeta,
     propEntries: entries,
     descriptionRaw: modeContentCache.description || "",
+    showHeroInstruction: true,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
     onEditClick: openDescriptionFromOverview,
     entryOverviewNav: topicSiblingNav
   });
-  hero.appendChild(
-    renderNavigationAgentInstructionContent(modeContentCache.description || "", heroTitle)
-  );
   hubMain.appendChild(hero);
 
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
