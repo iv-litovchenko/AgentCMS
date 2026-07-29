@@ -22635,7 +22635,7 @@ button.node-navigation-hub-rail-slot-summary {
   line-height: 1.35;
 }
 
-.node-overview.is-entry-overview .node-navigation-hub {
+.node-overview.is-entry-overview .node-navigation-hub:not(.node-navigation-hub--split) {
   gap: 12px;
 }
 
@@ -41380,25 +41380,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
   font-weight: 700;
 }
 
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-leaders {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 12px;
-  margin: 0 0 0 4px;
-  height: auto;
-  background: none;
-}
-
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-leaders::before {
-  content: "";
-  flex: 1 1 auto;
-  min-width: 8px;
-  height: 0;
-  margin-right: 4px;
-  border-bottom: 1px dotted var(--nav-toc-win-line);
-}
-
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder > .nav-book-toc-list {
   margin: 0;
   padding: 0 0 0 var(--nav-toc-win-indent);
@@ -41483,7 +41464,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
   align-items: center;
   gap: 4px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   justify-content: flex-start;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -41505,7 +41486,34 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders {
-  display: none;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 12px;
+  margin: 0 0 0 4px;
+  height: auto;
+  background: none;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders::before {
+  content: "";
+  flex: 1 1 auto;
+  min-width: 8px;
+  height: 0;
+  border-bottom: 1px dotted var(--nav-toc-win-line);
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders.has-nav-book-toc-attachments-badge::before,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-leaders.has-nav-book-toc-folder-count-badge::before {
+  margin-right: 4px;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders:not(.has-nav-book-toc-attachments-badge):not(.has-nav-book-toc-folder-count-badge)::before {
+  margin-right: 0;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders[aria-hidden="true"]::before {
+  content: "";
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:hover,
@@ -41541,7 +41549,8 @@ body.is-discuss-resizing .discuss-aside-resizer {
   opacity: 1;
 }
 
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:has(.nav-book-toc-folder-label.is-current) .nav-book-toc-folder-leaders::before {
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-head:has(.nav-book-toc-folder-label.is-current) .nav-book-toc-folder-leaders::before,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link.is-current .nav-book-toc-leaders::before {
   border-bottom-color: rgba(255, 255, 255, 0.55);
 }
 

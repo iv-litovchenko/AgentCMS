@@ -385,6 +385,14 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     }
     const fieldDef = fields[key];
     if (!fieldDef) continue;
+    if (key === "awn-status" && isContentType) {
+      const defaultValue =
+        fieldDef.default !== undefined
+          ? fieldDefDefaultValue(fieldDef, resolvedAgentRoot, resolvedProjectRoot)
+          : "open";
+      lines.push(`awn-status: ${formatYamlScalar(String(defaultValue || "open"))}`);
+      continue;
+    }
     if (fieldDef.default === undefined) {
       const kind = fieldDefToEntryKind(fieldDef, resolvedAgentRoot, resolvedProjectRoot);
       if (kind === "array") {

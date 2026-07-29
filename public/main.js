@@ -11814,6 +11814,42 @@ function sectionReadmeExistsForMemoryKind(sectionFolder, memoryKind) {
   return true;
 }
 
+function normalizeSectionFolderKey(sectionFolder) {
+  return String(sectionFolder || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+}
+
+function navigationSectionManifestExists(navigationIndex, sectionFolder) {
+  const key = normalizeSectionFolderKey(sectionFolder);
+  if (!key || !(navigationIndex?.sectionManifestByFolder instanceof Map)) return false;
+  return navigationIndex.sectionManifestByFolder.has(key);
+}
+
+function resolveEntryOverviewSectionFolderForReadme(context) {
+  const fromManifestPath = getEntryOverviewSectionFolderPath(context);
+  if (fromManifestPath) return fromManifestPath;
+  if (
+    context?.entryKind === "awn.record.category" ||
+    context?.entryKind === "awn.media.category"
+  ) {
+    return getSectionFolderFromCategoryContext(context) || null;
+  }
+  return null;
+}
+
+function entryOverviewSectionReadmeExists(context, { navigationIndex, manifestBodyFetchOk = false } = {}) {
+  const sectionFolder = resolveEntryOverviewSectionFolderForReadme(context);
+  if (!sectionFolder) return true;
+
+  if (navigationSectionManifestExists(navigationIndex, sectionFolder)) return true;
+  if (sectionReadmeExistsForMemoryKind(sectionFolder, context.memoryKind)) return true;
+
+  const readmePath = getSectionReadmeRelPath(sectionFolder);
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relativePath === readmePath && manifestBodyFetchOk) return true;
+
+  return false;
+}
+
 function openSectionReadmeForMemoryKind(readmePath, sectionFolder, memoryKind) {
   if (memoryKind === "external") {
     void openExternalSectionReadme(readmePath, sectionFolder);
@@ -11828,9 +11864,18 @@ function openSectionReadmeForMemoryKind(readmePath, sectionFolder, memoryKind) {
   }
 }
 
-function appendEntryOverviewSectionReadmeOffer(hub, context) {
-  const sectionFolder = getEntryOverviewSectionFolderPath(context);
-  if (!sectionFolder || sectionReadmeExistsForMemoryKind(sectionFolder, context.memoryKind)) {
+function appendEntryOverviewSectionReadmeOffer(
+  hub,
+  context,
+  { navigationIndex, manifestBodyFetchOk = false } = {}
+) {
+  if (!isEntryOverviewCategoryContext(context)) return;
+
+  const sectionFolder = resolveEntryOverviewSectionFolderForReadme(context);
+  if (
+    !sectionFolder ||
+    entryOverviewSectionReadmeExists(context, { navigationIndex, manifestBodyFetchOk })
+  ) {
     return;
   }
 
@@ -14954,6 +14999,7 @@ const RESOURCE_STANDARD_ACTIONS = [
 const RESOURCE_CONTEXT_MENU_ACTIONS = {
   externalFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
   flatStorageFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
+  mediaFile: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS],
   memorySection: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS]
 };
 
@@ -15174,7 +15220,7 @@ function positionResourceContextMenu(clientX, clientY) {
 function appendResourceContextMenuStatusSection(currentStatus = "") {
   if (!resourceContextMenuListNode) return;
   const state = resourceContextMenuState;
-  if (!state || (state.kind !== "memorySection" && state.kind !== "externalFile" && state.kind !== "flatStorageFile")) {
+  if (!state || (state.kind !== "memorySection" && state.kind !== "externalFile" && state.kind !== "flatStorageFile" && state.kind !== "mediaFile")) {
     return;
   }
 
@@ -15598,6 +15644,16 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
+  if (actionId === "edit" && state.kind === "mediaFile" && state.filePath) {
+    void openMediaEntryOverviewFromNavigation({
+      path: state.filePath,
+      title: state.label,
+      displayName: state.label,
+      status: state.status || ""
+    });
+    return;
+  }
+
   if (actionId === "rename" && state.kind === "memorySection" && state.sectionFolder) {
     openRenameSectionModal(state);
     return;
@@ -15618,6 +15674,11 @@ function handleResourceContextMenuAction(actionId) {
     return;
   }
 
+  if (actionId === "move" && state.kind === "mediaFile" && state.filePath) {
+    void promptMoveMediaRecord(state.filePath);
+    return;
+  }
+
   if (actionId === "delete" && state.kind === "memorySection" && state.sectionFolder) {
     void deleteMemorySectionFromMenu(state);
     return;
@@ -15625,6 +15686,11 @@ function handleResourceContextMenuAction(actionId) {
 
   if (actionId === "delete" && state.kind === "externalFile" && state.filePath) {
     void deleteExternalRecord(state.filePath);
+    return;
+  }
+
+  if (actionId === "delete" && state.kind === "mediaFile" && state.filePath) {
+    void deleteMediaRecord(state.filePath);
   }
 }
 
@@ -45027,10 +45093,13 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount) {
 }
 
 function appendNavBookTocFolderHeadCount(head, countNode) {
-  if (!head || !countNode) return;
+  if (!head) return;
   const leaders = document.createElement("span");
-  leaders.className = "nav-book-toc-leaders nav-book-toc-folder-leaders has-nav-book-toc-folder-count-badge";
-  leaders.appendChild(countNode);
+  leaders.className = "nav-book-toc-leaders nav-book-toc-folder-leaders";
+  if (countNode) {
+    leaders.classList.add("has-nav-book-toc-folder-count-badge");
+    leaders.appendChild(countNode);
+  }
   head.appendChild(leaders);
 }
 
@@ -45982,6 +46051,105 @@ function getEntryOverviewNavigationHandlers(memoryKind) {
   };
 }
 
+function resolveNavigationHubRailResourceContextMenuScope(memoryKind) {
+  if (memoryKind === "external") {
+    return {
+      sectionState: { externalMode: true },
+      sectionReadmeExists: externalSectionReadmeExists,
+      onReadmeEdit: (readmePath, sectionFolder) => void openExternalSectionReadme(readmePath, sectionFolder),
+      fileKind: "externalFile"
+    };
+  }
+  if (memoryKind === "media" || memoryKind === "assets") {
+    return {
+      sectionState: { mediaMode: true },
+      sectionReadmeExists: mediaSectionReadmeExists,
+      onReadmeEdit: (readmePath, sectionFolder) => void openMediaSectionReadme(readmePath, sectionFolder),
+      fileKind: "mediaFile"
+    };
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    return {
+      sectionState: { storageMode: memoryKind },
+      sectionReadmeExists: (sectionFolder) => flatStorageSectionReadmeExists(memoryKind, sectionFolder),
+      onReadmeEdit: (readmePath, sectionFolder) =>
+        void openFlatStorageSectionReadme(memoryKind, readmePath, sectionFolder),
+      fileKind: "flatStorageFile"
+    };
+  }
+  return null;
+}
+
+function buildNavigationHubRailSectionContextMenuState(
+  memoryKind,
+  folderPath,
+  folderLabels,
+  folderStatuses
+) {
+  const scope = resolveNavigationHubRailResourceContextMenuScope(memoryKind);
+  if (!scope || !folderPath) return null;
+
+  const sectionFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const label =
+    folderLabels.get(sectionFolder) ||
+    getMemorySectionDisplayLabel(sectionFolder) ||
+    sectionFolder.split("/").pop() ||
+    sectionFolder;
+
+  return {
+    kind: "memorySection",
+    sectionFolder,
+    readmeExists: scope.sectionReadmeExists(sectionFolder),
+    label,
+    status: String(folderStatuses.get(sectionFolder) || "").trim(),
+    onReadmeEdit: (readmePath) => scope.onReadmeEdit(readmePath, sectionFolder),
+    ...scope.sectionState
+  };
+}
+
+function buildNavigationHubRailFileContextMenuState(memoryKind, item) {
+  const scope = resolveNavigationHubRailResourceContextMenuScope(memoryKind);
+  if (!scope || !item?.path) return null;
+
+  const filePath = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const label = normalizeYamlDisplayString(String(item.title || "").trim()) || filePath.split("/").pop() || filePath;
+  const status = resolveNavigationItemStatus(item);
+
+  if (scope.fileKind === "flatStorageFile") {
+    return {
+      kind: "flatStorageFile",
+      mode: memoryKind,
+      filePath,
+      label,
+      status
+    };
+  }
+
+  if (scope.fileKind === "mediaFile") {
+    return {
+      kind: "mediaFile",
+      filePath,
+      label,
+      status,
+      mediaMode: true
+    };
+  }
+
+  return {
+    kind: "externalFile",
+    filePath,
+    label,
+    status
+  };
+}
+
+function bindNavigationHubRailResourceContextMenu(element, menuState) {
+  if (!element || !menuState) return;
+  element.addEventListener("contextmenu", (event) => {
+    openResourceContextMenu(event, menuState);
+  });
+}
+
 function openFlatStorageRecordOverviewFromNavigation(item, memoryKind) {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
@@ -46557,7 +46725,12 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
 }
 
 async function fetchEntryOverviewBody(context) {
-  if (!context?.relativePath) return "";
+  const result = await fetchEntryOverviewBodyResult(context);
+  return result.content;
+}
+
+async function fetchEntryOverviewBodyResult(context) {
+  if (!context?.relativePath) return { content: "", ok: false };
   try {
     if (context.memoryKind === "external") {
       const response = await fetch(
@@ -46566,9 +46739,9 @@ async function fetchEntryOverviewBody(context) {
           file: normalizeExternalMemoryMdRelPath(context.relativePath)
         })
       );
-      if (!response.ok) return "";
+      if (!response.ok) return { content: "", ok: false };
       const data = await response.json();
-      return String(data.content || "");
+      return { content: String(data.content || ""), ok: true };
     }
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
       const response = await fetch(
@@ -46578,9 +46751,9 @@ async function fetchEntryOverviewBody(context) {
           file: context.relativePath
         })
       );
-      if (!response.ok) return "";
+      if (!response.ok) return { content: "", ok: false };
       const data = await response.json();
-      return String(data.content || "");
+      return { content: String(data.content || ""), ok: true };
     }
     if (context.memoryKind === "media" && /\.md$/i.test(context.relativePath)) {
       const response = await fetch(
@@ -46589,17 +46762,18 @@ async function fetchEntryOverviewBody(context) {
           file: context.relativePath
         })
       );
-      if (!response.ok) return "";
+      if (!response.ok) return { content: "", ok: false };
       const data = await response.json();
-      return String(data.content || "");
+      return { content: String(data.content || ""), ok: true };
     }
     if (isBundleEntryOverviewMemoryKind(context.memoryKind)) {
-      return fetchBundleMemoryTextContent(context.memoryKind);
+      const content = await fetchBundleMemoryTextContent(context.memoryKind);
+      return { content: String(content || ""), ok: Boolean(String(content || "").trim()) };
     }
   } catch {
-    return "";
+    return { content: "", ok: false };
   }
-  return "";
+  return { content: "", ok: false };
 }
 
 function getEntryOverviewManifestItemLabel(item) {
@@ -49065,12 +49239,18 @@ async function renderEntryOverview() {
     !nodeOverviewContentNode;
 
   const topicPath = getResolvedNodePath(activePath);
-  let [entries, rawBody, nodeMeta, navigationIndex] = await Promise.all([
+  let [entries, bodyResult, nodeMeta, navigationIndex] = await Promise.all([
     isMemoryTocRoot ? [] : fetchEntryOverviewProperties(context.relPath, context),
-    isMemoryTocRoot ? "" : fetchEntryOverviewBody(context),
+    isMemoryTocRoot ? { content: "", ok: false } : fetchEntryOverviewBodyResult(context),
     isMemoryTocRoot ? fetchNodeNavigationMeta(topicPath) : fetchNodeNavigationMeta(context.relPath),
     fetchEntryOverviewNavigationIndex(context, topicPath)
   ]);
+  const rawBody = String(bodyResult?.content || "");
+  const manifestBodyFetchOk =
+    !isMemoryTocRoot &&
+    isEntryOverviewCategoryContext(context) &&
+    isSectionReadmePath(context.relativePath) &&
+    Boolean(bodyResult?.ok);
   const displayTitle = isMemoryTocRoot
     ? "Оглавление"
     : resolveEntryOverviewDisplayTitle(context, entries, navigationIndex);
@@ -49188,7 +49368,10 @@ async function renderEntryOverview() {
     if (isStale()) return;
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
-  appendEntryOverviewSectionReadmeOffer(hubMain, context);
+  appendEntryOverviewSectionReadmeOffer(hubMain, context, {
+    navigationIndex,
+    manifestBodyFetchOk
+  });
 
   await appendNodeOverviewTypeRegistryFold(hubMain, context.relPath);
   if (isStale()) return;

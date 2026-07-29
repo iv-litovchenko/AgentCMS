@@ -36,7 +36,7 @@ fields:
         name: 🔴 Закрыта
       - key: none
         name: ⚪ Без статуса
-    default: draft
+    default: open
   awn-type:
     type: awn.string
     name: Тип

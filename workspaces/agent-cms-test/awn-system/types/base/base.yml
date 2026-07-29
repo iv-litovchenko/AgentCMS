@@ -45,7 +45,7 @@ fields:
         name: 🔴 Закрыта
       - key: none
         name: ⚪ Без статуса
-    default: draft
+    default: open
   awn-description:
     type: awn.field.text
     title: Описание

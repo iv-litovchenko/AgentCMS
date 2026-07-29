@@ -1,16 +1,27 @@
 ---
-awn-name: Запись 2
+awn-name: пкупку
 awn-emoji: ""
 awn-status: draft
 awn-description: ""
 awn-tags: []
-awn-type: awn.content.record
-awn-create: 2026-07-29T17:54:10.737Z
-awn-update: 2026-07-29T17:54:10.737Z
-awn-version: 1
-awn-preview: ""
+awn-type: awn.page.topic
+awn-create: "2026-07-28T10:19:09.537Z"
+awn-update: 2026-07-29T18:08:12.762Z
+awn-version: 2
+awn-preview: awn-storage/assets/preview/20260729180812.png
 awn-web-url: ""
 awn-attachments: []
+awn-category: ""
+awn-color: ""
+awn-main: false
+awn-owner: ""
+awn-priority: ""
+awn-runtime-commands: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-load-always: false
+awn-sort: ""
 ---
 
 # Запись 2
