@@ -48278,7 +48278,7 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
   const workspacePath = nodePath;
-  const inlineDiff = getActiveLiveSyncInlineDiffForView(workspacePath);
+  const inlineDiff = filterManifestBodyDiffPayload(getActiveLiveSyncInlineDiffForView(workspacePath));
   if (
     inlineDiff &&
     renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
