@@ -15307,6 +15307,70 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/storage/files") {
+    const relPath = url.searchParams.get("path");
+    const folderName = url.searchParams.get("folder");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!folderName) return sendJson(res, 400, { error: "Missing folder query parameter" });
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
+
+    const safeFolderName = String(folderName).trim();
+    if (!isAllowedStorageSubfolderName(safeFolderName)) {
+      return sendJson(res, 400, { error: "Invalid folder name" });
+    }
+
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, safeFolderName);
+    if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: [], folders: [] });
+    if (!folderAbsolute.startsWith(getAgentRoot())) {
+      return sendJson(res, 400, { error: "Invalid folder path" });
+    }
+
+    try {
+      const stat = await fs.stat(folderAbsolute);
+      if (!stat.isDirectory()) {
+        return sendJson(res, 200, { exists: false, files: [], folders: [] });
+      }
+
+      const [files, folders, nonMarkdownFiles] = await Promise.all([
+        collectMarkdownFiles(folderAbsolute),
+        collectExternalContentFolders(folderAbsolute),
+        collectNonMarkdownFiles(folderAbsolute)
+      ]);
+      const enrichedFiles = await Promise.all(
+        files.map((file) => enrichExternalMarkdownFilePreview(relPath, folderAbsolute, file))
+      );
+      const sectionRelPaths = [];
+      for (const folder of folders) {
+        const folderPath = String(folder.path || folder.name || folder || "")
+          .replace(/\\/g, "/")
+          .replace(/\/$/, "");
+        if (folderPath) sectionRelPaths.push(folderPath);
+      }
+      for (const file of enrichedFiles) {
+        const parent = String(file.parent || "").replace(/\\/g, "/");
+        if (parent && parent !== ".") sectionRelPaths.push(parent);
+      }
+      const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
+      return sendJson(res, 200, {
+        exists: true,
+        files: enrichedFiles,
+        folders,
+        nonMarkdownFiles,
+        sectionSortOrders
+      });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { exists: false, files: [], folders: [] });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to read storage files",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/external/file") {
     const relPath = url.searchParams.get("path");
     const relFile = url.searchParams.get("file");
