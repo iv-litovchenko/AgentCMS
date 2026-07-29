@@ -17514,6 +17514,26 @@ function applyClassicMenuTreeBranchClasses(root) {
       }
     });
   });
+  root.querySelectorAll(".menu-system-files-section").forEach((section) => {
+    let groupRows = [];
+    const flushGroupRows = () => {
+      groupRows.forEach((el, index) => {
+        el.classList.add("menu-tree-branch");
+        if (index === groupRows.length - 1) {
+          el.classList.add("menu-tree-branch-last");
+        }
+      });
+      groupRows = [];
+    };
+    for (const child of section.children) {
+      if (child.classList.contains("system-file-group-label")) {
+        flushGroupRows();
+      } else if (child.classList.contains("system-file-row")) {
+        groupRows.push(child);
+      }
+    }
+    flushGroupRows();
+  });
 }
 
 function refreshClassicMenuTreeLines(agentId = activeAgentId) {
@@ -64332,6 +64352,7 @@ function renderSystemFiles(files) {
       const row = document.createElement("div");
       row.className = "menu-item-row system-file-row";
       row.dataset.systemFileGroup = group.id;
+      appendMenuTreeItemRowLeadingSpacer(row);
 
       const btn = document.createElement("button");
       btn.type = "button";

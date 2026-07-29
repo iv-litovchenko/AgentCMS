@@ -40393,6 +40393,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
   --menu-win-branch-w: calc(var(--menu-win-toggle-slot) - var(--menu-win-branch-x));
   --menu-win-label-pad-left: 4px;
   --menu-sidebar-pad-x: 12px;
+  --menu-system-file-dot-left: 8px;
+  --menu-system-file-dot-size: 8px;
+  --menu-system-file-dot-gap: 6px;
 }
 
 .sidebar-slab-menu .sidebar-menu-before-tree {
@@ -40697,41 +40700,25 @@ body.is-discuss-resizing .discuss-aside-resizer {
   font-weight: 400;
 }
 
-.sidebar-slab-menu .menu-system-files-section .system-file-row.menu-tree-branch::before,
-.sidebar-slab-menu .menu-system-files-section .system-file-row.menu-tree-branch::after {
-  content: none;
-  display: none;
-}
-
-.sidebar-slab-menu
-  .menu-agent-pane:not(.is-menu-view-flat)
-  .menu-system-files-section
-  .menu-item.system-file-item {
-  padding: 1px 4px 1px calc(10px + var(--menu-win-label-pad-left));
-}
-
-.sidebar-slab-menu
-  .menu-agent-pane:not(.is-menu-view-flat)
-  .menu-system-files-section
-  .menu-item.system-file-item::before {
-  left: 0;
-}
-
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-item.system-file-item {
   flex: 1;
   min-width: 0;
   min-height: var(--menu-win-row-h);
-  padding: 1px 4px 1px calc(var(--menu-win-label-pad-left) + 10px);
+  padding: 1px 4px 1px
+    calc(
+      var(--menu-system-file-dot-left) + var(--menu-system-file-dot-size) +
+        var(--menu-system-file-dot-gap)
+    );
   font-size: var(--menu-win-font);
   cursor: grab;
 }
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-item.system-file-item::before {
-  left: var(--menu-win-label-pad-left);
+  left: var(--menu-system-file-dot-left);
   top: 50%;
   transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
+  width: var(--menu-system-file-dot-size);
+  height: var(--menu-system-file-dot-size);
   border-radius: 999px;
 }
 
