@@ -45115,11 +45115,17 @@ function appendNavBookTocTitleText(parent, title, description) {
   return titleNode;
 }
 
+function createNavBookTocStatusBadge(status) {
+  const badge = createMenuTreeStatusBadge(normalizeNavigationStatusForDisplay(status));
+  if (!badge) return null;
+  badge.classList.add("nav-book-toc-status");
+  return badge;
+}
+
 function appendNavBookTocStatusBadge(titleHost, status) {
   if (!titleHost) return;
-  const badge = createMenuTreeStatusBadge(normalizeNavigationStatusForDisplay(status));
+  const badge = createNavBookTocStatusBadge(status);
   if (!badge) return;
-  badge.classList.add("nav-book-toc-status");
   titleHost.insertBefore(badge, titleHost.firstChild);
 }
 
@@ -45880,8 +45886,9 @@ function populateNavBookTocFolderLabel(
   const folderStatus = isUnregistered
     ? ""
     : resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder);
-  appendNavBookTocStatusBadge(folderText, folderStatus);
   appendNavBookTocTitleText(folderText, label, description);
+  const statusBadge = createNavBookTocStatusBadge(folderStatus);
+  if (statusBadge) folderLabel.appendChild(statusBadge);
   folderLabel.append(folderIcon, folderText);
   if (folderStatus) {
     const leaders = document.createElement("span");
@@ -49092,8 +49099,9 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
   meta.textContent = getEntryOverviewMediaItemMetaLine(item);
 
   body.append(title, meta);
+  const statusBadge = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
+  if (statusBadge) link.appendChild(statusBadge);
   link.append(preview, body);
-  appendNavBookTocStatusBadge(link, resolveNavigationItemStatus(item));
   link.addEventListener("click", (event) => {
     event.stopPropagation();
     onFileClick(item);
@@ -50078,7 +50086,7 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   const row = document.createElement("div");
   row.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--flat";
   if (slotIndex.kind === "bundle") row.classList.add("node-navigation-hub-rail-slot--bundle");
-  if (shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx)) {
+  if (isNavigationHubRailSlotSelected(slot, slotIndex, activeCtx)) {
     row.classList.add("is-active-slot");
   }
   row.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
@@ -50088,10 +50096,13 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "node-navigation-hub-rail-slot-summary";
+  if (row.classList.contains("is-active-slot")) {
+    btn.setAttribute("aria-current", "true");
+  }
   appendNavigationHubRailSlotSummaryParts(btn, slot, { includeOpenBtn: true });
   btn.addEventListener("click", (event) => {
     if (event.target.closest(".node-navigation-hub-rail-slot-open")) return;
-    if (isNavigationHubRailSlotEmpty(slot)) return;
+    if (!canOpenNavigationHubRailFlatSlot(slot)) return;
     openNavigationHubRailSlotTarget(slot);
   });
 
@@ -50200,7 +50211,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const text = document.createElement("span");
     text.className = "nav-book-toc-link-text";
-    appendNavBookTocStatusBadge(text, resolveNavigationItemStatus(item));
     appendNavBookTocTitleText(text, item.title, itemDescription);
     appendNavBookTocWebUrlLink(text, getNavigationItemWebUrl(item));
 
@@ -50218,6 +50228,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
             showBranchLeading: handlers.showBranchLeading
           });
 
+    const statusBadge = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
+    if (statusBadge) link.appendChild(statusBadge);
     if (leading) link.appendChild(leading);
     link.append(text, leaders);
     const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
@@ -56937,7 +56949,7 @@ function buildNavigationHubRailActiveContext() {
     relativePath: "",
     sectionFolder: "",
     folderPaths: new Set(),
-    slotKey: null
+    slotKey: getDataStorageSlotKeyForEntryView()
   };
 
   if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) {
@@ -56949,7 +56961,7 @@ function buildNavigationHubRailActiveContext() {
   context.relativePath = String(entry.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   context.sectionFolder =
     getEntryOverviewSectionFolderPath(entry) || getEntryOverviewParentFolderPath(entry) || "";
-  context.slotKey = getDataStorageSlotKeyForEntryView();
+  context.slotKey = getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
 
   const anchorPath = context.relativePath || context.sectionFolder;
   if (anchorPath) {
@@ -56981,13 +56993,31 @@ function getNavigationHubRailTocActiveState(handlers, folderPath = "", itemPath 
   return { forceExpand, folderIsCurrent, fileIsCurrent };
 }
 
+function isNavigationHubRailSlotSelected(slot, slotIndex, activeCtx) {
+  const slotKey = activeCtx?.slotKey ?? getDataStorageSlotKeyForEntryView();
+  if (!slotKey || slotKey !== slot.id) return false;
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    const slotMemoryKind = getEntryOverviewMemoryKindForSlot(slot.spec) || slotIndex?.memoryKind || null;
+    if (slotMemoryKind) {
+      return activeEntryOverviewContext.memoryKind === slotMemoryKind;
+    }
+  }
+
+  return true;
+}
+
+function canOpenNavigationHubRailFlatSlot(slot) {
+  if (!isNavigationHubRailSlotEmpty(slot)) return true;
+  return Boolean(getEntryOverviewMemoryKindForSlot(slot?.spec));
+}
+
 function shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx) {
   if (isNavigationHubRailSlotEmpty(slot)) return false;
-  if (!activeCtx?.slotKey) return false;
-  if (activeCtx.slotKey !== slot.id) return false;
-  if (slotIndex.kind === "tree" && activeCtx.relativePath) return true;
-  if (slotIndex.kind === "bundle" && activeCtx.memoryKind === slotIndex.memoryKind) return true;
-  return activeCtx.slotKey === slot.id;
+  if (!isNavigationHubRailSlotSelected(slot, slotIndex, activeCtx)) return false;
+  if (slotIndex.kind === "tree" && activeCtx?.relativePath) return true;
+  if (slotIndex.kind === "bundle" && activeCtx?.memoryKind === slotIndex.memoryKind) return true;
+  return slotIndex.kind === "tree" || slotIndex.kind === "bundle";
 }
 
 function renderNavigationHubRailSubsections(childEntries, activeCtx = null) {
@@ -57430,7 +57460,9 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   details.className = "node-navigation-hub-rail-slot";
   if (slotIndex.memoryKind) details.dataset.railSlotMemoryKind = slotIndex.memoryKind;
   details.dataset.railSlotId = slot.id;
-  if (defaultOpen) details.classList.add("is-active-slot");
+  if (isNavigationHubRailSlotSelected(slot, slotIndex, activeCtx)) {
+    details.classList.add("is-active-slot");
+  }
   details.open = isNavHubRailSlotOpen(nodePath, slot.id, defaultOpen);
   details.addEventListener("toggle", () => {
     if (isNavigationHubRailSlotEmpty(slot) && details.open) {

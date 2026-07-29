@@ -20005,8 +20005,17 @@ body.app-locked {
 }
 
 .node-navigation-hub-rail-slot.is-active-slot {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.35);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28);
+  background: #eff6ff;
+}
+
+.node-navigation-hub-rail-slot.is-active-slot > .node-navigation-hub-rail-slot-summary {
+  color: #1e40af;
+}
+
+.node-navigation-hub-rail-slot.is-active-slot.is-empty {
+  opacity: 1;
 }
 
 .node-navigation-hub-rail-slot.is-empty {
@@ -20107,8 +20116,17 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-navigation-hub-rail-slot--flat.is-active-slot {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28);
+}
+
+.node-navigation-hub-rail-slot--flat.is-active-slot .node-navigation-hub-rail-slot-summary {
+  color: #1e40af;
+}
+
+.node-navigation-hub-rail-slot--flat.is-active-slot.is-empty {
+  opacity: 1;
 }
 
 .node-navigation-hub-rail-slot--flat.is-empty {
@@ -26098,7 +26116,8 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-preview,
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-icon,
-.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-leading {
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-leading,
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status {
   flex: 0 0 auto;
 }
 
@@ -26160,15 +26179,9 @@ button.node-navigation-memory-title:focus-visible {
   letter-spacing: 0;
 }
 
-.nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-text .nav-book-toc-status {
-  margin-right: 4px;
-}
-
-.nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-text .nav-book-toc-status {
-  margin-right: 4px;
-}
-
-.nav-book-toc-tree--guide .nav-book-toc-link-text .nav-book-toc-status {
+.nav-book-toc-tree--guide .nav-book-toc-folder--root .nav-book-toc-folder-label > .nav-book-toc-status,
+.nav-book-toc-tree--guide .nav-book-toc-folder--nested .nav-book-toc-folder-label > .nav-book-toc-status,
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status {
   margin-right: 4px;
 }
 
@@ -26199,7 +26212,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-folder-label {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -26280,7 +26293,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .nav-book-toc-link {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -26542,8 +26555,10 @@ button.node-navigation-memory-title:focus-visible {
   );
 }
 
-.nav-book-toc-status {
+.nav-book-toc-status,
+.nav-book-toc-link > .nav-book-toc-status {
   flex-shrink: 0;
+  align-self: center;
 }
 
 .nav-book-toc-attachments-badge,
@@ -41435,9 +41450,11 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text .nav-book-toc-status {
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link > .nav-book-toc-status,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label > .nav-book-toc-status {
   flex-shrink: 0;
   margin-right: 2px;
+  align-self: center;
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-icon {
