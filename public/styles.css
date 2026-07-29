@@ -23368,7 +23368,8 @@ button.node-navigation-hub-rail-slot-summary {
   border-bottom-right-radius: 13px;
 }
 
-.node-navigation-hero > .node-overview-props-custom:has(+ .node-entry-overview-attachments):last-of-type {
+.node-navigation-hero > .node-overview-props-custom:has(+ .node-entry-overview-attachments):last-of-type,
+.node-navigation-hero > .node-overview-custom-props-fold:has(+ .node-entry-overview-attachments):last-of-type {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -23524,19 +23525,8 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-overview-props-custom {
-  border-top: 1px solid rgba(148, 163, 184, 0.32);
-  background: #fff;
-}
-
-.node-overview-props-custom-head {
-  padding: 8px 16px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-  background: #f8fafc;
+  border-top: 0;
+  background: transparent;
 }
 
 .node-overview-props-custom .node-overview-meta-rows {
@@ -23552,33 +23542,46 @@ button.node-navigation-hub-rail-slot-summary {
   padding-right: 16px;
 }
 
-.node-navigation-hero > .node-overview-props-custom:last-child,
-.node-overview-hero > .node-overview-props-custom:last-child {
-  border-bottom-left-radius: 13px;
-  border-bottom-right-radius: 13px;
-  overflow: hidden;
-}
-
-.node-navigation-hero > .node-overview-props-fold:has(+ .node-navigation-hero-instruction),
-.node-navigation-hero > .node-overview-props-custom:has(+ .node-navigation-hero-instruction) {
+.node-navigation-hero > .node-overview-props-fold:has(+ .node-navigation-hero-instruction-fold),
+.node-navigation-hero > .node-overview-custom-props-fold:has(+ .node-navigation-hero-instruction-fold) {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction {
-  margin: 0;
+.node-navigation-hero-instruction-fold {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: #fffbeb;
+  box-shadow: none;
+}
+
+.node-navigation-hero-instruction-fold > .node-overview-fold-head {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 55%, #fef9c3 100%);
+}
+
+.node-navigation-hero-instruction-fold > .node-overview-fold-head:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 55%, #fef08a 100%);
+}
+
+.node-navigation-hero-instruction-fold[open] > .node-overview-fold-head {
+  border-bottom: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.node-navigation-hero-instruction-fold .node-overview-fold-title {
+  color: #92400e;
+}
+
+.node-navigation-hero-instruction-fold .node-overview-fold-body {
   padding: 12px 16px 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
   background: #fffbeb;
   color: #713f12;
   box-sizing: border-box;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-manifest {
+.node-navigation-hero-instruction-fold .node-navigation-manifest {
   margin: 0;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-agent-instruction.file-content-preview {
+.node-navigation-hero-instruction-fold .node-navigation-agent-instruction.file-content-preview {
   margin: 0;
   padding: 0;
   border: none;
@@ -23588,7 +23591,7 @@ button.node-navigation-hub-rail-slot-summary {
   box-shadow: none;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-agent-instruction-empty {
+.node-navigation-hero-instruction-fold .node-navigation-agent-instruction-empty {
   margin: 0;
   padding: 0;
   border: none;
@@ -23601,13 +23604,26 @@ button.node-navigation-hub-rail-slot-summary {
   text-align: left;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-manifest-actions {
+.node-navigation-hero-instruction-fold .node-navigation-manifest-actions {
   margin-top: 10px;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction:last-child {
-  border-bottom-left-radius: 13px;
-  border-bottom-right-radius: 13px;
+.node-overview-custom-props-fold > .node-overview-fold-head {
+  background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 55%, #f8fafc 100%);
+}
+
+.node-overview-custom-props-fold > .node-overview-fold-head:hover {
+  background: linear-gradient(135deg, #cbd5e1 0%, #e2e8f0 55%, #f1f5f9 100%);
+}
+
+.node-overview-custom-props-fold .node-overview-fold-title {
+  color: #475569;
+}
+
+.node-overview-custom-props-fold {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #f8fafc;
+  box-shadow: none;
 }
 
 .node-overview-awn-props-fold > .node-overview-fold-head {

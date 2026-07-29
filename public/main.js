@@ -10764,11 +10764,25 @@ const SIDEBAR_WIDTH_MAX = 520;
 const SIDEBAR_WIDTH_STEP = 20;
 const OVERVIEW_ACCORDION_STORAGE_KEY = "agentcms.overviewAccordions.v1";
 const NODE_LAST_VIEWED_STORAGE_KEY = "agentcms.nodeLastViewed.v1";
-const OVERVIEW_ACCORDION_GROUP_IDS = new Set(["memory", "main", "files", "children", "props", "awn-props", "types-registry", "foundation-types"]);
+const OVERVIEW_ACCORDION_GROUP_IDS = new Set([
+  "memory",
+  "main",
+  "files",
+  "children",
+  "props",
+  "awn-props",
+  "custom-props",
+  "agent-instruction",
+  "types-registry",
+  "foundation-types"
+]);
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
 const OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID = "awn-props";
+const OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID = "custom-props";
+const OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID = "agent-instruction";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
 const OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID = "foundation-types";
+const AGENT_INSTRUCTION_ACCORDION_TITLE = "Контекст и инструкция для агента";
 const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
 const TYPE_CATALOG_DOMAIN_LABELS = {
   fields: "Поля",
@@ -33534,6 +33548,7 @@ async function appendEntryOverviewSectionSchemaPanel(container, context) {
   const fold = wrapEntryOverviewSectionSchemaFold(panel, params);
   const anchor =
     container.querySelector(".node-overview-awn-props-fold") ||
+    container.querySelector(".node-overview-custom-props-fold") ||
     container.querySelector(".node-overview-props-custom") ||
     container.querySelector(".node-navigation-hero-main");
   if (anchor) anchor.insertAdjacentElement("afterend", fold);
@@ -43003,17 +43018,21 @@ function splitNodeOverviewMetaItems(entries) {
   return { awnItems, customItems };
 }
 
-function renderNodeOverviewCustomPropsSection(customItems) {
+function renderNodeOverviewCustomPropsFold(customItems) {
   if (!customItems.length) return null;
 
-  const section = document.createElement("section");
-  section.className = "node-overview-props node-overview-props-custom";
+  const metaSection = document.createElement("section");
+  metaSection.className = "node-overview-props node-overview-props-custom";
+  metaSection.appendChild(renderNodeOverviewMetaTable(customItems));
 
-  const head = document.createElement("div");
-  head.className = "node-overview-props-custom-head";
-  head.textContent = `Пользовательские · ${customItems.length}`;
-  section.append(head, renderNodeOverviewMetaTable(customItems));
-  return section;
+  const accordion = createOverviewAccordionSection(
+    OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID,
+    `Пользовательские · ${customItems.length}`,
+    metaSection,
+    { defaultOpen: false }
+  );
+  accordion.classList.add("node-overview-props-fold", "node-overview-custom-props-fold");
+  return accordion;
 }
 
 function renderNodeOverviewAwnPropsFold(awnItems) {
@@ -43045,11 +43064,11 @@ function appendNavigationHeroProps(hero, propEntries = []) {
     lastNode = awnFold;
   }
 
-  const customSection = renderNodeOverviewCustomPropsSection(customItems);
-  if (customSection) {
-    customSection.classList.add("node-navigation-props");
-    hero.appendChild(customSection);
-    lastNode = customSection;
+  const customFold = renderNodeOverviewCustomPropsFold(customItems);
+  if (customFold) {
+    customFold.classList.add("node-navigation-props");
+    hero.appendChild(customFold);
+    lastNode = customFold;
   }
 
   return lastNode;
@@ -43057,11 +43076,28 @@ function appendNavigationHeroProps(hero, propEntries = []) {
 
 function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
   if (!hero) return null;
-  const block = buildNavigationAgentInstructionContent(descriptionRaw, heroTitle);
-  if (!block) return null;
-  block.classList.add("node-navigation-hero-instruction");
-  hero.appendChild(block);
-  return block;
+  const content = buildNavigationAgentInstructionContent(descriptionRaw, heroTitle);
+  if (!content) return null;
+
+  const bodySection = document.createElement("section");
+  bodySection.className = "node-navigation-hero-instruction-body";
+  bodySection.appendChild(content);
+
+  const hasInstruction = getNodeDescriptionHasContent(descriptionRaw);
+
+  const accordion = createOverviewAccordionSection(
+    OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID,
+    AGENT_INSTRUCTION_ACCORDION_TITLE,
+    bodySection,
+    { defaultOpen: !hasInstruction, lockOpen: !hasInstruction }
+  );
+  accordion.classList.add(
+    "node-overview-props-fold",
+    "node-navigation-props",
+    "node-navigation-hero-instruction-fold"
+  );
+  hero.appendChild(accordion);
+  return accordion;
 }
 
 async function loadTypeCatalog(agentId = activeAgentId) {
@@ -43327,10 +43363,16 @@ function renderNodeOverviewFoundationTypesFold(foundationTypes) {
   );
 }
 
-function createOverviewAccordionSection(groupId, title, contentNode, { defaultOpen = true, disabled = false } = {}) {
+function createOverviewAccordionSection(
+  groupId,
+  title,
+  contentNode,
+  { defaultOpen = true, disabled = false, lockOpen = false } = {}
+) {
   const details = document.createElement("details");
   details.className = "node-overview-fold";
   if (disabled) details.classList.add("is-disabled");
+  if (lockOpen) details.classList.add("is-lock-open");
 
   const accordionState = loadOverviewAccordionState();
 
@@ -43341,6 +43383,8 @@ function createOverviewAccordionSection(groupId, title, contentNode, { defaultOp
     details.open = false;
     summary.setAttribute("aria-disabled", "true");
     summary.title = "Раздел временно отключён";
+  } else if (lockOpen) {
+    details.open = true;
   } else {
     details.open = accordionState[groupId] !== undefined ? Boolean(accordionState[groupId]) : defaultOpen;
   }
@@ -43363,6 +43407,10 @@ function createOverviewAccordionSection(groupId, title, contentNode, { defaultOp
   details.addEventListener("toggle", () => {
     if (disabled) {
       details.open = false;
+      return;
+    }
+    if (lockOpen) {
+      details.open = true;
       return;
     }
     saveOverviewAccordionOpenState(groupId, details.open);
@@ -47326,7 +47374,11 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
   );
   if (!attachmentsPanel || !hero) return null;
   const anchor =
-    [...hero.querySelectorAll(".node-overview-props-fold, .node-overview-props-custom")].pop() ||
+    [
+      ...hero.querySelectorAll(
+        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold"
+      )
+    ].pop() ||
     null;
   if (anchor) anchor.insertAdjacentElement("afterend", attachmentsPanel);
   else hero.appendChild(attachmentsPanel);
@@ -62151,7 +62203,45 @@ function buildSystemFileItemClassName(file) {
 
 function entryMatchesMenuQuery(entry, queryLower) {
   if (!queryLower) return true;
-  return nodeMatchesQuery(entry.label, queryLower) || nodeMatchesQuery(entry.displayPath, queryLower);
+  if (nodeMatchesQuery(entry.label, queryLower)) return true;
+  if (nodeMatchesQuery(entry.displayPath, queryLower)) return true;
+  if (nodeMatchesQuery(entry.path, queryLower)) return true;
+  if (nodeMatchesQuery(entry.systemFile, queryLower)) return true;
+  if (nodeMatchesQuery(entry.category, queryLower)) return true;
+  if (Array.isArray(entry.tags) && entry.tags.some((tag) => nodeMatchesQuery(tag, queryLower))) {
+    return true;
+  }
+  const path = String(entry.path || "").replace(/\\/g, "/");
+  if (path) {
+    const base = path.split("/").pop() || "";
+    if (nodeMatchesQuery(base, queryLower)) return true;
+    if (nodeMatchesQuery(base.replace(/\.md$/i, ""), queryLower)) return true;
+  }
+  return false;
+}
+
+function collectMenuSearchEntries(menu, agentId = activeAgentId) {
+  if (!menu) return [];
+  const entries = [
+    ...collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }),
+    ...collectSystemFileMenuEntries(systemFilesCache)
+  ];
+  if (menu.systemTree) {
+    entries.push(
+      ...collectFlatMenuEntries(
+        pruneMenuTreeForDisplay({ title: AGENT_SYSTEM_SECTION_LABEL, ...menu.systemTree }, agentId),
+        [],
+        { includeRepoRoot: false, agentId }
+      )
+    );
+  }
+  return entries;
+}
+
+function getMenuSearchResultEntries(menu, agentId = activeAgentId) {
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  if (!queryLower) return [];
+  return collectMenuSearchEntries(menu, agentId).filter((entry) => entryMatchesMenuQuery(entry, queryLower));
 }
 
 function filterMenuEntriesByQuery(entries, queryLower) {
@@ -62159,28 +62249,10 @@ function filterMenuEntriesByQuery(entries, queryLower) {
   return entries.filter((entry) => entryMatchesMenuQuery(entry, queryLower));
 }
 
-function menuSearchHasResults(menu) {
+function menuSearchHasResults(menu, agentId = activeAgentId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   if (!queryLower) return true;
-  const baseTree = { title: getAgentTreeTitle(), ...menu };
-  if (filterMenuTree(baseTree, queryLower)) return true;
-  if (menu.serviceTree && filterMenuTree({ title: SERVICE_SECTION_TITLE, ...menu.serviceTree }, queryLower)) {
-    return true;
-  }
-  if (menu.containerTree && filterMenuTree({ title: CONTAINER_SECTION_LABEL, ...menu.containerTree }, queryLower)) {
-    return true;
-  }
-  if (menu.sharedTree && filterMenuTree({ title: SHARED_SECTION_LABEL, ...menu.sharedTree }, queryLower)) {
-    return true;
-  }
-  if (menu.systemTree && filterMenuTree({ title: AGENT_SYSTEM_SECTION_LABEL, ...menu.systemTree }, queryLower)) {
-    return true;
-  }
-  const entries = [
-    ...collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true }),
-    ...collectSystemFileMenuEntries(systemFilesCache)
-  ];
-  return filterMenuEntriesByQuery(entries, queryLower).length > 0;
+  return getMenuSearchResultEntries(menu, agentId).length > 0;
 }
 
 function isServiceTreeCollapsed() {
@@ -63946,6 +64018,77 @@ function syncMenuViewLayoutClass(agentId = activeAgentId) {
   pane?.classList.toggle("is-menu-view-flat", isFlat);
   getMenuQueryRoot()?.classList.toggle("is-menu-view-flat", isFlat);
   menuNode?.classList.toggle("is-menu-view-flat", isFlat);
+}
+
+function syncMenuSearchLayoutClass(agentId = activeAgentId) {
+  const searchActive = Boolean(menuSearchQuery.trim());
+  const pane = menuAgentPanes.get(agentId);
+  pane?.classList.toggle("is-menu-search-active", searchActive);
+  getMenuQueryRoot()?.classList.toggle("is-menu-search-active", searchActive);
+  menuNode?.classList.toggle("is-menu-search-active", searchActive);
+}
+
+function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
+  const itemRow = document.createElement("div");
+  itemRow.className = "menu-item-row menu-flat-item menu-search-result-item";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  if (entry.isSystemFile) {
+    btn.className = buildSystemFileItemClassName(entry);
+    btn.classList.add("system-file-item");
+    btn.textContent = entry.label;
+    btn.dataset.systemFile = entry.systemFile;
+    btn.addEventListener("click", () => selectSystemFile(entry.systemFile));
+  } else {
+    btn.className =
+      isNodeManifestPath(entry.path) && !isPartNodePath(entry.path) ? "menu-folder" : "menu-item";
+    btn.dataset.path = entry.path;
+    applyNodeColorVars(
+      btn,
+      entry.color,
+      { isFolder: isNodeManifestPath(entry.path) && !isPartNodePath(entry.path) }
+    );
+    const pathHint =
+      entry.displayPath && entry.displayPath !== entry.label ? entry.displayPath : "";
+    setMenuLabelWithMarkers(btn, entry.label || entry.displayPath, entry, "menu-item-name", {
+      subtitle: pathHint,
+      showPreview: true,
+      agentId
+    });
+    btn.addEventListener("click", (event) => {
+      const pathFromNode = event.currentTarget?.dataset?.path || "";
+      openNodeFromMenu(getLabelFromPath(pathFromNode), pathFromNode);
+    });
+  }
+
+  itemRow.appendChild(btn);
+  if (!entry.isSystemFile && isNodeSettingsTargetPath(entry.path)) {
+    itemRow.appendChild(createNodeSettingsButton(entry.path));
+  }
+  if (!entry.isSystemFile && entry.path) {
+    itemRow.appendChild(createBookmarkButton(entry.path));
+  }
+  listNode.appendChild(itemRow);
+}
+
+function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  const entries = getMenuSearchResultEntries(menu, agentId);
+  entries.sort((a, b) => compareMenuPathsNatural(a.displayPath, b.displayPath));
+
+  const sectionNode = document.createElement("div");
+  sectionNode.className = "menu-section menu-search-results";
+
+  const listNode = document.createElement("div");
+  listNode.className = "menu-flat-list menu-search-results-list";
+
+  for (const entry of entries) {
+    appendMenuSearchResultRow(listNode, entry, agentId);
+  }
+
+  sectionNode.appendChild(listNode);
+  target.appendChild(sectionNode);
 }
 
 function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
