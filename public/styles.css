@@ -16956,6 +16956,13 @@ body.app-locked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M10.5 4.5a2 2 0 0 1 1.6.8l.9 1.2h5a2.5 2.5 0 0 1 2.5 2.5V17a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17V7A2.5 2.5 0 0 1 6 4.5h4.5z'/%3E%3C/svg%3E");
 }
 
+.menu-tree-type-icon--topic {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 14px 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236366F1' d='M8 4.5h8a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z'/%3E%3Cpath fill='%23E0E7FF' d='M9.5 9h5a1 1 0 0 1 0 2h-5a1 1 0 0 1 0-2zm0 3.5h5a1 1 0 0 1 0 2h-5a1 1 0 0 1 0-2zm0 3.5h3.5a1 1 0 0 1 0 2H9.5a1 1 0 0 1 0-2z'/%3E%3C/svg%3E");
+}
+
 .menu-tree-type-icon--file {
   background-repeat: no-repeat;
   background-position: center center;
@@ -23552,25 +23559,53 @@ button.node-navigation-hub-rail-slot-summary {
   overflow: hidden;
 }
 
-.node-navigation-hero > .node-overview-props-fold:has(+ .node-navigation-hero-instruction-panel),
-.node-navigation-hero > .node-overview-props-custom:has(+ .node-navigation-hero-instruction-panel) {
+.node-navigation-hero > .node-overview-props-fold:has(+ .node-navigation-hero-instruction),
+.node-navigation-hero > .node-overview-props-custom:has(+ .node-navigation-hero-instruction) {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction-panel {
+.node-navigation-hero > .node-navigation-hero-instruction {
   margin: 0;
-  padding: 0 16px 16px;
+  padding: 12px 16px 14px;
   border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fffbeb;
+  color: #713f12;
+  box-sizing: border-box;
+}
+
+.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-manifest {
+  margin: 0;
+}
+
+.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-agent-instruction.file-content-preview {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
   background: transparent;
-  gap: 12px;
+  color: inherit;
+  box-shadow: none;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction-panel .node-navigation-memory-head {
-  padding-top: 12px;
+.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-agent-instruction-empty {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+  text-align: left;
 }
 
-.node-navigation-hero > .node-navigation-hero-instruction-panel:last-child {
+.node-navigation-hero > .node-navigation-hero-instruction .node-navigation-manifest-actions {
+  margin-top: 10px;
+}
+
+.node-navigation-hero > .node-navigation-hero-instruction:last-child {
   border-bottom-left-radius: 13px;
   border-bottom-right-radius: 13px;
 }
@@ -26234,8 +26269,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-folder-label {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -26252,6 +26286,12 @@ button.node-navigation-memory-title:focus-visible {
   text-transform: uppercase;
   color: #64748b;
   cursor: pointer;
+}
+
+.nav-book-toc-folder-label > .nav-book-toc-leaders {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: center;
 }
 
 .node-navigation-memory-body .nav-book-toc-folder > .nav-book-toc-list,
@@ -26315,8 +26355,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-link {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -26329,6 +26368,24 @@ button.node-navigation-memory-title:focus-visible {
   line-height: 1.4;
   color: var(--text);
   cursor: pointer;
+}
+
+.nav-book-toc-link > .nav-book-toc-link-icon,
+.nav-book-toc-link > .nav-book-toc-status,
+.nav-book-toc-link > .nav-book-toc-link-preview,
+.nav-book-toc-link > .nav-book-toc-link-leading {
+  flex: 0 0 auto;
+}
+
+.nav-book-toc-link-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.nav-book-toc-link > .nav-book-toc-leaders {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: center;
 }
 
 .nav-book-toc-link:hover .nav-book-toc-link-text,

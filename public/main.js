@@ -17514,7 +17514,13 @@ function createMenuTreeTypeIcon(host) {
     return icon;
   }
   if (host.classList.contains("menu-item")) {
-    icon.classList.add("menu-tree-type-icon--file");
+    const itemPath = normalizeMenuNodePath(host.dataset.path || "");
+    const isTopicItem =
+      itemPath &&
+      isTopicManifestPath(itemPath) &&
+      !host.classList.contains("menu-item--repo-service") &&
+      !host.classList.contains("menu-item--agent-system");
+    icon.classList.add(isTopicItem ? "menu-tree-type-icon--topic" : "menu-tree-type-icon--file");
     return icon;
   }
   return null;
@@ -17546,17 +17552,17 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   const runtimeBadges = createMenuRuntimeBadges(source, options.agentId);
   const typeIcon = createMenuTreeTypeIcon(host);
 
-  if (statusBadge) {
-    host.classList.add("has-menu-tree-status");
-    labelWrap.appendChild(statusBadge);
-  }
-  if (previewNode) labelWrap.appendChild(previewNode);
   if (typeIcon) {
     labelWrap.appendChild(typeIcon);
     if (host.classList.contains("menu-folder") || host.classList.contains("menu-item")) {
       host.classList.add("has-menu-tree-status");
     }
   }
+  if (statusBadge) {
+    host.classList.add("has-menu-tree-status");
+    labelWrap.appendChild(statusBadge);
+  }
+  if (previewNode) labelWrap.appendChild(previewNode);
   if (markers) labelWrap.appendChild(markers);
 
   const nameNode = document.createElement("span");
@@ -43051,11 +43057,11 @@ function appendNavigationHeroProps(hero, propEntries = []) {
 
 function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
   if (!hero) return null;
-  const panel = renderNavigationManifestPart(descriptionRaw, heroTitle);
-  if (!panel) return null;
-  panel.classList.add("node-navigation-hero-instruction-panel");
-  hero.appendChild(panel);
-  return panel;
+  const block = buildNavigationAgentInstructionContent(descriptionRaw, heroTitle);
+  if (!block) return null;
+  block.classList.add("node-navigation-hero-instruction");
+  hero.appendChild(block);
+  return block;
 }
 
 async function loadTypeCatalog(agentId = activeAgentId) {
@@ -43816,7 +43822,6 @@ function pickLatestIso(...values) {
   return latest;
 }
 
-const AGENT_INSTRUCTION_CONTEXT_TITLE = "Инструкция и контекст для агента";
 const AGENT_INSTRUCTION_EMPTY_TEXT = "Контекст и инструкция для агента не определены.";
 
 function extractManifestDisplayBody(raw = "", heroTitle = "") {
@@ -45384,6 +45389,96 @@ function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) 
   return leadingWrap.childElementCount ? leadingWrap : null;
 }
 
+function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {}) {
+  const status = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
+  let icon = null;
+  let preview = null;
+
+  if (handlers.linkLeadingMode === "media") {
+    const showBranch = handlers.showBranchLeading !== false;
+    if (showBranch) {
+      icon = createNavBookTocLinkIcon({ branch: true });
+    }
+
+    const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+    preview = document.createElement("span");
+    preview.className = "nav-book-toc-link-preview";
+
+    if (isEntryOverviewMediaImageItem(item) && path) {
+      const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
+      if (
+        !appendNavigationItemPreviewThumb(preview, item, previewUi, {
+          className: "nav-book-toc-link-preview-img"
+        })
+      ) {
+        const fallback = document.createElement("span");
+        fallback.className = "nav-book-toc-link-filetype-emoji";
+        fallback.textContent = "🖼";
+        fallback.setAttribute("aria-hidden", "true");
+        preview.appendChild(fallback);
+      }
+    } else {
+      const ext = getNavigationItemFileExtension(item);
+      const badge = formatNavigationFileExtensionBadge(ext);
+      preview.classList.add(
+        "nav-book-toc-link-filetype",
+        `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
+      );
+      const emoji = document.createElement("span");
+      emoji.className = "nav-book-toc-link-filetype-emoji";
+      emoji.textContent = getMediaIconForItem(item);
+      emoji.setAttribute("aria-hidden", "true");
+      preview.appendChild(emoji);
+      if (badge) {
+        const label = document.createElement("span");
+        label.className = "nav-book-toc-link-filetype-ext";
+        label.textContent = badge;
+        preview.appendChild(label);
+      }
+    }
+
+    if (!icon) {
+      icon = createNavBookTocLinkIcon({ branch: false, symbol: getMediaIconForItem(item) });
+    }
+
+    return { icon, status, preview };
+  }
+
+  const showBranch = handlers.showBranchLeading !== false;
+  const showFileType = handlers.showFileTypeLeading !== false;
+
+  if (showBranch) {
+    icon = createNavBookTocLinkIcon({ branch: true });
+  }
+
+  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
+  if (previewUi?.imageUrl && !previewUi.broken) {
+    preview = document.createElement("span");
+    preview.className = "nav-book-toc-link-preview";
+    appendNavigationItemPreviewThumb(preview, item, previewUi, {
+      className: "nav-book-toc-link-preview-img"
+    });
+  } else if (showFileType) {
+    preview = createNavBookTocLinkFileTypeLeading(item);
+  }
+
+  if (!icon) {
+    const symbol = getNavigationTocFileIcon(item);
+    if (symbol) {
+      icon = createNavBookTocLinkIcon({ branch: false, symbol });
+    }
+  }
+
+  return { icon, status, preview };
+}
+
+function appendNavBookTocEntryMarkers(link, item, nodePath, handlers = {}) {
+  const { icon, status, preview } = buildNavBookTocEntryMarkers(item, nodePath, handlers);
+  if (icon) link.appendChild(icon);
+  if (status) link.appendChild(status);
+  if (preview) link.appendChild(preview);
+}
+
 function appendNavigationItemPreviewThumb(
   parent,
   item,
@@ -45897,16 +45992,17 @@ function populateNavBookTocFolderLabel(
       : label;
   folderLabel.classList.toggle("nav-book-toc-folder-label--unregistered", isUnregistered);
   folderIcon.textContent = "📁";
-  folderLabel.replaceChildren();
-  const folderText = document.createElement("span");
-  folderText.className = "nav-book-toc-folder-text";
   const folderStatus = isUnregistered
     ? ""
     : resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManifestByFolder);
+  folderLabel.replaceChildren();
+  const folderText = document.createElement("span");
+  folderText.className = "nav-book-toc-folder-text";
   appendNavBookTocTitleText(folderText, label, description);
   const statusBadge = createNavBookTocStatusBadge(folderStatus);
+  folderLabel.appendChild(folderIcon);
   if (statusBadge) folderLabel.appendChild(statusBadge);
-  folderLabel.append(folderIcon, folderText);
+  folderLabel.appendChild(folderText);
   if (folderStatus) {
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
@@ -50235,19 +50331,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     leaders.className = "nav-book-toc-leaders";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
 
-    const leading =
-      handlers.linkLeadingMode === "media"
-        ? createNavigationMediaBookTocLinkLeading(item, nodePath, {
-            showBranch: handlers.showBranchLeading !== false
-          })
-        : createNavBookTocLinkLeading(item, nodePath, {
-            showFileTypeLeading: handlers.showFileTypeLeading,
-            showBranchLeading: handlers.showBranchLeading
-          });
-
-    const statusBadge = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
-    if (statusBadge) link.appendChild(statusBadge);
-    if (leading) link.appendChild(leading);
+    appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
     link.append(text, leaders);
     const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
     if (fileIsCurrent) link.classList.add("is-current");
@@ -50292,6 +50376,7 @@ function renderNavigationExternalBookToc(
     showFileTypeLeading: false,
     showBranchLeading: false,
     treeStyle: "guide",
+    resourceContextMenuMemoryKind: "external",
     ...getEntryOverviewNavigationHandlers("external")
   });
   nav.appendChild(list);
@@ -50683,7 +50768,7 @@ function splitNavigationManifestAtHorizontalRule(content) {
   };
 }
 
-function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
+function buildNavigationAgentInstructionContent(manifestRaw = "", heroTitle = "") {
   const content = extractManifestDisplayBody(manifestRaw, heroTitle);
 
   const wrap = document.createElement("div");
@@ -50694,7 +50779,7 @@ function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
     empty.className = "node-navigation-empty-placeholder node-navigation-agent-instruction-empty";
     empty.textContent = AGENT_INSTRUCTION_EMPTY_TEXT;
     wrap.appendChild(empty);
-    return createNavigationMemoryPanel("description", AGENT_INSTRUCTION_CONTEXT_TITLE, wrap);
+    return wrap;
   }
 
   const { previewText, fullText, isTruncated } = splitNavigationManifestAtHorizontalRule(content);
@@ -50745,7 +50830,7 @@ function renderNavigationManifestPart(manifestRaw = "", heroTitle = "") {
     wrap.appendChild(actions);
   }
 
-  return createNavigationMemoryPanel("description", AGENT_INSTRUCTION_CONTEXT_TITLE, wrap);
+  return wrap;
 }
 
 function renderNavigationTodoPart(todoData) {
