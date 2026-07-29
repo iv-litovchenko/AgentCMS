@@ -16912,6 +16912,41 @@ body.app-locked {
   white-space: nowrap;
 }
 
+.nav-unread-badge,
+.menu-unread-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
+  color: var(--accent, #2563eb);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: help;
+}
+
+.node-navigation-hero-unread-badge {
+  margin-left: 4px;
+}
+
+.nav-book-toc-link-text .nav-unread-badge,
+.nav-book-toc-folder-text .nav-unread-badge {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.menu-item.has-menu-unread-badge .menu-item-name,
+.menu-folder.has-menu-unread-badge .menu-folder-name {
+  min-width: 0;
+}
+
 .menu-tree-status--none {
   opacity: 0.62;
   filter: grayscale(0.15);
@@ -33750,27 +33785,47 @@ button.node-navigation-memory-title:focus-visible {
   color: #664d03;
 }
 
-.data-hub-slug-warning,
 .section-readme-card--offer {
   box-sizing: border-box;
 }
 
-.doc-slab-main > .data-hub-slug-warning,
+.data-hub-slug-warning.node-navigation-hero-path {
+  box-sizing: border-box;
+}
+
+.doc-slab-main > .data-hub-slug-warning {
+  align-self: flex-start;
+  margin: 8px 14px 0;
+}
+
+#title-slug-row .data-hub-slug-warning.node-navigation-hero-path {
+  margin: 6px 0 0;
+}
+
+#title-slug-row .editor-title-field-value:has(> .data-hub-slug-warning) > .slug-field-hint {
+  display: none;
+}
+
 .doc-slab-main > .section-readme-card--offer {
   margin: 0 0 10px;
 }
 
 .node-navigation-hub > .data-hub-slug-warning,
-.node-navigation-hub > .section-readme-card--offer,
-.node-navigation-hub > .node-entry-overview-section-readme-offer,
-#node-overview-content > .data-hub-slug-warning,
-#node-overview-content > .section-readme-card--offer {
-  margin: 0 0 12px;
+#node-overview-content > .data-hub-slug-warning {
+  align-self: flex-start;
+  margin: 0 0 8px;
 }
 
 .node-navigation-hub > .node-navigation-hero + .data-hub-slug-warning,
 .node-navigation-hub > .node-entry-overview-section-readme-offer + .data-hub-slug-warning,
-#node-overview-content > .node-navigation-hero + .data-hub-slug-warning {
+#node-overview-content > .node-navigation-hero + .data-hub-slug-warning,
+.node-entry-overview-section-readme-offer + .data-hub-slug-warning {
+  margin: 0 0 8px;
+}
+
+.node-navigation-hub > .section-readme-card--offer,
+.node-navigation-hub > .node-entry-overview-section-readme-offer,
+#node-overview-content > .section-readme-card--offer {
   margin: 0 0 12px;
 }
 
@@ -33778,14 +33833,14 @@ button.node-navigation-memory-title:focus-visible {
   margin-bottom: 0;
 }
 
-.node-entry-overview-section-readme-offer + .data-hub-slug-warning {
-  margin: 0 0 12px;
+.external-list-view-body > .data-hub-slug-warning,
+.media-list-view-body > .data-hub-slug-warning {
+  align-self: flex-start;
+  margin: 0 0 8px;
 }
 
 .external-list-view-body > .section-readme-card--offer + .data-hub-slug-warning,
 .media-list-view-body > .section-readme-card--offer + .data-hub-slug-warning,
-.external-list-view-body > .data-hub-slug-warning,
-.media-list-view-body > .data-hub-slug-warning,
 .external-list-view-body > .section-readme-card--offer,
 .media-list-view-body > .section-readme-card--offer {
   margin: 0 0 12px;

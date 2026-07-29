@@ -20,6 +20,20 @@ const {
   wantsThumbVariant
 } = require("./media-thumbs");
 const {
+  READ_STATE_FILE,
+  READ_CONTENT_FILE,
+  isReadStateServiceFileName,
+  normalizeReadContentPath,
+  readNodePageReadState,
+  writeNodePageReadState,
+  readNodeReadContentPaths,
+  markNodeReadContentPath,
+  clearNodeReadContentPath,
+  readFolderReadState,
+  markFolderReadPath,
+  writeFolderPageReadState
+} = require("./node-read-state");
+const {
   MANIFEST_FILE,
   AREA_MANIFEST_FILE,
   AREA_MANIFEST_CANDIDATES,
@@ -5999,6 +6013,42 @@ async function resolveApiManifestAbsolute(relPath) {
   return absolute;
 }
 
+async function resolveNodeDirAbsoluteFromManifest(manifestRelPath) {
+  const manifestAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!manifestAbsolute) return null;
+  return path.dirname(manifestAbsolute);
+}
+
+async function getNodeReadStatePayload(manifestRelPath) {
+  const nodeDirAbsolute = await resolveNodeDirAbsoluteFromManifest(manifestRelPath);
+  if (!nodeDirAbsolute) return { error: "Invalid manifest path", status: 400 };
+  const [pageState, contentState] = await Promise.all([
+    readNodePageReadState(nodeDirAbsolute),
+    readNodeReadContentPaths(nodeDirAbsolute)
+  ]);
+  return {
+    path: manifestRelPath,
+    read: pageState.read,
+    paths: contentState.paths,
+    pageExists: pageState.exists,
+    contentExists: contentState.exists
+  };
+}
+
+async function invalidateNodeReadStateForManifest(manifestRelPath) {
+  const nodeDirAbsolute = await resolveNodeDirAbsoluteFromManifest(manifestRelPath);
+  if (!nodeDirAbsolute) return;
+  await writeNodePageReadState(nodeDirAbsolute, false);
+}
+
+async function invalidateNodeReadStateForStorageFile(manifestRelPath, storageFolder, relFile) {
+  const nodeDirAbsolute = await resolveNodeDirAbsoluteFromManifest(manifestRelPath);
+  if (!nodeDirAbsolute) return;
+  const contentPath = normalizeReadContentPath(`${storageFolder}/${relFile}`);
+  if (!contentPath) return;
+  await clearNodeReadContentPath(nodeDirAbsolute, contentPath);
+}
+
 async function resolveApiNodeFrontmatterAbsolute(relPath) {
   const manifestAbsolute = await resolveApiManifestAbsolute(relPath);
   if (manifestAbsolute) return manifestAbsolute;
@@ -10753,7 +10803,7 @@ async function resolveGitRepoCreateParentPath(parentPathResolved) {
 
 function isGitRepoRootServiceLooseFile(name) {
   const base = String(name || "");
-  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base)) {
+  if (!base || base === MENU_SORT_FILE || isReadStateServiceFileName(base) || isAreaManifestFileName(base)) {
     return false;
   }
   return true;
@@ -10763,7 +10813,7 @@ async function isGitRepoLooseFileRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return false;
   const base = path.posix.basename(normalized);
-  if (!base || base === MENU_SORT_FILE || isAreaManifestFileName(base)) return false;
+  if (!base || base === MENU_SORT_FILE || isReadStateServiceFileName(base) || isAreaManifestFileName(base)) return false;
 
   const gitRoot = await resolveGitRepoRootForMenuPath(normalized);
   if (!gitRoot) return false;
@@ -11336,6 +11386,7 @@ function shouldSkipSearchDirectory(name) {
 
 function shouldSkipSearchEntry(name, isDirectory) {
   if (name === MENU_SORT_FILE) return true;
+  if (isReadStateServiceFileName(name)) return true;
   if (shouldSkipSearchDirectory(name)) return true;
   if (isDirectory) return isHiddenMenuEntry(name);
   if (name === ".env" || name === ".gitignore") return false;
@@ -13501,6 +13552,130 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/node/read") {
+    const manifestRelPath = String(url.searchParams.get("path") || "").trim();
+    if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await getNodeReadStatePayload(manifestRelPath);
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read node read state",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/node/read") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestRelPath = String(payload.path || "").trim();
+      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
+
+      const nodeDirAbsolute = await resolveNodeDirAbsoluteFromManifest(manifestRelPath);
+      if (!nodeDirAbsolute) return sendJson(res, 400, { error: "Invalid manifest path" });
+
+      if (Object.prototype.hasOwnProperty.call(payload, "read")) {
+        await writeNodePageReadState(nodeDirAbsolute, Boolean(payload.read));
+      } else if (payload.markPageRead) {
+        await writeNodePageReadState(nodeDirAbsolute, true);
+      }
+
+      if (payload.clearContentPath) {
+        await clearNodeReadContentPath(
+          nodeDirAbsolute,
+          normalizeReadContentPath(payload.clearContentPath)
+        );
+      }
+
+      if (payload.contentPath) {
+        await markNodeReadContentPath(
+          nodeDirAbsolute,
+          normalizeReadContentPath(payload.contentPath)
+        );
+      }
+
+      const result = await getNodeReadStatePayload(manifestRelPath);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update node read state",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/folder/read") {
+    const folderRelPath = String(url.searchParams.get("folderPath") || "").trim();
+    if (!folderRelPath) return sendJson(res, 400, { error: "Missing folderPath query parameter" });
+    try {
+      const folderAbsolute = normalizeWorkspacePath(folderRelPath);
+      if (!folderAbsolute || !folderAbsolute.startsWith(getAgentRoot())) {
+        return sendJson(res, 400, { error: "Invalid folder path" });
+      }
+      const stat = await fs.stat(folderAbsolute).catch(() => null);
+      if (!stat || !stat.isDirectory()) {
+        return sendJson(res, 404, { error: "Folder not found" });
+      }
+      const state = await readFolderReadState(folderAbsolute);
+      return sendJson(res, 200, {
+        folderPath: folderRelPath,
+        read: state.read,
+        paths: state.paths,
+        exists: state.exists
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read folder read state",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/read") {
+    try {
+      const payload = await readJsonBody(req);
+      const folderRelPath = String(payload.folderPath || "").trim();
+      if (!folderRelPath) return sendJson(res, 400, { error: "Missing folderPath" });
+
+      const folderAbsolute = normalizeWorkspacePath(folderRelPath);
+      if (!folderAbsolute || !folderAbsolute.startsWith(getAgentRoot())) {
+        return sendJson(res, 400, { error: "Invalid folder path" });
+      }
+      const stat = await fs.stat(folderAbsolute).catch(() => null);
+      if (!stat || !stat.isDirectory()) {
+        return sendJson(res, 404, { error: "Folder not found" });
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload, "read")) {
+        await writeFolderPageReadState(folderAbsolute, Boolean(payload.read));
+      } else if (payload.markFolderRead) {
+        await writeFolderPageReadState(folderAbsolute, true);
+      }
+
+      if (payload.contentPath) {
+        await markFolderReadPath(folderAbsolute, payload.contentPath, {
+          markFolderRead: Boolean(payload.markFolderRead)
+        });
+      }
+
+      const state = await readFolderReadState(folderAbsolute);
+      return sendJson(res, 200, {
+        folderPath: folderRelPath,
+        read: state.read,
+        paths: state.paths,
+        exists: state.exists
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update folder read state",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/chpu/resolve") {
     const chpuPath = String(url.searchParams.get("path") || "").trim();
     try {
@@ -13872,6 +14047,7 @@ async function handleApiForAgent(req, res, url) {
           await removeIfExists(legacyAbsolute);
         }
       }
+      await invalidateNodeReadStateForManifest(canonicalRelPath);
       return sendJson(res, 200, { path: canonicalRelPath, content: stampedContent });
     } catch (error) {
       return sendJson(res, 500, {
@@ -16070,6 +16246,7 @@ async function handleApiForAgent(req, res, url) {
         relFile: normalizedRelFile,
         existed: Boolean(existed)
       });
+      await invalidateNodeReadStateForStorageFile(relPath, storageFolder, normalizedRelFile);
       return sendJson(res, 200, { file: normalizedRelFile.replace(/\\/g, "/"), content });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save markdown", details: String(error.message || error) });
@@ -16150,6 +16327,7 @@ async function handleApiForAgent(req, res, url) {
         relFile: resolved.normalizedRelFile,
         existed: Boolean(existed)
       });
+      await invalidateNodeReadStateForStorageFile(relPath, resolved.folder, resolved.normalizedRelFile);
       return sendJson(res, 200, {
         folder: resolved.folder,
         file: resolved.normalizedRelFile.replace(/\\/g, "/"),

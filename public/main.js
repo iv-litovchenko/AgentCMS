@@ -3756,6 +3756,222 @@ function getOverviewNodeApiPath(nodePath = activePath) {
   return resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
 }
 
+const READ_STATE_FILE_NAME = "read.json";
+const READ_CONTENT_FILE_NAME = "read-content.json";
+const nodeReadStateCache = new Map();
+
+function isReadStateServiceFileName(name) {
+  const base = String(name || "").trim().toLowerCase();
+  return base === READ_STATE_FILE_NAME || base === READ_CONTENT_FILE_NAME;
+}
+
+function buildNodeReadContentStoragePath(relativePath, memoryKind = "external") {
+  const rel = String(relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!rel) return "";
+  const slotFolder =
+    memoryKind === "external"
+      ? "main"
+      : memoryKind === "media"
+        ? "media"
+        : memoryKind === "assets"
+          ? "assets"
+          : getFlatStorageSectionFolderName(memoryKind) || memoryKind;
+  if (rel.startsWith(`${slotFolder}/`)) return rel.replace(/\/+/g, "/");
+  return `${slotFolder}/${rel}`.replace(/\/+/g, "/");
+}
+
+function getNodeReadContentPathForItem(item, memoryKind = "external") {
+  const path = String(item?.path || item?.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!path) return "";
+  if (isSectionReadmePath(path)) return buildNodeReadContentStoragePath(path, memoryKind);
+  return buildNodeReadContentStoragePath(path, memoryKind);
+}
+
+function getNodeReadContentPathForFolder(folderPath, memoryKind = "external") {
+  const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  if (!folder) return "";
+  return buildNodeReadContentStoragePath(getSectionReadmeRelPath(folder), memoryKind);
+}
+
+function setCachedNodeReadState(manifestPath, { read = false, paths = [] } = {}) {
+  const key = normalizeMenuNodePath(manifestPath);
+  if (!key) return;
+  nodeReadStateCache.set(key, {
+    read: Boolean(read),
+    paths: new Set(Array.isArray(paths) ? paths.map((item) => String(item || "").trim()).filter(Boolean) : [])
+  });
+}
+
+function getCachedNodeReadState(manifestPath) {
+  return nodeReadStateCache.get(normalizeMenuNodePath(manifestPath)) || null;
+}
+
+function isNodePageUnread(manifestPath) {
+  const state = getCachedNodeReadState(manifestPath);
+  if (!state) return true;
+  return !state.read;
+}
+
+function isNodeContentUnread(manifestPath, storagePath) {
+  const normalized = String(storagePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+  const state = getCachedNodeReadState(manifestPath);
+  if (!state) return true;
+  return !state.paths.has(normalized);
+}
+
+async function fetchNodeReadState(manifestPath, { force = false } = {}) {
+  const key = normalizeMenuNodePath(manifestPath);
+  if (!key) return null;
+  if (!force && nodeReadStateCache.has(key)) return nodeReadStateCache.get(key);
+  try {
+    const response = await fetch(buildApiUrl("/api/node/read", { path: key }));
+    if (!response.ok) return null;
+    const data = await response.json();
+    setCachedNodeReadState(key, { read: data.read, paths: data.paths });
+    return getCachedNodeReadState(key);
+  } catch {
+    return null;
+  }
+}
+
+async function markNodePageRead(manifestPath) {
+  const key = normalizeMenuNodePath(manifestPath);
+  if (!key) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/node/read"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: key, markPageRead: true })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    setCachedNodeReadState(key, { read: data.read, paths: data.paths });
+    refreshNodeReadStateUi(key);
+  } catch {
+    // ignore
+  }
+}
+
+async function markNodeContentRead(manifestPath, relativePath, memoryKind = "external") {
+  const key = normalizeMenuNodePath(manifestPath);
+  const contentPath = buildNodeReadContentStoragePath(relativePath, memoryKind);
+  if (!key || !contentPath) return;
+  try {
+    const response = await fetch(buildApiUrl("/api/node/read"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: key, contentPath })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    setCachedNodeReadState(key, { read: data.read, paths: data.paths });
+    refreshNodeReadStateUi(key);
+  } catch {
+    // ignore
+  }
+}
+
+function collectMenuManifestPaths(node, acc = []) {
+  if (!node || typeof node !== "object") return acc;
+  const manifestPath = normalizeMenuNodePath(node.indexPath || node.path || "");
+  if (manifestPath && isNodeManifestPath(manifestPath)) acc.push(manifestPath);
+  for (const item of node.items || []) collectMenuManifestPaths(item, acc);
+  for (const section of node.sections || []) collectMenuManifestPaths(section, acc);
+  for (const nestedKey of ["containerTree", "sharedTree", "serviceTree", "systemTree"]) {
+    if (node[nestedKey]) collectMenuManifestPaths(node[nestedKey], acc);
+  }
+  return acc;
+}
+
+async function prefetchMenuReadStates(menu, agentId = activeAgentId) {
+  if (!menu) return;
+  const paths = [...new Set(collectMenuManifestPaths({ title: getAgentTreeTitle(agentId), ...menu }))];
+  await Promise.all(paths.map((manifestPath) => fetchNodeReadState(manifestPath)));
+}
+
+function createUnreadBadge({ title = "Не просмотрено" } = {}) {
+  const badge = document.createElement("span");
+  badge.className = "nav-unread-badge menu-unread-badge";
+  badge.textContent = "!";
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  return badge;
+}
+
+function upsertHostUnreadBadge(host, unread) {
+  if (!host) return;
+  const mount = host.classList?.contains("menu-item") || host.classList?.contains("menu-folder")
+    ? host.querySelector(".menu-folder-label") || host
+    : host;
+  let badge = mount.querySelector(":scope > .menu-unread-badge, :scope > .nav-unread-badge");
+  if (!badge && mount !== host) {
+    badge = host.querySelector(".menu-unread-badge, .nav-unread-badge");
+  }
+  if (!unread) {
+    badge?.remove();
+    host.classList.remove("has-menu-unread-badge");
+    return;
+  }
+  if (!badge) {
+    badge = createUnreadBadge();
+    mount.appendChild(badge);
+  }
+  host.classList.add("has-menu-unread-badge");
+}
+
+function syncMenuReadBadges(agentId = activeAgentId) {
+  const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  if (!root) return;
+  for (const host of root.querySelectorAll(
+    ".menu-item[data-path], .menu-folder[data-path], .menu-card-body[data-path]"
+  )) {
+    const path = normalizeMenuNodePath(host.dataset.path || "");
+    if (!path || !isNodeMdPath(path) || isPartNodePath(path)) {
+      upsertHostUnreadBadge(getMenuIntakeBadgesMount(host), false);
+      continue;
+    }
+    const unread = isNodePageUnread(path);
+    const mount = getMenuIntakeBadgesMount(host);
+    upsertHostUnreadBadge(mount, unread);
+  }
+}
+
+function refreshMenuReadBadges(agentId = activeAgentId) {
+  if (menuSearchQuery.trim()) return;
+  syncMenuReadBadges(agentId);
+}
+
+function refreshNodeReadStateUi(manifestPath) {
+  refreshMenuReadBadges(activeAgentId);
+  if (normalizeMenuNodePath(getActiveNodeApiPath()) !== normalizeMenuNodePath(manifestPath)) return;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    void renderEntryOverview();
+  } else if (activeContentMode === NODE_NAVIGATION_MODE) {
+    void renderNodeNavigation();
+  }
+}
+
+function appendNavUnreadBadgeForContent(host, manifestPath, item, memoryKind = "external") {
+  if (!host || !manifestPath) return;
+  const storagePath = getNodeReadContentPathForItem(item, memoryKind);
+  if (!storagePath || !isNodeContentUnread(manifestPath, storagePath)) return;
+  host.appendChild(createUnreadBadge());
+}
+
+function appendNavUnreadBadgeForFolder(host, manifestPath, folderPath, memoryKind = "external") {
+  if (!host || !manifestPath || !folderPath) return;
+  const storagePath = getNodeReadContentPathForFolder(folderPath, memoryKind);
+  if (!storagePath || !isNodeContentUnread(manifestPath, storagePath)) return;
+  host.appendChild(createUnreadBadge());
+}
+
 const NODE_OVERVIEW_SLOT_MEMORY_SPECS = [
   { id: "external", label: "Многофайловая", modeId: "external" },
   { id: "internal", label: "Однофайловая", modeId: "internal" },
@@ -11645,45 +11861,13 @@ function wrapWorkspaceSystemNoticeContent(root, variant) {
 }
 
 function buildDataHubSlugWarningElement(issue) {
-  const warn = document.createElement("div");
-  warn.className = "workspace-system-notice workspace-system-notice--danger data-hub-slug-warning";
-  warn.setAttribute("role", "alert");
-
-  const title = document.createElement("p");
-  title.className = "workspace-system-notice-title data-hub-slug-warning-title";
-  title.textContent = "Некорректный slug";
-  warn.appendChild(title);
-
-  const message = document.createElement("p");
-  message.className = "workspace-system-notice-message data-hub-slug-warning-message";
-  message.textContent = `Текущий элемент «${issue.current}» содержит недопустимые символы или регистр. Рекомендуется slug «${issue.suggested}».`;
-  warn.appendChild(message);
-
-  const canFix = canApplyDataHubSlugFix(issue);
-  const actions = document.createElement("div");
-  actions.className = "workspace-system-notice-actions data-hub-slug-warning-actions";
-
-  const actionBtn = document.createElement("button");
-  actionBtn.type = "button";
-  actionBtn.className =
-    "workspace-system-notice-action workspace-system-notice-action--primary data-hub-slug-warning-action";
-  actionBtn.textContent = "Преобразовать";
-  actionBtn.disabled = !canFix;
-  actionBtn.addEventListener("click", () => {
-    void applyDataHubSlugFix(issue, actionBtn);
+  const warn = createNavigationHeroSlugPathRow({
+    slug: issue?.current,
+    issue
   });
-  actions.appendChild(actionBtn);
-
-  if (!canFix) {
-    const hint = document.createElement("span");
-    hint.className = "workspace-system-notice-action-hint";
-    hint.textContent = "Сначала необходимо создать описание раздела.";
-    actions.appendChild(hint);
-  }
-
-  warn.appendChild(actions);
-
-  return wrapWorkspaceSystemNoticeContent(warn, "danger");
+  warn.classList.add("data-hub-slug-warning");
+  warn.setAttribute("role", "alert");
+  return warn;
 }
 
 async function applyDataHubSlugFix(issue, triggerBtn = null) {
@@ -11991,6 +12175,20 @@ function insertDataHubSlugWarningElement(warn, mount) {
   if (hero) {
     hero.insertAdjacentElement("afterend", warn);
     return;
+  }
+
+  const titleSlugValueHost =
+    titleSlugRowNode &&
+    !titleSlugRowNode.classList.contains("hidden") &&
+    mount === docSlabMainNode
+      ? titleSlugRowNode.querySelector(".editor-title-field-value")
+      : null;
+  if (titleSlugValueHost) {
+    const slugInputRow = titleSlugValueHost.querySelector(".slug-input-row");
+    if (slugInputRow) {
+      slugInputRow.insertAdjacentElement("afterend", warn);
+      return;
+    }
   }
 
   const titleBar = mount.querySelector("#editor-title-bar");
@@ -14627,6 +14825,11 @@ function createHeroTitleRow(title, statusRaw = "", options = {}) {
   if (attachmentsBadge) {
     titleNode.appendChild(attachmentsBadge);
   }
+  if (options.showUnread) {
+    const unreadBadge = createUnreadBadge({ title: "Страница ещё не просмотрена" });
+    unreadBadge.classList.add("node-navigation-hero-unread-badge");
+    titleNode.appendChild(unreadBadge);
+  }
   row.appendChild(titleNode);
   return row;
 }
@@ -16344,6 +16547,7 @@ async function openNodeOverview(label, filePath) {
   nodeMemoryViewActive = false;
   await selectNodeManifest(label, filePath, NODE_OVERVIEW_MODE);
   applyNodeWorkspaceViewUi();
+  void markNodePageRead(resolveManifestPathForNodeApi(filePath));
 }
 
 async function openNodeNavigation(label, filePath) {
@@ -16351,6 +16555,7 @@ async function openNodeNavigation(label, filePath) {
   nodeMemoryViewActive = false;
   await selectNodeManifest(label, filePath, NODE_NAVIGATION_MODE);
   applyNodeWorkspaceViewUi();
+  void markNodePageRead(resolveManifestPathForNodeApi(filePath));
 }
 
 async function openNodeFromMenu(label, filePath, options = {}) {
@@ -17611,6 +17816,11 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
     labelWrap.appendChild(runtimeBadges);
     host.classList.add("has-menu-runtime-badges");
   }
+  const manifestPath = normalizeMenuNodePath(source?.indexPath || source?.path || host.dataset.path || "");
+  if (manifestPath && isNodePageUnread(manifestPath)) {
+    labelWrap.appendChild(createUnreadBadge({ title: "Страница ещё не просмотрена" }));
+    host.classList.add("has-menu-unread-badge");
+  }
   host.appendChild(labelWrap);
 }
 
@@ -18784,6 +18994,7 @@ function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
   const base = normalized.split("/").filter(Boolean).pop() || "";
   if (isAreaManifestFileName(base)) return false;
   if (base.toLowerCase() === "sort.json") return false;
+  if (isReadStateServiceFileName(base)) return false;
   const parentFolder = normalized.includes("/")
     ? normalized.slice(0, normalized.lastIndexOf("/"))
     : ".";
@@ -40881,6 +41092,7 @@ async function openExternalFile(filePath, options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     await enableExternalFileEditor(data.file, data.content || "", options);
+    void markNodeContentRead(getActiveNodeApiPath(), data.file || filePath, "external");
   } catch (error) {
     showToast(`Ошибка открытия файла ${STORAGE_SUBFOLDER_CONTENT}`, "error");
   }
@@ -40945,6 +41157,7 @@ async function openFlatStorageFile(filePath, mode = activeContentMode, options =
     applyModeUi();
     renderListViewContent();
     await enableFlatStorageFileEditor(resolvedFile, data.content || "", options);
+    void markNodeContentRead(getActiveNodeApiPath(), resolvedFile, mode);
   } catch (error) {
     showToast(`Ошибка открытия файла: ${error.message}`, "error");
   }
@@ -42812,7 +43025,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       rowClass: options.titleRowClass,
       titleClass: options.titleClass,
       statusClass: options.statusClass,
-      titleTextClass: options.titleTextClass
+      titleTextClass: options.titleTextClass,
+      showUnread: Boolean(options.showUnread)
     });
 
     const pathNode = createNavigationHeroSlugPathRow({
@@ -46142,7 +46356,14 @@ function populateNavBookTocFolderLabel(
   folderIcon,
   folderNode,
   folderLabels,
-  { context = "navigation", folderStatuses, folderDescriptions, sectionManifestByFolder } = {}
+  {
+    context = "navigation",
+    folderStatuses,
+    folderDescriptions,
+    sectionManifestByFolder,
+    readManifestPath = getActiveNodeApiPath(),
+    readMemoryKind = "external"
+  } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
   const description =
@@ -46177,6 +46398,12 @@ function populateNavBookTocFolderLabel(
     leaders.setAttribute("aria-hidden", "true");
     folderLabel.appendChild(leaders);
   }
+  appendNavUnreadBadgeForFolder(
+    folderText,
+    readManifestPath,
+    folderNode.folderPath,
+    readMemoryKind
+  );
 }
 
 function getMediaItemContextPath(relativePath, nodePath = activePath) {
@@ -46901,6 +47128,15 @@ async function openEntryOverviewFromNavigation(context, options = {}) {
     resumeAppRouteSync();
   }
   if (!options.skipRouteSync) syncAppRouteToUrl({ replace: true });
+
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  if (isMemoryTocRoot) {
+    void markNodePageRead(manifestPath);
+  } else if (context.relativePath) {
+    void markNodeContentRead(manifestPath, context.relativePath, context.memoryKind || "external");
+  } else {
+    void markNodePageRead(manifestPath);
+  }
 }
 
 function openExternalRecordOverviewFromNavigation(item) {
@@ -48674,7 +48910,10 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
-    linkLeadingMode: context.memoryKind === "media" ? "media" : undefined
+    linkLeadingMode: context.memoryKind === "media" ? "media" : undefined,
+    readManifestPath: getOverviewNodeApiPath(activePath),
+    readMemoryKind: context.memoryKind,
+    resourceContextMenuMemoryKind: context.memoryKind
   };
 
   if (context.memoryKind === "media") {
@@ -49498,7 +49737,9 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
       folderDescriptions,
-      sectionManifestByFolder
+      sectionManifestByFolder,
+      readManifestPath: handlers.readManifestPath,
+      readMemoryKind: handlers.readMemoryKind
     });
     const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
       handlers,
@@ -49576,6 +49817,8 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
     nodePath,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
+    readManifestPath: getOverviewNodeApiPath(activePath),
+    readMemoryKind: context.memoryKind,
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   };
@@ -49632,6 +49875,9 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
+    readManifestPath: getOverviewNodeApiPath(activePath),
+    readMemoryKind: context.memoryKind,
+    resourceContextMenuMemoryKind: context.memoryKind,
     ...handlers
   };
   appendNavigationBookTocList(list, tree, 0, listHandlers);
@@ -49653,12 +49899,14 @@ async function renderEntryOverview() {
     !nodeOverviewContentNode;
 
   const topicPath = getResolvedNodePath(activePath);
+  const manifestApiPath = getOverviewNodeApiPath(topicPath);
   let [entries, bodyResult, nodeMeta, navigationIndex] = await Promise.all([
     isMemoryTocRoot ? [] : fetchEntryOverviewProperties(context.relPath, context),
     isMemoryTocRoot ? { content: "", ok: false } : fetchEntryOverviewBodyResult(context),
     isMemoryTocRoot ? fetchNodeNavigationMeta(topicPath) : fetchNodeNavigationMeta(context.relPath),
     fetchEntryOverviewNavigationIndex(context, topicPath)
   ]);
+  await fetchNodeReadState(manifestApiPath);
   const rawBody = String(bodyResult?.content || "");
   const manifestBodyFetchOk =
     !isMemoryTocRoot &&
@@ -49758,6 +50006,13 @@ async function renderEntryOverview() {
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
   const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
+  const showHeroUnread = isMemoryTocRoot
+    ? isNodePageUnread(manifestApiPath)
+    : isNodeContentUnread(
+        manifestApiPath,
+        buildNodeReadContentStoragePath(context.relativePath, context.memoryKind),
+        context.memoryKind
+      );
 
   const hero =
     context.entryKind === "awn.media.asset"
@@ -49775,6 +50030,7 @@ async function renderEntryOverview() {
             : createEntryOverviewThumbWrap(context, preview, title, entries),
           showWorkspaceMarkers: false,
           showHeroProps: false,
+          showUnread: showHeroUnread,
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav
         });
@@ -50467,7 +50723,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     populateNavBookTocFolderLabel(folderLabel, folderIcon, folderNode, folderLabels, {
       folderStatuses,
       folderDescriptions,
-      sectionManifestByFolder
+      sectionManifestByFolder,
+      readManifestPath: handlers.readManifestPath,
+      readMemoryKind: handlers.readMemoryKind
     });
     const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
       handlers,
@@ -50543,6 +50801,12 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
 
     appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
+    appendNavUnreadBadgeForContent(
+      text,
+      handlers.readManifestPath || getActiveNodeApiPath(),
+      item,
+      handlers.readMemoryKind || handlers.resourceContextMenuMemoryKind || "external"
+    );
     link.append(text, leaders);
     const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
     if (fileIsCurrent) link.classList.add("is-current");
@@ -50588,6 +50852,8 @@ function renderNavigationExternalBookToc(
     showBranchLeading: false,
     treeStyle: "guide",
     resourceContextMenuMemoryKind: "external",
+    readManifestPath: getActiveNodeApiPath(),
+    readMemoryKind: "external",
     ...getEntryOverviewNavigationHandlers("external")
   });
   nav.appendChild(list);
@@ -57502,6 +57768,8 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     collapseDepthThreshold: 99,
     activeContext: activeCtx,
     resourceContextMenuMemoryKind: memoryKind,
+    readManifestPath: resolveManifestPathForNodeApi(nodePath),
+    readMemoryKind: memoryKind,
     ...handlers
   };
 
@@ -58052,10 +58320,15 @@ async function renderNodeNavigation() {
   if (isStale()) return;
 
   const nodePath = getResolvedNodePath(activePath);
+  const manifestApiPath = resolveManifestPathForNodeApi(nodePath);
+  await fetchNodeReadState(manifestApiPath);
+  if (isStale()) return;
+
   const childEntries = getNavigationSubsectionEntries();
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
   const heroTitle = getOverviewTitleFromProps(entries);
+  const showHeroUnread = isNodePageUnread(manifestApiPath);
 
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
@@ -58111,6 +58384,7 @@ async function renderNodeNavigation() {
     showHeroInstruction: true,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
+    showUnread: showHeroUnread,
     onEditClick: openDescriptionFromOverview,
     entryOverviewNav: topicSiblingNav
   });
@@ -61212,15 +61486,20 @@ function showTitleSlugRow(nodePath = getActiveTitleEditorPath()) {
   if (!titleSlugRowNode) return;
   const visible = isTitleSlugRowVisible(nodePath);
   titleSlugRowNode.classList.toggle("hidden", !visible);
-  if (!visible || !titleSlugInputNode) return;
+  if (!visible || !titleSlugInputNode) {
+    syncDataHubSlugWarning(activeContentMode);
+    return;
+  }
   const renameSupported = isTitleSlugRenameSupported(nodePath);
   titleSlugUnlinkBtn?.classList.toggle("hidden", !renameSupported);
   if (!renameSupported) {
     titleSlugInputNode.readOnly = true;
     titleSlugUnlinkBtn?.classList.add("hidden");
+    syncDataHubSlugWarning(activeContentMode);
     return;
   }
   applyTitleSlugLinkedUi();
+  syncDataHubSlugWarning(activeContentMode);
 }
 
 function normalizeAwnNameForStorage(displayName, slug) {
@@ -65246,6 +65525,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     refreshMenuTreeRuntimeBadges(agentId);
+    void prefetchMenuReadStates(menu, agentId).then(() => refreshMenuReadBadges(agentId));
   }
 
   if (agentId === activeAgentId) {
