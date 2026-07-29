@@ -396,8 +396,258 @@ const createSectionAfterEditRadio = document.getElementById("create-section-afte
 const createSectionAfterRadios = [createSectionAfterListRadio, createSectionAfterEditRadio].filter(Boolean);
 const CREATE_MEMORY_MAX_COUNT = 5;
 const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
-const CREATE_MEMORY_FORMAT_KEY = "acms.createMemory.format.v2";
+const CREATE_MEMORY_FORMAT_KEY = "acms.createMemory.format.v3";
 const CREATE_MEMORY_FORMAT_SLOT_MODES = new Set(["media", "assets", "repository", "scripts"]);
+const CREATE_MEMORY_FORMAT_OPTIONS = [
+  {
+    value: ".md",
+    label: "Markdown",
+    ext: ".md",
+    hint: "запись",
+    group: "Запись",
+    keywords: "markdown md frontmatter yaml запись"
+  },
+  {
+    value: ".txt",
+    label: "Plain text",
+    ext: ".txt",
+    hint: "текст",
+    group: "Текст и данные",
+    keywords: "text txt plain текст"
+  },
+  {
+    value: ".json",
+    label: "JSON",
+    ext: ".json",
+    hint: "данные",
+    group: "Текст и данные",
+    keywords: "json data config"
+  },
+  {
+    value: ".yaml",
+    label: "YAML",
+    ext: ".yaml",
+    hint: "конфиг",
+    group: "Текст и данные",
+    keywords: "yaml yml config configuration"
+  },
+  {
+    value: ".yml",
+    label: "YML",
+    ext: ".yml",
+    hint: "конфиг",
+    group: "Текст и данные",
+    keywords: "yaml yml config configuration"
+  },
+  {
+    value: ".toml",
+    label: "TOML",
+    ext: ".toml",
+    hint: "конфиг",
+    group: "Текст и данные",
+    keywords: "toml config configuration"
+  },
+  {
+    value: ".csv",
+    label: "CSV",
+    ext: ".csv",
+    hint: "таблица",
+    group: "Текст и данные",
+    keywords: "csv table spreadsheet таблица"
+  },
+  {
+    value: ".xml",
+    label: "XML",
+    ext: ".xml",
+    hint: "разметка",
+    group: "Текст и данные",
+    keywords: "xml markup"
+  },
+  {
+    value: ".ini",
+    label: "INI",
+    ext: ".ini",
+    hint: "конфиг",
+    group: "Текст и данные",
+    keywords: "ini config settings"
+  },
+  {
+    value: ".env",
+    label: "ENV",
+    ext: ".env",
+    hint: "переменные",
+    group: "Текст и данные",
+    keywords: "env environment variables dotenv"
+  },
+  {
+    value: ".log",
+    label: "Log",
+    ext: ".log",
+    hint: "журнал",
+    group: "Текст и данные",
+    keywords: "log journal logging"
+  },
+  {
+    value: ".html",
+    label: "HTML",
+    ext: ".html",
+    hint: "веб",
+    group: "Веб",
+    keywords: "html web webpage"
+  },
+  {
+    value: ".css",
+    label: "CSS",
+    ext: ".css",
+    hint: "стили",
+    group: "Веб",
+    keywords: "css styles stylesheet"
+  },
+  {
+    value: ".js",
+    label: "JavaScript",
+    ext: ".js",
+    hint: "скрипт",
+    group: "Веб",
+    keywords: "javascript js node nodejs script"
+  },
+  {
+    value: ".jsx",
+    label: "JSX",
+    ext: ".jsx",
+    hint: "react",
+    group: "Веб",
+    keywords: "jsx react javascript"
+  },
+  {
+    value: ".ts",
+    label: "TypeScript",
+    ext: ".ts",
+    hint: "скрипт",
+    group: "Веб",
+    keywords: "typescript ts script"
+  },
+  {
+    value: ".tsx",
+    label: "TSX",
+    ext: ".tsx",
+    hint: "react",
+    group: "Веб",
+    keywords: "tsx react typescript"
+  },
+  {
+    value: ".py",
+    label: "Python",
+    ext: ".py",
+    hint: "агент",
+    group: "Скрипты и агенты",
+    keywords: "python py script agent automation pip"
+  },
+  {
+    value: ".sh",
+    label: "Shell",
+    ext: ".sh",
+    hint: "bash",
+    group: "Скрипты и агенты",
+    keywords: "shell sh bash script terminal"
+  },
+  {
+    value: ".bash",
+    label: "Bash",
+    ext: ".bash",
+    hint: "shell",
+    group: "Скрипты и агенты",
+    keywords: "bash shell script terminal"
+  },
+  {
+    value: ".zsh",
+    label: "Zsh",
+    ext: ".zsh",
+    hint: "shell",
+    group: "Скрипты и агенты",
+    keywords: "zsh shell script terminal macos"
+  },
+  {
+    value: ".ps1",
+    label: "PowerShell",
+    ext: ".ps1",
+    hint: "windows",
+    group: "Скрипты и агенты",
+    keywords: "powershell ps1 windows script"
+  },
+  {
+    value: ".bat",
+    label: "Batch",
+    ext: ".bat",
+    hint: "cmd",
+    group: "Скрипты и агенты",
+    keywords: "batch bat cmd windows script"
+  },
+  {
+    value: ".cmd",
+    label: "CMD",
+    ext: ".cmd",
+    hint: "windows",
+    group: "Скрипты и агенты",
+    keywords: "cmd command batch windows script"
+  },
+  {
+    value: ".rb",
+    label: "Ruby",
+    ext: ".rb",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "ruby rb script gem"
+  },
+  {
+    value: ".go",
+    label: "Go",
+    ext: ".go",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "go golang script"
+  },
+  {
+    value: ".rs",
+    label: "Rust",
+    ext: ".rs",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "rust rs script cargo"
+  },
+  {
+    value: ".php",
+    label: "PHP",
+    ext: ".php",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "php script web"
+  },
+  {
+    value: ".lua",
+    label: "Lua",
+    ext: ".lua",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "lua script"
+  },
+  {
+    value: ".pl",
+    label: "Perl",
+    ext: ".pl",
+    hint: "скрипт",
+    group: "Скрипты и агенты",
+    keywords: "perl pl script"
+  },
+  {
+    value: ".sql",
+    label: "SQL",
+    ext: ".sql",
+    hint: "запросы",
+    group: "Скрипты и агенты",
+    keywords: "sql database query postgres mysql"
+  }
+];
 const createMemoryModalNode = document.getElementById("create-memory-modal");
 const createMemoryCardNode = createMemoryModalNode?.querySelector(".create-memory-card");
 const createMemoryHintNode = createMemoryModalNode?.querySelector(".create-memory-hint");
@@ -420,7 +670,14 @@ const createMemoryAfterRadios = [createMemoryAfterListRadio, createMemoryAfterEd
 const createMemoryMaskFieldsetNode = document.getElementById("create-memory-mask-fieldset");
 const createMemoryMaskPreviewNode = document.getElementById("create-memory-mask-preview");
 const createMemoryFormatFieldsetNode = document.getElementById("create-memory-format-fieldset");
+const createMemoryFormatPickerNode = document.getElementById("create-memory-format-picker");
 const createMemoryFormatSelectNode = document.getElementById("create-memory-format-select");
+const createMemoryFormatTriggerNode = document.getElementById("create-memory-format-trigger");
+const createMemoryFormatTriggerLabelNode = document.getElementById("create-memory-format-trigger-label");
+const createMemoryFormatPanelNode = document.getElementById("create-memory-format-panel");
+const createMemoryFormatSearchNode = document.getElementById("create-memory-format-search");
+const createMemoryFormatOptionsNode = document.getElementById("create-memory-format-options");
+let createMemoryFormatPickerOpen = false;
 const createMemoryCancelBtn = document.getElementById("create-memory-cancel-btn");
 const createMemoryOkBtn = document.getElementById("create-memory-ok-btn");
 let activeCreateMemoryMask = "";
@@ -1694,7 +1951,7 @@ async function applyChpuResolvedRoute(resolved) {
           }
           return;
         }
-        if (FLAT_STORAGE_SECTION_MODES.has(contentMode) && /\.md$/i.test(relInSlot)) {
+        if (FLAT_STORAGE_SECTION_MODES.has(contentMode) && isFlatStorageEditableRecordPath(relInSlot)) {
           await openFlatStorageFile(relInSlot, contentMode, { skipRouteSync: true });
           return;
         }
@@ -2651,7 +2908,7 @@ async function applyFlatStorageRouteStateFromUrl(route) {
   applyModeUi();
   renderListViewContent();
   const relativePath = String(route.resourcePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (route.subView === "edit" && relativePath && /\.md$/i.test(relativePath)) {
+  if (route.subView === "edit" && relativePath && isFlatStorageEditableRecordPath(relativePath)) {
     await openFlatStorageFile(relativePath, route.view, { skipRouteSync: true });
   }
 }
@@ -20813,15 +21070,14 @@ function isCurrentModeListTemplate() {
   if (activeSystemFile) return false;
   const externalEditing = isExternalFileEditingOrOpening();
   const mediaSidecarEditing = isMediaAssetEditing();
+  const flatStorageEditing = isFlatStorageFileEditing();
   return (
     activeContentMode === "internal" ||
     activeContentMode === "todo" ||
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
-    (isFlatStorageListMode() && !isFlatStorageFileEditing()) ||
-    (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
-    activeContentMode === "temp" ||
-    activeContentMode === "scripts"
+    (isFlatStorageListMode() && !flatStorageEditing) ||
+    (isMediaLibraryContentMode() && !mediaSidecarEditing)
   );
 }
 
@@ -27996,8 +28252,10 @@ async function refreshAfterExternalWorkspaceCreate({ openForEdit = false } = {})
 }
 
 function resolveCreatedSlotRecordEditPath(filePath, mode = activeContentMode) {
-  const normalized = String(filePath || "").replace(/\\/g, "/").trim();
-  if (!normalized || /\.md$/i.test(normalized)) return normalized;
+  const normalized = normalizeStorageEditorRelPath(filePath);
+  if (!normalized || /\.md$/i.test(normalized) || isPlainTextFlatStorageRecordPath(normalized)) {
+    return normalized;
+  }
   if (isMediaLibraryContentMode(mode) || mode === "media" || mode === "assets") {
     return normalized.replace(/\.[^./]+$/i, ".sidecar.md");
   }
@@ -31189,7 +31447,7 @@ function syncTitleInputEditableState() {
     titleInputNode.readOnly = false;
     if (externalEditing && activeExternalFilePath) {
       syncTitleFieldsFromNode(activeExternalFilePath);
-    } else if (isFlatStorageMarkdownRecordEditing()) {
+    } else if (isFlatStorageFileEditing()) {
       syncTitleFieldsFromNode(activeFlatStorageFilePath);
     } else if (isMediaMarkdownEditing() && activeMediaMarkdownPath) {
       syncTitleFieldsFromNode(activeMediaMarkdownPath);
@@ -31397,12 +31655,58 @@ function isExternalFileEditing() {
   return activeContentMode === "external" && Boolean(activeExternalFilePath);
 }
 
+function normalizeStorageEditorRelPath(filePath) {
+  return String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+}
+
+function isSameStorageEditorPath(left, right) {
+  const normalizedLeft = normalizeStorageEditorRelPath(left);
+  const normalizedRight = normalizeStorageEditorRelPath(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+}
+
+const FLAT_STORAGE_PLAIN_TEXT_EXTENSIONS = new Set(
+  CREATE_MEMORY_FORMAT_OPTIONS.map((option) => option.value).filter((value) => value && value !== ".md")
+);
+
+function getFlatStorageRecordExtension(filePath) {
+  const fileName = normalizeStorageEditorRelPath(filePath).split("/").filter(Boolean).pop() || "";
+  const match = fileName.match(/(\.[^./]+)$/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function isPlainTextFlatStorageRecordPath(filePath) {
+  return FLAT_STORAGE_PLAIN_TEXT_EXTENSIONS.has(getFlatStorageRecordExtension(filePath));
+}
+
+function stripStorageRecordSlugFromFileName(fileName) {
+  const raw = String(fileName || "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower.endsWith(".md")) return raw.slice(0, -3).trim();
+  const extension = getFlatStorageRecordExtension(raw);
+  if (extension && FLAT_STORAGE_PLAIN_TEXT_EXTENSIONS.has(extension)) {
+    return raw.slice(0, -extension.length).trim();
+  }
+  return raw.trim();
+}
+
 function isFlatStorageFileEditing() {
   return isFlatStorageSectionMode() && Boolean(activeFlatStorageFilePath);
 }
 
 function isFlatStorageMarkdownRecordEditing() {
   return isFlatStorageFileEditing() && /\.md$/i.test(String(activeFlatStorageFilePath || ""));
+}
+
+function isFlatStorageEditableRecordPath(filePath = activeFlatStorageFilePath) {
+  const normalized = normalizeStorageEditorRelPath(filePath);
+  if (!normalized) return false;
+  return /\.md$/i.test(normalized) || isPlainTextFlatStorageRecordPath(normalized);
+}
+
+function isFlatStorageEditableRecordEditing() {
+  return isFlatStorageFileEditing() && isFlatStorageEditableRecordPath(activeFlatStorageFilePath);
 }
 
 function isStorageSlotMarkdownRecordEditing() {
@@ -31417,8 +31721,11 @@ function buildFlatStorageFileContent() {
   if (activeFlatStorageFilePath) {
     syncDisplayNameIntoAwnNameProp(activeFlatStorageFilePath);
   }
-  flushPropsYamlFromFormBeforeSave();
-  return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
+  if (isFlatStorageMarkdownRecordEditing()) {
+    flushPropsYamlFromFormBeforeSave();
+    return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
+  }
+  return fileContentInputNode.value || "";
 }
 
 let propsFormEntries = [];
@@ -34024,7 +34331,7 @@ function getPropsContextPath(nodePath = activePath) {
     return `${getNodeStorageSubfolderPath(manifestBase, "external")}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (manifestBase && isFlatStorageMarkdownRecordEditing()) {
+  if (manifestBase && isFlatStorageFileEditing()) {
     const rel = String(activeFlatStorageFilePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     return `${getNodeStorageSubfolderPath(manifestBase, getFlatStorageSectionFolderName(activeContentMode))}/${rel}`.replace(
       /\/+/g,
@@ -34098,7 +34405,7 @@ function getPropertiesApiPath() {
     return getPropsContextPath();
   }
 
-  if (isFlatStorageMarkdownRecordEditing()) {
+  if (isFlatStorageFileEditing()) {
     return getPropsContextPath();
   }
 
@@ -40904,16 +41211,22 @@ function applyMediaSidecarContentUi(rawContent) {
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
   await ensureTopicSchemaForActiveContext();
   const { frontmatter, body } = splitFrontmatter(rawContent);
-  setPropsYamlContent(frontmatter);
   if (mode === "external") {
     const recordPath = activeExternalFilePath || activeFlatStorageFilePath;
     const titleHint =
       getNodeDisplayTitleFromFrontmatter(recordPath, frontmatter) ||
       titleInputNode?.value?.trim() ||
       "";
+    setPropsYamlContent(frontmatter);
     fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
     return;
   }
+  if (mode === "flat-plain") {
+    setPropsYamlContent("");
+    fileContentInputNode.value = rawContent || "";
+    return;
+  }
+  setPropsYamlContent(frontmatter);
   fileContentInputNode.value = body;
 }
 
@@ -41126,6 +41439,8 @@ async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
 function syncPropsInputPlaceholder() {
   if (isExternalFileEditing() || isMediaAssetEditing() || isFlatStorageMarkdownRecordEditing()) {
     propsInputNode.placeholder = "awn-name: Заметка\nawn-tags:\n  - пример\nawn-status: draft";
+  } else if (isFlatStorageFileEditing()) {
+    propsInputNode.placeholder = "Свойства недоступны для этого типа файла";
   } else {
     propsInputNode.placeholder = "awn-name: Название\nawn-tags:\n  - пример\nawn-status: active";
   }
@@ -41186,7 +41501,8 @@ async function enableFlatStorageFileEditor(filePath, content, options = {}) {
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
   showTitleEditableInput();
-  await applyStorageFileContentUi(content || "", { mode: "external" });
+  const contentMode = isFlatStorageMarkdownRecordEditing() ? "external" : "flat-plain";
+  await applyStorageFileContentUi(content || "", { mode: contentMode });
   syncTitleFieldsFromNode(filePath);
   syncPropsInputPlaceholder();
   renderEditorCustomPropsBar();
@@ -41194,6 +41510,7 @@ async function enableFlatStorageFileEditor(filePath, content, options = {}) {
   applyModeUi();
   setEditorViewMode("preview", { skipRouteSync: true });
   syncNodeMemoryEntryViewControls();
+  syncTitleFieldsFromNode(filePath);
   commitEditorSaveBaseline();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
@@ -41202,10 +41519,12 @@ async function enableFlatStorageFileEditor(filePath, content, options = {}) {
 
 async function openFlatStorageFile(filePath, mode = activeContentMode, options = {}) {
   if (!activePath) return;
-  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const normalized = normalizeStorageEditorRelPath(filePath);
   if (!normalized || !isFlatStorageSectionMode(mode)) return;
-  if (!/\.md$/i.test(normalized)) {
-    showToast("Редактирование доступно только для Markdown-файлов.", "info");
+  const isMarkdown = /\.md$/i.test(normalized);
+  const isPlainText = isPlainTextFlatStorageRecordPath(normalized);
+  if (!isMarkdown && !isPlainText) {
+    showToast("Редактирование доступно только для текстовых файлов.", "info");
     return;
   }
   if (options.memoryEntryCloseTargetView != null) {
@@ -41214,8 +41533,9 @@ async function openFlatStorageFile(filePath, mode = activeContentMode, options =
     assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
   }
   try {
+    const apiPath = isMarkdown ? "/api/storage/markdown" : "/api/storage/file";
     const response = await fetch(
-      buildApiUrl("/api/storage/markdown", {
+      buildApiUrl(apiPath, {
         path: getActiveNodeApiPath(),
         folder: getFlatStorageSectionFolderName(mode),
         file: normalized
@@ -41223,7 +41543,7 @@ async function openFlatStorageFile(filePath, mode = activeContentMode, options =
     );
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    const resolvedFile = String(data.file || normalized).replace(/\\/g, "/");
+    const resolvedFile = normalizeStorageEditorRelPath(data.file || normalized);
     const parentFolder = resolvedFile.includes("/")
       ? resolvedFile.split("/").filter(Boolean).slice(0, -1).join("/")
       : null;
@@ -41260,27 +41580,193 @@ function shouldShowCreateMemoryFormatFieldset() {
   return CREATE_MEMORY_FORMAT_SLOT_MODES.has(getActiveSlotRecordCreateMode());
 }
 
+function getCreateMemoryFormatOption(value = getCreateMemoryFormatValue()) {
+  return CREATE_MEMORY_FORMAT_OPTIONS.find((option) => option.value === value) || CREATE_MEMORY_FORMAT_OPTIONS[0];
+}
+
+function getCreateMemoryFormatValue() {
+  const raw = String(createMemoryFormatSelectNode?.value || ".md").trim() || ".md";
+  return CREATE_MEMORY_FORMAT_OPTIONS.some((option) => option.value === raw) ? raw : ".md";
+}
+
+function setCreateMemoryFormatValue(value, { persist = false } = {}) {
+  const nextValue = getCreateMemoryFormatOption(value).value;
+  if (createMemoryFormatSelectNode) createMemoryFormatSelectNode.value = nextValue;
+  syncCreateMemoryFormatTriggerLabel();
+  renderCreateMemoryFormatOptions(createMemoryFormatSearchNode?.value || "");
+  if (persist) persistCreateMemoryFormatChoice();
+}
+
+function syncCreateMemoryFormatTriggerLabel() {
+  const option = getCreateMemoryFormatOption();
+  if (!createMemoryFormatTriggerLabelNode) return;
+  const extLabel = option.ext.replace(/^\./, "");
+  createMemoryFormatTriggerLabelNode.textContent = option.hint
+    ? `${option.label} (${extLabel}) — ${option.hint}`
+    : `${option.label} (${extLabel})`;
+}
+
+function renderCreateMemoryFormatOptions(filter = "") {
+  if (!createMemoryFormatOptionsNode) return;
+  const query = String(filter || "").trim().toLowerCase();
+  const selectedValue = getCreateMemoryFormatValue();
+  createMemoryFormatOptionsNode.replaceChildren();
+
+  const grouped = new Map();
+  for (const option of CREATE_MEMORY_FORMAT_OPTIONS) {
+    const haystack = `${option.label} ${option.ext} ${option.hint || ""} ${option.group} ${option.keywords || ""}`.toLowerCase();
+    if (query && !haystack.includes(query)) continue;
+    if (!grouped.has(option.group)) grouped.set(option.group, []);
+    grouped.get(option.group).push(option);
+  }
+
+  if (grouped.size === 0) {
+    const empty = document.createElement("div");
+    empty.className = "create-memory-format-empty";
+    empty.textContent = "Ничего не найдено";
+    createMemoryFormatOptionsNode.appendChild(empty);
+    return;
+  }
+
+  for (const [group, options] of grouped) {
+    const groupNode = document.createElement("div");
+    groupNode.className = "create-memory-format-group";
+
+    const title = document.createElement("div");
+    title.className = "create-memory-format-group-title";
+    title.textContent = group;
+    groupNode.appendChild(title);
+
+    for (const option of options) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "create-memory-format-option";
+      btn.dataset.value = option.value;
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", option.value === selectedValue ? "true" : "false");
+      btn.classList.toggle("is-selected", option.value === selectedValue);
+
+      const label = document.createElement("span");
+      label.className = "create-memory-format-option-label";
+      label.textContent = option.label;
+
+      const ext = document.createElement("code");
+      ext.className = "create-memory-format-option-ext";
+      ext.textContent = option.ext;
+
+      const meta = document.createElement("span");
+      meta.className = "create-memory-format-option-meta";
+      if (option.hint) {
+        const hint = document.createElement("span");
+        hint.className = "create-memory-format-option-hint";
+        hint.textContent = option.hint;
+        meta.appendChild(hint);
+      }
+
+      btn.append(label, ext, meta);
+      btn.addEventListener("click", () => {
+        setCreateMemoryFormatValue(option.value, { persist: false });
+        closeCreateMemoryFormatPicker({ focusTrigger: true });
+      });
+      groupNode.appendChild(btn);
+    }
+
+    createMemoryFormatOptionsNode.appendChild(groupNode);
+  }
+}
+
+function syncCreateMemoryFormatPickerUi() {
+  const disabled = Boolean(createMemoryOkBtn?.disabled);
+  createMemoryFormatTriggerNode?.toggleAttribute("disabled", disabled);
+  createMemoryFormatSearchNode?.toggleAttribute("disabled", disabled);
+  createMemoryFormatTriggerNode?.classList.toggle("is-disabled", disabled);
+  if (disabled) closeCreateMemoryFormatPicker();
+}
+
+function openCreateMemoryFormatPicker() {
+  if (!createMemoryFormatPanelNode || createMemoryFormatTriggerNode?.disabled) return;
+  createMemoryFormatPickerOpen = true;
+  createMemoryFormatPanelNode.classList.remove("hidden");
+  createMemoryFormatTriggerNode?.setAttribute("aria-expanded", "true");
+  createMemoryFormatPickerNode?.classList.add("is-open");
+  renderCreateMemoryFormatOptions(createMemoryFormatSearchNode?.value || "");
+  window.requestAnimationFrame(() => createMemoryFormatSearchNode?.focus());
+}
+
+function closeCreateMemoryFormatPicker({ focusTrigger = false } = {}) {
+  if (!createMemoryFormatPanelNode) return;
+  createMemoryFormatPickerOpen = false;
+  createMemoryFormatPanelNode.classList.add("hidden");
+  createMemoryFormatTriggerNode?.setAttribute("aria-expanded", "false");
+  createMemoryFormatPickerNode?.classList.remove("is-open");
+  if (createMemoryFormatSearchNode) createMemoryFormatSearchNode.value = "";
+  if (focusTrigger) createMemoryFormatTriggerNode?.focus();
+}
+
+function initCreateMemoryFormatPicker() {
+  if (!createMemoryFormatPickerNode) return;
+
+  createMemoryFormatTriggerNode?.addEventListener("click", () => {
+    if (createMemoryFormatPickerOpen) closeCreateMemoryFormatPicker({ focusTrigger: true });
+    else openCreateMemoryFormatPicker();
+  });
+
+  createMemoryFormatSearchNode?.addEventListener("input", () => {
+    renderCreateMemoryFormatOptions(createMemoryFormatSearchNode.value || "");
+  });
+
+  createMemoryFormatSearchNode?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCreateMemoryFormatPicker({ focusTrigger: true });
+      return;
+    }
+    if (event.key === "Enter") {
+      const firstOption = createMemoryFormatOptionsNode?.querySelector(".create-memory-format-option");
+      if (firstOption instanceof HTMLButtonElement) {
+        event.preventDefault();
+        firstOption.click();
+      }
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!createMemoryFormatPickerOpen) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (createMemoryFormatPickerNode?.contains(target)) return;
+    closeCreateMemoryFormatPicker();
+  });
+
+  createMemoryModalNode?.addEventListener("click", (event) => {
+    if (event.target === createMemoryModalNode) closeCreateMemoryFormatPicker();
+  });
+
+  syncCreateMemoryFormatTriggerLabel();
+  renderCreateMemoryFormatOptions();
+}
+
 function getCreateMemoryFileExtension() {
-  if (!shouldShowCreateMemoryFormatFieldset() || activeCreateMemoryMask) return "";
-  const ext = String(createMemoryFormatSelectNode?.value || ".md").trim() || ".md";
+  if (!shouldShowCreateMemoryFormatFieldset() || shouldUseCreateMemoryMaskFlow()) return "";
+  const ext = getCreateMemoryFormatValue();
   return ext === ".md" ? "" : ext;
 }
 
 function syncCreateMemoryFormatRadiosFromStorage() {
   const saved = localStorage.getItem(CREATE_MEMORY_FORMAT_KEY);
-  if (!createMemoryFormatSelectNode) return;
-  if (saved && [...createMemoryFormatSelectNode.options].some((option) => option.value === saved)) {
-    createMemoryFormatSelectNode.value = saved;
-  } else {
-    createMemoryFormatSelectNode.value = ".md";
+  if (saved && CREATE_MEMORY_FORMAT_OPTIONS.some((option) => option.value === saved)) {
+    setCreateMemoryFormatValue(saved);
+    return;
   }
+  setCreateMemoryFormatValue(".md");
 }
 
 function persistCreateMemoryFormatChoice() {
   const ext = getCreateMemoryFileExtension();
-  if (!ext) return;
+  const value = ext || ".md";
   try {
-    localStorage.setItem(CREATE_MEMORY_FORMAT_KEY, ext);
+    localStorage.setItem(CREATE_MEMORY_FORMAT_KEY, value);
   } catch {
     // ignore quota / private mode
   }
@@ -41307,7 +41793,7 @@ function syncCreateMemoryModalMaskUi(mask = activeCreateMemoryMask) {
     createMemoryHintNode.textContent = hasMask
       ? "Одна запись по маске. Название необязательно — файл создаётся автоматически."
       : shouldShowCreateMemoryFormatFieldset()
-        ? "До 5 markdown-записей за раз. Для файла изображения выберите формат ниже."
+        ? "До 5 записей за раз. Выберите текстовый формат или Markdown ниже."
         : "До 5 записей за раз. Пустые строки пропускаются.";
   }
   if (createMemoryNameInputNodes[0]) {
@@ -41446,7 +41932,7 @@ function setCreateMemoryModalBusy(busy) {
   for (const input of createMemorySlugInputNodes) input.disabled = busy;
   for (const button of createMemorySlugUnlinkBtns) button.disabled = busy;
   for (const radio of createMemoryAfterRadios) radio.disabled = busy;
-  if (createMemoryFormatSelectNode) createMemoryFormatSelectNode.disabled = busy;
+  syncCreateMemoryFormatPickerUi();
 }
 
 async function openCreateMemoryModal(entryOverviewContext = null) {
@@ -41461,6 +41947,7 @@ async function openCreateMemoryModal(entryOverviewContext = null) {
     return;
   }
   resetCreateMemoryNameInputs();
+  closeCreateMemoryFormatPicker();
   syncCreateMemoryAfterRadiosFromStorage();
   syncCreateMemoryFormatRadiosFromStorage();
   activeCreateMemoryMask = await loadActiveCreateMemoryMask();
@@ -41474,6 +41961,7 @@ async function openCreateMemoryModal(entryOverviewContext = null) {
 }
 
 function closeCreateMemoryModal() {
+  closeCreateMemoryFormatPicker();
   createMemoryModalNode.classList.add("hidden");
   resetCreateMemoryNameInputs();
   activeCreateMemoryMask = "";
@@ -42080,7 +42568,7 @@ function clearSystemFileViewUi() {
   appRootNode.classList.remove("system-file-view", "is-agent-type-form-mode");
   workspacePathHeaderNode?.classList.remove("is-service-file");
   clearAgentSystemTypeInspector();
-  if (!isMediaAssetEditing()) {
+  if (!isMediaAssetEditing() && !isFlatStorageFileEditing() && !isExternalFileEditing()) {
     resetTitleInputState();
   }
   saveSystemFileBtn?.classList.add("hidden");
@@ -61599,7 +62087,7 @@ function setCreateSlugLinked(linked) {
 
 function getActiveTitleEditorPath() {
   if (activeContentMode === "external" && activeExternalFilePath) return activeExternalFilePath;
-  if (isFlatStorageMarkdownRecordEditing()) return activeFlatStorageFilePath;
+  if (isFlatStorageFileEditing()) return activeFlatStorageFilePath;
   if (isMediaLibraryContentMode() && activeMediaMarkdownPath) return activeMediaMarkdownPath;
   if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath) return activeMediaSidecarSourcePath;
   return activePath;
@@ -61611,10 +62099,10 @@ function isTitleSlugRenameSupported(nodePath = getActiveTitleEditorPath()) {
   if (activeContentMode === "description") {
     return !isAgentRootIndexPath(nodePath) && !isPartNodePath(nodePath);
   }
-  if (activeContentMode === "external" && activeExternalFilePath === nodePath) {
+  if (activeContentMode === "external" && isSameStorageEditorPath(activeExternalFilePath, nodePath)) {
     return !isSectionReadmePath(nodePath);
   }
-  if (isFlatStorageMarkdownRecordEditing() && activeFlatStorageFilePath === nodePath) {
+  if (isFlatStorageFileEditing() && isSameStorageEditorPath(activeFlatStorageFilePath, nodePath)) {
     return !isSectionReadmePath(nodePath);
   }
   if (isMediaLibraryContentMode() && activeMediaMarkdownPath === nodePath) {
@@ -61631,8 +62119,12 @@ function isTitleSlugRowVisible(nodePath = getActiveTitleEditorPath()) {
   if (activeContentMode === "description") {
     return isTitleSlugRenameSupported(nodePath) || isSlugLockedManifestPath(nodePath);
   }
-  if (activeContentMode === "external" && activeExternalFilePath === nodePath) return true;
-  if (isFlatStorageMarkdownRecordEditing() && activeFlatStorageFilePath === nodePath) return true;
+  if (activeContentMode === "external" && isSameStorageEditorPath(activeExternalFilePath, nodePath)) {
+    return true;
+  }
+  if (isFlatStorageFileEditing() && isSameStorageEditorPath(activeFlatStorageFilePath, nodePath)) {
+    return true;
+  }
   if (isMediaLibraryContentMode() && activeMediaMarkdownPath === nodePath) return true;
   if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) return true;
   return false;
@@ -61704,7 +62196,7 @@ function getNodeSlugFromPath(filePath) {
     }
     return stripTopicPrefix(folderName);
   }
-  return stripTopicPrefix(fileName);
+  return stripStorageRecordSlugFromFileName(fileName);
 }
 
 function resolveNodeDisplayName(awnNameRaw, slug) {
@@ -67652,7 +68144,7 @@ async function saveContent() {
     ? getNodeSlugFromPath(activeFlatStorageFilePath)
     : "";
   const shouldRenameFlatStorage =
-    isFlatStorageMarkdownRecordEditing() &&
+    isFlatStorageFileEditing() &&
     isTitleSlugRenameSupported(activeFlatStorageFilePath) &&
     nextSlug &&
     nextSlug !== currentFlatStorageSlug;
@@ -67909,7 +68401,8 @@ async function saveContent() {
     }
 
     if (isFlatStorageFileEditing()) {
-      const response = await fetch(buildApiUrl("/api/storage/markdown"), {
+      const saveApiPath = isFlatStorageMarkdownRecordEditing() ? "/api/storage/markdown" : "/api/storage/file";
+      const response = await fetch(buildApiUrl(saveApiPath), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -75565,7 +76058,7 @@ titleInputNode?.addEventListener("input", () => {
     syncDisplayNameIntoAwnNameProp(activePath);
   } else if (activeExternalFilePath && titlePath === activeExternalFilePath) {
     syncDisplayNameIntoAwnNameProp(activeExternalFilePath);
-  } else if (isFlatStorageMarkdownRecordEditing() && titlePath === activeFlatStorageFilePath) {
+  } else if (isFlatStorageFileEditing() && isSameStorageEditorPath(titlePath, activeFlatStorageFilePath)) {
     syncDisplayNameIntoAwnNameProp(activeFlatStorageFilePath);
   } else if (activeMediaMarkdownPath && titlePath === activeMediaMarkdownPath) {
     syncDisplayNameIntoAwnNameProp(activeMediaMarkdownPath);
@@ -76065,6 +76558,7 @@ applyTitleSlugLinkedUi();
 applyCreateSlugLinkedUi();
 initCreateSectionSlugController();
 initCreateMemorySlugControllers();
+initCreateMemoryFormatPicker();
 void fetchDocsMeta()
   .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
   .catch(() => {});

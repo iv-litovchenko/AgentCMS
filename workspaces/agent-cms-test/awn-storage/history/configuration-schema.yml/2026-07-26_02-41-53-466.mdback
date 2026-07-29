@@ -1,9 +1,0 @@
-version: 1
-layer: workspace
-
-awn_schema:
-  workspace:
-    fields:
-      ws-priority:
-        type: awn.string
-        name: Приоритет WS

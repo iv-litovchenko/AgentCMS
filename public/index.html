@@ -2992,22 +2992,36 @@
         </div>
         <fieldset id="create-memory-format-fieldset" class="create-memory-format-fieldset hidden">
           <legend class="popover-label">Формат файла</legend>
-          <label class="create-memory-format-row" for="create-memory-format-select">
+          <div class="create-memory-format-row">
             <span class="create-memory-format-label">Тип</span>
-            <select id="create-memory-format-select" class="popover-input create-memory-format-select">
-              <option value=".md" selected>Markdown (.md) — запись</option>
-              <option value=".txt">Текст (.txt)</option>
-              <option value=".json">JSON (.json)</option>
-              <option value=".yaml">YAML (.yaml)</option>
-              <option value=".yml">YML (.yml)</option>
-              <option value=".csv">CSV (.csv)</option>
-              <option value=".xml">XML (.xml)</option>
-              <option value=".html">HTML (.html)</option>
-              <option value=".css">CSS (.css)</option>
-              <option value=".js">JavaScript (.js)</option>
-              <option value=".sh">Shell (.sh)</option>
-            </select>
-          </label>
+            <div id="create-memory-format-picker" class="create-memory-format-picker">
+              <input type="hidden" id="create-memory-format-select" value=".md" />
+              <button
+                id="create-memory-format-trigger"
+                class="create-memory-format-trigger popover-input"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-controls="create-memory-format-panel"
+              >
+                <span id="create-memory-format-trigger-label" class="create-memory-format-trigger-label">Markdown (.md) — запись</span>
+                <span class="create-memory-format-trigger-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div id="create-memory-format-panel" class="create-memory-format-panel hidden" role="listbox" aria-label="Формат файла">
+                <div class="create-memory-format-search-wrap">
+                  <input
+                    id="create-memory-format-search"
+                    class="create-memory-format-search popover-input"
+                    type="search"
+                    placeholder="Поиск: python, yaml, shell…"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+                <div id="create-memory-format-options" class="create-memory-format-options"></div>
+              </div>
+            </div>
+          </div>
         </fieldset>
         <fieldset id="create-memory-after-fieldset" class="create-memory-after-fieldset">
           <legend class="popover-label">После создания</legend>
