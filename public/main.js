@@ -17318,11 +17318,21 @@ function createMenuTreeTypeIcon(host) {
     return icon;
   }
   if (host.classList.contains("menu-folder-service-root")) {
-    icon.classList.add("menu-tree-type-icon--folder");
-    return icon;
+    return null;
   }
   if (host.classList.contains("menu-folder--adopt")) {
     icon.classList.add("menu-tree-type-icon--folder", "menu-tree-type-icon--folder-adopt");
+    return icon;
+  }
+  if (host.classList.contains("menu-section-title-agent")) {
+    return null;
+  }
+  if (host.classList.contains("menu-section-title--empty")) {
+    icon.classList.add("menu-tree-type-icon--folder", "menu-tree-type-icon--folder-adopt");
+    return icon;
+  }
+  if (host.classList.contains("menu-section-title")) {
+    icon.classList.add("menu-tree-type-icon--folder");
     return icon;
   }
   if (host.classList.contains("menu-folder")) {
@@ -17366,8 +17376,14 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   if (statusBadge) {
     host.classList.add("has-menu-tree-status");
     nameNode.appendChild(statusBadge);
-    const typeIcon = createMenuTreeTypeIcon(host);
-    if (typeIcon) nameNode.appendChild(typeIcon);
+  }
+
+  const typeIcon = createMenuTreeTypeIcon(host);
+  if (typeIcon) {
+    nameNode.appendChild(typeIcon);
+    if (host.classList.contains("menu-folder") || host.classList.contains("menu-item")) {
+      host.classList.add("has-menu-tree-status");
+    }
   }
 
   const titleText = document.createElement("span");
@@ -17460,6 +17476,95 @@ function getSectionFolderPath(node, parentSectionPath = "") {
   return `${parent}/${title}`;
 }
 
+function formatMenuFolderToggleGlyph(isCollapsed, hasContent) {
+  if (!hasContent) return "";
+  return isCollapsed ? "+" : "−";
+}
+
+function isMenuTreeBranchRowElement(el) {
+  if (!el?.classList) return false;
+  if (el.classList.contains("menu-tree-divider")) return false;
+  if (el.classList.contains("menu-container-section")) return false;
+  if (el.classList.contains("menu-section")) return true;
+  if (el.classList.contains("menu-item-row")) return true;
+  if (el.classList.contains("system-file-row")) return true;
+  if (el.classList.contains("menu-service-section")) return true;
+  if (el.classList.contains("menu-shared-section")) return true;
+  if (el.classList.contains("menu-agent-system-section")) return true;
+  if (el.classList.contains("menu-configuration-section")) return true;
+  return false;
+}
+
+function getMenuTreeBranchRows(container) {
+  return [...container.children].filter((el) => isMenuTreeBranchRowElement(el));
+}
+
+function applyClassicMenuTreeBranchClasses(root) {
+  if (!root) return;
+  root.querySelectorAll(".menu-tree-branch, .menu-tree-branch-last").forEach((el) => {
+    el.classList.remove("menu-tree-branch", "menu-tree-branch-last");
+  });
+  root.querySelectorAll(".tree-children").forEach((container) => {
+    const branches = getMenuTreeBranchRows(container);
+    branches.forEach((el, index) => {
+      el.classList.add("menu-tree-branch");
+      if (index === branches.length - 1) {
+        el.classList.add("menu-tree-branch-last");
+      }
+    });
+  });
+}
+
+function refreshClassicMenuTreeLines(agentId = activeAgentId) {
+  if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
+  const host = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  applyClassicMenuTreeBranchClasses(host);
+}
+
+function createMenuTreeToggleSpacer() {
+  const spacer = document.createElement("span");
+  spacer.className = "menu-tree-toggle-spacer";
+  spacer.setAttribute("aria-hidden", "true");
+  return spacer;
+}
+
+function appendMenuTreeItemRowLeadingSpacer(itemRow) {
+  if (!itemRow || !isMenuTreeLayoutMode()) return;
+  itemRow.insertBefore(createMenuTreeToggleSpacer(), itemRow.firstChild);
+}
+
+function menuTreeChildrenNodeHasRenderedContent(childrenNode) {
+  if (!childrenNode) return false;
+  if (getMenuTreeBranchRows(childrenNode).length > 0) return true;
+  return Boolean(
+    childrenNode.querySelector(
+      ":scope > .menu-section, :scope > .menu-item-row, :scope > .system-file-row, :scope > .system-file-group-label"
+    )
+  );
+}
+
+function resolveMenuSectionExpandMeta(sectionEl, agentId = activeAgentId) {
+  const folderPath = String(sectionEl?.dataset?.menuFolder || "").trim();
+  if (!folderPath) return null;
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return null;
+  const branch = getMenuBranchForFolder(menu, folderPath, agentId);
+  if (!branch?.node) return null;
+  return getMenuFolderExpandMeta(
+    branch.node,
+    agentId,
+    branch.parentSectionPath,
+    branch.depth,
+    folderPath
+  );
+}
+
+function resolveMenuSectionHasContent(sectionEl, agentId = activeAgentId) {
+  const expandMeta = resolveMenuSectionExpandMeta(sectionEl, agentId);
+  if (expandMeta) return expandMeta.hasContent;
+  return menuTreeChildrenNodeHasRenderedContent(sectionEl?.querySelector(":scope > .tree-children"));
+}
+
 function createFolderToggleButton(hasContent, isCollapsed, onToggle, options = {}) {
   const lockOpen = Boolean(options.lockOpen);
   const toggleBtn = document.createElement("button");
@@ -17467,12 +17572,12 @@ function createFolderToggleButton(hasContent, isCollapsed, onToggle, options = {
   toggleBtn.className = "folder-toggle-btn";
   if (lockOpen) {
     toggleBtn.classList.add("folder-toggle-btn--lock-open");
-    toggleBtn.textContent = "▾";
+    toggleBtn.textContent = "−";
     toggleBtn.disabled = true;
     toggleBtn.title = "";
     return toggleBtn;
   }
-  toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
+  toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasContent);
   toggleBtn.disabled = !hasContent;
   toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
   toggleBtn.addEventListener("click", (event) => {
@@ -19696,11 +19801,11 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   applyMenuFolderCollapsedUi(normalizedPath, agentId);
 }
 
-function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId) {
+function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId, options = {}) {
   const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuTreePreviews(agentId, () =>
-        withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId))
+        withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId, options))
       )
     : false;
   if (!patched && menu) {
@@ -19725,7 +19830,29 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   collapsedFolders.delete(normalizedPath);
   saveCollapsedFoldersByAgent();
-  applyMenuFolderCollapsedUi(normalizedPath, agentId);
+
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const patched = menu
+    ? withPreservedMenuTreePreviews(agentId, () =>
+        withPreservedMenuScroll(() => {
+          if (patchFolderCollapsedState(normalizedPath, agentId, { forceRebuild: true })) {
+            const sectionEl = findMenuSectionByFolderPath(normalizedPath, agentId);
+            const childrenNode = sectionEl?.querySelector(":scope > .tree-children");
+            if (menuTreeChildrenNodeHasRenderedContent(childrenNode)) return true;
+          }
+          return patchMenuTreeAtFolder(normalizedPath, agentId);
+        })
+      )
+    : false;
+
+  if (!patched && menu) {
+    withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
+  }
+
+  if (agentId === activeAgentId) {
+    updateActiveButton();
+    syncMenuCollapseAllButton();
+  }
 }
 
 function getMenuBranchLoadInFlight(agentId = activeAgentId) {
@@ -19767,9 +19894,12 @@ function getMenuFolderExpandMeta(
   const lazyExpandable = isMenuFolderLazyExpandable(node);
   const canExpandChildren =
     lazyExpandable || (!depthLimited && !isMenuTreeDepthAtLimit(depth + 1, agentId));
+  const hasActualChildren = hasNestedContainer || hasNonContainer || hasRepoService;
   const hasContent = isGitRepoMenuNode
     ? getGitRepoMenuHasContent(node, agentId, folderPath, depth)
-    : canExpandChildren && (lazyExpandable || hasNestedContainer || hasNonContainer || hasRepoService);
+    : lazyExpandable
+      ? true
+      : canExpandChildren && hasActualChildren;
 
   return {
     sectionFolderPath: folderPath,
@@ -19848,7 +19978,10 @@ async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
 
 async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
-  const node = getMenuTreeNodeByFolderPath(normalized, agentId);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return;
+  const branch = getMenuBranchForFolder(menu, normalized, agentId);
+  const node = branch?.node ?? getMenuTreeNodeByFolderPath(normalized, agentId);
   if (!node || !isMenuFolderLazyExpandable(node)) return;
 
   const inFlight = getMenuBranchLoadInFlight(agentId);
@@ -19858,7 +19991,6 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
   }
 
   const loadPromise = (async () => {
-    const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
     if (!menu) throw new Error("Кэш меню пуст — обновите дерево");
     setMenuBranchLoading(normalized, agentId, true);
     let branchPayload;
@@ -19876,15 +20008,6 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
     if (agentId === activeAgentId) {
       currentMenuData = menu;
       invalidateMenuDisplayLabelMap();
-    }
-    getAgentCollapsedFolders(agentId).delete(normalized);
-    const patched = withPreservedMenuScroll(() => {
-      // After lazy load, rebuild children once with fresh branch data.
-      if (patchFolderCollapsedState(normalized, agentId, { forceRebuild: true })) return true;
-      return patchMenuTreeAtFolder(normalized, agentId);
-    });
-    if (!patched) {
-      withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
     }
   })();
 
@@ -19965,8 +20088,8 @@ function expandAllMenuTreeBranches(agentId = activeAgentId) {
           const folderPath = sectionEl.dataset.menuFolder || ".";
           if (folderPath === ".") return;
           const childrenNode = sectionEl.querySelector(":scope > .tree-children");
-          syncFolderToggleUi(sectionEl, false, true);
-          if (childrenNode) {
+          syncFolderToggleUi(sectionEl, false, resolveMenuSectionHasContent(sectionEl, agentId));
+          if (childrenNode && menuTreeChildrenNodeHasRenderedContent(childrenNode)) {
             childrenNode.hidden = false;
             return;
           }
@@ -20006,7 +20129,7 @@ function collapseAllMenuTreeBranches(agentId = activeAgentId) {
           const folderPath = sectionEl.dataset.menuFolder || ".";
           if (folderPath === ".") return;
           const childrenNode = sectionEl.querySelector(":scope > .tree-children");
-          syncFolderToggleUi(sectionEl, true, Boolean(childrenNode) || true);
+          syncFolderToggleUi(sectionEl, true, resolveMenuSectionHasContent(sectionEl, agentId));
           if (childrenNode) childrenNode.hidden = true;
         });
         syncReservedMenuSectionsCollapsedUi(agentId, currentMenuData);
@@ -60855,6 +60978,7 @@ function appendRepoServiceMenuItems(container, repoServiceItems, parentMenuNode,
     const itemRow = document.createElement("div");
     itemRow.className = "menu-item-row menu-item-row--repo-service";
     itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
+    appendMenuTreeItemRowLeadingSpacer(itemRow);
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -61806,6 +61930,7 @@ function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row menu-agent-system-item-row";
   itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
+  appendMenuTreeItemRowLeadingSpacer(itemRow);
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -62260,6 +62385,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   parentEl.insertBefore(section, parentEl.firstChild);
   normalizeMenuReservedSectionsOrder(parentEl);
   refreshMenuSortDecorations(agentId);
+  refreshClassicMenuTreeLines(agentId);
 }
 
 function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
@@ -62365,6 +62491,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   insertMenuReservedNode(parentEl, section, "shared");
   normalizeMenuReservedSectionsOrder(parentEl);
   refreshMenuSortDecorations(agentId);
+  refreshClassicMenuTreeLines(agentId);
 }
 
 function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
@@ -62592,6 +62719,7 @@ function renderContainerSection(containerTree, parentEl, agentId = activeAgentId
   insertMenuReservedNode(parentEl, wrap, "container");
   normalizeMenuReservedSectionsOrder(parentEl);
   refreshMenuSortDecorations(agentId);
+  refreshClassicMenuTreeLines(agentId);
 }
 
 function normalizeMenuReservedSectionsOrder(parentEl) {
@@ -63459,6 +63587,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
           const itemRow = document.createElement("div");
           itemRow.className = "menu-item-row";
           itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
+          appendMenuTreeItemRowLeadingSpacer(itemRow);
 
           const btn = document.createElement("button");
           btn.type = "button";
@@ -63992,6 +64121,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     }
     renderSystemFiles(systemFilesCache);
     decorateMenuSortRows(target);
+    refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     refreshMenuTreeRuntimeBadges(agentId);
   }
@@ -71177,13 +71307,13 @@ function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
   );
   if (toggleBtn) {
     if (isRootFolder) {
-      toggleBtn.textContent = "▾";
+      toggleBtn.textContent = "−";
       toggleBtn.disabled = true;
       toggleBtn.title = "";
       toggleBtn.classList.add("folder-toggle-btn--lock-open");
     } else {
       toggleBtn.classList.remove("folder-toggle-btn--lock-open");
-      toggleBtn.textContent = hasContent ? (isCollapsed ? "▸" : "▾") : "▸";
+      toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasContent);
       toggleBtn.disabled = !hasContent;
       toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
     }
@@ -71197,7 +71327,7 @@ function syncFolderToggleUi(sectionEl, isCollapsed, hasContent) {
 function updateReservedSectionToggleUi(sectionEl, collapsed, hasContent) {
   const toggleBtn = sectionEl?.querySelector(":scope > .menu-folder-row .folder-toggle-btn");
   if (toggleBtn && !toggleBtn.classList.contains("folder-toggle-btn--lock-open")) {
-    toggleBtn.textContent = hasContent ? (collapsed ? "▸" : "▾") : "▸";
+    toggleBtn.textContent = formatMenuFolderToggleGlyph(collapsed, hasContent);
     toggleBtn.disabled = !hasContent;
     toggleBtn.title = hasContent ? (collapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
   }
@@ -71218,14 +71348,19 @@ function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCache
 
   const collapsed = menuSearchQuery.trim() ? false : isServiceTreeCollapsed();
   const serviceFolder = getActiveAgentKitFolder(agentId);
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  let treeToRender = pruneMenuTreeForDisplay({ title: SERVICE_SECTION_TITLE, ...menu.serviceTree }, agentId);
+  if (queryLower) {
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+  }
+  const serviceManifestPath = treeToRender?.indexPath || getServiceRootManifestPath();
+  const hasContent = Boolean(treeToRender) && (
+    getVisibleMenuChildren(treeToRender, agentId, serviceFolder, 1).length > 0 ||
+    Boolean(serviceManifestPath)
+  );
   let body = sectionEl.querySelector(":scope > .tree-children.menu-service-body");
 
   if (!body && !collapsed) {
-    const queryLower = menuSearchQuery.trim().toLowerCase();
-    let treeToRender = pruneMenuTreeForDisplay({ title: SERVICE_SECTION_TITLE, ...menu.serviceTree }, agentId);
-    if (queryLower) {
-      treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
-    }
     if (treeToRender) {
       body = document.createElement("div");
       body.className = "tree-children menu-service-body";
@@ -71237,7 +71372,6 @@ function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCache
   }
 
   if (body) body.hidden = collapsed;
-  const hasContent = Boolean(body) || sectionEl.querySelector(":scope > .menu-folder-row .folder-toggle-btn:not(:disabled)");
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
@@ -71250,14 +71384,15 @@ function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheB
 
   const collapsed = menuSearchQuery.trim() ? false : isSharedTreeCollapsed();
   const sharedFolder = getActiveAgentSharedFolder(agentId);
+  const queryLower = menuSearchQuery.trim().toLowerCase();
+  let treeToRender = pruneMenuTreeForDisplay({ title: SHARED_SECTION_LABEL, ...menu.sharedTree }, agentId);
+  if (queryLower) {
+    treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
+  }
+  const hasContent = Boolean(treeToRender) && getVisibleMenuChildren(treeToRender, agentId, sharedFolder, 1).length > 0;
   let body = sectionEl.querySelector(":scope > .tree-children.menu-shared-body");
 
   if (!body && !collapsed) {
-    const queryLower = menuSearchQuery.trim().toLowerCase();
-    let treeToRender = pruneMenuTreeForDisplay({ title: SHARED_SECTION_LABEL, ...menu.sharedTree }, agentId);
-    if (queryLower) {
-      treeToRender = filterMenuTree(treeToRender, queryLower, agentId);
-    }
     if (treeToRender) {
       body = document.createElement("div");
       body.className = "tree-children menu-shared-body";
@@ -71269,7 +71404,6 @@ function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheB
   }
 
   if (body) body.hidden = collapsed;
-  const hasContent = Boolean(body) || sectionEl.querySelector(":scope > .menu-folder-row .folder-toggle-btn:not(:disabled)");
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
@@ -71296,6 +71430,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
     if (!branch?.node) return false;
 
     const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+    const menuNode = findMenuBranchNodeByFolderPath(menu, normalized, agentId) || branch.node;
     const sectionEl =
       normalized === "."
         ? getMenuTreeHost(agentId)?.querySelector(":scope > .menu-section")
@@ -71305,7 +71440,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
     const isCollapsed = isFolderCollapsed(normalized, agentId);
     const sectionFolderPath = normalized;
     const expandMeta = getMenuFolderExpandMeta(
-      branch.node,
+      menuNode,
       agentId,
       branch.parentSectionPath,
       branch.depth,
@@ -71327,9 +71462,10 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
     }
 
     // Expand: reuse already rendered children to avoid preview flicker.
-    if (childrenNode && !forceRebuild) {
+    if (childrenNode && !forceRebuild && menuTreeChildrenNodeHasRenderedContent(childrenNode)) {
       childrenNode.hidden = false;
       refreshMenuSortDecorations(agentId);
+      refreshClassicMenuTreeLines(agentId);
       refreshMenuTreeIntakeBadges(agentId);
       return true;
     }
@@ -71342,7 +71478,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
         normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
       if (isGitRepoMenuNode) {
         renderGitRepoFolderContents(
-          branch.node,
+          menuNode,
           sectionEl,
           sectionFolderPath,
           branch.depth,
@@ -71356,13 +71492,22 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
         }
       } else {
         const wrapper = document.createElement("div");
-        renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
+        renderTree(menuNode, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
         const newChildren = wrapper.firstElementChild?.querySelector(":scope > .tree-children");
         if (newChildren) {
           reuseMenuTreePreviewImages(newChildren, previousPreviews);
           newChildren.hidden = false;
           sectionEl.appendChild(newChildren);
+        } else if (expandMeta.hasNonContainer || expandMeta.hasNestedContainer || expandMeta.hasRepoService) {
+          return false;
         }
+      }
+    }
+
+    if (!isCollapsed && hasContent) {
+      const renderedChildren = sectionEl.querySelector(":scope > .tree-children");
+      if (!menuTreeChildrenNodeHasRenderedContent(renderedChildren)) {
+        return false;
       }
     }
 
@@ -71371,6 +71516,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
     }
 
     refreshMenuSortDecorations(agentId);
+    refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     return true;
   } catch (error) {
@@ -71538,6 +71684,7 @@ function renderMenuTreeChildInto(
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row";
   itemRow.dataset.sortName = getMenuSortSlugFromItemEntry(item);
+  appendMenuTreeItemRowLeadingSpacer(itemRow);
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -71642,6 +71789,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     if (!host) return false;
 
     const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
+    const menuNode = findMenuBranchNodeByFolderPath(menu, normalized, agentId) || branch.node;
     const parentMenuNode =
       normalized === "." ? null : getMenuParentNodeForFolder(menu, normalized, agentId);
     const wrapper = document.createElement("div");
@@ -71650,13 +71798,14 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
       const oldSection = host.querySelector(":scope > .menu-section");
       if (!oldSection) return false;
       const previousPreviews = collectMenuTreePreviewImages(oldSection);
-      renderTree(branch.node, wrapper, 0, ".", null, agentId);
+      renderTree(menuNode, wrapper, 0, ".", null, agentId);
       const newSection = wrapper.firstElementChild;
       if (!newSection) return false;
       reuseMenuTreePreviewImages(newSection, previousPreviews);
       oldSection.replaceWith(newSection);
       refreshRootMenuTreeExtras(agentId, menu);
       refreshMenuSortDecorations(agentId);
+      refreshClassicMenuTreeLines(agentId);
       refreshMenuTreeIntakeBadges(agentId);
       return true;
     }
@@ -71665,15 +71814,16 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
     if (!oldSection || !oldSection.parentElement) return false;
 
     const previousPreviews = collectMenuTreePreviewImages(oldSection);
-    renderTree(branch.node, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
+    renderTree(menuNode, wrapper, branch.depth, branch.parentSectionPath, parentMenuNode, agentId);
     const newSection = wrapper.firstElementChild;
     if (!newSection) return false;
     if (oldSection.parentElement?.classList.contains("tree-children")) {
-      prepareMenuSectionForSortContainer(newSection, branch.node);
+      prepareMenuSectionForSortContainer(newSection, menuNode);
     }
     reuseMenuTreePreviewImages(newSection, previousPreviews);
     oldSection.replaceWith(newSection);
     refreshMenuSortDecorations(agentId);
+    refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     return true;
   } catch (error) {
