@@ -27537,6 +27537,56 @@ async function openCreatedExternalMemoryForEdit(filePath) {
   await openExternalFile(normalized);
 }
 
+async function openCreatedSectionForEdit(targetMode, { sectionPath = "", readme = "" } = {}) {
+  const sectionFolder = String(sectionPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+  const readmePath =
+    String(readme || "")
+      .replace(/\\/g, "/")
+      .trim() || (sectionFolder ? `${sectionFolder}/${AREA_MANIFEST_FILE}` : "");
+  if (!readmePath) return;
+
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
+
+  if (targetMode === "external") {
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await openMemoryModeFromOverview("external", readmePath);
+      return;
+    }
+    await openExternalSectionReadme(readmePath, sectionFolder);
+    return;
+  }
+
+  if (isMediaLibraryContentMode(targetMode)) {
+    const mode = targetMode === "assets" ? "assets" : "media";
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      if (isAreaContentModeBlocked(mode)) return;
+      if (!applyContentModeState(mode)) return;
+      syncAppRouteToUrl({ replace: true });
+      applyModeUi();
+      await refreshMediaCache();
+      if (sectionFolder) {
+        activeMediaSectionFolder = sectionFolder;
+        pruneActiveMediaSectionFolder();
+      }
+      mediaViewMode = "all";
+      if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
+      renderListViewContent();
+      await openMediaMarkdownFile(readmePath);
+      return;
+    }
+    await openMediaSectionReadme(readmePath, sectionFolder);
+    return;
+  }
+
+  if (FLAT_STORAGE_SECTION_MODES.has(targetMode)) {
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await openFlatStorageFileFromOverview(targetMode, readmePath);
+      return;
+    }
+    await openFlatStorageSectionReadme(targetMode, readmePath, sectionFolder);
+  }
+}
+
 function getActiveExternalSectionParentForCreate() {
   if (isNavigationHubRailSlotCreateActive("external")) {
     return navigationHubRailSlotCreateState.parentFolder ?? null;
@@ -41151,6 +41201,8 @@ async function createWorkspaceSection() {
     }
 
     closeCreateSectionModal();
+    const openForEdit = shouldOpenCreatedMemoryForEdit();
+    const createdReadme = String(data.readme || "").trim();
     const railCreateActive = isNavigationHubRailSlotCreateActive();
     const createdMediaSectionPath = isMediaLibraryTarget
       ? buildCreatedMediaSectionPath(mediaParentFolder, data.section, data.sectionPath)
@@ -41162,14 +41214,28 @@ async function createWorkspaceSection() {
     const createdFlatStorageSectionPath = isFlatStorageTarget
       ? buildCreatedMediaSectionPath(flatStorageParentFolder, data.section, data.sectionPath)
       : "";
-    const fromEntryOverview = isEntryOverviewExternalMemory();
-    if (railCreateActive) {
+    const fromEntryOverview =
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE && Boolean(activeEntryOverviewContext);
+    const createdSectionPathForEdit =
+      createdExternalSectionPath ||
+      createdMediaSectionPath ||
+      createdFlatStorageSectionPath ||
+      String(data.sectionPath || "").trim();
+
+    if (fromEntryOverview) {
+      if (createSectionTargetMode === "external") {
+        await refreshAfterExternalWorkspaceCreate({ openForEdit });
+      } else {
+        endNavigationHubRailSlotCreate();
+        try {
+          if (isMediaLibraryContentMode(createSectionTargetMode)) await refreshMediaCache();
+        } catch {
+          // ignore cache refresh errors in overview create flow
+        }
+        if (!openForEdit) await renderEntryOverview();
+      }
+    } else if (railCreateActive) {
       await refreshNavigationHubAfterSlotMutation();
-      showToast("Раздел создан", "success");
-      return;
-    }
-    if (createSectionTargetMode === "external" && fromEntryOverview) {
-      await refreshAfterExternalWorkspaceCreate();
     } else {
       await loadContentByMode({
         preserveMediaSectionFolder: createdMediaSectionPath || mediaParentFolder,
@@ -41181,8 +41247,10 @@ async function createWorkspaceSection() {
       activeMediaSectionFolder = createdMediaSectionPath;
       mediaViewMode = "all";
       if (mediaViewSelectNode) mediaViewSelectNode.value = "all";
-      rerenderMediaListViewBody();
-      syncAppRouteToUrl({ push: true });
+      if (!fromEntryOverview) {
+        rerenderMediaListViewBody();
+        syncAppRouteToUrl({ push: true });
+      }
     }
     if (createdExternalSectionPath) {
       activeExternalSectionFolder = createdExternalSectionPath;
@@ -41193,8 +41261,16 @@ async function createWorkspaceSection() {
     }
     if (createdFlatStorageSectionPath && isFlatStorageTarget) {
       activeFlatStorageSectionFolder[createSectionTargetMode] = createdFlatStorageSectionPath;
-      rerenderFlatStorageListViewBody(createSectionTargetMode);
-      syncAppRouteToUrl({ push: true });
+      if (!fromEntryOverview) {
+        rerenderFlatStorageListViewBody(createSectionTargetMode);
+        syncAppRouteToUrl({ push: true });
+      }
+    }
+    if (openForEdit && createdReadme) {
+      await openCreatedSectionForEdit(createSectionTargetMode, {
+        sectionPath: createdSectionPathForEdit,
+        readme: createdReadme
+      });
     }
     showToast("Раздел создан", "success");
   } catch (error) {
@@ -41831,7 +41907,7 @@ function createNodeOverviewFocusButton(nodePath, propEntries = null) {
 function createNodeOverviewHeroActions(nodePath, options = {}) {
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions";
-  if (canShowNodeOverviewPinActions(nodePath)) {
+  if (!options.editOnly && canShowNodeOverviewPinActions(nodePath)) {
     actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
     actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
   }
@@ -42446,47 +42522,59 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
           });
   }
 
-  const statusRaw = normalizeNavigationStatusForDisplay(
-    String(options.status || resolveAwnStatusFromPropEntries(options.propEntries || "")).trim()
-  );
-  const titleRow = createHeroTitleRow(title, statusRaw, {
-    propEntries: options.propEntries || [],
-    rowClass: options.titleRowClass,
-    titleClass: options.titleClass,
-    statusClass: options.statusClass,
-    titleTextClass: options.titleTextClass
-  });
-
-  const pathNode = document.createElement("p");
-  pathNode.className = "node-navigation-hero-path";
-  pathNode.textContent = options.pathLabel || formatNodeHeroSlugLabel(nodePath);
-
   const actions = createNodeOverviewHeroActions(nodePath, {
     propEntries: options.propEntries || null,
     onEditClick: options.onEditClick,
-    editLabel: options.editLabel
+    editLabel: options.editLabel,
+    editOnly: compact
   });
-
-  const headerRow = document.createElement("div");
-  headerRow.className = "node-navigation-hero-header";
-  headerRow.append(titleRow, actions);
 
   const body = document.createElement("div");
   body.className = "node-navigation-hero-body";
-  body.append(headerRow, pathNode);
 
-  if (options.typeLabel) {
-    const typeNode = document.createElement("span");
-    typeNode.className = `node-entry-overview-kind${
-      options.kindClass ? ` node-entry-overview-kind--${options.kindClass}` : ""
-    }`;
-    typeNode.textContent = options.typeLabel;
-    body.appendChild(typeNode);
-  }
+  if (compact) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "node-navigation-hero-compact-toolbar";
 
-  const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
-  if (datesPanel.childElementCount > 0) {
-    body.appendChild(datesPanel);
+    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, { hideEmpty: true });
+    if (datesPanel.childElementCount > 0) toolbar.appendChild(datesPanel);
+    toolbar.appendChild(actions);
+    body.appendChild(toolbar);
+  } else {
+    const statusRaw = normalizeNavigationStatusForDisplay(
+      String(options.status || resolveAwnStatusFromPropEntries(options.propEntries || "")).trim()
+    );
+    const titleRow = createHeroTitleRow(title, statusRaw, {
+      propEntries: options.propEntries || [],
+      rowClass: options.titleRowClass,
+      titleClass: options.titleClass,
+      statusClass: options.statusClass,
+      titleTextClass: options.titleTextClass
+    });
+
+    const pathNode = document.createElement("p");
+    pathNode.className = "node-navigation-hero-path";
+    pathNode.textContent = options.pathLabel || formatNodeHeroSlugLabel(nodePath);
+
+    const headerRow = document.createElement("div");
+    headerRow.className = "node-navigation-hero-header";
+    headerRow.append(titleRow, actions);
+
+    body.append(headerRow, pathNode);
+
+    if (options.typeLabel) {
+      const typeNode = document.createElement("span");
+      typeNode.className = `node-entry-overview-kind${
+        options.kindClass ? ` node-entry-overview-kind--${options.kindClass}` : ""
+      }`;
+      typeNode.textContent = options.typeLabel;
+      body.appendChild(typeNode);
+    }
+
+    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
+    if (datesPanel.childElementCount > 0) {
+      body.appendChild(datesPanel);
+    }
   }
 
   if (thumbWrap) {
@@ -44219,7 +44307,7 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
   return markersRow;
 }
 
-function buildNavigationHeroDatesPanel(meta, nodePath = activePath) {
+function buildNavigationHeroDatesPanel(meta, nodePath = activePath, options = {}) {
   recordNodeLastViewed(nodePath);
 
   const createdIso = meta?.manifest?.createdAt || meta?.folder?.createdAt;
@@ -44245,6 +44333,7 @@ function buildNavigationHeroDatesPanel(meta, nodePath = activePath) {
   panel.setAttribute("role", "group");
   panel.setAttribute("aria-label", "Даты записи");
   for (const row of rows) {
+    if (options.hideEmpty && !String(row.value ?? "").trim()) continue;
     appendNavigationHeroMetaRow(panel, row);
   }
   return panel;
@@ -44935,6 +45024,14 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount) {
   leadersHost.classList.remove("has-nav-book-toc-attachments-badge");
   leadersHost.replaceChildren();
   leadersHost.setAttribute("aria-hidden", "true");
+}
+
+function appendNavBookTocFolderHeadCount(head, countNode) {
+  if (!head || !countNode) return;
+  const leaders = document.createElement("span");
+  leaders.className = "nav-book-toc-leaders nav-book-toc-folder-leaders has-nav-book-toc-folder-count-badge";
+  leaders.appendChild(countNode);
+  head.appendChild(leaders);
 }
 
 function getNavigationItemFileExtension(item) {
@@ -48849,7 +48946,7 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
 
     head.appendChild(toggleBtn);
     head.append(folderLabel);
-    if (countNode) head.appendChild(countNode);
+    appendNavBookTocFolderHeadCount(head, countNode);
     folderItem.append(head, subList);
 
     parentList.appendChild(folderItem);
@@ -49217,6 +49314,13 @@ function setNavHubRailSlotOpen(nodePath, slotId, open) {
   }
 }
 
+function syncNavigationHubRailDocumentSlotState(documentSlot) {
+  const rail = documentSlot?.closest(".node-navigation-hub-rail");
+  updateNavigationHubRailPanelHeight(rail);
+  bindNavigationHubRailDocumentScrollSpy(rail);
+  scheduleWorkspaceScrollChromeSync();
+}
+
 let navigationHubRailDocumentScrollSpy = null;
 let navigationHubRailAsideLayout = null;
 let navigationHubSplitGridLayout = null;
@@ -49309,6 +49413,9 @@ function bindNavigationHubRailAsideLayout(rail) {
 
   window.addEventListener("resize", onResize, { passive: true });
 
+  const scrollElement = getNavigationHubDocumentScrollElement();
+  scrollElement?.addEventListener("scroll", onResize, { passive: true });
+
   let resizeObserver = null;
   const layoutRoot = rail.closest("#node-overview-block");
   if (layoutRoot && typeof ResizeObserver !== "undefined") {
@@ -49316,13 +49423,17 @@ function bindNavigationHubRailAsideLayout(rail) {
     resizeObserver.observe(layoutRoot);
   }
 
-  navigationHubRailAsideLayout = { rail, onResize, resizeObserver, raf: 0 };
+  navigationHubRailAsideLayout = { rail, onResize, scrollElement, resizeObserver, raf: 0 };
   scheduleWorkspaceScrollChromeSync();
 }
 
 function teardownNavigationHubRailAsideLayout() {
   if (!navigationHubRailAsideLayout) return;
   window.removeEventListener("resize", navigationHubRailAsideLayout.onResize);
+  navigationHubRailAsideLayout.scrollElement?.removeEventListener(
+    "scroll",
+    navigationHubRailAsideLayout.onResize
+  );
   navigationHubRailAsideLayout.resizeObserver?.disconnect();
   if (navigationHubRailAsideLayout.raf) {
     cancelAnimationFrame(navigationHubRailAsideLayout.raf);
@@ -49551,7 +49662,7 @@ function mountNavBookTocFolderToggle({
     countNode = document.createElement("span");
     countNode.className = "nav-book-toc-folder-count";
     countNode.textContent = String(branchCount);
-    countNode.title = `${branchCount} записей`;
+    countNode.title = `${branchCount} ${branchCount === 1 ? "запись" : branchCount >= 2 && branchCount <= 4 ? "записи" : "записей"} в разделе`;
   }
 
   const collapsed =
@@ -49563,9 +49674,7 @@ function mountNavBookTocFolderToggle({
 }
 
 function resolveNavigationFolderBranchCount(folderNode) {
-  const itemCount = countNavigationFolderItems(folderNode);
-  if (itemCount > 0) return itemCount;
-  return folderNode.folders instanceof Map ? folderNode.folders.size : 0;
+  return Array.isArray(folderNode?.files) ? folderNode.files.length : 0;
 }
 
 function isNavTocFolderCollapsed(nodePath, folderPath, depth = 0, collapseDepthThreshold = 1) {
@@ -49606,8 +49715,12 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
   }
 }
 
+function isNavigationHubRailSlotEmpty(slot) {
+  return !slot.filled && !slot.available;
+}
+
 function isNavigationHubRailSlotExpandable(slot, slotIndex) {
-  return slotIndex.kind === "tree";
+  return slotIndex.kind === "tree" && !isNavigationHubRailSlotEmpty(slot);
 }
 
 function openNavigationHubRailSlotTarget(slot) {
@@ -49661,7 +49774,7 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   if (shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx)) {
     row.classList.add("is-active-slot");
   }
-  row.classList.toggle("is-empty", !slot.filled && !slot.available);
+  row.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
   row.classList.toggle("is-filled", Boolean(slot.filled));
   if (slot.tone) row.classList.add(`is-${slot.tone}`);
 
@@ -49671,6 +49784,7 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   appendNavigationHubRailSlotSummaryParts(btn, slot, { includeOpenBtn: true });
   btn.addEventListener("click", (event) => {
     if (event.target.closest(".node-navigation-hub-rail-slot-open")) return;
+    if (isNavigationHubRailSlotEmpty(slot)) return;
     openNavigationHubRailSlotTarget(slot);
   });
 
@@ -49747,7 +49861,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     head.appendChild(toggleBtn);
     head.append(folderLabel);
-    if (countNode) head.appendChild(countNode);
+    appendNavBookTocFolderHeadCount(head, countNode);
     folderItem.append(head, subList);
 
     parentList.appendChild(folderItem);
@@ -56532,6 +56646,7 @@ function getNavigationHubRailTocActiveState(handlers, folderPath = "", itemPath 
 }
 
 function shouldNavigationHubRailSlotDefaultOpen(slot, slotIndex, activeCtx) {
+  if (isNavigationHubRailSlotEmpty(slot)) return false;
   if (!activeCtx?.slotKey) return false;
   if (activeCtx.slotKey !== slot.id) return false;
   if (slotIndex.kind === "tree" && activeCtx.relativePath) return true;
@@ -56879,10 +56994,7 @@ function renderNavigationHubRailDocumentOutline(markdown, nodePath) {
   details.open = isNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, defaultDocumentOpen);
   details.addEventListener("toggle", () => {
     setNavHubRailSlotOpen(nodePath, NAV_HUB_RAIL_DOCUMENT_SLOT_ID, details.open);
-    const rail = details.closest(".node-navigation-hub-rail");
-    updateNavigationHubRailPanelHeight(rail);
-    bindNavigationHubRailDocumentScrollSpy(rail);
-    scheduleWorkspaceScrollChromeSync();
+    syncNavigationHubRailDocumentSlotState(details);
   });
 
   const summary = document.createElement("summary");
@@ -56959,13 +57071,17 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   if (defaultOpen) details.classList.add("is-active-slot");
   details.open = isNavHubRailSlotOpen(nodePath, slot.id, defaultOpen);
   details.addEventListener("toggle", () => {
+    if (isNavigationHubRailSlotEmpty(slot) && details.open) {
+      details.open = false;
+      return;
+    }
     if (!isNavigationHubRailSlotExpandable(slot, slotIndex) && details.open) {
       details.open = false;
       return;
     }
     setNavHubRailSlotOpen(nodePath, slot.id, details.open);
   });
-  details.classList.toggle("is-empty", !slot.filled && !slot.available);
+  details.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
   details.classList.toggle("is-filled", Boolean(slot.filled));
   if (slotIndex.kind === "bundle") details.classList.add("node-navigation-hub-rail-slot--bundle");
   if (slot.tone) details.classList.add(`is-${slot.tone}`);
@@ -56975,6 +57091,10 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   appendNavigationHubRailSlotSummaryParts(summary, slot, { includeOpenBtn: true });
   summary.addEventListener("click", (event) => {
     if (event.target.closest(".node-navigation-hub-rail-slot-open")) {
+      event.preventDefault();
+      return;
+    }
+    if (isNavigationHubRailSlotEmpty(slot)) {
       event.preventDefault();
     }
   });

@@ -15584,8 +15584,20 @@ async function handleApiForAgent(req, res, url) {
       }
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
-      await writeStorageSectionReadme(sectionAbsolute, title, "awn.content.record.category", relPath, slotKey);
       const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      const contentWorkspaceRel = buildStorageLayerRef(
+        String(relPath || "").replace(/\\/g, "/"),
+        folderName,
+        `${sectionPath}/${AREA_MANIFEST_FILE}`
+      );
+      await writeStorageSectionReadme(
+        sectionAbsolute,
+        title,
+        "awn.content.record.category",
+        relPath,
+        slotKey,
+        { contentWorkspaceRel }
+      );
       return sendJson(res, 200, {
         section: sectionName,
         sectionPath,
@@ -15653,14 +15665,20 @@ async function handleApiForAgent(req, res, url) {
 
       await fs.mkdir(sectionAbsolute, { recursive: true });
       const slotKey = resolveSlotKeyFromStorageFolderName(storageFolder);
+      const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
+      const contentWorkspaceRel = buildStorageLayerRef(
+        String(relPath || "").replace(/\\/g, "/"),
+        storageFolder,
+        `${sectionPath}/${AREA_MANIFEST_FILE}`
+      );
       await writeStorageSectionReadme(
         sectionAbsolute,
         title,
         "awn.content.record.category",
         relPath,
-        slotKey
+        slotKey,
+        { contentWorkspaceRel }
       );
-      const sectionPath = path.relative(folderAbsolute, sectionAbsolute).replace(/\\/g, "/");
       return sendJson(res, 200, {
         section: sectionName,
         sectionPath,
