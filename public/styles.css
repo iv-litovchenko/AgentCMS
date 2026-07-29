@@ -19763,7 +19763,6 @@ body.app-locked {
   align-items: start;
   width: 100%;
   min-width: 0;
-  contain: inline-size;
 }
 
 .node-navigation-hub--split > .node-navigation-hub-main {
@@ -22067,6 +22066,7 @@ button.node-navigation-hub-rail-slot-summary {
   background: transparent;
   overflow-x: clip;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .node-overview.is-entry-overview::before,
@@ -23555,6 +23555,24 @@ button.node-navigation-hub-rail-slot-summary {
   gap: 14px 18px;
   align-items: start;
   padding: 14px 16px 16px;
+}
+
+.node-navigation-hero-main--compact {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  padding: 10px 14px 12px;
+}
+
+.node-navigation-hero--compact {
+  border-radius: 12px;
+}
+
+.node-navigation-hero--compact .node-navigation-hero-body {
+  gap: 6px;
+}
+
+.node-navigation-hero--compact .node-navigation-hero-dates {
+  margin-top: 0;
 }
 
 .node-navigation-hero-body {
