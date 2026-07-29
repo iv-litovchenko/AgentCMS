@@ -64271,7 +64271,17 @@ function createSystemFileGroupLabel(label, groupId) {
   const node = document.createElement("div");
   node.className = "system-file-group-label";
   node.dataset.systemFileGroup = groupId;
-  node.textContent = label;
+  node.setAttribute("role", "presentation");
+
+  if (isMenuTreeLayoutMode()) {
+    const text = document.createElement("span");
+    text.className = "system-file-group-label-text menu-tree-title-text";
+    text.textContent = label;
+    node.appendChild(text);
+  } else {
+    node.textContent = label;
+  }
+
   return node;
 }
 
@@ -64312,6 +64322,7 @@ function renderSystemFiles(files) {
       const row = document.createElement("div");
       row.className = "menu-item-row system-file-row";
       row.dataset.systemFileGroup = group.id;
+      appendMenuTreeItemRowLeadingSpacer(row);
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -64338,6 +64349,7 @@ function renderSystemFiles(files) {
   }
 
   enableMenuLinkDragSources(getMenuQueryRoot());
+  refreshClassicMenuTreeLines();
 }
 
 async function loadSystemFiles(options = {}) {
