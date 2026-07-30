@@ -25017,13 +25017,20 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-workspace-counter.is-deprecated-slot {
   opacity: 0.92;
+  cursor: default;
+}
+
+.node-navigation-workspace-counter-card--deprecated-repository {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fffafa 0%, #fef2f2 100%);
 }
 
 .node-navigation-workspace-counter-value--deprecated {
-  color: #dc2626;
-  font-size: 22px;
-  font-weight: 800;
+  color: #ef4444;
+  font-size: 24px;
+  font-weight: 900;
   line-height: 1;
+  text-shadow: 0 0 1px rgba(220, 38, 38, 0.35);
 }
 
 .node-navigation-workspace-counter-label--deprecated .node-navigation-workspace-counter-label-main.is-struck {
@@ -40827,6 +40834,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .node-overview-types,
 .app-print-mode .node-overview-types-fold,
 .app-print-mode .node-overview-action-btn,
+.app-print-mode .node-navigation-hub-rail,
+.app-print-mode .node-navigation-hub-rail-resize-bar,
+.app-print-mode .node-navigation-hub-rail-toggle,
 .app-print-mode .node-comments,
 .app-print-mode .external-file-comments,
 .app-print-mode .media-file-comments,

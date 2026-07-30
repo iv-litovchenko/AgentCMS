@@ -45867,7 +45867,6 @@ function renderNodeNavigationWorkspaceCounterStrip(
   }
 
   for (const slot of slots) {
-    if (shouldReplaceRepositoryCounterWithFreeMemoryStub(slot)) continue;
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     item.appendChild(
@@ -50046,7 +50045,6 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   list.setAttribute("role", "tablist");
 
   for (const slot of slots) {
-    if (shouldReplaceRepositoryCounterWithFreeMemoryStub(slot)) continue;
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     const card = createWorkspaceCounterCard(slot, {
@@ -50143,6 +50141,10 @@ async function refreshEntryOverviewDataSlotBar(wrap, context, topicPath, manifes
 
 function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   if (!indexBtn) return;
+  if (isDeprecatedRepositoryCounterSlot(slot)) {
+    indexBtn.classList.add("hidden");
+    return;
+  }
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const showIndex = Boolean(spec && supportsDataEntryOverview(spec.key));
   indexBtn.classList.toggle("hidden", !showIndex);
@@ -50216,7 +50218,7 @@ function createFreeMemoryStaticCounterItem() {
     cardClass: "node-navigation-workspace-counter-card--free-memory",
     title: "Свободная память (free)",
     hint: "Откроется просмотр свободной памяти",
-    tooltip: `${FREE_MEMORY_LABEL} (static) — просмотр свободной памяти, вместо слота «Репозитории»`
+    tooltip: `${FREE_MEMORY_LABEL} (static) — просмотр свободной памяти`
   });
 }
 
@@ -50229,10 +50231,6 @@ function createOutsideSlotsStaticCounterItem() {
     tooltip:
       "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева"
   });
-}
-
-function shouldReplaceRepositoryCounterWithFreeMemoryStub(slot) {
-  return slot?.id === "repository" || slot?.spec?.key === "repository";
 }
 
 function appendWorkspaceStaticCounterItems(list, { layout = "grid" } = {}) {
@@ -50264,6 +50262,9 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
 function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, onClick } = {}) {
   const card = document.createElement("div");
   card.className = "node-navigation-workspace-counter-card";
+  if (isDeprecatedRepositoryCounterSlot(slot)) {
+    card.classList.add("node-navigation-workspace-counter-card--deprecated-repository");
+  }
 
   const mainBtn = renderEntryOverviewWorkspaceCounterButton(slot, { isActive, onClick });
   card.append(mainBtn, createWorkspaceCounterIndexButton(slot, topicPath));
@@ -50319,13 +50320,18 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
     ? "Репозитории — откажемся от этого слота"
     : slot.title;
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  if (isDeprecatedRepositoryCounterSlot(slot)) {
+    btn.disabled = true;
+  }
 
   const label = document.createElement("span");
   label.className = "node-navigation-workspace-counter-label";
   applyWorkspaceCounterLabelForSlot(label, slot);
 
   btn.append(createWorkspaceCounterIndicator(slot), label);
-  btn.addEventListener("click", onClick);
+  if (!isDeprecatedRepositoryCounterSlot(slot)) {
+    btn.addEventListener("click", onClick);
+  }
   return btn;
 }
 
