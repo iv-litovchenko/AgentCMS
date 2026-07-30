@@ -46245,6 +46245,141 @@ function createNavigationSectionSearchInput(options = {}) {
   return wrap;
 }
 
+const DOCUMENT_CONTEXT_METER_SOFT_WORDS = 1200;
+const DOCUMENT_CONTEXT_METER_WARN_WORDS = 2500;
+const DOCUMENT_CONTEXT_METER_MAX_WORDS = 5000;
+
+function countDocumentWords(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return 0;
+  return normalized.split(/\s+/).filter(Boolean).length;
+}
+
+function analyzeDocumentContextStats(text) {
+  const raw = String(text ?? "");
+  const trimmed = raw.trim();
+  const words = countDocumentWords(trimmed);
+  const chars = trimmed.length;
+  const bytes = new TextEncoder().encode(raw).length;
+  const tokensEstimate = Math.max(0, Math.ceil(chars / 4));
+  const fillRatio = DOCUMENT_CONTEXT_METER_MAX_WORDS
+    ? Math.min(1, words / DOCUMENT_CONTEXT_METER_MAX_WORDS)
+    : 0;
+
+  let level = "comfort";
+  if (words >= DOCUMENT_CONTEXT_METER_MAX_WORDS * 0.9) level = "overflow";
+  else if (words >= DOCUMENT_CONTEXT_METER_WARN_WORDS) level = "split";
+  else if (words >= DOCUMENT_CONTEXT_METER_SOFT_WORDS) level = "warn";
+
+  return { words, chars, bytes, tokensEstimate, fillRatio, level };
+}
+
+function formatDocumentContextByteSize(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value.toLocaleString("ru-RU")} Б`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value >= 10 * 1024 ? 0 : 1)} КБ`;
+  return `${(value / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
+function formatDocumentContextTokenEstimate(tokens) {
+  const value = Number(tokens) || 0;
+  if (value >= 1000) return `~${(value / 1000).toFixed(1)}k токенов`;
+  return `~${value.toLocaleString("ru-RU")} токенов`;
+}
+
+function getDocumentContextMeterStatusLabel(level) {
+  switch (level) {
+    case "overflow":
+      return "Переполнен";
+    case "split":
+      return "Лучше разбить";
+    case "warn":
+      return "Заполняется";
+    default:
+      return "Комфортно";
+  }
+}
+
+function getDocumentContextMeterHint(level) {
+  switch (level) {
+    case "overflow":
+      return "Документ слишком большой для одного контекста агента — разбейте MD на несколько файлов.";
+    case "split":
+      return "Близко к переполнению: для MD лучше выделить разделы в отдельные файлы.";
+    case "warn":
+      return "Контекст растёт: следите за размером, ориентир — до ~1 200 слов на файл.";
+    default:
+      return "Размер в комфортном диапазоне для подачи агенту целиком.";
+  }
+}
+
+function getTabularContextMeterText(tabularData) {
+  if (!tabularData) return "";
+  if (typeof tabularData.content === "string" && tabularData.content.trim()) {
+    return tabularData.content;
+  }
+  const columns = Array.isArray(tabularData.columns) ? tabularData.columns : [];
+  const rows = Array.isArray(tabularData.rows) ? tabularData.rows : [];
+  const lines = [];
+  if (columns.length) lines.push(columns.join("\t"));
+  for (const row of rows) {
+    lines.push((Array.isArray(row) ? row : []).map((cell) => String(cell ?? "")).join("\t"));
+  }
+  return lines.join("\n");
+}
+
+function createDocumentContextMeter(text) {
+  const stats = analyzeDocumentContextStats(text);
+  if (!stats.words && !stats.chars) return null;
+
+  const meter = document.createElement("div");
+  meter.className = `document-context-meter document-context-meter--${stats.level}`;
+  meter.setAttribute("aria-label", "Счётчик контекста документа");
+
+  const head = document.createElement("div");
+  head.className = "document-context-meter-head";
+
+  const title = document.createElement("span");
+  title.className = "document-context-meter-title";
+  title.textContent = "Контекст документа";
+
+  const status = document.createElement("span");
+  status.className = "document-context-meter-status";
+  status.textContent = getDocumentContextMeterStatusLabel(stats.level);
+
+  head.append(title, status);
+
+  const track = document.createElement("div");
+  track.className = "document-context-meter-track";
+  track.setAttribute("role", "progressbar");
+  track.setAttribute("aria-valuemin", "0");
+  track.setAttribute("aria-valuemax", String(DOCUMENT_CONTEXT_METER_MAX_WORDS));
+  track.setAttribute("aria-valuenow", String(stats.words));
+  track.title = `Заполнение: ${Math.round(stats.fillRatio * 100)}% от ориентира ${DOCUMENT_CONTEXT_METER_MAX_WORDS.toLocaleString("ru-RU")} слов`;
+
+  const fill = document.createElement("div");
+  fill.className = "document-context-meter-fill";
+  fill.style.width = `${Math.max(4, Math.round(stats.fillRatio * 100))}%`;
+  track.appendChild(fill);
+
+  const statsRow = document.createElement("div");
+  statsRow.className = "document-context-meter-stats";
+  statsRow.append(
+    document.createTextNode(`${stats.words.toLocaleString("ru-RU")} слов`),
+    document.createTextNode(" · "),
+    document.createTextNode(formatDocumentContextByteSize(stats.bytes)),
+    document.createTextNode(" · "),
+    document.createTextNode(formatDocumentContextTokenEstimate(stats.tokensEstimate))
+  );
+
+  const hint = document.createElement("p");
+  hint.className = "document-context-meter-hint";
+  hint.textContent = getDocumentContextMeterHint(stats.level);
+
+  meter.append(head, track, statsRow, hint);
+  return meter;
+}
+
 function createNavigationSectionHead(title, options = {}) {
   const variant = [1, 2, 3].includes(options.titleVariant) ? options.titleVariant : 1;
   const viewModeId = options.viewModeId;
@@ -46349,13 +46484,17 @@ function renderNavigationTitleVariant2Template() {
   return block;
 }
 
-function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = null) {
+function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = null, contextMeterText = null) {
   const card = document.createElement("section");
   card.className = `node-navigation-memory-card node-navigation-memory-card--${modeId}`;
 
   const body = document.createElement("div");
   body.className = "node-navigation-memory-body";
   body.appendChild(contentNode);
+
+  const meter =
+    contextMeterText != null ? createDocumentContextMeter(String(contextMeterText)) : null;
+  if (meter) body.appendChild(meter);
 
   const badgeText = dataForBadge ? getNavigationMemoryBadgeText(modeId, dataForBadge) : null;
   card.append(
@@ -46644,18 +46783,13 @@ function renderNavigationInternalPart(internalData, { areaMode = false, nodePath
       });
     }
     body.appendChild(preview);
-
-    const note = document.createElement("p");
-    note.className = "node-navigation-preview-note";
-    note.textContent = `Кол-во символов: ${content.length.toLocaleString("ru-RU")}`;
-    body.appendChild(note);
   } else if (areaMode) {
     body.appendChild(createNavigationEmptyPlaceholder());
   } else {
     return null;
   }
 
-  const card = createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData);
+  const card = createNavigationMemoryPanel("internal", "Однофайловая память", body, internalData, content);
   if (areaMode) card.classList.add("node-navigation-memory-card--area-full");
   return card;
 }
@@ -48922,6 +49056,9 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   }
   wrap.appendChild(preview);
 
+  const meter = createDocumentContextMeter(content);
+  if (meter) wrap.appendChild(meter);
+
   if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
 
   return wrap;
@@ -50832,6 +50969,10 @@ async function hydrateEntryOverviewTabularPreview(previewNode, context, nodePath
     const tabularData = await fetchTabularMemoryForNavigation(nodePath);
     previewNode.replaceChildren();
     appendTabularPreviewTable(previewNode, tabularData);
+    const wrap = previewNode.closest(".node-entry-overview-tabular-manifest");
+    wrap?.querySelector(".document-context-meter")?.remove();
+    const meter = createDocumentContextMeter(getTabularContextMeterText(tabularData));
+    if (meter && wrap) wrap.appendChild(meter);
   } catch (error) {
     previewNode.innerHTML = `<p class="node-entry-overview-tabular-notice">Не удалось загрузить таблицу: ${escapeHtml(error.message)}</p>`;
   }
@@ -52502,7 +52643,13 @@ function renderNavigationTabularPart(tabularData) {
 
   appendTabularPreviewTable(body, tabularData, { showMeta: false });
 
-  return createNavigationMemoryPanel("tabular", "Табличная память", body, tabularData);
+  return createNavigationMemoryPanel(
+    "tabular",
+    "Табличная память",
+    body,
+    tabularData,
+    getTabularContextMeterText(tabularData)
+  );
 }
 
 const NAVIGATION_MEDIA_GROUP_LABELS = {
@@ -52829,6 +52976,9 @@ function buildNavigationAgentInstructionContent(manifestRaw = "", heroTitle = ""
     wrap.appendChild(actions);
   }
 
+  const meter = createDocumentContextMeter(content);
+  if (meter) wrap.appendChild(meter);
+
   return wrap;
 }
 
@@ -52858,7 +53008,7 @@ function renderNavigationTodoPart(todoData) {
     wrap.appendChild(note);
   }
 
-  return createNavigationMemoryPanel("todo", "TODO", wrap);
+  return createNavigationMemoryPanel("todo", "TODO", wrap, null, content);
 }
 
 const COMMENT_AUTHOR_STORAGE_KEY = "yamlcms.commentAuthor";
