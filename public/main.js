@@ -20,6 +20,9 @@ const appFooterNode = document.getElementById("app-footer");
 const appFooterToggleBtn = document.getElementById("app-footer-toggle-btn");
 const appFooterToggleLabelNode = document.getElementById("app-footer-toggle-label");
 const appFooterDetailsNode = document.getElementById("app-footer-details");
+const appFooterIdeasBtn = document.getElementById("app-footer-ideas-btn");
+const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popover");
+const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -75305,6 +75308,65 @@ function setupAppFooterToggle() {
   setExpanded(false);
 }
 
+let appFooterIdeasOpen = false;
+
+function positionAppFooterIdeasPopover() {
+  const popover = appFooterIdeasPopoverNode;
+  const anchor = appFooterIdeasBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = 280;
+  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  popover.style.width = `${width}px`;
+  popover.style.left = `${left}px`;
+  popover.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+  popover.style.top = "auto";
+}
+
+function openAppFooterIdeasPopover() {
+  if (!appFooterIdeasPopoverNode || !appFooterIdeasBtn) return;
+  appFooterIdeasOpen = true;
+  appFooterIdeasPopoverNode.classList.remove("hidden");
+  appFooterIdeasBtn.setAttribute("aria-expanded", "true");
+  positionAppFooterIdeasPopover();
+}
+
+function closeAppFooterIdeasPopover() {
+  if (!appFooterIdeasPopoverNode || !appFooterIdeasBtn) return;
+  appFooterIdeasOpen = false;
+  appFooterIdeasPopoverNode.classList.add("hidden");
+  appFooterIdeasBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleAppFooterIdeasPopover() {
+  if (appFooterIdeasOpen) closeAppFooterIdeasPopover();
+  else openAppFooterIdeasPopover();
+}
+
+function setupAppFooterIdeasPopover() {
+  if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
+
+  appFooterIdeasBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAppFooterIdeasPopover();
+  });
+  appFooterIdeasCloseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeAppFooterIdeasPopover();
+  });
+  window.addEventListener("resize", positionAppFooterIdeasPopover);
+  document.addEventListener("click", (event) => {
+    if (!appFooterIdeasOpen) return;
+    const target = event.target;
+    if (target instanceof Node && appFooterIdeasPopoverNode.contains(target)) return;
+    if (target instanceof Node && appFooterIdeasBtn.contains(target)) return;
+    closeAppFooterIdeasPopover();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && appFooterIdeasOpen) closeAppFooterIdeasPopover();
+  });
+}
+
 function syncSidebarFocusCount() {
   if (!sidebarFocusCountNode) return;
   const total = activeAgentId ? agentFocusItemsCache.length : 0;
@@ -76791,6 +76853,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 
 setupMenuSortDragDrop();
 setupAppFooterToggle();
+setupAppFooterIdeasPopover();
 setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();

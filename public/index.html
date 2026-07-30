@@ -2750,6 +2750,45 @@
         <div class="app-footer-bar">
           <div class="app-footer-top">
             <span class="app-footer-version-badge" aria-label="Версия проекта">v<span class="app-project-version">0.0.1</span></span>
+            <div class="app-footer-ideas-wrap">
+              <button
+                id="app-footer-ideas-btn"
+                class="app-footer-ideas-badge"
+                type="button"
+                title="TODO — идеи для развития"
+                aria-label="TODO — идеи"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="app-footer-ideas-popover"
+              >
+                <span class="app-footer-ideas-icon" aria-hidden="true">💡</span>
+                <span class="app-footer-ideas-label">TODO</span>
+              </button>
+              <div
+                id="app-footer-ideas-popover"
+                class="app-footer-ideas-popover hidden"
+                role="dialog"
+                aria-label="TODO — идеи"
+              >
+                <div class="app-footer-ideas-popover-head">
+                  <div class="app-footer-ideas-popover-brand">
+                    <span class="app-footer-ideas-popover-icon" aria-hidden="true">💡</span>
+                    <span class="app-footer-ideas-popover-title">TODO — идеи</span>
+                  </div>
+                  <button
+                    id="app-footer-ideas-close-btn"
+                    class="app-footer-ideas-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <ul id="app-footer-ideas-list" class="app-footer-ideas-list">
+                  <li class="app-footer-ideas-item">Абстрактную идею 1</li>
+                </ul>
+              </div>
+            </div>
             <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
             <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
           </div>
