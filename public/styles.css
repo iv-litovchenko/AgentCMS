@@ -42167,9 +42167,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .menu-static-footer {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   padding: 8px 12px 6px;
   box-sizing: border-box;
 }
@@ -42177,6 +42174,71 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .sidebar-slab-menu .menu-static-footer {
   padding-left: var(--menu-sidebar-pad-x);
   padding-right: var(--menu-sidebar-pad-x);
+}
+
+.menu-static-footer-group {
+  margin: 0;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.menu-static-footer-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border-bottom: 1px solid transparent;
+}
+
+.menu-static-footer-group[open] > .menu-static-footer-summary {
+  border-bottom-color: rgba(148, 163, 184, 0.28);
+}
+
+.menu-static-footer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-static-footer-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+  letter-spacing: 0.01em;
+}
+
+.menu-static-footer-summary .stub-static-mark {
+  font-size: 10px;
+}
+
+.menu-static-footer-toggle {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.menu-static-footer-group:not([open]) > .menu-static-footer-summary .menu-static-footer-toggle::after {
+  content: "Показать";
+}
+
+.menu-static-footer-group[open] > .menu-static-footer-summary .menu-static-footer-toggle::after {
+  content: "Свернуть";
+}
+
+.menu-static-footer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  box-sizing: border-box;
 }
 
 .menu-static-section {

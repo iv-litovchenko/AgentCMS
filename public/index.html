@@ -623,7 +623,13 @@
             </nav>
           </div>
           <div class="menu-sidebar-bottom">
-            <div id="menu-static-footer" class="menu-static-footer" aria-label="Системные папки">
+            <details id="menu-static-footer" class="menu-static-footer menu-static-footer-group" open aria-label="Системные папки">
+              <summary class="menu-static-footer-summary" title="Системные папки — свернуть или показать">
+                <span class="menu-static-footer-title">Системные папки</span>
+                <span class="stub-static-mark">(static)</span>
+                <span class="menu-static-footer-toggle" aria-hidden="true"></span>
+              </summary>
+              <div class="menu-static-footer-body">
               <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
                 <summary class="menu-static-summary" title="Google Drive — зона drag and drop (скоро)">
                   <span class="menu-static-title menu-static-title--google-drive">
@@ -694,7 +700,8 @@
                   </p>
                 </div>
               </details>
-            </div>
+              </div>
+            </details>
             <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
           </div>
         </section>
