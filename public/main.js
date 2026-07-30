@@ -24,7 +24,9 @@ const appFooterIdeasBtn = document.getElementById("app-footer-ideas-btn");
 const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popover");
 const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
+const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const PLATFORM_TODO_CORE_REL_PATH = "workspaces/agent-cms-core/TODO-CORE.md";
+const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -75405,6 +75407,24 @@ function toggleAppFooterIdeasPopover() {
   else openAppFooterIdeasPopover();
 }
 
+function setupMenuStaticFooterGroup() {
+  if (!menuStaticFooterNode) return;
+  try {
+    const saved = localStorage.getItem(MENU_STATIC_FOOTER_OPEN_KEY);
+    if (saved === "0") menuStaticFooterNode.open = false;
+    else if (saved === "1") menuStaticFooterNode.open = true;
+  } catch {
+    // ignore storage errors
+  }
+  menuStaticFooterNode.addEventListener("toggle", () => {
+    try {
+      localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, menuStaticFooterNode.open ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  });
+}
+
 function setupAppFooterIdeasPopover() {
   if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
 
@@ -76918,6 +76938,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 
 setupMenuSortDragDrop();
 setupAppFooterToggle();
+setupMenuStaticFooterGroup();
 setupAppFooterIdeasPopover();
 setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
