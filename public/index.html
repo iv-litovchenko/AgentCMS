@@ -622,7 +622,39 @@
               </div>
             </nav>
           </div>
-          <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
+          <div class="menu-sidebar-bottom">
+            <div id="menu-static-footer" class="menu-static-footer" aria-label="Системные папки">
+              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
+                <summary class="menu-static-summary" title="Google Drive — зона drag and drop (скоро)">
+                  <span class="menu-static-title menu-static-title--google-drive">
+                    <span aria-hidden="true">🟢</span>
+                    <span>Гугл диск</span>
+                    <span class="stub-static-mark">(static)</span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <div class="menu-static-path">awn-google-drive</div>
+                  <div class="menu-static-drop-hint" aria-label="Зона drag and drop">
+                    <span class="menu-static-drop-icon" aria-hidden="true">↧</span>
+                    <span class="menu-static-drop-text">Drag &amp; drop сюда</span>
+                  </div>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--vendor menu-static-accordion">
+                <summary class="menu-static-summary" title="Зависимости и репозитории агента (скоро)">
+                  <span class="menu-static-title menu-static-title--vendor">
+                    <span aria-hidden="true">🟢</span>
+                    <span>Зависимости и репозитории</span>
+                    <span class="stub-static-mark">(static)</span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <div class="menu-static-path">awn-vendor</div>
+                </div>
+              </details>
+            </div>
+            <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
+          </div>
         </section>
       </aside>
       <button
@@ -2826,6 +2858,8 @@
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-rules" title="Agent.Rules.md — общие правила">Правила</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-tts" title="Agent.Voice.Tts.md — синтез речи">Голос TTS</button>
             <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-stt" title="Agent.Voice.STT.md — распознавание речи">Голос STT</button>
+            <button type="button" class="create-node-action-btn create-node-service-doc-btn" disabled title="Заготовка — пока не работает">Управление ПК и устройствами <span class="stub-static-mark">(static)</span></button>
+            <button type="button" class="create-node-action-btn create-node-service-doc-btn" disabled title="Заготовка — пока не работает">Случайный анекдот <span class="stub-static-mark">(static)</span></button>
           </div>
         </div>
         <hr id="create-node-divider" class="create-node-divider hidden" />

@@ -11363,11 +11363,13 @@ const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_REPOSITORY = "repository";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 const NODE_WORKSPACE_DOMAIN_DATA = "data";
+const NODE_WORKSPACE_DOMAIN_HOOKS = "hooks";
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "navigation", label: "Обзор" },
   { value: "settings", label: "Конфигурации" },
+  { value: "hooks", label: "Крючки (hooks)", disabled: true },
   { value: "data", label: "Данные" },
   { value: "thread", label: "Диалог" },
   { value: "todo", label: "TODO" }
@@ -17037,12 +17039,13 @@ function initNodeNavigationSubsectionSelect() {
 function initNodeWorkspaceDomainSelect() {
   if (!nodeWorkspaceDomainSelectNode) return;
   nodeWorkspaceDomainSelectNode.replaceChildren(
-    ...NODE_WORKSPACE_DOMAIN_SPECS.map(({ value, label, branch }) => {
+    ...NODE_WORKSPACE_DOMAIN_SPECS.map(({ value, label, branch, disabled }) => {
       const option = document.createElement("option");
       option.value = value;
       const baseLabel = getWorkspaceDomainDisplayLabel(label, branch);
       option.textContent = baseLabel;
       option.dataset.baseLabel = baseLabel;
+      if (disabled) option.disabled = true;
       return option;
     })
   );
@@ -45864,6 +45867,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
     list.appendChild(item);
   }
 
+  appendOutsideSlotsStaticCounterItem(list, { layout });
+
   wrap.appendChild(list);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
@@ -49713,6 +49718,10 @@ function getBundleMemoryCounterMetrics(
 
 function getWorkspaceCounterButtonStateClasses(slot) {
   const classes = ["node-navigation-workspace-counter"];
+  if (isDeprecatedRepositoryCounterSlot(slot)) {
+    classes.push("is-deprecated-slot", "is-empty");
+    return classes.join(" ");
+  }
   if (slot.display === "flag") {
     classes.push("is-flag");
     if (slot.filled) classes.push("is-filled");
@@ -49726,6 +49735,49 @@ function getWorkspaceCounterButtonStateClasses(slot) {
   }
   if (slot.tone) classes.push(`is-${slot.tone}`);
   return classes.join(" ");
+}
+
+function isDeprecatedRepositoryCounterSlot(slot) {
+  const key = slot?.id || slot?.spec?.key;
+  return key === "repository";
+}
+
+function createDeprecatedRepositoryCounterIndicator() {
+  const mark = document.createElement("span");
+  mark.className =
+    "node-navigation-workspace-counter-value node-navigation-workspace-counter-value--deprecated";
+  mark.setAttribute("aria-hidden", "true");
+  mark.textContent = "✕";
+  return mark;
+}
+
+function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
+  if (!labelNode) return;
+  if (!isDeprecatedRepositoryCounterSlot(slot)) {
+    labelNode.classList.remove(
+      "node-navigation-workspace-counter-label--deprecated",
+      "node-navigation-workspace-counter-label--stacked"
+    );
+    setWorkspaceCounterLabelText(
+      labelNode,
+      slot.label || resolveDataStorageSlotDisplayLabel(slot.id || slot.spec?.key)
+    );
+    return;
+  }
+
+  labelNode.replaceChildren();
+  labelNode.className =
+    "node-navigation-workspace-counter-label node-navigation-workspace-counter-label--deprecated node-navigation-workspace-counter-label--stacked";
+
+  const main = document.createElement("span");
+  main.className = "node-navigation-workspace-counter-label-main is-struck";
+  main.textContent = slot.label || "Репозитории";
+
+  const note = document.createElement("span");
+  note.className = "node-navigation-workspace-counter-label-note";
+  note.textContent = "Откажемся от этого слота";
+
+  labelNode.append(main, note);
 }
 
 function setWorkspaceCounterLabelText(labelNode, text) {
@@ -49747,6 +49799,10 @@ function setWorkspaceCounterLabelText(labelNode, text) {
 }
 
 function createWorkspaceCounterIndicator(slot) {
+  if (isDeprecatedRepositoryCounterSlot(slot)) {
+    return createDeprecatedRepositoryCounterIndicator();
+  }
+
   if (slot.display === "flag") {
     const wrap = document.createElement("span");
     wrap.className = "node-navigation-workspace-counter-indicator";
@@ -49806,10 +49862,14 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
     const labelNode = btn.querySelector(".node-navigation-workspace-counter-label");
     btn.insertBefore(createWorkspaceCounterIndicator(slot), labelNode);
 
-    btn.title = slot.title;
+    btn.title = isDeprecatedRepositoryCounterSlot(slot)
+      ? "Репозитории — откажемся от этого слота"
+      : slot.title;
     btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${btn.classList.contains("is-active") ? " is-active" : ""}`;
     btn.classList.remove("is-pending", "is-unread");
     if (slot.tone) btn.classList.add(`is-${slot.tone}`);
+
+    applyWorkspaceCounterLabelForSlot(labelNode, slot);
 
     syncWorkspaceCounterIndexButton(
       card.querySelector(".node-navigation-workspace-counter-index"),
@@ -49847,6 +49907,8 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
     item.appendChild(card);
     list.appendChild(item);
   }
+
+  appendOutsideSlotsStaticCounterItem(list);
 
   wrap.appendChild(list);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
@@ -49949,6 +50011,54 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   }
 }
 
+function createOutsideSlotsStaticCounterItem() {
+  const item = document.createElement("li");
+  item.className =
+    "node-navigation-workspace-counter-item node-navigation-workspace-counter-item--outside-slots";
+
+  const card = document.createElement("div");
+  card.className =
+    "node-navigation-workspace-counter-card node-navigation-workspace-counter-card--outside-slots";
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-workspace-counter is-empty is-static-stub";
+  body.setAttribute("aria-disabled", "true");
+  body.title =
+    "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева";
+
+  const value = document.createElement("span");
+  value.className = "node-navigation-workspace-counter-value";
+  value.textContent = "—";
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-workspace-counter-label node-navigation-workspace-counter-label--stacked";
+
+  const labelMain = document.createElement("span");
+  labelMain.className = "node-navigation-workspace-counter-label-main";
+  labelMain.textContent = "Вне слотов";
+
+  const labelHint = document.createElement("span");
+  labelHint.className = "node-navigation-workspace-counter-label-hint";
+  labelHint.textContent =
+    "Если элемент вне слотов — он появится здесь и как веточка в основном дереве слева";
+
+  const staticMark = document.createElement("span");
+  staticMark.className = "stub-static-mark";
+  staticMark.textContent = "(static)";
+
+  label.append(labelMain, labelHint, staticMark);
+  body.append(value, label);
+  card.append(body);
+  item.append(card);
+  return item;
+}
+
+function appendOutsideSlotsStaticCounterItem(list, { layout = "grid" } = {}) {
+  if (!list || layout === "area-single") return;
+  list.classList.add("has-outside-slots-static");
+  list.appendChild(createOutsideSlotsStaticCounterItem());
+}
+
 function createWorkspaceCounterIndexButton(slot, topicPath) {
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const btn = document.createElement("button");
@@ -50022,15 +50132,14 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${isActive ? " is-active" : ""}`;
-  btn.title = slot.title;
+  btn.title = isDeprecatedRepositoryCounterSlot(slot)
+    ? "Репозитории — откажемся от этого слота"
+    : slot.title;
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
 
   const label = document.createElement("span");
   label.className = "node-navigation-workspace-counter-label";
-  setWorkspaceCounterLabelText(
-    label,
-    slot.label || resolveDataStorageSlotDisplayLabel(slot.id || slot.spec?.key)
-  );
+  applyWorkspaceCounterLabelForSlot(label, slot);
 
   btn.append(createWorkspaceCounterIndicator(slot), label);
   btn.addEventListener("click", onClick);
