@@ -40893,14 +40893,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
   display: block !important;
 }
 
-.app-print-mode .node-navigation-hub-rail {
-  position: static !important;
-  max-height: none !important;
-  padding: 16px 0 0 !important;
-  border-top: 1px solid #e2e8f0;
-  margin-top: 16px;
-}
-
 .app-print-mode .node-navigation-hub--split .node-navigation-hub-main {
   border-right: 0 !important;
   padding-right: 0 !important;
@@ -41160,6 +41152,9 @@ body.is-discuss-resizing .discuss-aside-resizer {
   .node-navigation-manifest-nav,
   .node-navigation-workspace-counters,
   .node-entry-overview-slot-counters,
+  .node-navigation-hub-rail,
+  .node-navigation-hub-rail-resize-bar,
+  .node-navigation-hub-rail-toggle,
   .node-overview-action-btn,
   .external-file-comments,
   .media-file-comments,
