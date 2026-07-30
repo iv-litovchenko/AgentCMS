@@ -1771,7 +1771,7 @@ async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
   const title = recordPath.split("/").pop() || recordPath;
 
   if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
-    openFlatStorageRecordOverviewFromNavigation({ path: recordPath, title }, contentMode);
+    await openFlatStorageRecordOverviewFromNavigation({ path: recordPath, title }, contentMode);
     return;
   }
 
@@ -31885,6 +31885,14 @@ function normalizeStorageEditorRelPath(filePath) {
   return String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
 }
 
+function resolveFlatStorageMarkdownFetchPath(relativePath) {
+  const normalized = normalizeStorageEditorRelPath(relativePath);
+  if (!normalized) return "";
+  const fileName = normalized.split("/").filter(Boolean).pop() || normalized;
+  if (/\.[a-z0-9]+$/i.test(fileName)) return normalized;
+  return `${normalized}.md`;
+}
+
 function isSameStorageEditorPath(left, right) {
   const normalizedLeft = normalizeStorageEditorRelPath(left);
   const normalizedRight = normalizeStorageEditorRelPath(right);
@@ -48157,15 +48165,15 @@ function bindNavigationHubRailResourceContextMenu(element, menuState) {
   });
 }
 
-function openFlatStorageRecordOverviewFromNavigation(item, memoryKind) {
+async function openFlatStorageRecordOverviewFromNavigation(item, memoryKind) {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
   const relPath = getFlatStorageItemContextPath(rel, memoryKind);
-  void openEntryOverviewFromNavigation({
+  await openEntryOverviewFromNavigation({
     relPath,
     memoryKind,
     relativePath: rel,
-    title: item.title || rel.split("/").pop() || rel,
+    title: item.title || rel.split("/").pop()?.replace(/\.md$/i, "") || rel,
     entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind }),
     status: item.status || ""
   });
@@ -48724,7 +48732,7 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
         buildApiUrl("/api/storage/markdown", {
           path: topicApiPath,
           folder: getFlatStorageSectionFolderName(context.memoryKind),
-          file: context.relativePath
+          file: resolveFlatStorageMarkdownFetchPath(context.relativePath)
         })
       );
       if (response.ok) {
@@ -48799,7 +48807,7 @@ async function fetchEntryOverviewBodyResult(context) {
         buildApiUrl("/api/storage/markdown", {
           path: getActiveNodeApiPath(),
           folder: getFlatStorageSectionFolderName(context.memoryKind),
-          file: context.relativePath
+          file: resolveFlatStorageMarkdownFetchPath(context.relativePath)
         })
       );
       if (!response.ok) return { content: "", ok: false };
