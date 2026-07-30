@@ -183,7 +183,7 @@ const {
   MIGRATABLE_PRESETS
 } = require("./catalog-migration");
 const { addCatalogItemForAgentContext } = require("./catalog-items");
-const { getPlatformIndexAbsolute } = require("./platform-sources");
+const { getPlatformIndexAbsolute, getTodoCoreAbsolute, AGENT_CMS_CORE_REL, TODO_CORE_FILE } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
@@ -18647,6 +18647,23 @@ async function handleApi(req, res, url) {
       }
       return sendJson(res, 500, {
         error: "Failed to load platform index",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/todo-core") {
+    const relPath = path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), TODO_CORE_FILE);
+    try {
+      const absolute = getTodoCoreAbsolute(getProjectRoot());
+      const content = await fs.readFile(absolute, "utf-8");
+      return sendJson(res, 200, { content, exists: true, path: relPath });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { content: "", exists: false, path: relPath });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to load platform todo core",
         details: String(error?.message || error)
       });
     }

@@ -23,6 +23,8 @@ const appFooterDetailsNode = document.getElementById("app-footer-details");
 const appFooterIdeasBtn = document.getElementById("app-footer-ideas-btn");
 const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popover");
 const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
+const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
+const PLATFORM_TODO_CORE_REL_PATH = "workspaces/agent-cms-core/TODO-CORE.md";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -75309,18 +75311,77 @@ function setupAppFooterToggle() {
 }
 
 let appFooterIdeasOpen = false;
+let appFooterIdeasLoadSeq = 0;
+
+function renderAppFooterIdeasContent(content = "", { loading = false, error = "" } = {}) {
+  if (!appFooterIdeasBodyNode) return;
+
+  if (loading) {
+    appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
+    appFooterIdeasBodyNode.textContent = "Загрузка…";
+    return;
+  }
+
+  if (error) {
+    appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta is-error";
+    appFooterIdeasBodyNode.textContent = error;
+    return;
+  }
+
+  const normalized = String(content || "").trim();
+  if (!normalized) {
+    appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
+    appFooterIdeasBodyNode.textContent = `Файл ${PLATFORM_TODO_CORE_REL_PATH} пуст`;
+    return;
+  }
+
+  appFooterIdeasBodyNode.className = "app-footer-ideas-body markdown-preview";
+  setMarkdownPreviewHtml(appFooterIdeasBodyNode, normalized, {
+    nodePath: PLATFORM_TODO_CORE_REL_PATH
+  });
+  scheduleAppFooterIdeasPopoverPosition();
+}
+
+function scheduleAppFooterIdeasPopoverPosition() {
+  requestAnimationFrame(() => {
+    if (appFooterIdeasOpen) positionAppFooterIdeasPopover();
+  });
+}
+
+async function loadAppFooterIdeasFromCore() {
+  if (!appFooterIdeasBodyNode) return "";
+  const seq = ++appFooterIdeasLoadSeq;
+  renderAppFooterIdeasContent("", { loading: true });
+
+  try {
+    const response = await fetch("/api/platform/todo-core");
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    if (seq !== appFooterIdeasLoadSeq) return "";
+    const content = typeof data.content === "string" ? data.content : "";
+    renderAppFooterIdeasContent(content);
+    return content;
+  } catch (error) {
+    if (seq !== appFooterIdeasLoadSeq) return "";
+    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${PLATFORM_TODO_CORE_REL_PATH}` });
+    return "";
+  }
+}
 
 function positionAppFooterIdeasPopover() {
   const popover = appFooterIdeasPopoverNode;
   const anchor = appFooterIdeasBtn;
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
   const rect = anchor.getBoundingClientRect();
-  const width = 280;
+  const width = Math.min(420, window.innerWidth - 24);
   const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
   popover.style.width = `${width}px`;
   popover.style.left = `${left}px`;
-  popover.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-  popover.style.top = "auto";
+  const popoverHeight = popover.getBoundingClientRect().height || 320;
+  const top = Math.max(12, rect.top - popoverHeight - 8);
+  popover.style.top = `${top}px`;
+  popover.style.bottom = "auto";
+  popover.style.maxHeight = `${Math.max(180, rect.top - 20)}px`;
 }
 
 function openAppFooterIdeasPopover() {
@@ -75329,6 +75390,7 @@ function openAppFooterIdeasPopover() {
   appFooterIdeasPopoverNode.classList.remove("hidden");
   appFooterIdeasBtn.setAttribute("aria-expanded", "true");
   positionAppFooterIdeasPopover();
+  void loadAppFooterIdeasFromCore();
 }
 
 function closeAppFooterIdeasPopover() {
@@ -75345,6 +75407,9 @@ function toggleAppFooterIdeasPopover() {
 
 function setupAppFooterIdeasPopover() {
   if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
+
+  renderAppFooterIdeasContent("", { loading: true });
+  void loadAppFooterIdeasFromCore();
 
   appFooterIdeasBtn.addEventListener("click", (event) => {
     event.stopPropagation();

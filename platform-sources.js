@@ -37,6 +37,7 @@ const CATALOG_KIT_REL = path.join(AGENT_CMS_CORE_REL, "catalog");
 const AGENTS_GROUPS_REL = path.join(AGENT_CMS_CORE_REL, "agents-groups");
 const AGENTS_GROUPS_FILE = "groups.json";
 const PLATFORM_INDEX_REL = path.join(AGENT_CMS_CORE_REL, "index.json");
+const TODO_CORE_FILE = "TODO-CORE.md";
 
 /** Относительный URL-префикс для фонов групп (хранится в groups.json). */
 const AGENTS_GROUPS_ASSETS_PUBLIC_PREFIX = path.posix.join(
@@ -76,6 +77,10 @@ function getPlatformIndexAbsolute(projectRoot) {
   return resolvePlatformPath(projectRoot, PLATFORM_INDEX_REL);
 }
 
+function getTodoCoreAbsolute(projectRoot) {
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TODO_CORE_FILE);
+}
+
 function toAgentsGroupsBackgroundRel(fileName) {
   const base = path.posix.basename(String(fileName || "").replace(/\\/g, "/"));
   if (!base) return null;
@@ -96,6 +101,7 @@ module.exports = {
   AGENTS_GROUPS_FILE,
   AGENTS_GROUPS_ASSETS_PUBLIC_PREFIX,
   PLATFORM_INDEX_REL,
+  TODO_CORE_FILE,
   resolvePlatformPath,
   getAgentCmsCoreAbsolute,
   getPlatformAgentRootAbsolute,
@@ -106,5 +112,6 @@ module.exports = {
   getAgentsGroupsJsonAbsolute,
   getAgentsGroupsAssetsAbsolute,
   getPlatformIndexAbsolute,
+  getTodoCoreAbsolute,
   toAgentsGroupsBackgroundRel
 };
