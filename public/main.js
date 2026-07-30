@@ -45860,6 +45860,7 @@ function renderNodeNavigationWorkspaceCounterStrip(
   }
 
   for (const slot of slots) {
+    if (shouldReplaceRepositoryCounterWithFreeMemoryStub(slot)) continue;
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     item.appendChild(
@@ -45872,7 +45873,7 @@ function renderNodeNavigationWorkspaceCounterStrip(
     list.appendChild(item);
   }
 
-  appendOutsideSlotsStaticCounterItem(list, { layout });
+  appendWorkspaceStaticCounterItems(list, { layout });
 
   wrap.appendChild(list);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
@@ -50038,6 +50039,7 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   list.setAttribute("role", "tablist");
 
   for (const slot of slots) {
+    if (shouldReplaceRepositoryCounterWithFreeMemoryStub(slot)) continue;
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     const card = createWorkspaceCounterCard(slot, {
@@ -50050,7 +50052,7 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
     list.appendChild(item);
   }
 
-  appendOutsideSlotsStaticCounterItem(list);
+  appendWorkspaceStaticCounterItems(list);
 
   wrap.appendChild(list);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
@@ -50153,20 +50155,23 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   }
 }
 
-function createOutsideSlotsStaticCounterItem() {
+function createStaticWorkspaceCounterStubItem({
+  itemClass,
+  cardClass,
+  title,
+  hint,
+  tooltip
+}) {
   const item = document.createElement("li");
-  item.className =
-    "node-navigation-workspace-counter-item node-navigation-workspace-counter-item--outside-slots";
+  item.className = `node-navigation-workspace-counter-item ${itemClass}`;
 
   const card = document.createElement("div");
-  card.className =
-    "node-navigation-workspace-counter-card node-navigation-workspace-counter-card--outside-slots";
+  card.className = `node-navigation-workspace-counter-card node-navigation-workspace-counter-card--static-stub ${cardClass}`;
 
   const body = document.createElement("div");
   body.className = "node-navigation-workspace-counter is-empty is-static-stub";
   body.setAttribute("aria-disabled", "true");
-  body.title =
-    "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева";
+  body.title = tooltip;
 
   const value = document.createElement("span");
   value.className = "node-navigation-workspace-counter-value";
@@ -50177,27 +50182,56 @@ function createOutsideSlotsStaticCounterItem() {
 
   const labelMain = document.createElement("span");
   labelMain.className = "node-navigation-workspace-counter-label-main";
-  labelMain.textContent = "Вне слотов";
+  labelMain.textContent = title;
 
-  const labelHint = document.createElement("span");
-  labelHint.className = "node-navigation-workspace-counter-label-hint";
-  labelHint.textContent =
-    "Если элемент вне слотов — он появится здесь и как веточка в основном дереве слева";
+  label.appendChild(labelMain);
+  if (hint) {
+    const labelHint = document.createElement("span");
+    labelHint.className = "node-navigation-workspace-counter-label-hint";
+    labelHint.textContent = hint;
+    label.appendChild(labelHint);
+  }
 
   const staticMark = document.createElement("span");
   staticMark.className = "stub-static-mark";
   staticMark.textContent = "(static)";
+  label.appendChild(staticMark);
 
-  label.append(labelMain, labelHint, staticMark);
   body.append(value, label);
   card.append(body);
   item.append(card);
   return item;
 }
 
-function appendOutsideSlotsStaticCounterItem(list, { layout = "grid" } = {}) {
+function createFreeMemoryStaticCounterItem() {
+  return createStaticWorkspaceCounterStubItem({
+    itemClass: "node-navigation-workspace-counter-item--free-memory",
+    cardClass: "node-navigation-workspace-counter-card--free-memory",
+    title: "Свободная память (free)",
+    hint: "Откроется просмотр свободной памяти",
+    tooltip: `${FREE_MEMORY_LABEL} (static) — просмотр свободной памяти, вместо слота «Репозитории»`
+  });
+}
+
+function createOutsideSlotsStaticCounterItem() {
+  return createStaticWorkspaceCounterStubItem({
+    itemClass: "node-navigation-workspace-counter-item--outside-slots",
+    cardClass: "node-navigation-workspace-counter-card--outside-slots",
+    title: "Вне слотов",
+    hint: "Если элемент вне слотов — он появится здесь и как веточка в основном дереве слева",
+    tooltip:
+      "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева"
+  });
+}
+
+function shouldReplaceRepositoryCounterWithFreeMemoryStub(slot) {
+  return slot?.id === "repository" || slot?.spec?.key === "repository";
+}
+
+function appendWorkspaceStaticCounterItems(list, { layout = "grid" } = {}) {
   if (!list || layout === "area-single") return;
-  list.classList.add("has-outside-slots-static");
+  list.classList.add("has-workspace-static-slots");
+  list.appendChild(createFreeMemoryStaticCounterItem());
   list.appendChild(createOutsideSlotsStaticCounterItem());
 }
 
