@@ -43081,6 +43081,15 @@ function getOverviewDescription(rawManifest, entries) {
   return extractAwnDescFromBody(body);
 }
 
+const OVERVIEW_DESCRIPTION_PLACEHOLDER = "Описание не задано";
+
+function resolveNavigationHeroDescription(options = {}) {
+  return (
+    String(options.description || "").trim() ||
+    getOverviewDescription(options.descriptionRaw || "", options.propEntries || [])
+  );
+}
+
 function getOverviewMarkdownBeforeDivider(rawManifest = "") {
   const { body } = splitFrontmatter(rawManifest);
   const text = String(body || "");
@@ -44053,28 +44062,24 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   hero.appendChild(main);
 
   if (options.showWorkspaceMarkers !== false) {
-    const description =
-      String(options.description || "").trim() ||
-      getOverviewDescription(options.descriptionRaw || "", options.propEntries || []);
+    const description = resolveNavigationHeroDescription(options);
     const footerMeta = createNavigationHeroFooterMeta(nodePath, options);
+    const hasDescription = Boolean(description);
 
-    if (description || footerMeta) {
-      const footer = document.createElement("div");
-      footer.className = "node-navigation-hero-footer";
+    const footer = document.createElement("div");
+    footer.className = "node-navigation-hero-footer";
 
-      if (description) {
-        const blurb = document.createElement("p");
-        blurb.className = "node-navigation-hero-footer-blurb";
-        blurb.textContent = description;
-        footer.appendChild(blurb);
-      }
+    const blurb = document.createElement("p");
+    blurb.className = "node-navigation-hero-footer-blurb";
+    if (!hasDescription) blurb.classList.add("is-empty");
+    blurb.textContent = hasDescription ? description : OVERVIEW_DESCRIPTION_PLACEHOLDER;
+    footer.appendChild(blurb);
 
-      if (footerMeta) {
-        footer.appendChild(footerMeta);
-      }
-
-      hero.appendChild(footer);
+    if (footerMeta) {
+      footer.appendChild(footerMeta);
     }
+
+    hero.appendChild(footer);
   }
 
   if (options.showHeroProps !== false) {
