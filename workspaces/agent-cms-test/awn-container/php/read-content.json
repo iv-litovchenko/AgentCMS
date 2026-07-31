@@ -1,12 +1,18 @@
 {
   "paths": [
+    "inbox/вопрос-match-vs-switch.md",
     "main/Безопасность/CSRF.md",
     "main/Безопасность/manifest.md",
     "main/Безопасность/SQL Injection.md",
     "main/Безопасность/XSS.md",
     "main/Объекты.md",
+    "main/Синтаксис/manifest.md",
     "main/Типы данных.md",
-    "main/README.md"
+    "main/awn-container/manifest.md",
+    "main/awn-container/php/awn-storage/manifest.md",
+    "main/awn-container/php/manifest.md",
+    "main/README.md",
+    "topic-index-generated/awn-container/php/awn-storage/index.md"
   ],
-  "updatedAt": "2026-07-30T00:23:46.661Z"
+  "updatedAt": "2026-07-31T00:07:36.082Z"
 }

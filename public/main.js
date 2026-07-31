@@ -24617,13 +24617,13 @@ function setWysiwygCursorAtMarkdownOffset(markdown, offset) {
         if (Array.isArray(ww) && ww.length >= 2 && Number.isFinite(ww[0]) && Number.isFinite(ww[1])) {
           editor.setSelection(ww[0], ww[1]);
           lastWysiwygMarkdownSelection = [ww[0], ww[1]];
-          editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus({ preventScroll: true });
+          getWysiwygProseMirrorRoot()?.focus({ preventScroll: true });
           return;
         }
       }
       editor.setSelection(mdStart, mdEnd);
       lastWysiwygMarkdownSelection = [mdStart, mdEnd];
-      editorWysiwygWrapNode?.querySelector(".ProseMirror")?.focus({ preventScroll: true });
+      getWysiwygProseMirrorRoot()?.focus({ preventScroll: true });
     } catch {
       // ignore stale selection after setMarkdown
     }
@@ -24669,7 +24669,7 @@ function getWysiwygMarkdownSelectionForInsert(editor) {
 }
 
 function bindWysiwygSelectionCapture() {
-  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const pm = getWysiwygProseMirrorRoot();
   if (!pm || pm.dataset.awnSelectionBound === "1") return;
   pm.dataset.awnSelectionBound = "1";
   const capture = () => {
@@ -24682,7 +24682,7 @@ function bindWysiwygSelectionCapture() {
 }
 
 function bindWysiwygLinkNavigation() {
-  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const pm = getWysiwygProseMirrorRoot();
   if (!pm || pm.dataset.awnLinkNavBound === "1") return;
   pm.dataset.awnLinkNavBound = "1";
   pm.addEventListener("click", (event) => {
@@ -24805,7 +24805,7 @@ function insertMarkdownAtWysiwygCursor(snippet) {
 
   return withPreservedEditorScroll(() => {
     const selection = getWysiwygMarkdownSelectionForInsert(editor);
-    const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
+    const pm = getWysiwygProseMirrorRoot();
     pm?.focus({ preventScroll: true });
 
     const insertAtMarkdownOffsets = (start, end) => {
@@ -54534,9 +54534,7 @@ function blockMatchesLiveDiffAddedLine(blockText, addedLines) {
 function applyWysiwygLiveDiffHighlights() {
   const diffPayload = getActiveLiveSyncInlineDiffForView();
   const host = liveSyncWysiwygDiffRemovedNode;
-  const proseMirror =
-    editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .ProseMirror") ||
-    editorWysiwygWrapNode?.querySelector(".ProseMirror");
+  const proseMirror = getWysiwygProseMirrorRoot();
 
   proseMirror?.querySelectorAll(".live-diff-wysiwyg-add").forEach((node) => {
     node.classList.remove("live-diff-wysiwyg-add");
@@ -62067,13 +62065,24 @@ function shouldUseEditorAutoHeight() {
   return editorViewMode === "wysiwyg";
 }
 
+function getWysiwygProseMirrorRoot() {
+  return (
+    editorWysiwygWrapNode?.querySelector(
+      ".toastui-editor-ww-container .ProseMirror.toastui-editor-contents"
+    ) ||
+    editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .ProseMirror") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror.toastui-editor-contents") ||
+    editorWysiwygWrapNode?.querySelector(".ProseMirror")
+  );
+}
+
 function getWysiwygScrollElement() {
   if (shouldUseEditorAutoHeight()) {
     return workspacePaneNode;
   }
   return (
     editorWysiwygWrapNode?.querySelector(".toastui-editor-ww-container .toastui-editor-contents") ||
-    editorWysiwygWrapNode?.querySelector(".ProseMirror")
+    getWysiwygProseMirrorRoot()
   );
 }
 
@@ -62631,8 +62640,108 @@ function isRichClipboardHtml(html) {
   return /<(table|thead|tbody|tr|td|th|img|video|iframe|svg|figure)\b/i.test(raw);
 }
 
+function shouldImportPlainTextAsMarkdown(plain, html, effectiveText = null) {
+  const text = normalizeClipboardPlainText(effectiveText ?? plain);
+  if (!text.trim() || !text.includes("\n")) return false;
+  if (isRichClipboardHtml(html)) return false;
+  if (isTrivialWysiwygClipboardHtml(html) || isPlainTextLikeClipboardHtml(html)) return true;
+  // Multiline plain text: Toast UI HTML paste collapses single line breaks.
+  return true;
+}
+
+function normalizeClipboardPlainText(plain) {
+  return String(plain || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function htmlClipboardToPlainText(html) {
+  const raw = String(html || "").trim();
+  if (!raw) return "";
+  try {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    const body = doc.body;
+    if (!body) return "";
+    const blockTags = new Set(["DIV", "P", "LI", "TR", "H1", "H2", "H3", "H4", "H5", "H6", "PRE"]);
+    const parts = [];
+
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        parts.push(node.nodeValue || "");
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const tag = node.tagName;
+      if (tag === "BR") {
+        parts.push("\n");
+        return;
+      }
+      const isBlock = blockTags.has(tag);
+      if (isBlock && parts.length && !String(parts[parts.length - 1]).endsWith("\n")) {
+        parts.push("\n");
+      }
+      for (const child of node.childNodes) walk(child);
+      if (isBlock) parts.push("\n");
+    };
+
+    for (const child of body.childNodes) walk(child);
+    return parts
+      .join("")
+      .replace(/\u00a0/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\s+\n/g, "\n")
+      .trimEnd();
+  } catch {
+    return "";
+  }
+}
+
+function normalizePastedPlainText(text) {
+  return normalizeClipboardPlainText(text)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function extractClipboardPlainText(clipboard) {
+  const plain = normalizePastedPlainText(clipboard?.getData?.("text/plain") || "");
+  const html = clipboard?.getData?.("text/html") || "";
+  if (plain.includes("\n")) return plain;
+  const fromHtml = normalizePastedPlainText(htmlClipboardToPlainText(html));
+  if (fromHtml.includes("\n")) return fromHtml;
+  return plain || fromHtml;
+}
+
+function getWysiwygModeEditor() {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return null;
+  if (typeof editor.getCurrentModeEditor === "function") {
+    return editor.getCurrentModeEditor();
+  }
+  return editor.wwEditor || null;
+}
+
+function isWysiwygPasteTargetInCodeBlock(target) {
+  const node = target instanceof Element ? target : target?.parentElement;
+  return Boolean(node?.closest(".toastui-editor-ww-code-block"));
+}
+
+function isWysiwygSelectionInCodeBlock() {
+  const view = getWysiwygModeEditor()?.view;
+  if (view?.state?.selection) {
+    const { $from } = view.state.selection;
+    if ($from.parent.type.spec.code) return true;
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      if ($from.node(depth).type.spec.code) return true;
+    }
+  }
+  const sel = window.getSelection?.();
+  if (sel?.anchorNode) return isWysiwygPasteTargetInCodeBlock(sel.anchorNode);
+  return false;
+}
+
 function preservePlainTextLineBreaksForMarkdown(text) {
-  const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const normalized = normalizePastedPlainText(text);
   if (!normalized.includes("\n")) return normalized;
 
   const lines = normalized.split("\n");
@@ -62662,18 +62771,8 @@ function preservePlainTextLineBreaksForMarkdown(text) {
   return result;
 }
 
-function shouldImportPlainTextAsMarkdown(plain, html) {
-  const text = String(plain || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  if (!text.trim() || !text.includes("\n")) return false;
-  if (isRichClipboardHtml(html)) return false;
-  if (isTrivialWysiwygClipboardHtml(html) || isPlainTextLikeClipboardHtml(html)) return true;
-  // Multiline plain text: Toast UI HTML paste collapses single line breaks.
-  return true;
-}
-
-function normalizeWysiwygPasteSnippet(plain) {
-  const text = String(plain || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const trimmed = text.replace(/\s+$/, "");
+function tryBuildWysiwygShellFenceMarkdown(plain) {
+  const trimmed = normalizePastedPlainText(plain).replace(/\s+$/, "");
   const shellBodyPattern = /(\bpkill\b|\bgrep\b|\bnohup\b|\bps aux\b|\bsleep\b)/im;
   const headingThenShell = trimmed.match(/^(#{1,6}\s+.+)\n\s*\n([\s\S]+)$/);
   if (headingThenShell && shellBodyPattern.test(headingThenShell[2])) {
@@ -62683,39 +62782,87 @@ function normalizeWysiwygPasteSnippet(plain) {
   if (/^\s*#/.test(trimmed) && shellBodyPattern.test(trimmed)) {
     return `\`\`\`bash\n${trimmed}\n\`\`\`\n`;
   }
-  const preserved = preservePlainTextLineBreaksForMarkdown(trimmed);
-  return preserved.endsWith("\n") ? preserved : `${preserved}\n`;
+  return null;
+}
+
+function insertPlainTextIntoWysiwygCodeBlock(text) {
+  const normalized = normalizePastedPlainText(text);
+  if (!normalized) return false;
+  const view = getWysiwygModeEditor()?.view;
+  if (!view) return false;
+
+  return withPreservedEditorScroll(() => {
+    view.focus();
+    const { from, to } = view.state.selection;
+    view.dispatch(view.state.tr.insertText(normalized, from, to).scrollIntoView());
+    syncSourceFromWysiwygEditor();
+    return true;
+  });
+}
+
+let wysiwygPasteHandlerBound = false;
+
+function handleWysiwygPasteEvent(event) {
+  if (editorViewMode !== "wysiwyg" || !wysiwygEditorInstance) return;
+  const pm = getWysiwygProseMirrorRoot();
+  if (!pm) return;
+  const target = event.target;
+  const pasteTarget =
+    target instanceof Node && pm.contains(target) ? target : null;
+  const pasteInCodeBlock =
+    isWysiwygPasteTargetInCodeBlock(pasteTarget || target) ||
+    isWysiwygSelectionInCodeBlock();
+  if (!pasteTarget && !pasteInCodeBlock) return;
+
+  const clipboard = event.clipboardData;
+  if (!clipboard) return;
+  const pastedImage = extractImageFileFromDataTransfer(clipboard);
+  if (pastedImage && isWysiwygBlockedImageFileSync(pastedImage)) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    showWysiwygBlockedImageToast();
+    return;
+  }
+
+  const html = clipboard.getData("text/html");
+  const text = extractClipboardPlainText(clipboard);
+
+  if (pasteInCodeBlock) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    if (!insertPlainTextIntoWysiwygCodeBlock(text)) {
+      showToast("Не удалось вставить текст в WYSIWYG", "error");
+    }
+    return;
+  }
+
+  if (!shouldImportPlainTextAsMarkdown(clipboard.getData("text/plain"), html, text)) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+
+  const shellFence = tryBuildWysiwygShellFenceMarkdown(text);
+  if (shellFence) {
+    if (!insertMarkdownAtWysiwygCursor(shellFence)) {
+      showToast("Не удалось вставить текст в WYSIWYG", "error");
+    }
+    return;
+  }
+
+  const markdown = preservePlainTextLineBreaksForMarkdown(text);
+  const snippet = markdown.endsWith("\n") ? markdown : `${markdown}\n`;
+  if (!insertMarkdownAtWysiwygCursor(snippet)) {
+    showToast("Не удалось вставить текст в WYSIWYG", "error");
+  }
 }
 
 function bindWysiwygPasteHandler() {
-  const pm = editorWysiwygWrapNode?.querySelector(".ProseMirror");
-  if (!pm || pm.dataset.awnPasteBound === "1") return;
-  pm.dataset.awnPasteBound = "1";
-  pm.addEventListener(
-    "paste",
-    (event) => {
-      if (editorViewMode !== "wysiwyg" || !wysiwygEditorInstance) return;
-      const clipboard = event.clipboardData;
-      if (!clipboard) return;
-      const pastedImage = extractImageFileFromDataTransfer(clipboard);
-      if (pastedImage && isWysiwygBlockedImageFileSync(pastedImage)) {
-        event.preventDefault();
-        event.stopPropagation();
-        showWysiwygBlockedImageToast();
-        return;
-      }
-      const plain = clipboard.getData("text/plain");
-      const html = clipboard.getData("text/html");
-      if (!shouldImportPlainTextAsMarkdown(plain, html)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const snippet = normalizeWysiwygPasteSnippet(plain);
-      if (!insertMarkdownAtWysiwygCursor(snippet)) {
-        showToast("Не удалось вставить текст в WYSIWYG", "error");
-      }
-    },
-    true
-  );
+  if (wysiwygPasteHandlerBound) return;
+  wysiwygPasteHandlerBound = true;
+  document.addEventListener("paste", handleWysiwygPasteEvent, true);
 }
 
 function normalizeWysiwygImportedMarkdown(markdown) {
