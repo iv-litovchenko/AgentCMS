@@ -7,6 +7,7 @@
     "main/Безопасность/XSS.md",
     "main/Объекты.md",
     "main/Синтаксис/manifest.md",
+    "main/Типы данных",
     "main/Типы данных.md",
     "main/awn-container/manifest.md",
     "main/awn-container/php/awn-storage/manifest.md",
@@ -14,5 +15,5 @@
     "main/README.md",
     "topic-index-generated/awn-container/php/awn-storage/index.md"
   ],
-  "updatedAt": "2026-07-31T00:07:36.082Z"
+  "updatedAt": "2026-07-31T19:13:54.340Z"
 }

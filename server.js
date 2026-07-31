@@ -3874,6 +3874,7 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     if (entry.isDirectory() && shouldSkipExternalMemoryDirectory(entry.name)) continue;
+    if (entry.isDirectory() && shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name);
 
@@ -3908,6 +3909,7 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "") {
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
     if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
+    if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
@@ -3928,6 +3930,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
 
     if (entry.isDirectory()) {
       if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
+      if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
       const nested = await collectMarkdownFiles(absolute, relative);
       files.push(...nested);
       continue;
@@ -3965,6 +3968,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
 
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name)) continue;
+      if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
       files.push(...(await collectNonMarkdownFiles(absolute, relative)));
       continue;
     }
@@ -4641,7 +4645,32 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
   }
 }
 
+async function resolveRecordMaterialsFolderExists(folderAbsolute, fileRelativePath) {
+  const normalized = String(fileRelativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized.toLowerCase().endsWith(".md")) return false;
+  const baseName = path.basename(normalized);
+  if (isAreaManifestFileName(baseName) || isTopicManifestFileName(baseName)) return false;
+  const slug = baseName.replace(/\.md$/i, "");
+  if (!slug) return false;
+  const parentRel = path.dirname(normalized);
+  const partsRel =
+    !parentRel || parentRel === "."
+      ? `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`
+      : path.posix.join(parentRel, `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`);
+  const partsAbsolute = path.join(folderAbsolute, partsRel);
+  try {
+    const stat = await fs.stat(partsAbsolute);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, fileEntry) {
+  const hasRecordMaterials = await resolveRecordMaterialsFolderExists(
+    folderAbsolute,
+    fileEntry.relativePath
+  );
   const fileAbsolute = path.join(folderAbsolute, fileEntry.relativePath);
   try {
     const raw = await fs.readFile(fileAbsolute, "utf-8");
@@ -4664,7 +4693,8 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       tags: getFrontmatterPropValue(props, "awn-tags") || getYamlScalar(frontmatter, "awn-tags") || null,
       hasPreview: Boolean(previewMeta.hasPreview),
       previewUrl: previewMeta.previewUrl || null,
-      previewFile: previewMeta.previewFile || null
+      previewFile: previewMeta.previewFile || null,
+      hasRecordMaterials
     };
   } catch {
     const slug =
@@ -4677,7 +4707,8 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       tags: null,
       hasPreview: false,
       previewUrl: null,
-      previewFile: null
+      previewFile: null,
+      hasRecordMaterials
     };
   }
 }
@@ -7340,6 +7371,17 @@ const MENU_SKIP_DIRS = new Set([
 ]);
 const MENU_SORT_FILE = "sort.json";
 const PARTS_FOLDER = "_Parts";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "parts-";
+
+function isRecordPartsPackageFolderName(name) {
+  const normalized = String(name || "").trim();
+  if (!normalized) return false;
+  return normalized.toLowerCase().startsWith(RECORD_PARTS_PACKAGE_FOLDER_PREFIX);
+}
+
+function shouldSkipRecordPartsPackageDirectory(name) {
+  return isRecordPartsPackageFolderName(name);
+}
 
 const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
 const SERVICE_MENU_LEAF_TYPES = new Set(["service-doc", "catalog", "taxonomy"]);
@@ -17878,6 +17920,38 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to browse workspace folder",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/folder/mkdir") {
+    let payload = {};
+    try {
+      payload = await readJsonBody(req);
+    } catch (error) {
+      return sendJson(res, 400, { error: "Invalid JSON body", details: String(error.message || error) });
+    }
+
+    const folderPath = String(payload.folderPath || "").trim();
+    if (!folderPath) return sendJson(res, 400, { error: "Missing folderPath" });
+
+    const folderAbsolute = normalizeWorkspacePath(folderPath);
+    if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid folder path" });
+
+    try {
+      await fs.mkdir(folderAbsolute, { recursive: true });
+      const stat = await fs.stat(folderAbsolute);
+      if (!stat.isDirectory()) {
+        return sendJson(res, 400, { error: "Path exists and is not a directory" });
+      }
+      return sendJson(res, 200, {
+        ok: true,
+        folderPath: folderPath.replace(/\\/g, "/").replace(/\/+$/, "")
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to create folder",
         details: String(error.message || error)
       });
     }

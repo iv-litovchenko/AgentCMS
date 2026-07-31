@@ -11362,7 +11362,8 @@ const OVERVIEW_ACCORDION_GROUP_IDS = new Set([
   "custom-props",
   "agent-instruction",
   "types-registry",
-  "foundation-types"
+  "foundation-types",
+  "record-materials"
 ]);
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
 const OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID = "awn-props";
@@ -21451,6 +21452,41 @@ const STORAGE_SUBFOLDER_ASSETS = "assets";
 const PASTED_ASSETS_SUBDIR = "pasted";
 const PREVIEW_ASSETS_SUBDIR = "preview";
 const ATTACHMENTS_ASSETS_SUBDIR = "attachments";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "parts-";
+const RECORD_MATERIALS_UI_LABEL = "Доп. материалы записи";
+const RECORD_MATERIALS_ICON_HTML =
+  '<svg class="record-materials-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M12 3 3 7.5 12 12l9-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 12.5 12 17l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 17.5 12 22l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  "</svg>";
+
+function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
+  if (!parent) return;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "record-materials-icon-wrap";
+  iconWrap.innerHTML = RECORD_MATERIALS_ICON_HTML.replace("record-materials-icon", iconClass);
+  const label = document.createElement("span");
+  label.className = "record-materials-label";
+  label.textContent = labelText;
+  parent.append(iconWrap, label);
+}
+
+function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL } = {}) {
+  const badge = document.createElement("span");
+  badge.className = "nav-book-toc-materials-badge";
+  badge.innerHTML = RECORD_MATERIALS_ICON_HTML.replace(
+    "record-materials-icon",
+    "nav-book-toc-materials-badge-icon"
+  );
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  return badge;
+}
+
+function navigationItemHasRecordMaterials(item) {
+  return Boolean(item?.hasRecordMaterials);
+}
 const ATTACHMENTS_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|svg)$/i;
 const ATTACHMENT_UI_VARIANT_KEY = "agentcms.attachmentUiVariant.v1";
 const ATTACHMENT_UI_VARIANT = {
@@ -25665,6 +25701,7 @@ function isMemorySectionInfrastructureFolderPath(folderPath) {
 function isMemorySectionInfrastructureFilePath(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
   if (!normalized) return false;
+  if (isRecordPartsPackageFilePath(normalized)) return true;
   const parts = normalized.split("/").filter(Boolean);
   if (parts.length <= 1) {
     return isMemorySectionInfrastructureFolderPath(parts[0] || "");
@@ -25677,9 +25714,220 @@ function isMemorySectionInfrastructureFilePath(filePath) {
   return false;
 }
 
+function isRecordPartsPackageFolderName(name) {
+  const normalized = String(name || "").trim();
+  if (!normalized) return false;
+  return normalized.toLowerCase().startsWith(RECORD_PARTS_PACKAGE_FOLDER_PREFIX);
+}
+
+function isRecordPartsPackageFolderPath(folderPath) {
+  const segment = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "")
+    .split("/")
+    .pop();
+  return isRecordPartsPackageFolderName(segment);
+}
+
+function isRecordPartsPackageFilePath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  return normalized
+    .split("/")
+    .filter(Boolean)
+    .some((segment) => isRecordPartsPackageFolderName(segment));
+}
+
+function getRecordSlugFromStorageRelativePath(relativePath) {
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || isSectionReadmePath(normalized)) return "";
+  const base = normalized.split("/").pop() || "";
+  if (!/\.md$/i.test(base)) return "";
+  return base.replace(/\.md$/i, "");
+}
+
+function resolveRecordPartsStorageRelPath(relativePath) {
+  const slug = getRecordSlugFromStorageRelativePath(relativePath);
+  if (!slug) return "";
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const parentDir = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+  const partsFolder = `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`;
+  return parentDir ? `${parentDir}/${partsFolder}` : partsFolder;
+}
+
+function resolveRecordPartsWorkspaceFolderPath(context) {
+  if (!context?.relativePath) return "";
+  const slug = getRecordSlugFromStorageRelativePath(context.relativePath);
+  if (!slug) return "";
+
+  const recordWorkspacePath = String(context.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (recordWorkspacePath && /\.md$/i.test(recordWorkspacePath)) {
+    const parentDir = recordWorkspacePath.includes("/")
+      ? recordWorkspacePath.slice(0, recordWorkspacePath.lastIndexOf("/"))
+      : "";
+    const partsFolderName = `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`;
+    return parentDir ? `${parentDir}/${partsFolderName}` : partsFolderName;
+  }
+
+  const storageRel = resolveRecordPartsStorageRelPath(context.relativePath);
+  if (!storageRel) return "";
+  return getEntryOverviewItemContextPath(storageRel, context.memoryKind || "external");
+}
+
+function shouldShowEntryOverviewRecordParts(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (isEntryOverviewCategoryContext(context)) return false;
+  if (context.entryKind === "awn.media.asset") return false;
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath || !/\.md$/i.test(relativePath)) return false;
+  if (isSectionReadmePath(relativePath)) return false;
+  return Boolean(getRecordSlugFromStorageRelativePath(relativePath));
+}
+
+function resolvePropsRecordMaterialsContext() {
+  const manifestBase = getResolvedNodePath(activePath);
+  if (!manifestBase) return null;
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    return activeEntryOverviewContext;
+  }
+
+  if (activeContentMode === "external" && activeExternalFilePath) {
+    const relativePath = String(activeExternalFilePath).replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!shouldShowEntryOverviewRecordParts({ relativePath, entryKind: "awn.record" })) return null;
+    return {
+      relativePath,
+      memoryKind: "external",
+      relPath: getExternalItemContextPath({ path: relativePath })
+    };
+  }
+
+  if (isFlatStorageFileEditing() && activeFlatStorageFilePath) {
+    const relativePath = String(activeFlatStorageFilePath).replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!shouldShowEntryOverviewRecordParts({ relativePath, entryKind: "awn.record" })) return null;
+    const memoryKind = activeContentMode;
+    return {
+      relativePath,
+      memoryKind,
+      relPath: getFlatStorageItemContextPath(relativePath, memoryKind)
+    };
+  }
+
+  return null;
+}
+
+async function recordPartsWorkspaceFolderExists(folderPath) {
+  try {
+    const data = await fetchWorkspaceFolderBrowse(folderPath);
+    return Boolean(data?.exists);
+  } catch {
+    return false;
+  }
+}
+
+function countRecordPartsScanItems(items, rootFolderPath) {
+  const rootKey = String(rootFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  if (!rootKey) return 0;
+  let count = 0;
+  for (const item of items || []) {
+    if (String(item.kind || "").trim() === "folder") continue;
+    const itemPath = String(item.path || "").replace(/\\/g, "/");
+    if (itemPath === rootKey) continue;
+    if (!itemPath.startsWith(`${rootKey}/`)) continue;
+    count += 1;
+  }
+  return count;
+}
+
+async function fetchRecordPartsItemCount(workspaceFolderPath) {
+  try {
+    const data = await fetchWorkspaceFolderScan(workspaceFolderPath, { depth: "all" });
+    if (!data?.exists) return 0;
+    return countRecordPartsScanItems(data.items || [], workspaceFolderPath);
+  } catch {
+    return 0;
+  }
+}
+
+function formatRecordMaterialsCountLabel(count) {
+  const normalized = Number(count);
+  if (!Number.isFinite(normalized) || normalized <= 0) return "0 файлов";
+  const mod10 = normalized % 10;
+  const mod100 = normalized % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${normalized} файл`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${normalized} файла`;
+  return `${normalized} файлов`;
+}
+
+function createPropsRecordMaterialsAddControl({ locked = false } = {}) {
+  const context = resolvePropsRecordMaterialsContext();
+  if (!context || !shouldShowEntryOverviewRecordParts(context)) return null;
+
+  const workspaceFolderPath = resolveRecordPartsWorkspaceFolderPath(context);
+  const storageRelPath = resolveRecordPartsStorageRelPath(context.relativePath);
+  if (!workspaceFolderPath || !storageRelPath) return null;
+
+  const container = document.createElement("div");
+  container.className = "props-form-record-materials";
+
+  const renderState = async () => {
+    container.replaceChildren();
+    if (locked) return;
+
+    const exists = await recordPartsWorkspaceFolderExists(workspaceFolderPath);
+    if (exists) {
+      const status = document.createElement("div");
+      status.className = "props-form-record-materials-status";
+      appendRecordMaterialsIconLabel(status, RECORD_MATERIALS_UI_LABEL, {
+        iconClass: "record-materials-icon record-materials-icon--status"
+      });
+      const countNode = document.createElement("span");
+      countNode.className = "props-form-record-materials-count";
+      countNode.textContent = "…";
+      status.appendChild(countNode);
+      status.title = storageRelPath;
+      container.appendChild(status);
+      void fetchRecordPartsItemCount(workspaceFolderPath).then((count) => {
+        countNode.textContent = String(count);
+        status.title = `${storageRelPath} · ${formatRecordMaterialsCountLabel(count)}`;
+        countNode.title = formatRecordMaterialsCountLabel(count);
+      });
+      return;
+    }
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "props-form-record-materials-add";
+    appendRecordMaterialsIconLabel(addBtn, RECORD_MATERIALS_UI_LABEL, {
+      iconClass: "record-materials-icon record-materials-icon--button"
+    });
+    addBtn.addEventListener("click", () => {
+      addBtn.disabled = true;
+      void ensureRecordPartsWorkspaceFolder(workspaceFolderPath)
+        .then(() => {
+          showToast(`${RECORD_MATERIALS_UI_LABEL} созданы`, "success");
+          return renderState();
+        })
+        .catch((error) => {
+          addBtn.disabled = false;
+          showToast(error.message || "Не удалось создать доп. материалы записи", "error");
+        });
+    });
+    container.appendChild(addBtn);
+  };
+
+  void renderState();
+  return container;
+}
+
 function addMemorySectionFolderPath(folderPaths, folderPath) {
   const normalized = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
   if (!normalized || isMemorySectionInfrastructureFolderPath(normalized)) return;
+  if (isRecordPartsPackageFolderPath(normalized)) return;
   folderPaths.add(normalized);
 }
 
@@ -28320,7 +28568,7 @@ function appendNavBookTocFolderRailCreateButton(leaders, folderPath, handlers) {
   btn.type = "button";
   btn.className = "nav-book-toc-folder-create-btn";
   btn.textContent = "+";
-  btn.title = sectionFolder ? `Создать в «${sectionFolder}»` : "Создать в этом разделе";
+  btn.title = sectionFolder ? `Создать запись в «${sectionFolder}»` : "Создать запись";
   btn.setAttribute("aria-label", btn.title);
   btn.setAttribute("aria-haspopup", "menu");
   btn.setAttribute("aria-expanded", "false");
@@ -41092,6 +41340,9 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     });
 
     wrap.append(uploadZone, input);
+
+    const materialsControl = createPropsRecordMaterialsAddControl({ locked });
+    if (materialsControl) wrap.appendChild(materialsControl);
   }
 
   if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
@@ -44764,7 +45015,11 @@ function createOverviewAccordionSection(
 
   const titleSpan = document.createElement("span");
   titleSpan.className = "node-overview-fold-title";
-  titleSpan.textContent = title;
+  if (title instanceof Node) {
+    titleSpan.appendChild(title);
+  } else {
+    titleSpan.textContent = String(title || "");
+  }
 
   const chevron = document.createElement("span");
   chevron.className = "node-overview-fold-chevron";
@@ -47091,18 +47346,27 @@ function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
   return badge;
 }
 
-function populateNavBookTocLeaders(leadersHost, attachmentCount) {
+function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false } = {}) {
   if (!leadersHost) return;
   const count = Number(attachmentCount);
+  const badges = [];
   if (Number.isFinite(count) && count > 0) {
-    const badge = createAttachmentsCountBadge(count);
-    if (!badge) return;
-    leadersHost.classList.add("has-nav-book-toc-attachments-badge");
-    leadersHost.replaceChildren(badge);
+    const attachmentBadge = createAttachmentsCountBadge(count);
+    if (attachmentBadge) badges.push(attachmentBadge);
+  }
+  if (hasMaterials) {
+    const materialsBadge = createRecordMaterialsIndicatorBadge();
+    if (materialsBadge) badges.push(materialsBadge);
+  }
+  if (badges.length) {
+    leadersHost.classList.toggle("has-nav-book-toc-attachments-badge", badges.some((node) => node.classList.contains("nav-book-toc-attachments-badge")));
+    leadersHost.classList.toggle("has-nav-book-toc-materials-badge", hasMaterials);
+    leadersHost.replaceChildren(...badges);
     leadersHost.removeAttribute("aria-hidden");
     return;
   }
   leadersHost.classList.remove("has-nav-book-toc-attachments-badge");
+  leadersHost.classList.remove("has-nav-book-toc-materials-badge");
   leadersHost.replaceChildren();
   leadersHost.setAttribute("aria-hidden", "true");
 }
@@ -47684,6 +47948,7 @@ function prepareNavigationExternalItems(files, folders = []) {
   for (const item of folders) {
     const folderPath = String(item.path || item.name || "").replace(/\\/g, "/").replace(/\/$/, "");
     if (!folderPath) continue;
+    if (isRecordPartsPackageFolderName(item.name || folderPath.split("/").pop())) continue;
     addMemorySectionFolderPath(folderPaths, folderPath);
     if (!folderLabels.has(folderPath)) {
       const segment = folderPath.split("/").pop() || folderPath;
@@ -47731,7 +47996,8 @@ function prepareNavigationExternalItems(files, folders = []) {
       status: resolveNavigationItemStatus(item),
       props,
       hasPreview: Boolean(item.hasPreview),
-      previewUrl: item.previewUrl || null
+      previewUrl: item.previewUrl || null,
+      hasRecordMaterials: Boolean(item.hasRecordMaterials)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       addMemorySectionFolderPath(folderPaths, ancestor);
@@ -48179,6 +48445,19 @@ function getEntryOverviewNavigationHandlers(memoryKind) {
   return {
     onFolderClick: openExternalCategoryOverviewFromNavigation,
     onFileClick: openExternalRecordOverviewFromNavigation
+  };
+}
+
+function buildEntryOverviewBookTocHandlers(context, extra = {}) {
+  const memoryKind = context?.memoryKind || "external";
+  return {
+    ...getEntryOverviewNavigationHandlers(memoryKind),
+    nodePath: getResolvedNodePath(activePath),
+    enableFolderCreateActions: true,
+    railCreateTargetMode: memoryKind,
+    activeContext: context,
+    resourceContextMenuMemoryKind: memoryKind,
+    ...extra
   };
 }
 
@@ -49207,6 +49486,520 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
 function getEntryOverviewAttachmentPaths(entries) {
   const entry = entries.find((item) => normalizePropsKey(item.key) === "awn-attachments");
   return parsePropsAttachmentsValue(entry);
+}
+
+async function fetchWorkspaceFolderScan(folderPath, options = {}) {
+  const response = await fetch(
+    buildApiUrl("/api/workspace/folder/scan", {
+      folderPath: normalizeCreateParentPath(folderPath),
+      depth: options.depth || "all",
+      includeBody: options.includeBody ? "true" : "false"
+    })
+  );
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+async function ensureRecordPartsWorkspaceFolder(folderPath) {
+  const response = await fetch(buildApiUrl("/api/workspace/folder/mkdir"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folderPath: normalizeCreateParentPath(folderPath) })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+function buildRecordPartsTreeFromScanItems(items, rootFolderPath) {
+  const rootKey = String(rootFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  const rootName = rootKey.split("/").filter(Boolean).pop() || rootKey;
+  const rootNode = {
+    folderPath: rootKey,
+    name: rootName,
+    folders: new Map(),
+    files: []
+  };
+  const nodeByPath = new Map([[rootKey, rootNode]]);
+
+  const ensureFolderNode = (folderPath, name = "") => {
+    const key = String(folderPath || "")
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "");
+    if (!key) return rootNode;
+    if (nodeByPath.has(key)) return nodeByPath.get(key);
+    const node = {
+      folderPath: key,
+      name: name || key.split("/").filter(Boolean).pop() || key,
+      folders: new Map(),
+      files: []
+    };
+    nodeByPath.set(key, node);
+    return node;
+  };
+
+  const linkFolder = (parentPath, folderPath, name) => {
+    const parentKey = String(parentPath || rootKey)
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "");
+    const folderKey = String(folderPath || "")
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "");
+    if (!folderKey || folderKey === parentKey) return;
+    const parentNode = ensureFolderNode(parentKey);
+    const folderNode = ensureFolderNode(folderKey, name);
+    parentNode.folders.set(folderKey, folderNode);
+  };
+
+  for (const item of items || []) {
+    const kind = String(item.kind || "").trim();
+    if (kind === "folder") {
+      const folderPath = String(item.folderPath || item.path || "")
+        .replace(/\\/g, "/")
+        .replace(/\/+$/, "");
+      if (!folderPath.startsWith(rootKey)) continue;
+      const parentPath = String(item.parentFolder || rootKey)
+        .replace(/\\/g, "/")
+        .replace(/\/+$/, "");
+      linkFolder(parentPath, folderPath, item.name || folderPath.split("/").pop());
+      continue;
+    }
+
+    const filePath = String(item.path || "").replace(/\\/g, "/");
+    if (!filePath.startsWith(`${rootKey}/`) && filePath !== rootKey) continue;
+    const parentPath = String(item.parentFolder || rootKey)
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "");
+    const parentNode = ensureFolderNode(parentPath);
+    parentNode.files.push(item);
+  }
+
+  for (const node of nodeByPath.values()) {
+    node.files.sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
+    );
+  }
+
+  return rootNode;
+}
+
+function isRecordPartsMarkdownScanItem(item) {
+  const kind = String(item?.kind || "").trim();
+  if (kind === "page") return true;
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  return /\.md$/i.test(filePath);
+}
+
+function isRecordPartsAssetScanItem(item) {
+  const kind = String(item?.kind || "").trim();
+  if (kind === "folder") return false;
+  return !isRecordPartsMarkdownScanItem(item);
+}
+
+function recordPartsTreeHasContent(node) {
+  return (node?.files?.length || 0) > 0 || (node?.folders?.size || 0) > 0;
+}
+
+function pruneRecordPartsTreeToMarkdown(node) {
+  const mdFiles = (node?.files || []).filter(isRecordPartsMarkdownScanItem);
+  const folders = new Map();
+  for (const [key, child] of node?.folders || []) {
+    const pruned = pruneRecordPartsTreeToMarkdown(child);
+    if (recordPartsTreeHasContent(pruned)) {
+      folders.set(key, pruned);
+    }
+  }
+  return {
+    ...node,
+    files: mdFiles,
+    folders
+  };
+}
+
+function buildRecordPartsMarkdownTreeFromScanItems(items, rootFolderPath) {
+  return pruneRecordPartsTreeToMarkdown(buildRecordPartsTreeFromScanItems(items, rootFolderPath));
+}
+
+function collectRecordPartsAssetScanItems(items, rootFolderPath) {
+  const rootKey = String(rootFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  if (!rootKey) return [];
+  return (items || [])
+    .filter((item) => {
+      if (!isRecordPartsAssetScanItem(item)) return false;
+      const filePath = String(item.path || "").replace(/\\/g, "/");
+      return filePath.startsWith(`${rootKey}/`);
+    })
+    .sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
+    );
+}
+
+function getRecordPartsRelativeDisplayPath(filePath, rootFolderPath) {
+  const rootKey = String(rootFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  if (rootKey && normalized.startsWith(`${rootKey}/`)) {
+    return normalized.slice(rootKey.length + 1);
+  }
+  return normalized.split("/").pop() || normalized;
+}
+
+function formatRecordPartsAssetSize(size) {
+  const normalized = Number(size);
+  if (!Number.isFinite(normalized) || normalized < 0) return "";
+  if (normalized < 1024) return `${normalized} B`;
+  if (normalized < 1024 * 1024) {
+    return `${(normalized / 1024).toFixed(normalized < 10 * 1024 ? 1 : 0)} KB`;
+  }
+  return `${(normalized / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function createRecordPartsAssetRow(item, rootFolderPath, handlers = {}) {
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "node-entry-overview-record-parts-asset-row";
+
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  const displayPath = getRecordPartsRelativeDisplayPath(filePath, rootFolderPath);
+  const fileName = item.title || item.name || displayPath.split("/").pop() || "файл";
+  const ext = getNavigationItemFileExtension(item);
+  const sizeLabel = formatRecordPartsAssetSize(item.size);
+  row.title = sizeLabel ? `${displayPath} · ${sizeLabel}` : displayPath;
+
+  const leading = document.createElement("span");
+  leading.className = "node-entry-overview-record-parts-asset-leading";
+  const isImage =
+    String(item.kind || "") === "image" ||
+    /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(filePath);
+  const previewUrl =
+    item.previewUrl ||
+    (isImage ? resolveWorkspaceFolderBrowseAssetUrl(null, filePath, { thumb: true, max: 120 }) : "");
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.className = "node-entry-overview-record-parts-asset-thumb";
+    img.src = previewUrl;
+    img.alt = "";
+    img.loading = "lazy";
+    leading.appendChild(img);
+  } else {
+    const icon = document.createElement("span");
+    icon.className = "node-entry-overview-record-parts-asset-icon";
+    icon.textContent = getNavigationTocFileIcon(item);
+    leading.appendChild(icon);
+  }
+  row.appendChild(leading);
+
+  const meta = document.createElement("span");
+  meta.className = "node-entry-overview-record-parts-asset-meta";
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "node-entry-overview-record-parts-asset-name";
+  nameNode.textContent = fileName;
+  meta.appendChild(nameNode);
+
+  const pathNode = document.createElement("span");
+  pathNode.className = "node-entry-overview-record-parts-asset-path";
+  pathNode.textContent = displayPath;
+  meta.appendChild(pathNode);
+
+  row.appendChild(meta);
+
+  const trailing = document.createElement("span");
+  trailing.className = "node-entry-overview-record-parts-asset-trailing";
+  if (ext) {
+    const extNode = document.createElement("span");
+    extNode.className = "node-entry-overview-record-parts-asset-ext";
+    extNode.textContent = formatNavigationFileExtensionBadge(ext);
+    trailing.appendChild(extNode);
+  }
+  if (sizeLabel) {
+    const sizeNode = document.createElement("span");
+    sizeNode.className = "node-entry-overview-record-parts-asset-size";
+    sizeNode.textContent = sizeLabel;
+    trailing.appendChild(sizeNode);
+  }
+  row.appendChild(trailing);
+
+  row.addEventListener("click", () => {
+    if (typeof handlers.onFileClick === "function") handlers.onFileClick(item);
+    else openRecordPartsPackageFile(item);
+  });
+  return row;
+}
+
+function renderRecordPartsAssetsSection(assetItems, rootFolderPath, handlers = {}) {
+  const section = document.createElement("section");
+  section.className = "node-entry-overview-record-parts-assets";
+
+  const title = document.createElement("h4");
+  title.className = "node-entry-overview-record-parts-assets-title";
+  title.textContent = "Файлы";
+  section.appendChild(title);
+
+  const list = document.createElement("div");
+  list.className = "node-entry-overview-record-parts-assets-list";
+  for (const item of assetItems) {
+    list.appendChild(createRecordPartsAssetRow(item, rootFolderPath, handlers));
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function appendRecordPartsTreeList(parentList, node, depth = 0, handlers = {}) {
+  const sortedFolders = [...(node.folders?.values?.() || [])].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
+  );
+  const sortedFiles = [...(node.files || [])].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
+  );
+
+  for (const folderNode of sortedFolders) {
+    const li = document.createElement("li");
+    li.className = "nav-book-toc-folder record-parts-tree-folder";
+
+    const head = document.createElement("div");
+    head.className = "nav-book-toc-folder-head record-parts-tree-folder-head";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.className = "nav-book-toc-toggle record-parts-tree-toggle";
+    toggleBtn.setAttribute("aria-expanded", depth < 2 ? "true" : "false");
+    toggleBtn.textContent = depth < 2 ? "▾" : "▸";
+
+    const label = document.createElement("button");
+    label.type = "button";
+    label.className = "nav-book-toc-folder-label record-parts-tree-folder-label";
+    label.textContent = folderNode.name;
+
+    head.appendChild(toggleBtn);
+    head.appendChild(label);
+
+    const subList = document.createElement("ul");
+    subList.className = "nav-book-toc-list record-parts-tree-list";
+    if (depth >= 2) subList.hidden = true;
+
+    toggleBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const expanded = toggleBtn.getAttribute("aria-expanded") === "true";
+      toggleBtn.setAttribute("aria-expanded", expanded ? "false" : "true");
+      toggleBtn.textContent = expanded ? "▸" : "▾";
+      subList.hidden = expanded;
+    });
+
+    appendRecordPartsTreeList(subList, folderNode, depth + 1, handlers);
+    li.appendChild(head);
+    li.appendChild(subList);
+    parentList.appendChild(li);
+  }
+
+  for (const file of sortedFiles) {
+    const li = document.createElement("li");
+    li.className = "nav-book-toc-file record-parts-tree-file";
+
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "nav-book-toc-link record-parts-tree-link";
+    const fileName = file.title || file.name || file.path?.split("/").pop() || "файл";
+    const ext = getNavigationItemFileExtension(file);
+    link.title = file.path || file.name || "";
+
+    const nameNode = document.createElement("span");
+    nameNode.className = "record-parts-tree-link-name";
+    nameNode.textContent = fileName;
+    link.appendChild(nameNode);
+
+    if (ext && ext !== ".md") {
+      const extNode = document.createElement("span");
+      extNode.className = "record-parts-tree-link-ext";
+      extNode.textContent = formatNavigationFileExtensionBadge(ext);
+      link.appendChild(extNode);
+    }
+
+    link.addEventListener("click", () => {
+      if (typeof handlers.onFileClick === "function") handlers.onFileClick(file);
+    });
+
+    li.appendChild(link);
+    parentList.appendChild(li);
+  }
+}
+
+function openRecordPartsPackageFile(fileItem) {
+  const filePath = String(fileItem?.path || "").replace(/\\/g, "/");
+  if (!filePath) return;
+  const label = fileItem.title || fileItem.name || filePath.split("/").pop() || filePath;
+  if (String(fileItem.kind || "") === "page" || /\.md$/i.test(filePath)) {
+    void openFolderBrowseFile(label, filePath);
+    return;
+  }
+  const url = resolveWorkspaceFolderBrowseAssetUrl(null, filePath);
+  if (url) window.open(url, "_blank", "noopener,noreferrer");
+}
+
+async function renderEntryOverviewRecordPartsPart(context) {
+  if (!shouldShowEntryOverviewRecordParts(context)) return null;
+
+  const workspaceFolderPath = resolveRecordPartsWorkspaceFolderPath(context);
+  const storageRelPath = resolveRecordPartsStorageRelPath(context.relativePath);
+  if (!workspaceFolderPath || !storageRelPath) return null;
+
+  const contentWrap = document.createElement("div");
+  contentWrap.className = "node-entry-overview-record-parts-content";
+
+  const body = document.createElement("div");
+  body.className = "node-entry-overview-record-parts-body";
+  contentWrap.appendChild(body);
+
+  const renderEmpty = (message, { showCreate = false } = {}) => {
+    body.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "node-entry-overview-record-parts-empty";
+    empty.textContent = message;
+    body.appendChild(empty);
+
+    if (!showCreate) return;
+
+    const actions = document.createElement("div");
+    actions.className = "node-entry-overview-record-parts-actions";
+
+    const createBtn = document.createElement("button");
+    createBtn.type = "button";
+    createBtn.className = "node-entry-overview-record-parts-create-btn";
+    appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_UI_LABEL, {
+      iconClass: "record-materials-icon record-materials-icon--button"
+    });
+    createBtn.addEventListener("click", () => {
+      createBtn.disabled = true;
+      void ensureRecordPartsWorkspaceFolder(workspaceFolderPath)
+        .then(() => refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath))
+        .catch((error) => {
+          createBtn.disabled = false;
+          showToast(error.message || "Не удалось создать доп. материалы записи", "error");
+        });
+    });
+    actions.appendChild(createBtn);
+    body.appendChild(actions);
+  };
+
+  const titleLabel = document.createElement("span");
+  titleLabel.className = "node-entry-overview-record-parts-fold-title";
+  appendRecordMaterialsIconLabel(titleLabel, RECORD_MATERIALS_UI_LABEL, {
+    iconClass: "record-materials-icon record-materials-icon--title"
+  });
+
+  const accordion = createOverviewAccordionSection(
+    "record-materials",
+    titleLabel,
+    contentWrap,
+    { defaultOpen: true }
+  );
+  accordion.classList.add(
+    "node-entry-overview-record-parts",
+    "node-entry-overview-record-parts-fold",
+    "node-overview-props-fold"
+  );
+  accordion.dataset.partsStorageRel = storageRelPath;
+
+  await refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath, { renderEmpty });
+  return accordion;
+}
+
+async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath, helpers = {}) {
+  if (!body) return;
+  body.classList.add("is-loading");
+
+  let scanData;
+  let browseData;
+  try {
+    [scanData, browseData] = await Promise.all([
+      fetchWorkspaceFolderScan(workspaceFolderPath, { depth: "all" }),
+      fetchWorkspaceFolderBrowse(workspaceFolderPath)
+    ]);
+  } catch {
+    body.classList.remove("is-loading");
+    const renderEmpty = helpers.renderEmpty;
+    if (typeof renderEmpty === "function") {
+      renderEmpty("Не удалось загрузить доп. материалы записи", { showCreate: false });
+    }
+    return;
+  }
+
+  body.classList.remove("is-loading");
+
+  const folderExists = Boolean(browseData?.exists || scanData?.exists);
+  if (!folderExists) {
+    const renderEmpty = helpers.renderEmpty;
+    if (typeof renderEmpty === "function") {
+      renderEmpty(
+        "Доп. материалы записи ещё не созданы — создайте папку или положите файлы рядом с записью на диске.",
+        { showCreate: true }
+      );
+    }
+    return;
+  }
+
+  const items = scanData?.items || [];
+  const mdTree = buildRecordPartsMarkdownTreeFromScanItems(items, workspaceFolderPath);
+  const assetItems = collectRecordPartsAssetScanItems(items, workspaceFolderPath);
+  const hasMarkdown = recordPartsTreeHasContent(mdTree);
+  const hasAssets = assetItems.length > 0;
+
+  if (!hasMarkdown && !hasAssets) {
+    const renderEmpty = helpers.renderEmpty;
+    if (typeof renderEmpty === "function") {
+      renderEmpty("Папка создана, но пока пуста — добавьте md-страницы или другие файлы.", {
+        showCreate: false
+      });
+    }
+    return;
+  }
+
+  body.replaceChildren();
+  const fileHandlers = { onFileClick: openRecordPartsPackageFile };
+
+  if (hasMarkdown) {
+    const nav = document.createElement("nav");
+    nav.className = "node-entry-overview-record-parts-nav nav-book-toc-tree--guide";
+    nav.setAttribute("aria-label", `${RECORD_MATERIALS_UI_LABEL} — md`);
+
+    const list = document.createElement("ul");
+    list.className = "nav-book-toc-list nav-book-toc-list--root record-parts-tree-root";
+    appendRecordPartsTreeList(list, mdTree, 0, fileHandlers);
+    nav.appendChild(list);
+    body.appendChild(nav);
+  } else {
+    const mdEmpty = document.createElement("div");
+    mdEmpty.className = "node-entry-overview-record-parts-md-empty";
+    mdEmpty.textContent = "Md-страниц пока нет — положите .md файлы в эту папку.";
+    body.appendChild(mdEmpty);
+  }
+
+  if (hasAssets) {
+    body.appendChild(renderRecordPartsAssetsSection(assetItems, workspaceFolderPath, fileHandlers));
+  }
+}
+
+async function appendEntryOverviewRecordPartsPanel(hero, context) {
+  const panel = await renderEntryOverviewRecordPartsPart(context);
+  if (!panel || !hero) return null;
+  const anchor =
+    hero.querySelector(".node-entry-overview-attachments") ||
+    [
+      ...hero.querySelectorAll(
+        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold"
+      )
+    ].pop() ||
+    null;
+  if (anchor) anchor.insertAdjacentElement("afterend", panel);
+  else hero.appendChild(panel);
+  return panel;
 }
 
 function renderEntryOverviewAttachmentsPart(entries, rawBody, context = null) {
@@ -50721,12 +51514,11 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
   list.className = "nav-book-toc-list nav-book-toc-list--root";
 
   const { onFolderClick, onFileClick } = getEntryOverviewNavigationHandlers(context.memoryKind);
-  const listHandlers = {
+  const listHandlers = buildEntryOverviewBookTocHandlers(context, {
     folderLabels,
     folderDescriptions,
     folderStatuses,
     sectionManifestByFolder,
-    nodePath: getResolvedNodePath(activePath),
     onFolderClick,
     onFileClick,
     showFileTypeLeading: false,
@@ -50735,9 +51527,8 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     collapseDepthThreshold: 99,
     linkLeadingMode: context.memoryKind === "media" ? "media" : undefined,
     readManifestPath: getOverviewNodeApiPath(activePath),
-    readMemoryKind: context.memoryKind,
-    resourceContextMenuMemoryKind: context.memoryKind
-  };
+    readMemoryKind: context.memoryKind
+  });
 
   if (context.memoryKind === "media") {
     appendEntryOverviewMediaBookTocList(list, tree, 0, listHandlers);
@@ -51616,6 +52407,11 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
     head.appendChild(toggleBtn);
     head.append(folderLabel);
     appendNavBookTocFolderHeadCount(head, countNode);
+    appendNavBookTocFolderRailCreateButton(
+      head.querySelector(".nav-book-toc-folder-leaders"),
+      folderNode.folderPath,
+      handlers
+    );
     folderItem.append(head, subList);
 
     parentList.appendChild(folderItem);
@@ -51649,7 +52445,7 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
   if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
 
   const nodePath = getResolvedNodePath(activePath);
-  const handlers = {
+  const handlers = buildEntryOverviewBookTocHandlers(context, {
     folderLabels,
     folderDescriptions,
     folderStatuses,
@@ -51661,7 +52457,7 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
     readMemoryKind: context.memoryKind,
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
-  };
+  });
 
   const section = document.createElement("section");
   section.className = "node-entry-overview-memory-toc node-entry-overview-media-toc";
@@ -51693,8 +52489,6 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
 
   if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
 
-  const handlers = getEntryOverviewNavigationHandlers(context.memoryKind);
-
   const section = document.createElement("section");
   section.className = "node-entry-overview-memory-toc";
 
@@ -51706,7 +52500,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
   list.className = "nav-book-toc-list nav-book-toc-list--root";
   const tree = buildNavigationPathTree(mdItems, folderLabels);
   ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
-  const listHandlers = {
+  const listHandlers = buildEntryOverviewBookTocHandlers(context, {
     folderLabels,
     folderDescriptions,
     folderStatuses,
@@ -51716,10 +52510,8 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     treeStyle: "guide",
     collapseDepthThreshold: 99,
     readManifestPath: getOverviewNodeApiPath(activePath),
-    readMemoryKind: context.memoryKind,
-    resourceContextMenuMemoryKind: context.memoryKind,
-    ...handlers
-  };
+    readMemoryKind: context.memoryKind
+  });
   appendNavigationBookTocList(list, tree, 0, listHandlers);
   nav.classList.add("nav-book-toc-tree--guide");
   nav.appendChild(list);
@@ -51883,6 +52675,7 @@ async function renderEntryOverview() {
     if (isStale()) return;
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
+  await appendEntryOverviewRecordPartsPanel(hero, context);
   appendEntryOverviewSectionReadmeOffer(hubMain, context, {
     navigationIndex,
     manifestBodyFetchOk
@@ -52643,7 +53436,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
-    populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item));
+    populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item), {
+      hasMaterials: navigationItemHasRecordMaterials(item)
+    });
 
     appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
     appendNavUnreadBadgeForContent(
