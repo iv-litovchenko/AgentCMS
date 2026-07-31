@@ -297,7 +297,7 @@ Desktop.ini
 
 # Кэш и временные файлы
 .cache/
-.awn-cache/
+.agent-cms/
 tmp/
 temp/
 *.tmp
@@ -4419,7 +4419,7 @@ function getSystemFileHintSpec(name) {
     return {
       title: "Git — что не попадает в репозиторий",
       text:
-        "Корневой <code>.gitignore</code> workspace агента: секреты, кэш (<code>.awn-cache</code>), OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
+        "Корневой <code>.gitignore</code> workspace агента: секреты, служебная папка <code>.agent-cms</code> (журнал, кэш превью), OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
         "Контент тем (<code>awn-container/</code>, остальные слои <code>awn-storage/</code>) обычно коммитится — " +
         "игнорируйте только то, что не должно уйти в git.",
       example: RECOMMENDED_AGENT_GITIGNORE

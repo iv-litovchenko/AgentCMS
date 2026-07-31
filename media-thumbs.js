@@ -40,8 +40,10 @@ function isThumbCandidateExt(ext) {
   return THUMB_IMAGE_EXTENSIONS.has(String(ext || "").toLowerCase());
 }
 
+const AGENT_MEDIA_THUMBS_CACHE_REL = path.join(".agent-cms", "cache", "media-thumbs");
+
 function getThumbCacheDir(agentRoot) {
-  return path.join(agentRoot, ".awn-cache", "media-thumbs");
+  return path.join(agentRoot, AGENT_MEDIA_THUMBS_CACHE_REL);
 }
 
 function buildThumbCacheFileName(sourceAbsolute, maxSize, mtimeMs) {
@@ -98,7 +100,9 @@ function wantsThumbVariant(searchParams) {
 }
 
 module.exports = {
+  AGENT_MEDIA_THUMBS_CACHE_REL,
   clampThumbMax,
+  getThumbCacheDir,
   isThumbCandidateExt,
   readOrCreateImageThumb,
   wantsThumbVariant,
