@@ -15374,6 +15374,7 @@ function canPasteWorkspaceTreeItem(item, targetState) {
 
   if (item.kind === "area" || item.kind === "topic") {
     if (target.targetKind === "node") {
+      if (!canMenuNodeAcceptChildNodes(targetState.path)) return false;
       return Boolean(resolveMenuDragMove(item.path, targetState.path));
     }
     const parentPath = target.parentPath;
@@ -69339,8 +69340,8 @@ function applyMenuSortRow(row, kind, options = {}) {
     handle.title = "Сортировка недоступна для группирующих папок";
     handle.setAttribute("aria-label", "Сортировка недоступна");
   } else {
-    handle.title = "Перетащить для сортировки";
-    handle.setAttribute("aria-label", "Перетащить для сортировки");
+    handle.title = "Перетащите для сортировки или перемещения в другую область/тему";
+    handle.setAttribute("aria-label", "Перетащите для сортировки или перемещения");
   }
   handle.textContent = "⠿";
   handle.addEventListener("mousedown", (event) => event.stopPropagation());
@@ -69349,7 +69350,7 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  const hint = "Перетащите в редактор для ссылки";
+  const hint = "Перетащите в редактор для ссылки или на другую тему/область для перемещения";
   const markDraggable = (btn) => {
     btn.draggable = true;
     if (!btn.dataset.linkDragHint) {
@@ -69357,7 +69358,9 @@ function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
       btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
     }
   };
-  root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach(markDraggable);
+  root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach((btn) => {
+    if (isMenuContextMenuTarget(btn)) markDraggable(btn);
+  });
   root.querySelectorAll(MENU_ADOPT_FOLDER_DRAG_SELECTOR).forEach(markDraggable);
   root.querySelectorAll(MENU_SYSTEM_FILE_DRAG_SELECTOR).forEach(markDraggable);
 }
@@ -69469,13 +69472,26 @@ function setupMenuSortDragDrop() {
 
   menuNode.addEventListener("dragover", (event) => {
     if (!menuSortDragRow) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
     const targetRow = event.target.closest(".menu-sort-row");
     if (!targetRow || targetRow === menuSortDragRow) return;
 
     const dragContainer = getMenuSortContainer(menuSortDragRow);
     const targetContainer = getMenuSortContainer(targetRow);
+    if (dragContainer && targetContainer && dragContainer !== targetContainer) {
+      const crossMove = resolveMenuSortCrossMove(menuSortDragRow, targetRow);
+      if (crossMove) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
+        setMenuMoveDropTarget(getMenuSortRowDropButton(targetRow));
+        return;
+      }
+      clearMenuMoveDropTarget();
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
     if (!dragContainer || dragContainer !== targetContainer) return;
 
     const dragBlock = getMenuSortBlock(menuSortDragRow);
@@ -69489,17 +69505,34 @@ function setupMenuSortDragDrop() {
   });
 
   menuNode.addEventListener("drop", async (event) => {
-    event.preventDefault();
     if (!menuSortDragRow) return;
-    const container = getMenuSortContainer(menuSortDragRow);
-    const folderPath = container?.dataset.sortFolder || ".";
+    const targetRow = event.target.closest(".menu-sort-row");
+    const dragContainer = getMenuSortContainer(menuSortDragRow);
+    const targetContainer = targetRow ? getMenuSortContainer(targetRow) : null;
+
+    if (targetRow && dragContainer && targetContainer && dragContainer !== targetContainer) {
+      const crossMove = resolveMenuSortCrossMove(menuSortDragRow, targetRow);
+      if (crossMove) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearMenuMoveDropTarget();
+        menuSortDragRow.classList.remove("is-dragging");
+        menuSortDragRow = null;
+        await executeMenuNodeMove(crossMove);
+        return;
+      }
+    }
+
+    event.preventDefault();
+    clearMenuMoveDropTarget();
+    const folderPath = dragContainer?.dataset.sortFolder || ".";
     menuSortDragRow.classList.remove("is-dragging");
     menuSortDragRow = null;
-    if (!container) {
+    if (!dragContainer) {
       showToast("Не удалось определить папку для сортировки", "error");
       return;
     }
-    await persistMenuSortOrder(container, folderPath);
+    await persistMenuSortOrder(dragContainer, folderPath);
   });
 
   menuNode.addEventListener("dragend", () => {
@@ -69507,6 +69540,7 @@ function setupMenuSortDragDrop() {
       menuSortDragRow.classList.remove("is-dragging");
       menuSortDragRow = null;
     }
+    clearMenuMoveDropTarget();
   });
 }
 
@@ -69580,7 +69614,7 @@ function setupMenuLinkDragToEditor() {
 
     const label = resolveMenuEntryLabel(nodePath);
     const markdownLink = buildMarkdownFileLink(nodePath, label);
-    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.effectAllowed = isMenuContextMenuTarget(linkBtn) ? "copyMove" : "copy";
     event.dataTransfer.setData(
       MENU_LINK_DRAG_MIME,
       JSON.stringify({ path: nodePath, label, wikilink: markdownLink, markdownLink })
@@ -69614,11 +69648,101 @@ function setMenuMoveDropTarget(btn) {
   btn.classList.add("is-menu-move-drop-target");
 }
 
+function getMenuSortRowManifestPath(row) {
+  if (!row) return "";
+  const btn = row.querySelector(".menu-item[data-path], .menu-folder[data-path]");
+  return normalizeMenuNodePath(btn?.dataset?.path || "");
+}
+
+function resolveMenuSortCrossMove(sourceRow, targetRow) {
+  const sourcePath = getMenuSortRowManifestPath(sourceRow);
+  const targetPath = getMenuSortRowManifestPath(targetRow);
+  if (!sourcePath || !targetPath) return null;
+  return resolveMenuDragMove(sourcePath, targetPath);
+}
+
+function getMenuSortRowDropButton(row) {
+  if (!row) return null;
+  return row.querySelector(".menu-item[data-path], .menu-folder[data-path]");
+}
+
+async function executeMenuNodeMove(move) {
+  if (!move) return false;
+  const sourceLabel = resolveMenuEntryLabel(move.source);
+  const targetLabel = resolveMenuEntryLabel(move.target);
+  const confirmed = await askConfirm(
+    `Переместить «${sourceLabel}» в «${targetLabel}»?`,
+    { okLabel: "Подтвердить" }
+  );
+  if (!confirmed) return false;
+  try {
+    const data = await moveNodeByPath(move.source, move.parentPath);
+    invalidateMenuAgentCache(activeAgentId);
+    await refreshMenu();
+    if (data.path) {
+      await openNodeFromMenu(getLabelFromPath(data.path), data.path);
+    }
+    notifyMarkdownLinkRewrite(data.linkRewrite);
+    showToast("Перемещено", "success");
+    return true;
+  } catch (error) {
+    showToast(`Ошибка перемещения: ${error.message}`, "error");
+    return false;
+  }
+}
+
+function findMenuNodeInAgentMenuForPath(targetPath, agentId = activeAgentId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return null;
+  const menuRoot = { title: getAgentTreeTitle(agentId), ...menu };
+  return (
+    findMenuNodeInAgentMenu(menuRoot, targetPath) ||
+    (menu.sharedTree ? findMenuNodeByPath({ title: "", ...menu.sharedTree }, targetPath) : null)
+  );
+}
+
+function menuTreeNodeHasChildSlots(node) {
+  if (!node) return false;
+  if ((node.sections || []).length > 0) return true;
+  if ((node.items || []).length > 0) return true;
+  if (node.containerTree) return true;
+  if (node.serviceTree) return true;
+  if (node.sharedTree) return true;
+  return false;
+}
+
+function canMenuNodeAcceptChildNodes(nodePath, agentId = activeAgentId) {
+  const normalized = normalizeMenuNodePath(nodePath);
+  if (!normalized || !getMenuContextMenuKind(normalized)) return false;
+  if (isPartNodePath(normalized) || isSystemReferenceManifestPath(normalized)) return false;
+  if (
+    isAgentRootIndexPath(normalized) ||
+    isAgentContainerRootIndexPath(normalized) ||
+    isAgentSharedRootIndexPath(normalized) ||
+    isAgentSystemRootIndexPath(normalized)
+  ) {
+    return true;
+  }
+  if (isAreaNodePath(normalized)) return true;
+
+  const declared = getDeclaredManifestTreeType(normalized);
+  if (declared === "area" || declared === "workspace") return true;
+
+  const menuNode = findMenuNodeInAgentMenuForPath(normalized, agentId);
+  if (menuTreeNodeHasChildSlots(menuNode)) return true;
+
+  if (declared === "topic") return false;
+  if (isTopicManifestPath(normalized) && !isAreaNodePath(normalized)) return false;
+
+  return isNodeManifestPath(normalized) && getManifestTreeFolderDepth(normalized) < 2;
+}
+
 function resolveMenuDragMove(sourcePath, targetPath) {
   const source = normalizeMenuNodePath(sourcePath);
   const target = normalizeMenuNodePath(targetPath);
   if (!source || !target || source === target) return null;
   if (!getMenuContextMenuKind(source) || !getMenuContextMenuKind(target)) return null;
+  if (!canMenuNodeAcceptChildNodes(target)) return null;
 
   const parentPath = getFolderPathFromManifest(target) || ".";
 
@@ -69683,26 +69807,10 @@ function setupMenuNodeMoveDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
-    const sourceLabel = resolveMenuEntryLabel(move.source);
-    const targetLabel = resolveMenuEntryLabel(move.target);
-    const confirmed = await askConfirm(
-      `Переместить «${sourceLabel}» в «${targetLabel}»?`,
-      { okLabel: "Подтвердить" }
-    );
-    if (!confirmed) return;
-
-    try {
-      const data = await moveNodeByPath(move.source, move.parentPath);
-      invalidateMenuAgentCache(activeAgentId);
-      await refreshMenu();
-      if (data.path) {
-        await openNodeFromMenu(getLabelFromPath(data.path), data.path);
-      }
-      notifyMarkdownLinkRewrite(data.linkRewrite);
-      showToast("Перемещено", "success");
-    } catch (error) {
-      showToast(`Ошибка перемещения: ${error.message}`, "error");
-    }
+    clearMenuMoveDropTarget();
+    menuSortDragRow?.classList.remove("is-dragging");
+    menuSortDragRow = null;
+    await executeMenuNodeMove(move);
   });
 
   menuNode.addEventListener("dragend", () => {
