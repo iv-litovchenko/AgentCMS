@@ -1643,13 +1643,92 @@ function workspaceRelToChpuPath(relPath) {
     .replace(/\.sidecar\.md$/i, "");
 }
 
-async function fetchChpuResolve(chpuPath) {
-  const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: chpuPath }));
+const CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES = new Set([
+  "main",
+  "inbox",
+  "media",
+  "notes",
+  "references",
+  "artefacts",
+  "assets",
+  "repository",
+  "scripts",
+  "temp",
+  "quick-notes",
+  "thread"
+]);
+
+function normalizeChpuPathBeforeResolve(rawPath) {
+  let path = String(rawPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!path || /\/awn-storage\//i.test(path)) return path;
+
+  const todoSlotMatch = path.match(
+    new RegExp(`^(.*)\\/todo\\/(${[...CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES].join("|")})\\/(.+)$`, "i")
+  );
+  if (todoSlotMatch) {
+    path = `${todoSlotMatch[1]}/awn-storage/${todoSlotMatch[2]}/${todoSlotMatch[3]}`.replace(/\/+$/, "");
+  }
+
+  if (/\/(?:awn-storage|storage)\//i.test(path)) return path;
+
+  if (/\/main$/i.test(path)) {
+    path = `${path.replace(/\/main$/i, "")}/awn-storage/main`;
+  }
+
+  return path.replace(/\/+$/, "");
+}
+
+async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
+  const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
+  const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `Request failed with ${response.status}`);
   }
   return response.json();
+}
+
+async function tryResolveMalformedChpuPath(rawPath, agentId = activeAgentId) {
+  const path = String(rawPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!path) return null;
+
+  const todoSlotMatch = path.match(
+    new RegExp(`^(.*)\\/todo\\/(${[...CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES].join("|")})\\/(.+)$`, "i")
+  );
+  if (todoSlotMatch && !/\/awn-storage\//i.test(path)) {
+    return fetchChpuResolveRaw(
+      `${todoSlotMatch[1]}/awn-storage/${todoSlotMatch[2]}/${todoSlotMatch[3]}`,
+      agentId
+    );
+  }
+
+  if (!/\/awn-storage\//i.test(path) && /\/todo$/i.test(path)) {
+    const topicPath = path.replace(/\/todo$/i, "");
+    const resolved = await fetchChpuResolveRaw(topicPath, agentId);
+    if (resolved?.kind === "manifest") {
+      const views = Array.isArray(resolved.views) ? resolved.views.slice() : [];
+      if (!views.includes("todo")) views.push("todo");
+      return { ...resolved, views, view: "todo" };
+    }
+    return resolved?.kind === "unknown" ? null : resolved;
+  }
+
+  if (!/\/awn-storage\//i.test(path) && /\/main$/i.test(path)) {
+    return fetchChpuResolveRaw(`${path.replace(/\/main$/i, "")}/awn-storage/main`, agentId);
+  }
+
+  return null;
+}
+
+async function fetchChpuResolve(chpuPath, agentId = activeAgentId) {
+  const resolved = await fetchChpuResolveRaw(chpuPath, agentId);
+  if (resolved?.kind !== "unknown") return resolved;
+  const fallback = await tryResolveMalformedChpuPath(chpuPath, agentId);
+  return fallback || resolved;
 }
 
 function parseLegacyAppRouteParts(parts) {
@@ -2109,6 +2188,10 @@ function getChpuWorkspacePathFromState() {
   if (isFlatStorageFileEditing()) {
     const slotFolder = getChpuSlotFolderForContentMode(activeContentMode);
     const filePath = String(activeFlatStorageFilePath || "").replace(/\\/g, "/").replace(/\.md$/i, "");
+    if (!slotFolder) {
+      const relPath = getFlatStorageItemContextPath(activeFlatStorageFilePath, activeContentMode);
+      return appendChpuViewToWorkspacePath(workspaceRelToChpuPath(relPath), "edit", { force: true });
+    }
     return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/${slotFolder}/${filePath}`, "edit", {
       force: true
     });
@@ -2143,15 +2226,15 @@ function getChpuWorkspacePathFromState() {
   }
 
   if (activeContentMode === "internal") {
-    return `${topicRoute}/main`;
+    return `${topicRoute}/awn-storage/main`;
   }
 
   if (activeContentMode === "todo" && isDataHubBundleEditorMode()) {
-    return `${topicRoute}/todo`;
+    return appendChpuViewToWorkspacePath(topicRoute, "todo", { force: true });
   }
 
   if (activeContentMode === "tabular" && isTabularSourceEditing()) {
-    return `${topicRoute}/main`;
+    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/main`, "edit", { force: true });
   }
 
   if (isChpuDataListShellMode(activeContentMode) || getDataStorageSlotForMode(activeContentMode)) {
@@ -2810,6 +2893,11 @@ async function copyWorkspaceRootRelativePath() {
   await copyWorkspacePathText(relPath, "Путь (от корня) скопирован");
 }
 
+async function ensureMenuLoadedForRoute(route) {
+  if (!route?.agentId || route.agentId !== activeAgentId || currentMenuData) return;
+  await refreshMenu({ agentId: route.agentId });
+}
+
 async function applyAppRouteFromUrl() {
   const route = parseAppRoute(location.pathname);
   if (route.type === "root" || route.type === "legacy") {
@@ -2841,7 +2929,8 @@ async function applyAppRouteFromUrl() {
   if (route.type === "chpu") {
     hideHomeView();
     try {
-      const resolved = await fetchChpuResolve(route.chpuPath || "");
+      await ensureMenuLoadedForRoute(route);
+      const resolved = await fetchChpuResolve(route.chpuPath || "", route.agentId);
       await applyChpuResolvedRoute(resolved);
       syncAppRouteToUrl({ replace: true });
       return true;
@@ -9510,13 +9599,13 @@ async function switchActiveAgent(nextAgentId) {
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();
     hideMenuNoAgentPlaceholder();
-    syncAppRouteToUrl({ replace: true });
     activateMenuAgentPane(activeAgentId);
     activePath = null;
     activeLabel = null;
     clearActiveSystemFile();
     clearMediaSidecarEditor();
     resetGitWorkspaceViewToDefault();
+    syncAppRouteToUrl({ replace: true });
 
     const cachedMenu = menuCacheByAgent.get(activeAgentId);
     const cachedPane = menuAgentPanes.get(activeAgentId);

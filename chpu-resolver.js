@@ -335,9 +335,38 @@ async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePat
   return null;
 }
 
+const CHPU_FLAT_SLOT_FOLDER_NAMES = [
+  ...new Set([...Object.keys(SLOT_FOLDER_TO_MODE), "main", "inbox", "thread", "notes", "quick-notes"])
+];
+
+function normalizeMalformedChpuStoragePath(chpuPath) {
+  let path = String(chpuPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!path || /\/(?:awn-storage|storage)\//i.test(path)) return path;
+
+  const todoSlotMatch = path.match(
+    new RegExp(`^(.*)/todo/(${CHPU_FLAT_SLOT_FOLDER_NAMES.join("|")})/(.+)$`, "i")
+  );
+  if (todoSlotMatch) {
+    path = `${todoSlotMatch[1]}/${STORAGE_ROOT_FOLDER}/${todoSlotMatch[2]}/${todoSlotMatch[3]}`.replace(
+      /\/+$/,
+      ""
+    );
+    return path;
+  }
+
+  if (/\/main$/i.test(path)) {
+    return `${path.replace(/\/main$/i, "")}/${STORAGE_ROOT_FOLDER}/main`;
+  }
+
+  return path;
+}
+
 async function resolveChpuPath(agentRoot, rawPath) {
   const agentRootResolved = path.resolve(agentRoot);
-  const { path: chpuPath, views } = splitChpuPath(rawPath);
+  const { path: splitPath, views } = splitChpuPath(rawPath);
+  const chpuPath = normalizeMalformedChpuStoragePath(splitPath);
 
   if (!chpuPath) {
     return attachChpuViews({ kind: "agentHome", workspacePath: "" }, views);
@@ -450,6 +479,24 @@ async function resolveChpuPath(agentRoot, rawPath) {
       }
     } catch {
       // fall through to unknown
+    }
+  }
+
+  const todoTopicMatch = chpuPath.match(/^(.*)\/todo$/i);
+  if (todoTopicMatch && !/\/(?:awn-storage|storage)\//i.test(chpuPath)) {
+    const topicDir = todoTopicMatch[1].replace(/\/$/, "");
+    const manifestRel = `${topicDir}/${MANIFEST_FILE}`.replace(/\\/g, "/");
+    const manifestAbs = path.join(agentRootResolved, manifestRel);
+    if (manifestAbs.startsWith(agentRootResolved) && (await fileExists(manifestAbs))) {
+      const todoViews = views.includes("todo") ? views : [...views, "todo"];
+      return attachChpuViews(
+        {
+          kind: "manifest",
+          topicManifestPath: manifestRel,
+          workspacePath: topicDir
+        },
+        todoViews
+      );
     }
   }
 
