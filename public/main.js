@@ -15279,6 +15279,416 @@ const MENU_CONTEXT_MENU_ACTIONS = {
 
 const MENU_CONTEXT_MENU_ENABLED_ACTIONS = new Set(["edit", "rename", "move", "delete", "container"]);
 
+const MENU_CLIPBOARD_ACTIONS = [
+  { id: "cut", label: "✂️ Вырезать" },
+  { id: "copy", label: "Копировать" },
+  { id: "paste", label: "📋 Вставить" }
+];
+
+let workspaceTreeClipboard = null;
+let workspaceTreeSelection = new Map();
+
+function getWorkspaceTreeItemKey(entry) {
+  if (!entry) return "";
+  return `${entry.kind}::${entry.path}`;
+}
+
+function getWorkspaceTreeClipboardItems(clip = workspaceTreeClipboard) {
+  if (!clip) return [];
+  if (Array.isArray(clip.items)) return clip.items.filter(Boolean);
+  if (clip.path) return [clip];
+  return [];
+}
+
+function buildWorkspaceTreeClipboardEntry(state, op) {
+  if (!state) return null;
+  if (state.kind === "adoptFolder") {
+    const path = normalizeCreateParentPath(state.path);
+    if (!path || path === ".") return null;
+    return {
+      op,
+      kind: "adoptFolder",
+      path,
+      label: state.label || path.split("/").pop() || path,
+      isDirectory: true,
+      agentId: activeAgentId
+    };
+  }
+  if (state.kind === "workspaceItem") {
+    const path = normalizeFolderBrowseItemPath(state.path);
+    if (!path) return null;
+    return {
+      op,
+      kind: "workspaceItem",
+      path,
+      label: state.label || path.split("/").pop() || path,
+      isDirectory: Boolean(state.isDirectory),
+      agentId: activeAgentId
+    };
+  }
+  const path = normalizeMenuNodePath(state.path);
+  const kind = state.kind || getMenuContextMenuKind(path);
+  if (!kind || kind === "adoptFolder") return null;
+  return {
+    op,
+    kind,
+    path,
+    label: state.label || getLabelFromPath(path),
+    agentId: activeAgentId
+  };
+}
+
+function canUseMenuClipboardActions(kind) {
+  return kind === "area" || kind === "topic" || kind === "adoptFolder";
+}
+
+function resolveWorkspaceTreePasteTarget(state) {
+  if (!state) return null;
+  if (state.kind === "adoptFolder") {
+    return { targetKind: "folder", parentPath: normalizeCreateParentPath(state.path), label: state.label };
+  }
+  if (state.kind === "workspaceFolder") {
+    const parentPath = normalizeCreateParentPath(state.path);
+    return {
+      targetKind: "folder",
+      parentPath,
+      label: state.label || parentPath.split("/").pop() || parentPath
+    };
+  }
+  if (state.kind === "area" || state.kind === "topic") {
+    const parentPath = getFolderPathFromManifest(state.path) || ".";
+    return {
+      targetKind: "node",
+      parentPath,
+      targetPath: state.path,
+      label: state.label || getLabelFromPath(state.path)
+    };
+  }
+  return null;
+}
+
+function canPasteWorkspaceTreeItem(item, targetState) {
+  if (!item?.path || !targetState) return false;
+  const target = resolveWorkspaceTreePasteTarget(targetState);
+  if (!target) return false;
+
+  if (item.kind === "area" || item.kind === "topic") {
+    if (target.targetKind === "node") {
+      return Boolean(resolveMenuDragMove(item.path, targetState.path));
+    }
+    const parentPath = target.parentPath;
+    const sourceFolder = getFolderPathFromManifest(item.path);
+    if (isAreaNodePath(item.path) && sourceFolder) {
+      if (parentPath === sourceFolder || parentPath.startsWith(`${sourceFolder}/`)) return false;
+    }
+    return (getFolderPathFromManifest(item.path) || ".") !== parentPath;
+  }
+
+  const itemPath = normalizeCreateParentPath(item.path);
+  const parentPath = target.parentPath;
+  if (!itemPath || itemPath === parentPath) return false;
+  if (parentPath.startsWith(`${itemPath}/`)) return false;
+  return getFolderBrowseParentPath(itemPath) !== parentPath;
+}
+
+function canPasteWorkspaceTreeClipboard(targetState) {
+  const items = getWorkspaceTreeClipboardItems();
+  if (!items.length || !targetState) return false;
+  if (workspaceTreeClipboard?.agentId !== activeAgentId) return false;
+  return items.some((item) => canPasteWorkspaceTreeItem(item, targetState));
+}
+
+function syncWorkspaceTreeSelectionMarkers() {
+  document.querySelectorAll(".is-workspace-tree-selected").forEach((node) => {
+    node.classList.remove("is-workspace-tree-selected");
+  });
+  for (const entry of workspaceTreeSelection.values()) {
+    if (entry.kind === "adoptFolder") {
+      document
+        .querySelectorAll(`.menu-folder--adopt[data-folder-path="${CSS.escape(entry.path)}"]`)
+        .forEach((node) => node.classList.add("is-workspace-tree-selected"));
+    } else if (entry.kind === "workspaceItem") {
+      document
+        .querySelectorAll(`[data-folder-browse-path="${CSS.escape(entry.path)}"]`)
+        .forEach((node) => node.classList.add("is-workspace-tree-selected"));
+    } else {
+      document
+        .querySelectorAll(
+          `.menu-item[data-path="${CSS.escape(entry.path)}"], .menu-folder[data-path="${CSS.escape(entry.path)}"]`
+        )
+        .forEach((node) => node.classList.add("is-workspace-tree-selected"));
+    }
+  }
+}
+
+function toggleWorkspaceTreeSelection(entry, event) {
+  const normalized = buildWorkspaceTreeClipboardEntry(entry, "cut");
+  if (!normalized) return;
+  const key = getWorkspaceTreeItemKey(normalized);
+  const additive = Boolean(event?.ctrlKey || event?.metaKey);
+  if (!additive) {
+    workspaceTreeSelection.clear();
+  }
+  if (workspaceTreeSelection.has(key)) {
+    workspaceTreeSelection.delete(key);
+  } else {
+    workspaceTreeSelection.set(key, normalized);
+  }
+  syncWorkspaceTreeSelectionMarkers();
+}
+
+function syncWorkspaceTreeCutMarkers() {
+  document.querySelectorAll(".is-workspace-tree-cut").forEach((node) => {
+    node.classList.remove("is-workspace-tree-cut");
+  });
+  const clip = workspaceTreeClipboard;
+  if (!clip || clip.op !== "cut") return;
+
+  for (const item of getWorkspaceTreeClipboardItems(clip)) {
+    if (item.kind === "adoptFolder") {
+      document
+        .querySelectorAll(`.menu-folder--adopt[data-folder-path="${CSS.escape(item.path)}"]`)
+        .forEach((node) => node.classList.add("is-workspace-tree-cut"));
+      document
+        .querySelectorAll(`[data-folder-browse-path="${CSS.escape(item.path)}"]`)
+        .forEach((node) => node.classList.add("is-workspace-tree-cut"));
+      continue;
+    }
+    if (item.kind === "workspaceItem") {
+      document
+        .querySelectorAll(`[data-folder-browse-path="${CSS.escape(item.path)}"]`)
+        .forEach((node) => node.classList.add("is-workspace-tree-cut"));
+      continue;
+    }
+    document
+      .querySelectorAll(
+        `.menu-item[data-path="${CSS.escape(item.path)}"], .menu-folder[data-path="${CSS.escape(item.path)}"]`
+      )
+      .forEach((node) => node.classList.add("is-workspace-tree-cut"));
+  }
+}
+
+function setWorkspaceTreeClipboard(state, op) {
+  const selectedEntries = Array.from(workspaceTreeSelection.values());
+  if (selectedEntries.length) {
+    workspaceTreeClipboard = {
+      op,
+      agentId: activeAgentId,
+      items: selectedEntries.map((entry) => ({ ...entry, op }))
+    };
+    workspaceTreeSelection.clear();
+    syncWorkspaceTreeSelectionMarkers();
+    syncWorkspaceTreeCutMarkers();
+    const browseToolbar = nodeOverviewContentNode?.querySelector(".folder-browse-toolbar");
+    if (browseToolbar) syncFolderBrowseSelectionToolbar(browseToolbar);
+    showToast(
+      `${op === "cut" ? "Вырезано" : "Скопировано"}: ${selectedEntries.length} элементов`,
+      "info"
+    );
+    return true;
+  }
+
+  const entry = buildWorkspaceTreeClipboardEntry(state, op);
+  if (!entry) {
+    showToast("Не удалось положить элемент в буфер", "error");
+    return false;
+  }
+  workspaceTreeClipboard = {
+    op,
+    agentId: activeAgentId,
+    items: [entry]
+  };
+  syncWorkspaceTreeCutMarkers();
+  const browseToolbar = nodeOverviewContentNode?.querySelector(".folder-browse-toolbar");
+  if (browseToolbar) syncFolderBrowseSelectionToolbar(browseToolbar);
+  showToast(op === "cut" ? `Вырезано: ${entry.label}` : `Скопировано: ${entry.label}`, "info");
+  return true;
+}
+
+function setWorkspaceTreeClipboardFromFolderBrowseSelection(op = "cut") {
+  const paths = Array.from(folderBrowseSelectedPaths);
+  if (!paths.length) {
+    showToast("Сначала выберите элементы", "info");
+    return false;
+  }
+  const items = paths
+    .map((path) =>
+      buildWorkspaceTreeClipboardEntry(
+        {
+          kind: "workspaceItem",
+          path,
+          label: path.split("/").pop() || path,
+          isDirectory: getFolderBrowseItemIsDirectory(path)
+        },
+        op
+      )
+    )
+    .filter(Boolean);
+  if (!items.length) {
+    showToast("Не удалось положить элементы в буфер", "error");
+    return false;
+  }
+  workspaceTreeClipboard = { op, agentId: activeAgentId, items };
+  workspaceTreeSelection.clear();
+  syncWorkspaceTreeSelectionMarkers();
+  syncWorkspaceTreeCutMarkers();
+  const browseToolbar = nodeOverviewContentNode?.querySelector(".folder-browse-toolbar");
+  if (browseToolbar) syncFolderBrowseSelectionToolbar(browseToolbar);
+  showToast(`${op === "cut" ? "Вырезано" : "Скопировано"}: ${items.length} элементов`, "info");
+  return true;
+}
+
+async function executeWorkspaceTreeItemPaste(item, targetState, op = "cut") {
+  if (op === "copy") {
+    throw new Error("Копирование пока не поддерживается");
+  }
+  const target = resolveWorkspaceTreePasteTarget(targetState);
+  if (!target) throw new Error("Не удалось определить место вставки");
+
+  if (item.kind === "area" || item.kind === "topic") {
+    const data = await moveNodeByPath(item.path, target.parentPath);
+    return { type: "node", data };
+  }
+
+  const data = await moveWorkspaceFolderItem(item.path, target.parentPath);
+  return { type: "workspace", data };
+}
+
+async function refreshAfterWorkspaceTreePaste() {
+  invalidateMenuAgentCache(activeAgentId);
+  await refreshMenu();
+  if (
+    activeFolderBrowsePath &&
+    (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE)
+  ) {
+    clearFolderBrowseSelection();
+    await renderFolderBrowseView();
+  } else {
+    syncWorkspaceTreeCutMarkers();
+    syncWorkspaceTreeSelectionMarkers();
+  }
+}
+
+async function pasteWorkspaceTreeClipboard(targetState) {
+  const clip = workspaceTreeClipboard;
+  const items = getWorkspaceTreeClipboardItems(clip);
+  if (!items.length || !canPasteWorkspaceTreeClipboard(targetState)) {
+    showToast("Сюда вставить нельзя", "error");
+    return;
+  }
+
+  const pasteItems = items.filter((item) => canPasteWorkspaceTreeItem(item, targetState));
+  if (!pasteItems.length) {
+    showToast("Сюда вставить нельзя", "error");
+    return;
+  }
+
+  if (clip.op === "copy") {
+    showToast("Копирование пока не поддерживается — используйте вырезать", "info");
+    return;
+  }
+
+  const target = resolveWorkspaceTreePasteTarget(targetState);
+  const targetLabel = target?.label || target?.parentPath || "папку";
+  const confirmed = await askConfirm(
+    pasteItems.length === 1
+      ? `Переместить «${pasteItems[0].label}» в «${targetLabel}»?`
+      : `Переместить ${pasteItems.length} элементов в «${targetLabel}»?`,
+    { okLabel: "Переместить" }
+  );
+  if (!confirmed) return;
+
+  try {
+    let lastNodeResult = null;
+    for (const item of pasteItems) {
+      const result = await executeWorkspaceTreeItemPaste(item, targetState, clip.op);
+      if (result.type === "node") lastNodeResult = result.data;
+    }
+    workspaceTreeClipboard = null;
+    workspaceTreeSelection.clear();
+    await refreshAfterWorkspaceTreePaste();
+    if (lastNodeResult?.linkRewrite) notifyMarkdownLinkRewrite(lastNodeResult.linkRewrite);
+    if (
+      lastNodeResult?.path &&
+      pasteItems.length === 1 &&
+      (pasteItems[0].kind === "area" || pasteItems[0].kind === "topic")
+    ) {
+      await openNodeFromMenu(getLabelFromPath(lastNodeResult.path), lastNodeResult.path);
+    }
+    showToast(
+      pasteItems.length === 1 ? "Элемент перемещён" : `Перемещено элементов: ${pasteItems.length}`,
+      "success"
+    );
+  } catch (error) {
+    showToast(`Ошибка вставки: ${error.message}`, "error");
+  }
+}
+
+function appendMenuClipboardMenuItems(kind) {
+  if (!menuContextMenuListNode) return;
+  const state = menuContextMenuState;
+  const clipboardItems = [];
+
+  if (canUseMenuClipboardActions(kind)) {
+    clipboardItems.push(
+      MENU_CLIPBOARD_ACTIONS.find((item) => item.id === "cut"),
+      MENU_CLIPBOARD_ACTIONS.find((item) => item.id === "copy")
+    );
+  }
+  if (canPasteWorkspaceTreeClipboard(state)) {
+    clipboardItems.push(MENU_CLIPBOARD_ACTIONS.find((item) => item.id === "paste"));
+  }
+  if (!clipboardItems.length) return;
+
+  const separator = document.createElement("li");
+  separator.className = "menu-context-menu-separator";
+  separator.setAttribute("role", "separator");
+  menuContextMenuListNode.appendChild(separator);
+
+  for (const action of clipboardItems) {
+    if (!action) continue;
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn";
+    btn.dataset.action = action.id;
+    btn.textContent = action.label;
+    btn.setAttribute("role", "menuitem");
+    item.appendChild(btn);
+    menuContextMenuListNode.appendChild(item);
+  }
+}
+
+function getFolderBrowsePasteTargetState() {
+  const path = normalizeCreateParentPath(activeFolderBrowsePath || ".");
+  if (!path) return null;
+  return {
+    kind: "workspaceFolder",
+    path,
+    label:
+      activeLabel ||
+      (path === "." ? "корень workspace" : path.split("/").pop() || path)
+  };
+}
+
+function bindFolderBrowsePasteContextMenu(hub) {
+  if (!hub || hub.dataset.workspacePasteBound === "1") return;
+  hub.dataset.workspacePasteBound = "1";
+  hub.addEventListener("contextmenu", (event) => {
+    if (event.target.closest(".folder-browse-item-card, .folder-browse-toolbar, button, a, input")) {
+      return;
+    }
+    const targetState = getFolderBrowsePasteTargetState();
+    if (!targetState || !canPasteWorkspaceTreeClipboard(targetState)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void pasteWorkspaceTreeClipboard(targetState);
+  });
+}
+
 const MENU_AWN_STATUS_OPTIONS = [
   { key: "open", name: "🟢 Открыта" },
   { key: "draft", name: "🟡 Черновик" },
@@ -15613,6 +16023,7 @@ function renderMenuContextMenuItems(kind, nodePath, agentId = activeAgentId, cur
     item.appendChild(btn);
     menuContextMenuListNode.appendChild(item);
   }
+  appendMenuClipboardMenuItems(kind);
   appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId);
 }
 
@@ -15620,6 +16031,21 @@ function handleMenuContextMenuAction(actionId) {
   const state = menuContextMenuState;
   if (!state) return;
   closeMenuContextMenu();
+
+  if (actionId === "cut") {
+    setWorkspaceTreeClipboard(state, "cut");
+    return;
+  }
+
+  if (actionId === "copy") {
+    setWorkspaceTreeClipboard(state, "copy");
+    return;
+  }
+
+  if (actionId === "paste") {
+    void pasteWorkspaceTreeClipboard(state);
+    return;
+  }
 
   if (actionId === "edit") {
     void openNodeFromMenu(state.label || getLabelFromPath(state.path), state.path);
@@ -53346,6 +53772,18 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
       folderNode.folderPath,
       handlers
     );
+    if (handlers.resourceContextMenuMemoryKind) {
+      const sectionMenuState = buildNavigationHubRailSectionContextMenuState(
+        handlers.resourceContextMenuMemoryKind,
+        folderNode.folderPath,
+        folderLabels,
+        folderStatuses
+      );
+      bindNavigationHubRailResourceContextMenu(head, sectionMenuState);
+      if (handlers.enableRailDragDrop) {
+        bindNavigationSlotSelectionToggle(head, sectionMenuState);
+      }
+    }
     folderItem.append(head, subList);
 
     parentList.appendChild(folderItem);
@@ -53364,7 +53802,18 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
     if (depth === 0) {
       entry.classList.add("nav-book-toc-entry--root-level");
     }
-    entry.appendChild(createEntryOverviewMediaFileLink(item, nodePath, onFileClick));
+    const link = createEntryOverviewMediaFileLink(item, nodePath, onFileClick);
+    if (handlers.resourceContextMenuMemoryKind) {
+      const fileMenuState = buildNavigationHubRailFileContextMenuState(
+        handlers.resourceContextMenuMemoryKind,
+        item
+      );
+      bindNavigationHubRailResourceContextMenu(link, fileMenuState);
+      if (handlers.enableRailDragDrop) {
+        bindNavigationSlotSelectionToggle(link, fileMenuState);
+      }
+    }
+    entry.appendChild(link);
     parentList.appendChild(entry);
   }
 }
@@ -54827,6 +55276,9 @@ function renderNavigationMediaPart(mediaData) {
     nodePath,
     linkLeadingMode: "media",
     treeStyle: "guide",
+    resourceContextMenuMemoryKind: "media",
+    readManifestPath: getActiveNodeApiPath(),
+    readMemoryKind: "media",
     onFolderClick: openMediaCategoryOverviewFromNavigation,
     onFileClick: openMediaEntryOverviewFromNavigation
   });
@@ -59905,11 +60357,17 @@ async function deleteWorkspaceFolderItems(paths) {
 function syncFolderBrowseSelectionToolbar(toolbar) {
   if (!toolbar) return;
   const count = folderBrowseSelectedPaths.size;
-  toolbar.classList.toggle("is-active", count > 0);
+  const targetState = getFolderBrowsePasteTargetState();
+  const canPaste = Boolean(targetState && canPasteWorkspaceTreeClipboard(targetState));
+  toolbar.classList.toggle("is-active", count > 0 || canPaste);
   const countNode = toolbar.querySelector(".folder-browse-toolbar-count");
   if (countNode) countNode.textContent = String(count);
   const renameBtn = toolbar.querySelector('[data-action="rename"]');
   if (renameBtn) renameBtn.disabled = count !== 1;
+  const cutBtn = toolbar.querySelector('[data-action="cut"]');
+  if (cutBtn) cutBtn.disabled = count === 0;
+  const pasteBtn = toolbar.querySelector('[data-action="paste"]');
+  if (pasteBtn) pasteBtn.disabled = !canPaste;
 }
 
 function syncFolderBrowseDeleteSelectedButton() {
@@ -59936,6 +60394,10 @@ function syncFolderBrowseSelectionUi() {
   const hub = nodeOverviewContentNode?.querySelector(".folder-browse-hub");
   syncFolderBrowseDeleteSelectedButton();
   syncFolderBrowseFileActionButtons();
+  syncWorkspaceTreeCutMarkers();
+  syncWorkspaceTreeSelectionMarkers();
+  const toolbar = hub?.querySelector(".folder-browse-toolbar");
+  if (toolbar) syncFolderBrowseSelectionToolbar(toolbar);
   for (const card of hub?.querySelectorAll("[data-folder-browse-path]") || []) {
     const path = normalizeFolderBrowseItemPath(card.dataset.folderBrowsePath);
     const selected = folderBrowseSelectedPaths.has(path);
@@ -60554,9 +61016,22 @@ function renderFolderBrowseToolbar(hub) {
   toolbar.className = "folder-browse-toolbar";
   toolbar.innerHTML = `
     <span class="folder-browse-toolbar-label">Выбрано: <span class="folder-browse-toolbar-count">0</span></span>
+    <button type="button" class="folder-browse-toolbar-btn" data-action="cut">✂️ Вырезать</button>
+    <button type="button" class="folder-browse-toolbar-btn" data-action="paste">📋 Вставить</button>
     <button type="button" class="folder-browse-toolbar-btn" data-action="rename">Переименовать</button>
     <button type="button" class="folder-browse-toolbar-btn folder-browse-toolbar-btn--ghost" data-action="clear">Снять выбор</button>
   `;
+  toolbar.querySelector('[data-action="cut"]')?.addEventListener("click", () => {
+    setWorkspaceTreeClipboardFromFolderBrowseSelection("cut");
+  });
+  toolbar.querySelector('[data-action="paste"]')?.addEventListener("click", () => {
+    const targetState = getFolderBrowsePasteTargetState();
+    if (!targetState) {
+      showToast("Не удалось определить папку назначения", "error");
+      return;
+    }
+    void pasteWorkspaceTreeClipboard(targetState);
+  });
   toolbar.querySelector('[data-action="rename"]')?.addEventListener("click", () => {
     const path = Array.from(folderBrowseSelectedPaths)[0];
     if (!path) return;
@@ -61081,6 +61556,10 @@ async function renderFolderBrowseView() {
       empty.textContent = "Папка пуста";
       hub.appendChild(empty);
     }
+
+    renderFolderBrowseToolbar(hub);
+    bindFolderBrowsePasteContextMenu(hub);
+    syncFolderBrowseSelectionUi();
 
     if (isStale()) return;
     nodeOverviewContentNode.replaceChildren(hub);
@@ -69359,6 +69838,8 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     void syncMenuAgentStats(menu);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
+    syncWorkspaceTreeCutMarkers();
+    syncWorkspaceTreeSelectionMarkers();
   }
 }
 
@@ -79721,6 +80202,44 @@ document.getElementById("menu")?.addEventListener(
 );
 
 menuNode?.addEventListener("contextmenu", handleMenuContextMenuEvent);
+
+menuNode?.addEventListener("click", (event) => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  const adoptBtn = event.target.closest(".menu-folder--adopt[data-folder-path]");
+  if (adoptBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const path = normalizeCreateParentPath(adoptBtn.dataset.folderPath || ".");
+    toggleWorkspaceTreeSelection(
+      {
+        kind: "adoptFolder",
+        path,
+        label:
+          adoptBtn.querySelector(".menu-folder-name")?.textContent?.trim() ||
+          path.split("/").pop() ||
+          path,
+        isDirectory: true
+      },
+      event
+    );
+    return;
+  }
+  const menuBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
+  if (!menuBtn || !isMenuContextMenuTarget(menuBtn)) return;
+  const path = normalizeMenuNodePath(menuBtn.dataset.path);
+  const kind = getMenuContextMenuKind(path);
+  if (!kind) return;
+  event.preventDefault();
+  event.stopPropagation();
+  toggleWorkspaceTreeSelection(
+    {
+      kind,
+      path,
+      label: resolveMenuEntryLabel(path)
+    },
+    event
+  );
+});
 
 menuContextMenuListNode?.addEventListener("click", (event) => {
   const statusBtn = event.target.closest(".menu-context-menu-status-btn");

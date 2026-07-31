@@ -17670,6 +17670,23 @@ body.app-locked {
   box-shadow: inset 0 0 0 2px #6366f1;
 }
 
+.menu-item.is-workspace-tree-cut,
+.menu-folder.is-workspace-tree-cut,
+.folder-browse-item-card.is-workspace-tree-cut {
+  opacity: 0.52;
+  outline: 1px dashed rgba(245, 158, 11, 0.85);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.menu-item.is-workspace-tree-selected,
+.menu-folder.is-workspace-tree-selected,
+.folder-browse-item-card.is-workspace-tree-selected {
+  background: rgba(219, 234, 254, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.55);
+  border-radius: 6px;
+}
+
 .media-section-tree-item.is-memory-section-move-drop-target {
   box-shadow: inset 0 0 0 2px #6366f1;
   border-color: #6366f1;
