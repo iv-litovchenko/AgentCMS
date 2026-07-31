@@ -28372,43 +28372,43 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
       { memoryKind: targetMode },
       getResolvedNodePath(activePath)
     );
-  }
+  } else {
+    if (supportsNavigationHubRailSectionCreate(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "external-create-section-btn",
+        label: "+ Раздел",
+        title: "Создать раздел",
+        onClick: () => {
+          beginRailCreate();
+          openCreateSectionModal(targetMode);
+        }
+      });
+    }
 
-  if (supportsNavigationHubRailSectionCreate(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "external-create-section-btn",
-      label: "+ Раздел",
-      title: "Создать раздел",
-      onClick: () => {
-        beginRailCreate();
-        openCreateSectionModal(targetMode);
-      }
-    });
-  }
+    if (supportsNavigationHubRailRecordCreate(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "save-btn external-create-btn",
+        label: "+ Запись",
+        title: "Создать запись",
+        onClick: () => {
+          beginRailCreate();
+          void openCreateMemoryModal();
+        }
+      });
+    }
 
-  if (supportsNavigationHubRailRecordCreate(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "save-btn external-create-btn",
-      label: "+ Запись",
-      title: "Создать запись",
-      onClick: () => {
-        beginRailCreate();
-        void openCreateMemoryModal();
-      }
-    });
-  }
-
-  if (isMediaLibraryContentMode(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "media-upload-btn node-navigation-hub-rail-upload-btn",
-      label: getNavigationHubMediaUploadButtonLabel(false),
-      title: `Загрузить файлы в ${slot.label}`,
-      ariaExpanded: false,
-      onClick: () => {
-        const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: targetMode };
-        toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
-      }
-    });
+    if (isMediaLibraryContentMode(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+        label: getNavigationHubMediaUploadButtonLabel(false),
+        title: `Загрузить файлы в ${slot.label}`,
+        ariaExpanded: false,
+        onClick: () => {
+          const uploadContext = activeEntryOverviewContext || activeCtx || { memoryKind: targetMode };
+          toggleEntryOverviewBrowseUploadPanel(uploadContext, targetMode, parentFolder);
+        }
+      });
+    }
   }
 
   return actions.childElementCount ? actions : null;
@@ -49632,6 +49632,33 @@ function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) 
   });
 }
 
+function createEntryOverviewSlotFolderMissingNotice(context) {
+  const targetMode = context?.memoryKind === "external" ? "external" : context?.memoryKind;
+  const spec = getDataStorageSlotForMode(targetMode);
+  const slotLabel = spec?.label || getMediaLibraryModeLabel(targetMode) || "Слот";
+  const pathHint = getDataStorageSlotPathHint(spec);
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-slot-folder-missing";
+
+  const text = document.createElement("p");
+  text.className = "node-entry-overview-slot-folder-missing-text";
+  text.textContent = `Папка слота «${slotLabel}» ещё не создана. Сначала создайте слот — после этого появятся разделы и записи.`;
+  wrap.appendChild(text);
+
+  if (pathHint) {
+    const path = document.createElement("p");
+    path.className = "node-entry-overview-slot-folder-missing-path";
+    const code = document.createElement("code");
+    code.textContent = pathHint;
+    path.appendChild(document.createTextNode("Путь: "));
+    path.appendChild(code);
+    wrap.appendChild(path);
+  }
+
+  return wrap;
+}
+
 async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath) {
   const actions = panel?.querySelector(".node-entry-overview-browse-actions");
   if (!actions || !shouldOfferEntryOverviewStorageSlotCreate(context)) return;
@@ -49644,9 +49671,26 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
   } catch {
     return;
   }
-  if (!panel?.isConnected || folderExists) return;
+  if (!panel?.isConnected) return;
+
+  actions
+    .querySelectorAll(
+      ".external-create-section-btn, .external-create-btn, .media-upload-btn, .node-navigation-hub-rail-upload-btn"
+    )
+    .forEach((node) => node.remove());
+
+  panel.querySelector(".node-entry-overview-slot-folder-missing")?.remove();
+  panel.classList.toggle("is-slot-folder-missing", !folderExists);
+
+  if (folderExists) return;
 
   appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath);
+
+  const listHost = panel.querySelector(
+    ".node-entry-overview-memory-toc, .node-entry-overview-section-list"
+  );
+  listHost?.remove();
+  panel.appendChild(createEntryOverviewSlotFolderMissingNotice(context));
 }
 
 function buildRecordPartsTreeFromScanItems(items, rootFolderPath) {
@@ -50397,42 +50441,42 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
 
   if (slotFolderMissing) {
     appendEntryOverviewCreateSlotFolderButton(actions, context, getResolvedNodePath(activePath));
-  }
+  } else {
+    if (supportsNavigationHubRailSectionCreate(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "external-create-section-btn",
+        label: "+ Раздел",
+        title: "Создать раздел",
+        onClick: () => {
+          beginCreate();
+          openCreateSectionModal(targetMode, { entryOverviewContext: context });
+        }
+      });
+    }
 
-  if (supportsNavigationHubRailSectionCreate(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "external-create-section-btn",
-      label: "+ Раздел",
-      title: "Создать раздел",
-      onClick: () => {
-        beginCreate();
-        openCreateSectionModal(targetMode, { entryOverviewContext: context });
-      }
-    });
-  }
+    if (supportsNavigationHubRailRecordCreate(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "save-btn external-create-btn",
+        label: "+ Запись",
+        title: "Создать запись",
+        onClick: () => {
+          beginCreate();
+          void openCreateMemoryModal(targetMode === "external" ? context : null);
+        }
+      });
+    }
 
-  if (supportsNavigationHubRailRecordCreate(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "save-btn external-create-btn",
-      label: "+ Запись",
-      title: "Создать запись",
-      onClick: () => {
-        beginCreate();
-        void openCreateMemoryModal(targetMode === "external" ? context : null);
-      }
-    });
-  }
-
-  if (isMediaLibraryContentMode(targetMode)) {
-    appendNavigationHubRailBrowseActionButton(actions, {
-      className: "media-upload-btn node-navigation-hub-rail-upload-btn",
-      label: getNavigationHubMediaUploadButtonLabel(false),
-      title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
-      ariaExpanded: false,
-      onClick: () => {
-        toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
-      }
-    });
+    if (isMediaLibraryContentMode(targetMode)) {
+      appendNavigationHubRailBrowseActionButton(actions, {
+        className: "media-upload-btn node-navigation-hub-rail-upload-btn",
+        label: getNavigationHubMediaUploadButtonLabel(false),
+        title: `Загрузить файлы в ${getMediaLibraryModeLabel(targetMode)}`,
+        ariaExpanded: false,
+        onClick: () => {
+          toggleEntryOverviewBrowseUploadPanel(context, targetMode, parentFolder);
+        }
+      });
+    }
   }
 
   return actions.childElementCount ? actions : null;
@@ -50443,9 +50487,12 @@ function createEntryOverviewExternalBrowseActions(context) {
 }
 
 function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false } = {}) {
-  const searchBar = createEntryOverviewSearchBar(context);
+  const searchBar = slotFolderMissing ? null : createEntryOverviewSearchBar(context);
   const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
-  const mediaCols = context?.memoryKind === "media" ? createNavigationMediaImagesLayoutToggle() : null;
+  const mediaCols =
+    !slotFolderMissing && context?.memoryKind === "media"
+      ? createNavigationMediaImagesLayoutToggle()
+      : null;
   if (!searchBar && !actions && !mediaCols) return null;
   if (!actions && !mediaCols) return searchBar;
 
@@ -50571,20 +50618,23 @@ function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemory
 }
 
 function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false, slotFolderMissing = false } = {}) {
-  const showSearch = isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context);
+  const showSearch = !slotFolderMissing && (isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context));
   const showActions = shouldShowEntryOverviewBrowseActions(context);
-  const listBlock = renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
+  const listBlock = slotFolderMissing
+    ? createEntryOverviewSlotFolderMissingNotice(context)
+    : renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
   if (!showSearch && !showActions && !listBlock) return null;
 
   const panel = document.createElement("div");
   panel.className = "node-entry-overview-browse-panel";
+  if (slotFolderMissing) panel.classList.add("is-slot-folder-missing");
 
   if (showSearch || showActions) {
     const toolbar = createEntryOverviewBrowseToolbar(context, { slotFolderMissing });
     if (toolbar) panel.appendChild(toolbar);
   }
 
-  if (showActions && isMediaLibraryContentMode(getEntryOverviewBrowseUploadTargetMode(context))) {
+  if (showActions && !slotFolderMissing && isMediaLibraryContentMode(getEntryOverviewBrowseUploadTargetMode(context))) {
     ensureEntryOverviewBrowseUploadHost(panel, context);
     syncEntryOverviewBrowseUploadPanelUi();
   }

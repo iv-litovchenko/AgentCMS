@@ -23163,6 +23163,36 @@ button.node-navigation-hub-rail-slot-summary {
   margin: 0;
 }
 
+.node-entry-overview-browse-panel.is-slot-folder-missing .node-entry-overview-browse-toolbar {
+  justify-content: flex-end;
+}
+
+.node-entry-overview-slot-folder-missing {
+  padding: 14px 16px;
+  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border-radius: 12px;
+  background: rgba(239, 246, 255, 0.72);
+}
+
+.node-entry-overview-slot-folder-missing-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1e3a8a;
+}
+
+.node-entry-overview-slot-folder-missing-path {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.node-entry-overview-slot-folder-missing-path code {
+  font-size: 11px;
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .node-entry-overview-browse-panel {
   display: flex;
   flex-direction: column;
