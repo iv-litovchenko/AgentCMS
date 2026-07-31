@@ -1038,7 +1038,8 @@ const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
-const STORAGE_SLOT_INDEX_FILE = "README.md";
+const STORAGE_SLOT_INDEX_FILE = "index.md";
+const LEGACY_STORAGE_SLOT_INDEX_FILE = "README.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -11888,6 +11889,7 @@ function isSlugExemptStorageFilePath(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!normalized) return false;
   if (isSectionReadmePath(normalized)) return true;
+  if (isStorageSlotIndexRelativePath(normalized)) return true;
   const base = normalized.split("/").pop() || "";
   return Boolean(SYSTEM_FILE_TO_CHPU_PATH[normalizeSystemFileName(base)]);
 }
@@ -45511,16 +45513,31 @@ function resolveStorageSlotSpecFromCounterSlot(slot) {
   return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === slotKey) || null;
 }
 
-function getStorageSlotIndexRelativePath() {
-  return STORAGE_SLOT_INDEX_FILE;
+function isStorageSlotIndexFileName(fileName) {
+  const lower = String(fileName || "").trim().toLowerCase();
+  return (
+    lower === STORAGE_SLOT_INDEX_FILE.toLowerCase() ||
+    lower === LEGACY_STORAGE_SLOT_INDEX_FILE.toLowerCase()
+  );
+}
+
+function getStorageSlotIndexRelativePath(fileName = STORAGE_SLOT_INDEX_FILE) {
+  return fileName || STORAGE_SLOT_INDEX_FILE;
 }
 
 function isStorageSlotIndexRelativePath(relativePath) {
-  return String(relativePath || "").trim().toLowerCase() === STORAGE_SLOT_INDEX_FILE.toLowerCase();
+  const base = String(relativePath || "").replace(/\\/g, "/").split("/").pop() || "";
+  return isStorageSlotIndexFileName(base);
 }
 
-function getStorageSlotIndexBundleRelPath(manifestOrTopicPath) {
-  return getNamedStorageBundleRel(manifestOrTopicPath, STORAGE_SLOT_INDEX_FILE);
+function getStorageSlotIndexBundleRelPath(manifestOrTopicPath, fileName = STORAGE_SLOT_INDEX_FILE) {
+  return getNamedStorageBundleRel(manifestOrTopicPath, fileName || STORAGE_SLOT_INDEX_FILE);
+}
+
+function getTopicStorageIndexRelPath(topicPath, fileName = STORAGE_SLOT_INDEX_FILE) {
+  const storageDir = getNamedStorageSlotDirRel(topicPath);
+  const indexFile = fileName || STORAGE_SLOT_INDEX_FILE;
+  return storageDir ? `${storageDir}/${indexFile}` : indexFile;
 }
 
 function isBundleStorageSlotIndexContext(context) {
@@ -45530,15 +45547,10 @@ function isBundleStorageSlotIndexContext(context) {
   );
 }
 
-function getTopicStorageIndexRelPath(topicPath) {
-  const storageDir = getNamedStorageSlotDirRel(topicPath);
-  return storageDir ? `${storageDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
-}
-
-function resolveStorageSlotIndexApiParams(manifestPath, spec) {
+function resolveStorageSlotIndexApiParams(manifestPath, spec, fileName = STORAGE_SLOT_INDEX_FILE) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return null;
-  const file = getStorageSlotIndexRelativePath();
+  const file = getStorageSlotIndexRelativePath(fileName);
   if (memoryKind === "external") {
     return { kind: "external", manifestPath, file };
   }
@@ -45554,7 +45566,7 @@ function resolveStorageSlotIndexApiParams(manifestPath, spec) {
     };
   }
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    return { kind: "file", relPath: getStorageSlotIndexBundleRelPath(manifestPath) };
+    return { kind: "file", relPath: getStorageSlotIndexBundleRelPath(manifestPath, fileName) };
   }
   return null;
 }
@@ -45568,15 +45580,15 @@ function storageSlotIndexExistsInNavigationFiles(files, fileName = STORAGE_SLOT_
   });
 }
 
-async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = null) {
+async function probeStorageSlotIndexFileByName(manifestPath, spec, prefetched, fileName) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind || !manifestPath) return false;
 
   if (memoryKind === "external" && prefetched?.externalFiles) {
-    if (storageSlotIndexExistsInNavigationFiles(prefetched.externalFiles)) return true;
+    if (storageSlotIndexExistsInNavigationFiles(prefetched.externalFiles, fileName)) return true;
   }
 
-  const params = resolveStorageSlotIndexApiParams(manifestPath, spec);
+  const params = resolveStorageSlotIndexApiParams(manifestPath, spec, fileName);
   if (!params) return false;
 
   try {
@@ -45612,15 +45624,35 @@ async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = nul
   return false;
 }
 
-async function probeTopicStorageReadmeExists(topicPath) {
-  const relPath = getTopicStorageIndexRelPath(topicPath);
-  if (!relPath) return false;
-  try {
-    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-    return response.ok;
-  } catch {
-    return false;
+async function resolveStorageSlotIndexFile(manifestPath, spec, prefetched = null) {
+  for (const fileName of [STORAGE_SLOT_INDEX_FILE, LEGACY_STORAGE_SLOT_INDEX_FILE]) {
+    if (await probeStorageSlotIndexFileByName(manifestPath, spec, prefetched, fileName)) {
+      return fileName;
+    }
   }
+  return null;
+}
+
+async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = null) {
+  return Boolean(await resolveStorageSlotIndexFile(manifestPath, spec, prefetched));
+}
+
+async function resolveExistingTopicStorageIndexRelPath(topicPath) {
+  for (const fileName of [STORAGE_SLOT_INDEX_FILE, LEGACY_STORAGE_SLOT_INDEX_FILE]) {
+    const relPath = getTopicStorageIndexRelPath(topicPath, fileName);
+    if (!relPath) continue;
+    try {
+      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+      if (response.ok) return relPath;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+async function probeTopicStorageReadmeExists(topicPath) {
+  return Boolean(await resolveExistingTopicStorageIndexRelPath(topicPath));
 }
 
 function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
@@ -45650,17 +45682,17 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
   }
 
   lines.push(
-    "> Общее оглавление темы: создайте `awn-storage/README.md`.",
-    "> Индекс слота: `README.md` в корне папки слота (`main/`, `inbox/`, `notes/` …).",
-    "> Однофайловые слоты: `README.md` рядом с `main.md`, `main.csv`, `todo.md`."
+    `> Общее оглавление темы: создайте \`${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE}\`.`,
+    `> Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота (\`main/\`, \`inbox/\`, \`notes/\` …).`,
+    `> Однофайловые слоты: \`${STORAGE_SLOT_INDEX_FILE}\` рядом с \`main.md\`, \`main.csv\`, \`todo.md\`.`
   );
   return lines.join("\n");
 }
 
-function openStorageSlotIndexOverview(topicPath, spec) {
+function openStorageSlotIndexOverview(topicPath, spec, indexFile = STORAGE_SLOT_INDEX_FILE) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return;
-  const relativePath = getStorageSlotIndexRelativePath();
+  const relativePath = getStorageSlotIndexRelativePath(indexFile);
   const title = `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`;
 
   if (memoryKind === "external") {
@@ -45693,7 +45725,7 @@ function openStorageSlotIndexOverview(topicPath, spec) {
     return;
   }
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    const relPath = getStorageSlotIndexBundleRelPath(topicPath);
+    const relPath = getStorageSlotIndexBundleRelPath(topicPath, indexFile);
     void openEntryOverviewFromNavigation({
       relPath,
       memoryKind,
@@ -45706,13 +45738,12 @@ function openStorageSlotIndexOverview(topicPath, spec) {
 
 async function openTopicStorageIndexOverview(topicPath, slots = []) {
   const manifestPath = getOverviewNodeApiPath(topicPath);
-  const hasReadme = await probeTopicStorageReadmeExists(topicPath);
-  if (hasReadme) {
-    const relPath = getTopicStorageIndexRelPath(topicPath);
+  const existingRelPath = await resolveExistingTopicStorageIndexRelPath(topicPath);
+  if (existingRelPath) {
     void openEntryOverviewFromNavigation({
-      relPath,
+      relPath: existingRelPath,
       memoryKind: "topic-index",
-      relativePath: relPath,
+      relativePath: existingRelPath,
       title: "Оглавление темы",
       entryKind: "awn.topic.storage-index"
     });
@@ -49770,14 +49801,12 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
   });
 
   const indexStates = await Promise.all(
-    slots.map(async (slot) => [
-      slot.id,
-      await probeStorageSlotReadmeExists(manifestPath, slot.spec, prefetchedIndex)
-    ])
+    slots.map(async (slot) => [slot.id, await resolveStorageSlotIndexFile(manifestPath, slot.spec, prefetchedIndex)])
   );
   const indexBySlotId = Object.fromEntries(indexStates);
   for (const slot of slots) {
-    slot.hasIndex = Boolean(indexBySlotId[slot.id]);
+    slot.indexFile = indexBySlotId[slot.id] || null;
+    slot.hasIndex = Boolean(slot.indexFile);
   }
 
   return slots;
@@ -50164,7 +50193,7 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   indexBtn.classList.toggle("is-available", hasIndex);
   indexBtn.classList.toggle("is-missing", !hasIndex);
   if (hasIndex) {
-    indexBtn.title = `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
+    indexBtn.title = `Открыть ${slot.indexFile || STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
   } else if (isBundleEntryOverviewMemoryKind(memoryKind)) {
     indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден рядом с ${spec?.bundleFile || "файлом слота"}`;
   } else {
@@ -50262,7 +50291,11 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
       showToast(`${STORAGE_SLOT_INDEX_FILE} не найден в этом слоте`, "info");
       return;
     }
-    openStorageSlotIndexOverview(topicPath || getResolvedNodePath(activePath), spec);
+    openStorageSlotIndexOverview(
+      topicPath || getResolvedNodePath(activePath),
+      spec,
+      slot.indexFile || STORAGE_SLOT_INDEX_FILE
+    );
   });
   return btn;
 }
@@ -50301,7 +50334,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   footer.classList.toggle("is-generated", !hasTopicReadme);
   footer.title = hasTopicReadme
     ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
-    : "Собрать общее оглавление темы (или создайте awn-storage/README.md)";
+    : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
 
   footer.onclick = (event) => {
     event.preventDefault();
@@ -50316,7 +50349,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     footer.classList.toggle("is-generated", !exists);
     footer.title = exists
       ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
-      : "Собрать общее оглавление темы (или создайте awn-storage/README.md)";
+      : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
   });
 }
 
