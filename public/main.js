@@ -49572,11 +49572,32 @@ function shouldOfferEntryOverviewStorageSlotCreate(context) {
 }
 
 async function fetchEntryOverviewStorageSlotFolderExists(context, topicPath) {
-  const folderName = getEntryOverviewStorageSlotFolderApiName(context);
+  const spec = getDataStorageSlotForMode(
+    context?.memoryKind === "external" ? "external" : context?.memoryKind
+  );
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
-  if (!folderName || !manifestPath) return true;
-  const summary = await fetchFolderViewSummary(manifestPath, folderName);
-  return Boolean(summary.exists);
+  if (!spec || !manifestPath) return true;
+  try {
+    const scan = await fetchStorageRootScan(manifestPath);
+    if (!scan?.exists) return false;
+    return Boolean(findScanFolderForSlotKey(spec.key, scan.folders || []));
+  } catch {
+    return true;
+  }
+}
+
+function resolveStorageSlotFolderExistsFromScan(spec, storageScan) {
+  if (!spec || spec.sectionKind === "bundle") return true;
+  if (!storageScan?.exists) {
+    if (spec.key === "memory" || spec.key === "media" || spec.key === "assets" || spec.sectionKind === "flat") {
+      return false;
+    }
+    return true;
+  }
+  if (spec.key === "memory" || spec.key === "media" || spec.key === "assets" || spec.sectionKind === "flat") {
+    return Boolean(findScanFolderForSlotKey(spec.key, storageScan.folders || []));
+  }
+  return true;
 }
 
 async function ensureEntryOverviewStorageSlotFolder(context, topicPath) {
@@ -49600,7 +49621,7 @@ function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) 
   const spec = getDataStorageSlotForMode(context.memoryKind === "external" ? "external" : context.memoryKind);
   if (!spec) return;
   appendNavigationHubRailBrowseActionButton(actions, {
-    className: "entry-overview-create-slot-folder-btn external-create-section-btn",
+    className: "entry-overview-create-slot-folder-btn",
     label: "+ Создать слот",
     title: `Создать папку ${getDataStorageSlotPathHint(spec)}`,
     onClick: () => {
@@ -50351,7 +50372,7 @@ function shouldShowEntryOverviewBrowseActions(context) {
   return false;
 }
 
-function createEntryOverviewBrowseActions(context) {
+function createEntryOverviewBrowseActions(context, { slotFolderMissing = false } = {}) {
   if (!shouldShowEntryOverviewBrowseActions(context)) return null;
 
   const targetMode = context.memoryKind === "external" ? "external" : context.memoryKind;
@@ -50373,6 +50394,10 @@ function createEntryOverviewBrowseActions(context) {
       entryOverviewContext: context
     });
   };
+
+  if (slotFolderMissing) {
+    appendEntryOverviewCreateSlotFolderButton(actions, context, getResolvedNodePath(activePath));
+  }
 
   if (supportsNavigationHubRailSectionCreate(targetMode)) {
     appendNavigationHubRailBrowseActionButton(actions, {
@@ -50417,9 +50442,9 @@ function createEntryOverviewExternalBrowseActions(context) {
   return createEntryOverviewBrowseActions(context);
 }
 
-function createEntryOverviewBrowseToolbar(context) {
+function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false } = {}) {
   const searchBar = createEntryOverviewSearchBar(context);
-  const actions = createEntryOverviewBrowseActions(context);
+  const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
   const mediaCols = context?.memoryKind === "media" ? createNavigationMediaImagesLayoutToggle() : null;
   if (!searchBar && !actions && !mediaCols) return null;
   if (!actions && !mediaCols) return searchBar;
@@ -50545,7 +50570,7 @@ function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemory
   return renderEntryOverviewSectionList(context, filteredIndex);
 }
 
-function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false } = {}) {
+function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false, slotFolderMissing = false } = {}) {
   const showSearch = isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context);
   const showActions = shouldShowEntryOverviewBrowseActions(context);
   const listBlock = renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
@@ -50555,7 +50580,7 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
   panel.className = "node-entry-overview-browse-panel";
 
   if (showSearch || showActions) {
-    const toolbar = createEntryOverviewBrowseToolbar(context);
+    const toolbar = createEntryOverviewBrowseToolbar(context, { slotFolderMissing });
     if (toolbar) panel.appendChild(toolbar);
   }
 
@@ -50604,12 +50629,15 @@ function appendEntryOverviewBrowsePanel(
   hub,
   context,
   navigationIndex,
-  { isMemoryTocRoot = false } = {}
+  { isMemoryTocRoot = false, slotFolderMissing = null } = {}
 ) {
-  const panel = createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot });
+  const panel = createEntryOverviewBrowsePanel(context, navigationIndex, {
+    isMemoryTocRoot,
+    slotFolderMissing: Boolean(slotFolderMissing)
+  });
   if (!panel) return null;
   const mounted = mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot });
-  if (mounted) {
+  if (mounted && slotFolderMissing == null) {
     void syncEntryOverviewBrowseSlotFolderAction(
       mounted,
       context,
@@ -50703,6 +50731,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     internalData,
     tabularData,
     assetsPreviewFilled,
+    storageScan,
     ...folderResults
   ] = await Promise.all([
     fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
@@ -50712,6 +50741,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     fetchInternalMemoryForNavigation(topicPath).catch(() => null),
     fetchTabularMemoryForNavigation(topicPath).catch(() => null),
     resolveNavigationAssetsPreviewFilled(topicPath).catch(() => false),
+    fetchStorageRootScan(manifestPath).catch(() => null),
     ...flatModes.map(async (mode) => [
       mode,
       await fetchFlatStorageSectionSummary(manifestPath, mode)
@@ -50791,18 +50821,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       }
     }
 
-    let folderExists = true;
-    if (spec.sectionKind === "bundle") {
-      folderExists = true;
-    } else if (spec.key === "memory") {
-      folderExists = Boolean(externalData?.exists);
-    } else if (spec.key === "media") {
-      folderExists = Boolean(mediaData?.exists);
-    } else if (spec.key === "assets") {
-      folderExists = Boolean(assetsData?.exists);
-    } else if (spec.sectionKind === "flat") {
-      folderExists = Boolean(folderByMode[spec.key]?.exists);
-    }
+    let folderExists = resolveStorageSlotFolderExistsFromScan(spec, storageScan);
 
     return {
       id: spec.key,
@@ -52718,7 +52737,16 @@ async function renderEntryOverview() {
 
     entryOverviewSearchState = { context, navigationIndex, isMemoryTocRoot: true };
     entryOverviewBreadcrumbState = { context, navigationIndex, title: "Оглавление" };
-    appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, { isMemoryTocRoot: true });
+    let slotFolderMissing = false;
+    if (shouldOfferEntryOverviewStorageSlotCreate(context)) {
+      const slotFolderExists = await fetchEntryOverviewStorageSlotFolderExists(context, topicPath);
+      if (isStale()) return;
+      slotFolderMissing = !slotFolderExists;
+    }
+    appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, {
+      isMemoryTocRoot: true,
+      slotFolderMissing
+    });
 
     if (!isArea) {
       const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
@@ -53345,6 +53373,7 @@ function applyNavTocFolderCollapsedState(folderItem, subList, toggleBtn, countNo
 }
 
 function isNavigationHubRailSlotEmpty(slot) {
+  if (slot.folderExists === false) return false;
   return !slot.filled && !slot.available;
 }
 
@@ -53436,6 +53465,7 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   }
   row.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
   row.classList.toggle("is-filled", Boolean(slot.filled));
+  row.classList.toggle("is-missing-folder", slot.folderExists === false);
   if (slot.tone) row.classList.add(`is-${slot.tone}`);
 
   const btn = document.createElement("button");
@@ -53457,6 +53487,22 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   });
 
   row.appendChild(btn);
+
+  if (slot.folderExists === false && slot.spec) {
+    const memoryKind = getEntryOverviewMemoryKindForSlot(slot.spec);
+    if (memoryKind) {
+      const actions = document.createElement("div");
+      actions.className =
+        "node-navigation-hub-rail-slot-missing-actions node-entry-overview-browse-actions";
+      appendEntryOverviewCreateSlotFolderButton(
+        actions,
+        { memoryKind },
+        getResolvedNodePath(activePath)
+      );
+      row.appendChild(actions);
+    }
+  }
+
   return row;
 }
 

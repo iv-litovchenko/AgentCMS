@@ -20555,6 +20555,45 @@ button.node-navigation-hub-rail-slot-summary {
   opacity: 0.92;
 }
 
+.node-navigation-hub-rail-slot--flat.is-missing-folder {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.node-navigation-hub-rail-slot-missing-actions {
+  padding: 0 10px 10px;
+  border-top: 1px solid #fde68a;
+}
+
+.node-navigation-hub-rail-slot-missing-actions .entry-overview-create-slot-folder-btn {
+  width: 100%;
+}
+
+.entry-overview-create-slot-folder-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  border: 1px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.entry-overview-create-slot-folder-btn:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #1d4ed8;
+}
+
+.entry-overview-create-slot-folder-btn:disabled {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .node-navigation-hub-rail-slot-open {
   width: 24px;
   height: 24px;
@@ -20621,6 +20660,7 @@ button.node-navigation-hub-rail-slot-summary {
   margin: 0 0 8px;
 }
 
+.node-navigation-hub-rail-slot-actions .entry-overview-create-slot-folder-btn,
 .node-navigation-hub-rail-slot-actions .external-create-section-btn,
 .node-navigation-hub-rail-slot-actions .external-create-btn,
 .node-navigation-hub-rail-slot-actions .media-upload-btn,
@@ -23159,6 +23199,7 @@ button.node-navigation-hub-rail-slot-summary {
   flex: 0 0 auto;
 }
 
+.node-entry-overview-browse-actions .entry-overview-create-slot-folder-btn,
 .node-entry-overview-browse-actions .external-create-section-btn,
 .node-entry-overview-browse-actions .external-create-btn,
 .node-entry-overview-browse-actions .media-upload-btn {
