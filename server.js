@@ -5918,6 +5918,329 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
   };
 }
 
+function resolveSlotTransferScope(slotKey) {
+  const key = String(slotKey || "").trim();
+  if (!key) return null;
+  if (key === "external" || key === "memory") {
+    return { scopeType: "external", storageFolder: "", slotKey: "external" };
+  }
+  if (key === "media") {
+    return { scopeType: "media", storageFolder: "", slotKey: "media" };
+  }
+  if (key === "assets") {
+    return { scopeType: "media", storageFolder: STORAGE_SUBFOLDER_ASSETS, slotKey: "assets" };
+  }
+  for (const [mode, folderName] of Object.entries(STORAGE_SUBFOLDER_BY_MODE)) {
+    if (mode === key) {
+      return { scopeType: "storage", storageFolder: folderName, slotKey: key };
+    }
+  }
+  return null;
+}
+
+function isSameSlotTransferScope(a, b) {
+  return (
+    a &&
+    b &&
+    a.scopeType === b.scopeType &&
+    String(a.storageFolder || "") === String(b.storageFolder || "")
+  );
+}
+
+async function resolveTransferTargetFolderAbsolute(nodeAbsolute, targetScope, targetParent, manifestRelPath) {
+  const targetRoot = await resolveMemorySectionRootAbsolute(
+    nodeAbsolute,
+    targetScope.scopeType,
+    targetScope.storageFolder
+  );
+  if (!targetRoot) return { error: "Target slot not found", status: 404 };
+
+  const layer =
+    targetScope.scopeType === "storage"
+      ? targetScope.storageFolder
+      : targetScope.scopeType === "external"
+        ? STORAGE_SUBFOLDER_CONTENT
+        : targetScope.storageFolder || STORAGE_SUBFOLDER_MEDIA;
+
+  const parentRaw = resolveStorageCreateParentRel(targetParent, { layer, manifestRelPath });
+  const targetFolder = await resolveMediaTargetFolderAbsolute(targetRoot, parentRaw, { create: true });
+  if (!targetFolder) {
+    return { error: parentRaw ? "Target parent not found" : "Invalid target parent", status: 400 };
+  }
+
+  return { targetRoot, targetFolder };
+}
+
+async function transferStorageSectionItem(
+  manifestRelPath,
+  sourceScope,
+  sectionRelPath,
+  targetScope,
+  targetParent
+) {
+  if (isSameSlotTransferScope(sourceScope, targetScope)) {
+    return moveMemorySectionRecord(
+      manifestRelPath,
+      sourceScope.scopeType,
+      sourceScope.storageFolder,
+      sectionRelPath,
+      targetParent
+    );
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const sourceCtx = await resolveMemorySectionContext(
+    manifestRelPath,
+    sourceScope.scopeType,
+    sourceScope.storageFolder,
+    sectionRelPath
+  );
+  if (sourceCtx.error) return sourceCtx;
+
+  const targetResolved = await resolveTransferTargetFolderAbsolute(
+    nodeAbsolute,
+    targetScope,
+    targetParent,
+    manifestRelPath
+  );
+  if (targetResolved.error) return targetResolved;
+
+  const sectionName = path.basename(sourceCtx.sectionAbsolute);
+  const destAbsolute = path.join(targetResolved.targetFolder, sectionName);
+  if (!isPathInsideDirectory(targetResolved.targetRoot, destAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+  if (path.resolve(destAbsolute) === path.resolve(sourceCtx.sectionAbsolute)) {
+    const sectionPath = path.relative(targetResolved.targetRoot, destAbsolute).replace(/\\/g, "/");
+    return { sectionPath, targetSlot: targetScope.slotKey, exists: true };
+  }
+  if (isPathInsideDirectory(sourceCtx.sectionAbsolute, destAbsolute)) {
+    return { error: "Cannot move section into itself", status: 400 };
+  }
+  if (await targetPathOccupiedByOther(sourceCtx.sectionAbsolute, destAbsolute)) {
+    return { error: "Target section already exists", status: 409 };
+  }
+
+  await renamePathCaseAware(sourceCtx.sectionAbsolute, destAbsolute);
+  const sectionPath = path.relative(targetResolved.targetRoot, destAbsolute).replace(/\\/g, "/");
+  return {
+    sectionPath,
+    readme: `${sectionPath}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/"),
+    targetSlot: targetScope.slotKey,
+    exists: true
+  };
+}
+
+async function resolveTransferSourceFileAbsolute(manifestRelPath, sourceScope, sourceFileRel) {
+  const normalized = normalizeRelativeFilePath(sourceFileRel);
+  if (!normalized) return { error: "Invalid file path", status: 400 };
+
+  if (sourceScope.scopeType === "external") {
+    return resolveExternalFileOpContext(manifestRelPath, normalized);
+  }
+
+  if (sourceScope.scopeType === "media") {
+    const ctx = await resolveMediaFileOpContext(manifestRelPath, normalized);
+    if (ctx.error) return ctx;
+    return {
+      fileAbsolute: ctx.mediaAbsolute,
+      normalizedRelFile: ctx.normalizedRelFile,
+      nodeAbsolute: ctx.nodeAbsolute,
+      rootAbsolute: ctx.folderAbsolute
+    };
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const resolved = await resolveStorageFileAbsolute(
+    nodeAbsolute,
+    sourceScope.storageFolder,
+    normalized
+  );
+  if (resolved.error) return resolved;
+  const rootAbsolute = await resolveMemorySectionRootAbsolute(
+    nodeAbsolute,
+    sourceScope.scopeType,
+    sourceScope.storageFolder
+  );
+  return {
+    fileAbsolute: resolved.fileAbsolute,
+    normalizedRelFile: resolved.normalizedRelFile,
+    nodeAbsolute,
+    rootAbsolute
+  };
+}
+
+async function transferStorageFileItem(
+  manifestRelPath,
+  sourceScope,
+  sourceFileRel,
+  targetScope,
+  targetParent
+) {
+  const sourceCtx = await resolveTransferSourceFileAbsolute(manifestRelPath, sourceScope, sourceFileRel);
+  if (sourceCtx.error) return sourceCtx;
+
+  if (isSameSlotTransferScope(sourceScope, targetScope)) {
+    const fileName = path.posix.basename(sourceCtx.normalizedRelFile.replace(/\\/g, "/"));
+    const targetFile = targetParent ? `${targetParent}/${fileName}`.replace(/\/+/g, "/") : fileName;
+    if (sourceScope.scopeType === "external") {
+      return moveExternalMemoryFile(manifestRelPath, sourceCtx.normalizedRelFile, {
+        targetPath: manifestRelPath,
+        targetFile
+      });
+    }
+    if (sourceScope.scopeType === "media") {
+      return moveMediaStorageFile(manifestRelPath, sourceCtx.normalizedRelFile, {
+        targetPath: manifestRelPath,
+        targetFile
+      });
+    }
+    return moveStorageFlatFile(manifestRelPath, sourceScope.storageFolder, sourceCtx.normalizedRelFile, {
+      targetFolder: sourceScope.storageFolder,
+      targetFile
+    });
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const targetResolved = await resolveTransferTargetFolderAbsolute(
+    nodeAbsolute,
+    targetScope,
+    targetParent,
+    manifestRelPath
+  );
+  if (targetResolved.error) return targetResolved;
+
+  const fileName = path.basename(sourceCtx.fileAbsolute);
+  const destAbsolute = path.join(targetResolved.targetFolder, fileName);
+  if (!isPathInsideDirectory(targetResolved.targetRoot, destAbsolute)) {
+    return { error: "Invalid target path", status: 400 };
+  }
+  if (path.resolve(sourceCtx.fileAbsolute) === path.resolve(destAbsolute)) {
+    return {
+      file: path.relative(targetResolved.targetRoot, destAbsolute).replace(/\\/g, "/"),
+      targetSlot: targetScope.slotKey
+    };
+  }
+  if (await targetPathOccupiedByOther(sourceCtx.fileAbsolute, destAbsolute)) {
+    return { error: "File with this name already exists", status: 409 };
+  }
+
+  const oldWorkspaceRel = manifestRelFromNodeAbsolute(sourceCtx.fileAbsolute);
+  await renamePathCaseAware(sourceCtx.fileAbsolute, destAbsolute);
+
+  const oldSidecar = resolveMediaSidecarAbsoluteFromMediaFile(sourceCtx.fileAbsolute);
+  const nextSidecar = resolveMediaSidecarAbsoluteFromMediaFile(destAbsolute);
+  if (oldSidecar && nextSidecar) {
+    try {
+      await fs.rename(oldSidecar, nextSidecar);
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
+  const newWorkspaceRel = manifestRelFromNodeAbsolute(destAbsolute);
+  if (oldWorkspaceRel && newWorkspaceRel && oldWorkspaceRel !== newWorkspaceRel) {
+    linkRewrite = await rewriteMarkdownLinksForRename({
+      exactMappings: [{ oldRel: oldWorkspaceRel, newRel: newWorkspaceRel }]
+    });
+  }
+
+  return {
+    file: path.relative(targetResolved.targetRoot, destAbsolute).replace(/\\/g, "/"),
+    targetSlot: targetScope.slotKey,
+    linkRewrite
+  };
+}
+
+async function moveStorageFlatFile(manifestRelPath, storageFolder, relFile, options = {}) {
+  const resolved = await resolveStorageFileAbsolute(manifestRelPath, storageFolder, relFile);
+  if (resolved.error) return resolved;
+
+  const targetFolderName = String(options.targetFolder || storageFolder || "").trim();
+  if (!targetFolderName) return { error: "Missing target folder", status: 400 };
+
+  const targetFile = normalizeMoveTargetRelFile(options.targetFile, resolved.normalizedRelFile);
+  if (!targetFile) return { error: "Invalid target file path", status: 400 };
+
+  const targetResolved = await resolveStorageFileAbsolute(manifestRelPath, targetFolderName, targetFile, {
+    create: true
+  });
+  if (targetResolved.error) return targetResolved;
+
+  if (path.resolve(resolved.fileAbsolute) === path.resolve(targetResolved.fileAbsolute)) {
+    return { file: targetResolved.normalizedRelFile.replace(/\\/g, "/"), folder: targetFolderName };
+  }
+  if (await targetPathOccupiedByOther(resolved.fileAbsolute, targetResolved.fileAbsolute)) {
+    return { error: "File with this name already exists", status: 409 };
+  }
+
+  await renamePathCaseAware(resolved.fileAbsolute, targetResolved.fileAbsolute);
+  return {
+    folder: targetFolderName,
+    file: targetResolved.normalizedRelFile.replace(/\\/g, "/")
+  };
+}
+
+async function transferStorageItemsRecord(manifestRelPath, payload = {}) {
+  const rawItems = Array.isArray(payload.items) ? payload.items : payload.item ? [payload.item] : [];
+  if (!rawItems.length) return { error: "Missing transfer items", status: 400 };
+  if (String(payload.op || "cut").trim() === "copy") {
+    return { error: "Copy is not supported yet", status: 501 };
+  }
+
+  const results = [];
+  for (const item of rawItems) {
+    const sourceScope = resolveSlotTransferScope(item.sourceSlot);
+    const targetScope = resolveSlotTransferScope(item.targetSlot);
+    if (!sourceScope || !targetScope) {
+      return { error: "Invalid slot in transfer item", status: 400 };
+    }
+
+    const sourceRef = String(item.sourceRef || item.section || item.file || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+|\/+$/g, "");
+    if (!sourceRef && item.kind !== "memorySection") {
+      return { error: "Missing source path", status: 400 };
+    }
+
+    const targetParent = String(item.targetParent ?? item.parent ?? "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+|\/+$/g, "");
+
+    const kind = String(item.kind || "").trim();
+    let result;
+    if (kind === "memorySection" || kind === "section") {
+      if (!sourceRef) return { error: "Missing section path", status: 400 };
+      result = await transferStorageSectionItem(
+        manifestRelPath,
+        sourceScope,
+        sourceRef,
+        targetScope,
+        targetParent
+      );
+    } else {
+      result = await transferStorageFileItem(
+        manifestRelPath,
+        sourceScope,
+        sourceRef,
+        targetScope,
+        targetParent
+      );
+    }
+    if (result.error) return result;
+    results.push(result);
+  }
+
+  return { transferred: results.length, results };
+}
+
 function addMemorySectionSortParentPaths(parentPaths, sectionRelPath) {
   const normalized = String(sectionRelPath || "")
     .replace(/\\/g, "/")
@@ -16203,6 +16526,37 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, result);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to move storage section", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/file/move") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await moveStorageFlatFile(
+        payload.path,
+        String(payload.folder || "").trim(),
+        payload.file,
+        {
+          targetFolder: String(payload.targetFolder || payload.folder || "").trim(),
+          targetFile: payload.targetFile
+        }
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to move storage file", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/transfer") {
+    try {
+      const payload = await readJsonBody(req);
+      if (!payload.path) return sendJson(res, 400, { error: "Missing file path" });
+      const result = await transferStorageItemsRecord(payload.path, payload);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to transfer storage items", details: String(error.message || error) });
     }
   }
 

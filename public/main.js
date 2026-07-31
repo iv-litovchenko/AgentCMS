@@ -4125,11 +4125,21 @@ function getOverviewNodeApiPath(nodePath = activePath) {
 
 const READ_STATE_FILE_NAME = "read.json";
 const READ_CONTENT_FILE_NAME = "read-content.json";
+const SLOT_NAVIGATION_SORT_FILE = "sort.json";
 const nodeReadStateCache = new Map();
 
 function isReadStateServiceFileName(name) {
   const base = String(name || "").trim().toLowerCase();
   return base === READ_STATE_FILE_NAME || base === READ_CONTENT_FILE_NAME;
+}
+
+function isSlotNavigationServiceFilePath(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+  const base = normalized.split("/").pop() || "";
+  const baseLower = base.toLowerCase();
+  if (baseLower === SLOT_NAVIGATION_SORT_FILE || baseLower === "awn-sort.json") return true;
+  return isReadStateServiceFileName(base);
 }
 
 function buildNodeReadContentStoragePath(relativePath, memoryKind = "external") {
@@ -15673,6 +15683,414 @@ const RESOURCE_CONTEXT_MENU_ACTIONS = {
   memorySection: [RESOURCE_EDIT_ACTION, ...RESOURCE_STANDARD_ACTIONS]
 };
 
+const RESOURCE_CLIPBOARD_ACTIONS = [
+  { id: "cut", label: "✂️ Вырезать" },
+  { id: "copy", label: "Копировать" },
+  { id: "paste", label: "📋 Вставить" }
+];
+
+let navigationSlotClipboard = null;
+let navigationSlotSelection = new Map();
+
+function getNavigationSlotItemKey(entry) {
+  if (!entry) return "";
+  const ref = entry.sectionFolder || entry.filePath || "";
+  return `${entry.memoryKind}::${entry.itemKind}::${ref}`;
+}
+
+function getNavigationSlotClipboardItems(clip = navigationSlotClipboard) {
+  if (!clip) return [];
+  if (Array.isArray(clip.items)) return clip.items.filter(Boolean);
+  if (clip.itemKind) return [clip];
+  return [];
+}
+
+function buildNavigationSlotClipboardEntry(state, op) {
+  const memoryKind = resolveResourceStateMemoryKind(state);
+  if (!memoryKind || !state?.kind) return null;
+
+  const entry = {
+    op,
+    memoryKind,
+    itemKind: state.kind,
+    label: state.label || "",
+    nodePath: getResolvedNodePath(activePath)
+  };
+
+  if (state.kind === "memorySection") {
+    entry.sectionFolder = String(state.sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+    if (!entry.sectionFolder) return null;
+  } else if (
+    state.kind === "externalFile" ||
+    state.kind === "mediaFile" ||
+    state.kind === "flatStorageFile"
+  ) {
+    entry.filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!entry.filePath) return null;
+  } else {
+    return null;
+  }
+
+  return entry;
+}
+
+function canUseResourceClipboardActions(kind) {
+  return (
+    kind === "memorySection" ||
+    kind === "externalFile" ||
+    kind === "mediaFile" ||
+    kind === "flatStorageFile"
+  );
+}
+
+function canPasteNavigationSlotItem(item, targetState) {
+  if (!item || !targetState) return false;
+  const targetMemoryKind = resolveResourceStateMemoryKind(targetState);
+  if (!targetMemoryKind) return false;
+
+  const targetFolder =
+    targetState.kind === "slotRoot"
+      ? ""
+      : String(targetState.sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+
+  if (item.itemKind === "memorySection") {
+    if (item.memoryKind === targetMemoryKind) {
+      return Boolean(resolveMemorySectionDragMove(item.sectionFolder, targetFolder));
+    }
+    return true;
+  }
+
+  if (item.filePath) {
+    if (item.memoryKind === targetMemoryKind) {
+      return getMemoryFileParentPath(item.filePath) !== targetFolder;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function canPasteNavigationSlotClipboard(targetState) {
+  const items = getNavigationSlotClipboardItems();
+  if (!items.length || !targetState) return false;
+  if (navigationSlotClipboard?.nodePath !== getResolvedNodePath(activePath)) return false;
+  return items.some((item) => canPasteNavigationSlotItem(item, targetState));
+}
+
+function syncNavigationSlotSelectionMarkers() {
+  document.querySelectorAll(".is-navigation-slot-selected").forEach((node) => {
+    node.classList.remove("is-navigation-slot-selected");
+  });
+  for (const entry of navigationSlotSelection.values()) {
+    if (entry.itemKind === "memorySection") {
+      document
+        .querySelectorAll(`[data-rail-section-folder="${CSS.escape(entry.sectionFolder)}"]`)
+        .forEach((node) => node.classList.add("is-navigation-slot-selected"));
+      continue;
+    }
+    if (entry.filePath) {
+      document
+        .querySelectorAll(`[data-rail-file-path="${CSS.escape(entry.filePath)}"]`)
+        .forEach((node) => node.classList.add("is-navigation-slot-selected"));
+    }
+  }
+}
+
+function toggleNavigationSlotSelection(state, event) {
+  const entry = buildNavigationSlotClipboardEntry(state, "cut");
+  if (!entry) return;
+  const key = getNavigationSlotItemKey(entry);
+  const additive = Boolean(event?.ctrlKey || event?.metaKey);
+  if (!additive) {
+    navigationSlotSelection.clear();
+  }
+  if (navigationSlotSelection.has(key)) {
+    navigationSlotSelection.delete(key);
+  } else {
+    navigationSlotSelection.set(key, entry);
+  }
+  syncNavigationSlotSelectionMarkers();
+}
+
+function bindNavigationSlotSelectionToggle(element, menuState) {
+  if (!element || !menuState) return;
+  element.addEventListener("click", (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleNavigationSlotSelection(menuState, event);
+  });
+}
+
+function syncNavigationSlotCutMarkers() {
+  document.querySelectorAll(".is-navigation-slot-cut").forEach((node) => {
+    node.classList.remove("is-navigation-slot-cut");
+  });
+  const clip = navigationSlotClipboard;
+  if (!clip || clip.op !== "cut") return;
+
+  for (const item of getNavigationSlotClipboardItems(clip)) {
+    if (item.itemKind === "memorySection") {
+      document
+        .querySelectorAll(`[data-rail-section-folder="${CSS.escape(item.sectionFolder)}"]`)
+        .forEach((node) => node.classList.add("is-navigation-slot-cut"));
+      continue;
+    }
+    if (item.filePath) {
+      document
+        .querySelectorAll(`[data-rail-file-path="${CSS.escape(item.filePath)}"]`)
+        .forEach((node) => node.classList.add("is-navigation-slot-cut"));
+    }
+  }
+}
+
+function setNavigationSlotClipboard(state, op) {
+  const selectedEntries = Array.from(navigationSlotSelection.values());
+  if (selectedEntries.length) {
+    navigationSlotClipboard = {
+      op,
+      nodePath: getResolvedNodePath(activePath),
+      items: selectedEntries.map((entry) => ({ ...entry, op }))
+    };
+    navigationSlotSelection.clear();
+    syncNavigationSlotSelectionMarkers();
+    syncNavigationSlotCutMarkers();
+    showToast(
+      `${op === "cut" ? "Вырезано" : "Скопировано"}: ${selectedEntries.length} элементов`,
+      "info"
+    );
+    return true;
+  }
+
+  const entry = buildNavigationSlotClipboardEntry(state, op);
+  if (!entry) {
+    showToast("Не удалось положить элемент в буфер", "error");
+    return false;
+  }
+  navigationSlotClipboard = {
+    op,
+    nodePath: entry.nodePath,
+    items: [entry]
+  };
+  syncNavigationSlotCutMarkers();
+  showToast(op === "cut" ? `Вырезано: ${entry.label}` : `Скопировано: ${entry.label}`, "info");
+  return true;
+}
+
+async function transferNavigationSlotItemsApi(items, targetMemoryKind, targetParent, op = "cut") {
+  const response = await fetch(buildApiUrl("/api/storage/transfer"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: getActiveNodeApiPath(),
+      op,
+      items: items.map((item) => ({
+        kind: item.itemKind,
+        sourceSlot: item.memoryKind,
+        sourceRef: item.sectionFolder || item.filePath,
+        targetSlot: targetMemoryKind,
+        targetParent: targetParent || ""
+      }))
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function moveFlatStorageFileToSection(filePath, targetSectionFolder, memoryKind) {
+  const folder = getFlatStorageSectionFolderName(memoryKind);
+  if (!folder) throw new Error("Не удалось определить слот");
+  const nextPath = buildMemoryFileMoveTargetPath(filePath, targetSectionFolder);
+  if (nextPath === filePath) return;
+  const response = await fetch(buildApiUrl("/api/storage/file/move"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: getActiveNodeApiPath(),
+      folder,
+      file: filePath,
+      targetFolder: folder,
+      targetFile: nextPath
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function executeNavigationSlotItemPaste(item, targetState, op = "cut") {
+  const targetMemoryKind = resolveResourceStateMemoryKind(targetState);
+  if (!targetMemoryKind) throw new Error("Не удалось определить целевой слот");
+
+  const targetFolder =
+    targetState.kind === "slotRoot"
+      ? ""
+      : String(targetState.sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+
+  if (item.memoryKind !== targetMemoryKind) {
+    await transferNavigationSlotItemsApi([item], targetMemoryKind, targetFolder, op);
+    return { targetMemoryKind, sourceMemoryKind: item.memoryKind };
+  }
+
+  const menuState = buildRailSlotMenuState(item.memoryKind);
+  if (!menuState) throw new Error("Не удалось определить слот");
+
+  if (item.itemKind === "memorySection") {
+    const move = resolveMemorySectionDragMove(item.sectionFolder, targetFolder);
+    if (!move) throw new Error("Нельзя переместить раздел сюда");
+    await moveMemorySectionApi(move.source, move.parentPath, menuState);
+    return { targetMemoryKind: item.memoryKind, sourceMemoryKind: item.memoryKind };
+  }
+
+  if (item.itemKind === "externalFile") {
+    await moveExternalFileToSection(item.filePath, targetFolder);
+    return { targetMemoryKind: item.memoryKind, sourceMemoryKind: item.memoryKind };
+  }
+
+  if (item.itemKind === "mediaFile") {
+    await moveMediaFileToSection(item.filePath, targetFolder);
+    return { targetMemoryKind: item.memoryKind, sourceMemoryKind: item.memoryKind };
+  }
+
+  if (item.itemKind === "flatStorageFile") {
+    await moveFlatStorageFileToSection(item.filePath, targetFolder, item.memoryKind);
+    return { targetMemoryKind: item.memoryKind, sourceMemoryKind: item.memoryKind };
+  }
+
+  throw new Error("Неподдерживаемый тип элемента");
+}
+
+async function pasteNavigationSlotClipboard(targetState) {
+  const clip = navigationSlotClipboard;
+  const items = getNavigationSlotClipboardItems(clip);
+  if (!items.length || !canPasteNavigationSlotClipboard(targetState)) {
+    showToast("Сюда вставить нельзя", "error");
+    return;
+  }
+
+  const targetMemoryKind = resolveResourceStateMemoryKind(targetState);
+  const targetFolder =
+    targetState.kind === "slotRoot"
+      ? ""
+      : String(targetState.sectionFolder || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const targetLabel =
+    getMemorySectionDisplayLabel(targetFolder) || targetFolder.split("/").pop() || "корень слота";
+
+  const pasteItems = items.filter((item) => canPasteNavigationSlotItem(item, targetState));
+  if (!pasteItems.length) {
+    showToast("Сюда вставить нельзя", "error");
+    return;
+  }
+
+  if (clip.op === "copy") {
+    showToast("Копирование пока не поддерживается — используйте вырезать", "info");
+    return;
+  }
+
+  const confirmed = await askConfirm(
+    pasteItems.length === 1
+      ? `Переместить «${pasteItems[0].label}» в «${targetLabel}» (${getMediaLibraryModeLabel(targetMemoryKind)})?`
+      : `Переместить ${pasteItems.length} элементов в «${targetLabel}» (${getMediaLibraryModeLabel(targetMemoryKind)})?`,
+    { okLabel: "Переместить" }
+  );
+  if (!confirmed) return;
+
+  const affectedKinds = new Set();
+  try {
+    const crossSlotItems = pasteItems.filter((item) => item.memoryKind !== targetMemoryKind);
+    const sameSlotItems = pasteItems.filter((item) => item.memoryKind === targetMemoryKind);
+
+    if (crossSlotItems.length) {
+      await transferNavigationSlotItemsApi(crossSlotItems, targetMemoryKind, targetFolder, clip.op);
+      crossSlotItems.forEach((item) => {
+        affectedKinds.add(item.memoryKind);
+        affectedKinds.add(targetMemoryKind);
+      });
+    }
+
+    for (const item of sameSlotItems) {
+      const result = await executeNavigationSlotItemPaste(item, targetState, clip.op);
+      affectedKinds.add(result.sourceMemoryKind);
+      affectedKinds.add(result.targetMemoryKind);
+    }
+
+    navigationSlotClipboard = null;
+    navigationSlotSelection.clear();
+    syncNavigationSlotCutMarkers();
+    syncNavigationSlotSelectionMarkers();
+
+    for (const memoryKind of affectedKinds) {
+      const menuState = buildRailSlotMenuState(memoryKind);
+      if (menuState) await refreshMemorySectionViews(menuState);
+    }
+    await refreshNavigationHubAfterSlotMutation();
+    showToast(
+      pasteItems.length === 1 ? "Элемент перемещён" : `Перемещено элементов: ${pasteItems.length}`,
+      "success"
+    );
+  } catch (error) {
+    showToast(`Ошибка вставки: ${error.message}`, "error");
+  }
+}
+
+function buildRailSlotMenuState(memoryKind) {
+  const scope = resolveNavigationHubRailResourceContextMenuScope(memoryKind);
+  if (!scope) return null;
+  return { ...scope.sectionState, railSlotMemoryKind: memoryKind };
+}
+
+function resolveResourceStateMemoryKind(state) {
+  if (!state) return null;
+  if (state.railSlotMemoryKind) return state.railSlotMemoryKind;
+  if (state.storageMode) return state.storageMode;
+  if (state.externalMode) return "external";
+  if (state.mediaMode) return "media";
+  return null;
+}
+
+function appendResourceClipboardMenuItems(kind) {
+  if (!resourceContextMenuListNode) return;
+  const state = resourceContextMenuState;
+  const clipboardItems = [];
+
+  if (canUseResourceClipboardActions(kind)) {
+    clipboardItems.push(
+      RESOURCE_CLIPBOARD_ACTIONS.find((item) => item.id === "cut"),
+      RESOURCE_CLIPBOARD_ACTIONS.find((item) => item.id === "copy")
+    );
+  }
+  if (canPasteNavigationSlotClipboard(state)) {
+    clipboardItems.push(RESOURCE_CLIPBOARD_ACTIONS.find((item) => item.id === "paste"));
+  }
+  if (!clipboardItems.length) return;
+
+  const separator = document.createElement("li");
+  separator.className = "menu-context-menu-separator";
+  separator.setAttribute("role", "separator");
+  resourceContextMenuListNode.appendChild(separator);
+
+  for (const action of clipboardItems) {
+    if (!action) continue;
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn";
+    btn.dataset.action = action.id;
+    btn.textContent = action.label;
+    btn.setAttribute("role", "menuitem");
+    item.appendChild(btn);
+    resourceContextMenuListNode.appendChild(item);
+  }
+}
+
 let resourceContextMenuState = null;
 let renameSectionState = null;
 let renameMenuNodeState = null;
@@ -16017,6 +16435,7 @@ function renderResourceContextMenuItems(kind, currentStatus = "") {
     item.appendChild(btn);
     resourceContextMenuListNode.appendChild(item);
   }
+  appendResourceClipboardMenuItems(kind);
   appendResourceContextMenuStatusSection(currentStatus);
 }
 
@@ -16352,6 +16771,21 @@ function handleResourceContextMenuAction(actionId) {
   const state = resourceContextMenuState;
   if (!state) return;
   closeResourceContextMenu();
+
+  if (actionId === "cut") {
+    setNavigationSlotClipboard(state, "cut");
+    return;
+  }
+
+  if (actionId === "copy") {
+    setNavigationSlotClipboard(state, "copy");
+    return;
+  }
+
+  if (actionId === "paste") {
+    void pasteNavigationSlotClipboard(state);
+    return;
+  }
 
   if (actionId === "edit" && state.kind === "memorySection" && state.sectionFolder) {
     const readmePath = getSectionReadmeRelPath(state.sectionFolder);
@@ -26931,6 +27365,289 @@ function setupMemoryListDragDrop() {
     }
     clearMemorySectionMoveDropTarget();
   });
+}
+
+const NAV_RAIL_DRAG_MIME = "application/x-yamlcms-nav-rail";
+const NAV_RAIL_SECTION_SELECTOR = ".nav-book-toc-folder-head[data-rail-section-folder]";
+let navRailSectionMoveDragEl = null;
+let navRailFileDragPayload = null;
+let navRailSectionMoveDropTargetEl = null;
+
+function createNavBookTocDragHandle(kind) {
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "nav-book-toc-drag-handle menu-sort-handle";
+  handle.draggable = true;
+  handle.dataset.railDragKind = kind;
+  handle.textContent = "⠿";
+  handle.title = kind === "section" ? "Перетащите раздел" : "Перетащите запись";
+  handle.setAttribute("aria-label", handle.title);
+  handle.addEventListener("mousedown", (event) => event.stopPropagation());
+  handle.addEventListener("click", (event) => event.stopPropagation());
+  return handle;
+}
+
+function clearNavRailSectionMoveDropTarget() {
+  if (!navRailSectionMoveDropTargetEl) return;
+  navRailSectionMoveDropTargetEl.classList.remove("is-nav-rail-move-drop-target");
+  navRailSectionMoveDropTargetEl = null;
+}
+
+function setNavRailSectionMoveDropTarget(el) {
+  if (navRailSectionMoveDropTargetEl === el) return;
+  clearNavRailSectionMoveDropTarget();
+  if (!el) return;
+  navRailSectionMoveDropTargetEl = el;
+  el.classList.add("is-nav-rail-move-drop-target");
+}
+
+async function refreshNavRailAfterMove(memoryKind, extraKinds = []) {
+  const kinds = new Set([memoryKind, ...extraKinds].filter(Boolean));
+  for (const kind of kinds) {
+    const menuState = buildRailSlotMenuState(kind);
+    if (menuState) await refreshMemorySectionViews(menuState);
+  }
+  await refreshNavigationHubAfterSlotMutation();
+  refreshEntryOverviewListFromSearch();
+  syncNavigationSlotCutMarkers();
+  syncNavigationSlotSelectionMarkers();
+}
+
+function setupNavigationHubRailSlotTreeDragDrop(root) {
+  if (!root || root.dataset.navRailDragBound === "1") return;
+  root.dataset.navRailDragBound = "1";
+
+  root.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".nav-book-toc-drag-handle[data-rail-drag-kind]");
+    if (!handle) return;
+
+    const kind = handle.dataset.railDragKind;
+    if (kind === "section") {
+      const head = handle.closest(NAV_RAIL_SECTION_SELECTOR);
+      const folderPath = head?.dataset.railSectionFolder;
+      const memoryKind = head?.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      if (!head || !folderPath || !memoryKind) {
+        event.preventDefault();
+        return;
+      }
+      navRailSectionMoveDragEl = head;
+      head.classList.add("is-dragging-nav-rail-section");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        NAV_RAIL_DRAG_MIME,
+        JSON.stringify({ kind: "section", folderPath, memoryKind })
+      );
+      event.dataTransfer.setData("text/plain", folderPath);
+      return;
+    }
+
+    if (kind === "file") {
+      const link = handle.closest(".nav-book-toc-link[data-rail-file-path]");
+      const filePath = link?.dataset.railFilePath;
+      const memoryKind = link?.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      if (!link || !filePath || !memoryKind) {
+        event.preventDefault();
+        return;
+      }
+      navRailFileDragPayload = { filePath, memoryKind };
+      link.classList.add("is-dragging-nav-rail-file");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        NAV_RAIL_DRAG_MIME,
+        JSON.stringify({ kind: "file", filePath, memoryKind })
+      );
+      event.dataTransfer.setData("text/plain", filePath);
+    }
+  });
+
+  root.addEventListener("dragover", (event) => {
+    const targetHead = event.target.closest(NAV_RAIL_SECTION_SELECTOR);
+    if (navRailSectionMoveDragEl) {
+      if (!targetHead || targetHead === navRailSectionMoveDragEl) {
+        clearNavRailSectionMoveDropTarget();
+        return;
+      }
+      const sourcePath = navRailSectionMoveDragEl.dataset.railSectionFolder || "";
+      const targetPath = targetHead.dataset.railSectionFolder || "";
+      const sourceMemoryKind =
+        navRailSectionMoveDragEl.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      const targetMemoryKind = targetHead.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      if (sourceMemoryKind === targetMemoryKind) {
+        const move = resolveMemorySectionDragMove(sourcePath, targetPath);
+        if (!move) {
+          clearNavRailSectionMoveDropTarget();
+          return;
+        }
+      } else if (!targetPath || sourcePath === targetPath) {
+        clearNavRailSectionMoveDropTarget();
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setNavRailSectionMoveDropTarget(targetHead);
+      return;
+    }
+
+    if (!navRailFileDragPayload) return;
+    if (!targetHead) {
+      clearNavRailSectionMoveDropTarget();
+      return;
+    }
+    const targetSection = targetHead.dataset.railSectionFolder || "";
+    const targetMemoryKind = targetHead.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+    if (navRailFileDragPayload.memoryKind === targetMemoryKind) {
+      if (getMemoryFileParentPath(navRailFileDragPayload.filePath) === targetSection) {
+        clearNavRailSectionMoveDropTarget();
+        return;
+      }
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setNavRailSectionMoveDropTarget(targetHead);
+  });
+
+  root.addEventListener("dragleave", (event) => {
+    if (root.contains(event.relatedTarget)) return;
+    clearNavRailSectionMoveDropTarget();
+  });
+
+  root.addEventListener("drop", async (event) => {
+    if (navRailSectionMoveDragEl) {
+      const targetHead = event.target.closest(NAV_RAIL_SECTION_SELECTOR);
+      clearNavRailSectionMoveDropTarget();
+      if (!targetHead || targetHead === navRailSectionMoveDragEl) return;
+      const sourcePath = navRailSectionMoveDragEl.dataset.railSectionFolder || "";
+      const targetPath = targetHead.dataset.railSectionFolder || "";
+      const sourceMemoryKind =
+        navRailSectionMoveDragEl.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      const targetMemoryKind = targetHead.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+      const move =
+        sourceMemoryKind === targetMemoryKind ? resolveMemorySectionDragMove(sourcePath, targetPath) : null;
+      if (sourceMemoryKind === targetMemoryKind && (!move || !sourceMemoryKind)) return;
+      if (sourceMemoryKind !== targetMemoryKind && (!sourcePath || !targetMemoryKind)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const sourceLabel =
+        getMemorySectionDisplayLabel(sourcePath) || sourcePath.split("/").pop() || sourcePath;
+      const targetLabel =
+        getMemorySectionDisplayLabel(targetPath) || targetPath.split("/").pop() || "корень слота";
+      const slotLabel = getMediaLibraryModeLabel(targetMemoryKind);
+      const confirmed = await askConfirm(
+        sourceMemoryKind === targetMemoryKind
+          ? `Переместить «${sourceLabel}» в «${targetLabel}»?`
+          : `Переместить «${sourceLabel}» (${getMediaLibraryModeLabel(sourceMemoryKind)}) в «${targetLabel}» (${slotLabel})?`,
+        { okLabel: "Подтвердить" }
+      );
+      if (!confirmed) return;
+      try {
+        if (sourceMemoryKind === targetMemoryKind) {
+          const menuState = buildRailSlotMenuState(sourceMemoryKind);
+          if (!menuState) return;
+          await moveMemorySectionApi(move.source, move.parentPath, menuState);
+          await refreshNavRailAfterMove(sourceMemoryKind);
+        } else {
+          await transferNavigationSlotItemsApi(
+            [
+              {
+                itemKind: "memorySection",
+                memoryKind: sourceMemoryKind,
+                sectionFolder: sourcePath,
+                label: sourceLabel
+              }
+            ],
+            targetMemoryKind,
+            targetPath,
+            "cut"
+          );
+          await refreshNavRailAfterMove(targetMemoryKind, [sourceMemoryKind]);
+        }
+        showToast("Раздел перемещён", "success");
+      } catch (error) {
+        showToast(`Ошибка перемещения: ${error.message}`, "error");
+      }
+      return;
+    }
+
+    if (!navRailFileDragPayload) return;
+    const targetHead = event.target.closest(NAV_RAIL_SECTION_SELECTOR);
+    clearNavRailSectionMoveDropTarget();
+    if (!targetHead) return;
+    const targetSection = targetHead.dataset.railSectionFolder || "";
+    const { filePath, memoryKind: sourceMemoryKind } = navRailFileDragPayload;
+    const targetMemoryKind = targetHead.dataset.railMemoryKind || root.dataset.railMemoryKind || "";
+    if (sourceMemoryKind === targetMemoryKind && getMemoryFileParentPath(filePath) === targetSection) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const fileLabel = filePath.split("/").pop() || filePath;
+    const sectionLabel =
+      getMemorySectionDisplayLabel(targetSection) || targetSection.split("/").pop() || "корень слота";
+    const confirmed = await askConfirm(
+      sourceMemoryKind === targetMemoryKind
+        ? `Переместить «${fileLabel}» в «${sectionLabel}»?`
+        : `Переместить «${fileLabel}» (${getMediaLibraryModeLabel(sourceMemoryKind)}) в «${sectionLabel}» (${getMediaLibraryModeLabel(targetMemoryKind)})?`,
+      { okLabel: "Подтвердить" }
+    );
+    if (!confirmed) return;
+    try {
+      const targetState = {
+        kind: "memorySection",
+        sectionFolder: targetSection,
+        railSlotMemoryKind: targetMemoryKind,
+        ...buildRailSlotMenuState(targetMemoryKind)
+      };
+      const fileKind =
+        sourceMemoryKind === "external"
+          ? "externalFile"
+          : isFlatEntryOverviewMemoryKind(sourceMemoryKind)
+            ? "flatStorageFile"
+            : "mediaFile";
+      await executeNavigationSlotItemPaste(
+        {
+          itemKind: fileKind,
+          memoryKind: sourceMemoryKind,
+          filePath,
+          label: fileLabel
+        },
+        targetState,
+        "cut"
+      );
+      await refreshNavRailAfterMove(targetMemoryKind, [sourceMemoryKind]);
+      showToast("Запись перемещена", "success");
+    } catch (error) {
+      showToast(`Ошибка перемещения: ${error.message}`, "error");
+    }
+  });
+
+  root.addEventListener("dragend", () => {
+    navRailSectionMoveDragEl?.classList.remove("is-dragging-nav-rail-section");
+    navRailSectionMoveDragEl = null;
+    root.querySelector(".is-dragging-nav-rail-file")?.classList.remove("is-dragging-nav-rail-file");
+    navRailFileDragPayload = null;
+    clearNavRailSectionMoveDropTarget();
+  });
+
+  root.addEventListener("contextmenu", (event) => {
+    if (event.target.closest(".nav-book-toc-folder-head, .nav-book-toc-link, .nav-book-toc-drag-handle")) {
+      return;
+    }
+    if (!navigationSlotClipboard) return;
+    const memoryKind = root.dataset.railMemoryKind || "";
+    if (!memoryKind) return;
+    const menuState = buildRailSlotMenuState(memoryKind);
+    if (!menuState) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void pasteNavigationSlotClipboard({ kind: "slotRoot", memoryKind, ...menuState });
+  });
+}
+
+function mountNavigationHubRailSlotTreeDragDrop(root) {
+  if (!root) return;
+  setupNavigationHubRailSlotTreeDragDrop(root);
+  syncNavigationSlotCutMarkers();
+  syncNavigationSlotSelectionMarkers();
 }
 
 function appendMemorySectionTreeLabel(parent, label, { isUnregistered = false, description = "" } = {}) {
@@ -48014,6 +48731,7 @@ function prepareNavigationExternalItems(files, folders = []) {
     }
 
     if (isMemorySectionInfrastructureFilePath(path)) continue;
+    if (isSlotNavigationServiceFilePath(path)) continue;
 
     const slug = String(item.name || path.split("/").pop() || "").replace(/\.md$/i, "");
     const props = Array.isArray(item.props) ? item.props : [];
@@ -48095,6 +48813,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
 
       if (path.toLowerCase().endsWith(".sidecar.md")) continue;
       if (isMemorySectionInfrastructureFilePath(path)) continue;
+      if (isSlotNavigationServiceFilePath(path)) continue;
 
       const baseName = item.name || path.split("/").pop() || path;
       const displayName = String(item.displayName || "").trim();
@@ -48289,6 +49008,7 @@ function prepareNavigationFlatStorageItemsFromText(contentText) {
 
     const path = String(item.path || "").replace(/\\/g, "/");
     if (!path || isMemorySectionInfrastructureFilePath(path)) continue;
+    if (isSlotNavigationServiceFilePath(path)) continue;
 
     const name = path.split("/").pop() || path;
     files.push({
@@ -48488,6 +49208,7 @@ function buildEntryOverviewBookTocHandlers(context, extra = {}) {
     ...getEntryOverviewNavigationHandlers(memoryKind),
     nodePath: getResolvedNodePath(activePath),
     enableFolderCreateActions: true,
+    enableRailDragDrop: true,
     railCreateTargetMode: memoryKind,
     activeContext: context,
     resourceContextMenuMemoryKind: memoryKind,
@@ -49673,6 +50394,11 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
   }
   if (!panel?.isConnected) return;
 
+  if (folderExists) {
+    panel.classList.remove("is-slot-folder-missing");
+    return;
+  }
+
   actions
     .querySelectorAll(
       ".external-create-section-btn, .external-create-btn, .media-upload-btn, .node-navigation-hub-rail-upload-btn"
@@ -49680,9 +50406,7 @@ async function syncEntryOverviewBrowseSlotFolderAction(panel, context, topicPath
     .forEach((node) => node.remove());
 
   panel.querySelector(".node-entry-overview-slot-folder-missing")?.remove();
-  panel.classList.toggle("is-slot-folder-missing", !folderExists);
-
-  if (folderExists) return;
+  panel.classList.add("is-slot-folder-missing");
 
   appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath);
 
@@ -50639,7 +51363,11 @@ function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocR
     syncEntryOverviewBrowseUploadPanelUi();
   }
 
-  if (listBlock) panel.appendChild(listBlock);
+  if (listBlock) {
+    panel.appendChild(listBlock);
+    panel.dataset.railMemoryKind = context?.memoryKind || "";
+    mountNavigationHubRailSlotTreeDragDrop(panel);
+  }
 
   return panel.childElementCount ? panel : null;
 }
@@ -53633,16 +54361,25 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderNode.folderPath,
       handlers
     );
+    if (handlers.enableRailDragDrop && folderNode.folderPath) {
+      head.dataset.railSectionFolder = folderNode.folderPath;
+      head.dataset.railMemoryKind = handlers.resourceContextMenuMemoryKind || "";
+      head.classList.add("nav-book-toc-rail-section-target");
+      if (!head.querySelector(".nav-book-toc-drag-handle")) {
+        head.insertBefore(createNavBookTocDragHandle("section"), head.firstChild);
+      }
+    }
     if (handlers.resourceContextMenuMemoryKind) {
-      bindNavigationHubRailResourceContextMenu(
-        head,
-        buildNavigationHubRailSectionContextMenuState(
-          handlers.resourceContextMenuMemoryKind,
-          folderNode.folderPath,
-          folderLabels,
-          folderStatuses
-        )
+      const sectionMenuState = buildNavigationHubRailSectionContextMenuState(
+        handlers.resourceContextMenuMemoryKind,
+        folderNode.folderPath,
+        folderLabels,
+        folderStatuses
       );
+      bindNavigationHubRailResourceContextMenu(head, sectionMenuState);
+      if (handlers.enableRailDragDrop) {
+        bindNavigationSlotSelectionToggle(head, sectionMenuState);
+      }
     }
     folderItem.append(head, subList);
 
@@ -53683,16 +54420,28 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     link.append(text, leaders);
     const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
     if (fileIsCurrent) link.classList.add("is-current");
+    if (handlers.enableRailDragDrop && item.path) {
+      link.dataset.railFilePath = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      link.dataset.railMemoryKind = handlers.resourceContextMenuMemoryKind || "";
+      link.classList.add("nav-book-toc-rail-file-item");
+      if (!link.querySelector(".nav-book-toc-drag-handle")) {
+        link.insertBefore(createNavBookTocDragHandle("file"), link.firstChild);
+      }
+    }
     link.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       onFileClick(item);
     });
     if (handlers.resourceContextMenuMemoryKind) {
-      bindNavigationHubRailResourceContextMenu(
-        link,
-        buildNavigationHubRailFileContextMenuState(handlers.resourceContextMenuMemoryKind, item)
+      const fileMenuState = buildNavigationHubRailFileContextMenuState(
+        handlers.resourceContextMenuMemoryKind,
+        item
       );
+      bindNavigationHubRailResourceContextMenu(link, fileMenuState);
+      if (handlers.enableRailDragDrop) {
+        bindNavigationSlotSelectionToggle(link, fileMenuState);
+      }
     }
 
     entry.appendChild(link);
@@ -60654,6 +61403,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     readManifestPath: resolveManifestPathForNodeApi(nodePath),
     readMemoryKind: memoryKind,
     enableFolderCreateActions: true,
+    enableRailDragDrop: true,
     railCreateTargetMode: memoryKind,
     railSlotKey: slotId,
     ...handlers
@@ -60698,7 +61448,11 @@ function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, a
       slot.id,
       activeCtx
     );
-    if (nav) treeHost.appendChild(nav);
+    if (nav) {
+      treeHost.dataset.railMemoryKind = slotIndex.memoryKind || "";
+      treeHost.appendChild(nav);
+      mountNavigationHubRailSlotTreeDragDrop(treeHost);
+    }
     return;
   }
 

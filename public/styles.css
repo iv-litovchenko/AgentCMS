@@ -20825,6 +20825,63 @@ button.node-navigation-hub-rail-slot-summary {
   grid-template-columns: 20px minmax(0, 1fr) auto;
 }
 
+.nav-book-toc-folder-head:has(.nav-book-toc-drag-handle) {
+  grid-template-columns: 18px 20px minmax(0, 1fr) auto;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-folder-head:has(.nav-book-toc-drag-handle) {
+  grid-template-columns: 18px 22px minmax(0, 1fr) auto;
+}
+
+.nav-book-toc-drag-handle {
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.nav-book-toc-drag-handle:hover {
+  background: rgba(148, 163, 184, 0.16);
+  color: #64748b;
+}
+
+.nav-book-toc-drag-handle:active {
+  cursor: grabbing;
+}
+
+.nav-book-toc-folder-head.is-nav-rail-move-drop-target {
+  background: rgba(219, 234, 254, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
+  border-radius: 6px;
+}
+
+.nav-book-toc-link.is-dragging-nav-rail-file,
+.nav-book-toc-folder-head.is-dragging-nav-rail-section {
+  opacity: 0.55;
+}
+
+.nav-book-toc-folder-head.is-navigation-slot-cut,
+.nav-book-toc-link.is-navigation-slot-cut {
+  opacity: 0.52;
+  outline: 1px dashed rgba(245, 158, 11, 0.85);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.nav-book-toc-folder-head.is-navigation-slot-selected,
+.nav-book-toc-link.is-navigation-slot-selected {
+  background: rgba(219, 234, 254, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.55);
+  border-radius: 6px;
+}
+
 .nav-book-toc-tree--rail .nav-book-toc-folder--root > .nav-book-toc-folder-head {
   grid-template-columns: 22px minmax(0, 1fr) auto;
   padding-left: 4px;
