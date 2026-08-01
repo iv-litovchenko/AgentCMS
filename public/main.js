@@ -25,6 +25,7 @@ const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popo
 const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
+const PLATFORM_TODO_REL_PATH = "workspaces/agent-cms-core/TODO.md";
 const PLATFORM_TODO_CORE_REL_PATH = "workspaces/agent-cms-core/TODO-CORE.md";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
@@ -78613,13 +78614,13 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
   const normalized = String(content || "").trim();
   if (!normalized) {
     appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
-    appFooterIdeasBodyNode.textContent = `Файл ${PLATFORM_TODO_CORE_REL_PATH} пуст`;
+    appFooterIdeasBodyNode.textContent = `${PLATFORM_TODO_REL_PATH} и ${PLATFORM_TODO_CORE_REL_PATH} пусты`;
     return;
   }
 
   appFooterIdeasBodyNode.className = "app-footer-ideas-body markdown-preview";
   setMarkdownPreviewHtml(appFooterIdeasBodyNode, normalized, {
-    nodePath: PLATFORM_TODO_CORE_REL_PATH
+    nodePath: PLATFORM_TODO_REL_PATH
   });
   scheduleAppFooterIdeasPopoverPosition();
 }
@@ -78645,7 +78646,7 @@ async function loadAppFooterIdeasFromCore() {
     return content;
   } catch (error) {
     if (seq !== appFooterIdeasLoadSeq) return "";
-    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${PLATFORM_TODO_CORE_REL_PATH}` });
+    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${PLATFORM_TODO_REL_PATH}` });
     return "";
   }
 }

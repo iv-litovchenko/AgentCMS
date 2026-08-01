@@ -13,6 +13,7 @@
     "main/draft-1",
     "main/draft-1.md",
     "main/draft-3.md",
+    "main/golosovoe-upravlenie-shell-mobilka.md",
     "main/gregre.md",
     "main/ideas-deps.md",
     "main/ideas-pakety-zavisimosti-i-steki-topikov.md",
@@ -25,7 +26,8 @@
     "main/skripty.md",
     "main/test.md",
     "main/testy.md",
-    "main/uvedomleniya.md"
+    "main/uvedomleniya.md",
+    "main/vizualizatsiya-diagrammy-grafiki.md"
   ],
-  "updatedAt": "2026-08-01T19:50:26.197Z"
+  "updatedAt": "2026-08-01T20:03:13.652Z"
 }

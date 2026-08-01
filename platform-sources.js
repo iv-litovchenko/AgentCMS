@@ -37,6 +37,7 @@ const CATALOG_KIT_REL = path.join(AGENT_CMS_CORE_REL, "catalog");
 const AGENTS_GROUPS_REL = path.join(AGENT_CMS_CORE_REL, "agents-groups");
 const AGENTS_GROUPS_FILE = "groups.json";
 const PLATFORM_INDEX_REL = path.join(AGENT_CMS_CORE_REL, "index.json");
+const TODO_FILE = "TODO.md";
 const TODO_CORE_FILE = "TODO-CORE.md";
 
 /** Относительный URL-префикс для фонов групп (хранится в groups.json). */
@@ -77,8 +78,57 @@ function getPlatformIndexAbsolute(projectRoot) {
   return resolvePlatformPath(projectRoot, PLATFORM_INDEX_REL);
 }
 
+function getTodoAbsolute(projectRoot) {
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TODO_FILE);
+}
+
 function getTodoCoreAbsolute(projectRoot) {
   return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TODO_CORE_FILE);
+}
+
+async function readPlatformTodoFooterMarkdown(projectRoot) {
+  const fs = require("fs/promises");
+  const todoAbs = getTodoAbsolute(projectRoot);
+  const coreAbs = getTodoCoreAbsolute(projectRoot);
+  let todo = "";
+  let core = "";
+  let todoExists = false;
+  let coreExists = false;
+
+  try {
+    todo = await fs.readFile(todoAbs, "utf-8");
+    todoExists = true;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  try {
+    core = await fs.readFile(coreAbs, "utf-8");
+    coreExists = true;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const parts = [];
+  if (todo.trim()) {
+    parts.push(todo.trim());
+  } else {
+    parts.push(`_${TODO_FILE} пуст или не найден_`);
+  }
+  parts.push("", "---", "", `## ${TODO_CORE_FILE}`, "");
+  if (core.trim()) {
+    parts.push(core.trim());
+  } else {
+    parts.push(`_${TODO_CORE_FILE} пуст или не найден_`);
+  }
+
+  return {
+    content: parts.join("\n"),
+    todoExists,
+    coreExists,
+    todoPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), TODO_FILE),
+    corePath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), TODO_CORE_FILE)
+  };
 }
 
 function toAgentsGroupsBackgroundRel(fileName) {
@@ -101,6 +151,7 @@ module.exports = {
   AGENTS_GROUPS_FILE,
   AGENTS_GROUPS_ASSETS_PUBLIC_PREFIX,
   PLATFORM_INDEX_REL,
+  TODO_FILE,
   TODO_CORE_FILE,
   resolvePlatformPath,
   getAgentCmsCoreAbsolute,
@@ -112,6 +163,8 @@ module.exports = {
   getAgentsGroupsJsonAbsolute,
   getAgentsGroupsAssetsAbsolute,
   getPlatformIndexAbsolute,
+  getTodoAbsolute,
   getTodoCoreAbsolute,
+  readPlatformTodoFooterMarkdown,
   toAgentsGroupsBackgroundRel
 };
