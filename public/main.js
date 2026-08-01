@@ -70447,17 +70447,16 @@ function renderSystemFiles(files) {
       btn.type = "button";
       btn.className = buildSystemFileItemClassName(file);
       btn.classList.add("system-file-item");
-      if (file.openMode === "adopt") btn.classList.add("system-file-item--adopt");
       btn.textContent = file.label;
       btn.dataset.systemFile = file.systemFile;
       btn.dataset.systemFileGroup = group.id;
       btn.dataset.openMode = file.openMode || "system";
-      btn.title =
-        file.openMode === "adopt"
-          ? "Открыть как свободную память"
-          : file.exists
-            ? "Открыть служебный файл"
-            : "Создать и заполнить";
+      const hasContent = file.exists && !file.empty;
+      btn.title = hasContent
+        ? "Открыть служебный файл"
+        : file.exists
+          ? "Открыть для редактирования"
+          : "Создать и заполнить";
       btn.addEventListener("click", () => {
         void openRootSystemMenuFile(file);
       });

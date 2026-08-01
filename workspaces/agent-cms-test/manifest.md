@@ -1,7 +1,7 @@
 ---
 awn-name: "[Agent CMS] Agent Test (песочница)"
 awn-emoji: ""
-awn-status: open
+awn-status: 🟢 Открыта
 awn-description: ""
 awn-tags: []
 awn-type: awn.page.ws

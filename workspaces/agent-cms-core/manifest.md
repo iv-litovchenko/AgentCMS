@@ -1,7 +1,7 @@
 ---
 awn-name: "[Agent CMS] Platform core"
 awn-emoji: ""
-awn-status: open
+awn-status: 🟢 Открыта
 awn-description: "Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS"
 awn-tags: []
 awn-type: awn.page.ws
@@ -22,6 +22,7 @@ awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 awn-runtime-commands: false
 ---
+
 
 
 

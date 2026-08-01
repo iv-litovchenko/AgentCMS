@@ -15996,19 +15996,6 @@ body.app-locked {
   margin-top: 2px;
 }
 
-.menu-item.system-file-item--adopt.exists {
-  color: #64748b;
-}
-
-.menu-item.system-file-item--adopt.exists::before {
-  background: #94a3b8;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
-}
-
-.menu-item.system-file-item--adopt.exists:hover {
-  color: #475569;
-}
-
 .folder-browse-file-text {
   margin: 0;
   padding: 14px 16px;
