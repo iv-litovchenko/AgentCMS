@@ -1,5 +1,5 @@
 ---
-awn-name: Идея - интеграция с внешними сервисами
+awn-name: "Идея - интеграция с внешними сервисами"
 awn-emoji: ""
 awn-status: open
 awn-description: ""
