@@ -298,7 +298,7 @@ Desktop.ini
 
 # Кэш и временные файлы
 .cache/
-.agent-cms/
+.agent-cms/cache
 tmp/
 temp/
 *.tmp
@@ -1177,8 +1177,8 @@ const SHARED_TAXONOMIES_LABEL = "Таксономии";
 const CONFIGURATION_SECTION_LABEL = "Configuration";
 const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
-/** Sidebar «Базовая модель» — visible but not interactive until type editor is ready. */
-const AGENT_SYSTEM_MENU_DISABLED = true;
+/** Sidebar «Базовая модель» — интерактивная секция типов awn-system. */
+const AGENT_SYSTEM_MENU_DISABLED = false;
 const AGENT_SYSTEM_ROOT = "awn-system";
 const AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY = "agentcms.agentSystemDomains.collapsed.v1";
 const KIT_ROOT_HINT = "Агент, пользователи, taxonomies, thread — не editorial-контент.";
@@ -4420,7 +4420,7 @@ function getSystemFileHintSpec(name) {
     return {
       title: "Git — что не попадает в репозиторий",
       text:
-        "Корневой <code>.gitignore</code> workspace агента: секреты, служебная папка <code>.agent-cms</code> (журнал, кэш превью), OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
+        "Корневой <code>.gitignore</code> workspace агента: секреты, кэш превью <code>.agent-cms/cache</code>, OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
         "Контент тем (<code>awn-container/</code>, остальные слои <code>awn-storage/</code>) обычно коммитится — " +
         "игнорируйте только то, что не должно уйти в git.",
       example: RECOMMENDED_AGENT_GITIGNORE
