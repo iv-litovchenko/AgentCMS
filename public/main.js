@@ -6735,13 +6735,32 @@ async function refreshAllFocusPanels() {
   await Promise.all([loadGlobalFocusItems(), loadAgentFocusItems(activeAgentId)]);
 }
 
-function getAgentsForPickerGrid() {
-  return [...agentsCache].sort((a, b) => {
-    const aOn = isAgentRegistryActive(a) ? 1 : 0;
-    const bOn = isAgentRegistryActive(b) ? 1 : 0;
-    if (aOn !== bOn) return bOn - aOn;
-    return String(a.name || a.id).localeCompare(String(b.name || b.id), "ru");
-  });
+function getAgentsInSelectOrder() {
+  const agents = getRegistryAgentsForUi();
+  if (!landingAgentsGroupsCache.length) return agents;
+
+  const ordered = [];
+  const seen = new Set();
+  const pushAgent = (agent) => {
+    if (!agent?.id || seen.has(agent.id)) return;
+    seen.add(agent.id);
+    ordered.push(agent);
+  };
+
+  const platformAgents = agents.filter(isPlatformAgent);
+  const workspaceAgents = agents.filter((agent) => !isPlatformAgent(agent));
+  const { orchestrator } = splitLandingOrchestratorAgent(workspaceAgents);
+  const { grouped, ungrouped } = buildLandingGroupsLayout(workspaceAgents, landingAgentsGroupsCache);
+
+  for (const agent of platformAgents) pushAgent(agent);
+  if (orchestrator) pushAgent(orchestrator);
+  for (const group of grouped) {
+    for (const agent of group.agents || []) pushAgent(agent);
+  }
+  for (const agent of ungrouped) pushAgent(agent);
+  for (const agent of agents) pushAgent(agent);
+
+  return ordered;
 }
 
 function createAgentPickerAgentButton(agent, avatarSize = 42) {
@@ -6826,7 +6845,7 @@ function renderAgentsPickerGrid() {
   agentsPickerStageNode.className = "agents-picker-stage agents-picker-stage--grid";
   agentsPickerStageNode.replaceChildren();
 
-  const agents = getAgentsForPickerGrid();
+  const agents = getAgentsInSelectOrder();
   if (agents.length === 0) {
     const empty = document.createElement("p");
     empty.className = "agents-picker-empty";
