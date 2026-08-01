@@ -6,8 +6,8 @@ awn-description: ""
 awn-tags: []
 awn-type: awn.content.record
 awn-create: "2026-08-01T22:08"
-awn-update: 2026-08-01T20:25:05.937Z
-awn-version: 10
+awn-update: 2026-08-01T20:03:10.955Z
+awn-version: 9
 awn-preview: ""
 awn-web-url: ""
 awn-attachments: []
@@ -113,10 +113,3 @@ awn-system (ядро платформы)
                 │  slot_* targets в схеме темы
                 └─ Эффективная схема = всё выше + поля раздела/слота
 ```
-
-| awn-type | space | topic | record | sidecar/media |
-| -------- | ----- | ----- | ------ | ------------- |
-| Дерево | + | + | - | - |
-|  | -> | -> | -> | -> |
-|  | содержит | содержит | содержит |  |
-| Добавляется в реестр | + | + | - | - |

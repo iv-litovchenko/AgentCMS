@@ -940,47 +940,11 @@ let workspaceNotificationsMuted = false;
 const componentsIdeasModalNode = document.getElementById("components-ideas-modal");
 const componentsIdeasCloseBtn = document.getElementById("components-ideas-close-btn");
 const componentsIdeasSubtitleNode = document.getElementById("components-ideas-subtitle");
-const componentsIdeasDraftNavNode = document.getElementById("components-ideas-draft-nav");
 const componentsIdeasContentNode = document.getElementById("components-ideas-content");
-const COMPONENTS_IDEAS_SOURCES = [
-  {
-    id: "main",
-    label: "Компоненты",
-    topicPath: "components-ideas.md",
-    subtitle: "My Graph ORM · черновик онтологии",
-    withExtras: true
-  },
-  {
-    id: "draft-1",
-    label: "Черновик 1",
-    topicPath: "drafts/draft-1.md",
-    subtitle: "Форум · темы · поля манифеста",
-    withExtras: false
-  },
-  {
-    id: "draft-2",
-    label: "Черновик 2",
-    topicPath: "drafts/draft-2.md",
-    subtitle: "Топик · content · resources · relations",
-    withExtras: false
-  },
-  {
-    id: "draft-3",
-    label: "Черновик 3",
-    topicPath: "drafts/draft-3.md",
-    subtitle: "AWN registry · awn-agent-system · layout",
-    withExtras: false
-  },
-  {
-    id: "comments",
-    label: "Комментарии",
-    kind: "comments",
-    subtitle: "Обсуждение тем · заглушка",
-    withExtras: false
-  }
-];
-const componentsIdeasCacheBySource = Object.create(null);
-let componentsIdeasActiveSourceId = "main";
+const HEADER_DOC_PREVIEW_OPTIONS = { hideFrontmatter: true };
+const COMPONENTS_IDEAS_TOPIC_PATH = "components-ideas.md";
+const COMPONENTS_IDEAS_SUBTITLE = "My Graph ORM · черновик онтологии";
+let componentsIdeasMarkdownCache = null;
 const userDocsBtn = document.getElementById("user-docs-btn");
 const userDocsModalNode = document.getElementById("user-docs-modal");
 const userDocsCloseBtn = document.getElementById("user-docs-close-btn");
@@ -64271,7 +64235,7 @@ function renderFrontmatterTableHtml(frontmatter) {
   return `<div class="md-frontmatter-table"><table><tbody>${rows}</tbody></table></div>`;
 }
 
-function renderMarkdownToHtml(markdown, { nodePath } = {}) {
+function renderMarkdownToHtml(markdown, { nodePath, hideFrontmatter = false } = {}) {
   const sourcePath =
     nodePath || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
   const source = normalizeMarkdownLinkDestinations(
@@ -64297,7 +64261,7 @@ function renderMarkdownToHtml(markdown, { nodePath } = {}) {
 
   try {
     const bodyHtml = md.render(String(body || "").trim(), renderEnv);
-    const frontmatterHtml = renderFrontmatterTableHtml(frontmatter);
+    const frontmatterHtml = hideFrontmatter ? "" : renderFrontmatterTableHtml(frontmatter);
     return frontmatterHtml ? `${frontmatterHtml}${bodyHtml}` : bodyHtml;
   } catch (error) {
     return renderCodePreviewHtml(source, getCodePreviewLanguage(sourcePath));
@@ -64404,7 +64368,11 @@ async function hydrateAwnFenceBlocks(rootNode) {
   }
 }
 
-function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath, workspacePath } = {}) {
+function setMarkdownPreviewHtml(
+  element,
+  markdown,
+  { nodePath, linkBasePath, workspacePath, hideFrontmatter = false } = {}
+) {
   if (!element) return;
   const resolvedNodePath =
     linkBasePath ||
@@ -64433,7 +64401,7 @@ function setMarkdownPreviewHtml(element, markdown, { nodePath, linkBasePath, wor
   }
 
   element.classList.remove("live-diff-embedded-active");
-  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath });
+  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath, hideFrontmatter });
   hydrateMarkdownPreviewElement(element, resolvedNodePath);
 }
 
@@ -79890,7 +79858,7 @@ async function openMdShowcaseModal() {
     if (!mdShowcaseCache) {
       mdShowcaseCache = await fetchDocumentationTopicMarkdown("markdown-showcase.md");
     }
-    setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache);
+    setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache, HEADER_DOC_PREVIEW_OPTIONS);
     mdShowcaseModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить Markdown showcase: ${error.message}`, "error");
@@ -79954,73 +79922,40 @@ function removeComponentsIdeasExtras(container) {
   container?.querySelector(".components-ideas-title-templates")?.remove();
 }
 
-async function fetchComponentsIdeasSourceMarkdown(source) {
-  if (source.kind === "comments") return "";
-  if (!componentsIdeasCacheBySource[source.id]) {
-    componentsIdeasCacheBySource[source.id] = await fetchDocumentationTopicMarkdown(source.topicPath);
-  }
-  return componentsIdeasCacheBySource[source.id];
-}
-
-function renderComponentsIdeasDraftNav(activeSourceId) {
-  if (!componentsIdeasDraftNavNode) return;
-  componentsIdeasDraftNavNode.innerHTML = "";
-
-  for (const source of COMPONENTS_IDEAS_SOURCES) {
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = `components-ideas-draft-tab${source.id === activeSourceId ? " active" : ""}`;
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", source.id === activeSourceId ? "true" : "false");
-    tab.title = source.topicPath || source.subtitle || source.label;
-    tab.textContent = source.label;
-    tab.addEventListener("click", () => {
-      void loadComponentsIdeasSource(source.id);
-    });
-    componentsIdeasDraftNavNode.appendChild(tab);
-  }
-}
-
-async function loadComponentsIdeasSource(sourceId) {
+async function loadComponentsIdeasContent() {
   if (!componentsIdeasModalNode || !componentsIdeasContentNode) return;
-  const source =
-    COMPONENTS_IDEAS_SOURCES.find((entry) => entry.id === sourceId) || COMPONENTS_IDEAS_SOURCES[0];
-  componentsIdeasActiveSourceId = source.id;
 
   try {
     removeComponentsIdeasExtras(componentsIdeasContentNode);
 
-    if (source.kind === "comments") {
-      componentsIdeasContentNode.replaceChildren(
-        renderNodeCommentsPlaceholderBlock({ nodeTitle: "Agent CMS" })
-      );
-    } else {
-      const markdown = await fetchComponentsIdeasSourceMarkdown(source);
-      setMarkdownPreviewHtml(componentsIdeasContentNode, markdown);
-
-      if (source.withExtras) {
-        const imagesResponse = await fetch("/api/public/images");
-        if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
-        const imagesPayload = await imagesResponse.json();
-        const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
-        appendComponentsIdeasGallery(componentsIdeasContentNode, images);
-        appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
-      }
+    if (!componentsIdeasMarkdownCache) {
+      componentsIdeasMarkdownCache = await fetchDocumentationTopicMarkdown(COMPONENTS_IDEAS_TOPIC_PATH);
     }
+    setMarkdownPreviewHtml(
+      componentsIdeasContentNode,
+      componentsIdeasMarkdownCache,
+      HEADER_DOC_PREVIEW_OPTIONS
+    );
+
+    const imagesResponse = await fetch("/api/public/images");
+    if (!imagesResponse.ok) throw new Error(`HTTP ${imagesResponse.status}`);
+    const imagesPayload = await imagesResponse.json();
+    const images = Array.isArray(imagesPayload?.images) ? imagesPayload.images : [];
+    appendComponentsIdeasGallery(componentsIdeasContentNode, images);
+    appendComponentsIdeasTitleTemplates(componentsIdeasContentNode);
 
     if (componentsIdeasSubtitleNode) {
-      componentsIdeasSubtitleNode.textContent = source.subtitle;
+      componentsIdeasSubtitleNode.textContent = COMPONENTS_IDEAS_SUBTITLE;
     }
-    renderComponentsIdeasDraftNav(source.id);
   } catch (error) {
-    showToast(`Не удалось загрузить «${source.label}»: ${error.message}`, "error");
+    showToast(`Не удалось загрузить components-ideas.md: ${error.message}`, "error");
   }
 }
 
 async function openComponentsIdeasModal() {
   if (!componentsIdeasModalNode || !componentsIdeasContentNode) return;
   try {
-    await loadComponentsIdeasSource(componentsIdeasActiveSourceId || "main");
+    await loadComponentsIdeasContent();
     componentsIdeasModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить идеи: ${error.message}`, "error");
@@ -80067,7 +80002,11 @@ async function openUserDocsModal() {
     userDocsVersion = readStoredDocVersion();
     syncAllDocVersionSelects(userDocsVersion);
     syncUserDocsSubtitle(userDocsVersion);
-    setMarkdownPreviewHtml(userDocsContentNode, await fetchUserDocs(userDocsVersion));
+    setMarkdownPreviewHtml(
+      userDocsContentNode,
+      await fetchUserDocs(userDocsVersion),
+      HEADER_DOC_PREVIEW_OPTIONS
+    );
     userDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
@@ -80084,7 +80023,7 @@ async function openBestPracticesModal() {
     if (!bestPracticesCache) {
       bestPracticesCache = await fetchDocumentationTopicMarkdown("agent-best-practices.md");
     }
-    setMarkdownPreviewHtml(bestPracticesContentNode, bestPracticesCache);
+    setMarkdownPreviewHtml(bestPracticesContentNode, bestPracticesCache, HEADER_DOC_PREVIEW_OPTIONS);
     bestPracticesModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить Best Practices: ${error.message}`, "error");
@@ -80120,7 +80059,11 @@ userDocsVersionSelectNode?.addEventListener("change", () => {
       const version = getSelectedDocVersion(userDocsVersionSelectNode);
       await applyDocVersionChange(version);
       syncUserDocsSubtitle(version);
-      setMarkdownPreviewHtml(userDocsContentNode, await fetchUserDocs(version, true));
+      setMarkdownPreviewHtml(
+        userDocsContentNode,
+        await fetchUserDocs(version, true),
+        HEADER_DOC_PREVIEW_OPTIONS
+      );
     } catch (error) {
       showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
     }
