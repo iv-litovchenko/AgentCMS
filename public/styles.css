@@ -28877,7 +28877,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-title-field--name,
-.editor-title-field--slug {
+.editor-title-field--description {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
 }
@@ -28886,19 +28886,24 @@ button.node-navigation-memory-title:focus-visible {
   padding: 12px 14px 10px;
 }
 
-.editor-title-field--slug {
-  align-items: stretch;
-  padding: 6px 14px 8px;
+.editor-title-field--name:has(+ .editor-title-field--description:not(.hidden)) {
+  padding-bottom: 8px;
 }
 
-.editor-title-field--slug:has(+ .editor-title-field--description:not(.hidden)) {
-  padding-bottom: 0;
-  border-bottom-color: transparent;
+.editor-title-field--name .editor-title-field-value {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-title-bar .title-slug-row {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .editor-title-field--description {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
   align-items: stretch;
   padding: 6px 14px 12px;
 }
@@ -35351,10 +35356,6 @@ button.node-navigation-memory-title:focus-visible {
 
 #title-slug-row .data-hub-slug-warning.node-navigation-hero-path {
   margin: 6px 0 0;
-}
-
-#title-slug-row .editor-title-field-value:has(> .data-hub-slug-warning) > .slug-field-hint {
-  display: none;
 }
 
 .doc-slab-main > .section-readme-card--offer {

@@ -11975,14 +11975,101 @@ function updateEntryOverviewContextAfterFileRename(issue, nextFile, title) {
   if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) return false;
   if (!dataHubFileRelPathsMatch(activeEntryOverviewContext.relativePath, issue.filePath)) return false;
   const memoryKind = activeEntryOverviewContext.memoryKind || "external";
-  activeEntryOverviewContext = {
-    ...activeEntryOverviewContext,
-    relativePath: nextFile,
-    relPath: getEntryOverviewItemContextPath(nextFile, memoryKind),
-    title: title || activeEntryOverviewContext.title
-  };
-  syncAppRouteToUrl({ replace: true });
+  patchEntryOverviewContextsAfterStorageFileRename(issue.filePath, nextFile, memoryKind, title);
   return true;
+}
+
+function patchEntryOverviewContextPaths(context, oldFile, newFile, memoryKind, title) {
+  if (!context) return context;
+  if (!dataHubFileRelPathsMatch(context.relativePath, oldFile)) return context;
+  const normalizedNew = String(newFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return {
+    ...context,
+    relativePath: normalizedNew,
+    relPath: getEntryOverviewItemContextPath(normalizedNew, memoryKind),
+    title: String(title || "").trim() || context.title
+  };
+}
+
+function patchEntryOverviewContextsAfterStorageFileRename(oldFile, newFile, memoryKind, title) {
+  const normalizedOld = String(oldFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const normalizedNew = String(newFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalizedOld || !normalizedNew || dataHubFileRelPathsMatch(normalizedOld, normalizedNew)) {
+    return false;
+  }
+
+  let changed = false;
+
+  if (activeEntryOverviewContext) {
+    const next = patchEntryOverviewContextPaths(
+      activeEntryOverviewContext,
+      normalizedOld,
+      normalizedNew,
+      memoryKind,
+      title
+    );
+    if (next !== activeEntryOverviewContext) {
+      activeEntryOverviewContext = next;
+      changed = true;
+    }
+  }
+
+  if (lastNonTocEntryOverviewContext) {
+    const next = patchEntryOverviewContextPaths(
+      lastNonTocEntryOverviewContext,
+      normalizedOld,
+      normalizedNew,
+      memoryKind,
+      title
+    );
+    if (next !== lastNonTocEntryOverviewContext) {
+      lastNonTocEntryOverviewContext = next;
+      changed = true;
+    }
+  }
+
+  if (changed && activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    syncAppRouteToUrl({ replace: true });
+  }
+
+  return changed;
+}
+
+function entryOverviewContextMatchesMemoryKind(context, memoryKind) {
+  if (!context || !memoryKind) return false;
+  if (context.memoryKind === memoryKind) return true;
+  return (
+    (memoryKind === "media" || memoryKind === "assets") &&
+    (context.memoryKind === "media" || context.memoryKind === "assets")
+  );
+}
+
+function resolveEntryOverviewContextAfterEditorClose({ closingFile, memoryKind, buildFromPath }) {
+  const normalizedClosing = String(closingFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const cached = lastNonTocEntryOverviewContext;
+
+  if (
+    cached &&
+    entryOverviewContextMatchesMemoryKind(cached, memoryKind) &&
+    normalizedClosing &&
+    dataHubFileRelPathsMatch(cached.relativePath, normalizedClosing)
+  ) {
+    return cached;
+  }
+
+  if (normalizedClosing && typeof buildFromPath === "function") {
+    const built = buildFromPath(normalizedClosing);
+    snapshotNonTocEntryOverviewContext(built);
+    return built;
+  }
+
+  if (cached && entryOverviewContextMatchesMemoryKind(cached, memoryKind)) {
+    return cached;
+  }
+
+  return normalizedClosing && typeof buildFromPath === "function"
+    ? buildFromPath(normalizedClosing)
+    : cached;
 }
 
 function isMarkdownStorageFilePath(filePath) {
@@ -12313,6 +12400,12 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       const nextFile = String(data.file || file).replace(/\\/g, "/");
       if (dataHubFileRelPathsMatch(activeExternalFilePath, issue.filePath)) {
         activeExternalFilePath = nextFile;
+        patchEntryOverviewContextsAfterStorageFileRename(
+          issue.filePath,
+          nextFile,
+          "external",
+          issue.suggested
+        );
         updateBreadcrumbsForActiveMode();
         syncAppRouteToUrl({ replace: true });
       } else if (updateEntryOverviewContextAfterFileRename(issue, nextFile, issue.suggested)) {
@@ -12590,7 +12683,7 @@ function insertDataHubSlugWarningElement(warn, mount) {
     titleSlugRowNode &&
     !titleSlugRowNode.classList.contains("hidden") &&
     mount === docSlabMainNode
-      ? titleSlugRowNode.querySelector(".editor-title-field-value")
+      ? titleSlugRowNode
       : null;
   if (titleSlugValueHost) {
     const slugInputRow = titleSlugValueHost.querySelector(".slug-input-row");
@@ -17145,6 +17238,12 @@ async function submitRenameExternalFile() {
       notifyMarkdownLinkRewrite(renameData.linkRewrite);
       if (activeExternalFilePath === state.filePath) {
         activeExternalFilePath = filePath;
+        patchEntryOverviewContextsAfterStorageFileRename(
+          state.filePath,
+          filePath,
+          "external",
+          nextStoredAwnName || slug
+        );
         updateBreadcrumbsForActiveMode();
         syncAppRouteToUrl({ replace: true });
       }
@@ -18316,10 +18415,11 @@ async function closeExternalFileEditorToTargetView() {
 
   if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW) {
     syncAppRouteToUrl({ replace: true });
-    const context =
-      lastNonTocEntryOverviewContext?.memoryKind === "external"
-        ? lastNonTocEntryOverviewContext
-        : buildEntryOverviewContextFromExternalPath(closingFile);
+    const context = resolveEntryOverviewContextAfterEditorClose({
+      closingFile,
+      memoryKind: "external",
+      buildFromPath: buildEntryOverviewContextFromExternalPath
+    });
     await openEntryOverviewFromNavigation(context);
     return;
   }
@@ -18340,10 +18440,11 @@ async function closeFlatStorageFileEditorToTargetView() {
 
   if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && closingFile) {
     syncAppRouteToUrl({ replace: true });
-    const context =
-      lastNonTocEntryOverviewContext?.memoryKind === mode
-        ? lastNonTocEntryOverviewContext
-        : buildEntryOverviewContextFromFlatPath(closingFile, mode);
+    const context = resolveEntryOverviewContextAfterEditorClose({
+      closingFile,
+      memoryKind: mode,
+      buildFromPath: (filePath) => buildEntryOverviewContextFromFlatPath(filePath, mode)
+    });
     await openEntryOverviewFromNavigation(context);
     return;
   }
@@ -18368,11 +18469,11 @@ async function closeMediaSidecarEditorToTargetView() {
 
   if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && sourceFile) {
     syncAppRouteToUrl({ replace: true });
-    const context =
-      lastNonTocEntryOverviewContext?.memoryKind === "media" ||
-      lastNonTocEntryOverviewContext?.memoryKind === "assets"
-        ? lastNonTocEntryOverviewContext
-        : buildEntryOverviewContextFromMediaPath(sourceFile);
+    const context = resolveEntryOverviewContextAfterEditorClose({
+      closingFile: sourceFile,
+      memoryKind: "media",
+      buildFromPath: buildEntryOverviewContextFromMediaPath
+    });
     await openEntryOverviewFromNavigation(context);
     return;
   }
@@ -52531,21 +52632,12 @@ function createWorkspaceCounterIndicator(slot) {
   }
 
   if (slot.display === "flag") {
-    const wrap = document.createElement("span");
-    wrap.className = "node-navigation-workspace-counter-indicator";
-
     const flag = document.createElement("span");
     flag.className = "node-navigation-workspace-counter-flag";
     flag.setAttribute("aria-hidden", "true");
     flag.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 4h10l-2.5 4L15 12H5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" fill-opacity="0.12"/></svg>';
-
-    const count = document.createElement("span");
-    count.className = "node-navigation-workspace-counter-value";
-    count.textContent = String(slot.count ?? 0);
-
-    wrap.append(flag, count);
-    return wrap;
+    return flag;
   }
 
   const count = document.createElement("span");
@@ -66034,6 +66126,39 @@ function getTitleSlugInputValue() {
   return sanitizeSlugValue(titleSlugInputNode?.value || "");
 }
 
+function shouldRenameByTitleSlugInput(currentSlug, nextSlug) {
+  if (titleSlugLinked) return false;
+  const normalizedNext = sanitizeSlugValue(nextSlug || "");
+  const normalizedCurrent = sanitizeSlugValue(currentSlug || "");
+  return Boolean(normalizedNext && normalizedNext !== normalizedCurrent);
+}
+
+function captureTitleBarPendingEdits() {
+  return {
+    title: titleInputNode?.value ?? "",
+    description: titleDescriptionInputNode?.value ?? "",
+    slugLinked: titleSlugLinked
+  };
+}
+
+function restoreTitleBarAfterSlugRename(nodePath, pending) {
+  if (!nodePath) return;
+  if (titleInputNode) titleInputNode.value = pending.title;
+  if (titleDescriptionInputNode) titleDescriptionInputNode.value = pending.description;
+  syncDisplayNameIntoAwnNameProp(nodePath);
+  syncDescriptionIntoAwnDescriptionProp(nodePath);
+  const slug =
+    isMediaSidecarEditing() && activeMediaSidecarSourcePath === nodePath
+      ? getMediaFileSlugFromPath(nodePath)
+      : getNodeSlugFromPath(nodePath);
+  if (titleSlugInputNode) {
+    titleSlugInputNode.value = slug;
+  }
+  titleSlugLinked = pending.slugLinked;
+  applyTitleSlugLinkedUi();
+  showTitleSlugRow(nodePath);
+}
+
 function getCreateSlugInputValue() {
   return sanitizeSlugValue(createSlugInputNode?.value || "");
 }
@@ -66184,9 +66309,6 @@ function syncTitleFieldsFromNode(nodePath = getActiveTitleEditorPath()) {
   const displayForLink = rawAwnName || slug;
   titleSlugLinked = isAutoSlugForDisplay(displayForLink, slug);
   applyTitleSlugLinkedUi();
-  if (titleSlugLinked && rawAwnName) {
-    syncTitleSlugFromDisplayName();
-  }
   showTitleSlugRow(nodePath);
   syncTitleDescriptionFromNode(nodePath);
 }
@@ -72307,9 +72429,8 @@ async function saveContent() {
   const nextSlug = getTitleSlugInputValue();
   const shouldRenameSlug =
     activeContentMode === "description" &&
-    nextSlug &&
-    nextSlug !== manifestSlug &&
-    isTitleSlugRenameSupported(activePath);
+    isTitleSlugRenameSupported(activePath) &&
+    shouldRenameByTitleSlugInput(manifestSlug, nextSlug);
   const currentExternalSlug = activeExternalFilePath ? getNodeSlugFromPath(activeExternalFilePath) : "";
   const currentMediaSidecarSlug = activeMediaSidecarSourcePath
     ? getMediaFileSlugFromPath(activeMediaSidecarSourcePath)
@@ -72318,22 +72439,19 @@ async function saveContent() {
     activeContentMode === "external" &&
     activeExternalFilePath &&
     isTitleSlugRenameSupported(activeExternalFilePath) &&
-    nextSlug &&
-    nextSlug !== currentExternalSlug;
+    shouldRenameByTitleSlugInput(currentExternalSlug, nextSlug);
   const currentFlatStorageSlug = activeFlatStorageFilePath
     ? getNodeSlugFromPath(activeFlatStorageFilePath)
     : "";
   const shouldRenameFlatStorage =
     isFlatStorageFileEditing() &&
     isTitleSlugRenameSupported(activeFlatStorageFilePath) &&
-    nextSlug &&
-    nextSlug !== currentFlatStorageSlug;
+    shouldRenameByTitleSlugInput(currentFlatStorageSlug, nextSlug);
   const shouldRenameMediaSidecar =
     isMediaLibraryContentMode() &&
     activeMediaSidecarPath &&
     isTitleSlugRenameSupported(activeMediaSidecarSourcePath) &&
-    nextSlug &&
-    nextSlug !== currentMediaSidecarSlug;
+    shouldRenameByTitleSlugInput(currentMediaSidecarSlug, nextSlug);
   const currentMediaMarkdownSlug = activeMediaMarkdownPath
     ? getNodeSlugFromPath(activeMediaMarkdownPath)
     : "";
@@ -72341,8 +72459,7 @@ async function saveContent() {
     isMediaLibraryContentMode() &&
     activeMediaMarkdownPath &&
     isTitleSlugRenameSupported(activeMediaMarkdownPath) &&
-    nextSlug &&
-    nextSlug !== currentMediaMarkdownSlug;
+    shouldRenameByTitleSlugInput(currentMediaMarkdownSlug, nextSlug);
 
   setSaveButtonsState(true, "Сохраняю...");
   let saveSucceeded = false;
@@ -72363,12 +72480,14 @@ async function saveContent() {
       }
 
       const renameData = await renameResponse.json();
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       if (activeContentMode === "description" && typeof renameData.content === "string") {
         modeContentCache.description = renameData.content;
         applyNodeManifestBody(renameData.content);
       }
       const oldPath = activePath;
       activePath = renameData.path;
+      restoreTitleBarAfterSlugRename(renameData.path, pendingTitleBarEdits);
       activeLabel = resolveNodeDisplayName(nextStoredAwnName, getNodeSlugFromPath(activePath));
       updateBreadcrumbsForActiveMode();
 
@@ -72398,6 +72517,7 @@ async function saveContent() {
     }
 
     if (shouldRenameExternal) {
+      const oldExternalFile = activeExternalFilePath;
       const renameResponse = await fetch(buildApiUrl("/api/external/file/rename"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72411,9 +72531,16 @@ async function saveContent() {
       }
       const renameData = await renameResponse.json();
       activeExternalFilePath = renameData.file;
+      patchEntryOverviewContextsAfterStorageFileRename(
+        oldExternalFile,
+        renameData.file,
+        "external",
+        nextStoredAwnName || nextSlug
+      );
       updateBreadcrumbsForActiveMode();
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       await applyExternalFileContentUi(renameData.content || "");
-      syncTitleFieldsFromNode(renameData.file);
+      restoreTitleBarAfterSlugRename(renameData.file, pendingTitleBarEdits);
       await refreshExternalMemoryCaches();
       rerenderExternalListViewBody();
       syncAppRouteToUrl({ replace: true });
@@ -72422,6 +72549,7 @@ async function saveContent() {
     }
 
     if (shouldRenameFlatStorage) {
+      const oldFlatStorageFile = activeFlatStorageFilePath;
       const renameResponse = await fetch(buildApiUrl("/api/storage/file/rename"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72440,9 +72568,16 @@ async function saveContent() {
       }
       const renameData = await renameResponse.json();
       activeFlatStorageFilePath = renameData.file;
+      patchEntryOverviewContextsAfterStorageFileRename(
+        oldFlatStorageFile,
+        renameData.file,
+        activeContentMode,
+        nextStoredAwnName || nextSlug
+      );
       updateBreadcrumbsForActiveMode();
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       await applyStorageFileContentUi(renameData.content || "", { mode: "external" });
-      syncTitleFieldsFromNode(renameData.file);
+      restoreTitleBarAfterSlugRename(renameData.file, pendingTitleBarEdits);
       await reloadFlatStorageFolderMode(activeContentMode);
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
@@ -72451,6 +72586,7 @@ async function saveContent() {
     }
 
     if (shouldRenameMediaSidecar) {
+      const oldMediaSidecarFile = activeMediaSidecarSourcePath;
       const renameResponse = await fetch(buildApiUrl("/api/media/file/rename"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72469,11 +72605,18 @@ async function saveContent() {
       const renameData = await renameResponse.json();
       activeMediaSidecarSourcePath = renameData.file;
       activeMediaSidecarPath = renameData.sidecar || getMediaSidecarPath(renameData.file);
+      patchEntryOverviewContextsAfterStorageFileRename(
+        oldMediaSidecarFile,
+        renameData.file,
+        "media",
+        nextStoredAwnName || nextSlug
+      );
       updateBreadcrumbsForActiveMode();
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       if (typeof renameData.content === "string") {
         applyMediaSidecarContentUi(renameData.content);
       }
-      syncMediaSidecarTitleFields();
+      restoreTitleBarAfterSlugRename(renameData.file, pendingTitleBarEdits);
       await refreshMediaCache();
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
@@ -72482,6 +72625,7 @@ async function saveContent() {
     }
 
     if (shouldRenameMediaMarkdown) {
+      const oldMediaMarkdownFile = activeMediaMarkdownPath;
       const renameResponse = await fetch(buildApiUrl("/api/media/file/rename"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72499,11 +72643,18 @@ async function saveContent() {
       }
       const renameData = await renameResponse.json();
       activeMediaMarkdownPath = renameData.file;
+      patchEntryOverviewContextsAfterStorageFileRename(
+        oldMediaMarkdownFile,
+        renameData.file,
+        "media",
+        nextStoredAwnName || nextSlug
+      );
       updateBreadcrumbsForActiveMode();
       if (typeof renameData.content === "string" && renameData.content.trim()) {
+        const pendingTitleBarEdits = captureTitleBarPendingEdits();
         applyMediaSidecarContentUi(renameData.content);
+        restoreTitleBarAfterSlugRename(renameData.file, pendingTitleBarEdits);
       }
-      syncTitleFieldsFromNode(renameData.file);
       await refreshMediaCache();
       renderListViewContent();
       syncAppRouteToUrl({ replace: true });
@@ -72625,7 +72776,9 @@ async function saveContent() {
         throw new Error(`${reason}${details}`);
       }
       const data = await response.json();
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       await applyStorageFileContentUi(data.content || content, { mode: "external" });
+      restoreTitleBarAfterSlugRename(activeFlatStorageFilePath, pendingTitleBarEdits);
       await reloadFlatStorageFolderMode(activeContentMode);
       refreshEditorViewContent();
       saveSucceeded = true;
@@ -72711,7 +72864,10 @@ async function saveContent() {
     }
     if (activeContentMode === "env") modeContentCache.env = data.content || "";
     if (activeContentMode === "external" && activeExternalFilePath) {
+      const pendingTitleBarEdits = captureTitleBarPendingEdits();
       await applyExternalFileContentUi(data.content || "");
+      restoreTitleBarAfterSlugRename(activeExternalFilePath, pendingTitleBarEdits);
+      refreshEditorViewContent();
       saveSucceeded = true;
       showToast(`Файл ${STORAGE_SUBFOLDER_CONTENT} сохранен`, "success");
       return;
@@ -80412,9 +80568,6 @@ titleInputNode?.addEventListener("input", () => {
     syncDisplayNameIntoAwnNameProp(activeMediaMarkdownPath);
   } else if (activeMediaSidecarSourcePath && titlePath === activeMediaSidecarSourcePath) {
     syncDisplayNameIntoAwnNameProp(activeMediaSidecarSourcePath);
-  }
-  if (!isMediaSidecarEditing()) {
-    syncTitleSlugFromDisplayName();
   }
   syncSaveButtonLamp();
 });

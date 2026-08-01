@@ -1,17 +1,31 @@
 {
   "paths": [
+    "inbox/312.md",
+    "inbox/agent.voice.tts manifest.md",
     "internal/main.md",
+    "main/1-strktura-i-tipy.md",
+    "main/1-struktura-tipy-i-svoystva.md",
+    "main/6-acsess-dostupy-prava.md",
     "main/6-acsess-dostupy.md",
     "main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty",
     "main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md",
+    "main/dialogi.md",
     "main/draft-1",
     "main/draft-1.md",
     "main/draft-3.md",
+    "main/gregre.md",
     "main/ideas-deps.md",
     "main/ideas-pakety-zavisimosti-i-steki-topikov.md",
     "main/ideya-hranit-sekretnye-dannye-paroli-i-karty.md",
     "main/ideya-hranit-sekretnye-dannye-paroli.md",
-    "main/ideya-integratsiya-s-vneshnimi-servisami.md"
+    "main/ideya-integratsiya-s-vneshnimi-servisami.md",
+    "main/reestr-tem-i-avtozagruzka.md",
+    "main/rwerew.md",
+    "main/skripty-scripts.md",
+    "main/skripty.md",
+    "main/test.md",
+    "main/testy.md",
+    "main/uvedomleniya.md"
   ],
-  "updatedAt": "2026-08-01T18:58:27.456Z"
+  "updatedAt": "2026-08-01T19:46:16.959Z"
 }
