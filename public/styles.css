@@ -11688,7 +11688,7 @@ body.app-locked {
 
 .agents-picker-popover-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
@@ -11701,13 +11701,6 @@ body.app-locked {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
-}
-
-.agents-picker-popover-hint {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.35;
-  color: #94a3b8;
 }
 
 .agents-picker-popover-close {

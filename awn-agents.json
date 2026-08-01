@@ -18,10 +18,6 @@
       "default": true
     },
     {
-      "path": "/Users/macbook/Desktop/agent-atlas",
-      "environment": "local"
-    },
-    {
       "path": "/Users/macbook/downloads",
       "environment": "local"
     }
