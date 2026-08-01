@@ -277,6 +277,7 @@ const attachmentSidecarNameInputNode = document.getElementById("attachment-sidec
 const attachmentSidecarDescriptionInputNode = document.getElementById("attachment-sidecar-description-input");
 const attachmentSidecarCancelBtn = document.getElementById("attachment-sidecar-cancel-btn");
 const attachmentSidecarSaveBtn = document.getElementById("attachment-sidecar-save-btn");
+const attachmentSidecarFullEditBtn = document.getElementById("attachment-sidecar-full-edit-btn");
 const docBodyGridNode = document.getElementById("doc-body-grid");
 const nodeDescriptionHintNode = document.getElementById("node-description-hint");
 const systemFileHintNode = document.getElementById("system-file-hint");
@@ -14238,6 +14239,7 @@ let pendingDirectExternalFile = null;
 let activeMediaSidecarSourcePath = null;
 let activeMediaSidecarPath = null;
 let activeMediaMarkdownPath = null;
+let activeAttachmentSidecarRef = null;
 let systemFilesCache = [];
 const modeContentCache = {
   description: "",
@@ -15226,8 +15228,13 @@ function createHeroTitleRow(title, statusRaw = "", options = {}) {
   titleNode.appendChild(titleText);
   const attachmentsCount =
     options.attachmentsCount ?? countPropEntriesAttachments(options.propEntries || []);
+  const attachmentPaths = (options.propEntries || []).find(
+    (entry) => normalizePropsKey(entry.key) === "awn-attachments"
+  );
+  const parsedAttachmentPaths = parsePropsAttachmentsValue(attachmentPaths);
   const attachmentsBadge = createAttachmentsCountBadge(attachmentsCount, {
-    extraClass: "node-navigation-hero-attachments-badge"
+    extraClass: "node-navigation-hero-attachments-badge",
+    attachmentPaths: parsedAttachmentPaths
   });
   if (attachmentsBadge) {
     titleNode.appendChild(attachmentsBadge);
@@ -18375,6 +18382,10 @@ async function closeMediaSidecarEditorToTargetView() {
 function handleWorkspaceCloseClick() {
   if (!confirmDiscardEditorChanges()) return;
 
+  if (isAttachmentSidecarEditing()) {
+    void closeAttachmentSidecarEditorToTargetView();
+    return;
+  }
   if (isMediaAssetEditing()) {
     void closeMediaSidecarEditorToTargetView();
     return;
@@ -18409,12 +18420,14 @@ function syncWorkspaceCloseButtonsVisibility() {
   const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = getNodeWorkspaceDomain() === NODE_WORKSPACE_DOMAIN_TODO;
   const mediaSidecarEditing = isMediaAssetEditing();
+  const attachmentSidecarEditing = isAttachmentSidecarEditing();
   const externalEditing = isExternalFileEditing();
   const flatStorageEditing = isFlatStorageFileEditing();
   const flatStorageListShell = isFlatStorageListShellMode();
   const bundleSlotShellMode = isDataHubBundleSlotShellMode();
   const showClose =
     mediaSidecarEditing ||
+    attachmentSidecarEditing ||
     externalEditing ||
     flatStorageEditing ||
     flatStorageListShell ||
@@ -21986,6 +21999,7 @@ function isMediaSidecarEditing() {
 }
 
 function isCurrentModeWithoutContentEditor() {
+  if (isAttachmentSidecarEditing()) return false;
   if (activeSystemFile) return false;
   return (
     activeContentMode === NODE_OVERVIEW_MODE ||
@@ -29468,15 +29482,37 @@ function supportsNavigationHubRailRecordCreate(targetMode) {
   return targetMode === "external" || FLAT_STORAGE_SECTION_MODES.has(targetMode);
 }
 
+const NAVIGATION_HUB_BROWSE_ACTION_ICON_SECTION =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>';
+
+const NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>';
+
+const NAVIGATION_HUB_BROWSE_ACTION_ICON_SLOT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></svg>';
+
+function createNavigationHubBrowseActionIcon(svgMarkup) {
+  const icon = document.createElement("span");
+  icon.className = "node-entry-overview-browse-action-btn-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = svgMarkup;
+  return icon;
+}
+
 function appendNavigationHubRailBrowseActionButton(
   parent,
-  { className, label, title, onClick, ariaExpanded = null }
+  { className, label, title, onClick, ariaExpanded = null, iconMarkup = null }
 ) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = className;
-  btn.textContent = label;
   btn.title = title;
+  if (iconMarkup) {
+    btn.classList.add("has-icon");
+    btn.append(createNavigationHubBrowseActionIcon(iconMarkup), document.createTextNode(label));
+  } else {
+    btn.textContent = label;
+  }
   if (ariaExpanded != null) {
     btn.setAttribute("aria-expanded", ariaExpanded ? "true" : "false");
   }
@@ -29520,8 +29556,9 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
     if (supportsNavigationHubRailSectionCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "external-create-section-btn",
-        label: "+ Раздел",
+        label: "Раздел",
         title: "Создать раздел",
+        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_SECTION,
         onClick: () => {
           beginRailCreate();
           openCreateSectionModal(targetMode);
@@ -29532,8 +29569,9 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
     if (supportsNavigationHubRailRecordCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "save-btn external-create-btn",
-        label: "+ Запись",
+        label: "Запись",
         title: "Создать запись",
+        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD,
         onClick: () => {
           beginRailCreate();
           void openCreateMemoryModal();
@@ -33198,6 +33236,27 @@ function getMediaFileSlugFromPath(filePath = activeMediaSidecarSourcePath) {
 }
 
 function syncMediaSidecarTitleFields() {
+  if (isAttachmentSidecarEditing() && activeAttachmentSidecarRef && titleInputNode) {
+    const filePath = activeAttachmentSidecarRef;
+    const fileName = String(filePath).split("/").pop() || filePath;
+    const rawAwnName = getYamlScalarFromFrontmatter(propsInputNode?.value || "", "awn-name").trim();
+
+    showTitleEditableInput();
+    titleMediaExtNode?.classList.add("hidden");
+    if (titleMediaExtNode) titleMediaExtNode.textContent = "";
+
+    titleInputNode.value = rawAwnName;
+    titleInputNode.readOnly = false;
+    titleInputNode.disabled = false;
+    titleInputNode.placeholder = fileName ? `Пусто → ${fileName}` : "Название";
+    if (titleSlugInputNode) {
+      titleSlugInputNode.value = fileName;
+    }
+    titleSlugLinked = false;
+    applyTitleSlugLinkedUi();
+    titleSlugRowNode?.classList.add("hidden");
+    return;
+  }
   if (!isMediaSidecarEditing() || !activeMediaSidecarSourcePath || !titleInputNode) return;
   const filePath = activeMediaSidecarSourcePath;
   const slug = getMediaFileSlugFromPath(filePath);
@@ -41812,6 +41871,120 @@ async function openAttachmentSidecarPropsModal(path) {
   attachmentSidecarNameInputNode?.select();
 }
 
+function isAttachmentSidecarEditing() {
+  return Boolean(activeAttachmentSidecarRef);
+}
+
+function clearAttachmentSidecarEditor() {
+  activeAttachmentSidecarRef = null;
+}
+
+function buildAttachmentSidecarEditorContent() {
+  if (isAttachmentSidecarEditing() && titleInputNode) {
+    const entries = parsePropsYaml(propsInputNode.value || "");
+    const map = new Map(entries.map((entry) => [entry.key, entry]));
+    map.set("awn-name", {
+      key: "awn-name",
+      kind: "string",
+      value: String(titleInputNode.value || "").trim()
+    });
+    propsInputNode.value = stringifyPropsYaml([...map.values()]);
+  }
+  flushPropsYamlFromFormBeforeSave();
+  return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
+}
+
+async function enableAttachmentSidecarEditor(attachmentRef, content, options = {}) {
+  if (options.memoryEntryCloseTargetView != null) {
+    assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
+  } else if (memoryEntryCloseTargetView == null) {
+    assignMemoryEntryCloseTargetView(captureMemoryEntryCloseTargetView());
+  }
+  activeAttachmentSidecarRef = attachmentRef;
+  updateBreadcrumbsForActiveMode();
+  titleEditorBlockNode.classList.remove("hidden");
+  await applyMediaSidecarContentUi(content || "");
+  syncMediaSidecarTitleFields();
+  syncPropsInputPlaceholder();
+  editorViewMode = "preview";
+  applyModeUi();
+  setEditorViewMode("preview", { skipRouteSync: true });
+  syncWorkspaceCloseButtonsVisibility();
+  commitEditorSaveBaseline();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ push: true });
+  }
+}
+
+async function openAttachmentSidecarFullEditor(path) {
+  const attachmentRef = String(path || "").trim();
+  if (!attachmentRef) return;
+  closeAttachmentSidecarModal();
+  const mediaRel = resolveAttachmentMediaRelPath(attachmentRef);
+  if (!mediaRel || !getUploadStorageContextPath()) {
+    showToast("Не удалось определить путь к sidecar", "error");
+    return;
+  }
+  try {
+    await ensureAttachmentSidecar(attachmentRef, getAttachmentDisplayLabelFromPath(attachmentRef));
+    const response = await fetch(
+      buildApiUrl("/api/media/sidecar", buildAttachmentSidecarApiParams(mediaRel))
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    const content =
+      data.exists || String(data.content || "").trim()
+        ? data.content || ""
+        : buildDefaultMediaSidecarContent(data.sourceFile || mediaRel);
+    await enableAttachmentSidecarEditor(attachmentRef, content);
+  } catch (error) {
+    showToast(`Ошибка открытия sidecar: ${error.message}`, "error");
+  }
+}
+
+async function closeAttachmentSidecarEditorToTargetView() {
+  const targetView = memoryEntryCloseTargetView || MEMORY_ENTRY_VIEW_LIST;
+  const returningExternalFile = activeExternalFilePath;
+  const returningOverviewContext = activeEntryOverviewContext;
+  memoryEntryCloseTargetView = null;
+  clearAttachmentSidecarEditor();
+  setPropsYamlContent("");
+  fileContentInputNode.value = "";
+  titleInputNode.value = "";
+  syncPropsInputPlaceholder();
+  editorViewMode = "preview";
+
+  if (returningExternalFile) {
+    syncAppRouteToUrl({ replace: true });
+    await openExternalFile(returningExternalFile, {
+      skipRouteSync: true,
+      memoryEntryCloseTargetView: targetView
+    });
+    return;
+  }
+
+  if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && returningOverviewContext) {
+    syncAppRouteToUrl({ replace: true });
+    await openEntryOverviewFromNavigation(returningOverviewContext);
+    return;
+  }
+
+  applyModeUi();
+  updateBreadcrumbsForActiveMode();
+  syncAppRouteToUrl({ replace: true });
+}
+
+async function refreshAttachmentSidecarLabelsEverywhere() {
+  const wraps = [
+    propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments"),
+    nodeOverviewContentNode?.querySelector(".node-entry-overview-attachments-list")
+  ].filter(Boolean);
+  await Promise.all(wraps.map((wrap) => hydrateAttachmentItemLabels(wrap)));
+}
+
 async function hydrateAttachmentItemLabels(wrap) {
   if (!wrap) return;
   const items = wrap.querySelectorAll(".props-form-attachment-item");
@@ -41992,13 +42165,29 @@ async function replacePropsAttachmentFile(oldPath, file, wrap) {
   return newRef;
 }
 
-function createPropsAttachmentActionButton(className, title, label, onClick) {
+const PROPS_ATTACHMENT_ACTION_ICON_PROPS =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
+function createPropsAttachmentActionIcon(svgMarkup) {
+  const icon = document.createElement("span");
+  icon.className = "props-form-attachment-action-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = svgMarkup;
+  return icon;
+}
+
+function createPropsAttachmentActionButton(className, title, label, onClick, iconMarkup = null) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = className;
   btn.title = title;
   btn.setAttribute("aria-label", title);
-  btn.textContent = label;
+  if (iconMarkup) {
+    btn.classList.add("has-icon");
+    btn.appendChild(createPropsAttachmentActionIcon(iconMarkup));
+  } else {
+    btn.textContent = label;
+  }
   btn.addEventListener("click", (event) => {
     event.stopPropagation();
     onClick();
@@ -42048,10 +42237,20 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
 
   item.appendChild(body);
 
-  if (!locked) {
-    const actions = document.createElement("div");
-    actions.className = "props-form-attachment-actions";
+  const actions = document.createElement("div");
+  actions.className = "props-form-attachment-actions";
 
+  actions.appendChild(
+    createPropsAttachmentActionButton(
+      "props-form-attachment-action props-form-attachment-action--props",
+      "Свойства sidecar (awn-name, awn-description)",
+      "",
+      () => void openAttachmentSidecarPropsModal(path),
+      PROPS_ATTACHMENT_ACTION_ICON_PROPS
+    )
+  );
+
+  if (!locked) {
     actions.appendChild(
       createPropsAttachmentActionButton(
         "props-form-attachment-action props-form-attachment-action--insert",
@@ -42073,7 +42272,6 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
         }
       )
     );
-    item.appendChild(actions);
 
     item.addEventListener("dragstart", (event) => {
       event.dataTransfer.setData(
@@ -42082,6 +42280,10 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
       );
       event.dataTransfer.effectAllowed = "copy";
     });
+  }
+
+  if (actions.childElementCount) {
+    item.appendChild(actions);
   }
 
   return item;
@@ -42196,8 +42398,9 @@ function createPropsAttachmentItemExtended(path, wrap, { locked = false, inBody 
       createPropsAttachmentActionButton(
         "props-form-attachment-action props-form-attachment-action--props",
         "Свойства sidecar (awn-name, awn-description)",
-        "⚙",
-        () => void openAttachmentSidecarPropsModal(path)
+        "",
+        () => void openAttachmentSidecarPropsModal(path),
+        PROPS_ATTACHMENT_ACTION_ICON_PROPS
       )
     );
 
@@ -43146,7 +43349,7 @@ function isMediaMarkdownEditing() {
 }
 
 function isMediaAssetEditing() {
-  return isMediaSidecarEditing() || isMediaMarkdownEditing();
+  return isMediaSidecarEditing() || isMediaMarkdownEditing() || isAttachmentSidecarEditing();
 }
 
 function buildMediaMarkdownContent() {
@@ -43311,7 +43514,12 @@ async function openFlatStorageSectionReadme(mode, readmePath, sectionFolder) {
 }
 
 function syncPropsInputPlaceholder() {
-  if (isExternalFileEditing() || isMediaAssetEditing() || isFlatStorageMarkdownRecordEditing()) {
+  if (
+    isExternalFileEditing() ||
+    isMediaAssetEditing() ||
+    isFlatStorageMarkdownRecordEditing() ||
+    isAttachmentSidecarEditing()
+  ) {
     propsInputNode.placeholder = "awn-name: Заметка\nawn-tags:\n  - пример\nawn-status: draft";
   } else if (isFlatStorageFileEditing()) {
     propsInputNode.placeholder = "Свойства недоступны для этого типа файла";
@@ -44271,6 +44479,7 @@ function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
 let savedEditorSnapshot = null;
 
 function isEditorSaveTrackingActive() {
+  if (isAttachmentSidecarEditing()) return true;
   if (activeSystemFile) return isSystemFileEditing();
   if (isGitRepoLooseFilePath(activePath)) return true;
   if (isFlatStorageFileEditing()) return true;
@@ -48498,7 +48707,51 @@ function appendNavBookTocWebUrlLink(titleHost, webUrl) {
   titleHost.appendChild(link);
 }
 
-function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
+function getNavigationItemAttachmentPaths(item) {
+  const props = Array.isArray(item?.props) ? item.props : [];
+  const entry = props.find((prop) => normalizePropsKey(prop.key) === "awn-attachments");
+  return parsePropsAttachmentsValue(entry);
+}
+
+function buildAttachmentsHoverTooltip(paths) {
+  const normalized = (Array.isArray(paths) ? paths : [])
+    .map((path) => String(path || "").trim())
+    .filter(Boolean);
+  if (!normalized.length) return "";
+
+  const labels = normalized
+    .map((path) => getAttachmentDisplayLabelFromPath(path))
+    .filter(Boolean);
+  if (!labels.length) return "";
+
+  const maxShown = 6;
+  const lines = labels.slice(0, maxShown).map((label) => `• ${label}`);
+  if (labels.length > maxShown) {
+    lines.push(`…ещё ${labels.length - maxShown}`);
+  }
+  return lines.join("\n");
+}
+
+function bindAttachmentsBadgeHoverTooltip(badge, paths) {
+  if (!badge) return;
+  const normalized = (Array.isArray(paths) ? paths : [])
+    .map((path) => String(path || "").trim())
+    .filter(Boolean);
+  if (!normalized.length) return;
+
+  const refreshTooltip = () => {
+    const tooltip = buildAttachmentsHoverTooltip(normalized);
+    if (!tooltip) return;
+    applyUiTooltip(badge, tooltip, { position: "top" });
+  };
+
+  refreshTooltip();
+  badge.addEventListener("mouseenter", () => {
+    void Promise.all(normalized.map((path) => fetchAttachmentSidecarMeta(path))).finally(refreshTooltip);
+  });
+}
+
+function createAttachmentsCountBadge(count, { extraClass = "", attachmentPaths = null } = {}) {
   const normalized = Number(count);
   if (!Number.isFinite(normalized) || normalized <= 0) return null;
   const badge = document.createElement("span");
@@ -48520,15 +48773,18 @@ function createAttachmentsCountBadge(count, { extraClass = "" } = {}) {
         : "вложений";
   badge.title = `${normalized} ${noun}`;
   badge.setAttribute("aria-label", badge.title);
+  if (Array.isArray(attachmentPaths) && attachmentPaths.length) {
+    bindAttachmentsBadgeHoverTooltip(badge, attachmentPaths);
+  }
   return badge;
 }
 
-function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false } = {}) {
+function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false, attachmentPaths = null } = {}) {
   if (!leadersHost) return;
   const count = Number(attachmentCount);
   const badges = [];
   if (Number.isFinite(count) && count > 0) {
-    const attachmentBadge = createAttachmentsCountBadge(count);
+    const attachmentBadge = createAttachmentsCountBadge(count, { attachmentPaths });
     if (attachmentBadge) badges.push(attachmentBadge);
   }
   if (hasMaterials) {
@@ -50770,8 +51026,9 @@ function appendEntryOverviewCreateSlotFolderButton(actions, context, topicPath) 
   if (!spec) return;
   appendNavigationHubRailBrowseActionButton(actions, {
     className: "entry-overview-create-slot-folder-btn",
-    label: "+ Создать слот",
+    label: "Создать слот",
     title: `Создать папку ${getDataStorageSlotPathHint(spec)}`,
+    iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_SLOT,
     onClick: () => {
       void handleCreateStorageSlotFolder(spec.key, topicPath).catch((error) => {
         showToast(`Не удалось создать папку: ${error.message}`, "error");
@@ -51596,8 +51853,9 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
     if (supportsNavigationHubRailSectionCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "external-create-section-btn",
-        label: "+ Раздел",
+        label: "Раздел",
         title: "Создать раздел",
+        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_SECTION,
         onClick: () => {
           beginCreate();
           openCreateSectionModal(targetMode, { entryOverviewContext: context });
@@ -51608,8 +51866,9 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
     if (supportsNavigationHubRailRecordCreate(targetMode)) {
       appendNavigationHubRailBrowseActionButton(actions, {
         className: "save-btn external-create-btn",
-        label: "+ Запись",
+        label: "Запись",
         title: "Создать запись",
+        iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD,
         onClick: () => {
           beginCreate();
           void openCreateMemoryModal(targetMode === "external" ? context : null);
@@ -54857,7 +55116,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item), {
-      hasMaterials: navigationItemHasRecordMaterials(item)
+      hasMaterials: navigationItemHasRecordMaterials(item),
+      attachmentPaths: getNavigationItemAttachmentPaths(item)
     });
 
     appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
@@ -63117,6 +63377,7 @@ function applyModeUi() {
   if (titleVisible || mediaSidecarEditing) {
     syncTitleInputEditableState();
   }
+  const attachmentSidecarEditing = isAttachmentSidecarEditing();
   const hideContentEditor = isCurrentModeWithoutContentEditor();
   const showExternalControls = activeContentMode === "external" && !externalEditing;
   const showMediaControls = isMediaLibraryContentMode() && !mediaSidecarEditing;
@@ -63133,7 +63394,7 @@ function applyModeUi() {
     mindmapMode || (showExternalControls && externalViewMode === "mindmap");
   const hideSaveDeleteInToolbar =
     canvasMode ||
-    overviewLikeMode ||
+    (overviewLikeMode && !attachmentSidecarEditing) ||
     threadMode ||
     showExternalControls ||
     showMediaControls ||
@@ -63147,7 +63408,7 @@ function applyModeUi() {
     graphMode ||
     folderBrowseMode ||
     (!activePath && !activeSystemFile && !activeFolderBrowsePath) ||
-    (overviewLikeMode && !folderBrowseMode) ||
+    (overviewLikeMode && !folderBrowseMode && !attachmentSidecarEditing) ||
     (threadMode && !showWorkspaceRefresh) ||
     (hideSaveDeleteInToolbar &&
       !showExternalControls &&
@@ -63156,6 +63417,7 @@ function applyModeUi() {
       !showDataHubBundleEdit &&
       !bundleSlotShellMode &&
       !mediaSidecarEditing &&
+      !attachmentSidecarEditing &&
       !externalEditing &&
       !flatStorageEditing &&
       !showWorkspaceRefresh &&
@@ -63163,12 +63425,12 @@ function applyModeUi() {
   const hideToolbar = hideDocActions;
   const showYamlPanel =
     !isGitRepoLooseMdEditing() &&
-    (activeContentMode === "description" || externalEditing || mediaSidecarEditing);
+    (activeContentMode === "description" || externalEditing || mediaSidecarEditing || attachmentSidecarEditing);
   const showDocAside = isDocAsideAvailable();
   const titleBlockVisible =
     (titleVisible || mediaSidecarEditing) &&
     !previewMode &&
-    !overviewLikeMode &&
+    (!overviewLikeMode || attachmentSidecarEditing) &&
     !canvasMode &&
     !threadMode &&
     !showListView &&
@@ -63187,7 +63449,7 @@ function applyModeUi() {
     activeContentMode === "tabular" ||
     (listTemplate && !listViewWithSourceToggle && !bundleEditorMode) ||
     previewMode ||
-    overviewLikeMode ||
+    (overviewLikeMode && !attachmentSidecarEditing) ||
     threadMode ||
     canvasMode ||
     (hideContentEditor && !canvasMode && !listViewWithSourceToggle && !bundleEditorMode);
@@ -63209,7 +63471,7 @@ function applyModeUi() {
     "hidden",
     previewMode ||
       canvasMode ||
-      overviewLikeMode ||
+      (overviewLikeMode && !attachmentSidecarEditing) ||
       threadMode ||
       showListView && !bundleEditorMode ||
       topicSchemaMode ||
@@ -63221,7 +63483,7 @@ function applyModeUi() {
   graphViewBlockNode?.classList.toggle("is-mindmap", mindmapMode);
   mindmapViewBarNode?.classList.toggle("hidden", !mindmapMode);
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
-  nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode);
+  nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode || attachmentSidecarEditing);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode);
   nodeOverviewBlockNode?.classList.toggle("is-folder-browse", folderBrowseMode);
   workspacePathHeaderNode?.classList.toggle("is-folder-browse", folderBrowseMode);
@@ -71715,6 +71977,8 @@ function buildSaveContentPayload() {
     ? buildExternalFileContent()
     : isFlatStorageFileEditing()
       ? buildFlatStorageFileContent()
+      : isAttachmentSidecarEditing()
+        ? buildAttachmentSidecarEditorContent()
       : isMediaMarkdownEditing()
       ? buildMediaMarkdownContent()
       : isMediaSidecarEditing()
@@ -72120,6 +72384,32 @@ async function saveContent() {
       refreshEditorViewContent();
       saveSucceeded = true;
       showToast("Сохранено", "success");
+      return;
+    }
+
+    if (isAttachmentSidecarEditing() && activeAttachmentSidecarRef) {
+      const mediaRel = resolveAttachmentMediaRelPath(activeAttachmentSidecarRef);
+      const response = await fetch(buildApiUrl("/api/media/sidecar"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...buildAttachmentSidecarApiParams(mediaRel),
+          content
+        })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const reason = errorData.error || `Request failed with ${response.status}`;
+        const details = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${reason}${details}`);
+      }
+      const data = await response.json();
+      applyMediaSidecarContentUi(data.content || content);
+      invalidateAttachmentSidecarMeta(activeAttachmentSidecarRef);
+      await refreshAttachmentSidecarLabelsEverywhere();
+      refreshEditorViewContent();
+      saveSucceeded = true;
+      showToast("Sidecar вложения сохранён", "success");
       return;
     }
 
@@ -80047,9 +80337,18 @@ attachmentSidecarSaveBtn?.addEventListener("click", () => {
     .then(async () => {
       closeAttachmentSidecarModal();
       showToast("Свойства вложения сохранены", "success");
-      const wrap = propsAttachmentsBlockNode?.querySelector(".props-form-value-wrap--attachments");
-      if (wrap) await hydrateAttachmentItemLabels(wrap);
+      await refreshAttachmentSidecarLabelsEverywhere();
     })
+    .catch((error) => showToast(`Ошибка: ${error.message}`, "error"));
+});
+attachmentSidecarFullEditBtn?.addEventListener("click", () => {
+  const path = attachmentSidecarModalPath;
+  if (!path) return;
+  void saveAttachmentSidecarProps(path, {
+    name: attachmentSidecarNameInputNode?.value || "",
+    description: attachmentSidecarDescriptionInputNode?.value || ""
+  })
+    .then(() => openAttachmentSidecarFullEditor(path))
     .catch((error) => showToast(`Ошибка: ${error.message}`, "error"));
 });
 createManifestBtn?.addEventListener("click", () => createNode("manifest"));

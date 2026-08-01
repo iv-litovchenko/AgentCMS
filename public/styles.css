@@ -20682,6 +20682,7 @@ button.node-navigation-hub-rail-slot-summary {
 .node-navigation-hub-rail-slot-actions .external-create-btn,
 .node-navigation-hub-rail-slot-actions .media-upload-btn,
 .node-navigation-hub-rail-slot-actions .node-navigation-hub-rail-upload-btn {
+  gap: 5px;
   min-height: 28px;
   padding: 4px 8px;
   font-size: 11px;
@@ -23311,6 +23312,7 @@ button.node-navigation-hub-rail-slot-summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   height: 34px;
   min-height: 34px;
   padding: 0 10px;
@@ -23319,6 +23321,21 @@ button.node-navigation-hub-rail-slot-summary {
   line-height: 1.35;
   border-radius: 8px;
   white-space: nowrap;
+}
+
+.node-entry-overview-browse-action-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+.node-entry-overview-browse-action-btn-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
 }
 
 .node-entry-overview-search-wrap {
@@ -27921,6 +27938,23 @@ button.node-navigation-memory-title:focus-visible {
   gap: 4px;
 }
 
+.nav-book-toc-attachments-badge.ui-tooltip-host[data-tooltip]::after,
+.node-navigation-hero-attachments-badge.ui-tooltip-host[data-tooltip]::after {
+  white-space: pre-line;
+  max-width: 240px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.nav-book-toc-attachments-badge.ui-tooltip-host[data-tooltip]::before,
+.node-navigation-hero-attachments-badge.ui-tooltip-host[data-tooltip]::before {
+  z-index: 41;
+}
+
+.nav-book-toc-attachments-badge.ui-tooltip-host[data-tooltip]::after {
+  z-index: 42;
+}
+
 .nav-book-toc-attachments-badge-icon {
   display: block;
   width: 14px;
@@ -29893,6 +29927,37 @@ button.node-navigation-memory-title:focus-visible {
   border-color: rgba(220, 38, 38, 0.35);
 }
 
+.props-form-attachment-action.has-icon,
+.doc-props-aside .props-form-attachment-action.has-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.props-form-attachment-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.props-form-attachment-action-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.doc-props-aside .props-form-attachment-action--props.has-icon:hover {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #eff6ff;
+}
+
 .doc-props-aside .props-form-attachment-item.props-form-attachment-item--simple {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) auto;
@@ -29995,6 +30060,26 @@ button.node-navigation-memory-title:focus-visible {
 .attachment-sidecar-field-textarea {
   resize: vertical;
   min-height: 72px;
+}
+
+.attachment-sidecar-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.attachment-sidecar-full-edit-btn {
+  margin-right: auto;
+}
+
+.node-entry-overview-attachment-item .props-form-attachment-actions {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.node-entry-overview-attachments-list .props-form-attachment-item--simple {
+  gap: 8px;
 }
 
 .doc-props-aside .props-form-attachments-upload {
