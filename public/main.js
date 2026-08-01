@@ -21,6 +21,7 @@ const appFooterToggleBtn = document.getElementById("app-footer-toggle-btn");
 const appFooterToggleLabelNode = document.getElementById("app-footer-toggle-label");
 const appFooterDetailsNode = document.getElementById("app-footer-details");
 const appFooterIdeasBtn = document.getElementById("app-footer-ideas-btn");
+const appFooterIdeasLampNode = document.getElementById("app-footer-ideas-lamp");
 const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popover");
 const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
 const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn");
@@ -63,6 +64,7 @@ const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
 const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
 const agentRegistryBtn = document.getElementById("agent-registry-btn");
 const homeHintNode = document.getElementById("home-hint");
+const homeWorkspaceManifestNode = document.getElementById("home-workspace-manifest");
 const appLandingPaneNode = document.getElementById("app-landing-pane");
 const appLandingAgentsNode = document.getElementById("app-landing-agents");
 const appLandingPlatformNode = document.getElementById("app-landing-platform");
@@ -4538,37 +4540,49 @@ function openSelectedAgentWorkspaceView() {
 function syncAgentPreviewOpenUi() {
   const canOpen = Boolean(activeAgentId && getActiveAgentMeta()?.path);
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
-  const openHint = "Слайдер вдохновения";
+  const sliderHint = "Слайдер вдохновения";
+  const workspaceViewHint = "Открыть выбранный вид workspace";
 
-  for (const node of [agentPreviewWrapNode, agentPreviewPlaceholderNode, discussAgentPreviewWrapNode]) {
+  if (agentPreviewWrapNode) {
+    const wrapInteractive = canOpen && previewVisible;
+    agentPreviewWrapNode.classList.toggle("agent-preview-openable", wrapInteractive);
+    if (wrapInteractive) {
+      agentPreviewWrapNode.setAttribute("role", "button");
+      agentPreviewWrapNode.tabIndex = 0;
+      agentPreviewWrapNode.setAttribute("aria-label", workspaceViewHint);
+      agentPreviewWrapNode.title = workspaceViewHint;
+    } else {
+      agentPreviewWrapNode.classList.remove("agent-preview-openable");
+      agentPreviewWrapNode.removeAttribute("role");
+      agentPreviewWrapNode.removeAttribute("tabindex");
+      agentPreviewWrapNode.removeAttribute("aria-label");
+      agentPreviewWrapNode.title = sliderHint;
+    }
+  }
+
+  for (const node of [agentPreviewPlaceholderNode, discussAgentPreviewWrapNode]) {
     if (!node) continue;
     const isDiscussPreview = node === discussAgentPreviewWrapNode;
     const isInteractive =
       canOpen &&
       (isDiscussPreview
         ? previewVisible && !discussAgentPreviewWrapNode?.classList.contains("hidden")
-        : node === agentPreviewWrapNode
-          ? previewVisible
-          : !previewVisible);
+        : !previewVisible);
     node.classList.toggle("agent-preview-openable", isInteractive);
     if (isInteractive) {
       node.setAttribute("role", "button");
       node.tabIndex = 0;
-      node.setAttribute("aria-label", openHint);
+      node.setAttribute("aria-label", isDiscussPreview ? workspaceViewHint : sliderHint);
       node.title = isDiscussPreview
-        ? openHint
-        : node === agentPreviewPlaceholderNode
-          ? `${openHint} (превью не задано)`
-          : openHint;
+        ? workspaceViewHint
+        : `${sliderHint} (превью не задано)`;
       if (isDiscussPreview) node.removeAttribute("aria-hidden");
     } else {
       node.classList.remove("agent-preview-openable");
       node.removeAttribute("role");
       node.removeAttribute("tabindex");
       node.removeAttribute("aria-label");
-      if (node === agentPreviewWrapNode) {
-        node.title = "Слайдер вдохновения";
-      } else if (isDiscussPreview) {
+      if (isDiscussPreview) {
         node.title = "Превью агента";
         if (node.classList.contains("hidden")) node.setAttribute("aria-hidden", "true");
       } else {
@@ -32591,6 +32605,7 @@ async function refreshWorkspaceContent() {
       await loadPropertiesForActivePath();
     } else if (activePath) {
       modeContentCache.description = "";
+      navigationManifestCachedPath = "";
     }
 
     if (activeContentMode && Object.prototype.hasOwnProperty.call(modeContentCache, activeContentMode)) {
@@ -45771,13 +45786,13 @@ function createNavigationHeroFooterMeta(nodePath, options = {}) {
   row.className = "node-navigation-hero-footer-meta-row";
 
   const settingsChips = createNodeSettingsHeroSlotList(options.settingsSlots || []);
-  if (settingsChips) row.appendChild(settingsChips);
-
   const markersRow =
     options.showWorkspaceMarkers !== false
       ? createNavigationHeroMarkersRow(nodePath, options)
       : null;
+
   if (markersRow) row.appendChild(markersRow);
+  if (settingsChips) row.appendChild(settingsChips);
 
   if (!row.childElementCount) return null;
 
@@ -46182,6 +46197,8 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
     "node-navigation-props",
     "node-navigation-hero-instruction-fold"
   );
+  accordion.classList.toggle("is-filled", hasInstruction);
+  accordion.classList.toggle("is-empty", !hasInstruction);
   hero.appendChild(accordion);
   return accordion;
 }
@@ -48932,6 +48949,30 @@ function getNavigationItemFileExtension(item) {
   return fileName.slice(dot).toLowerCase();
 }
 
+function isNavigationMarkdownItem(item) {
+  return [".md", ".markdown", ".txt"].includes(getNavigationItemFileExtension(item));
+}
+
+function isNavigationImageFileItem(item) {
+  const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+  const group = String(item?.group || "").trim();
+  const ext = getNavigationItemFileExtension(item).replace(/^\./, "");
+  return (
+    Boolean(path) &&
+    (group === "Images" || /^(?:jpe?g|png|gif|webp|heic|heif|bmp|svg|avif|ico)$/.test(ext))
+  );
+}
+
+function resolveNavigationItemPreviewUiForToc(item, nodePath = activePath) {
+  if (isNavigationMarkdownItem(item)) {
+    if (!isNavigationImageFileItem(item)) return null;
+    const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+    const imageUrl = appendCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL));
+    return imageUrl ? { imageUrl, previewPath: path } : null;
+  }
+  return resolveNavigationItemPreviewUi(item, nodePath);
+}
+
 function formatNavigationFileExtensionBadge(ext) {
   const raw = String(ext || "").replace(/^\./, "").trim();
   if (!raw) return "";
@@ -48972,6 +49013,8 @@ function getNavigationFileTypeTone(ext) {
 }
 
 function createNavBookTocLinkFileTypeLeading(item) {
+  if (isNavigationMarkdownItem(item)) return null;
+
   const ext = getNavigationItemFileExtension(item);
   const badge = formatNavigationFileExtensionBadge(ext);
   if (!badge) return null;
@@ -49047,11 +49090,16 @@ function wrapNavBookTocMediaLeading(previewWrap) {
 }
 
 function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
-  const preview = resolveNavigationItemPreviewUi(item, nodePath);
+  const preview = resolveNavigationItemPreviewUiForToc(item, nodePath);
   if (preview?.imageUrl && !preview.broken) {
     const previewWrap = document.createElement("span");
     previewWrap.className = "nav-book-toc-link-preview";
-    if (appendNavigationItemPreviewThumb(previewWrap, item, preview, { className: "nav-book-toc-link-preview-img" })) {
+    if (
+      appendNavigationItemPreviewThumb(previewWrap, item, preview, {
+        className: "nav-book-toc-link-preview-img",
+        clearOnError: isNavigationMarkdownItem(item)
+      })
+    ) {
       return previewWrap;
     }
   }
@@ -49137,13 +49185,17 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
     icon = createNavBookTocLinkIcon({ branch: true });
   }
 
-  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
+  const previewUi = resolveNavigationItemPreviewUiForToc(item, nodePath);
   if (previewUi?.imageUrl && !previewUi.broken) {
     preview = document.createElement("span");
     preview.className = "nav-book-toc-link-preview";
     appendNavigationItemPreviewThumb(preview, item, previewUi, {
-      className: "nav-book-toc-link-preview-img"
+      className: "nav-book-toc-link-preview-img",
+      clearOnError: isNavigationMarkdownItem(item)
     });
+    if (!preview.querySelector("img")) {
+      preview = null;
+    }
   } else if (showFileType) {
     preview = createNavBookTocLinkFileTypeLeading(item);
   }
@@ -49166,7 +49218,7 @@ function appendNavigationItemPreviewThumb(
   parent,
   item,
   preview,
-  { className = "", cacheBust = true, loading = "lazy" } = {}
+  { className = "", cacheBust = true, loading = "lazy", clearOnError = false } = {}
 ) {
   if (!preview || preview.broken) return false;
 
@@ -49185,9 +49237,18 @@ function appendNavigationItemPreviewThumb(
   img.loading = loading;
   img.decoding = "async";
   img.src = imageUrl;
-  img.addEventListener("error", () => applyBrokenImagePlaceholder(img, "Превью не найдено"), {
-    once: true
-  });
+  img.addEventListener(
+    "error",
+    () => {
+      if (clearOnError) {
+        img.remove();
+        if (!parent.childElementCount) parent.remove();
+        return;
+      }
+      applyBrokenImagePlaceholder(img, "Превью не найдено");
+    },
+    { once: true }
+  );
   parent.appendChild(img);
   return true;
 }
@@ -55732,16 +55793,26 @@ function renderNavigationMediaPart(mediaData) {
   return createNavigationMemoryPanel("media", "Медиа", body, mediaData);
 }
 
+let navigationManifestCachedPath = "";
+
 async function ensureNavigationManifestCached(options = {}) {
   const forceReload = Boolean(options.forceReload);
-  if (!forceReload && getNodeDescriptionHasContent(modeContentCache.description)) return;
   const apiPath = getActiveNodeApiPath();
   if (!apiPath) return;
+  const pathChanged = navigationManifestCachedPath !== apiPath;
+  if (!forceReload && !pathChanged && getNodeDescriptionHasContent(modeContentCache.description)) return;
   try {
     const response = await fetch(buildApiUrl("/api/file", { path: apiPath }));
-    if (!response.ok) return;
+    if (!response.ok) {
+      if (pathChanged || forceReload) {
+        modeContentCache.description = "";
+        navigationManifestCachedPath = apiPath;
+      }
+      return;
+    }
     const data = await response.json();
     modeContentCache.description = data.content || "";
+    navigationManifestCachedPath = apiPath;
   } catch {
     // ignore transient manifest read errors in navigation
   }
@@ -57741,6 +57812,7 @@ async function applyLiveFileReload(change) {
 
   if (activeContentMode === "description" && liveSyncPathsReferToSameFile(change.path, manifestPath)) {
     modeContentCache.description = "";
+    navigationManifestCachedPath = "";
     await loadContentByMode({ forceReload: true });
     commitEditorSaveBaseline();
     return;
@@ -64779,6 +64851,118 @@ function initPreviewWikilinkNavigation(root) {
   });
 }
 
+function getMarkdownPreviewImageFullSrc(img) {
+  if (!(img instanceof HTMLImageElement)) return "";
+  const fullSrc = String(img.dataset.fullSrc || "").trim();
+  if (fullSrc) return fullSrc;
+
+  const current = img.currentSrc || img.getAttribute("src") || "";
+  if (current && current !== BROKEN_IMAGE_PLACEHOLDER_SRC) return current;
+
+  const original = String(img.dataset.originalSrc || "").trim();
+  if (!original) return "";
+
+  const previewRoot = img.closest("[data-link-base-path]");
+  const nodePath =
+    previewRoot?.dataset.linkBasePath || getPropsContextPath() || getActiveTitleEditorPath() || "";
+  const resolved = resolveMarkdownAssetSrc(original, nodePath);
+  if (isLoadableImageDisplayUrl(resolved)) return appendAgentToApiUrl(resolved);
+  return original;
+}
+
+async function copyMarkdownPreviewImageToClipboard(img) {
+  const src = getMarkdownPreviewImageFullSrc(img);
+  if (!src) {
+    showToast("Не удалось определить адрес изображения", "error");
+    return false;
+  }
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    showToast("Копирование изображений не поддерживается в этом браузере", "error");
+    return false;
+  }
+
+  try {
+    const response = await fetch(src, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const type = blob.type && blob.type.startsWith("image/") ? blob.type : "image/png";
+    await navigator.clipboard.write([new ClipboardItem({ [type]: blob })]);
+    showToast("Изображение скопировано в буфер", "success");
+    return true;
+  } catch {
+    showToast("Не удалось скопировать изображение", "error");
+    return false;
+  }
+}
+
+function createMarkdownPreviewImageActionBar(img) {
+  const bar = document.createElement("div");
+  bar.className = "markdown-preview-image-actions";
+
+  const zoomBtn = document.createElement("button");
+  zoomBtn.type = "button";
+  zoomBtn.className = "markdown-preview-image-action-btn";
+  zoomBtn.textContent = "Zoom";
+  zoomBtn.title = "Открыть оригинал";
+  zoomBtn.setAttribute("aria-label", "Открыть оригинал");
+  zoomBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openPreviewImageLightbox(getMarkdownPreviewImageFullSrc(img), img.alt || "", { trigger: img });
+  });
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "markdown-preview-image-action-btn";
+  copyBtn.textContent = "Копировать";
+  copyBtn.title = "Скопировать изображение в буфер";
+  copyBtn.setAttribute("aria-label", "Скопировать изображение в буфер");
+  copyBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void copyMarkdownPreviewImageToClipboard(img);
+  });
+
+  bar.append(zoomBtn, copyBtn);
+  return bar;
+}
+
+function wrapMarkdownPreviewImage(img) {
+  if (!(img instanceof HTMLImageElement)) return;
+  if (img.closest(".markdown-preview-image-wrap")) return;
+  if (img.classList.contains("broken-image-placeholder") || img.dataset.brokenPlaceholder === "1") return;
+  if (img.closest(".img-style-lightbox")) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "markdown-preview-image-wrap";
+  const parent = img.parentElement;
+
+  if (parent?.tagName === "P") {
+    const onlyImage = [...parent.childNodes].every(
+      (node) =>
+        node === img ||
+        (node.nodeType === Node.TEXT_NODE && !String(node.textContent || "").trim())
+    );
+    if (onlyImage) {
+      parent.replaceWith(wrap);
+      wrap.appendChild(img);
+      wrap.appendChild(createMarkdownPreviewImageActionBar(img));
+      return;
+    }
+  }
+
+  img.replaceWith(wrap);
+  wrap.appendChild(img);
+  wrap.appendChild(createMarkdownPreviewImageActionBar(img));
+}
+
+function attachMarkdownPreviewImageActions(root) {
+  if (!root) return;
+  root.querySelectorAll("img").forEach((img) => {
+    wrapMarkdownPreviewImage(img);
+  });
+}
+
 function enhanceMarkdownPreviewImages(root) {
   if (!root) return;
   initPreviewImageLightbox(root);
@@ -64789,6 +64973,7 @@ function enhanceMarkdownPreviewImages(root) {
   root.querySelectorAll("img").forEach((img) => {
     bindMarkdownPreviewImageFallback(img, nodePath);
   });
+  attachMarkdownPreviewImageActions(root);
 }
 
 function renderPreviewFromEditor() {
@@ -75245,9 +75430,131 @@ function renderAgentDashboardWorkspaceSection(counts) {
   home2ContentNode.appendChild(shell);
 }
 
+let homeWorkspaceManifestLoadSeq = 0;
+
+function getActiveAgentWorkspaceManifestPath(agentId = activeAgentId) {
+  const agent = getAgentMeta(agentId);
+  if (!agent?.path || agent.manifestFound === false) return null;
+  return AREA_MANIFEST_FILE;
+}
+
+async function fetchActiveAgentWorkspaceManifestContent(agentId = activeAgentId) {
+  const manifestPath = getActiveAgentWorkspaceManifestPath(agentId);
+  if (!manifestPath) return null;
+  const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }, agentId));
+  if (!response.ok) return null;
+  const data = await response.json();
+  return { path: manifestPath, content: String(data.content || "") };
+}
+
+function renderHomeWorkspaceManifestSection(payload) {
+  if (!homeWorkspaceManifestNode) return;
+  homeWorkspaceManifestNode.replaceChildren();
+
+  const raw = String(payload?.content || "").trim();
+  if (!raw) {
+    homeWorkspaceManifestNode.classList.add("hidden");
+    return;
+  }
+
+  const { frontmatter, body } = splitFrontmatter(raw);
+  const entries = parsePropsYaml(frontmatter);
+  const name =
+    String(getPropsEntryValueByKey(entries, "awn-name") || "").trim() ||
+    getActiveAgentLabel() ||
+    "Workspace";
+  const emoji = String(getPropsEntryValueByKey(entries, "awn-emoji") || "").trim();
+  const description = String(getPropsEntryValueByKey(entries, "awn-description") || "").trim();
+  const bodyTrimmed = stripAwnDescCallouts(body).trim();
+
+  const article = document.createElement("article");
+  article.className = "home-workspace-manifest-card home-card";
+
+  const head = document.createElement("div");
+  head.className = "home-workspace-manifest-head";
+
+  const icon = document.createElement("span");
+  icon.className = "home-card-icon home-workspace-manifest-icon";
+  icon.textContent = emoji || "🏠";
+  icon.setAttribute("aria-hidden", "true");
+
+  const copy = document.createElement("div");
+  copy.className = "home-workspace-manifest-copy";
+
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "home-workspace-manifest-eyebrow";
+  eyebrow.textContent = "awn.page.ws · manifest.md";
+
+  const title = document.createElement("h3");
+  title.className = "home-card-title home-workspace-manifest-title";
+  title.textContent = name;
+
+  copy.append(eyebrow, title);
+
+  if (description) {
+    const desc = document.createElement("p");
+    desc.className = "home-card-text home-workspace-manifest-description";
+    desc.textContent = description;
+    copy.appendChild(desc);
+  }
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "home-workspace-manifest-open-btn";
+  openBtn.textContent = "Открыть manifest";
+  openBtn.title = payload.path;
+  openBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void openNodeFromMenu(getLabelFromPath(payload.path), payload.path);
+  });
+
+  head.append(icon, copy, openBtn);
+  article.appendChild(head);
+
+  if (bodyTrimmed) {
+    const bodyNode = document.createElement("div");
+    bodyNode.className = "home-workspace-manifest-body markdown-preview";
+    setMarkdownPreviewHtml(bodyNode, bodyTrimmed, { nodePath: payload.path });
+    article.appendChild(bodyNode);
+  }
+
+  homeWorkspaceManifestNode.appendChild(article);
+  homeWorkspaceManifestNode.classList.remove("hidden");
+}
+
+async function refreshHomeWorkspaceManifestSection(agentId = activeAgentId) {
+  if (!homeWorkspaceManifestNode) return;
+
+  if (!agentId || agentWorkspaceView !== "dashboard" || !isAgentWorkspaceCanvasVisible()) {
+    homeWorkspaceManifestNode.classList.add("hidden");
+    homeWorkspaceManifestNode.replaceChildren();
+    return;
+  }
+
+  const seq = ++homeWorkspaceManifestLoadSeq;
+  homeWorkspaceManifestNode.classList.remove("hidden");
+  homeWorkspaceManifestNode.replaceChildren();
+
+  const loading = document.createElement("article");
+  loading.className = "home-workspace-manifest-card home-card home-workspace-manifest-card--loading";
+  loading.textContent = "Загрузка manifest.md…";
+  homeWorkspaceManifestNode.appendChild(loading);
+
+  try {
+    const payload = await fetchActiveAgentWorkspaceManifestContent(agentId);
+    if (seq !== homeWorkspaceManifestLoadSeq) return;
+    renderHomeWorkspaceManifestSection(payload);
+  } catch {
+    if (seq !== homeWorkspaceManifestLoadSeq) return;
+    homeWorkspaceManifestNode.classList.add("hidden");
+    homeWorkspaceManifestNode.replaceChildren();
+  }
+}
+
 function renderAgentDashboardView() {
   const counts = countAgentMenuNodes(currentMenuData);
   renderAgentDashboardIdeaSection(counts);
+  void refreshHomeWorkspaceManifestSection();
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
     homeHintNode.textContent = AGENT_HOME_HINT_DEFAULT;
@@ -77682,6 +77989,7 @@ function hideHomeView() {
 function clearEditorState(message = "") {
   showHomeView(message || AGENT_HOME_HINT_DEFAULT);
   modeContentCache.description = "";
+  navigationManifestCachedPath = "";
   modeContentCache.internal = "";
   modeContentCache.external = "";
   modeContentCache.inbox = "";
@@ -78704,14 +79012,30 @@ function getAppFooterTodoScopeLabel() {
   return `${ROOT_SYSTEM_TODO_FILE} · ${agentLabel}`;
 }
 
+function hasAppFooterTodoContent(content = "") {
+  return Boolean(String(content || "").trim());
+}
+
+function syncAppFooterIdeasBadgeState(content = "", { exists = true, loading = false } = {}) {
+  const filled = !loading && exists && hasAppFooterTodoContent(content);
+  if (appFooterIdeasBtn) {
+    appFooterIdeasBtn.classList.toggle("is-filled", filled);
+    appFooterIdeasBtn.classList.toggle("is-empty", !filled);
+    appFooterIdeasBtn.title = filled
+      ? `${getAppFooterTodoScopeLabel()} — есть записи`
+      : `${getAppFooterTodoScopeLabel()} — пусто`;
+    appFooterIdeasBtn.setAttribute("aria-label", appFooterIdeasBtn.title);
+  }
+  if (appFooterIdeasLampNode) {
+    appFooterIdeasLampNode.classList.toggle("is-filled", filled);
+    appFooterIdeasLampNode.classList.toggle("is-empty", !filled);
+  }
+}
+
 function syncAppFooterIdeasPopoverChrome() {
   const title = getAppFooterTodoScopeLabel();
   if (appFooterIdeasPopoverTitleNode) {
     appFooterIdeasPopoverTitleNode.textContent = title;
-  }
-  if (appFooterIdeasBtn) {
-    appFooterIdeasBtn.title = title;
-    appFooterIdeasBtn.setAttribute("aria-label", title);
   }
   if (appFooterIdeasPopoverNode) {
     appFooterIdeasPopoverNode.setAttribute("aria-label", title);
@@ -78727,18 +79051,21 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
   if (!appFooterIdeasBodyNode) return;
 
   if (loading) {
+    syncAppFooterIdeasBadgeState("", { exists: true, loading: true });
     appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
     appFooterIdeasBodyNode.textContent = "Загрузка…";
     return;
   }
 
   if (error) {
+    syncAppFooterIdeasBadgeState("", { exists: false, loading: false });
     appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta is-error";
     appFooterIdeasBodyNode.textContent = error;
     return;
   }
 
   const normalized = String(content || "").trim();
+  syncAppFooterIdeasBadgeState(normalized, { exists, loading: false });
   if (!normalized) {
     appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
     appFooterIdeasBodyNode.textContent = `${getAppFooterTodoScopeLabel()} пуст или не найден`;
@@ -80430,7 +80757,8 @@ agentViewSelect?.addEventListener("change", () => {
 function handleAgentPreviewOpenActivate(event) {
   if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
   if (event.type === "keydown") event.preventDefault();
-  if (event.currentTarget === agentPreviewWrapNode || event.currentTarget === agentPreviewPlaceholderNode) {
+  event.stopPropagation();
+  if (event.currentTarget === agentPreviewPlaceholderNode) {
     openAgentSliderModal();
     return;
   }
@@ -80440,8 +80768,11 @@ function handleAgentPreviewOpenActivate(event) {
 agentPreviewSliderInfoBtn?.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  void showAgentSliderFolderPath();
+  openAgentSliderModal();
 });
+
+agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
+agentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 
 agentSliderModalCloseBtn?.addEventListener("click", () => closeAgentSliderModal());
 agentSliderModalNode?.addEventListener("click", (event) => {
@@ -80481,8 +80812,6 @@ function openAgentTodoPreviewForEdit() {
   void selectSystemFile(ROOT_SYSTEM_NOTE_FILE);
 }
 
-agentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
-agentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 discussAgentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 discussAgentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("click", handleAgentPreviewOpenActivate);
