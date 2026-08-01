@@ -9252,17 +9252,23 @@ function scheduleOrbitAgentFocusHide() {
 function syncOrbitFocusHighlight(agentId = null) {
   const resolvedAgentId = String(agentId || "").trim() || null;
   landingOrbitFocusHoverAgentId = resolvedAgentId;
+  const showGraph = Boolean(resolvedAgentId);
+
+  appLandingOrbitTwigsNode?.classList.toggle("is-visible", showGraph);
+  appLandingOrbitFocusLinksNode?.classList.toggle("is-visible", showGraph);
 
   for (const el of appLandingOrbitTwigsNode?.querySelectorAll("[data-orbit-agent-id]") || []) {
     const match = resolvedAgentId && el.dataset.orbitAgentId === resolvedAgentId;
+    el.hidden = !match;
     el.classList.toggle("is-highlighted", Boolean(match));
-    el.classList.toggle("is-dimmed", !match);
+    el.classList.toggle("is-dimmed", false);
   }
 
   for (const el of appLandingOrbitFocusLinksNode?.querySelectorAll("[data-orbit-agent-id]") || []) {
     const match = resolvedAgentId && el.dataset.orbitAgentId === resolvedAgentId;
+    el.hidden = !match;
     el.classList.toggle("is-highlighted", Boolean(match));
-    el.classList.toggle("is-dimmed", !match);
+    el.classList.toggle("is-dimmed", false);
   }
 }
 
@@ -9309,14 +9315,16 @@ function renderOrbitAllAgentFocusGraphs() {
       line.setAttribute("y1", String(agentLayout.y));
       line.setAttribute("x2", String(twigLayout.x));
       line.setAttribute("y2", String(twigLayout.y));
-      line.classList.add("app-landing-orbit-focus-link", "is-dimmed");
+      line.classList.add("app-landing-orbit-focus-link");
+      line.hidden = true;
       line.dataset.orbitAgentId = agent.id;
       if (nodePath) line.dataset.focusPath = nodePath;
       appLandingOrbitFocusLinksNode.appendChild(line);
 
       const twig = document.createElement("button");
       twig.type = "button";
-      twig.className = "app-landing-orbit-twig is-dimmed";
+      twig.className = "app-landing-orbit-twig";
+      twig.hidden = true;
       twig.dataset.orbitAgentId = agent.id;
       twig.setAttribute("role", "listitem");
       twig.style.setProperty("--twig-x", `${twigLayout.x}%`);
@@ -9338,8 +9346,10 @@ function renderOrbitAllAgentFocusGraphs() {
     });
   });
 
-  appLandingOrbitTwigsNode.classList.toggle("is-visible", hasAny);
-  appLandingOrbitFocusLinksNode.classList.toggle("is-visible", hasAny);
+  if (!hasAny) {
+    appLandingOrbitTwigsNode.classList.remove("is-visible");
+    appLandingOrbitFocusLinksNode.classList.remove("is-visible");
+  }
   syncOrbitFocusHighlight(landingOrbitFocusHoverAgentId);
   syncFocusPanelActiveState();
 }
