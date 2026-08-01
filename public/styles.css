@@ -13053,6 +13053,52 @@ body.app-locked {
   color: #991b1b;
 }
 
+.app-footer-ideas-popover-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.app-footer-ideas-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #b91c1c;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.app-footer-ideas-edit-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-footer-ideas-edit-btn:hover {
+  background: #fff;
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #991b1b;
+}
+
+.app-footer-ideas-edit-btn:focus {
+  outline: none;
+}
+
+.app-footer-ideas-edit-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.35);
+}
+
 .app-footer-ideas-popover-close {
   display: inline-flex;
   align-items: center;
@@ -24493,6 +24539,9 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-hero-instruction-fold .node-overview-fold-title {
   color: #92400e;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .node-navigation-hero-instruction-fold .node-overview-fold-body {
@@ -24783,7 +24832,7 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-hero-settings-slot-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -24800,9 +24849,19 @@ button.node-navigation-hub-rail-slot-summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px 16px;
   min-width: 0;
+  width: 100%;
+}
+
+.node-navigation-hero-footer-meta-row .node-navigation-hero-settings-slots {
+  flex: 0 1 auto;
+}
+
+.node-navigation-hero-footer-meta-row .node-navigation-hero-meta-markers {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
 }
 
 .node-navigation-hero-footer-blurb + .node-navigation-hero-footer-meta,
@@ -24810,11 +24869,6 @@ button.node-navigation-hub-rail-slot-summary {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed rgba(148, 163, 184, 0.28);
-}
-
-.node-navigation-hero-footer-meta-row .node-navigation-hero-meta-markers {
-  flex: 0 0 auto;
-  margin: 0;
 }
 
 .node-navigation-hero-footer-meta-row .node-navigation-hero-marker-block {
@@ -25779,8 +25833,12 @@ button.node-navigation-hub-rail-slot-summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   min-height: 22px;
+}
+
+.node-navigation-workspace-counter-indicator .node-slot-lamp {
+  flex-shrink: 0;
 }
 
 .node-navigation-workspace-counter.is-flag .node-navigation-workspace-counter-value {
@@ -26550,11 +26608,13 @@ button.node-navigation-hub-rail-slot-summary {
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
 }
 
+.node-slot-lamp.is-filled,
 .node-slot-chip.is-filled .node-slot-lamp {
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
 }
 
+.node-slot-lamp.is-empty,
 .node-slot-chip.is-empty .node-slot-lamp {
   background: #cbd5e1;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
@@ -27764,17 +27824,6 @@ button.node-navigation-memory-title:focus-visible {
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.nav-book-toc-link-preview .broken-image-placeholder,
-.nav-book-toc-link-preview img.broken-image-placeholder {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  aspect-ratio: auto;
-  object-fit: contain;
-  border-radius: 4px;
-  background: #fef2f2;
 }
 
 .nav-book-toc-link-filetype {

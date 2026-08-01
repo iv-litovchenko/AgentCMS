@@ -23,10 +23,10 @@ const appFooterDetailsNode = document.getElementById("app-footer-details");
 const appFooterIdeasBtn = document.getElementById("app-footer-ideas-btn");
 const appFooterIdeasPopoverNode = document.getElementById("app-footer-ideas-popover");
 const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-btn");
+const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn");
+const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
-const PLATFORM_TODO_REL_PATH = "workspaces/agent-cms-core/TODO.md";
-const PLATFORM_TODO_CORE_REL_PATH = "workspaces/agent-cms-core/TODO-CORE.md";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
@@ -9625,6 +9625,7 @@ async function switchActiveAgent(nextAgentId) {
     await loadAgentFocusItems(activeAgentId);
     updateDocumentTitle();
     updateBreadcrumbsForActiveMode();
+    void loadAppFooterIdeasPreview();
   } finally {
     setMenuLoading(false);
   }
@@ -46163,9 +46164,16 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
 
   const hasInstruction = getNodeDescriptionHasContent(descriptionRaw);
 
+  const titleNode = document.createDocumentFragment();
+  titleNode.appendChild(createNodeSlotStatusLamp(hasInstruction));
+  const titleText = document.createElement("span");
+  titleText.className = "node-overview-fold-title-text";
+  titleText.textContent = AGENT_INSTRUCTION_ACCORDION_TITLE;
+  titleNode.appendChild(titleText);
+
   const accordion = createOverviewAccordionSection(
     OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID,
-    AGENT_INSTRUCTION_ACCORDION_TITLE,
+    titleNode,
     bodySection,
     { defaultOpen: !hasInstruction, lockOpen: !hasInstruction }
   );
@@ -47128,6 +47136,13 @@ function handleNodeSlotChipClick(slot) {
   openMemoryModeFromOverview(slot.modeId);
 }
 
+function createNodeSlotStatusLamp(filled) {
+  const lamp = document.createElement("span");
+  lamp.className = `node-slot-lamp${filled ? " is-filled" : " is-empty"}`;
+  lamp.setAttribute("aria-hidden", "true");
+  return lamp;
+}
+
 function appendNodeSlotChipItems(list, slots = []) {
   for (const slot of slots) {
     const item = document.createElement("li");
@@ -47136,15 +47151,11 @@ function appendNodeSlotChipItems(list, slots = []) {
     btn.className = `node-slot-chip${slot.filled ? " is-filled" : " is-empty"}`;
     btn.title = slot.filled ? `${slot.label}: есть данные` : `${slot.label}: пусто`;
 
-    const lamp = document.createElement("span");
-    lamp.className = "node-slot-lamp";
-    lamp.setAttribute("aria-hidden", "true");
-
     const label = document.createElement("span");
     label.className = "node-slot-label";
     label.textContent = slot.label;
 
-    btn.append(lamp, label);
+    btn.append(createNodeSlotStatusLamp(slot.filled), label);
     btn.addEventListener("click", () => handleNodeSlotChipClick(slot));
 
     item.appendChild(btn);
@@ -47161,7 +47172,8 @@ function createNodeSlotChipList(slots = [], listClass = "node-slot-strip-list") 
 }
 
 function createNodeSettingsHeroSlotList(slots = []) {
-  const list = createNodeSlotChipList(slots, "node-navigation-hero-settings-slot-list");
+  const heroSlots = slots.filter((slot) => slot.id !== "description");
+  const list = createNodeSlotChipList(heroSlots, "node-navigation-hero-settings-slot-list");
   if (!list) return null;
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-hero-settings-slots";
@@ -48981,80 +48993,49 @@ function createNavBookTocLinkFileTypeLeading(item) {
   return wrap;
 }
 
-function createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading = true } = {}) {
-  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
-
-  if (previewUi?.broken) {
-    const wrap = document.createElement("span");
-    wrap.className = "nav-book-toc-link-preview";
-    wrap.appendChild(
-      createBrokenImagePlaceholder({ label: "Превью не найдено", className: "nav-book-toc-link-preview-img" })
-    );
-    return wrap;
-  }
-
-  if (previewUi?.imageUrl) {
-    const wrap = document.createElement("span");
-    wrap.className = "nav-book-toc-link-preview";
-    if (appendNavigationItemPreviewThumb(wrap, item, previewUi, { className: "nav-book-toc-link-preview-img" })) {
-      return wrap;
-    }
-  }
+function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { showBranch = true } = {}) {
+  const previewWrap = document.createElement("span");
+  previewWrap.className = "nav-book-toc-link-preview";
 
   const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
-  if (path && isEntryOverviewMediaImageItem(item)) {
-    const wrap = document.createElement("span");
-    wrap.className = "nav-book-toc-link-preview";
-    const mediaPreview = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
-    if (appendNavigationItemPreviewThumb(wrap, item, mediaPreview, { className: "nav-book-toc-link-preview-img" })) {
-      return wrap;
+  if (isEntryOverviewMediaImageItem(item) && path) {
+    const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
+    if (
+      appendNavigationItemPreviewThumb(previewWrap, item, previewUi, {
+        className: "nav-book-toc-link-preview-img"
+      })
+    ) {
+      return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
     }
+    const fallback = document.createElement("span");
+    fallback.className = "nav-book-toc-link-filetype-emoji";
+    fallback.textContent = "🖼";
+    fallback.setAttribute("aria-hidden", "true");
+    previewWrap.appendChild(fallback);
+    return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
   }
 
-  if (showFileTypeLeading) {
-    return createNavBookTocLinkFileTypeLeading(item);
+  const ext = getNavigationItemFileExtension(item);
+  const badge = formatNavigationFileExtensionBadge(ext);
+  previewWrap.classList.add(
+    "nav-book-toc-link-filetype",
+    `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
+  );
+
+  const emoji = document.createElement("span");
+  emoji.className = "nav-book-toc-link-filetype-emoji";
+  emoji.textContent = getMediaIconForItem(item);
+  emoji.setAttribute("aria-hidden", "true");
+  previewWrap.appendChild(emoji);
+
+  if (badge) {
+    const label = document.createElement("span");
+    label.className = "nav-book-toc-link-filetype-ext";
+    label.textContent = badge;
+    previewWrap.appendChild(label);
   }
 
-  return null;
-}
-
-function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { showBranch = true } = {}) {
-  const previewWrap = createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading: true });
-  if (!previewWrap) return null;
-  if (!showBranch) return previewWrap;
-  return wrapNavBookTocMediaLeading(previewWrap);
-}
-
-function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
-  const showBranch = options.showBranchLeading !== false;
-  const showFileType = options.showFileTypeLeading !== false;
-  const previewWrap = createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading: showFileType });
-
-  if (
-    previewWrap?.classList.contains("nav-book-toc-link-preview") &&
-    !previewWrap.classList.contains("nav-book-toc-link-filetype") &&
-    previewWrap.querySelector(".nav-book-toc-link-preview-img, .broken-image-placeholder")
-  ) {
-    return previewWrap;
-  }
-
-  if (!showBranch && !showFileType) {
-    return previewWrap;
-  }
-
-  const leadingWrap = document.createElement("span");
-  leadingWrap.className = "nav-book-toc-link-leading";
-  if (showBranch) {
-    leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
-  }
-  if (previewWrap) {
-    leadingWrap.appendChild(previewWrap);
-  } else if (showFileType) {
-    const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
-    if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
-  }
-
-  return leadingWrap.childElementCount ? leadingWrap : null;
+  return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
 }
 
 function wrapNavBookTocMediaLeading(previewWrap) {
@@ -49065,51 +49046,109 @@ function wrapNavBookTocMediaLeading(previewWrap) {
   return leadingWrap;
 }
 
+function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
+  const preview = resolveNavigationItemPreviewUi(item, nodePath);
+  if (preview?.imageUrl && !preview.broken) {
+    const previewWrap = document.createElement("span");
+    previewWrap.className = "nav-book-toc-link-preview";
+    if (appendNavigationItemPreviewThumb(previewWrap, item, preview, { className: "nav-book-toc-link-preview-img" })) {
+      return previewWrap;
+    }
+  }
+
+  const showBranch = options.showBranchLeading !== false;
+  const showFileType = options.showFileTypeLeading !== false;
+  if (!showBranch && !showFileType) {
+    return null;
+  }
+
+  const leadingWrap = document.createElement("span");
+  leadingWrap.className = "nav-book-toc-link-leading";
+  if (showBranch) {
+    leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
+  }
+  if (showFileType) {
+    const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
+    if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
+  }
+
+  return leadingWrap.childElementCount ? leadingWrap : null;
+}
+
 function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {}) {
   const status = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
-  const showBranch = handlers.showBranchLeading !== false;
-  const showFileType = handlers.showFileTypeLeading !== false;
-  const useMediaLayout = handlers.linkLeadingMode === "media";
-
-  const previewContent = createNavigationBookTocPreviewWrap(item, nodePath, {
-    showFileTypeLeading: showFileType || useMediaLayout
-  });
-
-  const isThumbPreview =
-    previewContent?.classList.contains("nav-book-toc-link-preview") &&
-    !previewContent.classList.contains("nav-book-toc-link-filetype") &&
-    previewContent.querySelector(".nav-book-toc-link-preview-img, .broken-image-placeholder");
-
   let icon = null;
   let preview = null;
 
-  if (useMediaLayout) {
-    const leadingWrap = document.createElement("span");
-    leadingWrap.className = "nav-book-toc-link-leading";
+  if (handlers.linkLeadingMode === "media") {
+    const showBranch = handlers.showBranchLeading !== false;
     if (showBranch) {
       icon = createNavBookTocLinkIcon({ branch: true });
-      leadingWrap.appendChild(icon);
-      icon = null;
     }
-    if (previewContent) leadingWrap.appendChild(previewContent);
-    preview = leadingWrap.childElementCount ? leadingWrap : null;
-  } else if (isThumbPreview) {
-    preview = previewContent;
-  } else if (previewContent) {
-    if (showBranch) {
-      const leadingWrap = document.createElement("span");
-      leadingWrap.className = "nav-book-toc-link-leading";
-      leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
-      leadingWrap.appendChild(previewContent);
-      preview = leadingWrap;
+
+    const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
+    preview = document.createElement("span");
+    preview.className = "nav-book-toc-link-preview";
+
+    if (isEntryOverviewMediaImageItem(item) && path) {
+      const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
+      if (
+        !appendNavigationItemPreviewThumb(preview, item, previewUi, {
+          className: "nav-book-toc-link-preview-img"
+        })
+      ) {
+        const fallback = document.createElement("span");
+        fallback.className = "nav-book-toc-link-filetype-emoji";
+        fallback.textContent = "🖼";
+        fallback.setAttribute("aria-hidden", "true");
+        preview.appendChild(fallback);
+      }
     } else {
-      preview = previewContent;
+      const ext = getNavigationItemFileExtension(item);
+      const badge = formatNavigationFileExtensionBadge(ext);
+      preview.classList.add(
+        "nav-book-toc-link-filetype",
+        `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
+      );
+      const emoji = document.createElement("span");
+      emoji.className = "nav-book-toc-link-filetype-emoji";
+      emoji.textContent = getMediaIconForItem(item);
+      emoji.setAttribute("aria-hidden", "true");
+      preview.appendChild(emoji);
+      if (badge) {
+        const label = document.createElement("span");
+        label.className = "nav-book-toc-link-filetype-ext";
+        label.textContent = badge;
+        preview.appendChild(label);
+      }
     }
-  } else if (showBranch) {
-    icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+
+    if (!icon) {
+      icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+    }
+
+    return { icon, status, preview };
   }
 
-  if (!icon && !preview && !useMediaLayout) {
+  const showBranch = handlers.showBranchLeading !== false;
+  const showFileType = handlers.showFileTypeLeading !== false;
+
+  if (showBranch) {
+    icon = createNavBookTocLinkIcon({ branch: true });
+  }
+
+  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
+  if (previewUi?.imageUrl && !previewUi.broken) {
+    preview = document.createElement("span");
+    preview.className = "nav-book-toc-link-preview";
+    appendNavigationItemPreviewThumb(preview, item, previewUi, {
+      className: "nav-book-toc-link-preview-img"
+    });
+  } else if (showFileType) {
+    preview = createNavBookTocLinkFileTypeLeading(item);
+  }
+
+  if (!icon) {
     icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
   }
 
@@ -49145,7 +49184,6 @@ function appendNavigationItemPreviewThumb(
   img.alt = "";
   img.loading = loading;
   img.decoding = "async";
-  img.dataset.originalSrc = rawUrl;
   img.src = imageUrl;
   img.addEventListener("error", () => applyBrokenImagePlaceholder(img, "Превью не найдено"), {
     once: true
@@ -52565,9 +52603,20 @@ function setWorkspaceCounterLabelText(labelNode, text) {
   }
 }
 
+function isWorkspaceCounterSlotFilled(slot) {
+  if (isDeprecatedRepositoryCounterSlot(slot)) return false;
+  if (slot.display === "flag") return Boolean(slot.filled);
+  return Boolean(slot.filled) || Number(slot.count) > 0;
+}
+
 function createWorkspaceCounterIndicator(slot) {
+  const wrap = document.createElement("span");
+  wrap.className = "node-navigation-workspace-counter-indicator";
+  wrap.appendChild(createNodeSlotStatusLamp(isWorkspaceCounterSlotFilled(slot)));
+
   if (isDeprecatedRepositoryCounterSlot(slot)) {
-    return createDeprecatedRepositoryCounterIndicator();
+    wrap.appendChild(createDeprecatedRepositoryCounterIndicator());
+    return wrap;
   }
 
   if (slot.display === "flag") {
@@ -52576,13 +52625,15 @@ function createWorkspaceCounterIndicator(slot) {
     flag.setAttribute("aria-hidden", "true");
     flag.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 4h10l-2.5 4L15 12H5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" fill-opacity="0.12"/></svg>';
-    return flag;
+    wrap.appendChild(flag);
+    return wrap;
   }
 
   const count = document.createElement("span");
   count.className = "node-navigation-workspace-counter-value";
   count.textContent = String(slot.count ?? 0);
-  return count;
+  wrap.appendChild(count);
+  return wrap;
 }
 
 function getEntryOverviewDataSlotBarManifestPath(topicPath) {
@@ -64745,6 +64796,7 @@ function renderPreviewFromEditor() {
     activeSystemFile || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, { nodePath });
   syncAgentTodoPreviewFromEditor();
+  syncAppFooterIdeasFromEditor();
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
   }
@@ -70948,6 +71000,8 @@ async function selectSystemFile(name, options = {}) {
     hideContentLoading({ force: true });
     if (normalizedName === ROOT_SYSTEM_NOTE_FILE) {
       syncAgentTodoPreviewFromEditor();
+    } else if (normalizedName === ROOT_SYSTEM_TODO_FILE) {
+      syncAppFooterIdeasFromEditor();
     } else {
       void syncAgentTodoPreview();
     }
@@ -78645,7 +78699,31 @@ function setupAppFooterToggle() {
 let appFooterIdeasOpen = false;
 let appFooterIdeasLoadSeq = 0;
 
-function renderAppFooterIdeasContent(content = "", { loading = false, error = "" } = {}) {
+function getAppFooterTodoScopeLabel() {
+  const agentLabel = getActiveAgentLabel() || activeAgentId || "проект";
+  return `${ROOT_SYSTEM_TODO_FILE} · ${agentLabel}`;
+}
+
+function syncAppFooterIdeasPopoverChrome() {
+  const title = getAppFooterTodoScopeLabel();
+  if (appFooterIdeasPopoverTitleNode) {
+    appFooterIdeasPopoverTitleNode.textContent = title;
+  }
+  if (appFooterIdeasBtn) {
+    appFooterIdeasBtn.title = title;
+    appFooterIdeasBtn.setAttribute("aria-label", title);
+  }
+  if (appFooterIdeasPopoverNode) {
+    appFooterIdeasPopoverNode.setAttribute("aria-label", title);
+  }
+  if (appFooterIdeasEditBtn) {
+    const editLabel = `Редактировать ${ROOT_SYSTEM_TODO_FILE}`;
+    appFooterIdeasEditBtn.title = editLabel;
+    appFooterIdeasEditBtn.setAttribute("aria-label", editLabel);
+  }
+}
+
+function renderAppFooterIdeasContent(content = "", { loading = false, error = "", exists = true } = {}) {
   if (!appFooterIdeasBodyNode) return;
 
   if (loading) {
@@ -78663,41 +78741,48 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
   const normalized = String(content || "").trim();
   if (!normalized) {
     appFooterIdeasBodyNode.className = "app-footer-ideas-body app-footer-ideas-body--meta";
-    appFooterIdeasBodyNode.textContent = `${PLATFORM_TODO_REL_PATH} и ${PLATFORM_TODO_CORE_REL_PATH} пусты`;
+    appFooterIdeasBodyNode.textContent = `${getAppFooterTodoScopeLabel()} пуст или не найден`;
     return;
   }
 
   appFooterIdeasBodyNode.className = "app-footer-ideas-body markdown-preview";
   setMarkdownPreviewHtml(appFooterIdeasBodyNode, normalized, {
-    nodePath: PLATFORM_TODO_REL_PATH
+    nodePath: ROOT_SYSTEM_TODO_FILE
   });
   scheduleAppFooterIdeasPopoverPosition();
+}
+
+function syncAppFooterIdeasFromEditor() {
+  if (!appFooterIdeasBodyNode || !activeAgentId) return;
+  if (activeSystemFile !== ROOT_SYSTEM_TODO_FILE) return;
+  renderAppFooterIdeasContent(String(fileContentInputNode?.value || ""), { exists: true });
+}
+
+async function loadAppFooterIdeasPreview() {
+  if (!appFooterIdeasBodyNode) return "";
+  syncAppFooterIdeasPopoverChrome();
+  const seq = ++appFooterIdeasLoadSeq;
+  renderAppFooterIdeasContent("", { loading: true });
+
+  try {
+    const response = await fetch(buildApiUrl("/api/system-file", { name: ROOT_SYSTEM_TODO_FILE }));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    if (seq !== appFooterIdeasLoadSeq) return "";
+    const content = typeof data.content === "string" ? data.content : "";
+    renderAppFooterIdeasContent(content, { exists: Boolean(data.exists) });
+    return content;
+  } catch {
+    if (seq !== appFooterIdeasLoadSeq) return "";
+    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${ROOT_SYSTEM_TODO_FILE}` });
+    return "";
+  }
 }
 
 function scheduleAppFooterIdeasPopoverPosition() {
   requestAnimationFrame(() => {
     if (appFooterIdeasOpen) positionAppFooterIdeasPopover();
   });
-}
-
-async function loadAppFooterIdeasFromCore() {
-  if (!appFooterIdeasBodyNode) return "";
-  const seq = ++appFooterIdeasLoadSeq;
-  renderAppFooterIdeasContent("", { loading: true });
-
-  try {
-    const response = await fetch("/api/platform/todo-core");
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
-    if (seq !== appFooterIdeasLoadSeq) return "";
-    const content = typeof data.content === "string" ? data.content : "";
-    renderAppFooterIdeasContent(content);
-    return content;
-  } catch (error) {
-    if (seq !== appFooterIdeasLoadSeq) return "";
-    renderAppFooterIdeasContent("", { error: `Не удалось загрузить ${PLATFORM_TODO_REL_PATH}` });
-    return "";
-  }
 }
 
 function positionAppFooterIdeasPopover() {
@@ -78722,7 +78807,12 @@ function openAppFooterIdeasPopover() {
   appFooterIdeasPopoverNode.classList.remove("hidden");
   appFooterIdeasBtn.setAttribute("aria-expanded", "true");
   positionAppFooterIdeasPopover();
-  void loadAppFooterIdeasFromCore();
+  void loadAppFooterIdeasPreview();
+}
+
+function openAppFooterIdeasForEdit() {
+  closeAppFooterIdeasPopover();
+  void selectSystemFile(ROOT_SYSTEM_TODO_FILE);
 }
 
 function closeAppFooterIdeasPopover() {
@@ -78758,12 +78848,17 @@ function setupMenuStaticFooterGroup() {
 function setupAppFooterIdeasPopover() {
   if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
 
+  syncAppFooterIdeasPopoverChrome();
   renderAppFooterIdeasContent("", { loading: true });
-  void loadAppFooterIdeasFromCore();
+  void loadAppFooterIdeasPreview();
 
   appFooterIdeasBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleAppFooterIdeasPopover();
+  });
+  appFooterIdeasEditBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openAppFooterIdeasForEdit();
   });
   appFooterIdeasCloseBtn?.addEventListener("click", (event) => {
     event.stopPropagation();

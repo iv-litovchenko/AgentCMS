@@ -2772,8 +2772,8 @@
                 id="app-footer-ideas-btn"
                 class="app-footer-ideas-badge"
                 type="button"
-                title="TODO.md + TODO-CORE.md"
-                aria-label="TODO.md и TODO-CORE.md"
+                title="TODO.md текущего проекта"
+                aria-label="TODO.md текущего проекта"
                 aria-haspopup="dialog"
                 aria-expanded="false"
                 aria-controls="app-footer-ideas-popover"
@@ -2785,21 +2785,35 @@
                 id="app-footer-ideas-popover"
                 class="app-footer-ideas-popover hidden"
                 role="dialog"
-                aria-label="TODO.md и TODO-CORE.md"
+                aria-label="TODO.md текущего проекта"
               >
                 <div class="app-footer-ideas-popover-head">
                   <div class="app-footer-ideas-popover-brand">
                     <span class="app-footer-ideas-popover-icon" aria-hidden="true">💡</span>
-                    <span class="app-footer-ideas-popover-title">TODO.md · TODO-CORE.md</span>
+                    <span id="app-footer-ideas-popover-title" class="app-footer-ideas-popover-title">TODO.md</span>
                   </div>
-                  <button
-                    id="app-footer-ideas-close-btn"
-                    class="app-footer-ideas-popover-close"
-                    type="button"
-                    aria-label="Закрыть"
-                  >
-                    ×
-                  </button>
+                  <div class="app-footer-ideas-popover-actions">
+                    <button
+                      id="app-footer-ideas-edit-btn"
+                      class="app-footer-ideas-edit-btn"
+                      type="button"
+                      title="Редактировать TODO.md"
+                      aria-label="Редактировать TODO.md"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      id="app-footer-ideas-close-btn"
+                      class="app-footer-ideas-popover-close"
+                      type="button"
+                      aria-label="Закрыть"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
                 <div id="app-footer-ideas-body" class="app-footer-ideas-body" aria-live="polite"></div>
               </div>
@@ -3485,7 +3499,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.558"></script>
+    <script src="/main.js?v=0.5.562"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
