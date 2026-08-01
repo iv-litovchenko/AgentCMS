@@ -27766,6 +27766,17 @@ button.node-navigation-memory-title:focus-visible {
   display: block;
 }
 
+.nav-book-toc-link-preview .broken-image-placeholder,
+.nav-book-toc-link-preview img.broken-image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fef2f2;
+}
+
 .nav-book-toc-link-filetype {
   flex-direction: column;
   gap: 1px;
@@ -32763,8 +32774,87 @@ button.node-navigation-memory-title:focus-visible {
   background: transparent;
   border: none;
   padding: 0;
+  margin: 0;
   overflow: visible;
   white-space: normal;
+}
+
+.mermaid-diagram-frame {
+  position: relative;
+  margin: 1rem 0;
+  padding: 34px 12px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  overflow-x: auto;
+}
+
+.mermaid-diagram-frame.is-dark {
+  border-color: #334155;
+  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.mermaid-diagram-frame pre.mermaid {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.mermaid-diagram-theme-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-theme-btn {
+  border-color: #475569;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+}
+
+.mermaid-diagram-theme-btn:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.mermaid-diagram-frame.is-dark .mermaid-diagram-theme-btn:hover {
+  background: #1e293b;
+  border-color: #64748b;
+  color: #f8fafc;
+}
+
+.mermaid-diagram-theme-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.mermaid-diagram-theme-icon--sun {
+  display: none;
+}
+
+.mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon {
+  display: none;
+}
+
+.mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun {
+  display: block;
 }
 
 .file-content-preview .mermaid {
@@ -32773,6 +32863,10 @@ button.node-navigation-memory-title:focus-visible {
   margin: 1rem 0;
   max-width: 100%;
   overflow-x: auto;
+}
+
+.mermaid-diagram-frame .mermaid {
+  margin: 0;
 }
 
 .file-content-preview .mermaid svg {

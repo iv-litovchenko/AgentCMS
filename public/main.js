@@ -48981,49 +48981,80 @@ function createNavBookTocLinkFileTypeLeading(item) {
   return wrap;
 }
 
-function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { showBranch = true } = {}) {
-  const previewWrap = document.createElement("span");
-  previewWrap.className = "nav-book-toc-link-preview";
+function createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading = true } = {}) {
+  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
+
+  if (previewUi?.broken) {
+    const wrap = document.createElement("span");
+    wrap.className = "nav-book-toc-link-preview";
+    wrap.appendChild(
+      createBrokenImagePlaceholder({ label: "Превью не найдено", className: "nav-book-toc-link-preview-img" })
+    );
+    return wrap;
+  }
+
+  if (previewUi?.imageUrl) {
+    const wrap = document.createElement("span");
+    wrap.className = "nav-book-toc-link-preview";
+    if (appendNavigationItemPreviewThumb(wrap, item, previewUi, { className: "nav-book-toc-link-preview-img" })) {
+      return wrap;
+    }
+  }
 
   const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
-  if (isEntryOverviewMediaImageItem(item) && path) {
-    const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
-    if (
-      appendNavigationItemPreviewThumb(previewWrap, item, previewUi, {
-        className: "nav-book-toc-link-preview-img"
-      })
-    ) {
-      return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
+  if (path && isEntryOverviewMediaImageItem(item)) {
+    const wrap = document.createElement("span");
+    wrap.className = "nav-book-toc-link-preview";
+    const mediaPreview = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
+    if (appendNavigationItemPreviewThumb(wrap, item, mediaPreview, { className: "nav-book-toc-link-preview-img" })) {
+      return wrap;
     }
-    const fallback = document.createElement("span");
-    fallback.className = "nav-book-toc-link-filetype-emoji";
-    fallback.textContent = "🖼";
-    fallback.setAttribute("aria-hidden", "true");
-    previewWrap.appendChild(fallback);
-    return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
   }
 
-  const ext = getNavigationItemFileExtension(item);
-  const badge = formatNavigationFileExtensionBadge(ext);
-  previewWrap.classList.add(
-    "nav-book-toc-link-filetype",
-    `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
-  );
-
-  const emoji = document.createElement("span");
-  emoji.className = "nav-book-toc-link-filetype-emoji";
-  emoji.textContent = getMediaIconForItem(item);
-  emoji.setAttribute("aria-hidden", "true");
-  previewWrap.appendChild(emoji);
-
-  if (badge) {
-    const label = document.createElement("span");
-    label.className = "nav-book-toc-link-filetype-ext";
-    label.textContent = badge;
-    previewWrap.appendChild(label);
+  if (showFileTypeLeading) {
+    return createNavBookTocLinkFileTypeLeading(item);
   }
 
-  return showBranch ? wrapNavBookTocMediaLeading(previewWrap) : previewWrap;
+  return null;
+}
+
+function createNavigationMediaBookTocLinkLeading(item, nodePath = activePath, { showBranch = true } = {}) {
+  const previewWrap = createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading: true });
+  if (!previewWrap) return null;
+  if (!showBranch) return previewWrap;
+  return wrapNavBookTocMediaLeading(previewWrap);
+}
+
+function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
+  const showBranch = options.showBranchLeading !== false;
+  const showFileType = options.showFileTypeLeading !== false;
+  const previewWrap = createNavigationBookTocPreviewWrap(item, nodePath, { showFileTypeLeading: showFileType });
+
+  if (
+    previewWrap?.classList.contains("nav-book-toc-link-preview") &&
+    !previewWrap.classList.contains("nav-book-toc-link-filetype") &&
+    previewWrap.querySelector(".nav-book-toc-link-preview-img, .broken-image-placeholder")
+  ) {
+    return previewWrap;
+  }
+
+  if (!showBranch && !showFileType) {
+    return previewWrap;
+  }
+
+  const leadingWrap = document.createElement("span");
+  leadingWrap.className = "nav-book-toc-link-leading";
+  if (showBranch) {
+    leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
+  }
+  if (previewWrap) {
+    leadingWrap.appendChild(previewWrap);
+  } else if (showFileType) {
+    const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
+    if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
+  }
+
+  return leadingWrap.childElementCount ? leadingWrap : null;
 }
 
 function wrapNavBookTocMediaLeading(previewWrap) {
@@ -49034,109 +49065,51 @@ function wrapNavBookTocMediaLeading(previewWrap) {
   return leadingWrap;
 }
 
-function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) {
-  const preview = resolveNavigationItemPreviewUi(item, nodePath);
-  if (preview?.imageUrl && !preview.broken) {
-    const previewWrap = document.createElement("span");
-    previewWrap.className = "nav-book-toc-link-preview";
-    if (appendNavigationItemPreviewThumb(previewWrap, item, preview, { className: "nav-book-toc-link-preview-img" })) {
-      return previewWrap;
-    }
-  }
-
-  const showBranch = options.showBranchLeading !== false;
-  const showFileType = options.showFileTypeLeading !== false;
-  if (!showBranch && !showFileType) {
-    return null;
-  }
-
-  const leadingWrap = document.createElement("span");
-  leadingWrap.className = "nav-book-toc-link-leading";
-  if (showBranch) {
-    leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
-  }
-  if (showFileType) {
-    const fileTypeLeading = createNavBookTocLinkFileTypeLeading(item);
-    if (fileTypeLeading) leadingWrap.appendChild(fileTypeLeading);
-  }
-
-  return leadingWrap.childElementCount ? leadingWrap : null;
-}
-
 function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {}) {
   const status = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
+  const showBranch = handlers.showBranchLeading !== false;
+  const showFileType = handlers.showFileTypeLeading !== false;
+  const useMediaLayout = handlers.linkLeadingMode === "media";
+
+  const previewContent = createNavigationBookTocPreviewWrap(item, nodePath, {
+    showFileTypeLeading: showFileType || useMediaLayout
+  });
+
+  const isThumbPreview =
+    previewContent?.classList.contains("nav-book-toc-link-preview") &&
+    !previewContent.classList.contains("nav-book-toc-link-filetype") &&
+    previewContent.querySelector(".nav-book-toc-link-preview-img, .broken-image-placeholder");
+
   let icon = null;
   let preview = null;
 
-  if (handlers.linkLeadingMode === "media") {
-    const showBranch = handlers.showBranchLeading !== false;
+  if (useMediaLayout) {
+    const leadingWrap = document.createElement("span");
+    leadingWrap.className = "nav-book-toc-link-leading";
     if (showBranch) {
       icon = createNavBookTocLinkIcon({ branch: true });
+      leadingWrap.appendChild(icon);
+      icon = null;
     }
-
-    const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
-    preview = document.createElement("span");
-    preview.className = "nav-book-toc-link-preview";
-
-    if (isEntryOverviewMediaImageItem(item) && path) {
-      const previewUi = { imageUrl: buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL) };
-      if (
-        !appendNavigationItemPreviewThumb(preview, item, previewUi, {
-          className: "nav-book-toc-link-preview-img"
-        })
-      ) {
-        const fallback = document.createElement("span");
-        fallback.className = "nav-book-toc-link-filetype-emoji";
-        fallback.textContent = "🖼";
-        fallback.setAttribute("aria-hidden", "true");
-        preview.appendChild(fallback);
-      }
+    if (previewContent) leadingWrap.appendChild(previewContent);
+    preview = leadingWrap.childElementCount ? leadingWrap : null;
+  } else if (isThumbPreview) {
+    preview = previewContent;
+  } else if (previewContent) {
+    if (showBranch) {
+      const leadingWrap = document.createElement("span");
+      leadingWrap.className = "nav-book-toc-link-leading";
+      leadingWrap.appendChild(createNavBookTocLinkIcon({ branch: true }));
+      leadingWrap.appendChild(previewContent);
+      preview = leadingWrap;
     } else {
-      const ext = getNavigationItemFileExtension(item);
-      const badge = formatNavigationFileExtensionBadge(ext);
-      preview.classList.add(
-        "nav-book-toc-link-filetype",
-        `nav-book-toc-link-filetype--${getNavigationFileTypeTone(ext)}`
-      );
-      const emoji = document.createElement("span");
-      emoji.className = "nav-book-toc-link-filetype-emoji";
-      emoji.textContent = getMediaIconForItem(item);
-      emoji.setAttribute("aria-hidden", "true");
-      preview.appendChild(emoji);
-      if (badge) {
-        const label = document.createElement("span");
-        label.className = "nav-book-toc-link-filetype-ext";
-        label.textContent = badge;
-        preview.appendChild(label);
-      }
+      preview = previewContent;
     }
-
-    if (!icon) {
-      icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
-    }
-
-    return { icon, status, preview };
+  } else if (showBranch) {
+    icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
   }
 
-  const showBranch = handlers.showBranchLeading !== false;
-  const showFileType = handlers.showFileTypeLeading !== false;
-
-  if (showBranch) {
-    icon = createNavBookTocLinkIcon({ branch: true });
-  }
-
-  const previewUi = resolveNavigationItemPreviewUi(item, nodePath);
-  if (previewUi?.imageUrl && !previewUi.broken) {
-    preview = document.createElement("span");
-    preview.className = "nav-book-toc-link-preview";
-    appendNavigationItemPreviewThumb(preview, item, previewUi, {
-      className: "nav-book-toc-link-preview-img"
-    });
-  } else if (showFileType) {
-    preview = createNavBookTocLinkFileTypeLeading(item);
-  }
-
-  if (!icon) {
+  if (!icon && !preview && !useMediaLayout) {
     icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
   }
 
@@ -49172,6 +49145,7 @@ function appendNavigationItemPreviewThumb(
   img.alt = "";
   img.loading = loading;
   img.decoding = "async";
+  img.dataset.originalSrc = rawUrl;
   img.src = imageUrl;
   img.addEventListener("error", () => applyBrokenImagePlaceholder(img, "Превью не найдено"), {
     once: true
@@ -53295,7 +53269,7 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     sectionManifestByFolder,
     onFolderClick,
     onFileClick,
-    showFileTypeLeading: false,
+    showFileTypeLeading: true,
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
@@ -54302,7 +54276,7 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
     folderDescriptions,
     folderStatuses,
     sectionManifestByFolder,
-    showFileTypeLeading: false,
+    showFileTypeLeading: true,
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
@@ -55339,7 +55313,7 @@ function renderNavigationExternalBookToc(
     folderDescriptions,
     folderStatuses,
     sectionManifestByFolder,
-    showFileTypeLeading: false,
+    showFileTypeLeading: true,
     showBranchLeading: false,
     treeStyle: "guide",
     resourceContextMenuMemoryKind: "external",
@@ -64070,7 +64044,9 @@ function getMarkdownIt() {
     const token = tokens[idx];
     const language = (token.info || "").trim().split(/\s+/g)[0];
     if (language === "mermaid") {
-      return `<pre class="mermaid">${token.content.trimEnd()}</pre>\n`;
+      const source = token.content.trimEnd();
+      const encodedSource = encodeURIComponent(source);
+      return `<pre class="mermaid" data-mermaid-source="${encodedSource}">${source}</pre>\n`;
     }
     const fenceBlock = getAwnFenceRenderer(language);
     if (fenceBlock) {
@@ -64268,36 +64244,141 @@ function renderMarkdownToHtml(markdown, { nodePath, hideFrontmatter = false } = 
   }
 }
 
-let mermaidInitialized = false;
 let mermaidTypesetSeq = 0;
 
-function initMermaid() {
-  if (mermaidInitialized) return typeof window.mermaid !== "undefined";
+const MERMAID_BASE_CONFIG = {
+  startOnLoad: false,
+  securityLevel: "loose",
+  fontFamily:
+    'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+};
+
+function initMermaid(theme = "neutral") {
   if (typeof window.mermaid?.initialize !== "function") return false;
   window.mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "loose",
-    theme: "neutral",
-    fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ...MERMAID_BASE_CONFIG,
+    theme: theme === "dark" ? "dark" : "neutral"
   });
-  mermaidInitialized = true;
   return true;
+}
+
+function getMermaidBlockSource(block) {
+  if (!block) return "";
+  const stored = block.getAttribute("data-mermaid-source");
+  if (stored) {
+    try {
+      return decodeURIComponent(stored).trim();
+    } catch {
+      // fall through
+    }
+  }
+  const text = String(block.textContent || "").trim();
+  if (!text || text.startsWith("#mermaid-")) return "";
+  return text;
+}
+
+function mermaidBlockHasRenderedDiagram(block) {
+  const g = block?.querySelector("svg g");
+  return Boolean(g?.innerHTML?.trim());
+}
+
+function ensureMermaidDiagramFrame(block) {
+  const existing = block.closest(".mermaid-diagram-frame");
+  if (existing) return existing;
+
+  const frame = document.createElement("div");
+  frame.className = "mermaid-diagram-frame";
+  frame.dataset.mermaidTheme = "light";
+  block.parentNode?.insertBefore(frame, block);
+  frame.appendChild(block);
+  return frame;
+}
+
+function syncMermaidThemeToggleUi(frame) {
+  const btn = frame.querySelector(".mermaid-diagram-theme-btn");
+  if (!btn) return;
+  const isDark = frame.dataset.mermaidTheme === "dark";
+  btn.classList.toggle("is-dark-active", isDark);
+  btn.title = isDark ? "Светлый фон" : "Тёмный фон";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", isDark ? "true" : "false");
+}
+
+function ensureMermaidThemeToggle(frame, block) {
+  let btn = frame.querySelector(".mermaid-diagram-theme-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-theme-btn";
+    btn.innerHTML =
+      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9.5 1.8a5.2 5.2 0 1 0 4.7 4.7 4.1 4.1 0 0 1-4.7-4.7z"/></svg>' +
+      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.3 3.3l1.3 1.3M11.4 11.4l1.3 1.3M3.3 12.7l1.3-1.3M11.4 4.6l1.3-1.3"/></svg>';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void toggleMermaidDiagramTheme(frame, block);
+    });
+    frame.appendChild(btn);
+  }
+  syncMermaidThemeToggleUi(frame);
+  return btn;
+}
+
+async function renderMermaidBlock(block, theme = "light") {
+  const source = getMermaidBlockSource(block);
+  if (!source) return false;
+
+  const frame = ensureMermaidDiagramFrame(block);
+  frame.dataset.mermaidTheme = theme;
+  frame.classList.toggle("is-dark", theme === "dark");
+  ensureMermaidThemeToggle(frame, block);
+
+  block.dataset.mermaidSource = source;
+  block.removeAttribute("data-processed");
+  block.dataset.mermaidRendered = "0";
+
+  if (!initMermaid(theme === "dark" ? "dark" : "neutral")) return false;
+
+  try {
+    const renderId = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const { svg, bindFunctions } = await window.mermaid.render(renderId, source);
+    block.innerHTML = svg;
+    bindFunctions?.(block);
+    block.dataset.mermaidRendered = "1";
+    block.setAttribute("data-processed", "true");
+    return true;
+  } catch (error) {
+    console.warn("Mermaid render failed:", error);
+    return false;
+  }
+}
+
+async function toggleMermaidDiagramTheme(frame, block) {
+  const nextTheme = frame.dataset.mermaidTheme === "dark" ? "light" : "dark";
+  block.dataset.mermaidRendered = "0";
+  await renderMermaidBlock(block, nextTheme);
 }
 
 async function typesetMarkdownDiagrams(rootNode) {
   const root = rootNode instanceof Element ? rootNode : null;
   if (!root) return;
-  const blocks = root.querySelectorAll("pre.mermaid");
+
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+
+  const blocks = [...root.querySelectorAll("pre.mermaid")].filter((block) => {
+    if (block.dataset.mermaidRendered === "1" && mermaidBlockHasRenderedDiagram(block)) return false;
+    return Boolean(getMermaidBlockSource(block));
+  });
   if (!blocks.length) return;
-  if (!initMermaid()) return;
 
   const seq = ++mermaidTypesetSeq;
-  try {
-    await window.mermaid.run({ nodes: [...blocks] });
-  } catch (error) {
+  for (const block of blocks) {
     if (seq !== mermaidTypesetSeq) return;
-    console.warn("Mermaid render failed:", error);
+    const frame = block.closest(".mermaid-diagram-frame");
+    const theme = frame?.dataset.mermaidTheme === "dark" ? "dark" : "light";
+    await renderMermaidBlock(block, theme);
   }
 }
 
