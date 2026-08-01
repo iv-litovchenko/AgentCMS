@@ -24734,8 +24734,22 @@ button.node-navigation-hub-rail-slot-summary {
   min-width: 0;
 }
 
-.node-navigation-hero-body > .node-navigation-hero-path {
+.node-navigation-hero-body > .node-navigation-hero-path,
+.node-navigation-hero-body > .node-navigation-hero-type-path {
   margin: 0;
+}
+
+.node-navigation-hero-body > .node-navigation-hero-type-path {
+  align-self: flex-start;
+}
+
+.node-navigation-hero-body > .node-navigation-hero-body-dates {
+  align-self: stretch;
+  width: 100%;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  gap: 4px 14px;
 }
 
 .node-navigation-hero-body > .node-entry-overview-kind {
@@ -24779,17 +24793,45 @@ button.node-navigation-hub-rail-slot-summary {
 .node-navigation-hero-footer-meta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
-.node-navigation-hero-footer-blurb + .node-navigation-hero-footer-meta {
-  margin-top: 6px;
+.node-navigation-hero-footer-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.node-navigation-hero-footer-blurb + .node-navigation-hero-footer-meta,
+.node-navigation-hero-footer-blurb + .node-navigation-hero-footer-meta-row {
+  margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed rgba(148, 163, 184, 0.28);
 }
 
+.node-navigation-hero-footer-meta-row .node-navigation-hero-meta-markers {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.node-navigation-hero-footer-meta-row .node-navigation-hero-marker-block {
+  width: auto;
+}
+
 .node-navigation-hero-footer-meta .node-navigation-hero-meta-markers {
   margin-top: 0;
+}
+
+.node-entry-overview-browse-panel > .node-entry-overview-browse-hero-nav.node-navigation-manifest-nav {
+  margin: 0 0 10px;
+  border-radius: 10px;
+}
+
+.node-navigation-hero > .node-entry-overview-record-parts-fold {
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .node-navigation-hero-marker-block {
@@ -26968,15 +27010,17 @@ button.node-navigation-memory-title:focus-visible {
   border: 0;
   background: transparent;
   padding: 4px 2px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #dc2626;
 }
 
 .node-navigation-manifest-actions .node-navigation-expand-btn:hover {
   background: transparent;
   border-color: transparent;
-  color: #1d4ed8;
+  color: #b91c1c;
 }
 
 .node-navigation-memory-body .file-content-preview p,
@@ -28844,7 +28888,14 @@ button.node-navigation-memory-title:focus-visible {
 
 .editor-title-field--slug {
   align-items: stretch;
-  padding: 8px 14px 10px;
+  padding: 8px 14px 4px;
+}
+
+.editor-title-field--description {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  padding: 2px 14px 10px;
 }
 
 .editor-title-field:last-child {
@@ -28925,6 +28976,70 @@ button.node-navigation-memory-title:focus-visible {
   background: #f8fafc;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   padding-right: 34px;
+}
+
+.editor-title-bar .slug-input-row--badged {
+  display: flex;
+  align-items: stretch;
+}
+
+.editor-title-bar .slug-input-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: #eef2f7;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #64748b;
+  line-height: 1.35;
+  user-select: none;
+}
+
+.editor-title-bar .slug-input-row--badged .slug-input--badged {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  border-radius: 0 6px 6px 0;
+  padding-left: 8px;
+}
+
+.editor-title-bar .slug-input-row--badged:focus-within .slug-input-badge {
+  border-color: #60a5fa;
+  background: #fff;
+}
+
+.editor-title-bar .title-description-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #334155;
+  resize: vertical;
+  min-height: 46px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+}
+
+.editor-title-bar .title-description-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+  outline: none;
+}
+
+.editor-title-bar .title-description-input:disabled {
+  color: #64748b;
+  background: #f8fafc;
+  cursor: not-allowed;
 }
 
 .editor-title-bar .title-input:focus,

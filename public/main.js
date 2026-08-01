@@ -704,6 +704,8 @@ const titleInputNode = document.getElementById("title-input");
 const titleSlugRowNode = document.getElementById("title-slug-row");
 const titleSlugInputNode = document.getElementById("title-slug-input");
 const titleSlugUnlinkBtn = document.getElementById("title-slug-unlink-btn");
+const titleDescriptionRowNode = document.getElementById("title-description-row");
+const titleDescriptionInputNode = document.getElementById("title-description-input");
 const titleMediaExtNode = document.getElementById("title-media-ext");
 const titleFixedValueNode = document.getElementById("title-fixed-value");
 const titleFixedTextNode = document.getElementById("title-fixed-text");
@@ -987,7 +989,8 @@ const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
 const DEFAULT_DOC_VERSION = "0.0.2";
 const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
 const DOCUMENTATION_AGENT_ID = "agent-cms-core";
-const DOCUMENTATION_TOPIC_DIR = "documentations";
+const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
+const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
 const userDocsCacheByVersion = Object.create(null);
 let userDocsVersion = DEFAULT_DOC_VERSION;
 let docsMetaCache = null;
@@ -3132,8 +3135,9 @@ function buildDocumentationApiUrl(apiPath, params = {}) {
 
 function resolveDocumentationTopicPath(relPath) {
   const rel = String(relPath || "").replace(/^\/+/, "");
-  if (!rel) return DOCUMENTATION_TOPIC_DIR;
-  return rel.startsWith(`${DOCUMENTATION_TOPIC_DIR}/`) ? rel : `${DOCUMENTATION_TOPIC_DIR}/${rel}`;
+  if (!rel) return `${DOCUMENTATION_TOPIC_DIR}/${DOCUMENTATION_MAIN_SLOT}`;
+  if (rel.startsWith(`${DOCUMENTATION_TOPIC_DIR}/`)) return rel;
+  return `${DOCUMENTATION_TOPIC_DIR}/${DOCUMENTATION_MAIN_SLOT}/${rel}`;
 }
 
 async function fetchDocumentationTopicMarkdown(topicPath) {
@@ -33181,6 +33185,11 @@ function setTitleLockedInput(label) {
   if (titleFixedTextNode) titleFixedTextNode.textContent = "";
   placeTitleFixedInTitleRow();
   titleSlugRowNode?.classList.add("hidden");
+  titleDescriptionRowNode?.classList.add("hidden");
+  if (titleDescriptionInputNode) {
+    titleDescriptionInputNode.value = "";
+    titleDescriptionInputNode.disabled = true;
+  }
 }
 
 function syncTitleInputEditableState() {
@@ -33222,6 +33231,7 @@ function showTitleEditableInput() {
   if (titleFixedTextNode) titleFixedTextNode.textContent = "";
   placeTitleFixedInTitleRow();
   showTitleSlugRow();
+  showTitleDescriptionRow();
 }
 
 function resetTitleInputState() {
@@ -33255,6 +33265,7 @@ function syncMediaSidecarTitleFields() {
     titleSlugLinked = false;
     applyTitleSlugLinkedUi();
     titleSlugRowNode?.classList.add("hidden");
+    syncTitleDescriptionFromNode(filePath);
     return;
   }
   if (!isMediaSidecarEditing() || !activeMediaSidecarSourcePath || !titleInputNode) return;
@@ -33276,6 +33287,7 @@ function syncMediaSidecarTitleFields() {
   titleSlugLinked = false;
   applyTitleSlugLinkedUi();
   showTitleSlugRow(filePath);
+  syncTitleDescriptionFromNode(filePath);
 }
 
 function getMediaSidecarFileName(filePath = activeMediaSidecarSourcePath) {
@@ -37320,7 +37332,7 @@ function normalizePropsEntries(entries) {
   return [...map.values()];
 }
 
-const HIDDEN_PROPS_FIELD_KEYS = new Set(["title", "awn-name"]);
+const HIDDEN_PROPS_FIELD_KEYS = new Set(["title", "awn-name", "awn-description"]);
 
 function ensureAwnContextDefaults(entries) {
   const map = new Map();
@@ -43067,6 +43079,7 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
       propsFormFieldsNode.replaceChildren();
     }
   }
+  syncTitleDescriptionFromNode(getActiveTitleEditorPath());
 }
 
 function isPropsFormDomMounted() {
@@ -43249,6 +43262,7 @@ function normalizePropsEntriesAssetRefs(entries) {
 }
 
 function flushPropsYamlFromFormBeforeSave() {
+  syncDescriptionIntoAwnDescriptionProp();
   if (propsRawYamlVisible) {
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
   } else if (isPropsFormDomMounted()) {
@@ -43260,6 +43274,7 @@ function flushPropsYamlFromFormBeforeSave() {
 
 function buildNodeManifestContent() {
   syncDisplayNameIntoAwnNameProp(activePath);
+  syncDescriptionIntoAwnDescriptionProp(activePath);
   flushPropsYamlFromFormBeforeSave();
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
 }
@@ -43310,6 +43325,7 @@ async function applyStorageFileContentUi(rawContent, { mode = "external" } = {})
 function buildExternalFileContent() {
   if (activeExternalFilePath) {
     syncDisplayNameIntoAwnNameProp(activeExternalFilePath);
+    syncDescriptionIntoAwnDescriptionProp(activeExternalFilePath);
   }
   flushPropsYamlFromFormBeforeSave();
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
@@ -43337,8 +43353,10 @@ function syncSectionReadmeDisplayNameIntoProps(displayName) {
 function buildMediaSidecarContent() {
   if (activeMediaMarkdownPath) {
     syncDisplayNameIntoAwnNameProp(activeMediaMarkdownPath);
+    syncDescriptionIntoAwnDescriptionProp(activeMediaMarkdownPath);
   } else if (isMediaSidecarEditing() && activeMediaSidecarSourcePath) {
     syncDisplayNameIntoAwnNameProp(activeMediaSidecarSourcePath);
+    syncDescriptionIntoAwnDescriptionProp(activeMediaSidecarSourcePath);
   }
   flushPropsYamlFromFormBeforeSave();
   return joinFrontmatter(propsInputNode.value, fileContentInputNode.value);
@@ -45673,19 +45691,32 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
   );
 }
 
+function createNavigationHeroTypePathRow(typeLabel = "") {
+  const row = document.createElement("p");
+  row.className = "node-navigation-hero-path node-navigation-hero-type-path";
+  const value = String(typeLabel || "").trim();
+  row.textContent = value ? `type: ${value}` : "type: —";
+  return row;
+}
+
 function createNavigationHeroFooterMeta(nodePath, options = {}) {
+  const row = document.createElement("div");
+  row.className = "node-navigation-hero-footer-meta-row";
+
   const settingsChips = createNodeSettingsHeroSlotList(options.settingsSlots || []);
+  if (settingsChips) row.appendChild(settingsChips);
+
   const markersRow =
     options.showWorkspaceMarkers !== false
       ? createNavigationHeroMarkersRow(nodePath, options)
       : null;
+  if (markersRow) row.appendChild(markersRow);
 
-  if (!settingsChips && !markersRow) return null;
+  if (!row.childElementCount) return null;
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-hero-footer-meta";
-  if (settingsChips) wrap.appendChild(settingsChips);
-  if (markersRow) wrap.appendChild(markersRow);
+  wrap.appendChild(row);
   return wrap;
 }
 
@@ -45754,16 +45785,12 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     body.append(headerRow, pathNode);
 
     if (options.typeLabel) {
-      const typeNode = document.createElement("span");
-      typeNode.className = `node-entry-overview-kind${
-        options.kindClass ? ` node-entry-overview-kind--${options.kindClass}` : ""
-      }`;
-      typeNode.textContent = options.typeLabel;
-      body.appendChild(typeNode);
+      body.appendChild(createNavigationHeroTypePathRow(options.typeLabel));
     }
 
     const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
     if (datesPanel.childElementCount > 0) {
+      datesPanel.classList.add("node-navigation-hero-body-dates");
       body.appendChild(datesPanel);
     }
   }
@@ -45781,7 +45808,7 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
 
   if (options.showWorkspaceMarkers !== false) {
     const description = resolveNavigationHeroDescription(options);
-    const footerMeta = createNavigationHeroFooterMeta(nodePath, options);
+    const footerMeta = createNavigationHeroFooterMeta(nodePath, { ...options, compact });
     const hasDescription = Boolean(description);
 
     const footer = document.createElement("div");
@@ -51574,19 +51601,28 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
   }
 }
 
-async function appendEntryOverviewRecordPartsPanel(hero, context) {
+async function appendEntryOverviewRecordPartsPanel(hero, context, mount = hero, isStale = () => false) {
   const panel = await renderEntryOverviewRecordPartsPart(context);
-  if (!panel || !hero) return null;
+  if (!panel || isStale()) return null;
+
+  let host = hero;
+  if (!host?.isConnected) {
+    host = mount?.querySelector?.(".node-navigation-hero") || mount;
+  }
+  if (!host?.isConnected) return null;
+
   const anchor =
-    hero.querySelector(".node-entry-overview-attachments") ||
+    host.querySelector(".node-entry-overview-attachments") ||
+    host.querySelector(".node-navigation-hero-instruction-fold") ||
     [
-      ...hero.querySelectorAll(
-        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold"
+      ...host.querySelectorAll(
+        ".node-overview-props-fold:not(.node-entry-overview-record-parts-fold), .node-overview-custom-props-fold"
       )
     ].pop() ||
+    host.querySelector(".node-navigation-hero-footer") ||
     null;
   if (anchor) anchor.insertAdjacentElement("afterend", panel);
-  else hero.appendChild(panel);
+  else host.appendChild(panel);
   return panel;
 }
 
@@ -52093,7 +52129,7 @@ function appendEntryOverviewBrowsePanel(
   hub,
   context,
   navigationIndex,
-  { isMemoryTocRoot = false, slotFolderMissing = null } = {}
+  { isMemoryTocRoot = false, slotFolderMissing = null, browseNavOptions = null } = {}
 ) {
   const panel = createEntryOverviewBrowsePanel(context, navigationIndex, {
     isMemoryTocRoot,
@@ -52101,6 +52137,9 @@ function appendEntryOverviewBrowsePanel(
   });
   if (!panel) return null;
   const mounted = mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot });
+  if (mounted && browseNavOptions) {
+    prependEntryOverviewBrowseHeroNav(mounted, browseNavOptions);
+  }
   if (mounted && slotFolderMissing == null) {
     void syncEntryOverviewBrowseSlotFolderAction(
       mounted,
@@ -53030,6 +53069,64 @@ function resolveEntryOverviewUpNavigation(context) {
     return { kind: "folder", folderPath: parentFolder };
   }
   return { kind: "toc" };
+}
+
+function buildEntryOverviewSlotTocNavOptions(context, topicPath = activePath) {
+  if (!context || !isEntryOverviewMemoryTocRoot(context)) return null;
+
+  const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter(
+    (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
+  );
+  const currentKind = String(context.memoryKind || "").trim();
+  const currentIndex = overviewSpecs.findIndex((spec) => {
+    const kind = getEntryOverviewMemoryKindForSlot(spec);
+    return kind === currentKind || spec.key === currentKind || spec.defaultMode === currentKind;
+  });
+
+  const prevSpec = currentIndex > 0 ? overviewSpecs[currentIndex - 1] : null;
+  const nextSpec =
+    currentIndex >= 0 && currentIndex < overviewSpecs.length - 1
+      ? overviewSpecs[currentIndex + 1]
+      : null;
+
+  const openSlotToc = (spec) => {
+    if (!spec) return;
+    openEntryOverviewMemoryTocFromNavigation(getEntryOverviewMemoryKindForSlot(spec) || spec.defaultMode);
+  };
+
+  const topicLabel = getEntryOverviewTopicTitle();
+  const resolvedTopicPath = getResolvedNodePath(topicPath) || getActiveNodeApiPath() || activePath;
+
+  return {
+    prevItem: prevSpec ? { title: prevSpec.label, label: prevSpec.label, path: prevSpec.key } : null,
+    nextItem: nextSpec ? { title: nextSpec.label, label: nextSpec.label, path: nextSpec.key } : null,
+    onFileClick: (item) => {
+      const spec = overviewSpecs.find((entry) => entry.key === item?.path);
+      openSlotToc(spec);
+    },
+    onUpClick: resolvedTopicPath
+      ? () => {
+          void openNodeNavigation(topicLabel, resolvedTopicPath);
+        }
+      : null,
+    upTitle: topicLabel || "Тема",
+    ariaLabel: "Навигация по слотам данных"
+  };
+}
+
+function prependEntryOverviewBrowseHeroNav(panel, navOptions) {
+  if (!panel || !navOptions) return null;
+  const nav = createEntryOverviewSiblingNav({
+    ...navOptions,
+    variant: "manifest",
+    ariaLabel: navOptions.ariaLabel || "Навигация по записям раздела"
+  });
+  if (!nav) return null;
+  nav.classList.add("node-entry-overview-browse-hero-nav");
+  const toolbar = panel.querySelector(":scope > .node-entry-overview-browse-toolbar");
+  if (toolbar) panel.insertBefore(nav, toolbar);
+  else panel.prepend(nav);
+  return nav;
 }
 
 function buildEntryOverviewSiblingNavOptions(context, navigationIndex) {
@@ -54230,9 +54327,11 @@ async function renderEntryOverview() {
       if (isStale()) return;
       slotFolderMissing = !slotFolderExists;
     }
+    const slotTocNav = buildEntryOverviewSlotTocNavOptions(context, topicPath);
     appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, {
       isMemoryTocRoot: true,
-      slotFolderMissing
+      slotFolderMissing,
+      browseNavOptions: slotTocNav
     });
 
     if (!isArea) {
@@ -54290,6 +54389,7 @@ async function renderEntryOverview() {
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
   const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
+  const entryTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
   const showHeroUnread = isMemoryTocRoot
     ? isNodePageUnread(manifestApiPath)
     : isNodeContentUnread(
@@ -54306,14 +54406,15 @@ async function renderEntryOverview() {
       : createNavigationHero(preview, title, context.relPath, {
           meta: nodeMeta,
           propEntries: entries,
+          descriptionRaw: rawBody,
+          typeLabel: entryTypeLabel,
           pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath),
           slugIssue: getEntryOverviewSlugIssue(context),
           compact: isBundleEntryOverview,
           thumbWrap: isBundleEntryOverview
             ? null
             : createEntryOverviewThumbWrap(context, preview, title, entries),
-          showWorkspaceMarkers: false,
-          showHeroProps: false,
+          showHeroInstruction: false,
           showUnread: showHeroUnread,
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav
@@ -54327,7 +54428,8 @@ async function renderEntryOverview() {
     if (isStale()) return;
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
-  await appendEntryOverviewRecordPartsPanel(hero, context);
+  await appendEntryOverviewRecordPartsPanel(hero, context, hubMain, isStale);
+  if (isStale()) return;
   appendEntryOverviewSectionReadmeOffer(hubMain, context, {
     navigationIndex,
     manifestBodyFetchOk
@@ -55629,7 +55731,7 @@ function buildNavigationAgentInstructionContent(manifestRaw = "", heroTitle = ""
     const expandBtn = document.createElement("button");
     expandBtn.type = "button";
     expandBtn.className = "node-navigation-expand-btn node-overview-action-btn";
-    expandBtn.textContent = "Читать все";
+    expandBtn.textContent = "ЧИТАТЬ ВСЕ";
     expandBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       if (
@@ -62765,11 +62867,13 @@ async function renderNodeNavigation() {
   hubMain.className = "node-navigation-hub-main";
 
   const topicSiblingNav = buildTopicSiblingNavOptions(nodePath);
+  const topicTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
 
   const hero = createNavigationHero(preview, heroTitle, nodePath, {
     meta: nodeMeta,
     propEntries: entries,
     descriptionRaw: modeContentCache.description || "",
+    typeLabel: topicTypeLabel,
     showHeroInstruction: true,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
@@ -66084,6 +66188,7 @@ function syncTitleFieldsFromNode(nodePath = getActiveTitleEditorPath()) {
     syncTitleSlugFromDisplayName();
   }
   showTitleSlugRow(nodePath);
+  syncTitleDescriptionFromNode(nodePath);
 }
 
 function getNodeSlugFromPath(filePath) {
@@ -66152,6 +66257,70 @@ function syncDisplayNameIntoAwnNameProp(
     (entry) => normalizePropsKey(entry.key) === "title"
   );
   if (legacyVisibleTitleIndex >= 0) propsFormEntries.splice(legacyVisibleTitleIndex, 1);
+}
+
+function getAwnDescriptionRawForNode(nodePath = activePath) {
+  if (!nodePath) return "";
+  const hiddenEntry = propsFormHiddenEntries.find(
+    (item) => normalizePropsKey(item?.key) === "awn-description"
+  );
+  if (hiddenEntry) return String(hiddenEntry.value ?? "");
+  const visibleEntry = propsFormEntries.find(
+    (item) => normalizePropsKey(item?.key) === "awn-description"
+  );
+  if (visibleEntry) return String(visibleEntry.value ?? "");
+  return getYamlScalarFromFrontmatter(propsInputNode?.value || "", "awn-description");
+}
+
+function syncDescriptionIntoAwnDescriptionProp(
+  nodePath = activePath ||
+    activeExternalFilePath ||
+    activeFlatStorageFilePath ||
+    activeMediaMarkdownPath ||
+    activeMediaSidecarSourcePath
+) {
+  if (!titleDescriptionInputNode || titleDescriptionInputNode.disabled) return;
+  if (activeContentMode === "description" && isTitleLockedNodePath(nodePath)) return;
+  const valueToStore = String(titleDescriptionInputNode.value ?? "")
+    .replace(/^\s+/, "")
+    .replace(/\s+$/, "");
+
+  const upsertHidden = (key, value) => {
+    const index = propsFormHiddenEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+    const nextEntry = { key, kind: "string", value };
+    if (index >= 0) propsFormHiddenEntries[index] = nextEntry;
+    else propsFormHiddenEntries.push(nextEntry);
+  };
+
+  upsertHidden("awn-description", valueToStore);
+  const visibleIndex = propsFormEntries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === "awn-description"
+  );
+  if (visibleIndex >= 0) propsFormEntries.splice(visibleIndex, 1);
+}
+
+function isTitleDescriptionRowVisible(nodePath = getActiveTitleEditorPath()) {
+  if (!nodePath) return false;
+  if (activeContentMode === "description") {
+    return !isPartNodePath(nodePath);
+  }
+  return isTitleSlugRowVisible(nodePath);
+}
+
+function showTitleDescriptionRow(nodePath = getActiveTitleEditorPath()) {
+  if (!titleDescriptionRowNode || !titleDescriptionInputNode) return;
+  const visible = isTitleDescriptionRowVisible(nodePath);
+  titleDescriptionRowNode.classList.toggle("hidden", !visible);
+  if (!visible) return;
+  const readOnly = isPropsFormReadOnly();
+  titleDescriptionInputNode.disabled = readOnly;
+  titleDescriptionInputNode.readOnly = readOnly;
+}
+
+function syncTitleDescriptionFromNode(nodePath = getActiveTitleEditorPath()) {
+  if (!titleDescriptionInputNode) return;
+  titleDescriptionInputNode.value = getAwnDescriptionRawForNode(nodePath);
+  showTitleDescriptionRow(nodePath);
 }
 
 function getNodeDisplayPath(nodePath) {
@@ -79600,12 +79769,12 @@ function appendComponentsIdeasGallery(container, images) {
 
   const gallery = document.createElement("div");
   gallery.className = "components-ideas-gallery";
-  gallery.setAttribute("aria-label", "Изображения из workspaces/agent-cms-core/documentations/images");
+  gallery.setAttribute("aria-label", "Изображения из dokumentatsii/awn-storage/assets");
 
   if (!images.length) {
     const empty = document.createElement("p");
     empty.className = "components-ideas-gallery-empty";
-    empty.textContent = "Папка workspaces/agent-cms-core/documentations/images пуста — положите сюда .png, .jpg, .webp …";
+    empty.textContent = "Папка dokumentatsii/awn-storage/assets пуста — положите сюда .png, .jpg, .webp …";
     gallery.appendChild(empty);
     container.appendChild(gallery);
     return;
@@ -80267,6 +80436,11 @@ titleSlugInputNode?.addEventListener("input", () => {
 });
 titleSlugUnlinkBtn?.addEventListener("click", () => {
   setTitleSlugLinked(!titleSlugLinked);
+  syncSaveButtonLamp();
+});
+titleDescriptionInputNode?.addEventListener("input", () => {
+  syncDescriptionIntoAwnDescriptionProp();
+  syncYamlFromPropsForm();
   syncSaveButtonLamp();
 });
 createNameInputNode?.addEventListener("input", () => {

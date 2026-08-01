@@ -17,9 +17,16 @@ const mcpByVersion = {
 };
 
 const DOCS_AGENT_FOLDER = "agent-cms-core";
-const DOCS_TOPIC_DIR = "documentations";
-const USER_DOCS_DIR = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER, DOCS_TOPIC_DIR);
-const PUBLIC_IMAGES_DIR = path.join(USER_DOCS_DIR, "images");
+const DOCS_TOPIC_DIR = "dokumentatsii";
+const DOCS_MAIN_SLOT = "awn-storage/main";
+const USER_DOCS_DIR = path.join(__dirname, "workspaces", DOCS_AGENT_FOLDER, DOCS_TOPIC_DIR, DOCS_MAIN_SLOT);
+const PUBLIC_IMAGES_DIR = path.join(
+  __dirname,
+  "workspaces",
+  DOCS_AGENT_FOLDER,
+  DOCS_TOPIC_DIR,
+  "awn-storage/assets"
+);
 const DOCUMENTATION_AGENT_ID = DOCS_AGENT_FOLDER;
 
 function normalizeDocVersion(version) {
@@ -75,15 +82,16 @@ function getPublicImagesDir() {
 
 function resolveDocumentationTopicPath(relPath) {
   const rel = String(relPath || "").replace(/^\/+/, "");
-  if (!rel) return DOCS_TOPIC_DIR;
-  return rel.startsWith(`${DOCS_TOPIC_DIR}/`) ? rel : `${DOCS_TOPIC_DIR}/${rel}`;
+  if (!rel) return `${DOCS_TOPIC_DIR}/${DOCS_MAIN_SLOT}`;
+  if (rel.startsWith(`${DOCS_TOPIC_DIR}/`)) return rel;
+  return `${DOCS_TOPIC_DIR}/${DOCS_MAIN_SLOT}/${rel}`;
 }
 
 function isDocumentationTopicMdRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized.startsWith(`${DOCS_TOPIC_DIR}/`)) return false;
+  const mainPrefix = `${DOCS_TOPIC_DIR}/${DOCS_MAIN_SLOT}/`;
+  if (!normalized.startsWith(mainPrefix)) return false;
   if (!normalized.toLowerCase().endsWith(".md")) return false;
-  if (/(?:^|\/)awn-storage\//i.test(normalized)) return false;
   if (/(?:^|\/)comments\//i.test(normalized)) return false;
   return true;
 }

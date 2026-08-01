@@ -49,7 +49,7 @@ agent-cms-core/                         awn.page.ws
 │   ├── slots/     → awn.slot.*
 │   ├── fields/    → awn.string …
 │   └── md-blocks/ → awn.block.*
-├── documentations/                     area · документация
+├── dokumentatsii/                      topic · документация (main slot)
 ├── runtime/                            area · loaders, API
 ├── catalog/                            area · глобальные справочники
 ├── examples/                           area · демо

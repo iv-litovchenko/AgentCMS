@@ -1,17 +1,16 @@
 {
   "order": [
     "types",
-    "documentations",
     "catalog",
     "agents",
     "agents-groups",
-    "platform-map",
-    "agent-groups",
-    "ideasmd",
-    "delaem",
     "components",
-    "types-of-components",
     "settings",
-    "workflows"
+    "workflows",
+    "ideasmd",
+    "zagotovki-i-shablony",
+    "dokumentatsii",
+    "zadachi-plany-i-idei",
+    "sayt-platformy"
   ]
 }
