@@ -76791,47 +76791,33 @@ function renderHomeWorkspaceManifestSection(payload) {
   const bodyTrimmed = stripAwnDescCallouts(body).trim();
 
   const article = document.createElement("article");
-  article.className = "home-workspace-manifest-card home-card";
+  article.className = "home-workspace-manifest-card";
 
   const head = document.createElement("div");
   head.className = "home-workspace-manifest-head";
 
   const icon = document.createElement("span");
-  icon.className = "home-card-icon home-workspace-manifest-icon";
+  icon.className = "home-workspace-manifest-icon";
   icon.textContent = emoji || "🏠";
   icon.setAttribute("aria-hidden", "true");
 
   const copy = document.createElement("div");
   copy.className = "home-workspace-manifest-copy";
 
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "home-workspace-manifest-eyebrow";
-  eyebrow.textContent = "awn.page.ws · manifest.md";
-
   const title = document.createElement("h3");
-  title.className = "home-card-title home-workspace-manifest-title";
+  title.className = "home-workspace-manifest-title";
   title.textContent = name;
 
-  copy.append(eyebrow, title);
+  copy.appendChild(title);
 
   if (description) {
     const desc = document.createElement("p");
-    desc.className = "home-card-text home-workspace-manifest-description";
+    desc.className = "home-workspace-manifest-description";
     desc.textContent = description;
     copy.appendChild(desc);
   }
 
-  const openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.className = "home-workspace-manifest-open-btn";
-  openBtn.textContent = "Открыть manifest";
-  openBtn.title = payload.path;
-  openBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    void openNodeFromMenu(getLabelFromPath(payload.path), payload.path);
-  });
-
-  head.append(icon, copy, openBtn);
+  head.append(icon, copy);
   article.appendChild(head);
 
   if (bodyTrimmed) {
@@ -76859,8 +76845,8 @@ async function refreshHomeWorkspaceManifestSection(agentId = activeAgentId) {
   homeWorkspaceManifestNode.replaceChildren();
 
   const loading = document.createElement("article");
-  loading.className = "home-workspace-manifest-card home-card home-workspace-manifest-card--loading";
-  loading.textContent = "Загрузка manifest.md…";
+  loading.className = "home-workspace-manifest-card home-workspace-manifest-card--loading";
+  loading.textContent = "Загрузка…";
   homeWorkspaceManifestNode.appendChild(loading);
 
   try {
