@@ -6,7 +6,7 @@ awn-name: Тест ссылок
 awn-status: draft
 awn-type: awn.page.topic
 awn-create: "2026-07-25T01:45"
-awn-update: 2026-08-02T01:17:08.451Z
+awn-update: 2026-08-02T01:16:51.975Z
 awn-description: ""
 awn-main: false
 awn-category: ""
@@ -14,7 +14,7 @@ awn-owner: ""
 awn-priority: ""
 awn-tags: []
 awn-color: ""
-awn-version: 15
+awn-version: 14
 awn-sort: 0
 awn-runtime-load-always: true
 awn-runtime-cron: true
@@ -22,5 +22,5 @@ awn-runtime-cron-schedule: "*/30 * * * *"
 awn-runtime-heartbeat: true
 awn-runtime-commands: true
 field_test_ws_merge: ""
-awn-attachments: []
+awn-attachments: awn-storage/assets/attachments/snimok-ekrana-2026-08-01-v-113817-20260802011647.png
 ---

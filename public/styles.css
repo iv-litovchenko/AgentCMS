@@ -44604,12 +44604,87 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: #1d4ed8;
 }
 
-.menu-static-google-drive-stats.is-empty {
-  color: #64748b;
-  font-weight: 500;
+.menu-static-google-drive-stats--summary {
+  flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #2563eb;
+  white-space: nowrap;
 }
 
-.menu-static-google-drive-stats.is-error {
+.menu-static-section--google-drive > .menu-static-summary .menu-static-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menu-static-google-drive-stats.is-empty,
+.menu-static-google-drive-stats--summary.is-empty {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.menu-static-google-drive-stats.is-error,
+.menu-static-google-drive-stats--summary.is-error {
+  color: #b91c1c;
+}
+
+.menu-google-drive-files {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.menu-google-drive-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.28);
+}
+
+.menu-google-drive-file-row:last-child {
+  border-bottom: 0;
+}
+
+.menu-google-drive-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #1e3a5f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.menu-google-drive-file-size {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.menu-google-drive-files-empty {
+  margin: 0;
+  padding: 4px 0 2px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #64748b;
+  list-style: none;
+}
+
+.menu-google-drive-files-empty.is-error {
   color: #b91c1c;
 }
 

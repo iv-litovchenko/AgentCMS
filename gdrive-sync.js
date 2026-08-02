@@ -589,6 +589,7 @@ function createGdriveSyncHelpers(deps) {
     const folderAbsolute = getGoogleDriveFolderAbsolute(agentRoot);
     let fileCount = 0;
     let totalBytes = 0;
+    const files = [];
 
     async function walk(dirAbsolute) {
       let entries;
@@ -601,6 +602,7 @@ function createGdriveSyncHelpers(deps) {
 
       for (const entry of entries) {
         if (entry.name === ".DS_Store") continue;
+        if (entry.name === AWN_GOOGLE_DRIVE_REGISTRY_FILE) continue;
         const entryAbsolute = path.join(dirAbsolute, entry.name);
         if (entry.isDirectory()) {
           await walk(entryAbsolute);
@@ -608,14 +610,21 @@ function createGdriveSyncHelpers(deps) {
         }
         if (!entry.isFile()) continue;
         fileCount += 1;
+        let size = 0;
         try {
           const stat = await fs.stat(entryAbsolute);
-          totalBytes += Number(stat.size) || 0;
+          size = Number(stat.size) || 0;
+          totalBytes += size;
         } catch {
           // ignore unreadable entries
         }
+        files.push({ name: entry.name, size });
       }
     }
+
+    files.sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), "ru", { sensitivity: "base", numeric: true })
+    );
 
     try {
       await fs.access(folderAbsolute);
@@ -624,7 +633,8 @@ function createGdriveSyncHelpers(deps) {
         path: AWN_GOOGLE_DRIVE_DIR,
         exists: true,
         fileCount,
-        totalBytes
+        totalBytes,
+        files
       };
     } catch (error) {
       if (error?.code === "ENOENT") {
@@ -632,7 +642,8 @@ function createGdriveSyncHelpers(deps) {
           path: AWN_GOOGLE_DRIVE_DIR,
           exists: false,
           fileCount: 0,
-          totalBytes: 0
+          totalBytes: 0,
+          files: []
         };
       }
       throw error;

@@ -29,6 +29,7 @@ const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
+const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
@@ -80094,39 +80095,80 @@ function createGoogleDriveSyncBar(config = {}) {
 }
 
 function renderMenuGoogleDriveStats(payload = null, { loading = false, error = false } = {}) {
-  if (!menuGoogleDriveStatsNode) return;
+  if (menuGoogleDriveStatsNode) {
+    if (loading) {
+      menuGoogleDriveStatsNode.textContent = "…";
+      menuGoogleDriveStatsNode.classList.remove("is-empty", "is-error");
+    } else if (error || !payload) {
+      menuGoogleDriveStatsNode.textContent = "—";
+      menuGoogleDriveStatsNode.classList.add("is-error");
+      menuGoogleDriveStatsNode.classList.remove("is-empty");
+    } else {
+      menuGoogleDriveStatsNode.classList.remove("is-error");
+      const count = Number(payload.fileCount) || 0;
+      const sizeLabel = formatGoogleDriveStorageSize(payload.totalBytes);
+      if (!payload.exists) {
+        menuGoogleDriveStatsNode.textContent = "0 · —";
+        menuGoogleDriveStatsNode.classList.add("is-empty");
+      } else {
+        menuGoogleDriveStatsNode.textContent =
+          count > 0 ? `${count} · ${sizeLabel}` : "0 · —";
+        menuGoogleDriveStatsNode.classList.toggle("is-empty", count === 0);
+      }
+    }
+  }
+
+  if (!menuGoogleDriveFilesNode) return;
+
+  menuGoogleDriveFilesNode.replaceChildren();
 
   if (loading) {
-    menuGoogleDriveStatsNode.textContent = "Загрузка…";
-    menuGoogleDriveStatsNode.classList.remove("is-empty", "is-error");
+    const item = document.createElement("li");
+    item.className = "menu-google-drive-files-empty";
+    item.textContent = "Загрузка…";
+    menuGoogleDriveFilesNode.appendChild(item);
     return;
   }
 
   if (error || !payload) {
-    menuGoogleDriveStatsNode.textContent = "Не удалось прочитать";
-    menuGoogleDriveStatsNode.classList.add("is-error");
-    menuGoogleDriveStatsNode.classList.remove("is-empty");
+    const item = document.createElement("li");
+    item.className = "menu-google-drive-files-empty is-error";
+    item.textContent = "Не удалось прочитать";
+    menuGoogleDriveFilesNode.appendChild(item);
     return;
   }
 
-  menuGoogleDriveStatsNode.classList.remove("is-error");
-  if (!payload.exists) {
-    menuGoogleDriveStatsNode.textContent = "Папка не создана · 0 файлов";
-    menuGoogleDriveStatsNode.classList.add("is-empty");
+  const files = Array.isArray(payload.files) ? payload.files : [];
+  if (!payload.exists || !files.length) {
+    const item = document.createElement("li");
+    item.className = "menu-google-drive-files-empty";
+    item.textContent = payload.exists ? "Папка пуста" : "Папка не создана";
+    menuGoogleDriveFilesNode.appendChild(item);
     return;
   }
 
-  const count = Number(payload.fileCount) || 0;
-  const sizeLabel = formatGoogleDriveStorageSize(payload.totalBytes);
-  menuGoogleDriveStatsNode.textContent =
-    count > 0 ? `${formatRussianFileCount(count)} · ${sizeLabel}` : "Папка пуста · 0 файлов";
-  menuGoogleDriveStatsNode.classList.toggle("is-empty", count === 0);
+  for (const file of files) {
+    const row = document.createElement("li");
+    row.className = "menu-google-drive-file-row";
+    row.title = String(file.name || "");
+
+    const nameNode = document.createElement("span");
+    nameNode.className = "menu-google-drive-file-name";
+    nameNode.textContent = String(file.name || "—");
+
+    const sizeNode = document.createElement("span");
+    sizeNode.className = "menu-google-drive-file-size";
+    sizeNode.textContent = formatGoogleDriveStorageSize(file.size);
+
+    row.append(nameNode, sizeNode);
+    menuGoogleDriveFilesNode.appendChild(row);
+  }
 }
 
 async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
-  if (!menuGoogleDriveStatsNode) return;
+  if (!menuGoogleDriveStatsNode && !menuGoogleDriveFilesNode) return;
   if (!agentId) {
-    renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0 });
+    renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [] });
     return;
   }
 
