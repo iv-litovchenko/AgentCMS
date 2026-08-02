@@ -4,14 +4,14 @@ kind: base
 domain: taxonomies
 status: active
 extends: awn.entity
-description: Общий формат taxonomy — CSV в awn-agent-kit/taxonomies/{slug}/main.csv
+description: Общий формат taxonomy — записи в awn-data/taxonomies/{slug}/
 properties:
   props-field:
     title: Поле frontmatter
     description: Какое awn-* поле темы использует этот справочник
   data-path:
     title: Путь к данным
-    description: Относительный путь к main.csv справочника
+    description: Относительный путь к накопителю awn-data (taxonomies/{slug}/)
   create-node-group:
     title: Группа в «создать»
     description: В какой группе меню создания показывать (если нужно)

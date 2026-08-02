@@ -39,6 +39,7 @@ const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
 const menuAwnDataRefreshBtn = document.getElementById("menu-awn-data-refresh-btn");
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
+const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-data-create-group-btn");
 const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
 const awnDataCreateModalTitleNode = document.getElementById("awn-data-create-modal-title");
 const awnDataCreateModalHintNode = document.getElementById("awn-data-create-modal-hint");
@@ -7525,8 +7526,41 @@ function createAppLandingPlatformVisual() {
   visual.className = "app-landing-platform-visual";
   visual.setAttribute("aria-hidden", "true");
 
+  const bg = document.createElement("div");
+  bg.className = "app-landing-platform-visual-bg";
+
+  const grid = document.createElement("div");
+  grid.className = "app-landing-platform-grid";
+
+  const glowLeft = document.createElement("span");
+  glowLeft.className = "app-landing-platform-glow app-landing-platform-glow--left";
+
+  const glowRight = document.createElement("span");
+  glowRight.className = "app-landing-platform-glow app-landing-platform-glow--right";
+
+  const scan = document.createElement("span");
+  scan.className = "app-landing-platform-scan";
+
+  bg.append(grid, glowLeft, glowRight, scan);
+
   const scene = document.createElement("div");
   scene.className = "app-landing-platform-scene";
+
+  for (let i = 0; i < 5; i += 1) {
+    const lane = document.createElement("div");
+    lane.className = "app-landing-platform-lane";
+    lane.style.setProperty("--lane-i", String(i));
+    for (let p = 0; p < 3; p += 1) {
+      const packet = document.createElement("span");
+      packet.className = "app-landing-platform-packet";
+      packet.style.setProperty("--packet-i", String(p));
+      lane.appendChild(packet);
+    }
+    scene.appendChild(lane);
+  }
+
+  const hub = document.createElement("div");
+  hub.className = "app-landing-platform-hub";
 
   const core = document.createElement("span");
   core.className = "app-landing-platform-core";
@@ -7534,29 +7568,46 @@ function createAppLandingPlatformVisual() {
   const ring = document.createElement("span");
   ring.className = "app-landing-platform-orbit-ring";
 
-  scene.append(core, ring);
+  hub.append(core, ring);
 
   for (const spec of [
     { className: "app-landing-platform-orbit--1", dotClass: "" },
     { className: "app-landing-platform-orbit--2", dotClass: " app-landing-platform-dot--violet" },
-    { className: "app-landing-platform-orbit--3", dotClass: " app-landing-platform-dot--cyan" }
+    { className: "app-landing-platform-orbit--3", dotClass: " app-landing-platform-dot--cyan" },
+    { className: "app-landing-platform-orbit--4", dotClass: " app-landing-platform-dot--amber" }
   ]) {
     const orbit = document.createElement("span");
     orbit.className = `app-landing-platform-orbit ${spec.className}`;
     const dot = document.createElement("span");
     dot.className = `app-landing-platform-dot${spec.dotClass}`;
     orbit.appendChild(dot);
-    scene.appendChild(orbit);
+    hub.appendChild(orbit);
   }
 
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < 8; i += 1) {
     const spark = document.createElement("span");
     spark.className = "app-landing-platform-spark";
     spark.style.setProperty("--spark-i", String(i));
-    scene.appendChild(spark);
+    hub.appendChild(spark);
   }
 
-  visual.appendChild(scene);
+  scene.appendChild(hub);
+
+  for (const [i, label] of [
+    "types",
+    "tags",
+    "users",
+    "status",
+    "colors"
+  ].entries()) {
+    const chip = document.createElement("span");
+    chip.className = "app-landing-platform-chip";
+    chip.style.setProperty("--chip-i", String(i));
+    chip.textContent = label;
+    scene.appendChild(chip);
+  }
+
+  visual.append(bg, scene);
   return visual;
 }
 
@@ -12403,7 +12454,6 @@ const TYPE_CATALOG_DOMAIN_LABELS = {
   slots: "Слоты",
   base: "База",
   taxonomies: "Таксономии",
-  views: "Представления",
   mixins: "Миксины"
 };
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
@@ -15880,6 +15930,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "references" ||
     mode === "artefacts" ||
     mode === "assets" ||
+    mode === "media" ||
     mode === "repository" ||
     mode === "scripts" ||
     mode === "todo" ||
@@ -47538,7 +47589,6 @@ function resolveTypeCatalogOverviewContext(nodePath) {
     [/awn-system\/types\/slots(\/|$)/, "slots"],
     [/awn-system\/types\/base(\/|$)/, "base"],
     [/awn-system\/types\/taxonomies(\/|$)/, "taxonomies"],
-    [/awn-system\/types\/views(\/|$)/, "views"],
     [/awn-system\/types\/mixins(\/|$)/, "mixins"],
     [/(^|\/)types\/fields(\/|$)/, "fields"],
     [/(^|\/)types\/md-blocks(\/|$)/, "md-blocks"],
@@ -65571,12 +65621,8 @@ function applyModeUi() {
     "hidden",
     !showExternalControls && !showMediaControls && !showFlatStorageSectionControls
   );
-  if (showExternalControls) {
-    void syncExternalViewSelectOptions().then(() => {
-      if (externalViewSelectNode) {
-        externalViewSelectNode.value = selectedExternalViewTypeId || externalViewMode;
-      }
-    });
+  if (showExternalControls && externalViewSelectNode) {
+    externalViewSelectNode.value = externalViewMode;
   }
   if (showMediaControls) {
     syncMediaViewSelectOptions();
@@ -69747,74 +69793,23 @@ function sanitizeAgentSystemFolderCollapseState(agentId = activeAgentId) {
   if (changed) saveCollapsedFoldersByAgent();
 }
 
-// ── View selector for topic overview ─────────────────────────────────────────
+// ── Default landing mode selector for topic overview ─────────────────────────
 
-let cachedViewTypes = null;
-
-async function fetchViewTypes() {
-  if (cachedViewTypes) return cachedViewTypes;
-  try {
-    const resp = await fetch(buildApiUrl("/api/agent-system/views"));
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    cachedViewTypes = Array.isArray(data.views) ? data.views : [];
-    return cachedViewTypes;
-  } catch {
-    return [];
-  }
-}
-
-// Встроенные раскладки внешней памяти (значения option в external-view-select).
-const BUILTIN_EXTERNAL_VIEW_MODES = new Set([
-  "table", "list", "cards", "kanban", "calendar", "index", "moc", "mindmap", "cheatsheet", "graph"
-]);
-// Выбранный пользовательский тип-вид (option value «vt:<id>») либо null.
-let selectedExternalViewTypeId = null;
-// option value → render-mode встроенной раскладки.
-const externalViewTypeOptionMap = new Map();
-
-// Наполняет тулбар-переключатель «Вид отображения» пользовательскими типами
-// видов, у которых задан render-mode. Встроенные <option> из index.html
-// остаются нетронутыми — типы добавляются в конец.
-async function syncExternalViewSelectOptions() {
-  if (!externalViewSelectNode) return;
-  let types = [];
-  try {
-    types = await fetchViewTypes();
-  } catch {
-    types = [];
-  }
-  externalViewSelectNode
-    .querySelectorAll("option.ext-view-type-option")
-    .forEach((o) => o.remove());
-  externalViewTypeOptionMap.clear();
-  const custom = types.filter(
-    (v) => v.renderMode && BUILTIN_EXTERNAL_VIEW_MODES.has(v.renderMode)
-  );
-  for (const v of custom) {
-    const value = `vt:${v.id}`;
-    externalViewTypeOptionMap.set(value, v.renderMode);
-    const opt = document.createElement("option");
-    opt.className = "ext-view-type-option";
-    opt.value = value;
-    opt.textContent = v.icon ? `${v.icon} ${v.name}` : v.name;
-    opt.title = v.description || v.id;
-    externalViewSelectNode.appendChild(opt);
-  }
-  // Если выбранный тип исчез (тип удалён/переименован) — сбрасываем.
-  if (selectedExternalViewTypeId && !externalViewTypeOptionMap.has(selectedExternalViewTypeId)) {
-    selectedExternalViewTypeId = null;
-  }
-}
+const NODE_DEFAULT_LANDING_VIEW_OPTIONS = [
+  { contentMode: "external", name: "Список", description: "Карточки записей слота main/ в виде списка" },
+  { contentMode: "tabular", name: "Таблица", description: "Табличный вид — строки записей с колонками из полей схемы" },
+  { contentMode: "media", name: "Медиа-сетка", description: "Превью-сетка для слота media/" },
+  { contentMode: "inbox", name: "Входящие", description: "Записи из inbox/ — непрочитанное / очередь" },
+  { contentMode: "thread", name: "Тред (диалог)", description: "Режим диалога с агентом — thread/" }
+];
 
 async function renderNodeOverviewViewSelector(nodePath) {
   if (!isTopicManifestPath(nodePath)) return null;
 
-  const [allViewTypes, nodeConfig] = await Promise.all([
-    fetchViewTypes(),
-    loadNodeConfig(nodePath).catch(() => null)
-  ]);
-  const viewTypes = allViewTypes.filter((v) => v.contentMode);
+  const nodeConfig = await loadNodeConfig(nodePath).catch(() => null);
+  const viewTypes = NODE_DEFAULT_LANDING_VIEW_OPTIONS.filter((v) =>
+    isValidNodeDefaultLandingMode(v.contentMode, nodePath)
+  );
 
   if (!viewTypes.length) return null;
 
@@ -69874,7 +69869,6 @@ const AGENT_SYSTEM_DOMAIN_KIND = {
   fields: "field",
   "md-blocks": "block",
   taxonomies: "taxonomy",
-  views: "view",
   mixins: "mixin"
 };
 
@@ -69884,8 +69878,7 @@ const AGENT_SYSTEM_DOMAIN_EXTENDS = {
   slots: "awn.slot",
   fields: "awn.field.base",
   "md-blocks": "awn.block.base",
-  taxonomies: "awn.taxonomy.base",
-  views: "awn.view.base"
+  taxonomies: "awn.taxonomy.base"
 };
 
 const AGENT_SYSTEM_DOMAIN_PREFIX = {
@@ -69898,8 +69891,7 @@ const AGENT_SYSTEM_DOMAIN_PREFIX = {
   mixins: "awn.mixin",
   base: "awn",
   // Agent-specific types (instance-level configuration)
-  taxonomies: "agent.taxonomy",
-  views: "agent.view"
+  taxonomies: "agent.taxonomy"
 };
 
 function slugifyTypeName(name) {
@@ -69968,14 +69960,6 @@ function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
     lines.push(`create-node-label: ${displayName}`);
     lines.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);
     lines.push(`create-node-preset: tags`);
-  }
-  if (domain === "views") {
-    lines.push(`# contentMode: экран по умолчанию — external | tabular | media | thread | inbox`);
-    lines.push(`contentMode: external`);
-    lines.push(`# render-mode: раскладка в тулбаре — table | list | cards | kanban | calendar | index | moc | mindmap | cheatsheet | graph`);
-    lines.push(`render-mode: cards`);
-    lines.push(`icon: "🃏"`);
-    lines.push(`applies-to-slots: [main]`);
   }
   return lines.join("\n") + "\n";
 }
@@ -70106,7 +70090,6 @@ function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
         return;
       }
       form.remove();
-      cachedViewTypes = null; // invalidate view cache if views domain
       await refreshMenu({ agentId: activeAgentId });
       await selectAgentSystemFile(displayName, filePath);
       showToast(`Тип «${displayName}» создан`, "success");
@@ -81089,7 +81072,10 @@ function syncMenuStaticFooterAccordionUi() {
   const expanded = isMenuStaticFooterExpanded();
   menuStaticFooterNode.classList.toggle("is-collapsed", !expanded);
   menuStaticFooterToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
-  if (menuStaticFooterBodyNode) menuStaticFooterBodyNode.hidden = !expanded;
+  if (menuStaticFooterBodyNode) {
+    menuStaticFooterBodyNode.hidden = !expanded;
+    menuStaticFooterBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
   if (menuStaticFooterActionNode) {
     menuStaticFooterActionNode.textContent = expanded ? "Свернуть" : "Показать";
   }
@@ -81121,6 +81107,7 @@ function setupMenuStaticFooterGroup() {
 let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
 let awnDataCreateKind = "collection";
+let awnDataCreateParentGroup = "";
 let awnDataViewStoreRel = "";
 let awnDataViewStoreCache = null;
 let awnDataViewSectionId = "__all__";
@@ -81385,23 +81372,37 @@ function slugifyAwnDataStoreName(name) {
     .replace(/-+/g, "-");
 }
 
-function openAwnDataCreateModal(kind = "collection") {
+function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (!awnDataCreateModalNode) return;
   awnDataCreateKind = kind === "singleton" ? "singleton" : "collection";
+  awnDataCreateParentGroup = String(options.parentGroup || "").trim().replace(/\/+$/, "");
+  const isTaxonomy = awnDataCreateParentGroup === "taxonomies";
   if (awnDataCreateModalTitleNode) {
-    awnDataCreateModalTitleNode.textContent =
-      awnDataCreateKind === "singleton" ? "Новая одиночка" : "Новая коллекция";
+    if (isTaxonomy) {
+      awnDataCreateModalTitleNode.textContent = "Новый справочник";
+    } else {
+      awnDataCreateModalTitleNode.textContent =
+        awnDataCreateKind === "singleton" ? "Новая одиночка" : "Новая коллекция";
+    }
   }
   if (awnDataCreateModalHintNode) {
-    awnDataCreateModalHintNode.innerHTML =
-      awnDataCreateKind === "singleton"
-        ? "Папка в <code>awn-data/</code> с <code>configuration-schema.yml</code> и одним <code>main.md</code>."
-        : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, схемой и записями <code>{id}.md</code>.";
+    if (isTaxonomy) {
+      awnDataCreateModalHintNode.innerHTML =
+        "Поднакопитель в <code>awn-data/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
+    } else {
+      awnDataCreateModalHintNode.innerHTML =
+        awnDataCreateKind === "singleton"
+          ? "Папка в <code>awn-data/</code> с <code>configuration-schema.yml</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, схемой и записями <code>{id}.md</code>.";
+    }
   }
-  awnDataCreateSampleWrapNode?.classList.toggle("hidden", awnDataCreateKind !== "collection");
+  awnDataCreateSampleWrapNode?.classList.toggle(
+    "hidden",
+    awnDataCreateKind !== "collection" || isTaxonomy
+  );
   if (awnDataCreateNameInputNode) awnDataCreateNameInputNode.value = "";
   if (awnDataCreateSlugInputNode) {
-    awnDataCreateSlugInputNode.value = "";
+    awnDataCreateSlugInputNode.value = awnDataCreateParentGroup ? `${awnDataCreateParentGroup}/` : "";
     delete awnDataCreateSlugInputNode.dataset.manual;
   }
   if (awnDataCreateDescriptionInputNode) awnDataCreateDescriptionInputNode.value = "";
@@ -81412,38 +81413,77 @@ function openAwnDataCreateModal(kind = "collection") {
 
 function closeAwnDataCreateModal() {
   awnDataCreateModalNode?.classList.add("hidden");
+  awnDataCreateParentGroup = "";
+}
+
+function resolveAwnDataRecordStorage(store) {
+  const explicit = String(store?.recordStorage || "").trim().toLowerCase();
+  if (explicit === "csv" || explicit === "md") return explicit;
+  const fromSchema = String(store?.schema?.record?.storage || "").trim().toLowerCase();
+  if (fromSchema === "csv" || fromSchema === "md") return fromSchema;
+  const recordFile = String(store?.recordFile || store?.schema?.record?.file || "")
+    .trim()
+    .toLowerCase();
+  if (recordFile === "main.csv" || recordFile.endsWith(".csv")) return "csv";
+  return "md";
+}
+
+function normalizeAwnDataStoreView(store) {
+  if (!store || typeof store !== "object") return store;
+  const recordStorage = resolveAwnDataRecordStorage(store);
+  store.recordStorage = recordStorage;
+  if (recordStorage === "csv") {
+    store.recordFile = String(store.recordFile || store?.schema?.record?.file || "main.csv").trim() || "main.csv";
+  }
+  return store;
 }
 
 function renderAwnDataViewHeader(store, { loading = false, error = false } = {}) {
-  const title = loading ? "Загрузка…" : error ? "Ошибка" : String(store?.name || store?.relPath || "Накопитель").trim();
+  const viewStore = store ? normalizeAwnDataStoreView(store) : store;
+  const title = loading ? "Загрузка…" : error ? "Ошибка" : String(viewStore?.name || viewStore?.relPath || "Накопитель").trim();
   if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = title;
 
   if (awnDataViewModalKindNode) {
-    if (!store?.kind || loading || error) {
+    if (!viewStore?.kind || loading || error) {
       awnDataViewModalKindNode.classList.add("hidden");
       awnDataViewModalKindNode.textContent = "";
-      awnDataViewModalKindNode.classList.remove("is-collection", "is-singleton");
+      awnDataViewModalKindNode.classList.remove(
+        "is-collection",
+        "is-singleton",
+        "is-group",
+        "is-storage-csv",
+        "is-storage-md"
+      );
     } else {
-      const isSingleton = store.kind === "singleton";
-      awnDataViewModalKindNode.textContent = isSingleton ? "Одиночка" : "Коллекция";
+      const isSingleton = viewStore.kind === "singleton";
+      const isGroup = viewStore.kind === "group";
+      const recordStorage = resolveAwnDataRecordStorage(viewStore);
+      let kindLabel = isGroup ? "Группа" : isSingleton ? "Одиночка" : "Коллекция";
+      if (!isGroup) {
+        kindLabel = `${kindLabel} · ${recordStorage.toUpperCase()}`;
+      }
+      awnDataViewModalKindNode.textContent = kindLabel;
       awnDataViewModalKindNode.classList.toggle("is-singleton", isSingleton);
-      awnDataViewModalKindNode.classList.toggle("is-collection", !isSingleton);
+      awnDataViewModalKindNode.classList.toggle("is-collection", !isSingleton && !isGroup);
+      awnDataViewModalKindNode.classList.toggle("is-group", isGroup);
+      awnDataViewModalKindNode.classList.toggle("is-storage-csv", !isGroup && recordStorage === "csv");
+      awnDataViewModalKindNode.classList.toggle("is-storage-md", !isGroup && recordStorage === "md");
       awnDataViewModalKindNode.classList.remove("hidden");
     }
   }
 
   if (awnDataViewModalPathNode) {
-    if (!store?.relPath || loading || error) {
+    if (!viewStore?.relPath || loading || error) {
       awnDataViewModalPathNode.classList.add("hidden");
       awnDataViewModalPathNode.textContent = "";
     } else {
-      awnDataViewModalPathNode.textContent = `awn-data/${store.relPath}`;
+      awnDataViewModalPathNode.textContent = `awn-data/${viewStore.relPath}`;
       awnDataViewModalPathNode.classList.remove("hidden");
     }
   }
 
   if (awnDataViewManifestNode) {
-    const manifestMarkdown = String(store?.manifestMarkdown || "").trim();
+    const manifestMarkdown = String(viewStore?.manifestMarkdown || "").trim();
     if (!manifestMarkdown || loading || error) {
       awnDataViewManifestNode.classList.add("hidden");
       awnDataViewManifestNode.replaceChildren();
@@ -81451,7 +81491,7 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
       awnDataViewManifestNode.classList.remove("hidden");
       if (typeof renderMarkdownToHtml === "function") {
         awnDataViewManifestNode.innerHTML = renderMarkdownToHtml(manifestMarkdown, {
-          nodePath: store.manifestRelPath || `awn-data/${store.relPath}/manifest.md`
+          nodePath: viewStore.manifestRelPath || `awn-data/${viewStore.relPath}/manifest.md`
         });
       } else {
         awnDataViewManifestNode.textContent = manifestMarkdown;
@@ -81524,11 +81564,6 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0 }) {
   text.textContent = label;
 
   btn.append(icon, text);
-  btn.addEventListener("click", () => {
-    awnDataViewSectionId = id;
-    syncAwnDataViewSectionTreeActiveStates();
-    if (awnDataViewStoreCache) renderAwnDataViewRecords(awnDataViewStoreCache);
-  });
   container.appendChild(btn);
 }
 
@@ -81665,11 +81700,23 @@ function updateAwnDataViewCount(shown, total) {
     shown === total ? formatCount(total) : `${shown} из ${formatCount(total)}`;
 }
 
-async function openAwnDataRecordEditor(record) {
-  const relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
+  const storeRel = String(store?.relPath || awnDataViewStoreRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const isCsvStore =
+    String(store?.recordStorage || "").trim().toLowerCase() === "csv" ||
+    String(record?.fileName || "").trim().toLowerCase() === "main.csv";
+
+  let relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (isCsvStore && storeRel) {
+    const csvFile = String(store?.recordFile || "main.csv").trim() || "main.csv";
+    relPath = `${storeRel}/${csvFile}`;
+  }
   if (!relPath) return;
+
   const fileRel = relPath.startsWith("awn-data/") ? relPath : `awn-data/${relPath}`;
-  const label = record.title || record.id || fileRel.split("/").pop() || fileRel;
+  const label = isCsvStore
+    ? `${store?.name || storeRel} · ${store?.recordFile || "main.csv"}`
+    : record.title || record.id || fileRel.split("/").pop() || fileRel;
   closeAwnDataViewModal();
   try {
     await openFolderBrowseFile(label, fileRel);
@@ -81678,11 +81725,21 @@ async function openAwnDataRecordEditor(record) {
   }
 }
 
+function syncAwnDataViewAddForm(store) {
+  if (!awnDataViewAddWrapNode) return;
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  const isCsv = resolveAwnDataRecordStorage(viewStore) === "csv";
+  const parentField = awnDataAddParentInputNode?.closest(".agents-registry-field");
+  parentField?.classList.toggle("hidden", isCsv);
+  if (isCsv && awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
+}
+
 function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
 
-  const allRecords = Array.isArray(store?.records) ? store.records : [];
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  const allRecords = Array.isArray(viewStore?.records) ? viewStore.records : [];
   const query = String(awnDataViewSearchInputNode?.value || "").trim();
   const sectionRecords = filterAwnDataViewRecordsBySection(allRecords, awnDataViewSectionId);
   const records = filterAwnDataViewRecords(sectionRecords, query);
@@ -81691,7 +81748,14 @@ function renderAwnDataViewRecords(store) {
   if (!allRecords.length) {
     const empty = document.createElement("div");
     empty.className = "awn-data-view-empty";
-    empty.textContent = store?.kind === "singleton" ? "main.md пуст или не найден" : "Записей пока нет";
+    const recordStorage = resolveAwnDataRecordStorage(viewStore);
+    if (viewStore?.kind === "singleton") {
+      empty.textContent = "main.md пуст или не найден";
+    } else if (recordStorage === "csv") {
+      empty.textContent = `${viewStore.recordFile || "main.csv"} пуст или не найден`;
+    } else {
+      empty.textContent = "Записей пока нет";
+    }
     awnDataViewRecordsNode.appendChild(empty);
     return;
   }
@@ -81704,7 +81768,7 @@ function renderAwnDataViewRecords(store) {
     return;
   }
 
-  const columns = getAwnDataViewColumns(store);
+  const columns = getAwnDataViewColumns(viewStore);
 
   const table = document.createElement("table");
   table.className = "awn-data-view-table";
@@ -81766,12 +81830,13 @@ function renderAwnDataViewRecords(store) {
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "awn-data-view-edit-btn";
-    editBtn.title = "Редактировать";
-    editBtn.setAttribute("aria-label", "Редактировать");
+    const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+    editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
+    editBtn.setAttribute("aria-label", editBtn.title);
     editBtn.append(createOverviewEditManifestIcon());
     editBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      void openAwnDataRecordEditor(record);
+      void openAwnDataRecordEditor(record, viewStore);
     });
     actionsCell.appendChild(editBtn);
     row.appendChild(actionsCell);
@@ -81781,6 +81846,34 @@ function renderAwnDataViewRecords(store) {
 
   table.appendChild(tbody);
   awnDataViewRecordsNode.appendChild(table);
+}
+
+function renderAwnDataViewGroupChildren(store) {
+  if (!awnDataViewRecordsNode) return;
+  awnDataViewRecordsNode.replaceChildren();
+  const children = Array.isArray(store?.children) ? store.children : [];
+  if (!children.length) {
+    const empty = document.createElement("p");
+    empty.className = "awn-data-view-empty";
+    empty.textContent = "В группе пока нет справочников.";
+    awnDataViewRecordsNode.appendChild(empty);
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "awn-data-view-group-children";
+  for (const child of children) {
+    const item = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "awn-data-view-group-child-btn";
+    const count = Number(child.recordCount) || 0;
+    btn.textContent = `${child.name || child.relPath} (${count})`;
+    btn.title = child.relPath;
+    btn.addEventListener("click", () => void openAwnDataViewModal(child.relPath));
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+  awnDataViewRecordsNode.appendChild(list);
 }
 
 async function openAwnDataViewModal(storeRel, agentId = activeAgentId) {
@@ -81797,13 +81890,21 @@ async function openAwnDataViewModal(storeRel, agentId = activeAgentId) {
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    const store = data.store;
+    const store = normalizeAwnDataStoreView(data.store);
     if (!store) throw new Error("Store not found");
 
     renderAwnDataViewHeader(store);
     awnDataViewStoreCache = store;
     awnDataViewSectionId = "__all__";
+    if (store.kind === "group") {
+      awnDataViewSectionWrapNode?.classList.add("hidden");
+      awnDataViewAddWrapNode?.classList.add("hidden");
+      if (awnDataViewSearchInputNode) awnDataViewSearchInputNode.value = "";
+      renderAwnDataViewGroupChildren(store);
+      return;
+    }
     syncAwnDataViewSectionTree(store);
+    syncAwnDataViewAddForm(store);
     if (awnDataViewSearchInputNode) awnDataViewSearchInputNode.value = "";
     renderAwnDataViewRecords(store);
     awnDataViewAddWrapNode?.classList.toggle("hidden", store.kind === "singleton");
@@ -81823,7 +81924,11 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     return;
   }
   const name = String(awnDataCreateNameInputNode?.value || "").trim();
-  const slug = String(awnDataCreateSlugInputNode?.value || "").trim() || slugifyAwnDataStoreName(name);
+  let slug = String(awnDataCreateSlugInputNode?.value || "").trim() || slugifyAwnDataStoreName(name);
+  if (awnDataCreateParentGroup && !slug.startsWith(`${awnDataCreateParentGroup}/`)) {
+    const tail = slug.replace(/^\/+/, "").split("/").pop();
+    slug = `${awnDataCreateParentGroup}/${tail || slugifyAwnDataStoreName(name)}`;
+  }
   const description = String(awnDataCreateDescriptionInputNode?.value || "").trim();
   if (!name || !slug) {
     showToast("Укажите название и папку (slug)", "error");
@@ -81934,6 +82039,9 @@ function setupAwnDataStoresUi() {
 
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("singleton"));
+  menuAwnDataCreateGroupBtn?.addEventListener("click", () =>
+    openAwnDataCreateModal("collection", { parentGroup: "taxonomies" })
+  );
   wireMenuStaticSummaryRefreshButton(menuGoogleDriveRefreshBtn, handleMenuGoogleDriveRefreshClick);
   wireMenuStaticSummaryRefreshButton(menuAwnDataRefreshBtn, handleMenuAwnDataRefreshClick);
   awnDataCreateCancelBtn?.addEventListener("click", closeAwnDataCreateModal);
@@ -81954,7 +82062,10 @@ function setupAwnDataStoresUi() {
   awnDataCreateNameInputNode?.addEventListener("input", () => {
     if (!awnDataCreateSlugInputNode) return;
     if (awnDataCreateSlugInputNode.dataset.manual === "1") return;
-    awnDataCreateSlugInputNode.value = slugifyAwnDataStoreName(awnDataCreateNameInputNode.value);
+    const tail = slugifyAwnDataStoreName(awnDataCreateNameInputNode.value);
+    awnDataCreateSlugInputNode.value = awnDataCreateParentGroup
+      ? `${awnDataCreateParentGroup}/${tail}`
+      : tail;
   });
   awnDataCreateSlugInputNode?.addEventListener("input", () => {
     if (awnDataCreateSlugInputNode) awnDataCreateSlugInputNode.dataset.manual = "1";
@@ -81969,18 +82080,60 @@ function setupAwnDataStoresUi() {
 }
 
 function awnDataStoreKindClass(kind) {
-  return kind === "singleton" ? "menu-awn-data-store-kind--singleton" : "menu-awn-data-store-kind--collection";
+  if (kind === "singleton") return "menu-awn-data-store-kind--singleton";
+  if (kind === "group") return "menu-awn-data-store-kind--group";
+  return "menu-awn-data-store-kind--collection";
 }
 
 function awnDataStoreKindLabel(kind) {
-  return kind === "singleton" ? "Одиночка" : "Коллекция";
+  if (kind === "singleton") return "Одиночка";
+  if (kind === "group") return "Группа";
+  return "Коллекция";
+}
+
+function resolveAwnDataRecordCount(store) {
+  if (store?.kind === "group") {
+    const childCount = Number(store.childCount);
+    if (Number.isFinite(childCount) && childCount >= 0) return childCount;
+    return Array.isArray(store.children) ? store.children.length : 0;
+  }
+  if (Array.isArray(store?.records)) return store.records.length;
+  const explicit = Number(store?.recordCount);
+  return Number.isFinite(explicit) ? explicit : 0;
+}
+
+function createAwnDataGroupCreateBtn(store) {
+  const createBtn = document.createElement("button");
+  createBtn.type = "button";
+  createBtn.className = "menu-awn-data-group-create-btn";
+  createBtn.title = `Новый справочник в ${store.relPath}/`;
+  createBtn.setAttribute("aria-label", "Новый справочник");
+  createBtn.innerHTML =
+    '<svg class="menu-awn-data-group-create-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+  createBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openAwnDataCreateModal("collection", { parentGroup: store.relPath });
+  });
+  return createBtn;
 }
 
 function createAwnDataStoreMetaNode(store) {
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-data-store-meta";
 
-  const count = Number(store?.recordCount) || 0;
+  if (store?.kind === "group") {
+    const childCount = resolveAwnDataRecordCount(store);
+    const badge = document.createElement("span");
+    badge.className = "menu-awn-data-store-badge menu-awn-data-store-badge--count";
+    if (childCount <= 0) badge.classList.add("is-zero");
+    badge.textContent = String(childCount);
+    badge.title = childCount === 1 ? "1 справочник" : `${childCount} справочников`;
+    metaNode.appendChild(badge);
+    return metaNode;
+  }
+
+  const count = resolveAwnDataRecordCount(store);
   const badge = document.createElement("span");
   badge.className = "menu-awn-data-store-badge menu-awn-data-store-badge--count";
   if (count <= 0) badge.classList.add("is-zero");
@@ -81994,6 +82147,133 @@ function createAwnDataStoreMetaNode(store) {
 
   metaNode.appendChild(badge);
   return metaNode;
+}
+
+function wireAwnDataStoreRow(row, store) {
+  row.tabIndex = 0;
+  row.setAttribute("role", "button");
+  row.addEventListener("click", () => void openAwnDataViewModal(store.relPath));
+  row.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void openAwnDataViewModal(store.relPath);
+    }
+  });
+}
+
+function createAwnDataStoreRow(store) {
+  const row = document.createElement("li");
+  row.className = "menu-awn-data-store";
+  const displayName = String(store.name || store.id || store.relPath || "").trim();
+  const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
+  row.title = store.description || (pathHint ? `${displayName} · ${pathHint}` : displayName);
+
+  const kindNode = document.createElement("span");
+  kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
+  kindNode.title = awnDataStoreKindLabel(store.kind);
+  kindNode.setAttribute("aria-hidden", "true");
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "menu-awn-data-store-name";
+  nameNode.textContent = displayName;
+
+  row.append(kindNode, nameNode, createAwnDataStoreMetaNode(store));
+  wireAwnDataStoreRow(row, store);
+  return row;
+}
+
+function buildAwnDataGroupHintText(store) {
+  const parts = [];
+  const description = String(store?.description || "").trim();
+  if (description) parts.push(description);
+
+  const manifest = String(store?.manifestMarkdown || "").trim();
+  if (manifest) {
+    const excerpt = manifest
+      .replace(/^#+\s[^\n]*\n?/gm, "")
+      .replace(/^\|.+\|\n\|[-:| ]+\|\n/gm, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/`/g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("|"))
+      .slice(0, 4)
+      .join("\n");
+    if (excerpt && excerpt !== description) parts.push(excerpt);
+  }
+
+  if (store?.relPath) parts.push(`awn-data/${store.relPath}/`);
+  return parts.join("\n\n");
+}
+
+function createAwnDataStoreGroupNode(store) {
+  const item = document.createElement("li");
+  item.className = "menu-awn-data-store-group";
+
+  const details = document.createElement("details");
+  details.className = "menu-awn-data-store-group-details";
+  details.open = true;
+
+  const summary = document.createElement("summary");
+  summary.className = "menu-awn-data-store-group-summary";
+
+  const kindNode = document.createElement("span");
+  kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
+  kindNode.title = awnDataStoreKindLabel(store.kind);
+  kindNode.setAttribute("aria-hidden", "true");
+
+  const nameWrap = document.createElement("span");
+  nameWrap.className = "menu-awn-data-store-group-name-wrap";
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "menu-awn-data-store-name";
+  nameNode.textContent = String(store.name || store.id || store.relPath || "Группа").trim();
+
+  const hintNode = document.createElement("span");
+  hintNode.className = "menu-awn-data-store-group-hint";
+  hintNode.textContent = buildAwnDataGroupHintText(store);
+  hintNode.setAttribute("role", "tooltip");
+
+  nameWrap.append(nameNode, hintNode);
+
+  const actionsNode = document.createElement("span");
+  actionsNode.className = "menu-awn-data-store-group-actions";
+
+  actionsNode.append(createAwnDataGroupCreateBtn(store), createAwnDataStoreMetaNode(store));
+  summary.append(kindNode, nameWrap, actionsNode);
+
+  const body = document.createElement("div");
+  body.className = "menu-awn-data-store-group-body";
+
+  const childList = document.createElement("ul");
+  childList.className = "menu-awn-data-store-group-children";
+  const children = Array.isArray(store.children) ? store.children : [];
+  if (!children.length) {
+    const empty = document.createElement("li");
+    empty.className = "menu-awn-data-store menu-awn-data-store--empty";
+    empty.textContent = "Нет справочников";
+    childList.appendChild(empty);
+  } else {
+    for (const child of children) {
+      childList.appendChild(createAwnDataStoreRow(child));
+    }
+  }
+
+  body.appendChild(childList);
+  details.append(summary, body);
+  item.appendChild(details);
+
+  summary.addEventListener("click", (event) => {
+    if (event.target.closest(".menu-awn-data-group-create-btn")) return;
+  });
+
+  summary.addEventListener("dblclick", (event) => {
+    if (event.target.closest(".menu-awn-data-group-create-btn")) return;
+    event.preventDefault();
+    void openAwnDataViewModal(store.relPath);
+  });
+
+  return item;
 }
 
 function renderMenuAwnDataStores(payload = null, { loading = false, error = false } = {}) {
@@ -82026,34 +82306,11 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
   }
 
   for (const store of stores) {
-    const row = document.createElement("li");
-    row.className = "menu-awn-data-store";
-    const displayName = String(store.name || store.id || store.relPath || "").trim();
-    const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
-    row.title = store.description || (pathHint ? `${displayName} · ${pathHint}` : displayName);
-
-    const kindNode = document.createElement("span");
-    kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
-    kindNode.title = awnDataStoreKindLabel(store.kind);
-    kindNode.setAttribute("aria-hidden", "true");
-
-    const nameNode = document.createElement("span");
-    nameNode.className = "menu-awn-data-store-name";
-    nameNode.textContent = displayName;
-
-    const metaNode = createAwnDataStoreMetaNode(store);
-
-    row.append(kindNode, nameNode, metaNode);
-    row.tabIndex = 0;
-    row.setAttribute("role", "button");
-    row.addEventListener("click", () => void openAwnDataViewModal(store.relPath));
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        void openAwnDataViewModal(store.relPath);
-      }
-    });
-    menuAwnDataStoresNode.appendChild(row);
+    if (store.kind === "group") {
+      menuAwnDataStoresNode.appendChild(createAwnDataStoreGroupNode(store));
+      continue;
+    }
+    menuAwnDataStoresNode.appendChild(createAwnDataStoreRow(store));
   }
 }
 
@@ -84524,14 +84781,7 @@ document.addEventListener("keydown", (event) => {
 sidebarWidthDecreaseBtn?.addEventListener("click", () => changeSidebarWidth(-SIDEBAR_WIDTH_STEP));
 sidebarWidthIncreaseBtn?.addEventListener("click", () => changeSidebarWidth(SIDEBAR_WIDTH_STEP));
 externalViewSelectNode?.addEventListener("change", () => {
-  const val = externalViewSelectNode?.value || "table";
-  if (val.startsWith("vt:")) {
-    selectedExternalViewTypeId = val;
-    externalViewMode = externalViewTypeOptionMap.get(val) || "table";
-  } else {
-    selectedExternalViewTypeId = null;
-    externalViewMode = val;
-  }
+  externalViewMode = externalViewSelectNode?.value || "table";
   if (activeContentMode === "external") rerenderExternalListViewBody();
 });
 storageSectionsPanelToggleNode?.addEventListener("change", () => {

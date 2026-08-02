@@ -1,0 +1,5 @@
+version: 1
+kind: group
+id: taxonomies
+name: Таксономии
+description: Группа enum-справочников платформы (tags, categories, statuses…)

@@ -16,7 +16,7 @@ workspaces/agent-cms-test/
 │   ├── registry.yml
 │   ├── MAP.md
 │   ├── slots-bindings.yml
-│   └── types/{pages,content,slots,fields,md-blocks,taxonomies,views,mixins}/
+│   └── types/{pages,content,slots,fields,md-blocks,taxonomies,mixins}/
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -44,7 +44,6 @@ workspaces/agent-cms-test/
 | **fields** | `awn.string` … | типы полей frontmatter |
 | **md-blocks** | `awn.block.*` | блоки редактора |
 | **taxonomies** | `awn.taxonomy.*` | справочники (categories, tags, statuses, priorities, colors) |
-| **views** | `awn.view.*` | как показывать слот в UI |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
 
 ### Pages (меню)

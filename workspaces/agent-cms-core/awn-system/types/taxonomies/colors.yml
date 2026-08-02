@@ -6,7 +6,7 @@ status: active
 extends: awn.taxonomy.base
 description: Brand-цвета для awn-color
 props-field: awn-color
-data-path: awn-agent-kit/taxonomies/colors/main.csv
+data-path: awn-data/taxonomies/colors/
 create-node-group: taxonomy
 create-node-label: Палитра
 create-node-preset: colors

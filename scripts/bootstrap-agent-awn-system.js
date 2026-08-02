@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Copy platform types into {agent}/awn-system/types/{domain}/*.yml (flat layout)
- * and add agent-specific types (dialog, comment, taxonomies, views, mixins).
+ * and add agent-specific types (dialog, comment, taxonomies, mixins).
  *
  *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
  */
@@ -16,7 +16,7 @@ const {
 
 const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 
-const AGENT_EXTRA_DOMAINS = ["taxonomies", "views", "mixins"];
+const AGENT_EXTRA_DOMAINS = ["taxonomies", "mixins"];
 
 const AGENT_EXTRA_TYPES = {
   "content/dialog.yml": `id: awn.content.dialog
@@ -168,29 +168,6 @@ extends: awn.taxonomy.base
 description: Brand-цвета для awn-color
 props-field: awn-color
 data-path: awn-agent-kit/taxonomies/colors/main.csv
-`,
-  "views/list-default.yml": `id: awn.view.list
-name: Список
-kind: view
-domain: views
-status: active
-extends: awn.entity
-description: Табличный/списковый вид записей слота
-applies-to-slots:
-  - main
-  - inbox
-  - references
-  - quick-notes
-`,
-  "views/media-grid.yml": `id: awn.view.media-grid
-name: Сетка медиа
-kind: view
-domain: views
-status: active
-extends: awn.entity
-description: Превью-сетка для слота media/
-applies-to-slots:
-  - media
 `,
   "mixins/preview.yml": `id: awn.mixin.preview
 name: Превью

@@ -192,7 +192,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const { getAwnDataPayload, createAwnDataStore, createAwnDataRecord } = require("./awn-data-loader");
 const {
   AGENT_SYSTEM_REL,
@@ -9186,8 +9186,11 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
   siteMap: "GET /api/agent/site-map — карта сайта: все темы и области",
-  platformCatalogs: "GET /api/platform/catalogs — глобальные справочники",
-  agentCatalogs: "GET /api/agent/catalogs — справочники агента",
+  dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
+  dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
+  dataRecordCreate: "POST /api/awn-data/records — добавить запись",
+  platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
+  agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
@@ -15797,19 +15800,6 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to check type health",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent-system/views") {
-    try {
-      const agentRoot = getAgentRoot();
-      const payload = getViewTypesPayload(getProjectRoot(), agentRoot || "");
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to load view types",
         details: String(error.message || error)
       });
     }

@@ -17,7 +17,7 @@
 
 ## Как добавить новый домен («пакет»)
 
-Домены (pages, content, slots, fields, md-blocks, taxonomies, views, mixins) —
+Домены (pages, content, slots, fields, md-blocks, taxonomies, mixins) —
 это «какие бывают компоненты». Их список — источник правды в `registry.yml → domains:`.
 Чтобы завтра добавить свой домен-пакет (например `settings`):
 
@@ -51,7 +51,6 @@ domains:
 | **fields** | ✅ да | форма свойств строится из типа поля (`widget`) |
 | **pages/content** | ✅ да | узлы дерева, форма, меню «создать» |
 | **taxonomies** | ✅ да | «Справочники» в модале создания — по `create-node-group: taxonomy` в **собственном** файле типа |
-| **views** | ✅ да, 2 оси | `contentMode` → селектор «Вид по умолчанию» на обзоре темы; `render-mode` → тулбар-переключатель раскладок |
 | **slots** | ⚠️ декларация | набор слотов в дереве **фиксирован рантаймом** (скан папок `awn-storage`). `storage-driver` (internal/external/tabular) совпадает с формами памяти в счётчике, но тип слота в дерево не подставляется |
 
 Индикатор «Влияет / Не влияет» в инспекторе типа показывает это для каждого конкретного типа.
@@ -64,14 +63,14 @@ domains:
 id: awn.<domain>.<name>   # стабильный идентификатор
 name: Человеческое имя
 kind: type|field|block|view|slot|mixin|taxonomy|base
-domain: pages|content|fields|md-blocks|views|slots|mixins|taxonomies
+domain: pages|content|fields|md-blocks|slots|mixins|taxonomies
 status: active            # active | draft | disabled
 extends: <id родителя>    # цепочка наследования (см. _base.yml в домене)
 description: Зачем этот тип
 ```
 
 **Важно:** `extends` должен указывать на существующий тип. В каждом домене есть `_base.yml` —
-наследуй от него (например вид → `extends: awn.view.base`). Битый `extends` = мёртвый тип.
+наследуй от него (например поле → `extends: awn.field.base`). Битый `extends` = мёртвый тип.
 
 ## Поля и их группы (для pages/content)
 
@@ -107,8 +106,6 @@ fields:
   `storage`, `settings[]`. Виджет должен быть из существующих примитивов.
 - **Блок редактора (md-blocks):** `extends: awn.block.base`, задай `template` (текст),
   `group`, `sort`, `icon`. Работает сразу — это эталон 1 яруса.
-- **Вид (views):** `extends: awn.view.base`, задай `contentMode` (external/tabular/media/thread),
-  `applies-to-slots[]`. Без `contentMode` вид не появится.
 - **Слот (slots):** `extends: awn.slot`, задай `storage-shape` (single-file /
   multi-file / tabular — форма памяти), `path`, `allowed-content[]`, `accept-files[]`.
 - **Таксономия (taxonomies):** `extends: awn.taxonomy.base`, задай `data-path`, `props-field`.
@@ -179,8 +176,7 @@ properties:
     type: boolean           # → чекбокс
 ```
 
-Так задаются уже существующие: `awn.view.base` → `contentMode` (enum) +
-`applies-to-slots` (list); `awn.slot` → `path` (required) + `allowed-content`
+Так задаются уже существующие: `awn.slot` → `path` (required) + `allowed-content`
 (list) + `accept-files` (list); `awn.taxonomy.base` → `props-field` / `data-path`
 / `preset` (enum); `awn.block.base` → `group` / `icon` / `render` (enum) /
 `fence-tag` / `renderer`.

@@ -21,7 +21,6 @@ domains:
   - pages
   - slots
   - taxonomies
-  - views
   - mixins
   # Пример пользовательского домена-«пакета». Папка types/settings/.
   - id: settings

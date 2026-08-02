@@ -222,7 +222,60 @@ function createServer() {
     client.get("/api/agent/type-health")
   );
 
-  // ── Platform catalogs ──────────────────────────────────────────────────────
+  // ── Data stores (awn-data) ─────────────────────────────────────────────────
+
+  reg("list_data_stores", "List structured data stores (awn-data): collections, singletons, groups.", z.object({}), () =>
+    client.get("/api/awn-data")
+  );
+
+  reg(
+    "get_data_store",
+    "One data store with schema, records and tree (MD or CSV).",
+    z.object({
+      store: z
+        .string()
+        .min(1)
+        .describe("Store relPath, e.g. taxonomies/statuses, agents, tasks")
+    }),
+    ({ store }) => client.get("/api/awn-data", { store })
+  );
+
+  reg(
+    "create_data_store",
+    "Create awn-data store: collection (MD or CSV for taxonomies/), singleton, or nested under a group.",
+    z.object({
+      kind: z.enum(["collection", "singleton"]).optional().describe("Default: collection"),
+      slug: z
+        .string()
+        .min(1)
+        .describe("Folder slug under awn-data/, e.g. taxonomies/users or my-notes"),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      hierarchy: z
+        .boolean()
+        .optional()
+        .describe("MD collection: nested folders by parent (default true except taxonomies/)"),
+      withSampleRecord: z
+        .boolean()
+        .optional()
+        .describe("MD collection: create sample 1.md (default true for non-taxonomy collections)")
+    }),
+    (payload) => client.post("/api/awn-data/stores", payload)
+  );
+
+  reg(
+    "create_data_record",
+    "Add record to a data collection (append CSV row or create {id}.md).",
+    z.object({
+      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
+      id: z.string().optional().describe("Slug or numeric id; auto-generated if omitted"),
+      title: z.string().optional().describe("Label/title; required if id omitted for slug mode"),
+      parent: z.string().optional().describe("Parent record id (MD hierarchical collections only)")
+    }),
+    (payload) => client.post("/api/awn-data/records", payload)
+  );
+
+  // ── Platform ───────────────────────────────────────────────────────────────
 
   reg("list_type_catalog", "Platform type catalog.", z.object({}), () =>
     client.get("/api/type-catalog", {}, { agentScope: false })
@@ -232,21 +285,13 @@ function createServer() {
     client.get("/api/components", {}, { agentScope: false })
   );
 
-  reg("list_platform_catalogs", "Global platform catalogs.", z.object({}), () =>
-    client.get("/api/platform/catalogs", {}, { agentScope: false })
-  );
-
-  reg("list_agent_catalogs", "Merged global + local catalogs.", z.object({}), () =>
-    client.get("/api/agent/catalogs")
-  );
-
   reg("get_platform_index", "Platform navigation index.", z.object({}), () =>
     client.get("/api/platform/index", {}, { agentScope: false })
   );
 
   reg(
     "add_catalog_item",
-    "Add item to agent-local or platform-global catalog CSV.",
+    "Legacy: add item to catalog CSV. Prefer create_data_record for taxonomies in awn-data.",
     z.object({
       preset: z.enum(["tags", "categories", "statuses", "users", "priorities", "colors"]),
       id: z.string().optional(),
@@ -464,10 +509,6 @@ function createServer() {
 
   reg("get_agent_system_status", "Agent awn-system status.", z.object({}), () =>
     client.get("/api/agent-system/status", {})
-  );
-
-  reg("list_view_types", "Available awn.view.* types.", z.object({}), () =>
-    client.get("/api/agent-system/views", {})
   );
 
   reg(

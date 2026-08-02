@@ -171,6 +171,36 @@ module.exports = {
       ]
     },
     {
+      id: "data",
+      title: "Накопители (awn-data)",
+      endpoints: [
+        {
+          method: "GET",
+          path: "/api/awn-data",
+          description: "Список накопителей или один store (?store=taxonomies/statuses). MD и CSV коллекции, группы, singleton.",
+          query: ["store?"],
+          body: null,
+          response: "{ specVersion, model: \"awn-data\", stores[], store? }"
+        },
+        {
+          method: "POST",
+          path: "/api/awn-data/stores",
+          description: "Создать накопитель. taxonomies/* → CSV main.csv; иначе MD {id}.md.",
+          query: [],
+          body: "{ kind?: \"collection\"|\"singleton\", slug, name?, description?, hierarchy?, withSampleRecord? }",
+          response: "{ ok: true, store }"
+        },
+        {
+          method: "POST",
+          path: "/api/awn-data/records",
+          description: "Добавить запись в коллекцию (CSV row или .md файл).",
+          query: [],
+          body: "{ store, id?, title?, parent? }",
+          response: "{ ok: true, store }"
+        }
+      ]
+    },
+    {
       id: "system",
       title: "Системные файлы агента",
       endpoints: [

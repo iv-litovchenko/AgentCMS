@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "90 tools — полный список ниже.",
+    "92 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -180,6 +180,36 @@ module.exports = {
       ]
     },
     {
+      id: "data",
+      title: "Накопители (awn-data)",
+      tools: [
+        {
+          name: "list_data_stores",
+          description: "Список накопителей: коллекции, одиночки, группы (taxonomies/, agents, …).",
+          parameters: "—",
+          http: "GET /api/awn-data"
+        },
+        {
+          name: "get_data_store",
+          description: "Один накопитель: schema, records, tree; storage md или csv (main.csv).",
+          parameters: "store",
+          http: "GET /api/awn-data?store="
+        },
+        {
+          name: "create_data_store",
+          description: "Создать накопитель (collection / singleton). taxonomies/* → CSV main.csv.",
+          parameters: "slug, kind?, name?, description?, hierarchy?, withSampleRecord?",
+          http: "POST /api/awn-data/stores"
+        },
+        {
+          name: "create_data_record",
+          description: "Добавить запись в коллекцию (строка CSV или {id}.md).",
+          parameters: "store, id?, title?, parent?",
+          http: "POST /api/awn-data/records"
+        }
+      ]
+    },
+    {
       id: "platform",
       title: "Платформа",
       tools: [
@@ -196,18 +226,6 @@ module.exports = {
           http: "GET /api/components"
         },
         {
-          name: "list_platform_catalogs",
-          description: "Глобальные справочники (tags, categories, …).",
-          parameters: "—",
-          http: "GET /api/platform/catalogs"
-        },
-        {
-          name: "list_agent_catalogs",
-          description: "Справочники агента (global + local).",
-          parameters: "—",
-          http: "GET /api/agent/catalogs"
-        },
-        {
           name: "get_platform_index",
           description: "Навигационный index.json платформы.",
           parameters: "—",
@@ -215,7 +233,7 @@ module.exports = {
         },
         {
           name: "add_catalog_item",
-          description: "Добавить запись в справочник.",
+          description: "Legacy: добавить в catalog CSV. Для taxonomies — create_data_record.",
           parameters: "preset, id?, label?, color?, email?",
           http: "POST /api/agent/catalogs/items"
         }
@@ -514,7 +532,6 @@ module.exports = {
       title: "awn-system (модель CMS)",
       tools: [
         { name: "get_agent_system_status", description: "Статус awn-system.", parameters: "—", http: "GET /api/agent-system/status" },
-        { name: "list_view_types", description: "awn.view.* типы.", parameters: "—", http: "GET /api/agent-system/views" },
         { name: "get_agent_system_type", description: "Детали типа по id/path.", parameters: "id?, path?", http: "GET /api/agent-system/type" },
         { name: "read_agent_system_file", description: "Файл awn-system.", parameters: "path", http: "GET /api/agent-system/file" },
         { name: "write_agent_system_file", description: "Записать awn-system.", parameters: "path, content", http: "POST /api/agent-system/file" }

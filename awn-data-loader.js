@@ -1,6 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
+const {
+  getRecordStorage,
+  getCsvFileName,
+  getCsvColumnsFromSchema,
+  loadCsvRecords,
+  appendCsvRecord,
+  serializeCsv
+} = require("./awn-data-csv");
 
 const AWN_DATA_DIR = "awn-data";
 const SCHEMA_FILE = "configuration-schema.yml";
@@ -8,7 +16,7 @@ const COLLECTION_MANIFEST = "manifest.md";
 const SINGLETON_RECORD = "main.md";
 const SKIP_DIRS = new Set(["_base", ".awn-cache", "history"]);
 
-const STORE_KINDS = new Set(["collection", "singleton"]);
+const STORE_KINDS = new Set(["collection", "singleton", "group"]);
 
 function splitFrontmatter(content) {
   const text = String(content || "");
@@ -167,8 +175,16 @@ function loadStore(dataRoot, storeEntry) {
     manifestDescription = manifestMarkdown.split("\n")[0]?.replace(/^#\s*/, "").trim() || "";
   }
 
-  const recordFiles = listRecordFiles(storeAbs, kind);
-  const records = recordFiles.map((f) => parseRecordFile(f, storeRel));
+  const recordStorage = kind === "collection" ? getRecordStorage(schema) : "md";
+  let records = [];
+  if (kind !== "group") {
+    if (kind === "collection" && recordStorage === "csv") {
+      records = loadCsvRecords(storeAbs, storeRel, schema);
+    } else {
+      const recordFiles = listRecordFiles(storeAbs, kind);
+      records = recordFiles.map((f) => parseRecordFile(f, storeRel));
+    }
+  }
 
   const payload = {
     id,
@@ -180,9 +196,21 @@ function loadStore(dataRoot, storeEntry) {
     manifestRelPath: `${storeRel}/${COLLECTION_MANIFEST}`.replace(/\\/g, "/"),
     schema,
     sortOrder,
-    recordCount: records.length,
-    recordFile: kind === "singleton" ? SINGLETON_RECORD : null
+    recordStorage,
+    recordCount: kind === "group" ? 0 : records.length,
+    recordFile:
+      kind === "singleton"
+        ? SINGLETON_RECORD
+        : kind === "collection" && recordStorage === "csv"
+          ? getCsvFileName(schema)
+          : null
   };
+
+  if (kind === "group") {
+    payload.children = [];
+    payload.childCount = 0;
+    return payload;
+  }
 
   if (kind === "singleton") {
     const main = records.find((r) => r.fileName === SINGLETON_RECORD) || records[0] || null;
@@ -196,6 +224,72 @@ function loadStore(dataRoot, storeEntry) {
   return payload;
 }
 
+function organizeAwnDataStores(stores, dataRoot) {
+  if (!stores.length) return [];
+
+  const byRel = new Map(stores.map((s) => [s.relPath, s]));
+  const groupRels = new Set(stores.filter((s) => s.kind === "group").map((s) => s.relPath));
+  const topLevel = [];
+
+  for (const store of stores) {
+    if (store.kind === "group") {
+      store.children = [];
+      continue;
+    }
+    const slash = store.relPath.indexOf("/");
+    if (slash > 0) {
+      const parentRel = store.relPath.slice(0, slash);
+      if (groupRels.has(parentRel)) {
+        const group = byRel.get(parentRel);
+        if (group) {
+          group.children.push(store);
+          continue;
+        }
+      }
+    }
+    topLevel.push(store);
+  }
+
+  for (const group of stores.filter((s) => s.kind === "group")) {
+    const groupSort = readSortJson(path.join(dataRoot, group.relPath));
+    if (groupSort?.length && group.children.length) {
+      group.children.sort((a, b) => {
+        const aSlug = a.relPath.split("/").pop();
+        const bSlug = b.relPath.split("/").pop();
+        const ai = groupSort.indexOf(aSlug);
+        const bi = groupSort.indexOf(bSlug);
+        if (ai === -1 && bi === -1) return String(a.name).localeCompare(String(b.name), "ru");
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+    } else {
+      group.children.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+    }
+    group.childCount = group.children.length;
+    group.recordCount = group.children.reduce((sum, child) => sum + (Number(child.recordCount) || 0), 0);
+    topLevel.push(group);
+  }
+
+  const rootSort = readSortJson(dataRoot);
+  if (rootSort?.length) {
+    topLevel.sort((a, b) => {
+      const aKey = a.relPath.split("/")[0];
+      const bKey = b.relPath.split("/")[0];
+      const ai = rootSort.indexOf(aKey);
+      const bi = rootSort.indexOf(bKey);
+      if (ai === -1 && bi === -1) return a.relPath.localeCompare(b.relPath, "ru");
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  } else {
+    topLevel.sort((a, b) => a.relPath.localeCompare(b.relPath, "ru"));
+  }
+
+  return topLevel;
+}
+
 function loadAwnDataStores(agentRoot, projectRoot = process.cwd()) {
   const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
   if (!dataRoot || !fs.existsSync(dataRoot)) {
@@ -203,10 +297,8 @@ function loadAwnDataStores(agentRoot, projectRoot = process.cwd()) {
   }
 
   const discovered = discoverStoreDirs(dataRoot);
-  const stores = discovered
-    .map((entry) => loadStore(dataRoot, entry))
-    .filter(Boolean)
-    .sort((a, b) => a.relPath.localeCompare(b.relPath, "ru"));
+  const flatStores = discovered.map((entry) => loadStore(dataRoot, entry)).filter(Boolean);
+  const stores = organizeAwnDataStores(flatStores, dataRoot);
 
   return {
     specVersion: "0.2",
@@ -217,14 +309,32 @@ function loadAwnDataStores(agentRoot, projectRoot = process.cwd()) {
   };
 }
 
+function findAwnDataStore(stores, filter) {
+  const needle = String(filter || "").trim();
+  if (!needle) return null;
+
+  function walk(list) {
+    for (const store of list || []) {
+      if (store.id === needle || store.relPath === needle || store.relPath.endsWith(`/${needle}`)) {
+        return store;
+      }
+      if (store.kind === "group" && store.children?.length) {
+        const nested = walk(store.children);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+
+  return walk(stores);
+}
+
 function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "") {
   const payload = loadAwnDataStores(agentRoot, projectRoot);
   const filter = String(storeId || "").trim();
   if (!filter) return payload;
 
-  const store = payload.stores.find(
-    (s) => s.id === filter || s.relPath === filter || s.relPath.endsWith(`/${filter}`)
-  );
+  const store = findAwnDataStore(payload.stores, filter);
   if (!store) {
     return { ...payload, store: null, error: "store not found" };
   }
@@ -312,6 +422,26 @@ function storeSchemaExists(dataRoot, storeRel) {
   return Boolean(abs && fs.existsSync(path.join(abs, SCHEMA_FILE)));
 }
 
+function appendGroupSortEntry(dataRoot, groupRel, childSlug) {
+  const groupAbs = getStoreAbsolutePath(dataRoot, groupRel);
+  if (!groupAbs) return;
+  const sortPath = path.join(groupAbs, "sort.json");
+  let order = [];
+  if (fs.existsSync(sortPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(sortPath, "utf-8"));
+      if (Array.isArray(parsed)) order = parsed.map(String);
+    } catch {
+      order = [];
+    }
+  }
+  const slug = String(childSlug || "").trim();
+  if (slug && !order.includes(slug)) {
+    order.push(slug);
+    fs.writeFileSync(sortPath, `${JSON.stringify(order, null, 2)}\n`, "utf-8");
+  }
+}
+
 function appendRootSortEntry(dataRoot, storeRel) {
   const sortPath = path.join(dataRoot, "sort.json");
   let order = [];
@@ -340,6 +470,7 @@ extends: ${extendsPath}
 description: ${desc}
 
 record:
+  storage: md
   id-mode: numeric
   file: "{id}.md"
   hierarchy: ${hierarchy ? "true" : "false"}
@@ -358,6 +489,47 @@ fields:
     title: Статус
     enum: [open, done]
     default: open
+`;
+}
+
+function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
+  const depth = slug.split("/").length;
+  const extendsPath = `${ "../".repeat(depth) }_base/configuration-schema.yml`;
+  const id = slug.replace(/\//g, ".");
+  const shortName = name || slug.split("/").pop();
+  const desc = String(description || shortName).trim();
+  return `version: 1
+kind: collection
+id: ${id}
+name: ${shortName}
+extends: ${extendsPath}
+description: ${desc}
+
+record:
+  storage: csv
+  file: main.csv
+  id-mode: slug
+  hierarchy: false
+
+fields:
+  code:
+    type: awn.string
+    title: Код
+    required: true
+  label:
+    type: awn.string
+    title: Подпись
+    required: true
+  emoji:
+    type: awn.string
+    title: Эмодзи
+  color:
+    type: awn.color
+    title: Цвет
+  sort:
+    type: awn.integer
+    title: Порядок
+    default: 0
 `;
 }
 
@@ -412,17 +584,27 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
 
   const name = String(options.name || slug).trim();
   const description = String(options.description || "").trim();
+  const isTaxonomy = slug.startsWith("taxonomies/");
+  const withSample =
+    kind === "collection" && !isTaxonomy ? options.withSampleRecord !== false : false;
 
   if (kind === "collection") {
     const manifestText = description.trim() || `Коллекция \`${slug}\`.`;
     fs.writeFileSync(path.join(storeAbs, COLLECTION_MANIFEST), `# ${name}\n\n${manifestText}\n`, "utf-8");
     fs.writeFileSync(
       path.join(storeAbs, SCHEMA_FILE),
-      buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false }),
+      isTaxonomy
+        ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
+        : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false }),
       "utf-8"
     );
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
-    if (options.withSampleRecord !== false) {
+    if (isTaxonomy) {
+      const columns = getCsvColumnsFromSchema(
+        parseTypeYaml(buildTaxonomyCollectionSchemaContent({ slug, name, description }))
+      );
+      fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
+    } else if (withSample) {
       const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись" });
       fs.writeFileSync(path.join(storeAbs, "1.md"), recordContent, "utf-8");
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
@@ -443,7 +625,10 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     fs.writeFileSync(path.join(storeAbs, SINGLETON_RECORD), recordContent, "utf-8");
   }
 
-  if (!slug.includes("/")) {
+  if (slug.includes("/")) {
+    const [groupRel, childSlug] = slug.split("/", 2);
+    appendGroupSortEntry(dataRoot, groupRel, childSlug);
+  } else {
     appendRootSortEntry(dataRoot, slug);
   }
 
@@ -478,6 +663,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   const store = payload.store;
   if (!store) throw new Error("Store not found");
 
+  const recordStorage = getRecordStorage(schema);
   const idMode = String(schema?.record?.["id-mode"] || schema?.record?.idMode || "numeric").trim();
   let id = String(options.id || "").trim();
   if (!id) {
@@ -487,6 +673,17 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   const parent = String(options.parent || "").trim();
   const title = String(options.title || id).trim();
   const hierarchy = schema?.record?.hierarchy !== false;
+
+  if (recordStorage === "csv") {
+    if (parent) throw new Error("CSV store does not support hierarchy");
+    const fields = schema?.fields || {};
+    const row = { code: id, label: title };
+    for (const key of Object.keys(fields)) {
+      if (options[key] !== undefined) row[key] = options[key];
+    }
+    appendCsvRecord(storeAbs, schema, row);
+    return getAwnDataPayload(agentRoot, projectRoot, storeRel).store;
+  }
 
   let relFile = `${id}.md`;
   let absFile = path.join(storeAbs, relFile);

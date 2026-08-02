@@ -34,12 +34,6 @@ const TYPE_ID_ALIASES = {
   "catalog": "awn.page.catalog",
   "taxonomy": "awn.page.taxonomy",
   "awn.page.catalog": "awn.page.taxonomy",
-  // View aliases (awn.view.* → agent.view.*)
-  "awn.view.list": "agent.view.list",
-  "awn.view.inbox": "agent.view.inbox",
-  "awn.view.media-grid": "agent.view.media-grid",
-  "awn.view.tabular": "agent.view.tabular",
-  "awn.view.thread": "agent.view.thread",
   // Taxonomy aliases (awn.taxonomy.* → agent.taxonomy.*)
   "awn.taxonomy.categories": "agent.taxonomy.categories",
   "awn.taxonomy.colors": "agent.taxonomy.colors",
@@ -162,7 +156,6 @@ const BUILTIN_DOMAIN_META = {
   fields: { label: "Fields", kind: "field" },
   "md-blocks": { label: "Markdown blocks", kind: "block" },
   taxonomies: { label: "Taxonomies", kind: "taxonomy" },
-  views: { label: "Views", kind: "view" },
   mixins: { label: "Mixins", kind: "mixin" }
 };
 
@@ -550,19 +543,6 @@ function getTypeUsage(entry, merged, byId) {
       }
       break;
     }
-    case "views": {
-      const vlayout = merged["render-mode"];
-      if (merged.contentMode) {
-        consumers.push(`селектор «Вид по умолчанию» на обзоре темы (contentMode «${merged.contentMode}»)`);
-        wired = true;
-      }
-      if (vlayout) {
-        consumers.push(`тулбар-переключатель раскладок (render-mode «${vlayout}»)`);
-        wired = true;
-      }
-      if (!wired) note = "нет contentMode и render-mode — вид ни к чему не привязан";
-      break;
-    }
     case "slots": {
       // Реальность: набор слотов в дереве фиксирован рантаймом (скан папок
       // awn-storage). Тип слота — декларация/документация: словарь драйвера
@@ -594,7 +574,7 @@ function getTypeUsage(entry, merged, byId) {
         consumers.push(`поле темы «${merged["props-field"]}»`);
         wired = true;
       }
-      if (merged["data-path"]) consumers.push("справочник (CSV)");
+      if (merged["data-path"]) consumers.push("справочник (awn-data)");
       if (merged["create-node-group"]) consumers.push("меню «создать»");
       if (!consumers.length) note = "нет props-field/data-path — ни к чему не привязан";
       break;
@@ -796,37 +776,7 @@ function loadBlockGroupsFromCatalog(projectRoot, agentRoot = "") {
 }
 
 /**
- * Returns view types with their contentMode mapping.
- * Reads awn.view.* from the type catalog and picks those with a contentMode field.
- * Used by the UI view-selector dropdown and by agents to know which views are available.
- */
-function getViewTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
-  const catalog = loadTypeCatalog(projectRoot, agentRoot);
-  const views = [];
-  for (const entry of catalog.byId.values()) {
-    if (entry.aliasOf || entry.domain !== "views" || !isTypeActive(entry)) continue;
-    if (isFoundationType(entry)) continue;
-    const merged = mergeTypeSchema(entry, catalog.byId);
-    const schema = entry.schema || {};
-    const contentMode = merged.contentMode || null;
-    views.push({
-      id: entry.id,
-      name: schema.name || merged.name || entry.id,
-      description: schema.description || merged.description || "",
-      contentMode,
-      renderMode: merged["render-mode"] || null,
-      icon: merged.icon || schema.icon || null,
-      appliesToSlots: merged["applies-to-slots"] || [],
-      source: entry.source || "platform",
-      catalogFile: entry.catalogFile || null
-    });
-  }
-  views.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-  return { views };
-}
-
-/**
- * Проверка «здоровья» типов агента: битые extends, виды без contentMode,
+ * Проверка «здоровья» типов агента: битые extends, блоки без template,
  * блоки без template, поля без widget, несоответствие domain и т.п.
  * Используется UI (бейджи в дереве типов) и MCP (get_type_health).
  */
@@ -861,9 +811,6 @@ function getTypeHealth(projectRoot = process.cwd(), agentRoot = "") {
 
     if (foundation) continue;
 
-    if (entry.domain === "views" && !schema.contentMode) {
-      add("warn", entry, "view-no-contentmode", "вид без contentMode не появится в переключателе");
-    }
     const isBlockConfig = schema.groupOrder || schema.groupNames;
     if (entry.domain === "md-blocks" && !isBlockConfig && !(schema.template || schema.text)) {
       add("warn", entry, "block-no-template", "блок без template ничего не вставит в редактор");
@@ -933,7 +880,6 @@ module.exports = {
   getActiveTypes,
   getTypeCatalogPayload,
   getTypeDetailByCatalogPath,
-  getViewTypesPayload,
   getCreateNodeTypesPayload,
   getTypeHealth,
   isFoundationType,

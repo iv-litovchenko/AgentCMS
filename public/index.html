@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.599" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.601" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -742,6 +742,14 @@
                 </summary>
                 <div class="menu-static-body">
                   <div class="menu-awn-data-toolbar">
+                    <button
+                      id="menu-awn-data-create-group-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
+                      title="Создать справочник в группе taxonomies/"
+                    >
+                      + Группа
+                    </button>
                     <button
                       id="menu-awn-data-create-collection-btn"
                       type="button"
@@ -3486,9 +3494,9 @@
           <button id="awn-data-view-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
         <div class="awn-data-view-manifest hidden" id="awn-data-view-manifest"></div>
-        <div class="awn-data-view-section-row hidden" id="awn-data-view-section-wrap">
-          <label class="awn-data-view-section-label" for="awn-data-view-section-select">Раздел</label>
-          <select id="awn-data-view-section-select" class="awn-data-view-section-select"></select>
+        <div class="awn-data-view-section-panel hidden" id="awn-data-view-section-wrap">
+          <div class="awn-data-view-section-label">Разделы</div>
+          <div class="awn-data-view-section-tree" id="awn-data-view-section-tree" role="tree"></div>
         </div>
         <div class="awn-data-view-toolbar">
           <div class="awn-data-view-search-wrap">
@@ -3729,7 +3737,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.599"></script>
+    <script src="/main.js?v=0.5.601"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

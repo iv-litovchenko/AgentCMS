@@ -13,7 +13,6 @@ const AGENT_SYSTEM_REL = "awn-system";
 const AGENT_TYPE_DOMAINS = [
   ...TYPE_DOMAINS,
   "taxonomies",
-  "views",
   "mixins"
 ];
 

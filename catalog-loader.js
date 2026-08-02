@@ -18,6 +18,14 @@ const {
 } = require("./manifest-paths");
 
 const { AGENT_CMS_CORE_REL } = require("./platform-sources");
+const {
+  AWN_DATA_TAXONOMY_PRESETS,
+  loadPlatformTaxonomyPreset,
+  getTaxonomyStoreRel,
+  loadTaxonomyPresetFromAwnData
+} = require("./awn-data-taxonomies-bridge");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
+const { createAwnDataRecord } = require("./awn-data-loader");
 
 const GLOBAL_CATALOG_DIR = AGENT_CMS_CORE_REL;
 const CATALOG_GROUP_LABELS = {
@@ -98,14 +106,14 @@ function isGlobalCatalogAbsolute(catalogAbsolute, projectRoot) {
 
 function getTaxonomyFolderCandidates(catalogAbsolute, projectRoot) {
   if (isGlobalCatalogAbsolute(catalogAbsolute, projectRoot)) {
-    return [PLATFORM_GLOBAL_TAXONOMY_FOLDER];
+    return [];
   }
   return [WORKSPACE_TAXONOMY_FOLDER, LEGACY_WORKSPACE_TAXONOMY_FOLDER];
 }
 
 function getDefaultTaxonomyFolder(catalogAbsolute, projectRoot) {
   return isGlobalCatalogAbsolute(catalogAbsolute, projectRoot)
-    ? PLATFORM_GLOBAL_TAXONOMY_FOLDER
+    ? WORKSPACE_TAXONOMY_FOLDER
     : WORKSPACE_TAXONOMY_FOLDER;
 }
 
@@ -315,31 +323,29 @@ async function listStatusesCatalogItems(catalogAbsolute, manifestRel) {
   return listCategoryCatalogItems(catalogAbsolute, manifestRel);
 }
 
-async function loadSchemasCatalogPreset(catalogAbsolute, projectRoot = null) {
-  const scaffold = findCatalogScaffold("schemas");
-  const manifestRel = await resolveCatalogManifestRel(catalogAbsolute, "schemas", projectRoot);
-  if (!scaffold || !manifestRel || !catalogAbsolute) {
-    return { preset: "schemas", exists: false, title: "Схемы", items: [], content: null };
+async function loadSchemasCatalogPreset(_catalogAbsolute, _projectRoot = null) {
+  return { preset: "schemas", exists: false, title: "Схемы", items: [], content: null, kind: "document" };
+}
+
+async function loadGlobalCatalogPreset(projectRoot, preset) {
+  if (AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+    return loadPlatformTaxonomyPreset(projectRoot, preset);
   }
-  const manifestAbs = path.join(catalogAbsolute, manifestRel);
-  try {
-    await fs.access(manifestAbs);
-  } catch {
-    return { preset: "schemas", exists: false, title: scaffold.title, manifestRel, items: [], content: null };
-  }
-  const content = await readServiceCatalogFileBody(catalogAbsolute, manifestRel, BUNDLE_CONTENT_FILE);
+  const scaffold = findCatalogScaffold(preset);
   return {
-    preset: "schemas",
-    exists: true,
-    title: scaffold.title,
-    manifestRel,
-    items: [],
-    content: content || "",
-    kind: "document"
+    preset,
+    exists: false,
+    title: scaffold?.title || preset,
+    manifestRel: null,
+    items: []
   };
 }
 
 async function loadCatalogPreset(catalogAbsolute, preset, options = {}) {
+  if (isGlobalCatalogAbsolute(catalogAbsolute, options.projectRoot)) {
+    return loadGlobalCatalogPreset(options.projectRoot, preset);
+  }
+
   const scaffold = findCatalogScaffold(preset);
   if (!scaffold) {
     return { preset, exists: false, title: preset, items: [] };
@@ -350,6 +356,7 @@ async function loadCatalogPreset(catalogAbsolute, preset, options = {}) {
   if (!manifestRel || !catalogAbsolute) {
     return { preset, exists: false, title: scaffold.title, items: [] };
   }
+
   const manifestAbs = path.join(catalogAbsolute, manifestRel);
   try {
     await fs.access(manifestAbs);
@@ -401,21 +408,23 @@ async function loadMergedCatalogPreset(projectRoot, agentCatalogAbsolute, preset
   const globalAbsolute = getGlobalCatalogAbsolute(projectRoot);
 
   if (options.globalOnly) {
-    const globalPayload = await loadCatalogPreset(globalAbsolute, preset, { projectRoot });
+    const globalPayload = await loadGlobalCatalogPreset(projectRoot, preset);
     const items = (globalPayload?.items || []).map((item) => ({ ...item, scope: "global" }));
     return {
       preset,
       exists: Boolean(globalPayload?.exists || items.length),
       title: scaffold?.title || preset,
-      manifestRel: globalPayload?.exists ? globalPayload.manifestRel : null,
-      globalManifestRel: globalPayload?.exists ? globalPayload.manifestRel : null,
+      manifestRel: globalPayload?.manifestRel || null,
+      globalManifestRel: globalPayload?.manifestRel || null,
       items,
-      groups: buildCatalogGroups(items)
+      groups: buildCatalogGroups(items),
+      source: globalPayload?.source,
+      storeRel: globalPayload?.storeRel
     };
   }
 
   const [globalPayload, agentPayload] = await Promise.all([
-    loadCatalogPreset(globalAbsolute, preset, { projectRoot }),
+    loadGlobalCatalogPreset(projectRoot, preset),
     agentCatalogAbsolute
       ? loadCatalogPreset(agentCatalogAbsolute, preset, { projectRoot })
       : Promise.resolve(null)
@@ -448,8 +457,7 @@ async function getMergedCatalogsPayload(projectRoot, agentCatalogAbsolute, optio
     ])
   );
   const payload = Object.fromEntries(entries);
-  const globalAbsolute = getGlobalCatalogAbsolute(projectRoot);
-  payload.schemas = await loadSchemasCatalogPreset(globalAbsolute, projectRoot);
+  payload.schemas = await loadSchemasCatalogPreset(null, projectRoot);
   return payload;
 }
 
@@ -506,6 +514,7 @@ module.exports = {
   resolveCatalogManifestRel,
   loadCatalogPreset,
   loadSchemasCatalogPreset,
+  loadGlobalCatalogPreset,
   loadMergedCatalogPreset,
   getMergedCatalogsPayload,
   mergeCatalogItems,

@@ -6,7 +6,6 @@ const {
 } = require("./agent-registry");
 const {
   MERGE_CATALOG_PRESETS,
-  getGlobalCatalogAbsolute,
   resolveCatalogManifestRel,
   loadCatalogPreset
 } = require("./catalog-loader");
@@ -17,10 +16,15 @@ const {
 } = require("./catalog-normalize");
 const {
   getNamedStorageBundleDirRel,
-  getNamedStorageBundleRelCandidates,
-  BUNDLE_TABULAR_FILE,
-  BUNDLE_CONTENT_FILE
+  BUNDLE_TABULAR_FILE
 } = require("./manifest-paths");
+const {
+  AWN_DATA_TAXONOMY_PRESETS,
+  getTaxonomyStoreRel,
+  loadTaxonomyPresetFromAwnData
+} = require("./awn-data-taxonomies-bridge");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
+const { createAwnDataRecord } = require("./awn-data-loader");
 
 const CATEGORY_LIKE_PRESETS = new Set(["categories", "statuses", "users", "priorities", "colors"]);
 
@@ -85,6 +89,43 @@ async function writeCategoryLikeCsv(catalogAbsolute, preset, items, options = {}
   return csvRel;
 }
 
+async function addCatalogItemToAwnData(projectRoot, preset, itemInput) {
+  const storeRel = getTaxonomyStoreRel(preset);
+  if (!storeRel) {
+    const error = new Error("Unsupported taxonomy preset");
+    error.code = "EINVAL";
+    throw error;
+  }
+
+  const existingPayload = loadTaxonomyPresetFromAwnData(projectRoot, preset);
+  const existing = existingPayload?.items || [];
+  const item = normalizeCatalogItemInput(preset, itemInput, existing);
+
+  if (existing.some((entry) => entry.id === item.id)) {
+    const error = new Error(`Catalog item "${item.id}" already exists`);
+    error.code = "EEXIST";
+    throw error;
+  }
+
+  const record = {
+    store: storeRel,
+    id: item.id,
+    title: item.label || item.id
+  };
+  if (item.color) record.color = item.color;
+  if (item.email) record.email = item.email;
+
+  createAwnDataRecord(getAgentCmsCoreAbsolute(projectRoot), projectRoot, record);
+
+  return {
+    preset,
+    item,
+    total: existing.length + 1,
+    source: "awn-data",
+    storeRel
+  };
+}
+
 async function addCatalogItemToAbsolute(catalogAbsolute, preset, itemInput, options = {}) {
   if (!MERGE_CATALOG_PRESETS.includes(preset)) {
     const error = new Error("Unsupported catalog preset");
@@ -137,6 +178,11 @@ async function addCatalogItemForAgentContext({
     throw error;
   }
 
+  if (isPlatform && AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+    const result = await addCatalogItemToAwnData(projectRoot, preset, item);
+    return { ...result, scope: "global" };
+  }
+
   if (!isPlatform && !serviceAbsolute) {
     const error = new Error("Service folder is not configured for this agent");
     error.code = "EINVAL";
@@ -147,8 +193,7 @@ async function addCatalogItemForAgentContext({
     await ensureWritableCatalog(serviceAbsolute, preset, projectRoot);
   }
 
-  const catalogAbsolute = isPlatform ? getGlobalCatalogAbsolute(projectRoot) : serviceAbsolute;
-
+  const catalogAbsolute = serviceAbsolute;
   const result = await addCatalogItemToAbsolute(catalogAbsolute, preset, item, { projectRoot });
   return {
     ...result,
@@ -159,6 +204,7 @@ async function addCatalogItemForAgentContext({
 module.exports = {
   addCatalogItemForAgentContext,
   addCatalogItemToAbsolute,
+  addCatalogItemToAwnData,
   writeCategoryLikeCsv,
   writeTagsCsv
 };

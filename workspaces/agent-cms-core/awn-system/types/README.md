@@ -11,10 +11,9 @@ YAML-типы CMS этого агента. Loader: `type-catalog-loader.js` (age
 | fields/ | `awn.*` | string, enum, file |
 | md-blocks/ | `awn.block.*` | h2, quote, tasks |
 | taxonomies/ | `awn.taxonomy.*` | categories, tags, statuses, priorities, colors |
-| views/ | `awn.view.*` | list, media-grid |
 | mixins/ | `awn.mixin.*` | preview, runtime, attachments |
 
 Файлы agent-специфичные (не из platform bootstrap):  
 `content/dialog.yml`, `content/comment.yml`, `content/media-category.yml`,  
 `slots/comments.yml`, `slots/quick-notes.yml`, `slots/assets.yml`,  
-`taxonomies/*`, `views/*`, `mixins/*`.
+`taxonomies/*`, `mixins/*`.

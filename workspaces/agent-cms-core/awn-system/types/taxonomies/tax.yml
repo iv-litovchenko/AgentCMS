@@ -1,7 +1,0 @@
-id: agent.taxonomy.tax
-name: TAX
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: ""
