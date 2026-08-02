@@ -1,3 +1,8 @@
 # Заготовки шаблонов
 
-Коллекция `zagotovki-shablonov`.
+Коллекция `zagotovki-shablonov` в `awn-data/templates/`.
+
+Каждая запись `{id}.md`:
+- `target-file` — имя системного файла (`.env`, `SKILL.md`, …)
+- `hint-title` / `hint-text` — подсказка и кнопка «Вставить шаблон» в редакторе
+- тело файла — содержимое шаблона для вставки

@@ -4531,6 +4531,15 @@ function updateAgentPreviewCache(previewMeta) {
 
 function getSystemFileHintSpec(name) {
   const normalized = normalizeSystemFileName(name);
+  const fromStore = systemFileTemplatesByTarget[normalized];
+  if (fromStore?.hintTitle && fromStore?.body) {
+    return {
+      title: fromStore.hintTitle,
+      text: fromStore.hintText || "",
+      example: fromStore.body
+    };
+  }
+
   if (normalized === ".gitignore") {
     return {
       title: "Git — что не попадает в репозиторий",
@@ -15404,6 +15413,7 @@ let activeMediaSidecarPath = null;
 let activeMediaMarkdownPath = null;
 let activeAttachmentSidecarRef = null;
 let systemFilesCache = [];
+let systemFileTemplatesByTarget = {};
 const modeContentCache = {
   description: "",
   internal: "",
@@ -21828,6 +21838,10 @@ function getSystemFileCacheEntry(name) {
 
 function getDefaultSystemFileScaffoldContent(name) {
   const normalized = normalizeSystemFileName(name);
+  const fromStore = systemFileTemplatesByTarget[normalized];
+  if (fromStore?.body) {
+    return fromStore.body;
+  }
   if (normalized === "AGENTS.md") {
     return "# Agent\n\n> Инструкции для LLM-агента.\n";
   }
@@ -72688,7 +72702,26 @@ function renderSystemFiles(files) {
   refreshClassicMenuTreeLines();
 }
 
+async function loadSystemFileTemplates() {
+  try {
+    const response = await fetch(buildApiUrl("/api/system-file-templates"));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    const raw = data?.templates && typeof data.templates === "object" ? data.templates : {};
+    const next = {};
+    for (const [key, template] of Object.entries(raw)) {
+      const target = normalizeSystemFileName(key);
+      if (!target || !template?.body) continue;
+      next[target] = template;
+    }
+    systemFileTemplatesByTarget = next;
+  } catch {
+    systemFileTemplatesByTarget = {};
+  }
+}
+
 async function loadSystemFiles(options = {}) {
+  await loadSystemFileTemplates();
   try {
     const response = await fetch(buildApiUrl("/api/system-files"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);

@@ -194,6 +194,7 @@ const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const { getAwnDataPayload, createAwnDataStore, createAwnDataRecord } = require("./awn-data-loader");
+const { loadSystemFileTemplatesFromAwnData } = require("./awn-data-templates-bridge");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -14828,6 +14829,18 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { files });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to check system files", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/system-file-templates") {
+    try {
+      const templates = loadSystemFileTemplatesFromAwnData(getProjectRoot());
+      return sendJson(res, 200, { templates });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load system file templates",
+        details: String(error.message || error)
+      });
     }
   }
 

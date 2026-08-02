@@ -20,6 +20,18 @@ fields:
     type: awn.string
     title: Родитель
     description: id родительской записи
+  target-file:
+    type: awn.string
+    title: Целевой файл
+    description: "Имя системного файла: .env, .gitignore, SKILL.md, AGENTS.md, …"
+    required: true
+  hint-title:
+    type: awn.string
+    title: Заголовок подсказки
+  hint-text:
+    type: awn.string
+    title: Текст подсказки
+    description: HTML-подсказка в редакторе (кнопка «Вставить шаблон»)
   status:
     type: awn.enum
     title: Статус
