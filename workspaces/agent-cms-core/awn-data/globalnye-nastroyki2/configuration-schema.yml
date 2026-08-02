@@ -1,0 +1,14 @@
+version: 1
+kind: singleton
+id: globalnye-nastroyki
+name: Глобальные настройки
+extends: ../_base/configuration-schema.yml
+description: Глобальные настройки
+
+record:
+  file: main.md
+
+fields:
+  note:
+    type: awn.string
+    title: Заметка

@@ -1,0 +1,31 @@
+version: 1
+kind: collection
+id: tasks
+name: Задачи
+extends: ../_base/configuration-schema.yml
+description: Коллекция задач — плоские и вложенные записи
+
+record:
+  id-mode: numeric
+  file: "{id}.md"
+  hierarchy: true
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+    required: true
+  parent:
+    type: awn.string
+    title: Родитель
+    description: id родительской задачи (иерархия)
+  status:
+    type: awn.enum
+    title: Статус
+    enum: [open, in_progress, done, cancelled]
+    default: open
+  priority:
+    type: awn.enum
+    title: Приоритет
+    enum: [low, normal, high]
+    default: normal

@@ -130,6 +130,7 @@ const {
   getStorageRootDirRel,
   getStorageFolderRegexAlternation,
   STORAGE_ROOT_FOLDER,
+  LEGACY_STORAGE_ROOT_FOLDER,
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
   getHistoryRelativeTargetPath,
@@ -188,6 +189,7 @@ const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getViewTypesPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getAwnDataPayload, createAwnDataStore, createAwnDataRecord } = require("./awn-data-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -3906,7 +3908,8 @@ async function collectFolderEntries(folderAbsolute, prefix = "") {
   return chunks;
 }
 
-async function collectExternalContentFolders(folderAbsolute, prefix = "") {
+async function collectExternalContentFolders(folderAbsolute, prefix = "", options = {}) {
+  const shouldSkipDirectory = options.shouldSkipDirectory || shouldSkipExternalMemoryDirectory;
   const folders = [];
   let entries = [];
   try {
@@ -3918,18 +3921,19 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "") {
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
-    if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
+    if (shouldSkipDirectory(entry.name)) continue;
     if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
-    folders.push(...(await collectExternalContentFolders(absolute, relative)));
+    folders.push(...(await collectExternalContentFolders(absolute, relative, options)));
   }
 
   return folders;
 }
 
-async function collectMarkdownFiles(folderAbsolute, prefix = "") {
+async function collectMarkdownFiles(folderAbsolute, prefix = "", options = {}) {
+  const shouldSkipDirectory = options.shouldSkipDirectory || shouldSkipExternalMemoryDirectory;
   const entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
   const files = [];
 
@@ -3939,9 +3943,9 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
-      if (shouldSkipExternalMemoryDirectory(entry.name)) continue;
+      if (shouldSkipDirectory(entry.name)) continue;
       if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
-      const nested = await collectMarkdownFiles(absolute, relative);
+      const nested = await collectMarkdownFiles(absolute, relative, options);
       files.push(...nested);
       continue;
     }
@@ -3962,7 +3966,8 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "") {
   return files;
 }
 
-async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
+async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}) {
+  const shouldSkipDirectory = options.shouldSkipDirectory || shouldSkipDirectoryListing;
   let entries = [];
   try {
     entries = await fs.readdir(folderAbsolute, { withFileTypes: true });
@@ -3977,9 +3982,9 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
     const relative = path.join(prefix, entry.name);
 
     if (entry.isDirectory()) {
-      if (shouldSkipDirectoryListing(entry.name)) continue;
+      if (shouldSkipDirectory(entry.name)) continue;
       if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
-      files.push(...(await collectNonMarkdownFiles(absolute, relative)));
+      files.push(...(await collectNonMarkdownFiles(absolute, relative, options)));
       continue;
     }
 
@@ -9859,6 +9864,64 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
   return getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
 }
 
+async function readTopicSlotsDisabled(manifestRelPath) {
+  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(normalized);
+    return getYamlBoolean(frontmatter, "awn-slots-disabled");
+  } catch {
+    return false;
+  }
+}
+
+function shouldSkipSharedSlotTopicDirectory(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower) return true;
+  if (isStorageFolderName(name)) return true;
+  if (lower === STORAGE_SUBFOLDER_ASSETS) return true;
+  if (lower === STORAGE_SUBFOLDER_HISTORY) return true;
+  if (isConfigurationFolderName(name)) return true;
+  return shouldSkipDirectoryListing(name);
+}
+
+const SHARED_SLOT_ROOT_SKIP_FILES = new Set([
+  MANIFEST_FILE.toLowerCase(),
+  "todo.md",
+  "main.md",
+  "main.csv"
+]);
+
+function isSharedSlotExcludedRelPath(relPath) {
+  const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/$/, "");
+  if (!rel) return true;
+  const lower = rel.toLowerCase();
+  const rootSegment = lower.split("/")[0];
+  if (rootSegment === STORAGE_ROOT_FOLDER.toLowerCase() || rootSegment === LEGACY_STORAGE_ROOT_FOLDER.toLowerCase()) {
+    return true;
+  }
+  if (rootSegment === STORAGE_SUBFOLDER_ASSETS.toLowerCase()) return true;
+  if (rootSegment === STORAGE_SUBFOLDER_HISTORY.toLowerCase()) return true;
+  if (!rel.includes("/") && SHARED_SLOT_ROOT_SKIP_FILES.has(lower)) return true;
+  return false;
+}
+
+function filterSharedSlotExternalFiles(files) {
+  if (!Array.isArray(files)) return [];
+  return files.filter((file) => !isSharedSlotExcludedRelPath(file?.relativePath));
+}
+
+function filterSharedSlotExternalFolders(folders) {
+  if (!Array.isArray(folders)) return [];
+  return folders.filter((folder) => {
+    const rel = String(folder?.path || folder?.name || folder || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/\/$/, "");
+    return rel && !isSharedSlotExcludedRelPath(rel);
+  });
+}
+
 async function resolveExternalMemoryFolderAbsolute(manifestRelPath, options = {}) {
   const section = parseExternalSectionManifestRel(manifestRelPath);
   if (section?.sectionDirRel) {
@@ -9875,6 +9938,18 @@ async function resolveExternalMemoryFolderAbsolute(manifestRelPath, options = {}
 
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
   if (!nodeAbsolute) return null;
+
+  const topicManifestRel = section?.topicManifestRel || manifestRelPath;
+  const slotsDisabled = await readTopicSlotsDisabled(topicManifestRel);
+  if (slotsDisabled) {
+    const folderAbsolute = getNodeContainerDir(nodeAbsolute);
+    if (options.create) {
+      await fs.mkdir(folderAbsolute, { recursive: true });
+    } else if (!(await isExistingDirectory(folderAbsolute))) {
+      return null;
+    }
+    return folderAbsolute;
+  }
 
   let folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT, options);
   if (!folderAbsolute && options.create) {
@@ -15690,6 +15765,63 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/awn-data") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeId = String(url.searchParams.get("store") || "").trim();
+      const payload = getAwnDataPayload(agentRoot, getProjectRoot(), storeId);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load awn-data stores",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/stores") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const store = createAwnDataStore(agentRoot, getProjectRoot(), {
+        kind: payload?.kind,
+        slug: payload?.slug,
+        name: payload?.name,
+        description: payload?.description,
+        hierarchy: payload?.hierarchy,
+        withSampleRecord: payload?.withSampleRecord
+      });
+      return sendJson(res, 201, { ok: true, store });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to create awn-data store",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/records") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const store = createAwnDataRecord(agentRoot, getProjectRoot(), {
+        store: payload?.store,
+        id: payload?.id,
+        title: payload?.title,
+        parent: payload?.parent
+      });
+      return sendJson(res, 201, { ok: true, store });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to create awn-data record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/create-node-types") {
     try {
       const agentRoot = getAgentRoot();
@@ -16448,18 +16580,27 @@ async function handleApiForAgent(req, res, url) {
     const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
-    const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
-    if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: [] });
+    const slotsDisabled = await readTopicSlotsDisabled(relPath);
+    const folderAbsolute = await resolveExternalMemoryFolderAbsolute(relPath);
+    if (!folderAbsolute) return sendJson(res, 200, { exists: false, files: [], slotsDisabled });
     if (!folderAbsolute.startsWith(getAgentRoot())) return sendJson(res, 400, { error: "Invalid external folder path" });
 
     try {
       const stat = await fs.stat(folderAbsolute);
-      if (!stat.isDirectory()) return sendJson(res, 200, { exists: false, files: [] });
-      const [files, folders, nonMarkdownFiles] = await Promise.all([
-        collectMarkdownFiles(folderAbsolute),
-        collectExternalContentFolders(folderAbsolute),
-        collectNonMarkdownFiles(folderAbsolute)
+      if (!stat.isDirectory()) return sendJson(res, 200, { exists: false, files: [], slotsDisabled });
+      const sharedSlotCollectOptions = slotsDisabled
+        ? { shouldSkipDirectory: shouldSkipSharedSlotTopicDirectory }
+        : {};
+      let [files, folders, nonMarkdownFiles] = await Promise.all([
+        collectMarkdownFiles(folderAbsolute, "", sharedSlotCollectOptions),
+        collectExternalContentFolders(folderAbsolute, "", sharedSlotCollectOptions),
+        collectNonMarkdownFiles(folderAbsolute, "", sharedSlotCollectOptions)
       ]);
+      if (slotsDisabled) {
+        files = filterSharedSlotExternalFiles(files);
+        folders = filterSharedSlotExternalFolders(folders);
+        nonMarkdownFiles = filterSharedSlotExternalFiles(nonMarkdownFiles);
+      }
       const enrichedFiles = await Promise.all(
         files.map((file) => enrichExternalMarkdownFilePreview(relPath, folderAbsolute, file))
       );
@@ -16480,10 +16621,11 @@ async function handleApiForAgent(req, res, url) {
         files: enrichedFiles,
         folders,
         nonMarkdownFiles,
-        sectionSortOrders
+        sectionSortOrders,
+        slotsDisabled
       });
     } catch (error) {
-      if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [] });
+      if (error && error.code === "ENOENT") return sendJson(res, 200, { exists: false, files: [], slotsDisabled });
       return sendJson(res, 500, { error: "Failed to read external files", details: String(error.message || error) });
     }
   }

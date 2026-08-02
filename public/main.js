@@ -28,9 +28,34 @@ const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn
 const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
+const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
+const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
+const menuStaticFooterActionNode = document.getElementById("menu-static-footer-action");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
+const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
+const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-create-collection-btn");
+const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
+const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
+const awnDataCreateModalTitleNode = document.getElementById("awn-data-create-modal-title");
+const awnDataCreateModalHintNode = document.getElementById("awn-data-create-modal-hint");
+const awnDataCreateNameInputNode = document.getElementById("awn-data-create-name-input");
+const awnDataCreateSlugInputNode = document.getElementById("awn-data-create-slug-input");
+const awnDataCreateDescriptionInputNode = document.getElementById("awn-data-create-description-input");
+const awnDataCreateSampleWrapNode = document.getElementById("awn-data-create-sample-wrap");
+const awnDataCreateSampleInputNode = document.getElementById("awn-data-create-sample-input");
+const awnDataCreateCancelBtn = document.getElementById("awn-data-create-cancel-btn");
+const awnDataCreateSubmitBtn = document.getElementById("awn-data-create-submit-btn");
+const awnDataViewModalNode = document.getElementById("awn-data-view-modal");
+const awnDataViewModalTitleNode = document.getElementById("awn-data-view-modal-title");
+const awnDataViewModalSubtitleNode = document.getElementById("awn-data-view-modal-subtitle");
+const awnDataViewRecordsNode = document.getElementById("awn-data-view-records");
+const awnDataViewAddWrapNode = document.getElementById("awn-data-view-add-wrap");
+const awnDataAddTitleInputNode = document.getElementById("awn-data-add-title-input");
+const awnDataAddParentInputNode = document.getElementById("awn-data-add-parent-input");
+const awnDataAddRecordBtn = document.getElementById("awn-data-add-record-btn");
+const awnDataViewCloseBtn = document.getElementById("awn-data-view-close-btn");
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
@@ -2876,8 +2901,7 @@ function getWorkspaceEditorLinkTargetRel() {
   const manifestBase = getResolvedNodePath(activePath);
 
   if (activeContentMode === "external" && activeExternalFilePath) {
-    const layer = getStorageSubfolderForMode("external") || "main";
-    return buildStorageLayerRef(manifestPath, layer, activeExternalFilePath) || manifestPath;
+    return buildExternalMemoryFileRef(manifestPath, activeExternalFilePath) || manifestPath;
   }
 
   if (isMediaLibraryContentMode()) {
@@ -10654,6 +10678,7 @@ async function switchActiveAgent(nextAgentId) {
     updateBreadcrumbsForActiveMode();
     void loadAppFooterIdeasPreview();
     void refreshMenuGoogleDriveStats(activeAgentId);
+    void refreshMenuAwnDataStores(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -18887,6 +18912,107 @@ function usesNavigationHubInlineSubsections(nodePath = getResolvedNodePath(activ
   return isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath);
 }
 
+const topicSlotsDisabledCache = new Map();
+const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий слот)";
+
+function isTopicSlotsDisabledFromEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length) return false;
+  const entry = entries.find((item) => normalizePropsKey(item.key) === "awn-slots-disabled");
+  if (!entry) return false;
+  if (entry.kind === "bool") return Boolean(entry.value);
+  const raw = String(entry.value ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+}
+
+function invalidateTopicSlotsDisabledCache(manifestPath = "") {
+  const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) {
+    topicSlotsDisabledCache.clear();
+    return;
+  }
+  topicSlotsDisabledCache.delete(normalized);
+}
+
+function isTopicSharedSlotActive(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return false;
+  if (topicSlotsDisabledCache.has(manifestPath)) return topicSlotsDisabledCache.get(manifestPath);
+  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
+  if (activeManifestPath === manifestPath) {
+    const entries = resolveNodeOverviewPropsEntries();
+    if (entries?.length) return isTopicSlotsDisabledFromEntries(entries);
+  }
+  return false;
+}
+
+function getTopicSharedSlotStorageRootRel(nodePath) {
+  const resolved = getResolvedNodePath(nodePath);
+  return getManifestContainerDirRel(resolved) || resolved;
+}
+
+function getExternalMemoryRootRel(nodePath = activePath) {
+  const resolved = getResolvedNodePath(nodePath);
+  if (isTopicSharedSlotActive(resolved)) {
+    return getTopicSharedSlotStorageRootRel(resolved);
+  }
+  return getNodeStorageSubfolderPath(resolved, "external");
+}
+
+function buildSharedSlotFileRef(contextRelPath, relativePath) {
+  const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel || rel.includes("..")) return "";
+  const root = getTopicSharedSlotStorageRootRel(contextRelPath);
+  if (!root) return rel;
+  return `${root}/${rel}`.replace(/\/+/g, "/");
+}
+
+function buildExternalMemoryFileRef(contextRelPath, relativePath) {
+  if (isTopicSharedSlotActive(contextRelPath)) {
+    return buildSharedSlotFileRef(contextRelPath, relativePath);
+  }
+  return buildStorageLayerRef(
+    contextRelPath,
+    getStorageSubfolderForMode("external") || "external",
+    relativePath
+  );
+}
+
+async function readTopicSlotsDisabledForPath(nodePath) {
+  const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
+  if (!manifestPath) return false;
+
+  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
+  if (activeManifestPath === manifestPath) {
+    const entries = resolveNodeOverviewPropsEntries();
+    if (entries?.length) {
+      const disabled = isTopicSlotsDisabledFromEntries(entries);
+      topicSlotsDisabledCache.set(manifestPath, disabled);
+      return disabled;
+    }
+  }
+
+  if (topicSlotsDisabledCache.has(manifestPath)) {
+    return topicSlotsDisabledCache.get(manifestPath);
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/file/properties", { path: manifestPath }));
+    if (!response.ok) return false;
+    const data = await response.json();
+    const disabled = isTopicSlotsDisabledFromEntries(parsePropsYaml(data.content || ""));
+    topicSlotsDisabledCache.set(manifestPath, disabled);
+    return disabled;
+  } catch {
+    return false;
+  }
+}
+
+async function shouldHideTopicStorageSlots(nodePath, entries = null) {
+  if (isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath)) return false;
+  if (entries?.length && isTopicSlotsDisabledFromEntries(entries)) return true;
+  return readTopicSlotsDisabledForPath(nodePath);
+}
+
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
   return !usesNavigationHubInlineSubsections(nodePath);
 }
@@ -23892,6 +24018,9 @@ function getNodeDomainBreadcrumbPath(nodePath) {
 }
 
 function getNodeMemoryListBreadcrumbPath(nodePath) {
+  if (isTopicSharedSlotActive(nodePath)) {
+    return normalizeBreadcrumbPath(getTopicSharedSlotStorageRootRel(nodePath));
+  }
   const parts = normalizeBreadcrumbPath(getNodeDisplayPath(nodePath)).split("/").filter(Boolean);
   const collapsed = [];
   for (const part of parts) {
@@ -27578,7 +27707,10 @@ function syncExternalListSectionHead(sectionFolder) {
   title.className = "media-section-folder-title";
 
   if (!sectionFolder) {
-    title.textContent = `📋 ${MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_CONTENT] || "Память"}`;
+    const rootLabel = isTopicSharedSlotActive()
+      ? TOPIC_SHARED_SLOT_EXTERNAL_TITLE
+      : MEMORY_SUBFOLDER_BREADCRUMB_LABELS[STORAGE_SUBFOLDER_CONTENT] || "Память";
+    title.textContent = `📋 ${rootLabel}`;
   } else {
     const label = formatMemoryListSectionHeadLabel(sectionFolder);
     title.textContent = `📁 ${label}`;
@@ -29694,8 +29826,9 @@ function pruneActiveExternalSectionFolder() {
 function getExternalItemContextPath(item, nodePath = activePath) {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   const base = getResolvedNodePath(nodePath);
-  if (!rel) return getNodeStorageSubfolderPath(base, "external");
-  return `${getNodeStorageSubfolderPath(base, "external")}/${rel}`.replace(/\/+/g, "/");
+  const root = getExternalMemoryRootRel(base);
+  if (!rel) return root;
+  return `${root}/${rel}`.replace(/\/+/g, "/");
 }
 
 function normalizeExternalMemoryMdRelPath(relPath) {
@@ -34765,7 +34898,8 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
   "awn-runtime-heartbeat",
-  "awn-runtime-commands"
+  "awn-runtime-commands",
+  "awn-slots-disabled"
 ];
 
 function getStandardPropsFieldKeys() {
@@ -34803,6 +34937,10 @@ const PROPS_FIELD_META = {
   "awn-main": {
     label: "На главной",
     hint: "Показывать workspace в блоке «Фокус» на главной странице"
+  },
+  "awn-slots-disabled": {
+    label: "Общий слот (lite)",
+    hint: "Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/"
   },
   "awn-status": {
     label: "Статус",
@@ -35111,34 +35249,36 @@ function getTopicSchemaTargetLabel(targetId) {
 }
 
 function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
-  const fromCache = cache?.baseTypes?.[target];
-  if (fromCache?.fields && Object.keys(fromCache.fields).length) return fromCache;
-
   const typeName = getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target];
   const typeDef = typeName ? awnTypesCache?.types?.[typeName] : null;
-  if (!typeDef?.fields) return fromCache || null;
+  if (typeDef?.fields) {
+    return {
+      name: typeName,
+      kind: typeDef.kind || "type",
+      fields: { ...typeDef.fields }
+    };
+  }
 
-  return {
-    name: typeName,
-    kind: typeDef.kind || "type",
-    fields: { ...typeDef.fields }
-  };
+  const fromCache = cache?.baseTypes?.[target];
+  if (fromCache?.fields && Object.keys(fromCache.fields).length) return fromCache;
+  return fromCache || null;
 }
 
 function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
-  const fromCache = cache?.merged?.[target];
   const customFields = cache?.awnSchema?.[target]?.fields || {};
+  const base = resolveTopicSchemaBaseType(target, cache);
+  if (base) {
+    return {
+      ...base,
+      fields: { ...base.fields, ...customFields }
+    };
+  }
+
+  const fromCache = cache?.merged?.[target];
   if (fromCache?.fields && Object.keys(fromCache.fields).length) {
     return fromCache;
   }
-
-  const base = resolveTopicSchemaBaseType(target, cache);
-  if (!base) return fromCache || null;
-
-  return {
-    ...base,
-    fields: { ...base.fields, ...customFields }
-  };
+  return fromCache || null;
 }
 
 function enrichTopicSchemaCacheFromTypes(cache) {
@@ -37303,7 +37443,7 @@ function getPropsContextPath(nodePath = activePath) {
 
   if (manifestBase && activeContentMode === "external" && activeExternalFilePath) {
     const rel = String(activeExternalFilePath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(manifestBase, "external")}/${rel}`.replace(/\/+/g, "/");
+    return buildExternalMemoryFileRef(manifestBase, rel) || `${getExternalMemoryRootRel(manifestBase)}/${rel}`.replace(/\/+/g, "/");
   }
 
   if (manifestBase && isFlatStorageFileEditing()) {
@@ -38339,6 +38479,7 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
   const seen = new Set();
   for (const key of orderedKeys) {
     if (seen.has(key) || HIDDEN_PROPS_FIELD_KEYS.has(key)) continue;
+    if (!shouldIncludePropsFieldKey(key)) continue;
     seen.add(key);
 
     const existing = map.get(key);
@@ -40496,6 +40637,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-preview": "content",
   "awn-web-url": "content",
   "awn-main": "nav",
+  "awn-slots-disabled": "nav",
   "awn-category": "nav",
   "awn-owner": "nav",
   "awn-priority": "nav",
@@ -40670,6 +40812,7 @@ function renderPropsForm() {
       if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
         continue;
       }
+      if (!shouldIncludePropsFieldKey(entryKey)) continue;
       if (!isSchemaDefinedFieldKey(entryKey)) continue;
       const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryDisplayValue(entry);
@@ -40714,6 +40857,7 @@ function renderPropsForm() {
     if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
       continue;
     }
+    if (!shouldIncludePropsFieldKey(entryKey)) continue;
     if (!isSchemaDefinedFieldKey(entryKey)) continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
       standardEntries.push({ entry, index });
@@ -40852,8 +40996,20 @@ const PROPS_FORM_LOCKED_KEYS = new Set([
   "awn-color"
 ]);
 
+function isTopicOnlyPropsFieldKey(key) {
+  return normalizePropsKey(key) === "awn-slots-disabled";
+}
+
+function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
+  if (isTopicOnlyPropsFieldKey(key)) {
+    return isTopicManifestPath(contextPath);
+  }
+  return true;
+}
+
 const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-main": "boolean",
+  "awn-slots-disabled": "boolean",
   "awn-runtime-cron": "boolean",
   "awn-runtime-heartbeat": "boolean",
   "awn-runtime-commands": "boolean",
@@ -47039,7 +47195,7 @@ function getOverviewMemoryStoragePath(nodePath, driverId, summary) {
     case "internal":
       return resolveNodeSidecarRelPath(resolvedPath, "content");
     case "external":
-      return getNodeStorageSubfolderPath(resolvedPath, "external");
+      return getExternalMemoryRootRel(resolvedPath);
     case "tabular":
       return resolveNodeSidecarRelPath(resolvedPath, "tabular");
     default:
@@ -48169,6 +48325,7 @@ function buildNodeSettingsSlotStatuses({
 
 function buildNodeMemorySlotStatuses({
   isArea = false,
+  slotsDisabled = false,
   internalData = null,
   externalData = null,
   tabularData = null,
@@ -48203,6 +48360,18 @@ function buildNodeMemorySlotStatuses({
   const hasTabular = tabularRows > 0;
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
+
+  if (slotsDisabled) {
+    const liteSpecs = [
+      hasExternal
+        ? { id: "external", label: TOPIC_SHARED_SLOT_EXTERNAL_TITLE, filled: true, modeId: "external" }
+        : null,
+      hasInternal ? { id: "internal", label: "Однофайловая", filled: true, modeId: "internal" } : null,
+      hasTabular ? { id: "tabular", label: "Табличная", filled: true, modeId: "tabular" } : null,
+      hasTodo ? { id: "todo", label: "TODO", filled: true, modeId: "todo" } : null
+    ].filter(Boolean);
+    return liteSpecs;
+  }
 
   const filledById = {
     external: hasExternal,
@@ -48874,6 +49043,7 @@ async function appendTopicSlotCounterStrip(
   { isStale = () => false, entryOverview = false, slots = null, prepend = false } = {}
 ) {
   if (!container || usesNavigationHubInlineSubsections(topicPath)) return null;
+  if (await shouldHideTopicStorageSlots(topicPath)) return null;
   const topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath));
   if (isStale()) return null;
   const strip = renderNodeNavigationWorkspaceCounterStrip(
@@ -49517,19 +49687,20 @@ function compareNavigationPathsNatural(aPath, bPath) {
 
 async function fetchExternalFilesForNavigation(nodePath) {
   const apiPath = getOverviewNodeApiPath(nodePath);
-  if (!apiPath) return { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+  if (!apiPath) return { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   try {
     const response = await fetch(buildApiUrl("/api/external/files", { path: apiPath }));
-    if (!response.ok) return { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+    if (!response.ok) return { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
     const data = await response.json();
     return {
       exists: Boolean(data.exists),
       files: Array.isArray(data.files) ? data.files : [],
       folders: Array.isArray(data.folders) ? data.folders : [],
-      nonMarkdownFiles: Array.isArray(data.nonMarkdownFiles) ? data.nonMarkdownFiles : []
+      nonMarkdownFiles: Array.isArray(data.nonMarkdownFiles) ? data.nonMarkdownFiles : [],
+      slotsDisabled: Boolean(data.slotsDisabled)
     };
   } catch {
-    return { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+    return { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   }
 }
 
@@ -53801,6 +53972,7 @@ async function resolveNavigationAssetsPreviewFilled(topicPath) {
 async function buildEntryOverviewDataSlotCounters(topicPath) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
+  if (await shouldHideTopicStorageSlots(topicPath)) return [];
 
   let intake = topicIntakeCacheByPath.get(manifestPath) || null;
   if (!intake) {
@@ -56960,15 +57132,16 @@ function refreshNavigationExternalTocSearch(card) {
   }
 }
 
-function renderNavigationExternalPart(externalData) {
+function renderNavigationExternalPart(externalData, { slotsDisabled = false } = {}) {
   const nonMarkdownFiles = Array.isArray(externalData.nonMarkdownFiles) ? externalData.nonMarkdownFiles : [];
   const { contentFiles, folderLabels, folderDescriptions, folderStatuses, folderPaths, sectionManifestByFolder } = prepareNavigationExternalItems(
     externalData.files || [],
     externalData.folders || []
   );
   const mdItems = contentFiles.sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
+  const sharedSlotMode = slotsDisabled || externalData?.slotsDisabled;
 
-  if (!mdItems.length && folderPaths.size === 0 && !nonMarkdownFiles.length) {
+  if (!mdItems.length && folderPaths.size === 0 && !nonMarkdownFiles.length && !sharedSlotMode) {
     navigationExternalTocState = null;
     return null;
   }
@@ -56988,11 +57161,17 @@ function renderNavigationExternalPart(externalData) {
 
   const showSearch =
     mdItems.length + folderPaths.size >= NAVIGATION_EXTERNAL_SEARCH_MIN_ITEMS;
+  const externalTitle = sharedSlotMode
+    ? TOPIC_SHARED_SLOT_EXTERNAL_TITLE
+    : "Многофайловая память";
   const card = document.createElement("section");
   card.className = "node-navigation-memory-card node-navigation-memory-card--external";
+  if (sharedSlotMode) {
+    card.dataset.slotsDisabled = "1";
+  }
   card.append(
-    createNavigationSectionHead("Многофайловая память", {
-      viewModeId: "external",
+    createNavigationSectionHead(externalTitle, {
+      viewModeId: sharedSlotMode ? null : "external",
       badgeText: getNavigationMemoryBadgeText("external", externalData),
       badgeModeId: "external",
       search: showSearch
@@ -57013,6 +57192,12 @@ function renderNavigationExternalPart(externalData) {
 
   if (mdItems.length || folderPaths.size > 0) {
     refreshNavigationExternalTocSearch(card);
+  } else if (sharedSlotMode) {
+    const empty = document.createElement("p");
+    empty.className = "node-navigation-section-search-empty node-navigation-shared-slot-empty";
+    empty.textContent =
+      "Пока нет .md файлов в папке темы. Добавьте файл рядом с manifest.md (например, 1.md).";
+    body.appendChild(empty);
   }
 
   return card;
@@ -63803,6 +63988,20 @@ function renderNavigationHubRailSubsections(childEntries, activeCtx = null) {
   return block;
 }
 
+function renderNavigationHubRailSharedSlotNotice() {
+  const block = document.createElement("section");
+  block.className = "node-navigation-hub-rail-block node-navigation-hub-rail-block--shared-slot-notice";
+  block.setAttribute("aria-label", "Режим общего слота");
+
+  const notice = document.createElement("p");
+  notice.className = "node-navigation-hub-rail-shared-slot-notice";
+  notice.textContent =
+    "Включён режим «общего слота»: многофайловая память читается из папки темы (рядом с manifest.md). Слоты awn-storage в интерфейсе скрыты.";
+
+  block.appendChild(notice);
+  return block;
+}
+
 function prepareNavigationHubRailSlotIndex(slotKey, nodePath, prefetched = {}) {
   const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
@@ -64297,6 +64496,10 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
     renderNavigationHubRailDocumentOutline(options.documentMarkdown ?? "", nodePath)
   );
 
+  if (options.sharedSlotMode) {
+    rail.appendChild(renderNavigationHubRailSharedSlotNotice());
+  }
+
   if (topicSlotCounters.length) {
     const slotsWrap = document.createElement("div");
     slotsWrap.className = "node-navigation-hub-rail-slots";
@@ -64321,6 +64524,7 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 
 function buildNodeNavigationMemoryPanelsWrap({
   isInlineNavHub = false,
+  slotsDisabled = false,
   nodePath,
   externalData,
   internalData,
@@ -64333,10 +64537,10 @@ function buildNodeNavigationMemoryPanelsWrap({
 
   if (!isInlineNavHub) {
     const panels = [
-      renderNavigationExternalPart(externalData),
+      renderNavigationExternalPart(externalData, { slotsDisabled }),
       renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
-      renderNavigationMediaPart(mediaData)
+      slotsDisabled ? null : renderNavigationMediaPart(mediaData)
     ].filter(Boolean);
     for (const panel of panels) {
       panelsWrap.appendChild(panel);
@@ -64351,7 +64555,8 @@ function buildNodeNavigationMemoryPanelsWrap({
 
 async function fetchNodeNavigationMemoryBundle(nodePath) {
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
-  const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+  const slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
   const [internalData, externalData, tabularData, todoData, mediaData, assetsData] = await Promise.all(
@@ -64369,11 +64574,11 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  return { isArea: isInlineNavHub, internalData, externalData, tabularData, mediaData, assetsData, todoData };
+  return { isArea: isInlineNavHub, slotsDisabled, internalData, externalData, tabularData, mediaData, assetsData, todoData };
 }
 
 async function appendNodeNavigationSplitRail(
@@ -64383,6 +64588,26 @@ async function appendNodeNavigationSplitRail(
   { isStale = () => false, documentMarkdown = null } = {}
 ) {
   if (usesNavigationHubInlineSubsections(nodePath)) return false;
+  if (await shouldHideTopicStorageSlots(nodePath)) {
+    const childEntries = getNavigationSubsectionEntries();
+    const flatNavigationIndexes = await fetchNavigationHubRailFlatIndexes(nodePath);
+    if (isStale()) return false;
+    const rail = renderNavigationHubRail([], childEntries, nodePath, {
+      ...prefetched,
+      flatNavigationIndexes,
+      _flatIndexTopicPath: nodePath
+    }, { documentMarkdown, sharedSlotMode: true });
+    if (isStale()) return false;
+    if (rail) {
+      hub.appendChild(rail);
+      mountNavigationHubRailToggle(hub);
+      syncNodeOverviewNavigationSplitClass(true);
+      return true;
+    }
+    hub.classList.remove("node-navigation-hub--split");
+    syncNodeOverviewNavigationSplitClass(false);
+    return false;
+  }
 
   const childEntries = getNavigationSubsectionEntries();
   const topicSlotCounters = await buildEntryOverviewDataSlotCounters(nodePath);
@@ -64454,10 +64679,12 @@ async function renderNodeNavigation() {
   const childEntries = getNavigationSubsectionEntries();
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
+  const slotsDisabled =
+    isTopicSlotsDisabledFromEntries(entries) || (await readTopicSlotsDisabledForPath(nodePath));
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
-  const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
+  const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
   const [internalData, externalData, tabularData, todoData, preview, nodeMeta] = await Promise.all(
@@ -64479,12 +64706,13 @@ async function renderNodeNavigation() {
           fetchNodeNavigationMeta(nodePath)
         ]
   );
-  const mediaData = isInlineNavHub ? null : await fetchMediaOverview(nodePath);
+  const mediaData = isInlineNavHub || slotsDisabled ? null : await fetchMediaOverview(nodePath);
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
     nodePath,
     isArea: isInlineNavHub,
+    slotsDisabled,
     descriptionRaw: modeContentCache.description || "",
     internalData,
     externalData,
@@ -64522,10 +64750,11 @@ async function renderNodeNavigation() {
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
   if (isStale()) return;
 
-  const topicSlotCounters = isInlineNavHub ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
+  const topicSlotCounters =
+    isInlineNavHub || slotsDisabled ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
   if (isStale()) return;
 
-  if (!isInlineNavHub) {
+  if (!isInlineNavHub && !slotsDisabled) {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
     if (isStale()) return;
   }
@@ -64552,6 +64781,7 @@ async function renderNodeNavigation() {
 
   const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
     isInlineNavHub,
+    slotsDisabled,
     nodePath,
     externalData,
     internalData,
@@ -74749,6 +74979,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
     if (showToastOnSuccess) {
       showToast("YAML сохранен", "success");
     }
+    invalidateTopicSlotsDisabledCache(getPropertiesApiPath());
     await refreshMenuRuntimeFlagsCache(activeAgentId);
     patchMenuNodeRuntimeCommandsFromProps(activePath, mergePropsFormEntries());
     const menu = menuCacheByAgent.get(activeAgentId);
@@ -80808,26 +81039,55 @@ function toggleAppFooterIdeasPopover() {
   else openAppFooterIdeasPopover();
 }
 
-function setupMenuStaticFooterGroup() {
-  if (!menuStaticFooterNode) return;
+function isMenuStaticFooterExpanded() {
   try {
     const saved = localStorage.getItem(MENU_STATIC_FOOTER_OPEN_KEY);
-    if (saved === "0") menuStaticFooterNode.open = false;
-    else if (saved === "1") menuStaticFooterNode.open = true;
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function syncMenuStaticFooterAccordionUi() {
+  if (!menuStaticFooterNode) return;
+  const expanded = isMenuStaticFooterExpanded();
+  menuStaticFooterNode.classList.toggle("is-collapsed", !expanded);
+  menuStaticFooterToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuStaticFooterBodyNode) menuStaticFooterBodyNode.hidden = !expanded;
+  if (menuStaticFooterActionNode) {
+    menuStaticFooterActionNode.textContent = expanded ? "Свернуть" : "Показать";
+  }
+}
+
+function setMenuStaticFooterExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, expanded ? "1" : "0");
   } catch {
     // ignore storage errors
   }
-  menuStaticFooterNode.addEventListener("toggle", () => {
-    try {
-      localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, menuStaticFooterNode.open ? "1" : "0");
-    } catch {
-      // ignore storage errors
-    }
+  syncMenuStaticFooterAccordionUi();
+}
+
+function toggleMenuStaticFooterExpanded() {
+  setMenuStaticFooterExpanded(!isMenuStaticFooterExpanded());
+}
+
+function setupMenuStaticFooterGroup() {
+  syncMenuStaticFooterAccordionUi();
+  menuStaticFooterToggleBtn?.addEventListener("click", () => {
+    toggleMenuStaticFooterExpanded();
   });
   void refreshMenuGoogleDriveStats();
+  void refreshMenuAwnDataStores();
+  setupAwnDataStoresUi();
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
+let menuAwnDataStoresLoadSeq = 0;
+let awnDataCreateKind = "collection";
+let awnDataViewStoreRel = "";
 
 function formatRussianFileCount(count) {
   const n = Number(count) || 0;
@@ -81067,6 +81327,329 @@ function renderMenuGoogleDriveStats(payload = null, { loading = false, error = f
 
     row.append(nameNode, sizeNode);
     menuGoogleDriveFilesNode.appendChild(row);
+  }
+}
+
+function slugifyAwnDataStoreName(name) {
+  const map = {
+    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i",
+    й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t",
+    у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "",
+    э: "e", ю: "yu", я: "ya"
+  };
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .split("")
+    .map((ch) => map[ch] ?? ch)
+    .join("")
+    .replace(/[^a-z0-9/]+/g, "-")
+    .replace(/\/+/g, "/")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
+}
+
+function openAwnDataCreateModal(kind = "collection") {
+  if (!awnDataCreateModalNode) return;
+  awnDataCreateKind = kind === "singleton" ? "singleton" : "collection";
+  if (awnDataCreateModalTitleNode) {
+    awnDataCreateModalTitleNode.textContent =
+      awnDataCreateKind === "singleton" ? "Новая одиночка" : "Новая коллекция";
+  }
+  if (awnDataCreateModalHintNode) {
+    awnDataCreateModalHintNode.innerHTML =
+      awnDataCreateKind === "singleton"
+        ? "Папка в <code>awn-data/</code> с <code>configuration-schema.yml</code> и одним <code>main.md</code>."
+        : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, схемой и записями <code>{id}.md</code>.";
+  }
+  awnDataCreateSampleWrapNode?.classList.toggle("hidden", awnDataCreateKind !== "collection");
+  if (awnDataCreateNameInputNode) awnDataCreateNameInputNode.value = "";
+  if (awnDataCreateSlugInputNode) {
+    awnDataCreateSlugInputNode.value = "";
+    delete awnDataCreateSlugInputNode.dataset.manual;
+  }
+  if (awnDataCreateDescriptionInputNode) awnDataCreateDescriptionInputNode.value = "";
+  if (awnDataCreateSampleInputNode) awnDataCreateSampleInputNode.checked = true;
+  awnDataCreateModalNode.classList.remove("hidden");
+  awnDataCreateNameInputNode?.focus();
+}
+
+function closeAwnDataCreateModal() {
+  awnDataCreateModalNode?.classList.add("hidden");
+}
+
+function closeAwnDataViewModal() {
+  awnDataViewModalNode?.classList.add("hidden");
+  awnDataViewStoreRel = "";
+}
+
+function renderAwnDataViewRecords(store) {
+  if (!awnDataViewRecordsNode) return;
+  awnDataViewRecordsNode.replaceChildren();
+
+  const records = Array.isArray(store?.records) ? store.records : [];
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "menu-awn-data-store--empty";
+    empty.style.padding = "0.75rem";
+    empty.textContent = store?.kind === "singleton" ? "main.md пуст или не найден" : "Записей пока нет";
+    awnDataViewRecordsNode.appendChild(empty);
+    return;
+  }
+
+  for (const record of records) {
+    const row = document.createElement("div");
+    row.className = "awn-data-view-record-row";
+    row.title = record.relPath || "";
+
+    const idNode = document.createElement("span");
+    idNode.className = "awn-data-view-record-id";
+    idNode.textContent = record.id;
+
+    const titleNode = document.createElement("span");
+    titleNode.className = "awn-data-view-record-title";
+    titleNode.textContent = record.title || "—";
+
+    const parentNode = document.createElement("span");
+    parentNode.className = "awn-data-view-record-parent";
+    parentNode.textContent = record.parent || "—";
+
+    row.append(idNode, titleNode, parentNode);
+    awnDataViewRecordsNode.appendChild(row);
+  }
+}
+
+async function openAwnDataViewModal(storeRel, agentId = activeAgentId) {
+  if (!awnDataViewModalNode || !storeRel) return;
+  awnDataViewStoreRel = storeRel;
+  awnDataViewModalNode.classList.remove("hidden");
+  if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = "Загрузка…";
+  if (awnDataViewModalSubtitleNode) awnDataViewModalSubtitleNode.textContent = storeRel;
+  awnDataViewRecordsNode.replaceChildren();
+  awnDataViewAddWrapNode?.classList.add("hidden");
+
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/awn-data", { store: storeRel }, agentId)
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const store = data.store;
+    if (!store) throw new Error("Store not found");
+
+    if (awnDataViewModalTitleNode) {
+      awnDataViewModalTitleNode.textContent = store.name || store.relPath;
+    }
+    if (awnDataViewModalSubtitleNode) {
+      const kindLabel = store.kind === "singleton" ? "одиночка · main.md" : "коллекция";
+      awnDataViewModalSubtitleNode.textContent = `${kindLabel} · awn-data/${store.relPath}`;
+    }
+    renderAwnDataViewRecords(store);
+    awnDataViewAddWrapNode?.classList.toggle("hidden", store.kind === "singleton");
+    if (awnDataAddTitleInputNode) awnDataAddTitleInputNode.value = "";
+    if (awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
+  } catch (error) {
+    if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = "Ошибка";
+    if (awnDataViewRecordsNode) {
+      awnDataViewRecordsNode.textContent = String(error.message || error);
+    }
+  }
+}
+
+async function submitAwnDataCreateStore(agentId = activeAgentId) {
+  if (!agentId) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  const name = String(awnDataCreateNameInputNode?.value || "").trim();
+  const slug = String(awnDataCreateSlugInputNode?.value || "").trim() || slugifyAwnDataStoreName(name);
+  const description = String(awnDataCreateDescriptionInputNode?.value || "").trim();
+  if (!name || !slug) {
+    showToast("Укажите название и папку (slug)", "error");
+    return;
+  }
+
+  awnDataCreateSubmitBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-data/stores", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: awnDataCreateKind,
+        name,
+        slug,
+        description,
+        withSampleRecord: awnDataCreateKind === "collection" ? Boolean(awnDataCreateSampleInputNode?.checked) : false
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    closeAwnDataCreateModal();
+    showToast(`Накопитель «${name}» создан`, "success");
+    await refreshMenuAwnDataStores(agentId);
+    if (data.store?.relPath) void openAwnDataViewModal(data.store.relPath, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    awnDataCreateSubmitBtn.disabled = false;
+  }
+}
+
+async function submitAwnDataAddRecord(agentId = activeAgentId) {
+  if (!awnDataViewStoreRel || !agentId) return;
+  const title = String(awnDataAddTitleInputNode?.value || "").trim();
+  const parent = String(awnDataAddParentInputNode?.value || "").trim();
+  if (!title) {
+    showToast("Укажите название записи", "error");
+    return;
+  }
+
+  awnDataAddRecordBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-data/records", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store: awnDataViewStoreRel,
+        title,
+        parent: parent || undefined
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    showToast("Запись добавлена", "success");
+    await refreshMenuAwnDataStores(agentId);
+    await openAwnDataViewModal(awnDataViewStoreRel, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    awnDataAddRecordBtn.disabled = false;
+  }
+}
+
+function setupAwnDataStoresUi() {
+  if (setupAwnDataStoresUi.initialized) return;
+  setupAwnDataStoresUi.initialized = true;
+
+  menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
+  menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("singleton"));
+  awnDataCreateCancelBtn?.addEventListener("click", closeAwnDataCreateModal);
+  awnDataCreateSubmitBtn?.addEventListener("click", () => void submitAwnDataCreateStore());
+  awnDataViewCloseBtn?.addEventListener("click", closeAwnDataViewModal);
+  awnDataAddRecordBtn?.addEventListener("click", () => void submitAwnDataAddRecord());
+
+  awnDataCreateNameInputNode?.addEventListener("input", () => {
+    if (!awnDataCreateSlugInputNode) return;
+    if (awnDataCreateSlugInputNode.dataset.manual === "1") return;
+    awnDataCreateSlugInputNode.value = slugifyAwnDataStoreName(awnDataCreateNameInputNode.value);
+  });
+  awnDataCreateSlugInputNode?.addEventListener("input", () => {
+    if (awnDataCreateSlugInputNode) awnDataCreateSlugInputNode.dataset.manual = "1";
+  });
+
+  awnDataCreateModalNode?.addEventListener("click", (event) => {
+    if (event.target === awnDataCreateModalNode) closeAwnDataCreateModal();
+  });
+  awnDataViewModalNode?.addEventListener("click", (event) => {
+    if (event.target === awnDataViewModalNode) closeAwnDataViewModal();
+  });
+}
+
+function awnDataStoreKindIcon(kind) {
+  if (kind === "singleton") return "⚙️";
+  return "📋";
+}
+
+function formatAwnDataStoreMeta(store) {
+  const count = Number(store?.recordCount) || 0;
+  if (store?.kind === "singleton") return "main.md";
+  if (store?.kind === "collection" && Array.isArray(store.tree) && store.tree.length) {
+    const childCount = (store.records || []).filter((r) => r.parent).length;
+    if (childCount > 0) return `${count} · ${childCount} влож.`;
+  }
+  return count === 1 ? "1 запись" : `${count} записей`;
+}
+
+function renderMenuAwnDataStores(payload = null, { loading = false, error = false } = {}) {
+  if (!menuAwnDataStoresNode) return;
+  menuAwnDataStoresNode.replaceChildren();
+
+  if (loading) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-data-store menu-awn-data-store--empty";
+    item.textContent = "Загрузка…";
+    menuAwnDataStoresNode.appendChild(item);
+    return;
+  }
+
+  if (error || !payload) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-data-store menu-awn-data-store--empty is-error";
+    item.textContent = "Не удалось прочитать";
+    menuAwnDataStoresNode.appendChild(item);
+    return;
+  }
+
+  const stores = Array.isArray(payload.stores) ? payload.stores : [];
+  if (!stores.length) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-data-store menu-awn-data-store--empty";
+    item.textContent = "Нет накопителей";
+    menuAwnDataStoresNode.appendChild(item);
+    return;
+  }
+
+  for (const store of stores) {
+    const row = document.createElement("li");
+    row.className = "menu-awn-data-store";
+    row.title = store.description || store.name || store.relPath;
+
+    const kindNode = document.createElement("span");
+    kindNode.className = "menu-awn-data-store-kind";
+    kindNode.title = store.kind || "collection";
+    kindNode.textContent = awnDataStoreKindIcon(store.kind);
+
+    const nameNode = document.createElement("span");
+    nameNode.className = "menu-awn-data-store-name";
+    nameNode.textContent = store.relPath || store.id;
+
+    const metaNode = document.createElement("span");
+    metaNode.className = "menu-awn-data-store-meta";
+    metaNode.textContent = formatAwnDataStoreMeta(store);
+
+    row.append(kindNode, nameNode, metaNode);
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.addEventListener("click", () => void openAwnDataViewModal(store.relPath));
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        void openAwnDataViewModal(store.relPath);
+      }
+    });
+    menuAwnDataStoresNode.appendChild(row);
+  }
+}
+
+async function refreshMenuAwnDataStores(agentId = activeAgentId) {
+  if (!menuAwnDataStoresNode) return;
+  if (!agentId) {
+    renderMenuAwnDataStores({ stores: [] });
+    return;
+  }
+
+  const seq = ++menuAwnDataStoresLoadSeq;
+  renderMenuAwnDataStores(null, { loading: true });
+
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-data", {}, agentId));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnDataStoresLoadSeq) return;
+    renderMenuAwnDataStores(data);
+  } catch {
+    if (seq !== menuAwnDataStoresLoadSeq) return;
+    renderMenuAwnDataStores(null, { error: true });
   }
 }
 

@@ -19,3 +19,11 @@ storage-slots:
   - scripts
   - todo-single
 manifest-pattern: "{slug}/manifest.md"
+
+fields:
+  awn-slots-disabled:
+    type: awn.field.boolean
+    title: Общий слот (lite)
+    description: Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/
+    default: false
+    group: nav
