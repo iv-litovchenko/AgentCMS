@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Одноразовая миграция: components/types/*.yml → components/{group}/{name}/schema.yml + manifest.md
+ * Frame-типы удалены — источник правды: types/ и awn-system/types/
  */
 const fs = require("fs");
 const path = require("path");
@@ -12,15 +13,6 @@ const typesRoot = path.join(componentsRoot, "types");
 const BLOCK_GROUP = "markdown-blocks";
 const FIELD_GROUP = "fields";
 const FRAME_MAP = {
-  "base.yml": "frames/_base",
-  "topic.yml": "frames/topic",
-  "area.yml": "frames/area",
-  "workspace.yml": "frames/workspace",
-  "sidecar.yml": "frames/sidecar",
-  "record.yml": "frames/record",
-  "record-category.yml": "frames/record-category",
-  "media-category.yml": "frames/media-category",
-  "service.yml": "frames/service",
   "field-def.yml": "fields/_base"
 };
 
@@ -158,44 +150,7 @@ function migrateFrames() {
       const schemaPath = path.join(targetDir, "schema.yml");
       fs.mkdirSync(targetDir, { recursive: true });
       fs.writeFileSync(schemaPath, raw, "utf-8");
-      continue;
     }
-
-    const runtimeId = parseSimpleYamlId(raw);
-    const name = parseSimpleYamlName(raw) || slugFromFile(fileName);
-    const id = relTarget.replace(/\\/g, "/");
-
-    writeSchema(targetDir, raw);
-    writeManifest(targetDir, {
-      kind: "frame",
-      id,
-      runtimeId,
-      name,
-      description: "",
-      extendsId: fileName === "base.yml" ? null : "frames/_base"
-    });
-  }
-
-  const mixinsDir = path.join(compDir, "mixins");
-  if (!fs.existsSync(mixinsDir)) return;
-  for (const fileName of fs.readdirSync(mixinsDir)) {
-    if (!/\.ya?ml$/i.test(fileName)) continue;
-    const slug = slugFromFile(fileName);
-    const targetDir = path.join(componentsRoot, "frames", "mixins", slug);
-    const raw = readYaml(path.join(mixinsDir, fileName));
-    const runtimeId = parseSimpleYamlId(raw) || `awn.mixin.${slug}`;
-    const name = parseSimpleYamlName(raw) || slug;
-    const id = `frames/mixins/${slug}`;
-
-    writeSchema(targetDir, raw);
-    writeManifest(targetDir, {
-      kind: "mixin",
-      id,
-      runtimeId,
-      name,
-      description: "",
-      extendsId: null
-    });
   }
 }
 

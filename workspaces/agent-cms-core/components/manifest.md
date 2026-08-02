@@ -15,8 +15,9 @@ awn-version: 2
 
 | Область | Что описывает |
 |---------|---------------|
-| [fields/](fields/_registration.md) | типы полей (`awn.string`, …) |
-| [frames/](frames/_registration.md) | frame-типы (`awn.topic`, `awn.area`, …) |
+| [fields/](fields/_registration.md) | типы полей (`awn.string`, …) — legacy |
+
+Типы страниц и контента — в [`types/`](../types/) и [`awn-system/types/`](../awn-system/types/).
 
 Блоки редактора — `awn-data/markdown-blocks/` (не components).
 

@@ -10,8 +10,7 @@ const coreRoot = path.join(repoRoot, "workspaces/agent-cms-core");
 const componentsRoot = path.join(coreRoot, "components");
 
 const MAP = {
-  "components/fields": "fields",
-  "components/frames": "pages"
+  "components/fields": "fields"
 };
 
 function yamlStringifyValue(v, indent = 0) {
@@ -74,26 +73,6 @@ function main() {
   }
 
   total += syncGroup(path.join(componentsRoot, "fields"), "fields", (n) => (n === "_base" ? null : n));
-
-  const framesBase = path.join(componentsRoot, "frames/_base/awn-storage/configuration/schema.yml");
-  if (fs.existsSync(framesBase)) {
-    copyYaml(framesBase, path.join(coreRoot, "pages/awn-storage/configuration/types/_base.yml"), {
-      id: "awn.base",
-      extends: "awn.page",
-      status: "active",
-      domain: "pages",
-      kind: "base"
-    });
-    total += 1;
-  }
-
-  for (const name of ["topic", "area", "workspace", "sidecar", "record"]) {
-    const schemaPath = path.join(componentsRoot, "frames", name, "awn-storage", "configuration", "schema.yml");
-    if (!fs.existsSync(schemaPath)) continue;
-    const dest = path.join(coreRoot, "pages/awn-storage/configuration/types", `${name}.yml`);
-    copyYaml(schemaPath, dest, { status: "active", domain: "pages" });
-    total += 1;
-  }
 
   console.log(`Synced ${total} type files into type catalog domains`);
 }

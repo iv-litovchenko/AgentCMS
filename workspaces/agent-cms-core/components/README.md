@@ -4,12 +4,13 @@
 
 ```
 components/
-├── fields/              awn.area · типы полей
-│   └── string/          awn.topic · awn.string
-│       ├── manifest.md
-│       └── awn-storage/configuration/schema.yml
-└── frames/              awn.area · frame-типы (topic, area…)
-    └── topic/           awn.topic · awn.topic
+└── fields/              legacy · типы полей
+    └── string/          awn.topic · awn.string
+        ├── manifest.md
+        └── awn-storage/configuration/schema.yml
+
+types/                     канон · page/content/slot/field типы
+awn-system/types/          runtime-копия типов агента
 ```
 
 **Markdown-блоки** — `awn-data/markdown-blocks/` (не components).
@@ -43,4 +44,4 @@ node scripts/scaffold-component.js field my-field
 - `GET /api/awn-types` — fields, blocks, types
 - `GET /api/awn-data?store=markdown-blocks/blocks` — блоки палитры
 
-Loader: `components-loader.js` — fields/frames; `awn-blocks-loader.js` — блоки из awn-data.
+Loader: `components-loader.js` — fields (legacy); `type-catalog-loader.js` — types/; `awn-blocks-loader.js` — блоки из awn-data.

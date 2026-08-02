@@ -330,13 +330,6 @@ function loadRecordTypesFromComponents(projectRoot, agentRoot) {
     if (def.id) types[def.id] = def;
   }
 
-  // frames/_base always merged even if not "registry" output
-  const base = byPath.get("frames/_base") || byPath.get("nodes/_base");
-  if (base) {
-    const def = toRecordTypeDef(base, byPath, byRuntimeId);
-    if (def.id) types[def.id] = def;
-  }
-
   return types;
 }
 

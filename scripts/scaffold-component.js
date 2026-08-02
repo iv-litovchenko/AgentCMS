@@ -4,8 +4,8 @@
  *
  *   node scripts/scaffold-component.js block callout
  *   node scripts/scaffold-component.js field url
- *   node scripts/scaffold-component.js frame my-frame
  *
+ * Типы страниц/конента — в types/<domain>/ (не components/frames).
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");
@@ -16,8 +16,6 @@ const [, , kind, slug] = process.argv;
 const KIND_FOLDER = {
   block: "markdown-blocks",
   field: "fields",
-  frame: "frames",
-  mixin: "frames/mixins",
   agent: "agents",
   taxonomy: "taxonomies"
 };
@@ -26,7 +24,9 @@ if (!kind || !slug || !KIND_FOLDER[kind]) {
   console.error(`Usage: node scripts/scaffold-component.js <kind> <slug>
 
 Kinds: ${Object.keys(KIND_FOLDER).join(", ")}
-Example: node scripts/scaffold-component.js field url`);
+Example: node scripts/scaffold-component.js field url
+
+Page/content types: edit types/<domain>/ in agent-cms-core (not components/frames).`);
   process.exit(1);
 }
 
@@ -106,13 +106,6 @@ storage: string
 mdbase: string
 description: ${title}
 settings: [description, hint, required, default]
-`;
-} else if (kind === "frame") {
-  schema = `id: ${runtimeId}
-kind: type
-extends: awn.base
-description: ${title}
-fields: {}
 `;
 }
 
