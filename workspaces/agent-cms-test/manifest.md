@@ -4,7 +4,7 @@ awn-preview: awn-storage/assets/preview/20260729221421.png
 awn-web-url: ""
 awn-emoji: ""
 awn-name: "[Agent CMS] Песочница и тесты"
-awn-status: open
+awn-status: 🟢 Открыта
 awn-type: awn.page.ws
 awn-create: "2026-06-11T00:27"
 awn-update: 2026-08-02T10:10:00.748Z
@@ -24,5 +24,7 @@ awn-runtime-heartbeat: false
 awn-runtime-commands: false
 awn-attachments: []
 ---
+
+
 
 Это наш агент песочница - здесь мы все тестируем в первую очередь, здесь не храняться важные данные.

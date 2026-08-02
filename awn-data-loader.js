@@ -159,10 +159,12 @@ function loadStore(dataRoot, storeEntry) {
   const sortOrder = readSortJson(storeAbs);
 
   let manifestDescription = "";
+  let manifestMarkdown = "";
   const manifestPath = path.join(storeAbs, COLLECTION_MANIFEST);
-  if (kind === "collection" && fs.existsSync(manifestPath)) {
+  if (fs.existsSync(manifestPath)) {
     const { body } = splitFrontmatter(fs.readFileSync(manifestPath, "utf-8"));
-    manifestDescription = body.split("\n")[0]?.replace(/^#\s*/, "").trim() || "";
+    manifestMarkdown = String(body || "").trim();
+    manifestDescription = manifestMarkdown.split("\n")[0]?.replace(/^#\s*/, "").trim() || "";
   }
 
   const recordFiles = listRecordFiles(storeAbs, kind);
@@ -174,6 +176,8 @@ function loadStore(dataRoot, storeEntry) {
     kind,
     name,
     description: String(schema.description || manifestDescription || "").trim(),
+    manifestMarkdown,
+    manifestRelPath: `${storeRel}/${COLLECTION_MANIFEST}`.replace(/\\/g, "/"),
     schema,
     sortOrder,
     recordCount: records.length,
@@ -424,6 +428,8 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
     }
   } else {
+    const manifestText = description.trim() || `Одиночка \`${slug}\` — одна запись в \`main.md\`.`;
+    fs.writeFileSync(path.join(storeAbs, COLLECTION_MANIFEST), `# ${name}\n\n${manifestText}\n`, "utf-8");
     fs.writeFileSync(
       path.join(storeAbs, SCHEMA_FILE),
       buildSingletonSchemaContent({ slug, name, description }),

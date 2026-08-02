@@ -133,6 +133,10 @@ const {
   LEGACY_STORAGE_ROOT_FOLDER,
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
+  AWN_DATA_ROOT_FOLDER,
+  AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+  isPlatformDataRootFolderName,
+  isPlatformDataMenuFolderPath,
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
@@ -6805,7 +6809,13 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
     if (sharedTree) enrichMenuTreeRuntimeRollup(sharedTree);
     if (systemTree) enrichMenuTreeRuntimeRollup(systemTree);
 
-    return { ...menu, serviceTree, sharedTree, containerTree, systemTree };
+    return stripPlatformDataFromMenuTree({
+      ...menu,
+      serviceTree,
+      sharedTree,
+      containerTree,
+      systemTree
+    });
   };
 
   if (useCache && agentRootAbsolute) {
@@ -6908,7 +6918,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     branch = tree;
   }
   enrichMenuTreeRuntimeRollup(branch);
-  return branch;
+  return stripPlatformDataFromMenuTree(branch);
 }
 
 async function normalizeServiceMenuTree(tree, serviceAbsolute) {
@@ -7184,9 +7194,47 @@ async function buildSharedStorageContext(manifestRel) {
   };
 }
 
+function stripPlatformDataFromMenuTree(menu) {
+  if (!menu || typeof menu !== "object") return menu;
+
+  const stripNode = (node) => {
+    if (!node || typeof node !== "object") return node;
+    const sections = (node.sections || [])
+      .filter((section) => !isPlatformDataMenuFolderPath(section?.folderPath))
+      .map((section) => stripNode(section));
+    const items = (node.items || []).filter((item) => !isPlatformDataMenuFolderPath(item?.path));
+    const repoItems = (node.repoItems || node.repoServiceItems || []).filter(
+      (item) => !isPlatformDataMenuFolderPath(item?.path)
+    );
+    return {
+      ...node,
+      sections,
+      items,
+      repoItems,
+      repoServiceItems: repoItems,
+      serviceTree: node.serviceTree ? stripNode(node.serviceTree) : node.serviceTree ?? null,
+      sharedTree: node.sharedTree ? stripNode(node.sharedTree) : node.sharedTree ?? null,
+      containerTree: node.containerTree ? stripNode(node.containerTree) : node.containerTree ?? null,
+      systemTree: node.systemTree ? stripNode(node.systemTree) : node.systemTree ?? null,
+      configurationTree: node.configurationTree
+        ? stripNode(node.configurationTree)
+        : node.configurationTree ?? null
+    };
+  };
+
+  return stripNode(menu);
+}
+
 function dedupeReservedRootMenuSections(menu) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentSharedFolder(), getAgentContainerFolder(), AGENT_SYSTEM_REL]
+    [
+      getAgentKitFolder(),
+      getAgentSharedFolder(),
+      getAgentContainerFolder(),
+      AGENT_SYSTEM_REL,
+      AWN_DATA_ROOT_FOLDER,
+      AWN_GOOGLE_DRIVE_ROOT_FOLDER
+    ]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -7195,7 +7243,7 @@ function dedupeReservedRootMenuSections(menu) {
     const topSegment = folderPath.split("/").filter(Boolean)[0] || "";
     return !reserved.has(topSegment.toLowerCase());
   });
-  return dedupeRootMenuSections(menu);
+  return stripPlatformDataFromMenuTree(dedupeRootMenuSections(menu));
 }
 
 function dedupeGitRepoReservedSections(sections, gitRootRel) {
@@ -7815,6 +7863,7 @@ function isHiddenMenuEntry(name) {
 }
 
 function shouldSkipMenuDirectory(name) {
+  if (isPlatformDataRootFolderName(name)) return true;
   return MENU_SKIP_DIRS.has(String(name || "").toLowerCase());
 }
 
@@ -11881,6 +11930,7 @@ async function processMenuDirectoryEntry({
   isGitRepoRootMenu
 }) {
   if (shouldSkipMenuDirectory(entry.name)) return null;
+  if (isPlatformDataRootFolderName(entry.name)) return null;
   if (isStorageFolderName(entry.name)) return null;
   if (isConfigurationFolderName(entry.name)) return null;
 

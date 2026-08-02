@@ -1,6 +1,4 @@
 [
-  "tasks",
-  "settings-global",
-  "taxonomies",
-  "globalnye-nastroyki"
+  "agents",
+  "agent-groups"
 ]

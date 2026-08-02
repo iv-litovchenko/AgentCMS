@@ -34,7 +34,9 @@ const menuStaticFooterActionNode = document.getElementById("menu-static-footer-a
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
+const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
+const menuAwnDataRefreshBtn = document.getElementById("menu-awn-data-refresh-btn");
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
 const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
@@ -49,8 +51,14 @@ const awnDataCreateCancelBtn = document.getElementById("awn-data-create-cancel-b
 const awnDataCreateSubmitBtn = document.getElementById("awn-data-create-submit-btn");
 const awnDataViewModalNode = document.getElementById("awn-data-view-modal");
 const awnDataViewModalTitleNode = document.getElementById("awn-data-view-modal-title");
-const awnDataViewModalSubtitleNode = document.getElementById("awn-data-view-modal-subtitle");
+const awnDataViewModalKindNode = document.getElementById("awn-data-view-modal-kind");
+const awnDataViewModalPathNode = document.getElementById("awn-data-view-modal-path");
+const awnDataViewManifestNode = document.getElementById("awn-data-view-manifest");
 const awnDataViewRecordsNode = document.getElementById("awn-data-view-records");
+const awnDataViewSearchInputNode = document.getElementById("awn-data-view-search-input");
+const awnDataViewCountNode = document.getElementById("awn-data-view-count");
+const awnDataViewSectionWrapNode = document.getElementById("awn-data-view-section-wrap");
+const awnDataViewSectionTreeNode = document.getElementById("awn-data-view-section-tree");
 const awnDataViewAddWrapNode = document.getElementById("awn-data-view-add-wrap");
 const awnDataAddTitleInputNode = document.getElementById("awn-data-add-title-input");
 const awnDataAddParentInputNode = document.getElementById("awn-data-add-parent-input");
@@ -7512,13 +7520,44 @@ async function runPlatformTagsMigration() {
   return runPlatformCatalogMigration("tags");
 }
 
-async function openPlatformIndexItem(relativePath) {
-  const platform = getPlatformAgentForLanding();
-  if (!platform) return;
-  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized) return;
-  selectAgentOption(platform.id);
-  await openNodeFromMenu(getLabelFromPath(normalized), normalized);
+function createAppLandingPlatformVisual() {
+  const visual = document.createElement("div");
+  visual.className = "app-landing-platform-visual";
+  visual.setAttribute("aria-hidden", "true");
+
+  const scene = document.createElement("div");
+  scene.className = "app-landing-platform-scene";
+
+  const core = document.createElement("span");
+  core.className = "app-landing-platform-core";
+
+  const ring = document.createElement("span");
+  ring.className = "app-landing-platform-orbit-ring";
+
+  scene.append(core, ring);
+
+  for (const spec of [
+    { className: "app-landing-platform-orbit--1", dotClass: "" },
+    { className: "app-landing-platform-orbit--2", dotClass: " app-landing-platform-dot--violet" },
+    { className: "app-landing-platform-orbit--3", dotClass: " app-landing-platform-dot--cyan" }
+  ]) {
+    const orbit = document.createElement("span");
+    orbit.className = `app-landing-platform-orbit ${spec.className}`;
+    const dot = document.createElement("span");
+    dot.className = `app-landing-platform-dot${spec.dotClass}`;
+    orbit.appendChild(dot);
+    scene.appendChild(orbit);
+  }
+
+  for (let i = 0; i < 6; i += 1) {
+    const spark = document.createElement("span");
+    spark.className = "app-landing-platform-spark";
+    spark.style.setProperty("--spark-i", String(i));
+    scene.appendChild(spark);
+  }
+
+  visual.appendChild(scene);
+  return visual;
 }
 
 async function renderAppLandingPlatformSection() {
@@ -7549,59 +7588,8 @@ async function renderAppLandingPlatformSection() {
   openBtn.className = "app-landing-platform-open-btn";
   openBtn.textContent = "Открыть справочники";
   openBtn.addEventListener("click", () => selectAgentOption(platform.id));
-  const migrateBtn = document.createElement("button");
-  migrateBtn.type = "button";
-  migrateBtn.className = "app-landing-platform-migrate-btn";
-  migrateBtn.textContent = "Собрать справочники";
-  migrateBtn.title = "Добавить в global CSV значения из frontmatter всех workspace";
-  migrateBtn.addEventListener("click", () => void runPlatformCatalogMigration());
-  actions.append(openBtn, migrateBtn);
-  appLandingPlatformNode.append(head, actions);
-
-  try {
-    const response = await fetch("/api/platform/index");
-    if (!response.ok) return;
-    const index = await response.json();
-    const sections = Array.isArray(index?.sections) ? index.sections : [];
-    if (!sections.length) return;
-
-    const grid = document.createElement("div");
-    grid.className = "app-landing-platform-sections";
-
-    for (const section of sections) {
-      const items = Array.isArray(section.items) ? section.items : [];
-      if (!items.length) continue;
-
-      const block = document.createElement("section");
-      block.className = "app-landing-platform-section";
-
-      const sectionTitle = document.createElement("h4");
-      sectionTitle.className = "app-landing-platform-section-title";
-      sectionTitle.textContent =
-        section.title === "Catalogs" ? "Справочники" : section.title || "Раздел";
-      block.appendChild(sectionTitle);
-
-      const list = document.createElement("div");
-      list.className = "app-landing-platform-section-items";
-
-      for (const item of items) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "app-landing-platform-link";
-        btn.textContent = item.label || item.path || "—";
-        btn.title = item.path || "";
-        btn.addEventListener("click", () => void openPlatformIndexItem(item.path));
-        list.appendChild(btn);
-      }
-
-      block.appendChild(list);
-      grid.appendChild(block);
-    }
-
-    appLandingPlatformNode.appendChild(grid);
-  } catch {
-    // index optional
-  }
+  actions.append(openBtn);
+  appLandingPlatformNode.append(head, actions, createAppLandingPlatformVisual());
 }
 
 function createAppLandingAgentTile(agent) {
@@ -18768,6 +18756,51 @@ function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
   };
 }
 
+const PLATFORM_DATA_ROOT_FOLDERS = new Set(["awn-data", "awn-google-drive"]);
+
+function isPlatformDataRootFolderName(name) {
+  return PLATFORM_DATA_ROOT_FOLDERS.has(String(name || "").trim().toLowerCase());
+}
+
+function isPlatformDataMenuFolderPath(folderPath) {
+  const normalized = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized || normalized === ".") return false;
+  return normalized.split("/").some((segment) => isPlatformDataRootFolderName(segment));
+}
+
+function stripPlatformDataFoldersFromMenuNode(node) {
+  if (!node || typeof node !== "object") return node;
+  const sections = (node.sections || [])
+    .filter((section) => !isPlatformDataMenuFolderPath(section?.folderPath))
+    .map((section) => stripPlatformDataFoldersFromMenuNode(section));
+  const items = (node.items || []).filter((item) => !isPlatformDataMenuFolderPath(item?.path));
+  const repoItems = (node.repoItems || node.repoServiceItems || []).filter(
+    (item) => !isPlatformDataMenuFolderPath(item?.path)
+  );
+  return {
+    ...node,
+    sections,
+    items,
+    repoItems,
+    repoServiceItems: repoItems,
+    serviceTree: node.serviceTree ? stripPlatformDataFoldersFromMenuNode(node.serviceTree) : node.serviceTree ?? null,
+    sharedTree: node.sharedTree ? stripPlatformDataFoldersFromMenuNode(node.sharedTree) : node.sharedTree ?? null,
+    containerTree: node.containerTree
+      ? stripPlatformDataFoldersFromMenuNode(node.containerTree)
+      : node.containerTree ?? null,
+    systemTree: node.systemTree ? stripPlatformDataFoldersFromMenuNode(node.systemTree) : node.systemTree ?? null,
+    configurationTree: node.configurationTree
+      ? stripPlatformDataFoldersFromMenuNode(node.configurationTree)
+      : node.configurationTree ?? null
+  };
+}
+
+function stripPlatformDataFoldersFromMenu(menu) {
+  return menu ? stripPlatformDataFoldersFromMenuNode(menu) : menu;
+}
+
 function pruneMenuTreeForDisplay(node, agentId = activeAgentId) {
   if (!node) return node;
   return pruneMenuTreeByFolderVisibility(pruneMenuTreeByActiveTopics(node, agentId), agentId);
@@ -22924,7 +22957,7 @@ async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
-  return response.json();
+  return stripPlatformDataFoldersFromMenu(await response.json());
 }
 
 async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
@@ -72433,6 +72466,7 @@ function setupEditorMenuLinkDrop() {
 
 function renderMenu(menu, agentId = activeAgentId, options = {}) {
   const menuOnly = Boolean(options.menuOnly);
+  menu = stripPlatformDataFoldersFromMenu(menu);
   if (agentId === activeAgentId && activeAgentId) {
     hideMenuNoAgentPlaceholder();
   }
@@ -81088,6 +81122,8 @@ let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
 let awnDataCreateKind = "collection";
 let awnDataViewStoreRel = "";
+let awnDataViewStoreCache = null;
+let awnDataViewSectionId = "__all__";
 
 function formatRussianFileCount(count) {
   const n = Number(count) || 0;
@@ -81378,53 +81414,380 @@ function closeAwnDataCreateModal() {
   awnDataCreateModalNode?.classList.add("hidden");
 }
 
+function renderAwnDataViewHeader(store, { loading = false, error = false } = {}) {
+  const title = loading ? "Загрузка…" : error ? "Ошибка" : String(store?.name || store?.relPath || "Накопитель").trim();
+  if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = title;
+
+  if (awnDataViewModalKindNode) {
+    if (!store?.kind || loading || error) {
+      awnDataViewModalKindNode.classList.add("hidden");
+      awnDataViewModalKindNode.textContent = "";
+      awnDataViewModalKindNode.classList.remove("is-collection", "is-singleton");
+    } else {
+      const isSingleton = store.kind === "singleton";
+      awnDataViewModalKindNode.textContent = isSingleton ? "Одиночка" : "Коллекция";
+      awnDataViewModalKindNode.classList.toggle("is-singleton", isSingleton);
+      awnDataViewModalKindNode.classList.toggle("is-collection", !isSingleton);
+      awnDataViewModalKindNode.classList.remove("hidden");
+    }
+  }
+
+  if (awnDataViewModalPathNode) {
+    if (!store?.relPath || loading || error) {
+      awnDataViewModalPathNode.classList.add("hidden");
+      awnDataViewModalPathNode.textContent = "";
+    } else {
+      awnDataViewModalPathNode.textContent = `awn-data/${store.relPath}`;
+      awnDataViewModalPathNode.classList.remove("hidden");
+    }
+  }
+
+  if (awnDataViewManifestNode) {
+    const manifestMarkdown = String(store?.manifestMarkdown || "").trim();
+    if (!manifestMarkdown || loading || error) {
+      awnDataViewManifestNode.classList.add("hidden");
+      awnDataViewManifestNode.replaceChildren();
+    } else {
+      awnDataViewManifestNode.classList.remove("hidden");
+      if (typeof renderMarkdownToHtml === "function") {
+        awnDataViewManifestNode.innerHTML = renderMarkdownToHtml(manifestMarkdown, {
+          nodePath: store.manifestRelPath || `awn-data/${store.relPath}/manifest.md`
+        });
+      } else {
+        awnDataViewManifestNode.textContent = manifestMarkdown;
+      }
+    }
+  }
+}
+
 function closeAwnDataViewModal() {
   awnDataViewModalNode?.classList.add("hidden");
   awnDataViewStoreRel = "";
+  awnDataViewStoreCache = null;
+  awnDataViewSectionId = "__all__";
+  if (awnDataViewSearchInputNode) awnDataViewSearchInputNode.value = "";
+  if (awnDataViewCountNode) awnDataViewCountNode.textContent = "";
+  if (awnDataViewSectionWrapNode) awnDataViewSectionWrapNode.classList.add("hidden");
+  if (awnDataViewSectionTreeNode) awnDataViewSectionTreeNode.replaceChildren();
+  renderAwnDataViewHeader(null);
+}
+
+function isAwnDataSystemRecord(record) {
+  const id = String(record?.id || "").trim();
+  if (id === "_ungrouped") return true;
+  const system = String(record?.frontmatter?.system || "").trim().toLowerCase();
+  return system === "true" || system === "yes" || system === "1";
+}
+
+function collectAwnDataSectionTreeIds(store) {
+  const ids = new Set(["__all__"]);
+  const records = Array.isArray(store?.records) ? store.records : [];
+  const hasParent = records.some((record) => String(record.parent || "").trim());
+  if (hasParent) ids.add("__root__");
+
+  const walk = (nodes) => {
+    for (const node of nodes || []) {
+      const id = String(node?.id || "").trim();
+      if (id) ids.add(id);
+      walk(node.children);
+    }
+  };
+  walk(store?.tree);
+  return ids;
+}
+
+function syncAwnDataViewSectionTreeActiveStates() {
+  if (!awnDataViewSectionTreeNode) return;
+  for (const btn of awnDataViewSectionTreeNode.querySelectorAll(".awn-data-view-section-tree-item")) {
+    const active = btn.dataset.sectionId === awnDataViewSectionId;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  }
+}
+
+function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0 }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "awn-data-view-section-tree-item";
+  btn.dataset.sectionId = id;
+  btn.style.setProperty("--tree-depth", String(depth));
+  btn.setAttribute("role", "treeitem");
+  btn.setAttribute("aria-selected", id === awnDataViewSectionId ? "true" : "false");
+  if (id === awnDataViewSectionId) btn.classList.add("is-active");
+
+  const icon = document.createElement("span");
+  icon.className = "awn-data-view-section-tree-icon";
+  icon.setAttribute("aria-hidden", "true");
+
+  const text = document.createElement("span");
+  text.className = "awn-data-view-section-tree-label";
+  text.textContent = label;
+
+  btn.append(icon, text);
+  btn.addEventListener("click", () => {
+    awnDataViewSectionId = id;
+    syncAwnDataViewSectionTreeActiveStates();
+    if (awnDataViewStoreCache) renderAwnDataViewRecords(awnDataViewStoreCache);
+  });
+  container.appendChild(btn);
+}
+
+function appendAwnDataViewSectionTreeBranch(container, node, depth = 0) {
+  const children = Array.isArray(node?.children) ? node.children : [];
+  const title = String(node?.title || node?.id || "").trim() || "—";
+  const label = children.length ? `${title} (${children.length})` : title;
+  appendAwnDataViewSectionTreeItem(container, { id: String(node.id), label, depth });
+  for (const child of children) {
+    appendAwnDataViewSectionTreeBranch(container, child, depth + 1);
+  }
+}
+
+function syncAwnDataViewSectionTree(store) {
+  if (!awnDataViewSectionWrapNode || !awnDataViewSectionTreeNode) return;
+
+  const records = Array.isArray(store?.records) ? store.records : [];
+  const hasParent = records.some((record) => String(record.parent || "").trim());
+  const tree = Array.isArray(store?.tree) ? store.tree : [];
+  const hasNestedTree = tree.some((node) => (node.children || []).length > 0);
+
+  if (store?.kind !== "collection" || !records.length || (!hasParent && !hasNestedTree)) {
+    awnDataViewSectionWrapNode.classList.add("hidden");
+    awnDataViewSectionTreeNode.replaceChildren();
+    awnDataViewSectionId = "__all__";
+    return;
+  }
+
+  const validIds = collectAwnDataSectionTreeIds(store);
+  if (!validIds.has(awnDataViewSectionId)) awnDataViewSectionId = "__all__";
+
+  awnDataViewSectionWrapNode.classList.remove("hidden");
+  awnDataViewSectionTreeNode.replaceChildren();
+
+  appendAwnDataViewSectionTreeItem(awnDataViewSectionTreeNode, {
+    id: "__all__",
+    label: "Все записи",
+    depth: 0
+  });
+
+  if (hasParent) {
+    appendAwnDataViewSectionTreeItem(awnDataViewSectionTreeNode, {
+      id: "__root__",
+      label: "Корень (без родителя)",
+      depth: 0
+    });
+  }
+
+  for (const node of tree) {
+    appendAwnDataViewSectionTreeBranch(awnDataViewSectionTreeNode, node, 0);
+  }
+}
+
+function filterAwnDataViewRecordsBySection(records, sectionId) {
+  const sid = String(sectionId || "__all__");
+  if (sid === "__all__") return records;
+  if (sid === "__root__") return records.filter((record) => !String(record.parent || "").trim());
+  return records.filter(
+    (record) => record.id === sid || String(record.parent || "").trim() === sid
+  );
+}
+
+function filterAwnDataViewRecords(records, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return records;
+  return records.filter((record) => {
+    const fmValues = Object.values(record.frontmatter || {}).map((value) => String(value || ""));
+    const haystack = [record.id, record.title, record.parent, record.relPath, ...fmValues]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+    return haystack.includes(q);
+  });
+}
+
+function getAwnDataViewColumns(store) {
+  const schemaFields = store?.schema?.fields || {};
+  const columns = [{ key: "__id__", label: "ID", kind: "id" }];
+
+  for (const [key, field] of Object.entries(schemaFields)) {
+    if (key === "id") continue;
+    columns.push({
+      key,
+      label: String(field?.title || key).trim() || key,
+      kind: "field",
+      fieldType: String(field?.type || "awn.string"),
+      field
+    });
+  }
+
+  const hasParentInSchema = Object.prototype.hasOwnProperty.call(schemaFields, "parent");
+  const records = Array.isArray(store?.records) ? store.records : [];
+  const hasParentInData = records.some((record) => String(record.parent || "").trim());
+  if (!hasParentInSchema && hasParentInData && store?.kind === "collection") {
+    columns.push({ key: "__parent__", label: "Родитель", kind: "parent" });
+  }
+
+  return columns;
+}
+
+function formatAwnDataViewCellValue(record, column) {
+  if (column.kind === "id") return record.id || "—";
+  if (column.kind === "parent") return record.parent || "—";
+
+  const frontmatter = record?.frontmatter || {};
+  let raw = frontmatter[column.key];
+  if (raw === undefined || raw === null || String(raw).trim() === "") {
+    if (column.key === "title") return record.title || "—";
+    return "—";
+  }
+
+  const fieldType = column.fieldType || "";
+  if (fieldType === "awn.boolean") {
+    const value = String(raw).trim().toLowerCase();
+    return value === "true" || value === "yes" || value === "1" ? "да" : "нет";
+  }
+
+  return String(raw).trim();
+}
+
+function updateAwnDataViewCount(shown, total) {
+  if (!awnDataViewCountNode) return;
+  if (!total) {
+    awnDataViewCountNode.textContent = "";
+    return;
+  }
+  const formatCount = (count) => {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${count} запись`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${count} записи`;
+    return `${count} записей`;
+  };
+  awnDataViewCountNode.textContent =
+    shown === total ? formatCount(total) : `${shown} из ${formatCount(total)}`;
+}
+
+async function openAwnDataRecordEditor(record) {
+  const relPath = String(record?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relPath) return;
+  const fileRel = relPath.startsWith("awn-data/") ? relPath : `awn-data/${relPath}`;
+  const label = record.title || record.id || fileRel.split("/").pop() || fileRel;
+  closeAwnDataViewModal();
+  try {
+    await openFolderBrowseFile(label, fileRel);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  }
 }
 
 function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
 
-  const records = Array.isArray(store?.records) ? store.records : [];
-  if (!records.length) {
+  const allRecords = Array.isArray(store?.records) ? store.records : [];
+  const query = String(awnDataViewSearchInputNode?.value || "").trim();
+  const sectionRecords = filterAwnDataViewRecordsBySection(allRecords, awnDataViewSectionId);
+  const records = filterAwnDataViewRecords(sectionRecords, query);
+  updateAwnDataViewCount(records.length, sectionRecords.length);
+
+  if (!allRecords.length) {
     const empty = document.createElement("div");
-    empty.className = "menu-awn-data-store--empty";
-    empty.style.padding = "0.75rem";
+    empty.className = "awn-data-view-empty";
     empty.textContent = store?.kind === "singleton" ? "main.md пуст или не найден" : "Записей пока нет";
     awnDataViewRecordsNode.appendChild(empty);
     return;
   }
 
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "awn-data-view-empty";
+    empty.textContent = "Ничего не найдено";
+    awnDataViewRecordsNode.appendChild(empty);
+    return;
+  }
+
+  const columns = getAwnDataViewColumns(store);
+
+  const table = document.createElement("table");
+  table.className = "awn-data-view-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const column of columns) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = column.label;
+    headRow.appendChild(th);
+  }
+  const actionsHead = document.createElement("th");
+  actionsHead.scope = "col";
+  actionsHead.setAttribute("aria-label", "Действия");
+  headRow.appendChild(actionsHead);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
   for (const record of records) {
-    const row = document.createElement("div");
+    const row = document.createElement("tr");
     row.className = "awn-data-view-record-row";
+    if (isAwnDataSystemRecord(record)) row.classList.add("is-system");
     row.title = record.relPath || "";
 
-    const idNode = document.createElement("span");
-    idNode.className = "awn-data-view-record-id";
-    idNode.textContent = record.id;
+    for (const column of columns) {
+      const cell = document.createElement("td");
+      const value = formatAwnDataViewCellValue(record, column);
 
-    const titleNode = document.createElement("span");
-    titleNode.className = "awn-data-view-record-title";
-    titleNode.textContent = record.title || "—";
+      if (column.kind === "id") {
+        cell.className = "awn-data-view-record-id";
+        cell.textContent = value;
+      } else if (column.key === "title") {
+        cell.className = "awn-data-view-record-title";
+        const titleText = document.createElement("span");
+        titleText.textContent = value;
+        cell.appendChild(titleText);
+        if (isAwnDataSystemRecord(record)) {
+          const badge = document.createElement("span");
+          badge.className = "awn-data-view-record-badge";
+          badge.textContent = "системная";
+          cell.appendChild(badge);
+        }
+      } else if (column.kind === "parent" || column.key === "parent") {
+        cell.className = "awn-data-view-record-parent";
+        cell.textContent = value;
+      } else {
+        cell.className = "awn-data-view-record-field";
+        cell.textContent = value;
+        if (value !== "—") cell.title = value;
+      }
 
-    const parentNode = document.createElement("span");
-    parentNode.className = "awn-data-view-record-parent";
-    parentNode.textContent = record.parent || "—";
+      row.appendChild(cell);
+    }
 
-    row.append(idNode, titleNode, parentNode);
-    awnDataViewRecordsNode.appendChild(row);
+    const actionsCell = document.createElement("td");
+    actionsCell.className = "awn-data-view-record-actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "awn-data-view-edit-btn";
+    editBtn.title = "Редактировать";
+    editBtn.setAttribute("aria-label", "Редактировать");
+    editBtn.append(createOverviewEditManifestIcon());
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void openAwnDataRecordEditor(record);
+    });
+    actionsCell.appendChild(editBtn);
+    row.appendChild(actionsCell);
+
+    tbody.appendChild(row);
   }
+
+  table.appendChild(tbody);
+  awnDataViewRecordsNode.appendChild(table);
 }
 
 async function openAwnDataViewModal(storeRel, agentId = activeAgentId) {
   if (!awnDataViewModalNode || !storeRel) return;
   awnDataViewStoreRel = storeRel;
   awnDataViewModalNode.classList.remove("hidden");
-  if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = "Загрузка…";
-  if (awnDataViewModalSubtitleNode) awnDataViewModalSubtitleNode.textContent = storeRel;
+  renderAwnDataViewHeader(null, { loading: true });
   awnDataViewRecordsNode.replaceChildren();
   awnDataViewAddWrapNode?.classList.add("hidden");
 
@@ -81437,19 +81800,17 @@ async function openAwnDataViewModal(storeRel, agentId = activeAgentId) {
     const store = data.store;
     if (!store) throw new Error("Store not found");
 
-    if (awnDataViewModalTitleNode) {
-      awnDataViewModalTitleNode.textContent = store.name || store.relPath;
-    }
-    if (awnDataViewModalSubtitleNode) {
-      const kindLabel = store.kind === "singleton" ? "одиночка · main.md" : "коллекция";
-      awnDataViewModalSubtitleNode.textContent = `${kindLabel} · awn-data/${store.relPath}`;
-    }
+    renderAwnDataViewHeader(store);
+    awnDataViewStoreCache = store;
+    awnDataViewSectionId = "__all__";
+    syncAwnDataViewSectionTree(store);
+    if (awnDataViewSearchInputNode) awnDataViewSearchInputNode.value = "";
     renderAwnDataViewRecords(store);
     awnDataViewAddWrapNode?.classList.toggle("hidden", store.kind === "singleton");
     if (awnDataAddTitleInputNode) awnDataAddTitleInputNode.value = "";
     if (awnDataAddParentInputNode) awnDataAddParentInputNode.value = "";
   } catch (error) {
-    if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = "Ошибка";
+    renderAwnDataViewHeader(null, { error: true });
     if (awnDataViewRecordsNode) {
       awnDataViewRecordsNode.textContent = String(error.message || error);
     }
@@ -81527,16 +81888,68 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
   }
 }
 
+function setMenuStaticSummaryRefreshSpinning(button, spinning) {
+  if (!button) return;
+  button.classList.toggle("is-spinning", Boolean(spinning));
+  button.setAttribute("aria-busy", spinning ? "true" : "false");
+}
+
+function wireMenuStaticSummaryRefreshButton(button, handler) {
+  if (!button || button.dataset.refreshWired === "1") return;
+  button.dataset.refreshWired = "1";
+  const stopSummaryToggle = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  button.addEventListener("mousedown", stopSummaryToggle);
+  button.addEventListener("pointerdown", stopSummaryToggle);
+  button.addEventListener("click", (event) => {
+    stopSummaryToggle(event);
+    if (button.classList.contains("is-spinning")) return;
+    void handler(event);
+  });
+}
+
+async function handleMenuGoogleDriveRefreshClick() {
+  setMenuStaticSummaryRefreshSpinning(menuGoogleDriveRefreshBtn, true);
+  try {
+    await refreshMenuGoogleDriveStats();
+  } finally {
+    setMenuStaticSummaryRefreshSpinning(menuGoogleDriveRefreshBtn, false);
+  }
+}
+
+async function handleMenuAwnDataRefreshClick() {
+  setMenuStaticSummaryRefreshSpinning(menuAwnDataRefreshBtn, true);
+  try {
+    await refreshMenuAwnDataStores();
+  } finally {
+    setMenuStaticSummaryRefreshSpinning(menuAwnDataRefreshBtn, false);
+  }
+}
+
 function setupAwnDataStoresUi() {
   if (setupAwnDataStoresUi.initialized) return;
   setupAwnDataStoresUi.initialized = true;
 
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("singleton"));
+  wireMenuStaticSummaryRefreshButton(menuGoogleDriveRefreshBtn, handleMenuGoogleDriveRefreshClick);
+  wireMenuStaticSummaryRefreshButton(menuAwnDataRefreshBtn, handleMenuAwnDataRefreshClick);
   awnDataCreateCancelBtn?.addEventListener("click", closeAwnDataCreateModal);
   awnDataCreateSubmitBtn?.addEventListener("click", () => void submitAwnDataCreateStore());
   awnDataViewCloseBtn?.addEventListener("click", closeAwnDataViewModal);
   awnDataAddRecordBtn?.addEventListener("click", () => void submitAwnDataAddRecord());
+  awnDataViewSearchInputNode?.addEventListener("input", () => {
+    if (awnDataViewStoreCache) renderAwnDataViewRecords(awnDataViewStoreCache);
+  });
+  awnDataViewSectionTreeNode?.addEventListener("click", (event) => {
+    const item = event.target.closest(".awn-data-view-section-tree-item");
+    if (!item?.dataset.sectionId) return;
+    awnDataViewSectionId = item.dataset.sectionId;
+    syncAwnDataViewSectionTreeActiveStates();
+    if (awnDataViewStoreCache) renderAwnDataViewRecords(awnDataViewStoreCache);
+  });
 
   awnDataCreateNameInputNode?.addEventListener("input", () => {
     if (!awnDataCreateSlugInputNode) return;
@@ -81555,19 +81968,32 @@ function setupAwnDataStoresUi() {
   });
 }
 
-function awnDataStoreKindIcon(kind) {
-  if (kind === "singleton") return "⚙️";
-  return "📋";
+function awnDataStoreKindClass(kind) {
+  return kind === "singleton" ? "menu-awn-data-store-kind--singleton" : "menu-awn-data-store-kind--collection";
 }
 
-function formatAwnDataStoreMeta(store) {
+function awnDataStoreKindLabel(kind) {
+  return kind === "singleton" ? "Одиночка" : "Коллекция";
+}
+
+function createAwnDataStoreMetaNode(store) {
+  const metaNode = document.createElement("span");
+  metaNode.className = "menu-awn-data-store-meta";
+
   const count = Number(store?.recordCount) || 0;
-  if (store?.kind === "singleton") return "main.md";
-  if (store?.kind === "collection" && Array.isArray(store.tree) && store.tree.length) {
-    const childCount = (store.records || []).filter((r) => r.parent).length;
-    if (childCount > 0) return `${count} · ${childCount} влож.`;
+  const badge = document.createElement("span");
+  badge.className = "menu-awn-data-store-badge menu-awn-data-store-badge--count";
+  if (count <= 0) badge.classList.add("is-zero");
+  badge.textContent = String(count);
+
+  if (store?.kind === "singleton") {
+    badge.title = count > 0 ? "main.md заполнен" : "main.md пуст";
+  } else {
+    badge.title = count === 1 ? "1 запись" : `${count} записей`;
   }
-  return count === 1 ? "1 запись" : `${count} записей`;
+
+  metaNode.appendChild(badge);
+  return metaNode;
 }
 
 function renderMenuAwnDataStores(payload = null, { loading = false, error = false } = {}) {
@@ -81602,20 +82028,20 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
   for (const store of stores) {
     const row = document.createElement("li");
     row.className = "menu-awn-data-store";
-    row.title = store.description || store.name || store.relPath;
+    const displayName = String(store.name || store.id || store.relPath || "").trim();
+    const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
+    row.title = store.description || (pathHint ? `${displayName} · ${pathHint}` : displayName);
 
     const kindNode = document.createElement("span");
-    kindNode.className = "menu-awn-data-store-kind";
-    kindNode.title = store.kind || "collection";
-    kindNode.textContent = awnDataStoreKindIcon(store.kind);
+    kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
+    kindNode.title = awnDataStoreKindLabel(store.kind);
+    kindNode.setAttribute("aria-hidden", "true");
 
     const nameNode = document.createElement("span");
     nameNode.className = "menu-awn-data-store-name";
-    nameNode.textContent = store.relPath || store.id;
+    nameNode.textContent = displayName;
 
-    const metaNode = document.createElement("span");
-    metaNode.className = "menu-awn-data-store-meta";
-    metaNode.textContent = formatAwnDataStoreMeta(store);
+    const metaNode = createAwnDataStoreMetaNode(store);
 
     row.append(kindNode, nameNode, metaNode);
     row.tabIndex = 0;
@@ -81969,7 +82395,7 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.details || errorData.error || `Request failed with ${response.status}`);
   }
-  const menu = await response.json();
+  const menu = stripPlatformDataFoldersFromMenu(await response.json());
   void refreshMenuRuntimeFlagsCache(agentId).then(() => {
     enrichMenuRuntimeFromCache(menu, agentId);
     refreshMenuTreeRuntimeBadges(agentId);

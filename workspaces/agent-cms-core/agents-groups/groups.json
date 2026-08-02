@@ -1,21 +1,6 @@
 {
   "groups": [
     {
-      "id": "текущее",
-      "title": "Основное",
-      "agentIds": [
-        "agent-focus"
-      ]
-    },
-    {
-      "id": "образование",
-      "title": "Образование",
-      "agentIds": [
-        "agent-atlas"
-      ],
-      "background": "workspaces/agent-cms-core/agents-groups/образование.png"
-    },
-    {
       "id": "platform",
       "title": "Работа",
       "agentIds": [
@@ -25,12 +10,30 @@
       "appearance": "dark"
     },
     {
+      "id": "образование",
+      "title": "Образование",
+      "agentIds": [],
+      "background": "workspaces/agent-cms-core/agents-groups/образование.png"
+    },
+    {
+      "id": "текущее",
+      "title": "Основное",
+      "agentIds": [
+        "agent-focus"
+      ]
+    },
+    {
       "id": "хобби",
       "title": "Хобби",
       "agentIds": [
         "agent-cms-core",
         "agent-cms-test"
       ]
+    },
+    {
+      "id": "тестовая-группа",
+      "title": "Тестовая группа",
+      "agentIds": []
     }
   ]
 }

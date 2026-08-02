@@ -25,7 +25,8 @@ const {
   toTopicFileName,
   isAreaManifestFileName,
   isTopicManifestFileName,
-  isStorageFolderName
+  isStorageFolderName,
+  isPlatformDataRootFolderName
 } = require("./manifest-paths");
 const { buildDefaultFrontmatter } = require("./awn-types-loader");
 const {
@@ -39,6 +40,12 @@ const {
   getAgentsGroupsAssetsAbsolute,
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
+const {
+  loadRegistryEntriesFromAwnData,
+  saveRegistryEntriesToAwnData,
+  loadGroupsFromAwnData,
+  saveGroupsToAwnData
+} = require("./awn-data-agents-bridge");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 
 const agentContext = new AsyncLocalStorage();
@@ -417,6 +424,12 @@ function setGroupBackgroundOnCache(groupId, background) {
 }
 
 function persistAgentsGroupsCacheToDisk() {
+  try {
+    saveGroupsToAwnData(projectRoot, agentsGroupsCache.groups, agentsGroupsCache.ungrouped);
+  } catch {
+    // awn-data store may be missing during bootstrap — JSON fallback below
+  }
+
   const payload = {
     groups: agentsGroupsCache.groups.map(({ id, title, agentIds, background, appearance }) => {
       const item = { id, title, agentIds };
@@ -507,8 +520,30 @@ function normalizeAgentsGroupEntry(raw, index, knownAgentIds) {
 }
 
 function loadAgentsGroupsSync() {
-  const filePath = getAgentsGroupsPathSync();
   const knownAgentIds = getKnownAgentIdsSet();
+
+  try {
+    const fromAwn = loadGroupsFromAwnData(projectRoot);
+    if (fromAwn) {
+      const seen = new Set();
+      const groups = (Array.isArray(fromAwn.groups) ? fromAwn.groups : [])
+        .map((entry, index) => normalizeAgentsGroupEntry(entry, index, knownAgentIds))
+        .filter((group) => {
+          if (!group?.id || seen.has(group.id)) return false;
+          seen.add(group.id);
+          return true;
+        });
+      agentsGroupsCache = {
+        groups,
+        ungrouped: normalizeUngroupedSection(fromAwn.ungrouped)
+      };
+      return agentsGroupsCache;
+    }
+  } catch {
+    // fallback to groups.json
+  }
+
+  const filePath = getAgentsGroupsPathSync();
   if (!fs.existsSync(filePath)) {
     agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
     return agentsGroupsCache;
@@ -637,7 +672,8 @@ function isReservedAgentRootFolderEntryName(name) {
   return (
     isAgentKitFolderEntryName(name) ||
     isContainerFolderEntryName(name) ||
-    isSharedFolderEntryName(name)
+    isSharedFolderEntryName(name) ||
+    isPlatformDataRootFolderName(name)
   );
 }
 
@@ -1092,17 +1128,30 @@ function normalizeAgentEntry(entry, index = 0) {
   return enrichAgentEntry(base);
 }
 
-function loadRegistrySync() {
+function loadRawRegistryEntriesSync() {
+  try {
+    const fromAwn = loadRegistryEntriesFromAwnData(projectRoot);
+    if (fromAwn && fromAwn.length > 0) return fromAwn;
+  } catch {
+    // fallback to awn-agents.json
+  }
+
   const registryPath = getAgentsRegistryPathSync();
-  if (!fs.existsSync(registryPath)) {
+  if (!fs.existsSync(registryPath)) return null;
+
+  const raw = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
+  return Array.isArray(raw.agents) ? raw.agents : [];
+}
+
+function loadRegistrySync() {
+  const rawEntries = loadRawRegistryEntriesSync();
+  if (!rawEntries) {
     const rootAbsolute = path.join(projectRoot, "Workspaces");
     agents = [enrichAgentEntry({ id: "main", name: "Main Agent", path: "./Workspaces", rootAbsolute, default: true, active: true, folderExists: true })];
     defaultAgentId = "main";
     return;
   }
 
-  const raw = JSON.parse(fs.readFileSync(registryPath, "utf-8"));
-  const rawEntries = Array.isArray(raw.agents) ? raw.agents : [];
   agents = rawEntries.map((entry, index) => normalizeAgentEntry(entry, index)).filter((agent) => agent.id);
 
   if (agents.length === 0) {
@@ -1306,6 +1355,22 @@ function saveAgentsRegistry(rawAgents) {
   if (!normalized.some((agent) => agent.default && normalizeAgentActive(agent.active))) {
     const firstActive = normalized.find((agent) => normalizeAgentActive(agent.active));
     if (firstActive) firstActive.default = true;
+  }
+
+  try {
+    saveRegistryEntriesToAwnData(
+      projectRoot,
+      normalized.map((agent) => ({
+        id: agent.id,
+        name: path.basename(String(resolveAgentRootAbsolute(agent.path) || agent.id).replace(/[\\/]+$/, "")),
+        path: agent.path,
+        environment: agent.environment,
+        default: agent.default,
+        orchestrator: agent.orchestrator
+      }))
+    );
+  } catch {
+    // awn-data store may be missing during bootstrap — JSON fallback below
   }
 
   const registryPath = getAgentsRegistryPathSync();

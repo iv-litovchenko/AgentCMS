@@ -678,6 +678,25 @@
                   >
                     —
                   </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-google-drive-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить Google Drive"
+                      aria-label="Обновить Google Drive"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
                 </summary>
                 <div class="menu-static-body">
                   <button
@@ -701,12 +720,27 @@
                     <span aria-hidden="true">🟢</span>
                     <span>Накопители информации (аналог БД)</span>
                   </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-awn-data-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить накопители"
+                      aria-label="Обновить накопители"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
                 </summary>
                 <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    <code>awn-data/</code> — коллекции (много записей, иерархия) и одиночки (<code>main.md</code>).
-                  </p>
-                  <div class="menu-static-path">awn-data/</div>
                   <div class="menu-awn-data-toolbar">
                     <button
                       id="menu-awn-data-create-collection-btn"
@@ -730,6 +764,7 @@
                     class="menu-awn-data-stores"
                     aria-label="Накопители информации"
                   ></ul>
+                  <p class="menu-awn-data-footer-caption">Структурированные данные</p>
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--vendor menu-static-accordion">
@@ -3441,13 +3476,36 @@
     <div id="awn-data-view-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
       <div class="modal-card awn-data-modal-card awn-data-view-modal-card">
         <div class="awn-data-view-header">
-          <div>
-            <div class="modal-message" id="awn-data-view-modal-title">Накопитель</div>
-            <p class="awn-data-view-subtitle" id="awn-data-view-modal-subtitle"></p>
+          <div class="awn-data-view-header-main">
+            <div class="awn-data-view-title-row">
+              <h2 class="awn-data-view-title" id="awn-data-view-modal-title">Накопитель</h2>
+              <span class="awn-data-view-kind-badge hidden" id="awn-data-view-modal-kind"></span>
+            </div>
+            <div class="awn-data-view-path hidden" id="awn-data-view-modal-path"></div>
           </div>
           <button id="awn-data-view-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
-        <div id="awn-data-view-records" class="awn-data-view-records"></div>
+        <div class="awn-data-view-manifest hidden" id="awn-data-view-manifest"></div>
+        <div class="awn-data-view-section-row hidden" id="awn-data-view-section-wrap">
+          <label class="awn-data-view-section-label" for="awn-data-view-section-select">Раздел</label>
+          <select id="awn-data-view-section-select" class="awn-data-view-section-select"></select>
+        </div>
+        <div class="awn-data-view-toolbar">
+          <div class="awn-data-view-search-wrap">
+            <input
+              id="awn-data-view-search-input"
+              type="search"
+              class="awn-data-view-search-input"
+              placeholder="Поиск по id, названию, родителю…"
+              spellcheck="false"
+              autocomplete="off"
+            />
+            <span id="awn-data-view-count" class="awn-data-view-count" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="awn-data-view-table-wrap">
+          <div id="awn-data-view-records" class="awn-data-view-records"></div>
+        </div>
         <div class="awn-data-view-actions hidden" id="awn-data-view-add-wrap">
           <label class="agents-registry-field">
             <span>Новая запись</span>

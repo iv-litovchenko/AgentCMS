@@ -38,7 +38,33 @@ function stripStorageRootPrefix(relPath) {
 }
 /** Служебный слой Neos-like: node-types, fields — не в меню контента */
 const CONFIGURATION_ROOT_FOLDER = "configuration";
+/** Накопители информации — sidebar «Накопители», не в дереве тем */
+const AWN_DATA_ROOT_FOLDER = "awn-data";
+/** Google Drive sync — отдельный UI, не в дереве тем */
+const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";
+const PLATFORM_DATA_ROOT_FOLDERS = [AWN_DATA_ROOT_FOLDER, AWN_GOOGLE_DRIVE_ROOT_FOLDER];
 const SERVICE_AREA_NAME = "Служебные темы и компоненты";
+
+function isAwnDataFolderName(name) {
+  return String(name || "").trim().toLowerCase() === AWN_DATA_ROOT_FOLDER;
+}
+
+function isAwnGoogleDriveFolderName(name) {
+  return String(name || "").trim().toLowerCase() === AWN_GOOGLE_DRIVE_ROOT_FOLDER;
+}
+
+function isPlatformDataRootFolderName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return PLATFORM_DATA_ROOT_FOLDERS.some((folder) => lower === folder.toLowerCase());
+}
+
+function isPlatformDataMenuFolderPath(folderPath) {
+  const normalized = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized || normalized === ".") return false;
+  return normalized.split("/").some((segment) => isPlatformDataRootFolderName(segment));
+}
 
 const BUNDLE_BODY_FILE = "body.md";
 const BUNDLE_MAIN_FILE = "main.md";
@@ -1293,6 +1319,13 @@ module.exports = {
   stripStorageRootPrefix,
   CONFIGURATION_ROOT_FOLDER,
   isConfigurationFolderName,
+  AWN_DATA_ROOT_FOLDER,
+  AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+  PLATFORM_DATA_ROOT_FOLDERS,
+  isAwnDataFolderName,
+  isAwnGoogleDriveFolderName,
+  isPlatformDataRootFolderName,
+  isPlatformDataMenuFolderPath,
   STORAGE_PREFIX: STORAGE_ROOT_FOLDER,
   AREA_MANIFEST_FILE,
   SERVICE_AREA_NAME,

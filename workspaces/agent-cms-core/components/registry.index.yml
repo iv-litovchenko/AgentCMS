@@ -10,7 +10,5 @@ active:
   - fields/string
   - markdown-blocks/_base
   - markdown-blocks/h2
-  - agents/agent
-  - agents/groups
   - taxonomies/_base
   - taxonomies/tags

@@ -9,16 +9,20 @@
       "environment": "local"
     },
     {
-      "path": "/Users/macbook/Desktop/agent-medcenter",
-      "environment": "local"
-    },
-    {
       "path": "/Users/macbook/Desktop/agent-focus",
       "environment": "local",
       "default": true
     },
     {
+      "path": "/Users/macbook/Desktop/agent-medcenter",
+      "environment": "local"
+    },
+    {
       "path": "/Users/macbook/downloads",
+      "environment": "local"
+    },
+    {
+      "path": "workspaces/test2",
       "environment": "local"
     }
   ]
