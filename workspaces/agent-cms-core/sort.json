@@ -2,8 +2,6 @@
   "order": [
     "types",
     "awn-data",
-    "agents",
-    "agents-groups",
     "components",
     "settings",
     "workflows",

@@ -1,7 +1,7 @@
 version: 1
 kind: collection
 id: markdown-blocks.groups
-name: MD-Группы блоков
+name: Группы блоков
 extends: ../../_base/configuration-schema.yml
 description: Группы палитры блоков редактора (structure, text, lists…)
 

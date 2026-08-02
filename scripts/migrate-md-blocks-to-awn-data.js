@@ -344,7 +344,7 @@ function migrateBlocks() {
 
 function updateRootSort() {
   const sortPath = path.join(AWN_DATA, "sort.json");
-  let order = ["agents", "agent-groups", "taxonomies"];
+  let order = ["agent-registry", "taxonomies"];
   if (fs.existsSync(sortPath)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(sortPath, "utf-8"));

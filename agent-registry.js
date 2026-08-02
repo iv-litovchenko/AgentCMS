@@ -35,7 +35,6 @@ const {
 } = require("./platform-agent");
 const {
   AGENT_CMS_CORE_REL,
-  getAgentsGroupsJsonAbsolute,
   getAgentsGroupsAssetsAbsolute,
   toAgentsGroupsBackgroundRel
 } = require("./platform-sources");
@@ -340,10 +339,6 @@ function getAgentsRegistryPathSync() {
   return path.join(projectRoot, AWN_AGENTS_REGISTRY_FILE);
 }
 
-function getAgentsGroupsPathSync() {
-  return getAgentsGroupsJsonAbsolute(projectRoot || process.cwd());
-}
-
 function getAgentsGroupsAssetsDirSync() {
   return getAgentsGroupsAssetsAbsolute(projectRoot || process.cwd());
 }
@@ -423,26 +418,7 @@ function setGroupBackgroundOnCache(groupId, background) {
 }
 
 function persistAgentsGroupsCacheToDisk() {
-  try {
-    saveGroupsToAwnData(projectRoot, agentsGroupsCache.groups, agentsGroupsCache.ungrouped);
-  } catch {
-    // awn-data store may be missing during bootstrap — JSON fallback below
-  }
-
-  const payload = {
-    groups: agentsGroupsCache.groups.map(({ id, title, agentIds, background, appearance }) => {
-      const item = { id, title, agentIds };
-      if (background) item.background = background;
-      if (appearance === "dark") item.appearance = "dark";
-      return item;
-    })
-  };
-  const ungrouped = agentsGroupsCache.ungrouped || normalizeUngroupedSection(null);
-  const ungroupedItem = {};
-  if (ungrouped.background) ungroupedItem.background = ungrouped.background;
-  if (ungrouped.appearance === "dark") ungroupedItem.appearance = "dark";
-  if (Object.keys(ungroupedItem).length) payload.ungrouped = ungroupedItem;
-  fs.writeFileSync(getAgentsGroupsPathSync(), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+  saveGroupsToAwnData(projectRoot, agentsGroupsCache.groups, agentsGroupsCache.ungrouped);
 }
 
 function writeGroupBackgroundFile(groupId, buffer, ext) {
@@ -521,37 +497,10 @@ function normalizeAgentsGroupEntry(raw, index, knownAgentIds) {
 function loadAgentsGroupsSync() {
   const knownAgentIds = getKnownAgentIdsSet();
 
-  try {
-    const fromAwn = loadGroupsFromAwnData(projectRoot);
-    if (fromAwn) {
-      const seen = new Set();
-      const groups = (Array.isArray(fromAwn.groups) ? fromAwn.groups : [])
-        .map((entry, index) => normalizeAgentsGroupEntry(entry, index, knownAgentIds))
-        .filter((group) => {
-          if (!group?.id || seen.has(group.id)) return false;
-          seen.add(group.id);
-          return true;
-        });
-      agentsGroupsCache = {
-        groups,
-        ungrouped: normalizeUngroupedSection(fromAwn.ungrouped)
-      };
-      return agentsGroupsCache;
-    }
-  } catch {
-    // fallback to groups.json
-  }
-
-  const filePath = getAgentsGroupsPathSync();
-  if (!fs.existsSync(filePath)) {
-    agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
-    return agentsGroupsCache;
-  }
-
-  try {
-    const raw = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const fromAwn = loadGroupsFromAwnData(projectRoot);
+  if (fromAwn) {
     const seen = new Set();
-    const groups = (Array.isArray(raw?.groups) ? raw.groups : [])
+    const groups = (Array.isArray(fromAwn.groups) ? fromAwn.groups : [])
       .map((entry, index) => normalizeAgentsGroupEntry(entry, index, knownAgentIds))
       .filter((group) => {
         if (!group?.id || seen.has(group.id)) return false;
@@ -560,13 +509,13 @@ function loadAgentsGroupsSync() {
       });
     agentsGroupsCache = {
       groups,
-      ungrouped: normalizeUngroupedSection(raw?.ungrouped)
+      ungrouped: normalizeUngroupedSection(fromAwn.ungrouped)
     };
     return agentsGroupsCache;
-  } catch {
-    agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
-    return agentsGroupsCache;
   }
+
+  agentsGroupsCache = { groups: [], ungrouped: normalizeUngroupedSection(null) };
+  return agentsGroupsCache;
 }
 
 function getAgentsGroupsPublic() {

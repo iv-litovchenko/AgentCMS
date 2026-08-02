@@ -1,6 +1,6 @@
 [
-  "agents",
-  "agent-groups",
+  "agent-registry",
   "taxonomies",
-  "markdown-blocks"
+  "markdown-blocks",
+  "zagotovki-shablonov"
 ]

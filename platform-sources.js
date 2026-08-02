@@ -32,16 +32,19 @@ function getAgentSystemTypesDir(agentRoot, domain) {
 }
 
 const AWN_DATA_TAXONOMIES_REL = path.join(AGENT_CMS_CORE_REL, "awn-data", "taxonomies");
-const AGENTS_GROUPS_REL = path.join(AGENT_CMS_CORE_REL, "agents-groups");
-const AGENTS_GROUPS_FILE = "groups.json";
+const AGENT_REGISTRY_GROUPS_REL = path.join(AGENT_CMS_CORE_REL, "awn-data/agent-registry/agent-groups");
+const AGENT_GROUPS_ATTACHMENTS_REL = path.join(
+  AGENT_REGISTRY_GROUPS_REL,
+  "awn-storage/assets/attachments"
+);
 const PLATFORM_INDEX_REL = path.join(AGENT_CMS_CORE_REL, "index.json");
 const TODO_FILE = "TODO.md";
 const TODO_CORE_FILE = "TODO-CORE.md";
 
-/** Относительный URL-префикс для фонов групп (хранится в groups.json). */
+/** Относительный путь к фону группы (в frontmatter записей). */
 const AGENTS_GROUPS_ASSETS_PUBLIC_PREFIX = path.posix.join(
   AGENT_CMS_CORE_REL.replace(/\\/g, "/"),
-  "agents-groups"
+  "awn-data/agent-registry/agent-groups/awn-storage/assets/attachments"
 );
 
 function resolvePlatformPath(projectRoot, ...segments) {
@@ -64,12 +67,8 @@ function getAwnDataTaxonomiesAbsolute(projectRoot) {
   return resolvePlatformPath(projectRoot, AWN_DATA_TAXONOMIES_REL);
 }
 
-function getAgentsGroupsJsonAbsolute(projectRoot) {
-  return resolvePlatformPath(projectRoot, AGENTS_GROUPS_REL, AGENTS_GROUPS_FILE);
-}
-
 function getAgentsGroupsAssetsAbsolute(projectRoot) {
-  return resolvePlatformPath(projectRoot, AGENTS_GROUPS_REL);
+  return resolvePlatformPath(projectRoot, AGENT_GROUPS_ATTACHMENTS_REL);
 }
 
 function getPlatformIndexAbsolute(projectRoot) {
@@ -145,8 +144,8 @@ module.exports = {
   getAgentSystemAbsolute,
   getAgentSystemTypesDir,
   AWN_DATA_TAXONOMIES_REL,
-  AGENTS_GROUPS_REL,
-  AGENTS_GROUPS_FILE,
+  AGENT_REGISTRY_GROUPS_REL,
+  AGENT_GROUPS_ATTACHMENTS_REL,
   AGENTS_GROUPS_ASSETS_PUBLIC_PREFIX,
   PLATFORM_INDEX_REL,
   TODO_FILE,
@@ -158,7 +157,6 @@ module.exports = {
   getTypeDomainAbsolute,
   getTypeCatalogRootAbsolute,
   getAwnDataTaxonomiesAbsolute,
-  getAgentsGroupsJsonAbsolute,
   getAgentsGroupsAssetsAbsolute,
   getPlatformIndexAbsolute,
   getTodoAbsolute,

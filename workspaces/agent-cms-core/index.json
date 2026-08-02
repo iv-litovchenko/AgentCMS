@@ -22,7 +22,7 @@
     {
       "title": "Справочники",
       "items": [
-        { "label": "Таксономии", "path": "awn-data/taxonomies/manifest.md" },
+        { "label": "Таксономии (справочники)", "path": "awn-data/taxonomies/manifest.md" },
         { "label": "Теги", "path": "awn-data/taxonomies/tags/manifest.md" },
         { "label": "Категории", "path": "awn-data/taxonomies/categories/manifest.md" },
         { "label": "Статусы", "path": "awn-data/taxonomies/statuses/manifest.md" },
@@ -35,7 +35,7 @@
       "title": "Markdown-блоки",
       "items": [
         { "label": "Markdown-блоки", "path": "awn-data/markdown-blocks/manifest.md" },
-        { "label": "MD-Группы блоков", "path": "awn-data/markdown-blocks/groups/manifest.md" },
+        { "label": "Группы блоков", "path": "awn-data/markdown-blocks/groups/manifest.md" },
         { "label": "MD-Блоки", "path": "awn-data/markdown-blocks/blocks/manifest.md" }
       ]
     },

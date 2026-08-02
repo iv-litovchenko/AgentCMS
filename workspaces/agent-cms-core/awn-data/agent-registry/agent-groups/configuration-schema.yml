@@ -1,8 +1,8 @@
 version: 1
 kind: collection
-id: agent-groups
+id: agent-registry.groups
 name: Группы агентов
-extends: ../_base/configuration-schema.yml
+extends: ../../_base/configuration-schema.yml
 description: UI-группировка агентов на landing
 
 record:
@@ -21,6 +21,7 @@ fields:
   background:
     type: awn.string
     title: Фон (путь к изображению)
+    description: "awn-storage/assets/attachments/{id}.png"
   appearance:
     type: awn.enum
     title: Тема

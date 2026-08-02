@@ -8,8 +8,9 @@ const {
   ensureAwnDataBase
 } = require("./awn-data-loader");
 
-const AGENTS_STORE_ID = "agents";
-const AGENT_GROUPS_STORE_ID = "agent-groups";
+const AGENT_REGISTRY_GROUP = "agent-registry";
+const AGENTS_STORE_ID = "agent-registry/agents";
+const AGENT_GROUPS_STORE_ID = "agent-registry/agent-groups";
 const UNGROUPED_RECORD_ID = "_ungrouped";
 
 function nowIsoMinute() {
@@ -174,7 +175,7 @@ function saveRegistryEntriesToAwnData(projectRoot, normalizedAgents) {
   }
 
   syncSortJson(storeAbs, normalizedAgents.map((a) => a.id));
-  appendRootSortEntry(dataRoot, AGENTS_STORE_ID);
+  appendRootSortEntry(dataRoot, AGENT_REGISTRY_GROUP);
 }
 
 function loadGroupsFromAwnData(projectRoot) {
@@ -273,10 +274,11 @@ function saveGroupsToAwnData(projectRoot, groups, ungrouped) {
   }
 
   syncSortJson(storeAbs, [...groups.map((g) => g.id), UNGROUPED_RECORD_ID]);
-  appendRootSortEntry(dataRoot, AGENT_GROUPS_STORE_ID);
+  appendRootSortEntry(dataRoot, AGENT_REGISTRY_GROUP);
 }
 
 module.exports = {
+  AGENT_REGISTRY_GROUP,
   AGENTS_STORE_ID,
   AGENT_GROUPS_STORE_ID,
   UNGROUPED_RECORD_ID,
