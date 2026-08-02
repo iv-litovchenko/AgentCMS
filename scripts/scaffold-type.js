@@ -3,7 +3,6 @@
  * Новый тип в каталоге platform core
  *
  *   node scripts/scaffold-type.js field my-field
- *   node scripts/scaffold-type.js block callout
  *   node scripts/scaffold-type.js slot inbox-custom
  */
 const fs = require("fs");
@@ -31,25 +30,8 @@ settings: [description, hint, required, default]
 `
   },
   block: {
-    folder: "md-blocks",
-    id: (s) => `awn.block.${s}`,
-    extends: "awn.block.base",
-    kind: "block",
-    body: (id, title) => `id: ${id}
-name: ${title}
-kind: block
-domain: md-blocks
-status: draft
-extends: awn.block.base
-group: misc
-sort: 99
-icon: "📌"
-description: ${title}
-template: |
-  ## ${title}
-
-  Текст блока.
-`
+    error:
+      "Markdown-блоки — awn-data/markdown-blocks/blocks/{slug}.md, не types/md-blocks. Используйте MCP create_data_record."
   },
   slot: {
     folder: "content",
@@ -86,6 +68,11 @@ const kind = domain;
 const meta = DOMAIN_META[kind];
 if (!slug || !meta) {
   console.error(`Usage: node scripts/scaffold-type.js <field|block|slot|page> <slug>`);
+  process.exit(1);
+}
+
+if (meta.error) {
+  console.error(meta.error);
   process.exit(1);
 }
 

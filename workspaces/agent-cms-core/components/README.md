@@ -8,11 +8,11 @@ components/
 │   └── string/          awn.topic · awn.string
 │       ├── manifest.md
 │       └── awn-storage/configuration/schema.yml
-├── markdown-blocks/     awn.area · блоки редактора
-│   └── h2/              awn.topic · awn.block.h2
 └── frames/              awn.area · frame-типы (topic, area…)
     └── topic/           awn.topic · awn.topic
 ```
+
+**Markdown-блоки** — `awn-data/markdown-blocks/` (не components).
 
 ## Включить / выключить
 
@@ -32,19 +32,15 @@ node scripts/scaffold-component.js field my-field
 2. В `manifest.md` поставь `awn-status: "🟢 Открыта"`
 3. Поле появится в `/api/awn-types` → `fieldRegistry`
 
-## Добавить новый markdown-блок
+## Добавить markdown-блок
 
-```bash
-node scripts/scaffold-component.js block callout
-```
-
-1. Заполни `schema.yml` — `template`, `icon`, `group`
-2. `awn-status: "🟢 Открыта"` → блок в палитре редактора
+Запись в `awn-data/markdown-blocks/blocks/{slug}.md` или MCP `create_data_record`.
 
 ## API для агента
 
 - `GET /api/components` — активные топики + схемы
 - MCP `list_components`
-- `GET /api/awn-types` — fields, blocks, types (из тех же топиков)
+- `GET /api/awn-types` — fields, blocks, types
+- `GET /api/awn-data?store=markdown-blocks/blocks` — блоки палитры
 
-Loader: `components-loader.js` — читает `awn.topic` + `awn-storage/configuration/schema.yml`.
+Loader: `components-loader.js` — fields/frames; `awn-blocks-loader.js` — блоки из awn-data.

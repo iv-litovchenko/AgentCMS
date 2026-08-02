@@ -16,7 +16,7 @@ workspaces/agent-cms-test/
 │   ├── registry.yml
 │   ├── MAP.md
 │   ├── slots-bindings.yml
-│   └── types/{pages,content,slots,fields,md-blocks,taxonomies,mixins}/
+│   └── types/{pages,content,slots,fields,mixins}/
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -26,7 +26,7 @@ workspaces/agent-cms-test/
 ├── awn-agent-kit/              ← runtime агента
 │   ├── agent/                  ← persona + thread/
 │   ├── user/
-│   └── taxonomies/{categories,tags,statuses,priorities,colors}/
+│   └── awn-data/taxonomies/{tags,categories,statuses,…}/
 │
 └── awn-storage/                ← assets workspace-уровня
 ```
@@ -42,9 +42,11 @@ workspaces/agent-cms-test/
 | **content** | `awn.content.*` | сущности **внутри слотов** |
 | **slots** | `awn.slot.*` | **папки** в `topic/awn-storage/` |
 | **fields** | `awn.string` … | типы полей frontmatter |
-| **md-blocks** | `awn.block.*` | блоки редактора |
-| **taxonomies** | `awn.taxonomy.*` | справочники (categories, tags, statuses, priorities, colors) |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
+
+**Markdown-блоки** — `awn-data/markdown-blocks/` (палитра редактора).
+
+**Справочники** — `awn-data/taxonomies/*/main.csv` (не YAML-типы в `awn-system/types/`).
 
 ### Pages (меню)
 
@@ -54,7 +56,7 @@ workspaces/agent-cms-test/
 | `awn.page.area` | topics | `awn-container/{area}/manifest.md` |
 | `awn.page.topic` | **нет** (данные в слотах) | `…/{topic}/manifest.md` |
 | `awn.page.service-doc` | **нет** | `awn-agent-kit/agent`, `user`, `agent.voice.*` |
-| `awn.page.catalog` | **нет** | `awn-agent-kit/taxonomies/*` (categories, tags, statuses, priorities, colors) |
+| `awn.page.catalog` | **нет** | legacy; данные в `awn-data/taxonomies/*` |
 
 ### Content (в слотах)
 

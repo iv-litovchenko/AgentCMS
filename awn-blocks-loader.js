@@ -1,16 +1,8 @@
-const fs = require("fs");
-const path = require("path");
 const {
-  loadBlocksFromCatalog,
-  loadBlockGroupsFromCatalog
-} = require("./type-catalog-loader");
-const {
-  getActiveComponents,
-  loadComponentRegistry
-} = require("./components-loader");
-
-const BLOCKS_GROUPS_FILE = "groups.yml";
-const { getComponentsAbsolute } = require("./platform-sources");
+  loadMdBlocksFromAwnData,
+  loadMdBlockGroupsMetaFromAwnData,
+  mdBlocksStoreHasRecords
+} = require("./awn-data-md-blocks-bridge");
 
 const FALLBACK_BLOCK_GROUPS = [
   {
@@ -34,50 +26,6 @@ function resolveBlocksContext(agentRoot = "", projectRoot = process.cwd()) {
     projectRoot: projectRoot || process.cwd(),
     agentRoot: String(agentRoot || "").trim()
   };
-}
-
-function unescapeBlockTemplate(value) {
-  return String(value || "")
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, "\t");
-}
-
-function normalizeBlockDef(schema, component) {
-  const rawId = String(schema?.id || component?.runtimeId || "").trim();
-  if (!rawId) return null;
-  const id = rawId.startsWith("awn.") ? rawId : `awn.block.${rawId}`;
-  const name = String(schema?.name || component?.name || id).trim();
-  const group = String(schema?.group || "misc").trim();
-  const sort = Number(schema?.sort) || 0;
-  const template = unescapeBlockTemplate(schema?.template || schema?.text || "");
-  if (!template) return null;
-
-  return {
-    id,
-    name,
-    kind: "block",
-    group,
-    sort,
-    description: schema?.description || component?.description || "",
-    icon: String(schema?.icon || schema?.emoji || "").trim(),
-    template,
-    componentId: component?.id || null
-  };
-}
-
-function loadBlockGroupMeta(componentsRoot) {
-  const groupsPath = path.join(componentsRoot, "markdown-blocks", BLOCKS_GROUPS_FILE);
-  if (!fs.existsSync(groupsPath)) {
-    return { groupOrder: [], groupNames: {} };
-  }
-  const { loadYamlFileSync } = require("./awn-yaml-utils");
-  const parsed = loadYamlFileSync(groupsPath, { idKey: "id", nameKey: "name" });
-  const groupOrder = Array.isArray(parsed.groupOrder)
-    ? parsed.groupOrder.map((item) => String(item).trim()).filter(Boolean)
-    : [];
-  const groupNames =
-    parsed.groupNames && typeof parsed.groupNames === "object" ? parsed.groupNames : {};
-  return { groupOrder, groupNames };
 }
 
 function buildBlockGroups(blocksById, meta) {
@@ -119,43 +67,26 @@ function buildBlockGroups(blocksById, meta) {
         render: block.render || "template",
         fenceTag: block.fenceTag || "",
         renderer: block.renderer || "",
-        componentId: block.componentId || null
+        storeRel: block.storeRel || null
       }))
   }));
 }
 
-function loadBlocksFromComponents(projectRoot, agentRoot) {
-  const blocksById = {};
-  const components = getActiveComponents(projectRoot, agentRoot, "block");
-
-  for (const component of components) {
-    if (component.id.endsWith("/_base")) continue;
-    const schema = component.mergedSchema || component.schema || {};
-    const block = normalizeBlockDef(schema, component);
-    if (block) blocksById[block.id] = block;
-  }
-
-  return blocksById;
-}
-
 function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
-  const { projectRoot: root, agentRoot: agent } = resolveBlocksContext(agentRoot, projectRoot);
-  let blocksById = loadBlocksFromCatalog(root, agent);
-  let meta = loadBlockGroupsFromCatalog(root, agent);
+  const { projectRoot: root } = resolveBlocksContext(agentRoot, projectRoot);
 
-  if (!Object.keys(blocksById).length) {
-    blocksById = loadBlocksFromComponents(root, agent);
-    meta = loadBlockGroupMeta(getComponentsAbsolute(root));
+  if (mdBlocksStoreHasRecords(root)) {
+    const blocksById = loadMdBlocksFromAwnData(root);
+    const meta = loadMdBlockGroupsMetaFromAwnData(root) || { groupOrder: [], groupNames: {} };
+    if (blocksById && Object.keys(blocksById).length) {
+      return {
+        blockRegistry: blocksById,
+        blockGroups: buildBlockGroups(blocksById, meta)
+      };
+    }
   }
 
-  if (!Object.keys(blocksById).length) {
-    return { blockRegistry: {}, blockGroups: FALLBACK_BLOCK_GROUPS };
-  }
-
-  return {
-    blockRegistry: blocksById,
-    blockGroups: buildBlockGroups(blocksById, meta)
-  };
+  return { blockRegistry: {}, blockGroups: FALLBACK_BLOCK_GROUPS };
 }
 
 function getBlockRegistry(agentRoot = "", projectRoot = process.cwd()) {

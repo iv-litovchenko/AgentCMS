@@ -1,0 +1,25 @@
+version: 1
+kind: collection
+id: markdown-blocks.groups
+name: MD-Группы блоков
+extends: ../../_base/configuration-schema.yml
+description: Группы палитры блоков редактора (structure, text, lists…)
+
+record:
+  id-mode: slug
+  file: "{id}.md"
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+    required: true
+  sort:
+    type: awn.integer
+    title: Порядок в палитре
+    default: 0
+  status:
+    type: awn.enum
+    title: Статус
+    enum: [active, inactive]
+    default: active

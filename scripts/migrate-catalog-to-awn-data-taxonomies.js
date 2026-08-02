@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Migrate catalog/{preset}/main.csv → awn-data/taxonomies/{preset}/main.csv
+ * One-time migration: legacy catalog/{preset}/main.csv → awn-data/taxonomies/{preset}/main.csv
+ * (catalog/ folder removed; reads from git history if needed)
  *
  *   node scripts/migrate-catalog-to-awn-data-taxonomies.js
  */

@@ -11,7 +11,6 @@ const componentsRoot = path.join(coreRoot, "components");
 
 const MAP = {
   "components/fields": "fields",
-  "components/markdown-blocks": "md-blocks",
   "components/frames": "pages"
 };
 
@@ -75,34 +74,6 @@ function main() {
   }
 
   total += syncGroup(path.join(componentsRoot, "fields"), "fields", (n) => (n === "_base" ? null : n));
-
-  const blocksBase = path.join(componentsRoot, "markdown-blocks/_base/awn-storage/configuration/schema.yml");
-  if (fs.existsSync(blocksBase)) {
-    copyYaml(blocksBase, path.join(coreRoot, "md-blocks/awn-storage/configuration/types/_base.yml"), {
-      id: "awn.block.base",
-      status: "active",
-      domain: "md-blocks",
-      kind: "block"
-    });
-    total += 1;
-  }
-
-  total += syncGroup(path.join(componentsRoot, "markdown-blocks"), "md-blocks", (n) =>
-    n === "_base" ? null : n.replace(/^awn-desc$/, "desc")
-  );
-
-  const groupsYml = path.join(componentsRoot, "markdown-blocks/groups.yml");
-  if (fs.existsSync(groupsYml)) {
-    const dest = path.join(coreRoot, "md-blocks/awn-storage/configuration/types/groups.yml");
-    const raw = fs.readFileSync(groupsYml, "utf-8");
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.writeFileSync(
-      dest,
-      `id: awn.block.groups\nkind: meta\nstatus: active\ndomain: md-blocks\n${raw}`,
-      "utf-8"
-    );
-    total += 1;
-  }
 
   const framesBase = path.join(componentsRoot, "frames/_base/awn-storage/configuration/schema.yml");
   if (fs.existsSync(framesBase)) {

@@ -970,14 +970,10 @@ const createFreeMemoryUploadBtn = document.getElementById("create-free-memory-up
 const createFreeMemoryUploadInputNode = document.getElementById("create-free-memory-upload-input");
 const createNodeActionsNode = document.getElementById("create-node-actions");
 const createFileBtn = document.getElementById("create-file-btn");
-const createNodeCatalogWrapNode = document.getElementById("create-node-catalog-wrap");
-const createNodeCatalogActionsNode = document.getElementById("create-node-catalog-actions");
 const createNodeServiceDocsWrapNode = document.getElementById("create-node-service-docs-wrap");
 const createNodeServiceDocsActionsNode = document.getElementById("create-node-service-docs-actions");
 const createNodeSharedThemesWrapNode = document.getElementById("create-node-shared-themes-wrap");
 const createNodeSharedThemesActionsNode = document.getElementById("create-node-shared-themes-actions");
-const createNodeSharedTaxonomiesScaffoldWrapNode = document.getElementById("create-node-shared-taxonomies-scaffold-wrap");
-const createNodeSharedTaxonomiesScaffoldBtn = document.getElementById("create-node-shared-taxonomies-scaffold-btn");
 const createNodeStructureLabelNode = document.getElementById("create-node-structure-label");
 const createNodeDividerNode = document.getElementById("create-node-divider");
 const createNodeCancelBtn = document.getElementById("create-node-cancel-btn");
@@ -1264,7 +1260,6 @@ const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
 const CONTAINER_FOLDER_DEFAULT = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
 const PLATFORM_AGENT_ID = "platform";
-const PLATFORM_KIT_FOLDER = "catalog";
 
 function isPlatformAgentId(agentId) {
   return String(agentId || "").trim() === PLATFORM_AGENT_ID;
@@ -3399,7 +3394,7 @@ function getAgentMeta(agentId = activeAgentId) {
 }
 
 function getActiveAgentKitFolder(agentId = activeAgentId) {
-  if (isPlatformAgentId(agentId)) return PLATFORM_KIT_FOLDER;
+  if (isPlatformAgentId(agentId)) return null;
   return AGENT_KIT_FOLDER_DEFAULT;
 }
 
@@ -3421,7 +3416,6 @@ function isKitFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
   if (lower === AGENT_KIT_FOLDER_DEFAULT.toLowerCase()) return true;
   if (lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase()) return true;
-  if (lower === PLATFORM_KIT_FOLDER.toLowerCase()) return true;
   return false;
 }
 
@@ -22061,19 +22055,6 @@ function getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset
   return paths;
 }
 
-function getCatalogPresetManifestCandidatesForAgent(agentId, preset) {
-  const paths = [];
-  const taxonomyFolder = getSharedTaxonomiesFolder(agentId);
-  if (taxonomyFolder) {
-    paths.push(...getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset));
-  }
-  const serviceFolder = getActiveAgentKitFolder(agentId);
-  if (serviceFolder) {
-    paths.push(...getCatalogPresetManifestCandidates(serviceFolder, preset));
-  }
-  return paths;
-}
-
 function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
   if (isSharedManifestCandidatePresent(agentId, getSharedTaxonomiesManifestCandidates(agentId))) {
     return true;
@@ -22083,31 +22064,6 @@ function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
   return Object.keys(SERVICE_CATALOG_PRESET_FILES).some((preset) =>
     isSharedManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesInTaxonomyRoot(taxonomyFolder, preset))
   );
-}
-
-function isSharedTaxonomiesCreateParent(parentPath) {
-  const taxonomyFolder = getSharedTaxonomiesFolder(getCreateModalAgentId());
-  if (!taxonomyFolder) return false;
-  return normalizeCreateParentPath(parentPath || ".") === taxonomyFolder;
-}
-
-function shouldShowCatalogInCreateModal() {
-  const agentId = getCreateModalAgentId();
-  if (!isAgentSharedFolderPresent(agentId)) return false;
-  if (!isSharedTaxonomiesAreaPresent(agentId)) return false;
-  return isSharedRootCreateParent(createModalBaseParentPath) || isSharedTaxonomiesCreateParent(createModalBaseParentPath);
-}
-
-function shouldShowSharedTaxonomiesScaffoldInCreateModal() {
-  const agentId = getCreateModalAgentId();
-  if (!isAgentSharedFolderPresent(agentId)) return false;
-  if (isSharedTaxonomiesAreaPresent(agentId)) return false;
-  return isSharedRootCreateParent(createModalBaseParentPath);
-}
-
-function isCatalogPresetPresent(agentId, preset) {
-  return isServiceManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesForAgent(agentId, preset))
-    || isSharedManifestCandidatePresent(agentId, getCatalogPresetManifestCandidatesForAgent(agentId, preset));
 }
 
 function getServiceDocManifestCandidates(serviceFolder, preset) {
@@ -22124,27 +22080,6 @@ function isServiceDocPresetPresent(agentId, preset) {
     agentId,
     getServiceDocManifestCandidates(serviceFolder, preset)
   );
-}
-
-function syncCreateNodeCatalogButtonsUi() {
-  if (!createNodeCatalogActionsNode) return;
-  const agentId = getCreateModalAgentId();
-  const buttons = createNodeCatalogActionsNode.querySelectorAll("[data-catalog-preset]");
-  for (const button of buttons) {
-    const preset = button.getAttribute("data-catalog-preset");
-    if (!preset) continue;
-    const exists = isCatalogPresetPresent(agentId, preset);
-    const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
-    button.disabled = exists;
-    button.setAttribute("aria-disabled", exists ? "true" : "false");
-    if (exists) {
-      button.title = `Справочник «${label}» уже создан`;
-    } else if (preset === "tags") {
-      button.title = "Список #tag, как в Obsidian";
-    } else {
-      button.removeAttribute("title");
-    }
-  }
 }
 
 function syncCreateNodeServiceDocButtonsUi() {
@@ -22216,21 +22151,8 @@ function syncCreateNodeSharedThemeButtonsUi() {
 }
 
 function syncCreateNodeServicePresetsUi() {
-  syncCreateNodeCatalogButtonsUi();
   syncCreateNodeServiceDocButtonsUi();
   syncCreateNodeSharedThemeButtonsUi();
-  syncCreateNodeSharedTaxonomiesScaffoldUi();
-}
-
-function syncCreateNodeSharedTaxonomiesScaffoldUi() {
-  if (!createNodeSharedTaxonomiesScaffoldBtn) return;
-  const agentId = getCreateModalAgentId();
-  const exists = isSharedTaxonomiesAreaPresent(agentId);
-  createNodeSharedTaxonomiesScaffoldBtn.disabled = exists;
-  createNodeSharedTaxonomiesScaffoldBtn.setAttribute("aria-disabled", exists ? "true" : "false");
-  createNodeSharedTaxonomiesScaffoldBtn.title = exists
-    ? `«${SHARED_TAXONOMIES_LABEL}» уже созданы`
-    : "Область для справочников агента";
 }
 
 function isServiceRootCreateParent(parentPath) {
@@ -22658,11 +22580,6 @@ function syncCreateNodeActionsUi() {
   const showRootReserved = shouldShowReservedFoldersInCreateModal(getCreateModalAgentId());
   const showNestedGitContainerScaffold = shouldShowNestedGitContainerScaffold(getCreateModalAgentId());
   const showRootScaffoldBlock = (atWorkspaceRoot && showRootReserved) || showNestedGitContainerScaffold;
-  createNodeCatalogWrapNode?.classList.toggle("hidden", !shouldShowCatalogInCreateModal());
-  createNodeSharedTaxonomiesScaffoldWrapNode?.classList.toggle(
-    "hidden",
-    !shouldShowSharedTaxonomiesScaffoldInCreateModal()
-  );
   createNodeServiceDocsWrapNode?.classList.toggle("hidden", !serviceRoot);
   createNodeSharedThemesWrapNode?.classList.toggle(
     "hidden",
@@ -22673,9 +22590,7 @@ function syncCreateNodeActionsUi() {
     !(
       serviceRoot ||
       showRootScaffoldBlock ||
-      (sharedRoot && isAgentSharedFolderPresent(getCreateModalAgentId())) ||
-      shouldShowCatalogInCreateModal() ||
-      shouldShowSharedTaxonomiesScaffoldInCreateModal()
+      (sharedRoot && isAgentSharedFolderPresent(getCreateModalAgentId()))
     )
   );
   createNodeStructureLabelNode?.classList.toggle("hidden", !inServiceTree);
@@ -22776,26 +22691,6 @@ function renderCreateNodeDynamicTypes(data) {
         });
         actionsNode.appendChild(btn);
       }
-    }
-  }
-
-  // "taxonomy" group → "Справочники" section (only in shared taxonomies context)
-  const taxGroup = data.groups.find((g) => g.id === "taxonomy");
-  if (taxGroup?.types?.length && createNodeCatalogActionsNode && shouldShowCatalogInCreateModal()) {
-    createNodeCatalogActionsNode.replaceChildren();
-    for (const type of taxGroup.types) {
-      const preset = type.preset || type.slug || type.id.split(".").pop();
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "create-node-action-btn create-node-catalog-btn create-node-dynamic-type-btn";
-      btn.dataset.catalogPreset = preset;
-      btn.dataset.awnType = type.id;
-      btn.textContent = type.name;
-      btn.title = type.description || type.id;
-      btn.addEventListener("click", () => {
-        void createNode("catalog", { preset });
-      });
-      createNodeCatalogActionsNode.appendChild(btn);
     }
   }
 }
@@ -82850,52 +82745,6 @@ async function createSharedRoot(options = {}) {
   return createReservedRootFolder("shared-root", options);
 }
 
-async function createSharedTaxonomiesArea(options = {}) {
-  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
-  const sharedFolder = getActiveAgentSharedFolder(agentId);
-  if (!sharedFolder) {
-    showToast("Папка awn-shared не настроена", "error");
-    return;
-  }
-  if (!isAgentSharedFolderPresent(agentId)) {
-    showToast(`Сначала создайте «${SHARED_SECTION_LABEL}»`, "error");
-    return;
-  }
-  if (isSharedTaxonomiesAreaPresent(agentId)) {
-    showToast(`«${SHARED_TAXONOMIES_LABEL}» уже созданы`, "error");
-    syncCreateNodeActionsUi();
-    return;
-  }
-
-  try {
-    const response = await fetch(buildApiUrl("/api/node/create", {}, agentId), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        parentPath: sharedFolder,
-        type: "folder",
-        name: SHARED_TAXONOMIES_LABEL,
-        displayName: SHARED_TAXONOMIES_LABEL,
-        slug: SHARED_TAXONOMIES_SLUG
-      })
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Request failed with ${response.status}`);
-    }
-    const data = await response.json();
-    await applyMenuUpdateAfterCreate({ createdPath: data.createdPath, type: "folder", agentId });
-    syncCreateNodeActionsUi();
-    showToast(`Область «${SHARED_TAXONOMIES_LABEL}» создана`, "success");
-    if (options.openAfterCreate !== false && data.createdPath) {
-      closeCreateNodeModal();
-      await openNodeFromMenu(SHARED_TAXONOMIES_LABEL, data.createdPath);
-    }
-  } catch (error) {
-    showToast(formatCreateNodeErrorMessage(error.message), "error");
-  }
-}
-
 async function createSharedThemePreset(preset, options = {}) {
   const slug = String(preset || "").trim().toLowerCase();
   const label = SHARED_THEME_PRESET_LABELS[slug] || slug;
@@ -84421,28 +84270,6 @@ folderBrowseFileRenameBtn?.addEventListener("click", () => {
 });
 createFileBtn?.addEventListener("click", () => {
   createNode(isCreateAdoptInsideEstablishedArea() ? "topic-manifest" : "file");
-});
-createNodeCatalogActionsNode?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-catalog-preset]");
-  if (!button || button.disabled) return;
-  const preset = button.getAttribute("data-catalog-preset");
-  if (!preset) return;
-  if (!isSharedTaxonomiesAreaPresent(getCreateModalAgentId())) {
-    showToast(`Сначала создайте область «${SHARED_TAXONOMIES_LABEL}»`, "error");
-    syncCreateNodeServicePresetsUi();
-    return;
-  }
-  if (isCatalogPresetPresent(getCreateModalAgentId(), preset)) {
-    const label = SERVICE_CATALOG_PRESET_LABELS[preset] || preset;
-    showToast(`Справочник «${label}» уже создан`, "error");
-    syncCreateNodeServicePresetsUi();
-    return;
-  }
-  void createNode("catalog", { preset });
-});
-createNodeSharedTaxonomiesScaffoldBtn?.addEventListener("click", () => {
-  if (createNodeSharedTaxonomiesScaffoldBtn.disabled) return;
-  void createSharedTaxonomiesArea({ agentId: getCreateModalAgentId(), openAfterCreate: false });
 });
 createNodeServiceDocsActionsNode?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-service-doc-preset]");

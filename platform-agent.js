@@ -2,7 +2,6 @@ const { AGENT_CMS_CORE_REL, getPlatformAgentRootAbsolute: resolvePlatformRoot } 
 
 const PLATFORM_AGENT_ID = "platform";
 const PLATFORM_AGENT_PATH = `./${AGENT_CMS_CORE_REL.replace(/\\/g, "/")}`;
-const PLATFORM_KIT_FOLDER = "catalog";
 const PLATFORM_AGENT_NAME = "Платформа";
 
 function isPlatformAgentId(agentId) {
@@ -41,7 +40,6 @@ function buildPlatformAgentEntry(projectRoot) {
 module.exports = {
   PLATFORM_AGENT_ID,
   PLATFORM_AGENT_PATH,
-  PLATFORM_KIT_FOLDER,
   PLATFORM_AGENT_NAME,
   isPlatformAgentId,
   getPlatformAgentRootAbsolute,

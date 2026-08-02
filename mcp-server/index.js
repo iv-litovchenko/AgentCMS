@@ -289,19 +289,6 @@ function createServer() {
     client.get("/api/platform/index", {}, { agentScope: false })
   );
 
-  reg(
-    "add_catalog_item",
-    "Legacy: add item to catalog CSV. Prefer create_data_record for taxonomies in awn-data.",
-    z.object({
-      preset: z.enum(["tags", "categories", "statuses", "users", "priorities", "colors"]),
-      id: z.string().optional(),
-      label: z.string().optional(),
-      color: z.string().optional(),
-      email: z.string().optional()
-    }),
-    (payload) => client.post("/api/agent/catalogs/items", payload)
-  );
-
   // ── Page / Slot / Content (canonical v2) ───────────────────────────────────
 
   registerPageTools({ reg, client, pagePath });

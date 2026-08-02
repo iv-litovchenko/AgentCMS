@@ -30,7 +30,6 @@ const {
 } = require("./manifest-paths");
 const { buildDefaultFrontmatter } = require("./awn-types-loader");
 const {
-  PLATFORM_KIT_FOLDER,
   isPlatformAgentId,
   buildPlatformAgentEntry
 } = require("./platform-agent");
@@ -650,8 +649,7 @@ function isAgentKitFolderEntryName(name) {
   const lower = String(name || "").trim().toLowerCase();
   return (
     lower === DEFAULT_AGENT_KIT_FOLDER.toLowerCase() ||
-    lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase() ||
-    lower === PLATFORM_KIT_FOLDER.toLowerCase()
+    lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase()
   );
 }
 
@@ -681,9 +679,8 @@ function isReservedAgentRootFolderEntryName(name) {
 /** Папка справочников внутри awn-agent-kit (workspace-агенты) */
 const WORKSPACE_TAXONOMY_FOLDER = "taxonomies";
 /** Старое имя папки — для обратной совместимости */
+/** Legacy folder name in workspace agent-kit (prefer taxonomies/) */
 const LEGACY_WORKSPACE_TAXONOMY_FOLDER = "catalog";
-/** Подпапка справочников у platform-агента (workspaces/agent-cms-core/catalog/) */
-const PLATFORM_GLOBAL_TAXONOMY_FOLDER = "catalog";
 const DEFAULT_SERVICE_CATALOG_FOLDER = WORKSPACE_TAXONOMY_FOLDER;
 const SYSTEM_REFERENCE_SCAFFOLDS = [
   {
@@ -693,7 +690,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Категории",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Категории\n\nСправочник категорий workspace. Данные — в `awn-storage/categories/main.csv`. Глобальные категории — в `workspaces/agent-cms-core/catalog/categories.md`.\n",
+      "# Категории\n\nСправочник категорий workspace. Глобальные — `awn-data/taxonomies/categories/main.csv`. Локальные — в `taxonomies/` agent-kit.\n",
     content:
       "id,label,color\n" +
       "general,Общее (по умолчанию),#64748b\n" +
@@ -720,7 +717,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Теги",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Теги\n\nСписок тегов workspace — как `#tag` в Obsidian. Данные — в `awn-storage/tags/main.csv`. Глобальные теги — в `workspaces/agent-cms-core/catalog/tags.md`.\n\nПапка справочника агента: `taxonomies/tags.md`.\n\nТемы ссылаются на них через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
+      "# Теги\n\nСписок тегов workspace. Глобальные — `awn-data/taxonomies/tags/main.csv`. Локальные — `taxonomies/tags/` в agent-kit.\n\nТемы ссылаются через `awn-tags` в YAML-frontmatter или `#tag` в тексте.\n",
     content: "tag\nproject\nidea\nreference\ndaily\nperson\nsource\ntodo\nreview\n"
   },
   {
@@ -730,7 +727,7 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     title: "Статусы",
     bundleFile: BUNDLE_TABULAR_FILE,
     manifest:
-      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — в `workspaces/agent-cms-core/catalog/statuses.md`, данные в `awn-storage/statuses/main.csv`.\n",
+      "# Статусы\n\nСправочник статусов для `awn-status`. Глобальные — `awn-data/taxonomies/statuses/main.csv`.\n",
     content:
       "id,label\nopen,🟢 Открыта\ndraft,🟡 Черновик\nclosed,🔴 Закрыта\nnone,⚪ Без статуса\n"
   },
@@ -1065,7 +1062,7 @@ function enrichAgentEntry(entry) {
 function getAgentKitFolder() {
   const store = agentContext.getStore();
   if (store?.agentId && isPlatformAgentId(store.agentId)) {
-    return PLATFORM_KIT_FOLDER;
+    return null;
   }
   return DEFAULT_AGENT_KIT_FOLDER;
 }
@@ -1781,7 +1778,6 @@ module.exports = {
   getAgentSharedFolder,
   WORKSPACE_TAXONOMY_FOLDER,
   LEGACY_WORKSPACE_TAXONOMY_FOLDER,
-  PLATFORM_GLOBAL_TAXONOMY_FOLDER,
   DEFAULT_SERVICE_CATALOG_FOLDER,
   SYSTEM_REFERENCE_SCAFFOLDS,
   findCatalogScaffold,

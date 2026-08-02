@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "92 tools — полный список ниже.",
+    "91 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -230,12 +230,6 @@ module.exports = {
           description: "Навигационный index.json платформы.",
           parameters: "—",
           http: "GET /api/platform/index"
-        },
-        {
-          name: "add_catalog_item",
-          description: "Legacy: добавить в catalog CSV. Для taxonomies — create_data_record.",
-          parameters: "preset, id?, label?, color?, email?",
-          http: "POST /api/agent/catalogs/items"
         }
       ]
     },

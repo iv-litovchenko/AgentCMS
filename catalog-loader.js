@@ -3,8 +3,7 @@ const path = require("path");
 const {
   findCatalogScaffold,
   WORKSPACE_TAXONOMY_FOLDER,
-  LEGACY_WORKSPACE_TAXONOMY_FOLDER,
-  PLATFORM_GLOBAL_TAXONOMY_FOLDER
+  LEGACY_WORKSPACE_TAXONOMY_FOLDER
 } = require("./agent-registry");
 const {
   AREA_MANIFEST_FILE,

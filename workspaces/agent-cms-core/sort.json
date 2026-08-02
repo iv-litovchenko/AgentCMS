@@ -1,7 +1,7 @@
 {
   "order": [
     "types",
-    "catalog",
+    "awn-data",
     "agents",
     "agents-groups",
     "components",

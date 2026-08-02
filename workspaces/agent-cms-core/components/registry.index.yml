@@ -8,7 +8,3 @@ active:
   - frames/area
   - fields/_base
   - fields/string
-  - markdown-blocks/_base
-  - markdown-blocks/h2
-  - taxonomies/_base
-  - taxonomies/tags

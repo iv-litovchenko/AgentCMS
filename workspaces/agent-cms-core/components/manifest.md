@@ -16,7 +16,8 @@ awn-version: 2
 | Область | Что описывает |
 |---------|---------------|
 | [fields/](fields/_registration.md) | типы полей (`awn.string`, …) |
-| [markdown-blocks/](markdown-blocks/_registration.md) | блоки редактора (`awn.block.h2`, …) |
 | [frames/](frames/_registration.md) | frame-типы (`awn.topic`, `awn.area`, …) |
+
+Блоки редактора — `awn-data/markdown-blocks/` (не components).
 
 См. [README.md](./README.md). Loader: `components-loader.js` → `/api/components`.

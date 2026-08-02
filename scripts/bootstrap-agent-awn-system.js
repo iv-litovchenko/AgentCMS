@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Copy platform types into {agent}/awn-system/types/{domain}/*.yml (flat layout)
- * and add agent-specific types (dialog, comment, taxonomies, mixins).
+ * and add agent-specific types (dialog, comment, mixins).
  *
  *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
  */
@@ -16,7 +16,7 @@ const {
 
 const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 
-const AGENT_EXTRA_DOMAINS = ["taxonomies", "mixins"];
+const AGENT_EXTRA_DOMAINS = ["mixins"];
 
 const AGENT_EXTRA_TYPES = {
   "content/dialog.yml": `id: awn.content.dialog
@@ -105,69 +105,6 @@ accept-files:
   - ".webp"
   - ".pdf"
 description: Вложения и вставки — pasted/, attachments/
-`,
-  "taxonomies/_base.yml": `id: awn.taxonomy.base
-name: База справочника
-kind: base
-domain: taxonomies
-status: active
-extends: awn.entity
-description: Общий формат taxonomy — CSV в awn-agent-kit/taxonomies/{slug}/main.csv
-properties:
-  data-path:
-    title: Путь к данным
-  props-field:
-    title: Поле frontmatter
-`,
-  "taxonomies/categories.yml": `id: awn.taxonomy.categories
-name: Категории
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: Справочник категорий для awn-category
-props-field: awn-category
-data-path: awn-agent-kit/taxonomies/categories/main.csv
-`,
-  "taxonomies/tags.yml": `id: awn.taxonomy.tags
-name: Теги
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: Справочник тегов для awn-tags
-props-field: awn-tags
-data-path: awn-agent-kit/taxonomies/tags/main.csv
-`,
-  "taxonomies/statuses.yml": `id: awn.taxonomy.statuses
-name: Статусы
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: Справочник статусов для awn-status
-props-field: awn-status
-data-path: awn-agent-kit/taxonomies/statuses/main.csv
-`,
-  "taxonomies/priorities.yml": `id: awn.taxonomy.priorities
-name: Приоритеты
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: Справочник приоритетов для awn-priority
-props-field: awn-priority
-data-path: awn-agent-kit/taxonomies/priorities/main.csv
-`,
-  "taxonomies/colors.yml": `id: awn.taxonomy.colors
-name: Палитра
-kind: taxonomy
-domain: taxonomies
-status: active
-extends: awn.taxonomy.base
-description: Brand-цвета для awn-color
-props-field: awn-color
-data-path: awn-agent-kit/taxonomies/colors/main.csv
 `,
   "mixins/preview.yml": `id: awn.mixin.preview
 name: Превью

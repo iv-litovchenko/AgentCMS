@@ -1,13 +1,12 @@
 # Таксономии
 
-Группировка enum-справочников платформы. Каждый **поднакопитель** — отдельная коллекция на `main.csv`.
+Группировка enum-справочников платформы. Каждый **поднакопитель** — коллекция на `main.csv` в `awn-data/taxonomies/`.
 
-| Справочник | Записей | Поле |
-|------------|---------|------|
-| [tags/](./tags/manifest.md) | 205 | `awn-tags` |
-| [categories/](./categories/manifest.md) | 34 | `awn-category` |
-| [statuses/](./statuses/manifest.md) | 12 | `awn-status` |
-| [priorities/](./priorities/manifest.md) | 16 | `awn-priority` |
-| [colors/](./colors/manifest.md) | 6 | `awn-color` |
-
-Источник: `catalog/*/main.csv` → `awn-data/taxonomies/*/main.csv`.
+| Справочник | Поле |
+|------------|------|
+| [tags/](./tags/manifest.md) | `awn-tags` |
+| [categories/](./categories/manifest.md) | `awn-category` |
+| [statuses/](./statuses/manifest.md) | `awn-status` |
+| [priorities/](./priorities/manifest.md) | `awn-priority` |
+| [colors/](./colors/manifest.md) | `awn-color` |
+| [users/](./users/manifest.md) | `awn-owner` |

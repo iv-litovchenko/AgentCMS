@@ -1,7 +1,0 @@
-groupOrder: [structure, text, lists, code, awn]
-groupNames:
-  structure: Структура
-  text: Текст
-  lists: Списки
-  code: Код и таблицы
-  awn: AWN

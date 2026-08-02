@@ -22,13 +22,21 @@
     {
       "title": "Справочники",
       "items": [
-        { "label": "Теги", "path": "catalog/tags/manifest.md" },
-        { "label": "Категории", "path": "catalog/categories/manifest.md" },
-        { "label": "Статусы", "path": "catalog/statuses/manifest.md" },
-        { "label": "Пользователи", "path": "catalog/users/manifest.md" },
-        { "label": "Приоритеты", "path": "catalog/priorities/manifest.md" },
-        { "label": "Палитра", "path": "catalog/colors/manifest.md" },
-        { "label": "Схемы", "path": "catalog/schemas/manifest.md" }
+        { "label": "Таксономии", "path": "awn-data/taxonomies/manifest.md" },
+        { "label": "Теги", "path": "awn-data/taxonomies/tags/manifest.md" },
+        { "label": "Категории", "path": "awn-data/taxonomies/categories/manifest.md" },
+        { "label": "Статусы", "path": "awn-data/taxonomies/statuses/manifest.md" },
+        { "label": "Пользователи", "path": "awn-data/taxonomies/users/manifest.md" },
+        { "label": "Приоритеты", "path": "awn-data/taxonomies/priorities/manifest.md" },
+        { "label": "Палитра", "path": "awn-data/taxonomies/colors/manifest.md" }
+      ]
+    },
+    {
+      "title": "Markdown-блоки",
+      "items": [
+        { "label": "Markdown-блоки", "path": "awn-data/markdown-blocks/manifest.md" },
+        { "label": "MD-Группы блоков", "path": "awn-data/markdown-blocks/groups/manifest.md" },
+        { "label": "MD-Блоки", "path": "awn-data/markdown-blocks/blocks/manifest.md" }
       ]
     },
     {

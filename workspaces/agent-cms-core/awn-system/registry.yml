@@ -17,10 +17,8 @@ domains:
   - base
   - content
   - fields
-  - md-blocks
   - pages
   - slots
-  - taxonomies
   - mixins
   # Пример пользовательского домена-«пакета». Папка types/settings/.
   - id: settings

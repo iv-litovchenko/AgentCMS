@@ -26,7 +26,14 @@ if (!kind || !slug || !KIND_FOLDER[kind]) {
   console.error(`Usage: node scripts/scaffold-component.js <kind> <slug>
 
 Kinds: ${Object.keys(KIND_FOLDER).join(", ")}
-Example: node scripts/scaffold-component.js block callout`);
+Example: node scripts/scaffold-component.js field url`);
+  process.exit(1);
+}
+
+if (kind === "block") {
+  console.error(
+    "Markdown-блоки — в awn-data/markdown-blocks/blocks/{slug}.md (MCP create_data_record или вручную)."
+  );
   process.exit(1);
 }
 

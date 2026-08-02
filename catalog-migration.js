@@ -1,13 +1,17 @@
 const fs = require("fs/promises");
 const path = require("path");
 const agentRegistry = require("./agent-registry");
-const { getNamedStorageBundleDirRel } = require("./manifest-paths");
 const {
-  getGlobalCatalogAbsolute,
-  loadCatalogPreset
+  loadGlobalCatalogPreset
 } = require("./catalog-loader");
 const { resolveDiscoveredCatalogItem } = require("./catalog-normalize");
-const { writeCategoryLikeCsv, writeTagsCsv } = require("./catalog-items");
+const {
+  AWN_DATA_TAXONOMY_PRESETS,
+  getTaxonomyStoreRel
+} = require("./awn-data-taxonomies-bridge");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
+const { writeCsvFromRecords } = require("./awn-data-csv");
+const { parseTypeYaml } = require("./awn-yaml-utils");
 
 const MIGRATABLE_PRESETS = ["tags", "categories", "statuses", "users", "priorities"];
 
@@ -65,7 +69,7 @@ function extractScalarFromFrontmatter(frontmatter, field) {
 
 function shouldSkipWalkDir(name) {
   const lower = String(name || "").toLowerCase();
-  return lower === "node_modules" || lower === ".git" || lower === "history" || lower.startsWith(".");
+  return lower === "node_modules" || lower === "git" || lower === "history" || lower.startsWith(".");
 }
 
 async function walkMdFiles(dirAbsolute, prefix, acc) {
@@ -112,15 +116,38 @@ async function collectValuesFromAgent(agent, preset) {
   return values;
 }
 
+async function writeAwnDataTaxonomyItems(projectRoot, preset, items) {
+  const storeRel = getTaxonomyStoreRel(preset);
+  if (!storeRel) throw new Error(`Unsupported preset: ${preset}`);
+  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  const storeAbs = path.join(coreRoot, "awn-data", ...storeRel.split("/"));
+  const schemaPath = path.join(storeAbs, "configuration-schema.yml");
+  const schemaRaw = await fs.readFile(schemaPath, "utf-8");
+  const schema = parseTypeYaml(schemaRaw);
+  const records = items.map((item, index) => ({
+    id: item.id,
+    frontmatter: {
+      code: item.id,
+      label: item.label || item.id,
+      color: item.color || "",
+      email: item.email || "",
+      sort: (index + 1) * 10
+    }
+  }));
+  writeCsvFromRecords(storeAbs, schema, records);
+}
+
 async function migrateDiscoveredPresetToGlobal(projectRoot, preset) {
   if (!MIGRATABLE_PRESETS.includes(preset)) {
     throw new Error(`Unsupported preset: ${preset}`);
   }
+  if (!AWN_DATA_TAXONOMY_PRESETS.has(preset)) {
+    throw new Error(`Preset not in awn-data: ${preset}`);
+  }
 
   agentRegistry.init(projectRoot);
   const agents = agentRegistry.getAgentsPublicList().filter((agent) => !agent.virtual);
-  const globalRoot = getGlobalCatalogAbsolute(projectRoot);
-  const payload = await loadCatalogPreset(globalRoot, preset, { projectRoot });
+  const payload = await loadGlobalCatalogPreset(projectRoot, preset);
   const byId = new Map((payload.items || []).map((item) => [item.id, item]));
   const added = [];
 
@@ -143,18 +170,15 @@ async function migrateDiscoveredPresetToGlobal(projectRoot, preset) {
     const items = [...byId.values()].sort((a, b) =>
       String(a.label || a.id).localeCompare(String(b.label || b.id), "ru")
     );
-    if (preset === "tags") {
-      await writeTagsCsv(globalRoot, preset, items, { projectRoot });
-    } else {
-      await writeCategoryLikeCsv(globalRoot, preset, items, { projectRoot });
-    }
+    await writeAwnDataTaxonomyItems(projectRoot, preset, items);
   }
 
   return {
     preset,
     total: byId.size,
     addedCount: added.length,
-    added
+    added,
+    source: "awn-data"
   };
 }
 

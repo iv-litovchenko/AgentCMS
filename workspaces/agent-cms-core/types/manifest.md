@@ -2,7 +2,7 @@
 awn-name: Types
 awn-type: awn.page.area
 awn-status: "🟢 Открыта"
-awn-description: Каталог типов платформы — pages, content, slots, fields, md-blocks
+awn-description: Каталог типов платформы — pages, content, slots, fields
 awn-color: "#6366f1"
 ---
 
@@ -17,6 +17,7 @@ awn-color: "#6366f1"
 | [content/](content/manifest.md) | `awn.content.*` | записи в слотах |
 | [slots/](slots/manifest.md) | `awn.slot.*` | слои памяти топика |
 | [fields/](fields/manifest.md) | `awn.string` … | поля frontmatter |
-| [md-blocks/](md-blocks/manifest.md) | `awn.block.*` | блоки редактора |
+
+**Markdown-блоки** (`awn.block.*`) — накопители `awn-data/markdown-blocks/`, не YAML в `types/`.
 
 Runtime: `type-catalog-loader.js` → `GET /api/type-catalog`
