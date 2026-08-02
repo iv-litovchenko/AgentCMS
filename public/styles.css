@@ -16347,12 +16347,12 @@ body.app-locked {
 
 .sidebar-slab-menu {
   position: relative;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-bottom: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sidebar-menu-before-tree {
@@ -16374,26 +16374,20 @@ body.app-locked {
 
 .menu-scroll-shell {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .menu-sidebar-bottom {
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: min(44vh, 380px);
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
   z-index: 6;
   background: transparent;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-top: 0;
   box-sizing: border-box;
 }
 
