@@ -1,6 +1,7 @@
 {
   "paths": [
     "main/00.md",
+    "main/awn-container/media-test-gugl-disk/awn-storage/manifest.md",
     "media/312321",
     "media/312321.md",
     "media/ВОРД-ТЕСТ.docx",
@@ -8,7 +9,8 @@
     "media/Снимок экрана 2026-07-31 в 00.39.40.png",
     "media/Снимок экрана 2026-07-31 в 00.48.32.png",
     "media/ЭКСЕЛЬ-ТЕСТ.xlsx",
-    "media/razdel-1/manifest.md"
+    "media/razdel-1/manifest.md",
+    "topic-index-generated/awn-container/media-test-gugl-disk/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-02T01:20:42.205Z"
+  "updatedAt": "2026-08-02T11:19:14.519Z"
 }

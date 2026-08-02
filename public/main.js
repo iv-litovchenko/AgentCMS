@@ -380,7 +380,6 @@ const previewPasteActionsBtn = document.getElementById("preview-paste-actions-bt
 const graphViewBlockNode = document.getElementById("graph-view-block");
 const graphViewContentNode = document.getElementById("graph-view-content");
 const mindmapViewBarNode = document.getElementById("mindmap-view-bar");
-const nodeNavigationSubsectionSelectNode = document.getElementById("node-navigation-subsection-select");
 const editorSurfaceNode = document.querySelector(".editor-surface");
 const externalFileCommentsBlockNode = document.getElementById("external-file-comments-block");
 const mediaFileCommentsBlockNode = document.getElementById("media-file-comments-block");
@@ -856,7 +855,6 @@ const createNodeContainerTargetLabelNode = document.getElementById("create-node-
 const createNodeManualSectionNode = document.querySelector(".create-node-manual-section");
 const nodeSettingsPathControlsNode = document.getElementById("node-settings-path-controls");
 const nodeSettingsModeSelectNode = document.getElementById("node-settings-mode-select");
-const nodeNavigationPathControlsNode = document.getElementById("node-navigation-path-controls");
 const nodeWorkspaceDomainSelectNode = document.getElementById("node-workspace-domain-select");
 const nodeWorkspaceNavControlsNode = document.getElementById("node-workspace-nav-controls");
 const nodeDefaultLandingBtn = document.getElementById("node-default-landing-btn");
@@ -1021,7 +1019,6 @@ const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
-const LEGACY_STORAGE_SLOT_INDEX_FILE = "README.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -18934,11 +18931,6 @@ function syncNodeMemoryModeSelect() {
   }
 }
 
-function syncNodeNavigationSubsectionSelect() {
-  if (!nodeNavigationSubsectionSelectNode) return;
-  nodeNavigationSubsectionSelectNode.value = isMindmapModeActive() ? NODE_MINDMAP_MODE : "subsections";
-}
-
 function collectAgentRootNavigationSubsectionEntries(activeResolvedPath) {
   const menu = currentMenuData;
   if (!menu) return [];
@@ -18996,17 +18988,6 @@ function getWorkspaceDomainLabelById(domain) {
   const spec = NODE_WORKSPACE_DOMAIN_SPECS.find((item) => item.value === domain);
   if (!spec) return domain;
   return getWorkspaceDomainDisplayLabel(spec.label, spec.branch);
-}
-
-function initNodeNavigationSubsectionSelect() {
-  if (!nodeNavigationSubsectionSelectNode) return;
-  if (!nodeNavigationSubsectionSelectNode.querySelector('option[value="navigation"]')) {
-    const option = document.createElement("option");
-    option.value = "navigation";
-    option.textContent = "Навигация";
-    option.disabled = true;
-    nodeNavigationSubsectionSelectNode.appendChild(option);
-  }
 }
 
 function initNodeWorkspaceDomainSelect() {
@@ -19186,8 +19167,6 @@ function applyNodeWorkspaceViewUi() {
   workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
-  nodeNavigationPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !navigationDomain);
-  syncNodeNavigationSubsectionSelect();
   nodeSettingsPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !settingsDomain);
   nodeMemoryPathControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls || !dataDomain);
   nodeMemoryModeSelectNode?.classList.add("hidden");
@@ -25149,6 +25128,9 @@ function renderNodeGraphView() {
 
 const mindmapCollapsedIds = new Set();
 const externalMindmapCollapsedIds = new Set();
+const nodeOverviewEmbeddedMindmapCollapsedIds = new Set();
+const NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY = "agentcms.nodeNavTopicOverviewView.v1";
+const NODE_NAV_TOPIC_OVERVIEW_OPEN_STORAGE_KEY = "agentcms.nodeNavTopicOverviewOpen.v1";
 const MINDMAP_LAYOUT_LEVEL_GAP = 210;
 const MINDMAP_LAYOUT_ROW_GAP = 42;
 const MINDMAP_MAX_DEPTH = 6;
@@ -25195,6 +25177,37 @@ function applyMindmapLayout(direction) {
   syncMindmapLayoutUi();
   if (isMindmapModeActive()) renderNodeMindmapView();
   if (activeContentMode === "external" && externalViewMode === "mindmap") rerenderExternalListViewBody();
+}
+
+function createEmbeddedMindmapLayoutBarElement(onRerender) {
+  const bar = document.createElement("div");
+  bar.className = "mindmap-view-bar mindmap-view-bar--embedded";
+
+  const toggle = document.createElement("div");
+  toggle.className = "mindmap-layout-toggle";
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "Раскладка карты");
+
+  for (const { layout, label, title } of [
+    { layout: "horizontal", label: "→", title: "Горизонтально — корень слева" },
+    { layout: "vertical", label: "↓", title: "Вертикально — корень сверху" }
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mindmap-layout-btn";
+    btn.dataset.mindmapLayout = layout;
+    btn.title = title;
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      applyMindmapLayout(layout);
+      onRerender?.();
+    });
+    toggle.appendChild(btn);
+  }
+
+  bar.appendChild(toggle);
+  syncMindmapLayoutUi(bar);
+  return bar;
 }
 
 function createMindmapLayoutBarElement() {
@@ -25462,15 +25475,57 @@ function buildMindmapNodeFromEntry(entry, menuRoot, depth) {
   return node;
 }
 
-function buildMindmapTreeForActiveNode() {
-  if (!activePath || !currentMenuData) return null;
+function buildMindmapTreeForNodePath(nodePath, label = "") {
+  if (!nodePath || !currentMenuData) return null;
   const baseTree = { title: getAgentTreeTitle(), ...currentMenuData };
+  const apiPath = getOverviewNodeApiPath(nodePath) || resolveManifestPathForNodeApi(nodePath) || nodePath;
   const rootEntry = {
-    path: getActiveNodeApiPath(),
-    label: activeLabel || getLabelFromPath(activePath),
-    isFolder: isContainerNodePath(activePath)
+    path: apiPath,
+    label: label || getLabelFromPath(nodePath),
+    isFolder: isContainerNodePath(nodePath)
   };
   return buildMindmapNodeFromEntry(rootEntry, baseTree, 0);
+}
+
+function buildMindmapTreeForActiveNode() {
+  if (!activePath) return null;
+  return buildMindmapTreeForNodePath(
+    getResolvedNodePath(activePath),
+    activeLabel || getLabelFromPath(activePath)
+  );
+}
+
+function renderEmbeddedNodeMindmap(container, nodePath, heroTitle = "") {
+  if (!container) return;
+  const tree = buildMindmapTreeForNodePath(nodePath, heroTitle);
+  const rerender = () => renderEmbeddedNodeMindmap(container, nodePath, heroTitle);
+  container.replaceChildren();
+  if (!tree) {
+    renderListEmptyMessage(container, "Дерево тем ещё не загружено");
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "node-navigation-elements-nav-mindmap-shell";
+  shell.appendChild(createEmbeddedMindmapLayoutBarElement(rerender));
+
+  const host = document.createElement("div");
+  host.className = "node-navigation-elements-nav-mindmap-host";
+  shell.appendChild(host);
+  container.appendChild(shell);
+
+  const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  renderMindmapTreeCanvas(host, tree, {
+    collapsedIds: nodeOverviewEmbeddedMindmapCollapsedIds,
+    activeTarget: activeResolved,
+    onNodeClick: (node) => {
+      if (!node.targetPath) return;
+      void openNodeFromMenu(getLabelFromPath(node.targetPath), node.targetPath, {
+        contentMode: NODE_NAVIGATION_MODE
+      });
+    },
+    onRerender: rerender
+  });
 }
 
 function buildExternalMindmapTreeFromItems(mdItems, rootLabel = STORAGE_SUBFOLDER_CONTENT) {
@@ -48269,15 +48324,41 @@ function resolveStorageSlotSpecFromCounterSlot(slot) {
 }
 
 function isStorageSlotIndexFileName(fileName) {
-  const lower = String(fileName || "").trim().toLowerCase();
-  return (
-    lower === STORAGE_SLOT_INDEX_FILE.toLowerCase() ||
-    lower === LEGACY_STORAGE_SLOT_INDEX_FILE.toLowerCase()
-  );
+  return String(fileName || "").trim().toLowerCase() === STORAGE_SLOT_INDEX_FILE.toLowerCase();
+}
+
+function normalizeStorageSlotIndexNavigationPath(filePath) {
+  return String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+}
+
+function storageSlotIndexExistsInNavigationFiles(files, fileName = STORAGE_SLOT_INDEX_FILE) {
+  const target = normalizeStorageSlotIndexNavigationPath(getStorageSlotIndexRelativePath(fileName));
+  if (!target) return false;
+  return (files || []).some((item) => {
+    const path = normalizeStorageSlotIndexNavigationPath(item?.relativePath || item?.path || "");
+    return path.toLowerCase() === target.toLowerCase();
+  });
+}
+
+function getStorageSlotIndexWorkspaceRelPath(topicPath, spec) {
+  if (!topicPath || !spec) return STORAGE_SLOT_INDEX_FILE;
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  const slotDir = getNamedStorageSlotDirRel(topicPath);
+  if (memoryKind === "external") {
+    return `${slotDir}/${STORAGE_SUBFOLDER_CONTENT}/${STORAGE_SLOT_INDEX_FILE}`;
+  }
+  const layer = getStorageSubfolderForMode(memoryKind);
+  if (layer) {
+    return `${slotDir}/${layer}/${STORAGE_SLOT_INDEX_FILE}`;
+  }
+  if (isBundleEntryOverviewMemoryKind(memoryKind)) {
+    return getStorageSlotIndexBundleRelPath(topicPath);
+  }
+  return `${slotDir}/${STORAGE_SLOT_INDEX_FILE}`;
 }
 
 function getStorageSlotIndexRelativePath(fileName = STORAGE_SLOT_INDEX_FILE) {
-  return fileName || STORAGE_SLOT_INDEX_FILE;
+  return STORAGE_SLOT_INDEX_FILE;
 }
 
 function isStorageSlotIndexRelativePath(relativePath) {
@@ -48285,14 +48366,13 @@ function isStorageSlotIndexRelativePath(relativePath) {
   return isStorageSlotIndexFileName(base);
 }
 
-function getStorageSlotIndexBundleRelPath(manifestOrTopicPath, fileName = STORAGE_SLOT_INDEX_FILE) {
-  return getNamedStorageBundleRel(manifestOrTopicPath, fileName || STORAGE_SLOT_INDEX_FILE);
+function getStorageSlotIndexBundleRelPath(manifestOrTopicPath) {
+  return getNamedStorageBundleRel(manifestOrTopicPath, STORAGE_SLOT_INDEX_FILE);
 }
 
-function getTopicStorageIndexRelPath(topicPath, fileName = STORAGE_SLOT_INDEX_FILE) {
+function getTopicStorageIndexRelPath(topicPath) {
   const storageDir = getNamedStorageSlotDirRel(topicPath);
-  const indexFile = fileName || STORAGE_SLOT_INDEX_FILE;
-  return storageDir ? `${storageDir}/${indexFile}` : indexFile;
+  return storageDir ? `${storageDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
 }
 
 function isBundleStorageSlotIndexContext(context) {
@@ -48302,10 +48382,10 @@ function isBundleStorageSlotIndexContext(context) {
   );
 }
 
-function resolveStorageSlotIndexApiParams(manifestPath, spec, fileName = STORAGE_SLOT_INDEX_FILE) {
+function resolveStorageSlotIndexApiParams(manifestPath, spec) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return null;
-  const file = getStorageSlotIndexRelativePath(fileName);
+  const file = getStorageSlotIndexRelativePath();
   if (memoryKind === "external") {
     return { kind: "external", manifestPath, file };
   }
@@ -48321,29 +48401,20 @@ function resolveStorageSlotIndexApiParams(manifestPath, spec, fileName = STORAGE
     };
   }
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    return { kind: "file", relPath: getStorageSlotIndexBundleRelPath(manifestPath, fileName) };
+    return { kind: "file", relPath: getStorageSlotIndexBundleRelPath(manifestPath) };
   }
   return null;
 }
 
-function storageSlotIndexExistsInNavigationFiles(files, fileName = STORAGE_SLOT_INDEX_FILE) {
-  const target = String(fileName || "").trim().toLowerCase();
-  if (!target) return false;
-  return (files || []).some((item) => {
-    const path = String(item?.relativePath || item?.path || "").replace(/\\/g, "/");
-    return path.split("/").pop()?.toLowerCase() === target;
-  });
-}
-
-async function probeStorageSlotIndexFileByName(manifestPath, spec, prefetched, fileName) {
+async function probeStorageSlotIndexFileByName(manifestPath, spec, prefetched) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind || !manifestPath) return false;
 
   if (memoryKind === "external" && prefetched?.externalFiles) {
-    if (storageSlotIndexExistsInNavigationFiles(prefetched.externalFiles, fileName)) return true;
+    if (storageSlotIndexExistsInNavigationFiles(prefetched.externalFiles)) return true;
   }
 
-  const params = resolveStorageSlotIndexApiParams(manifestPath, spec, fileName);
+  const params = resolveStorageSlotIndexApiParams(manifestPath, spec);
   if (!params) return false;
 
   try {
@@ -48380,33 +48451,29 @@ async function probeStorageSlotIndexFileByName(manifestPath, spec, prefetched, f
 }
 
 async function resolveStorageSlotIndexFile(manifestPath, spec, prefetched = null) {
-  for (const fileName of [STORAGE_SLOT_INDEX_FILE, LEGACY_STORAGE_SLOT_INDEX_FILE]) {
-    if (await probeStorageSlotIndexFileByName(manifestPath, spec, prefetched, fileName)) {
-      return fileName;
-    }
+  if (await probeStorageSlotIndexFileByName(manifestPath, spec, prefetched)) {
+    return STORAGE_SLOT_INDEX_FILE;
   }
   return null;
 }
 
-async function probeStorageSlotReadmeExists(manifestPath, spec, prefetched = null) {
+async function probeStorageSlotIndexExists(manifestPath, spec, prefetched = null) {
   return Boolean(await resolveStorageSlotIndexFile(manifestPath, spec, prefetched));
 }
 
 async function resolveExistingTopicStorageIndexRelPath(topicPath) {
-  for (const fileName of [STORAGE_SLOT_INDEX_FILE, LEGACY_STORAGE_SLOT_INDEX_FILE]) {
-    const relPath = getTopicStorageIndexRelPath(topicPath, fileName);
-    if (!relPath) continue;
-    try {
-      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-      if (response.ok) return relPath;
-    } catch {
-      // try next candidate
-    }
+  const relPath = getTopicStorageIndexRelPath(topicPath);
+  if (!relPath) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    if (response.ok) return relPath;
+  } catch {
+    // ignore
   }
   return null;
 }
 
-async function probeTopicStorageReadmeExists(topicPath) {
+async function probeTopicStorageIndexExists(topicPath) {
   return Boolean(await resolveExistingTopicStorageIndexRelPath(topicPath));
 }
 
@@ -48418,36 +48485,41 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
   });
 
   if (!dataSlots.length) {
-    lines.push("Нет слотов данных для оглавления.");
+    lines.push("_Нет слотов данных для оглавления._");
     return lines.join("\n");
   }
 
   for (const slot of dataSlots) {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     const label = slot.label || spec?.label || slot.id;
+    const icon = spec?.icon ? `${spec.icon} ` : "";
     const count = Number(slot.count) || 0;
-    lines.push(`## ${label}`);
+    const indexPath = getStorageSlotIndexWorkspaceRelPath(topicPath, spec);
+    lines.push(`## ${icon}${label}`);
+    lines.push("");
     if (slot.hasIndex) {
-      lines.push(`- Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\``);
+      lines.push(`- Индекс слота: \`${indexPath}\``);
     } else {
-      lines.push(`- Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\` (ещё не создан)`);
+      lines.push(`- Индекс слота: \`${indexPath}\` _(ещё не создан)_`);
     }
     lines.push(`- Записей: ${count}`);
     lines.push("");
   }
 
+  const topicIndexPath = getTopicStorageIndexRelPath(topicPath);
   lines.push(
-    `> Общее оглавление темы: создайте \`${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE}\`.`,
-    `> Индекс слота: \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота (\`main/\`, \`inbox/\`, \`notes/\` …).`,
-    `> Однофайловые слоты: \`${STORAGE_SLOT_INDEX_FILE}\` рядом с \`main.md\`, \`main.csv\`, \`todo.md\`.`
+    "---",
+    "",
+    `> Общее оглавление темы: \`${topicIndexPath}\`.`,
+    `> Индекс каждого слота: \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`
   );
   return lines.join("\n");
 }
 
-function openStorageSlotIndexOverview(topicPath, spec, indexFile = STORAGE_SLOT_INDEX_FILE) {
+function openStorageSlotIndexOverview(topicPath, spec) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return;
-  const relativePath = getStorageSlotIndexRelativePath(indexFile);
+  const relativePath = getStorageSlotIndexRelativePath();
   const title = `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`;
 
   if (memoryKind === "external") {
@@ -48480,7 +48552,7 @@ function openStorageSlotIndexOverview(topicPath, spec, indexFile = STORAGE_SLOT_
     return;
   }
   if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    const relPath = getStorageSlotIndexBundleRelPath(topicPath, indexFile);
+    const relPath = getStorageSlotIndexBundleRelPath(topicPath);
     void openEntryOverviewFromNavigation({
       relPath,
       memoryKind,
@@ -49479,7 +49551,214 @@ async function fetchTabularMemoryForNavigation(nodePath) {
   }
 }
 
-function renderNavigationSubsectionsBlock(childEntries) {
+function buildMindmapChildrenFromContentFiles(contentFiles, idPrefix = "file") {
+  if (!contentFiles.length) return [];
+  const subtree = buildExternalMindmapTreeFromItems(
+    contentFiles.map((item) => ({
+      path: item.path,
+      title: item.title || String(item.path || "").split("/").pop() || "Файл"
+    })),
+    "."
+  );
+  return remapMindmapNodeIds(subtree.children || [], idPrefix);
+}
+
+function remapMindmapNodeIds(nodes, prefix) {
+  return (nodes || []).map((node) => ({
+    ...node,
+    id: `${prefix}:${node.id}`,
+    children: remapMindmapNodeIds(node.children || [], prefix)
+  }));
+}
+
+function buildTopicKnowledgeMindmapTree({
+  nodePath,
+  heroTitle = "",
+  slots = [],
+  externalData = null,
+  mediaData = null
+} = {}) {
+  const root = buildMindmapTreeForNodePath(nodePath, heroTitle);
+  if (!root) return null;
+
+  for (const slot of slots) {
+    if (isDeprecatedRepositoryCounterSlot(slot)) continue;
+    const spec = slot.spec || resolveStorageSlotSpecFromCounterSlot(slot);
+    if (!spec) continue;
+
+    const slotLabel = `${spec.icon ? `${spec.icon} ` : ""}${slot.label || spec.label || spec.key}`.trim();
+    const slotNode = {
+      id: `slot:${spec.key}`,
+      label: slotLabel,
+      kind: "topic",
+      targetPath: null,
+      slotKey: spec.key,
+      children: []
+    };
+
+    if (spec.key === "memory" && externalData) {
+      const prepared = prepareNavigationExternalItems(
+        externalData.files || [],
+        externalData.folders || []
+      );
+      slotNode.children = buildMindmapChildrenFromContentFiles(prepared.contentFiles, `slot:${spec.key}`);
+    } else if (spec.key === "media" && mediaData) {
+      const prepared = prepareNavigationMediaItems(
+        mediaData.groups || {},
+        mediaData.sectionManifests || []
+      );
+      slotNode.children = buildMindmapChildrenFromContentFiles(prepared.contentFiles, `slot:${spec.key}`);
+    } else if (Number(slot.count) > 0 || slot.filled) {
+      slotNode.children.push({
+        id: `slot:${spec.key}:summary`,
+        label: `${Number(slot.count) || 0} записей`,
+        kind: "leaf",
+        targetPath: null,
+        children: []
+      });
+    }
+
+    root.children.push(slotNode);
+  }
+
+  return root;
+}
+
+function flattenTopicKnowledgeTreeToGraph(tree) {
+  const nodes = [];
+  const edges = [];
+
+  function walk(node, parentId = null, depth = 0) {
+    if (!node) return;
+    nodes.push({
+      id: node.id,
+      label: node.label,
+      type: node.kind === "leaf" ? "file" : "folder",
+      depth,
+      targetPath: node.targetPath || null,
+      filePath: node.kind === "leaf" ? node.targetPath || null : null,
+      slotKey: node.slotKey || null
+    });
+    if (parentId) edges.push({ from: parentId, to: node.id });
+    for (const child of node.children || []) {
+      walk(child, node.id, depth + 1);
+    }
+  }
+
+  walk(tree);
+  return { nodes, edges };
+}
+
+function countTopicKnowledgeTreeNodes(tree) {
+  let count = 0;
+  const walk = (node) => {
+    if (!node) return;
+    count += 1;
+    for (const child of node.children || []) walk(child);
+  };
+  walk(tree);
+  return Math.max(0, count - 1);
+}
+
+function handleTopicKnowledgeNodeClick(node, nodePath) {
+  if (!node) return;
+  if (node.slotKey) {
+    const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === node.slotKey);
+    if (spec) setActiveDataStorageSlotFromOverview(spec);
+    return;
+  }
+  if (node.filePath) {
+    openExternalFile(node.filePath);
+    return;
+  }
+  if (node.targetPath) {
+    void openNodeFromMenu(node.label, node.targetPath, { contentMode: NODE_NAVIGATION_MODE });
+  }
+}
+
+function renderEmbeddedTopicKnowledgeGraph(container, context) {
+  if (!container) return;
+  container.replaceChildren();
+  const tree = buildTopicKnowledgeMindmapTree(context);
+  if (!tree) {
+    renderListEmptyMessage(container, "Нет данных для графа знаний");
+    return;
+  }
+  const graph = flattenTopicKnowledgeTreeToGraph(tree);
+  renderGraphCanvas(container, graph, {
+    ariaLabel: "Граф знаний темы",
+    isNodeClickable: (node) => Boolean(node.targetPath || node.filePath || node.slotKey),
+    onNodeClick: (node) => handleTopicKnowledgeNodeClick(node, context.nodePath)
+  });
+}
+
+function renderEmbeddedTopicKnowledgeMindmap(container, context) {
+  if (!container) return;
+  const tree = buildTopicKnowledgeMindmapTree(context);
+  const rerender = () => renderEmbeddedTopicKnowledgeMindmap(container, context);
+  container.replaceChildren();
+  if (!tree) {
+    renderListEmptyMessage(container, "Нет данных для карты знаний");
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "node-navigation-elements-nav-mindmap-shell";
+  shell.appendChild(createEmbeddedMindmapLayoutBarElement(rerender));
+
+  const host = document.createElement("div");
+  host.className = "node-navigation-elements-nav-mindmap-host";
+  shell.appendChild(host);
+  container.appendChild(shell);
+
+  const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
+  renderMindmapTreeCanvas(host, tree, {
+    collapsedIds: nodeOverviewEmbeddedMindmapCollapsedIds,
+    activeTarget: activeResolved,
+    onNodeClick: (node) => handleTopicKnowledgeNodeClick(node, context.nodePath),
+    onRerender: rerender
+  });
+}
+
+function readNodeNavigationTopicOverviewView() {
+  try {
+    const value = sessionStorage.getItem(NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY);
+    if (value === "mindmap" || value === "graph") return value;
+    if (value === "elements" || value === "navigation") return "graph";
+  } catch {
+    /* ignore */
+  }
+  return "graph";
+}
+
+function writeNodeNavigationTopicOverviewView(view) {
+  try {
+    sessionStorage.setItem(NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readNodeNavigationTopicOverviewOpen(defaultOpen = true) {
+  try {
+    const value = sessionStorage.getItem(NODE_NAV_TOPIC_OVERVIEW_OPEN_STORAGE_KEY);
+    if (value === "0") return false;
+    if (value === "1") return true;
+  } catch {
+    /* ignore */
+  }
+  return defaultOpen;
+}
+
+function writeNodeNavigationTopicOverviewOpen(open) {
+  try {
+    sessionStorage.setItem(NODE_NAV_TOPIC_OVERVIEW_OPEN_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+function buildNavigationSubsectionsBody(childEntries) {
   if (!childEntries.length) return null;
 
   const folders = childEntries.filter((entry) => entry.isFolder);
@@ -49578,6 +49857,129 @@ function renderNavigationSubsectionsBlock(childEntries) {
     applySubsectionsSearch();
   }
 
+  return body;
+}
+
+function renderNodeNavigationElementsNavAccordion({
+  childEntries = [],
+  nodePath,
+  heroTitle = "",
+  slots = [],
+  externalData = null,
+  mediaData = null
+} = {}) {
+  if (!nodePath) return null;
+
+  const knowledgeContext = { nodePath, heroTitle, childEntries, slots, externalData, mediaData };
+  const previewTree = buildTopicKnowledgeMindmapTree(knowledgeContext);
+  const itemCount = countTopicKnowledgeTreeNodes(previewTree);
+
+  const details = document.createElement("details");
+  details.className = "node-navigation-elements-nav-accordion doc-links-accordion";
+  details.open = readNodeNavigationTopicOverviewOpen(true);
+
+  const summary = document.createElement("summary");
+  summary.className = "doc-links-accordion-summary node-navigation-elements-nav-summary";
+
+  const summaryMain = document.createElement("span");
+  summaryMain.className = "doc-links-accordion-summary-main";
+
+  const title = document.createElement("span");
+  title.className = "doc-links-accordion-title";
+  title.textContent = "Все доступные элементы — навигация";
+
+  summaryMain.appendChild(title);
+
+  const count = document.createElement("span");
+  count.className = "doc-links-accordion-count";
+  count.textContent = String(itemCount);
+
+  summary.append(summaryMain, count);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-elements-nav-body doc-links-accordion-body";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "node-navigation-elements-nav-toolbar";
+
+  const viewSelect = document.createElement("select");
+  viewSelect.className = "node-navigation-elements-nav-view-select";
+  viewSelect.setAttribute("aria-label", "Вид навигации по теме");
+  for (const { value, label } of [
+    { value: "graph", label: "Граф знаний" },
+    { value: "mindmap", label: "Карта знаний" }
+  ]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    viewSelect.appendChild(option);
+  }
+  toolbar.appendChild(viewSelect);
+  body.appendChild(toolbar);
+
+  const panelsWrap = document.createElement("div");
+  panelsWrap.className = "node-navigation-elements-nav-panels";
+
+  const graphPanel = document.createElement("div");
+  graphPanel.className = "node-navigation-elements-nav-panel";
+  graphPanel.dataset.elementsNavView = "graph";
+  const graphHost = document.createElement("div");
+  graphHost.className = "node-navigation-elements-nav-graph-host";
+  graphPanel.appendChild(graphHost);
+
+  const mindmapPanel = document.createElement("div");
+  mindmapPanel.className = "node-navigation-elements-nav-panel hidden";
+  mindmapPanel.dataset.elementsNavView = "mindmap";
+  const mindmapHost = document.createElement("div");
+  mindmapHost.className = "node-navigation-elements-nav-mindmap-panel";
+  mindmapPanel.appendChild(mindmapHost);
+
+  panelsWrap.append(graphPanel, mindmapPanel);
+  body.appendChild(panelsWrap);
+  details.append(summary, body);
+
+  let activeView = readNodeNavigationTopicOverviewView();
+
+  const ensureGraphRendered = () => {
+    if (graphHost.dataset.rendered === "1") return;
+    renderEmbeddedTopicKnowledgeGraph(graphHost, knowledgeContext);
+    graphHost.dataset.rendered = "1";
+  };
+
+  const ensureMindmapRendered = () => {
+    if (mindmapHost.dataset.rendered === "1") return;
+    renderEmbeddedTopicKnowledgeMindmap(mindmapHost, knowledgeContext);
+    mindmapHost.dataset.rendered = "1";
+  };
+
+  const applyView = (view) => {
+    const nextView = view === "mindmap" ? "mindmap" : "graph";
+    writeNodeNavigationTopicOverviewView(nextView);
+    viewSelect.value = nextView;
+    graphPanel.classList.toggle("hidden", nextView !== "graph");
+    mindmapPanel.classList.toggle("hidden", nextView !== "mindmap");
+    if (nextView === "graph") ensureGraphRendered();
+    if (nextView === "mindmap") ensureMindmapRendered();
+  };
+
+  viewSelect.addEventListener("change", () => {
+    applyView(viewSelect.value);
+  });
+
+  details.addEventListener("toggle", () => {
+    writeNodeNavigationTopicOverviewOpen(details.open);
+    if (!details.open) return;
+    if (viewSelect.value === "graph") ensureGraphRendered();
+    if (viewSelect.value === "mindmap") ensureMindmapRendered();
+  });
+
+  applyView(activeView);
+  return details;
+}
+
+function renderNavigationSubsectionsBlock(childEntries) {
+  const body = buildNavigationSubsectionsBody(childEntries);
+  if (!body) return null;
   return createNavigationSubsectionsBlock(body);
 }
 
@@ -51724,7 +52126,11 @@ async function fetchEntryOverviewBodyResult(context) {
       const manifestPath = getActiveNodeApiPath();
       const cached = topicGeneratedStorageIndexCache.get(manifestPath);
       if (cached) return { content: cached, ok: true };
-      return { content: buildTopicStorageIndexMarkdown(getResolvedNodePath(activePath), []), ok: true };
+      const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath) || [];
+      return {
+        content: buildTopicStorageIndexMarkdown(getResolvedNodePath(activePath), cachedSlots),
+        ok: true
+      };
     }
     if (context.memoryKind === "external") {
       const response = await fetch(
@@ -53824,7 +54230,7 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
   indexBtn.classList.toggle("is-available", hasIndex);
   indexBtn.classList.toggle("is-missing", !hasIndex);
   if (hasIndex) {
-    indexBtn.title = `Открыть ${slot.indexFile || STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
+    indexBtn.title = `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
   } else if (isBundleEntryOverviewMemoryKind(memoryKind)) {
     indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден рядом с ${spec?.bundleFile || "файлом слота"}`;
   } else {
@@ -53922,11 +54328,7 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
       showToast(`${STORAGE_SLOT_INDEX_FILE} не найден в этом слоте`, "info");
       return;
     }
-    openStorageSlotIndexOverview(
-      topicPath || getResolvedNodePath(activePath),
-      spec,
-      slot.indexFile || STORAGE_SLOT_INDEX_FILE
-    );
+    openStorageSlotIndexOverview(topicPath || getResolvedNodePath(activePath), spec);
   });
   return btn;
 }
@@ -53973,7 +54375,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     void openTopicStorageIndexOverview(topicPath, slots);
   };
 
-  void probeTopicStorageReadmeExists(topicPath).then((exists) => {
+  void probeTopicStorageIndexExists(topicPath).then((exists) => {
     if (!wrap.isConnected) return;
     wrap.dataset.topicHasIndex = exists ? "1" : "0";
     footer.classList.toggle("is-available", exists);
@@ -54000,7 +54402,7 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   label.className = "node-navigation-workspace-counter-label";
   applyWorkspaceCounterLabelForSlot(label, slot);
 
-  btn.append(createWorkspaceCounterIndicator(slot), createWorkspaceCounterSlotIcon(slot), label);
+  btn.append(createWorkspaceCounterSlotIcon(slot), createWorkspaceCounterIndicator(slot), label);
   if (!isDeprecatedRepositoryCounterSlot(slot)) {
     btn.addEventListener("click", onClick);
   }
@@ -64008,7 +64410,17 @@ async function renderNodeNavigation() {
     if (isStale()) return;
   }
 
-  if (!useSplitLayout) {
+  const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({
+    childEntries,
+    nodePath,
+    heroTitle,
+    slots: topicSlotCounters,
+    externalData,
+    mediaData
+  });
+  if (elementsNavAccordion) {
+    hubMain.appendChild(elementsNavAccordion);
+  } else if (!useSplitLayout) {
     const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
     if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
   }
@@ -82520,16 +82932,6 @@ nodeMemoryEntryViewSelectNode?.addEventListener("change", () => {
 nodeMediaEntryViewSelectNode?.addEventListener("change", () => {
   applyMemoryEntryViewChange("media", nodeMediaEntryViewSelectNode.value);
 });
-nodeNavigationSubsectionSelectNode?.addEventListener("change", () => {
-  const value = nodeNavigationSubsectionSelectNode.value;
-  if (value === NODE_MINDMAP_MODE) {
-    setContentMode(NODE_MINDMAP_MODE);
-    return;
-  }
-  if (activeContentMode === NODE_MINDMAP_MODE) {
-    setContentMode(NODE_NAVIGATION_MODE);
-  }
-});
 createNameInputNode?.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeCreateNodeModal();
   if (event.key === "Enter") {
@@ -83114,7 +83516,6 @@ appLandingCreateModalNode?.addEventListener("click", (event) => {
 });
 
 initNodeWorkspaceDomainSelect();
-initNodeNavigationSubsectionSelect();
 syncNodeSettingsModeSelect();
 if (!window.__agentCmsThreadFocusBound) {
   window.__agentCmsThreadFocusBound = true;
