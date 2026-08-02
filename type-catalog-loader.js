@@ -10,6 +10,10 @@ const {
   TYPE_CATALOG_REL,
   AGENT_SYSTEM_REL
 } = require("./platform-sources");
+const {
+  editingFieldsStoreHasRecords,
+  ingestFieldsIntoCatalog
+} = require("./awn-data-fields-bridge");
 
 const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
@@ -232,18 +236,25 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const byId = new Map();
   const byDomain = {};
   const sources = ["platform:agent-cms-core"];
+  const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot);
 
   for (const domain of TYPE_DOMAINS) {
+    if (domain === "fields" && useAwnDataFields) continue;
     ingestDomainTypes(getPlatformDomainTypesDir(coreRoot, domain), domain, "platform", byId, byDomain);
   }
 
   const agentTypesRoot = agentSystemRoot ? path.join(agentSystemRoot, "types") : "";
   if (agentTypesRoot && fs.existsSync(agentTypesRoot)) {
     sources.push(`${AGENT_SYSTEM_REL}:agent`);
-    // Домены = встроенные + объявленные в registry.yml (расширяемость «пакетами»).
     for (const domain of resolveAgentDomainIds(agentSystemRoot)) {
+      if (domain === "fields" && useAwnDataFields) continue;
       ingestDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
     }
+  }
+
+  if (useAwnDataFields) {
+    ingestFieldsIntoCatalog(projectRoot, byId, byDomain);
+    sources.push("platform:awn-data/editing-fields");
   }
 
   applyTypeAliases(byId);

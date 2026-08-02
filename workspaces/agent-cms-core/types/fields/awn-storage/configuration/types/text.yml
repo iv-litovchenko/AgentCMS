@@ -1,9 +1,0 @@
-id: awn.text
-name: Текст (многострочный)
-kind: field
-storage: string
-mdbase: text
-widget: textarea
-description: Длинный текст или описание
-settings: [description, hint, required, locked, default]
-status: active

@@ -1,9 +1,0 @@
-id: awn.integer
-name: Целое число
-kind: field
-storage: number
-mdbase: integer
-widget: number
-description: Целое число
-settings: [description, hint, required, locked, format, default]
-status: active

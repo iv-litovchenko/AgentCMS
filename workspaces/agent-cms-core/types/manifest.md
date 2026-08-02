@@ -16,8 +16,7 @@ awn-color: "#6366f1"
 | [pages/](pages/manifest.md) | `awn.page.*` | узлы дерева workspace |
 | [content/](content/manifest.md) | `awn.content.*` | записи в слотах |
 | [slots/](slots/manifest.md) | `awn.slot.*` | слои памяти топика |
-| [fields/](fields/manifest.md) | `awn.string` … | поля frontmatter |
 
-**Markdown-блоки** (`awn.block.*`) — накопители `awn-data/markdown-blocks/`, не YAML в `types/`.
+**Поля** (`awn.field.*`) — накопитель [`awn-data/editing-fields/`](../awn-data/editing-fields/manifest.md). (`awn.block.*`) — накопители `awn-data/markdown-blocks/`, не YAML в `types/`.
 
 Runtime: `type-catalog-loader.js` → `GET /api/type-catalog`

@@ -189,6 +189,92 @@ function loadFieldDefFromAwnData(projectRoot) {
   };
 }
 
+function recordToCatalogFieldEntry(record) {
+  const field = recordToFieldDef(record);
+  if (!field) return null;
+  const slug = String(record.id || record.frontmatter?.id || "").trim();
+  const storeFile = record.fileName || `${slug}.md`;
+  return {
+    id: field.id,
+    domain: "fields",
+    fileName: storeFile.replace(/\.md$/i, ""),
+    relPath: slug,
+    catalogFile: `awn-data/${FIELDS_STORE_REL}/${storeFile}`.replace(/\\/g, "/"),
+    source: "platform",
+    schema: {
+      id: field.id,
+      name: field.name,
+      kind: "field",
+      domain: "fields",
+      extends: field.extends,
+      widget: field.widget,
+      storage: field.storage,
+      mdbase: field.mdbase,
+      description: field.description,
+      settings: field.settings,
+      format: field.format,
+      group: field.group,
+      status: "active"
+    },
+    status: "active",
+    kind: "field",
+    extends: field.extends
+  };
+}
+
+function buildFieldBaseCatalogEntry(projectRoot) {
+  const fieldDef = loadFieldDefFromAwnData(projectRoot);
+  if (!fieldDef?.properties) return null;
+  const fieldId = String(fieldDef.fieldId || "awn.field.base").trim();
+  return {
+    id: fieldId,
+    domain: "fields",
+    fileName: "main",
+    relPath: "field-def/main",
+    catalogFile: `awn-data/${FIELD_DEF_STORE_REL}/main.md`.replace(/\\/g, "/"),
+    source: "platform",
+    schema: {
+      id: fieldId,
+      name: fieldDef.name || "База поля",
+      kind: "base",
+      domain: "fields",
+      extends: "awn.entity",
+      description: fieldDef.description || "",
+      properties: fieldDef.properties,
+      status: "active"
+    },
+    status: "active",
+    kind: "base",
+    extends: "awn.entity"
+  };
+}
+
+function ingestFieldsIntoCatalog(projectRoot, byId, byDomain) {
+  if (!editingFieldsStoreHasRecords(projectRoot)) return false;
+
+  for (const [id, entry] of [...byId.entries()]) {
+    if (entry?.domain === "fields") byId.delete(id);
+  }
+  byDomain.fields = [];
+
+  const baseEntry = buildFieldBaseCatalogEntry(projectRoot);
+  if (baseEntry) {
+    byId.set(baseEntry.id, baseEntry);
+    byDomain.fields.push(baseEntry);
+  }
+
+  const agentRoot = getPlatformAgentRoot(projectRoot);
+  const payload = getAwnDataPayload(agentRoot, projectRoot, FIELDS_STORE_REL);
+  for (const record of payload.store?.records || []) {
+    const entry = recordToCatalogFieldEntry(record);
+    if (!entry) continue;
+    byId.set(entry.id, entry);
+    byDomain.fields.push(entry);
+  }
+
+  return byDomain.fields.length > 0;
+}
+
 function editingFieldsStoreHasRecords(projectRoot) {
   const registry = loadFieldsFromAwnData(projectRoot);
   return Boolean(registry && Object.keys(registry).length);
@@ -202,5 +288,6 @@ module.exports = {
   loadFieldGroupsMetaFromAwnData,
   buildFieldGroups,
   loadFieldDefFromAwnData,
+  ingestFieldsIntoCatalog,
   editingFieldsStoreHasRecords
 };

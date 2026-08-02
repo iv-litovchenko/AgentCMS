@@ -1,3 +1,3 @@
 {
-  "order": ["base", "pages", "content", "slots", "fields"]
+  "order": ["base", "pages", "content", "slots"]
 }

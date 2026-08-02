@@ -17,6 +17,8 @@ const {
 const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 
 const AGENT_EXTRA_DOMAINS = ["mixins"];
+/** Поля — platform awn-data/editing-fields/, не копируем legacy YAML. */
+const SKIP_BOOTSTRAP_DOMAINS = new Set(["fields"]);
 
 const AGENT_EXTRA_TYPES = {
   "content/dialog.yml": `id: awn.content.dialog
@@ -243,6 +245,7 @@ function main() {
   let copied = 0;
 
   for (const domain of domains) {
+    if (SKIP_BOOTSTRAP_DOMAINS.has(domain)) continue;
     const destDir = path.join(typesRoot, domain);
     fs.mkdirSync(destDir, { recursive: true });
 

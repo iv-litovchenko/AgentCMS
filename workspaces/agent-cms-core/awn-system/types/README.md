@@ -8,7 +8,7 @@ YAML-типы CMS этого агента. Loader: `type-catalog-loader.js` (age
 | pages/ | `awn.page.*` | ws, area, topic, service-doc, catalog |
 | content/ | `awn.content.*` | record, sidecar, dialog, comment |
 | slots/ | `awn.slot.*` | main, inbox, thread, media |
-| fields/ | `awn.field.*` | `awn-data/editing-fields/` (канон); legacy YAML — fallback |
+| fields/ | `awn.field.*` | `awn-data/editing-fields/` |
 | mixins/ | `awn.mixin.*` | preview, runtime, attachments |
 
 **Markdown-блоки** — `awn-data/markdown-blocks/blocks/*.md`  
