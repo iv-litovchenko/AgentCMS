@@ -1,0 +1,13 @@
+:root {
+  --spine-thickness: 8px;
+  --spine-opacity: 0.75;
+  --spine-blur: 1px;
+  --spine-shadow: 0 0 32px rgba(250,204,21,.55), 0 0 64px rgba(96,165,250,.35);
+  --link-trunk-width: 4;
+  --link-trunk: rgba(250,204,21,.65);
+}
+body { background: radial-gradient(ellipse 60% 40% at 50% 12%, rgba(250,204,21,.08), transparent), #020617; }
+.spine { border-radius: 999px; }
+.root .orb { box-shadow: 0 0 48px rgba(250,204,21,.4), 0 0 80px rgba(250,204,21,.15); }
+.section .orb { box-shadow: 0 0 32px rgba(129,140,248,.45); }
+.topic .orb { box-shadow: 0 0 20px rgba(59,130,246,.35); }

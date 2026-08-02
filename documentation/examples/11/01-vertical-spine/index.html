@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>01 — Vertical spine · каталог</title>
+    <style>
+      :root { --bg: #0b1220; --panel: #111827; --border: #243044; --text: #e5e7eb; --muted: #94a3b8; --accent: #fbbf24; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: radial-gradient(circle at 50% 0%, #1e293b, var(--bg)); color: var(--text); padding: 28px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      .lead { color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 20px; font-size: 14px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 14px; }
+      .card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; flex: 1; }
+      .tag { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: rgba(251,191,36,.12); color: #fcd34d; width: fit-content; }
+      a.demo { display: inline-flex; padding: 7px 12px; border-radius: 8px; background: var(--accent); color: #422006; text-decoration: none; font-size: 12px; font-weight: 700; }
+      a.back { color: #93c5fd; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <p><a class="back" href="../index.html">← Example11</a></p>
+    <h1>01 · Vertical spine — 11 вариантов</h1>
+    <p class="lead">Развитие базового vertical spine: узкая колонка, ствол сверху вниз, пузыри-узлы. Все на одном HTML-каркасе, различается только CSS.</p>
+    <div class="grid">
+      <article class="card"><span class="tag">base</span><h2>Оригинал</h2><p>Золотой ствол, пара тем слева/спраva.</p><a class="demo" href="./base/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v02</span><h2>Ultra narrow</h2><p>Колонка 300px — максимально «постер».</p><a class="demo" href="./v02-ultra-narrow/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v03</span><h2>Thick glow</h2><p>Толстый светящийся ствол + bloom.</p><a class="demo" href="./v03-thick-glow/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v04</span><h2>Pulse nodes</h2><p>Пульсация пузырей и ствола.</p><a class="demo" href="./v04-pulse-nodes/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v05</span><h2>Inside labels</h2><p>Подписи внутри карточек под узлом.</p><a class="demo" href="./v05-inside-labels/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v06</span><h2>Mini previews</h2><p>В пузырях — мини-окна превью.</p><a class="demo" href="./v06-mini-previews/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v07</span><h2>Single column</h2><p>Строго одна колонка, без разброса.</p><a class="demo" href="./v07-single-column/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v08</span><h2>Light day</h2><p>Светлая тема, синий ствол.</p><a class="demo" href="./v08-light-day/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v09</span><h2>Double helix</h2><p>Двойной ствол-DNA.</p><a class="demo" href="./v09-double-helix/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v10</span><h2>Compact dense</h2><p>Мельче узлы, плотнее по вертикали.</p><a class="demo" href="./v10-compact-dense/index.html">Открыть</a></article>
+      <article class="card"><span class="tag">v11</span><h2>Section rails</h2><p>У разделов — боковые «рельсы» тем.</p><a class="demo" href="./v11-section-rails/index.html">Открыть</a></article>
+    </div>
+  </body>
+</html>

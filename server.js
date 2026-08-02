@@ -12,7 +12,7 @@ const { resolveChpuPath, isChpuReservedRootSegment } = require("./chpu-resolver"
 const docsRegistry = require("./docs-registry");
 const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
-const { parseYamlScalar } = require("./awn-yaml-utils");
+const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const {
   clampThumbMax,
@@ -195,6 +195,7 @@ const {
   getAgentSystemStatus
 } = require("./agent-system");
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
+const { parseYamlScalar } = require("./awn-yaml-utils");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
 const { createExistsApi } = require("./exists-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
@@ -3978,6 +3979,21 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "") {
         name: entry.name,
         relativePath: relative.replace(/\\/g, "/")
       });
+      continue;
+    }
+
+    if (entry.isSymbolicLink() && !entry.name.toLowerCase().endsWith(".md")) {
+      try {
+        const stat = await fs.stat(absolute);
+        if (stat.isFile()) {
+          files.push({
+            name: entry.name,
+            relativePath: relative.replace(/\\/g, "/")
+          });
+        }
+      } catch {
+        // ignore broken symlinks
+      }
     }
   }
 
@@ -4301,7 +4317,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
       continue;
     }
 
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, path.join(folderAbsolute, entry.name)))) continue;
     if (isHiddenMenuEntry(entry.name)) continue;
 
     const fileRel = isAgentRoot ? entry.name : path.posix.join(normalizedFolder, entry.name);
@@ -4854,7 +4870,7 @@ async function scanStorageFolderPolicyViolations(folderAbsolute, slotKey, { maxS
         await walk(path.join(dirAbsolute, entry.name), relPath.replace(/\\/g, "/"));
         continue;
       }
-      if (!entry.isFile()) continue;
+      if (!(await isListableFileEntry(entry, path.join(dirAbsolute, entry.name)))) continue;
 
       const reason = getStorageFilePolicyViolationReason(entry.name, slotKey);
       if (!reason) continue;
@@ -5104,6 +5120,7 @@ async function collectMediaFilesStructured(
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     if (entry.isFile() && entry.name.toLowerCase().endsWith(".sidecar.md")) continue;
+    if (entry.isSymbolicLink() && entry.name.toLowerCase().endsWith(".sidecar.md")) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
     const relPath = relative.replace(/\\/g, "/");
@@ -5122,7 +5139,7 @@ async function collectMediaFilesStructured(
       continue;
     }
 
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, absolute))) continue;
 
     if (isAreaManifestFileName(entry.name)) {
       let displayName = "";
@@ -5189,6 +5206,16 @@ async function collectMediaFilesStructured(
       // keep size 0
     }
 
+    let gdriveSynced = false;
+    let gdriveBlob = "";
+    try {
+      const gdriveMeta = await getGoogleDriveSymlinkMeta(absolute, getAgentRoot());
+      gdriveSynced = Boolean(gdriveMeta.synced);
+      gdriveBlob = String(gdriveMeta.blobName || "");
+    } catch {
+      // ignore gdrive detection errors
+    }
+
     items.push({
       path: relPath,
       name: entry.name,
@@ -5197,7 +5224,9 @@ async function collectMediaFilesStructured(
       group: classifyMediaGroup(ext),
       isFolder: false,
       size,
-      ext
+      ext,
+      gdriveSynced,
+      gdriveBlob
     });
   }
 
@@ -6387,8 +6416,10 @@ async function listStorageAttachmentFiles(storageContext) {
     }
 
     for (const entry of entries) {
-      if (!entry.isFile() || entry.name.startsWith(".")) continue;
+      if (entry.name.startsWith(".")) continue;
       if (entry.name.toLowerCase().endsWith(".sidecar.md")) continue;
+      const absolute = path.join(folderAbsolute, entry.name);
+      if (!(await isListableFileEntry(entry, absolute))) continue;
       const workspaceRef = buildRef(entry.name);
       if (!workspaceRef || seen.has(workspaceRef)) continue;
       seen.add(workspaceRef);
@@ -6491,6 +6522,17 @@ async function fileExists(absolutePath) {
   }
 }
 
+async function isListableFileEntry(entry, absolutePath) {
+  if (entry.isFile()) return true;
+  if (!entry.isSymbolicLink()) return false;
+  try {
+    const stat = await fs.stat(absolutePath);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
+}
+
 async function dirExists(absolutePath) {
   try {
     const stat = await fs.stat(absolutePath);
@@ -6558,6 +6600,23 @@ async function resolveExistingWorkspaceRelPath(relPath) {
 
 async function resolveCanonicalManifestRelPath(relPath) {
   return resolveExistingWorkspaceRelPath(relPath);
+}
+
+let gdriveSyncApi = null;
+function getGdriveSyncApi() {
+  if (!gdriveSyncApi) {
+    gdriveSyncApi = createGdriveSyncHelpers({
+      getAgentRoot,
+      normalizeWorkspacePath,
+      resolveApiStorageContext,
+      resolveUploadedMediaFileAbsolute,
+      resolveCanonicalManifestRelPath,
+      getMediaFolderAbsolute,
+      collectMediaFilesStructured,
+      fileExists
+    });
+  }
+  return gdriveSyncApi;
 }
 
 async function resolveApiManifestAbsolute(relPath) {
@@ -8122,7 +8181,7 @@ async function countDirectoryFiles(dirAbsolute) {
       count += await countDirectoryFiles(absolute);
       continue;
     }
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, absolute))) continue;
     if (isAreaManifestFileName(entry.name)) continue;
     count += 1;
   }
@@ -9105,7 +9164,7 @@ async function findNewestFileMetaInDirRecursive(dirAbsolute) {
         continue;
       }
 
-      if (!entry.isFile()) continue;
+      if (!(await isListableFileEntry(entry, absolute))) continue;
       const stat = await statNodeFileMeta(absolute);
       if (!stat?.updatedAt) continue;
       if (!newest || Date.parse(stat.updatedAt) > Date.parse(newest.updatedAt)) {
@@ -10962,7 +11021,7 @@ async function collectLargeFilesInDir(dirAbsolute, prefix, minBytes, results) {
       continue;
     }
 
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, absolute))) continue;
 
     try {
       const stat = await fs.stat(absolute);
@@ -11012,7 +11071,7 @@ async function collectWorkspaceStatsInDir(dirAbsolute, stats) {
       continue;
     }
 
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, absolute))) continue;
 
     try {
       const stat = await fs.stat(absolute);
@@ -11051,7 +11110,7 @@ async function collectDirBytes(dirAbsolute, stats = { totalBytes: 0, fileCount: 
       await collectDirBytes(absolute, stats);
       continue;
     }
-    if (!entry.isFile()) continue;
+    if (!(await isListableFileEntry(entry, absolute))) continue;
     try {
       const stat = await fs.stat(absolute);
       stats.totalBytes += stat.size;
@@ -13807,6 +13866,75 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read topic sizes",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/google-drive-stats") {
+    try {
+      const stats = await getGdriveSyncApi().countGoogleDriveStorageStats();
+      return sendJson(res, 200, stats);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read Google Drive storage stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/gdrive/status") {
+    const manifestPath = url.searchParams.get("path");
+    const scope = String(url.searchParams.get("scope") || "file").trim();
+    const file = url.searchParams.get("file");
+    if (!manifestPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const api = getGdriveSyncApi();
+      if (scope === "topic") {
+        const status = await api.getGoogleDriveTopicSyncStatus(manifestPath);
+        return sendJson(res, 200, status);
+      }
+      if (!file) return sendJson(res, 400, { error: "Missing file query parameter" });
+      const status = await api.getGoogleDriveFileSyncStatus(manifestPath, file);
+      return sendJson(res, 200, status);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read Google Drive sync status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/gdrive/toggle") {
+    try {
+      const payload = await readJsonBody(req);
+      const manifestPath = payload.path;
+      const scope = String(payload.scope || "file").trim();
+      const file = payload.file;
+      if (!manifestPath) return sendJson(res, 400, { error: "Missing path" });
+      const api = getGdriveSyncApi();
+      if (scope === "topic") {
+        const result = await api.toggleGoogleDriveTopicSync(manifestPath);
+        return sendJson(res, 200, result);
+      }
+      if (!file) return sendJson(res, 400, { error: "Missing file" });
+      const result = await api.toggleGoogleDriveFileSync(manifestPath, file);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to toggle Google Drive sync",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/gdrive/repair-links") {
+    try {
+      const result = await getGdriveSyncApi().repairGoogleDriveSymlinks();
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to repair Google Drive symlinks",
         details: String(error.message || error)
       });
     }

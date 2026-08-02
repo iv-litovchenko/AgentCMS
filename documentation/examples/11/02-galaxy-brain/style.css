@@ -1,0 +1,40 @@
+body { background: #020617; }
+.stage {
+  width: min(480px,100%); margin: 0 auto; min-height: calc(100vh - 56px);
+  padding: 0 16px 80px; display: flex; flex-direction: column; align-items: center; gap: 28px;
+  background: radial-gradient(circle at 50% 0%, rgba(59,130,246,.22), transparent 38%);
+}
+.galaxy {
+  width: 180px; height: 100px; margin-top: 12px; border-radius: 999px;
+  background: radial-gradient(circle, #fff 0, #93c5fd 8%, #312e81 45%, transparent 70%);
+  opacity: .85; filter: blur(.2px);
+  animation: spin 24s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.brain { text-align: center; }
+.brain-inner {
+  width: 96px; height: 96px; border-radius: 999px; margin: 0 auto 8px;
+  display: grid; place-items: center; font-size: 42px;
+  border: 2px solid rgba(250,204,21,.7);
+  box-shadow: 0 0 40px rgba(96,165,250,.45);
+  background: rgba(15,23,42,.9);
+}
+.brain p { margin: 0; font-size: 13px; font-weight: 700; }
+.tier { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; width: 100%; }
+.tier.narrow { gap: 10px; }
+.bubble {
+  width: 54px; height: 54px; border-radius: 999px; display: grid; place-items: center;
+  border: 1px solid rgba(147,197,253,.45); background: rgba(15,23,42,.85);
+  box-shadow: 0 0 18px rgba(59,130,246,.25); font-size: 22px;
+}
+.bubble.big { width: 72px; height: 72px; font-size: 26px; position: relative; }
+.bubble.big span {
+  position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: #94a3b8; white-space: nowrap;
+}
+.cards { display: flex; flex-direction: column; gap: 10px; width: min(320px,100%); }
+.card-win {
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(96,165,250,.35);
+  background: rgba(15,23,42,.75); font-size: 11px; color: #93c5fd;
+}

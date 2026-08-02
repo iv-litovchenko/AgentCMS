@@ -28,6 +28,8 @@ const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn
 const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
+const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
+const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
@@ -126,6 +128,14 @@ const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitFocusLinksNode = document.getElementById("app-landing-orbit-focus-links");
 const appLandingOrbitTwigsNode = document.getElementById("app-landing-orbit-twigs");
+const appLandingOrbitDiveNode = document.getElementById("app-landing-orbit-dive");
+const appLandingOrbitDiveTreeNode = document.getElementById("app-landing-orbit-dive-tree");
+const appLandingOrbitDiveLinksNode = document.getElementById("app-landing-orbit-dive-links");
+const appLandingOrbitDiveTitleNode = document.getElementById("app-landing-orbit-dive-title");
+const appLandingOrbitDiveStatsNode = document.getElementById("app-landing-orbit-dive-stats");
+const appLandingOrbitDiveBackBtn = document.getElementById("app-landing-orbit-dive-back");
+const appLandingOrbitDiveOpenBtn = document.getElementById("app-landing-orbit-dive-open");
+const appLandingInnerNode = document.querySelector(".app-landing-inner");
 const appLandingAttentionNode = document.getElementById("app-landing-attention");
 const appLandingHubNode = document.getElementById("app-landing-hub");
 const appLandingFlowNode = document.getElementById("app-landing-flow");
@@ -8525,6 +8535,8 @@ function syncLandingAgentsViewUi() {
   if (isOrbit) {
     renderAppLandingOrbit();
     void loadGlobalLandingHubTopicItems();
+  } else if (landingOrbitDiveAgentId) {
+    closeOrbitAgentDive();
   }
   if (isGrid) {
     renderAppLandingList(getProcessedLandingFocusItems());
@@ -9092,15 +9104,15 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
   }`;
   btn.title = registryActive
     ? isOrchestrator
-      ? `Оркестратор · ${label}`
-      : `Открыть ${label}`
+      ? `Оркестратор · ${label} — нажмите, чтобы провалиться внутрь`
+      : `Провалиться в ${label}`
     : `${label} — неактивен`;
   btn.setAttribute(
     "aria-label",
     registryActive
       ? isOrchestrator
-        ? `Оркестратор ${label}`
-        : `Открыть агента ${label}`
+        ? `Оркестратор ${label} — провалиться внутрь`
+        : `Провалиться в агента ${label}`
       : `Агент ${label} неактивен`
   );
 
@@ -9135,7 +9147,11 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
       showToast("Агент выключен — включите в реестре (⚙)", "error");
       return;
     }
-    selectAgentOption(agent.id);
+    if (landingOrbitDiveAgentId === agent.id) {
+      selectAgentOption(agent.id);
+      return;
+    }
+    openOrbitAgentDive(agent.id);
   });
 
   const children = [btn, nameNode];
@@ -9215,6 +9231,7 @@ function renderAppLandingOrbit() {
   renderAppLandingOrbitLinks(agents);
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
   setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
+  syncOrbitDiveSelection();
 }
 
 const ORBIT_FOCUS_TWIG_LIMIT = 8;
@@ -9225,6 +9242,9 @@ let landingOrbitFocusHideTimer = null;
 function setLandingOrbitFocusCache(items = []) {
   landingOrbitFocusByAgent = groupFocusItemsByAgent(items);
   renderOrbitAllAgentFocusGraphs();
+  if (landingOrbitDiveAgentId) {
+    renderOrbitAgentDive(landingOrbitDiveAgentId);
+  }
 }
 
 function clearOrbitAgentFocusDisplay() {
@@ -9372,6 +9392,687 @@ function bindOrbitItemFocusHover(item, agent, agentIndex) {
 
 function renderAppLandingOrbitFocus(items = []) {
   setLandingOrbitFocusCache(items);
+}
+
+const ORBIT_DIVE_MENU_DEPTH = 6;
+let landingOrbitDiveAgentId = null;
+let landingOrbitDiveLinksFrame = 0;
+let landingOrbitDiveGraphNodes = [];
+
+function mountOrbitDiveOrbContent(container, {
+  previewUrl = "",
+  emoji = "",
+  nodePath = "",
+  iconKind = ""
+}) {
+  container.replaceChildren();
+
+  const mountIcon = (path, kind = "") => {
+    const icon = kind
+      ? (() => {
+          const el = document.createElement("span");
+          el.className = `node-cover-icon node-cover-icon--${kind} node-cover-icon--in-dive-orb`;
+          el.setAttribute("aria-hidden", "true");
+          return el;
+        })()
+      : createNodeCoverIconElement(path);
+    icon.classList.add("node-cover-icon--fallback", "node-cover-icon--in-dive-orb");
+    container.appendChild(icon);
+  };
+
+  if (previewUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      if (emoji) {
+        container.replaceChildren();
+        const emojiNode = document.createElement("span");
+        emojiNode.className = "app-landing-orbit-dive-graph-emoji";
+        emojiNode.textContent = emoji;
+        emojiNode.setAttribute("aria-hidden", "true");
+        container.appendChild(emojiNode);
+        return;
+      }
+      mountIcon(nodePath, iconKind);
+    };
+    img.src = previewUrl;
+    container.appendChild(img);
+    return;
+  }
+
+  if (emoji) {
+    const emojiNode = document.createElement("span");
+    emojiNode.className = "app-landing-orbit-dive-graph-emoji";
+    emojiNode.textContent = emoji;
+    emojiNode.setAttribute("aria-hidden", "true");
+    container.appendChild(emojiNode);
+    return;
+  }
+
+  mountIcon(nodePath, iconKind);
+}
+
+function getOrbitDiveAgentRecord(agentId) {
+  return (
+    agentsCache.find((entry) => entry.id === agentId) ||
+    getAgentsForLandingGrid().find((entry) => entry.id === agentId) ||
+    null
+  );
+}
+
+function collectOrbitDiveTopicsFromMenuNode(node, agent, depth, maxDepth, acc, seen) {
+  if (!node || depth > maxDepth) return;
+
+  if (depth > 0 && node.indexPath) {
+    const topic = mapMenuEntryToLandingTopicItem(agent, node, node.indexPath);
+    if (topic && !seen.has(topic.nodePath)) {
+      seen.add(topic.nodePath);
+      acc.push(topic);
+    }
+  }
+
+  for (const item of node.items || []) {
+    if (!item?.path) continue;
+    const topic = mapMenuEntryToLandingTopicItem(agent, item, item.path);
+    if (topic && !seen.has(topic.nodePath)) {
+      seen.add(topic.nodePath);
+      acc.push(topic);
+    }
+  }
+
+  if (depth >= maxDepth) return;
+
+  for (const section of node.sections || []) {
+    if (!section || !shouldShowMenuTreeFolder(section, agent.id)) continue;
+    collectOrbitDiveTopicsFromMenuNode(section, agent, depth + 1, maxDepth, acc, seen);
+  }
+}
+
+function collectOrbitDiveTopicsFromMenu(menu, agent) {
+  const acc = [];
+  const seen = new Set();
+  if (!menu || menu.workspaceMissing) return acc;
+
+  const walkTree = (node) => {
+    if (!node) return;
+    collectOrbitDiveTopicsFromMenuNode(node, agent, 0, ORBIT_DIVE_MENU_DEPTH, acc, seen);
+  };
+
+  walkTree(getWorkspaceRootMenuTreeNode(menu, agent.id));
+  if (menu.containerTree && shouldShowContainerSectionInMenu(agent.id)) {
+    walkTree({ title: menu.containerTree.title || "", ...menu.containerTree });
+  }
+  if (menu.sharedTree && shouldShowSharedSectionInMenu(agent.id)) {
+    walkTree({ title: menu.sharedTree.title || "", ...menu.sharedTree });
+  }
+  return acc;
+}
+
+function buildOrbitDiveSections(agent) {
+  const menu = menuCacheByAgent.get(agent.id);
+  const sections = [];
+  const seen = new Set();
+
+  const pushSection = (label, topics, folderPath = "") => {
+    const cleanLabel = String(label || "").trim() || "Раздел";
+    const key = `${cleanLabel}::${topics.map((topic) => topic.nodePath).join("|")}`;
+    if (!topics.length || seen.has(key)) return;
+    seen.add(key);
+    sections.push({ label: cleanLabel, topics, folderPath });
+  };
+
+  const collectTopicsFromNode = (node) => {
+    const topics = [];
+    if (node?.indexPath) {
+      const topic = mapMenuEntryToLandingTopicItem(agent, node, node.indexPath);
+      if (topic) topics.push(topic);
+    }
+    for (const item of node?.items || []) {
+      const topic = mapMenuEntryToLandingTopicItem(agent, item, item.path);
+      if (topic) topics.push(topic);
+    }
+    return topics;
+  };
+
+  if (menu) {
+    const roots = [];
+    const workspaceRoot = getWorkspaceRootMenuTreeNode(menu, agent.id);
+    if (workspaceRoot) roots.push({ label: agent.name || agent.id, node: workspaceRoot });
+    if (menu.containerTree && shouldShowContainerSectionInMenu(agent.id)) {
+      roots.push({ label: menu.containerTree.title || "Container", node: menu.containerTree });
+    }
+    if (menu.sharedTree && shouldShowSharedSectionInMenu(agent.id)) {
+      roots.push({ label: menu.sharedTree.title || "Shared", node: menu.sharedTree });
+    }
+
+    for (const root of roots) {
+      const rootTopics = collectTopicsFromNode(root.node);
+      if (rootTopics.length) pushSection(root.label, rootTopics, root.node?.indexPath || "_registration.md");
+
+      for (const section of root.node?.sections || []) {
+        if (!section || !shouldShowMenuTreeFolder(section, agent.id)) continue;
+        const sectionTopics = collectTopicsFromNode(section);
+        if (sectionTopics.length) {
+          pushSection(
+            section.title || getLabelFromPath(section.folderPath) || "Раздел",
+            sectionTopics,
+            section.indexPath || section.folderPath || `${section.title || "section"}/index.md`
+          );
+        }
+      }
+    }
+  }
+
+  if (!sections.length) {
+    const allTopics = collectOrbitDiveTopicsFromMenu(menu, agent);
+    const source = allTopics.length ? allTopics : landingOrbitFocusByAgent.get(agent.id) || [];
+    const byFolder = new Map();
+    for (const focusItem of source) {
+      const path = String(focusItem?.nodePath || "").trim();
+      const parts = path.split("/").filter(Boolean);
+      const folder = parts.length > 1 ? getLabelFromPath(parts[0]) : "Темы";
+      if (!byFolder.has(folder)) byFolder.set(folder, []);
+      byFolder.get(folder).push(focusItem);
+    }
+    for (const [label, topics] of byFolder.entries()) {
+      const folderPath = topics[0]?.nodePath?.includes("/")
+        ? `${topics[0].nodePath.split("/")[0]}/index.md`
+        : "index.md";
+      pushSection(label, topics, folderPath);
+    }
+  }
+
+  return sections;
+}
+
+function buildOrbitDiveGraph(agent) {
+  const nodes = [];
+  const rootId = "root";
+  nodes.push({
+    id: rootId,
+    type: "root",
+    label: agent.name || agent.id,
+    agent,
+    parentId: null,
+    focusItem: null
+  });
+
+  const sections = buildOrbitDiveSections(agent);
+  sections.forEach((section, sectionIndex) => {
+    const sectionId = `section-${sectionIndex}`;
+    nodes.push({
+      id: sectionId,
+      type: "section",
+      label: section.label,
+      folderPath: section.folderPath || "",
+      agent,
+      parentId: rootId,
+      focusItem: null,
+      sectionIndex
+    });
+
+    section.topics.forEach((focusItem, topicIndex) => {
+      nodes.push({
+        id: `${sectionId}-topic-${topicIndex}`,
+        type: "topic",
+        label: focusItem.name || getLabelFromPath(focusItem.nodePath) || "Тема",
+        agent,
+        parentId: sectionId,
+        focusItem,
+        topicIndex,
+        sectionIndex
+      });
+    });
+  });
+
+  layoutOrbitDiveGraph(nodes);
+  return nodes;
+}
+
+function pickOrbitDiveShape(seed, kind) {
+  const hash = hashAgentIdForOrbit(String(seed));
+  if (kind === "root") return "circle";
+  if (kind === "section") return hash % 2 === 0 ? "tile" : "circle";
+  const variant = hash % 3;
+  if (variant === 0) return "circle";
+  if (variant === 1) return "tile";
+  return "wide-tile";
+}
+
+function layoutOrbitDiveGraph(nodes) {
+  const root = nodes.find((node) => node.type === "root");
+  if (!root) return;
+
+  const rootHash = hashAgentIdForOrbit(root.id);
+  root.x = 47 + (rootHash % 9);
+  root.y = 7 + (rootHash % 4);
+  root.size = 98;
+  root.shape = "circle";
+
+  const sections = nodes.filter((node) => node.type === "section");
+  const marginX = 10;
+  let maxY = root.y + 10;
+
+  sections.forEach((section, sectionIndex) => {
+    const hash = hashAgentIdForOrbit(`${section.id}:${section.label}`);
+    const band = sections.length <= 1 ? 0.5 : sectionIndex / (sections.length - 1);
+    const baseX = marginX + band * (100 - marginX * 2);
+    const baseY = 16 + sectionIndex * (58 / Math.max(sections.length, 1)) + (hash % 7);
+
+    section.x = Math.min(100 - marginX, Math.max(marginX, baseX + ((hash % 19) - 9) * 1.35));
+    section.y = baseY + ((hash >> 4) % 11 - 5) * 1.1;
+    section.shape = pickOrbitDiveShape(section.id, "section");
+    section.size = section.shape === "circle" ? 70 + (hash % 10) : 0;
+    section.w = section.shape === "tile" ? 108 + (hash % 18) : 0;
+    section.h = section.shape === "tile" ? 96 + (hash % 14) : 0;
+
+    const topics = nodes.filter((node) => node.parentId === section.id);
+    topics.forEach((topic, topicIndex) => {
+      const topicHash = hashAgentIdForOrbit(`${topic.id}:${topic.focusItem?.nodePath || topicIndex}`);
+      const angle = (topicIndex / Math.max(topics.length, 1)) * Math.PI * 2 + (hash % 100) * 0.07;
+      const spread = 11 + (topicHash % 9) + topicIndex * 1.6;
+      let x = section.x + Math.cos(angle) * spread * 0.72 + ((topicHash % 15) - 7) * 0.85;
+      let y = section.y + Math.sin(angle) * spread * 0.55 + 10 + ((topicHash >> 3) % 13) * 0.75;
+
+      x = Math.min(100 - marginX, Math.max(marginX, x));
+      y = Math.min(94, Math.max(12, y));
+
+      topic.x = x;
+      topic.y = y;
+      topic.shape = pickOrbitDiveShape(`${topic.id}:${topicIndex}`, "topic");
+
+      if (topic.shape === "circle") {
+        topic.size = 50 + (topicHash % 18);
+        topic.w = 0;
+        topic.h = 0;
+      } else if (topic.shape === "tile") {
+        topic.size = 0;
+        topic.w = 96 + (topicHash % 24);
+        topic.h = 88 + (topicHash % 16);
+      } else {
+        topic.size = 0;
+        topic.w = 148 + (topicHash % 28);
+        topic.h = 74 + (topicHash % 12);
+      }
+    });
+
+    const sectionBottom = section.y + (section.shape === "tile" ? 14 : 8);
+    for (const topic of topics) {
+      const topicBottom = topic.y + (topic.shape === "circle" ? 8 : topic.shape === "tile" ? 12 : 10);
+      maxY = Math.max(maxY, topicBottom, sectionBottom);
+    }
+    maxY = Math.max(maxY, sectionBottom);
+  });
+
+  const canvasHeight = maxY + 10;
+  for (const node of nodes) {
+    node.canvasHeight = canvasHeight;
+  }
+}
+
+function appendOrbitDiveNodeLabel(container, label, variant = "") {
+  const caption = document.createElement("span");
+  caption.className = `app-landing-orbit-dive-node-label${variant ? ` app-landing-orbit-dive-node-label--${variant}` : ""}`;
+  caption.textContent = label;
+  container.appendChild(caption);
+}
+
+function appendOrbitDivePreviewMount(container, opts, { rounded = true } = {}) {
+  const mount = document.createElement("span");
+  mount.className = `app-landing-orbit-dive-preview-mount${rounded ? "" : " is-square"}`;
+  mountOrbitDiveOrbContent(mount, opts);
+  container.appendChild(mount);
+  return mount;
+}
+
+function buildOrbitDiveTileNode(nodeData, { agent, focusItem, folderPath, isTopic = false } = {}) {
+  const { label, shape, w, h } = nodeData;
+  const tile = document.createElement("div");
+  tile.className = `app-landing-orbit-dive-tile app-landing-orbit-dive-tile--${shape === "wide-tile" ? "wide" : "square"}`;
+
+  const preview = document.createElement("span");
+  preview.className = "app-landing-orbit-dive-tile-preview";
+  appendOrbitDivePreviewMount(
+    preview,
+    isTopic
+      ? {
+          previewUrl: resolveFocusPreviewUrl(focusItem?.nodePreviewUrl, agent.id),
+          emoji: resolveAwnEmoji(focusItem),
+          nodePath: focusItem?.nodePath || "topic.md"
+        }
+      : {
+          nodePath: folderPath || `${label}/index.md`,
+          iconKind: "folder"
+        },
+    { rounded: false }
+  );
+
+  appendOrbitDiveNodeLabel(tile, label, isTopic ? "topic" : "section");
+  tile.prepend(preview);
+  return tile;
+}
+
+function createOrbitDiveGraphNode(nodeData) {
+  const { type, label, agent, focusItem, x, y, size, id, folderPath, shape = "circle", w = 0, h = 0 } = nodeData;
+  const isTile = shape === "tile" || shape === "wide-tile";
+  const el = document.createElement(type === "topic" ? "button" : "div");
+  if (type === "topic") el.type = "button";
+
+  el.className = [
+    "app-landing-orbit-dive-graph-node",
+    `app-landing-orbit-dive-graph-node--${type}`,
+    `app-landing-orbit-dive-graph-node--shape-${isTile ? shape : "circle"}`
+  ].join(" ");
+  el.dataset.diveNodeId = id;
+  el.style.setProperty("--dive-x", `${x}%`);
+  el.style.setProperty("--dive-y", `${y}%`);
+  el.style.setProperty("--dive-delay", String((nodeData.sectionIndex || 0) + (nodeData.topicIndex || 0) * 0.15));
+
+  if (isTile) {
+    el.style.setProperty("--dive-w", `${w}px`);
+    el.style.setProperty("--dive-h", `${h}px`);
+  } else {
+    el.style.setProperty("--dive-size", `${size}px`);
+  }
+
+  if (type === "root") {
+    el.setAttribute("role", "treeitem");
+    el.setAttribute("aria-label", label);
+    const aura = document.createElement("span");
+    aura.className = "app-landing-orbit-dive-graph-aura";
+    aura.setAttribute("aria-hidden", "true");
+    const body = document.createElement("span");
+    body.className = "app-landing-orbit-dive-node-body is-circle";
+    appendOrbitDivePreviewMount(body, {
+      previewUrl: getRegistryAgentPreviewUrl(agent),
+      emoji: resolveAwnEmoji(agent),
+      nodePath: "_registration.md",
+      iconKind: "agent-root"
+    });
+    appendOrbitDiveNodeLabel(el, label, "root");
+    el.append(aura, body);
+    return el;
+  }
+
+  if (type === "section") {
+    el.setAttribute("role", "group");
+    el.setAttribute("aria-label", label);
+    if (isTile) {
+      el.appendChild(buildOrbitDiveTileNode(nodeData, { folderPath }));
+    } else {
+      const body = document.createElement("span");
+      body.className = "app-landing-orbit-dive-node-body is-circle is-section";
+      const ring = document.createElement("span");
+      ring.className = "app-landing-orbit-dive-graph-ring";
+      ring.setAttribute("aria-hidden", "true");
+      const core = document.createElement("span");
+      core.className = "app-landing-orbit-dive-graph-section-core";
+      mountOrbitDiveOrbContent(core, {
+        nodePath: folderPath || `${label}/index.md`,
+        iconKind: "folder"
+      });
+      body.append(ring, core);
+      appendOrbitDiveNodeLabel(el, label, "section");
+      el.append(body);
+    }
+    el.addEventListener("mouseenter", () => highlightOrbitDiveNode(id, true));
+    el.addEventListener("mouseleave", () => highlightOrbitDiveNode(id, false));
+    return el;
+  }
+
+  el.setAttribute("role", "treeitem");
+  el.title = focusItem?.nodePath || label;
+  el.setAttribute("aria-label", label);
+
+  if (isTile) {
+    el.appendChild(buildOrbitDiveTileNode(nodeData, { agent, focusItem, isTopic: true }));
+    if (isFocusItemActive(focusItem)) el.classList.add("is-active");
+  } else {
+    const halo = document.createElement("span");
+    halo.className = "app-landing-orbit-dive-graph-halo";
+    halo.setAttribute("aria-hidden", "true");
+    const body = document.createElement("span");
+    body.className = "app-landing-orbit-dive-node-body is-circle is-topic";
+    appendOrbitDivePreviewMount(body, {
+      previewUrl: resolveFocusPreviewUrl(focusItem?.nodePreviewUrl, agent.id),
+      emoji: resolveAwnEmoji(focusItem),
+      nodePath: focusItem?.nodePath || "topic.md"
+    });
+    appendOrbitDiveNodeLabel(el, label, "topic");
+    if (isFocusItemActive(focusItem)) el.classList.add("is-active");
+    el.append(halo, body);
+  }
+
+  el.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void openFocusItem({ ...focusItem, agentId: agent.id, agentName: agent.name || agent.id });
+  });
+  el.addEventListener("mouseenter", () => highlightOrbitDiveNode(id, true));
+  el.addEventListener("mouseleave", () => highlightOrbitDiveNode(id, false));
+  return el;
+}
+
+function highlightOrbitDiveNode(nodeId, active) {
+  if (!nodeId || !appLandingOrbitDiveTreeNode) return;
+  const related = new Set([nodeId]);
+  const node = landingOrbitDiveGraphNodes.find((entry) => entry.id === nodeId);
+  if (node?.parentId) related.add(node.parentId);
+  if (node?.type === "section") {
+    for (const child of landingOrbitDiveGraphNodes) {
+      if (child.parentId === nodeId) related.add(child.id);
+    }
+  }
+  for (const child of landingOrbitDiveGraphNodes) {
+    if (child.parentId === nodeId) related.add(child.id);
+  }
+
+  for (const el of appLandingOrbitDiveTreeNode.querySelectorAll("[data-dive-node-id]")) {
+    const match = related.has(el.dataset.diveNodeId);
+    el.classList.toggle("is-highlighted", active && match);
+    el.classList.toggle("is-dimmed", active && !match);
+  }
+
+  for (const link of appLandingOrbitDiveLinksNode?.querySelectorAll("[data-dive-link]") || []) {
+    const match = related.has(link.dataset.diveFrom) && related.has(link.dataset.diveTo);
+    link.classList.toggle("is-highlighted", active && match);
+    link.classList.toggle("is-dimmed", active && !match);
+  }
+}
+
+function renderOrbitAgentDive(agentId) {
+  if (!appLandingOrbitDiveTreeNode || !appLandingOrbitDiveTitleNode) return;
+  const agent = getOrbitDiveAgentRecord(agentId);
+  if (!agent) return;
+
+  landingOrbitDiveGraphNodes = buildOrbitDiveGraph(agent);
+  const linksNode = appLandingOrbitDiveLinksNode;
+  appLandingOrbitDiveTreeNode.replaceChildren();
+  if (linksNode) appLandingOrbitDiveTreeNode.appendChild(linksNode);
+  appLandingOrbitDiveLinksNode?.replaceChildren();
+  appLandingOrbitDiveTitleNode.textContent = agent.name || agent.id;
+
+  const topicCount = landingOrbitDiveGraphNodes.filter((node) => node.type === "topic").length;
+  const sectionCount = landingOrbitDiveGraphNodes.filter((node) => node.type === "section").length;
+  if (appLandingOrbitDiveStatsNode) {
+    appLandingOrbitDiveStatsNode.textContent =
+      topicCount > 0
+        ? `${topicCount} тем · ${sectionCount} разделов`
+        : "Пока пусто — добавьте страницы в workspace";
+  }
+
+  if (!topicCount) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-orbit-dive-empty";
+    empty.textContent = "База знаний пуста. Добавьте разделы и страницы в workspace агента.";
+    appLandingOrbitDiveTreeNode.appendChild(empty);
+    return;
+  }
+
+  const canvasHeight = landingOrbitDiveGraphNodes[0]?.canvasHeight || 100;
+  const stageMin = Math.max(Math.round(canvasHeight * 14), 480);
+  appLandingOrbitDiveTreeNode.style.minHeight = `${stageMin}px`;
+
+  for (const nodeData of landingOrbitDiveGraphNodes) {
+    appLandingOrbitDiveTreeNode.appendChild(createOrbitDiveGraphNode(nodeData));
+  }
+
+  scheduleOrbitDiveLinksDraw();
+}
+
+function getOrbitDiveNodeCenter(node, stageRect) {
+  const anchor =
+    node.querySelector(
+      ".app-landing-orbit-dive-node-body, .app-landing-orbit-dive-tile-preview, .app-landing-orbit-dive-tile"
+    ) || node;
+  const rect = anchor.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2 - stageRect.left,
+    y: rect.top + rect.height / 2 - stageRect.top
+  };
+}
+
+function buildOrbitDiveCurvePath(x1, y1, x2, y2, bend = 0.42) {
+  const cx = x1 + (x2 - x1) * 0.08;
+  const cy = y1 + (y2 - y1) * bend;
+  const cx2 = x2 - (x2 - x1) * 0.08;
+  const cy2 = y2 - (y2 - y1) * 0.12;
+  return `M ${x1} ${y1} C ${cx} ${cy}, ${cx2} ${cy2}, ${x2} ${y2}`;
+}
+
+function buildOrbitDiveRailPath(x1, y1, x2, y2) {
+  const spread = Math.abs(x2 - x1);
+  const bend = Math.min(0.72, 0.28 + spread * 0.0015);
+  const midX = x1 + (x2 - x1) * bend;
+  return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+}
+
+function drawOrbitDiveLinks() {
+  landingOrbitDiveLinksFrame = 0;
+  if (!appLandingOrbitDiveLinksNode || !appLandingOrbitDiveTreeNode) return;
+
+  const stage = appLandingOrbitDiveTreeNode;
+  if (!stage) {
+    appLandingOrbitDiveLinksNode.replaceChildren();
+    return;
+  }
+
+  const stageRect = stage.getBoundingClientRect();
+  if (stageRect.width <= 0 || stageRect.height <= 0) return;
+
+  appLandingOrbitDiveLinksNode.setAttribute("viewBox", `0 0 ${stageRect.width} ${stageRect.height}`);
+  appLandingOrbitDiveLinksNode.replaceChildren();
+
+  const svgNs = "http://www.w3.org/2000/svg";
+  const nodeCenterById = new Map();
+
+  for (const nodeData of landingOrbitDiveGraphNodes) {
+    const el = appLandingOrbitDiveTreeNode.querySelector(`[data-dive-node-id="${nodeData.id}"]`);
+    if (!el) continue;
+    nodeCenterById.set(nodeData.id, getOrbitDiveNodeCenter(el, stageRect));
+  }
+
+  const drawLink = (fromId, toId, className, pathBuilder = buildOrbitDiveCurvePath) => {
+    const from = nodeCenterById.get(fromId);
+    const to = nodeCenterById.get(toId);
+    if (!from || !to) return;
+    const path = document.createElementNS(svgNs, "path");
+    path.setAttribute("d", pathBuilder(from.x, from.y, to.x, to.y));
+    path.classList.add("app-landing-orbit-dive-link", className);
+    path.dataset.diveFrom = fromId;
+    path.dataset.diveTo = toId;
+    appLandingOrbitDiveLinksNode.appendChild(path);
+  };
+
+  const rootId = landingOrbitDiveGraphNodes.find((node) => node.type === "root")?.id;
+
+  for (const nodeData of landingOrbitDiveGraphNodes) {
+    if (!nodeData.parentId) continue;
+    drawLink(
+      nodeData.parentId,
+      nodeData.id,
+      nodeData.type === "section" ? "is-trunk" : "is-leaf"
+    );
+  }
+
+  if (rootId) {
+    for (const section of landingOrbitDiveGraphNodes.filter((node) => node.type === "section")) {
+      drawLink(rootId, section.id, "is-mesh");
+    }
+  }
+}
+
+function scheduleOrbitDiveLinksDraw() {
+  if (landingOrbitDiveLinksFrame) cancelAnimationFrame(landingOrbitDiveLinksFrame);
+  landingOrbitDiveLinksFrame = requestAnimationFrame(() => {
+    landingOrbitDiveLinksFrame = requestAnimationFrame(drawOrbitDiveLinks);
+  });
+}
+
+function syncOrbitDiveSelection() {
+  for (const item of appLandingOrbitBubblesNode?.querySelectorAll(".app-landing-orbit-item") || []) {
+    const selected = landingOrbitDiveAgentId && item.dataset.agentId === landingOrbitDiveAgentId;
+    item.classList.toggle("is-dive-selected", Boolean(selected));
+  }
+}
+
+function syncOrbitDiveUi() {
+  const isOpen = Boolean(landingOrbitDiveAgentId);
+  appLandingOrbitNode?.classList.toggle("is-dive-open", isOpen);
+  appLandingOrbitNode?.classList.toggle("hidden", isOpen);
+  appLandingOrbitNode?.setAttribute("aria-hidden", isOpen ? "true" : "false");
+  appLandingInnerNode?.classList.toggle("is-orbit-dive-open", isOpen);
+  appLandingOrbitDiveNode?.classList.toggle("hidden", !isOpen);
+  appLandingOrbitDiveNode?.classList.toggle("is-open", isOpen);
+  appLandingOrbitDiveNode?.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+  if (!isOpen) {
+    landingOrbitDiveGraphNodes = [];
+    const linksNode = appLandingOrbitDiveLinksNode;
+    appLandingOrbitDiveTreeNode?.replaceChildren();
+    if (linksNode && appLandingOrbitDiveTreeNode) appLandingOrbitDiveTreeNode.appendChild(linksNode);
+    appLandingOrbitDiveLinksNode?.replaceChildren();
+    if (appLandingOrbitDiveTitleNode) appLandingOrbitDiveTitleNode.textContent = "";
+    if (appLandingOrbitDiveStatsNode) appLandingOrbitDiveStatsNode.textContent = "";
+    if (appLandingOrbitDiveTreeNode) appLandingOrbitDiveTreeNode.style.removeProperty("min-height");
+  }
+
+  syncOrbitDiveSelection();
+  if (isOpen) {
+    clearOrbitAgentFocusDisplay();
+    renderOrbitAgentDive(landingOrbitDiveAgentId);
+  }
+}
+
+function openOrbitAgentDive(agentId) {
+  const agent = getOrbitDiveAgentRecord(agentId);
+  if (!agent || !isAgentRegistryActive(agent)) {
+    showToast("Агент выключен — включите в реестре (⚙)", "error");
+    return;
+  }
+  landingOrbitDiveAgentId = agent.id;
+  syncOrbitDiveUi();
+  appLandingOrbitDiveBackBtn?.focus({ preventScroll: true });
+
+  if (!menuCacheByAgent.has(agent.id)) {
+    void fetch(buildApiUrl("/api/menu", { maxDepth: String(ORBIT_DIVE_MENU_DEPTH + 1) }, agent.id))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((menu) => {
+        if (!menu || landingOrbitDiveAgentId !== agent.id) return;
+        menuCacheByAgent.set(agent.id, menu);
+        renderOrbitAgentDive(agent.id);
+      })
+      .catch(() => {});
+  }
+}
+
+function closeOrbitAgentDive() {
+  landingOrbitDiveAgentId = null;
+  syncOrbitDiveUi();
+}
+
+function isOrbitAgentDiveOpen() {
+  return Boolean(landingOrbitDiveAgentId);
 }
 
 const ORBIT_ATTENTION_PALETTE = [
@@ -9669,6 +10370,7 @@ async function switchActiveAgent(nextAgentId) {
     updateDocumentTitle();
     updateBreadcrumbsForActiveMode();
     void loadAppFooterIdeasPreview();
+    void refreshMenuGoogleDriveStats(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -49241,6 +49943,8 @@ function appendNavBookTocEntryMarkers(link, item, nodePath, handlers = {}) {
   if (icon) link.appendChild(icon);
   if (status) link.appendChild(status);
   if (preview) link.appendChild(preview);
+  const gdriveBadge = createGoogleDriveSyncedBadge(item);
+  if (gdriveBadge) link.appendChild(gdriveBadge);
 }
 
 function appendNavigationItemPreviewThumb(
@@ -49705,7 +50409,9 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
         displayName,
         size: item.size ?? null,
         ext: item.ext || "",
-        status: resolveNavigationItemStatus(item)
+        status: resolveNavigationItemStatus(item),
+        gdriveSynced: Boolean(item.gdriveSynced),
+        gdriveBlob: String(item.gdriveBlob || "")
       });
       for (const ancestor of collectNavigationFolderAncestors(path)) {
         addMemorySectionFolderPath(folderPaths, ancestor);
@@ -54025,6 +54731,15 @@ function createEntryOverviewMediaAssetPanel(
   const main = document.createElement("div");
   main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
 
+  const manifestPath = getActiveNodeApiPath() || context.relPath || activePath;
+  main.appendChild(
+    createGoogleDriveSyncBar({
+      scope: "file",
+      manifestPath,
+      filePath: context.relativePath
+    })
+  );
+
   const kindBadge = document.createElement("span");
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
   kindBadge.textContent = `${getEntryOverviewMediaAssetKindIcon(assetKind)} ${getEntryOverviewMediaAssetKindLabel(assetKind)}`;
@@ -54589,7 +55304,7 @@ async function renderEntryOverview() {
           showHeroInstruction: false,
           showUnread: showHeroUnread,
           onEditClick: () => openEntryOverviewEdit(context),
-          entryOverviewNav
+          entryOverviewNav,
         });
   hubMain.appendChild(hero);
   if (context.entryKind !== "awn.media.asset" && !isBundleEntryOverview) {
@@ -55659,6 +56374,8 @@ function createNavigationMediaGridCard(item, nodePath, onActivate) {
   img.src = resolveNavigationMediaGridImageUrl(item.path, nodePath);
   attachFolderBrowseImageFallback(img);
   imgWrap.appendChild(img);
+  const gdriveBadge = createGoogleDriveSyncedBadge(item, { size: "md" });
+  if (gdriveBadge) imgWrap.appendChild(gdriveBadge);
   open.appendChild(imgWrap);
 
   const footerItem = {
@@ -55726,6 +56443,8 @@ function createNavigationMediaImageThumb(item, nodePath) {
     btn.appendChild(fallback);
   });
   btn.appendChild(img);
+  const gdriveBadge = createGoogleDriveSyncedBadge(item, { size: "md" });
+  if (gdriveBadge) btn.appendChild(gdriveBadge);
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -63062,7 +63781,7 @@ async function renderNodeNavigation() {
     slugIssue: getNodeManifestSlugIssue(nodePath),
     showUnread: showHeroUnread,
     onEditClick: openDescriptionFromOverview,
-    entryOverviewNav: topicSiblingNav
+    entryOverviewNav: topicSiblingNav,
   });
   hubMain.appendChild(hero);
 
@@ -79199,6 +79918,290 @@ function setupMenuStaticFooterGroup() {
       // ignore storage errors
     }
   });
+  void refreshMenuGoogleDriveStats();
+}
+
+let menuGoogleDriveStatsLoadSeq = 0;
+
+function formatRussianFileCount(count) {
+  const n = Number(count) || 0;
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs >= 11 && abs <= 14) return `${n} файлов`;
+  if (last === 1) return `${n} файл`;
+  if (last >= 2 && last <= 4) return `${n} файла`;
+  return `${n} файлов`;
+}
+
+function formatGoogleDriveStorageSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function createGoogleDriveIconSvg() {
+  const wrap = document.createElement("span");
+  wrap.className = "node-gdrive-sync-btn-icon";
+  wrap.setAttribute("aria-hidden", "true");
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+
+  const paths = [
+    { d: "M7.71 3.5 2.5 12.5h4.79L12.5 3.5H7.71z", fill: "#0066DA" },
+    { d: "M16.29 3.5H12.5l4.79 9H21.5l-5.21-9z", fill: "#00AC47" },
+    { d: "M2.5 12.5 7.71 21.5h9.58L21.5 12.5H2.5z", fill: "#FFBA00" }
+  ];
+  for (const spec of paths) {
+    const pathNode = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    pathNode.setAttribute("d", spec.d);
+    pathNode.setAttribute("fill", spec.fill);
+    svg.appendChild(pathNode);
+  }
+
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function resolveGoogleDriveSyncedBadgeTitle(item) {
+  const blob = String(item?.gdriveBlob || "").trim();
+  return blob
+    ? `На Google Диске · awn-google-drive/${blob}`
+    : "На Google Диске · awn-google-drive";
+}
+
+function createGoogleDriveSyncedBadge(item, { size = "sm" } = {}) {
+  if (!item?.gdriveSynced) return null;
+  const badge = document.createElement("span");
+  badge.className = `nav-gdrive-sync-badge nav-gdrive-sync-badge--${size}`;
+  const title = resolveGoogleDriveSyncedBadgeTitle(item);
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  badge.appendChild(createGoogleDriveIconSvg());
+  return badge;
+}
+
+function resolveGoogleDriveSyncBarLabel(status) {
+  if (!status) return "Google Диск";
+  if (!status.exists) return "Файл не найден";
+  return status.synced ? "Вернуть с Google Диск" : "Отправить на Google Диск";
+}
+
+async function fetchGoogleDriveSyncStatus({ scope = "file", manifestPath, filePath = null } = {}) {
+  const params = { path: manifestPath, scope };
+  if (scope === "file" && filePath) params.file = filePath;
+  const response = await fetch(buildApiUrl("/api/gdrive/status", params));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function toggleGoogleDriveSyncRequest({ scope = "file", manifestPath, filePath = null } = {}) {
+  const response = await fetch(buildApiUrl("/api/gdrive/toggle"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: manifestPath,
+      scope,
+      file: scope === "file" ? filePath : undefined
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function refreshGoogleDriveSyncButton(button, config = {}) {
+  if (!button) return;
+  button.disabled = true;
+  button.classList.add("is-loading");
+  try {
+    const status = await fetchGoogleDriveSyncStatus(config);
+    button.dataset.gdriveSynced = status.synced ? "1" : "0";
+    button.classList.toggle("is-synced", Boolean(status.synced));
+    const label = resolveGoogleDriveSyncBarLabel(status);
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    const labelNode = button.querySelector(".node-gdrive-sync-btn-label");
+    if (labelNode) labelNode.textContent = label;
+    button.disabled = !status.exists;
+  } catch (error) {
+    button.disabled = true;
+    button.title = String(error.message || "Ошибка Google Диск");
+    const labelNode = button.querySelector(".node-gdrive-sync-btn-label");
+    if (labelNode) labelNode.textContent = "Google Диск — ошибка";
+  } finally {
+    button.classList.remove("is-loading");
+  }
+}
+
+async function handleGoogleDriveSyncToggle(button, config = {}) {
+  if (!button || button.disabled || button.classList.contains("is-loading")) return;
+  button.disabled = true;
+  button.classList.add("is-loading");
+  try {
+    const result = await toggleGoogleDriveSyncRequest(config);
+    showToast(
+      result.synced ? "Отправлено на Google Диск" : "Возвращено с Google Диск",
+      "success"
+    );
+    void refreshMenuGoogleDriveStats();
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await renderEntryOverview();
+    } else {
+      await refreshMediaListIfVisible();
+      rerenderMediaListViewBody();
+    }
+    await refreshGoogleDriveSyncButton(button, config);
+  } catch (error) {
+    showToast(`Google Диск: ${error.message}`, "error");
+    await refreshGoogleDriveSyncButton(button, config);
+  } finally {
+    button.classList.remove("is-loading");
+  }
+}
+
+function createGoogleDriveSyncBar(config = {}) {
+  const bar = document.createElement("div");
+  bar.className = "node-gdrive-sync-bar";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "node-gdrive-sync-bar-btn";
+  button.append(createGoogleDriveIconSvg());
+
+  const labelNode = document.createElement("span");
+  labelNode.className = "node-gdrive-sync-btn-label";
+  labelNode.textContent = "…";
+  button.appendChild(labelNode);
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleGoogleDriveSyncToggle(button, config);
+  });
+
+  bar.appendChild(button);
+  void refreshGoogleDriveSyncButton(button, config);
+  return bar;
+}
+
+function renderMenuGoogleDriveStats(payload = null, { loading = false, error = false } = {}) {
+  if (!menuGoogleDriveStatsNode) return;
+
+  if (loading) {
+    menuGoogleDriveStatsNode.textContent = "Загрузка…";
+    menuGoogleDriveStatsNode.classList.remove("is-empty", "is-error");
+    return;
+  }
+
+  if (error || !payload) {
+    menuGoogleDriveStatsNode.textContent = "Не удалось прочитать";
+    menuGoogleDriveStatsNode.classList.add("is-error");
+    menuGoogleDriveStatsNode.classList.remove("is-empty");
+    return;
+  }
+
+  menuGoogleDriveStatsNode.classList.remove("is-error");
+  if (!payload.exists) {
+    menuGoogleDriveStatsNode.textContent = "Папка не создана · 0 файлов";
+    menuGoogleDriveStatsNode.classList.add("is-empty");
+    return;
+  }
+
+  const count = Number(payload.fileCount) || 0;
+  const sizeLabel = formatGoogleDriveStorageSize(payload.totalBytes);
+  menuGoogleDriveStatsNode.textContent =
+    count > 0 ? `${formatRussianFileCount(count)} · ${sizeLabel}` : "Папка пуста · 0 файлов";
+  menuGoogleDriveStatsNode.classList.toggle("is-empty", count === 0);
+}
+
+async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
+  if (!menuGoogleDriveStatsNode) return;
+  if (!agentId) {
+    renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0 });
+    return;
+  }
+
+  const seq = ++menuGoogleDriveStatsLoadSeq;
+  renderMenuGoogleDriveStats(null, { loading: true });
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/google-drive-stats", {}, agentId));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuGoogleDriveStatsLoadSeq) return;
+    renderMenuGoogleDriveStats(data);
+  } catch {
+    if (seq !== menuGoogleDriveStatsLoadSeq) return;
+    renderMenuGoogleDriveStats(null, { error: true });
+  }
+}
+
+async function repairMenuGoogleDriveSymlinks(agentId = activeAgentId) {
+  if (!menuGoogleDriveRepairBtn || !agentId) return;
+  if (menuGoogleDriveRepairBtn.disabled) return;
+
+  menuGoogleDriveRepairBtn.disabled = true;
+  menuGoogleDriveRepairBtn.classList.add("is-loading");
+  const previousLabel = menuGoogleDriveRepairBtn.textContent;
+  menuGoogleDriveRepairBtn.textContent = "Синхронизация…";
+
+  try {
+    const response = await fetch(buildApiUrl("/api/gdrive/repair-links", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
+    }
+    const result = await response.json();
+    const repaired = Number(result.repaired) || 0;
+    const restored = Number(result.restoredFromRegistry) || 0;
+    const fixed = repaired + restored;
+    const missing = Number(result.blobMissing) || 0;
+    if (fixed > 0) {
+      showToast(`Ссылки обновлены: ${fixed}`, "success");
+    } else if (missing > 0) {
+      showToast(`Битых blob: ${missing}`, "warning");
+    } else {
+      showToast("Ссылки уже актуальны", "success");
+    }
+    void refreshMenuGoogleDriveStats(agentId);
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await renderEntryOverview();
+    } else if (activeContentMode === NODE_NAVIGATION_MODE || activeContentMode === NODE_OVERVIEW_MODE) {
+      if (activeContentMode === NODE_NAVIGATION_MODE) await renderNodeNavigation();
+      else await renderNodeOverview();
+    } else if (activeContentMode === "media") {
+      await refreshMediaListIfVisible();
+      rerenderMediaListViewBody();
+    }
+  } catch (error) {
+    showToast(`Google Диск: ${error.message}`, "error");
+  } finally {
+    menuGoogleDriveRepairBtn.disabled = false;
+    menuGoogleDriveRepairBtn.classList.remove("is-loading");
+    menuGoogleDriveRepairBtn.textContent = previousLabel;
+  }
+}
+
+function setupMenuGoogleDriveRepairButton() {
+  if (!menuGoogleDriveRepairBtn) return;
+  menuGoogleDriveRepairBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void repairMenuGoogleDriveSymlinks();
+  });
 }
 
 function setupAppFooterIdeasPopover() {
@@ -80695,6 +81698,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupAppFooterToggle();
 setupMenuStaticFooterGroup();
+setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();
 setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
@@ -81855,6 +82859,21 @@ document.addEventListener("click", (event) => {
 
 appLandingOrbitTwigsNode?.addEventListener("mouseenter", cancelOrbitAgentFocusHide);
 appLandingOrbitTwigsNode?.addEventListener("mouseleave", scheduleOrbitAgentFocusHide);
+
+appLandingOrbitDiveBackBtn?.addEventListener("click", closeOrbitAgentDive);
+appLandingOrbitDiveOpenBtn?.addEventListener("click", () => {
+  if (!landingOrbitDiveAgentId) return;
+  selectAgentOption(landingOrbitDiveAgentId);
+});
+window.addEventListener("resize", () => {
+  if (landingOrbitDiveAgentId) scheduleOrbitDiveLinksDraw();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !landingOrbitDiveAgentId) return;
+  if (getLandingAgentsView() !== "orbit") return;
+  event.preventDefault();
+  closeOrbitAgentDive();
+});
 
 appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("grid"));
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
