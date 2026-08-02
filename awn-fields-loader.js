@@ -9,6 +9,13 @@ const {
   loadFieldDefFromCatalog
 } = require("./type-catalog-loader");
 const {
+  loadFieldsFromAwnData,
+  loadFieldGroupsMetaFromAwnData,
+  buildFieldGroups,
+  loadFieldDefFromAwnData,
+  editingFieldsStoreHasRecords
+} = require("./awn-data-fields-bridge");
+const {
   resolveFieldTypeId,
   isEnumFieldTypeId,
   isArrayFieldTypeId
@@ -116,6 +123,23 @@ function loadFieldsFromComponents(projectRoot, agentRoot) {
 
 function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
   const { projectRoot: root, agentRoot: agent } = resolveFieldsContext(agentRoot, projectRoot);
+
+  if (editingFieldsStoreHasRecords(root)) {
+    const fieldRegistry = loadFieldsFromAwnData(root) || {};
+    const meta = loadFieldGroupsMetaFromAwnData(root) || { groupOrder: [], groupNames: {} };
+    const fieldDefSchema = loadFieldDefFromAwnData(root) || loadFieldDefFromCatalog(root, agent);
+    if (Object.keys(fieldRegistry).length) {
+      if (!fieldRegistry["awn.field.string"] && !fieldRegistry["awn.string"]) {
+        fieldRegistry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
+      }
+      return {
+        fieldRegistry,
+        fieldDefSchema,
+        fieldGroups: buildFieldGroups(fieldRegistry, meta)
+      };
+    }
+  }
+
   let registry = loadFieldTypesFromCatalog(root, agent);
   let fieldDefSchema = loadFieldDefFromCatalog(root, agent);
 
@@ -131,7 +155,7 @@ function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
     };
   }
 
-  if (!registry["awn.string"]) {
+  if (!registry["awn.string"] && !registry["awn.field.string"]) {
     registry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
   }
 

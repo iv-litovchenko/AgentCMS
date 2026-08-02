@@ -7,4 +7,5 @@ awn-description: Каталог типов полей frontmatter — types/*.ym
 
 # fields
 
-Каждый тип — один yaml в `awn-storage/configuration/types/`. `status: active` → поле в runtime.
+Типы полей frontmatter — накопитель `awn-data/editing-fields/fields/` (канон).  
+Legacy YAML: `awn-system/types/fields/*.yml` — fallback через type-catalog.

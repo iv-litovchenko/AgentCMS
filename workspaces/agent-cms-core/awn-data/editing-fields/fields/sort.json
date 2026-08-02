@@ -1,0 +1,22 @@
+[
+  "array",
+  "boolean",
+  "color",
+  "date",
+  "datetime",
+  "email",
+  "enum",
+  "file",
+  "image",
+  "integer",
+  "json",
+  "link",
+  "markdown",
+  "number",
+  "relation",
+  "slug",
+  "string",
+  "tags",
+  "text",
+  "url"
+]
