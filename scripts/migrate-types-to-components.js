@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Одноразовая миграция: components/types/*.yml → components/{group}/{name}/schema.yml + manifest.md
- * Frame-типы удалены — источник правды: types/ и awn-system/types/
+ * Deprecated: components/fields и components/frames удалены.
+ * Одноразовая миграция components/types/ → components/{group}/ (только blocks, если остались).
  */
 const fs = require("fs");
 const path = require("path");
@@ -160,9 +160,7 @@ function main() {
     return;
   }
   migrateBlocks();
-  migrateFields();
-  migrateFrames();
-  console.log("Migration complete. Review workspaces/agent-cms-core/components/ then remove components/types/");
+  console.log("Migration complete (blocks only). Fields/frames: use types/ and awn-system/types/.");
 }
 
 main();

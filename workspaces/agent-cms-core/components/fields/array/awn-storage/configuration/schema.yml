@@ -1,8 +1,0 @@
-id: awn.array
-name: Несколько значений (из списка)
-kind: field
-storage: array
-mdbase: list
-widget: checkbox
-description: Несколько значений из списка — checkbox или select multiple (настройка widget)
-settings: [description, hint, required, locked, widget, default, enum]

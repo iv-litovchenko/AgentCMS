@@ -1,7 +1,0 @@
-version: 1
-source: agent-cms-core/components
-marker: manifest.md
-marker-field: "type: component"
-active:
-  - fields/_base
-  - fields/string

@@ -2,10 +2,9 @@
 /**
  * Новый топик-компонент в agent-cms-core/components
  *
- *   node scripts/scaffold-component.js block callout
- *   node scripts/scaffold-component.js field url
+ *   node scripts/scaffold-component.js agent my-agent
  *
- * Типы страниц/конента — в types/<domain>/ (не components/frames).
+ * Поля — types/fields/; страницы — types/pages/; блоки — awn-data/markdown-blocks/.
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");
@@ -15,7 +14,6 @@ const [, , kind, slug] = process.argv;
 
 const KIND_FOLDER = {
   block: "markdown-blocks",
-  field: "fields",
   agent: "agents",
   taxonomy: "taxonomies"
 };
@@ -24,15 +22,22 @@ if (!kind || !slug || !KIND_FOLDER[kind]) {
   console.error(`Usage: node scripts/scaffold-component.js <kind> <slug>
 
 Kinds: ${Object.keys(KIND_FOLDER).join(", ")}
-Example: node scripts/scaffold-component.js field url
+Example: node scripts/scaffold-component.js agent my-agent
 
-Page/content types: edit types/<domain>/ in agent-cms-core (not components/frames).`);
+Fields: types/fields/awn-storage/configuration/types/<slug>.yml`);
   process.exit(1);
 }
 
 if (kind === "block") {
   console.error(
     "Markdown-блоки — в awn-data/markdown-blocks/blocks/{slug}.md (MCP create_data_record или вручную)."
+  );
+  process.exit(1);
+}
+
+if (kind === "field") {
+  console.error(
+    "Поля — types/fields/awn-storage/configuration/types/<slug>.yml (и awn-system/types/fields/ для агента)."
   );
   process.exit(1);
 }
@@ -48,14 +53,7 @@ if (fs.existsSync(targetDir)) {
   process.exit(1);
 }
 
-const runtimeId =
-  kind === "block"
-    ? `awn.block.${slug}`
-    : kind === "field"
-      ? `awn.${slug}`
-      : kind === "frame"
-        ? `awn.${slug}`
-        : relPath;
+const runtimeId = kind === "block" ? `awn.block.${slug}` : relPath;
 
 const title = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const now = new Date().toISOString();
@@ -96,16 +94,6 @@ template: |
   ## ${title}
 
   Текст блока.
-`;
-} else if (kind === "field") {
-  schema = `id: ${runtimeId}
-kind: field
-extends: awn.field-def
-widget: input
-storage: string
-mdbase: string
-description: ${title}
-settings: [description, hint, required, default]
 `;
 }
 

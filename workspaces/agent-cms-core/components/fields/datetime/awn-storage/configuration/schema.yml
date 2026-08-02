@@ -1,9 +1,0 @@
-id: awn.datetime
-name: Дата и время
-kind: field
-storage: string
-mdbase: datetime
-widget: datetime
-format: ISO-8601
-description: Дата и время (ISO 8601)
-settings: [description, hint, required, locked, format, default]

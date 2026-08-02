@@ -1,8 +1,0 @@
-id: awn.file
-name: Файл(ы)
-kind: field
-storage: string
-mdbase: file
-widget: file
-description: Ссылка на файл или список файлов в памяти темы
-settings: [description, hint, required, locked, multiple, accept, upload, insertInText, scope, default]

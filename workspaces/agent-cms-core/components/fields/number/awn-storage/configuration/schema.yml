@@ -1,8 +1,0 @@
-id: awn.number
-name: Число
-kind: field
-storage: number
-mdbase: number
-widget: number
-description: Число с дробной частью
-settings: [description, hint, required, locked, format, default]
