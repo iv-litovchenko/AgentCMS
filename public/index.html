@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.591" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.592" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -98,6 +98,30 @@
           Face ID / Touch ID
         </button>
         <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
+      </div>
+    </div>
+
+    <div id="app-connection-lost" class="app-connection-lost hidden" role="alert" aria-live="assertive">
+      <div class="app-connection-lost-inner">
+        <span class="app-connection-lost-icon" aria-hidden="true">📡</span>
+        <div class="app-connection-lost-copy">
+          <strong class="app-connection-lost-title">Соединение потеряно</strong>
+          <span id="app-connection-lost-detail" class="app-connection-lost-detail">
+            Сервер не отвечает. Проверьте, что <code>npm start</code> запущен.
+          </span>
+        </div>
+        <div class="app-connection-lost-actions">
+          <button id="app-connection-lost-retry" class="app-connection-lost-retry" type="button">Повторить</button>
+          <button
+            id="app-connection-lost-dismiss"
+            class="app-connection-lost-dismiss"
+            type="button"
+            aria-label="Скрыть предупреждение"
+            title="Скрыть"
+          >
+            ×
+          </button>
+        </div>
       </div>
     </div>
 
@@ -332,6 +356,13 @@
                   </select>
                   </div>
                   <button
+                    id="agent-git-btn"
+                    class="agents-manage-btn agent-git-btn"
+                    type="button"
+                    title="Git-репозиторий — изменения в workspace"
+                    aria-label="Git-репозиторий"
+                  ></button>
+                  <button
                     id="agent-awn-types-btn"
                     class="agents-manage-btn agent-awn-types-btn"
                     type="button"
@@ -339,11 +370,11 @@
                     aria-label="Типы YAML"
                   ></button>
                   <button
-                    id="agent-git-btn"
-                    class="agents-manage-btn agent-git-btn"
+                    id="agent-registry-btn"
+                    class="agents-manage-btn agent-registry-btn"
                     type="button"
-                    title="Git-репозиторий — изменения в workspace"
-                    aria-label="Git-репозиторий"
+                    title="Реестр — always, cron и heartbeat"
+                    aria-label="Реестр"
                   ></button>
                   <button
                     id="agent-large-files-btn"
@@ -358,13 +389,6 @@
                     type="button"
                     title="Битые ссылки — проверка ссылок в YAML, markdown и content.csv"
                     aria-label="Битые ссылки"
-                  ></button>
-                  <button
-                    id="agent-registry-btn"
-                    class="agents-manage-btn agent-registry-btn"
-                    type="button"
-                    title="Реестр тем — загрузка, cron и heartbeat"
-                    aria-label="Реестр тем"
                   ></button>
                 </div>
               </div>
@@ -1297,69 +1321,98 @@
         </div>
       </main>
 
-      <main id="agent-large-files-pane" class="agent-canvas-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
-        <div class="agent-canvas-head agent-large-files-head">
+      <main id="agent-large-files-pane" class="agent-canvas-pane agent-tool-pane agent-large-files-pane hidden" aria-label="Крупные файлы workspace">
+        <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Крупные файлы</h2>
             <p class="agent-canvas-lead">
-              Все файлы в workspace, размер которых превышает 45 МБ, с путями относительно корня агента.
+              Файлы больше 45 МБ — с путями относительно корня агента.
             </p>
           </div>
-          <div class="agent-canvas-head-aside agent-large-files-head-actions">
-            <div id="agent-large-files-stats" class="agent-workspace-stats agent-large-files-stats" aria-live="polite"></div>
-            <button id="agent-large-files-refresh-btn" class="agent-workspace-refresh-btn agent-large-files-refresh-btn" type="button" title="Повторить сканирование">
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-large-files-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Повторить сканирование">
               Обновить
             </button>
           </div>
         </div>
-        <div id="agent-large-files-content" class="agent-large-files-content"></div>
+        <div id="agent-large-files-info" class="agent-tool-info">
+          <p id="agent-large-files-meta" class="agent-tool-info-desc">Порог: 45 МБ · сортировка по размеру (убывание)</p>
+          <div id="agent-large-files-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-large-files-content" class="agent-tool-body agent-large-files-content"></div>
       </main>
 
-      <main id="agent-broken-links-pane" class="agent-canvas-pane agent-broken-links-pane hidden" aria-label="Битые ссылки workspace">
-        <div class="agent-canvas-head agent-broken-links-head">
+      <main id="agent-broken-links-pane" class="agent-canvas-pane agent-tool-pane agent-broken-links-pane hidden" aria-label="Битые ссылки workspace">
+        <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Битые ссылки</h2>
             <p class="agent-canvas-lead">
-              Проверка ссылок на документы и файлы в YAML-шапке, теле markdown и <code>content.csv</code>.
+              Ссылки в YAML-шапке, markdown и <code>content.csv</code>, которые не указывают на существующие файлы.
             </p>
           </div>
-          <div class="agent-canvas-head-aside agent-broken-links-head-actions">
-            <div id="agent-broken-links-stats" class="agent-workspace-stats agent-broken-links-stats" aria-live="polite"></div>
-            <button id="agent-broken-links-refresh-btn" class="agent-workspace-refresh-btn agent-broken-links-refresh-btn" type="button" title="Повторить проверку">
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-broken-links-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Повторить проверку">
               Обновить
             </button>
           </div>
         </div>
-        <div id="agent-broken-links-content" class="agent-broken-links-content"></div>
+        <div id="agent-broken-links-info" class="agent-tool-info">
+          <p id="agent-broken-links-meta" class="agent-tool-info-desc">Проверены YAML-шапки, тело .md и main.csv</p>
+          <div id="agent-broken-links-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-broken-links-content" class="agent-tool-body agent-broken-links-content"></div>
       </main>
 
-      <main id="agent-runtime-registry-pane" class="agent-canvas-pane agent-runtime-registry-pane hidden" aria-label="Реестр тем">
-        <div class="agent-canvas-head agent-runtime-registry-head">
+      <main id="agent-runtime-registry-pane" class="agent-canvas-pane agent-tool-pane agent-runtime-registry-pane hidden" aria-label="Реестр">
+        <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
-            <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Карта runtime</h2>
+            <p class="agent-canvas-eyebrow">Workspace · Агент</p>
+            <h2 class="agent-canvas-title">Реестр</h2>
             <p class="agent-canvas-lead">
-              Темы с <code>awn-runtime-cron</code> и/или <code>awn-runtime-heartbeat</code> — для синхронизации агента. Полный реестр всех тем — переключатель ниже.
+              Темы и записи, которые агент подгружает сам — при старте, по расписанию или периодически.
             </p>
           </div>
-          <div class="agent-canvas-head-aside agent-runtime-registry-head-actions">
-            <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Фильтр реестра">
-              <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="sync" role="tab" aria-selected="true">Cron / heartbeat</button>
-              <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="all" role="tab" aria-selected="false">Все темы</button>
-            </div>
-            <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats" aria-live="polite"></div>
-            <button id="agent-runtime-registry-refresh-btn" class="agent-workspace-refresh-btn agent-runtime-registry-refresh-btn" type="button" title="Обновить реестр">
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-runtime-registry-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить реестр">
               Обновить
             </button>
           </div>
         </div>
-        <div id="agent-runtime-registry-content" class="agent-runtime-registry-content"></div>
+        <div class="agent-tool-toolbar agent-runtime-registry-toolbar">
+          <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Режим реестра">
+            <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="always" role="tab" aria-selected="true">
+              <span class="agent-runtime-registry-filter-label">Всегда в контексте</span>
+              <span class="agent-runtime-registry-filter-hint">при «загрузи контекст»</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="cron" role="tab" aria-selected="false">
+              <span class="agent-runtime-registry-filter-label">По расписанию</span>
+              <span class="agent-runtime-registry-filter-hint">cron-задачи</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="heartbeat" role="tab" aria-selected="false">
+              <span class="agent-runtime-registry-filter-label">Сердцебиение</span>
+              <span class="agent-runtime-registry-filter-hint">периодический опрос</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="all" role="tab" aria-selected="false">
+              <span class="agent-runtime-registry-filter-label">Все флаги</span>
+              <span class="agent-runtime-registry-filter-hint">обзор</span>
+            </button>
+          </div>
+        </div>
+        <div id="agent-runtime-registry-mode-info" class="agent-tool-info agent-runtime-registry-mode-info" aria-live="polite">
+          <div class="agent-tool-info-copy agent-runtime-registry-mode-copy">
+            <h3 id="agent-runtime-registry-mode-title" class="agent-tool-info-title agent-runtime-registry-mode-title">Всегда в контексте</h3>
+            <p id="agent-runtime-registry-mode-desc" class="agent-tool-info-desc agent-runtime-registry-mode-desc"></p>
+            <p id="agent-runtime-registry-mode-mcp" class="agent-tool-info-mcp agent-runtime-registry-mode-mcp"></p>
+          </div>
+          <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats"></div>
+        </div>
+        <div id="agent-runtime-registry-content" class="agent-tool-body agent-runtime-registry-content"></div>
       </main>
 
-      <main id="agent-git-pane" class="agent-canvas-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
-        <div class="agent-canvas-head agent-git-head">
+      <main id="agent-git-pane" class="agent-canvas-pane agent-tool-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">
+        <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Git-репозиторий</h2>
@@ -1367,14 +1420,17 @@
               Несохранённые изменения, индекс и последние коммиты в git-репозитории workspace.
             </p>
           </div>
-          <div class="agent-canvas-head-aside agent-git-head-actions">
-            <div id="agent-git-stats" class="agent-workspace-stats agent-git-stats" aria-live="polite"></div>
-            <button id="agent-git-refresh-btn" class="agent-workspace-refresh-btn agent-git-refresh-btn" type="button" title="Обновить статус git">
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-git-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить статус git">
               Обновить
             </button>
           </div>
         </div>
-        <div id="agent-git-content" class="agent-git-content"></div>
+        <div id="agent-git-info" class="agent-tool-info">
+          <p id="agent-git-meta" class="agent-tool-info-desc">Статус рабочей копии и ветки</p>
+          <div id="agent-git-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-git-content" class="agent-tool-body agent-git-content"></div>
       </main>
 
       <main id="agent-awn-types-pane" class="agent-canvas-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
@@ -3516,6 +3572,7 @@
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=5"></script>
+    <script src="/connection-status.js?v=1"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>

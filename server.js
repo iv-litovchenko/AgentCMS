@@ -8692,26 +8692,173 @@ function matchesRuntimeFilter(row, filter) {
   return match;
 }
 
+const RUNTIME_CONTENT_SCAN_SLOTS = [
+  { folder: STORAGE_SUBFOLDER_CONTENT, slot: "main" },
+  { folder: STORAGE_SUBFOLDER_MAIN, slot: "main" },
+  { folder: STORAGE_SUBFOLDER_INBOX, slot: "inbox" },
+  { folder: STORAGE_SUBFOLDER_QUICK_NOTES, slot: "notes" },
+  { folder: STORAGE_SUBFOLDER_NOTE, slot: "note" },
+  { folder: STORAGE_SUBFOLDER_REFERENCES, slot: "references" },
+  { folder: STORAGE_SUBFOLDER_ARTEFACTS, slot: "artefacts" },
+  { folder: STORAGE_SUBFOLDER_SCRIPTS, slot: "scripts" },
+  { folder: STORAGE_SUBFOLDER_REPOSITORY, slot: "repository" }
+];
+
+function runtimeEntityHasAnyFlag(entity) {
+  return Boolean(
+    entity?.runtimeLoadAlways || entity?.runtimeCron || entity?.runtimeHeartbeat || entity?.runtimeCommands
+  );
+}
+
+function buildRuntimeEntityDisplayPath(entity) {
+  if (entity.entityKind === "content" && entity.ref) {
+    const base = entity.displayPath || entity.label || entity.manifestPath;
+    return `${base} → ${entity.slot}/${entity.ref}`;
+  }
+  return entity.displayPath || entity.label || entity.manifestPath;
+}
+
+async function readRuntimeEntityContent(entity) {
+  if (entity.entityKind === "topic") {
+    return readWorkspaceManifestContent(entity.manifestPath);
+  }
+
+  const nodeAbsolute = normalizeWorkspacePath(entity.manifestPath);
+  if (!nodeAbsolute) return { exists: false, content: null, path: entity.ref || "" };
+
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, entity.storageFolder);
+  if (!folderAbsolute) return { exists: false, content: null, path: entity.ref || "" };
+
+  const fileAbsolute = path.join(folderAbsolute, entity.ref || "");
+  const agentRoot = getAgentRoot();
+  if (!fileAbsolute.startsWith(agentRoot)) return { exists: false, content: null, path: entity.ref || "" };
+
+  try {
+    const content = await fs.readFile(fileAbsolute, "utf-8");
+    return { exists: true, content, path: entity.ref || "" };
+  } catch {
+    return { exists: false, content: null, path: entity.ref || "" };
+  }
+}
+
+async function collectAllRuntimeEntities() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  const topicEntries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
+  const entities = [];
+
+  for (const entry of topicEntries) {
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    if (!manifestPath) continue;
+
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(manifestPath));
+    } catch {
+      frontmatter = "";
+    }
+
+    const awnName = getYamlScalar(frontmatter, "awn-name");
+    const slotKey = getManifestNamedSlotKey(manifestPath);
+    const label = String(entry.label || awnName || slotKey || "").trim() || slotKey;
+    const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+    const awnType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+    const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
+
+    entities.push({
+      entityKind: "topic",
+      manifestPath,
+      slot: null,
+      ref: null,
+      storageFolder: null,
+      label,
+      displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
+      description,
+      awnType,
+      ...runtime
+    });
+
+    const nodeAbsolute = normalizeWorkspacePath(manifestPath);
+    if (!nodeAbsolute) continue;
+
+    const scannedFolders = new Set();
+    for (const { folder, slot } of RUNTIME_CONTENT_SCAN_SLOTS) {
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folder);
+      if (!folderAbsolute || scannedFolders.has(folderAbsolute)) continue;
+      scannedFolders.add(folderAbsolute);
+
+      let mdFiles = [];
+      try {
+        const stat = await fs.stat(folderAbsolute);
+        if (!stat.isDirectory()) continue;
+        mdFiles = await collectMarkdownFiles(folderAbsolute);
+      } catch {
+        continue;
+      }
+
+      for (const file of mdFiles) {
+        const ref = String(file.relativePath || "").replace(/\\/g, "/");
+        if (!ref || ref.endsWith(".sidecar.md")) continue;
+
+        let recordFrontmatter = "";
+        try {
+          const absolute = path.join(folderAbsolute, ref);
+          const raw = await fs.readFile(absolute, "utf-8");
+          const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          recordFrontmatter = split ? split[1] : "";
+        } catch {
+          recordFrontmatter = "";
+        }
+
+        const recordRuntime = extractRuntimePropsFromFrontmatter(recordFrontmatter);
+        if (!runtimeEntityHasAnyFlag(recordRuntime)) continue;
+
+        const recordName = getYamlScalar(recordFrontmatter, "awn-name") || file.name.replace(/\.md$/i, "");
+        entities.push({
+          entityKind: "content",
+          manifestPath,
+          slot,
+          ref,
+          storageFolder: folder,
+          label: String(recordName || ref).trim(),
+          displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
+          description: String(getYamlScalar(recordFrontmatter, "awn-description") || "").trim(),
+          awnType: String(getYamlScalar(recordFrontmatter, "awn-type") || "").trim(),
+          ...recordRuntime
+        });
+      }
+    }
+  }
+
+  entities.sort((a, b) =>
+    buildRuntimeEntityDisplayPath(a).localeCompare(buildRuntimeEntityDisplayPath(b), "ru")
+  );
+  return entities;
+}
+
 function countRuntimeRegistryRows(rows) {
   let sessionStartCount = 0;
   let cronCount = 0;
   let heartbeatCount = 0;
   let syncCount = 0;
+  let topicCount = 0;
+  let contentCount = 0;
 
   for (const row of rows) {
+    if (row.entityKind === "content") contentCount += 1;
+    else topicCount += 1;
     if (row.runtimeLoadAlways) sessionStartCount += 1;
     if (row.runtimeCron) cronCount += 1;
     if (row.runtimeHeartbeat) heartbeatCount += 1;
     if (row.runtimeCron || row.runtimeHeartbeat) syncCount += 1;
   }
 
-  return { sessionStartCount, cronCount, heartbeatCount, syncCount };
+  return { sessionStartCount, cronCount, heartbeatCount, syncCount, topicCount, contentCount };
 }
 
-async function buildAgentRuntimeRegistry(filter = null) {
+async function buildAgentTopicRegistry() {
   const menu = await buildAgentMenu(getAgentRoot());
   const entries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
-  const rows = [];
+  const topics = [];
 
   for (const entry of entries) {
     const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
@@ -8727,31 +8874,151 @@ async function buildAgentRuntimeRegistry(filter = null) {
     const awnName = getYamlScalar(frontmatter, "awn-name");
     const slotKey = getManifestNamedSlotKey(manifestPath);
     const label = String(entry.label || awnName || slotKey || "").trim() || slotKey;
-    const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
 
-    rows.push({
+    topics.push({
       manifestPath,
       label,
       displayPath: getManifestDisplayPathForTable(manifestPath, label, "topic"),
-      ...runtime
+      description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+      awnType: String(getYamlScalar(frontmatter, "awn-type") || "").trim()
     });
   }
 
-  rows.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
+  topics.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
 
-  const allCounts = countRuntimeRegistryRows(rows);
-  const visibleRows = filter ? rows.filter((row) => matchesRuntimeFilter(row, filter)) : rows;
+  return {
+    version: 1,
+    model: "topic-registry",
+    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_page_body или get_always_context.",
+    topics,
+    topicCount: topics.length
+  };
+}
+
+async function buildAgentAlwaysContextRegistry() {
+  const entities = await collectAllRuntimeEntities();
+  const items = [];
+
+  for (const entity of entities) {
+    if (!entity.runtimeLoadAlways) continue;
+    const file = await readRuntimeEntityContent(entity);
+    items.push({
+      entityKind: entity.entityKind,
+      manifestPath: entity.manifestPath,
+      slot: entity.slot,
+      ref: entity.ref,
+      label: entity.label,
+      displayPath: buildRuntimeEntityDisplayPath(entity),
+      description: entity.description,
+      runtimeLoadAlways: true,
+      exists: file.exists,
+      content: file.content
+    });
+  }
+
+  for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
+    const meta = await getSystemFileMeta(name);
+    if (!meta.exists) continue;
+    const absolute = await resolveExistingSystemFileAbsolute(name);
+    try {
+      const content = await fs.readFile(absolute, "utf-8");
+      items.push({
+        entityKind: "system",
+        manifestPath: null,
+        slot: null,
+        ref: name,
+        label: name,
+        displayPath: name,
+        description: "",
+        runtimeLoadAlways: true,
+        exists: true,
+        content
+      });
+    } catch {
+      // skip unreadable system file
+    }
+  }
+
+  return {
+    version: 1,
+    model: "always-context",
+    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md. Полное содержимое каждого файла.",
+    items,
+    itemCount: items.length
+  };
+}
+
+async function buildAgentCronRegistry() {
+  const entities = await collectAllRuntimeEntities();
+  const items = entities
+    .filter((entity) => entity.runtimeCron)
+    .map((entity) => ({
+      entityKind: entity.entityKind,
+      manifestPath: entity.manifestPath,
+      slot: entity.slot,
+      ref: entity.ref,
+      label: entity.label,
+      displayPath: buildRuntimeEntityDisplayPath(entity),
+      description: entity.description,
+      runtimeCron: true,
+      runtimeCronSchedule: entity.runtimeCronSchedule || ""
+    }));
+
+  return {
+    version: 1,
+    model: "cron-registry",
+    hint: "Реестр cron: темы и записи с awn-runtime-cron. Обновляй по команде «обнови расписание задач».",
+    items,
+    itemCount: items.length,
+    scheduleCount: items.filter((item) => String(item.runtimeCronSchedule || "").trim()).length
+  };
+}
+
+async function buildAgentHeartbeatRegistry() {
+  const entities = await collectAllRuntimeEntities();
+  const items = entities
+    .filter((entity) => entity.runtimeHeartbeat)
+    .map((entity) => ({
+      entityKind: entity.entityKind,
+      manifestPath: entity.manifestPath,
+      slot: entity.slot,
+      ref: entity.ref,
+      label: entity.label,
+      displayPath: buildRuntimeEntityDisplayPath(entity),
+      description: entity.description,
+      runtimeHeartbeat: true
+    }));
+
+  return {
+    version: 1,
+    model: "heartbeat-registry",
+    hint: "Реестр сердцебиения: темы и записи с awn-runtime-heartbeat. Обновляй по команде «возьми реестр сердцебиения».",
+    items,
+    itemCount: items.length
+  };
+}
+
+async function buildAgentRuntimeRegistry(filter = null) {
+  const allEntities = await collectAllRuntimeEntities();
+  const allCounts = countRuntimeRegistryRows(allEntities);
+  const visibleRows = filter ? allEntities.filter((row) => matchesRuntimeFilter(row, filter)) : allEntities;
   const visibleCounts = filter ? countRuntimeRegistryRows(visibleRows) : allCounts;
 
   return {
+    version: 2,
+    model: "runtime-registry",
     rows: visibleRows,
-    topicCount: visibleRows.length,
+    itemCount: visibleRows.length,
+    topicCount: visibleCounts.topicCount,
+    contentCount: visibleCounts.contentCount,
     sessionStartCount: visibleCounts.sessionStartCount,
     cronCount: visibleCounts.cronCount,
     heartbeatCount: visibleCounts.heartbeatCount,
     syncCount: visibleCounts.syncCount,
     filter: filter || null,
-    totalTopicCount: rows.length,
+    totalItemCount: allEntities.length,
+    totalTopicCount: allCounts.topicCount,
+    totalContentCount: allCounts.contentCount,
     totalCronCount: allCounts.cronCount,
     totalHeartbeatCount: allCounts.heartbeatCount,
     totalSyncCount: allCounts.syncCount
@@ -8809,10 +9076,13 @@ async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
     if (row.runtimeHeartbeat) syncKinds.push("heartbeat");
 
     topics.push({
+      entityKind: row.entityKind || "topic",
       manifestPath: row.manifestPath,
+      slot: row.slot || null,
+      ref: row.ref || null,
       title: row.label,
       label: row.label,
-      displayPath: row.displayPath,
+      displayPath: buildRuntimeEntityDisplayPath(row),
       areaPath: area.areaPath || null,
       areaTitle: area.areaTitle || null,
       runtimeLoadAlways: row.runtimeLoadAlways,
@@ -8853,6 +9123,10 @@ const SESSION_CONTEXT_API_MAP = {
   activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
   runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
+  topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
+  alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
+  cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
+  heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
@@ -8964,50 +9238,10 @@ async function buildAgentSessionContext() {
     });
   }
 
-  const registry = await buildAgentRuntimeRegistry();
-  const runtimeMap = await buildAgentRuntimeMap(DEFAULT_RUNTIME_SYNC_FILTER);
-  const sessionStartTopics = [];
-  for (const row of registry.rows) {
-    if (!row.runtimeLoadAlways) continue;
-    const file = await readWorkspaceManifestContent(row.manifestPath);
-    sessionStartTopics.push({
-      manifestPath: row.manifestPath,
-      label: row.label,
-      displayPath: row.displayPath,
-      runtimeLoadAlways: row.runtimeLoadAlways,
-      exists: file.exists,
-      content: file.content
-    });
-  }
-
-  const runtimeSyncTopics = runtimeMap.topics.map((topic) => ({
-    manifestPath: topic.manifestPath,
-    label: topic.label,
-    displayPath: topic.displayPath,
-    areaPath: topic.areaPath,
-    areaTitle: topic.areaTitle,
-    runtimeCron: topic.runtimeCron,
-    runtimeCronSchedule: topic.runtimeCronSchedule,
-    runtimeHeartbeat: topic.runtimeHeartbeat,
-    syncKind: topic.syncKind,
-    syncKinds: topic.syncKinds
-  }));
-
-  const systemFiles = [];
-  for (const name of ["AGENTS.md", "README.md"]) {
-    const meta = await getSystemFileMeta(name);
-    if (!meta.exists) {
-      systemFiles.push({ name, exists: false, content: null });
-      continue;
-    }
-    const absolute = await resolveExistingSystemFileAbsolute(name);
-    try {
-      const content = await fs.readFile(absolute, "utf-8");
-      systemFiles.push({ name, exists: true, content });
-    } catch {
-      systemFiles.push({ name, exists: false, content: null });
-    }
-  }
+  const [topicRegistry, alwaysContext] = await Promise.all([
+    buildAgentTopicRegistry(),
+    buildAgentAlwaysContextRegistry()
+  ]);
 
   let menuSummary = null;
   try {
@@ -9025,25 +9259,22 @@ async function buildAgentSessionContext() {
   const awnSystem = await readAgentSystemContext(agentRoot);
 
   return {
-    version: "0.0.3",
-    mcpVersion: "0.2.0",
+    version: "0.0.4",
+    mcpVersion: "0.3.0",
     agentId,
     agentRootRel,
     kitFolder,
     pathHints: SESSION_PATH_HINTS,
     apiMap: SESSION_CONTEXT_API_MAP,
-    canonicalModel: getCanonicalModelPayload(getProjectRoot(), agentRoot),
     menuSummary,
     awnSystem,
     serviceDocs,
-    sessionStartTopics,
-    sessionStartCount: sessionStartTopics.length,
-    runtimeSyncTopics,
-    runtimeSyncCount: runtimeSyncTopics.length,
-    runtimeRegistryTopicCount: registry.topicCount,
-    runtimeMapHint: runtimeMap.hint,
-    systemFiles,
-    hint: "Старт: get_session_context → awn-system/MAP.md → get_menu для контента. Синхронизация cron/heartbeat: get_runtime_map."
+    topicRegistry,
+    topicCount: topicRegistry.topicCount,
+    alwaysContext,
+    alwaysContextCount: alwaysContext.itemCount,
+    hint:
+      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: get_cron_registry. Heartbeat: get_heartbeat_registry."
   };
 }
 
@@ -14107,6 +14338,50 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read runtime registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/topic-registry") {
+    try {
+      return sendJson(res, 200, await buildAgentTopicRegistry());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/always-context") {
+    try {
+      return sendJson(res, 200, await buildAgentAlwaysContextRegistry());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read always-context registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/cron-registry") {
+    try {
+      return sendJson(res, 200, await buildAgentCronRegistry());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read cron registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/heartbeat-registry") {
+    try {
+      return sendJson(res, 200, await buildAgentHeartbeatRegistry());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read heartbeat registry",
         details: String(error.message || error)
       });
     }

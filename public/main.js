@@ -47,18 +47,24 @@ const agentAwnTypesContentNode = document.getElementById("agent-awn-types-conten
 const agentGitPaneNode = document.getElementById("agent-git-pane");
 const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
+const agentGitMetaNode = document.getElementById("agent-git-meta");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
 const agentLargeFilesPaneNode = document.getElementById("agent-large-files-pane");
 const agentLargeFilesContentNode = document.getElementById("agent-large-files-content");
 const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
+const agentLargeFilesMetaNode = document.getElementById("agent-large-files-meta");
 const agentLargeFilesRefreshBtn = document.getElementById("agent-large-files-refresh-btn");
 const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pane");
 const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
+const agentBrokenLinksMetaNode = document.getElementById("agent-broken-links-meta");
 const agentBrokenLinksRefreshBtn = document.getElementById("agent-broken-links-refresh-btn");
 const agentRuntimeRegistryPaneNode = document.getElementById("agent-runtime-registry-pane");
 const agentRuntimeRegistryContentNode = document.getElementById("agent-runtime-registry-content");
 const agentRuntimeRegistryStatsNode = document.getElementById("agent-runtime-registry-stats");
+const agentRuntimeRegistryModeTitleNode = document.getElementById("agent-runtime-registry-mode-title");
+const agentRuntimeRegistryModeDescNode = document.getElementById("agent-runtime-registry-mode-desc");
+const agentRuntimeRegistryModeMcpNode = document.getElementById("agent-runtime-registry-mode-mcp");
 const agentRuntimeRegistryRefreshBtn = document.getElementById("agent-runtime-registry-refresh-btn");
 const agentRuntimeRegistryFilterNode = document.getElementById("agent-runtime-registry-filter");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
@@ -23761,7 +23767,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
-  "runtime-registry": "Карта runtime",
+  "runtime-registry": "Реестр",
   map: "Карта",
   map2: "Структура",
   map3: "Карта 3",
@@ -60529,6 +60535,9 @@ function syncChannelLiveUpdates() {
 
   try {
     channelEventSource = new EventSource(buildApiUrl("/api/channels/stream", { scope: "agent" }));
+    channelEventSource.addEventListener("open", () => {
+      window.agentCmsConnectionStatus?.reportSuccess?.();
+    });
     channelEventSource.addEventListener("update", () => {
       if (document.hidden || !activeAgentId) return;
       void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
@@ -60542,6 +60551,7 @@ function syncChannelLiveUpdates() {
       if (!document.hidden && activeAgentId) syncChannelLiveUpdates();
     });
     channelEventSource.onerror = () => {
+      window.agentCmsConnectionStatus?.reportFailure?.();
       stopChannelEventStream();
       syncChannelAutoPoll();
       channelPollTimer = setInterval(() => {
@@ -75931,7 +75941,73 @@ function handleAgentRegistryClick(event) {
   setAgentWorkspaceView("runtime-registry");
 }
 
-let agentRuntimeRegistryFilterMode = "sync";
+let agentRuntimeRegistryFilterMode = "always";
+
+const RUNTIME_REGISTRY_MODES = {
+  always: {
+    title: "Всегда в контексте",
+    description:
+      "Файлы, которые агент читает целиком при команде «загрузи контекст». Это стартовый набор знаний — не нужно искать их вручную.",
+    mcp: "MCP: get_session_context · get_always_context",
+    emptyTitle: "Пока ничего не загружается автоматически",
+    emptyLead: "Агент не знает, какие файлы держать в памяти при старте.",
+    emptySteps: [
+      "Откройте тему или запись → свойства → включите «Всегда в контексте» (awn-runtime-load-always: true).",
+      "Или заполните AGENTS.md / SKILL.md в корне workspace — они подхватятся автоматически.",
+      "Скажите агенту: «загрузи контекст» — он получит полное содержимое этих файлов."
+    ],
+    exampleYaml: "awn-runtime-load-always: true"
+  },
+  cron: {
+    title: "По расписанию",
+    description:
+      "Задачи с cron — агент запускает их по расписанию. Скажите «обнови расписание задач», чтобы получить актуальный список.",
+    mcp: "MCP: get_cron_registry",
+    emptyTitle: "Нет задач по расписанию",
+    emptyLead: "Ни одна тема или запись не помечена для cron-запуска.",
+    emptySteps: [
+      "Откройте тему или запись в слоте (main, inbox, …).",
+      "В свойствах включите «Cron» и задайте расписание, например: */30 * * * *",
+      "Скажите агенту: «обнови расписание задач»."
+    ],
+    exampleYaml: "awn-runtime-cron: true\nawn-runtime-cron-schedule: \"*/30 * * * *\""
+  },
+  heartbeat: {
+    title: "Сердцебиение",
+    description:
+      "Темы и записи, которые агент проверяет периодически — «пульс» workspace. Скажите «возьми реестр сердцебиения».",
+    mcp: "MCP: get_heartbeat_registry",
+    emptyTitle: "Нет сердцебиения",
+    emptyLead: "Ни одна тема или запись не помечена для периодической проверки.",
+    emptySteps: [
+      "Откройте тему или запись, которую агент должен опрашивать регулярно.",
+      "В свойствах включите «Heartbeat» (awn-runtime-heartbeat: true).",
+      "Скажите агенту: «возьми реестр сердцебиения»."
+    ],
+    exampleYaml: "awn-runtime-heartbeat: true"
+  },
+  all: {
+    title: "Все runtime-флаги",
+    description:
+      "Обзор всех тем и записей с любыми awn-runtime-* флагами — always, cron, heartbeat в одной таблице.",
+    mcp: "MCP: get_runtime_registry",
+    emptyTitle: "Runtime-флаги не используются",
+    emptyLead: "В workspace пока нет тем или записей с полями awn-runtime-*.",
+    emptySteps: [
+      "На теме или записи задайте нужные флаги: load-always, cron, heartbeat.",
+      "Флаги можно включить в панели свойств страницы или записи.",
+      "После сохранения элемент появится в соответствующей вкладке реестра."
+    ],
+    exampleYaml: "awn-runtime-load-always: true\nawn-runtime-cron: true\nawn-runtime-heartbeat: true"
+  }
+};
+
+function syncRuntimeRegistryModeInfo(filterMode = agentRuntimeRegistryFilterMode) {
+  const mode = RUNTIME_REGISTRY_MODES[filterMode] || RUNTIME_REGISTRY_MODES.all;
+  if (agentRuntimeRegistryModeTitleNode) agentRuntimeRegistryModeTitleNode.textContent = mode.title;
+  if (agentRuntimeRegistryModeDescNode) agentRuntimeRegistryModeDescNode.textContent = mode.description;
+  if (agentRuntimeRegistryModeMcpNode) agentRuntimeRegistryModeMcpNode.textContent = mode.mcp;
+}
 
 function syncAgentRuntimeRegistryFilterUi() {
   if (!agentRuntimeRegistryFilterNode) return;
@@ -75941,6 +76017,7 @@ function syncAgentRuntimeRegistryFilterUi() {
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
   }
+  syncRuntimeRegistryModeInfo();
 }
 
 function initAgentRuntimeRegistryFilter() {
@@ -75949,7 +76026,7 @@ function initAgentRuntimeRegistryFilter() {
   agentRuntimeRegistryFilterNode.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-runtime-filter]");
     if (!btn) return;
-    const nextMode = btn.getAttribute("data-runtime-filter") === "all" ? "all" : "sync";
+    const nextMode = btn.getAttribute("data-runtime-filter") || "all";
     if (nextMode === agentRuntimeRegistryFilterMode) return;
     agentRuntimeRegistryFilterMode = nextMode;
     syncAgentRuntimeRegistryFilterUi();
@@ -75960,18 +76037,62 @@ function initAgentRuntimeRegistryFilter() {
   syncAgentRuntimeRegistryFilterUi();
 }
 
+function runtimeRegistryEndpointForMode(filterMode = agentRuntimeRegistryFilterMode) {
+  if (filterMode === "always") return "/api/agent/always-context";
+  if (filterMode === "cron") return "/api/agent/cron-registry";
+  if (filterMode === "heartbeat") return "/api/agent/heartbeat-registry";
+  return "/api/agent/runtime-registry";
+}
+
+function normalizeRuntimeRegistryPayload(data, filterMode = agentRuntimeRegistryFilterMode) {
+  if (filterMode === "always" || filterMode === "cron" || filterMode === "heartbeat") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    return {
+      rows: items,
+      itemCount: data.itemCount ?? items.length,
+      topicCount: items.filter((item) => item.entityKind === "topic").length,
+      contentCount: items.filter((item) => item.entityKind === "content").length,
+      sessionStartCount: filterMode === "always" ? items.length : 0,
+      cronCount: filterMode === "cron" ? items.length : 0,
+      heartbeatCount: filterMode === "heartbeat" ? items.length : 0,
+      scheduleCount: data.scheduleCount ?? 0
+    };
+  }
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  return {
+    rows,
+    itemCount: data.itemCount ?? rows.length,
+    topicCount: data.topicCount ?? rows.filter((row) => row.entityKind !== "content").length,
+    contentCount: data.contentCount ?? rows.filter((row) => row.entityKind === "content").length,
+    sessionStartCount: data.sessionStartCount ?? 0,
+    cronCount: data.cronCount ?? 0,
+    heartbeatCount: data.heartbeatCount ?? 0,
+    totalSyncCount: data.totalSyncCount ?? null
+  };
+}
+
 async function fetchAgentRuntimeRegistry(filterMode = agentRuntimeRegistryFilterMode) {
-  const params = new URLSearchParams();
-  if (filterMode === "sync") params.set("sync", "true");
-  const query = params.toString();
-  const response = await fetch(
-    buildApiUrl(`/api/agent/runtime-registry${query ? `?${query}` : ""}`)
-  );
+  const endpoint = runtimeRegistryEndpointForMode(filterMode);
+  const response = await fetch(buildApiUrl(endpoint));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `HTTP ${response.status}`);
   }
-  return response.json();
+  const data = await response.json();
+  return normalizeRuntimeRegistryPayload(data, filterMode);
+}
+
+function formatRuntimeRegistryEntityKind(entityKind) {
+  if (entityKind === "content") return "Запись";
+  if (entityKind === "system") return "Системный";
+  return "Тема";
+}
+
+function formatRuntimeRegistryContentSize(content) {
+  const len = String(content || "").length;
+  if (!len) return "пустой";
+  if (len < 1024) return `${len} симв.`;
+  return `${(len / 1024).toFixed(1)} KB`;
 }
 
 function formatRuntimeRegistryBoolCell(active, detail = "") {
@@ -75986,15 +76107,119 @@ function formatRuntimeRegistryBoolCell(active, detail = "") {
   };
 }
 
+function renderRuntimeRegistryStats(data, filterMode, rows) {
+  if (!agentRuntimeRegistryStatsNode) return;
+  agentRuntimeRegistryStatsNode.replaceChildren();
+
+  const count = data.itemCount ?? rows.length;
+  if (count === 0) {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(0, "файлов в реестре", "muted")
+    );
+    return;
+  }
+
+  if (filterMode === "always") {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(count, count === 1 ? "файл при старте" : "файлов при старте", "ok")
+    );
+    const withContent = rows.filter((row) => String(row.content || "").trim()).length;
+    if (withContent < count) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(count - withContent, "пустых", "warn")
+      );
+    }
+    return;
+  }
+
+  if (filterMode === "cron") {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(count, count === 1 ? "задача" : "задач", "ok")
+    );
+    if (data.scheduleCount != null && data.scheduleCount > 0) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(data.scheduleCount, "с расписанием", "warn")
+      );
+    }
+    return;
+  }
+
+  if (filterMode === "heartbeat") {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(count, count === 1 ? "элемент" : "элементов", "ok")
+    );
+    return;
+  }
+
+  agentRuntimeRegistryStatsNode.append(
+    createAgentWorkspaceStatElement(count, "всего", "ok"),
+    createAgentWorkspaceStatElement(data.topicCount ?? 0, "тем", "muted"),
+    createAgentWorkspaceStatElement(data.contentCount ?? 0, "записей", "muted")
+  );
+  if (data.sessionStartCount > 0) {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(data.sessionStartCount, "always", "ok")
+    );
+  }
+  if (data.cronCount > 0) {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(data.cronCount, "cron", "warn")
+    );
+  }
+  if (data.heartbeatCount > 0) {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(data.heartbeatCount, "heartbeat", "ok")
+    );
+  }
+}
+
+function renderRuntimeRegistryEmptyState(filterMode) {
+  const mode = RUNTIME_REGISTRY_MODES[filterMode] || RUNTIME_REGISTRY_MODES.all;
+  const card = document.createElement("div");
+  card.className = "agent-tool-empty-card agent-runtime-registry-empty-card";
+
+  const title = document.createElement("h4");
+  title.className = "agent-tool-empty-title agent-runtime-registry-empty-title";
+  title.textContent = mode.emptyTitle;
+
+  const lead = document.createElement("p");
+  lead.className = "agent-runtime-registry-empty-lead";
+  lead.textContent = mode.emptyLead;
+
+  const stepsTitle = document.createElement("p");
+  stepsTitle.className = "agent-runtime-registry-empty-steps-title";
+  stepsTitle.textContent = "Как добавить:";
+
+  const stepsList = document.createElement("ol");
+  stepsList.className = "agent-runtime-registry-empty-steps";
+  for (const step of mode.emptySteps) {
+    const li = document.createElement("li");
+    li.textContent = step;
+    stepsList.appendChild(li);
+  }
+
+  const example = document.createElement("pre");
+  example.className = "agent-runtime-registry-empty-example";
+  example.textContent = mode.exampleYaml;
+
+  const mcpHint = document.createElement("p");
+  mcpHint.className = "agent-runtime-registry-empty-mcp";
+  mcpHint.textContent = mode.mcp;
+
+  card.append(title, lead, stepsTitle, stepsList, example, mcpHint);
+  return card;
+}
+
 async function renderAgentRuntimeRegistryView() {
   if (!agentRuntimeRegistryContentNode) return;
 
+  syncRuntimeRegistryModeInfo();
   agentRuntimeRegistryContentNode.replaceChildren();
   if (agentRuntimeRegistryStatsNode) agentRuntimeRegistryStatsNode.replaceChildren();
 
   const loading = document.createElement("p");
-  loading.className = "agent-runtime-registry-empty";
-  loading.textContent = "Загрузка реестра…";
+  loading.className = "agent-tool-loading agent-runtime-registry-empty";
+  loading.textContent = "Загрузка…";
   agentRuntimeRegistryContentNode.appendChild(loading);
 
   try {
@@ -76002,36 +76227,12 @@ async function renderAgentRuntimeRegistryView() {
     agentRuntimeRegistryContentNode.replaceChildren();
 
     const rows = Array.isArray(data.rows) ? data.rows : [];
+    const filterMode = agentRuntimeRegistryFilterMode;
 
-    if (agentRuntimeRegistryStatsNode) {
-      const syncOnly = agentRuntimeRegistryFilterMode === "sync";
-      agentRuntimeRegistryStatsNode.append(
-        createAgentWorkspaceStatElement(data.topicCount ?? rows.length, syncOnly ? "sync-тем" : "тем"),
-        createAgentWorkspaceStatElement(data.sessionStartCount ?? 0, "при старте", "ok"),
-        createAgentWorkspaceStatElement(data.cronCount ?? 0, "cron", "warn"),
-        createAgentWorkspaceStatElement(data.heartbeatCount ?? 0, "heartbeat", "ok")
-      );
-      if (syncOnly && data.totalSyncCount != null) {
-        agentRuntimeRegistryStatsNode.append(
-          createAgentWorkspaceStatElement(data.totalSyncCount, "из всех", "muted")
-        );
-      }
-    }
+    renderRuntimeRegistryStats(data, filterMode, rows);
 
     if (!rows.length) {
-      const empty = document.createElement("div");
-      empty.className = "agent-runtime-registry-empty-state";
-      const syncOnly = agentRuntimeRegistryFilterMode === "sync";
-      empty.innerHTML = syncOnly
-        ? `
-        <p class="agent-runtime-registry-empty-title">Нет тем с cron или heartbeat</p>
-        <p class="agent-runtime-registry-empty-text">Включите <code>awn-runtime-cron</code> или <code>awn-runtime-heartbeat</code> в manifest темы — она попадёт в карту синхронизации. Или переключитесь на «Все темы».</p>
-      `
-        : `
-        <p class="agent-runtime-registry-empty-title">Тем пока нет</p>
-        <p class="agent-runtime-registry-empty-text">Создайте темы в дереве workspace — они появятся в реестре с полями <code>awn-runtime-*</code>.</p>
-      `;
-      agentRuntimeRegistryContentNode.appendChild(empty);
+      agentRuntimeRegistryContentNode.appendChild(renderRuntimeRegistryEmptyState(filterMode));
       return;
     }
 
@@ -76040,11 +76241,19 @@ async function renderAgentRuntimeRegistryView() {
 
     const table = document.createElement("table");
     table.className = "agent-table agent-runtime-registry-table";
-    table.setAttribute("aria-label", "Реестр тем workspace");
+    table.setAttribute("aria-label", "Реестр runtime workspace");
 
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    for (const label of ["Тема", "Загрузка", "Крон", "Сердцебиение"]) {
+    const columns =
+      filterMode === "always"
+        ? ["Файл", "Тип", "Размер"]
+        : filterMode === "cron"
+          ? ["Задача", "Тип", "Расписание"]
+          : filterMode === "heartbeat"
+            ? ["Элемент", "Тип", "Режим"]
+            : ["Элемент", "Тип", "Always", "Cron", "Heartbeat"];
+    for (const label of columns) {
       const th = document.createElement("th");
       th.scope = "col";
       th.textContent = label;
@@ -76059,9 +76268,16 @@ async function renderAgentRuntimeRegistryView() {
       tr.className = "agent-table-row agent-runtime-registry-row";
       tr.tabIndex = 0;
       tr.setAttribute("role", "button");
-      tr.title = "Открыть тему";
+      tr.title = row.entityKind === "content" ? "Открыть запись" : "Открыть тему";
 
-      const openRow = () => openNodeFromMenu(row.label || getLabelFromPath(row.manifestPath), row.manifestPath);
+      const openRow = () => {
+        if (row.entityKind === "system") return;
+        if (row.entityKind === "content" && row.manifestPath && row.slot && row.ref) {
+          openNodeFromMenu(row.label || row.ref, row.manifestPath);
+          return;
+        }
+        openNodeFromMenu(row.label || getLabelFromPath(row.manifestPath), row.manifestPath);
+      };
       tr.addEventListener("click", openRow);
       tr.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -76076,43 +76292,71 @@ async function renderAgentRuntimeRegistryView() {
       titleInner.className = "agent-table-title-inner";
       const titleText = document.createElement("span");
       titleText.className = "agent-table-label";
-      titleText.textContent = row.label || row.displayPath || row.manifestPath;
+      titleText.textContent = row.label || row.displayPath || row.manifestPath || row.ref;
       titleInner.appendChild(titleText);
-      if (row.displayPath && row.displayPath !== row.label) {
+      const pathHintText = row.displayPath || (row.ref ? `${row.slot}/${row.ref}` : "");
+      if (pathHintText && pathHintText !== row.label) {
         const pathHint = document.createElement("span");
         pathHint.className = "agent-runtime-registry-path";
-        pathHint.textContent = row.displayPath;
+        pathHint.textContent = pathHintText;
         titleInner.appendChild(pathHint);
       }
       titleCell.appendChild(titleInner);
 
-      const loadCell = document.createElement("td");
-      loadCell.className = "agent-table-cell";
-      const loadBadge = document.createElement("span");
-      loadBadge.className = `agent-runtime-registry-badge is-load${
-        row.runtimeLoadAlways ? " is-session-start" : ""
-      }`;
-      loadBadge.textContent = row.runtimeLoadLabel || "По запросу";
-      loadCell.appendChild(loadBadge);
+      const kindCell = document.createElement("td");
+      kindCell.className = "agent-table-cell";
+      kindCell.textContent = formatRuntimeRegistryEntityKind(row.entityKind || "topic");
 
-      const cronCell = document.createElement("td");
-      cronCell.className = "agent-table-cell agent-table-cell--mono";
-      const cronInfo = formatRuntimeRegistryBoolCell(row.runtimeCron, row.runtimeCronSchedule);
-      const cronBadge = document.createElement("span");
-      cronBadge.className = `agent-runtime-registry-badge is-bool is-${cronInfo.tone}`;
-      if (cronInfo.title) cronBadge.title = cronInfo.title;
-      cronBadge.textContent = cronInfo.text;
-      cronCell.appendChild(cronBadge);
+      if (filterMode === "always") {
+        const sizeCell = document.createElement("td");
+        sizeCell.className = "agent-table-cell agent-table-cell--mono";
+        const sizeText = formatRuntimeRegistryContentSize(row.content);
+        sizeCell.textContent = sizeText;
+        if (!String(row.content || "").trim()) {
+          sizeCell.classList.add("is-empty");
+          sizeCell.title = "Файл существует, но пуст — заполните содержимое";
+        }
+        tr.append(titleCell, kindCell, sizeCell);
+      } else if (filterMode === "cron") {
+        const scheduleCell = document.createElement("td");
+        scheduleCell.className = "agent-table-cell agent-table-cell--mono";
+        scheduleCell.textContent = String(row.runtimeCronSchedule || "—").trim() || "—";
+        tr.append(titleCell, kindCell, scheduleCell);
+      } else if (filterMode === "heartbeat") {
+        const heartbeatCell = document.createElement("td");
+        heartbeatCell.className = "agent-table-cell";
+        heartbeatCell.textContent = "периодически";
+        tr.append(titleCell, kindCell, heartbeatCell);
+      } else {
+        const loadCell = document.createElement("td");
+        loadCell.className = "agent-table-cell";
+        const loadBadge = document.createElement("span");
+        loadBadge.className = `agent-runtime-registry-badge is-load${
+          row.runtimeLoadAlways ? " is-session-start" : ""
+        }`;
+        loadBadge.textContent = row.runtimeLoadAlways ? "да" : "—";
+        loadCell.appendChild(loadBadge);
 
-      const heartbeatCell = document.createElement("td");
-      heartbeatCell.className = "agent-table-cell";
-      const heartbeatInfo = formatRuntimeRegistryBoolCell(row.runtimeHeartbeat);
-      const heartbeatBadge = document.createElement("span");
-      heartbeatBadge.className = `agent-runtime-registry-badge is-bool is-${heartbeatInfo.tone}`;
-      heartbeatBadge.textContent = heartbeatInfo.text;
-      heartbeatCell.appendChild(heartbeatBadge);
+        const cronCell = document.createElement("td");
+        cronCell.className = "agent-table-cell agent-table-cell--mono";
+        const cronInfo = formatRuntimeRegistryBoolCell(row.runtimeCron, row.runtimeCronSchedule);
+        const cronBadge = document.createElement("span");
+        cronBadge.className = `agent-runtime-registry-badge is-bool is-${cronInfo.tone}`;
+        if (cronInfo.title) cronBadge.title = cronInfo.title;
+        cronBadge.textContent = cronInfo.text;
+        cronCell.appendChild(cronBadge);
 
-      tr.append(titleCell, loadCell, cronCell, heartbeatCell);
+        const heartbeatCell = document.createElement("td");
+        heartbeatCell.className = "agent-table-cell";
+        const heartbeatInfo = formatRuntimeRegistryBoolCell(row.runtimeHeartbeat);
+        const heartbeatBadge = document.createElement("span");
+        heartbeatBadge.className = `agent-runtime-registry-badge is-bool is-${heartbeatInfo.tone}`;
+        heartbeatBadge.textContent = heartbeatInfo.text;
+        heartbeatCell.appendChild(heartbeatBadge);
+
+        tr.append(titleCell, kindCell, loadCell, cronCell, heartbeatCell);
+      }
+
       tbody.appendChild(tr);
     }
 
@@ -76197,7 +76441,7 @@ async function renderAgentGitView() {
   if (agentGitStatsNode) agentGitStatsNode.replaceChildren();
 
   const loading = document.createElement("p");
-  loading.className = "agent-git-empty";
+  loading.className = "agent-tool-loading agent-git-empty";
   loading.textContent = "Загрузка git status…";
   agentGitContentNode.appendChild(loading);
 
@@ -76214,12 +76458,26 @@ async function renderAgentGitView() {
       }
     }
 
+    if (agentGitMetaNode) {
+      if (!data.isRepo) {
+        agentGitMetaNode.textContent = "Git-репозиторий не найден в корне workspace";
+      } else if (data.clean) {
+        agentGitMetaNode.textContent = `Ветка ${data.branch || "—"} · рабочая копия чистая`;
+      } else {
+        const parts = [`Ветка ${data.branch || "—"}`];
+        if (data.upstream) parts.push(`upstream: ${data.upstream}`);
+        if (data.ahead) parts.push(`↑${data.ahead}`);
+        if (data.behind) parts.push(`↓${data.behind}`);
+        agentGitMetaNode.textContent = parts.join(" · ");
+      }
+    }
+
     if (!data.isRepo) {
       const empty = document.createElement("div");
-      empty.className = "agent-git-empty-state";
+      empty.className = "agent-tool-empty-card agent-git-empty-state";
       empty.innerHTML = `
-        <p class="agent-git-empty-title">Отсутствует репозиторий</p>
-        <p class="agent-git-empty-text">В корне workspace агента нет каталога <code>.git</code>. Git-проверка не выполняется — инициализируйте репозиторий в корне агента.</p>
+        <p class="agent-tool-empty-title agent-git-empty-title">Отсутствует репозиторий</p>
+        <p class="agent-tool-empty-text agent-git-empty-text">В корне workspace агента нет каталога <code>.git</code>. Git-проверка не выполняется — инициализируйте репозиторий в корне агента.</p>
       `;
       agentGitContentNode.appendChild(empty);
       return;
@@ -76234,27 +76492,7 @@ async function renderAgentGitView() {
     }
 
     const shell = document.createElement("div");
-    shell.className = "agent-git-shell";
-
-    const meta = document.createElement("div");
-    meta.className = "agent-git-meta";
-    const branchLine = document.createElement("p");
-    branchLine.className = "agent-git-meta-line";
-    const branchParts = [`Ветка: ${data.branch || "—"}`];
-    if (data.upstream) branchParts.push(`upstream: ${data.upstream}`);
-    if (data.ahead) branchParts.push(`↑${data.ahead}`);
-    if (data.behind) branchParts.push(`↓${data.behind}`);
-    branchLine.textContent = branchParts.join(" · ");
-    meta.appendChild(branchLine);
-
-    if (data.repoRel) {
-      const repoLine = document.createElement("p");
-      repoLine.className = "agent-git-meta-line is-muted";
-      repoLine.textContent = `Корень репозитория: ${data.repoRel}`;
-      meta.appendChild(repoLine);
-    }
-
-    shell.appendChild(meta);
+    shell.className = "agent-tool-shell agent-git-shell";
 
     if (data.clean) {
       const clean = document.createElement("p");
@@ -76331,7 +76569,7 @@ async function renderAgentLargeFilesView() {
   if (agentLargeFilesStatsNode) agentLargeFilesStatsNode.replaceChildren();
 
   const loading = document.createElement("p");
-  loading.className = "agent-large-files-empty";
+  loading.className = "agent-tool-loading agent-large-files-empty";
   loading.textContent = "Сканирование workspace…";
   agentLargeFilesContentNode.appendChild(loading);
 
@@ -76346,26 +76584,25 @@ async function renderAgentLargeFilesView() {
       );
     }
 
-    const shell = document.createElement("div");
-    shell.className = "agent-large-files-shell";
+    if (agentLargeFilesMetaNode) {
+      agentLargeFilesMetaNode.textContent = `Порог: ${data.thresholdMb ?? 45} МБ · сортировка по размеру (убывание)`;
+    }
 
-    const meta = document.createElement("p");
-    meta.className = "agent-large-files-meta-line";
-    meta.textContent = `Порог: ${data.thresholdMb ?? 45} МБ · сортировка по размеру (убывание)`;
-    shell.appendChild(meta);
+    const shell = document.createElement("div");
+    shell.className = "agent-tool-shell agent-large-files-shell";
 
     const files = Array.isArray(data.files) ? data.files : [];
     if (!files.length) {
       const empty = document.createElement("div");
-      empty.className = "agent-large-files-empty-state";
+      empty.className = "agent-tool-empty-card agent-large-files-empty-state";
       empty.innerHTML = `
-        <p class="agent-large-files-empty-title">Крупных файлов не найдено</p>
-        <p class="agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? 45} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
+        <p class="agent-tool-empty-title agent-large-files-empty-title">Крупных файлов не найдено</p>
+        <p class="agent-tool-empty-text agent-large-files-empty-text">В workspace нет файлов больше ${data.thresholdMb ?? 45} МБ (кроме служебных каталогов вроде <code>.git</code> и <code>node_modules</code>).</p>
       `;
       shell.appendChild(empty);
     } else {
       const list = document.createElement("ul");
-      list.className = "agent-large-files-list";
+      list.className = "agent-tool-list agent-large-files-list";
 
       for (const item of files) {
         const row = document.createElement("li");
@@ -76431,7 +76668,7 @@ async function renderAgentBrokenLinksView() {
   if (agentBrokenLinksStatsNode) agentBrokenLinksStatsNode.replaceChildren();
 
   const loading = document.createElement("p");
-  loading.className = "agent-broken-links-empty";
+  loading.className = "agent-tool-loading agent-broken-links-empty";
   loading.textContent = "Проверка ссылок в workspace…";
   agentBrokenLinksContentNode.appendChild(loading);
 
@@ -76447,26 +76684,25 @@ async function renderAgentBrokenLinksView() {
       );
     }
 
-    const shell = document.createElement("div");
-    shell.className = "agent-broken-links-shell";
+    if (agentBrokenLinksMetaNode) {
+      agentBrokenLinksMetaNode.textContent = `Проверены YAML-шапки, тело .md и main.csv · всего файлов: ${data.scanned?.files ?? 0}`;
+    }
 
-    const meta = document.createElement("p");
-    meta.className = "agent-broken-links-meta-line";
-    meta.textContent = `Проверены YAML-шапки, тело .md и main.csv · всего файлов: ${data.scanned?.files ?? 0}`;
-    shell.appendChild(meta);
+    const shell = document.createElement("div");
+    shell.className = "agent-tool-shell agent-broken-links-shell";
 
     const issues = Array.isArray(data.issues) ? data.issues : [];
     if (!issues.length) {
       const empty = document.createElement("div");
-      empty.className = "agent-broken-links-empty-state";
+      empty.className = "agent-tool-empty-card agent-broken-links-empty-state";
       empty.innerHTML = `
-        <p class="agent-broken-links-empty-title">Битых ссылок не найдено</p>
-        <p class="agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>main.csv</code> указывают на существующие файлы и wikilink-цели.</p>
+        <p class="agent-tool-empty-title agent-broken-links-empty-title">Битых ссылок не найдено</p>
+        <p class="agent-tool-empty-text agent-broken-links-empty-text">Ссылки в frontmatter, markdown и <code>main.csv</code> указывают на существующие файлы и wikilink-цели.</p>
       `;
       shell.appendChild(empty);
     } else {
       const list = document.createElement("ul");
-      list.className = "agent-broken-links-list";
+      list.className = "agent-tool-list agent-broken-links-list";
 
       for (const issue of issues) {
         const row = document.createElement("li");

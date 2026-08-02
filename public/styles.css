@@ -26,6 +26,136 @@ body.app-locked {
   overflow: hidden;
 }
 
+.app-connection-lost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10100;
+  padding: 10px 16px;
+  border-bottom: 1px solid #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #fff7ed 100%);
+  color: #7f1d1d;
+  box-shadow: 0 8px 24px rgba(127, 29, 29, 0.12);
+}
+
+.app-connection-lost.hidden {
+  display: none;
+}
+
+.app-connection-lost-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(1200px, 100%);
+  margin: 0 auto;
+}
+
+.app-connection-lost-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+  animation: app-connection-lost-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes app-connection-lost-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+.app-connection-lost-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.app-connection-lost-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.app-connection-lost-detail {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #9a3412;
+}
+
+.app-connection-lost-detail code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #fecaca;
+}
+
+.app-connection-lost-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.app-connection-lost-retry {
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  background: #fff;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.app-connection-lost-retry:hover {
+  background: #fff1f2;
+}
+
+.app-connection-lost-retry:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.app-connection-lost-dismiss {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #9a3412;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-connection-lost-dismiss:hover {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.app-connection-lost[data-state="offline"] {
+  border-bottom-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #fff7ed 100%);
+  color: #92400e;
+}
+
+.app-connection-lost[data-state="offline"] .app-connection-lost-title {
+  color: #92400e;
+}
+
+.app-connection-lost[data-state="offline"] .app-connection-lost-detail {
+  color: #a16207;
+}
+
 .app-lock {
   position: fixed;
   inset: 0;
@@ -6154,6 +6284,7 @@ body.app-locked {
 .agent-large-files-pane,
 .agent-broken-links-pane,
 .agent-runtime-registry-pane,
+.agent-tool-pane,
 .agent-awn-types-pane,
 .agent-timeline-pane {
   align-items: stretch;
@@ -7616,6 +7747,153 @@ body.app-locked {
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
+}
+
+/* ── Unified workspace tool panes (Git, Реестр, Large files, Broken links) ── */
+
+.agent-tool-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  /* scroll stays on .agent-canvas-pane — do not override overflow here */
+}
+
+.agent-tool-head {
+  margin-bottom: 10px;
+}
+
+.agent-tool-toolbar {
+  padding: 0 4px 10px;
+}
+
+.agent-tool-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 4px 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--panel-border, #cbd5e1) 65%, transparent);
+  background: color-mix(in srgb, var(--panel-border, #cbd5e1) 12%, var(--panel-bg, #fff));
+}
+
+.agent-tool-info-copy {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.agent-tool-info-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--text, #0f172a);
+}
+
+.agent-tool-info-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-muted, #64748b);
+}
+
+.agent-tool-info-mcp {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted, #94a3b8);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.agent-tool-body {
+  width: 100%;
+  margin: 0;
+  padding: 0 4px 32px;
+  box-sizing: border-box;
+  overflow: visible;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.agent-tool-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-tool-loading,
+.agent-tool-empty,
+.agent-large-files-empty,
+.agent-broken-links-empty,
+.agent-git-empty,
+.agent-runtime-registry-empty {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted, #64748b);
+}
+
+.agent-tool-empty.is-alert,
+.agent-large-files-empty.is-alert,
+.agent-broken-links-empty.is-alert,
+.agent-git-empty.is-alert,
+.agent-runtime-registry-empty.is-alert {
+  color: #dc2626;
+}
+
+.agent-tool-empty-card,
+.agent-runtime-registry-empty-card,
+.agent-large-files-empty-state,
+.agent-broken-links-empty-state,
+.agent-git-empty-state {
+  margin: 4px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--panel-border, #cbd5e1) 80%, transparent);
+  background: color-mix(in srgb, var(--panel-bg, #fff) 96%, transparent);
+}
+
+.agent-tool-empty-title,
+.agent-runtime-registry-empty-title,
+.agent-large-files-empty-title,
+.agent-broken-links-empty-title,
+.agent-git-empty-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--text, #0f172a);
+}
+
+.agent-tool-empty-text,
+.agent-runtime-registry-empty-text,
+.agent-large-files-empty-text,
+.agent-broken-links-empty-text,
+.agent-git-empty-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+}
+
+.agent-tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .agent-tool-info {
+    flex-direction: column;
+  }
+
+  .agent-workspace-stats {
+    justify-content: flex-start;
+  }
 }
 
 .agent-workspace-stat,
@@ -10457,7 +10735,6 @@ body.app-locked {
 }
 
 .agent-git-pane {
-  overflow: auto;
   box-sizing: border-box;
 }
 
@@ -10465,6 +10742,7 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: visible;
 }
 
 .agent-git-shell {
@@ -14556,10 +14834,10 @@ body.app-locked {
   height: 14px;
 }
 
-.agent-large-files-pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+.agent-large-files-pane,
+.agent-broken-links-pane,
+.agent-runtime-registry-pane {
+  /* layout via .agent-tool-pane + .agent-canvas-pane */
 }
 
 .agent-large-files-head {
@@ -14620,10 +14898,13 @@ body.app-locked {
   background: #f5f3ff;
 }
 
-.agent-large-files-content {
-  flex: 1 1 auto;
+.agent-large-files-content,
+.agent-broken-links-content,
+.agent-runtime-registry-content,
+.agent-git-content {
+  overflow: visible;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
 }
 
 .agent-large-files-shell {
@@ -14762,43 +15043,102 @@ body.app-locked {
   height: 14px;
 }
 
-.agent-runtime-registry-pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .agent-runtime-registry-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 0;
+}
+
+.agent-runtime-registry-toolbar {
+  padding: 0 4px 12px;
 }
 
 .agent-runtime-registry-filter {
-  display: inline-flex;
-  gap: 0.35rem;
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-border) 35%, transparent);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .agent-runtime-registry-filter-btn {
-  border: 0;
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
+  border-radius: 10px;
+  padding: 10px 12px;
   font: inherit;
-  font-size: 0.82rem;
   cursor: pointer;
   color: var(--text-muted);
-  background: transparent;
+  background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.agent-runtime-registry-filter-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.agent-runtime-registry-filter-hint {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted);
 }
 
 .agent-runtime-registry-filter-btn.is-active {
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 55%, var(--panel-border));
+  background: color-mix(in srgb, var(--accent, #2563eb) 8%, var(--panel-bg));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.agent-runtime-registry-filter-btn.is-active .agent-runtime-registry-filter-hint {
+  color: var(--text-muted);
+}
+
+.agent-runtime-registry-mode-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 4px 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 65%, transparent);
+  background: color-mix(in srgb, var(--panel-border) 12%, var(--panel-bg));
+}
+
+.agent-runtime-registry-mode-copy {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.agent-runtime-registry-mode-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 650;
   color: var(--text);
-  background: var(--panel-bg);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.agent-runtime-registry-mode-desc {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.agent-runtime-registry-mode-mcp {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .agent-runtime-registry-head-actions {
@@ -14808,13 +15148,16 @@ body.app-locked {
   flex-wrap: wrap;
 }
 
+.agent-runtime-registry-stats {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
 .agent-runtime-registry-content {
-  width: 100%;
-  margin: 0;
-  flex: 1;
+  overflow: visible;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 0 4px 28px;
+  padding: 0 4px 32px;
   box-sizing: border-box;
 }
 
@@ -14829,6 +15172,65 @@ body.app-locked {
   font-size: 14px;
   line-height: 1.5;
   color: var(--muted);
+}
+
+.agent-runtime-registry-empty-card {
+  margin: 4px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--panel-border) 80%, transparent);
+  background: color-mix(in srgb, var(--panel-bg) 96%, transparent);
+}
+
+.agent-runtime-registry-empty-lead {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.agent-runtime-registry-empty-steps-title {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.agent-runtime-registry-empty-steps {
+  margin: 0 0 14px;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.agent-runtime-registry-empty-steps li + li {
+  margin-top: 6px;
+}
+
+.agent-runtime-registry-empty-example {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel-border) 18%, var(--panel-bg));
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.agent-runtime-registry-empty-mcp {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.agent-runtime-registry-table .agent-table-cell.is-empty {
+  color: #d97706;
 }
 
 .agent-runtime-registry-empty.is-alert {
@@ -14926,12 +15328,14 @@ body.app-locked {
   .agent-runtime-registry-head-actions {
     width: 100%;
   }
-}
 
-.agent-broken-links-pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  .agent-runtime-registry-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .agent-runtime-registry-mode-info {
+    flex-direction: column;
+  }
 }
 
 .agent-broken-links-head {
@@ -14993,9 +15397,9 @@ body.app-locked {
 }
 
 .agent-broken-links-content {
-  flex: 1;
+  overflow: visible;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
 }
 
 .agent-broken-links-shell {
@@ -39925,7 +40329,7 @@ button.node-navigation-memory-title:focus-visible {
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 14px;
-  z-index: 1200;
+  z-index: 10150;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;

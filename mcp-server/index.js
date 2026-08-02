@@ -85,7 +85,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: session bootstrap — manifests, session-start topics, AGENTS.md, API map, path hints.",
+    "START HERE: session bootstrap — topicRegistry (skill-карта), alwaysContext (полные файлы), service manifests, API map.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
@@ -155,14 +155,42 @@ function createServer() {
 
   reg(
     "get_runtime_registry",
-    "Topic runtime registry. Filter: sync, cron, heartbeat, mode.",
+    "Full runtime registry: topics + content records with awn-runtime-* flags. Filter: sync, cron, heartbeat, mode.",
     runtimeFilterSchema,
     (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
   );
 
   reg(
+    "get_topic_registry",
+    "Brief topic catalog (name, path, description) — workspace skill/оглавление.",
+    z.object({}),
+    () => client.get("/api/agent/topic-registry")
+  );
+
+  reg(
+    "get_always_context",
+    "Always-in-context registry: full file content for awn-runtime-load-always topics/records + AGENTS.md/SKILL.md.",
+    z.object({}),
+    () => client.get("/api/agent/always-context")
+  );
+
+  reg(
+    "get_cron_registry",
+    "Cron registry: topics and records with awn-runtime-cron (+ schedule).",
+    z.object({}),
+    () => client.get("/api/agent/cron-registry")
+  );
+
+  reg(
+    "get_heartbeat_registry",
+    "Heartbeat registry: topics and records with awn-runtime-heartbeat.",
+    z.object({}),
+    () => client.get("/api/agent/heartbeat-registry")
+  );
+
+  reg(
     "get_runtime_map",
-    "Runtime sync map — topics with cron and/or heartbeat.",
+    "Runtime sync map — topics/records with cron and/or heartbeat.",
     runtimeFilterSchema,
     (args) => client.get("/api/agent/runtime-map", runtimeFilterQuery(args))
   );

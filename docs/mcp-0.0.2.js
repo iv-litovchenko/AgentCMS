@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "86 tools — полный список ниже.",
+    "90 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -42,9 +42,35 @@ module.exports = {
       tools: [
         {
           name: "get_session_context",
-          description: "Один запрос: agent/user/voice manifests, session-start темы, AGENTS.md, карта API, path hints.",
+          description:
+            "START HERE: topicRegistry (skill-карта: name, path, description) + alwaysContext (полное содержимое файлов awn-runtime-load-always + AGENTS.md/SKILL.md), service manifests, API map.",
           parameters: "—",
           http: "GET /api/agent/session-context"
+        },
+        {
+          name: "get_topic_registry",
+          description: "Краткий реестр всех тем workspace — skill/оглавление (name, path, description). Без тел файлов.",
+          parameters: "—",
+          http: "GET /api/agent/topic-registry"
+        },
+        {
+          name: "get_always_context",
+          description:
+            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md.",
+          parameters: "—",
+          http: "GET /api/agent/always-context"
+        },
+        {
+          name: "get_cron_registry",
+          description: "Реестр cron: темы и записи в слотах с awn-runtime-cron (+ schedule). Команда: «обнови расписание задач».",
+          parameters: "—",
+          http: "GET /api/agent/cron-registry"
+        },
+        {
+          name: "get_heartbeat_registry",
+          description: "Реестр сердцебиения: темы и записи с awn-runtime-heartbeat. Команда: «возьми реестр сердцебиения».",
+          parameters: "—",
+          http: "GET /api/agent/heartbeat-registry"
         },
         {
           name: "get_mcp_docs",
@@ -104,13 +130,14 @@ module.exports = {
         },
         {
           name: "get_runtime_registry",
-          description: "Реестр тем (awn-runtime-load, cron, heartbeat). Фильтр: sync, cron, heartbeat, mode.",
+          description:
+            "Полный runtime-реестр: темы + записи в слотах с awn-runtime-* флагами. Фильтр: sync, cron, heartbeat, mode.",
           parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
           http: "GET /api/agent/runtime-registry"
         },
         {
           name: "get_runtime_map",
-          description: "Карта тем с cron/heartbeat для синхронизации агента (как site map для automation).",
+          description: "Карта sync: темы и записи с cron/heartbeat для синхронизации агента.",
           parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
           http: "GET /api/agent/runtime-map"
         },
