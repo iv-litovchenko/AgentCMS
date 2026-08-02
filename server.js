@@ -19,6 +19,8 @@ const {
   readOrCreateImageThumb,
   wantsThumbVariant
 } = require("./media-thumbs");
+const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-import");
+const { decodeBase64UploadData } = require("./base64-upload");
 const {
   READ_STATE_FILE,
   READ_CONTENT_FILE,
@@ -3707,6 +3709,13 @@ function isPlainTextStorageRecordExtension(extension) {
   return CREATE_RECORD_PLAIN_TEXT_EXTENSIONS.has(ext);
 }
 
+function isStorageRecordBinaryExtension(extension) {
+  const ext = normalizeStorageRecordExtension(extension);
+  if (!ext || ext === ".md") return false;
+  if (isPlainTextStorageRecordExtension(ext)) return false;
+  return true;
+}
+
 function buildPlainTextPlaceholderContent(extension) {
   const ext = normalizeStorageRecordExtension(extension);
   const starters = {
@@ -4758,54 +4767,6 @@ function isBlockedStorageFileExtension(filename) {
   return BLOCKED_STORAGE_FILE_EXTENSIONS.has(ext);
 }
 
-const ALLOWED_SCRIPT_STORAGE_EXTENSIONS = new Set([
-  ".js",
-  ".ts",
-  ".jsx",
-  ".tsx",
-  ".mjs",
-  ".cjs",
-  ".py",
-  ".rb",
-  ".go",
-  ".rs",
-  ".java",
-  ".kt",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".fish",
-  ".ps1",
-  ".bat",
-  ".cmd",
-  ".md",
-  ".txt",
-  ".json",
-  ".yaml",
-  ".yml",
-  ".toml",
-  ".ini",
-  ".cfg",
-  ".conf",
-  ".sql",
-  ".graphql",
-  ".xml",
-  ".html",
-  ".htm",
-  ".css",
-  ".scss",
-  ".less",
-  ".vue",
-  ".svelte",
-  ".php",
-  ".pl",
-  ".r",
-  ".lua",
-  ".swift",
-  ".scala",
-  ".clj"
-]);
-
 function shouldSkipStoragePolicyFileName(fileName, { slotKey } = {}) {
   const name = String(fileName || "");
   if (!name || name === ".DS_Store") return true;
@@ -4819,34 +4780,7 @@ function getStorageFilePolicyViolationReason(fileName, slotKey) {
   if (!slotKey || shouldSkipStoragePolicyFileName(fileName, { slotKey })) return null;
   const baseName = getStorageFileBaseName(fileName);
   if (isBlockedStorageFileExtension(baseName)) return "blocked-executable";
-
-  const lowerName = baseName.toLowerCase();
-  const ext = path.extname(baseName).toLowerCase();
-
-  switch (slotKey) {
-    case "memory":
-    case "inbox":
-    case "quick-notes":
-    case "note":
-    case "references":
-    case "thread":
-      if (!lowerName.endsWith(".md")) return "expected-markdown";
-      return null;
-    case "media":
-      if (!ext) return "unsupported-media-type";
-      if (classifyMediaGroup(ext) === "Other") return "unsupported-media-type";
-      return null;
-    case "scripts":
-      if (!ext) return "expected-script-or-text";
-      if (!ALLOWED_SCRIPT_STORAGE_EXTENSIONS.has(ext)) return "expected-script-or-text";
-      return null;
-    case "artefacts":
-    case "repository":
-    case "temp":
-      return null;
-    default:
-      return null;
-  }
+  return null;
 }
 
 async function scanStorageFolderPolicyViolations(folderAbsolute, slotKey, { maxSamples = 5 } = {}) {
@@ -5650,23 +5584,10 @@ async function createStorageRecordFile({
   let fileTitle = String(title || "").trim() || "Запись";
   let mask = String(fileMask || "").trim();
   const normalizedExtension = normalizeStorageRecordExtension(fileExtension);
-  const useBinaryRecord =
-    !mask && isBinaryStorageRecordExtension(normalizedExtension) && !isMainSlot;
   const usePlainTextRecord =
-    !mask && isPlainTextStorageRecordExtension(normalizedExtension) && !isMainSlot;
-  if (!mask && isMainSlot && normalizedExtension && normalizedExtension !== ".md") {
-    throw new Error("Only markdown records are allowed in this storage slot");
-  }
-  if (
-    !mask &&
-    !isMainSlot &&
-    normalizedExtension &&
-    normalizedExtension !== ".md" &&
-    !useBinaryRecord &&
-    !usePlainTextRecord
-  ) {
-    throw new Error("Unsupported file extension");
-  }
+    !mask && isPlainTextStorageRecordExtension(normalizedExtension);
+  const useBinaryRecord =
+    !mask && isStorageRecordBinaryExtension(normalizedExtension);
   if (!mask && isMainSlot) {
     mask = await resolveExternalFileMaskForManifest(schemaManifestRel);
   }
@@ -6214,6 +6135,24 @@ async function moveStorageFlatFile(manifestRelPath, storageFolder, relFile, opti
   return {
     folder: targetFolderName,
     file: targetResolved.normalizedRelFile.replace(/\\/g, "/")
+  };
+}
+
+async function deleteStorageFlatFile(manifestRelPath, storageFolder, relFile) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const resolved = await resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile);
+  if (resolved.error) {
+    return { error: resolved.error, status: resolved.status || 404 };
+  }
+
+  await fs.rm(resolved.fileAbsolute, { force: false });
+
+  return {
+    deleted: resolved.normalizedRelFile.replace(/\\/g, "/"),
+    folder: resolved.folder,
+    path: manifestRelPath
   };
 }
 
@@ -8925,7 +8864,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
-  contentCreate: "create_content MCP — typed .md; upload_content — файлы в slot media/repository/…",
+  contentCreate: "create_content MCP — typed .md; upload_content — base64; import_content_from_url — скачать по URL в slot media/repository/…",
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
@@ -8944,7 +8883,7 @@ const SESSION_CONTEXT_API_MAP = {
 const SESSION_PATH_HINTS = {
   topicManifest:
     "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
-  externalSlot: "External-слот: list_content + create_content / upload_content { slot: main|inbox|media|… }",
+  externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot: "Internal-слот: read_content_body без ref (main-single, todo-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
@@ -10038,6 +9977,104 @@ async function resolveUniqueMediaFileAbsolute(folderAbsolute, fileName) {
     if (index > 999) return null;
   }
   return path.join(folderAbsolute, candidate);
+}
+
+async function persistMediaUploadBuffer({
+  relPath,
+  storageContext,
+  buffer,
+  fileName,
+  mimeType,
+  libraryFolder,
+  subdir = "",
+  createSubdir = false
+}) {
+  if (!buffer?.length) {
+    throw Object.assign(new Error("Empty file data"), { status: 400 });
+  }
+  if (buffer.length > 10 * 1024 * 1024) {
+    throw Object.assign(new Error("File is too large (max 10 MB)"), { status: 400 });
+  }
+
+  const normalizedSubdir = normalizeRelativeFilePath(String(subdir || "").trim());
+  const createSubdirFlag = Boolean(createSubdir);
+  const isInlineUpload = isInlineAssetsUploadSubdir(normalizedSubdir);
+
+  let targetFolder = null;
+  if (isInlineUpload) {
+    targetFolder = await resolveInlineAssetsFolderAbsolute(storageContext.absolute, normalizedSubdir, {
+      create: createSubdirFlag || true
+    });
+  } else {
+    const libraryFolderRaw = String(libraryFolder || STORAGE_SUBFOLDER_MEDIA).trim();
+    const folderName = isAllowedStorageSubfolderName(libraryFolderRaw)
+      ? libraryFolderRaw
+      : STORAGE_SUBFOLDER_MEDIA;
+    const folderAbsolute = await resolveNodeSubfolderAbsolute(storageContext.absolute, folderName, {
+      create: true
+    });
+    if (!folderAbsolute) {
+      throw Object.assign(new Error("Invalid media folder path"), { status: 400 });
+    }
+    targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, normalizedSubdir, {
+      create: createSubdirFlag
+    });
+  }
+
+  if (!targetFolder) {
+    throw Object.assign(
+      new Error(normalizedSubdir ? "Target section not found" : "Invalid media folder path"),
+      { status: 400 }
+    );
+  }
+
+  const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
+  let storedRelFile = null;
+
+  if (imageExt) {
+    if (!validateMediaImageBufferByExt(buffer, imageExt)) {
+      throw Object.assign(new Error("Invalid image file"), {
+        status: 400,
+        details: "File content does not match format"
+      });
+    }
+    const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "image";
+    const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, `${safeBase}${imageExt}`);
+    if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
+      throw Object.assign(new Error("Invalid media file path"), { status: 400 });
+    }
+    await fs.writeFile(targetAbsolute, buffer);
+    storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
+  } else {
+    const safeName = sanitizeMediaFileName(fileName);
+    if (!safeName) throw Object.assign(new Error("Invalid file name"), { status: 400 });
+    const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, safeName);
+    if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
+      throw Object.assign(new Error("Invalid media file path"), { status: 400 });
+    }
+    await fs.writeFile(targetAbsolute, buffer);
+    storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
+  }
+
+  const assetsRelFile = isInlineUpload
+    ? `${STORAGE_SUBFOLDER_ASSETS}/${normalizedSubdir}/${storedRelFile}`
+    : normalizedSubdir
+      ? `${normalizedSubdir}/${storedRelFile}`
+      : storedRelFile;
+  const workspaceRef = isInlineUpload
+    ? buildAssetsUploadRef(storageContext.rel, normalizedSubdir, storedRelFile)
+    : undefined;
+  const previewUrl = `/api/media/file?path=${encodeURIComponent(relPath)}&contextPath=${encodeURIComponent(storageContext.rel)}&file=${encodeURIComponent(assetsRelFile)}`;
+
+  return {
+    file: storedRelFile,
+    assetsFile: assetsRelFile,
+    workspaceRef,
+    bytes: buffer.length,
+    mimeType: mimeType || null,
+    imageUrl: previewUrl,
+    previewUrl
+  };
 }
 
 const AGENT_SLIDER_ASSETS_SUBDIR = "slider";
@@ -17165,6 +17202,23 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/storage/file") {
+    const relPath = url.searchParams.get("path");
+    const relFile = url.searchParams.get("file");
+    const storageFolder = String(url.searchParams.get("folder") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
+    if (!storageFolder) return sendJson(res, 400, { error: "Missing folder query parameter" });
+
+    try {
+      const result = await deleteStorageFlatFile(relPath, storageFolder, relFile);
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendFileOpError(res, error, "delete storage file");
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/media/markdown") {
     const relPath = url.searchParams.get("path");
     const relFile = url.searchParams.get("file");
@@ -17393,82 +17447,76 @@ async function handleApiForAgent(req, res, url) {
       const storageContext = await resolveApiStorageContext(contextRel);
       if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty file data" });
-      if (buffer.length > 10 * 1024 * 1024) {
-        return sendJson(res, 400, { error: "File is too large (max 10 MB)" });
-      }
-
-      const subdir = normalizeRelativeFilePath(String(payload.subdir || "").trim());
-      const createSubdir = Boolean(payload.createSubdir);
-      const isInlineUpload = isInlineAssetsUploadSubdir(subdir);
-
-      let targetFolder = null;
-      if (isInlineUpload) {
-        targetFolder = await resolveInlineAssetsFolderAbsolute(storageContext.absolute, subdir, {
-          create: createSubdir || true
-        });
-      } else {
-        const libraryFolder = String(payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_MEDIA).trim();
-        const folderName = isAllowedStorageSubfolderName(libraryFolder)
-          ? libraryFolder
-          : STORAGE_SUBFOLDER_MEDIA;
-        const folderAbsolute = await resolveNodeSubfolderAbsolute(storageContext.absolute, folderName, {
-          create: true
-        });
-        if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid media folder path" });
-        targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, {
-          create: createSubdir
+      const buffer = decodeBase64UploadData(data, { label: "file data" });
+      const result = await persistMediaUploadBuffer({
+        relPath,
+        storageContext,
+        buffer,
+        fileName,
+        mimeType,
+        libraryFolder: payload.libraryFolder || payload.folder || STORAGE_SUBFOLDER_MEDIA,
+        subdir: payload.subdir || "",
+        createSubdir: Boolean(payload.createSubdir)
+      });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      if (error?.status) {
+        return sendJson(res, error.status, {
+          error: String(error.message || error),
+          ...(error.details ? { details: error.details } : {})
         });
       }
-      if (!targetFolder) {
-        return sendJson(res, 400, {
-          error: subdir ? "Target section not found" : "Invalid media folder path"
-        });
-      }
+      return sendJson(res, 500, { error: "Failed to upload media file", details: String(error.message || error) });
+    }
+  }
 
-      const imageExt = resolveMediaImageExtension(mimeType, fileName, buffer);
-      let storedRelFile = null;
+  if (req.method === "POST" && url.pathname === "/api/media/file/import") {
+    try {
+      const payload = await readJsonBody(req, 256_000);
+      const relPath = payload.path;
+      const contextRel = payload.contextPath || relPath;
+      const sourceUrl = String(payload.url || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (!sourceUrl) return sendJson(res, 400, { error: "Missing url" });
 
-      if (imageExt) {
-        if (!validateMediaImageBufferByExt(buffer, imageExt)) {
-          return sendJson(res, 400, { error: "Invalid image file", details: "File content does not match format" });
-        }
-        const safeBase = sanitizeMediaFileName(fileName)?.replace(/\.[^.]+$/, "") || "image";
-        const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, `${safeBase}${imageExt}`);
-        if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
-          return sendJson(res, 400, { error: "Invalid media file path" });
-        }
-        await fs.writeFile(targetAbsolute, buffer);
-        storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
-      } else {
-        const safeName = sanitizeMediaFileName(fileName);
-        if (!safeName) return sendJson(res, 400, { error: "Invalid file name" });
-        const targetAbsolute = await resolveUniqueMediaFileAbsolute(targetFolder, safeName);
-        if (!targetAbsolute || !targetAbsolute.startsWith(targetFolder)) {
-          return sendJson(res, 400, { error: "Invalid media file path" });
-        }
-        await fs.writeFile(targetAbsolute, buffer);
-        storedRelFile = path.relative(targetFolder, targetAbsolute).replace(/\\/g, "/");
-      }
+      const storageContext = await resolveApiStorageContext(contextRel);
+      if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
 
-      const assetsRelFile = isInlineUpload
-        ? `${STORAGE_SUBFOLDER_ASSETS}/${subdir}/${storedRelFile}`
-        : subdir
-          ? `${subdir}/${storedRelFile}`
-          : storedRelFile;
-      const workspaceRef = isInlineUpload
-        ? buildAssetsUploadRef(storageContext.rel, subdir, storedRelFile)
-        : undefined;
-
+      const remote = await fetchBufferFromImportUrl(sourceUrl, {
+        maxBytes: 10 * 1024 * 1024
+      });
+      const resolvedFileName = resolveImportFileName({
+        url: remote.sourceUrl,
+        fileName: payload.fileName,
+        contentType: remote.contentType,
+        contentDisposition: remote.contentDisposition
+      });
+      const mimeType = payload.mimeType || remote.contentType || undefined;
+      const result = await persistMediaUploadBuffer({
+        relPath,
+        storageContext,
+        buffer: remote.buffer,
+        fileName: resolvedFileName,
+        mimeType,
+        libraryFolder: payload.libraryFolder || payload.folder || payload.slot || STORAGE_SUBFOLDER_MEDIA,
+        subdir: payload.subdir || payload.parent || "",
+        createSubdir: Boolean(payload.createSubdir)
+      });
       return sendJson(res, 200, {
-        file: storedRelFile,
-        assetsFile: assetsRelFile,
-        workspaceRef,
-        imageUrl: `/api/media/file?path=${encodeURIComponent(relPath)}&contextPath=${encodeURIComponent(storageContext.rel)}&file=${encodeURIComponent(assetsRelFile)}`
+        ...result,
+        sourceUrl: remote.sourceUrl
       });
     } catch (error) {
-      return sendJson(res, 500, { error: "Failed to upload media file", details: String(error.message || error) });
+      if (error?.status) {
+        return sendJson(res, error.status, {
+          error: String(error.message || error),
+          ...(error.details ? { details: error.details } : {})
+        });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to import media file from URL",
+        details: String(error.message || error)
+      });
     }
   }
 
@@ -17877,8 +17925,7 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      const buffer = decodeBase64UploadData(data, { label: "image data" });
       if (buffer.length > 10 * 1024 * 1024) return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
       if (!validatePreviewImageBufferByExt(buffer, previewExt)) {
         return sendJson(res, 400, {
@@ -18212,8 +18259,7 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty file data" });
+      const buffer = decodeBase64UploadData(data, { label: "file data" });
       if (buffer.length > 45 * 1024 * 1024) {
         return sendJson(res, 400, { error: "File is too large (max 45 MB)" });
       }
@@ -19457,8 +19503,7 @@ async function handleApi(req, res, url) {
         });
       }
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      const buffer = decodeBase64UploadData(data, { label: "image data" });
       if (buffer.length > 10 * 1024 * 1024) return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
       if (!validatePreviewImageBufferByExt(buffer, previewExt)) {
         return sendJson(res, 400, {
@@ -19578,8 +19623,7 @@ async function handleApi(req, res, url) {
       const mimeType = payload?.mimeType;
       if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing image data" });
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      const buffer = decodeBase64UploadData(data, { label: "image data" });
       if (buffer.length > 10 * 1024 * 1024) {
         return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
       }
@@ -19760,8 +19804,7 @@ async function handleApi(req, res, url) {
         });
       }
 
-      const buffer = Buffer.from(data, "base64");
-      if (!buffer.length) return sendJson(res, 400, { error: "Empty image data" });
+      const buffer = decodeBase64UploadData(data, { label: "image data" });
       if (buffer.length > 10 * 1024 * 1024) return sendJson(res, 400, { error: "Image is too large (max 10 MB)" });
       if (previewExt !== ".webp" && !validatePreviewImageBufferByExt(buffer, previewExt)) {
         return sendJson(res, 400, {

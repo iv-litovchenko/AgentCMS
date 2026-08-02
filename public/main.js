@@ -417,8 +417,7 @@ const createSectionAfterEditRadio = document.getElementById("create-section-afte
 const createSectionAfterRadios = [createSectionAfterListRadio, createSectionAfterEditRadio].filter(Boolean);
 const CREATE_MEMORY_MAX_COUNT = 5;
 const CREATE_MEMORY_AFTER_KEY = "acms.createMemory.after";
-const CREATE_MEMORY_FORMAT_KEY = "acms.createMemory.format.v3";
-const CREATE_MEMORY_FORMAT_SLOT_MODES = new Set(["media", "assets", "repository", "scripts"]);
+const CREATE_MEMORY_FORMAT_KEY = "acms.createMemory.format.v4";
 const CREATE_MEMORY_FORMAT_OPTIONS = [
   {
     value: ".md",
@@ -667,6 +666,110 @@ const CREATE_MEMORY_FORMAT_OPTIONS = [
     hint: "запросы",
     group: "Скрипты и агенты",
     keywords: "sql database query postgres mysql"
+  },
+  {
+    value: ".png",
+    label: "PNG",
+    ext: ".png",
+    hint: "изображение",
+    group: "Изображения и медиа",
+    keywords: "png image picture photo"
+  },
+  {
+    value: ".jpg",
+    label: "JPEG",
+    ext: ".jpg",
+    hint: "изображение",
+    group: "Изображения и медиа",
+    keywords: "jpg jpeg image picture photo"
+  },
+  {
+    value: ".jpeg",
+    label: "JPEG",
+    ext: ".jpeg",
+    hint: "изображение",
+    group: "Изображения и медиа",
+    keywords: "jpeg jpg image picture photo"
+  },
+  {
+    value: ".gif",
+    label: "GIF",
+    ext: ".gif",
+    hint: "анимация",
+    group: "Изображения и медиа",
+    keywords: "gif animation image"
+  },
+  {
+    value: ".webp",
+    label: "WebP",
+    ext: ".webp",
+    hint: "изображение",
+    group: "Изображения и медиа",
+    keywords: "webp image picture"
+  },
+  {
+    value: ".svg",
+    label: "SVG",
+    ext: ".svg",
+    hint: "вектор",
+    group: "Изображения и медиа",
+    keywords: "svg vector image icon"
+  },
+  {
+    value: ".pdf",
+    label: "PDF",
+    ext: ".pdf",
+    hint: "документ",
+    group: "Изображения и медиа",
+    keywords: "pdf document"
+  },
+  {
+    value: ".docx",
+    label: "Word",
+    ext: ".docx",
+    hint: "office",
+    group: "Документы Office",
+    keywords: "word docx microsoft office document"
+  },
+  {
+    value: ".doc",
+    label: "Word (legacy)",
+    ext: ".doc",
+    hint: "office",
+    group: "Документы Office",
+    keywords: "word doc microsoft office document legacy"
+  },
+  {
+    value: ".xlsx",
+    label: "Excel",
+    ext: ".xlsx",
+    hint: "таблица",
+    group: "Документы Office",
+    keywords: "excel xlsx spreadsheet microsoft office table"
+  },
+  {
+    value: ".xls",
+    label: "Excel (legacy)",
+    ext: ".xls",
+    hint: "таблица",
+    group: "Документы Office",
+    keywords: "excel xls spreadsheet microsoft office table legacy"
+  },
+  {
+    value: ".pptx",
+    label: "PowerPoint",
+    ext: ".pptx",
+    hint: "презентация",
+    group: "Документы Office",
+    keywords: "powerpoint pptx presentation microsoft office slides"
+  },
+  {
+    value: ".ppt",
+    label: "PowerPoint (legacy)",
+    ext: ".ppt",
+    hint: "презентация",
+    group: "Документы Office",
+    keywords: "powerpoint ppt presentation microsoft office slides legacy"
   }
 ];
 const createMemoryModalNode = document.getElementById("create-memory-modal");
@@ -44747,7 +44850,9 @@ function resetCreateMemoryNameInputs() {
 }
 
 function shouldShowCreateMemoryFormatFieldset() {
-  return CREATE_MEMORY_FORMAT_SLOT_MODES.has(getActiveSlotRecordCreateMode());
+  if (!canCreateSlotRecordNow()) return false;
+  if (shouldUseCreateMemoryMaskFlow()) return false;
+  return Boolean(getActiveSlotRecordCreateFolder());
 }
 
 function getCreateMemoryFormatOption(value = getCreateMemoryFormatValue()) {
@@ -44963,7 +45068,7 @@ function syncCreateMemoryModalMaskUi(mask = activeCreateMemoryMask) {
     createMemoryHintNode.textContent = hasMask
       ? "Одна запись по маске. Название необязательно — файл создаётся автоматически."
       : shouldShowCreateMemoryFormatFieldset()
-        ? "До 5 записей за раз. Выберите текстовый формат или Markdown ниже."
+        ? "До 5 записей за раз. Выберите формат файла ниже."
         : "До 5 записей за раз. Пустые строки пропускаются.";
   }
   if (createMemoryNameInputNodes[0]) {
@@ -65479,6 +65584,10 @@ function getMarkdownIt() {
 
   if (typeof window.markdownItGitHubAlerts === "function") {
     markdownItInstance.use(window.markdownItGitHubAlerts, { markers: "*" });
+  }
+
+  if (typeof window.markdownItTaskLists === "function") {
+    markdownItInstance.use(window.markdownItTaskLists);
   }
 
   const defaultLinkOpen =

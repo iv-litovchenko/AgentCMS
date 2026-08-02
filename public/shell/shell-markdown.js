@@ -21,6 +21,10 @@ function getShellMarkdownIt() {
     shellMarkdownIt.use(window.markdownItGitHubAlerts, { markers: "*" });
   }
 
+  if (typeof window.markdownItTaskLists === "function") {
+    shellMarkdownIt.use(window.markdownItTaskLists);
+  }
+
   const defaultLinkOpen =
     shellMarkdownIt.renderer.rules.link_open ||
     function renderLinkOpen(tokens, idx, options, env, self) {

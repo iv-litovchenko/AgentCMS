@@ -5,7 +5,7 @@ bindings:
   main:
     path: main/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   main-single:
     path: main.md
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
@@ -17,19 +17,19 @@ bindings:
   inbox:
     path: inbox/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md", ".txt"]
+    files: ["*"]
   note:
     path: notes/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   references:
     path: references/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   artefacts:
     path: artefacts/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   repository:
     path: repository/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
@@ -37,11 +37,11 @@ bindings:
   media:
     path: media/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".sidecar.md"]
+    files: ["*"]
   scripts:
     path: scripts/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md", ".sh", ".js"]
+    files: ["*"]
   todo-single:
     path: todo.md
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
@@ -53,19 +53,19 @@ bindings:
   quick-notes:
     path: quick-notes/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   assets:
     path: assets/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".png", ".jpg", ".sidecar.md"]
+    files: ["*"]
   thread:
     path: thread/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
   comments:
     path: comments/
     content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: [".md"]
+    files: ["*"]
 
 system-only:
   - history/

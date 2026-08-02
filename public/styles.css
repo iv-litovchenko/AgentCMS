@@ -28541,6 +28541,40 @@ button.node-navigation-memory-title:focus-visible {
   margin-bottom: 0;
 }
 
+.file-content-preview ul.contains-task-list,
+.file-content-preview ol.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.file-content-preview li.task-list-item {
+  position: relative;
+  list-style: none;
+  margin: 0 0 0.35em;
+  padding-left: 1.65em;
+}
+
+.file-content-preview li.task-list-item:last-child {
+  margin-bottom: 0;
+}
+
+.file-content-preview li.task-list-item .task-list-item-checkbox {
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  accent-color: #2563eb;
+  pointer-events: none;
+}
+
+.file-content-preview li.task-list-item.checked {
+  color: #64748b;
+  text-decoration: line-through;
+  text-decoration-color: rgba(100, 116, 139, 0.55);
+}
+
 .node-navigation-memory-body .tabular-table-wrap {
   margin: 0;
 }

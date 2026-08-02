@@ -10,4 +10,4 @@ allowed-content:
   - awn.content.record
   - awn.content.record.category
   - awn.content.sidecar
-accept-files: [".md"]
+accept-files: ["*"]

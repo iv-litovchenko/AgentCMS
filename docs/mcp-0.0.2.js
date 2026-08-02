@@ -321,10 +321,11 @@ module.exports = {
         { name: "write_content_properties", description: "Сохранить frontmatter.", parameters: "path, slot, ref?, content", http: "—" },
         { name: "create_content", description: "Typed record или category.", parameters: "path, slot, awnType?, …", http: "POST /api/storage/file/create" },
         { name: "upload_content", description: "Файл base64 → media/, repository/, …", parameters: "path, slot, fileName, data", http: "POST /api/media/file" },
+        { name: "import_content_from_url", description: "Скачать по http(s) URL → media/, repository/, …", parameters: "path, slot, url, fileName?", http: "POST /api/media/file/import" },
         { name: "read_content_file", description: "Текст или previewUrl media.", parameters: "path, slot, ref", http: "GET /api/storage/file" },
         { name: "rename_content", description: "Переименовать.", parameters: "path, slot, ref, displayName?", http: "—" },
         { name: "move_content", description: "Переместить (main, media).", parameters: "path, slot, ref, …", http: "—" },
-        { name: "delete_content", description: "Удалить (main, media).", parameters: "path, slot, ref", http: "—" }
+        { name: "delete_content", description: "Удалить файл из external-слота.", parameters: "path, slot, ref", http: "DELETE /api/external/file | /api/media/file | /api/storage/file" }
       ]
     },
     {

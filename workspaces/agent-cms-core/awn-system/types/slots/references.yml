@@ -13,4 +13,4 @@ allowed-content:
   - awn.content.record.category
   - awn.content.sidecar
 accept-files:
-  - ".md"
+  - "*"

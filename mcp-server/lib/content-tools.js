@@ -263,7 +263,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "upload_content",
-    "Upload a binary or text file into an external slot (media/, repository/, …). data = base64.",
+    "Upload a binary or text file into an external slot (media/, repository/, …). data must be valid base64 (plain text is rejected).",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -284,6 +284,39 @@ export function registerContentTools({ reg, client, pagePath }) {
         mimeType,
         libraryFolder: slotToFolder(slot),
         folder: slotToFolder(slot),
+        subdir: parent || "",
+        createSubdir: Boolean(createSubdir)
+      });
+    }
+  );
+
+  reg(
+    "import_content_from_url",
+    "Download a file from http(s) URL and store it in an external slot (media/, repository/, …). Prefer this over curl + base64 shell workflows.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      url: z.string().url().describe("Public http(s) URL to download"),
+      fileName: z.string().min(1).optional().describe("Target file name; inferred from URL/headers when omitted"),
+      mimeType: z.string().optional(),
+      parent: z.string().optional().describe("Subfolder inside slot, e.g. section path in media/"),
+      createSubdir: z.boolean().optional()
+    }),
+    async ({ path, slot, url, fileName, mimeType, parent, createSubdir }) => {
+      if (isInternalSlot(slot)) {
+        throw new Error(
+          `Cannot import_content_from_url to internal slot "${slot}". Use write_content_body for text slots.`
+        );
+      }
+      return client.post("/api/media/file/import", {
+        path,
+        url,
+        fileName,
+        mimeType,
+        slot: slotToFolder(slot),
+        libraryFolder: slotToFolder(slot),
+        folder: slotToFolder(slot),
+        parent: parent || "",
         subdir: parent || "",
         createSubdir: Boolean(createSubdir)
       });
@@ -371,13 +404,13 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "delete_content",
-    "Delete content from an external slot.",
+    "Delete content from an external slot (main, inbox, media, repository, scripts, …). Internal single-file slots are not supported.",
     z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
     async ({ path, slot, ref }) => {
       if (isInternalSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
       if (slot === "main") return client.delete("/api/external/file", { path, file: ref });
       if (isMediaSlot(slot)) return client.delete("/api/media/file", { path, file: ref });
-      throw new Error(`delete_content for slot "${slot}" is not supported yet. Supported: main, media, assets.`);
+      return client.delete("/api/storage/file", { path, folder: slotToFolder(slot), file: ref });
     }
   );
 }
