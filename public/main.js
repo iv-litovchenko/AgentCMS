@@ -6221,7 +6221,7 @@ function syncFocusPanelActiveState() {
   }
 
   for (const item of document.querySelectorAll(
-    ".agent-focus-item[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
+    ".agent-focus-item[data-focus-path], .home-focus-graph-node[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
   )) {
     const isActive =
       !activeSystemFile &&
@@ -6236,6 +6236,162 @@ function appendDisabledRegistryAgentDot(parent) {
   statusDot.className = "app-landing-agent-dot is-disabled";
   statusDot.setAttribute("aria-hidden", "true");
   parent.appendChild(statusDot);
+}
+
+function renderHomeFocusGraph(listNode, items) {
+  if (!listNode) return;
+  listNode.replaceChildren();
+  listNode.className = "home-focus-graph";
+
+  const agent = agentsCache.find((entry) => entry.id === activeAgentId);
+  const hubLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Agent";
+
+  const hub = document.createElement("div");
+  hub.className = "home-focus-graph-hub";
+  hub.title = hubLabel;
+  hub.setAttribute("aria-hidden", "true");
+  hub.textContent = "★";
+
+  const rail = document.createElement("div");
+  rail.className = "home-focus-graph-rail";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.className = "home-focus-graph-svg";
+  svg.setAttribute("aria-hidden", "true");
+
+  const nodes = document.createElement("div");
+  nodes.className = "home-focus-graph-nodes";
+  nodes.setAttribute("role", "list");
+
+  for (const focusItem of items) {
+    const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || "Тема";
+    const nodePath = String(focusItem.nodePath || "").trim();
+    const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "home-focus-graph-node";
+    btn.setAttribute("role", "listitem");
+    btn.title = nodePath || label;
+    if (nodePath) btn.dataset.focusPath = nodePath;
+    if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
+    if (previewUrl) {
+      const media = document.createElement("span");
+      media.className = "home-focus-graph-node-media";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      img.src = previewUrl;
+      img.onerror = () => {
+        media.remove();
+        btn.classList.remove("home-focus-graph-node--has-preview");
+      };
+      media.appendChild(img);
+      btn.classList.add("home-focus-graph-node--has-preview");
+      btn.appendChild(media);
+    }
+    const labelNode = document.createElement("span");
+    labelNode.className = "home-focus-graph-node-label";
+    labelNode.textContent = label;
+    btn.appendChild(labelNode);
+    btn.addEventListener("click", () => {
+      void openFocusItem(focusItem);
+    });
+    nodes.appendChild(btn);
+  }
+
+  rail.append(svg, nodes);
+  listNode.append(hub, rail);
+  requestAnimationFrame(() => {
+    drawHomeFocusGraphLinks(listNode, svg, hub, nodes);
+  });
+}
+
+function drawHomeFocusGraphLinks(root, svg, hub, nodesWrap) {
+  if (!root || !svg || !hub || !nodesWrap) return;
+  const rootRect = root.getBoundingClientRect();
+  if (rootRect.width <= 0 || rootRect.height <= 0) return;
+
+  const hubRect = hub.getBoundingClientRect();
+  const hx = hubRect.left + hubRect.width / 2 - rootRect.left;
+  const hy = hubRect.top + hubRect.height / 2 - rootRect.top;
+
+  svg.setAttribute("viewBox", `0 0 ${Math.max(rootRect.width, 1)} ${Math.max(rootRect.height, 1)}`);
+  svg.replaceChildren();
+
+  for (const node of nodesWrap.querySelectorAll(".home-focus-graph-node")) {
+    const rect = node.getBoundingClientRect();
+    const nx = rect.left + rect.width / 2 - rootRect.left;
+    const ny = rect.top + rect.height / 2 - rootRect.top;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(hx));
+    line.setAttribute("y1", String(hy));
+    line.setAttribute("x2", String(nx));
+    line.setAttribute("y2", String(ny));
+    svg.appendChild(line);
+  }
+}
+
+function createHomeFocusSimpleItem(focusItem, context = {}) {
+  const {
+    registryActive = true,
+    label = "",
+    nodePath = "",
+    awnProps = {},
+    agent = {}
+  } = context;
+
+  const item = document.createElement("article");
+  item.className = "agent-focus-item agent-focus-item--home-simple";
+  item.setAttribute("role", "listitem");
+  if (nodePath) item.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) item.classList.add("is-active");
+
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "agent-focus-item-head";
+  if (!registryActive) head.classList.add("is-registry-off");
+  head.title = nodePath || label;
+  head.setAttribute(
+    "aria-label",
+    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
+  );
+
+  const media = document.createElement("span");
+  media.className = "agent-focus-item-media";
+  const nodeEmoji = resolveAwnEmoji(awnProps);
+  const agentEmoji = resolveAwnEmoji(agent.awnProps);
+  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji: nodeEmoji || agentEmoji,
+    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+    emojiClass: "agent-focus-item-emoji",
+    initialsClass: "agent-focus-item-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-focus-media"
+  });
+
+  const titleWrap = document.createElement("span");
+  titleWrap.className = "agent-focus-item-title-wrap";
+
+  const nameRow = document.createElement("span");
+  nameRow.className = "agent-focus-item-name-row";
+
+  const nameNode = document.createElement("span");
+  nameNode.className = "agent-focus-item-name";
+  nameNode.textContent = label;
+
+  if (!registryActive) appendDisabledRegistryAgentDot(nameRow);
+  nameRow.appendChild(nameNode);
+  titleWrap.appendChild(nameRow);
+
+  head.append(media, titleWrap);
+  head.addEventListener("click", () => {
+    void openFocusItem(focusItem);
+  });
+
+  item.appendChild(head);
+  return item;
 }
 
 function createFocusItem(focusItem, variant = "landing") {
@@ -6291,6 +6447,16 @@ function createFocusItem(focusItem, variant = "landing") {
 
     row.append(chip, removeBtn);
     return row;
+  }
+
+  if (variant === "home") {
+    return createHomeFocusSimpleItem(focusItem, {
+      agent,
+      registryActive,
+      label,
+      nodePath,
+      awnProps
+    });
   }
 
   const item = document.createElement("article");
@@ -6693,6 +6859,16 @@ function renderFocusPanel(panelNode, listNode, items, variant) {
   if (!panelNode || !listNode) return;
   if (variant === "sidebar") {
     renderSidebarFocusPanel(panelNode, listNode, items);
+    return;
+  }
+  if (variant === "home") {
+    if (!items.length) {
+      panelNode.classList.add("hidden");
+      listNode.replaceChildren();
+      return;
+    }
+    panelNode.classList.remove("hidden");
+    renderHomeFocusGraph(listNode, items);
     return;
   }
   listNode.replaceChildren();
@@ -12556,6 +12732,21 @@ function createStorageSlotSchemaButton(slotKey) {
     void openTopicSchemaForStorageSlot(slotKey);
   });
   return btn;
+}
+
+function appendEntryOverviewBrowseSchemaButton(parent, targetMode) {
+  if (!parent || !targetMode) return;
+  const slotKey = getDataStorageSlotForMode(targetMode)?.key || targetMode;
+  if (!slotKey || !getTopicSchemaTargetForStorageSlot(slotKey)) return;
+  appendNavigationHubRailBrowseActionButton(parent, {
+    className: "entry-overview-schema-btn storage-slot-schema-btn",
+    label: "Схема",
+    title: "Настроить схему полей",
+    iconMarkup: NAVIGATION_HUB_BROWSE_ACTION_ICON_SCHEMA,
+    onClick: () => {
+      void openTopicSchemaForStorageSlot(slotKey);
+    }
+  });
 }
 
 function findSharedMountForSlotKey(slotKey, scan = activeStorageRootScan) {
@@ -30308,6 +30499,9 @@ const NAVIGATION_HUB_BROWSE_ACTION_ICON_RECORD =
 const NAVIGATION_HUB_BROWSE_ACTION_ICON_SLOT =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></svg>';
 
+const NAVIGATION_HUB_BROWSE_ACTION_ICON_SCHEMA =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
 function createNavigationHubBrowseActionIcon(svgMarkup) {
   const icon = document.createElement("span");
   icon.className = "node-entry-overview-browse-action-btn-icon";
@@ -30408,6 +30602,8 @@ function createNavigationHubRailSlotActions(slot, slotIndex, activeCtx) {
         }
       });
     }
+
+    appendEntryOverviewBrowseSchemaButton(actions, targetMode);
   }
 
   return actions.childElementCount ? actions : null;
@@ -52798,6 +52994,8 @@ function createEntryOverviewBrowseActions(context, { slotFolderMissing = false }
         }
       });
     }
+
+    appendEntryOverviewBrowseSchemaButton(actions, targetMode);
   }
 
   return actions.childElementCount ? actions : null;
@@ -53318,6 +53516,19 @@ function getBundleMemoryCounterMetrics(
   return null;
 }
 
+function resolveWorkspaceCounterSlotIcon(slot) {
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  return spec?.icon || "📁";
+}
+
+function createWorkspaceCounterSlotIcon(slot) {
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-workspace-counter-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = resolveWorkspaceCounterSlotIcon(slot);
+  return icon;
+}
+
 function getWorkspaceCounterButtonStateClasses(slot) {
   const classes = ["node-navigation-workspace-counter"];
   if (isDeprecatedRepositoryCounterSlot(slot)) {
@@ -53789,7 +54000,7 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   label.className = "node-navigation-workspace-counter-label";
   applyWorkspaceCounterLabelForSlot(label, slot);
 
-  btn.append(createWorkspaceCounterIndicator(slot), label);
+  btn.append(createWorkspaceCounterIndicator(slot), createWorkspaceCounterSlotIcon(slot), label);
   if (!isDeprecatedRepositoryCounterSlot(slot)) {
     btn.addEventListener("click", onClick);
   }
@@ -75992,65 +76203,11 @@ function createHomeDashboardRoadmapList() {
   return list;
 }
 
-function renderAgentDashboardIdeaSection(counts) {
+function renderAgentDashboardIdeaSection(_counts) {
   if (!homeDashboardIdeaNode) return;
   homeDashboardIdeaNode.replaceChildren();
-
-  const head = document.createElement("div");
-  head.className = "home-dashboard-idea-head";
-
-  const copy = document.createElement("div");
-  copy.className = "home-dashboard-idea-copy";
-
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "home-dashboard-idea-eyebrow";
-  eyebrow.textContent = "Идея · concept";
-
-  const title = document.createElement("h3");
-  title.className = "home-dashboard-idea-title";
-  title.textContent = "Дашборд workspace";
-
-  const lead = document.createElement("p");
-  lead.className = "home-dashboard-idea-lead";
-  lead.textContent =
-    "Заготовка виджетов — позже соберём из дерева тем, памяти, TODO и активности агента.";
-
-  copy.append(eyebrow, title, lead);
-
-  const badge = document.createElement("span");
-  badge.className = "home-dashboard-idea-badge";
-  badge.textContent = "mock data";
-
-  head.append(copy, badge);
-
-  const stats = document.createElement("div");
-  stats.className = "agent-dashboard-stats home-dashboard-idea-stats";
-  renderAgentDashboardIntroStats(counts, stats);
-
-  const grid = document.createElement("div");
-  grid.className = "home-dashboard-idea-grid";
-
-  const structureWidget = createHomeDashboardWidget("Структура", "из текущего дерева");
-  structureWidget.body.appendChild(createHomeDashboardBarChart(counts));
-  structureWidget.widget.classList.add("home-dashboard-widget--wide");
-
-  const activityWidget = createHomeDashboardWidget("Активность", "заглушка");
-  activityWidget.body.appendChild(createHomeDashboardDonutMock());
-
-  const growthWidget = createHomeDashboardWidget("Рост контекста", "заглушка");
-  growthWidget.body.appendChild(createHomeDashboardSparklineMock());
-
-  const roadmapWidget = createHomeDashboardWidget("В перспективе");
-  roadmapWidget.body.appendChild(createHomeDashboardRoadmapList());
-
-  grid.append(
-    structureWidget.widget,
-    activityWidget.widget,
-    growthWidget.widget,
-    roadmapWidget.widget
-  );
-
-  homeDashboardIdeaNode.append(head, stats, grid);
+  homeDashboardIdeaNode.classList.add("hidden");
+  homeDashboardIdeaNode.hidden = true;
 }
 
 function renderAgentDashboardWorkspaceSection(counts) {

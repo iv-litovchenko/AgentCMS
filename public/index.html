@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.578" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.585" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1229,6 +1229,12 @@
             </p>
             <p class="home-quote">«Файл — это не папка, а намерение.»</p>
           </div>
+          <div class="home-pane-stack">
+          <section
+            id="home-workspace-manifest"
+            class="home-workspace-manifest hidden"
+            aria-label="Корневой manifest workspace"
+          ></section>
           <div class="home-cards">
             <article class="home-card">
               <span class="home-card-icon">⚙️</span>
@@ -1246,19 +1252,11 @@
               <p class="home-card-text">Медиа, документы и превью.</p>
             </article>
           </div>
-          <section
-            id="home-workspace-manifest"
-            class="home-workspace-manifest hidden"
-            aria-label="Корневой manifest workspace"
-          ></section>
-          <section id="home-dashboard-idea" class="home-dashboard-idea" aria-label="Дашборд — заготовка"></section>
-          <section id="home-focus" class="agent-focus-panel agent-focus-panel--home hidden" aria-labelledby="home-focus-title">
-            <div class="agent-focus-head">
-              <h3 id="home-focus-title" class="agent-focus-title">Фокус</h3>
-              <p class="agent-focus-sub">Быстрый навигатор по темам с <code>awn-main: true</code> в этом workspace</p>
-            </div>
-            <div id="home-focus-list" class="agent-focus-list" role="list"></div>
+          <section id="home-focus" class="home-focus-section hidden" aria-label="Фокус">
+            <div id="home-focus-list" class="home-focus-graph"></div>
           </section>
+          </div>
+          <section id="home-dashboard-idea" class="home-dashboard-idea hidden" aria-label="Дашборд — заготовка" hidden></section>
           <p id="home-hint" class="home-hint">Выберите тему в дереве или откройте схему</p>
         </div>
       </main>
@@ -3534,7 +3532,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.578"></script>
+    <script src="/main.js?v=0.5.585"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

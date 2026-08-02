@@ -1,5 +1,6 @@
 {
   "paths": [
+    "main/00.md",
     "media/312321",
     "media/312321.md",
     "media/ВОРД-ТЕСТ.docx",
@@ -9,5 +10,5 @@
     "media/ЭКСЕЛЬ-ТЕСТ.xlsx",
     "media/razdel-1/manifest.md"
   ],
-  "updatedAt": "2026-08-02T01:18:42.221Z"
+  "updatedAt": "2026-08-02T01:20:42.205Z"
 }
