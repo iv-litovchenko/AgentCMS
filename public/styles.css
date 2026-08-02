@@ -45531,10 +45531,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .menu-static-footer {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  flex-shrink: 0;
   padding: 0;
   margin: 0;
   box-sizing: border-box;
@@ -45557,18 +45554,12 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .menu-static-footer-body {
-  flex: 1 1 auto;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 0 10px 8px 12px;
   box-sizing: border-box;
   background: rgba(248, 250, 252, 0.92);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .menu-static-footer-body[hidden],
@@ -45578,15 +45569,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .menu-static-footer-accordion.is-collapsed {
   padding-bottom: 0;
-  flex: 0 0 auto;
-  min-height: auto;
-  max-height: none;
-}
-
-.menu-sidebar-bottom:has(.menu-static-footer-accordion.is-collapsed) {
-  flex: 0 0 auto;
-  max-height: none;
-  border-top: 0;
 }
 
 .menu-sidebar-bottom .menu-agent-stats:not(.hidden) {
@@ -46504,14 +46486,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .menu-static-body {
   padding: 6px 8px 8px;
-}
-
-.menu-static-section[open] > .menu-static-body {
-  max-height: min(28vh, 240px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .menu-static-path {
