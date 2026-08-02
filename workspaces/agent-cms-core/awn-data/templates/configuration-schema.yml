@@ -7,7 +7,7 @@ description: Заготовки шаблонов
 
 record:
   storage: md
-  id-mode: numeric
+  id-mode: slug
   file: "{id}.md"
   hierarchy: true
 
