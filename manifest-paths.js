@@ -874,7 +874,11 @@ function resolveOwningManifestRelFromNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
   const base = path.posix.basename(normalized);
-  if (isManifestFileName(base)) return normalized;
+  // Section/category readmes live at …/awn-storage/main/…/manifest.md but share the
+  // parent page storage slot (same as regular content records).
+  const isNestedSectionReadme =
+    isExternalSectionReadmeRelPath(normalized) || isMediaSectionReadmeRelPath(normalized);
+  if (isManifestFileName(base) && !isNestedSectionReadme) return normalized;
   const normalizedLower = normalized.toLowerCase();
   const storageMarkerIdx = Math.max(
     normalizedLower.indexOf(`/${STORAGE_ROOT_FOLDER}/`),

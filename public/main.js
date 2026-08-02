@@ -23252,7 +23252,12 @@ function resolveOwningManifestRelFromNodePath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
   const base = normalized.split("/").filter(Boolean).pop() || "";
-  if (isAreaManifestFileName(base)) return normalized;
+  // Section/category readmes under awn-storage/(main|media)/…/manifest.md share the
+  // parent page assets slot — same as regular content records.
+  const isNestedSectionReadme =
+    isAreaManifestFileName(base) &&
+    /\/(?:awn-storage|storage)\/(?:main|memory|content|media)\//i.test(normalized);
+  if (isAreaManifestFileName(base) && !isNestedSectionReadme) return normalized;
   const storageMarkerIdx = findStorageRootMarkerIndex(normalized);
   if (storageMarkerIdx >= 0) {
     const prefix = normalized.slice(0, storageMarkerIdx).replace(/\/$/, "");
@@ -23283,7 +23288,7 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
   if (isStorageRootRelativePath(normalized)) {
     const containerDir = getManifestContainerDirRel(context);
     if (containerDir) add(`${containerDir}/${normalized}`, { first: true });
-    if (/(?:\/awn-storage\/|\/storage\/)(?:memory|content)\//i.test(rawContext)) {
+    if (/(?:\/awn-storage\/|\/storage\/)(?:main|memory|content)\//i.test(rawContext)) {
       const legacyNested = `${containerDir}/awn-storage/main/awn-storage/${stripStorageRootPrefix(normalized)}`;
       add(legacyNested, { first: false });
       const legacyNestedContent = `${containerDir}/awn-storage/content/awn-storage/${stripStorageRootPrefix(normalized)}`;
