@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: agent-registry.groups
 awn-name: Группы агентов
-awn-extends: ../../cms-base/record-base/manifest.md
+awn-extends: cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"

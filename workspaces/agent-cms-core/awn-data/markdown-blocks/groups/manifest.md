@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: markdown-blocks.groups
 awn-name: Группы блоков
-awn-extends: ../../cms-base/record-base/manifest.md
+awn-extends: cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"

@@ -191,15 +191,65 @@ function isStoreManifestFrontmatter(raw) {
   );
 }
 
+function findAwnDataRootFromStoreAbs(storeAbs) {
+  let dir = path.resolve(String(storeAbs || ""));
+  while (dir) {
+    if (path.basename(dir) === AWN_DATA_DIR) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return "";
+}
+
 function normalizeExtendsRef(ref) {
-  return String(ref || "")
+  let normalized = String(ref || "")
     .trim()
     .replace(/\\/g, "/")
+    .replace(/^awn-data\//i, "")
     .replace(/\/store\.yml$/i, "/manifest.md")
     .replace(/(^|\/)_store\.yml$/i, "$1manifest.md")
     .replace(/(^|\/)_store\.md$/i, "$1manifest.md")
     .replace(/manifest\.store\.md$/i, "manifest.md")
     .replace(/(^|\/)_store$/i, "$1/manifest.md");
+
+  if (/^\.\.(\/|$)/.test(normalized)) {
+    const parts = normalized.split("/").filter(Boolean);
+    while (parts[0] === "..") parts.shift();
+    normalized = parts.join("/");
+  }
+
+  return normalized.replace(/^\/+/, "");
+}
+
+function resolveExtendsSchemaAbs(storeAbs, extendsRef, dataRoot = "") {
+  const ref = normalizeExtendsRef(extendsRef);
+  if (!ref) return "";
+  const root = dataRoot || findAwnDataRootFromStoreAbs(storeAbs);
+  const candidates = [];
+
+  if (!ref.startsWith(".") && !path.isAbsolute(ref) && root) {
+    if (ref.endsWith(".md") || ref.endsWith(".yml")) {
+      candidates.push(path.join(root, ref));
+    } else {
+      candidates.push(path.join(root, `${ref}.md`), path.join(root, `${ref}.yml`));
+    }
+  }
+
+  if (ref.endsWith(".md") || ref.endsWith(".yml")) {
+    candidates.push(path.resolve(storeAbs, ref));
+  } else {
+    candidates.push(path.resolve(storeAbs, `${ref}.md`), path.resolve(storeAbs, `${ref}.yml`));
+  }
+  candidates.push(
+    path.resolve(storeAbs, ref.replace(/\.md$/i, ".yml")),
+    path.resolve(storeAbs, ref.replace(/\.yml$/i, ".md"))
+  );
+
+  for (const candidate of candidates) {
+    if (candidate && fs.existsSync(candidate)) return candidate;
+  }
+  return "";
 }
 
 function readPlainManifestBody(storeAbs) {
@@ -276,25 +326,6 @@ function normalizeRawStoreSchema(raw, body = "") {
     fields: normalizeAwnFieldsMap(rawFields),
     storeBody: body
   };
-}
-
-function resolveExtendsSchemaAbs(storeAbs, extendsRef) {
-  const ref = normalizeExtendsRef(extendsRef);
-  if (!ref) return "";
-  const candidates = [];
-  if (ref.endsWith(".md") || ref.endsWith(".yml")) {
-    candidates.push(path.resolve(storeAbs, ref));
-  } else {
-    candidates.push(path.resolve(storeAbs, `${ref}.md`), path.resolve(storeAbs, `${ref}.yml`));
-  }
-  candidates.push(
-    path.resolve(storeAbs, ref.replace(/\.md$/i, ".yml")),
-    path.resolve(storeAbs, ref.replace(/\.yml$/i, ".md"))
-  );
-  for (const candidate of candidates) {
-    if (candidate && fs.existsSync(candidate)) return candidate;
-  }
-  return "";
 }
 
 function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
@@ -394,17 +425,18 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
   return null;
 }
 
-function loadMergedStoreSchema(storeAbs) {
+function loadMergedStoreSchema(storeAbs, dataRoot = "") {
   const leaf = readRawStoreSchemaAt(storeAbs);
   if (!leaf) return null;
 
+  const root = dataRoot || findAwnDataRootFromStoreAbs(storeAbs);
   const chain = [leaf];
   let dir = storeAbs;
   let extendsRef = leaf.schema.extends;
   const visited = new Set([leaf.schemaPath]);
 
   while (extendsRef) {
-    const parentPath = resolveExtendsSchemaAbs(dir, extendsRef);
+    const parentPath = resolveExtendsSchemaAbs(dir, extendsRef, root);
     if (!parentPath || visited.has(parentPath)) break;
     visited.add(parentPath);
     const parent = readRawStoreSchemaAt(path.dirname(parentPath), parentPath);
@@ -586,7 +618,7 @@ function discoverStoreDirs(dataRoot, acc = [], rel = "") {
 function loadStore(dataRoot, storeEntry) {
   const storeAbs = storeEntry.absPath;
   const storeRel = storeEntry.relPath;
-  const schema = loadMergedStoreSchema(storeAbs);
+  const schema = loadMergedStoreSchema(storeAbs, dataRoot);
   if (!schema) return null;
 
   const kind = String(schema.kind || "collection").trim();
@@ -1003,9 +1035,8 @@ function buildCollectionManifestBody({ name, description }) {
   return `# ${title}\n\n${desc}`;
 }
 
-function recordBaseExtendsPath(slug) {
-  const depth = Math.max(1, slug.split("/").length);
-  return `${ "../".repeat(depth) }${RECORD_BASE_REL}/manifest.md`;
+function recordBaseExtendsPath() {
+  return `${RECORD_BASE_REL}/manifest.md`;
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
@@ -1161,7 +1192,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
     if (isTaxonomy) {
-      const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs));
+      const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
       const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись" });
@@ -1213,7 +1244,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
     throw new Error("Store not found");
   }
 
-  const schema = loadMergedStoreSchema(storeAbs);
+  const schema = loadMergedStoreSchema(storeAbs, dataRoot);
   const kind = String(schema?.kind || "collection").trim();
   if (kind === "singleton") throw new Error("Cannot add records to singleton (edit main.md)");
 

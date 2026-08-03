@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: settings
 awn-name: Настройки
-awn-extends: ../cms-base/record-base/manifest.md
+awn-extends: cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
@@ -41,7 +41,7 @@ awn-fields:
       - "deprecated"
       - "inactive"
     default: active
-  awn-extends:
+awn-extends: cms-base/record-base/manifest.md
     type: awn.string
     title: Extends
 ---
